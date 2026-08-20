@@ -8263,7 +8263,9 @@
       "readOnly": "只读",
       "writable": "读写",
       "revoke": "撤销访问",
-      "revokeFailed": "无法撤销文件夹访问，请重试"
+      "revokeFailed": "无法撤销文件夹访问，请重试",
+      "copyPath": "复制路径",
+      "copied": "已复制路径"
     },
     "planConfirmation": {
       "title": "研究计划",

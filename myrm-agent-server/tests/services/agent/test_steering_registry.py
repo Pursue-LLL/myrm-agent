@@ -13,6 +13,7 @@ def _clean_registry() -> None:
     """Ensure a clean registry for each test."""
     with SteeringRegistry._lock:
         SteeringRegistry._tokens.clear()
+        SteeringRegistry._pending_buffers.clear()
 
 
 class TestSteeringRegistry:
@@ -123,3 +124,41 @@ class TestSteeringRegistry:
         assert len(msgs) == 100
         assert msgs[0] == "burst-0"
         assert msgs[99] == "burst-99"
+
+    def test_steer_buffered_when_inactive_and_reconciles_on_register(self) -> None:
+        """Steering with buffer_if_missing buffers the message and auto-injects on register."""
+        # Chat is inactive
+        assert not SteeringRegistry.has_active("chat-buf")
+        assert SteeringRegistry.steer("chat-buf", "hint-1", buffer_if_missing=True)
+        assert SteeringRegistry.steer("chat-buf", "hint-2", buffer_if_missing=True)
+        assert SteeringRegistry.has_pending_buffer("chat-buf")
+
+        # Now new turn registers token
+        token = SteeringToken()
+        SteeringRegistry.register("chat-buf", token)
+
+        assert not SteeringRegistry.has_pending_buffer("chat-buf")
+        assert token.has_pending
+        msgs = token.activate()
+        assert msgs == ["hint-1", "hint-2"]
+
+    def test_redirect_buffered_when_inactive(self) -> None:
+        """Redirect with buffer_if_missing buffers message when inactive."""
+        assert SteeringRegistry.redirect("chat-redir-buf", "urgent hint", buffer_if_missing=True)
+        token = SteeringToken()
+        SteeringRegistry.register("chat-redir-buf", token)
+        msgs = token.activate()
+        assert msgs == ["urgent hint"]
+
+    def test_steer_buffered_expired_ttl_is_dropped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Buffered messages older than TTL are dropped on register."""
+        SteeringRegistry.steer("chat-exp", "old hint", buffer_if_missing=True)
+
+        # Fast-forward time by 15 seconds (TTL is 10s)
+        import time
+        orig_time = time.time
+        monkeypatch.setattr(time, "time", lambda: orig_time() + 15.0)
+
+        token = SteeringToken()
+        SteeringRegistry.register("chat-exp", token)
+        assert not token.has_pending

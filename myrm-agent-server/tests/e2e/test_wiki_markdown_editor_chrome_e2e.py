@@ -11,6 +11,7 @@ Key paths are real browser interactions (CDP keyboard), no unit mocks.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import urllib.parse
@@ -189,30 +190,22 @@ def _monaco_ready_js() -> str:
 def _monaco_type_js(text: str) -> str:
     # Monaco listens on its hidden textarea for InputEvent(inputType:'insertText');
     # dispatch per-char so the editor inserts sequentially (mirrors real typing).
-    return """(() => {
+    chars = json.dumps(list(text))
+    return f"""(() => {{
       const ta = document.querySelector('.monaco-editor textarea');
-      if (!ta) return { ok: false, reason: 'no-textarea' };
+      if (!ta) return {{ ok: false, reason: 'no-textarea' }};
       ta.focus();
-      ta.dispatchEvent(new Event('focus', { bubbles: false }));
-      for (const ch of __TEXT__) {
-        ta.dispatchEvent(new InputEvent('beforeinput', {
+      ta.dispatchEvent(new Event('focus', {{ bubbles: false }}));
+      for (const ch of {chars}) {{
+        ta.dispatchEvent(new InputEvent('beforeinput', {{
           bubbles: true, cancelable: true, inputType: 'insertText', data: ch,
-        }));
-        ta.dispatchEvent(new InputEvent('input', {
+        }}));
+        ta.dispatchEvent(new InputEvent('input', {{
           bubbles: true, cancelable: false, inputType: 'insertText', data: ch,
-        }));
-      }
-      return { ok: true };
-    })()""".replace("__TEXT__", text)
-
-
-def _monaco_value_js() -> str:
-    return """(() => {
-      const editor = document.querySelector('.monaco-editor');
-      const value = editor?.getAttribute('data-editor-value') ?? null;
-      const text = editor ? (editor.textContent || '') : '';
-      return { ready: !!editor, text: text.slice(0, 200) };
-    })()"""
+        }}));
+      }}
+      return {{ ok: true }};
+    }})()"""
 
 
 def _preview_contains_js(text: str) -> str:
@@ -256,14 +249,20 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         # the full pointer sequence under real-browser hydration).
         wait_for_state(client, page, _concepts_tab_present_js(), timeout_sec=60.0)
         clicked_tab = client.evaluate(page, _click_concepts_tab_js(), timeout_sec=15.0)
-        assert isinstance(clicked_tab, dict) and clicked_tab.get("ok") is True, clicked_tab
+        assert (
+            isinstance(clicked_tab, dict) and clicked_tab.get("ok") is True
+        ), clicked_tab
 
         # Concepts tab active + concept tree mounted.
-        concepts = wait_for_state(client, page, _concepts_active_state(), timeout_sec=60.0)
+        concepts = wait_for_state(
+            client, page, _concepts_active_state(), timeout_sec=60.0
+        )
         assert isinstance(concepts, dict) and concepts.get("ready") is True, concepts
 
         # Detail panel edit button ready (deep-link selects the concept).
-        edit_ready = wait_for_state(client, page, _detail_edit_ready_js(), timeout_sec=60.0)
+        edit_ready = wait_for_state(
+            client, page, _detail_edit_ready_js(), timeout_sec=60.0
+        )
         assert edit_ready.get("ready") is True, edit_ready
 
         clicked = client.evaluate(page, _click_edit_js(), timeout_sec=15.0)
@@ -273,7 +272,9 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         monaco = wait_for_state(client, page, _monaco_ready_js(), timeout_sec=60.0)
         assert isinstance(monaco, dict) and monaco.get("ready") is True, monaco
 
-        focused = client.evaluate(page, _monaco_type_js("LIVE PREVIEW CHECK"), timeout_sec=15.0)
+        focused = client.evaluate(
+            page, _monaco_type_js("LIVE PREVIEW CHECK"), timeout_sec=15.0
+        )
         assert isinstance(focused, dict) and focused.get("ok") is True, focused
 
         # Preview (MarkdownContent `.prose`) reflects the typed text after

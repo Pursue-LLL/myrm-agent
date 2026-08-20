@@ -15,7 +15,7 @@
 
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FolderOpen, X } from 'lucide-react';
+import { Copy, FolderOpen, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { revokeSessionAccessRoot } from '@/services/chat';
@@ -35,6 +35,18 @@ export default function SessionAccessRootsBar() {
   const roots = useChatStore((state) => state.sessionAccessRoots);
   const setSessionAccessRoots = useChatStore((state) => state.setSessionAccessRoots);
   const [revokingPath, setRevokingPath] = useState<string | null>(null);
+
+  const handleCopyPath = useCallback(
+    async (path: string) => {
+      try {
+        await navigator.clipboard.writeText(path);
+        toast.success(t('copied'));
+      } catch (err) {
+        console.error('Failed to copy directory path:', err);
+      }
+    },
+    [t],
+  );
 
   const handleRevoke = useCallback(
     async (root: SessionAccessRoot) => {
@@ -70,12 +82,18 @@ export default function SessionAccessRootsBar() {
         return (
           <span
             key={root.path}
-            className="inline-flex max-w-full items-center gap-1 rounded-lg border border-border/50 bg-background/80 py-0.5 pl-1.5 pr-0.5 text-xs"
+            className="inline-flex max-w-full items-center gap-1 rounded-lg border border-border/50 bg-background/80 py-0.5 pl-1.5 pr-0.5 text-xs transition-colors hover:border-primary/40"
           >
             <FolderOpen className="h-3 w-3 shrink-0 text-primary/70" />
-            <span className="truncate" title={root.path}>
-              {shortenHomePath(root.path)}
-            </span>
+            <button
+              type="button"
+              onClick={() => void handleCopyPath(root.path)}
+              className="inline-flex items-center gap-0.5 truncate text-left hover:text-primary"
+              title={`${root.path} (${t('copyPath')})`}
+            >
+              <span className="truncate">{shortenHomePath(root.path)}</span>
+              <Copy className="h-2.5 w-2.5 shrink-0 opacity-40 hover:opacity-100" />
+            </button>
             <span
               className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-medium ${accessBadgeClass(root.writable)}`}
             >

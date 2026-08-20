@@ -507,3 +507,55 @@ async def test_app_skill_store_get_installed() -> None:
 
     assert installed is not None
     assert installed.name == "MySkill"
+
+
+@pytest.mark.asyncio
+async def test_market_service_agent_plugin_search_and_install() -> None:
+    """SkillMarketService correctly handles Agent Plugin search and install flows."""
+    from myrm_agent_harness.agent.skills.market.service import EnrichedSearchResult
+    from myrm_agent_harness.backends.skills.market_protocols import (
+        SkillInstallResult,
+        SkillSearchResult,
+    )
+
+    service = SkillMarketService()
+
+    plugin_res = EnrichedSearchResult(
+        result=SkillSearchResult(
+            id="plugin::doc-tools",
+            name="doc-tools",
+            description="Doc tooling agent plugin",
+            source="github",
+            author="myrm",
+            install_url="https://github.com/myrm/doc-tools.git",
+            install_method="git",
+            version="1.0.0",
+            package_type="agent_plugin",
+            keywords=["doc", "markdown"],
+        )
+    )
+
+    with (
+        patch.object(service._base, "search", new_callable=AsyncMock) as mock_search,
+        patch.object(service._base, "install", new_callable=AsyncMock) as mock_install,
+    ):
+        mock_search.return_value = [plugin_res]
+        mock_install.return_value = SkillInstallResult(
+            success=True,
+            skill_name="doc-tools",
+            skill_id="local::doc-tools",
+            installed_path="/tmp/skills/doc-tools",
+            installed_skills=["doc-gen", "doc-lint"],
+        )
+
+        # 1. Search
+        search_results = await service.search("doc")
+        assert len(search_results) == 1
+        assert search_results[0].result.package_type == "agent_plugin"
+        assert search_results[0].result.keywords == ["doc", "markdown"]
+
+        # 2. Install
+        install_res = await service.install("plugin::doc-tools", "github")
+        assert install_res.success is True
+        assert install_res.installed_skills == ["doc-gen", "doc-lint"]
+

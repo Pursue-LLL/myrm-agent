@@ -33,6 +33,9 @@ class SkillSearchResultResponse(BaseModel):
     installed_version: str = ""
     upgrade_available: bool = False
     installed_skill_id: str = ""
+    package_type: str = "skill"
+    keywords: list[str] = []
+    declared_mcp_servers: list[str] = []
 
 
 class SkillSearchResponse(BaseModel):
@@ -62,6 +65,8 @@ class SkillInstallResponse(BaseModel):
     mount_error: str = ""
     allowlist_appended: bool = False
     allowlist_append_error: str = ""
+    installed_skills: list[str] = []
+    declared_mcp_servers: list[str] = []
 
 
 class SkillUpdateInfoResponse(BaseModel):
@@ -109,6 +114,9 @@ class SkillPreviewResponse(BaseModel):
     files: list[str]
     scan_findings: list[ScanFindingResponse] = []
     is_clean: bool = True
+    package_type: str = "skill"
+    installed_skills: list[str] = []
+    declared_mcp_servers: list[str] = []
 
 
 class SkillInstallFromUrlRequest(BaseModel):

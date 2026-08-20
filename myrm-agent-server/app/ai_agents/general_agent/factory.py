@@ -566,6 +566,24 @@ async def build_general_agent(
 
         system_prompt += CHANNEL_NOTIFY_SYSTEM_APPENDIX
 
+    session_roots_raw = getattr(agent_wrapper, "session_access_roots", None)
+    if session_roots_raw and isinstance(session_roots_raw, (list, tuple)):
+        roots_lines = [
+            f"- {str(r.get('path'))} ({'read-write' if r.get('writable', True) else 'read-only'})"
+            for r in sorted(
+                session_roots_raw,
+                key=lambda x: str(x.get("path", "")) if isinstance(x, dict) else "",
+            )
+            if isinstance(r, dict) and r.get("path")
+        ]
+        if roots_lines:
+            system_prompt += (
+                "\n\n[Mounted Workspace Directories]\n"
+                "The following local directories are granted for this session:\n"
+                + "\n".join(roots_lines)
+                + "\nYou can read, search, and operate on files within these directories directly using tools."
+            )
+
     # 9. Call framework API
     from app.core.skills.creation.service import skill_creation_service
     from app.core.skills.marketplace.market_service import market_service

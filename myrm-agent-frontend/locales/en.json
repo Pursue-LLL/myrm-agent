@@ -8264,7 +8264,9 @@
       "readOnly": "Read",
       "writable": "Write",
       "revoke": "Revoke access",
-      "revokeFailed": "Could not revoke folder access. Please try again."
+      "revokeFailed": "Could not revoke folder access. Please try again.",
+      "copyPath": "Copy path",
+      "copied": "Path copied"
     },
     "planConfirmation": {
       "title": "Research Plan",

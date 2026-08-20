@@ -103,6 +103,8 @@ def _install_response(
         mount_error=mount_error,
         allowlist_appended=allowlist_appended,
         allowlist_append_error=allowlist_append_error,
+        installed_skills=list(result.installed_skills),
+        declared_mcp_servers=list(result.declared_mcp_servers),
     )
 
 
@@ -168,6 +170,9 @@ async def search_skills(
         description="Search keywords (empty returns no results; user must enter a query)",
     ),
     limit: int = Query(30, ge=1, le=50, description="Max results"),
+    package_type: str = Query(
+        "all", description="Filter by package type: all | skill | agent_plugin"
+    ),
 ) -> SkillSearchResponse:
     """Search skills from external sources.
 
@@ -176,6 +181,10 @@ async def search_skills(
     """
     await market_service.ensure_clawhub_registry()
     enriched = await market_service.search(q, limit)
+    if package_type and package_type != "all":
+        enriched = [
+            e for e in enriched if getattr(e.result, "package_type", "skill") == package_type
+        ]
     installed_ids = await market_service.get_installed_local_ids_by_name()
     return SkillSearchResponse(
         results=[
@@ -196,6 +205,9 @@ async def search_skills(
                 installed_version=e.installed_version,
                 upgrade_available=e.upgrade_available,
                 installed_skill_id=installed_ids.get(e.result.name.lower(), ""),
+                package_type=e.result.package_type,
+                keywords=list(e.result.keywords),
+                declared_mcp_servers=list(getattr(e.result, "declared_mcp_servers", [])),
             )
             for e in enriched
         ],
@@ -235,6 +247,9 @@ async def preview_skill(
             for f in preview.scan_findings
         ],
         is_clean=preview.is_clean,
+        package_type=getattr(preview, "package_type", "skill"),
+        installed_skills=list(getattr(preview, "installed_skills", [])),
+        declared_mcp_servers=list(getattr(preview, "declared_mcp_servers", [])),
     )
 
 
@@ -284,6 +299,9 @@ async def get_skill_detail(
         tags=list(result.tags),
         readme_url=result.readme_url,
         subdirectory=result.subdirectory,
+        package_type=result.package_type,
+        keywords=list(result.keywords),
+        declared_mcp_servers=list(getattr(result, "declared_mcp_servers", [])),
     )
 
 

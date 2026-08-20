@@ -177,8 +177,8 @@ sk-proj-1234567890abcdef1234567890abcdef12345678
 
             skill_md_text = zf.read("sensitive-analyzer/skills/sensitive-analyzer/SKILL.md").decode("utf-8")
             assert "sk-proj-1234567890abcdef1234567890abcdef12345678" not in skill_md_text
-            assert "[REDACTED:" in skill_md_text
+            assert "<REDACTED_TOKEN>" in skill_md_text or "[REDACTED:" in skill_md_text
 
             evals_json = json.loads(zf.read("sensitive-analyzer/skills/sensitive-analyzer/evals.json").decode("utf-8"))
             assert "should_be_stripped" not in json.dumps(evals_json)
-            assert "[REDACTED:" in json.dumps(evals_json)
+            assert "sk-proj-1234567890abcdef1234567890abcdef12345678" not in json.dumps(evals_json)

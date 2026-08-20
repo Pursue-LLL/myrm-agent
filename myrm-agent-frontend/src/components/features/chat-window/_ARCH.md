@@ -32,7 +32,7 @@
 | `wechatComposerHintUtils.ts` | 辅助 | 微信文章 URL 检测、formatter skill 挂载态判定、Agent 技能设置深链 | ✅ |
 | `__tests__/wechatComposerHintUtils.test.ts` | 测试 | 微信文章 URL 检测与 formatter skill 挂载态 | ✅ |
 | `WorkflowTemplateArmedBar.tsx` | 组件 | Composer pinned 模板武装条（显示名/ID + 取消固定） | ✅ |
-| `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + revoke）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
+| `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + 悬停全路径与一键复制 + revoke 撤销）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列可视化与 DnD 拖拽排序（复用 @dnd-kit 模式） | ✅ |
 | `MessageListSkeleton.tsx` | 辅助 | 消息列表首屏加载 skeleton | ✅ |
 | `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
