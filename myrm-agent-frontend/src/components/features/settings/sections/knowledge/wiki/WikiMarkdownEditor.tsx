@@ -49,6 +49,11 @@ export function WikiMarkdownEditor({
         onSaveShortcut();
       });
     }
+    // Expose the editor for E2E to drive programmatic input (Monaco ignores
+    // synthetic DOM events / execCommand on its hidden textarea).
+    if (typeof window !== 'undefined') {
+      window.__wikiMarkdownEditor = editorInstance;
+    }
   };
 
   const editorPane = (
@@ -93,6 +98,7 @@ export function WikiMarkdownEditor({
 
   const previewPane = (
     <div
+      data-testid="wiki-markdown-preview"
       className={cn(
         'min-w-0 min-h-0 flex-1 border rounded-md overflow-y-auto bg-background p-4',
         isMobile && mobileMode !== 'preview' && 'hidden',

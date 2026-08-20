@@ -378,6 +378,9 @@ export interface DiscoverySearchResult {
   installed_version: string;
   upgrade_available: boolean;
   installed_skill_id?: string;
+  package_type?: 'skill' | 'agent_plugin' | string;
+  keywords?: string[];
+  declared_mcp_servers?: string[];
 }
 
 export interface DiscoverySearchResponse {
@@ -403,6 +406,8 @@ export interface DiscoveryInstallResponse {
   mount_error?: string;
   allowlist_appended?: boolean;
   allowlist_append_error?: string;
+  installed_skills?: string[];
+  declared_mcp_servers?: string[];
 }
 
 export interface DiscoveryInstallOptions {
@@ -418,15 +423,20 @@ export interface DiscoveryPreviewResponse {
   files: string[];
   scan_findings: ScanFinding[];
   is_clean: boolean;
+  package_type?: 'skill' | 'agent_plugin' | string;
+  installed_skills?: string[];
+  declared_mcp_servers?: string[];
 }
 
 export async function searchDiscoverySkills(
   query: string,
   limit: number = 30,
   userId?: string,
+  packageType: 'all' | 'skill' | 'agent_plugin' = 'all',
 ): Promise<DiscoverySearchResponse> {
   const params = new URLSearchParams({ q: query, limit: String(limit) });
   if (userId) {params.set('user_id', userId);}
+  if (packageType && packageType !== 'all') {params.set('package_type', packageType);}
   return apiRequest<DiscoverySearchResponse>(`${SKILLS_API_PREFIX}/discovery/search?${params}`);
 }
 

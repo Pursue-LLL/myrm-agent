@@ -45,6 +45,21 @@ pub fn run() {
         Box::new(tauri_command_registry!(command_handler_list));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            use tauri::{Emitter, Manager};
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = window.emit(
+                    "app:second-instance",
+                    serde_json::json!({
+                        "args": args,
+                        "cwd": cwd,
+                    }),
+                );
+            }
+        }))
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())

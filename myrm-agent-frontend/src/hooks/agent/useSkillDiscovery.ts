@@ -18,6 +18,7 @@ interface UseSkillDiscoveryOptions {
   userId?: string;
   agentId?: string;
   mountToAgent?: boolean;
+  packageType?: 'all' | 'skill' | 'agent_plugin';
 }
 
 interface UseSkillDiscoveryReturn {
@@ -29,7 +30,7 @@ interface UseSkillDiscoveryReturn {
   searchError: string | null;
   installError: string | null;
   installSuccess: string | null;
-  search: (query: string) => Promise<void>;
+  search: (query: string, packageTypeOverride?: 'all' | 'skill' | 'agent_plugin') => Promise<void>;
   preview: (skillId: string, source: string) => Promise<DiscoveryPreviewResponse | null>;
   install: (skillId: string, source: string) => Promise<DiscoveryInstallResponse | null>;
   uninstall: (skillId: string, force?: boolean) => Promise<boolean>;
@@ -50,7 +51,7 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
   const abortRef = useRef<AbortController | null>(null);
 
   const search = useCallback(
-    async (query: string) => {
+    async (query: string, packageTypeOverride?: 'all' | 'skill' | 'agent_plugin') => {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
 
@@ -60,7 +61,8 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
       setInstallSuccess(null);
 
       try {
-        const response = await searchDiscoverySkills(query, 30, options?.userId);
+        const pkgType = packageTypeOverride ?? options?.packageType ?? 'all';
+        const response = await searchDiscoverySkills(query, 30, options?.userId, pkgType);
         setResults(response.results);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {return;}
@@ -70,7 +72,7 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
         setIsSearching(false);
       }
     },
-    [options?.userId],
+    [options?.userId, options?.packageType],
   );
 
   const preview = useCallback(async (skillId: string, source: string): Promise<DiscoveryPreviewResponse | null> => {

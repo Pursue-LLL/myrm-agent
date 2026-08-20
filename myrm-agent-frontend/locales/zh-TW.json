@@ -8134,7 +8134,9 @@
       "readOnly": "唯讀",
       "writable": "讀寫",
       "revoke": "撤銷存取",
-      "revokeFailed": "無法撤銷資料夾存取，請重試"
+      "revokeFailed": "無法撤銷資料夾存取，請重試",
+      "copyPath": "複製路徑",
+      "copied": "已複製路徑"
     },
     "planConfirmation": {
       "title": "研究計劃",

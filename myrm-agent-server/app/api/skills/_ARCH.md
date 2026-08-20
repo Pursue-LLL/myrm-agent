@@ -17,8 +17,8 @@
 | `config_version.py` | 模块 | Re-export from app.core.skills.config_version（单一来源）。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
 | `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
-| `discovery.py` | 模块 | Skill discovery API — search/install/enable-after-install/uninstall/sources/registry-probe；install/update/uninstall/install-from-url 受沙箱能力门控；uninstall 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
-| `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 install enable + allowlist_appended/allowlist_append_error；`SkillUninstallRequest.force` 支持强制卸载依赖者技能） | ✅ |
+| `discovery.py` | 模块 | Skill discovery API — search/install/enable-after-install/uninstall/sources/registry-probe；search 支持 package_type 过滤与 MCP 声明透传；install/update/uninstall/install-from-url 受沙箱能力门控；uninstall 支持父子技能级联清理与依赖者校验 | ✅ |
+| `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 package_type, keywords, declared_mcp_servers, installed_skills；`SkillUninstallRequest.force` 支持强制卸载依赖者技能） | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖） | ✅ |
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 | ✅ |
 | `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计；summary/detail 均携带 `impacted_dependents`（依赖本技能的库内技能 ID，经 core/skills/dependency_guard 查询） | ✅ |

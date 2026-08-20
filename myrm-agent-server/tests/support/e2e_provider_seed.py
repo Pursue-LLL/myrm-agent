@@ -42,6 +42,22 @@ def probe_openai_compatible_base(base_url: str, *, timeout_sec: float = 3.0) -> 
         return False
 
 
+def _chat_probe_model(base_url: str, model: str) -> str:
+    """Return model id for chat probe.
+
+    OmniRoute combo mappings match full patterns (e.g. ``openai-like/agnes-2.5-flash``).
+    Direct upstream APIs expect the bare model id after the provider prefix.
+    """
+    if _LOCAL_GATEWAY_HOST in base_url:
+        return model
+    return model.split("/", 1)[1] if "/" in model else model
+
+
+def _chat_probe_max_tokens(base_url: str) -> int:
+    """Reasoning models on OmniRoute combos need more than one output token."""
+    return 16 if _LOCAL_GATEWAY_HOST in base_url else 1
+
+
 def probe_llm_api_key(
     base_url: str,
     api_key: str,
@@ -50,12 +66,12 @@ def probe_llm_api_key(
     timeout_sec: float = 8.0,
 ) -> bool:
     """Return True when a minimal chat completion succeeds (auth + routing)."""
-    model_id = model.split("/", 1)[1] if "/" in model else model
+    model_id = _chat_probe_model(base_url, model)
     payload = json.dumps(
         {
             "model": model_id,
             "messages": [{"role": "user", "content": "hi"}],
-            "max_tokens": 1,
+            "max_tokens": _chat_probe_max_tokens(base_url),
         }
     ).encode("utf-8")
     url = f"{base_url.rstrip('/')}/chat/completions"

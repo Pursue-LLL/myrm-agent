@@ -367,6 +367,8 @@ interface Window {
     nodeCount: () => number;
     refresh: () => void | Promise<void>;
   };
+  /** Dev-only bridge for Wiki markdown editor Chrome E2E (Monaco instance). */
+  __wikiMarkdownEditor?: import('monaco-editor').editor.IStandaloneCodeEditor;
 }
 
 declare class SpeechRecognition extends EventTarget {

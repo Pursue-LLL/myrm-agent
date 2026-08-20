@@ -570,6 +570,11 @@ const SkillResultCard = memo(
                 <SourceIcon className="h-3 w-3" />
                 {sourceLabel}
               </Badge>
+              {skill.package_type === 'agent_plugin' && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">
+                  Plugin
+                </Badge>
+              )}
               {skill.upgrade_available && (
                 <Badge
                   variant="secondary"

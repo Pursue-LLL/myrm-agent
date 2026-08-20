@@ -7673,7 +7673,9 @@
       "readOnly": "읽기",
       "writable": "쓰기",
       "revoke": "접근 해제",
-      "revokeFailed": "폴더 접근을 해제하지 못했습니다"
+      "revokeFailed": "폴더 접근을 해제하지 못했습니다",
+      "copyPath": "경로 복사",
+      "copied": "경로가 복사되었습니다"
     },
     "toolsPanel": {
       "title": "사용 가능한 도구",

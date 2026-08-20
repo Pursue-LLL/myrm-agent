@@ -6,6 +6,8 @@ import pytest
 
 from tests.support.e2e_provider_seed import (
     ResolvedE2ELlmEndpoints,
+    _chat_probe_max_tokens,
+    _chat_probe_model,
     resolve_e2e_llm_endpoints,
 )
 from tests.support.test_secrets import TestSecrets
@@ -78,3 +80,22 @@ def test_resolve_e2e_llm_endpoints_falls_back_when_local_gateway_down(
     assert resolved.lite_model == "openai-like/deepseek-v4-flash"
     assert resolved.basic_api_key == "k-direct"
     assert resolved.lite_api_key == "k-direct"
+
+
+def test_chat_probe_model_preserves_combo_pattern_for_local_gateway() -> None:
+    assert (
+        _chat_probe_model(
+            "http://localhost:20128/v1",
+            "openai-like/agnes-2.5-flash",
+        )
+        == "openai-like/agnes-2.5-flash"
+    )
+    assert (
+        _chat_probe_model(
+            "https://apihub.agnes-ai.com/v1",
+            "openai-like/agnes-2.5-flash",
+        )
+        == "agnes-2.5-flash"
+    )
+    assert _chat_probe_max_tokens("http://localhost:20128/v1") == 16
+    assert _chat_probe_max_tokens("https://api.minimaxi.com/v1") == 1

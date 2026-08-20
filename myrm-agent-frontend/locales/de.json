@@ -7673,7 +7673,9 @@
       "readOnly": "Lesen",
       "writable": "Schreiben",
       "revoke": "Zugriff widerrufen",
-      "revokeFailed": "Ordnerzugriff konnte nicht widerrufen werden."
+      "revokeFailed": "Ordnerzugriff konnte nicht widerrufen werden.",
+      "copyPath": "Pfad kopieren",
+      "copied": "Pfad kopiert"
     },
     "toolsPanel": {
       "title": "Verfügbare Tools",

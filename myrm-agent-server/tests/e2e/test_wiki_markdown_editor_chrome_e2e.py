@@ -188,29 +188,61 @@ def _monaco_ready_js() -> str:
 
 
 def _monaco_type_js(text: str) -> str:
-    # Monaco listens on its hidden textarea for InputEvent(inputType:'insertText');
-    # dispatch per-char so the editor inserts sequentially (mirrors real typing).
-    chars = json.dumps(list(text))
-    return f"""(() => {{
-      const ta = document.querySelector('.monaco-editor textarea');
-      if (!ta) return {{ ok: false, reason: 'no-textarea' }};
-      ta.focus();
-      ta.dispatchEvent(new Event('focus', {{ bubbles: false }}));
-      for (const ch of {chars}) {{
-        ta.dispatchEvent(new InputEvent('beforeinput', {{
-          bubbles: true, cancelable: true, inputType: 'insertText', data: ch,
-        }}));
-        ta.dispatchEvent(new InputEvent('input', {{
-          bubbles: true, cancelable: false, inputType: 'insertText', data: ch,
-        }}));
-      }}
-      return {{ ok: true }};
-    }})()"""
+    # Monaco ignores synthetic DOM events / execCommand on its hidden textarea.
+    # Drive the editor instance directly via executeEdits (fires onDidChangeContent,
+    # which @monaco-editor/react surfaces as onChange → the live preview updates).
+    return """(() => {
+      const ed = window.__wikiMarkdownEditor;
+      if (!ed) return { ok: false, reason: 'no-editor-instance' };
+      const model = ed.getModel();
+      if (!model) return { ok: false, reason: 'no-model' };
+      const lineCount = model.getLineCount();
+      const lastLine = model.getLineMaxColumn(lineCount);
+      ed.executeEdits('e2e', [{
+        range: { startLineNumber: lineCount, startColumn: lastLine,
+                 endLineNumber: lineCount, endColumn: lastLine },
+        text: __TEXT__,
+        forceMoveMarkers: true,
+      }]);
+      return { ok: true };
+    })()""".replace("__TEXT__", json.dumps(text))
+
+
+def _click_save_js() -> str:
+    return """(() => {
+      const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+      const btn = [...(shell?.querySelectorAll('button') ?? [])].find(
+        (el) => (el.textContent || '').trim() === '保存'
+          || (el.textContent || '').trim() === 'Save',
+      );
+      if (!btn) return { ok: false, reason: 'no-save-btn' };
+      for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+        btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+      }
+      return { ok: true };
+    })()"""
+
+
+def _edit_btn_gone_js() -> str:
+    # After a successful save the panel leaves edit mode and the Edit button returns.
+    return """(() => {
+      const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
+      const editBtn = [...(shell?.querySelectorAll('button') ?? [])].find(
+        (el) => (el.textContent || '').trim() === '编辑'
+          || (el.textContent || '').trim() === 'Edit',
+      );
+      const saveBtn = [...(shell?.querySelectorAll('button') ?? [])].find(
+        (el) => (el.textContent || '').trim() === '保存'
+          || (el.textContent || '').trim() === 'Save',
+      );
+      return { ready: !!editBtn && !saveBtn };
+    })()"""
 
 
 def _preview_contains_js(text: str) -> str:
     return f"""(() => {{
-      const prose = document.querySelector('.prose');
+      const pane = document.querySelector('[data-testid="wiki-markdown-preview"]');
+      const prose = pane?.querySelector('.prose');
       if (!prose) return {{ ready: false, text: '' }};
       const body = prose.textContent || '';
       return {{ ready: body.includes({text!r}), text: body.slice(-120) }};
@@ -286,3 +318,10 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
             timeout_sec=30.0,
         )
         assert isinstance(preview, dict) and preview.get("ready") is True, preview
+
+        # Save the edit through the real apply-wiki endpoint; the panel must
+        # leave edit mode (Edit button returns, Save button disappears).
+        saved = client.evaluate(page, _click_save_js(), timeout_sec=15.0)
+        assert isinstance(saved, dict) and saved.get("ok") is True, saved
+        saved_state = wait_for_state(client, page, _edit_btn_gone_js(), timeout_sec=30.0)
+        assert isinstance(saved_state, dict) and saved_state.get("ready") is True, saved_state

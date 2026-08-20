@@ -40,7 +40,7 @@ from app.channels.providers.line.helpers import (
     _Source,
     resolve_chat_id,
 )
-from app.channels.providers.line.user_resolver import LINEUserResolver
+from app.channels.providers.line.user_resolver import LINEUserResolver, LineChatScope
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
@@ -69,7 +69,9 @@ class LINEChannel(BaseChannel):
     name = "line"
     credential_spec = credential_spec(
         "lineCredentials",
-        channel_access_token=credential_field("channelAccessToken", "LINE_CHANNEL_ACCESS_TOKEN"),
+        channel_access_token=credential_field(
+            "channelAccessToken", "LINE_CHANNEL_ACCESS_TOKEN"
+        ),
         channel_secret=credential_field("channelSecret", "LINE_CHANNEL_SECRET"),
     )
     capabilities = ChannelCapabilities(
@@ -115,7 +117,11 @@ class LINEChannel(BaseChannel):
             self._bot_display_name = info.get("displayName", "")
             if self._bot_user_id:
                 self._bot_id = self._bot_user_id
-            logger.info("LINE bot info: userId=%s displayName=%s", self._bot_user_id, self._bot_display_name)
+            logger.info(
+                "LINE bot info: userId=%s displayName=%s",
+                self._bot_user_id,
+                self._bot_display_name,
+            )
         except Exception as exc:
             logger.warning("Failed to fetch LINE bot info: %s", exc)
         await super().start()
@@ -403,6 +409,7 @@ class LINEChannel(BaseChannel):
 
         metadata: dict[str, object] = {"replyToken": reply_token}
 
+        scope = self._source_scope(source)
         await self._emit_inbound(
             self._build_inbound(
                 sender_id=sender_id,
@@ -413,7 +420,7 @@ class LINEChannel(BaseChannel):
                 media=tuple(media_list),
                 metadata=metadata,
                 message_id=msg_id,
-                sender_name=await self._resolve_sender_name(sender_id),
+                sender_name=await self._resolve_sender_name(sender_id, scope=scope, chat_id=chat_id),
             )
         )
 
@@ -437,6 +444,7 @@ class LINEChannel(BaseChannel):
 
         metadata: dict[str, object] = {"replyToken": reply_token}
 
+        scope = self._source_scope(source)
         await self._emit_inbound(
             self._build_inbound(
                 sender_id=sender_id,
@@ -445,12 +453,32 @@ class LINEChannel(BaseChannel):
                 is_group=is_group,
                 mentioned=False,
                 metadata=metadata,
-                sender_name=await self._resolve_sender_name(sender_id),
+                sender_name=await self._resolve_sender_name(sender_id, scope=scope, chat_id=chat_id),
             )
         )
 
-    async def _resolve_sender_name(self, sender_id: str | None) -> str | None:
-        """Resolve a LINE sender's display name via Get Profile API (fail-open).
+    @staticmethod
+    def _source_scope(source: _Source) -> LineChatScope:
+        """Map a LINE event source type to a resolver scope."""
+        src_type = source.get("type", "")
+        if src_type == "group":
+            return "group"
+        if src_type == "room":
+            return "room"
+        return "user"
+
+    async def _resolve_sender_name(
+        self,
+        sender_id: str | None,
+        *,
+        scope: LineChatScope = "user",
+        chat_id: str = "",
+    ) -> str | None:
+        """Resolve a LINE sender's display name via profile API (fail-open).
+
+        Selects the endpoint by chat scope: 1:1 users use Get Profile, while
+        group/room members use their member profile API (works even when the
+        member has not added the bot as a friend).
 
         Returns None when the ID is missing, resolution fails, or the user
         cannot be found — callers fall back to the opaque user ID.
@@ -458,7 +486,11 @@ class LINEChannel(BaseChannel):
         if not sender_id:
             return None
         try:
-            return await self._user_resolver.resolve_user(sender_id)
+            return await self._user_resolver.resolve_user(
+                sender_id,
+                scope=scope,
+                chat_id=chat_id,
+            )
         except Exception:
             logger.debug("Failed to resolve LINE sender name for %s", sender_id)
             return None
@@ -467,7 +499,11 @@ class LINEChannel(BaseChannel):
         etype = event.get("type", "")
         source = cast(_Source, event.get("source", {}))
         src_type = source.get("type", "")
-        target_id = source.get("groupId", "") or source.get("roomId", "") or source.get("userId", "")
+        target_id = (
+            source.get("groupId", "")
+            or source.get("roomId", "")
+            or source.get("userId", "")
+        )
         logger.info("LINE %s event: %s %s", etype, src_type, target_id)
         self.emit(f"line:{etype}", {"source_type": src_type, "id": target_id})
 
@@ -514,7 +550,9 @@ class LINEChannel(BaseChannel):
             chars = list(text)
             for m in reversed(mentionees):
                 should_strip = False
-                if m.get("isSelf") is True or (self._bot_user_id and m.get("userId") == self._bot_user_id):
+                if m.get("isSelf") is True or (
+                    self._bot_user_id and m.get("userId") == self._bot_user_id
+                ):
                     should_strip = True
                 elif self._bot_display_name:
                     idx = m.get("index", -1)

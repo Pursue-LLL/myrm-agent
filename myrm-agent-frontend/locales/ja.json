@@ -8107,7 +8107,9 @@
       "readOnly": "読取",
       "writable": "書込",
       "revoke": "アクセスを解除",
-      "revokeFailed": "フォルダアクセスを解除できませんでした"
+      "revokeFailed": "フォルダアクセスを解除できませんでした",
+      "copyPath": "パスをコピー",
+      "copied": "パスをコピーしました"
     },
     "planConfirmation": {
       "title": "研究プラン",

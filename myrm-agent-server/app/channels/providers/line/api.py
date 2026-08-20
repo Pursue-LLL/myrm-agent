@@ -1,7 +1,8 @@
 """LINE Messaging API HTTP client.
 
 Encapsulates all HTTP interactions with the LINE Messaging API:
-reply/push messaging, bot info, user profile, health check, typing indicator.
+reply/push messaging, bot info, user/group/room profile, health check,
+typing indicator.
 
 [INPUT]
 - .helpers::_API_BASE, (POS: Stateless helper functions extracted from orchestrator.py to keep the main orchestrator class focused on state machine logic.)
@@ -62,13 +63,45 @@ class LineClient:
     async def get_user_profile(self, user_id: str) -> dict[str, str]:
         """Fetch a user's profile. Returns dict with userId, displayName.
 
-        Uses the LINE Get Profile API (``/v2/bot/profile/{userId}``), which
-        requires only the channel access token — no extra scopes.
+        Uses the LINE Get Profile API (``/v2/bot/profile/{userId}``). Only
+        works for users who added the bot as a friend and consented to
+        sharing their profile information.
         """
         resp = await self._http.get(
             f"{_API_BASE}/profile/{user_id}",
             timeout=_HEALTH_TIMEOUT,
         )
+        return self._parse_profile_response(resp)
+
+    async def get_group_member_profile(self, group_id: str, user_id: str) -> dict[str, str]:
+        """Fetch a group chat member's profile. Returns dict with userId, displayName.
+
+        Uses the LINE Get Group Member Profile API
+        (``/v2/bot/group/{groupId}/member/{userId}``). Works for group members
+        even when they have not added the bot as a friend.
+        """
+        resp = await self._http.get(
+            f"{_API_BASE}/group/{group_id}/member/{user_id}",
+            timeout=_HEALTH_TIMEOUT,
+        )
+        return self._parse_profile_response(resp)
+
+    async def get_room_member_profile(self, room_id: str, user_id: str) -> dict[str, str]:
+        """Fetch a multi-person chat member's profile. Returns dict with userId, displayName.
+
+        Uses the LINE Get Room Member Profile API
+        (``/v2/bot/room/{roomId}/member/{userId}``). Works for room members
+        even when they have not added the bot as a friend.
+        """
+        resp = await self._http.get(
+            f"{_API_BASE}/room/{room_id}/member/{user_id}",
+            timeout=_HEALTH_TIMEOUT,
+        )
+        return self._parse_profile_response(resp)
+
+    @staticmethod
+    def _parse_profile_response(resp: httpx.Response) -> dict[str, str]:
+        """Normalize a LINE profile response into {userId, displayName}."""
         if resp.status_code == 200:
             data = resp.json()
             return {

@@ -66,6 +66,7 @@ _ENV_SKIP_BLOB_KEYWORDS = (
     "quota exceeded",
     "free_request_quota",
     "insufficient_balance",
+    "insufficient",
     "额度已耗尽",
     "余额不足",
     "search service quota",

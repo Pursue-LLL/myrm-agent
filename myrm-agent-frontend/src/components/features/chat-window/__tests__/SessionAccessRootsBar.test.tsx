@@ -14,35 +14,33 @@ vi.mock('@/services/chat', () => ({
   revokeSessionAccessRoot: vi.fn(),
 }));
 
-vi.mock('sonner', () => {
-  const mockFn = vi.fn();
-  const sonnerToast: Record<string, unknown> = mockFn;
-  sonnerToast.success = vi.fn();
-  sonnerToast.error = vi.fn();
-  sonnerToast.warning = vi.fn();
-  sonnerToast.info = vi.fn();
-  sonnerToast.promise = vi.fn();
-  sonnerToast.loading = vi.fn();
-  sonnerToast.dismiss = vi.fn();
-  sonnerToast.message = vi.fn();
-  return {
-    toast: sonnerToast,
-  };
-});
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    promise: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    message: vi.fn(),
+  }),
+}));
+
+const ACCESS_ROOTS_T: Record<string, string> = {
+  label: 'Extra folders',
+  readOnly: 'Read',
+  writable: 'Write',
+  revoke: 'Revoke access',
+  revokeFailed: 'Could not revoke folder access',
+  copyPath: 'Copy path',
+  copied: 'Path copied',
+};
+
+const stableT = (key: string) => ACCESS_ROOTS_T[key] || key;
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      label: 'Extra folders',
-      readOnly: 'Read',
-      writable: 'Write',
-      revoke: 'Revoke access',
-      revokeFailed: 'Could not revoke folder access',
-      copyPath: 'Copy path',
-      copied: 'Path copied',
-    };
-    return map[key] || key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('SessionAccessRootsBar', () => {

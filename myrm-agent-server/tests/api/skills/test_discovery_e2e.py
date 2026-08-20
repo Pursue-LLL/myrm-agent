@@ -1,5 +1,19 @@
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from app.api.skills.discovery import router as discovery_router
+
+
+@pytest.fixture
+def app() -> FastAPI:
+    test_app = FastAPI(title="Skill Discovery Test App")
+    test_app.include_router(discovery_router, prefix="/api/v1/skills")
+    return test_app
+
+
+@pytest.fixture
+def client(app: FastAPI) -> TestClient:
+    return TestClient(app)
 
 
 @pytest.mark.e2e
@@ -69,12 +83,17 @@ class TestSkillDiscoveryE2E:
         data = response.json()
         assert isinstance(data["urls"], list)
 
-    def test_search_and_install_agent_plugin_discovery_e2e(self, client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    def test_search_and_install_agent_plugin_discovery_e2e(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ):
         """E2E test verifying Agent Plugin discovery search and installation response schemas."""
         from unittest.mock import AsyncMock
 
         from myrm_agent_harness.agent.skills.market.service import EnrichedSearchResult
-        from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult, SkillSearchResult
+        from myrm_agent_harness.backends.skills.market_protocols import (
+            SkillInstallResult,
+            SkillSearchResult,
+        )
 
         plugin_search_res = EnrichedSearchResult(
             result=SkillSearchResult(
@@ -93,12 +112,16 @@ class TestSkillDiscoveryE2E:
 
         # 1. Test search returns package_type and keywords
         monkeypatch.setattr(
-            "app.core.skills.marketplace.market_service.market_service.search",
+            "app.api.skills.discovery.market_service.search",
             AsyncMock(return_value=[plugin_search_res]),
         )
         monkeypatch.setattr(
-            "app.core.skills.marketplace.market_service.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
             AsyncMock(),
+        )
+        monkeypatch.setattr(
+            "app.api.skills.discovery.market_service.get_installed_local_ids_by_name",
+            AsyncMock(return_value={}),
         )
 
         res = client.get("/api/v1/skills/discovery/search?q=code-review")
@@ -111,11 +134,15 @@ class TestSkillDiscoveryE2E:
         assert "review" in item["keywords"]
 
         # 2. Test search with package_type filter
-        res_filtered = client.get("/api/v1/skills/discovery/search?q=code-review&package_type=skill")
+        res_filtered = client.get(
+            "/api/v1/skills/discovery/search?q=code-review&package_type=skill"
+        )
         assert res_filtered.status_code == 200
         assert res_filtered.json()["total"] == 0
 
-        res_plugin_filtered = client.get("/api/v1/skills/discovery/search?q=code-review&package_type=agent_plugin")
+        res_plugin_filtered = client.get(
+            "/api/v1/skills/discovery/search?q=code-review&package_type=agent_plugin"
+        )
         assert res_plugin_filtered.status_code == 200
         assert res_plugin_filtered.json()["total"] == 1
 
@@ -129,13 +156,17 @@ class TestSkillDiscoveryE2E:
             declared_mcp_servers=["sqlite-srv"],
         )
         monkeypatch.setattr(
-            "app.core.skills.marketplace.market_service.market_service.install",
+            "app.api.skills.discovery.market_service.install",
             AsyncMock(return_value=install_res),
         )
 
         res_install = client.post(
             "/api/v1/skills/discovery/install",
-            json={"skill_id": "plugin::code-review-plugin", "source": "github", "mount_to_agent": False},
+            json={
+                "skill_id": "plugin::code-review-plugin",
+                "source": "github",
+                "mount_to_agent": False,
+            },
         )
         assert res_install.status_code == 200
         install_data = res_install.json()
@@ -143,4 +174,3 @@ class TestSkillDiscoveryE2E:
         assert install_data["skill_name"] == "code-review-plugin"
         assert install_data["installed_skills"] == ["code-review", "git-lint"]
         assert install_data["declared_mcp_servers"] == ["sqlite-srv"]
-

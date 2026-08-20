@@ -44,6 +44,8 @@ def _make_channel() -> tuple[LINEChannel, list[InboundMessage]]:
     # resolution never issues real network calls during tests.
     ch._user_resolver._api = AsyncMock()
     ch._user_resolver._api.get_user_profile.return_value = {}
+    ch._user_resolver._api.get_group_member_profile.return_value = {}
+    ch._user_resolver._api.get_room_member_profile.return_value = {}
     received: list[InboundMessage] = []
 
     async def _handler(msg: InboundMessage) -> None:
@@ -159,6 +161,51 @@ class TestInboundText:
         ch, received = _make_channel()
         ch._user_resolver._api.get_user_profile.side_effect = RuntimeError("boom")
         body = _make_event(text="hi")
+        await ch.handle_webhook(body)
+        assert len(received) == 1
+        assert received[0].sender_name is None
+
+    @pytest.mark.asyncio
+    async def test_group_sender_name_uses_group_member_profile(self) -> None:
+        ch, received = _make_channel()
+        ch._user_resolver._api.get_group_member_profile.return_value = {
+            "userId": "U1234",
+            "displayName": "GroupMember",
+        }
+        body = _make_event(
+            source_type="group",
+            group_id="C9999",
+            text="hello group",
+        )
+        await ch.handle_webhook(body)
+        assert len(received) == 1
+        assert received[0].sender_name == "GroupMember"
+
+    @pytest.mark.asyncio
+    async def test_room_sender_name_uses_room_member_profile(self) -> None:
+        ch, received = _make_channel()
+        ch._user_resolver._api.get_room_member_profile.return_value = {
+            "userId": "U1234",
+            "displayName": "RoomMember",
+        }
+        body = _make_event(
+            source_type="room",
+            room_id="R5555",
+            text="room msg",
+        )
+        await ch.handle_webhook(body)
+        assert len(received) == 1
+        assert received[0].sender_name == "RoomMember"
+
+    @pytest.mark.asyncio
+    async def test_group_sender_name_none_on_api_failure(self) -> None:
+        ch, received = _make_channel()
+        ch._user_resolver._api.get_group_member_profile.side_effect = RuntimeError("boom")
+        body = _make_event(
+            source_type="group",
+            group_id="C9999",
+            text="hello group",
+        )
         await ch.handle_webhook(body)
         assert len(received) == 1
         assert received[0].sender_name is None
@@ -1049,6 +1096,50 @@ class TestLineClient:
         client._http.get.return_value = resp
 
         result = await client.get_user_profile("U1")
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_get_group_member_profile_success(self) -> None:
+        client = _mock_line_client()
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"userId": "U1", "displayName": "GroupAlice"}
+        client._http.get.return_value = resp
+
+        result = await client.get_group_member_profile("C1", "U1")
+        assert result == {"userId": "U1", "displayName": "GroupAlice"}
+        client._http.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_group_member_profile_failure(self) -> None:
+        client = _mock_line_client()
+        resp = MagicMock()
+        resp.status_code = 404
+        client._http.get.return_value = resp
+
+        result = await client.get_group_member_profile("C1", "U1")
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_get_room_member_profile_success(self) -> None:
+        client = _mock_line_client()
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"userId": "U1", "displayName": "RoomBob"}
+        client._http.get.return_value = resp
+
+        result = await client.get_room_member_profile("R1", "U1")
+        assert result == {"userId": "U1", "displayName": "RoomBob"}
+        client._http.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_room_member_profile_failure(self) -> None:
+        client = _mock_line_client()
+        resp = MagicMock()
+        resp.status_code = 404
+        client._http.get.return_value = resp
+
+        result = await client.get_room_member_profile("R1", "U1")
         assert result == {}
 
     @pytest.mark.asyncio
