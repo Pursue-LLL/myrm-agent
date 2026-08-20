@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock, patch, patch, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
