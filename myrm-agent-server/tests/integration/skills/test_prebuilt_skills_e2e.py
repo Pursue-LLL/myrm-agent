@@ -491,6 +491,7 @@ async def test_full_pipeline_export_prebuilt_as_agent_plugin_and_validate(
 ) -> None:
     """Full unmocked integration: sync prebuilt → package_skill as agent_plugin → AgentPluginParser validate."""
     from myrm_agent_harness.agent.plugins.parser import AgentPluginParser
+
     from app.core.skills.packaging import SkillPackagingService
 
     await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import uuid
+
 import httpx
 import pytest
 from httpx import ASGITransport
@@ -31,6 +32,7 @@ async def async_client() -> httpx.AsyncClient:
 
 async def _create_chat(chat_id: str) -> None:
     from datetime import datetime, timezone
+
     from app.database.models.chat import Chat
     from app.platform_utils import get_session_factory
 
