@@ -136,7 +136,14 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
       setHasGraph(resp.has_graph);
       setStats(resp.stats);
       if (resp.has_graph && resp.nodes.length > 0) {
-        setData(toForceGraph(resp));
+        const fgData = toForceGraph(resp);
+        setData(fgData);
+        if (initialFocusNodeId) {
+          const match = fgData.nodes.find((n) => n.id === initialFocusNodeId || (n.properties?.id as string) === initialFocusNodeId);
+          if (match) {
+            setSelectedNode(match);
+          }
+        }
       } else {
         setData(null);
       }

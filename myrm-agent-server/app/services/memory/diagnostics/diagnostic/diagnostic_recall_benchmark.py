@@ -210,23 +210,11 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
     try:
         for pair in _BENCHMARK_PAIRS:
             content = pair.content.replace("{run_id}", run_id)
+            meta = {"diagnostic_probe": True, "diagnostic_run_id": run_id, "category": pair.category}
             if pair.memory_type == MemoryType.SEMANTIC:
-                mem = SemanticMemory(
-                    content=content,
-                    importance=0.9,
-                    tags=["diagnostic_benchmark"],
-                    metadata={"diagnostic_probe": True, "diagnostic_run_id": run_id, "category": pair.category},
-                    language=pair.language,
-                )
+                mem = SemanticMemory(content=content, importance=0.9, tags=["diagnostic_benchmark"], metadata=meta, language=pair.language)
             else:
-                mem = EpisodicMemory(
-                    content=content,
-                    event_type="diagnostic_benchmark",
-                    related_entities=["memory_doctor"],
-                    importance=0.9,
-                    metadata={"diagnostic_probe": True, "diagnostic_run_id": run_id, "category": pair.category},
-                    language=pair.language,
-                )
+                mem = EpisodicMemory(content=content, event_type="diagnostic_benchmark", related_entities=["memory_doctor"], importance=0.9, metadata=meta, language=pair.language)
             result = await manager.store(mem, _bypass_approval=True)
             if isinstance(result, (SemanticMemory, EpisodicMemory)):
                 stored_memories.append((pair, result))
