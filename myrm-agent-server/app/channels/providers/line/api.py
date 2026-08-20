@@ -73,7 +73,9 @@ class LineClient:
         )
         return self._parse_profile_response(resp)
 
-    async def get_group_member_profile(self, group_id: str, user_id: str) -> dict[str, str]:
+    async def get_group_member_profile(
+        self, group_id: str, user_id: str
+    ) -> dict[str, str]:
         """Fetch a group chat member's profile. Returns dict with userId, displayName.
 
         Uses the LINE Get Group Member Profile API
@@ -86,7 +88,9 @@ class LineClient:
         )
         return self._parse_profile_response(resp)
 
-    async def get_room_member_profile(self, room_id: str, user_id: str) -> dict[str, str]:
+    async def get_room_member_profile(
+        self, room_id: str, user_id: str
+    ) -> dict[str, str]:
         """Fetch a multi-person chat member's profile. Returns dict with userId, displayName.
 
         Uses the LINE Get Room Member Profile API

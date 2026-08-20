@@ -420,7 +420,9 @@ class LINEChannel(BaseChannel):
                 media=tuple(media_list),
                 metadata=metadata,
                 message_id=msg_id,
-                sender_name=await self._resolve_sender_name(sender_id, scope=scope, chat_id=chat_id),
+                sender_name=await self._resolve_sender_name(
+                    sender_id, scope=scope, chat_id=chat_id
+                ),
             )
         )
 
@@ -453,7 +455,9 @@ class LINEChannel(BaseChannel):
                 is_group=is_group,
                 mentioned=False,
                 metadata=metadata,
-                sender_name=await self._resolve_sender_name(sender_id, scope=scope, chat_id=chat_id),
+                sender_name=await self._resolve_sender_name(
+                    sender_id, scope=scope, chat_id=chat_id
+                ),
             )
         )
 

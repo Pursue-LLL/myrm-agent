@@ -29,7 +29,9 @@ from tests.channels.channel_test_base import ChannelTestBase
 
 class TestLINEChannelBase(ChannelTestBase):
     def create_channel(self) -> BaseChannel:
-        return LINEChannel(channel_access_token="test-token", channel_secret="test-secret")
+        return LINEChannel(
+            channel_access_token="test-token", channel_secret="test-secret"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +202,9 @@ class TestInboundText:
     @pytest.mark.asyncio
     async def test_group_sender_name_none_on_api_failure(self) -> None:
         ch, received = _make_channel()
-        ch._user_resolver._api.get_group_member_profile.side_effect = RuntimeError("boom")
+        ch._user_resolver._api.get_group_member_profile.side_effect = RuntimeError(
+            "boom"
+        )
         body = _make_event(
             source_type="group",
             group_id="C9999",
@@ -573,12 +577,21 @@ class TestDiagnostics:
     def test_missing_secret_warning(self) -> None:
         ch = LINEChannel(channel_access_token="tok")
         issues = ch.collect_issues()
-        assert any(i.kind == IssueKind.CONFIG and i.severity == IssueSeverity.WARNING and "secret" in i.message for i in issues)
+        assert any(
+            i.kind == IssueKind.CONFIG
+            and i.severity == IssueSeverity.WARNING
+            and "secret" in i.message
+            for i in issues
+        )
 
     def test_healthy_channel_no_config_errors(self) -> None:
         ch = LINEChannel(channel_access_token="tok", channel_secret="sec")
         issues = ch.collect_issues()
-        config_errors = [i for i in issues if i.kind == IssueKind.CONFIG and i.severity == IssueSeverity.ERROR]
+        config_errors = [
+            i
+            for i in issues
+            if i.kind == IssueKind.CONFIG and i.severity == IssueSeverity.ERROR
+        ]
         assert len(config_errors) == 0
 
     def test_degraded_status_issue(self) -> None:
@@ -586,7 +599,10 @@ class TestDiagnostics:
         ch._status = ChannelStatus.DEGRADED
         ch.health.last_error = "API timeout"
         issues = ch.collect_issues()
-        assert any(i.kind == IssueKind.RUNTIME and "degraded" in i.message.lower() for i in issues)
+        assert any(
+            i.kind == IssueKind.RUNTIME and "degraded" in i.message.lower()
+            for i in issues
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -749,20 +765,26 @@ class TestSendException:
 
 class TestBuildMediaMessage:
     def test_image_message(self) -> None:
-        ma = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
+        ma = MediaAttachment(
+            media_type=MediaType.IMAGE, url="https://example.com/img.jpg"
+        )
         result = LINEChannel._build_media_message(ma)
         assert result is not None
         assert result["type"] == "image"
         assert result["originalContentUrl"] == "https://example.com/img.jpg"
 
     def test_video_message(self) -> None:
-        ma = MediaAttachment(media_type=MediaType.VIDEO, url="https://example.com/vid.mp4")
+        ma = MediaAttachment(
+            media_type=MediaType.VIDEO, url="https://example.com/vid.mp4"
+        )
         result = LINEChannel._build_media_message(ma)
         assert result is not None
         assert result["type"] == "video"
 
     def test_audio_message(self) -> None:
-        ma = MediaAttachment(media_type=MediaType.AUDIO, url="https://example.com/aud.m4a")
+        ma = MediaAttachment(
+            media_type=MediaType.AUDIO, url="https://example.com/aud.m4a"
+        )
         result = LINEChannel._build_media_message(ma)
         assert result is not None
         assert result["type"] == "audio"
@@ -774,7 +796,9 @@ class TestBuildMediaMessage:
         assert result is None
 
     def test_unsupported_type_returns_none(self) -> None:
-        ma = MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf")
+        ma = MediaAttachment(
+            media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf"
+        )
         result = LINEChannel._build_media_message(ma)
         assert result is None
 
@@ -826,7 +850,12 @@ class TestSendWithMedia:
         await ch.send(
             _outbound(
                 content="check this image",
-                media=(MediaAttachment(media_type=MediaType.IMAGE, url="https://cdn.example.com/photo.jpg"),),
+                media=(
+                    MediaAttachment(
+                        media_type=MediaType.IMAGE,
+                        url="https://cdn.example.com/photo.jpg",
+                    ),
+                ),
             )
         )
         assert len(captured_messages) >= 2
