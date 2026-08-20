@@ -40,7 +40,7 @@ from app.channels.providers.line.helpers import (
     _Source,
     resolve_chat_id,
 )
-from app.channels.providers.line.user_resolver import LINEUserResolver, LineChatScope
+from app.channels.providers.line.user_resolver import LineChatScope, LINEUserResolver
 from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
