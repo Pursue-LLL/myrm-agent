@@ -65,7 +65,8 @@ class StubStreamingExecutor:
 
 
 @pytest.mark.asyncio
-async def test_wecom_aibot_router_stream_full_lifecycle_integration() -> None:
+async def test_wecom_aibot_overflow_chunks_lifecycle_integration() -> None:
+    """Integration: super-long answers split into chunks, morphing first chunk and sending rest via proactive."""
     bus = MessageBus()
     ch = WeComAiBotChannel(bot_id="test_bot", secret="test_secret")
     mock_ws = AsyncMock()
@@ -73,9 +74,80 @@ async def test_wecom_aibot_router_stream_full_lifecycle_integration() -> None:
     bus.register_channel(ch)
     await bus.start()
 
-    # Seed an active stream state
-    ch._active_streams["stream_123"] = WeComStreamState(
-        stream_id="stream_123", chat_id="chat_1", req_id="req_123"
+    ch._active_streams["stream_long"] = WeComStreamState(
+        stream_id="stream_long", chat_id="chat_long", req_id="req_long"
+    )
+
+    class LongAnswerExecutor:
+        async def execute_stream(
+            self,
+            msg: InboundMessage,
+            user_id: str,
+            **kwargs: object,
+        ) -> AsyncGenerator[ProgressUpdate | OutboundMessage]:
+            yield ProgressUpdate(label="generating large report")
+            await asyncio.sleep(0.01)
+            # Long content that exceeds chunk limit
+            yield OutboundMessage(
+                channel=msg.channel,
+                recipient_id=msg.chat_id or msg.sender_id,
+                content="Chunk 1 content\n\nChunk 2 overflow\n\nChunk 3 overflow",
+                user_id=user_id,
+            )
+
+    router = AgentRouter(
+        bus=bus,
+        pairing_store=StubPairingStore(),  # type: ignore[arg-type]
+        agent_executor=LongAnswerExecutor(),  # type: ignore[arg-type]
+        session_gate_config=SessionGateConfig(debounce_window_ms=0),
+    )
+    router._running = True
+    consume_task = asyncio.create_task(router._consume_loop())
+
+    inbound = InboundMessage(
+        channel="wecom_aibot",
+        chat_id="chat_long",
+        sender_id="u_long",
+        content="generate large report",
+        thread_id="req_long",
+        metadata={"message_id": "stream_long", "req_id": "req_long"},
+    )
+
+    with patch("app.channels.providers.wecom.aibot_channel.render", return_value=["Chunk 1", "Chunk 2", "Chunk 3"]):
+        await ch._dispatch_inbound(inbound)
+        await asyncio.sleep(0.5)
+
+    # Assert 1 respond_msg (first chunk finished) + 2 proactive aibot_send_msg
+    sent_payloads = [json.loads(call[0][0]) for call in mock_ws.send.call_args_list]
+    respond_msgs = [p for p in sent_payloads if p.get("cmd") == "aibot_respond_msg"]
+    proactive_msgs = [p for p in sent_payloads if p.get("cmd") == "aibot_send_msg"]
+
+    assert len(respond_msgs) >= 1
+    assert any(p.get("body", {}).get("stream", {}).get("finish") is True for p in respond_msgs)
+    assert len(proactive_msgs) == 2
+
+    router._running = False
+    consume_task.cancel()
+    try:
+        await consume_task
+    except asyncio.CancelledError:
+        pass
+    await bus.stop()
+
+
+@pytest.mark.asyncio
+async def test_wecom_aibot_reconnect_recovery_integration() -> None:
+    """Integration: stream marked is_force_closed during WS drop delivers final answer upon completion."""
+    bus = MessageBus()
+    ch = WeComAiBotChannel(bot_id="test_bot", secret="test_secret")
+    mock_ws = AsyncMock()
+    ch._ws = mock_ws
+    bus.register_channel(ch)
+    await bus.start()
+
+    # Pre-mark stream as force closed (simulating reconnect drop)
+    ch._active_streams["stream_reconnect"] = WeComStreamState(
+        stream_id="stream_reconnect", chat_id="chat_rec", req_id="req_rec", is_force_closed=True
     )
 
     router = AgentRouter(
@@ -89,17 +161,17 @@ async def test_wecom_aibot_router_stream_full_lifecycle_integration() -> None:
 
     inbound = InboundMessage(
         channel="wecom_aibot",
-        chat_id="chat_1",
-        sender_id="u_1",
-        content="explain architecture",
-        metadata={"message_id": "stream_123", "req_id": "req_123"},
+        chat_id="chat_rec",
+        sender_id="u_rec",
+        content="query during reconnect",
+        thread_id="req_rec",
+        metadata={"message_id": "stream_reconnect", "req_id": "req_rec"},
     )
     await ch._dispatch_inbound(inbound)
     await asyncio.sleep(0.5)
 
-    # Verify placeholder edit received respond_msg
-    assert mock_ws.send.called
     sent_payloads = [json.loads(call[0][0]) for call in mock_ws.send.call_args_list]
+    # In force-closed state, respond_msg finishes the stream
     assert any(p.get("cmd") == "aibot_respond_msg" for p in sent_payloads)
 
     router._running = False

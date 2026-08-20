@@ -1,6 +1,6 @@
 """[INPUT]
 - app.core.types::ModelConfig (POS: 业务层模型配置对象)
-- myrm_agent_harness.toolkits.llms::llm_manager (POS: LiteLLM/LangChain 实例创建)
+- myrm_agent_harness.toolkits.llms::{llm_manager, ManagedLLM, ScenarioType} (POS: LiteLLM/LangChain 实例创建与托管)
 
 [OUTPUT]
 - create_agent_llms(): 创建 main / lite / fallback / safety_fallback LLM 实例（lite LLM 自动注入 reasoning_effort='low'）
@@ -121,7 +121,7 @@ async def create_agent_llms(
         effective_fallbacks = [fallback_model_cfg]
 
     if effective_fallbacks:
-        from myrm_agent_harness.toolkits.llms.fallback import FallbackModel
+        from myrm_agent_harness.toolkits.llms import FallbackModel
 
         raw_fallback_llms: list[BaseChatModel] = []
         fallback_models_for_manager: list[FallbackModel] = []

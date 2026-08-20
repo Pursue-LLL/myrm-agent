@@ -19,6 +19,8 @@ import {
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
+import { EmptyState } from '@/components/primitives/empty-state';
+import { MetricCardsSkeleton, CardGridSkeleton } from '@/components/primitives/skeleton-templates';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getGrowthDashboard, type GrowthDashboardData } from '@/services/statistics';
 import { showApiError } from '@/lib/api';
@@ -70,25 +72,35 @@ export default function GrowthDashboard() {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6 max-w-7xl mx-auto py-2">
+        <MetricCardsSkeleton count={4} />
+        <CardGridSkeleton count={2} columns={2} className="min-h-[280px]" />
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Sprout className="h-16 w-16 text-muted-foreground/40" />
-        <h2 className="text-xl font-semibold text-foreground">{t('empty.title')}</h2>
-        <p className="text-muted-foreground text-sm">{t('empty.description')}</p>
-        {error && (
-          <Button variant="outline" size="sm" onClick={() => fetchData(timeRange)} className="mt-2">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {t('empty.retry')}
-          </Button>
-        )}
-      </div>
+      <EmptyState
+        variant={error ? 'error' : 'default'}
+        icon={Sprout}
+        title={t('empty.title')}
+        description={t('empty.description')}
+        className="min-h-[50vh] my-6"
+        action={
+          error ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchData(timeRange)}
+              className="mt-2"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t('empty.retry')}
+            </Button>
+          ) : undefined
+        }
+      />
     );
   }
 

@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent } from '@/components/primitives/card';
+import { EmptyState } from '@/components/primitives/empty-state';
+import { TimelineSkeleton } from '@/components/primitives/skeleton-templates';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   getLearningTimeline,

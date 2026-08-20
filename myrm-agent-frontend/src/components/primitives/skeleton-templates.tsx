@@ -1,6 +1,6 @@
 /**
  * [INPUT] skeleton::Skeleton (POS: 基础微光脉冲占位基元), classnameUtils::cn (POS: Tailwind 类名合并工具)
- * [OUTPUT] ListSkeleton, CardGridSkeleton, TableSkeleton, FormSkeleton, ListDetailSkeleton: 常用结构骨架模板
+ * [OUTPUT] ListSkeleton, CardGridSkeleton, TableSkeleton, FormSkeleton, ListDetailSkeleton, MetricCardsSkeleton, TimelineSkeleton: 常用结构骨架模板
  * [POS] UI基元层。提供多种标准化页面拓扑骨架模板，消除加载阶段布局跳动(CLS)。
  */
 
@@ -204,3 +204,84 @@ export function ListDetailSkeleton({
     </div>
   );
 }
+
+/**
+ * 指标/概览卡片网格骨架模板（用于仪表盘 KPI）
+ */
+export function MetricCardsSkeleton({
+  count = 4,
+  className,
+}: {
+  count?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading metrics"
+      className={cn('grid grid-cols-2 gap-3 lg:grid-cols-4', className)}
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-border/50 bg-card p-4 space-y-3 shadow-xs"
+        >
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-7 w-7 rounded-lg" />
+          </div>
+          <div className="space-y-1.5">
+            <Skeleton className="h-6 w-16" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 时序成长流/时间线节点骨架模板
+ */
+export function TimelineSkeleton({
+  count = 4,
+  className,
+}: {
+  count?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading timeline"
+      className={cn(
+        'relative pl-6 space-y-4 before:absolute before:bottom-2 before:left-2.5 before:top-2 before:w-[2px] before:bg-border/60',
+        className,
+      )}
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="relative">
+          {/* Node marker point */}
+          <div className="absolute -left-6 top-3 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background shadow-xs">
+            <Skeleton className="h-2.5 w-2.5 rounded-full" />
+          </div>
+          {/* Node Card */}
+          <div className="rounded-xl border border-border/50 bg-card p-4 space-y-2.5 shadow-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-16 rounded-full" />
+                <Skeleton className="h-3.5 w-24" />
+              </div>
+              <Skeleton className="h-3.5 w-14" />
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3.5 w-3/4" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
