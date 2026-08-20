@@ -60,7 +60,9 @@ export function VaultUnlockModal() {
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (isOpen && !open) {return;}
+        if (isOpen && !open) {
+          return;
+        }
         setIsOpen(open);
       }}
     >

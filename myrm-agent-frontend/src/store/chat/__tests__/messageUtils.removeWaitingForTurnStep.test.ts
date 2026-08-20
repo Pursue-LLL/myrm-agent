@@ -18,10 +18,7 @@ describe('removeWaitingForTurnStep', () => {
   it('removes waiting_for_turn step from the target message only', () => {
     const waitingStep = { step_key: 'waiting_for_turn' };
     const otherStep = { step_key: 'model_failover' };
-    const messages = [
-      makeMessage('msg-target', [waitingStep, otherStep]),
-      makeMessage('msg-other', [waitingStep]),
-    ];
+    const messages = [makeMessage('msg-target', [waitingStep, otherStep]), makeMessage('msg-other', [waitingStep])];
 
     const result = removeWaitingForTurnStep(messages, 'msg-target');
 

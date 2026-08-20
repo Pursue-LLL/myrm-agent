@@ -17,7 +17,14 @@
 import crypto from 'crypto';
 import { Message, ChatHistoryItem, type ActionMode, type ChatState } from '@/store/chat/types';
 import { ChatActionsMethods } from './messageRequest';
-import { getChatDetail, getMessages, generateChatTitle, updateChatTitle, getContextPins, listContextBranches } from '@/services/chat';
+import {
+  getChatDetail,
+  getMessages,
+  generateChatTitle,
+  updateChatTitle,
+  getContextPins,
+  listContextBranches,
+} from '@/services/chat';
 import { ApiError, apiRequest } from '@/lib/api';
 import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
@@ -65,17 +72,27 @@ function normalizeActionMode(actionMode: string | null | undefined): ActionMode 
  * Runs asynchronously to avoid blocking message rendering.
  */
 function restoreAgentConfigFromChat(chatId: string, agentId: string | null | undefined): void {
-  if (!agentId) {return;}
+  if (!agentId) {
+    return;
+  }
 
   const currentConfig = useChatStore.getState().agentConfig;
-  if (currentConfig?.agentId === agentId) {return;}
+  if (currentConfig?.agentId === agentId) {
+    return;
+  }
 
-  useAgentStore.getState().fetchAgent(agentId).then(async (agent) => {
-    if (!agent || useChatStore.getState().chatId !== chatId) {return;}
-    const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
-    await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
-    useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
-  }).catch(() => {});
+  useAgentStore
+    .getState()
+    .fetchAgent(agentId)
+    .then(async (agent) => {
+      if (!agent || useChatStore.getState().chatId !== chatId) {
+        return;
+      }
+      const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
+      await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
+      useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
+    })
+    .catch(() => {});
 }
 
 /**
@@ -234,11 +251,13 @@ export const loadMessages = async (
       });
     }
 
-    apiRequest<{ active: boolean }>(`/chats/${chatId}/sandbox/status`).then((res) => {
-      if (res?.active && useChatStore.getState().chatId === chatId) {
-        useChatStore.getState().setSandboxMode(true);
-      }
-    }).catch(() => {});
+    apiRequest<{ active: boolean }>(`/chats/${chatId}/sandbox/status`)
+      .then((res) => {
+        if (res?.active && useChatStore.getState().chatId === chatId) {
+          useChatStore.getState().setSandboxMode(true);
+        }
+      })
+      .catch(() => {});
 
     void getContextPins(chatId)
       .then(({ files }) => {
@@ -292,7 +311,9 @@ const activeTurnAttachInFlight = new Set<string>();
  * attach 404（任务已结束）时重新拉取最终消息，避免 UI 卡在"已发送未回复"。
  */
 async function maybeAttachToActiveTurn(chatId: string, actions: ChatActionsMethods): Promise<void> {
-  if (activeTurnAttachInFlight.has(chatId)) {return;}
+  if (activeTurnAttachInFlight.has(chatId)) {
+    return;
+  }
 
   const state = useChatStore.getState();
   console.log('[MYRM-ATTACH] maybeAttachToActiveTurn guard check', {
@@ -303,11 +324,15 @@ async function maybeAttachToActiveTurn(chatId: string, actions: ChatActionsMetho
     msgCount: (state.messages ?? []).length,
     lastRole: (state.messages ?? [])[(state.messages ?? []).length - 1]?.role,
   });
-  if (state.chatId !== chatId || state.loading || state.abortController) {return;}
+  if (state.chatId !== chatId || state.loading || state.abortController) {
+    return;
+  }
 
   const messages = state.messages ?? [];
   const last = messages[messages.length - 1];
-  if (!last || last.role !== 'user') {return;}
+  if (!last || last.role !== 'user') {
+    return;
+  }
 
   activeTurnAttachInFlight.add(chatId);
   try {
@@ -369,17 +394,13 @@ function parseMessages(raw: Message[]): Message[] {
     const metadata =
       typeof rawRecord.metadata === 'string'
         ? (JSON.parse(rawRecord.metadata) as Record<string, unknown>)
-        : (rawRecord.metadata as Record<string, unknown> | undefined) ?? {};
+        : ((rawRecord.metadata as Record<string, unknown> | undefined) ?? {});
 
     const citedMemoryIds = normalizeStringArray(metadata.citedMemoryIds ?? rawRecord.citedMemoryIds);
     const citedMemoryRefs = normalizeCitedMemoryRefs(metadata.citedMemoryRefs ?? rawRecord.citedMemoryRefs);
 
     const createdAtMs = resolveMessageCreatedAtMs(
-      (msg.createdAt ?? rawRecord.created_at ?? rawRecord.createdAt) as
-        | Date
-        | string
-        | number
-        | undefined,
+      (msg.createdAt ?? rawRecord.created_at ?? rawRecord.createdAt) as Date | string | number | undefined,
     );
 
     const parsed = {
@@ -530,9 +551,7 @@ export const initializeChat = (
         draft.chatId = id;
         draft.isMessagesLoaded = true;
         draft.securityPreset = normalizeSecurityPreset(draft.agentConfig?.defaultSecurityPreset);
-        draft.activeMoaPresetId = snapshot.incognitoMode
-          ? null
-          : (snapshot.activeMoaPresetId ?? null);
+        draft.activeMoaPresetId = snapshot.incognitoMode ? null : (snapshot.activeMoaPresetId ?? null);
       });
       actions.clearCurrentSessionMessageId();
 
@@ -583,10 +602,7 @@ export const initializeChat = (
   }
 };
 
-function shouldApplyPaneMessages(
-  lruSnapshot: Partial<ChatState>,
-  paneSnapshot: Partial<ChatState>,
-): boolean {
+function shouldApplyPaneMessages(lruSnapshot: Partial<ChatState>, paneSnapshot: Partial<ChatState>): boolean {
   if (paneSnapshot.loading === true) {
     return true;
   }

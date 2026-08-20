@@ -22,8 +22,11 @@ function countDiffStats(diff: string): { added: number; removed: number } {
   let removed = 0;
   const lines = diff.split('\n');
   for (const line of lines) {
-    if (line.startsWith('+') && !line.startsWith('+++')) {added++;}
-    else if (line.startsWith('-') && !line.startsWith('---')) {removed++;}
+    if (line.startsWith('+') && !line.startsWith('+++')) {
+      added++;
+    } else if (line.startsWith('-') && !line.startsWith('---')) {
+      removed++;
+    }
   }
   return { added, removed };
 }
@@ -91,11 +94,7 @@ const FilePathRenderer: React.FC<FilePathRendererProps> = ({ items, messageId, s
 
             {hasDiff && isExpanded && (
               <div className="mt-1 ml-1 max-w-full overflow-hidden">
-                <DiffViewer
-                  diff={item.diff!}
-                  filePath={item.file_path}
-                  className="text-[11px]"
-                />
+                <DiffViewer diff={item.diff!} filePath={item.file_path} className="text-[11px]" />
               </div>
             )}
           </div>

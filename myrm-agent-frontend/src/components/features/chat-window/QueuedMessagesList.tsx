@@ -176,11 +176,15 @@ export function QueuedMessagesList({ queue, editMessage, removeMessage, reorder 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
-      if (!over || active.id === over.id) {return;}
+      if (!over || active.id === over.id) {
+        return;
+      }
 
       const oldIndex = queue.findIndex((m) => m.id === active.id);
       const newIndex = queue.findIndex((m) => m.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) {return;}
+      if (oldIndex === -1 || newIndex === -1) {
+        return;
+      }
 
       reorder(oldIndex, newIndex);
     },
@@ -200,7 +204,9 @@ export function QueuedMessagesList({ queue, editMessage, removeMessage, reorder 
     setEditingText('');
   }, []);
 
-  if (queue.length === 0) {return null;}
+  if (queue.length === 0) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-2 mb-2 w-full">

@@ -32,9 +32,7 @@ describe('refreshSessionAccessRoots', () => {
     const { refreshSessionAccessRoots } = await import('../sessionAccessRefresh');
     await refreshSessionAccessRoots('chat-1');
 
-    expect(setSessionAccessRootsMock).toHaveBeenCalledWith([
-      { path: '/data', writable: true, source: 'hitl_grant' },
-    ]);
+    expect(setSessionAccessRootsMock).toHaveBeenCalledWith([{ path: '/data', writable: true, source: 'hitl_grant' }]);
   });
 
   it('applies optimistic when GET returns empty roots', async () => {

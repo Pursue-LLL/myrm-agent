@@ -4,10 +4,7 @@ import React from 'react';
 
 /** Lightweight Suspense fallback while EvictedOutputDrawer lazy chunk loads. */
 export const EvictedDrawerSuspenseFallback: React.FC = () => (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-    aria-hidden
-  >
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" aria-hidden>
     <div
       className={[
         'flex items-center justify-center',

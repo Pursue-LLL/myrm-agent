@@ -28,10 +28,7 @@ import {
   resolveTemplateKind,
   templateMatchesSearchQuery,
 } from '@/services/templateDiscovery';
-import {
-  recordExpertSummonSearchUsed,
-  recordExpertSummonSurfaceViewed,
-} from '@/services/expertSummonMetrics';
+import { recordExpertSummonSearchUsed, recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
 import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
 import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
 
@@ -104,7 +101,9 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   }, [searchQuery]);
 
   const handleInstantiate = async (template: TemplateListItem, starterPrompt?: string) => {
-    if (instantiatingId) {return;}
+    if (instantiatingId) {
+      return;
+    }
     const normalizedStarterPrompt = starterPrompt?.trim() ?? '';
     const fromSearch = normalizeTemplateSearchText(searchQuery).length > 0;
     const usedUseCase = normalizedStarterPrompt.length > 0;
@@ -144,7 +143,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
 
   if (loading) {
     return (
-      <div className={cn("flex justify-center p-4", className)}>
+      <div className={cn('flex justify-center p-4', className)}>
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     );
@@ -154,11 +153,11 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     return null;
   }
 
-  const individualTemplates = filteredTemplates.filter(item => item.agent_type !== 'team');
-  const teamTemplates = filteredTemplates.filter(item => item.agent_type === 'team');
+  const individualTemplates = filteredTemplates.filter((item) => item.agent_type !== 'team');
+  const teamTemplates = filteredTemplates.filter((item) => item.agent_type === 'team');
 
   return (
-    <div className={cn("space-y-3 pt-2", className)}>
+    <div className={cn('space-y-3 pt-2', className)}>
       <div className="flex items-center gap-2 px-1">
         <div className="flex-1 h-px bg-border/50" />
         <span className="text-xs text-muted-foreground">{t('templateMarket') || 'Template Market'}</span>
@@ -166,7 +165,10 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
       </div>
 
       <div className="relative px-1">
-        <Search size={12} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70" />
+        <Search
+          size={12}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70"
+        />
         <input
           type="text"
           value={searchQuery}
@@ -183,7 +185,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
 
       {teamTemplates.length > 0 && (
         <div className="grid grid-cols-1 gap-3">
-          {teamTemplates.map(template => (
+          {teamTemplates.map((template) => (
             <TeamTemplateCard
               key={template.id}
               template={template}
@@ -196,17 +198,17 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
 
       {individualTemplates.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {individualTemplates.map(template => (
+          {individualTemplates.map((template) => (
             <button
               type="button"
               key={template.id}
               disabled={Boolean(instantiatingId)}
               className={cn(
-                "relative flex flex-col gap-2 p-3 rounded-xl",
-                "border border-border/40 bg-card/40 backdrop-blur-sm",
-                "hover:border-primary/30 hover:bg-primary/5 transition-all text-left",
-                "group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                "disabled:opacity-60 disabled:cursor-not-allowed"
+                'relative flex flex-col gap-2 p-3 rounded-xl',
+                'border border-border/40 bg-card/40 backdrop-blur-sm',
+                'hover:border-primary/30 hover:bg-primary/5 transition-all text-left',
+                'group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                'disabled:opacity-60 disabled:cursor-not-allowed',
               )}
               onClick={() => void handleInstantiate(template)}
             >
@@ -253,18 +255,22 @@ function TeamTemplateCard({
       tabIndex={isDisabled ? -1 : 0}
       aria-disabled={isDisabled}
       className={cn(
-        "relative flex flex-col gap-2.5 p-3.5 rounded-xl",
-        "border border-border/40 bg-card/40 backdrop-blur-sm",
-        "hover:border-primary/30 hover:bg-primary/5 transition-all",
-        "group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        isDisabled && "opacity-60 cursor-not-allowed"
+        'relative flex flex-col gap-2.5 p-3.5 rounded-xl',
+        'border border-border/40 bg-card/40 backdrop-blur-sm',
+        'hover:border-primary/30 hover:bg-primary/5 transition-all',
+        'group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        isDisabled && 'opacity-60 cursor-not-allowed',
       )}
       onClick={() => {
-        if (isDisabled) {return;}
+        if (isDisabled) {
+          return;
+        }
         void onInstantiate(template);
       }}
       onKeyDown={(event) => {
-        if (isDisabled) {return;}
+        if (isDisabled) {
+          return;
+        }
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           void onInstantiate(template);

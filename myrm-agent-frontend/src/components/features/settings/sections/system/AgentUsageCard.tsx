@@ -13,7 +13,9 @@ const SPARKLINE_WIDTH = 80;
 const SPARKLINE_HEIGHT = 24;
 
 const MiniSparkline = memo<{ data: number[]; className?: string }>(({ data, className }) => {
-  if (data.length < 2 || data.every((v) => v === 0)) {return null;}
+  if (data.length < 2 || data.every((v) => v === 0)) {
+    return null;
+  }
   const max = Math.max(...data, 1);
   const points = data.map((v, i) => {
     const x = (i / (data.length - 1)) * SPARKLINE_WIDTH;
@@ -28,7 +30,14 @@ const MiniSparkline = memo<{ data: number[]; className?: string }>(({ data, clas
       viewBox={`0 0 ${SPARKLINE_WIDTH} ${SPARKLINE_HEIGHT}`}
       className={cn('shrink-0', className)}
     >
-      <path d={pathD} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={pathD}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 });
@@ -52,10 +61,16 @@ const AgentUsageCard = memo(() => {
     }
   }, []);
 
-  useEffect(() => { void loadData(); }, [loadData]);
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
-  if (loading) {return null;}
-  if (agents.length <= 1) {return null;}
+  if (loading) {
+    return null;
+  }
+  if (agents.length <= 1) {
+    return null;
+  }
 
   const maxUsd = Math.max(...agents.map((a) => a.totalUsd), 0.001);
 
@@ -85,7 +100,9 @@ const AgentUsageCard = memo(() => {
                   />
                 ) : (
                   <span className="text-xs font-bold text-primary">
-                    {getBuiltinAgentName(agent.agentId, agent.name || agent.agentId, locale).charAt(0).toUpperCase()}
+                    {getBuiltinAgentName(agent.agentId, agent.name || agent.agentId, locale)
+                      .charAt(0)
+                      .toUpperCase()}
                   </span>
                 )}
               </div>
@@ -108,7 +125,9 @@ const AgentUsageCard = memo(() => {
                 <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
                   <span>{formatCost(agent.totalUsd)}</span>
                   <span>{formatTokenCount(agent.totalTokens)} tokens</span>
-                  <span>{agent.totalCalls} {t('calls') || 'calls'}</span>
+                  <span>
+                    {agent.totalCalls} {t('calls') || 'calls'}
+                  </span>
                 </div>
               </div>
 

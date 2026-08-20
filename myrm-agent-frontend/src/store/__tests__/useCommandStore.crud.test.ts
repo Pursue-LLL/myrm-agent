@@ -51,10 +51,13 @@ describe('useCommandStore CRUD operations', () => {
 
     it('syncs to ConfigSyncManager after add', () => {
       useCommandStore.getState().addCommand({ name: 'test', template: 'test' });
-      expect(syncSetMock).toHaveBeenCalledWith('commands', expect.objectContaining({
-        commands: expect.any(Array),
-        recentCommandIds: expect.any(Array),
-      }));
+      expect(syncSetMock).toHaveBeenCalledWith(
+        'commands',
+        expect.objectContaining({
+          commands: expect.any(Array),
+          recentCommandIds: expect.any(Array),
+        }),
+      );
     });
 
     it('supports multiple commands', () => {

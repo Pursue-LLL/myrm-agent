@@ -2,7 +2,14 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconEye, IconEyeOff, IconLoader, IconPlus, IconTrash, IconWifi } from '@/components/features/icons/PremiumIcons';
+import {
+  IconEye,
+  IconEyeOff,
+  IconLoader,
+  IconPlus,
+  IconTrash,
+  IconWifi,
+} from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
@@ -28,8 +35,12 @@ const CMD_PATTERN = /^[a-z0-9_]{1,32}$/;
 
 function validateCommand(cmd: BotCommand): { command?: string; description?: string } {
   const errors: { command?: string; description?: string } = {};
-  if (cmd.command && !CMD_PATTERN.test(cmd.command)) {errors.command = 'telegramCommandFormatError';}
-  if (cmd.command && !cmd.description.trim()) {errors.description = 'telegramCommandDescRequired';}
+  if (cmd.command && !CMD_PATTERN.test(cmd.command)) {
+    errors.command = 'telegramCommandFormatError';
+  }
+  if (cmd.command && !cmd.description.trim()) {
+    errors.description = 'telegramCommandDescRequired';
+  }
   return errors;
 }
 

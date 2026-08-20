@@ -38,8 +38,7 @@ export function getOauthBadgeStyles(state: OauthCardState): {
 } {
   if (state === 'connected') {
     return {
-      badgeColorClass:
-        'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30',
+      badgeColorClass: 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30',
       badgePulseDotClass: 'bg-emerald-500',
     };
   }

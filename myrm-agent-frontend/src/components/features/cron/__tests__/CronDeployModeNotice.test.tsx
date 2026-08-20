@@ -10,7 +10,12 @@ vi.mock('@/hooks/shared/useDeployMode', () => ({
 import CronDeployModeNotice from '../CronDeployModeNotice';
 
 function deployState(
-  overrides: Partial<{ isLoading: boolean; isLocal: boolean; isSandbox: boolean; mode: 'local' | 'tauri' | 'sandbox' }> = {},
+  overrides: Partial<{
+    isLoading: boolean;
+    isLocal: boolean;
+    isSandbox: boolean;
+    mode: 'local' | 'tauri' | 'sandbox';
+  }> = {},
 ) {
   return {
     mode: 'local' as const,

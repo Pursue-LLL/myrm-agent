@@ -14,8 +14,7 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: unknown) => unknown) =>
-    selector({ sendMessage: vi.fn(), messages: [] }),
+  default: (selector: (state: unknown) => unknown) => selector({ sendMessage: vi.fn(), messages: [] }),
 }));
 
 import ProgressSteps from '../ProgressSteps';
@@ -102,13 +101,7 @@ describe('linkifyErrorText', () => {
 
 describe('ProgressSteps fault-side badge', () => {
   it('renders the localized fault badge when an error step carries fault_side', async () => {
-    render(
-      <ProgressSteps
-        messageId="m-1"
-        steps={[errorStep({ fault_side: 'model' })]}
-        loading={false}
-      />,
-    );
+    render(<ProgressSteps messageId="m-1" steps={[errorStep({ fault_side: 'model' })]} loading={false} />);
     await userEvent.click(screen.getByTestId('progress-steps-toggle'));
     expect(screen.getByText('faultSides.model')).toBeInTheDocument();
   });

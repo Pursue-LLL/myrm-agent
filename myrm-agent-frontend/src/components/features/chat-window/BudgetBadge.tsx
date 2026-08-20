@@ -52,7 +52,9 @@ const BudgetBadge = memo(() => {
     };
   }, [refresh]);
 
-  if (!status || !status.enabled || status.status === 'disabled') {return null;}
+  if (!status || !status.enabled || status.status === 'disabled') {
+    return null;
+  }
 
   const colorClass = STATUS_COLORS[status.status] ?? STATUS_COLORS.ok;
   const ecoActive = ECO_ACTIVE_STATUSES.has(status.status);

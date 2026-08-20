@@ -24,9 +24,7 @@ export function companionPetSpritesheetUrl(petSlug: string): string {
   return getApiUrl(`/companion/pets/${encodeURIComponent(petSlug)}/spritesheet`);
 }
 
-export function resolveCompanionSpritesheetUrl(
-  config: CompanionSpriteConfig | null | undefined,
-): string | null {
+export function resolveCompanionSpritesheetUrl(config: CompanionSpriteConfig | null | undefined): string | null {
   if (!config?.petSlug) {
     return null;
   }

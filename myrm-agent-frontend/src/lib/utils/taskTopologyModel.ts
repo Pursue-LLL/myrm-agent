@@ -64,7 +64,9 @@ function fissionNodeId(fissionId: string, nodeId: string): string {
 /** Strip long free-text labels so graph node labels stay readable on a single line. */
 export function truncateLabel(text: string, maxLength = MAX_LABEL_LENGTH): string {
   const trimmed = text.trim();
-  if (trimmed.length <= maxLength) {return trimmed;}
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
   return `${trimmed.slice(0, maxLength - 1)}…`;
 }
 
@@ -109,15 +111,16 @@ function emptyTopologyModel(): TopologyModel {
 /** Build a graph from the live subagent tree. Dangling parents are dropped. */
 export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
   const model = emptyTopologyModel();
-  if (nodes.length === 0) {return model;}
+  if (nodes.length === 0) {
+    return model;
+  }
 
   const visible = nodes.filter((n) => !n.internal);
   const map: Record<string, TopologyNodeData> = {};
   for (const n of visible) {
     const verificationFailed = n.verification !== undefined && !n.verification.passed;
     const baseTone = toneForStatus(n.status);
-    const tone: TopologyTone =
-      baseTone === 'success' && verificationFailed ? 'danger' : baseTone;
+    const tone: TopologyTone = baseTone === 'success' && verificationFailed ? 'danger' : baseTone;
     const data: TopologyNodeData = {
       taskId: n.task_id,
       label: truncateLabel(n.description || n.agent_type || n.task_id),
@@ -135,8 +138,12 @@ export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
     map[n.task_id] = data;
     model.nodes.push(data);
 
-    if (tone === 'active') {model.activeCount++;}
-    if (tone === 'danger') {model.failedCount++;}
+    if (tone === 'active') {
+      model.activeCount++;
+    }
+    if (tone === 'danger') {
+      model.failedCount++;
+    }
     model.totalTokens += data.tokens;
     model.totalCostUsd += data.costUsd;
     model.totalDurationSeconds += data.durationSeconds;
@@ -158,7 +165,9 @@ export function buildTopologyModel(nodes: SubagentNode[]): TopologyModel {
  */
 export function buildFissionTopologyModel(topology: FissionTopology | null): TopologyModel {
   const model = emptyTopologyModel();
-  if (!topology || topology.nodes.length === 0) {return model;}
+  if (!topology || topology.nodes.length === 0) {
+    return model;
+  }
 
   const rootId = fissionRootId(topology.fission_id);
   const hasActive = topology.nodes.some((n) => toneForStatus(n.status) === 'active');
@@ -195,8 +204,12 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
     model.nodes.push(data);
     model.edges.push({ source: rootId, target: childId });
 
-    if (tone === 'active') {model.activeCount++;}
-    if (tone === 'danger') {model.failedCount++;}
+    if (tone === 'active') {
+      model.activeCount++;
+    }
+    if (tone === 'danger') {
+      model.failedCount++;
+    }
     model.totalCostUsd += data.costUsd;
   }
 
@@ -212,7 +225,9 @@ export function buildFissionTopologyModel(topology: FissionTopology | null): Top
 export function buildMergedTopologyModel(nodes: SubagentNode[], topology: FissionTopology | null): TopologyModel {
   const tree = buildTopologyModel(nodes);
   const fission = buildFissionTopologyModel(topology);
-  if (fission.nodes.length === 0) {return tree;}
+  if (fission.nodes.length === 0) {
+    return tree;
+  }
 
   return {
     nodes: [...tree.nodes, ...fission.nodes],

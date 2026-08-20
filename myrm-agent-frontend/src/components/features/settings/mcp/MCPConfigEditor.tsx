@@ -76,7 +76,9 @@ export function MCPConfigEditor({
 }: MCPConfigEditorProps) {
   const t = useTranslations('settings');
 
-  if (!show) {return null;}
+  if (!show) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -284,9 +286,7 @@ export function MCPConfigEditor({
           <div className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">{t('mcpStateAwareSerialMode')}</p>
-              <p className="text-xs text-muted-foreground">
-                {t('mcpStateAwareSerialModeHint')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('mcpStateAwareSerialModeHint')}</p>
             </div>
             <Switch
               checked={Boolean(formData.hostSerial)}
@@ -305,11 +305,7 @@ export function MCPConfigEditor({
           {(isLiveScanning || scanFindings.length > 0) && (
             <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-2">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
-                {isLiveScanning ? (
-                  <IconLoader className="w-4 h-4 animate-spin" />
-                ) : (
-                  <IconShield className="w-4 h-4" />
-                )}
+                {isLiveScanning ? <IconLoader className="w-4 h-4 animate-spin" /> : <IconShield className="w-4 h-4" />}
                 {isLiveScanning ? t('mcpScanRunning') : t('mcpScanFindingsTitle')}
               </p>
               {!isLiveScanning && (
@@ -320,9 +316,7 @@ export function MCPConfigEditor({
                         [{finding.severity}] {getMcpFindingDescription(finding, t)}
                       </div>
                       {finding.recommendation ? (
-                        <div className="text-muted-foreground">
-                          {getMcpFindingRecommendation(finding, t)}
-                        </div>
+                        <div className="text-muted-foreground">{getMcpFindingRecommendation(finding, t)}</div>
                       ) : null}
                     </li>
                   ))}
@@ -409,7 +403,9 @@ function HeadersSection({
       newKey = `Header-${suffix++}`;
     }
     updateHeaders({ ...headers, [newKey]: '' });
-    if (!expanded) {setExpanded(true);}
+    if (!expanded) {
+      setExpanded(true);
+    }
   };
 
   const removeHeader = (key: string) => {
@@ -520,8 +516,12 @@ function TLSSection({
   const [expanded, setExpanded] = useState(hasTlsValues);
 
   const sslVerifyDisplay = (() => {
-    if (formData.sslVerify === false) {return 'false';}
-    if (typeof formData.sslVerify === 'string') {return formData.sslVerify;}
+    if (formData.sslVerify === false) {
+      return 'false';
+    }
+    if (typeof formData.sslVerify === 'string') {
+      return formData.sslVerify;
+    }
     return '';
   })();
 

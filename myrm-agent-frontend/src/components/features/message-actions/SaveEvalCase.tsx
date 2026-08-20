@@ -9,7 +9,9 @@ const SaveEvalCase = ({ chatId }: { chatId: string }) => {
   const [saved, setSaved] = useState(false);
 
   const handleSave = useCallback(async () => {
-    if (saving || saved) {return;}
+    if (saving || saved) {
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/v1/eval/cases/from-chat/${chatId}`, {

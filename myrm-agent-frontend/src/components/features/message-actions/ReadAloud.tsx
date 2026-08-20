@@ -15,8 +15,12 @@ const ReadAloud = ({ content }: { content: string }) => {
   const { state, toggle, stop, supported } = useTTS({ mode, provider });
   const t = useTranslations('chat');
 
-  if (!supported) {return null;}
-  if (mode === 'api' && !isVoiceInteractionEnabled) {return null;}
+  if (!supported) {
+    return null;
+  }
+  if (mode === 'api' && !isVoiceInteractionEnabled) {
+    return null;
+  }
 
   const isActive = state !== 'idle';
 

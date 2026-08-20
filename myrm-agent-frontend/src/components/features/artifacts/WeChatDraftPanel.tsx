@@ -44,10 +44,7 @@ export function WeChatDraftPanel({
 }: WeChatDraftPanelProps) {
   const t = useTranslations('artifacts.wechatDraft');
   const defaultTitle = useMemo(() => resolveDefaultWechatDraftTitle(filename), [filename]);
-  const defaultAuthor = useMemo(
-    () => resolveDefaultWechatAuthor(agentName, presetName),
-    [agentName, presetName],
-  );
+  const defaultAuthor = useMemo(() => resolveDefaultWechatAuthor(agentName, presetName), [agentName, presetName]);
 
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');

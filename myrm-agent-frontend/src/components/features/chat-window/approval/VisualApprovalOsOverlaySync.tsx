@@ -17,24 +17,16 @@ import { useMemo } from 'react';
 import { useVisualApprovalOsOverlay } from '@/hooks/approval/useVisualApprovalOsOverlay';
 import { useVisualApprovalSnapshot } from '@/hooks/approval/useVisualApprovalSnapshot';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
 export default function VisualApprovalOsOverlaySync() {
   const chatId = useChatStore((state) => state.chatId);
   const queue = useToolApprovalStore((state) => state.queue);
-  const desktopViewData = useDesktopInspectorStore((state) =>
-    selectScopedDesktopViewData(state.viewData, chatId),
-  );
-  const browserViewData = useBrowserInspectorStore((state) =>
-    selectScopedBrowserViewData(state.viewData, chatId),
-  );
+  const desktopViewData = useDesktopInspectorStore((state) => selectScopedDesktopViewData(state.viewData, chatId));
+  const browserViewData = useBrowserInspectorStore((state) => selectScopedBrowserViewData(state.viewData, chatId));
   const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
   const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
 

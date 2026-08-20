@@ -111,11 +111,7 @@ export function WikiCompilePhaseBar({
             <div
               key={step}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
-                isActive
-                  ? 'bg-primary'
-                  : isComplete
-                    ? 'bg-primary/40'
-                    : 'bg-muted-foreground/20'
+                isActive ? 'bg-primary' : isComplete ? 'bg-primary/40' : 'bg-muted-foreground/20'
               }`}
               title={compilePhaseLabel(step, t)}
             />

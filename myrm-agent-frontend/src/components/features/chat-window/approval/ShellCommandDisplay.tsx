@@ -4,12 +4,7 @@ import type { ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { FolderOpen, Info } from 'lucide-react';
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/primitives/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { CommandSpan, PlainExplanation, SpanRiskLevel, SpanRiskReason } from '@/lib/approval/shellCommandDisplay';
 import { zipSpansWithRisks } from '@/lib/approval/shellCommandDisplay';
 
@@ -99,16 +94,13 @@ export default function ShellCommandDisplay({
   const t = useTranslations('toolApproval');
   const currentLocale = useLocale();
   const hasSpans = commandSpans && commandSpans.length > 0;
-  const explanationText = plainExplanation?.[currentLocale.startsWith('zh') ? 'zh' : 'en']
-    ?? plainExplanation?.en;
+  const explanationText = plainExplanation?.[currentLocale.startsWith('zh') ? 'zh' : 'en'] ?? plainExplanation?.en;
 
   const reasonLabel = (reason: SpanRiskReason) => t(`spanRiskReasons.${reason}`);
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
-        className={`rounded-lg border border-border overflow-hidden bg-muted/40 dark:bg-zinc-950 ${className}`}
-      >
+      <div className={`rounded-lg border border-border overflow-hidden bg-muted/40 dark:bg-zinc-950 ${className}`}>
         <div className="bg-muted/70 dark:bg-zinc-900 px-3 py-1.5 border-b border-border font-mono text-xs text-muted-foreground flex items-center gap-2 min-w-0">
           <span className="text-emerald-600 dark:text-emerald-400 shrink-0">$</span>
           <span className="truncate">{toolName}</span>

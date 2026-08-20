@@ -44,13 +44,7 @@ function severityClass(severity: string): string {
   }
 }
 
-export function MCPScanAckDialog({
-  open,
-  serverName,
-  findings,
-  onConfirm,
-  onCancel,
-}: MCPScanAckDialogProps) {
+export function MCPScanAckDialog({ open, serverName, findings, onConfirm, onCancel }: MCPScanAckDialogProps) {
   const t = useTranslations('settings');
 
   return (
@@ -77,9 +71,7 @@ export function MCPScanAckDialog({
                       <span className="text-foreground">{getMcpFindingDescription(finding, t)}</span>
                     </div>
                     {finding.recommendation ? (
-                      <p className="text-xs text-muted-foreground pl-1">
-                        {getMcpFindingRecommendation(finding, t)}
-                      </p>
+                      <p className="text-xs text-muted-foreground pl-1">{getMcpFindingRecommendation(finding, t)}</p>
                     ) : null}
                   </div>
                 ))}
@@ -89,10 +81,7 @@ export function MCPScanAckDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>{t('mcpCancel')}</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-          >
+          <AlertDialogAction onClick={onConfirm} className="bg-orange-600 hover:bg-orange-700 text-white">
             {t('mcpScanAckConfirm')}
           </AlertDialogAction>
         </AlertDialogFooter>

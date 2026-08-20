@@ -40,9 +40,7 @@ describe('sse schema', () => {
   });
 
   it('parseSseEnvelope rejects unknown type', () => {
-    expect(
-      parseSseEnvelope({ type: 'totally_unknown_event', messageId: 'm1' }),
-    ).toBeNull();
+    expect(parseSseEnvelope({ type: 'totally_unknown_event', messageId: 'm1' })).toBeNull();
   });
 
   it('parseSseEnvelope accepts FILE_DIFF and normalizes cancelled', () => {

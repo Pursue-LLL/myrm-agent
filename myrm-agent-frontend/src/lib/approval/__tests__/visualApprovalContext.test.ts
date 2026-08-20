@@ -37,25 +37,14 @@ const viewData: InspectorViewSnapshot = {
 
 describe('resolveVisualApprovalContext', () => {
   it('maps desktop screen-space refs into image-space percentages via helper', () => {
-    const mapped = mapScreenSpaceBBoxToImageSpace(
-      { x: 500, y: 300, width: 40, height: 30 },
-      1440,
-      900,
-      1280,
-      800,
-    );
+    const mapped = mapScreenSpaceBBoxToImageSpace({ x: 500, y: 300, width: 40, height: 30 }, 1440, 900, 1280, 800);
 
     expect(mapped.x).toBeCloseTo(444.444, 2);
     expect(mapped.y).toBeCloseTo(266.667, 2);
   });
 
   it('prefers viewport coordinates for ref-based browser approvals', () => {
-    const context = resolveVisualApprovalContext(
-      'browser_click',
-      { ref: 'e1' },
-      null,
-      viewData,
-    );
+    const context = resolveVisualApprovalContext('browser_click', { ref: 'e1' }, null, viewData);
 
     expect(context).not.toBeNull();
     expect(context?.bbox).toEqual({

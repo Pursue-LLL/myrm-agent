@@ -21,11 +21,7 @@ interface AgentSharedContextBindingProps {
   onBindingsChanged?: () => void;
 }
 
-export function AgentSharedContextBinding({
-  agentId,
-  isNew,
-  onBindingsChanged,
-}: AgentSharedContextBindingProps) {
+export function AgentSharedContextBinding({ agentId, isNew, onBindingsChanged }: AgentSharedContextBindingProps) {
   const t = useTranslations('agent.sharedContexts');
 
   return (

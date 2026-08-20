@@ -47,10 +47,7 @@ function buildImportFile(templateId: string, displayName: string): File {
   );
 }
 
-function importFile(
-  hook: RenderHookResult<ReturnType<typeof useWorkflowTemplateTransfer>, unknown>,
-  file: File,
-) {
+function importFile(hook: RenderHookResult<ReturnType<typeof useWorkflowTemplateTransfer>, unknown>, file: File) {
   return act(async () => {
     await hook.result.current.handleImportInputChange({
       target: { files: [file], value: '' },
@@ -105,9 +102,7 @@ describe('useWorkflowTemplateTransfer', () => {
       });
     }).rejects.toThrow('upsert failed');
 
-    expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'importFailed', variant: 'destructive' }),
-    );
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'importFailed', variant: 'destructive' }));
     expect(hook.result.current.importOverwriteTarget).not.toBeNull();
     expect(mockReload).not.toHaveBeenCalled();
   });

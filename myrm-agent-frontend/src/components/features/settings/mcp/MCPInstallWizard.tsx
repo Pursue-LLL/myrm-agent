@@ -35,7 +35,9 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
     setError(null);
     getMCPRegistryDetail(qualifiedName)
       .then((d) => {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setDetail(d);
         const initial: Record<string, string> = {};
         d.envVars.forEach((ev) => {
@@ -44,11 +46,15 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
         setEnvValues(initial);
       })
       .catch((e) => {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setError(e instanceof Error ? e.message : t('mcpRegistryLoadFailed'));
       })
       .finally(() => {
-        if (!cancelled) {setLoading(false);}
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -56,7 +62,9 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
   }, [qualifiedName, t]);
 
   const handleInstall = useCallback(async () => {
-    if (!detail) {return;}
+    if (!detail) {
+      return;
+    }
 
     const missingRequired = detail.envVars.filter((ev) => ev.required && !envValues[ev.name]?.trim());
     if (missingRequired.length > 0) {
@@ -99,7 +107,9 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
     );
   }
 
-  if (!detail) {return null;}
+  if (!detail) {
+    return null;
+  }
 
   return (
     <div className="space-y-5">
@@ -117,15 +127,11 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
         </div>
       </div>
 
-      {detail.description && (
-        <p className="text-sm text-muted-foreground leading-relaxed">{detail.description}</p>
-      )}
+      {detail.description && <p className="text-sm text-muted-foreground leading-relaxed">{detail.description}</p>}
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2">
         <span className="font-medium">{t('mcpRegistryTransport')}:</span>
-        <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">
-          {detail.transportType}
-        </span>
+        <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">{detail.transportType}</span>
       </div>
 
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5">
@@ -142,9 +148,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
                 {ev.name}
                 {ev.required && <span className="text-destructive">*</span>}
               </label>
-              {ev.description && (
-                <p className="text-[11px] text-muted-foreground">{ev.description}</p>
-              )}
+              {ev.description && <p className="text-[11px] text-muted-foreground">{ev.description}</p>}
               <input
                 type={isSensitiveField(ev.name) ? 'password' : 'text'}
                 value={envValues[ev.name] ?? ''}
@@ -183,13 +187,13 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
   );
 });
 
-function buildConfigFromDetail(
-  detail: MCPRegistryServerDetail,
-  envValues: Record<string, string>,
-): MCPServiceConfig {
-  const friendlyName = detail.displayName.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase().slice(0, 50);
+function buildConfigFromDetail(detail: MCPRegistryServerDetail, envValues: Record<string, string>): MCPServiceConfig {
+  const friendlyName = detail.displayName
+    .replace(/[^a-zA-Z0-9_-]/g, '-')
+    .toLowerCase()
+    .slice(0, 50);
 
-  const type = detail.transportType === 'stdio' ? 'stdio' as const : 'streamable_http' as const;
+  const type = detail.transportType === 'stdio' ? ('stdio' as const) : ('streamable_http' as const);
 
   const config: MCPServiceConfig = {
     name: friendlyName,
@@ -210,7 +214,9 @@ function buildConfigFromDetail(
   const envEntries = Object.entries(envValues).filter(([, v]) => v.trim());
   const extra: Record<string, unknown> = { registryQualifiedName: detail.qualifiedName };
   if (type === 'stdio') {
-    for (const [k, v] of envEntries) {extra[k] = v;}
+    for (const [k, v] of envEntries) {
+      extra[k] = v;
+    }
   }
   config.extra_params = extra;
 

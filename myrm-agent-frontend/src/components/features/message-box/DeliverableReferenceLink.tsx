@@ -4,10 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { DeliverableReference } from '@/lib/deliverable-link/parseDeliverableReference';
-import {
-  openArtifactDeliverable,
-  openWorkspaceDeliverable,
-} from '@/services/deliverable/openWorkspaceDeliverable';
+import { openArtifactDeliverable, openWorkspaceDeliverable } from '@/services/deliverable/openWorkspaceDeliverable';
 import type { Artifact } from '@/store/chat/types';
 
 interface DeliverableReferenceLinkProps {
@@ -26,10 +23,7 @@ function findArtifactById(artifacts: Artifact[] | undefined, id: string): Artifa
   return artifacts.find((a) => a.id === id || a.filename === id);
 }
 
-function findArtifactByShortFileId(
-  artifacts: Artifact[] | undefined,
-  shortFileId: string,
-): Artifact | undefined {
+function findArtifactByShortFileId(artifacts: Artifact[] | undefined, shortFileId: string): Artifact | undefined {
   if (!artifacts?.length) {
     return undefined;
   }
@@ -48,8 +42,7 @@ export default function DeliverableReferenceLink({
   const [opening, setOpening] = useState(false);
 
   const fileIdResolvable =
-    reference.kind !== 'file_id' ||
-    Boolean(findArtifactByShortFileId(messageArtifacts, reference.id));
+    reference.kind !== 'file_id' || Boolean(findArtifactByShortFileId(messageArtifacts, reference.id));
 
   const handleClick = useCallback(async () => {
     if (opening || !fileIdResolvable) {

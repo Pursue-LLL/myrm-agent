@@ -100,9 +100,7 @@ describe('useVoicePttListener', () => {
     };
     mockListeners.get('voice-ptt-context')!({ payload });
 
-    const dispatched = dispatchSpy.mock.calls.find(
-      (call) => (call[0] as CustomEvent).type === 'voice-ptt-context',
-    );
+    const dispatched = dispatchSpy.mock.calls.find((call) => (call[0] as CustomEvent).type === 'voice-ptt-context');
     expect(dispatched).toBeDefined();
     expect((dispatched![0] as CustomEvent).detail).toEqual(payload);
     expect((dispatched![0] as CustomEvent).cancelable).toBe(true);
@@ -125,9 +123,7 @@ describe('useVoicePttListener', () => {
     };
     mockListeners.get('voice-ptt-context')!({ payload });
 
-    const dispatched = dispatchSpy.mock.calls.find(
-      (call) => (call[0] as CustomEvent).type === 'voice-ptt-context',
-    );
+    const dispatched = dispatchSpy.mock.calls.find((call) => (call[0] as CustomEvent).type === 'voice-ptt-context');
     expect(dispatched).toBeDefined();
     expect((dispatched![0] as CustomEvent).detail).toEqual(payload);
 

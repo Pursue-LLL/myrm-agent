@@ -29,7 +29,9 @@ function isSandboxDeployMode(): boolean {
 
 function relayMarketingLocale(request: NextRequest): NextResponse | null {
   const locale = parseLocaleQueryParam(request.nextUrl.searchParams.get('locale'));
-  if (!locale) {return null;}
+  if (!locale) {
+    return null;
+  }
 
   const redirectUrl = urlWithoutLocaleParam(request.nextUrl);
   const response = NextResponse.redirect(redirectUrl);

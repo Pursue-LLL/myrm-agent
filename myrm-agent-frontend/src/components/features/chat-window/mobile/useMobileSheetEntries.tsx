@@ -39,18 +39,19 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   const t = useTranslations('common');
   const thinkT = useTranslations('thinkingIntensity');
 
-  const { agentConfig, actionMode, updateAgentConfig, isGoalMode, setIsGoalMode, chatId, messages, loading } = useChatStore(
-    useShallow((s) => ({
-      agentConfig: s.agentConfig,
-      actionMode: s.actionMode,
-      updateAgentConfig: s.updateAgentConfig,
-      isGoalMode: s.isGoalMode,
-      setIsGoalMode: s.setIsGoalMode,
-      chatId: s.chatId,
-      messages: s.messages,
-      loading: s.loading,
-    })),
-  );
+  const { agentConfig, actionMode, updateAgentConfig, isGoalMode, setIsGoalMode, chatId, messages, loading } =
+    useChatStore(
+      useShallow((s) => ({
+        agentConfig: s.agentConfig,
+        actionMode: s.actionMode,
+        updateAgentConfig: s.updateAgentConfig,
+        isGoalMode: s.isGoalMode,
+        setIsGoalMode: s.setIsGoalMode,
+        chatId: s.chatId,
+        messages: s.messages,
+        loading: s.loading,
+      })),
+    );
 
   const { providers, defaultModelConfig, getEnabledModels } = useProviderStore(
     useShallow((s) => ({
@@ -72,7 +73,9 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   const handleModelSelect = useCallback(
     (key: string) => {
       const [providerId, model] = key.split('::');
-      if (!providerId || !model || !agentConfig) {return;}
+      if (!providerId || !model || !agentConfig) {
+        return;
+      }
       updateAgentConfig({ modelSelection: { providerId, model } });
     },
     [agentConfig, updateAgentConfig],
@@ -84,7 +87,9 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   }, [isGoalMode, setIsGoalMode, onClose]);
 
   const handleFork = useCallback(async () => {
-    if (!chatId || messages.length === 0 || loading) {return;}
+    if (!chatId || messages.length === 0 || loading) {
+      return;
+    }
     onClose();
     try {
       const [{ forkConversation }, { default: workspaceStore }, { showI18nToast }] = await Promise.all([

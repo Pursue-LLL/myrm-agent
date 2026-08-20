@@ -166,7 +166,9 @@ describe('SelectionToolbar', () => {
   it('shows toolbar after text selection with debounce', () => {
     const editorMock = createMockEditor();
 
-    const { container } = render(<SelectionToolbar editorInstance={editorMock} artifactId="art-1" language="typescript" />);
+    const { container } = render(
+      <SelectionToolbar editorInstance={editorMock} artifactId="art-1" language="typescript" />,
+    );
 
     act(() => {
       editorMock._fireSelection();

@@ -69,7 +69,9 @@ const TEXT_ONLY_PATTERNS = [
 
 function classifyVisionIntent(text: string): VisionIntentResult {
   const normalized = text.trim();
-  if (!normalized) {return NO_VISION_RESULT;}
+  if (!normalized) {
+    return NO_VISION_RESULT;
+  }
 
   for (const pattern of TEXT_ONLY_PATTERNS) {
     if (pattern.test(normalized)) {

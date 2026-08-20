@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { getCachedBlueprints, humanizeSchedule, invalidateBlueprintCache, loadBlueprints, type CronBlueprint } from './cron-blueprints';
+import {
+  getCachedBlueprints,
+  humanizeSchedule,
+  invalidateBlueprintCache,
+  loadBlueprints,
+  type CronBlueprint,
+} from './cron-blueprints';
 
 interface BlueprintCatalogProps {
   onSelect: (blueprint: CronBlueprint) => void;
@@ -55,9 +61,7 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
   }
 
   if (loading && blueprints.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground text-center py-6">{t('blueprint.loading')}</p>
-    );
+    return <p className="text-sm text-muted-foreground text-center py-6">{t('blueprint.loading')}</p>;
   }
 
   const items = maxItems ? blueprints.slice(0, maxItems) : blueprints;
@@ -65,9 +69,7 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {items.map((bp) => {
-        const defaultSchedule = bp.buildSchedule(
-          Object.fromEntries(bp.slots.map((s) => [s.name, s.default])),
-        );
+        const defaultSchedule = bp.buildSchedule(Object.fromEntries(bp.slots.map((s) => [s.name, s.default])));
         const scheduleText = humanizeSchedule(defaultSchedule, t, locale);
 
         return (
@@ -87,9 +89,7 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                 {bp.description?.[locale] || t(bp.descKey)}
               </p>
-              <p className="text-[11px] text-muted-foreground/70 mt-1">
-                {scheduleText}
-              </p>
+              <p className="text-[11px] text-muted-foreground/70 mt-1">{scheduleText}</p>
             </div>
           </button>
         );

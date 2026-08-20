@@ -58,9 +58,7 @@ describe('VisualApprovalAttentionBar', () => {
   it('renders attention bar for inline visual requests in active chat', () => {
     useToolApprovalStore.setState({ queue: [inlineRequest] });
 
-    render(
-      <VisualApprovalAttentionBar messages={[{ messageId: 'msg-42' }]} onJumpToMessage={() => {}} />,
-    );
+    render(<VisualApprovalAttentionBar messages={[{ messageId: 'msg-42' }]} onJumpToMessage={() => {}} />);
 
     expect(screen.getByTestId('visual-approval-attention-bar')).toBeInTheDocument();
     expect(screen.getByText('visualApprovalAttentionTitle')).toBeInTheDocument();
@@ -85,9 +83,7 @@ describe('VisualApprovalAttentionBar', () => {
   it('calls rejectAll with inline requests from the active chat', () => {
     useToolApprovalStore.setState({ queue: [inlineRequest] });
 
-    render(
-      <VisualApprovalAttentionBar messages={[{ messageId: 'msg-42' }]} onJumpToMessage={() => {}} />,
-    );
+    render(<VisualApprovalAttentionBar messages={[{ messageId: 'msg-42' }]} onJumpToMessage={() => {}} />);
 
     fireEvent.click(screen.getByText('rejectAll'));
     expect(rejectAllMock).toHaveBeenCalledWith([inlineRequest]);

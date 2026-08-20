@@ -44,7 +44,9 @@ export default function CloneAgentDialog({ open, onOpenChange, agentId, agentNam
   }, [onOpenChange]);
 
   const handleClone = useCallback(async () => {
-    if (!agentId || !name.trim()) {return;}
+    if (!agentId || !name.trim()) {
+      return;
+    }
     setLoading(true);
     try {
       const cloned = await cloneAgent(agentId, name.trim());

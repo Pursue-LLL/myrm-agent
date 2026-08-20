@@ -1,9 +1,6 @@
 import { toast } from '@/lib/utils/toast';
 
-export type MessageDeadLetteredTranslator = (
-  key: string,
-  values?: Record<string, string | number>,
-) => string;
+export type MessageDeadLetteredTranslator = (key: string, values?: Record<string, string | number>) => string;
 
 export interface MessageDeadLetteredToastDeps {
   t: MessageDeadLetteredTranslator;
@@ -11,10 +8,7 @@ export interface MessageDeadLetteredToastDeps {
   dispatchEvent?: (eventName: string) => void;
 }
 
-export function showMessageDeadLetteredToast(
-  data: Record<string, unknown>,
-  deps: MessageDeadLetteredToastDeps,
-): void {
+export function showMessageDeadLetteredToast(data: Record<string, unknown>, deps: MessageDeadLetteredToastDeps): void {
   const channel = String(data.channel ?? 'unknown');
   const reason = String(data.error_reason ?? 'Unknown error');
   const message = deps.t('messageDeadLettered', { channel, reason });

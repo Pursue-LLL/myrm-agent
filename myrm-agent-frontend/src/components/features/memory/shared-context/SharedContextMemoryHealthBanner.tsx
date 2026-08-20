@@ -33,14 +33,22 @@ const iconClasses: Record<HealthTone, string> = {
 };
 
 const getTone = (health: SharedContextMemoryHealthResponse): HealthTone => {
-  if (health.ready) {return 'ready';}
-  if (health.status === 'not_configured') {return 'warning';}
+  if (health.ready) {
+    return 'ready';
+  }
+  if (health.status === 'not_configured') {
+    return 'warning';
+  }
   return 'error';
 };
 
 const HealthIcon = ({ tone }: { tone: HealthTone }) => {
-  if (tone === 'ready') {return <CheckCircle2 size={18} className={iconClasses.ready} />;}
-  if (tone === 'warning') {return <TriangleAlert size={18} className={iconClasses.warning} />;}
+  if (tone === 'ready') {
+    return <CheckCircle2 size={18} className={iconClasses.ready} />;
+  }
+  if (tone === 'warning') {
+    return <TriangleAlert size={18} className={iconClasses.warning} />;
+  }
   return <ShieldAlert size={18} className={iconClasses.error} />;
 };
 
@@ -102,7 +110,9 @@ export const SharedContextMemoryHealthBanner = memo(() => {
     );
   }
 
-  if (health === null) {return null;}
+  if (health === null) {
+    return null;
+  }
 
   const tone = getTone(health);
   const reason = health.reason ? t(`reason.${health.reason}`) : t('reason.ready');

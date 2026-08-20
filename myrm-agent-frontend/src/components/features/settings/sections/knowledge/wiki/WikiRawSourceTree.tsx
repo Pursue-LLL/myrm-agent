@@ -119,8 +119,7 @@ function RawTreeNode({
 
   const displayPath = node.id.endsWith('.md') ? node.id : `${node.id}.md`;
   const isHighlighted =
-    normalizedHighlight !== null &&
-    (displayPath === normalizedHighlight || node.id === normalizedHighlight);
+    normalizedHighlight !== null && (displayPath === normalizedHighlight || node.id === normalizedHighlight);
 
   return (
     <div
@@ -159,7 +158,9 @@ export function WikiRawSourceTree({
   const [isForgetting, setIsForgetting] = useState(false);
 
   useEffect(() => {
-    if (!highlightPath) {return;}
+    if (!highlightPath) {
+      return;
+    }
     const normalized = highlightPath.replace(/^\//, '');
     const target = document.querySelector(`[data-raw-path="${normalized}"]`);
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -178,7 +179,9 @@ export function WikiRawSourceTree({
   }
 
   const handleForget = async () => {
-    if (!forgetPath || !forgetReason.trim()) {return;}
+    if (!forgetPath || !forgetReason.trim()) {
+      return;
+    }
     setIsForgetting(true);
     try {
       await wikiService.deleteRawSource(forgetPath, forgetReason.trim(), agentScopeId);

@@ -208,8 +208,11 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                 onChange={(e) => onRenameValueChange(e.target.value)}
                 onBlur={() => onRenameSubmit(chat.id)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {onRenameSubmit(chat.id);}
-                  else if (e.key === 'Escape') {onRenameCancel();}
+                  if (e.key === 'Enter') {
+                    onRenameSubmit(chat.id);
+                  } else if (e.key === 'Escape') {
+                    onRenameCancel();
+                  }
                 }}
                 className={cn(
                   'text-sm font-medium text-black/90 dark:text-white/90 bg-transparent border-b border-primary/50 outline-none w-full',
@@ -432,15 +435,9 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
 ChatHistoryRow.displayName = 'ChatHistoryRow';
 
 export const SortablePinnedRow = memo<ChatHistoryRowProps>(({ chat, ...rest }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: chat.id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: chat.id,
+  });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -457,9 +454,7 @@ export const SortablePinnedRow = memo<ChatHistoryRowProps>(({ chat, ...rest }) =
         className={cn(
           'mt-2 flex-shrink-0 rounded text-black/30 hover:text-black/50 dark:text-white/30 dark:hover:text-white/50',
           'cursor-grab active:cursor-grabbing touch-none',
-          rest.isMobile
-            ? 'flex min-h-[44px] min-w-[44px] items-center justify-center p-2'
-            : 'p-1',
+          rest.isMobile ? 'flex min-h-[44px] min-w-[44px] items-center justify-center p-2' : 'p-1',
         )}
         aria-label={rest.t('chat.pin.reorderHandle')}
         onClick={(event) => event.preventDefault()}
@@ -495,7 +490,9 @@ function MoveToProjectMenu({
     });
   };
 
-  if (projects.length === 0) {return null;}
+  if (projects.length === 0) {
+    return null;
+  }
 
   return (
     <DropdownMenuSub>
@@ -530,7 +527,9 @@ function MoveToProjectMenu({
 }
 
 function getProjectColor(projectId: string | null | undefined): string | undefined {
-  if (!projectId) {return undefined;}
+  if (!projectId) {
+    return undefined;
+  }
   const project = useProjectStore.getState().projects.find((p) => p.id === projectId);
   return project?.color;
 }

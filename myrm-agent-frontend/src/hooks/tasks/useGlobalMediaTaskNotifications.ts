@@ -19,12 +19,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { isTauriRuntime } from '@/lib/deploy-mode';
-import {
-  fetchMediaTask,
-  getMediaTaskChatId,
-  getMediaTaskPrompt,
-  isMediaTaskType,
-} from '@/services/mediaTasks';
+import { fetchMediaTask, getMediaTaskChatId, getMediaTaskPrompt, isMediaTaskType } from '@/services/mediaTasks';
 import { subscribeTaskUpdateEvents } from '@/services/taskEventStream';
 import { notificationService } from '@/services/notification';
 import { sendTauriNativeNotification } from '@/services/tauriNativeNotification';
@@ -40,10 +35,7 @@ function shouldSkipNotification(task: Task): boolean {
   return onChatPage && document.visibilityState === 'visible';
 }
 
-function mediaTypeLabel(
-  taskType: string,
-  translate: (key: 'imageGenerate' | 'videoGenerate') => string,
-): string {
+function mediaTypeLabel(taskType: string, translate: (key: 'imageGenerate' | 'videoGenerate') => string): string {
   if (taskType === 'video_generate') {
     return translate('videoGenerate');
   }
@@ -84,22 +76,13 @@ export function useGlobalMediaTaskNotifications() {
 
       const typeLabel = mediaTypeLabel(task.task_type, (key) => t(key));
       const title =
-        task.status === 'succeeded'
-          ? t('completedTitle', { type: typeLabel })
-          : t('failedTitle', { type: typeLabel });
+        task.status === 'succeeded' ? t('completedTitle', { type: typeLabel }) : t('failedTitle', { type: typeLabel });
       const prompt = getMediaTaskPrompt(task.payload);
-      const body =
-        task.status === 'failed'
-          ? task.error?.message || prompt || t('unknownError')
-          : prompt || undefined;
+      const body = task.status === 'failed' ? task.error?.message || prompt || t('unknownError') : prompt || undefined;
       const chatId = getMediaTaskChatId(task.payload);
 
       void (async () => {
-        if (
-          isTauriRuntime() &&
-          typeof document !== 'undefined' &&
-          document.visibilityState === 'hidden'
-        ) {
+        if (isTauriRuntime() && typeof document !== 'undefined' && document.visibilityState === 'hidden') {
           const sent = await sendTauriNativeNotification({ title, body });
           if (sent) {
             return;

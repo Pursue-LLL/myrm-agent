@@ -31,6 +31,8 @@ function globToRegex(pattern: string): RegExp {
 }
 
 export function isModelAllowedByPolicy(modelName: string, patterns: string[]): boolean {
-  if (patterns.length === 0) {return true;}
+  if (patterns.length === 0) {
+    return true;
+  }
   return patterns.some((pattern) => globToRegex(pattern).test(modelName));
 }

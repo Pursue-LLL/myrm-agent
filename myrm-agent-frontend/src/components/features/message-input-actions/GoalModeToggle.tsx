@@ -123,7 +123,9 @@ export default function GoalModeToggle() {
     })),
   );
 
-  if (initialized && !isGoalsEnabled) {return null;}
+  if (initialized && !isGoalsEnabled) {
+    return null;
+  }
 
   const criteriaList = goalAcceptanceCriteria || [];
   const constraintsList = goalConstraints || [];

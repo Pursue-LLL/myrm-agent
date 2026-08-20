@@ -48,11 +48,15 @@ export function GitHubConfigCard() {
     void (async () => {
       try {
         const info = await getGitHubWebhookUrl();
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setWebhookUrl(info.webhookUrl);
         setWebhookPublic(info.public);
       } catch {
-        if (!cancelled) {setWebhookUrl('');}
+        if (!cancelled) {
+          setWebhookUrl('');
+        }
       }
     })();
     return () => {
@@ -61,7 +65,9 @@ export function GitHubConfigCard() {
   }, []);
 
   const handleCopy = useCallback(async () => {
-    if (!webhookUrl) {return;}
+    if (!webhookUrl) {
+      return;
+    }
     await writeToClipboard(webhookUrl);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);

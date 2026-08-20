@@ -30,7 +30,9 @@ const optionalString = (value: unknown): string | undefined => (typeof value ===
 const optionalNumber = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined);
 
 const optionalStringArray = (value: unknown): string[] | undefined => {
-  if (!Array.isArray(value)) {return undefined;}
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
   const items = value.filter((item): item is string => typeof item === 'string' && item.length > 0);
   return items.length ? items : undefined;
 };
@@ -39,15 +41,21 @@ export const isMemoryRecallToolName = (value: unknown): value is MemoryRecallToo
   typeof value === 'string' && (MEMORY_RECALL_TOOL_NAMES as readonly string[]).includes(value);
 
 export const normalizeCitedMemoryReferences = (value: unknown): CitedMemoryReference[] => {
-  if (!Array.isArray(value)) {return [];}
+  if (!Array.isArray(value)) {
+    return [];
+  }
 
   const refs: CitedMemoryReference[] = [];
   const seen = new Set<string>();
 
   for (const item of value) {
-    if (!isRecord(item)) {continue;}
+    if (!isRecord(item)) {
+      continue;
+    }
     const id = optionalString(item.id);
-    if (!id || seen.has(id)) {continue;}
+    if (!id || seen.has(id)) {
+      continue;
+    }
 
     refs.push({
       id,
@@ -70,10 +78,16 @@ export const mergeCitedMemoryReferences = (
   existing: CitedMemoryReference[] | undefined,
   incoming: CitedMemoryReference[],
 ): CitedMemoryReference[] => {
-  if (!incoming.length) {return existing ?? [];}
+  if (!incoming.length) {
+    return existing ?? [];
+  }
 
   const byId = new Map<string, CitedMemoryReference>();
-  for (const ref of existing ?? []) {byId.set(ref.id, ref);}
-  for (const ref of incoming) {byId.set(ref.id, { ...byId.get(ref.id), ...ref });}
+  for (const ref of existing ?? []) {
+    byId.set(ref.id, ref);
+  }
+  for (const ref of incoming) {
+    byId.set(ref.id, { ...byId.get(ref.id), ...ref });
+  }
   return [...byId.values()];
 };

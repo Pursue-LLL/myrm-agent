@@ -62,7 +62,9 @@ export function useSmoothStream(options: UseSmoothStreamOptions = {}): UseSmooth
 
   /** 将文本 chunk 分割为 grapheme cluster 并加入队列 */
   const addChunk = useCallback((chunk: string) => {
-    if (!chunk) {return;}
+    if (!chunk) {
+      return;
+    }
 
     // 使用 Intl.Segmenter 按 grapheme cluster 分割
     const segments = Array.from(segmenter.segment(chunk));

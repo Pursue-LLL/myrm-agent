@@ -22,7 +22,9 @@ export function DeliveryAssuranceSection({ editor, t }: SectionProps) {
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-medium text-foreground">{t('agent.cronPostRunVerify')}</h4>
           <p className="text-xs text-muted-foreground mt-0.5">{t('agent.cronPostRunVerifyDesc')}</p>
-          <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">{t('agent.cronPostRunVerifyHint')}</p>
+          <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">
+            {t('agent.cronPostRunVerifyHint')}
+          </p>
         </div>
         <Switch
           checked={editor.cronPostRunVerify}

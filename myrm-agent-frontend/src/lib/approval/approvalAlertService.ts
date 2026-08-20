@@ -34,12 +34,37 @@ interface NotificationStrings {
 }
 
 const NOTIFICATION_I18N: Record<Locale, NotificationStrings> = {
-  en: { pending: 'Approval Pending', pendingMulti: '{count} actions pending approval', remaining: 'remaining {seconds}s', includes: 'includes' },
+  en: {
+    pending: 'Approval Pending',
+    pendingMulti: '{count} actions pending approval',
+    remaining: 'remaining {seconds}s',
+    includes: 'includes',
+  },
   zh: { pending: '审批等待', pendingMulti: '{count} 个操作等待审批', remaining: '剩余 {seconds} 秒', includes: '包含' },
-  'zh-TW': { pending: '審批等待', pendingMulti: '{count} 個操作等待審批', remaining: '剩餘 {seconds} 秒', includes: '包含' },
-  ja: { pending: '承認待ち', pendingMulti: '{count} 件の操作が承認待ち', remaining: '残り {seconds} 秒', includes: '含む' },
-  ko: { pending: '승인 대기', pendingMulti: '{count}개 작업 승인 대기', remaining: '남은 시간 {seconds}초', includes: '포함' },
-  de: { pending: 'Genehmigung ausstehend', pendingMulti: '{count} Aktionen warten auf Genehmigung', remaining: 'verbleibend {seconds}s', includes: 'enthält' },
+  'zh-TW': {
+    pending: '審批等待',
+    pendingMulti: '{count} 個操作等待審批',
+    remaining: '剩餘 {seconds} 秒',
+    includes: '包含',
+  },
+  ja: {
+    pending: '承認待ち',
+    pendingMulti: '{count} 件の操作が承認待ち',
+    remaining: '残り {seconds} 秒',
+    includes: '含む',
+  },
+  ko: {
+    pending: '승인 대기',
+    pendingMulti: '{count}개 작업 승인 대기',
+    remaining: '남은 시간 {seconds}초',
+    includes: '포함',
+  },
+  de: {
+    pending: 'Genehmigung ausstehend',
+    pendingMulti: '{count} Aktionen warten auf Genehmigung',
+    remaining: 'verbleibend {seconds}s',
+    includes: 'enthält',
+  },
 };
 
 function getNotificationStrings(): NotificationStrings {
@@ -85,15 +110,16 @@ function buildNotificationBody(requests: ToolApprovalRequest[]): { title: string
 
 async function sendTauriNotification(title: string, body: string, requestId: string, sound: boolean): Promise<void> {
   try {
-    const { sendNotification, requestPermission, isPermissionGranted } = await import(
-      '@tauri-apps/plugin-notification'
-    );
+    const { sendNotification, requestPermission, isPermissionGranted } =
+      await import('@tauri-apps/plugin-notification');
     let granted = await isPermissionGranted();
     if (!granted) {
       const permission = await requestPermission();
       granted = permission === 'granted';
     }
-    if (!granted) {return;}
+    if (!granted) {
+      return;
+    }
 
     sendNotification({ title, body, sound: sound ? 'default' : undefined });
 
@@ -105,18 +131,17 @@ async function sendTauriNotification(title: string, body: string, requestId: str
   }
 }
 
-function sendBrowserNotification(
-  title: string,
-  body: string,
-  requestId: string,
-  _sound: boolean,
-): void {
-  if (typeof window === 'undefined' || !('Notification' in window)) {return;}
+function sendBrowserNotification(title: string, body: string, requestId: string, _sound: boolean): void {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return;
+  }
   if (Notification.permission === 'default') {
     Notification.requestPermission();
     return;
   }
-  if (Notification.permission !== 'granted') {return;}
+  if (Notification.permission !== 'granted') {
+    return;
+  }
 
   const notification = new Notification(title, {
     body,
@@ -136,7 +161,9 @@ function sendBrowserNotification(
 function pruneNotifications(): void {
   while (activeNotifications.size > MAX_ACTIVE_NOTIFICATIONS) {
     const oldest = activeNotifications.keys().next().value;
-    if (!oldest) {break;}
+    if (!oldest) {
+      break;
+    }
     closeNotification(oldest);
   }
 }
@@ -144,28 +171,38 @@ function pruneNotifications(): void {
 let visibilityListenerAttached = false;
 
 function ensureVisibilityListener(): void {
-  if (visibilityListenerAttached || typeof document === 'undefined') {return;}
+  if (visibilityListenerAttached || typeof document === 'undefined') {
+    return;
+  }
   visibilityListenerAttached = true;
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {stopTitleFlash();}
+    if (!document.hidden) {
+      stopTitleFlash();
+    }
   });
 }
 
 function startTitleFlash(): void {
-  if (titleFlashTimer) {return;}
-  if (typeof document === 'undefined') {return;}
+  if (titleFlashTimer) {
+    return;
+  }
+  if (typeof document === 'undefined') {
+    return;
+  }
   ensureVisibilityListener();
   originalTitle = document.title;
   const flashTitle = `⚠️ ${getNotificationStrings().pending}`;
   let isAlternate = false;
   titleFlashTimer = setInterval(() => {
     isAlternate = !isAlternate;
-    document.title = isAlternate ? flashTitle : (originalTitle || 'MyrmAgent');
+    document.title = isAlternate ? flashTitle : originalTitle || 'MyrmAgent';
   }, TITLE_FLASH_INTERVAL_MS);
 }
 
 function stopTitleFlash(): void {
-  if (!titleFlashTimer) {return;}
+  if (!titleFlashTimer) {
+    return;
+  }
   clearInterval(titleFlashTimer);
   titleFlashTimer = null;
   if (typeof document !== 'undefined' && originalTitle !== null) {
@@ -179,10 +216,16 @@ function stopTitleFlash(): void {
  * Handles batch grouping: same batchId approvals are merged into one notification.
  */
 export function notifyIdleApproval(requests: ToolApprovalRequest[]): void {
-  if (!isPageHidden()) {return;}
+  if (!isPageHidden()) {
+    return;
+  }
   const { enabled, sound } = getConfig();
-  if (!enabled) {return;}
-  if (requests.length === 0) {return;}
+  if (!enabled) {
+    return;
+  }
+  if (requests.length === 0) {
+    return;
+  }
 
   // Batch grouping: group by batchId, non-batch get individual notifications
   const groups = new Map<string, ToolApprovalRequest[]>();
@@ -212,7 +255,11 @@ export function notifyIdleApproval(requests: ToolApprovalRequest[]): void {
 export function closeNotification(requestId: string): void {
   const notification = activeNotifications.get(requestId);
   if (notification) {
-    try { notification.close(); } catch { /* ignore */ }
+    try {
+      notification.close();
+    } catch {
+      /* ignore */
+    }
     activeNotifications.delete(requestId);
   }
 }

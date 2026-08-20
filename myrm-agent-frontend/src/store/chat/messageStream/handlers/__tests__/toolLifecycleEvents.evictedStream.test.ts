@@ -10,11 +10,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../handlerDeps', () => ({
   AgentEventType: { TOOL_EVICTED_REF: 'tool_evicted_ref' },
-  findAssistantMessageIndex: vi.fn(
-    (
-      messages: Array<{ role: string; messageId: string }>,
-      messageId: string,
-    ) => messages.findIndex((msg) => msg.role === 'assistant' && msg.messageId === messageId),
+  findAssistantMessageIndex: vi.fn((messages: Array<{ role: string; messageId: string }>, messageId: string) =>
+    messages.findIndex((msg) => msg.role === 'assistant' && msg.messageId === messageId),
   ),
 }));
 

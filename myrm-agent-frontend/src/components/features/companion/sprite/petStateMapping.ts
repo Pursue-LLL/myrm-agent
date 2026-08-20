@@ -75,7 +75,9 @@ export function resolvePetSheetRow(petState: PetState, sheetRows: number): numbe
 
   for (const alias of aliases) {
     const idx = taxonomy.indexOf(alias);
-    if (idx !== -1 && idx < sheetRows) {return idx;}
+    if (idx !== -1 && idx < sheetRows) {
+      return idx;
+    }
   }
 
   return 0;

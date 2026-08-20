@@ -117,7 +117,9 @@ describe('assessmentImportMetrics', () => {
 
     const summary = await getAssessmentImportValueSummary(30, 'proj-alpha');
 
-    expect(apiRequestMock).toHaveBeenCalledWith('/statistics/assessment-import/value-summary?days=30&project_id=proj-alpha');
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      '/statistics/assessment-import/value-summary?days=30&project_id=proj-alpha',
+    );
     expect(summary.task_completion_rate).toBe(0.4);
   });
 });

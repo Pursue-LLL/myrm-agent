@@ -64,9 +64,7 @@ export async function fetchWorkflowTemplates(): Promise<WorkflowTemplateListResp
   return { templates: (data.templates ?? []).map(fromApiWorkflowTemplate) };
 }
 
-export async function fetchWorkflowTemplateDetail(
-  templateId: string,
-): Promise<WorkflowTemplateDetailResponse> {
+export async function fetchWorkflowTemplateDetail(templateId: string): Promise<WorkflowTemplateDetailResponse> {
   const data = await apiRequest<{
     template?: ApiWorkflowTemplateSummary;
     scriptCode?: string;
@@ -93,17 +91,14 @@ export async function upsertWorkflowTemplate(
   templateId: string,
   payload: UpsertWorkflowTemplatePayload,
 ): Promise<WorkflowTemplateSummary> {
-  const data = await apiRequest<ApiWorkflowTemplateSummary>(
-    `/workflow-templates/${encodeURIComponent(templateId)}`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({
-        displayName: payload.display_name,
-        scriptCode: payload.script_code,
-        trustLatch: payload.trust_latch ?? false,
-      }),
-    },
-  );
+  const data = await apiRequest<ApiWorkflowTemplateSummary>(`/workflow-templates/${encodeURIComponent(templateId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      displayName: payload.display_name,
+      scriptCode: payload.script_code,
+      trustLatch: payload.trust_latch ?? false,
+    }),
+  });
   return fromApiWorkflowTemplate(data ?? {});
 }
 

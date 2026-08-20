@@ -19,8 +19,7 @@ vi.mock('@/hooks/copilot/useRunDigest', () => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: { loading: boolean }) => unknown) =>
-    selector({ loading: false }),
+  default: (selector: (state: { loading: boolean }) => unknown) => selector({ loading: false }),
 }));
 
 vi.mock('@/components/primitives/button', () => ({

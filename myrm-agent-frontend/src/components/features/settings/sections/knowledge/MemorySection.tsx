@@ -46,7 +46,13 @@ import { MemoryImportReviewDialog } from '@/components/features/memory/dialogs/M
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/shared/useToast';
 import { toast as actionToast } from '@/lib/utils/toast';
-import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus, getMemoryTags, type TagStatsItem } from '@/services/memory';
+import {
+  exportMemories,
+  exportMemoriesMarkdown,
+  updateMemoryStatus,
+  getMemoryTags,
+  type TagStatsItem,
+} from '@/services/memory';
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memory/archive';
 import {
   formatReadinessIssue,
@@ -151,15 +157,21 @@ const MemorySection = memo(() => {
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isLoggedIn && authInitialized) {fetchPendingMemories();}
+    if (isLoggedIn && authInitialized) {
+      fetchPendingMemories();
+    }
   }, [isLoggedIn, authInitialized, fetchPendingMemories]);
 
   useEffect(() => {
     if (activeMemoryTab === 'all' && isLoggedIn && authInitialized) {
       fetchMemories();
-      getMemoryTags(20).then((res) => setAvailableTags(res.tags)).catch(() => {});
+      getMemoryTags(20)
+        .then((res) => setAvailableTags(res.tags))
+        .catch(() => {});
     }
-    if (activeMemoryTab === 'trash' && isLoggedIn && authInitialized) {fetchArchivedMemories();}
+    if (activeMemoryTab === 'trash' && isLoggedIn && authInitialized) {
+      fetchArchivedMemories();
+    }
   }, [activeMemoryTab, isLoggedIn, authInitialized, fetchMemories, fetchArchivedMemories]);
 
   useEffect(() => {
@@ -174,9 +186,13 @@ const MemorySection = memo(() => {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      if (activeMemoryTab === 'pending') {await fetchPendingMemories();}
-      else if (activeMemoryTab === 'trash') {await fetchArchivedMemories();}
-      else {await fetchMemories();}
+      if (activeMemoryTab === 'pending') {
+        await fetchPendingMemories();
+      } else if (activeMemoryTab === 'trash') {
+        await fetchArchivedMemories();
+      } else {
+        await fetchMemories();
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -268,7 +284,9 @@ const MemorySection = memo(() => {
   const handleImportFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (!file) {return;}
+      if (!file) {
+        return;
+      }
 
       const MAX_IMPORT_SIZE_MB = 50;
       if (file.size > MAX_IMPORT_SIZE_MB * 1024 * 1024) {
@@ -277,7 +295,9 @@ const MemorySection = memo(() => {
           description: t('importFileTooLarge', { maxMb: MAX_IMPORT_SIZE_MB }),
           variant: 'destructive',
         });
-        if (importInputRef.current) {importInputRef.current.value = '';}
+        if (importInputRef.current) {
+          importInputRef.current.value = '';
+        }
         return;
       }
 
@@ -319,14 +339,18 @@ const MemorySection = memo(() => {
         });
       } finally {
         setIsImporting(false);
-        if (importInputRef.current) {importInputRef.current.value = '';}
+        if (importInputRef.current) {
+          importInputRef.current.value = '';
+        }
       }
     },
     [t],
   );
 
   const handleConfirmImport = useCallback(async () => {
-    if (!importDryRunId) {return;}
+    if (!importDryRunId) {
+      return;
+    }
     setIsImporting(true);
     try {
       const result = await confirmImportMemories(importDryRunId, true);
@@ -541,10 +565,7 @@ const MemorySection = memo(() => {
                 <button
                   onClick={() => setShowShareRules(true)}
                   title="Share Rules (Privacy-safe)"
-                  className={cn(
-                    'p-2 rounded-lg transition-colors',
-                    'hover:bg-accent',
-                  )}
+                  className={cn('p-2 rounded-lg transition-colors', 'hover:bg-accent')}
                 >
                   <IconShieldCheck className="w-[18px] h-[18px] text-muted-foreground" />
                 </button>
@@ -849,7 +870,9 @@ const MemorySection = memo(() => {
         memory={editingMemory}
         open={!!editingMemory}
         onOpenChange={(v) => {
-          if (!v) {setEditingMemory(null);}
+          if (!v) {
+            setEditingMemory(null);
+          }
         }}
       />
 
@@ -866,7 +889,9 @@ const MemorySection = memo(() => {
         memory={detailMemory}
         open={!!detailMemory}
         onOpenChange={(v) => {
-          if (!v) {setDetailMemory(null);}
+          if (!v) {
+            setDetailMemory(null);
+          }
         }}
       />
 

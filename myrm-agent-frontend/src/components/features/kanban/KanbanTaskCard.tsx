@@ -182,7 +182,9 @@ export default function KanbanTaskCard({
   );
 
   const handleSubmitComment = useCallback(async () => {
-    if (!commentText.trim()) {return;}
+    if (!commentText.trim()) {
+      return;
+    }
     setSubmittingComment(true);
     try {
       const ev = await addComment(task.task_id, commentText.trim());
@@ -212,10 +214,16 @@ export default function KanbanTaskCard({
   const relativeTime = useMemo(() => {
     const diff = Date.now() - new Date(task.created_at).getTime();
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) {return t('justNow');}
-    if (minutes < 60) {return t('minutesAgo', { count: minutes });}
+    if (minutes < 1) {
+      return t('justNow');
+    }
+    if (minutes < 60) {
+      return t('minutesAgo', { count: minutes });
+    }
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) {return t('hoursAgo', { count: hours });}
+    if (hours < 24) {
+      return t('hoursAgo', { count: hours });
+    }
     const days = Math.floor(hours / 24);
     return t('daysAgo', { count: days });
   }, [task.created_at, t]);
@@ -335,7 +343,8 @@ export default function KanbanTaskCard({
             )}
             {task.goal_mode && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-chart-4/10 text-chart-4 border border-chart-4/20">
-                {t('goalModeBadge')}{task.goal_max_turns ? ` ×${task.goal_max_turns}` : ''}
+                {t('goalModeBadge')}
+                {task.goal_max_turns ? ` ×${task.goal_max_turns}` : ''}
               </span>
             )}
             {task.retry_count > 0 && (
@@ -643,7 +652,8 @@ export default function KanbanTaskCard({
                             })}
                             {Array.isArray(ev.payload.conflicts) && ev.payload.conflicts.length > 0 && (
                               <>
-                                {' '}·{' '}
+                                {' '}
+                                ·{' '}
                                 {t('mergeConflictFileCount', {
                                   count: ev.payload.conflicts.length,
                                 })}

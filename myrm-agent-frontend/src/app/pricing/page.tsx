@@ -26,9 +26,7 @@ export default function PricingPage() {
 
   const currentPlan = isSandbox() && entitlements ? entitlements.plan : 'free';
   const billingNotReady =
-    isSandbox() &&
-    !catalogLoading &&
-    planCatalog.some((plan) => plan.key !== 'free' && !plan.checkoutAvailable);
+    isSandbox() && !catalogLoading && planCatalog.some((plan) => plan.key !== 'free' && !plan.checkoutAvailable);
 
   const PREV_PLAN: Record<string, string | null> = {
     free: null,
@@ -157,177 +155,180 @@ export default function PricingPage() {
             : null}
           {!catalogLoading || planCatalog.length > 0
             ? planCatalog.map(
-            ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable }) => {
-            const isCurrent = currentPlan === key;
-            const isPaid = key !== 'free';
-            const displayPrice = isYearly && isPaid ? yearlyUsd : monthlyUsd;
-            const hasTrial = trialDays > 0 && currentPlan === 'free';
+                ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable }) => {
+                  const isCurrent = currentPlan === key;
+                  const isPaid = key !== 'free';
+                  const displayPrice = isYearly && isPaid ? yearlyUsd : monthlyUsd;
+                  const hasTrial = trialDays > 0 && currentPlan === 'free';
 
-            return (
-              <div
-                key={key}
-                className={cn(
-                  'group relative flex flex-col rounded-2xl p-[1px] transition-all duration-500 min-w-[min(100%,280px)] snap-center shrink-0',
-                  'xl:min-w-0 xl:shrink',
-                  highlight
-                    ? 'bg-gradient-to-b from-primary/60 via-primary/30 to-primary-dark/20 scale-[1.02] xl:-mt-4 xl:mb-4 shadow-2xl shadow-primary/10'
-                    : 'bg-border/50 hover:bg-border/80',
-                )}
-              >
-                {/* Inner card */}
-                <div
-                  className={cn(
-                    'relative flex flex-col flex-1 rounded-[15px] p-6 sm:p-7 transition-all duration-300',
-                    highlight ? 'bg-background' : 'bg-background/95 backdrop-blur-sm group-hover:bg-background',
-                  )}
-                >
-                  {/* Highlight glow */}
-                  {highlight && (
-                    <div className="absolute -top-px left-1/2 -translate-x-1/2 h-[2px] w-3/4 bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
-                  )}
-
-                  {/* Trial badge */}
-                  {hasTrial && (
-                    <div className="absolute -top-3 right-5 rounded-full bg-gradient-to-r from-primary to-primary-hover px-3.5 py-1 text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/25 tracking-wide uppercase">
-                      {t('trialBadge')}
-                    </div>
-                  )}
-
-                  {/* Header */}
-                  <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-2">
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        'group relative flex flex-col rounded-2xl p-[1px] transition-all duration-500 min-w-[min(100%,280px)] snap-center shrink-0',
+                        'xl:min-w-0 xl:shrink',
+                        highlight
+                          ? 'bg-gradient-to-b from-primary/60 via-primary/30 to-primary-dark/20 scale-[1.02] xl:-mt-4 xl:mb-4 shadow-2xl shadow-primary/10'
+                          : 'bg-border/50 hover:bg-border/80',
+                      )}
+                    >
+                      {/* Inner card */}
                       <div
                         className={cn(
-                          'rounded-xl p-2 transition-colors',
-                          highlight ? 'bg-primary/10' : 'bg-muted/50 dark:bg-white/[0.04]',
+                          'relative flex flex-col flex-1 rounded-[15px] p-6 sm:p-7 transition-all duration-300',
+                          highlight ? 'bg-background' : 'bg-background/95 backdrop-blur-sm group-hover:bg-background',
                         )}
                       >
-                        <Icon size={18} className={cn(highlight ? 'text-primary' : 'text-muted-foreground')} />
+                        {/* Highlight glow */}
+                        {highlight && (
+                          <div className="absolute -top-px left-1/2 -translate-x-1/2 h-[2px] w-3/4 bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
+                        )}
+
+                        {/* Trial badge */}
+                        {hasTrial && (
+                          <div className="absolute -top-3 right-5 rounded-full bg-gradient-to-r from-primary to-primary-hover px-3.5 py-1 text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/25 tracking-wide uppercase">
+                            {t('trialBadge')}
+                          </div>
+                        )}
+
+                        {/* Header */}
+                        <div className="mb-6">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div
+                              className={cn(
+                                'rounded-xl p-2 transition-colors',
+                                highlight ? 'bg-primary/10' : 'bg-muted/50 dark:bg-white/[0.04]',
+                              )}
+                            >
+                              <Icon size={18} className={cn(highlight ? 'text-primary' : 'text-muted-foreground')} />
+                            </div>
+                            <h3 className="text-base font-bold tracking-tight">{t(`plans.${key}.name`)}</h3>
+                          </div>
+                          <p className="text-[13px] text-muted-foreground/70 leading-relaxed">
+                            {t(`plans.${key}.description`)}
+                          </p>
+                        </div>
+
+                        {/* Price */}
+                        <div className="mb-6">
+                          <div className="flex items-baseline gap-1.5">
+                            {isYearly && isPaid && (
+                              <span className="text-lg text-muted-foreground/40 line-through font-medium">
+                                ${monthlyUsd}
+                              </span>
+                            )}
+                            <span
+                              className={cn(
+                                'text-[42px] font-black tracking-tighter leading-none',
+                                highlight
+                                  ? 'bg-gradient-to-br from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent'
+                                  : '',
+                              )}
+                            >
+                              ${isYearly && isPaid ? Math.round(yearlyUsd / 12) : displayPrice}
+                            </span>
+                            <span className="text-sm text-muted-foreground/60 font-medium">{t('perMonth')}</span>
+                          </div>
+                          {isYearly && isPaid ? (
+                            <p className="mt-1.5 text-xs text-muted-foreground/50">
+                              {t('yearlyEquivalent', { amount: `$${yearlyUsd}` })}
+                            </p>
+                          ) : (
+                            <div className="mt-1.5 h-4" />
+                          )}
+                        </div>
+
+                        {/* WU allocation */}
+                        <div
+                          className={cn(
+                            'mb-6 rounded-lg px-3 py-2',
+                            highlight ? 'bg-primary/[0.06] dark:bg-primary/[0.08]' : 'bg-muted/40 dark:bg-white/[0.03]',
+                          )}
+                        >
+                          <p className="text-sm font-bold text-foreground/90">
+                            {t('wuPerMonth', { wu: formatWu(monthlyWu) })}
+                          </p>
+                        </div>
+
+                        {/* Feature list */}
+                        <ul className="space-y-3 text-[13px] text-muted-foreground/80 mb-8 flex-1">
+                          {PREV_PLAN[key] ? (
+                            <li className="text-[11px] font-semibold text-muted-foreground/50 tracking-wider mb-1">
+                              {t('everythingIn', { plan: PREV_PLAN[key] })}
+                            </li>
+                          ) : (
+                            <li className="text-[11px] font-semibold text-muted-foreground/50 tracking-wider mb-1">
+                              {t('including')}
+                            </li>
+                          )}
+                          <li className="flex items-start gap-2.5">
+                            <Tick02Icon
+                              size={14}
+                              className={cn('shrink-0 mt-0.5', highlight ? 'text-primary' : 'text-muted-foreground/50')}
+                            />
+                            <span>{t(`plans.${key}.feature1`)}</span>
+                          </li>
+                          <li className="flex items-start gap-2.5">
+                            <Tick02Icon
+                              size={14}
+                              className={cn('shrink-0 mt-0.5', highlight ? 'text-primary' : 'text-muted-foreground/50')}
+                            />
+                            <span>{t(`plans.${key}.feature2`)}</span>
+                          </li>
+                        </ul>
+
+                        {/* CTA */}
+                        <div className="flex flex-col gap-2 mt-auto">
+                          {hasTrial && (
+                            <Button
+                              className={cn(
+                                'w-full font-semibold rounded-full',
+                                highlight &&
+                                  'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0',
+                              )}
+                              variant="default"
+                              disabled={checkoutLoading !== null || !checkoutAvailable}
+                              onClick={() => handleSubscribe(key as PaidBillingPlanKey, true)}
+                            >
+                              {checkoutLoading === key
+                                ? t('processing')
+                                : !checkoutAvailable
+                                  ? t('checkoutUnavailable')
+                                  : t('startTrial')}
+                            </Button>
+                          )}
+                          <Button
+                            className={cn(
+                              'w-full rounded-full',
+                              highlight &&
+                                !hasTrial &&
+                                'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0 font-semibold',
+                            )}
+                            variant={highlight && !hasTrial ? 'default' : 'outline'}
+                            disabled={
+                              isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !checkoutAvailable
+                            }
+                            onClick={() => (isPaid ? handleSubscribe(key as PaidBillingPlanKey) : undefined)}
+                          >
+                            {checkoutLoading === key && !hasTrial
+                              ? t('processing')
+                              : isCurrent
+                                ? t('currentPlan')
+                                : isPaid && !checkoutAvailable
+                                  ? t('checkoutUnavailable')
+                                  : isPaid
+                                    ? t('subscribe')
+                                    : t('included')}
+                          </Button>
+                        </div>
                       </div>
-                      <h3 className="text-base font-bold tracking-tight">{t(`plans.${key}.name`)}</h3>
                     </div>
-                    <p className="text-[13px] text-muted-foreground/70 leading-relaxed">
-                      {t(`plans.${key}.description`)}
-                    </p>
-                  </div>
-
-                  {/* Price */}
-                  <div className="mb-6">
-                    <div className="flex items-baseline gap-1.5">
-                      {isYearly && isPaid && (
-                        <span className="text-lg text-muted-foreground/40 line-through font-medium">${monthlyUsd}</span>
-                      )}
-                      <span
-                        className={cn(
-                          'text-[42px] font-black tracking-tighter leading-none',
-                          highlight
-                            ? 'bg-gradient-to-br from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent'
-                            : '',
-                        )}
-                      >
-                        ${isYearly && isPaid ? Math.round(yearlyUsd / 12) : displayPrice}
-                      </span>
-                      <span className="text-sm text-muted-foreground/60 font-medium">{t('perMonth')}</span>
-                    </div>
-                    {isYearly && isPaid ? (
-                      <p className="mt-1.5 text-xs text-muted-foreground/50">
-                        {t('yearlyEquivalent', { amount: `$${yearlyUsd}` })}
-                      </p>
-                    ) : (
-                      <div className="mt-1.5 h-4" />
-                    )}
-                  </div>
-
-                  {/* WU allocation */}
-                  <div
-                    className={cn(
-                      'mb-6 rounded-lg px-3 py-2',
-                      highlight ? 'bg-primary/[0.06] dark:bg-primary/[0.08]' : 'bg-muted/40 dark:bg-white/[0.03]',
-                    )}
-                  >
-                    <p className="text-sm font-bold text-foreground/90">
-                      {t('wuPerMonth', { wu: formatWu(monthlyWu) })}
-                    </p>
-                  </div>
-
-                  {/* Feature list */}
-                  <ul className="space-y-3 text-[13px] text-muted-foreground/80 mb-8 flex-1">
-                    {PREV_PLAN[key] ? (
-                      <li className="text-[11px] font-semibold text-muted-foreground/50 tracking-wider mb-1">
-                        {t('everythingIn', { plan: PREV_PLAN[key] })}
-                      </li>
-                    ) : (
-                      <li className="text-[11px] font-semibold text-muted-foreground/50 tracking-wider mb-1">
-                        {t('including')}
-                      </li>
-                    )}
-                    <li className="flex items-start gap-2.5">
-                      <Tick02Icon
-                        size={14}
-                        className={cn('shrink-0 mt-0.5', highlight ? 'text-primary' : 'text-muted-foreground/50')}
-                      />
-                      <span>{t(`plans.${key}.feature1`)}</span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                      <Tick02Icon
-                        size={14}
-                        className={cn('shrink-0 mt-0.5', highlight ? 'text-primary' : 'text-muted-foreground/50')}
-                      />
-                      <span>{t(`plans.${key}.feature2`)}</span>
-                    </li>
-                  </ul>
-
-                  {/* CTA */}
-                  <div className="flex flex-col gap-2 mt-auto">
-                    {hasTrial && (
-                      <Button
-                        className={cn(
-                          'w-full font-semibold rounded-full',
-                          highlight &&
-                            'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0',
-                        )}
-                        variant="default"
-                        disabled={checkoutLoading !== null || !checkoutAvailable}
-                        onClick={() => handleSubscribe(key as PaidBillingPlanKey, true)}
-                      >
-                        {checkoutLoading === key
-                          ? t('processing')
-                          : !checkoutAvailable
-                            ? t('checkoutUnavailable')
-                            : t('startTrial')}
-                      </Button>
-                    )}
-                    <Button
-                      className={cn(
-                        'w-full rounded-full',
-                        highlight &&
-                          !hasTrial &&
-                          'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0 font-semibold',
-                      )}
-                      variant={highlight && !hasTrial ? 'default' : 'outline'}
-                      disabled={isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !checkoutAvailable}
-                      onClick={() => (isPaid ? handleSubscribe(key as PaidBillingPlanKey) : undefined)}
-                    >
-                      {checkoutLoading === key && !hasTrial
-                        ? t('processing')
-                        : isCurrent
-                          ? t('currentPlan')
-                          : isPaid && !checkoutAvailable
-                            ? t('checkoutUnavailable')
-                            : isPaid
-                              ? t('subscribe')
-                              : t('included')}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
+                  );
+                },
+              )
             : null}
         </div>
-        {catalogError ? (
-          <p className="mt-6 text-center text-sm text-destructive">{t('catalogLoadFailed')}</p>
-        ) : null}
+        {catalogError ? <p className="mt-6 text-center text-sm text-destructive">{t('catalogLoadFailed')}</p> : null}
       </div>
     </div>
   );

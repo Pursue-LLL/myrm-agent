@@ -101,7 +101,9 @@ export function SkillQualityTrendChart({
   };
 
   const formatChartData = () => {
-    if (!trendsData?.data_points) {return [];}
+    if (!trendsData?.data_points) {
+      return [];
+    }
 
     return trendsData.data_points.map((point) => ({
       date: new Date(point.timestamp).toLocaleDateString('zh-CN', {

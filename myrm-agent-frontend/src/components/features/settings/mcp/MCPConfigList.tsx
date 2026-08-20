@@ -78,13 +78,17 @@ export function MCPConfigList({
 
   useEffect(() => {
     return () => {
-      if (pollTimerRef.current) {clearInterval(pollTimerRef.current);}
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+      }
     };
   }, []);
 
   useEffect(() => {
     const hasOAuthConfigs = configs.some((c) => c.oauth?.clientId);
-    if (!hasOAuthConfigs) {return;}
+    if (!hasOAuthConfigs) {
+      return;
+    }
     getMCPOAuthStatus()
       .then(setOauthStatus)
       .catch(() => {});
@@ -92,7 +96,9 @@ export function MCPConfigList({
 
   const handleOAuthAuthorize = useCallback(
     async (config: MCPServiceConfig) => {
-      if (!config.oauth?.clientId) {return;}
+      if (!config.oauth?.clientId) {
+        return;
+      }
       setOauthLoading(config.name);
       try {
         const callbackBase = BACKEND_BASE_URL || window.location.origin;
@@ -118,7 +124,9 @@ export function MCPConfigList({
         const POLL_TIMEOUT_MS = 5 * 60 * 1000;
         const startTime = Date.now();
 
-        if (pollTimerRef.current) {clearInterval(pollTimerRef.current);}
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+        }
         pollTimerRef.current = setInterval(async () => {
           if (Date.now() - startTime > POLL_TIMEOUT_MS) {
             clearInterval(pollTimerRef.current!);
@@ -186,7 +194,12 @@ export function MCPConfigList({
             <IconUpload className="w-4 h-4" />
             <span>{t('mcpImportJson')}</span>
           </button>
-          <Button type="button" size="sm" onClick={onAddConfig} className="gap-2 rounded-lg bg-primary text-white hover:bg-primary/90">
+          <Button
+            type="button"
+            size="sm"
+            onClick={onAddConfig}
+            className="gap-2 rounded-lg bg-primary text-white hover:bg-primary/90"
+          >
             <IconPlus className="w-4 h-4" />
             <span>{t('mcpAddService')}</span>
           </Button>
@@ -209,18 +222,13 @@ export function MCPConfigList({
                 className="flex items-center justify-between p-3 bg-secondary rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors group"
               >
                 <div className="flex items-center space-x-3">
-                  <div
-                    className="flex items-center gap-1.5"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <Switch
                       checked={config.enabled}
                       disabled={isToggling}
                       onCheckedChange={() => onToggleConfig(index)}
                     />
-                    {isToggling ? (
-                      <IconLoader className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    ) : null}
+                    {isToggling ? <IconLoader className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : null}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-black/90 dark:text-white/90 flex items-center gap-1">

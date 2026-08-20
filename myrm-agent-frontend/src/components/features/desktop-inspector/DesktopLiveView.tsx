@@ -4,9 +4,7 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Monitor, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { ElementOverlay } from '@/components/features/browser-inspector';
@@ -14,10 +12,7 @@ import { apiRequest } from '@/lib/api';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
-import {
-  openPermissionDeepLinkWithGuideFallback,
-  pickSettingsDeepLink,
-} from '@/lib/desktop/permissionDeepLink';
+import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
 
 interface PermissionsResponse {
   accessibility: boolean;
@@ -71,8 +66,12 @@ const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({
   }
 
   const missingParts: string[] = [];
-  if (details && !details.accessibility) {missingParts.push(t('permissionDeniedAccessibility'));}
-  if (details && !details.screen_recording) {missingParts.push(t('permissionDeniedScreenRecording'));}
+  if (details && !details.accessibility) {
+    missingParts.push(t('permissionDeniedAccessibility'));
+  }
+  if (details && !details.screen_recording) {
+    missingParts.push(t('permissionDeniedScreenRecording'));
+  }
   const message = missingParts.length > 0 ? missingParts.join(' ') : t('permissionDenied');
 
   return (
@@ -84,7 +83,9 @@ const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({
           className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
           onClick={() => {
             const link = pickSettingsDeepLink(details?.settings_deeplinks);
-            if (link) {openPermissionDeepLinkWithGuideFallback(link, details?.platform);}
+            if (link) {
+              openPermissionDeepLinkWithGuideFallback(link, details?.platform);
+            }
           }}
         >
           <ExternalLink className="w-3 h-3" />
@@ -184,7 +185,9 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     const container = imageContainerRef.current;
-    if (!container) {return;}
+    if (!container) {
+      return;
+    }
 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
@@ -211,7 +214,9 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
     [onSendInstruction, clearSelection],
   );
 
-  if (!isOpen) {return null;}
+  if (!isOpen) {
+    return null;
+  }
 
   const headerTitle = scopedViewData?.windowTitle || scopedViewData?.appName || t('title');
 
@@ -249,9 +254,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
           subtitle={scopedViewData?.appName}
         />
 
-        {scopedViewData?.needsPermission && (
-          <PermissionBanner t={t} />
-        )}
+        {scopedViewData?.needsPermission && <PermissionBanner t={t} />}
 
         <div
           ref={imageContainerRef}

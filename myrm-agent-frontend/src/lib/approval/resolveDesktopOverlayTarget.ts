@@ -34,9 +34,7 @@ export interface DesktopOverlayTarget {
   payload: VisualApprovalOsOverlayPayload;
 }
 
-export function selectEarliestInlineRequest(
-  inlineRequests: ToolApprovalRequest[],
-): ToolApprovalRequest | undefined {
+export function selectEarliestInlineRequest(inlineRequests: ToolApprovalRequest[]): ToolApprovalRequest | undefined {
   if (inlineRequests.length === 0) {
     return undefined;
   }
@@ -44,9 +42,7 @@ export function selectEarliestInlineRequest(
   return [...inlineRequests].sort((left, right) => left.expiresAt - right.expiresAt)[0];
 }
 
-export function resolveDesktopOverlayTarget(
-  input: DesktopOverlayTargetInput,
-): DesktopOverlayTarget | null {
+export function resolveDesktopOverlayTarget(input: DesktopOverlayTargetInput): DesktopOverlayTarget | null {
   const desktopRequests = input.inlineRequests
     .filter((request) => request.toolName.startsWith('desktop_'))
     .sort((left, right) => left.expiresAt - right.expiresAt);

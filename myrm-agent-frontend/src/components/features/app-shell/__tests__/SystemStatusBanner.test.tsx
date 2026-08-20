@@ -32,7 +32,10 @@ vi.mock('@/lib/backend-health', () => ({
 describe('SystemStatusBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
   });
 
   it('shows degraded banner with i18n copy when database_degraded is true', async () => {

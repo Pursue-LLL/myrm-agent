@@ -7,39 +7,30 @@ import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { AgentEditForm } from '@/components/agent/AgentEditForm';
 import { Button } from '@/components/primitives/button';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import {
-  Plus,
-  Settings,
-  Trash2,
-  MessageSquare,
-  Clock,
-  ShieldAlert,
-  Activity,
-  Coins,
-  Zap,
-  Layers,
-} from 'lucide-react';
+import { Plus, Settings, Trash2, MessageSquare, Clock, ShieldAlert, Activity, Coins, Zap, Layers } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { agentSettingsHref } from '@/components/features/loadout/loadoutDeepLinks';
-import {
-  listAgents,
-  deleteAgent,
-  getFleetOverview,
-  AgentListItem,
-  AgentFleetStats,
-} from '@/services/agent';
+import { listAgents, deleteAgent, getFleetOverview, AgentListItem, AgentFleetStats } from '@/services/agent';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
 import { toast } from '@/hooks/shared/useToast';
 
 function formatTokens(count: number): string {
-  if (count >= 1_000_000) {return `${(count / 1_000_000).toFixed(1)}M`;}
-  if (count >= 1_000) {return `${(count / 1_000).toFixed(1)}K`;}
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1)}M`;
+  }
+  if (count >= 1_000) {
+    return `${(count / 1_000).toFixed(1)}K`;
+  }
   return String(count);
 }
 
 function formatCost(usd: number): string {
-  if (usd >= 100) {return `$${usd.toFixed(0)}`;}
-  if (usd >= 1) {return `$${usd.toFixed(2)}`;}
+  if (usd >= 100) {
+    return `$${usd.toFixed(0)}`;
+  }
+  if (usd >= 1) {
+    return `$${usd.toFixed(2)}`;
+  }
   return `$${usd.toFixed(3)}`;
 }
 
@@ -62,13 +53,17 @@ export default function AgentsPage() {
   const agentStatsMap = fleetData?.agents || {};
 
   const sortedAgents = useMemo(() => {
-    if (!agents.length) {return agents;}
+    if (!agents.length) {
+      return agents;
+    }
     return [...agents].sort((a, b) => {
       const sa = agentStatsMap[a.id];
       const sb = agentStatsMap[b.id];
       const statusA = sa?.status === 'busy' ? 0 : 1;
       const statusB = sb?.status === 'busy' ? 0 : 1;
-      if (statusA !== statusB) {return statusA - statusB;}
+      if (statusA !== statusB) {
+        return statusA - statusB;
+      }
       const costA = sa?.monthCost ?? 0;
       const costB = sb?.monthCost ?? 0;
       return costB - costA;
@@ -86,7 +81,9 @@ export default function AgentsPage() {
   };
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deletingAgentId) {return;}
+    if (!deletingAgentId) {
+      return;
+    }
     try {
       await deleteAgent(deletingAgentId);
       mutate();
@@ -162,7 +159,9 @@ export default function AgentsPage() {
       <ConfirmDialog
         open={!!deletingAgentId}
         onOpenChange={(open) => {
-          if (!open) {setDeletingAgentId(null);}
+          if (!open) {
+            setDeletingAgentId(null);
+          }
         }}
         title={t('delete.title', { fallback: 'Delete Agent' })}
         description={t('delete.confirm', {
@@ -177,7 +176,11 @@ export default function AgentsPage() {
   );
 }
 
-function FleetKPIBar({ kpi }: { kpi: { onlineAgents: number; monthTokens: number; monthCost: number; pendingApprovals: number } }) {
+function FleetKPIBar({
+  kpi,
+}: {
+  kpi: { onlineAgents: number; monthTokens: number; monthCost: number; pendingApprovals: number };
+}) {
   const t = useTranslations('Agent.fleet');
 
   return (
@@ -208,7 +211,19 @@ function FleetKPIBar({ kpi }: { kpi: { onlineAgents: number; monthTokens: number
   );
 }
 
-function KPICard({ icon, label, value, highlight, href }: { icon: React.ReactNode; label: string; value: string; highlight?: boolean; href?: string }) {
+function KPICard({
+  icon,
+  label,
+  value,
+  highlight,
+  href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  highlight?: boolean;
+  href?: string;
+}) {
   if (href) {
     return (
       <Link

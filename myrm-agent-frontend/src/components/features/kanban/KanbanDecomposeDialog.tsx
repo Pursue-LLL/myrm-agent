@@ -69,13 +69,19 @@ export default function KanbanDecomposeDialog({ task, open, onOpenChange, onAppl
   );
 
   useEffect(() => {
-    if (!open || !task) {return;}
+    if (!open || !task) {
+      return;
+    }
     runPreview(task.task_id);
   }, [open, task, runPreview]);
 
   const handleApply = useCallback(async () => {
-    if (!task || !outcome?.ok) {return;}
-    if (outcome.fanout && editableChildren.length === 0) {return;}
+    if (!task || !outcome?.ok) {
+      return;
+    }
+    if (outcome.fanout && editableChildren.length === 0) {
+      return;
+    }
     setApplying(true);
     try {
       const result = await applyDecompose(
@@ -113,7 +119,9 @@ export default function KanbanDecomposeDialog({ task, open, onOpenChange, onAppl
   }, [task, outcome, editableChildren, onApplied, onOpenChange, t]);
 
   const handleRegenerate = useCallback(() => {
-    if (!task) {return;}
+    if (!task) {
+      return;
+    }
     runPreview(task.task_id);
   }, [task, runPreview]);
 
@@ -133,7 +141,9 @@ export default function KanbanDecomposeDialog({ task, open, onOpenChange, onAppl
     });
   }, []);
 
-  if (!task) {return null;}
+  if (!task) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

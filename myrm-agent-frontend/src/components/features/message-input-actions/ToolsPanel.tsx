@@ -17,15 +17,21 @@ function groupBySource(tools: ToolSnapshotItem[]): GroupedTools {
   const groups: GroupedTools = {};
   for (const tool of tools) {
     const key = tool.provider ?? tool.source;
-    if (!groups[key]) {groups[key] = [];}
+    if (!groups[key]) {
+      groups[key] = [];
+    }
     groups[key].push(tool);
   }
   return groups;
 }
 
 function sourceLabel(key: string): string {
-  if (key.startsWith('skill:')) {return key.replace('skill:', '');}
-  if (key.startsWith('mcp:')) {return key.replace('mcp:', '');}
+  if (key.startsWith('skill:')) {
+    return key.replace('skill:', '');
+  }
+  if (key.startsWith('mcp:')) {
+    return key.replace('mcp:', '');
+  }
   const labels: Record<string, string> = {
     builtin: 'Built-in',
     user: 'User',
@@ -35,20 +41,24 @@ function sourceLabel(key: string): string {
 }
 
 function sourceBadgeVariant(source: string): 'default' | 'secondary' | 'outline' {
-  if (source === 'skill' || source.startsWith('skill:')) {return 'default';}
-  if (source === 'mcp' || source.startsWith('mcp:')) {return 'secondary';}
+  if (source === 'skill' || source.startsWith('skill:')) {
+    return 'default';
+  }
+  if (source === 'mcp' || source.startsWith('mcp:')) {
+    return 'secondary';
+  }
   return 'outline';
 }
 
 function layerLabel(layer: string, t: ReturnType<typeof useTranslations>): string {
   const normalized = layer.trim().toLowerCase();
-  const known = ["core", "common", "extended", "external"] as const;
+  const known = ['core', 'common', 'extended', 'external'] as const;
   if ((known as readonly string[]).includes(normalized)) {
-    return t(`layers.${normalized}` as "layers.core");
+    return t(`layers.${normalized}` as 'layers.core');
   }
   if (/^[1-4]$/.test(layer)) {
-    const legacy = ["core", "common", "extended", "external"][Number(layer) - 1];
-    return t(`layers.${legacy}` as "layers.core");
+    const legacy = ['core', 'common', 'extended', 'external'][Number(layer) - 1];
+    return t(`layers.${legacy}` as 'layers.core');
   }
   return layer;
 }
@@ -58,8 +68,7 @@ function ToolItem({ tool }: { tool: ToolSnapshotItem }) {
   const t = useTranslations('chat.toolsPanel');
   const locale = useLocale();
   const uiLocale = locale.startsWith('zh') ? 'zh' : 'en';
-  const knownName =
-    tool.name === 'conversation_search' ? t('knownTools.conversationSearch.name') : undefined;
+  const knownName = tool.name === 'conversation_search' ? t('knownTools.conversationSearch.name') : undefined;
   const displayName = resolveToolSnapshotDisplayName(tool, uiLocale, knownName);
   const displaySummary =
     tool.name === 'conversation_search' ? t('knownTools.conversationSearch.summary') : tool.summary;
@@ -140,12 +149,13 @@ const ToolsPanel = () => {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    if (!search.trim()) {return tools;}
+    if (!search.trim()) {
+      return tools;
+    }
     const q = search.toLowerCase();
     return tools.filter((item) => {
       const uiLocale = locale.startsWith('zh') ? 'zh' : 'en';
-      const knownName =
-        item.name === 'conversation_search' ? t('knownTools.conversationSearch.name') : undefined;
+      const knownName = item.name === 'conversation_search' ? t('knownTools.conversationSearch.name') : undefined;
       const label = resolveToolSnapshotDisplayName(item, uiLocale, knownName);
       return (
         label.toLowerCase().includes(q) ||
@@ -168,7 +178,9 @@ const ToolsPanel = () => {
     [grouped],
   );
 
-  if (tools.length === 0) {return null;}
+  if (tools.length === 0) {
+    return null;
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

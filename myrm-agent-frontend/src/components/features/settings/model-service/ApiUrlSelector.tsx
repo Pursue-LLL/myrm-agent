@@ -32,7 +32,9 @@ const ApiUrlSelector = memo<ApiUrlSelectorProps>(
     // 根据当前 apiUrl 找到匹配的备选地址索引
     const findMatchingIndex = useCallback(
       (url: string) => {
-        if (!hasAlternatives) {return 0;}
+        if (!hasAlternatives) {
+          return 0;
+        }
         const idx = alternativeApiUrls.findIndex((alt) => alt.url === url);
         return idx >= 0 ? idx : 0;
       },

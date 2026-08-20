@@ -16,7 +16,14 @@ const artifact: UIArtifact = {
   components: [
     { id: 'txt', type: 'text', props: { variant: 'body' }, children: [], bindings: { text: '$.status' }, events: {} },
     { id: 'badge', type: 'badge', props: {}, children: [], bindings: { text: '$.badge' }, events: {} },
-    { id: 'btn', type: 'button', props: { variant: 'primary' }, children: [], bindings: { label: '$.actionLabel' }, events: {} },
+    {
+      id: 'btn',
+      type: 'button',
+      props: { variant: 'primary' },
+      children: [],
+      bindings: { label: '$.actionLabel' },
+      events: {},
+    },
   ],
   root_ids: ['txt', 'badge', 'btn'],
   data: { status: 'E2E_UPDATE_INITIAL', badge: 'In Progress', actionLabel: 'Retry' },

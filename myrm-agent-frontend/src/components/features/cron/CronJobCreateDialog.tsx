@@ -2,7 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle, Send, Sparkles, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  Bot,
+  Terminal,
+  Plus,
+  Loader2,
+  FileCode2,
+  CalendarDays,
+  Cpu,
+  MessageCircle,
+  Send,
+  Sparkles,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
@@ -106,9 +119,7 @@ export default function CronJobCreateDialog({
         .then((statuses) => {
           const NON_IM = new Set(['chat', 'webhook', 'none', 'web']);
           setConnectedChannels(
-            statuses
-              .filter((s) => s.status === 'running' && !NON_IM.has(s.name))
-              .map((s) => s.name),
+            statuses.filter((s) => s.status === 'running' && !NON_IM.has(s.name)).map((s) => s.name),
           );
         })
         .catch(() => setConnectedChannels([]));
@@ -118,9 +129,7 @@ export default function CronJobCreateDialog({
   useEffect(() => {
     if (open && uiMode === 'agent') {
       void fetchWorkflowTemplates()
-        .then((response) =>
-          setWorkflowTemplates(response.templates.filter((template) => template.trust_latch)),
-        )
+        .then((response) => setWorkflowTemplates(response.templates.filter((template) => template.trust_latch)))
         .catch(() => setWorkflowTemplates([]));
     }
   }, [open, uiMode]);
@@ -128,16 +137,22 @@ export default function CronJobCreateDialog({
   useEffect(() => {
     if (open) {
       fetchAgents();
-      if (presetChatId) {setSessionTarget('main');}
+      if (presetChatId) {
+        setSessionTarget('main');
+      }
       apiRequest<{ deploy_mode: string }>('/health/info')
         .then((info) => {
           const enabled = info.deploy_mode !== 'sandbox';
           setShellEnabled(enabled);
-          if (!enabled && uiMode === 'shell') {setUiMode('agent');}
+          if (!enabled && uiMode === 'shell') {
+            setUiMode('agent');
+          }
         })
         .catch(() => {
           setShellEnabled(false);
-          if (uiMode === 'shell') {setUiMode('agent');}
+          if (uiMode === 'shell') {
+            setUiMode('agent');
+          }
         });
     }
   }, [open, fetchAgents, presetChatId]); // eslint-disable-line react-hooks/exhaustive-deps -- uiMode read only for reset guard
@@ -169,19 +184,27 @@ export default function CronJobCreateDialog({
   const schedule = useMemo((): CronSchedule | null => {
     if (scheduleKind === 'cron') {
       const expr = cronExpr.trim();
-      if (!expr) {return null;}
+      if (!expr) {
+        return null;
+      }
       return { kind: 'cron', expr, tz: userTz };
     }
     if (scheduleKind === 'interval') {
       const mins = parseInt(intervalMinutes, 10);
-      if (!mins || mins < 5) {return null;}
+      if (!mins || mins < 5) {
+        return null;
+      }
       return { kind: 'interval', interval_ms: mins * 60_000, tz: userTz };
     }
     if (scheduleKind === 'once') {
       const at = onceAt.trim();
-      if (!at) {return null;}
+      if (!at) {
+        return null;
+      }
       const d = new Date(at);
-      if (isNaN(d.getTime())) {return null;}
+      if (isNaN(d.getTime())) {
+        return null;
+      }
       return { kind: 'once', run_at: d.toISOString() };
     }
     return null;
@@ -190,12 +213,16 @@ export default function CronJobCreateDialog({
   const monthlyExecutions = useMemo(() => {
     if (scheduleKind === 'cron') {
       const expr = cronExpr.trim();
-      if (!expr) {return null;}
+      if (!expr) {
+        return null;
+      }
       return estimateCronMonthlyExecutions(expr);
     }
     if (scheduleKind === 'interval') {
       const mins = parseInt(intervalMinutes, 10);
-      if (!mins || mins < 5) {return null;}
+      if (!mins || mins < 5) {
+        return null;
+      }
       return estimateIntervalMonthlyExecutions(mins * 60_000);
     }
     if (scheduleKind === 'once') {
@@ -206,12 +233,13 @@ export default function CronJobCreateDialog({
 
   const defaultModel = useMemo(() => {
     const primary = defaultModelConfig.baseModel.primary;
-    if (!primary) {return null;}
+    if (!primary) {
+      return null;
+    }
     return { providerId: primary.providerId, model: primary.model };
   }, [defaultModelConfig]);
 
-  const jobType: JobType =
-    uiMode === 'script' ? 'router' : uiMode === 'reminder' ? 'reminder' : uiMode;
+  const jobType: JobType = uiMode === 'script' ? 'router' : uiMode === 'reminder' ? 'reminder' : uiMode;
 
   const effectiveChatId = presetChatId || selectedChatId || null;
   const contentValid =
@@ -225,7 +253,9 @@ export default function CronJobCreateDialog({
 
   const executeCreate = useCallback(
     async (templateArgs: Record<string, string> | null) => {
-      if (!canSubmit || !schedule) {return;}
+      if (!canSubmit || !schedule) {
+        return;
+      }
       setSaving(true);
       try {
         const taskName =
@@ -246,7 +276,9 @@ export default function CronJobCreateDialog({
 
         if (uiMode === 'agent') {
           payload.prompt = prompt.trim();
-          if (agentId !== '__default__') {payload.agent_id = agentId;}
+          if (agentId !== '__default__') {
+            payload.agent_id = agentId;
+          }
           if (workflowTemplateId !== '__none__') {
             payload.workflow_template_id = workflowTemplateId;
             if (templateArgs && Object.keys(templateArgs).length > 0) {
@@ -326,7 +358,9 @@ export default function CronJobCreateDialog({
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) {reset();}
+        if (!v) {
+          reset();
+        }
         onOpenChange(v);
       }}
     >
@@ -361,475 +395,487 @@ export default function CronJobCreateDialog({
             </div>
           </div>
         ) : (
-        <div className="space-y-4 pt-2">
-          {/* Mode Toggle */}
-          <div className="flex gap-1 border-b pb-0">
-            <button
-              type="button"
-              onClick={() => setCreateMode('template')}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors flex items-center gap-1',
-                createMode === 'template'
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Sparkles className="h-3 w-3" />
-              {t('blueprint.tabTemplate')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setCreateMode('custom')}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
-                createMode === 'custom'
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t('blueprint.tabCustom')}
-            </button>
-          </div>
+          <div className="space-y-4 pt-2">
+            {/* Mode Toggle */}
+            <div className="flex gap-1 border-b pb-0">
+              <button
+                type="button"
+                onClick={() => setCreateMode('template')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors flex items-center gap-1',
+                  createMode === 'template'
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Sparkles className="h-3 w-3" />
+                {t('blueprint.tabTemplate')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateMode('custom')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
+                  createMode === 'custom'
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t('blueprint.tabCustom')}
+              </button>
+            </div>
 
-          {/* Template Mode */}
-          {createMode === 'template' && !selectedBlueprint && (
-            <BlueprintCatalog onSelect={(bp) => { setSelectedBlueprint(bp); }} />
-          )}
-
-          {/* Template Fill View (inline) */}
-          {createMode === 'template' && selectedBlueprint && (
-            <BlueprintInlineFill
-              blueprint={selectedBlueprint}
-              onBack={() => setSelectedBlueprint(null)}
-              onCreated={(job) => {
-                setCreatedJob(job);
-              }}
-            />
-          )}
-
-          {/* Custom Mode */}
-          {createMode === 'custom' && (<>
-          {/* Job Type */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">{t('createTypeLabel')}</Label>
-            <ToggleGroup
-              type="single"
-              value={uiMode}
-              onValueChange={(v) => v && setUiMode(v as UIJobMode)}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="agent" className={TOGGLE_CLS}>
-                <Bot className="h-3.5 w-3.5" />
-                {t('jobTypeAgent')}
-              </ToggleGroupItem>
-              {shellEnabled === true && (
-                <ToggleGroupItem value="shell" className={TOGGLE_CLS}>
-                  <Terminal className="h-3.5 w-3.5" />
-                  {t('jobTypeShell')}
-                </ToggleGroupItem>
-              )}
-              <ToggleGroupItem value="script" className={TOGGLE_CLS}>
-                <FileCode2 className="h-3.5 w-3.5" />
-                {t('jobTypeScript')}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="reminder" className={TOGGLE_CLS}>
-                <CalendarDays className="h-3.5 w-3.5" />
-                {t('jobTypeReminder')}
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          {/* Name */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">{t('createNameLabel')}</Label>
-            <Input
-              placeholder={t('createNamePlaceholder')}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-8 text-sm"
-            />
-          </div>
-
-          {/* Content: Agent prompt */}
-          {(uiMode === 'agent' || uiMode === 'reminder') && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">
-                {uiMode === 'reminder' ? t('createReminderLabel') : t('createPromptLabel')}
-              </Label>
-              <Textarea
-                placeholder={
-                  uiMode === 'reminder' ? t('createReminderPlaceholder') : t('createPromptPlaceholder')
-                }
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[80px] text-sm resize-none"
+            {/* Template Mode */}
+            {createMode === 'template' && !selectedBlueprint && (
+              <BlueprintCatalog
+                onSelect={(bp) => {
+                  setSelectedBlueprint(bp);
+                }}
               />
-              {uiMode === 'reminder' ? (
-                <p className="text-[11px] text-muted-foreground">{t('createReminderHint')}</p>
-              ) : null}
-              {uiMode === 'agent' ? (
-                <div className="space-y-1.5 pt-1">
-                  <Label className="text-xs">{t('createWorkflowTemplateLabel')}</Label>
+            )}
+
+            {/* Template Fill View (inline) */}
+            {createMode === 'template' && selectedBlueprint && (
+              <BlueprintInlineFill
+                blueprint={selectedBlueprint}
+                onBack={() => setSelectedBlueprint(null)}
+                onCreated={(job) => {
+                  setCreatedJob(job);
+                }}
+              />
+            )}
+
+            {/* Custom Mode */}
+            {createMode === 'custom' && (
+              <>
+                {/* Job Type */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('createTypeLabel')}</Label>
+                  <ToggleGroup
+                    type="single"
+                    value={uiMode}
+                    onValueChange={(v) => v && setUiMode(v as UIJobMode)}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="agent" className={TOGGLE_CLS}>
+                      <Bot className="h-3.5 w-3.5" />
+                      {t('jobTypeAgent')}
+                    </ToggleGroupItem>
+                    {shellEnabled === true && (
+                      <ToggleGroupItem value="shell" className={TOGGLE_CLS}>
+                        <Terminal className="h-3.5 w-3.5" />
+                        {t('jobTypeShell')}
+                      </ToggleGroupItem>
+                    )}
+                    <ToggleGroupItem value="script" className={TOGGLE_CLS}>
+                      <FileCode2 className="h-3.5 w-3.5" />
+                      {t('jobTypeScript')}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="reminder" className={TOGGLE_CLS}>
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {t('jobTypeReminder')}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+
+                {/* Name */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('createNameLabel')}</Label>
+                  <Input
+                    placeholder={t('createNamePlaceholder')}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* Content: Agent prompt */}
+                {(uiMode === 'agent' || uiMode === 'reminder') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">
+                      {uiMode === 'reminder' ? t('createReminderLabel') : t('createPromptLabel')}
+                    </Label>
+                    <Textarea
+                      placeholder={
+                        uiMode === 'reminder' ? t('createReminderPlaceholder') : t('createPromptPlaceholder')
+                      }
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      className="min-h-[80px] text-sm resize-none"
+                    />
+                    {uiMode === 'reminder' ? (
+                      <p className="text-[11px] text-muted-foreground">{t('createReminderHint')}</p>
+                    ) : null}
+                    {uiMode === 'agent' ? (
+                      <div className="space-y-1.5 pt-1">
+                        <Label className="text-xs">{t('createWorkflowTemplateLabel')}</Label>
+                        <Select
+                          value={workflowTemplateId}
+                          onValueChange={(value) => {
+                            setWorkflowTemplateId(value);
+                            setWorkflowTemplateArgs(null);
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">{t('createWorkflowTemplateNone')}</SelectItem>
+                            {workflowTemplates.map((template) => (
+                              <SelectItem key={template.template_id} value={template.template_id}>
+                                {template.display_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground">{t('createWorkflowTemplateHint')}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Content: Shell command */}
+                {uiMode === 'shell' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('createCommandLabel')}</Label>
+                    <Input
+                      placeholder={t('createCommandPlaceholder')}
+                      value={command}
+                      onChange={(e) => setCommand(e.target.value)}
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                )}
+
+                {/* Content: Python script */}
+                {uiMode === 'script' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('scriptLabel')}</Label>
+                    <Textarea
+                      placeholder={t('scriptPlaceholder')}
+                      value={scriptCode}
+                      onChange={(e) => setScriptCode(e.target.value)}
+                      className="min-h-[100px] text-sm resize-none font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">{t('scriptHint')}</p>
+                  </div>
+                )}
+
+                {/* Delivery Target */}
+                {connectedChannels.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('deliveryLabel')}</Label>
+                    <ToggleGroup
+                      type="single"
+                      value={deliveryChannel}
+                      onValueChange={(v) => v && setDeliveryChannel(v)}
+                      className="flex-wrap justify-start"
+                      size="sm"
+                    >
+                      <ToggleGroupItem value="chat" className={TOGGLE_CLS}>
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {t('deliveryChat')}
+                      </ToggleGroupItem>
+                      {connectedChannels.map((ch) => (
+                        <ToggleGroupItem key={ch} value={ch} className={TOGGLE_CLS}>
+                          <ChannelIcon channelId={ch} size={14} />
+                          {IM_CHANNELS[ch]?.label ?? ch}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                    {deliveryChannel in IM_CHANNELS && (
+                      <div className="flex items-center gap-2">
+                        <Send className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <Input
+                          placeholder={IM_CHANNELS[deliveryChannel]?.hint ?? ''}
+                          value={deliveryTarget}
+                          onChange={(e) => setDeliveryTarget(e.target.value)}
+                          className="h-7 text-xs flex-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Agent Binding */}
+                {uiMode === 'agent' && agents.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('createAgentLabel')}</Label>
+                    <Select value={agentId} onValueChange={setAgentId}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder={t('createAgentDefault')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">{t('createAgentDefault')}</SelectItem>
+                        {agents.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {getBuiltinAgentName(a.id, a.name, locale)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Schedule */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('createScheduleLabel')}</Label>
                   <Select
-                    value={workflowTemplateId}
-                    onValueChange={(value) => {
-                      setWorkflowTemplateId(value);
-                      setWorkflowTemplateArgs(null);
+                    value={scheduleKind}
+                    onValueChange={(v) => {
+                      const kind = v as ScheduleKind;
+                      setScheduleKind(kind);
+                      if (kind === 'once') {
+                        setSessionTarget('isolated');
+                      }
                     }}
                   >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">{t('createWorkflowTemplateNone')}</SelectItem>
-                      {workflowTemplates.map((template) => (
-                        <SelectItem key={template.template_id} value={template.template_id}>
-                          {template.display_name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="cron">{t('createScheduleCron')}</SelectItem>
+                      <SelectItem value="interval">{t('createScheduleInterval')}</SelectItem>
+                      <SelectItem value="once">{t('createScheduleOnce')}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[11px] text-muted-foreground">{t('createWorkflowTemplateHint')}</p>
-                </div>
-              ) : null}
-            </div>
-          )}
 
-          {/* Content: Shell command */}
-          {uiMode === 'shell' && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('createCommandLabel')}</Label>
-              <Input
-                placeholder={t('createCommandPlaceholder')}
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                className="h-8 text-sm font-mono"
-              />
-            </div>
-          )}
-
-          {/* Content: Python script */}
-          {uiMode === 'script' && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('scriptLabel')}</Label>
-              <Textarea
-                placeholder={t('scriptPlaceholder')}
-                value={scriptCode}
-                onChange={(e) => setScriptCode(e.target.value)}
-                className="min-h-[100px] text-sm resize-none font-mono"
-              />
-              <p className="text-[11px] text-muted-foreground">{t('scriptHint')}</p>
-            </div>
-          )}
-
-          {/* Delivery Target */}
-          {connectedChannels.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('deliveryLabel')}</Label>
-              <ToggleGroup
-                type="single"
-                value={deliveryChannel}
-                onValueChange={(v) => v && setDeliveryChannel(v)}
-                className="flex-wrap justify-start"
-                size="sm"
-              >
-                <ToggleGroupItem value="chat" className={TOGGLE_CLS}>
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  {t('deliveryChat')}
-                </ToggleGroupItem>
-                {connectedChannels.map((ch) => (
-                  <ToggleGroupItem key={ch} value={ch} className={TOGGLE_CLS}>
-                    <ChannelIcon channelId={ch} size={14} />
-                    {IM_CHANNELS[ch]?.label ?? ch}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              {(deliveryChannel in IM_CHANNELS) && (
-                <div className="flex items-center gap-2">
-                  <Send className="h-3 w-3 text-muted-foreground shrink-0" />
-                  <Input
-                    placeholder={IM_CHANNELS[deliveryChannel]?.hint ?? ''}
-                    value={deliveryTarget}
-                    onChange={(e) => setDeliveryTarget(e.target.value)}
-                    className="h-7 text-xs flex-1"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Agent Binding */}
-          {uiMode === 'agent' && agents.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('createAgentLabel')}</Label>
-              <Select value={agentId} onValueChange={setAgentId}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder={t('createAgentDefault')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__default__">{t('createAgentDefault')}</SelectItem>
-                  {agents.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {getBuiltinAgentName(a.id, a.name, locale)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Schedule */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">{t('createScheduleLabel')}</Label>
-            <Select
-              value={scheduleKind}
-              onValueChange={(v) => {
-                const kind = v as ScheduleKind;
-                setScheduleKind(kind);
-                if (kind === 'once') {setSessionTarget('isolated');}
-              }}
-            >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cron">{t('createScheduleCron')}</SelectItem>
-                <SelectItem value="interval">{t('createScheduleInterval')}</SelectItem>
-                <SelectItem value="once">{t('createScheduleOnce')}</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {scheduleKind === 'cron' && (
-              <div className="space-y-1.5">
-                <Input
-                  placeholder={t('createCronPlaceholder')}
-                  value={cronExpr}
-                  onChange={(e) => setCronExpr(e.target.value)}
-                  className="h-8 text-sm font-mono"
-                />
-                <div className="flex flex-wrap gap-1">
-                  {CRON_PRESETS.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setCronExpr(p.expr)}
-                      className="text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
-                    >
-                      {t(p.labelKey)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {scheduleKind === 'interval' && (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={5}
-                  placeholder="30"
-                  value={intervalMinutes}
-                  onChange={(e) => setIntervalMinutes(e.target.value)}
-                  className="h-8 text-sm w-24"
-                />
-                <span className="text-xs text-muted-foreground">{t('createIntervalUnit')}</span>
-              </div>
-            )}
-            {scheduleKind === 'once' && (
-              <Input
-                type="datetime-local"
-                value={onceAt}
-                onChange={(e) => setOnceAt(e.target.value)}
-                className="h-8 text-sm"
-              />
-            )}
-
-            {schedule && (
-              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                <p className="text-xs text-muted-foreground">
-                  <Sparkles className="h-3 w-3 inline mr-1" />
-                  {humanizeSchedule(schedule, t, locale)}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Schedule Estimation */}
-          {monthlyExecutions !== null && monthlyExecutions > 0 && (
-            <div
-              className={cn(
-                'rounded-full border px-3 py-2.5 flex gap-2',
-                getFrequencyRiskLevel(monthlyExecutions) === 'high'
-                  ? 'border-amber-500/20 bg-amber-500/10'
-                  : 'border-border bg-muted/30',
-              )}
-            >
-              <CalendarDays
-                className={cn(
-                  'h-4 w-4 shrink-0 mt-0.5',
-                  getFrequencyRiskLevel(monthlyExecutions) === 'high' ? 'text-amber-500' : 'text-muted-foreground',
-                )}
-              />
-              <div className="flex-1 space-y-0.5">
-                <p
-                  className={cn(
-                    'text-xs',
-                    getFrequencyRiskLevel(monthlyExecutions) === 'high'
-                      ? 'font-bold text-amber-500'
-                      : 'text-muted-foreground',
+                  {scheduleKind === 'cron' && (
+                    <div className="space-y-1.5">
+                      <Input
+                        placeholder={t('createCronPlaceholder')}
+                        value={cronExpr}
+                        onChange={(e) => setCronExpr(e.target.value)}
+                        className="h-8 text-sm font-mono"
+                      />
+                      <div className="flex flex-wrap gap-1">
+                        {CRON_PRESETS.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setCronExpr(p.expr)}
+                            className="text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
+                          >
+                            {t(p.labelKey)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                >
-                  {t('estMonthlyExecutions', { count: formatMonthlyExecutions(monthlyExecutions) })}
-                </p>
-                {getFrequencyRiskLevel(monthlyExecutions) === 'high' && (
-                  <p className="text-xs text-amber-500/80">{t('estHighFrequencyWarning')}</p>
+                  {scheduleKind === 'interval' && (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={5}
+                        placeholder="30"
+                        value={intervalMinutes}
+                        onChange={(e) => setIntervalMinutes(e.target.value)}
+                        className="h-8 text-sm w-24"
+                      />
+                      <span className="text-xs text-muted-foreground">{t('createIntervalUnit')}</span>
+                    </div>
+                  )}
+                  {scheduleKind === 'once' && (
+                    <Input
+                      type="datetime-local"
+                      value={onceAt}
+                      onChange={(e) => setOnceAt(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  )}
+
+                  {schedule && (
+                    <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">
+                        <Sparkles className="h-3 w-3 inline mr-1" />
+                        {humanizeSchedule(schedule, t, locale)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Schedule Estimation */}
+                {monthlyExecutions !== null && monthlyExecutions > 0 && (
+                  <div
+                    className={cn(
+                      'rounded-full border px-3 py-2.5 flex gap-2',
+                      getFrequencyRiskLevel(monthlyExecutions) === 'high'
+                        ? 'border-amber-500/20 bg-amber-500/10'
+                        : 'border-border bg-muted/30',
+                    )}
+                  >
+                    <CalendarDays
+                      className={cn(
+                        'h-4 w-4 shrink-0 mt-0.5',
+                        getFrequencyRiskLevel(monthlyExecutions) === 'high'
+                          ? 'text-amber-500'
+                          : 'text-muted-foreground',
+                      )}
+                    />
+                    <div className="flex-1 space-y-0.5">
+                      <p
+                        className={cn(
+                          'text-xs',
+                          getFrequencyRiskLevel(monthlyExecutions) === 'high'
+                            ? 'font-bold text-amber-500'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {t('estMonthlyExecutions', { count: formatMonthlyExecutions(monthlyExecutions) })}
+                      </p>
+                      {getFrequencyRiskLevel(monthlyExecutions) === 'high' && (
+                        <p className="text-xs text-amber-500/80">{t('estHighFrequencyWarning')}</p>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </div>
-            </div>
-          )}
 
-          {scheduleKind !== 'once' && <CronDeployModeNotice />}
+                {scheduleKind !== 'once' && <CronDeployModeNotice />}
 
-          {/* Session Mode — only for recurring agent schedules */}
-          {uiMode === 'agent' && scheduleKind !== 'once' && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('createSessionModeLabel')}</Label>
-              <Select value={sessionTarget} onValueChange={(v) => setSessionTarget(v as 'isolated' | 'main')}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="isolated">{t('createSessionIsolated')}</SelectItem>
-                  <SelectItem value="main">{t('createSessionThread')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">
-                {sessionTarget === 'isolated' ? t('createSessionIsolatedDesc') : t('createSessionThreadDesc')}
-              </p>
-              {sessionTarget === 'main' && presetChatId && presetChatTitle && (
-                <div className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 flex items-center gap-2">
-                  <MessageCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="text-xs text-primary truncate">{presetChatTitle}</span>
-                </div>
-              )}
-              {sessionTarget === 'main' && !presetChatId && (
-                <Select value={selectedChatId} onValueChange={setSelectedChatId}>
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder={t('createSessionSelectChat')} />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
-                    {chatHistoryItems.map((chat) => (
-                      <SelectItem key={chat.id} value={chat.id}>
-                        <span className="truncate">{chat.title}</span>
-                      </SelectItem>
+                {/* Session Mode — only for recurring agent schedules */}
+                {uiMode === 'agent' && scheduleKind !== 'once' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('createSessionModeLabel')}</Label>
+                    <Select value={sessionTarget} onValueChange={(v) => setSessionTarget(v as 'isolated' | 'main')}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="isolated">{t('createSessionIsolated')}</SelectItem>
+                        <SelectItem value="main">{t('createSessionThread')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {sessionTarget === 'isolated' ? t('createSessionIsolatedDesc') : t('createSessionThreadDesc')}
+                    </p>
+                    {sessionTarget === 'main' && presetChatId && presetChatTitle && (
+                      <div className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 flex items-center gap-2">
+                        <MessageCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="text-xs text-primary truncate">{presetChatTitle}</span>
+                      </div>
+                    )}
+                    {sessionTarget === 'main' && !presetChatId && (
+                      <Select value={selectedChatId} onValueChange={setSelectedChatId}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder={t('createSessionSelectChat')} />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {chatHistoryItems.map((chat) => (
+                            <SelectItem key={chat.id} value={chat.id}>
+                              <span className="truncate">{chat.title}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+
+                {/* Default Model Info */}
+                {uiMode === 'agent' && agentId === '__default__' && defaultModel && (
+                  <div className="rounded-full border border-border bg-muted/30 px-3 py-2.5 flex gap-2">
+                    <Cpu className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">
+                      {t('estDefaultModel', {
+                        provider: defaultModel.providerId,
+                        model: defaultModel.model,
+                      })}
+                    </p>
+                  </div>
+                )}
+
+                {/* Acceptance Criteria */}
+                {uiMode === 'agent' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" />
+                      {t('acceptanceCriteria')}
+                    </Label>
+                    {acceptanceCriteria.map((criterion, idx) => (
+                      <div key={idx} className="flex items-start gap-1.5">
+                        <Select
+                          value={criterion.type}
+                          onValueChange={(v) => {
+                            const next = [...acceptanceCriteria];
+                            next[idx] = { ...next[idx], type: v };
+                            setAcceptanceCriteria(next);
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-24 shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="semantic">{t('criterionSemantic')}</SelectItem>
+                            <SelectItem value="shell">{t('criterionShell')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder={
+                            criterion.type === 'shell'
+                              ? t('criterionShellPlaceholder')
+                              : t('criterionSemanticPlaceholder')
+                          }
+                          value={criterion.description}
+                          onChange={(e) => {
+                            const next = [...acceptanceCriteria];
+                            next[idx] = { ...next[idx], description: e.target.value };
+                            setAcceptanceCriteria(next);
+                          }}
+                          className="h-7 text-xs flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setAcceptanceCriteria(acceptanceCriteria.filter((_, i) => i !== idx))}
+                          className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive shrink-0"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
+                    {acceptanceCriteria.length < 10 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAcceptanceCriteria([...acceptanceCriteria, { type: 'semantic', description: '' }])
+                        }
+                        className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        {t('addCriterion')}
+                      </button>
+                    )}
+                    {acceptanceCriteria.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground">{t('acceptanceCriteriaHint')}</p>
+                    )}
+                  </div>
+                )}
 
-          {/* Default Model Info */}
-          {uiMode === 'agent' && agentId === '__default__' && defaultModel && (
-            <div className="rounded-full border border-border bg-muted/30 px-3 py-2.5 flex gap-2">
-              <Cpu className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">
-                {t('estDefaultModel', {
-                  provider: defaultModel.providerId,
-                  model: defaultModel.model,
-                })}
-              </p>
-            </div>
-          )}
-
-          {/* Acceptance Criteria */}
-          {uiMode === 'agent' && (
-            <div className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1">
-                <ShieldCheck className="h-3 w-3" />
-                {t('acceptanceCriteria')}
-              </Label>
-              {acceptanceCriteria.map((criterion, idx) => (
-                <div key={idx} className="flex items-start gap-1.5">
-                  <Select
-                    value={criterion.type}
-                    onValueChange={(v) => {
-                      const next = [...acceptanceCriteria];
-                      next[idx] = { ...next[idx], type: v };
-                      setAcceptanceCriteria(next);
+                {/* Submit */}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      reset();
+                      onOpenChange(false);
                     }}
+                    disabled={saving}
                   >
-                    <SelectTrigger className="h-7 text-xs w-24 shrink-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="semantic">{t('criterionSemantic')}</SelectItem>
-                      <SelectItem value="shell">{t('criterionShell')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    placeholder={
-                      criterion.type === 'shell'
-                        ? t('criterionShellPlaceholder')
-                        : t('criterionSemanticPlaceholder')
-                    }
-                    value={criterion.description}
-                    onChange={(e) => {
-                      const next = [...acceptanceCriteria];
-                      next[idx] = { ...next[idx], description: e.target.value };
-                      setAcceptanceCriteria(next);
-                    }}
-                    className="h-7 text-xs flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setAcceptanceCriteria(acceptanceCriteria.filter((_, i) => i !== idx))}
-                    className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive shrink-0"
+                    {t('cancel')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleSubmit()}
+                    disabled={!canSubmit || saving}
+                    className={cn('gap-1.5', saving && 'opacity-70')}
                   >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {t('createSubmit')}
+                  </Button>
                 </div>
-              ))}
-              {acceptanceCriteria.length < 10 && (
-                <button
-                  type="button"
-                  onClick={() => setAcceptanceCriteria([...acceptanceCriteria, { type: 'semantic', description: '' }])}
-                  className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
-                >
-                  <Plus className="h-3 w-3" />
-                  {t('addCriterion')}
-                </button>
-              )}
-              {acceptanceCriteria.length === 0 && (
-                <p className="text-[11px] text-muted-foreground">{t('acceptanceCriteriaHint')}</p>
-              )}
-            </div>
-          )}
-
-          {/* Submit */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={saving}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => void handleSubmit()}
-              disabled={!canSubmit || saving}
-              className={cn('gap-1.5', saving && 'opacity-70')}
-            >
-              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {t('createSubmit')}
-            </Button>
+              </>
+            )}
           </div>
-          </>)}
-        </div>
         )}
       </DialogContent>
       {selectedWorkflowTemplate ? (

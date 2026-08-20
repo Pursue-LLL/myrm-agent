@@ -106,7 +106,9 @@ describe('SpreadsheetEditor beforeunload contract', () => {
     const addSpy = vi.spyOn(window, 'addEventListener');
     const removeSpy = vi.spyOn(window, 'removeEventListener');
 
-    const handler = (e: BeforeUnloadEvent): void => { e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent): void => {
+      e.preventDefault();
+    };
 
     window.addEventListener('beforeunload', handler);
     expect(addSpy).toHaveBeenCalledWith('beforeunload', handler);
@@ -121,7 +123,9 @@ describe('SpreadsheetEditor beforeunload contract', () => {
   it('handler should only be active when dirty', () => {
     let dirty = false;
     let handlerRegistered = false;
-    const handler = (e: BeforeUnloadEvent): void => { e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent): void => {
+      e.preventDefault();
+    };
 
     function syncBeforeUnload(): void {
       if (dirty && !handlerRegistered) {

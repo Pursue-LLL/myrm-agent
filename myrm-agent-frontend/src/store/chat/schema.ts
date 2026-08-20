@@ -11,11 +11,7 @@
  */
 
 import * as z from 'zod';
-import {
-  isKnownSseEventType,
-  normalizeSseEventType,
-  KNOWN_SSE_EVENT_TYPE_VALUES,
-} from './knownSseEventTypes';
+import { isKnownSseEventType, normalizeSseEventType, KNOWN_SSE_EVENT_TYPE_VALUES } from './knownSseEventTypes';
 import type { AgentStreamEvent } from './types';
 
 const sseEventTypeSchema = z.enum(KNOWN_SSE_EVENT_TYPE_VALUES);

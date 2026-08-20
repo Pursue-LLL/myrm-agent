@@ -139,35 +139,37 @@ const MarkdownPreview: React.FC<{ content: string; artifactId?: string }> = memo
       <Suspense fallback={<SkeletonLoader />}>
         <ReactMarkdownRenderer content={content} />
       </Suspense>
-      {artifactId && (
-        <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />
-      )}
+      {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />}
     </div>
   );
 });
 MarkdownPreview.displayName = 'MarkdownPreview';
 
 /** 文档/Markdown 预览组件 */
-const DocumentPreview: React.FC<{ content: string; filename?: string; artifactId?: string }> = memo(({ content, filename, artifactId }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isMarkdown = filename?.match(/\.(md|markdown|mdx)$/i);
+const DocumentPreview: React.FC<{ content: string; filename?: string; artifactId?: string }> = memo(
+  ({ content, filename, artifactId }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const isMarkdown = filename?.match(/\.(md|markdown|mdx)$/i);
 
-  if (isMarkdown) {
-    return <MarkdownPreview content={content} artifactId={artifactId} />;
-  }
+    if (isMarkdown) {
+      return <MarkdownPreview content={content} artifactId={artifactId} />;
+    }
 
-  return (
-    <div
-      ref={containerRef}
-      className={cn('h-full overflow-auto p-6 relative', 'bg-background', 'prose prose-sm dark:prose-invert max-w-none')}
-    >
-      <pre className="whitespace-pre-wrap font-sans text-foreground">{content}</pre>
-      {artifactId && (
-        <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />
-      )}
-    </div>
-  );
-});
+    return (
+      <div
+        ref={containerRef}
+        className={cn(
+          'h-full overflow-auto p-6 relative',
+          'bg-background',
+          'prose prose-sm dark:prose-invert max-w-none',
+        )}
+      >
+        <pre className="whitespace-pre-wrap font-sans text-foreground">{content}</pre>
+        {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />}
+      </div>
+    );
+  },
+);
 DocumentPreview.displayName = 'DocumentPreview';
 
 export default DocumentPreview;

@@ -6,8 +6,8 @@ Next.js `generateMetadata` 等构建期元数据所需的文案快照。与 `src
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
+| 文件                 | 职责                                                                                            |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
 | `static-metadata.ts` | `getBuildTimeMetadataMessages()` — 从 `locales/namespaces/zh/metadata.json` 读取构建期 metadata |
 
 ## 依赖

@@ -16,11 +16,7 @@
 import { memo, useEffect, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
-import {
-  getCachedSchedulerHealth,
-  subscribeSchedulerHealth,
-  type SchedulerHealth,
-} from '@/lib/cron/schedulerHealth';
+import { getCachedSchedulerHealth, subscribeSchedulerHealth, type SchedulerHealth } from '@/lib/cron/schedulerHealth';
 import { formatTime } from './cron-utils';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -37,7 +33,9 @@ const SchedulerHealthBadge = memo(function SchedulerHealthBadge() {
 
   useEffect(() => subscribeSchedulerHealth(setHealth), []);
 
-  if (!health) {return null;}
+  if (!health) {
+    return null;
+  }
 
   const cfg = STATUS_CONFIG[health.status];
 

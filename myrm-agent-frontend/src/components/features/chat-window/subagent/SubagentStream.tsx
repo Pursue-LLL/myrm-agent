@@ -49,7 +49,9 @@ const StreamLine = ({ entry, expanded }: { entry: StreamEntry; expanded?: boolea
   return (
     <div className="flex items-baseline gap-1.5 text-[11px] leading-relaxed min-w-0">
       <span className={`shrink-0 font-mono text-[10px] ${glyph.color}`}>{glyph.char}</span>
-      <span className={`min-w-0 ${expanded ? 'break-words' : 'truncate'} ${entry.isError ? 'text-destructive' : 'text-muted-foreground/80'}`}>
+      <span
+        className={`min-w-0 ${expanded ? 'break-words' : 'truncate'} ${entry.isError ? 'text-destructive' : 'text-muted-foreground/80'}`}
+      >
         {entry.text}
       </span>
       {entry.durationMs !== null && entry.durationMs !== undefined && (
@@ -67,7 +69,9 @@ export const NodeStream = ({ stream, isRunning }: { stream: StreamEntry[]; isRun
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const visibleEntries = useMemo(() => {
-    if (expanded) {return stream;}
+    if (expanded) {
+      return stream;
+    }
     return isRunning ? stream.slice(-5) : stream.slice(-2);
   }, [stream, isRunning, expanded]);
 
@@ -77,7 +81,9 @@ export const NodeStream = ({ stream, isRunning }: { stream: StreamEntry[]; isRun
     }
   }, [visibleEntries.length, isRunning]);
 
-  if (stream.length === 0) {return null;}
+  if (stream.length === 0) {
+    return null;
+  }
 
   const hasMore = stream.length > (isRunning ? 5 : 2);
 

@@ -68,12 +68,7 @@ describe('MatrixHistoryTable', () => {
 
   it('calls onSelect with the timestamp when view is clicked', () => {
     const onSelect = vi.fn();
-    render(
-      <MatrixHistoryTable
-        items={[item({ timestamp: 42 }), item({ timestamp: 43 })]}
-        onSelect={onSelect}
-      />,
-    );
+    render(<MatrixHistoryTable items={[item({ timestamp: 42 }), item({ timestamp: 43 })]} onSelect={onSelect} />);
 
     const buttons = screen.getAllByRole('button');
     buttons[0].click();

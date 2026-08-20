@@ -91,7 +91,7 @@ describe('useDesktopInspectorStore turn engagement', () => {
     expect(state.instructionText).toBe('');
   });
 
-  it('releaseTurnEngagement keeps another pane\'s manually opened panel when the ending turn produced no view', () => {
+  it("releaseTurnEngagement keeps another pane's manually opened panel when the ending turn produced no view", () => {
     const store = useDesktopInspectorStore.getState();
     // Pane A's turn engaged desktop events but its launch failed before any view
     // update; viewData still belongs to pane B's manually opened panel.

@@ -20,7 +20,9 @@ function _flushExtractToast(deps: MemoryOperationToastDeps): void {
   const count = _pendingExtractCount;
   _pendingExtractCount = 0;
   _throttleTimer = null;
-  if (count <= 0) {return;}
+  if (count <= 0) {
+    return;
+  }
 
   const { t, router } = deps;
   toast.success(t('autoMemoryExtracted', { count }), {
@@ -119,7 +121,9 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
   const description = String(data.description ?? '').trim();
   const status = String(data.status ?? '');
 
-  if (!kind || status === 'skipped' || status === 'error') {return;}
+  if (!kind || status === 'skipped' || status === 'error') {
+    return;
+  }
 
   if (kind === 'conflict') {
     const highRisk = (data.metadata as Record<string, unknown> | undefined)?.high_risk === true;
@@ -138,7 +142,10 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
     return;
   }
 
-  if (kind === 'maintenance' && (data.metadata as Record<string, unknown> | undefined)?.operation === 'conflict_auto_resolve') {
+  if (
+    kind === 'maintenance' &&
+    (data.metadata as Record<string, unknown> | undefined)?.operation === 'conflict_auto_resolve'
+  ) {
     // The guardian auto-resolved expired low-risk conflicts; refresh the badge
     // so stale conflict counts do not linger in the UI.
     void import('@/store/memory').then(({ useMemoryStore }) => {

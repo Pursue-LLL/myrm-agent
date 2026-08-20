@@ -29,9 +29,7 @@ const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0">
-        <Command className="myrm-cmdk-dialog">
-          {children}
-        </Command>
+        <Command className="myrm-cmdk-dialog">{children}</Command>
       </DialogContent>
     </Dialog>
   );
@@ -82,10 +80,7 @@ const CommandGroup = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.Group
     ref={ref}
-    className={cn(
-      'overflow-hidden p-1 text-foreground myrm-cmdk-group',
-      className,
-    )}
+    className={cn('overflow-hidden p-1 text-foreground myrm-cmdk-group', className)}
     {...props}
   />
 ));

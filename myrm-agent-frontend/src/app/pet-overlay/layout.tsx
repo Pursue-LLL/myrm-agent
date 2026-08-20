@@ -12,7 +12,5 @@ export default function PetOverlayLayout({ children }: { children: React.ReactNo
     };
   }, []);
 
-  return (
-    <div className="h-screen w-screen overflow-hidden bg-transparent">{children}</div>
-  );
+  return <div className="h-screen w-screen overflow-hidden bg-transparent">{children}</div>;
 }

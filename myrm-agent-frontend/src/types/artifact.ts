@@ -40,14 +40,37 @@ export type ArtifactStreamEvent = ArtifactsEvent | ArtifactContentEvent;
 // ==================== 渲染相关类型 ====================
 
 /** 可预览的 Artifact 类型 */
-export type PreviewableArtifactType = 'code' | 'document' | 'html' | 'image' | 'video' | 'audio' | 'svg' | 'mermaid' | 'spreadsheet' | 'presentation' | 'word_document';
+export type PreviewableArtifactType =
+  | 'code'
+  | 'document'
+  | 'html'
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'svg'
+  | 'mermaid'
+  | 'spreadsheet'
+  | 'presentation'
+  | 'word_document';
 
 /** 不可预览的 Artifact 类型 */
 export type NonPreviewableArtifactType = 'binary';
 
 /** 检查 Artifact 是否可预览 */
 export function isPreviewable(type: ArtifactType): type is PreviewableArtifactType {
-  return ['code', 'document', 'html', 'image', 'video', 'audio', 'svg', 'mermaid', 'spreadsheet', 'presentation', 'word_document'].includes(type);
+  return [
+    'code',
+    'document',
+    'html',
+    'image',
+    'video',
+    'audio',
+    'svg',
+    'mermaid',
+    'spreadsheet',
+    'presentation',
+    'word_document',
+  ].includes(type);
 }
 
 /** 需要加载内容的 Artifact 类型 */
@@ -246,7 +269,9 @@ export function inferLanguage(filename: string): string | undefined {
 
 /** 格式化文件大小 */
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) {return '0 B';}
+  if (bytes === 0) {
+    return '0 B';
+  }
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));

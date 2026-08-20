@@ -7,7 +7,9 @@ import type { ContextHealth } from '@/services/contextHealth';
 import type { ContextHealthStatus } from '@/store/chat/types';
 
 const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown>) => {
-  if (params) {return `${key}:${JSON.stringify(params)}`;}
+  if (params) {
+    return `${key}:${JSON.stringify(params)}`;
+  }
   return key;
 });
 const mockGetSessionAnalytics = vi.hoisted(() => vi.fn());

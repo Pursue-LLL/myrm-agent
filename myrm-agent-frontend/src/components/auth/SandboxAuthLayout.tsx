@@ -18,11 +18,7 @@ interface SandboxAuthLayoutProps {
   contentMaxWidth?: string;
 }
 
-export default function SandboxAuthLayout({
-  children,
-  className,
-  contentMaxWidth = '420px',
-}: SandboxAuthLayoutProps) {
+export default function SandboxAuthLayout({ children, className, contentMaxWidth = '420px' }: SandboxAuthLayoutProps) {
   const t = useTranslations('auth.login');
 
   return (
@@ -77,9 +73,7 @@ export default function SandboxAuthLayout({
             </ul>
           </div>
 
-          <p className="relative z-10 px-10 xl:px-14 pb-10 text-xs text-muted-foreground/80">
-            {t('brandFooter')}
-          </p>
+          <p className="relative z-10 px-10 xl:px-14 pb-10 text-xs text-muted-foreground/80">{t('brandFooter')}</p>
         </aside>
 
         <main

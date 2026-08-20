@@ -6,7 +6,14 @@ import { fetchWithTimeout } from '@/lib/api';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { Button } from '@/components/primitives/button';
 import { ScrollArea } from '@/components/primitives/scroll-area';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/primitives/sheet';
 import { normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
 import {
   buildTree,
@@ -43,7 +50,11 @@ const FILTER_OPTIONS: { value: FilterMode; labelKey: string }[] = [
 ];
 
 const SortFilterBar = ({
-  sort, onSortChange, filter, onFilterChange, t,
+  sort,
+  onSortChange,
+  filter,
+  onFilterChange,
+  t,
 }: {
   sort: SortMode;
   onSortChange: (s: SortMode) => void;
@@ -90,23 +101,27 @@ const SortFilterBar = ({
 
 const HeaderSummary = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) => string }) => {
   const totals = useMemo(() => treeTotals(nodes), [nodes]);
-  if (totals.totalAgents === 0) {return null;}
+  if (totals.totalAgents === 0) {
+    return null;
+  }
 
   const parts: string[] = [];
   parts.push(`${totals.totalAgents} ${t('agents')}`);
-  if (totals.activeCount > 0) {parts.push(`${totals.activeCount} ${t('active')}`);}
-  if (totals.failedCount > 0) {parts.push(`${totals.failedCount} ${t('failed')}`);}
+  if (totals.activeCount > 0) {
+    parts.push(`${totals.activeCount} ${t('active')}`);
+  }
+  if (totals.failedCount > 0) {
+    parts.push(`${totals.failedCount} ${t('failed')}`);
+  }
   const cost = fmtCost(totals.totalCostUsd);
-  if (cost) {parts.push(cost);}
+  if (cost) {
+    parts.push(cost);
+  }
   if (totals.modelMix.length > 0) {
     parts.push(totals.modelMix.map((m) => `${m.model}×${m.count}`).join(' '));
   }
 
-  return (
-    <div className="text-[11px] text-muted-foreground mt-0.5">
-      {parts.join(' · ')}
-    </div>
-  );
+  return <div className="text-[11px] text-muted-foreground mt-0.5">{parts.join(' · ')}</div>;
 };
 
 // ── View Tabs ───────────────────────────────────────────────────────
@@ -179,7 +194,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const runningCount = useMemo(() => Object.values(nodes).filter((n) => n.status === 'running').length, [nodes]);
 
   const fetchDelegationPauseStatus = useCallback(async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/status`);
       const json = await res.json();
@@ -190,7 +207,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId]);
 
   const handleToggleDelegationPause = useCallback(async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     const endpoint = delegationPaused ? 'resume' : 'pause';
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/${endpoint}`, { method: 'POST' });
@@ -207,7 +226,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId, delegationPaused, t]);
 
   const handleStopAll = useCallback(async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/cancel-all`, { method: 'POST' });
       if (!res.ok) {
@@ -239,7 +260,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId]);
 
   useEffect(() => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     const handleSseEvent = (event: Event) => {
       const customEvent = event as CustomEvent<{ chat_id?: string; tree?: SubagentNode[] }>;
       if (customEvent.detail?.chat_id && customEvent.detail.chat_id !== chatId) {
@@ -256,9 +279,13 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
         chat_id?: string;
         message?: Record<string, string | number>;
       }>;
-      if (customEvent.detail?.chat_id !== chatId) {return;}
+      if (customEvent.detail?.chat_id !== chatId) {
+        return;
+      }
       const msg = customEvent.detail?.message;
-      if (!msg?.from_task_id || !msg?.to_task_id) {return;}
+      if (!msg?.from_task_id || !msg?.to_task_id) {
+        return;
+      }
       useSubagentStore.getState().appendTeammateMessage(normalizeTeammateEntry(msg as Record<string, string | number>));
     };
     window.addEventListener('subagents_updated', handleSseEvent);
@@ -270,12 +297,16 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   }, [chatId]);
 
   useEffect(() => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     void fetchDelegationPauseStatus();
   }, [chatId, open, fetchDelegationPauseStatus]);
 
   useEffect(() => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     void useSubagentStore.getState().fetchSubagents(chatId);
     const poll = window.setInterval(() => {
       if (Object.keys(useSubagentStore.getState().nodes).length > 0) {
@@ -291,7 +322,9 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     };
   }, [chatId, open]);
 
-  if (treeNodes.length === 0 && !(fissionBatch && fissionBatch.total > 0)) {return null;}
+  if (treeNodes.length === 0 && !(fissionBatch && fissionBatch.total > 0)) {
+    return null;
+  }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -335,16 +368,16 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
                 {delegationPaused ? t('delegationResumeButton') : t('delegationPauseButton')}
               </Button>
               {runningCount > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                className="gap-2"
-                onClick={() => setStopAllOpen(true)}
-                data-testid="subagent-stop-all-btn"
-              >
-                <StopCircle className="w-4 h-4" />
-                {t('stopAll')}
-              </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setStopAllOpen(true)}
+                  data-testid="subagent-stop-all-btn"
+                >
+                  <StopCircle className="w-4 h-4" />
+                  {t('stopAll')}
+                </Button>
               )}
             </div>
           </div>
@@ -370,50 +403,50 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
             <AgentWorkMap chatId={chatId || undefined} onNodeClick={handleCanvasNodeClick} />
           </div>
         ) : (
-        <ScrollArea className="flex-1 p-4">
-          <div className="flex flex-col pb-10">
-            {Object.keys(nodes).length > 1 && (
-              <div className="mb-3 pb-2 border-b border-border/30">
-                <SortFilterBar
-                  sort={sortMode}
-                  onSortChange={setSortMode}
-                  filter={filterMode}
-                  onFilterChange={setFilterMode}
-                  t={t}
-                />
-              </div>
-            )}
-            <MiniGantt nodes={displayFlatNodes} t={t} />
-            {fissionBatch && fissionBatch.total > 0 && (
-              <div
-                data-testid="subagent-fission-summary"
-                className={`mb-4 rounded-lg border p-3 text-sm ${
-                  fissionBatch.failed > 0 ? 'border-amber-500/30 bg-amber-500/5' : 'border-primary/20 bg-primary/5'
-                }`}
-              >
-                <div className="font-medium text-foreground">{t('swarmFissionGroup')}</div>
-                <div className="mt-1 text-muted-foreground">
-                  {fissionBatch.partial
-                    ? t('swarmFissionPartialProgress', {
-                        completed: String(fissionBatch.completed),
-                        failed: String(fissionBatch.failed),
-                        total: String(fissionBatch.total),
-                      })
-                    : t('swarmFissionProgress', {
-                        completed: String(fissionBatch.completed),
-                        total: String(fissionBatch.total),
-                      })}
-                  {fissionBatch.active ? (
-                    <Loader2 className="ml-2 inline h-3.5 w-3.5 animate-spin text-primary" />
-                  ) : null}
+          <ScrollArea className="flex-1 p-4">
+            <div className="flex flex-col pb-10">
+              {Object.keys(nodes).length > 1 && (
+                <div className="mb-3 pb-2 border-b border-border/30">
+                  <SortFilterBar
+                    sort={sortMode}
+                    onSortChange={setSortMode}
+                    filter={filterMode}
+                    onFilterChange={setFilterMode}
+                    t={t}
+                  />
                 </div>
-              </div>
-            )}
-            {displayNodes.map((node) => (
-              <SubagentTreeNode key={node.task_id} node={node} chatId={chatId || ''} setOpen={setOpen} />
-            ))}
-          </div>
-        </ScrollArea>
+              )}
+              <MiniGantt nodes={displayFlatNodes} t={t} />
+              {fissionBatch && fissionBatch.total > 0 && (
+                <div
+                  data-testid="subagent-fission-summary"
+                  className={`mb-4 rounded-lg border p-3 text-sm ${
+                    fissionBatch.failed > 0 ? 'border-amber-500/30 bg-amber-500/5' : 'border-primary/20 bg-primary/5'
+                  }`}
+                >
+                  <div className="font-medium text-foreground">{t('swarmFissionGroup')}</div>
+                  <div className="mt-1 text-muted-foreground">
+                    {fissionBatch.partial
+                      ? t('swarmFissionPartialProgress', {
+                          completed: String(fissionBatch.completed),
+                          failed: String(fissionBatch.failed),
+                          total: String(fissionBatch.total),
+                        })
+                      : t('swarmFissionProgress', {
+                          completed: String(fissionBatch.completed),
+                          total: String(fissionBatch.total),
+                        })}
+                    {fissionBatch.active ? (
+                      <Loader2 className="ml-2 inline h-3.5 w-3.5 animate-spin text-primary" />
+                    ) : null}
+                  </div>
+                </div>
+              )}
+              {displayNodes.map((node) => (
+                <SubagentTreeNode key={node.task_id} node={node} chatId={chatId || ''} setOpen={setOpen} />
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </SheetContent>
       <ConfirmDialog

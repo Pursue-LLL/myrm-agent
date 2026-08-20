@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ProviderConfig } from '@/store/config/providerTypes';
 import type { BuiltinToolId } from '@/store/chat/types';
-import type {
-  ImageGenerationConfig,
-  VideoGenerationConfig,
-  VoiceConfigValue,
-} from '@/services/config/types';
+import type { ImageGenerationConfig, VideoGenerationConfig, VoiceConfigValue } from '@/services/config/types';
 import {
   collectMediaCredentialWarnings,
   isImageMediaCredentialReady,
@@ -104,14 +100,7 @@ describe('mediaCredentialReadiness', () => {
 
   it('collects warnings only for enabled media tools without credentials', () => {
     const enabled: BuiltinToolId[] = ['web_search', 'image_generation', 'video_generation', 'tts'];
-    const warnings = collectMediaCredentialWarnings(
-      enabled,
-      [],
-      imageConfig,
-      videoConfig,
-      ttsConfig,
-      {},
-    );
+    const warnings = collectMediaCredentialWarnings(enabled, [], imageConfig, videoConfig, ttsConfig, {});
     expect(warnings).toEqual(['image_generation', 'video_generation', 'tts']);
   });
 

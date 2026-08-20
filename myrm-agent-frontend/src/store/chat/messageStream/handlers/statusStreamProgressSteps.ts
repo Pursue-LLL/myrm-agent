@@ -94,8 +94,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       ? H.parseArchiveRestoreResultPayload(data.data?.archive_restore_result)
       : undefined;
   const archiveRestoreActions = H.buildArchiveRestoreActions(archiveRestoreBlock);
-  let displayKey =
-    stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
+  let displayKey = stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
   if (stepKey === 'context_compaction' && data.data?.phase) {
     const phase = data.data.phase as string;
     if (phase !== 'active') {
@@ -128,14 +127,14 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
                   : stepKey === 'moa_overlay_active' && data.data?.reference_models
                     ? `(${(data.data.reference_models as string[]).join(', ')})`
                     : stepKey === 'consensus_reference_done' && data.data?.model
-                    ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
-                    : (stepKey === 'workflow_init' ||
-                          stepKey === 'workflow_planning' ||
-                          stepKey === 'workflow_execution' ||
-                          stepKey === 'workflow_stage') &&
-                        typeof data.data?.message === 'string'
-                      ? data.data.message
-                      : '';
+                      ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
+                      : (stepKey === 'workflow_init' ||
+                            stepKey === 'workflow_planning' ||
+                            stepKey === 'workflow_execution' ||
+                            stepKey === 'workflow_stage') &&
+                          typeof data.data?.message === 'string'
+                        ? data.data.message
+                        : '';
   // dropped-manifest: constraint snippets evicted by compaction, surfaced so the
   // user can tell "compression dropped my instruction" from "the model ignored
   // it" (fault-side attribution, InteractionCentricFailureLocalizerStack).
@@ -147,10 +146,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
     Array.isArray(droppedManifest) && droppedManifest.length > 0
       ? droppedManifest.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
       : [];
-  const isRestartDrop =
-    stepKey === 'model_failover' ||
-    stepKey === 'safety_fallback_active' ||
-    data.restart === true;
+  const isRestartDrop = stepKey === 'model_failover' || stepKey === 'safety_fallback_active' || data.restart === true;
   if (isRestartDrop) {
     // The recovery re-runs the answer from scratch, so any partial text or
     // reasoning streamed before it is a draft to drop. Idempotent across the
@@ -162,10 +158,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
     let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
     if (
       messageIndex === -1 &&
-      (isMediaAnalysis ||
-        isArchiveRestoreStatus ||
-        isEarlyRecoveryProgressStep(stepKey) ||
-        data.restart === true)
+      (isMediaAnalysis || isArchiveRestoreStatus || isEarlyRecoveryProgressStep(stepKey) || data.restart === true)
     ) {
       if (isMediaAnalysis || isArchiveRestoreStatus) {
         state.messages.push({
@@ -176,8 +169,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
           progressSteps: [],
           mediaAnalysisStatus: isMediaAnalysis ? (stepKey as 'analyzing_image' | 'analyzing_video') : null,
           visionBackend:
-            isMediaAnalysis &&
-            typeof (data.data as Record<string, unknown> | undefined)?.vision_backend === 'string'
+            isMediaAnalysis && typeof (data.data as Record<string, unknown> | undefined)?.vision_backend === 'string'
               ? ((data.data as Record<string, unknown>).vision_backend as string)
               : null,
           createdAt: new Date(),
@@ -185,11 +177,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         });
         messageIndex = state.messages.length - 1;
       } else {
-        messageIndex = H.ensureAssistantStreamMessage(
-          state.messages,
-          data.messageId,
-          state.messages[0]?.chatId || '',
-        );
+        messageIndex = H.ensureAssistantStreamMessage(state.messages, data.messageId, state.messages[0]?.chatId || '');
       }
       if (messageIndex !== -1) {
         ctx.added = true;
@@ -203,7 +191,8 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       if (!state.messages[messageIndex].progressSteps) {
         state.messages[messageIndex].progressSteps = [];
       }
-      const compactionPhase = stepKey === 'context_compaction' ? (data.data as Record<string, unknown> | undefined)?.phase : undefined;
+      const compactionPhase =
+        stepKey === 'context_compaction' ? (data.data as Record<string, unknown> | undefined)?.phase : undefined;
       const progressStep: H.ProgressItem = {
         step_key: displayKey,
         items: data.items ?? (itemText ? [{ text: itemText }] : []),
@@ -285,17 +274,15 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         stepKey === 'empty_response_recovery' ||
         stepKey === 'context_truncation'
       ) {
-        const existingStep = state.messages[messageIndex].progressSteps!.find(
-          (step) =>
-            stepKey === 'model_failover'
-              ? step.step_key?.startsWith('model_failover')
-              : stepKey === 'context_compaction'
-                ? step.step_key?.startsWith('context_compaction')
-                : step.step_key === displayKey,
+        const existingStep = state.messages[messageIndex].progressSteps!.find((step) =>
+          stepKey === 'model_failover'
+            ? step.step_key?.startsWith('model_failover')
+            : stepKey === 'context_compaction'
+              ? step.step_key?.startsWith('context_compaction')
+              : step.step_key === displayKey,
         );
         if (existingStep) {
-          const isFailoverStep =
-            stepKey === 'model_failover' || stepKey === 'safety_fallback_active';
+          const isFailoverStep = stepKey === 'model_failover' || stepKey === 'safety_fallback_active';
           const firstItem = existingStep.items?.[0];
           const existingHasFullLabel =
             isFailoverStep &&
@@ -315,10 +302,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       } else {
         state.messages[messageIndex].progressSteps!.push(progressStep);
       }
-      if (
-        (stepKey === 'consensus_active' || stepKey === 'moa_overlay_active') &&
-        data.data?.reference_models
-      ) {
+      if ((stepKey === 'consensus_active' || stepKey === 'moa_overlay_active') && data.data?.reference_models) {
         const models = data.data.reference_models as string[];
         if (models.length > 0) {
           state.messages[messageIndex].consensusRefsExpected = models.length;
@@ -425,13 +409,10 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
 
   if (stepKey === 'model_failover_unconfigured' || stepKey === 'safety_fallback_unconfigured') {
     const { showI18nToast } = await import('@/services/i18nToastService');
-    const { SETTINGS_AGENTS_LOADOUT_PATH, SETTINGS_DEFAULT_MODEL_PATH } = await import(
-      '@/lib/skills/integrationOAuthDisplay'
-    );
+    const { SETTINGS_AGENTS_LOADOUT_PATH, SETTINGS_DEFAULT_MODEL_PATH } =
+      await import('@/lib/skills/integrationOAuthDisplay');
     const settingsPath =
-      stepKey === 'safety_fallback_unconfigured'
-        ? SETTINGS_AGENTS_LOADOUT_PATH
-        : SETTINGS_DEFAULT_MODEL_PATH;
+      stepKey === 'safety_fallback_unconfigured' ? SETTINGS_AGENTS_LOADOUT_PATH : SETTINGS_DEFAULT_MODEL_PATH;
     showI18nToast(`progressSteps.${stepKey}`, undefined, {
       type: 'warning',
       duration: 8000,

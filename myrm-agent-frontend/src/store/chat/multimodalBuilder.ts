@@ -69,10 +69,7 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
     }
 
     if (result.parsedPages > 0 && result.parsedPages < result.pageCount) {
-      toast.info(
-        `[PDF] ${file.fileName}：已解析 ${result.parsedPages}/${result.pageCount} 页`,
-        { duration: 5000 },
-      );
+      toast.info(`[PDF] ${file.fileName}：已解析 ${result.parsedPages}/${result.pageCount} 页`, { duration: 5000 });
     }
 
     if (result.images && result.images.length > 0) {
@@ -169,9 +166,13 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
         text = atob(base64);
       } else {
         const url = file.fileUrl || '';
-        if (!url) {throw new Error(`No URL for text file: ${file.fileName}`);}
+        if (!url) {
+          throw new Error(`No URL for text file: ${file.fileName}`);
+        }
         const res = await fetch(url);
-        if (!res.ok) {throw new Error(`Failed to fetch ${file.fileName}: ${res.status}`);}
+        if (!res.ok) {
+          throw new Error(`Failed to fetch ${file.fileName}: ${res.status}`);
+        }
         text = await res.text();
       }
       return { file, text };
@@ -217,8 +218,7 @@ export const buildMultimodalQuery = async (
   files: File[],
   cameraFrames?: string[],
 ): Promise<string | VisionContentPart[]> => {
-  const { imageFiles, videoFiles, pdfFiles, documentFiles, textFiles, otherFiles } =
-    partitionFilesByType(files);
+  const { imageFiles, videoFiles, pdfFiles, documentFiles, textFiles, otherFiles } = partitionFilesByType(files);
   const hasCameraFrames = cameraFrames && cameraFrames.length > 0;
   const hasAttachments =
     imageFiles.length > 0 ||
@@ -228,7 +228,9 @@ export const buildMultimodalQuery = async (
     textFiles.length > 0 ||
     otherFiles.length > 0;
 
-  if (!hasAttachments && !hasCameraFrames) {return textInput;}
+  if (!hasAttachments && !hasCameraFrames) {
+    return textInput;
+  }
 
   const contentParts: VisionContentPart[] = [{ type: 'text', text: textInput }];
 

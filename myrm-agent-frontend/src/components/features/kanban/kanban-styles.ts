@@ -12,13 +12,7 @@ export const NEXT_STATUSES: Partial<Record<TaskStatus, TaskStatus[]>> = {
 };
 
 /** Statuses where the `require_approval` flag is still editable (mirrors the server-side guard). */
-export const APPROVAL_EDITABLE_STATUSES: readonly TaskStatus[] = [
-  'triage',
-  'backlog',
-  'ready',
-  'running',
-  'blocked',
-];
+export const APPROVAL_EDITABLE_STATUSES: readonly TaskStatus[] = ['triage', 'backlog', 'ready', 'running', 'blocked'];
 
 export const OUTCOME_STYLES: Record<string, string> = {
   completed: 'text-chart-2',
@@ -111,9 +105,15 @@ export interface TaskDepInfo {
 }
 
 export function formatDuration(seconds: number | null | undefined): string {
-  if (seconds == null) {return '-';}
-  if (seconds < 60) {return `${seconds.toFixed(1)}s`;}
-  if (seconds < 3600) {return `${(seconds / 60).toFixed(1)}m`;}
+  if (seconds == null) {
+    return '-';
+  }
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}s`;
+  }
+  if (seconds < 3600) {
+    return `${(seconds / 60).toFixed(1)}m`;
+  }
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
   return m > 0 ? `${h}h${m}m` : `${h}h`;

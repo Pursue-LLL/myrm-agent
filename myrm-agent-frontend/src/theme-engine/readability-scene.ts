@@ -77,9 +77,7 @@ function normalizePathname(pathname: string): string {
 }
 
 function matchesFunctionalPrefix(normalized: string): boolean {
-  return FUNCTIONAL_ROUTE_PREFIXES.some(
-    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`),
-  );
+  return FUNCTIONAL_ROUTE_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
 }
 
 function isChatSessionPath(normalized: string): boolean {

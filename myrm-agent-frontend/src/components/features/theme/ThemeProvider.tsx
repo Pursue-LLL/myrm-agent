@@ -16,17 +16,11 @@ const ThemeColorMeta = () => {
   return null;
 };
 
-const nextThemesScriptProps =
-  typeof window === 'undefined' ? undefined : ({ type: 'application/json' } as const);
+const nextThemesScriptProps = typeof window === 'undefined' ? undefined : ({ type: 'application/json' } as const);
 
 const ThemeProviderComponent = ({ children }: { children: React.ReactNode }) => {
   return (
-    <ThemeProvider
-      attribute="class"
-      enableSystem
-      defaultTheme="dark"
-      scriptProps={nextThemesScriptProps}
-    >
+    <ThemeProvider attribute="class" enableSystem defaultTheme="dark" scriptProps={nextThemesScriptProps}>
       <ThemeColorMeta />
       {children}
     </ThemeProvider>

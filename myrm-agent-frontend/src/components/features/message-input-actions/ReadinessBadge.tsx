@@ -43,7 +43,9 @@ const ReadinessBadge = memo(() => {
     [router],
   );
 
-  if (!hasIssues || isLoading || !report) {return null;}
+  if (!hasIssues || isLoading || !report) {
+    return null;
+  }
 
   const level = overallLevel as Exclude<ReadinessLevel, 'ready'>;
   const Icon = ICON_MAP[level];

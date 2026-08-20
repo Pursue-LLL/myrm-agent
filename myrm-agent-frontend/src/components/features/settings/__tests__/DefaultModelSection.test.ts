@@ -20,10 +20,14 @@ function shouldShowContextWindowWarning(
   litePrimary: SingleModelSelection | null,
   customModelInfo: Record<string, CustomModelInfo>,
 ): boolean {
-  if (!basePrimary || !litePrimary) {return false;}
+  if (!basePrimary || !litePrimary) {
+    return false;
+  }
   const baseWindow = customModelInfo[`${basePrimary.providerId}/${basePrimary.model}`]?.max_input_tokens;
   const liteWindow = customModelInfo[`${litePrimary.providerId}/${litePrimary.model}`]?.max_input_tokens;
-  if (!baseWindow || !liteWindow || liteWindow >= baseWindow) {return false;}
+  if (!baseWindow || !liteWindow || liteWindow >= baseWindow) {
+    return false;
+  }
   return true;
 }
 

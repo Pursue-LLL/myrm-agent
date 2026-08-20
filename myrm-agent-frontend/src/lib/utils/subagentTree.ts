@@ -34,7 +34,9 @@ export interface TreeTotals extends SubtreeAggregate {
 
 export function buildTree(nodes: Record<string, SubagentNode>): TreeNode[] {
   const entries = Object.values(nodes).filter((n) => !n.internal);
-  if (entries.length === 0) {return [];}
+  if (entries.length === 0) {
+    return [];
+  }
 
   const map: Record<string, TreeNode> = {};
   for (const n of entries) {
@@ -61,7 +63,9 @@ export function extractCostUsd(node: SubagentNode): number {
   // emits total_cost_usd in SUBAGENT_PROGRESS and observability snapshots).
   // `budget.cost_usd` never exists (budget only carries timeout/max_cost/budget_tokens).
   const raw = node.token_usage?.total_cost_usd;
-  if (typeof raw === 'number' && Number.isFinite(raw)) {return raw;}
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return raw;
+  }
   if (typeof raw === 'string') {
     const n = Number(raw);
     return Number.isFinite(n) ? n : 0;
@@ -71,7 +75,9 @@ export function extractCostUsd(node: SubagentNode): number {
 
 export function extractTotalTokens(node: SubagentNode): number {
   const raw = node.token_usage?.total_tokens;
-  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {return raw;}
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return raw;
+  }
   if (typeof raw === 'string') {
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : 0;
@@ -80,7 +86,9 @@ export function extractTotalTokens(node: SubagentNode): number {
 }
 
 function toFiniteNumber(raw: SubagentMetadataValue | undefined): number {
-  if (typeof raw === 'number') {return Number.isFinite(raw) ? raw : 0;}
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? raw : 0;
+  }
   if (typeof raw === 'string') {
     const n = Number(raw);
     return Number.isFinite(n) ? n : 0;
@@ -119,9 +127,7 @@ export function aggregate(node: TreeNode): SubtreeAggregate {
 
 // ── Tree Totals ──────────────────────────────────────────────────────
 
-const FAILED_STATUSES = new Set<SubagentStatus>([
-  'failed', 'timed_out', 'interrupted',
-]);
+const FAILED_STATUSES = new Set<SubagentStatus>(['failed', 'timed_out', 'interrupted']);
 
 export function treeTotals(roots: TreeNode[]): TreeTotals {
   const modelCounts: Record<string, number> = {};
@@ -135,13 +141,19 @@ export function treeTotals(roots: TreeNode[]): TreeTotals {
   const walk = (nodes: TreeNode[]) => {
     for (const n of nodes) {
       totalAgents++;
-      if (FAILED_STATUSES.has(n.status)) {failedCount++;}
-      if (n.status === 'running') {activeCount++;}
+      if (FAILED_STATUSES.has(n.status)) {
+        failedCount++;
+      }
+      if (n.status === 'running') {
+        activeCount++;
+      }
       totalCostUsd += extractCostUsd(n);
       totalTokens += extractTotalTokens(n);
       totalDurationSeconds += n.duration_seconds ?? 0;
       const model = n.effective_model?.split('/').pop() ?? '';
-      if (model) {modelCounts[model] = (modelCounts[model] ?? 0) + 1;}
+      if (model) {
+        modelCounts[model] = (modelCounts[model] ?? 0) + 1;
+      }
       walk(n.children);
     }
   };
@@ -188,7 +200,9 @@ function sortComparator(mode: SortMode): (a: TreeNode, b: TreeNode) => number {
       return (a, b) => {
         const aCost = extractCostUsd(a);
         const bCost = extractCostUsd(b);
-        if (aCost !== bCost) {return bCost - aCost;}
+        if (aCost !== bCost) {
+          return bCost - aCost;
+        }
         return extractTotalTokens(b) - extractTotalTokens(a);
       };
     case 'slowest':
@@ -201,24 +215,28 @@ function sortComparator(mode: SortMode): (a: TreeNode, b: TreeNode) => number {
 }
 
 export function sortNodes(nodes: TreeNode[], mode: SortMode): TreeNode[] {
-  if (mode === 'spawn') {return nodes;}
+  if (mode === 'spawn') {
+    return nodes;
+  }
   return [...nodes].sort(sortComparator(mode));
 }
 
 // ── Filter ───────────────────────────────────────────────────────────
 
 export function filterNodes(nodes: TreeNode[], mode: FilterMode): TreeNode[] {
-  if (mode === 'all') {return nodes;}
+  if (mode === 'all') {
+    return nodes;
+  }
 
   const flat = flattenTree(nodes);
   const strip = (n: TreeNode): TreeNode => ({ ...n, children: [] });
   switch (mode) {
     case 'running':
-      return flat.filter(n => n.status === 'running' || n.status === 'verifying').map(strip);
+      return flat.filter((n) => n.status === 'running' || n.status === 'verifying').map(strip);
     case 'failed':
-      return flat.filter(n => FAILED_STATUSES.has(n.status)).map(strip);
+      return flat.filter((n) => FAILED_STATUSES.has(n.status)).map(strip);
     case 'leaf':
-      return flat.filter(n => n.children.length === 0).map(strip);
+      return flat.filter((n) => n.children.length === 0).map(strip);
     default:
       return nodes;
   }
@@ -241,16 +259,28 @@ export function flattenTree(nodes: TreeNode[]): TreeNode[] {
 // ── Format ───────────────────────────────────────────────────────────
 
 export function fmtCost(usd: number): string {
-  if (!Number.isFinite(usd) || usd <= 0) {return '';}
-  if (usd < 0.01) {return '<$0.01';}
-  if (usd < 10) {return `$${usd.toFixed(2)}`;}
+  if (!Number.isFinite(usd) || usd <= 0) {
+    return '';
+  }
+  if (usd < 0.01) {
+    return '<$0.01';
+  }
+  if (usd < 10) {
+    return `$${usd.toFixed(2)}`;
+  }
   return `$${usd.toFixed(1)}`;
 }
 
 export function fmtTokens(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) {return '0';}
-  if (n < 1000) {return String(Math.round(n));}
-  if (n < 10_000) {return `${(n / 1000).toFixed(1)}k`;}
+  if (!Number.isFinite(n) || n <= 0) {
+    return '0';
+  }
+  if (n < 1000) {
+    return String(Math.round(n));
+  }
+  if (n < 10_000) {
+    return `${(n / 1000).toFixed(1)}k`;
+  }
   return `${Math.round(n / 1000)}k`;
 }
 

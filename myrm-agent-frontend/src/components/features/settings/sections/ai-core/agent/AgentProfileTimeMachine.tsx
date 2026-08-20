@@ -121,8 +121,12 @@ export function AgentProfileTimeMachine({
 
   const translateReason = useCallback(
     (reason: string) => {
-      if (reason === 'webui-update') {return t('reasons.webui-update');}
-      if (reason === 'pre-rollback') {return t('reasons.pre-rollback');}
+      if (reason === 'webui-update') {
+        return t('reasons.webui-update');
+      }
+      if (reason === 'pre-rollback') {
+        return t('reasons.pre-rollback');
+      }
       return reason;
     },
     [t],

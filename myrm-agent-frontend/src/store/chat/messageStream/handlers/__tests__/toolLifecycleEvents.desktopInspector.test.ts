@@ -7,10 +7,7 @@ import type { StreamHandlerActions, StreamHandlerState } from '../../types';
 import type { StreamCtx } from '../../streamContext';
 import { toolLifecycleEvents } from '../toolLifecycleEvents';
 
-function buildToolEndCtx(
-  toolName: string,
-  streamChatId = 'chat-fg',
-): StreamCtx {
+function buildToolEndCtx(toolName: string, streamChatId = 'chat-fg'): StreamCtx {
   const state: StreamHandlerState = {
     messages: [
       {

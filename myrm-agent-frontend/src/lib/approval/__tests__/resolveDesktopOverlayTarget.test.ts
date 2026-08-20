@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  resolveDesktopOverlayTarget,
-  selectEarliestInlineRequest,
-} from '@/lib/approval/resolveDesktopOverlayTarget';
+import { resolveDesktopOverlayTarget, selectEarliestInlineRequest } from '@/lib/approval/resolveDesktopOverlayTarget';
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 

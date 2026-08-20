@@ -14,7 +14,16 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconShield, IconLoader, IconSave, IconTrash, IconPlus, IconChevronDown, IconChevronRight, IconUsers } from '@/components/features/icons/PremiumIcons';
+import {
+  IconShield,
+  IconLoader,
+  IconSave,
+  IconTrash,
+  IconPlus,
+  IconChevronDown,
+  IconChevronRight,
+  IconUsers,
+} from '@/components/features/icons/PremiumIcons';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -59,22 +68,25 @@ const ChannelBudgetSection = memo(() => {
   const [auditEntries, setAuditEntries] = useState<ChannelAuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
 
-  const toggleAudit = useCallback(async (channelKey: string) => {
-    if (expandedAudit === channelKey) {
-      setExpandedAudit(null);
-      return;
-    }
-    setAuditLoading(true);
-    setExpandedAudit(channelKey);
-    try {
-      const data = await getChannelAudit(channelKey, 7);
-      setAuditEntries(data.entries);
-    } catch {
-      setAuditEntries([]);
-    } finally {
-      setAuditLoading(false);
-    }
-  }, [expandedAudit]);
+  const toggleAudit = useCallback(
+    async (channelKey: string) => {
+      if (expandedAudit === channelKey) {
+        setExpandedAudit(null);
+        return;
+      }
+      setAuditLoading(true);
+      setExpandedAudit(channelKey);
+      try {
+        const data = await getChannelAudit(channelKey, 7);
+        setAuditEntries(data.entries);
+      } catch {
+        setAuditEntries([]);
+      } finally {
+        setAuditLoading(false);
+      }
+    },
+    [expandedAudit],
+  );
 
   const fetchData = useCallback(async () => {
     try {
@@ -121,7 +133,9 @@ const ChannelBudgetSection = memo(() => {
   );
 
   const handleAdd = useCallback(async () => {
-    if (!newEntry.channel_key.trim()) {return;}
+    if (!newEntry.channel_key.trim()) {
+      return;
+    }
     setSaving('new');
     try {
       await updateChannelBudget(newEntry.channel_key, {
@@ -186,7 +200,9 @@ const ChannelBudgetSection = memo(() => {
                 value={newEntry.daily_limit_usd}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
-                  if (!isNaN(v)) {setNewEntry((prev) => ({ ...prev, daily_limit_usd: v }));}
+                  if (!isNaN(v)) {
+                    setNewEntry((prev) => ({ ...prev, daily_limit_usd: v }));
+                  }
                 }}
                 className="w-20 text-right text-sm font-mono px-2 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
@@ -203,7 +219,11 @@ const ChannelBudgetSection = memo(() => {
               disabled={saving === 'new' || !newEntry.channel_key.trim()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
-              {saving === 'new' ? <IconLoader className="w-3.5 h-3.5 animate-spin" /> : <IconSave className="w-3.5 h-3.5" />}
+              {saving === 'new' ? (
+                <IconLoader className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <IconSave className="w-3.5 h-3.5" />
+              )}
               {t('save')}
             </button>
           </div>
@@ -224,7 +244,9 @@ const ChannelBudgetSection = memo(() => {
                 <IconShield className={cn('w-4 h-4 shrink-0', colors.text)} />
                 <span className="text-sm font-medium truncate">{st.label || st.channel_key}</span>
                 {st.label && (
-                  <span className="text-[10px] text-muted-foreground font-mono hidden sm:inline truncate">{st.channel_key}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono hidden sm:inline truncate">
+                    {st.channel_key}
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -316,9 +338,7 @@ const ChannelBudgetSection = memo(() => {
                   <div className="text-xs text-muted-foreground py-1">{t('auditEmpty')}</div>
                 ) : (
                   auditEntries.map((entry) => {
-                    const pct = st.today_cost_usd > 0
-                      ? (entry.total_cost_usd / st.today_cost_usd) * 100
-                      : 0;
+                    const pct = st.today_cost_usd > 0 ? (entry.total_cost_usd / st.today_cost_usd) * 100 : 0;
                     return (
                       <div key={entry.sender_id} className="flex items-center gap-2">
                         <span className="text-[11px] text-muted-foreground font-mono truncate min-w-0 flex-1">

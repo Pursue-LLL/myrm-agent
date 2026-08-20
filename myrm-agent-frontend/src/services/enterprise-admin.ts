@@ -101,17 +101,31 @@ export interface AuditLogFilters {
 
 export async function queryAuditLogs(filters: AuditLogFilters = {}): Promise<AuditLogsResponse> {
   const params = new URLSearchParams();
-  if (filters.user_id) {params.set('user_id', filters.user_id);}
-  if (filters.sandbox_id) {params.set('sandbox_id', filters.sandbox_id);}
-  if (filters.event_type) {params.set('event_type', filters.event_type);}
-  if (filters.start_time) {params.set('start_time', filters.start_time);}
-  if (filters.end_time) {params.set('end_time', filters.end_time);}
-  if (filters.limit) {params.set('limit', String(filters.limit));}
+  if (filters.user_id) {
+    params.set('user_id', filters.user_id);
+  }
+  if (filters.sandbox_id) {
+    params.set('sandbox_id', filters.sandbox_id);
+  }
+  if (filters.event_type) {
+    params.set('event_type', filters.event_type);
+  }
+  if (filters.start_time) {
+    params.set('start_time', filters.start_time);
+  }
+  if (filters.end_time) {
+    params.set('end_time', filters.end_time);
+  }
+  if (filters.limit) {
+    params.set('limit', String(filters.limit));
+  }
 
   const qs = params.toString();
   const url = securityUrl(`/audit-logs${qs ? `?${qs}` : ''}`);
   const res = await fetch(url, { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Query audit logs failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Query audit logs failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -119,26 +133,39 @@ export async function getAuditStats(hours: number = 24): Promise<AuditStatsRespo
   const res = await fetch(securityUrl(`/audit-logs/stats?hours=${hours}`), {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) {throw new Error(`Get audit stats failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Get audit stats failed: ${res.status}`);
+  }
   return res.json();
 }
 
-export async function exportAuditLogs(
-  format: 'csv' | 'json' = 'csv',
-  filters: AuditLogFilters = {},
-): Promise<Blob> {
+export async function exportAuditLogs(format: 'csv' | 'json' = 'csv', filters: AuditLogFilters = {}): Promise<Blob> {
   const params = new URLSearchParams({ format });
-  if (filters.user_id) {params.set('user_id', filters.user_id);}
-  if (filters.sandbox_id) {params.set('sandbox_id', filters.sandbox_id);}
-  if (filters.event_type) {params.set('event_type', filters.event_type);}
-  if (filters.start_time) {params.set('start_time', filters.start_time);}
-  if (filters.end_time) {params.set('end_time', filters.end_time);}
-  if (filters.limit) {params.set('limit', String(filters.limit));}
+  if (filters.user_id) {
+    params.set('user_id', filters.user_id);
+  }
+  if (filters.sandbox_id) {
+    params.set('sandbox_id', filters.sandbox_id);
+  }
+  if (filters.event_type) {
+    params.set('event_type', filters.event_type);
+  }
+  if (filters.start_time) {
+    params.set('start_time', filters.start_time);
+  }
+  if (filters.end_time) {
+    params.set('end_time', filters.end_time);
+  }
+  if (filters.limit) {
+    params.set('limit', String(filters.limit));
+  }
 
   const res = await fetch(securityUrl(`/audit-logs/export?${params.toString()}`), {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) {throw new Error(`Export audit logs failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Export audit logs failed: ${res.status}`);
+  }
   return res.blob();
 }
 
@@ -153,13 +180,17 @@ function orgUrl(orgId: string, path: string): string {
 export async function getOrgUsageSummary(orgId: string, month?: string): Promise<OrgUsageSummary> {
   const params = month ? `?month=${month}` : '';
   const res = await fetch(orgUrl(orgId, `/usage-summary${params}`), { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Get usage summary failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Get usage summary failed: ${res.status}`);
+  }
   return res.json();
 }
 
 export async function getOrgBudget(orgId: string): Promise<BudgetSettings> {
   const res = await fetch(orgUrl(orgId, '/budget'), { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Get budget failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Get budget failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -173,7 +204,9 @@ export async function setOrgBudget(
     headers: jsonHeaders(),
     body: JSON.stringify({ budget_wu_monthly: budgetWuMonthly, alert_threshold: alertThreshold }),
   });
-  if (!res.ok) {throw new Error(`Set budget failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Set budget failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -214,10 +247,11 @@ export async function queryOrgAgentAudit(
     hours: String(options.hours ?? 24),
     limit: String(options.limit ?? 200),
   });
-  const res = await fetch(
-    `${resolveCpBaseUrl()}${ORG_BASE}/${orgId}/agent-audit/events?${params.toString()}`,
-    { headers: getAuthHeaders() },
-  );
-  if (!res.ok) {throw new Error(`Query org agent audit failed: ${res.status}`);}
+  const res = await fetch(`${resolveCpBaseUrl()}${ORG_BASE}/${orgId}/agent-audit/events?${params.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error(`Query org agent audit failed: ${res.status}`);
+  }
   return res.json();
 }

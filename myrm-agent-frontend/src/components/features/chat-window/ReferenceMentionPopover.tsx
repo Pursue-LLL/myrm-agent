@@ -55,16 +55,26 @@ function getFileIcon(name: string): React.ElementType {
 }
 
 function formatSize(bytes: number | null): string {
-  if (bytes === null) {return '';}
-  if (bytes < 1024) {return `${bytes}B`;}
-  if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(0)}KB`;}
+  if (bytes === null) {
+    return '';
+  }
+  if (bytes < 1024) {
+    return `${bytes}B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(0)}KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 function highlightMatch(text: string, ranges: Array<[number, number]>): React.ReactNode {
-  if (ranges.length === 0) {return text;}
+  if (ranges.length === 0) {
+    return text;
+  }
   const [start, end] = ranges[0];
-  if (start < 0 || end <= start || start >= text.length) {return text;}
+  if (start < 0 || end <= start || start >= text.length) {
+    return text;
+  }
   return (
     <>
       {text.slice(0, start)}
@@ -86,13 +96,17 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
   const listRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    if (!listRef.current || selectedIndex < 0) {return;}
+    if (!listRef.current || selectedIndex < 0) {
+      return;
+    }
     const items = listRef.current.querySelectorAll('[data-mention-item]');
     const target = items[selectedIndex] as HTMLElement | undefined;
     target?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex]);
 
-  if (!open) {return null;}
+  if (!open) {
+    return null;
+  }
 
   const isChatMode = query.startsWith('chat:');
 
@@ -151,9 +165,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
             {results.length === 0 ? (
               <div className="py-6 text-center">
                 <Folder className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">
-                  {isChatMode ? t('priorChatEmpty') : t('noResults')}
-                </p>
+                <p className="text-sm text-muted-foreground">{isChatMode ? t('priorChatEmpty') : t('noResults')}</p>
               </div>
             ) : (
               results.map((file, index) => {
@@ -173,8 +185,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
 
                 const prevFile = index > 0 ? results[index - 1] : null;
                 const isFirstAgent = isAgent && (!prevFile || prevFile.source !== 'agent');
-                const isFirstPriorChat =
-                  isPriorChat && (!prevFile || prevFile.reference_type !== 'prior_chat');
+                const isFirstPriorChat = isPriorChat && (!prevFile || prevFile.reference_type !== 'prior_chat');
                 const isFirstContext =
                   !isAgent &&
                   !isPriorChat &&
@@ -206,22 +217,30 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                         isSelected && 'bg-accent',
                         isSpecial && 'bg-primary/5',
                         isPriorChat && 'bg-primary/5',
-                        isAgent && 'bg-primary/10 hover:bg-primary/20'
+                        isAgent && 'bg-primary/10 hover:bg-primary/20',
                       )}
                       onClick={() => onSelect(file)}
                       onMouseEnter={() => {}}
                     >
                       {isAgent && file.avatar_url ? (
-                        <img src={file.avatar_url} alt={title} className="w-5 h-5 rounded-full shrink-0 object-cover border border-primary/20" />
+                        <img
+                          src={file.avatar_url}
+                          alt={title}
+                          className="w-5 h-5 rounded-full shrink-0 object-cover border border-primary/20"
+                        />
                       ) : isAgent ? (
                         <div className="w-5 h-5 rounded-full shrink-0 bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
                           {title.charAt(0).toUpperCase()}
                         </div>
                       ) : (
-                        Icon && <Icon className={cn('w-4 h-4 shrink-0', isSpecial ? 'text-primary/70' : 'text-muted-foreground')} />
+                        Icon && (
+                          <Icon
+                            className={cn('w-4 h-4 shrink-0', isSpecial ? 'text-primary/70' : 'text-muted-foreground')}
+                          />
+                        )
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className={cn("text-sm truncate", isAgent ? "font-bold text-primary" : "font-medium")}>
+                        <div className={cn('text-sm truncate', isAgent ? 'font-bold text-primary' : 'font-medium')}>
                           {isSpecial ? title : highlightMatch(title, file.match_ranges)}
                         </div>
                         <div className="text-xs text-muted-foreground/70 truncate">{subtitle}</div>

@@ -32,16 +32,27 @@ export function SessionPolicySection({ editor, t }: SectionProps) {
             <label className="text-xs font-medium text-muted-foreground">{t('agent.sessionPolicyMode')}</label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1.5">
               {(['persistent', 'daily', 'idle'] as const).map((mode) => (
-                <button key={mode} type="button"
+                <button
+                  key={mode}
+                  type="button"
                   className={cn(
                     'rounded-lg border px-3 py-2 text-xs transition-all',
                     editor.sessionPolicy?.mode === mode
                       ? 'border-primary bg-primary/10 text-primary font-medium'
                       : 'border-border/50 bg-card/30 text-muted-foreground hover:border-primary/30',
                   )}
-                  onClick={() => editor.setSessionPolicy({ ...editor.sessionPolicy!, mode })}>
-                  <span className="block font-medium">{t(`agent.sessionPolicy${mode.charAt(0).toUpperCase() + mode.slice(1)}` as 'agent.sessionPolicyPersistent')}</span>
-                  <span className="block text-[10px] mt-0.5 opacity-70">{t(`agent.sessionPolicy${mode.charAt(0).toUpperCase() + mode.slice(1)}Desc` as 'agent.sessionPolicyPersistentDesc')}</span>
+                  onClick={() => editor.setSessionPolicy({ ...editor.sessionPolicy!, mode })}
+                >
+                  <span className="block font-medium">
+                    {t(
+                      `agent.sessionPolicy${mode.charAt(0).toUpperCase() + mode.slice(1)}` as 'agent.sessionPolicyPersistent',
+                    )}
+                  </span>
+                  <span className="block text-[10px] mt-0.5 opacity-70">
+                    {t(
+                      `agent.sessionPolicy${mode.charAt(0).toUpperCase() + mode.slice(1)}Desc` as 'agent.sessionPolicyPersistentDesc',
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
@@ -49,19 +60,37 @@ export function SessionPolicySection({ editor, t }: SectionProps) {
           {editor.sessionPolicy.mode === 'daily' && (
             <div>
               <label className="text-xs font-medium text-muted-foreground">{t('agent.sessionPolicyResetHour')}</label>
-              <Input type="number" min={0} max={23}
+              <Input
+                type="number"
+                min={0}
+                max={23}
                 value={editor.sessionPolicy.daily_reset_hour}
-                onChange={(e) => editor.setSessionPolicy({ ...editor.sessionPolicy!, daily_reset_hour: Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 0)) })}
-                className="w-full mt-1" />
+                onChange={(e) =>
+                  editor.setSessionPolicy({
+                    ...editor.sessionPolicy!,
+                    daily_reset_hour: Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 0)),
+                  })
+                }
+                className="w-full mt-1"
+              />
             </div>
           )}
           {editor.sessionPolicy.mode === 'idle' && (
             <div>
               <label className="text-xs font-medium text-muted-foreground">{t('agent.sessionPolicyIdleMinutes')}</label>
-              <Input type="number" min={1} max={10080}
+              <Input
+                type="number"
+                min={1}
+                max={10080}
                 value={editor.sessionPolicy.idle_minutes}
-                onChange={(e) => editor.setSessionPolicy({ ...editor.sessionPolicy!, idle_minutes: Math.max(1, Math.min(10080, parseInt(e.target.value, 10) || 120)) })}
-                className="w-full mt-1" />
+                onChange={(e) =>
+                  editor.setSessionPolicy({
+                    ...editor.sessionPolicy!,
+                    idle_minutes: Math.max(1, Math.min(10080, parseInt(e.target.value, 10) || 120)),
+                  })
+                }
+                className="w-full mt-1"
+              />
             </div>
           )}
         </div>

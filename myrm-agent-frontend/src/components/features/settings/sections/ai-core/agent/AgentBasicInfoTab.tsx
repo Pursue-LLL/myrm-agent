@@ -98,8 +98,12 @@ export function AgentBasicInfoTab({
 
   const handleAddPrompt = useCallback(() => {
     const trimmed = promptInput.trim();
-    if (!trimmed || suggestionPrompts.length >= MAX_SUGGESTION_PROMPTS) {return;}
-    if (suggestionPrompts.includes(trimmed)) {return;}
+    if (!trimmed || suggestionPrompts.length >= MAX_SUGGESTION_PROMPTS) {
+      return;
+    }
+    if (suggestionPrompts.includes(trimmed)) {
+      return;
+    }
     onSuggestionPromptsChange([...suggestionPrompts, trimmed]);
     setPromptInput('');
   }, [promptInput, suggestionPrompts, onSuggestionPromptsChange]);
@@ -222,11 +226,7 @@ export function AgentBasicInfoTab({
               <label className="text-sm font-medium text-foreground">{t('agent.allowDiscovery.title')}</label>
               <p className="text-xs text-muted-foreground">{t('agent.allowDiscovery.description')}</p>
             </div>
-            <Switch
-              checked={allowDiscovery}
-              onCheckedChange={onAllowDiscoveryChange}
-              disabled={isReadonly}
-            />
+            <Switch checked={allowDiscovery} onCheckedChange={onAllowDiscoveryChange} disabled={isReadonly} />
           </div>
         </div>
 
@@ -236,11 +236,7 @@ export function AgentBasicInfoTab({
               <label className="text-sm font-medium text-foreground">{t('agent.formalKoreanReplies.title')}</label>
               <p className="text-xs text-muted-foreground">{t('agent.formalKoreanReplies.description')}</p>
             </div>
-            <Switch
-              checked={formalKoreanReplies}
-              onCheckedChange={onFormalKoreanRepliesChange}
-              disabled={isReadonly}
-            />
+            <Switch checked={formalKoreanReplies} onCheckedChange={onFormalKoreanRepliesChange} disabled={isReadonly} />
           </div>
         </div>
 

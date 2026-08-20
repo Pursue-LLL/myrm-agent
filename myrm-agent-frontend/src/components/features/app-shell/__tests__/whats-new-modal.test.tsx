@@ -18,25 +18,27 @@ vi.mock('@/components/primitives/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div data-testid="dialog">{children}</div> : null,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" className={className}>{children}</div>
+    <div data-testid="dialog-content" className={className}>
+      {children}
+    </div>
   ),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dialog-header">{children}</div>
-  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-header">{children}</div>,
   DialogTitle: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <h2 data-testid="dialog-title" className={className}>{children}</h2>
+    <h2 data-testid="dialog-title" className={className}>
+      {children}
+    </h2>
   ),
   DialogDescription: ({ children }: { children: React.ReactNode }) => (
     <p data-testid="dialog-description">{children}</p>
   ),
   DialogFooter: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-footer" className={className}>{children}</div>
+    <div data-testid="dialog-footer" className={className}>
+      {children}
+    </div>
   ),
 }));
 
-const { WhatsNewModal } = await import(
-  '@/components/features/app-shell/whats-new-modal'
-);
+const { WhatsNewModal } = await import('@/components/features/app-shell/whats-new-modal');
 
 describe('WhatsNewModal', () => {
   beforeEach(() => {
@@ -212,9 +214,7 @@ describe('WhatsNewModal', () => {
 
     render(<WhatsNewModal />);
     const scripts = document.querySelectorAll('script');
-    const injected = Array.from(scripts).some(
-      (s) => s.textContent?.includes('alert'),
-    );
+    const injected = Array.from(scripts).some((s) => s.textContent?.includes('alert'));
     expect(injected).toBe(false);
     expect(screen.getByText('content')).toBeInTheDocument();
   });

@@ -3,9 +3,9 @@
  * Chat SSE event handler slice (completionEvents).
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import * as H from './handlerDeps';
 
 export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, recievedMessage, state, actions } = ctx;
@@ -65,10 +65,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     setTimeout(() => {
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (
-          messageIndex === -1 &&
-          (data.completion_status === 'budget_blocked' || Boolean(data.memory_brief_status))
-        ) {
+        if (messageIndex === -1 && (data.completion_status === 'budget_blocked' || Boolean(data.memory_brief_status))) {
           state.messages.push({
             content: '',
             messageId: data.messageId,
@@ -184,7 +181,9 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       // previews when FILE_DIFF is absent but the session workspace exists (silent=true).
       void import('@/services/chat').then(({ getChatDetail }) => {
         const chatId = H.useChatStore.getState().chatId;
-        if (!chatId) {return;}
+        if (!chatId) {
+          return;
+        }
         void getChatDetail(chatId, true)
           .then((detail) => {
             const dir = detail.chat.workspace_dir;

@@ -65,7 +65,9 @@ export function resolveAssessmentImportFailureReason(error: unknown): Assessment
   if (!(error instanceof ApiError)) {
     return 'unknown_error';
   }
-  return resolveStructuredImportReason(error) ?? resolveMessageFallbackReason(error.message.toLowerCase()) ?? 'unknown_error';
+  return (
+    resolveStructuredImportReason(error) ?? resolveMessageFallbackReason(error.message.toLowerCase()) ?? 'unknown_error'
+  );
 }
 
 export function resolveAssessmentImportErrorMessage(error: unknown, t: AssessmentImportTranslator): string {

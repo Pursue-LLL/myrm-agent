@@ -29,13 +29,15 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const isZh = lang?.startsWith('zh');
 
   if (data.type === H.AgentEventType.CAPABILITY_GAP) {
-    const payload = data.data as {
-      tool_id?: string;
-      tool_group?: string;
-      reason?: string;
-      display_message?: string;
-      settings_path?: string;
-    } | undefined;
+    const payload = data.data as
+      | {
+          tool_id?: string;
+          tool_group?: string;
+          reason?: string;
+          display_message?: string;
+          settings_path?: string;
+        }
+      | undefined;
 
     if (payload?.reason === 'migration_readiness_critical' || payload?.reason === 'migration_readiness_warning') {
       const message =

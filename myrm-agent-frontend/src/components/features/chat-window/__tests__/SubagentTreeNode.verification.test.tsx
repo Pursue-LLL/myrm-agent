@@ -39,7 +39,9 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/components/primitives/button', () => ({
   Button: ({ children, ...props }: React.ComponentProps<'button'> & { variant?: string; size?: string }) => (
-    <button type="button" {...props}>{children}</button>
+    <button type="button" {...props}>
+      {children}
+    </button>
   ),
 }));
 

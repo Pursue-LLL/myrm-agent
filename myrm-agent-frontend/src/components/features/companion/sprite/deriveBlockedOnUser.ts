@@ -26,10 +26,18 @@ export interface BlockedOnUserInput {
 
 /** Accepts messages for testability; production callers may pass a precomputed flag. */
 export function deriveBlockedOnUser(input: BlockedOnUserInput): boolean {
-  if (input.toolApprovalQueueLength > 0) {return true;}
-  if (input.approvalQueueLength > 0) {return true;}
-  if (input.desktopControlPending) {return true;}
-  if (input.browserTakeoverPending) {return true;}
+  if (input.toolApprovalQueueLength > 0) {
+    return true;
+  }
+  if (input.approvalQueueLength > 0) {
+    return true;
+  }
+  if (input.desktopControlPending) {
+    return true;
+  }
+  if (input.browserTakeoverPending) {
+    return true;
+  }
   return input.hasPendingClarification;
 }
 

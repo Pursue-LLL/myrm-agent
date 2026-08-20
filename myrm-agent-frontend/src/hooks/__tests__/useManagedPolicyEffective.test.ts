@@ -123,10 +123,7 @@ describe('useManagedPolicyEffective', () => {
     await loadHook();
 
     await waitFor(() => {
-      expect(mockSet).toHaveBeenCalledWith(
-        'securityConfig',
-        expect.objectContaining({ yoloModeEnabled: false }),
-      );
+      expect(mockSet).toHaveBeenCalledWith('securityConfig', expect.objectContaining({ yoloModeEnabled: false }));
     });
   });
 
@@ -153,9 +150,7 @@ describe('useManagedPolicyEffective', () => {
 
     const { MANAGED_POLICY_UPDATED_EVENT } = await import('@/lib/managedPolicyEffectiveEvents');
     act(() => {
-      window.dispatchEvent(
-        new CustomEvent(MANAGED_POLICY_UPDATED_EVENT, { detail: { revision: 2, active: true } }),
-      );
+      window.dispatchEvent(new CustomEvent(MANAGED_POLICY_UPDATED_EVENT, { detail: { revision: 2, active: true } }));
     });
 
     await waitFor(() => {
@@ -177,9 +172,7 @@ describe('useManagedPolicyEffective', () => {
 
     const { MANAGED_POLICY_UPDATED_EVENT } = await import('@/lib/managedPolicyEffectiveEvents');
     act(() => {
-      window.dispatchEvent(
-        new CustomEvent(MANAGED_POLICY_UPDATED_EVENT, { detail: { revision: 2, active: true } }),
-      );
+      window.dispatchEvent(new CustomEvent(MANAGED_POLICY_UPDATED_EVENT, { detail: { revision: 2, active: true } }));
     });
 
     await act(async () => {

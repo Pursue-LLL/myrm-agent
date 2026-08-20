@@ -55,9 +55,7 @@ vi.mock('@/components/features/settings/default-model/EnabledModelSelect', () =>
 }));
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({
-  IconShieldCheck: ({ className }: { className: string }) => (
-    <svg data-testid="shield-icon" className={className} />
-  ),
+  IconShieldCheck: ({ className }: { className: string }) => <svg data-testid="shield-icon" className={className} />,
 }));
 
 vi.mock('@/components/features/settings/sections/system/securityPolicyUtils', () => ({
@@ -149,10 +147,13 @@ describe('SmartGuardStep', () => {
     const enableBtn = screen.getByRole('button', { name: 'enable' });
     fireEvent.click(enableBtn);
 
-    expect(mockSyncManagerSet).toHaveBeenCalledWith('securityConfig', expect.objectContaining({
-      autoReviewEnabled: true,
-      autoReviewModel: 'openai/gpt-4o-mini',
-    }));
+    expect(mockSyncManagerSet).toHaveBeenCalledWith(
+      'securityConfig',
+      expect.objectContaining({
+        autoReviewEnabled: true,
+        autoReviewModel: 'openai/gpt-4o-mini',
+      }),
+    );
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
@@ -163,11 +164,14 @@ describe('SmartGuardStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'enable' }));
 
-    expect(mockSyncManagerSet).toHaveBeenCalledWith('securityConfig', expect.objectContaining({
-      permissions: { read: true, write: false },
-      approvalTimeoutSeconds: 120,
-      autoReviewEnabled: true,
-    }));
+    expect(mockSyncManagerSet).toHaveBeenCalledWith(
+      'securityConfig',
+      expect.objectContaining({
+        permissions: { read: true, write: false },
+        approvalTimeoutSeconds: 120,
+        autoReviewEnabled: true,
+      }),
+    );
   });
 
   it('preserves existing config fields when saving', () => {
@@ -183,13 +187,16 @@ describe('SmartGuardStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'enable' }));
 
-    expect(mockSyncManagerSet).toHaveBeenCalledWith('securityConfig', expect.objectContaining({
-      permissions: { read: true, write: true },
-      approvalTimeoutSeconds: 60,
-      customField: 'keep-me',
-      autoReviewEnabled: true,
-      autoReviewModel: 'openai/gpt-4o-mini',
-    }));
+    expect(mockSyncManagerSet).toHaveBeenCalledWith(
+      'securityConfig',
+      expect.objectContaining({
+        permissions: { read: true, write: true },
+        approvalTimeoutSeconds: 60,
+        customField: 'keep-me',
+        autoReviewEnabled: true,
+        autoReviewModel: 'openai/gpt-4o-mini',
+      }),
+    );
   });
 
   it('disables enable button when model is cleared', () => {
@@ -220,8 +227,11 @@ describe('SmartGuardStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'enable' }));
 
-    expect(mockSyncManagerSet).toHaveBeenCalledWith('securityConfig', expect.objectContaining({
-      autoReviewModel: 'p2/gpt-4o-mini',
-    }));
+    expect(mockSyncManagerSet).toHaveBeenCalledWith(
+      'securityConfig',
+      expect.objectContaining({
+        autoReviewModel: 'p2/gpt-4o-mini',
+      }),
+    );
   });
 });

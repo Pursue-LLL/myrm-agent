@@ -22,14 +22,15 @@ export const findAssistantMessageIndex = (messages: Message[], messageId: string
  * 不会再发出 waiting_for_turn_clear SSE；本地残留的等待步骤在此清除。
  * 返回新数组（immutable），无匹配时原样返回。
  */
-export const removeWaitingForTurnStep = (
-  messages: Message[],
-  messageId: string,
-): Message[] => {
+export const removeWaitingForTurnStep = (messages: Message[], messageId: string): Message[] => {
   const next = messages.map((msg) => {
-    if (msg.messageId !== messageId || !msg.progressSteps?.length) {return msg;}
+    if (msg.messageId !== messageId || !msg.progressSteps?.length) {
+      return msg;
+    }
     const hasWaitingStep = msg.progressSteps.some((step) => step.step_key === 'waiting_for_turn');
-    if (!hasWaitingStep) {return msg;}
+    if (!hasWaitingStep) {
+      return msg;
+    }
     return {
       ...msg,
       progressSteps: msg.progressSteps.filter((step) => step.step_key !== 'waiting_for_turn'),
@@ -131,7 +132,9 @@ export const processSuggestions = async (
   updateMessage: (messageId: string, suggestions: string[]) => void,
 ): Promise<void> => {
   const configStore = useConfigStore.getState();
-  if (!configStore.generateSearchSuggestions) {return;}
+  if (!configStore.generateSearchSuggestions) {
+    return;
+  }
 
   if (lastMsg.role === 'assistant' && lastMsg.content.trim().length > 0 && !lastMsg.suggestions) {
     try {

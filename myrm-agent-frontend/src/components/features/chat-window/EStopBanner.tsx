@@ -68,7 +68,9 @@ export default function EStopBanner() {
     }
   }, []);
 
-  if (!status) {return null;}
+  if (!status) {
+    return null;
+  }
 
   const reasonText = status.reason.trim();
 
@@ -100,12 +102,8 @@ export default function EStopBanner() {
             <OctagonPause className="h-3.5 w-3.5" aria-hidden />
           </span>
           <div className="min-w-0 space-y-0.5">
-            <p className="text-sm font-semibold leading-tight text-destructive dark:text-destructive">
-              {t('message')}
-            </p>
-            <p className="text-xs leading-snug text-muted-foreground">
-              {reasonText || t('hint')}
-            </p>
+            <p className="text-sm font-semibold leading-tight text-destructive dark:text-destructive">{t('message')}</p>
+            <p className="text-xs leading-snug text-muted-foreground">{reasonText || t('hint')}</p>
           </div>
         </div>
         <Button

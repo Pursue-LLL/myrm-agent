@@ -199,9 +199,13 @@ interface SettingsMenuProps {
 
 /** 高亮搜索匹配文字 */
 function highlightMatch(text: string, query: string): React.ReactNode {
-  if (!query.trim()) {return text;}
+  if (!query.trim()) {
+    return text;
+  }
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) {return text;}
+  if (idx === -1) {
+    return text;
+  }
   return (
     <>
       {text.slice(0, idx)}
@@ -225,9 +229,15 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
   const visibleItems = useMemo(
     () =>
       menuItems.filter((item) => {
-        if (item.tauriOnly && !tauriMode) {return false;}
-        if (item.sandboxOnly && !sandboxMode) {return false;}
-        if (item.adminOnly && !isAdmin) {return false;}
+        if (item.tauriOnly && !tauriMode) {
+          return false;
+        }
+        if (item.sandboxOnly && !sandboxMode) {
+          return false;
+        }
+        if (item.adminOnly && !isAdmin) {
+          return false;
+        }
         return true;
       }),
     [tauriMode, sandboxMode, isAdmin],
@@ -237,7 +247,9 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
 
   const dynamicSubMenuItems = useMemo(() => {
-    if (isCompanionEnabled) {return subMenuItems;}
+    if (isCompanionEnabled) {
+      return subMenuItems;
+    }
     const next = { ...subMenuItems };
     if (next.developer) {
       next.developer = next.developer.filter((item) => item.id !== 'companion');
@@ -282,7 +294,9 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
     const groups = new Map<SettingsGroup, FilteredMenuItem[]>();
     filteredItems.forEach((fItem) => {
       const group = fItem.item.group;
-      if (!groups.has(group)) {groups.set(group, []);}
+      if (!groups.has(group)) {
+        groups.set(group, []);
+      }
       groups.get(group)!.push(fItem);
     });
     return Array.from(groups.entries())
@@ -297,7 +311,9 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
 
   // 搜索时自动展开包含匹配项的分组
   useEffect(() => {
-    if (!isSearching) {return;}
+    if (!isSearching) {
+      return;
+    }
     const matchedGroups = new Set(filteredItems.map((fItem) => fItem.item.group));
     setExpandedGroups((prev) => {
       const next = new Set(prev);
@@ -328,7 +344,9 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
   // 键盘导航
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (!isSearching) {return;}
+      if (!isSearching) {
+        return;
+      }
 
       switch (e.key) {
         case 'ArrowDown': {
@@ -361,7 +379,9 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
 
   // focusIndex 变化时滚动到可见区域
   useEffect(() => {
-    if (focusIndex < 0 || !navRef.current) {return;}
+    if (focusIndex < 0 || !navRef.current) {
+      return;
+    }
     const buttons = navRef.current.querySelectorAll('[data-menu-item]');
     buttons[focusIndex]?.scrollIntoView({ block: 'nearest' });
   }, [focusIndex]);

@@ -10,12 +10,7 @@ interface ThemePresetGridProps {
   onSelect: (profileId: string) => void;
 }
 
-const ThemePresetGrid = ({
-  profiles,
-  activeProfileId,
-  labelForProfile,
-  onSelect,
-}: ThemePresetGridProps) => (
+const ThemePresetGrid = ({ profiles, activeProfileId, labelForProfile, onSelect }: ThemePresetGridProps) => (
   <div className="flex flex-wrap gap-2">
     {profiles.map((profile) => (
       <button

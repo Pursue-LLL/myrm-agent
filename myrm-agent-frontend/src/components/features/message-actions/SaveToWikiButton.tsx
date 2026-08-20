@@ -62,9 +62,7 @@ export default function SaveToWikiButton({ message, messageIndex: _messageIndex 
   );
   const incognitoMode = useChatStore((state) => state.incognitoMode);
   const wikiEnabled = enabledBuiltinTools.includes('wiki');
-  const scopeLabel = agentId
-    ? getBuiltinAgentName(agentId, agentName ?? agentId, locale)
-    : tWiki('agentScopeDefault');
+  const scopeLabel = agentId ? getBuiltinAgentName(agentId, agentName ?? agentId, locale) : tWiki('agentScopeDefault');
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<ReturnType<typeof filterFolderNodes>>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,7 +84,9 @@ export default function SaveToWikiButton({ message, messageIndex: _messageIndex 
   }, [agentId, t]);
 
   useEffect(() => {
-    if (!isOpen) {return;}
+    if (!isOpen) {
+      return;
+    }
 
     void fetchTree();
     const snippet = message.content

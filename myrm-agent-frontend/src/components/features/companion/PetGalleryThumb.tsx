@@ -26,25 +26,35 @@ export function PetGalleryThumb({ url, alt }: { url: string; alt: string }) {
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {return;}
+    if (!container) {
+      return;
+    }
 
     let cancelled = false;
     let pendingImg: HTMLImageElement | null = null;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting || cancelled) {return;}
+        if (!entry.isIntersecting || cancelled) {
+          return;
+        }
         observer.disconnect();
 
         const img = new Image();
         pendingImg = img;
         img.crossOrigin = 'anonymous';
         img.onload = () => {
-          if (cancelled) {return;}
+          if (cancelled) {
+            return;
+          }
           const canvas = canvasRef.current;
-          if (!canvas) {return;}
+          if (!canvas) {
+            return;
+          }
           const ctx = canvas.getContext('2d', { alpha: true });
-          if (!ctx) {return;}
+          if (!ctx) {
+            return;
+          }
           ctx.imageSmoothingEnabled = false;
           const cellW = Math.min(192, img.naturalWidth);
           const cellH = Math.min(208, img.naturalHeight);
@@ -69,16 +79,18 @@ export function PetGalleryThumb({ url, alt }: { url: string; alt: string }) {
   }, [url]);
 
   return (
-    <div ref={containerRef} className="flex items-center justify-center" style={{ width: THUMB_SIZE, height: THUMB_SIZE }}>
+    <div
+      ref={containerRef}
+      className="flex items-center justify-center"
+      style={{ width: THUMB_SIZE, height: THUMB_SIZE }}
+    >
       <canvas
         ref={canvasRef}
         className={cn('w-full h-full', !loaded && 'hidden')}
         style={{ imageRendering: 'pixelated' }}
         aria-label={alt}
       />
-      {!loaded && (
-        <div className="w-full h-full rounded-md bg-muted animate-pulse" />
-      )}
+      {!loaded && <div className="w-full h-full rounded-md bg-muted animate-pulse" />}
     </div>
   );
 }

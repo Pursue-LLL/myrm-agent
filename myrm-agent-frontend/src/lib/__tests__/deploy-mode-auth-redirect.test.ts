@@ -31,7 +31,7 @@ describe('shouldRedirectToLoginOnAuthFailure', () => {
         __TAURI__: {},
         location: { hostname: 'desktop.myrm.local' },
         localStorage: {
-          getItem: (k: string) => k === 'myrm-remote-gateway' ? cfg : null,
+          getItem: (k: string) => (k === 'myrm-remote-gateway' ? cfg : null),
           setItem: () => undefined,
           removeItem: () => undefined,
         },

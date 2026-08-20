@@ -134,9 +134,22 @@ describe('derivePalette', () => {
 
   it('all builtin preset primary hex values derive valid palettes', () => {
     const presetColors = [
-      '#588e95', '#c4567a', '#b4762c', '#7c4dba', '#2563eb', '#4a7d84',
-      '#7a9a8e', '#8b7355', '#5a7a5e', '#c06030', '#4a6a9a', '#2a9a48',
-      '#6a6a72', '#c87060', '#a08860', '#3a9a8a',
+      '#588e95',
+      '#c4567a',
+      '#b4762c',
+      '#7c4dba',
+      '#2563eb',
+      '#4a7d84',
+      '#7a9a8e',
+      '#8b7355',
+      '#5a7a5e',
+      '#c06030',
+      '#4a6a9a',
+      '#2a9a48',
+      '#6a6a72',
+      '#c87060',
+      '#a08860',
+      '#3a9a8a',
     ];
     for (const hex of presetColors) {
       const palette = derivePalette(hex);

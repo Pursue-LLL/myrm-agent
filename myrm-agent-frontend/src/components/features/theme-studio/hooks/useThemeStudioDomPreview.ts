@@ -32,12 +32,9 @@ export function useThemeStudioDomPreview(
         if (previewProfile.art.mediaKind === 'video') {
           mediaUrl = await resolveThemeAssetUrl(previewProfile.art.assetRef);
           posterUrl =
-            (await resolveThemeAssetUrl(previewProfile.art.posterAssetRef)) ??
-            draftPreviewAssetUrl ??
-            mediaUrl;
+            (await resolveThemeAssetUrl(previewProfile.art.posterAssetRef)) ?? draftPreviewAssetUrl ?? mediaUrl;
         } else {
-          mediaUrl =
-            draftPreviewAssetUrl ?? (await resolveThemeAssetUrl(previewProfile.art.assetRef));
+          mediaUrl = draftPreviewAssetUrl ?? (await resolveThemeAssetUrl(previewProfile.art.assetRef));
           posterUrl = mediaUrl;
         }
       }

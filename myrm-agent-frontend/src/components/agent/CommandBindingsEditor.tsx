@@ -62,10 +62,10 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
   );
 
   const getSkillNames = (ids: string[]): string => {
-    if (!ids.length) {return '';}
-    return ids
-      .map((id) => skills.find((s) => s.id === id)?.name || id)
-      .join(', ');
+    if (!ids.length) {
+      return '';
+    }
+    return ids.map((id) => skills.find((s) => s.id === id)?.name || id).join(', ');
   };
 
   return (
@@ -118,9 +118,7 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                   onClick={() => setExpandedIndex(isExpanded ? null : index)}
                 >
                   <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-mono text-primary shrink-0">
-                      /{binding.command_name || '...'}
-                    </span>
+                    <span className="text-xs font-mono text-primary shrink-0">/{binding.command_name || '...'}</span>
                     {skillIds.length > 0 && (
                       <>
                         <svg
@@ -194,9 +192,7 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                       <Label className="text-xs">
                         {t('commandSkillId')}
                         {skillIds.length > 1 && (
-                          <span className="ml-1 text-[10px] text-primary font-normal">
-                            ({skillIds.length} skills)
-                          </span>
+                          <span className="ml-1 text-[10px] text-primary font-normal">({skillIds.length} skills)</span>
                         )}
                       </Label>
                       <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border bg-background min-h-[36px]">

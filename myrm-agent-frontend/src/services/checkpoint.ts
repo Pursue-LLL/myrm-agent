@@ -101,7 +101,9 @@ const toCamel = <T>(value: unknown): T => {
  */
 export const listCheckpoints = async (sessionId?: string, limit: number = 50): Promise<CheckpointListResponse> => {
   const params = new URLSearchParams();
-  if (sessionId) {params.append('session_id', sessionId);}
+  if (sessionId) {
+    params.append('session_id', sessionId);
+  }
   params.append('limit', limit.toString());
 
   const queryString = params.toString();
@@ -114,18 +116,22 @@ export const listCheckpoints = async (sessionId?: string, limit: number = 50): P
  * Delete checkpoint
  */
 export const deleteCheckpoint = async (taskId: string): Promise<{ status: string; taskId: string }> => {
-  return toCamel<{ status: string; taskId: string }>(await apiRequest(`/checkpoint/${taskId}`, {
-    method: 'DELETE',
-  }));
+  return toCamel<{ status: string; taskId: string }>(
+    await apiRequest(`/checkpoint/${taskId}`, {
+      method: 'DELETE',
+    }),
+  );
 };
 
 /**
  * Cleanup old checkpoints
  */
 export const cleanupCheckpoints = async (ttlDays: number = 7): Promise<CheckpointCleanupResponse> => {
-  return toCamel<CheckpointCleanupResponse>(await apiRequest(`/checkpoint/cleanup?ttl_days=${ttlDays}`, {
-    method: 'POST',
-  }));
+  return toCamel<CheckpointCleanupResponse>(
+    await apiRequest(`/checkpoint/cleanup?ttl_days=${ttlDays}`, {
+      method: 'POST',
+    }),
+  );
 };
 
 // ============================================================================
@@ -143,7 +149,9 @@ export const listFileSnapshots = async (
   const params = new URLSearchParams();
   params.append('working_dir', workingDir);
   params.append('limit', limit.toString());
-  if (agentId) {params.append('agent_id', agentId);}
+  if (agentId) {
+    params.append('agent_id', agentId);
+  }
 
   return toCamel<FileSnapshotListResponse>(await apiRequest(`/checkpoint/file-snapshot/list?${params.toString()}`));
 };
@@ -155,10 +163,12 @@ export const createFileSnapshot = async (
   workingDir: string,
   description: string = '',
 ): Promise<FileSnapshotCreateResponse> => {
-  return toCamel<FileSnapshotCreateResponse>(await apiRequest('/checkpoint/file-snapshot/create', {
-    method: 'POST',
-    body: JSON.stringify({ working_dir: workingDir, description }),
-  }));
+  return toCamel<FileSnapshotCreateResponse>(
+    await apiRequest('/checkpoint/file-snapshot/create', {
+      method: 'POST',
+      body: JSON.stringify({ working_dir: workingDir, description }),
+    }),
+  );
 };
 
 /**
@@ -168,10 +178,12 @@ export const restoreFileSnapshot = async (
   snapshotId: string,
   files?: string[],
 ): Promise<FileSnapshotRestoreResponse> => {
-  return toCamel<FileSnapshotRestoreResponse>(await apiRequest('/checkpoint/file-snapshot/restore', {
-    method: 'POST',
-    body: JSON.stringify({ snapshot_id: snapshotId, files }),
-  }));
+  return toCamel<FileSnapshotRestoreResponse>(
+    await apiRequest('/checkpoint/file-snapshot/restore', {
+      method: 'POST',
+      body: JSON.stringify({ snapshot_id: snapshotId, files }),
+    }),
+  );
 };
 
 /**
@@ -185,9 +197,11 @@ export const getFileSnapshotDiff = async (snapshotId: string): Promise<FileDiffR
  * Delete a file snapshot
  */
 export const deleteFileSnapshot = async (snapshotId: string): Promise<{ status: string; snapshotId: string }> => {
-  return toCamel<{ status: string; snapshotId: string }>(await apiRequest(`/checkpoint/file-snapshot/${snapshotId}`, {
-    method: 'DELETE',
-  }));
+  return toCamel<{ status: string; snapshotId: string }>(
+    await apiRequest(`/checkpoint/file-snapshot/${snapshotId}`, {
+      method: 'DELETE',
+    }),
+  );
 };
 
 /**

@@ -21,9 +21,7 @@ import type { NotifyTarget } from '@/services/agent';
 
 describe('AgentNotifyTargets', () => {
   beforeEach(() => {
-    mockListChannelStatuses.mockResolvedValue([
-      { name: 'telegram', status: 'running', displayName: 'Telegram' },
-    ]);
+    mockListChannelStatuses.mockResolvedValue([{ name: 'telegram', status: 'running', displayName: 'Telegram' }]);
     mockListPairings.mockResolvedValue([]);
   });
 
@@ -45,9 +43,7 @@ describe('AgentNotifyTargets', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Add Notification Target/i }));
 
-    expect(onChange).toHaveBeenCalledWith([
-      { channel: 'telegram', recipient_id: '', label: '' },
-    ]);
+    expect(onChange).toHaveBeenCalledWith([{ channel: 'telegram', recipient_id: '', label: '' }]);
   });
 
   it('prefills recipient from active pairing when available', async () => {
@@ -72,9 +68,7 @@ describe('AgentNotifyTargets', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Add Notification Target/i }));
 
-    expect(onChange).toHaveBeenCalledWith([
-      { channel: 'telegram', recipient_id: 'chat_999', label: 'My TG' },
-    ]);
+    expect(onChange).toHaveBeenCalledWith([{ channel: 'telegram', recipient_id: 'chat_999', label: 'My TG' }]);
   });
 
   it('shows manual input when saved recipient is not in pairings', async () => {
@@ -90,9 +84,7 @@ describe('AgentNotifyTargets', () => {
         updated_at: '2026-01-01',
       },
     ]);
-    const targets: NotifyTarget[] = [
-      { channel: 'telegram', recipient_id: 'legacy_manual_id', label: 'Legacy' },
-    ];
+    const targets: NotifyTarget[] = [{ channel: 'telegram', recipient_id: 'legacy_manual_id', label: 'Legacy' }];
     render(<AgentNotifyTargets targets={targets} onChange={vi.fn()} />);
 
     await waitFor(() => {
@@ -114,15 +106,11 @@ describe('AgentNotifyTargets', () => {
       target: { value: 'chat_123' },
     });
 
-    expect(onChange).toHaveBeenCalledWith([
-      { channel: 'telegram', recipient_id: 'chat_123', label: '' },
-    ]);
+    expect(onChange).toHaveBeenCalledWith([{ channel: 'telegram', recipient_id: 'chat_123', label: '' }]);
   });
 
   it('adds wechat target when only non-hardcoded channel is running', async () => {
-    mockListChannelStatuses.mockResolvedValue([
-      { name: 'wechat', status: 'running', displayName: 'WeChat' },
-    ]);
+    mockListChannelStatuses.mockResolvedValue([{ name: 'wechat', status: 'running', displayName: 'WeChat' }]);
     const onChange = vi.fn();
     render(<AgentNotifyTargets targets={[]} onChange={onChange} />);
 
@@ -132,9 +120,7 @@ describe('AgentNotifyTargets', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Add Notification Target/i }));
 
-    expect(onChange).toHaveBeenCalledWith([
-      { channel: 'wechat', recipient_id: '', label: '' },
-    ]);
+    expect(onChange).toHaveBeenCalledWith([{ channel: 'wechat', recipient_id: '', label: '' }]);
   });
 
   it('removes target on trash click', async () => {
@@ -146,8 +132,9 @@ describe('AgentNotifyTargets', () => {
       expect(screen.getByDisplayValue('chat_1')).toBeInTheDocument();
     });
 
-    const trashButton = container.querySelector('button.text-destructive, button .text-destructive')?.closest('button')
-      ?? container.querySelector('button[class*="destructive"]');
+    const trashButton =
+      container.querySelector('button.text-destructive, button .text-destructive')?.closest('button') ??
+      container.querySelector('button[class*="destructive"]');
     expect(trashButton).toBeTruthy();
     fireEvent.click(trashButton!);
 

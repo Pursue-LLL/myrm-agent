@@ -62,9 +62,7 @@ export function AcceptanceCriteriaPanel({ criteria, results, history, t }: Accep
                       <XCircleIcon className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
                     )
                   ) : (
-                    <span className="text-primary/60 font-mono text-[10px]">
-                      {ac.type === 'shell' ? '$' : '>'}
-                    </span>
+                    <span className="text-primary/60 font-mono text-[10px]">{ac.type === 'shell' ? '$' : '>'}</span>
                   )}
                 </span>
                 <span className="text-foreground/80 break-words leading-relaxed flex-1">
@@ -82,9 +80,7 @@ export function AcceptanceCriteriaPanel({ criteria, results, history, t }: Accep
                 </pre>
               )}
               {isExpanded && result && result.reason && (
-                <p className="mt-1 ml-6 text-[10px] text-muted-foreground italic">
-                  {result.reason}
-                </p>
+                <p className="mt-1 ml-6 text-[10px] text-muted-foreground italic">{result.reason}</p>
               )}
             </li>
           );
@@ -101,23 +97,26 @@ export function AcceptanceCriteriaPanel({ criteria, results, history, t }: Accep
           </button>
           {showHistory && (
             <div className="mt-1.5 space-y-1.5 max-h-40 overflow-y-auto">
-              {history.slice(0, -1).reverse().map((entry, hIdx) => {
-                const hPassed = entry.results.filter((r) => r.passed).length;
-                const hTotal = entry.results.length;
-                return (
-                  <div
-                    key={hIdx}
-                    className="flex items-center gap-2 text-[10px] text-muted-foreground/70 pl-2 border-l-2 border-border/30"
-                  >
-                    <span className="tabular-nums">
-                      {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <span className={hPassed === hTotal ? 'text-green-600' : 'text-orange-600'}>
-                      {hPassed}/{hTotal}
-                    </span>
-                  </div>
-                );
-              })}
+              {history
+                .slice(0, -1)
+                .reverse()
+                .map((entry, hIdx) => {
+                  const hPassed = entry.results.filter((r) => r.passed).length;
+                  const hTotal = entry.results.length;
+                  return (
+                    <div
+                      key={hIdx}
+                      className="flex items-center gap-2 text-[10px] text-muted-foreground/70 pl-2 border-l-2 border-border/30"
+                    >
+                      <span className="tabular-nums">
+                        {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className={hPassed === hTotal ? 'text-green-600' : 'text-orange-600'}>
+                        {hPassed}/{hTotal}
+                      </span>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>

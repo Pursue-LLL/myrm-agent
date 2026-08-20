@@ -6,9 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { BuiltinToolsPanel } from '../agent-config-panel/BuiltinToolsPanel';
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/hooks/billing/useFeatureEntitlements', () => ({

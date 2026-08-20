@@ -118,8 +118,12 @@ export interface GlobalActivityPatterns {
 
 export async function getUsageStatistics(start?: string, end?: string): Promise<UsageStats> {
   const params = new URLSearchParams();
-  if (start) {params.set('start', start);}
-  if (end) {params.set('end', end);}
+  if (start) {
+    params.set('start', start);
+  }
+  if (end) {
+    params.set('end', end);
+  }
   const query = params.toString();
   return apiRequest<UsageStats>(`/statistics/usage${query ? `?${query}` : ''}`);
 }
@@ -134,7 +138,9 @@ export async function getSessionUsage(limit = 20): Promise<SessionUsageResponse>
 
 export async function getGlobalActivityPatterns(timeRangeDays?: number): Promise<GlobalActivityPatterns> {
   const params = new URLSearchParams();
-  if (timeRangeDays) {params.set('time_range_days', timeRangeDays.toString());}
+  if (timeRangeDays) {
+    params.set('time_range_days', timeRangeDays.toString());
+  }
   const query = params.toString();
   return apiRequest<GlobalActivityPatterns>(`/statistics/activity${query ? `?${query}` : ''}`);
 }
@@ -164,7 +170,9 @@ export interface ToolStabilityAnalytics {
 
 export async function getToolStability(toolName?: string, timeRangeDays = 30): Promise<ToolStabilityAnalytics> {
   const params = new URLSearchParams();
-  if (toolName) {params.set('tool_name', toolName);}
+  if (toolName) {
+    params.set('tool_name', toolName);
+  }
   params.set('time_range_days', timeRangeDays.toString());
   return apiRequest<ToolStabilityAnalytics>(`/statistics/tool-stability?${params.toString()}`);
 }
@@ -191,7 +199,9 @@ export async function getTopSessions(
   const params = new URLSearchParams();
   params.set('metric', metric);
   params.set('limit', limit.toString());
-  if (timeRangeDays) {params.set('time_range_days', timeRangeDays.toString());}
+  if (timeRangeDays) {
+    params.set('time_range_days', timeRangeDays.toString());
+  }
   return apiRequest<TopSession[]>(`/statistics/top-sessions?${params.toString()}`);
 }
 
@@ -485,13 +495,7 @@ export interface SkillEvolutionEvent {
   skill_name: string;
   source: 'draft' | 'evolution';
   status:
-    | 'PENDING_REVIEW'
-    | 'AUTO_APPLIED'
-    | 'FAILED_SCAN'
-    | 'BLOCKED_LOCKED'
-    | 'APPROVED'
-    | 'REJECTED'
-    | 'APPLY_FAILED';
+    'PENDING_REVIEW' | 'AUTO_APPLIED' | 'FAILED_SCAN' | 'BLOCKED_LOCKED' | 'APPROVED' | 'REJECTED' | 'APPLY_FAILED';
   growth_type: string;
   created_at: string;
   change_summary: string;
@@ -623,7 +627,9 @@ export interface DailyJournalData {
 
 export async function getDailyJournal(date: string, agentId?: string): Promise<DailyJournalData> {
   const params = new URLSearchParams({ date });
-  if (agentId) {params.set('agent_id', agentId);}
+  if (agentId) {
+    params.set('agent_id', agentId);
+  }
   return apiRequest<DailyJournalData>(`/statistics/daily-journal?${params.toString()}`);
 }
 
@@ -684,12 +690,7 @@ export async function regenerateDailyWrap(date: string): Promise<DailyWrapData> 
 // ── Learning Timeline (Unified Memory + Skill Stream) ───────────────
 
 export type TimelineNodeKind =
-  | 'fact_memory'
-  | 'preference_memory'
-  | 'procedural_memory'
-  | 'episodic_memory'
-  | 'skill_evolution'
-  | 'skill_draft';
+  'fact_memory' | 'preference_memory' | 'procedural_memory' | 'episodic_memory' | 'skill_evolution' | 'skill_draft';
 
 export interface LearningTimelineItem {
   id: string;
@@ -735,11 +736,21 @@ export async function getLearningTimeline(params?: {
   cursor?: string;
 }): Promise<LearningTimelineResponse> {
   const query = new URLSearchParams();
-  if (params?.days) {query.set('days', String(params.days));}
-  if (params?.agent_id) {query.set('agent_id', params.agent_id);}
-  if (params?.kind_filter) {query.set('kind_filter', params.kind_filter);}
-  if (params?.limit) {query.set('limit', String(params.limit));}
-  if (params?.cursor) {query.set('cursor', params.cursor);}
+  if (params?.days) {
+    query.set('days', String(params.days));
+  }
+  if (params?.agent_id) {
+    query.set('agent_id', params.agent_id);
+  }
+  if (params?.kind_filter) {
+    query.set('kind_filter', params.kind_filter);
+  }
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.cursor) {
+    query.set('cursor', params.cursor);
+  }
   const qs = query.toString();
   return apiRequest<LearningTimelineResponse>(`/statistics/learning-timeline${qs ? `?${qs}` : ''}`);
 }
@@ -749,13 +760,19 @@ export async function updateTimelineMemory(
   memoryId: string,
   body: TimelineMemoryUpdateRequest,
 ): Promise<unknown> {
-  return apiRequest(`/statistics/learning-timeline/memory/${encodeURIComponent(memoryType)}/${encodeURIComponent(memoryId)}`, {
-    method: 'PUT',
-    body: JSON.stringify(body),
-  });
+  return apiRequest(
+    `/statistics/learning-timeline/memory/${encodeURIComponent(memoryType)}/${encodeURIComponent(memoryId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    },
+  );
 }
 
-export async function deleteTimelineMemory(memoryId: string, memoryType: string): Promise<{ deleted: boolean; memory_id: string }> {
+export async function deleteTimelineMemory(
+  memoryId: string,
+  memoryType: string,
+): Promise<{ deleted: boolean; memory_id: string }> {
   return apiRequest<{ deleted: boolean; memory_id: string }>(
     `/statistics/learning-timeline/memory/${encodeURIComponent(memoryId)}?memory_type=${encodeURIComponent(memoryType)}`,
     {
@@ -772,4 +789,3 @@ export async function archiveTimelineSkill(skillId: string, active = false): Pro
     },
   );
 }
-

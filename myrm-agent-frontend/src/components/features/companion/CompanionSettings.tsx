@@ -119,11 +119,15 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
   }, [setSpriteConfig, setSpriteEnabled, saveConfigToServer]);
 
   const bones = useMemo(() => {
-    if (!user?.id) {return null;}
+    if (!user?.id) {
+      return null;
+    }
     return generateCompanion(user.id);
   }, [user?.id]);
 
-  if (!bones) {return null;}
+  if (!bones) {
+    return null;
+  }
 
   const currentName = nameOverride ?? bones.defaultName;
   const currentSpecies = speciesOverride ?? bones.species;
@@ -145,9 +149,7 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
               onClick={() => setTab(key)}
               className={cn(
                 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                tab === key
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
+                tab === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {t(`tabs.${key}`)}

@@ -39,9 +39,13 @@ function resolveConfigFieldLabel(
   hasKey: (key: string) => boolean,
   key: string,
 ): string {
-  if (!hasKey(key)) {return key;}
+  if (!hasKey(key)) {
+    return key;
+  }
   const label = translate(key);
-  if (!label || label === `settings.${key}`) {return key;}
+  if (!label || label === `settings.${key}`) {
+    return key;
+  }
   return label;
 }
 
@@ -61,7 +65,9 @@ export const ConfigTimeMachine: React.FC<ConfigTimeMachineProps> = ({ configKey,
     setLoading(true);
     try {
       const res = await fetch(`/api/v1/config/${configKey}/history`);
-      if (!res.ok) {throw new Error('Failed to fetch history');}
+      if (!res.ok) {
+        throw new Error('Failed to fetch history');
+      }
       const data = await res.json();
       setHistory(data);
     } catch (error) {
@@ -87,7 +93,9 @@ export const ConfigTimeMachine: React.FC<ConfigTimeMachineProps> = ({ configKey,
         method: 'POST',
       });
 
-      if (!res.ok) {throw new Error('Failed to rollback');}
+      if (!res.ok) {
+        throw new Error('Failed to rollback');
+      }
 
       const data = await res.json();
       onRestore(data.value);

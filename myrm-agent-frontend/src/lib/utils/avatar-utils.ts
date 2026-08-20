@@ -34,11 +34,15 @@ export type ParsedAvatar =
  * - lucide:{name} → Lucide react icon
  */
 export function parseAvatarUrl(url: string | null | undefined, agentId?: string): ParsedAvatar {
-  if (!url) {return null;}
+  if (!url) {
+    return null;
+  }
 
   if (url.startsWith('icon:')) {
     const iconId = url.slice(5);
-    if (iconId in AGENT_ICON_REGISTRY) {return { type: 'icon', iconId };}
+    if (iconId in AGENT_ICON_REGISTRY) {
+      return { type: 'icon', iconId };
+    }
     return null;
   }
 
@@ -51,7 +55,9 @@ export function parseAvatarUrl(url: string | null | undefined, agentId?: string)
   }
 
   if (url.startsWith('home://')) {
-    if (!agentId) {return null;}
+    if (!agentId) {
+      return null;
+    }
     const relativePath = url.slice(7);
     return { type: 'image', src: `/api/v1/user-agents/${agentId}/files/${relativePath}` };
   }
@@ -62,7 +68,9 @@ export function parseAvatarUrl(url: string | null | undefined, agentId?: string)
 
   if (url.startsWith('gradient:')) {
     const index = parseInt(url.slice(9), 10);
-    if (!isNaN(index)) {return { type: 'gradient', index };}
+    if (!isNaN(index)) {
+      return { type: 'gradient', index };
+    }
     return null;
   }
 
@@ -73,6 +81,8 @@ export function parseAvatarUrl(url: string | null | undefined, agentId?: string)
  * Quick check: is this avatar URL an icon type?
  */
 export function isIconAvatar(url: string | null | undefined): boolean {
-  if (!url?.startsWith('icon:')) {return false;}
+  if (!url?.startsWith('icon:')) {
+    return false;
+  }
   return url.slice(5) in AGENT_ICON_REGISTRY;
 }

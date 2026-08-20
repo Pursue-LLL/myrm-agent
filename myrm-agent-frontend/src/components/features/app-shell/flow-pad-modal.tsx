@@ -24,11 +24,7 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
 import useChatStore from '@/store/useChatStore';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
-import {
-  X,
-  Monitor,
-  ClipboardPaste,
-} from 'lucide-react';
+import { X, Monitor, ClipboardPaste } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
@@ -103,17 +99,8 @@ function createFallbackRouteConfig(agentId: string): AgentConfig {
 
 export function FlowPadModal() {
   const t = useTranslations('flowPad');
-  const {
-    isOpen,
-    mode,
-    captures,
-    initialText,
-    sourcePid,
-    inlineResult,
-    inlineGenerating,
-    close,
-    removeCapture,
-  } = useFlowPadStore();
+  const { isOpen, mode, captures, initialText, sourcePid, inlineResult, inlineGenerating, close, removeCapture } =
+    useFlowPadStore();
   const { agentConfig, sendMessage, setFiles, getCurrentSessionMessageId } = useChatStore();
   const agents = useAgentStore((state) => state.agents);
   const fetchAgents = useAgentStore((state) => state.fetchAgents);
@@ -161,9 +148,7 @@ export function FlowPadModal() {
     if (displayName === null) {
       return t('defaultAgent');
     }
-    return agentConfig?.agentId
-      ? getBuiltinAgentName(agentConfig.agentId, displayName, locale)
-      : displayName;
+    return agentConfig?.agentId ? getBuiltinAgentName(agentConfig.agentId, displayName, locale) : displayName;
   }, [agentConfig, locale, t]);
   const currentAgentAvatar = agentConfig?.avatarUrl;
   const effectiveInlineRouteLabel = inlineRouteSelection?.name ?? currentAgentLabel;
@@ -214,12 +199,16 @@ export function FlowPadModal() {
   }, [text, autoResizeTextarea]);
 
   useEffect(() => {
-    if (!isOpen || mode !== 'inline') {return;}
+    if (!isOpen || mode !== 'inline') {
+      return;
+    }
     void fetchAgents(1, 100, true);
   }, [isOpen, mode, fetchAgents]);
 
   useEffect(() => {
-    if (!inlineRouteSelection) {return;}
+    if (!inlineRouteSelection) {
+      return;
+    }
     const stillExists = availableAgents.some((agent) => agent.id === inlineRouteSelection.id);
     if (!stillExists) {
       setInlineRouteSelection(null);
@@ -229,7 +218,9 @@ export function FlowPadModal() {
   }, [availableAgents, inlineRouteSelection]);
 
   useEffect(() => {
-    if (!agentRouteMenuOpen) {return;}
+    if (!agentRouteMenuOpen) {
+      return;
+    }
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target;
       if (target instanceof Node && !agentRouteMenuRef.current?.contains(target)) {
@@ -292,10 +283,14 @@ export function FlowPadModal() {
 
   // Inline Mode: bridge streaming messages to inlineResult
   useEffect(() => {
-    if (mode !== 'inline' || !isOpen) {return;}
+    if (mode !== 'inline' || !isOpen) {
+      return;
+    }
 
     const unsub = useChatStore.subscribe((state, prev) => {
-      if (!state.loading && !prev.loading) {return;}
+      if (!state.loading && !prev.loading) {
+        return;
+      }
 
       const inlineRequestId = inlineActiveRequestIdRef.current;
       if (!inlineRequestId) {
@@ -305,9 +300,7 @@ export function FlowPadModal() {
         return;
       }
 
-      const lastMsg = state.messages.findLast(
-        (m) => m.role === 'assistant' && m.messageId === inlineRequestId,
-      );
+      const lastMsg = state.messages.findLast((m) => m.role === 'assistant' && m.messageId === inlineRequestId);
       if (lastMsg?.content) {
         useFlowPadStore.setState({ inlineResult: lastMsg.content, inlineGenerating: state.loading });
       }
@@ -339,10 +332,7 @@ export function FlowPadModal() {
   }, [captures, setFiles]);
 
   const handleSelectInlineRouteAgent = useCallback(
-    async (
-      agentId: string | null,
-      options?: { fromTemplate?: boolean },
-    ): Promise<boolean> => {
+    async (agentId: string | null, options?: { fromTemplate?: boolean }): Promise<boolean> => {
       setAgentRouteMenuOpen(false);
       if (agentId === null) {
         inlineRouteSwitchAbortRef.current?.abort();
@@ -380,11 +370,7 @@ export function FlowPadModal() {
         if (inlineRouteSwitchNonceRef.current !== switchNonce) {
           return false;
         }
-        const nextName = getBuiltinAgentName(
-          agentId,
-          listItem?.name ?? fullAgent?.name ?? agentId,
-          locale,
-        );
+        const nextName = getBuiltinAgentName(agentId, listItem?.name ?? fullAgent?.name ?? agentId, locale);
         const nextAvatar = listItem?.avatar_url ?? fullAgent?.avatar_url;
         const nextConfig = fullAgent ? buildAgentConfig(fullAgent) : createFallbackRouteConfig(agentId);
         setInlineRouteSelection({
@@ -530,14 +516,7 @@ export function FlowPadModal() {
               usedUseCase: summoned.usedUseCase,
             });
           }
-          await sendMessage(
-            message,
-            inlineRequestId,
-            undefined,
-            undefined,
-            undefined,
-            inlineRouteSelection.config,
-          );
+          await sendMessage(message, inlineRequestId, undefined, undefined, undefined, inlineRouteSelection.config);
           return;
         }
         await sendMessage(message, inlineRequestId);
@@ -556,8 +535,12 @@ export function FlowPadModal() {
     const hasCaptures = captures.length > 0;
     const hasText = text.trim().length > 0;
 
-    if (!hasCaptures && !hasText) {return;}
-    if (isSubmitting) {return;}
+    if (!hasCaptures && !hasText) {
+      return;
+    }
+    if (isSubmitting) {
+      return;
+    }
     if (inlineRouteSwitching) {
       toast.warning(t('inlineRouteSwitchingBlocked'), { duration: 2000 });
       return;
@@ -608,17 +591,16 @@ export function FlowPadModal() {
     mode,
   ]);
 
-  const handleSpeechTranscript = useCallback(
-    (transcript: string) => {
-      setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
-      inputRef.current?.focus();
-    },
-    [],
-  );
+  const handleSpeechTranscript = useCallback((transcript: string) => {
+    setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    inputRef.current?.focus();
+  }, []);
 
   const handleQuickAction = useCallback(
     async (promptKey: 'replyPrompt' | 'summarizePrompt' | 'translatePrompt' | 'explainPrompt') => {
-      if (isSubmitting || captures.length === 0) {return;}
+      if (isSubmitting || captures.length === 0) {
+        return;
+      }
       if (inlineRouteSwitching) {
         toast.warning(t('inlineRouteSwitchingBlocked'), { duration: 2000 });
         return;
@@ -661,7 +643,9 @@ export function FlowPadModal() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) {return;}
+      if (e.nativeEvent.isComposing) {
+        return;
+      }
 
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -672,7 +656,9 @@ export function FlowPadModal() {
   );
 
   const handlePasteBack = useCallback(async () => {
-    if (!inlineResult.trim()) {return;}
+    if (!inlineResult.trim()) {
+      return;
+    }
 
     try {
       const { invoke } = await import('@tauri-apps/api/core');
@@ -690,7 +676,9 @@ export function FlowPadModal() {
   }, [inlineResult, close, t]);
 
   const handleCopyResult = useCallback(async () => {
-    if (!inlineResult.trim()) {return;}
+    if (!inlineResult.trim()) {
+      return;
+    }
 
     try {
       await navigator.clipboard.writeText(inlineResult);
@@ -719,11 +707,7 @@ export function FlowPadModal() {
                 <Monitor className="w-3.5 h-3.5 text-muted-foreground/70" />
               )}
               <span className="text-xs font-medium text-muted-foreground">
-                {mode === 'inline'
-                  ? t('inlineTitle')
-                  : hasCaptures
-                    ? t('titleWithCapture')
-                    : t('title')}
+                {mode === 'inline' ? t('inlineTitle') : hasCaptures ? t('titleWithCapture') : t('title')}
               </span>
               {mode === 'inline' && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium">
@@ -745,9 +729,7 @@ export function FlowPadModal() {
             />
           )}
 
-          {selectedTextPreview && (
-            <FlowPadSelectedTextChip selectedText={selectedTextPreview} />
-          )}
+          {selectedTextPreview && <FlowPadSelectedTextChip selectedText={selectedTextPreview} />}
 
           <div className="px-4 py-1.5 border-b border-border/20 bg-muted/5">
             <FlowPadInlineRouteSwitcher
@@ -819,9 +801,7 @@ export function FlowPadModal() {
         </DialogContent>
       </Dialog>
 
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc} alt="Appshot" onClose={() => setLightboxSrc(null)} />
-      )}
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} alt="Appshot" onClose={() => setLightboxSrc(null)} />}
     </>
   );
 }

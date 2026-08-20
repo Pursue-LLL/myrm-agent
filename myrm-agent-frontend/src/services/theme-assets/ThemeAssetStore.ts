@@ -11,18 +11,14 @@ export function buildThemeAssetContentUrl(assetRef: string): string | null {
   return `${API_BASE_URL}/files/storage/files/${encodeURIComponent(fileId)}/content`;
 }
 
-export async function resolveThemeAssetUrl(
-  assetRef: string | null | undefined,
-): Promise<string | null> {
+export async function resolveThemeAssetUrl(assetRef: string | null | undefined): Promise<string | null> {
   if (!assetRef) {
     return null;
   }
   return buildThemeAssetContentUrl(assetRef);
 }
 
-export async function verifyThemeAssetAvailable(
-  assetRef: string | null | undefined,
-): Promise<boolean> {
+export async function verifyThemeAssetAvailable(assetRef: string | null | undefined): Promise<boolean> {
   if (!assetRef?.startsWith('file:')) {
     return true;
   }

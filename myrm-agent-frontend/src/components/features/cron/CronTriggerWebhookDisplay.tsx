@@ -9,7 +9,9 @@ import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { useIngressUrl } from '@/hooks/billing/useIngressUrl';
 
 export function isValidCronTriggerRegex(pattern: string): boolean {
-  if (!pattern) {return true;}
+  if (!pattern) {
+    return true;
+  }
   try {
     new RegExp(pattern);
     return true;
@@ -36,7 +38,9 @@ export function CronTriggerWebhookDisplay({ path, secret }: { path?: string | nu
     toast.success('Copied');
   }, []);
 
-  if (!path) {return null;}
+  if (!path) {
+    return null;
+  }
 
   const curlCmd = buildCurlExample(webhookUrl, secret);
 
@@ -60,7 +64,10 @@ export function CronTriggerWebhookDisplay({ path, secret }: { path?: string | nu
       {!loading && isLocalhost && (
         <div className="text-[10px] text-amber-500 italic mt-0.5 leading-relaxed">
           {t('triggerLocalhostWarning')}{' '}
-          <Link href="/settings/system#public-ingress" className="underline font-medium not-italic hover:text-amber-400">
+          <Link
+            href="/settings/system#public-ingress"
+            className="underline font-medium not-italic hover:text-amber-400"
+          >
             {t('triggerOpenSystemSettings')}
           </Link>
         </div>

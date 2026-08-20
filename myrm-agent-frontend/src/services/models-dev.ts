@@ -133,7 +133,9 @@ const URL_DOMAIN_TO_PROVIDER_MAP: Record<string, string> = {
  * @returns 对应的 models.dev provider ID，如果无法识别则返回 null
  */
 export function getProviderIdFromUrl(apiUrl: string): string | null {
-  if (!apiUrl) {return null;}
+  if (!apiUrl) {
+    return null;
+  }
 
   try {
     const url = new URL(apiUrl);
@@ -155,7 +157,9 @@ export function getProviderIdFromUrl(apiUrl: string): string | null {
  * 当多个 provider 共享同一 hostname 时，选择模型数最多的（更通用）
  */
 export function findProviderByApiUrl(data: ModelsDevApiResponse, apiUrl: string): string | null {
-  if (!apiUrl) {return null;}
+  if (!apiUrl) {
+    return null;
+  }
 
   let inputHostname: string;
   try {
@@ -168,7 +172,9 @@ export function findProviderByApiUrl(data: ModelsDevApiResponse, apiUrl: string)
   let bestModelCount = -1;
 
   for (const [providerId, provider] of Object.entries(data)) {
-    if (!provider.api) {continue;}
+    if (!provider.api) {
+      continue;
+    }
     try {
       const providerHostname = new URL(provider.api).hostname.toLowerCase();
       if (providerHostname === inputHostname) {

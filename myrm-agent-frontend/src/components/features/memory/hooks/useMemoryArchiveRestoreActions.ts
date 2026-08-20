@@ -56,7 +56,9 @@ export const useMemoryArchiveRestoreActions = ({
     async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       event.target.value = '';
-      if (!file) {return;}
+      if (!file) {
+        return;
+      }
       setActionId('archive:restore-dry-run');
       try {
         const raw = await parseMemoryArchiveFile(file);
@@ -84,7 +86,9 @@ export const useMemoryArchiveRestoreActions = ({
 
   const toggleSection = useCallback(
     async (section: MemoryArchiveSectionName) => {
-      if (!payload) {return;}
+      if (!payload) {
+        return;
+      }
       const nextSections = selectedSections.includes(section)
         ? selectedSections.filter((selected) => selected !== section)
         : [...selectedSections, section];
@@ -118,7 +122,9 @@ export const useMemoryArchiveRestoreActions = ({
   );
 
   const confirm = useCallback(async () => {
-    if (!payload || !preview) {return;}
+    if (!payload || !preview) {
+      return;
+    }
     setActionId('archive:restore-confirm');
     try {
       const response = await confirmArchiveRestore(
@@ -148,7 +154,9 @@ export const useMemoryArchiveRestoreActions = ({
   }, [loadSnapshot, payload, preview, selectedSections, setActionId, t]);
 
   const rollback = useCallback(async () => {
-    if (!result) {return;}
+    if (!result) {
+      return;
+    }
     setActionId(`archive:restore-rollback:${result.restore_batch_id}`);
     try {
       const previewResponse = await dryRunArchiveRestoreRollback(result.restore_batch_id);

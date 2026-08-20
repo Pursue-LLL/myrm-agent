@@ -24,18 +24,32 @@ export function formatNextRun(
   nextRunAt: string | undefined,
   t: (key: string, values?: Record<string, string>) => string,
 ): string {
-  if (!nextRunAt) {return '—';}
+  if (!nextRunAt) {
+    return '—';
+  }
   const diffMs = new Date(nextRunAt).getTime() - Date.now();
-  if (diffMs < 0) {return t('overdue');}
-  if (diffMs < 60_000) {return t('timeSeconds', { value: String(Math.round(diffMs / 1000)) });}
-  if (diffMs < 3_600_000) {return t('timeMinutes', { value: String(Math.round(diffMs / 60_000)) });}
-  if (diffMs < 86_400_000) {return t('timeHours', { value: String(Math.round(diffMs / 3_600_000)) });}
+  if (diffMs < 0) {
+    return t('overdue');
+  }
+  if (diffMs < 60_000) {
+    return t('timeSeconds', { value: String(Math.round(diffMs / 1000)) });
+  }
+  if (diffMs < 3_600_000) {
+    return t('timeMinutes', { value: String(Math.round(diffMs / 60_000)) });
+  }
+  if (diffMs < 86_400_000) {
+    return t('timeHours', { value: String(Math.round(diffMs / 3_600_000)) });
+  }
   return t('timeDays', { value: String(Math.round(diffMs / 86_400_000)) });
 }
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) {return `${ms}ms`;}
-  if (ms < 60_000) {return `${(ms / 1000).toFixed(1)}s`;}
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  if (ms < 60_000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
@@ -58,21 +72,35 @@ export function formatRelativeTime(
   nowMs = Date.now(),
 ): string {
   const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) {return '';}
+  if (Number.isNaN(then)) {
+    return '';
+  }
   const diffMs = nowMs - then;
   const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) {return t('relativeDate.justNow');}
-  if (minutes < 60) {return t('relativeDate.minutesAgo', { count: minutes });}
+  if (minutes < 1) {
+    return t('relativeDate.justNow');
+  }
+  if (minutes < 60) {
+    return t('relativeDate.minutesAgo', { count: minutes });
+  }
   const hours = Math.floor(diffMs / 3_600_000);
-  if (hours < 24) {return t('relativeDate.hoursAgo', { count: hours });}
+  if (hours < 24) {
+    return t('relativeDate.hoursAgo', { count: hours });
+  }
   const days = Math.floor(diffMs / 86_400_000);
-  if (days < 7) {return t('relativeDate.daysAgo', { count: days });}
+  if (days < 7) {
+    return t('relativeDate.daysAgo', { count: days });
+  }
   return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(then);
 }
 
 export function statusBorderColor(job: CronJob): string {
-  if (job.consecutive_failures > 0 || job.last_status === 'error') {return 'border-l-destructive';}
-  if (job.status === 'active') {return 'border-l-green-500';}
+  if (job.consecutive_failures > 0 || job.last_status === 'error') {
+    return 'border-l-destructive';
+  }
+  if (job.status === 'active') {
+    return 'border-l-green-500';
+  }
   return 'border-l-muted-foreground/40';
 }
 
@@ -98,9 +126,15 @@ export const CRON_OVERDUE_THRESHOLD_MS = 10 * 60_000;
  * One-time jobs are excluded because they have no recurring expectation.
  */
 export function isCronOverdue(job: CronJob, nowMs = Date.now()): boolean {
-  if (job.status !== 'active') {return false;}
-  if (job.schedule?.kind === 'once') {return false;}
-  if (!job.next_run_at) {return false;}
+  if (job.status !== 'active') {
+    return false;
+  }
+  if (job.schedule?.kind === 'once') {
+    return false;
+  }
+  if (!job.next_run_at) {
+    return false;
+  }
   const graceMs = Math.max(job.misfire_grace_seconds, 0) * 1000;
   const thresholdMs = Math.max(graceMs, CRON_OVERDUE_THRESHOLD_MS);
   return nowMs - new Date(job.next_run_at).getTime() > thresholdMs;
@@ -112,18 +146,27 @@ export function computeStats(jobs: CronJob[]) {
   let paused = 0;
   let errored = 0;
   for (const j of userJobs) {
-    if (j.status === 'active') {active++;}
-    else if (j.status === 'paused') {paused++;}
-    if (j.last_status === 'error' || j.consecutive_failures > 0) {errored++;}
+    if (j.status === 'active') {
+      active++;
+    } else if (j.status === 'paused') {
+      paused++;
+    }
+    if (j.last_status === 'error' || j.consecutive_failures > 0) {
+      errored++;
+    }
   }
   return { total: userJobs.length, active, paused, errored };
 }
 
 export function filterJobs(jobs: CronJob[], filter: StatusFilter, query: string): CronJob[] {
   let result = jobs.filter((j) => !isSystemJob(j));
-  if (filter === 'active') {result = result.filter((j) => j.status === 'active');}
-  else if (filter === 'paused') {result = result.filter((j) => j.status === 'paused');}
-  else if (filter === 'error') {result = result.filter((j) => j.last_status === 'error' || j.consecutive_failures > 0);}
+  if (filter === 'active') {
+    result = result.filter((j) => j.status === 'active');
+  } else if (filter === 'paused') {
+    result = result.filter((j) => j.status === 'paused');
+  } else if (filter === 'error') {
+    result = result.filter((j) => j.last_status === 'error' || j.consecutive_failures > 0);
+  }
   if (query) {
     const q = query.toLowerCase();
     result = result.filter((j) => j.name.toLowerCase().includes(q) || j.prompt?.toLowerCase().includes(q));
@@ -132,7 +175,9 @@ export function filterJobs(jobs: CronJob[], filter: StatusFilter, query: string)
 }
 
 export function computeRunStats(runs: CronRun[]) {
-  if (runs.length === 0) {return { total: 0, successRate: 0, avgDuration: 0 };}
+  if (runs.length === 0) {
+    return { total: 0, successRate: 0, avgDuration: 0 };
+  }
   const ok = runs.filter((r) => r.status === 'ok').length;
   const avgMs = runs.reduce((sum, r) => sum + r.duration_ms, 0) / runs.length;
   return {

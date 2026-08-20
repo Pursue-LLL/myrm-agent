@@ -44,16 +44,14 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
           uri: view.resourceUri,
           server: view.serverName,
         });
-        const resp = await fetchWithTimeout(
-          `/integrations/mcp/resource?${params.toString()}`,
-          {},
-          15000,
-        );
+        const resp = await fetchWithTimeout(`/integrations/mcp/resource?${params.toString()}`, {}, 15000);
         if (!resp.ok) {
           throw new Error(`HTTP ${resp.status}`);
         }
         const json = await resp.json();
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         const content = json?.data?.content;
         if (!content) {
           throw new Error('Empty resource content');
@@ -65,28 +63,31 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
           setError(err instanceof Error ? err.message : 'Failed to load MCP App');
         }
       } finally {
-        if (!cancelled) {setIsLoading(false);}
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
     void fetchResource();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [view.resourceUri, view.serverName]);
 
   // Theme bridge: sync when host Theme Profile preset or color scheme changes
   useEffect(() => {
     return subscribeHostThemeVars((newVars) => {
       themeVarsRef.current = newVars;
-      iframeRef.current?.contentWindow?.postMessage(
-        { type: 'hostcontextchanged', context: { theme: newVars } },
-        '*',
-      );
+      iframeRef.current?.contentWindow?.postMessage({ type: 'hostcontextchanged', context: { theme: newVars } }, '*');
     });
   }, []);
 
   // Send structuredContent to the embedded app after iframe loads
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
-    if (!iframe?.contentWindow) {return;}
+    if (!iframe?.contentWindow) {
+      return;
+    }
 
     // Send host context (theme, locale)
     iframe.contentWindow.postMessage(
@@ -96,48 +97,50 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
 
     // Send structuredContent as a tool result event (ext-apps ontoolresult)
     if (view.structuredContent) {
-      iframe.contentWindow.postMessage(
-        { type: 'toolresult', content: view.structuredContent },
-        '*',
-      );
+      iframe.contentWindow.postMessage({ type: 'toolresult', content: view.structuredContent }, '*');
     }
   }, [view.structuredContent]);
 
   // Handle messages from the embedded app
-  const handleMessage = useCallback(
-    (e: MessageEvent) => {
-      if (e.source !== iframeRef.current?.contentWindow) {return;}
-      if (!e.data || typeof e.data !== 'object') {return;}
+  const handleMessage = useCallback((e: MessageEvent) => {
+    if (e.source !== iframeRef.current?.contentWindow) {
+      return;
+    }
+    if (!e.data || typeof e.data !== 'object') {
+      return;
+    }
 
-      const { type } = e.data;
+    const { type } = e.data;
 
-      // app:notify → host toast notification
-      if (type === 'notify' || type === 'app:notify') {
-        const level = e.data.level ?? 'info';
-        const message = typeof e.data.message === 'string' ? e.data.message : '';
-        if (message) {
-          if (level === 'error') {toast.error(message);}
-          else if (level === 'warning') {toast.warning(message);}
-          else {toast.info(message);}
+    // app:notify → host toast notification
+    if (type === 'notify' || type === 'app:notify') {
+      const level = e.data.level ?? 'info';
+      const message = typeof e.data.message === 'string' ? e.data.message : '';
+      if (message) {
+        if (level === 'error') {
+          toast.error(message);
+        } else if (level === 'warning') {
+          toast.warning(message);
+        } else {
+          toast.info(message);
         }
       }
+    }
 
-      // openLink → open external URL in new tab
-      if (type === 'openLink' || type === 'app:openLink' || type === 'widget-navigate') {
-        const url = typeof e.data.url === 'string' ? e.data.url : '';
-        if (url) {
-          window.open(url, '_blank', 'noopener,noreferrer');
-        }
+    // openLink → open external URL in new tab
+    if (type === 'openLink' || type === 'app:openLink' || type === 'widget-navigate') {
+      const url = typeof e.data.url === 'string' ? e.data.url : '';
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
       }
+    }
 
-      // resize → auto-height adjustment
-      if (type === 'resize' || type === 'widget-resize') {
-        const h = Math.min(Math.max(Number(e.data.height) || MIN_HEIGHT, MIN_HEIGHT), MAX_HEIGHT);
-        setIframeHeight(h);
-      }
-    },
-    [],
-  );
+    // resize → auto-height adjustment
+    if (type === 'resize' || type === 'widget-resize') {
+      const h = Math.min(Math.max(Number(e.data.height) || MIN_HEIGHT, MIN_HEIGHT), MAX_HEIGHT);
+      setIframeHeight(h);
+    }
+  }, []);
 
   useEffect(() => {
     window.addEventListener('message', handleMessage);
@@ -146,7 +149,12 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
 
   if (error) {
     return (
-      <div className={cn('rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive', className)}>
+      <div
+        className={cn(
+          'rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive',
+          className,
+        )}
+      >
         {t('loadFailed', { error })}
       </div>
     );
@@ -162,10 +170,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
   }
 
   return (
-    <div
-      className={cn('rounded-lg border overflow-hidden', className)}
-      style={{ height: iframeHeight }}
-    >
+    <div className={cn('rounded-lg border overflow-hidden', className)} style={{ height: iframeHeight }}>
       <iframe
         ref={iframeRef}
         srcDoc={htmlContent}

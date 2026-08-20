@@ -24,13 +24,18 @@ function detectDelimiter(text: string): Delimiter {
       let count = 0;
       let inQuotes = false;
       for (const ch of line) {
-        if (ch === '"') {inQuotes = !inQuotes;}
-        else if (ch === d && !inQuotes) {count++;}
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === d && !inQuotes) {
+          count++;
+        }
       }
       return count;
     });
     const nonZero = counts.filter((c) => c > 0);
-    if (nonZero.length === 0) {continue;}
+    if (nonZero.length === 0) {
+      continue;
+    }
     const consistent = nonZero.every((c) => c === nonZero[0]);
     const score = (consistent ? 100 : 0) + nonZero[0] * nonZero.length;
     if (score > bestScore) {
@@ -89,8 +94,12 @@ export function parseCsv(text: string, maxRows = 10_000): ParseResult {
 
   const rows = dataLines.map((line) => {
     const cells = parseLine(line, delimiter);
-    while (cells.length < headers.length) {cells.push('');}
-    if (cells.length > headers.length) {cells.length = headers.length;}
+    while (cells.length < headers.length) {
+      cells.push('');
+    }
+    if (cells.length > headers.length) {
+      cells.length = headers.length;
+    }
     return cells;
   });
 

@@ -84,15 +84,26 @@ export default function MediaGallery() {
   const fetchItems = useCallback(
     async (cursor?: string) => {
       const isLoadMore = !!cursor;
-      if (isLoadMore) {setLoadingMore(true);}
-      else {setLoading(true);}
+      if (isLoadMore) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
 
       try {
         const params: MediaQueryParams = { limit: 24 };
-        if (keyword) {params.keyword = keyword;}
-        if (mediaType) {params.media_type = mediaType;}
-        if (selectedTag) {params.tags = selectedTag;}
-        if (cursor) {params.cursor = cursor;}
+        if (keyword) {
+          params.keyword = keyword;
+        }
+        if (mediaType) {
+          params.media_type = mediaType;
+        }
+        if (selectedTag) {
+          params.tags = selectedTag;
+        }
+        if (cursor) {
+          params.cursor = cursor;
+        }
 
         const res = await fetchMediaList(params);
         setItems((prev) => (isLoadMore ? [...prev, ...res.items] : res.items));
@@ -119,7 +130,9 @@ export default function MediaGallery() {
   }, []);
 
   useEffect(() => {
-    if (!observerRef.current || !nextCursor) {return;}
+    if (!observerRef.current || !nextCursor) {
+      return;
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && nextCursor && !loadingMore) {
@@ -135,14 +148,18 @@ export default function MediaGallery() {
   const requestDelete = (item: MediaItem) => setPendingDelete(item);
 
   const confirmDelete = async () => {
-    if (!pendingDelete) {return;}
+    if (!pendingDelete) {
+      return;
+    }
     const item = pendingDelete;
     setPendingDelete(null);
     try {
       await deleteMedia(item.id);
       setItems((prev) => prev.filter((i) => i.id !== item.id));
       setTotal((prev) => prev - 1);
-      if (lightboxItem?.id === item.id) {setLightboxItem(null);}
+      if (lightboxItem?.id === item.id) {
+        setLightboxItem(null);
+      }
       toast({ title: t('deleteSuccess') });
     } catch {
       toast({ title: t('deleteFailed'), variant: 'destructive' });
@@ -150,7 +167,9 @@ export default function MediaGallery() {
   };
 
   const handleSaveTags = async () => {
-    if (!lightboxItem) {return;}
+    if (!lightboxItem) {
+      return;
+    }
     const newTags = tagInput
       .split(',')
       .map((s) => s.trim())
@@ -172,15 +191,21 @@ export default function MediaGallery() {
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {next.delete(id);}
-      else {next.add(id);}
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === items.length) {setSelectedIds(new Set());}
-    else {setSelectedIds(new Set(items.map((i) => i.id)));}
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
   };
 
   const exitSelectMode = () => {
@@ -229,8 +254,12 @@ export default function MediaGallery() {
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) {return `${bytes} B`;}
-    if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 

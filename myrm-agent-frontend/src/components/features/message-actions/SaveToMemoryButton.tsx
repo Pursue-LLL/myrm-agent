@@ -27,7 +27,9 @@ export default function SaveToMemoryButton({ message }: { message: Message }) {
   const [state, setState] = useState<SaveState>('idle');
 
   const handleSave = useCallback(async () => {
-    if (state !== 'idle') {return;}
+    if (state !== 'idle') {
+      return;
+    }
     setState('saving');
     try {
       await createMemory({
@@ -43,7 +45,9 @@ export default function SaveToMemoryButton({ message }: { message: Message }) {
     }
   }, [message.content, state, t]);
 
-  if (!message.content.trim()) {return null;}
+  if (!message.content.trim()) {
+    return null;
+  }
 
   const btnBase = 'p-2 rounded-xl transition duration-200';
 
@@ -62,11 +66,7 @@ export default function SaveToMemoryButton({ message }: { message: Message }) {
             disabled={state !== 'idle'}
             aria-label={t('saveToMemory.title')}
           >
-            {state === 'saving' ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <BrainCircuit className="w-4 h-4" />
-            )}
+            {state === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom">

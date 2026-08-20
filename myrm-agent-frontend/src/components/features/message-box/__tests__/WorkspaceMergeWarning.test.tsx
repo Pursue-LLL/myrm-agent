@@ -3,9 +3,15 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { WorkspaceMergeWarning } from '../WorkspaceMergeWarning';
 
 const stableT = (key: string, params?: { count?: number }) => {
-  if (key === 'message.workspaceMergeFailedTitle') {return 'Workspace Merge Failed';}
-  if (key === 'message.workspaceMergeFailed') {return `${params?.count ?? 0} merge errors`;}
-  if (key === 'message.workspaceMergeFailedMore') {return `${params?.count ?? 0} more hidden`;}
+  if (key === 'message.workspaceMergeFailedTitle') {
+    return 'Workspace Merge Failed';
+  }
+  if (key === 'message.workspaceMergeFailed') {
+    return `${params?.count ?? 0} merge errors`;
+  }
+  if (key === 'message.workspaceMergeFailedMore') {
+    return `${params?.count ?? 0} more hidden`;
+  }
   return key;
 };
 
@@ -15,12 +21,7 @@ vi.mock('next-intl', () => ({
 
 describe('WorkspaceMergeWarning', () => {
   it('renders collapsed panel with data-testid and expands to show error text', () => {
-    render(
-      <WorkspaceMergeWarning
-        failures={[{ message: 'task_index=1: No space left on device' }]}
-        failedCount={1}
-      />,
-    );
+    render(<WorkspaceMergeWarning failures={[{ message: 'task_index=1: No space left on device' }]} failedCount={1} />);
 
     expect(screen.getByTestId('workspace-merge-warning')).toBeTruthy();
     expect(screen.getByText('Workspace Merge Failed')).toBeTruthy();
@@ -31,13 +32,7 @@ describe('WorkspaceMergeWarning', () => {
   });
 
   it('shows truncated-more hint when truncated count is provided', () => {
-    render(
-      <WorkspaceMergeWarning
-        failures={[{ message: 'task_index=1: boom' }]}
-        failedCount={3}
-        truncated={2}
-      />,
-    );
+    render(<WorkspaceMergeWarning failures={[{ message: 'task_index=1: boom' }]} failedCount={3} truncated={2} />);
 
     fireEvent.click(screen.getByRole('button'));
     expect(screen.getByText('2 more hidden')).toBeTruthy();

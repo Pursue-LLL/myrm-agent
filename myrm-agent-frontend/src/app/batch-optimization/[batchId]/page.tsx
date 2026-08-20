@@ -9,11 +9,7 @@ import { Badge } from '@/components/primitives/badge';
 import { localizeReactNode } from '@/lib/utils/localeText';
 import { Loader2, ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, Activity, FileText } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
-import {
-  cancelBatchTask,
-  rollbackBatchTask,
-  type BatchCancelCleanupStrategy,
-} from '@/services/skill/optimization';
+import { cancelBatchTask, rollbackBatchTask, type BatchCancelCleanupStrategy } from '@/services/skill/optimization';
 import { toast } from '@/hooks/shared/useToast';
 import {
   AlertDialog,

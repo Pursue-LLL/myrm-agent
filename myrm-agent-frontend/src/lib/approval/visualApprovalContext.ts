@@ -75,10 +75,7 @@ function parseCoordinate(toolInput: Record<string, unknown>): [number, number] |
   return [x, y];
 }
 
-function bboxFromRef(
-  viewData: InspectorViewSnapshot,
-  refStr: string,
-): VisualApprovalContext | null {
+function bboxFromRef(viewData: InspectorViewSnapshot, refStr: string): VisualApprovalContext | null {
   const targetRef = viewData.refs[refStr];
   if (!targetRef?.bbox) {
     return null;
@@ -103,10 +100,7 @@ function bboxFromRef(
   };
 }
 
-function bboxFromCoordinate(
-  viewData: InspectorViewSnapshot,
-  coordinate: [number, number],
-): VisualApprovalContext {
+function bboxFromCoordinate(viewData: InspectorViewSnapshot, coordinate: [number, number]): VisualApprovalContext {
   const [cx, cy] = coordinate;
   const half = COORDINATE_HIGHLIGHT_SIZE / 2;
   const maxX = Math.max(viewData.viewportWidth - COORDINATE_HIGHLIGHT_SIZE, 0);

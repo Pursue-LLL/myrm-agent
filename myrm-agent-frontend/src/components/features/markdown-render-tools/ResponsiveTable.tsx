@@ -16,10 +16,18 @@ import { useTranslations } from 'next-intl';
 const CARD_COLUMN_THRESHOLD = 4;
 
 function getTextContent(node: React.ReactNode): string {
-  if (typeof node === 'string') {return node;}
-  if (typeof node === 'number') {return String(node);}
-  if (!node) {return '';}
-  if (Array.isArray(node)) {return node.map(getTextContent).join('');}
+  if (typeof node === 'string') {
+    return node;
+  }
+  if (typeof node === 'number') {
+    return String(node);
+  }
+  if (!node) {
+    return '';
+  }
+  if (Array.isArray(node)) {
+    return node.map(getTextContent).join('');
+  }
   if (React.isValidElement(node)) {
     const props = node.props as { children?: React.ReactNode };
     return getTextContent(props.children);
@@ -30,7 +38,9 @@ function getTextContent(node: React.ReactNode): string {
 function flattenChildren(children: React.ReactNode): React.ReactElement[] {
   const result: React.ReactElement[] = [];
   React.Children.forEach(children, (child) => {
-    if (!React.isValidElement(child)) {return;}
+    if (!React.isValidElement(child)) {
+      return;
+    }
     if (child.type === React.Fragment) {
       result.push(...flattenChildren((child.props as { children?: React.ReactNode }).children));
     } else {
@@ -43,16 +53,16 @@ function flattenChildren(children: React.ReactNode): React.ReactElement[] {
 function extractHeaders(children: React.ReactNode): string[] {
   const headers: string[] = [];
   const topChildren = flattenChildren(children);
-  const thead = topChildren.find(
-    (child) => typeof child.type === 'string' && child.type === 'thead',
-  );
-  if (!thead) {return headers;}
+  const thead = topChildren.find((child) => typeof child.type === 'string' && child.type === 'thead');
+  if (!thead) {
+    return headers;
+  }
 
   const theadChildren = flattenChildren((thead.props as { children?: React.ReactNode }).children);
-  const tr = theadChildren.find(
-    (child) => typeof child.type === 'string' && child.type === 'tr',
-  );
-  if (!tr) {return headers;}
+  const tr = theadChildren.find((child) => typeof child.type === 'string' && child.type === 'tr');
+  if (!tr) {
+    return headers;
+  }
 
   const ths = flattenChildren((tr.props as { children?: React.ReactNode }).children);
   for (const th of ths) {
@@ -64,12 +74,17 @@ function extractHeaders(children: React.ReactNode): string[] {
 function hasComplexCells(children: React.ReactNode): boolean {
   let found = false;
   const check = (node: React.ReactNode) => {
-    if (found) {return;}
+    if (found) {
+      return;
+    }
     React.Children.forEach(node, (child) => {
-      if (found || !React.isValidElement(child)) {return;}
+      if (found || !React.isValidElement(child)) {
+        return;
+      }
       const props = child.props as Record<string, unknown>;
       if (
-        (typeof child.type === 'string' && (child.type === 'td' || child.type === 'th')) &&
+        typeof child.type === 'string' &&
+        (child.type === 'td' || child.type === 'th') &&
         (props.colSpan || props.rowSpan || props.colspan || props.rowspan)
       ) {
         found = true;
@@ -82,10 +97,7 @@ function hasComplexCells(children: React.ReactNode): boolean {
   return found;
 }
 
-function injectDataLabels(
-  children: React.ReactNode,
-  headers: string[],
-): React.ReactNode {
+function injectDataLabels(children: React.ReactNode, headers: string[]): React.ReactNode {
   const elements = flattenChildren(children);
   return elements.map((child, idx) => {
     const props = child.props as Record<string, unknown>;
@@ -131,49 +143,46 @@ type ResponsiveTableProps = {
   isStreaming?: boolean;
 };
 
-const ResponsiveTable = React.memo(
-  ({ children, isStreaming }: ResponsiveTableProps) => {
-    const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
-    const t = useTranslations('MarkdownTable');
+const ResponsiveTable = React.memo(({ children, isStreaming }: ResponsiveTableProps) => {
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+  const t = useTranslations('MarkdownTable');
 
-    const headers = useMemo(() => extractHeaders(children), [children]);
-    const isComplex = useMemo(() => hasComplexCells(children), [children]);
-    const enableCards = headers.length >= CARD_COLUMN_THRESHOLD && !isComplex && !isStreaming;
+  const headers = useMemo(() => extractHeaders(children), [children]);
+  const isComplex = useMemo(() => hasComplexCells(children), [children]);
+  const enableCards = headers.length >= CARD_COLUMN_THRESHOLD && !isComplex && !isStreaming;
 
-    const tableChildren = useMemo(() => {
-      if (!enableCards || viewMode === 'table') {return children;}
-      return injectDataLabels(children, headers);
-    }, [children, enableCards, viewMode, headers]);
+  const tableChildren = useMemo(() => {
+    if (!enableCards || viewMode === 'table') {
+      return children;
+    }
+    return injectDataLabels(children, headers);
+  }, [children, enableCards, viewMode, headers]);
 
-    const wrapperClass = enableCards && viewMode === 'card'
-      ? 'responsive-table-wrapper responsive-table-cards'
-      : 'responsive-table-wrapper';
+  const wrapperClass =
+    enableCards && viewMode === 'card' ? 'responsive-table-wrapper responsive-table-cards' : 'responsive-table-wrapper';
 
-    return (
-      <div className="not-prose my-3">
-        {enableCards && (
-          <div className="responsive-table-toolbar">
-            <button
-              type="button"
-              className="responsive-table-toggle"
-              onClick={() => setViewMode((v) => (v === 'card' ? 'table' : 'card'))}
-              aria-label={viewMode === 'card' ? t('switchToTable') : t('switchToCard')}
-              aria-pressed={viewMode === 'card'}
-              title={viewMode === 'card' ? t('switchToTable') : t('switchToCard')}
-            >
-              {viewMode === 'card' ? '▦ ' + t('tableView') : '▤ ' + t('cardView')}
-            </button>
-          </div>
-        )}
-        <div className={wrapperClass}>
-          <table className="responsive-table">
-            {tableChildren}
-          </table>
+  return (
+    <div className="not-prose my-3">
+      {enableCards && (
+        <div className="responsive-table-toolbar">
+          <button
+            type="button"
+            className="responsive-table-toggle"
+            onClick={() => setViewMode((v) => (v === 'card' ? 'table' : 'card'))}
+            aria-label={viewMode === 'card' ? t('switchToTable') : t('switchToCard')}
+            aria-pressed={viewMode === 'card'}
+            title={viewMode === 'card' ? t('switchToTable') : t('switchToCard')}
+          >
+            {viewMode === 'card' ? '▦ ' + t('tableView') : '▤ ' + t('cardView')}
+          </button>
         </div>
+      )}
+      <div className={wrapperClass}>
+        <table className="responsive-table">{tableChildren}</table>
       </div>
-    );
-  },
-);
+    </div>
+  );
+});
 
 ResponsiveTable.displayName = 'ResponsiveTable';
 

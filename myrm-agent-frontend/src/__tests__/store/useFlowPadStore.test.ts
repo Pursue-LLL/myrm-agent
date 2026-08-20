@@ -38,10 +38,7 @@ describe('useFlowPadStore', () => {
 
   describe('inlineResult management', () => {
     it('setState sets inlineResult and inlineGenerating directly', () => {
-      useFlowPadStore.getState().openInline(
-        { screenshot: '', windowTitle: '', extractedText: '', timestamp: 0 },
-        1,
-      );
+      useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: '', extractedText: '', timestamp: 0 }, 1);
 
       useFlowPadStore.setState({ inlineResult: 'Hello', inlineGenerating: true });
 
@@ -68,10 +65,9 @@ describe('useFlowPadStore', () => {
 
   describe('close', () => {
     it('resets all inline state on close', () => {
-      useFlowPadStore.getState().openInline(
-        { screenshot: 'data', windowTitle: 'App', extractedText: 'text', timestamp: 1 },
-        999,
-      );
+      useFlowPadStore
+        .getState()
+        .openInline({ screenshot: 'data', windowTitle: 'App', extractedText: 'text', timestamp: 1 }, 999);
       useFlowPadStore.setState({ inlineResult: 'Result text', inlineGenerating: true });
 
       useFlowPadStore.getState().close();

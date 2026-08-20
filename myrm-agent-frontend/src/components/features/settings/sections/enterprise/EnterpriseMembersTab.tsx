@@ -61,26 +61,17 @@ const EnterpriseMembersTab = memo(() => {
   const orgId = org?.id ?? '';
   const authUserId = useAuthStore((s) => s.user?.id);
 
-  const roleLabel = (role: string) =>
-    t(`role${role.charAt(0).toUpperCase()}${role.slice(1)}`);
+  const roleLabel = (role: string) => t(`role${role.charAt(0).toUpperCase()}${role.slice(1)}`);
 
-  const isOrgAdmin = useMemo(
-    () => canManageOrgMcp(members, authUserId),
-    [authUserId, members],
-  );
+  const isOrgAdmin = useMemo(() => canManageOrgMcp(members, authUserId), [authUserId, members]);
 
-  const offboardableMembers = useMemo(
-    () => members.filter((m) => m.role !== 'owner'),
-    [members],
-  );
+  const offboardableMembers = useMemo(() => members.filter((m) => m.role !== 'owner'), [members]);
 
   // Transfer sources must have a completed offboard archive; otherwise the
   // backend rejects the transfer with a 409. Only archived members are offered.
   const transferableSources = useMemo(() => {
     const archivedUserIds = new Set(
-      logs
-        .filter((l) => l.action === 'offboard' && l.status === 'completed')
-        .map((l) => l.source_user_id),
+      logs.filter((l) => l.action === 'offboard' && l.status === 'completed').map((l) => l.source_user_id),
     );
     return offboardableMembers.filter((m) => archivedUserIds.has(m.user_id));
   }, [offboardableMembers, logs]);
@@ -91,10 +82,7 @@ const EnterpriseMembersTab = memo(() => {
       setError(null);
       const orgData = await getMyOrg();
       setOrg(orgData);
-      const [membersData, logsData] = await Promise.all([
-        listMembers(orgData.id),
-        listHandoffLogs(orgData.id),
-      ]);
+      const [membersData, logsData] = await Promise.all([listMembers(orgData.id), listHandoffLogs(orgData.id)]);
       setMembers(membersData);
       setLogs(logsData);
     } catch (e) {
@@ -109,7 +97,9 @@ const EnterpriseMembersTab = memo(() => {
   }, [loadData]);
 
   const handleAddMember = useCallback(async () => {
-    if (!newMemberEmail.trim()) {return;}
+    if (!newMemberEmail.trim()) {
+      return;
+    }
     try {
       await addMember(orgId, newMemberEmail.trim(), newMemberRole);
       toast.success(t('memberAdded'));
@@ -133,11 +123,13 @@ const EnterpriseMembersTab = memo(() => {
         toast.error(e instanceof Error ? e.message : t('removeMemberFailed'));
       }
     },
-    [orgId, t, loadData]
+    [orgId, t, loadData],
   );
 
   const handleOffboard = useCallback(async () => {
-    if (!offboardUserId.trim()) {return;}
+    if (!offboardUserId.trim()) {
+      return;
+    }
     try {
       await offboardUser(orgId, offboardUserId.trim());
       toast.success(t('offboardSuccess'));
@@ -150,7 +142,9 @@ const EnterpriseMembersTab = memo(() => {
   }, [orgId, offboardUserId, t, loadData]);
 
   const handleTransfer = useCallback(async () => {
-    if (!transferSourceId.trim() || !transferTargetId.trim()) {return;}
+    if (!transferSourceId.trim() || !transferTargetId.trim()) {
+      return;
+    }
     try {
       await transferVolume(orgId, transferSourceId.trim(), transferTargetId.trim());
       toast.success(t('transferSuccess'));
@@ -164,7 +158,9 @@ const EnterpriseMembersTab = memo(() => {
   }, [orgId, transferSourceId, transferTargetId, t, loadData]);
 
   const handleUnlinkOauth = useCallback(async () => {
-    if (!unlinkUserId.trim()) {return;}
+    if (!unlinkUserId.trim()) {
+      return;
+    }
     try {
       await unlinkOauth(orgId, unlinkUserId.trim());
       toast.success(t('unlinkSuccess'));
@@ -223,8 +219,8 @@ const EnterpriseMembersTab = memo(() => {
               </div>
             )}
             <div>
-              <span className="text-muted-foreground">{t('retentionDays')}:</span>{' '}
-              {org.archive_retention_days} {t('days')}
+              <span className="text-muted-foreground">{t('retentionDays')}:</span> {org.archive_retention_days}{' '}
+              {t('days')}
             </div>
           </div>
         )}
@@ -266,7 +262,9 @@ const EnterpriseMembersTab = memo(() => {
                   {m.email && <span className="text-xs text-muted-foreground truncate">{m.email}</span>}
                 </div>
                 {m.oauth_bound && (
-                  <Badge variant="secondary" className="shrink-0">{t('ssoBound')}</Badge>
+                  <Badge variant="secondary" className="shrink-0">
+                    {t('ssoBound')}
+                  </Badge>
                 )}
                 <Badge className={ROLE_COLORS[m.role] ?? ROLE_COLORS.member}>{roleLabel(m.role)}</Badge>
               </div>

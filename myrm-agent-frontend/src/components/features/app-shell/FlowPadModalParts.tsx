@@ -8,7 +8,9 @@ const MAX_TEXT_PER_CAPTURE = 4000;
 const MAX_PREVIEW_TEXT = 200;
 
 export function formatAppshotMessage(captures: FlowPadCapture[]): string {
-  if (captures.length === 0) {return '';}
+  if (captures.length === 0) {
+    return '';
+  }
 
   const parts: string[] = ['[Appshot Context]'];
 
@@ -21,9 +23,7 @@ export function formatAppshotMessage(captures: FlowPadCapture[]): string {
     if (cap.extractedText.trim()) {
       const maxLen = cap.selectedText?.trim() ? 2000 : MAX_TEXT_PER_CAPTURE;
       const truncated =
-        cap.extractedText.length > maxLen
-          ? cap.extractedText.slice(0, maxLen) + '\n...(truncated)'
-          : cap.extractedText;
+        cap.extractedText.length > maxLen ? cap.extractedText.slice(0, maxLen) + '\n...(truncated)' : cap.extractedText;
       parts.push(`\`\`\`\n${truncated}\n\`\`\``);
     }
   }
@@ -95,15 +95,7 @@ export function CapturePreview({
   );
 }
 
-export function ImageLightbox({
-  src,
-  alt,
-  onClose,
-}: {
-  src: string;
-  alt: string;
-  onClose: () => void;
-}) {
+export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -133,4 +125,3 @@ export function ImageLightbox({
     </div>
   );
 }
-

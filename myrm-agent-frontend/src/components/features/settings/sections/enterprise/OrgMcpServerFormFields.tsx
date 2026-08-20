@@ -52,11 +52,7 @@ export function OrgMcpServerFormFields({
     <div className="space-y-4 py-2">
       <div className="space-y-2">
         <Label>{t('mcpName')}</Label>
-        <Input
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder={namePlaceholder}
-        />
+        <Input value={name} onChange={(e) => onNameChange(e.target.value)} placeholder={namePlaceholder} />
       </div>
       <div className="space-y-2">
         <Label>{t('mcpType')}</Label>
@@ -109,9 +105,7 @@ export function OrgMcpServerFormFields({
               type="password"
               autoComplete="off"
             />
-            {headersConfigured && (
-              <p className="text-xs text-muted-foreground">{t('mcpAuthHeaderKeepHint')}</p>
-            )}
+            {headersConfigured && <p className="text-xs text-muted-foreground">{t('mcpAuthHeaderKeepHint')}</p>}
           </div>
         </>
       )}

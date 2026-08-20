@@ -36,7 +36,10 @@ interface WikiQueuePanelProps {
   liveIngestSnapshot?: WikiIngestSnapshot | null;
 }
 
-function errorKindLabel(kind: string | undefined, t: ReturnType<typeof useTranslations<'settings.wiki.queue'>>): string {
+function errorKindLabel(
+  kind: string | undefined,
+  t: ReturnType<typeof useTranslations<'settings.wiki.queue'>>,
+): string {
   if (!kind) {
     return t('errorKindUnknown');
   }
@@ -70,45 +73,47 @@ export function WikiQueuePanel({
   const loadRequestRef = useRef(0);
   const silentFailCountRef = useRef(0);
 
-  const loadQueue = useCallback(async (options?: { silent?: boolean }) => {
-    const requestId = loadRequestRef.current + 1;
-    loadRequestRef.current = requestId;
+  const loadQueue = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const requestId = loadRequestRef.current + 1;
+      loadRequestRef.current = requestId;
 
-    if (!options?.silent) {
-      setIsLoading(true);
-    }
-    try {
-      const data = await wikiService.getQueueStatus(agentScopeId);
-      if (loadRequestRef.current !== requestId) {
-        return;
+      if (!options?.silent) {
+        setIsLoading(true);
       }
-      setQueueData(data);
-      silentFailCountRef.current = 0;
-      setRefreshStale(false);
-    } catch (error) {
-      console.error('Failed to load queue:', error);
-      if (loadRequestRef.current !== requestId) {
-        return;
+      try {
+        const data = await wikiService.getQueueStatus(agentScopeId);
+        if (loadRequestRef.current !== requestId) {
+          return;
+        }
+        setQueueData(data);
+        silentFailCountRef.current = 0;
+        setRefreshStale(false);
+      } catch (error) {
+        console.error('Failed to load queue:', error);
+        if (loadRequestRef.current !== requestId) {
+          return;
+        }
+        if (options?.silent) {
+          silentFailCountRef.current += 1;
+          setRefreshStale(shouldShowStaleRefreshBanner(silentFailCountRef.current));
+        } else {
+          toast.error(t('loadFailed'));
+        }
+      } finally {
+        if (loadRequestRef.current === requestId && !options?.silent) {
+          setIsLoading(false);
+        }
       }
-      if (options?.silent) {
-        silentFailCountRef.current += 1;
-        setRefreshStale(shouldShowStaleRefreshBanner(silentFailCountRef.current));
-      } else {
-        toast.error(t('loadFailed'));
-      }
-    } finally {
-      if (loadRequestRef.current === requestId && !options?.silent) {
-        setIsLoading(false);
-      }
-    }
-  }, [agentScopeId, t]);
+    },
+    [agentScopeId, t],
+  );
 
   useEffect(() => {
     void loadQueue();
   }, [loadQueue]);
 
-  const compileRun: CompileRunStatus | null | undefined =
-    liveIngestSnapshot?.compile_run ?? queueData?.compile_run;
+  const compileRun: CompileRunStatus | null | undefined = liveIngestSnapshot?.compile_run ?? queueData?.compile_run;
   const isPaused = compileRun?.state === 'paused';
   const mergedStats = liveIngestSnapshot?.stats ?? queueData?.stats;
   const shouldPollQueue = !liveIngestConnected && computeShouldPollQueue(queueData);
@@ -329,16 +334,17 @@ export function WikiQueuePanel({
                 <div className="text-sm font-medium">{t('failedItems')}</div>
                 <div className="max-h-48 overflow-y-auto space-y-1">
                   {queueData.failed_items.map((item) => (
-                    <div key={item.id} className="px-3 py-2 bg-red-500/5 border border-red-500/10 rounded text-xs space-y-1">
+                    <div
+                      key={item.id}
+                      className="px-3 py-2 bg-red-500/5 border border-red-500/10 rounded text-xs space-y-1"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate font-medium">{item.file_path.split('/').pop()}</span>
                         <span className="shrink-0 text-red-600 dark:text-red-400">
                           {errorKindLabel(item.error_kind, t)}
                         </span>
                       </div>
-                      {item.error_message && (
-                        <p className="text-muted-foreground line-clamp-2">{item.error_message}</p>
-                      )}
+                      {item.error_message && <p className="text-muted-foreground line-clamp-2">{item.error_message}</p>}
                     </div>
                   ))}
                 </div>

@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  * ./sessionConfig::ActionMode (POS: 会话级 Agent 与模式配置类型)
- * 
+ *
  * [OUTPUT]
  * ToolApprovalRequest, ToolCallInfo, CompletionStatus.
- * 
+ *
  * [POS]
  * 工具审批与 CLI diff 预览契约。
  */
@@ -42,12 +42,7 @@ export interface ToolApprovalRequest {
   commandSpanRisks?: ('safe' | 'unknown')[];
   /** Per-segment stable reason codes for tooltip i18n */
   commandSpanReasons?: (
-    | 'safe'
-    | 'empty_segment'
-    | 'redirect'
-    | 'unknown_command'
-    | 'unknown_subcommand'
-    | 'invalid_flags'
+    'safe' | 'empty_segment' | 'redirect' | 'unknown_command' | 'unknown_subcommand' | 'invalid_flags'
   )[];
   /** Sandbox workspace root for shell approvals */
   workspaceRoot?: string;
@@ -80,11 +75,4 @@ export interface ToolCallInfo {
   ptcAnnotations?: Record<string, boolean>;
 }
 export type CompletionStatus =
-  | 'complete'
-  | 'truncated'
-  | 'filtered'
-  | 'budget_blocked'
-  | 'warning'
-  | 'success'
-  | 'error'
-  | 'cancelled';
+  'complete' | 'truncated' | 'filtered' | 'budget_blocked' | 'warning' | 'success' | 'error' | 'cancelled';

@@ -3,9 +3,15 @@ import { renderHook, act } from '@testing-library/react';
 import { resetTaskUpdateEventStreamForTests } from '@/services/taskEventStream';
 
 const stableT = (key: string, params?: Record<string, string>) => {
-  if (key === 'taskCompleted') {return `${params?.taskType} completed`;}
-  if (key === 'taskFailed') {return `${params?.taskType} failed`;}
-  if (key === 'taskUnknownError') {return 'Unknown error';}
+  if (key === 'taskCompleted') {
+    return `${params?.taskType} completed`;
+  }
+  if (key === 'taskFailed') {
+    return `${params?.taskType} failed`;
+  }
+  if (key === 'taskUnknownError') {
+    return 'Unknown error';
+  }
   return key;
 };
 
@@ -49,7 +55,9 @@ class MockEventSource {
   }
 
   addEventListener(type: string, handler: (event: { data: string }) => void) {
-    if (!this.listeners[type]) {this.listeners[type] = [];}
+    if (!this.listeners[type]) {
+      this.listeners[type] = [];
+    }
     this.listeners[type].push(handler);
   }
 
@@ -81,11 +89,7 @@ Object.defineProperty(global, 'EventSource', {
   configurable: true,
 });
 
-const createTask = (
-  taskId: string,
-  status: TaskStatus,
-  overrides: Partial<MockTask> = {},
-): MockTask => ({
+const createTask = (taskId: string, status: TaskStatus, overrides: Partial<MockTask> = {}): MockTask => ({
   task_id: taskId,
   task_type: 'image_generate',
   status,

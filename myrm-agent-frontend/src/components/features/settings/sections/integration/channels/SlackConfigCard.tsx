@@ -21,9 +21,7 @@ export function SlackConfigCard() {
   const sandbox = isSandbox();
   const [showSecret, setShowSecret] = useState(false);
 
-  const requiredFields: (keyof SlackCredentials)[] = sandbox
-    ? ['botToken', 'signingSecret']
-    : ['botToken', 'appToken'];
+  const requiredFields: (keyof SlackCredentials)[] = sandbox ? ['botToken', 'signingSecret'] : ['botToken', 'appToken'];
 
   const { creds, dirty, loading, saving, testing, connStatus, statusLabel, handleChange, handleSave, handleTest } =
     useChannelConfig<SlackCredentials>({

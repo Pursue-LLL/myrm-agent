@@ -1,15 +1,11 @@
 import type { RunDigest } from '@/services/copilot';
 
-export type CopilotHeadlineTranslator = (
-  key: string,
-  values?: Record<string, string | number>,
-) => string;
+export type CopilotHeadlineTranslator = (key: string, values?: Record<string, string | number>) => string;
 
-export function resolveRunDigestHeadline(
-  digest: RunDigest | null,
-  t: CopilotHeadlineTranslator,
-): string {
-  if (!digest) {return t('runningFallback');}
+export function resolveRunDigestHeadline(digest: RunDigest | null, t: CopilotHeadlineTranslator): string {
+  if (!digest) {
+    return t('runningFallback');
+  }
   switch (digest.phase) {
     case 'waiting_approval':
       return t('headlineWaitingApproval', { count: digest.pending_approval_count });

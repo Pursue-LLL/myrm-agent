@@ -8,11 +8,7 @@ export interface AgentSecretKeyRef {
   key_name: string;
 }
 
-export function parseUserAgentFetchErrorMessage(
-  errorText: string,
-  action: string,
-  statusText: string,
-): string {
+export function parseUserAgentFetchErrorMessage(errorText: string, action: string, statusText: string): string {
   let message = `Failed to ${action}: ${statusText}`;
   try {
     if (errorText) {

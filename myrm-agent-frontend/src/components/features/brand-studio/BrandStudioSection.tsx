@@ -89,7 +89,9 @@ const BrandStudioSection = () => {
     const values: BrandValues = {};
     for (const row of rows) {
       const trimmed = row.value.trim();
-      if (trimmed) {values[row.field] = trimmed;}
+      if (trimmed) {
+        values[row.field] = trimmed;
+      }
     }
     return values;
   }, [rows]);
@@ -103,9 +105,13 @@ const BrandStudioSection = () => {
   const validateAll = useCallback((): boolean => {
     let valid = true;
     const next = rows.map((r) => {
-      if (!r.value.trim()) {return r;}
+      if (!r.value.trim()) {
+        return r;
+      }
       const error = validateBrandField(r.field, r.value);
-      if (error) {valid = false;}
+      if (error) {
+        valid = false;
+      }
       return { ...r, error };
     });
     setRows(next);
@@ -247,9 +253,7 @@ function ColorField({
           !value && 'bg-muted',
         )}
       >
-        {value ? (
-          <span className="h-full w-full" style={{ backgroundColor: value }} />
-        ) : null}
+        {value ? <span className="h-full w-full" style={{ backgroundColor: value }} /> : null}
         <input
           type="color"
           value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'}
@@ -310,21 +314,13 @@ function BrandPreview({ values, hasValue }: { values: BrandValues; hasValue: boo
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          className="pointer-events-none"
-          style={{ backgroundColor: primary }}
-        >
+        <Button size="sm" className="pointer-events-none" style={{ backgroundColor: primary }}>
           {t('previewPrimary')}
         </Button>
         <Button size="sm" variant="outline" className="pointer-events-none">
           {t('previewSecondary')}
         </Button>
-        <Button
-          size="sm"
-          className="pointer-events-none text-white"
-          style={{ backgroundColor: accent }}
-        >
+        <Button size="sm" className="pointer-events-none text-white" style={{ backgroundColor: accent }}>
           {t('previewAccent')}
         </Button>
       </div>

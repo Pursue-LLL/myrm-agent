@@ -1,7 +1,19 @@
 import type { BlueprintDef, BlueprintFillResponse, CreateCronJobRequest, CronSchedule } from '@/services/cron';
 import { fillBlueprint, listBlueprints } from '@/services/cron';
 import type { LucideIcon } from 'lucide-react';
-import { Sun, ClipboardList, Bell, Newspaper, Moon, Sparkles, Activity, Eye, CheckSquare, BookOpen, Radio } from 'lucide-react';
+import {
+  Sun,
+  ClipboardList,
+  Bell,
+  Newspaper,
+  Moon,
+  Sparkles,
+  Activity,
+  Eye,
+  CheckSquare,
+  BookOpen,
+  Radio,
+} from 'lucide-react';
 import { formatTime } from './cron-utils';
 
 /** Locale-aware translation function compatible with next-intl `useTranslations`. */
@@ -79,7 +91,9 @@ const BLUEPRINT_SLOT_LABEL_KEYS: Record<string, string> = {
 
 export function resolveBlueprintSlotLabel(slotName: string): string {
   const mapped = BLUEPRINT_SLOT_LABEL_KEYS[slotName];
-  if (mapped) {return mapped;}
+  if (mapped) {
+    return mapped;
+  }
   const camel = blueprintSnakeToCamel(slotName);
   return `blueprint.slot${camel.charAt(0).toUpperCase()}${camel.slice(1)}`;
 }
@@ -145,14 +159,14 @@ export function buildScheduleFromSlots(def: BlueprintDef, values: Record<string,
  * Throws on network or server errors — no fake offline catalog.
  */
 export async function loadBlueprints(): Promise<CronBlueprint[]> {
-  if (_cachedBlueprints) {return _cachedBlueprints;}
+  if (_cachedBlueprints) {
+    return _cachedBlueprints;
+  }
 
   if (!_loadingPromise) {
     _loadingPromise = listBlueprints()
       .then((defs) => {
-        const blueprints = defs
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .map(buildBlueprintFromDef);
+        const blueprints = defs.sort((a, b) => a.sort_order - b.sort_order).map(buildBlueprintFromDef);
         _cachedBlueprints = blueprints;
         return blueprints;
       })
@@ -208,9 +222,7 @@ export async function buildBlueprintCreatePayload(
     schedule: filled.schedule,
     prompt: filled.prompt,
     session_target: filled.session_target,
-    ...(filled.required_capabilities.length > 0
-      ? { required_capabilities: filled.required_capabilities }
-      : {}),
+    ...(filled.required_capabilities.length > 0 ? { required_capabilities: filled.required_capabilities } : {}),
     ...(filled.tools_allowed.length > 0 ? { tools_allowed: filled.tools_allowed } : {}),
     ...(filled.deduplicate ? { deduplicate: true } : {}),
     ...(filled.skip_if_active ? { skip_if_active: true } : {}),
@@ -263,37 +275,47 @@ const WEEKDAY_KEYS: Record<string, string> = {
  */
 export function humanizeSchedule(schedule: CronSchedule, t: ScheduleT, locale: string): string {
   if (schedule.kind === 'once') {
-    return schedule.run_at
-      ? t('schedule.onceAt', { time: formatTime(schedule.run_at, locale) })
-      : t('schedule.once');
+    return schedule.run_at ? t('schedule.onceAt', { time: formatTime(schedule.run_at, locale) }) : t('schedule.once');
   }
   if (schedule.kind === 'interval') {
     const mins = (schedule.interval_ms ?? 0) / 60_000;
     return t('schedule.everyMinutes', { count: mins });
   }
-  if (!schedule.expr) {return '';}
+  if (!schedule.expr) {
+    return '';
+  }
   const parts = schedule.expr.trim().split(/\s+/);
   // Cron expressions with anything other than the standard 5 fields (e.g. a
   // 6/7-field form with seconds or year) have positional meaning we do not
   // model — humanizing by destructuring the first five would silently drop
   // fields and mislead. Fall back to the raw expression.
-  if (parts.length !== 5) {return schedule.expr;}
+  if (parts.length !== 5) {
+    return schedule.expr;
+  }
   const [min, hour, dom, mon, dow] = parts;
   const time = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
   // Only interpret the day-of-week position when the date fields are unrestricted —
   // a constrained day-of-month/month (e.g. monthly `0 9 1 * *`, yearly) is not a
   // daily/weekday/weekend cadence and must not be mislabeled as one.
-  if (dom !== '*' || mon !== '*') {return schedule.expr;}
-  if (dow === '*') {return t('schedule.dailyAt', { time });}
-  if (dow === '1-5') {return t('schedule.weekdaysAt', { time });}
-  if (dow === '0,6') {return t('schedule.weekendsAt', { time });}
-  const dayKeys = dow
-    .split(',')
-    .map((d) => WEEKDAY_KEYS[d] ?? '');
+  if (dom !== '*' || mon !== '*') {
+    return schedule.expr;
+  }
+  if (dow === '*') {
+    return t('schedule.dailyAt', { time });
+  }
+  if (dow === '1-5') {
+    return t('schedule.weekdaysAt', { time });
+  }
+  if (dow === '0,6') {
+    return t('schedule.weekendsAt', { time });
+  }
+  const dayKeys = dow.split(',').map((d) => WEEKDAY_KEYS[d] ?? '');
   // If any day-of-week segment uses an expression form we cannot map (e.g. a range
   // like `1-3`), fall back to the full cron expression — partial fragments would
   // drop fields and may embed untranslated glue words.
-  if (dayKeys.some((k) => !k)) {return schedule.expr;}
+  if (dayKeys.some((k) => !k)) {
+    return schedule.expr;
+  }
   const dayNames = dayKeys.map((k) => t(`blueprint.${k}`)).join(', ');
   return t('schedule.weekdayListAt', { days: dayNames, time });
 }

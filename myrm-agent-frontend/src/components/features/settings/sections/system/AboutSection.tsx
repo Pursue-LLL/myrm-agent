@@ -123,7 +123,9 @@ const AboutSection = memo(() => {
   const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
     import('@tauri-apps/api/app')
       .then((mod) => mod.getVersion())
       .then((v) => setVersion(v))
@@ -131,7 +133,9 @@ const AboutSection = memo(() => {
   }, []);
 
   const handleCheckUpdate = useCallback(async () => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
     setUpdateStatus('checking');
     setUpdateError(null);
     try {
@@ -151,7 +155,9 @@ const AboutSection = memo(() => {
   }, []);
 
   const handleInstallUpdate = useCallback(async () => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
     setUpdateStatus('downloading');
     try {
       const { check } = await import('@tauri-apps/plugin-updater');
@@ -233,7 +239,9 @@ const AboutSection = memo(() => {
                       <AlertCircle className="w-3.5 h-3.5" />
                       {t('update.error')}
                     </div>
-                    {updateError && <p className="text-[10px] text-muted-foreground max-w-xs text-center">{updateError}</p>}
+                    {updateError && (
+                      <p className="text-[10px] text-muted-foreground max-w-xs text-center">{updateError}</p>
+                    )}
                     <Button variant="outline" size="sm" onClick={handleCheckUpdate} className="gap-1.5 mt-1">
                       {t('update.retry')}
                     </Button>

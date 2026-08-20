@@ -50,15 +50,12 @@ export interface ToolApprovalResolveExtra {
 export function resumeDecisionsIncludeDirectoryGrant(decisions: ApprovalDecision[]): boolean {
   return decisions.some(
     (decision) =>
-      (decision.type === 'approve' || decision.type === 'edit') &&
-      decision.extensions.grantDirectory === true,
+      (decision.type === 'approve' || decision.type === 'edit') && decision.extensions.grantDirectory === true,
   );
 }
 
 /** Optimistic root for path-ASK grantDirectory when GET may lag behind persist. */
-export function extractDirectoryGrantOptimistic(
-  decisions: ApprovalDecision[],
-): DirectoryGrantOptimistic | undefined {
+export function extractDirectoryGrantOptimistic(decisions: ApprovalDecision[]): DirectoryGrantOptimistic | undefined {
   for (const decision of decisions) {
     const meta = decision.extensions.grantDirectoryMeta;
     if (
@@ -76,10 +73,7 @@ export function extractDirectoryGrantOptimistic(
   return undefined;
 }
 
-export function buildApprovalDecision(
-  decision: DecisionType,
-  extra?: ToolApprovalResolveExtra,
-): ApprovalDecision {
+export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprovalResolveExtra): ApprovalDecision {
   return {
     type: decision,
     args: extra?.edited_args,

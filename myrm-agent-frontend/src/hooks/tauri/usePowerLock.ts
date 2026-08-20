@@ -18,7 +18,9 @@ export function usePowerLock() {
   const isGenerating = useChatStore((state) => state.loading);
 
   useEffect(() => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
 
     const managePowerLock = async () => {
       try {

@@ -29,8 +29,7 @@ const featureGateRef = vi.hoisted(() => ({
 }));
 
 vi.mock('@/store/useChatStore', () => {
-  const useChatStore = ((selector: (state: typeof chatStoreRef) => unknown) =>
-    selector(chatStoreRef)) as unknown as {
+  const useChatStore = ((selector: (state: typeof chatStoreRef) => unknown) => selector(chatStoreRef)) as unknown as {
     (selector: (state: typeof chatStoreRef) => unknown): unknown;
     getState: () => typeof chatStoreRef;
   };

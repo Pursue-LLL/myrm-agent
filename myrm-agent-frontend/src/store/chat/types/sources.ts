@@ -91,4 +91,3 @@ export interface WorkspaceMergeFailure {
 export function resolveSourceClickUrl(source: Source): string | undefined {
   return source.url;
 }
-

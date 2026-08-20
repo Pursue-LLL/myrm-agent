@@ -179,12 +179,7 @@ describe('ConflictCard', () => {
   });
 
   it('renders episodic conflict with correct type icon', () => {
-    render(
-      <ConflictCard
-        conflict={{ ...baseConflict, memory_type: 'episodic' }}
-        onResolve={mockResolve}
-      />,
-    );
+    render(<ConflictCard conflict={{ ...baseConflict, memory_type: 'episodic' }} onResolve={mockResolve} />);
 
     expect(screen.getByText('Use New')).toBeInTheDocument();
     expect(screen.getByText('Keep Old')).toBeInTheDocument();

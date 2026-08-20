@@ -68,34 +68,26 @@ const makeTable = (cols: number, rows: number = 2, useColspan = false) => (
 
 describe('ResponsiveTable', () => {
   it('renders a basic table with wrapper', () => {
-    const { container } = renderWithProviders(
-      <ResponsiveTable>{makeTable(3)}</ResponsiveTable>,
-    );
+    const { container } = renderWithProviders(<ResponsiveTable>{makeTable(3)}</ResponsiveTable>);
     expect(container.querySelector('.responsive-table-wrapper')).toBeTruthy();
     expect(container.querySelector('.responsive-table')).toBeTruthy();
     expect(container.querySelector('.not-prose')).toBeTruthy();
   });
 
   it('does NOT show toggle for tables with fewer than 4 columns', () => {
-    renderWithProviders(
-      <ResponsiveTable>{makeTable(3)}</ResponsiveTable>,
-    );
+    renderWithProviders(<ResponsiveTable>{makeTable(3)}</ResponsiveTable>);
     expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('shows toggle for tables with >= 4 columns', () => {
-    renderWithProviders(
-      <ResponsiveTable>{makeTable(5)}</ResponsiveTable>,
-    );
+    renderWithProviders(<ResponsiveTable>{makeTable(5)}</ResponsiveTable>);
     const btn = screen.getByRole('button');
     expect(btn).toBeTruthy();
     expect(btn.textContent).toContain('Table');
   });
 
   it('toggles between card and table view', () => {
-    const { container } = renderWithProviders(
-      <ResponsiveTable>{makeTable(5)}</ResponsiveTable>,
-    );
+    const { container } = renderWithProviders(<ResponsiveTable>{makeTable(5)}</ResponsiveTable>);
 
     expect(container.querySelector('.responsive-table-cards')).toBeTruthy();
 
@@ -110,9 +102,7 @@ describe('ResponsiveTable', () => {
   });
 
   it('injects data-label attributes in card mode', () => {
-    const { container } = renderWithProviders(
-      <ResponsiveTable>{makeTable(4)}</ResponsiveTable>,
-    );
+    const { container } = renderWithProviders(<ResponsiveTable>{makeTable(4)}</ResponsiveTable>);
 
     const tds = container.querySelectorAll('tbody td');
     expect(tds.length).toBeGreaterThan(0);
@@ -121,16 +111,12 @@ describe('ResponsiveTable', () => {
   });
 
   it('disables card view when colspan is present', () => {
-    renderWithProviders(
-      <ResponsiveTable>{makeTable(5, 2, true)}</ResponsiveTable>,
-    );
+    renderWithProviders(<ResponsiveTable>{makeTable(5, 2, true)}</ResponsiveTable>);
     expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('disables card view when isStreaming is true', () => {
-    renderWithProviders(
-      <ResponsiveTable isStreaming>{makeTable(5)}</ResponsiveTable>,
-    );
+    renderWithProviders(<ResponsiveTable isStreaming>{makeTable(5)}</ResponsiveTable>);
     expect(screen.queryByRole('button')).toBeNull();
   });
 
@@ -150,9 +136,7 @@ describe('ResponsiveTable', () => {
   });
 
   it('applies not-prose class to prevent Tailwind prose interference', () => {
-    const { container } = renderWithProviders(
-      <ResponsiveTable>{makeTable(3)}</ResponsiveTable>,
-    );
+    const { container } = renderWithProviders(<ResponsiveTable>{makeTable(3)}</ResponsiveTable>);
     const wrapper = container.firstElementChild;
     expect(wrapper?.classList.contains('not-prose')).toBe(true);
   });

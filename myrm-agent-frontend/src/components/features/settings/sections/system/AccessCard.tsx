@@ -127,9 +127,7 @@ export const AccessCard = memo<{
       : `/webui/qrcode.png?url=${encodeURIComponent(remoteUrl)}`
     : '';
 
-  const mobileHubQrSrc = mobileHubUrl
-    ? `/webui/qrcode.png?url=${encodeURIComponent(mobileHubUrl)}`
-    : '';
+  const mobileHubQrSrc = mobileHubUrl ? `/webui/qrcode.png?url=${encodeURIComponent(mobileHubUrl)}` : '';
 
   const handleTestIngress = async () => {
     setTestingIngress(true);
@@ -205,7 +203,9 @@ export const AccessCard = memo<{
         e2eeKey?.publicKeyB64,
       );
       setMobileHubUrl(hubUrl);
-      if (e2eeKey?.publicKeyB64) {setE2eePublicKeyB64(e2eeKey.publicKeyB64);}
+      if (e2eeKey?.publicKeyB64) {
+        setE2eePublicKeyB64(e2eeKey.publicKeyB64);
+      }
       writeToClipboard(hubUrl);
       toast.success(t('access.tunnel.shareCopied'));
     } catch {
@@ -214,12 +214,7 @@ export const AccessCard = memo<{
   };
 
   useEffect(() => {
-    if (
-      !showLocalIngress ||
-      !passwordProtectionEnabled ||
-      tunnelStatus?.state !== 'running' ||
-      mobileHubUrl
-    ) {
+    if (!showLocalIngress || !passwordProtectionEnabled || tunnelStatus?.state !== 'running' || mobileHubUrl) {
       return;
     }
     let cancelled = false;
@@ -236,7 +231,9 @@ export const AccessCard = memo<{
           serverKey = undefined;
         }
       }
-      if (serverKey) {setE2eePublicKeyB64(serverKey);}
+      if (serverKey) {
+        setE2eePublicKeyB64(serverKey);
+      }
       setMobileHubUrl(
         buildMobileHubUrl(mobilePath, tunnelStatus.publicUrl ?? '', publicIngressBaseUrl ?? '', serverKey),
       );
@@ -244,7 +241,14 @@ export const AccessCard = memo<{
     return () => {
       cancelled = true;
     };
-  }, [showLocalIngress, passwordProtectionEnabled, tunnelStatus?.state, tunnelStatus?.publicUrl, publicIngressBaseUrl, mobileHubUrl]);
+  }, [
+    showLocalIngress,
+    passwordProtectionEnabled,
+    tunnelStatus?.state,
+    tunnelStatus?.publicUrl,
+    publicIngressBaseUrl,
+    mobileHubUrl,
+  ]);
 
   if (!accessEnabled) {
     return (
@@ -301,10 +305,7 @@ export const AccessCard = memo<{
       </div>
 
       {showLocalIngress && (
-        <div
-          id="public-access"
-          className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 space-y-3"
-        >
+        <div id="public-access" className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 text-sm font-bold text-foreground">
               <IconWifi className="w-4 h-4 text-emerald-400" />
@@ -441,7 +442,9 @@ export const AccessCard = memo<{
                       </div>
                       <div className="flex gap-2">
                         <dt className="text-muted-foreground shrink-0">{t('access.tunnel.e2eeFingerprint')}</dt>
-                        <dd className="font-mono tracking-wider text-emerald-300">{computeE2EEFingerprintFromB64(e2eePublicKeyB64)}</dd>
+                        <dd className="font-mono tracking-wider text-emerald-300">
+                          {computeE2EEFingerprintFromB64(e2eePublicKeyB64)}
+                        </dd>
                       </div>
                     </dl>
                   )}
@@ -460,7 +463,7 @@ export const AccessCard = memo<{
                   </div>
                   <p className="text-xs text-muted-foreground text-center break-all">{mobileHubUrl}</p>
                   <p className="text-xs text-muted-foreground">{t('access.tunnel.hubScanHint')}</p>
-                  {(isInstallable || isInstalled) ? (
+                  {isInstallable || isInstalled ? (
                     <div className="w-full rounded-xl border border-border/60 bg-card/40 p-3 space-y-2 mt-2">
                       <p className="text-xs font-medium text-foreground">{t('access.tunnel.pwaTitle')}</p>
                       <p className="text-xs text-muted-foreground leading-relaxed">{t('access.tunnel.pwaHint')}</p>

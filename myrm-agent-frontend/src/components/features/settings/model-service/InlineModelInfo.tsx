@@ -34,7 +34,9 @@ export const InlineModelInfo = memo<InlineModelInfoProps>(({ providerId, modelNa
   const t = useTranslations('settings.modelService.modelInfo');
   const modelInfo = useProviderStore((state) => state.customModelInfo[`${providerId}/${modelName}`]);
 
-  if (!modelInfo) {return null;}
+  if (!modelInfo) {
+    return null;
+  }
 
   const {
     supports_vision,

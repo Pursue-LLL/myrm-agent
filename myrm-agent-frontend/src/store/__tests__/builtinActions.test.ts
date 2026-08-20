@@ -70,8 +70,20 @@ describe('buildBuiltinActions', () => {
 
   it('expected action names exist', () => {
     const names = actions.map((a) => a.name);
-    expect(names).toEqual(expect.arrayContaining([
-      'compact', 'focus', 'yolo', 'freeze', 'new', 'stop', 'model', 'learn', 'fork', 'goal', 'pet',
-    ]));
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'compact',
+        'focus',
+        'yolo',
+        'freeze',
+        'new',
+        'stop',
+        'model',
+        'learn',
+        'fork',
+        'goal',
+        'pet',
+      ]),
+    );
   });
 });

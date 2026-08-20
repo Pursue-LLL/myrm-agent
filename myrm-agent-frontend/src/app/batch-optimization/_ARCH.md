@@ -6,11 +6,11 @@
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 |
-|------|------|------|
-| `layout.tsx` | 布局 | 页面 metadata（`selectLocalizedText`） |
-| `page.tsx` | 核心 | 列表、创建、统计卡片、cancel+rollback 对话框（905 行，待下沉 `features/`） |
-| `[batchId]/page.tsx` | 核心 | 任务详情、审计、rollback/cancel 操作 |
+| 文件                 | 地位 | 职责                                                                       |
+| -------------------- | ---- | -------------------------------------------------------------------------- |
+| `layout.tsx`         | 布局 | 页面 metadata（`selectLocalizedText`）                                     |
+| `page.tsx`           | 核心 | 列表、创建、统计卡片、cancel+rollback 对话框（905 行，待下沉 `features/`） |
+| `[batchId]/page.tsx` | 核心 | 任务详情、审计、rollback/cancel 操作                                       |
 
 ## 依赖
 

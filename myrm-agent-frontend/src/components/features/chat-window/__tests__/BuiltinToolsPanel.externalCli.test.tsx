@@ -7,9 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BuiltinToolsPanel } from '../agent-config-panel/BuiltinToolsPanel';
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/hooks/billing/useFeatureEntitlements', () => ({
@@ -70,13 +68,7 @@ describe('BuiltinToolsPanel external_cli sandbox gate', () => {
     sandboxDeployMock.isLocalMode.mockReturnValue(true);
     const setTools = vi.fn();
 
-    render(
-      <BuiltinToolsPanel
-        {...baseProps}
-        localBuiltinTools={[]}
-        setLocalBuiltinTools={setTools}
-      />,
-    );
+    render(<BuiltinToolsPanel {...baseProps} localBuiltinTools={[]} setLocalBuiltinTools={setTools} />);
 
     const card = screen.getByTestId('builtin-external_cli');
     expect(card.className).not.toMatch(/cursor-not-allowed/);
@@ -90,13 +82,7 @@ describe('BuiltinToolsPanel external_cli sandbox gate', () => {
     sandboxDeployMock.isLocalMode.mockReturnValue(false);
     const setTools = vi.fn();
 
-    render(
-      <BuiltinToolsPanel
-        {...baseProps}
-        localBuiltinTools={[]}
-        setLocalBuiltinTools={setTools}
-      />,
-    );
+    render(<BuiltinToolsPanel {...baseProps} localBuiltinTools={[]} setLocalBuiltinTools={setTools} />);
 
     const card = screen.getByTestId('builtin-external_cli');
     expect(card.className).toMatch(/cursor-not-allowed/);
@@ -109,12 +95,7 @@ describe('BuiltinToolsPanel external_cli sandbox gate', () => {
     sandboxDeployMock.isSandbox.mockReturnValue(false);
     sandboxDeployMock.isLocalMode.mockReturnValue(true);
 
-    render(
-      <BuiltinToolsPanel
-        {...baseProps}
-        localBuiltinTools={['external_cli']}
-      />,
-    );
+    render(<BuiltinToolsPanel {...baseProps} localBuiltinTools={['external_cli']} />);
 
     expect(screen.getByText(/Two steps: register CLI backends/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Configure External Agents/i })).toHaveAttribute(

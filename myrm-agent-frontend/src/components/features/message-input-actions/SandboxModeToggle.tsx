@@ -48,7 +48,9 @@ const SandboxModeToggle = () => {
   const [loading, setLoading] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
-  if (actionMode !== 'agent') {return null;}
+  if (actionMode !== 'agent') {
+    return null;
+  }
 
   const handleEnable = async () => {
     if (!chatId) {
@@ -68,14 +70,15 @@ const SandboxModeToggle = () => {
   };
 
   const handleMerge = async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     setLoading(true);
     setShowExitDialog(false);
     try {
-      const res = await apiRequest<{ success: boolean; message: string }>(
-        `/chats/${chatId}/sandbox/merge`,
-        { method: 'POST' },
-      );
+      const res = await apiRequest<{ success: boolean; message: string }>(`/chats/${chatId}/sandbox/merge`, {
+        method: 'POST',
+      });
       if (res?.success) {
         setSandboxMode(false);
         toast.success(t('mergeSuccess'));
@@ -111,7 +114,9 @@ const SandboxModeToggle = () => {
   };
 
   const toggle = () => {
-    if (loading) {return;}
+    if (loading) {
+      return;
+    }
     if (sandboxMode) {
       setShowExitDialog(true);
     } else {
@@ -139,10 +144,7 @@ const SandboxModeToggle = () => {
               )}
             >
               <SandboxIcon
-                className={cn(
-                  'transition-colors duration-300',
-                  sandboxMode ? 'text-primary' : 'text-current',
-                )}
+                className={cn('transition-colors duration-300', sandboxMode ? 'text-primary' : 'text-current')}
               />
               <span className="hidden xl:inline">{t('sandboxMode')}</span>
             </button>
@@ -167,9 +169,7 @@ const SandboxModeToggle = () => {
             <Button variant="destructive" onClick={handleDiscard}>
               {t('discardSandbox')}
             </Button>
-            <Button onClick={handleMerge}>
-              {t('mergeSandbox')}
-            </Button>
+            <Button onClick={handleMerge}>{t('mergeSandbox')}</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

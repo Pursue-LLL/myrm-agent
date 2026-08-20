@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  selectScopedDesktopViewData,
-  type DesktopViewData,
-} from '@/store/useDesktopInspectorStore';
+import { selectScopedDesktopViewData, type DesktopViewData } from '@/store/useDesktopInspectorStore';
 
 const sampleView: DesktopViewData = {
   screenshotBase64: 'abc',

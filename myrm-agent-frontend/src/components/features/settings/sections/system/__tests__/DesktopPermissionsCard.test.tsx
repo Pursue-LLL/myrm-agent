@@ -39,8 +39,7 @@ vi.mock('@/lib/desktop/permissionDeepLink', () => ({
 
 import DesktopPermissionsCard from '../DesktopPermissionsCard';
 
-const ACCESSIBILITY_DEEPLINK =
-  'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
+const ACCESSIBILITY_DEEPLINK = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 
 const READY_PERMISSIONS = {
   accessibility: true,
@@ -50,11 +49,7 @@ const READY_PERMISSIONS = {
   settings_deeplinks: {},
 };
 
-function mockDesktopApis(options?: {
-  permissions?: unknown;
-  trust?: unknown;
-  trustReject?: boolean;
-}) {
+function mockDesktopApis(options?: { permissions?: unknown; trust?: unknown; trustReject?: boolean }) {
   mockApiRequest.mockImplementation((url: string, init?: { method?: string }) => {
     if (url === '/webui/desktop/permissions') {
       if (options?.permissions instanceof Error) {

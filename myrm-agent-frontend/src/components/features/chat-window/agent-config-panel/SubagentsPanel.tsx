@@ -54,7 +54,10 @@ export const SubagentsPanel = ({
   const [selectedPreset, setSelectedPreset] = useState('');
   const [subagentToDelete, setSubagentToDelete] = useState<string | null>(null);
 
-  const SUBAGENT_PRESETS: Record<string, EphemeralSubagentConfig & { display_name: string; theme_color: AgentThemeColor }> = {
+  const SUBAGENT_PRESETS: Record<
+    string,
+    EphemeralSubagentConfig & { display_name: string; theme_color: AgentThemeColor }
+  > = {
     researcher: { display_name: t('presetResearcher'), theme_color: 'blue', control_scope: 'leaf' },
     coder: { display_name: t('presetCoder'), theme_color: 'green', control_scope: 'leaf' },
     reviewer: { display_name: t('presetReviewer'), theme_color: 'purple', control_scope: 'leaf' },
@@ -62,16 +65,28 @@ export const SubagentsPanel = ({
   };
 
   const validateSubagentId = (id: string): string => {
-    if (!id) {return t('errorIdRequired');}
-    if (id.length < 2) {return t('errorIdTooShort');}
-    if (id.length > 50) {return t('errorIdTooLong');}
-    if (!/^[a-z0-9_-]+$/.test(id)) {return t('errorIdInvalid');}
-    if (localEphemeralSubagents[id]) {return t('errorIdDuplicate');}
+    if (!id) {
+      return t('errorIdRequired');
+    }
+    if (id.length < 2) {
+      return t('errorIdTooShort');
+    }
+    if (id.length > 50) {
+      return t('errorIdTooLong');
+    }
+    if (!/^[a-z0-9_-]+$/.test(id)) {
+      return t('errorIdInvalid');
+    }
+    if (localEphemeralSubagents[id]) {
+      return t('errorIdDuplicate');
+    }
     return '';
   };
 
   const validateDisplayName = (name: string): string => {
-    if (name.length > 100) {return t('errorDisplayNameTooLong');}
+    if (name.length > 100) {
+      return t('errorDisplayNameTooLong');
+    }
     return '';
   };
 
@@ -134,127 +149,124 @@ export const SubagentsPanel = ({
 
   return (
     <div className="space-y-4">
-        <Button onClick={() => setIsAddingSubagent(true)} variant="outline" className="w-full gap-2 border-dashed">
-          <Plus size={16} />
-          {t('addSubagent')}
-        </Button>
+      <Button onClick={() => setIsAddingSubagent(true)} variant="outline" className="w-full gap-2 border-dashed">
+        <Plus size={16} />
+        {t('addSubagent')}
+      </Button>
 
-        {subagentEntries.length > 0 ? (
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-            {subagentEntries.map(([key, config]) => (
-              <SubagentCard
-                key={key}
-                subagentKey={key}
-                config={config}
-                displayNameError={displayNameErrors[key]}
-                onDisplayNameChange={handleDisplayNameChange}
-                onThemeColorChange={handleThemeColorChange}
-                onControlScopeChange={handleControlScopeChange}
-                onDelete={() => setSubagentToDelete(key)}
-                t={t}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="py-8 text-center">
-            <p className="text-sm text-muted-foreground mb-2">{t('noSubagents')}</p>
-            <p className="text-xs text-muted-foreground/70">{t('noSubagentsDesc')}</p>
-          </div>
-        )}
+      {subagentEntries.length > 0 ? (
+        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+          {subagentEntries.map(([key, config]) => (
+            <SubagentCard
+              key={key}
+              subagentKey={key}
+              config={config}
+              displayNameError={displayNameErrors[key]}
+              onDisplayNameChange={handleDisplayNameChange}
+              onThemeColorChange={handleThemeColorChange}
+              onControlScopeChange={handleControlScopeChange}
+              onDelete={() => setSubagentToDelete(key)}
+              t={t}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="py-8 text-center">
+          <p className="text-sm text-muted-foreground mb-2">{t('noSubagents')}</p>
+          <p className="text-xs text-muted-foreground/70">{t('noSubagentsDesc')}</p>
+        </div>
+      )}
 
-        {/* Add subagent dialog */}
-        <Dialog open={isAddingSubagent} onOpenChange={setIsAddingSubagent}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{t('addSubagent')}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>{t('selectPreset')}</Label>
-                <Select
-                  value={selectedPreset}
-                  onValueChange={(value) => {
-                    setSelectedPreset(value);
-                    if (value !== 'custom') {
-                      setNewSubagentId(value);
-                      setNewSubagentIdError('');
-                    } else {
-                      setNewSubagentId('');
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('selectPreset')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(SUBAGENT_PRESETS).map((preset) => (
-                      <SelectItem key={preset} value={preset}>
-                        {SUBAGENT_PRESETS[preset].display_name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">{t('customId')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {(selectedPreset === 'custom' || !selectedPreset) && (
-                <div className="space-y-2">
-                  <Label htmlFor="new-subagent-id">{t('subagentIdLabel')}</Label>
-                  <Input
-                    id="new-subagent-id"
-                    value={newSubagentId}
-                    onChange={(e) => {
-                      setNewSubagentId(e.target.value);
-                      setNewSubagentIdError('');
-                    }}
-                    placeholder={t('subagentIdPlaceholder')}
-                    className={cn(newSubagentIdError && 'border-destructive focus-visible:ring-destructive')}
-                  />
-                  {newSubagentIdError && (
-                    <div className="flex items-center gap-1.5 text-xs text-destructive">
-                      <AlertCircle size={12} />
-                      {newSubagentIdError}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddingSubagent(false)}>
-                {tCommon('cancel')}
-              </Button>
-              <Button onClick={handleAddSubagent}>{tCommon('confirm')}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete confirmation dialog */}
-        <Dialog open={!!subagentToDelete} onOpenChange={() => setSubagentToDelete(null)}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{t('deleteSubagent')}</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground py-4">{t('confirmDeleteSubagent')}</p>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSubagentToDelete(null)}>
-                {tCommon('cancel')}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => subagentToDelete && handleDeleteSubagent(subagentToDelete)}
+      {/* Add subagent dialog */}
+      <Dialog open={isAddingSubagent} onOpenChange={setIsAddingSubagent}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('addSubagent')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{t('selectPreset')}</Label>
+              <Select
+                value={selectedPreset}
+                onValueChange={(value) => {
+                  setSelectedPreset(value);
+                  if (value !== 'custom') {
+                    setNewSubagentId(value);
+                    setNewSubagentIdError('');
+                  } else {
+                    setNewSubagentId('');
+                  }
+                }}
               >
-                {tCommon('confirm')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {hasValidationErrors && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-2">
-            <AlertCircle size={16} className="text-destructive mt-0.5 shrink-0" />
-            <p className="text-sm text-destructive">{t('fixValidationErrors')}</p>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('selectPreset')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(SUBAGENT_PRESETS).map((preset) => (
+                    <SelectItem key={preset} value={preset}>
+                      {SUBAGENT_PRESETS[preset].display_name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">{t('customId')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(selectedPreset === 'custom' || !selectedPreset) && (
+              <div className="space-y-2">
+                <Label htmlFor="new-subagent-id">{t('subagentIdLabel')}</Label>
+                <Input
+                  id="new-subagent-id"
+                  value={newSubagentId}
+                  onChange={(e) => {
+                    setNewSubagentId(e.target.value);
+                    setNewSubagentIdError('');
+                  }}
+                  placeholder={t('subagentIdPlaceholder')}
+                  className={cn(newSubagentIdError && 'border-destructive focus-visible:ring-destructive')}
+                />
+                {newSubagentIdError && (
+                  <div className="flex items-center gap-1.5 text-xs text-destructive">
+                    <AlertCircle size={12} />
+                    {newSubagentIdError}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddingSubagent(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button onClick={handleAddSubagent}>{tCommon('confirm')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!subagentToDelete} onOpenChange={() => setSubagentToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('deleteSubagent')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-4">{t('confirmDeleteSubagent')}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSubagentToDelete(null)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button variant="destructive" onClick={() => subagentToDelete && handleDeleteSubagent(subagentToDelete)}>
+              {tCommon('confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {hasValidationErrors && (
+        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-2">
+          <AlertCircle size={16} className="text-destructive mt-0.5 shrink-0" />
+          <p className="text-sm text-destructive">{t('fixValidationErrors')}</p>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -344,15 +356,15 @@ function SubagentCard({
         <Label htmlFor={`theme-color-${subagentKey}`} className="text-xs font-medium text-muted-foreground">
           {t('subagentThemeColor')}
         </Label>
-        <Select
-          value={themeColor}
-          onValueChange={(value) => onThemeColorChange(subagentKey, value as AgentThemeColor)}
-        >
+        <Select value={themeColor} onValueChange={(value) => onThemeColorChange(subagentKey, value as AgentThemeColor)}>
           <SelectTrigger className="h-9 text-sm">
             <SelectValue>
               <div className="flex items-center gap-2">
                 <div
-                  className={cn('w-4 h-4 rounded-full border-2', AGENT_COLOR_CLASSES[themeColor]?.border || AGENT_COLOR_CLASSES.blue.border)}
+                  className={cn(
+                    'w-4 h-4 rounded-full border-2',
+                    AGENT_COLOR_CLASSES[themeColor]?.border || AGENT_COLOR_CLASSES.blue.border,
+                  )}
                   style={{ backgroundColor: COLOR_HEX[themeColor] || COLOR_HEX.blue }}
                 />
                 <span className="capitalize">{themeColor}</span>

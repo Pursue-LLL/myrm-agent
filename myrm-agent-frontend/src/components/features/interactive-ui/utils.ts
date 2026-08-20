@@ -193,7 +193,9 @@ export function extractValidationRules(props: Record<string, unknown>): Validati
  * 支持 JSONPath 风格的路径，如 "$.form.name" 或 "form.name"
  */
 export function getValueByPath(data: Record<string, unknown>, path: string): unknown {
-  if (!path || !data) {return undefined;}
+  if (!path || !data) {
+    return undefined;
+  }
 
   // 移除开头的 "$." 前缀
   const cleanPath = path.startsWith('$.') ? path.slice(2) : path;
@@ -201,8 +203,12 @@ export function getValueByPath(data: Record<string, unknown>, path: string): unk
 
   let current: unknown = data;
   for (const key of keys) {
-    if (current === null || current === undefined) {return undefined;}
-    if (typeof current !== 'object') {return undefined;}
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    if (typeof current !== 'object') {
+      return undefined;
+    }
     current = (current as Record<string, unknown>)[key];
   }
 
@@ -235,7 +241,9 @@ export function resolveBindings(
  * 返回一个新的数据对象（不可变更新）
  */
 export function setValueByPath(data: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
-  if (!path) {return data;}
+  if (!path) {
+    return data;
+  }
 
   // 移除开头的 "$." 前缀
   const cleanPath = path.startsWith('$.') ? path.slice(2) : path;

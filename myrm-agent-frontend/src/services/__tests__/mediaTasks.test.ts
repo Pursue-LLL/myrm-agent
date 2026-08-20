@@ -20,12 +20,7 @@ import { apiRequest } from '@/lib/api';
 
 const mockApiRequest = vi.mocked(apiRequest);
 
-function createTask(
-  taskId: string,
-  taskType: string,
-  status: Task['status'],
-  overrides: Partial<Task> = {},
-): Task {
+function createTask(taskId: string, taskType: string, status: Task['status'], overrides: Partial<Task> = {}): Task {
   return {
     task_id: taskId,
     task_type: taskType,
@@ -77,10 +72,7 @@ describe('mediaTasks', () => {
       }
       if (url.includes('status=running')) {
         return {
-          tasks: [
-            createTask('img-2', 'image_generate', 'running'),
-            createTask('vid-2', 'video_generate', 'running'),
-          ],
+          tasks: [createTask('img-2', 'image_generate', 'running'), createTask('vid-2', 'video_generate', 'running')],
         };
       }
       return { tasks: [] };

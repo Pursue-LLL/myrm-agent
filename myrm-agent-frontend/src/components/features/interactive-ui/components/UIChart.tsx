@@ -43,7 +43,9 @@ export const UIChart: React.FC<UIComponentProps> = ({ props, bindings, data }) =
   const dataPath = bindings.data || bindings.value;
   const chartData = useMemo(() => {
     const rawData = dataPath ? getValueByPath(data, dataPath) : props.data;
-    if (!rawData || !Array.isArray(rawData)) {return [];}
+    if (!rawData || !Array.isArray(rawData)) {
+      return [];
+    }
     return (rawData as ChartDataItem[]).map((item, index) => ({
       ...item,
       color: item.color || defaultColors[index % defaultColors.length],
@@ -109,11 +111,7 @@ export const UIChart: React.FC<UIComponentProps> = ({ props, bindings, data }) =
     return (
       <div className="relative" style={{ height }}>
         <div className="relative" style={{ height: svgH }}>
-          <svg
-            viewBox={`0 0 ${svgW} ${svgH}`}
-            className="absolute inset-0 w-full h-full"
-            preserveAspectRatio="none"
-          >
+          <svg viewBox={`0 0 ${svgW} ${svgH}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
             {/* 网格线 */}
             {[0, 25, 50, 75, 100].map((pct) => (
               <line

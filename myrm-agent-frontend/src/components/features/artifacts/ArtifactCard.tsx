@@ -4,7 +4,22 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
-import { BookOpen, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, Lock, MessageSquarePlus, Play, Send } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  ExternalLink,
+  Eye,
+  FolderOpen,
+  Globe,
+  Link2,
+  Lock,
+  MessageSquarePlus,
+  Play,
+  Send,
+} from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
@@ -74,7 +89,18 @@ function getArtifactColor(type: ArtifactType): string {
 }
 
 function isPreviewable(type: ArtifactType): boolean {
-  return ['code', 'document', 'html', 'image', 'svg', 'mermaid', 'pdf', 'spreadsheet', 'presentation', 'word_document'].includes(type);
+  return [
+    'code',
+    'document',
+    'html',
+    'image',
+    'svg',
+    'mermaid',
+    'pdf',
+    'spreadsheet',
+    'presentation',
+    'word_document',
+  ].includes(type);
 }
 
 function isCopyable(type: ArtifactType): boolean {
@@ -220,15 +246,16 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   );
 
   const handleSharePreview = useCallback(async () => {
-    if (shareLoading) {return;}
+    if (shareLoading) {
+      return;
+    }
     setShareLoading(true);
     try {
       const pwd = sharePassword.trim() || undefined;
-      const result = await createArtifactSharePreview(
-        artifactState.id,
-        artifactState.type,
-        { ttlDays: shareTtlDays, password: pwd },
-      );
+      const result = await createArtifactSharePreview(artifactState.id, artifactState.type, {
+        ttlDays: shareTtlDays,
+        password: pwd,
+      });
       const url = result.share_url ?? buildPublicArtifactShareUrl(result.share_path);
       await writeToClipboard(url);
       const descKey = result.password_protected
@@ -254,7 +281,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
 
   const fetchInlineContent = useCallback(async (): Promise<string | null> => {
     const cached = getCachedContent(artifact.id);
-    if (cached) {return cached;}
+    if (cached) {
+      return cached;
+    }
 
     try {
       const fullUrl = getStorageUrl(artifact.preview_url);
@@ -294,7 +323,16 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   );
 
   useEffect(() => {
-    if (!canInlinePreview || !inlineExpanded || inlineContent || inlineLoading || inlineFetchAttempted.current || isLargeFile) {return;}
+    if (
+      !canInlinePreview ||
+      !inlineExpanded ||
+      inlineContent ||
+      inlineLoading ||
+      inlineFetchAttempted.current ||
+      isLargeFile
+    ) {
+      return;
+    }
     inlineFetchAttempted.current = true;
     let cancelled = false;
     setInlineLoading(true);
@@ -304,15 +342,21 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         setInlineLoading(false);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [canInlinePreview, inlineExpanded, inlineContent, inlineLoading, fetchInlineContent, isLargeFile]);
 
   const preloadContent = useCallback(async () => {
     if (!['code', 'document', 'svg', 'mermaid', 'html'].includes(artifact.type)) {
       return;
     }
-    if (isLargeFile) {return;}
-    if (getCachedContent(artifact.id)) {return;}
+    if (isLargeFile) {
+      return;
+    }
+    if (getCachedContent(artifact.id)) {
+      return;
+    }
 
     try {
       const fullUrl = getStorageUrl(artifact.preview_url);
@@ -367,7 +411,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   }, [artifact]);
 
   const handleRevealInFileManager = useCallback(async () => {
-    if (!artifact.file_path) {return;}
+    if (!artifact.file_path) {
+      return;
+    }
     try {
       if (isTauriRuntime()) {
         const { open } = await import('@tauri-apps/plugin-shell');
@@ -383,7 +429,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   }, [artifact, t]);
 
   const handleOpenWithDefaultApp = useCallback(async () => {
-    if (!artifact.file_path) {return;}
+    if (!artifact.file_path) {
+      return;
+    }
     try {
       if (isTauriRuntime()) {
         const { open } = await import('@tauri-apps/plugin-shell');
@@ -397,14 +445,18 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   }, [artifact, t]);
 
   const handleCopyPath = useCallback(async () => {
-    if (!artifact.file_path) {return;}
+    if (!artifact.file_path) {
+      return;
+    }
     await writeToClipboard(artifact.file_path);
     setPathCopied(true);
     setTimeout(() => setPathCopied(false), 2000);
   }, [artifact.file_path]);
 
   const handleIngestToWiki = useCallback(async () => {
-    if (ingestLoading) {return;}
+    if (ingestLoading) {
+      return;
+    }
     setIngestLoading(true);
     try {
       const agentId = useChatStore.getState().agentConfig?.agentId;
@@ -478,9 +530,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     });
   };
 
-  const stalePublications = publications.filter((pub) =>
-    isPublicationStale(pub, artifactState.latest_version_id),
-  );
+  const stalePublications = publications.filter((pub) => isPublicationStale(pub, artifactState.latest_version_id));
 
   const handleDismissWeChatDraftPanel = useCallback(() => {
     setWechatDraftOpen(false);
@@ -505,459 +555,462 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
 
   return (
     <>
-    <div
-      className={cn(
-        'group relative rounded-xl overflow-hidden',
-        'border border-gray-200/60 dark:border-gray-700/60',
-        'bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-850/50',
-        'hover:border-gray-300 dark:hover:border-gray-600',
-        'hover:shadow-md hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50',
-        'transition-all duration-200 ease-out',
-        canInlinePreview && inlineExpanded && 'sm:col-span-2',
-      )}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Card header */}
-      <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={() => canPreview && onPreview?.(artifactState)}>
-        <div className={cn('flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', colorClass)}>
-          <Icon className="w-5 h-5" />
-        </div>
+      <div
+        className={cn(
+          'group relative rounded-xl overflow-hidden',
+          'border border-gray-200/60 dark:border-gray-700/60',
+          'bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-850/50',
+          'hover:border-gray-300 dark:hover:border-gray-600',
+          'hover:shadow-md hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50',
+          'transition-all duration-200 ease-out',
+          canInlinePreview && inlineExpanded && 'sm:col-span-2',
+        )}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Card header */}
+        <div
+          className="flex items-center gap-3 p-3 cursor-pointer"
+          onClick={() => canPreview && onPreview?.(artifactState)}
+        >
+          <div className={cn('flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', colorClass)}>
+            <Icon className="w-5 h-5" />
+          </div>
 
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{artifactState.filename}</h4>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-xs text-gray-500 dark:text-gray-400">{t(`types.${artifactState.type}`)}</span>
-            <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(artifactState.size)}</span>
-            {artifactState.filename.endsWith('.skill') && (
-              <>
-                <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{t('skillActions.skillPackageHint')}</span>
-              </>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{artifactState.filename}</h4>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="text-xs text-gray-500 dark:text-gray-400">{t(`types.${artifactState.type}`)}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(artifactState.size)}</span>
+              {artifactState.filename.endsWith('.skill') && (
+                <>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{t('skillActions.skillPackageHint')}</span>
+                </>
+              )}
+            </div>
+            {hasLocalPath && (
+              <p
+                className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5 max-w-[200px]"
+                title={artifact.file_path}
+              >
+                {artifact.file_path}
+              </p>
             )}
           </div>
-          {hasLocalPath && (
-            <p
-              className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5 max-w-[200px]"
-              title={artifact.file_path}
-            >
-              {artifact.file_path}
-            </p>
-          )}
-        </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
-          {hasLocalPath && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenWithDefaultApp();
-              }}
-              title={t('openWithDefaultApp')}
-            >
-              <Play className="w-4 h-4" />
-            </Button>
-          )}
-          {hasLocalPath && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRevealInFileManager();
-              }}
-              title={t('revealInFileManager')}
-            >
-              <FolderOpen className="w-4 h-4" />
-            </Button>
-          )}
-          {hasLocalPath && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCopyPath();
-              }}
-              title={pathCopied ? t('copied') : t('copyPath')}
-            >
-              <Copy className={cn('w-3.5 h-3.5', pathCopied && 'text-green-500')} />
-            </Button>
-          )}
-          {canDeploy && publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-green-600 dark:text-green-500"
-              onClick={(e) => {
-                e.stopPropagation();
-                const live = publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url);
-                if (live?.publication_url) {
-                  window.open(live.publication_url, '_blank');
-                }
-              }}
-              title={t('deploy.deployedLabel', {
-                hostname: deploymentHostname(
-                  publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url)?.publication_url ?? '',
-                ),
-              })}
-            >
-              <ExternalLink className="w-4 h-4" />
-            </Button>
-          )}
-          {canSharePreview && (
-            <Popover open={sharePopoverOpen} onOpenChange={setSharePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-primary"
-                  onClick={(e) => e.stopPropagation()}
-                  title={t('sharePreview.open')}
-                >
-                  <Link2 className="w-4 h-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-72 p-3 space-y-3"
-                align="end"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <p className="text-sm font-medium">{t('sharePreview.title')}</p>
-                <div className="space-y-1.5">
-                  <Label className="text-xs flex items-center gap-1">
-                    <Lock className="w-3 h-3" />
-                    {t('sharePreview.passwordLabel')}
-                  </Label>
-                  <Input
-                    type="password"
-                    value={sharePassword}
-                    onChange={(e) => setSharePassword(e.target.value)}
-                    placeholder={t('sharePreview.passwordPlaceholder')}
-                    className="h-8 text-sm"
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('sharePreview.ttlLabel')}</Label>
-                  <div className="flex gap-1.5">
-                    {[1, 7, 14, 30].map((d) => (
-                      <Button
-                        key={d}
-                        variant={shareTtlDays === d ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-7 flex-1 text-xs px-0"
-                        onClick={() => setShareTtlDays(d)}
-                      >
-                        {t('sharePreview.ttlDays', { days: d })}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <Button
-                  className="w-full h-8 text-sm"
-                  disabled={shareLoading}
-                  onClick={() => { void handleSharePreview(); }}
-                >
-                  {shareLoading ? t('sharePreview.creating') : t('sharePreview.createBtn')}
-                </Button>
-              </PopoverContent>
-            </Popover>
-          )}
-          {isDeployCandidate && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'h-8 w-8',
-                canDeploy ? 'text-primary' : 'text-muted-foreground opacity-60',
-              )}
-              onClick={handleOpenDeploy}
-              title={
-                canDeploy
-                  ? t('publish.openModal')
-                  : deployPreflight?.hint ?? deployPreflight?.message ?? t('publish.openModal')
-              }
-            >
-              <Globe className="w-4 h-4" />
-            </Button>
-          )}
-          {canPushWeChatDraft && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'h-8 w-8',
-                wechatDraftOpen ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                setWechatDraftOpen((prev) => !prev);
-              }}
-              title={t('wechatDraft.openPanel')}
-              data-testid="wechat-draft-open-panel"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          )}
-          {isOrganizePlan && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'h-8 w-8',
-                organizePlanOpen ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                setOrganizePlanOpen((prev) => !prev);
-              }}
-              title={t('organizePlan.openPanel')}
-            >
-              <FolderOpen className="w-4 h-4" />
-            </Button>
-          )}
-          {canIngestToWiki && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              disabled={ingestLoading}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleIngestToWiki();
-              }}
-              title={t('ingestToWiki.title')}
-            >
-              <BookOpen className={cn('w-4 h-4', ingestLoading && 'opacity-50 animate-pulse')} />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleInsertToChat();
-            }}
-            title={t('insertToChat.title')}
-          >
-            <MessageSquarePlus className="w-4 h-4" />
-          </Button>
-          {canInlinePreview && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={toggleInlinePreview}
-              title={inlineExpanded ? t('inlinePreview.collapse') : t('inlinePreview.expand')}
-            >
-              {inlineExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </Button>
-          )}
-          {canPreview && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPreview?.(artifactState);
-              }}
-              title={t('preview')}
-            >
-              <Eye className="w-4 h-4" />
-            </Button>
-          )}
-          {canCopy && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCopy();
-              }}
-              title={copied ? t('copied') : t('copyCode')}
-            >
-              <Copy className={cn('w-4 h-4', copied && 'text-green-500')} />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenInNewTab();
-            }}
-            title={t('openInNewTab')}
-          >
-            <ExternalLink className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDownload();
-            }}
-            title={t('download')}
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-
-      {publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
-        <div className="mx-3 mb-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-          {publications
-            .filter((pub) => pub.publication_status === 'READY' && pub.publication_url)
-            .map((pub) => (
-              <button
-                key={pub.id}
-                type="button"
-                className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-950/50"
+          {/* Action buttons */}
+          <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+            {hasLocalPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(pub.publication_url!, '_blank');
+                  handleOpenWithDefaultApp();
                 }}
-                title={t('publish.openLiveWithTarget', {
-                  target: pub.hosting_target_name ?? pub.hosting_target_id,
-                  hostname: deploymentHostname(pub.publication_url!),
+                title={t('openWithDefaultApp')}
+              >
+                <Play className="w-4 h-4" />
+              </Button>
+            )}
+            {hasLocalPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRevealInFileManager();
+                }}
+                title={t('revealInFileManager')}
+              >
+                <FolderOpen className="w-4 h-4" />
+              </Button>
+            )}
+            {hasLocalPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopyPath();
+                }}
+                title={pathCopied ? t('copied') : t('copyPath')}
+              >
+                <Copy className={cn('w-3.5 h-3.5', pathCopied && 'text-green-500')} />
+              </Button>
+            )}
+            {canDeploy && publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-green-600 dark:text-green-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const live = publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url);
+                  if (live?.publication_url) {
+                    window.open(live.publication_url, '_blank');
+                  }
+                }}
+                title={t('deploy.deployedLabel', {
+                  hostname: deploymentHostname(
+                    publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url)
+                      ?.publication_url ?? '',
+                  ),
                 })}
               >
-                <ExternalLink className="h-3 w-3" />
-                <span className="truncate max-w-[12rem]">
-                  {pub.hosting_target_name ? `${pub.hosting_target_name} · ` : ''}
-                  {deploymentHostname(pub.publication_url!)}
-                </span>
-              </button>
-            ))}
-        </div>
-      )}
-
-      {stalePublications.map((pub) => (
-        <div
-          key={pub.id}
-          className="mx-3 mb-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="min-w-0">
-            {t('deploy.redeployBannerForTarget', {
-              target: pub.hosting_target_name ?? pub.hosting_target_id,
-            })}
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 shrink-0 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPublishTargetId(pub.hosting_target_id);
-              setPublishModalOpen(true);
-            }}
-          >
-            {t('deploy.redeployAction')}
-          </Button>
-        </div>
-      ))}
-
-      {/* Inline visual preview */}
-      {canInlinePreview && inlineExpanded && (
-        <div className="border-t border-gray-200/60 dark:border-gray-700/60">
-          {isLargeFile ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-6">
-              <span className="text-sm text-muted-foreground">
-                {t('inlinePreview.largeFileHint', { size: formatBytes(artifact.size) })}
-              </span>
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            )}
+            {canSharePreview && (
+              <Popover open={sharePopoverOpen} onOpenChange={setSharePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-primary"
+                    onClick={(e) => e.stopPropagation()}
+                    title={t('sharePreview.open')}
+                  >
+                    <Link2 className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-3 space-y-3" align="end" onClick={(e) => e.stopPropagation()}>
+                  <p className="text-sm font-medium">{t('sharePreview.title')}</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1">
+                      <Lock className="w-3 h-3" />
+                      {t('sharePreview.passwordLabel')}
+                    </Label>
+                    <Input
+                      type="password"
+                      value={sharePassword}
+                      onChange={(e) => setSharePassword(e.target.value)}
+                      placeholder={t('sharePreview.passwordPlaceholder')}
+                      className="h-8 text-sm"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('sharePreview.ttlLabel')}</Label>
+                    <div className="flex gap-1.5">
+                      {[1, 7, 14, 30].map((d) => (
+                        <Button
+                          key={d}
+                          variant={shareTtlDays === d ? 'default' : 'outline'}
+                          size="sm"
+                          className="h-7 flex-1 text-xs px-0"
+                          onClick={() => setShareTtlDays(d)}
+                        >
+                          {t('sharePreview.ttlDays', { days: d })}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full h-8 text-sm"
+                    disabled={shareLoading}
+                    onClick={() => {
+                      void handleSharePreview();
+                    }}
+                  >
+                    {shareLoading ? t('sharePreview.creating') : t('sharePreview.createBtn')}
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            )}
+            {isDeployCandidate && (
               <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
+                variant="ghost"
+                size="icon"
+                className={cn('h-8 w-8', canDeploy ? 'text-primary' : 'text-muted-foreground opacity-60')}
+                onClick={handleOpenDeploy}
+                title={
+                  canDeploy
+                    ? t('publish.openModal')
+                    : (deployPreflight?.hint ?? deployPreflight?.message ?? t('publish.openModal'))
+                }
+              >
+                <Globe className="w-4 h-4" />
+              </Button>
+            )}
+            {canPushWeChatDraft && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-8 w-8',
+                  wechatDraftOpen
+                    ? 'text-primary'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setWechatDraftOpen((prev) => !prev);
+                }}
+                title={t('wechatDraft.openPanel')}
+                data-testid="wechat-draft-open-panel"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            )}
+            {isOrganizePlan && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-8 w-8',
+                  organizePlanOpen
+                    ? 'text-primary'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOrganizePlanOpen((prev) => !prev);
+                }}
+                title={t('organizePlan.openPanel')}
+              >
+                <FolderOpen className="w-4 h-4" />
+              </Button>
+            )}
+            {canIngestToWiki && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                disabled={ingestLoading}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleIngestToWiki();
+                }}
+                title={t('ingestToWiki.title')}
+              >
+                <BookOpen className={cn('w-4 h-4', ingestLoading && 'opacity-50 animate-pulse')} />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleInsertToChat();
+              }}
+              title={t('insertToChat.title')}
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+            </Button>
+            {canInlinePreview && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={toggleInlinePreview}
+                title={inlineExpanded ? t('inlinePreview.collapse') : t('inlinePreview.expand')}
+              >
+                {inlineExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            )}
+            {canPreview && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 onClick={(e) => {
                   e.stopPropagation();
                   onPreview?.(artifactState);
                 }}
+                title={t('preview')}
               >
-                <Eye className="w-3.5 h-3.5 mr-1.5" />
-                {t('inlinePreview.viewFullscreen')}
+                <Eye className="w-4 h-4" />
               </Button>
-            </div>
-          ) : inlineLoading && !inlineContent ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
-            </div>
-          ) : inlineContent ? (
-            <div className="min-h-[100px]">
-              {artifact.type === 'svg' ? (
-                <SvgPreview content={inlineContent} />
-              ) : artifact.type === 'mermaid' ? (
-                <MermaidPreview content={inlineContent} />
-              ) : (
-                <HtmlPreview content={inlineContent} autoHeight injectTheme />
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-              {t('inlinePreview.loadError')}
-            </div>
-          )}
+            )}
+            {canCopy && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+                title={copied ? t('copied') : t('copyCode')}
+              >
+                <Copy className={cn('w-4 h-4', copied && 'text-green-500')} />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenInNewTab();
+              }}
+              title={t('openInNewTab')}
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload();
+              }}
+              title={t('download')}
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-      )}
 
-      {canPushWeChatDraft && wechatDraftOpen && artifactState.file_path && (
-        <WeChatDraftPanel
-          artifactId={artifact.id}
-          filename={artifactState.filename}
-          htmlPath={artifactState.file_path}
-          chatId={chatId ?? null}
-          agentName={agentName}
-          presetName={presetName}
-          fetchInlineContent={fetchInlineContent}
-          onComplete={handleDismissWeChatDraftPanel}
-        />
-      )}
+        {publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
+          <div className="mx-3 mb-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+            {publications
+              .filter((pub) => pub.publication_status === 'READY' && pub.publication_url)
+              .map((pub) => (
+                <button
+                  key={pub.id}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-950/50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(pub.publication_url!, '_blank');
+                  }}
+                  title={t('publish.openLiveWithTarget', {
+                    target: pub.hosting_target_name ?? pub.hosting_target_id,
+                    hostname: deploymentHostname(pub.publication_url!),
+                  })}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  <span className="truncate max-w-[12rem]">
+                    {pub.hosting_target_name ? `${pub.hosting_target_name} · ` : ''}
+                    {deploymentHostname(pub.publication_url!)}
+                  </span>
+                </button>
+              ))}
+          </div>
+        )}
 
-      {isOrganizePlan && organizePlanOpen && (
-        <div
-          className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {organizePlanLoading && !organizePlanContent ? (
-            <div className="flex items-center justify-center py-6">
-              <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
-            </div>
-          ) : organizePlanContent ? (
-            <OrganizePlanPanel
-              workspace={workspaceDir ?? ''}
-              planContent={organizePlanContent}
-              onPlanChange={setOrganizePlanContent}
-            />
-          ) : (
-            <p className="text-xs text-muted-foreground">{t('organizePlan.invalidPlan')}</p>
-          )}
-        </div>
-      )}
-    </div>
-    <PublishModal
-      artifact={artifactState}
-      open={publishModalOpen}
-      onClose={() => {
-        setPublishModalOpen(false);
-        setPublishTargetId(undefined);
-      }}
-      onPublished={handlePublished}
-      initialTargetId={publishTargetId}
-    />
+        {stalePublications.map((pub) => (
+          <div
+            key={pub.id}
+            className="mx-3 mb-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="min-w-0">
+              {t('deploy.redeployBannerForTarget', {
+                target: pub.hosting_target_name ?? pub.hosting_target_id,
+              })}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 shrink-0 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPublishTargetId(pub.hosting_target_id);
+                setPublishModalOpen(true);
+              }}
+            >
+              {t('deploy.redeployAction')}
+            </Button>
+          </div>
+        ))}
+
+        {/* Inline visual preview */}
+        {canInlinePreview && inlineExpanded && (
+          <div className="border-t border-gray-200/60 dark:border-gray-700/60">
+            {isLargeFile ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-6">
+                <span className="text-sm text-muted-foreground">
+                  {t('inlinePreview.largeFileHint', { size: formatBytes(artifact.size) })}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPreview?.(artifactState);
+                  }}
+                >
+                  <Eye className="w-3.5 h-3.5 mr-1.5" />
+                  {t('inlinePreview.viewFullscreen')}
+                </Button>
+              </div>
+            ) : inlineLoading && !inlineContent ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+              </div>
+            ) : inlineContent ? (
+              <div className="min-h-[100px]">
+                {artifact.type === 'svg' ? (
+                  <SvgPreview content={inlineContent} />
+                ) : artifact.type === 'mermaid' ? (
+                  <MermaidPreview content={inlineContent} />
+                ) : (
+                  <HtmlPreview content={inlineContent} autoHeight injectTheme />
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                {t('inlinePreview.loadError')}
+              </div>
+            )}
+          </div>
+        )}
+
+        {canPushWeChatDraft && wechatDraftOpen && artifactState.file_path && (
+          <WeChatDraftPanel
+            artifactId={artifact.id}
+            filename={artifactState.filename}
+            htmlPath={artifactState.file_path}
+            chatId={chatId ?? null}
+            agentName={agentName}
+            presetName={presetName}
+            fetchInlineContent={fetchInlineContent}
+            onComplete={handleDismissWeChatDraftPanel}
+          />
+        )}
+
+        {isOrganizePlan && organizePlanOpen && (
+          <div
+            className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {organizePlanLoading && !organizePlanContent ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+              </div>
+            ) : organizePlanContent ? (
+              <OrganizePlanPanel
+                workspace={workspaceDir ?? ''}
+                planContent={organizePlanContent}
+                onPlanChange={setOrganizePlanContent}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('organizePlan.invalidPlan')}</p>
+            )}
+          </div>
+        )}
+      </div>
+      <PublishModal
+        artifact={artifactState}
+        open={publishModalOpen}
+        onClose={() => {
+          setPublishModalOpen(false);
+          setPublishTargetId(undefined);
+        }}
+        onPublished={handlePublished}
+        initialTargetId={publishTargetId}
+      />
     </>
   );
 };

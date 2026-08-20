@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { MemoryLifecycleTimeline } from '@/components/features/message-box/MemoryLifecycleTimeline';
-import type { MemoryLifecyclePhaseId, MemoryLifecyclePhaseState } from '@/components/features/message-box/memoryLifecyclePhases';
+import type {
+  MemoryLifecyclePhaseId,
+  MemoryLifecyclePhaseState,
+} from '@/components/features/message-box/memoryLifecyclePhases';
 
 const stableT = (key: string) => key;
 
@@ -13,9 +16,7 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
 function phasesWithExtractError(): Record<MemoryLifecyclePhaseId, MemoryLifecyclePhaseState> {
@@ -31,11 +32,7 @@ describe('MemoryLifecycleTimeline', () => {
     const onRetryExtract = vi.fn(async () => undefined);
 
     render(
-      <MemoryLifecycleTimeline
-        phases={phasesWithExtractError()}
-        showRecall={false}
-        onRetryExtract={onRetryExtract}
-      />,
+      <MemoryLifecycleTimeline phases={phasesWithExtractError()} showRecall={false} onRetryExtract={onRetryExtract} />,
     );
 
     const retryButton = screen.getByRole('button', { name: 'lifecycleRetryExtract' });

@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  defaultAllowAlwaysScope,
-  scopeToAllowAlwaysValue,
-} from '@/lib/approval/allowAlwaysScope';
+import { defaultAllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
 
 describe('scopeToAllowAlwaysValue', () => {
   it('maps permission scope to true', () => {

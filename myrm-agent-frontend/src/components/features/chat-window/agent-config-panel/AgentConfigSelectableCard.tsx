@@ -37,12 +37,18 @@ export function SelectableCard({
           ? 'cursor-not-allowed opacity-60 bg-muted/20 border-border/40'
           : cn(
               'cursor-pointer',
-              checked ? 'bg-primary/5 border-primary/30' : 'bg-card/50 border-border/40 hover:border-border hover:bg-muted/30',
+              checked
+                ? 'bg-primary/5 border-primary/30'
+                : 'bg-card/50 border-border/40 hover:border-border hover:bg-muted/30',
             ),
       )}
       onClick={(e) => {
-        if (disabled) {return;}
-        if ((e.target as HTMLElement).closest('.no-card-click')) {return;}
+        if (disabled) {
+          return;
+        }
+        if ((e.target as HTMLElement).closest('.no-card-click')) {
+          return;
+        }
         onCheckedChange();
       }}
     >

@@ -72,7 +72,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     for (const s of statuses) {
       statusMap[s.name] = s.status === 'running' && !s.connected ? 'running_idle' : s.status;
       activityMap[s.name] = { last_active_at: s.last_active_at };
-      if (s.issues?.length) {issuesMap[s.name] = s.issues;}
+      if (s.issues?.length) {
+        issuesMap[s.name] = s.issues;
+      }
     }
     setChannelStatuses(statusMap);
     setChannelActivities(activityMap);
@@ -80,10 +82,12 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
   }, []);
 
   const fetchChannelStatuses = useCallback(() => {
-    listChannelStatuses().then(updateChannelStatusMaps).catch(() => {
-      // 查询失败时保留上次状态：清空会导致所有渠道配置面板卸载，正在进行的
-      // 实例增删在卸载组件上的 state 更新会被 React 丢弃，造成 UI 与后端失联。
-    });
+    listChannelStatuses()
+      .then(updateChannelStatusMaps)
+      .catch(() => {
+        // 查询失败时保留上次状态：清空会导致所有渠道配置面板卸载，正在进行的
+        // 实例增删在卸载组件上的 state 更新会被 React 丢弃，造成 UI 与后端失联。
+      });
   }, [updateChannelStatusMaps]);
 
   const refreshGroupsAndStatuses = useCallback(() => {
@@ -92,20 +96,30 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
       listGroups(true)
         .then(setGroups)
         .catch(() => setGroups([])),
-      listChannelStatuses().then(updateChannelStatusMaps).catch(() => {
-        // 同上：失败时保留上次状态，避免配置面板被整体卸载。
-      }),
+      listChannelStatuses()
+        .then(updateChannelStatusMaps)
+        .catch(() => {
+          // 同上：失败时保留上次状态，避免配置面板被整体卸载。
+        }),
     ]).finally(() => setGroupsRefreshing(false));
   }, [updateChannelStatusMaps]);
 
   const fetchWhatsAppStatus = useCallback((showLoading = false) => {
-    if (showLoading) {setWaLoading(true);}
+    if (showLoading) {
+      setWaLoading(true);
+    }
     getWhatsAppStatus()
       .then((next) => {
         setWaStatus((prev) => {
-          if (!prev) {return next;}
-          if (prev.connected !== next.connected) {return next;}
-          if (Boolean(prev.qr_code) !== Boolean(next.qr_code)) {return next;}
+          if (!prev) {
+            return next;
+          }
+          if (prev.connected !== next.connected) {
+            return next;
+          }
+          if (Boolean(prev.qr_code) !== Boolean(next.qr_code)) {
+            return next;
+          }
           return prev;
         });
       })
@@ -138,7 +152,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
       try {
         const channelsCfg: Record<string, { dmPolicy?: DmPolicy; groupPolicy?: GroupPolicy }> = {};
         for (const [ch, o] of Object.entries(overrides)) {
-          if (o.dmPolicy || o.groupPolicy) {channelsCfg[ch] = { ...o };}
+          if (o.dmPolicy || o.groupPolicy) {
+            channelsCfg[ch] = { ...o };
+          }
         }
         const hasOverrides = Object.keys(channelsCfg).length > 0;
         await saveChannelsConfig({
@@ -297,7 +313,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
       try {
         const updated = await updatePairingStatus(id, status);
         setPairings((prev) => prev.map((p) => (p.id === id ? updated : p)));
-        if (status === 'active') {toast.dismiss('pairing-pending');}
+        if (status === 'active') {
+          toast.dismiss('pairing-pending');
+        }
       } catch {
         toast.error(t('policySaveError'));
       }
@@ -348,7 +366,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
             ? t('channelEnableSuccess', { name: channelName })
             : t('channelDisableSuccess', { name: channelName }),
         );
-        if (channelName === 'whatsapp') {fetchWhatsAppStatus();}
+        if (channelName === 'whatsapp') {
+          fetchWhatsAppStatus();
+        }
       } catch (err) {
         const detail =
           err instanceof ApiError && typeof err.message === 'string' && err.message.trim()
@@ -380,21 +400,43 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     fetchChannelStatuses();
 
     getChannelsConfig().then((cfg) => {
-      if (cfg?.dmPolicy) {setDmPolicy(cfg.dmPolicy);}
-      if (cfg?.groupPolicy) {setGroupPolicy(cfg.groupPolicy);}
-      if (cfg?.groupTrigger) {setGroupTrigger(cfg.groupTrigger);}
-      if (cfg?.reactionLevel) {setReactionLevel(cfg.reactionLevel);}
-      if (cfg?.processingEmoji) {setProcessingEmoji(cfg.processingEmoji);}
-      if (cfg?.completionEmoji) {setCompletionEmoji(cfg.completionEmoji);}
-      if (cfg?.failureEmoji) {setFailureEmoji(cfg.failureEmoji);}
-      if (cfg?.freeResponseChats) {setFreeResponseChats(cfg.freeResponseChats);}
+      if (cfg?.dmPolicy) {
+        setDmPolicy(cfg.dmPolicy);
+      }
+      if (cfg?.groupPolicy) {
+        setGroupPolicy(cfg.groupPolicy);
+      }
+      if (cfg?.groupTrigger) {
+        setGroupTrigger(cfg.groupTrigger);
+      }
+      if (cfg?.reactionLevel) {
+        setReactionLevel(cfg.reactionLevel);
+      }
+      if (cfg?.processingEmoji) {
+        setProcessingEmoji(cfg.processingEmoji);
+      }
+      if (cfg?.completionEmoji) {
+        setCompletionEmoji(cfg.completionEmoji);
+      }
+      if (cfg?.failureEmoji) {
+        setFailureEmoji(cfg.failureEmoji);
+      }
+      if (cfg?.freeResponseChats) {
+        setFreeResponseChats(cfg.freeResponseChats);
+      }
       if (cfg?.channels) {
         const overrides: Record<string, ChannelOverrides> = {};
         for (const [ch, chCfg] of Object.entries(cfg.channels)) {
           const o: ChannelOverrides = {};
-          if (chCfg?.dmPolicy) {o.dmPolicy = chCfg.dmPolicy;}
-          if (chCfg?.groupPolicy) {o.groupPolicy = chCfg.groupPolicy;}
-          if (o.dmPolicy || o.groupPolicy) {overrides[ch] = o;}
+          if (chCfg?.dmPolicy) {
+            o.dmPolicy = chCfg.dmPolicy;
+          }
+          if (chCfg?.groupPolicy) {
+            o.groupPolicy = chCfg.groupPolicy;
+          }
+          if (o.dmPolicy || o.groupPolicy) {
+            overrides[ch] = o;
+          }
         }
         setChannelOverrides(overrides);
       }
@@ -402,7 +444,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
   }, [fetchWhatsAppStatus, fetchChannelStatuses]);
 
   useEffect(() => {
-    if (!waStatus?.qr_code) {return;}
+    if (!waStatus?.qr_code) {
+      return;
+    }
     const timer = setInterval(fetchWhatsAppStatus, 15_000);
     return () => clearInterval(timer);
   }, [waStatus?.connected, waStatus?.qr_code, fetchWhatsAppStatus]);
@@ -418,7 +462,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
   useEffect(() => {
     const hasPairingPolicy =
       dmPolicy === 'pairing' || Object.values(channelOverrides).some((o) => o.dmPolicy === 'pairing');
-    if (!hasPairingPolicy) {return;}
+    if (!hasPairingPolicy) {
+      return;
+    }
     const timer = setInterval(() => {
       listPairings()
         .then(setPairings)
@@ -439,10 +485,14 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
       if (type === 'channel_connected') {
         toast.success(t('channelConnectedRefreshing', { channels: channel }));
         refreshGroupsAndStatuses();
-        if (channel === 'whatsapp') {fetchWhatsAppStatusRef.current();}
+        if (channel === 'whatsapp') {
+          fetchWhatsAppStatusRef.current();
+        }
       } else if (type === 'channel_disconnected') {
         fetchChannelStatuses();
-        if (channel === 'whatsapp') {fetchWhatsAppStatusRef.current();}
+        if (channel === 'whatsapp') {
+          fetchWhatsAppStatusRef.current();
+        }
       }
     };
 
@@ -460,7 +510,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
 
     let credsSavedTimer: ReturnType<typeof setTimeout> | null = null;
     const handleCredentialsSaved = () => {
-      if (credsSavedTimer) {clearTimeout(credsSavedTimer);}
+      if (credsSavedTimer) {
+        clearTimeout(credsSavedTimer);
+      }
       credsSavedTimer = setTimeout(fetchChannelStatuses, 2000);
     };
 
@@ -473,7 +525,9 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
       window.removeEventListener('groups-updated', handleGroupsUpdated);
       window.removeEventListener('pairings-updated', handlePairingsUpdated);
       window.removeEventListener('channel-credentials-saved', handleCredentialsSaved);
-      if (credsSavedTimer) {clearTimeout(credsSavedTimer);}
+      if (credsSavedTimer) {
+        clearTimeout(credsSavedTimer);
+      }
     };
   }, [t, refreshGroupsAndStatuses, fetchChannelStatuses]);
 

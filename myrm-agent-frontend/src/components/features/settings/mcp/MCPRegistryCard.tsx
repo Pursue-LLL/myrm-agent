@@ -14,8 +14,12 @@ function deriveAuthor(qualifiedName: string): string {
 }
 
 function formatUseCount(count: number): string {
-  if (count >= 1000000) {return `${(count / 1000000).toFixed(1)}M`;}
-  if (count >= 1000) {return `${(count / 1000).toFixed(1)}K`;}
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M`;
+  }
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K`;
+  }
   return String(count);
 }
 
@@ -27,29 +31,19 @@ export const MCPRegistryCard = memo(function MCPRegistryCard({ server, onInstall
     <div className="flex items-center justify-between p-3 bg-secondary rounded-lg border border-border hover:bg-muted/50 transition-colors group">
       <div className="flex items-center space-x-3 min-w-0 flex-1">
         {server.iconUrl ? (
-          <img
-            src={server.iconUrl}
-            alt=""
-            className="w-8 h-8 rounded-md shrink-0 object-contain bg-muted"
-          />
+          <img src={server.iconUrl} alt="" className="w-8 h-8 rounded-md shrink-0 object-contain bg-muted" />
         ) : (
           <div className="w-8 h-8 rounded-md shrink-0 bg-primary/10 flex items-center justify-center">
             <IconPlug className="w-4 h-4 text-primary" />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground truncate">
-            {server.displayName}
-          </p>
+          <p className="text-sm font-medium text-foreground truncate">{server.displayName}</p>
           {server.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-              {server.description}
-            </p>
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{server.description}</p>
           )}
           <div className="flex items-center gap-2 mt-1">
-            {author && (
-              <span className="text-[10px] text-muted-foreground">{author}</span>
-            )}
+            {author && <span className="text-[10px] text-muted-foreground">{author}</span>}
             {server.useCount > 0 && (
               <span className="text-[10px] text-muted-foreground">
                 {formatUseCount(server.useCount)} {t('mcpRegistryInstalls')}

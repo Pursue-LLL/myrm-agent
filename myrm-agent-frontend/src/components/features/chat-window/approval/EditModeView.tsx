@@ -113,44 +113,44 @@ export default function EditModeView({
           </div>
 
           {allowAlwaysInEdit && (
-          <div className="ml-6 space-y-1">
-            <Select
-              value={allowAlwaysScopeInEdit}
-              onValueChange={(v) => setAllowAlwaysScopeInEdit(v as AllowAlwaysScope)}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="exact">{t('allowAlwaysConfirm.scopeExact')}</SelectItem>
-                <SelectItem value="pattern">{t('allowAlwaysConfirm.scopePattern')}</SelectItem>
-                <SelectItem value="tool">{t('allowAlwaysConfirm.scopeTool')}</SelectItem>
-                <SelectItem value="permission">{t('allowAlwaysConfirm.scopePermission')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-[10px] text-muted-foreground">
-              {allowAlwaysScopeInEdit === 'permission' &&
-                t('allowAlwaysConfirm.scopePermissionDesc', {
-                  permissionType: permissionTypeLabel,
-                })}
-              {allowAlwaysScopeInEdit === 'tool' && t('allowAlwaysConfirm.scopeToolDesc', { toolName })}
-              {allowAlwaysScopeInEdit === 'exact' && t('allowAlwaysConfirm.scopeExactDesc')}
-              {allowAlwaysScopeInEdit === 'pattern' && t('allowAlwaysConfirm.scopePatternDesc')}
-            </p>
-            {allowAlwaysScopeInEdit === 'pattern' && effectiveShellCommand && (
-              <p className="text-[10px]">
-                {patternPreview ? (
-                  <span className="font-mono text-foreground/80">
-                    {t('allowAlwaysConfirm.scopePatternPreview', { pattern: patternPreview })}
-                  </span>
-                ) : (
-                  <span className="text-destructive">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
-                )}
+            <div className="ml-6 space-y-1">
+              <Select
+                value={allowAlwaysScopeInEdit}
+                onValueChange={(v) => setAllowAlwaysScopeInEdit(v as AllowAlwaysScope)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="exact">{t('allowAlwaysConfirm.scopeExact')}</SelectItem>
+                  <SelectItem value="pattern">{t('allowAlwaysConfirm.scopePattern')}</SelectItem>
+                  <SelectItem value="tool">{t('allowAlwaysConfirm.scopeTool')}</SelectItem>
+                  <SelectItem value="permission">{t('allowAlwaysConfirm.scopePermission')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                {allowAlwaysScopeInEdit === 'permission' &&
+                  t('allowAlwaysConfirm.scopePermissionDesc', {
+                    permissionType: permissionTypeLabel,
+                  })}
+                {allowAlwaysScopeInEdit === 'tool' && t('allowAlwaysConfirm.scopeToolDesc', { toolName })}
+                {allowAlwaysScopeInEdit === 'exact' && t('allowAlwaysConfirm.scopeExactDesc')}
+                {allowAlwaysScopeInEdit === 'pattern' && t('allowAlwaysConfirm.scopePatternDesc')}
               </p>
-            )}
-          </div>
-        )}
-      </div>
+              {allowAlwaysScopeInEdit === 'pattern' && effectiveShellCommand && (
+                <p className="text-[10px]">
+                  {patternPreview ? (
+                    <span className="font-mono text-foreground/80">
+                      {t('allowAlwaysConfirm.scopePatternPreview', { pattern: patternPreview })}
+                    </span>
+                  ) : (
+                    <span className="text-destructive">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       )}
       <div className="flex gap-2">
         <Button size="sm" onClick={onConfirm} disabled={isLoading || patternConfirmBlocked}>

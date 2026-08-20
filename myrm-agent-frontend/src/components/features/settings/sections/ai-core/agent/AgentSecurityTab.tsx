@@ -2,20 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconBan, IconFolder, IconGlobe, IconPlus, IconShieldAlert, IconShieldCheck, IconX } from '@/components/features/icons/PremiumIcons';
+import {
+  IconBan,
+  IconFolder,
+  IconGlobe,
+  IconPlus,
+  IconShieldAlert,
+  IconShieldCheck,
+  IconX,
+} from '@/components/features/icons/PremiumIcons';
 import { DOMAIN_PATTERN } from '../../system/securityPolicyUtils';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { apiRequest } from '@/lib/api';
 import { HealthScoreCard, type AuditResult } from './HealthScoreCard';
 
@@ -60,7 +62,9 @@ function normalizeDomainInput(raw: string): string {
 }
 
 function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesData {
-  if (!raw) {return EMPTY_DATA;}
+  if (!raw) {
+    return EMPTY_DATA;
+  }
 
   const caps = Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : [];
 
@@ -74,8 +78,12 @@ function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesD
   const cmdDenylist = Array.isArray(raw.commandDenylist) ? (raw.commandDenylist as string[]) : [];
 
   const domainHitl = raw.domainHitlEnabled === true;
-  const injPolicy = raw.injectionPolicy === 'fail_closed' ? 'fail_closed' as const
-    : raw.injectionPolicy === 'log_only' ? 'log_only' as const : null;
+  const injPolicy =
+    raw.injectionPolicy === 'fail_closed'
+      ? ('fail_closed' as const)
+      : raw.injectionPolicy === 'log_only'
+        ? ('log_only' as const)
+        : null;
 
   return {
     capabilities: caps,
@@ -100,17 +108,35 @@ function serializeOverrides(data: SecurityOverridesData): Record<string, unknown
     data.domainHitlEnabled ||
     data.injectionPolicy !== null;
 
-  if (!hasContent) {return null;}
+  if (!hasContent) {
+    return null;
+  }
 
   const result: Record<string, unknown> = {};
-  if (data.capabilities.length > 0) {result.capabilities = data.capabilities;}
-  if (data.allowedRoots.length > 0) {result.pathPolicy = { allowedRoots: data.allowedRoots };}
-  if (data.approvalTimeoutSeconds !== null) {result.approvalTimeoutSeconds = data.approvalTimeoutSeconds;}
-  if (data.networkAllowlist.length > 0) {result.networkAllowlist = data.networkAllowlist;}
-  if (data.networkBlocklist.length > 0) {result.networkBlocklist = data.networkBlocklist;}
-  if (data.commandDenylist.length > 0) {result.commandDenylist = data.commandDenylist;}
-  if (data.domainHitlEnabled) {result.domainHitlEnabled = true;}
-  if (data.injectionPolicy !== null) {result.injectionPolicy = data.injectionPolicy;}
+  if (data.capabilities.length > 0) {
+    result.capabilities = data.capabilities;
+  }
+  if (data.allowedRoots.length > 0) {
+    result.pathPolicy = { allowedRoots: data.allowedRoots };
+  }
+  if (data.approvalTimeoutSeconds !== null) {
+    result.approvalTimeoutSeconds = data.approvalTimeoutSeconds;
+  }
+  if (data.networkAllowlist.length > 0) {
+    result.networkAllowlist = data.networkAllowlist;
+  }
+  if (data.networkBlocklist.length > 0) {
+    result.networkBlocklist = data.networkBlocklist;
+  }
+  if (data.commandDenylist.length > 0) {
+    result.commandDenylist = data.commandDenylist;
+  }
+  if (data.domainHitlEnabled) {
+    result.domainHitlEnabled = true;
+  }
+  if (data.injectionPolicy !== null) {
+    result.injectionPolicy = data.injectionPolicy;
+  }
   return result;
 }
 
@@ -147,20 +173,30 @@ export function AgentSecurityTab({
   const data = useMemo(() => parseOverrides(value), [value]);
 
   useEffect(() => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     let cancelled = false;
     setAuditLoading(true);
     apiRequest<AuditResult>(`/user-agents/${agentId}/audit`, { method: 'POST', silent: true })
       .then((res) => {
-        if (!cancelled) {setAuditResult(res);}
+        if (!cancelled) {
+          setAuditResult(res);
+        }
       })
       .catch(() => {
-        if (!cancelled) {setAuditResult(null);}
+        if (!cancelled) {
+          setAuditResult(null);
+        }
       })
       .finally(() => {
-        if (!cancelled) {setAuditLoading(false);}
+        if (!cancelled) {
+          setAuditLoading(false);
+        }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [agentId, saveVersion]);
 
   const update = useCallback(
@@ -182,7 +218,9 @@ export function AgentSecurityTab({
 
   const addRoot = useCallback(() => {
     const trimmed = newPath.trim();
-    if (!trimmed || data.allowedRoots.includes(trimmed)) {return;}
+    if (!trimmed || data.allowedRoots.includes(trimmed)) {
+      return;
+    }
     update({ allowedRoots: [...data.allowedRoots, trimmed] });
     setNewPath('');
   }, [newPath, data.allowedRoots, update]);
@@ -196,7 +234,9 @@ export function AgentSecurityTab({
 
   const addDomain = useCallback(() => {
     const trimmed = newDomain.trim().toLowerCase();
-    if (!trimmed || data.networkAllowlist.includes(trimmed)) {return;}
+    if (!trimmed || data.networkAllowlist.includes(trimmed)) {
+      return;
+    }
     update({ networkAllowlist: [...data.networkAllowlist, trimmed] });
     setNewDomain('');
   }, [newDomain, data.networkAllowlist, update]);
@@ -210,7 +250,9 @@ export function AgentSecurityTab({
 
   const addBlockedDomain = useCallback(() => {
     const normalized = normalizeDomainInput(newBlockedDomain);
-    if (!normalized) {return;}
+    if (!normalized) {
+      return;
+    }
     if (!DOMAIN_PATTERN.test(normalized)) {
       setBlocklistError(t('invalidBlockedDomain'));
       return;
@@ -234,7 +276,9 @@ export function AgentSecurityTab({
 
   const addCommandPattern = useCallback(() => {
     const trimmed = newCommandPattern.trim();
-    if (!trimmed) {return;}
+    if (!trimmed) {
+      return;
+    }
     if (data.commandDenylist.includes(trimmed)) {
       setCmdDenylistError(t('duplicateCommandPattern', { default: 'Pattern already exists.' }));
       return;
@@ -252,18 +296,21 @@ export function AgentSecurityTab({
     [data.commandDenylist, update],
   );
 
-  const handleFixNavigate = useCallback((targetId: string) => {
-    if (targetId === 'domain-hitl-switch') {
-      update({ domainHitlEnabled: true });
-      return;
-    }
-    const el = document.getElementById(targetId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('ring-2', 'ring-primary/50');
-      setTimeout(() => el.classList.remove('ring-2', 'ring-primary/50'), 2000);
-    }
-  }, [update]);
+  const handleFixNavigate = useCallback(
+    (targetId: string) => {
+      if (targetId === 'domain-hitl-switch') {
+        update({ domainHitlEnabled: true });
+        return;
+      }
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-primary/50');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-primary/50'), 2000);
+      }
+    },
+    [update],
+  );
 
   return (
     <div className={cn('space-y-5', 'animate-in fade-in-50 duration-300')}>
@@ -278,7 +325,9 @@ export function AgentSecurityTab({
         </div>
         <Select
           value={defaultSecurityPreset ?? 'inherit'}
-          onValueChange={(v) => onDefaultSecurityPresetChange(v === 'inherit' ? null : (v as 'hitl' | 'accept_edits' | 'explore'))}
+          onValueChange={(v) =>
+            onDefaultSecurityPresetChange(v === 'inherit' ? null : (v as 'hitl' | 'accept_edits' | 'explore'))
+          }
         >
           <SelectTrigger className="w-full sm:w-72">
             <SelectValue />
@@ -295,12 +344,13 @@ export function AgentSecurityTab({
       </div>
 
       {/* Health Score Card */}
-      {agentId && (
-        <HealthScoreCard result={auditResult} loading={auditLoading} t={t} onFixToggle={handleFixNavigate} />
-      )}
+      {agentId && <HealthScoreCard result={auditResult} loading={auditLoading} t={t} onFixToggle={handleFixNavigate} />}
 
       {/* Capabilities */}
-      <div id="capabilities-section" className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300">
+      <div
+        id="capabilities-section"
+        className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300"
+      >
         <div>
           <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
             <IconShieldCheck className="h-4 w-4 text-primary" />
@@ -334,7 +384,10 @@ export function AgentSecurityTab({
       </div>
 
       {/* Allowed Roots */}
-      <div id="allowed-roots-section" className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300">
+      <div
+        id="allowed-roots-section"
+        className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300"
+      >
         <div>
           <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
             <IconFolder className="h-4 w-4 text-primary" />
@@ -388,7 +441,10 @@ export function AgentSecurityTab({
       </div>
 
       {/* Network Domain Allowlist */}
-      <div id="network-allowlist-section" className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300">
+      <div
+        id="network-allowlist-section"
+        className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300"
+      >
         <div>
           <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
             <IconGlobe className="h-4 w-4 text-primary" />
@@ -492,7 +548,9 @@ export function AgentSecurityTab({
             value={newBlockedDomain}
             onChange={(e) => {
               setNewBlockedDomain(e.target.value);
-              if (blocklistError) {setBlocklistError(null);}
+              if (blocklistError) {
+                setBlocklistError(null);
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -557,7 +615,9 @@ export function AgentSecurityTab({
             value={newCommandPattern}
             onChange={(e) => {
               setNewCommandPattern(e.target.value);
-              if (cmdDenylistError) {setCmdDenylistError(null);}
+              if (cmdDenylistError) {
+                setCmdDenylistError(null);
+              }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -592,7 +652,8 @@ export function AgentSecurityTab({
             </h3>
             <p className="text-xs text-muted-foreground">
               {t('injectionPolicyDesc', {
-                default: 'Block high-threat prompt injection patterns for this agent. Merges with global policy using OR semantics (either side enabling blocking wins).',
+                default:
+                  'Block high-threat prompt injection patterns for this agent. Merges with global policy using OR semantics (either side enabling blocking wins).',
               })}
             </p>
           </div>
@@ -632,4 +693,3 @@ export function AgentSecurityTab({
     </div>
   );
 }
-

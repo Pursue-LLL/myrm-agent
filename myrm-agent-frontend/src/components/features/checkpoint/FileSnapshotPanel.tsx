@@ -16,7 +16,9 @@ const FileSnapshotPanel: React.FC = () => {
     window.dispatchEvent(new CustomEvent('app_resync_required'));
   }, []);
 
-  if (!workingDir) {return null;}
+  if (!workingDir) {
+    return null;
+  }
 
   return (
     <>
@@ -41,10 +43,7 @@ const FileSnapshotPanel: React.FC = () => {
         <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-background border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <h2 className="text-sm font-semibold">{t('panelTitle')}</h2>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-1 rounded hover:bg-muted transition-colors"
-            >
+            <button onClick={() => setIsOpen(false)} className="p-1 rounded hover:bg-muted transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>

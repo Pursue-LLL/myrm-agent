@@ -11,8 +11,4 @@
  */
 
 export { handleMessageStream } from './messageStream/handleMessageStream';
-export type {
-  StreamHandlerActions,
-  StreamHandlerState,
-  StreamMutableState,
-} from './messageStream/types';
+export type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from './messageStream/types';

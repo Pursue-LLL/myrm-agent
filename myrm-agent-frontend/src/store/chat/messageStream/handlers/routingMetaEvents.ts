@@ -26,14 +26,12 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           const msgs = st.messages ?? [];
           return {
             msgCount: msgs.length,
-            last: msgs
-              .slice(-2)
-              .map((m) => ({
-                role: m.role,
-                id: m.messageId,
-                tier: m.routingTier ?? null,
-                keys: Object.keys(m),
-              })),
+            last: msgs.slice(-2).map((m) => ({
+              role: m.role,
+              id: m.messageId,
+              tier: m.routingTier ?? null,
+              keys: Object.keys(m),
+            })),
           };
         } catch {
           return { err: 'read-store-failed' };

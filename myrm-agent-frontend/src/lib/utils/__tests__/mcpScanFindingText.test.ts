@@ -34,9 +34,7 @@ describe('mcpScanFindingText', () => {
       description: 'Tool name contains injection-like content',
       recommendation: 'Rename the tool',
     });
-    const findings = parseMcpFindingsFromApiErrorDetails([
-      { field: 'tool.name', issue: payload },
-    ]);
+    const findings = parseMcpFindingsFromApiErrorDetails([{ field: 'tool.name', issue: payload }]);
     expect(findings).toHaveLength(1);
     expect(findings[0]?.threatType).toBe('name_injection');
   });

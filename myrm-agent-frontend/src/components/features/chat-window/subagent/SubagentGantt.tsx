@@ -21,7 +21,9 @@ export const MiniGantt = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) =>
     return nodes
       .flatMap((n) => {
         const start = n.startedAt;
-        if (start === undefined || start === null) {return [];}
+        if (start === undefined || start === null) {
+          return [];
+        }
         const duration = n.duration_seconds;
         const end = duration !== undefined && duration !== null ? start + duration * 1000 : now;
         return [{ id: n.task_id, label: n.description || n.agent_type, status: n.status, start, end }];
@@ -29,7 +31,9 @@ export const MiniGantt = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) =>
       .filter((s) => s.end >= s.start);
   }, [nodes]);
 
-  if (spans.length < 2) {return null;}
+  if (spans.length < 2) {
+    return null;
+  }
 
   const globalStart = Math.min(...spans.map((s) => s.start));
   const globalEnd = Math.max(...spans.map((s) => s.end));
@@ -45,7 +49,8 @@ export const MiniGantt = ({ nodes, t }: { nodes: TreeNode[]; t: (key: string) =>
       >
         <BarChart3 className="w-3.5 h-3.5" />
         <span>
-          {t('ganttTitle')} · {totalSec < 60 ? `${Math.round(totalSec)}s` : `${Math.floor(totalSec / 60)}m${Math.round(totalSec % 60)}s`}
+          {t('ganttTitle')} ·{' '}
+          {totalSec < 60 ? `${Math.round(totalSec)}s` : `${Math.floor(totalSec / 60)}m${Math.round(totalSec % 60)}s`}
         </span>
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
       </button>

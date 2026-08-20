@@ -18,7 +18,9 @@ class SystemNotificationService {
    * Get current permission status
    */
   get permission(): NotificationPermission {
-    if (!this.isSupported) {return 'denied';}
+    if (!this.isSupported) {
+      return 'denied';
+    }
     return Notification.permission;
   }
 
@@ -26,8 +28,12 @@ class SystemNotificationService {
    * Request permission from the user
    */
   async requestPermission(): Promise<NotificationPermission> {
-    if (!this.isSupported) {return 'denied';}
-    if (this.permission === 'granted') {return 'granted';}
+    if (!this.isSupported) {
+      return 'denied';
+    }
+    if (this.permission === 'granted') {
+      return 'granted';
+    }
 
     try {
       return await Notification.requestPermission();

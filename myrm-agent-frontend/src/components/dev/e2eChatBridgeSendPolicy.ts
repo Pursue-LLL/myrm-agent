@@ -1,10 +1,7 @@
 import type { ActionMode } from '@/store/chat/types';
 
 /** Fast/deep_research modes must reach the server as-is (WEB_FAST / search_depth). */
-export function shouldPreserveE2eActionMode(
-  actionMode: ActionMode,
-  explicitPreserve = false,
-): boolean {
+export function shouldPreserveE2eActionMode(actionMode: ActionMode, explicitPreserve = false): boolean {
   return explicitPreserve || actionMode === 'fast' || actionMode === 'deep_research';
 }
 

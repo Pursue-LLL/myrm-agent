@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  parseThemeRecipeJson,
-  ThemeRecipeParseError,
-  getDefaultThemeProfile,
-} from '@/theme-engine';
+import { parseThemeRecipeJson, ThemeRecipeParseError, getDefaultThemeProfile } from '@/theme-engine';
 
 describe('parseThemeRecipeJson', () => {
   const validRecipe = {
@@ -36,15 +32,13 @@ describe('parseThemeRecipeJson', () => {
   });
 
   it('rejects invalid layoutId', () => {
-    expect(() =>
-      parseThemeRecipeJson(JSON.stringify({ ...validRecipe, layoutId: 'invalid' })),
-    ).toThrow(ThemeRecipeParseError);
+    expect(() => parseThemeRecipeJson(JSON.stringify({ ...validRecipe, layoutId: 'invalid' }))).toThrow(
+      ThemeRecipeParseError,
+    );
   });
 
   it('rejects missing name', () => {
-    expect(() =>
-      parseThemeRecipeJson(JSON.stringify({ ...validRecipe, name: '' })),
-    ).toThrow(ThemeRecipeParseError);
+    expect(() => parseThemeRecipeJson(JSON.stringify({ ...validRecipe, name: '' }))).toThrow(ThemeRecipeParseError);
   });
 
   it('falls back art fields from default profile', () => {

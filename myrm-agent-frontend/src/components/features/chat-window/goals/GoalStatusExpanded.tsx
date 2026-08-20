@@ -119,7 +119,9 @@ export function GoalStatusExpanded({
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{t('stepProgress')}</span>
-              <span>{completedSteps}/{totalSteps} ({stepProgress}%)</span>
+              <span>
+                {completedSteps}/{totalSteps} ({stepProgress}%)
+              </span>
             </div>
             <Progress
               value={stepProgress}
@@ -136,9 +138,7 @@ export function GoalStatusExpanded({
               <span className={isCritical ? 'text-red-500' : isWarning ? 'text-orange-500' : ''}>
                 {t('tokenUsage')} {isWarning && !isCritical && ' (Warning)'} {isCritical && ' (Critical)'}
               </span>
-              <span
-                className={isCritical ? 'text-red-500 font-bold' : isWarning ? 'text-orange-500 font-bold' : ''}
-              >
+              <span className={isCritical ? 'text-red-500 font-bold' : isWarning ? 'text-orange-500 font-bold' : ''}>
                 {Math.round(tokenProgress)}%
               </span>
             </div>
@@ -235,9 +235,7 @@ export function GoalStatusExpanded({
         )}
 
         {/* Task Deliverable Bundle */}
-        {isTerminal && goal.status === 'complete' && (
-          <TaskDeliverableBundle goal={goal} chatId={chatId} />
-        )}
+        {isTerminal && goal.status === 'complete' && <TaskDeliverableBundle goal={goal} chatId={chatId} />}
 
         {/* Subgoals */}
         <SubgoalsSection
@@ -250,14 +248,10 @@ export function GoalStatusExpanded({
         />
 
         {/* Budget Limited Action */}
-        {goal.status === 'budget_limited' && (
-          <BudgetLimitedAction chatId={chatId} onAction={onAction} t={t} />
-        )}
+        {goal.status === 'budget_limited' && <BudgetLimitedAction chatId={chatId} onAction={onAction} t={t} />}
 
         {/* Needs Human Review Action */}
-        {goal.status === 'needs_human_review' && (
-          <HumanReviewAction onAction={onAction} t={t} />
-        )}
+        {goal.status === 'needs_human_review' && <HumanReviewAction onAction={onAction} t={t} />}
       </div>
     </div>
   );
@@ -288,8 +282,12 @@ function ObjectiveEditor({
         onChange={(e) => onEditedObjectiveChange(e.target.value)}
         autoFocus
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {onSaveObjective();}
-          if (e.key === 'Escape') {onCancelEditObjective();}
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            onSaveObjective();
+          }
+          if (e.key === 'Escape') {
+            onCancelEditObjective();
+          }
         }}
       />
       <div className="flex items-center justify-between">
@@ -389,7 +387,9 @@ function SubgoalsSection({
               const input = e.currentTarget.previousElementSibling as HTMLInputElement;
               const val = input?.value || '';
               onAddSubgoal(val);
-              if (input) {input.value = '';}
+              if (input) {
+                input.value = '';
+              }
             }}
           >
             {t('addSubgoal') || 'Add'}
@@ -478,7 +478,9 @@ function HumanReviewAction({
               const msg = val.trim() ? val : t('resetRetriesMessage');
               useChatStore.getState().sendMessage(msg);
               onAction('reject');
-              if (input) {input.value = '';}
+              if (input) {
+                input.value = '';
+              }
             }}
           >
             {t('rejectAndRetry')}

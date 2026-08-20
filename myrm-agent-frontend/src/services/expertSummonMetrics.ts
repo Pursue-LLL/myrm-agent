@@ -25,11 +25,7 @@ export type ExpertSummonMetricEventType =
   | 'route_apply_failed'
   | 'first_message_sent'
   | 'dropped_report';
-export type ExpertSummonFailureReason =
-  | 'network_error'
-  | 'route_apply_failed'
-  | 'server_error'
-  | 'unknown_error';
+export type ExpertSummonFailureReason = 'network_error' | 'route_apply_failed' | 'server_error' | 'unknown_error';
 
 interface ExpertSummonMetricEventPayload {
   event_type: ExpertSummonMetricEventType;
@@ -83,12 +79,16 @@ let pendingDroppedEventsBySurface = loadDroppedBufferFromStorage();
 let postQueue: Promise<void> = Promise.resolve();
 
 function clampCount(count: number): number {
-  if (!Number.isFinite(count)) {return 1;}
+  if (!Number.isFinite(count)) {
+    return 1;
+  }
   return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
 }
 
 function clampQueryLength(length: number): number {
-  if (!Number.isFinite(length)) {return 0;}
+  if (!Number.isFinite(length)) {
+    return 0;
+  }
   return Math.max(0, Math.min(MAX_QUERY_LENGTH, Math.floor(length)));
 }
 
@@ -270,10 +270,7 @@ export function inferExpertSummonFailureReason(error: unknown): ExpertSummonFail
   return 'unknown_error';
 }
 
-export function recordExpertSummonSurfaceViewed(
-  surface: ExpertSummonMetricSurface,
-  contextKey?: string,
-): void {
+export function recordExpertSummonSurfaceViewed(surface: ExpertSummonMetricSurface, contextKey?: string): void {
   enqueueSimpleEvent('surface_viewed', surface, { contextKey });
 }
 

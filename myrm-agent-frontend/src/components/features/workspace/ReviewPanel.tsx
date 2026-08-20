@@ -104,14 +104,18 @@ export default function ReviewPanel({ sessionId, messageId, onSendFeedback }: Re
   const [feedbackText, setFeedbackText] = useState('');
 
   const fetchDiffs = useCallback(async () => {
-    if (!sessionId) {return;}
+    if (!sessionId) {
+      return;
+    }
     setLoading(true);
     try {
       const url = messageId
         ? `${getBackendUrl()}/api/v1/files/revert/diff/${sessionId}/${messageId}`
         : `${getBackendUrl()}/api/v1/files/revert/diff/${sessionId}`;
       const resp = await fetch(url, { headers: getAuthHeaders() });
-      if (!resp.ok) {return;}
+      if (!resp.ok) {
+        return;
+      }
       const data = await resp.json();
 
       if (messageId) {
@@ -137,8 +141,11 @@ export default function ReviewPanel({ sessionId, messageId, onSendFeedback }: Re
   const toggleFile = (path: string) => {
     setExpandedFiles((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {next.delete(path);}
-      else {next.add(path);}
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
       return next;
     });
   };
@@ -276,7 +283,9 @@ export default function ReviewPanel({ sessionId, messageId, onSendFeedback }: Re
               className="flex-1 text-sm bg-muted/50 border border-border/50 rounded-lg px-3 py-1.5
                 focus:outline-none focus:ring-1 focus:ring-primary/50"
               onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) {return;}
+                if (e.nativeEvent.isComposing) {
+                  return;
+                }
                 if (e.key === 'Enter' && feedbackText.trim()) {
                   onSendFeedback(sessionId, feedbackText.trim());
                   setFeedbackText('');

@@ -26,9 +26,19 @@ import { getRuntimeDoctor, type DoctorResponse, type HealthReport, type HealthSt
 import { copyDiagnosticMarkdown, downloadDiagnosticJson } from '@/lib/utils/diagnostic-export';
 import { GuidedRepairCard } from './GuidedRepairCard';
 import {
-  ActivityIcon, AlertCircleIcon, CheckCircleIcon, XCircleIcon, RefreshIcon,
-  SearchIcon, PackageIcon, ServerIcon, IdeaIcon, WrenchIcon,
-  ClipboardCopyIcon, DownloadIcon, CheckIcon,
+  ActivityIcon,
+  AlertCircleIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  RefreshIcon,
+  SearchIcon,
+  PackageIcon,
+  ServerIcon,
+  IdeaIcon,
+  WrenchIcon,
+  ClipboardCopyIcon,
+  DownloadIcon,
+  CheckIcon,
 } from './doctor-icons';
 import {
   openPermissionDeepLinkWithGuideFallback,
@@ -58,7 +68,9 @@ export function DoctorDashboard() {
   }, [t]);
 
   const handleCopyMarkdown = useCallback(async () => {
-    if (!data) {return;}
+    if (!data) {
+      return;
+    }
     const ok = await copyDiagnosticMarkdown(data);
     if (ok) {
       setCopySuccess(true);
@@ -69,7 +81,9 @@ export function DoctorDashboard() {
   }, [data, t]);
 
   const handleDownloadJson = useCallback(() => {
-    if (!data) {return;}
+    if (!data) {
+      return;
+    }
     downloadDiagnosticJson(data);
   }, [data]);
 
@@ -117,15 +131,21 @@ export function DoctorDashboard() {
   const healthScore = totalComponents > 0 ? Math.round((passCount / totalComponents) * 100) : 100;
 
   const getHealthStatus = (score: number) => {
-    if (score >= 90) {return { label: t('statusHealthy'), color: 'text-green-500', bg: 'bg-green-500/10' };}
-    if (score >= 50) {return { label: t('statusDegraded'), color: 'text-yellow-500', bg: 'bg-yellow-500/10' };}
+    if (score >= 90) {
+      return { label: t('statusHealthy'), color: 'text-green-500', bg: 'bg-green-500/10' };
+    }
+    if (score >= 50) {
+      return { label: t('statusDegraded'), color: 'text-yellow-500', bg: 'bg-yellow-500/10' };
+    }
     return { label: t('statusCritical'), color: 'text-red-500', bg: 'bg-red-500/10' };
   };
 
   const healthStatus = getHealthStatus(healthScore);
 
   const renderReportGroup = (reports: HealthReport[], title: string, icon: React.ReactNode) => {
-    if (reports.length === 0) {return null;}
+    if (reports.length === 0) {
+      return null;
+    }
 
     const groupPassCount = reports.filter((r) => r.status === 'pass').length;
     const groupTotal = reports.length;
@@ -195,8 +215,7 @@ export function DoctorDashboard() {
                         const link = pickSettingsDeepLinkFromMeta(report.meta_data ?? undefined);
                         if (link) {
                           const platform =
-                            report.meta_data &&
-                            typeof report.meta_data.platform === 'string'
+                            report.meta_data && typeof report.meta_data.platform === 'string'
                               ? report.meta_data.platform
                               : null;
                           openPermissionDeepLinkWithGuideFallback(link, platform);

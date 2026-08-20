@@ -4,13 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Radio, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 
 export interface StreamDraft {
   url: string;
@@ -53,10 +47,7 @@ export function StreamTriggerSection({ drafts, onChange }: StreamTriggerSectionP
               placeholder="wss://stream.example.com/ws"
               className="h-7 text-xs font-mono flex-1"
             />
-            <Select
-              value={draft.protocol}
-              onValueChange={(val) => updateDraft(i, { protocol: val as 'ws' | 'sse' })}
-            >
+            <Select value={draft.protocol} onValueChange={(val) => updateDraft(i, { protocol: val as 'ws' | 'sse' })}>
               <SelectTrigger className="h-7 w-[100px] text-xs rounded-md">
                 <SelectValue />
               </SelectTrigger>
@@ -92,9 +83,7 @@ export function StreamTriggerSection({ drafts, onChange }: StreamTriggerSectionP
         variant="outline"
         size="sm"
         className="h-6 text-[10px] gap-1"
-        onClick={() =>
-          onChange([...drafts, { url: '', protocol: 'ws', filter_json_path: '', filter_regex: '' }])
-        }
+        onClick={() => onChange([...drafts, { url: '', protocol: 'ws', filter_json_path: '', filter_regex: '' }])}
       >
         <Plus className="h-3 w-3" /> {t('triggerStreamAdd', { defaultMessage: 'Add Stream' })}
       </Button>

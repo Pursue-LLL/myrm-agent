@@ -50,9 +50,7 @@ export interface ChannelInstallDependenciesResult {
   registered: boolean;
 }
 
-export async function installChannelDependencies(
-  channelName: string,
-): Promise<ChannelInstallDependenciesResult> {
+export async function installChannelDependencies(channelName: string): Promise<ChannelInstallDependenciesResult> {
   return apiRequest(`/channels/manage/${channelName}/install-dependencies`, {
     method: 'POST',
   });

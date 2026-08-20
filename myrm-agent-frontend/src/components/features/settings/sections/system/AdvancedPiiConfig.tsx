@@ -12,7 +12,13 @@
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconFlask, IconPlus, IconChevronDown, IconChevronRight, IconX } from '@/components/features/icons/PremiumIcons';
+import {
+  IconFlask,
+  IconPlus,
+  IconChevronDown,
+  IconChevronRight,
+  IconX,
+} from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { toast } from '@/lib/utils/toast';
@@ -196,7 +202,9 @@ const AdvancedPiiConfig = memo(() => {
       return false;
     }
     // ReDoS prevention: reject nested quantifiers like (a+)+, (a*)+, (a+)*, (a{2,})+
-    if (/([+*]\)?[+*]|[+*]\)?\{|\}\)?[+*])/.test(pattern)) {return false;}
+    if (/([+*]\)?[+*]|[+*]\)?\{|\}\)?[+*])/.test(pattern)) {
+      return false;
+    }
     return true;
   }, []);
 
@@ -291,26 +299,36 @@ const AdvancedPiiConfig = memo(() => {
   );
 
   const runTestMatch = useCallback(() => {
-    if (!testMatchText.trim()) {return;}
+    if (!testMatchText.trim()) {
+      return;
+    }
     const text = testMatchText.trim();
     const matches: string[] = [];
 
     for (const kw of privacyCustomKeywordsS3) {
-      if (text.toLowerCase().includes(kw.toLowerCase())) {matches.push(`S3:keyword:${kw}`);}
+      if (text.toLowerCase().includes(kw.toLowerCase())) {
+        matches.push(`S3:keyword:${kw}`);
+      }
     }
     for (const pat of privacyCustomPatternsS3) {
       try {
-        if (new RegExp(pat, 'i').test(text)) {matches.push(`S3:pattern:${pat}`);}
+        if (new RegExp(pat, 'i').test(text)) {
+          matches.push(`S3:pattern:${pat}`);
+        }
       } catch {
         /* skip invalid */
       }
     }
     for (const kw of privacyCustomKeywordsS2) {
-      if (text.toLowerCase().includes(kw.toLowerCase())) {matches.push(`S2:keyword:${kw}`);}
+      if (text.toLowerCase().includes(kw.toLowerCase())) {
+        matches.push(`S2:keyword:${kw}`);
+      }
     }
     for (const pat of privacyCustomPatternsS2) {
       try {
-        if (new RegExp(pat, 'i').test(text)) {matches.push(`S2:pattern:${pat}`);}
+        if (new RegExp(pat, 'i').test(text)) {
+          matches.push(`S2:pattern:${pat}`);
+        }
       } catch {
         /* skip invalid */
       }

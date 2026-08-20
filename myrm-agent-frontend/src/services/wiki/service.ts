@@ -141,10 +141,7 @@ export interface WikiQueryRequestBody {
   mode: WikiQueryMode;
 }
 
-export function buildWikiQueryRequestBody(
-  question: string,
-  mode: WikiQueryMode = 'auto',
-): WikiQueryRequestBody {
+export function buildWikiQueryRequestBody(question: string, mode: WikiQueryMode = 'auto'): WikiQueryRequestBody {
   return { question, mode };
 }
 
@@ -251,11 +248,7 @@ export interface WikiCompoundResponse {
 export type WikiApplyCaller = 'agent' | 'settings' | 'chat';
 
 export type WikiApplyOp =
-  | 'update_metadata'
-  | 'patch_compiled_truth'
-  | 'append_timeline'
-  | 'create_note'
-  | 'replace_full_document';
+  'update_metadata' | 'patch_compiled_truth' | 'append_timeline' | 'create_note' | 'replace_full_document';
 
 export interface WikiApplyRequestBody {
   op: WikiApplyOp;
@@ -509,7 +502,9 @@ export const wikiService = {
     agentId?: string | null,
   ): Promise<ConceptListResponse> => {
     const params = new URLSearchParams();
-    if (query) {params.append('query', query);}
+    if (query) {
+      params.append('query', query);
+    }
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
     return apiRequest<ConceptListResponse>(buildWikiApiPath(`/wiki/concepts?${params.toString()}`, agentId));
@@ -542,10 +537,7 @@ export const wikiService = {
     });
   },
 
-  compoundWiki: async (
-    body: WikiCompoundRequestBody,
-    agentId?: string | null,
-  ): Promise<WikiCompoundResponse> => {
+  compoundWiki: async (body: WikiCompoundRequestBody, agentId?: string | null): Promise<WikiCompoundResponse> => {
     return apiRequest<WikiCompoundResponse>(buildWikiApiPath('/wiki/compound', agentId), {
       method: 'POST',
       body: JSON.stringify(body),
@@ -558,11 +550,7 @@ export const wikiService = {
     });
   },
 
-  deleteRawSource: async (
-    path: string,
-    forgetReason: string,
-    agentId?: string | null,
-  ): Promise<OperationResult> => {
+  deleteRawSource: async (path: string, forgetReason: string, agentId?: string | null): Promise<OperationResult> => {
     return apiRequest<OperationResult>(buildWikiApiPath(`/wiki/raw/${encodeURIComponent(path)}`, agentId), {
       method: 'DELETE',
       body: JSON.stringify({ forget_reason: forgetReason }),
@@ -734,15 +722,11 @@ export const wikiService = {
     return apiRequest<WikiGraphInsights>(buildWikiApiPath('/wiki/graph/insights', agentId));
   },
 
-  maintainWiki: async (
-    mode: 'structural' | 'full',
-    agentId?: string | null,
-  ): Promise<WikiMaintainResponse> => {
+  maintainWiki: async (mode: 'structural' | 'full', agentId?: string | null): Promise<WikiMaintainResponse> => {
     const params = new URLSearchParams({ mode });
-    return apiRequest<WikiMaintainResponse>(
-      buildWikiApiPath(`/wiki/maintain?${params.toString()}`, agentId),
-      { method: 'POST' },
-    );
+    return apiRequest<WikiMaintainResponse>(buildWikiApiPath(`/wiki/maintain?${params.toString()}`, agentId), {
+      method: 'POST',
+    });
   },
 
   exportVault: async (agentId?: string | null): Promise<void> => {
@@ -780,23 +764,15 @@ export const wikiService = {
     return apiRequest<WikiDedupGroup[]>(buildWikiApiPath('/wiki/dedup/groups', agentId));
   },
 
-  getWikiDedupGroupSnippets: async (
-    groupId: number,
-    agentId?: string | null,
-  ): Promise<WikiDedupMemberSnippet[]> => {
-    return apiRequest<WikiDedupMemberSnippet[]>(
-      buildWikiApiPath(`/wiki/dedup/groups/${groupId}/snippets`, agentId),
-    );
+  getWikiDedupGroupSnippets: async (groupId: number, agentId?: string | null): Promise<WikiDedupMemberSnippet[]> => {
+    return apiRequest<WikiDedupMemberSnippet[]>(buildWikiApiPath(`/wiki/dedup/groups/${groupId}/snippets`, agentId));
   },
 
   getWikiDedupProgress: async (agentId?: string | null): Promise<WikiDedupProgress> => {
     return apiRequest<WikiDedupProgress>(buildWikiApiPath('/wiki/dedup/progress', agentId));
   },
 
-  scanWikiDuplicates: async (
-    agentId?: string | null,
-    incremental?: boolean,
-  ): Promise<WikiDedupScanResponse> => {
+  scanWikiDuplicates: async (agentId?: string | null, incremental?: boolean): Promise<WikiDedupScanResponse> => {
     const basePath = buildWikiApiPath('/wiki/dedup/scan', agentId);
     const joiner = basePath.includes('?') ? '&' : '?';
     const path = incremental === false ? `${basePath}${joiner}incremental=false` : basePath;
@@ -818,20 +794,14 @@ export const wikiService = {
     );
   },
 
-  restoreWikiDedupTrashedRaw: async (
-    relativePath: string,
-    agentId?: string | null,
-  ): Promise<WikiDedupTrashedEntry> => {
+  restoreWikiDedupTrashedRaw: async (relativePath: string, agentId?: string | null): Promise<WikiDedupTrashedEntry> => {
     return apiRequest<WikiDedupTrashedEntry>(buildWikiApiPath('/wiki/dedup/trash/restore', agentId), {
       method: 'POST',
       body: JSON.stringify({ relative_path: relativePath }),
     });
   },
 
-  undoWikiDedupExcludedRaw: async (
-    relativePath: string,
-    agentId?: string | null,
-  ): Promise<WikiDedupExcludedEntry> => {
+  undoWikiDedupExcludedRaw: async (relativePath: string, agentId?: string | null): Promise<WikiDedupExcludedEntry> => {
     return apiRequest<WikiDedupExcludedEntry>(buildWikiApiPath('/wiki/dedup/excluded/undo', agentId), {
       method: 'POST',
       body: JSON.stringify({ relative_path: relativePath }),

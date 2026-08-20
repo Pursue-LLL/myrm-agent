@@ -39,11 +39,7 @@ interface AppLayoutProps {
   onRetryConfigReadiness?: () => void;
 }
 
-function AppLayout({
-  children,
-  configReadinessDegraded = false,
-  onRetryConfigReadiness,
-}: AppLayoutProps) {
+function AppLayout({ children, configReadinessDegraded = false, onRetryConfigReadiness }: AppLayoutProps) {
   const { initAuth } = useAuthStore();
   const t = useTranslations('layout');
   const [dismissedReadinessDegraded, setDismissedReadinessDegraded] = useState(false);

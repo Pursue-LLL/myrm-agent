@@ -14,13 +14,7 @@ interface ProfileLibraryPanelProps {
   onDelete: (profileId: string) => void;
 }
 
-const ProfileLibraryPanel = ({
-  profiles,
-  activeProfileId,
-  onEdit,
-  onApply,
-  onDelete,
-}: ProfileLibraryPanelProps) => {
+const ProfileLibraryPanel = ({ profiles, activeProfileId, onEdit, onApply, onDelete }: ProfileLibraryPanelProps) => {
   const t = useTranslations('settings.themeStudio.library');
   const managed = listManagedProfiles(profiles);
 

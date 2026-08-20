@@ -113,7 +113,12 @@ describe('ExtractToSkillButton', () => {
 
   it('prevents double-click sending', async () => {
     let resolve: () => void;
-    mockSendMessage.mockImplementation(() => new Promise<void>((r) => { resolve = r; }));
+    mockSendMessage.mockImplementation(
+      () =>
+        new Promise<void>((r) => {
+          resolve = r;
+        }),
+    );
     const user = userEvent.setup();
     render(<ExtractToSkillButton message={makeMessage()} />);
 
@@ -170,7 +175,12 @@ describe('ExtractToSkillButton', () => {
 
   it('shows loading spinner during sending state', async () => {
     let resolve: () => void;
-    mockSendMessage.mockImplementation(() => new Promise<void>((r) => { resolve = r; }));
+    mockSendMessage.mockImplementation(
+      () =>
+        new Promise<void>((r) => {
+          resolve = r;
+        }),
+    );
     const user = userEvent.setup();
     const { container } = render(<ExtractToSkillButton message={makeMessage()} />);
 

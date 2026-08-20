@@ -119,9 +119,7 @@ export default function MessageActionBar({
           <MemoryFeedback memoryIds={message.citedMemoryIds} />
         )}
         {!isStreaming && <ReadAloud content={message.content} />}
-        {!isStreaming && chatId && (
-          <ForkButton chatId={chatId} messageIndex={messageIndex} />
-        )}
+        {!isStreaming && chatId && <ForkButton chatId={chatId} messageIndex={messageIndex} />}
         {!isStreaming && <SaveToMemoryButton message={message} />}
         {!isStreaming && <ExtractToSkillButton message={message} />}
         {!isStreaming && <SaveToWikiButton message={message} messageIndex={messageIndex} />}

@@ -35,10 +35,7 @@ export function extractChatSessionConfig(state: Partial<ChatState>): Partial<Cha
   return result;
 }
 
-export function mergeChatSessionConfig(
-  base: Partial<ChatState>,
-  overlay: Partial<ChatState>,
-): Partial<ChatState> {
+export function mergeChatSessionConfig(base: Partial<ChatState>, overlay: Partial<ChatState>): Partial<ChatState> {
   return {
     ...base,
     ...extractChatSessionConfig(overlay),

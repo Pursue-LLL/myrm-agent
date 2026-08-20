@@ -77,7 +77,9 @@ export default function SpriteRenderer({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) {return;}
+    if (!canvas) {
+      return;
+    }
 
     const engine = new SpriteEngine({
       canvas,
@@ -96,13 +98,18 @@ export default function SpriteRenderer({
   // Load sheet when URL changes
   useEffect(() => {
     const engine = engineRef.current;
-    if (!engine || !sheetUrl) {return;}
+    if (!engine || !sheetUrl) {
+      return;
+    }
 
-    engine.loadSheet(sheetUrl).then(() => {
-      engine.play();
-      const { rows: detectedRows } = engine.getEffectiveDimensions();
-      onSheetRowsDetected?.(detectedRows);
-    }).catch(() => {});
+    engine
+      .loadSheet(sheetUrl)
+      .then(() => {
+        engine.play();
+        const { rows: detectedRows } = engine.getEffectiveDimensions();
+        onSheetRowsDetected?.(detectedRows);
+      })
+      .catch(() => {});
   }, [sheetUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update row when prop changes
@@ -129,10 +136,7 @@ export default function SpriteRenderer({
         ref={setCanvasRef}
         width={cellW}
         height={cellH}
-        className={cn(
-          'w-full h-full',
-          loadState !== 'ready' && 'hidden',
-        )}
+        className={cn('w-full h-full', loadState !== 'ready' && 'hidden')}
         style={{ imageRendering: 'pixelated' }}
       />
 

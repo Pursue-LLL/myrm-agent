@@ -18,7 +18,9 @@ export default function KanbanDiagnosticsSection({
 }: KanbanDiagnosticsSectionProps) {
   const t = useTranslations('kanban');
 
-  if (diagnostics.length === 0) {return null;}
+  if (diagnostics.length === 0) {
+    return null;
+  }
 
   return (
     <section className="space-y-1.5">

@@ -19,11 +19,7 @@ interface VisualApprovalRequestRendererProps {
   snapshotFetchFailed: boolean;
   snapshotRetrying: boolean;
   onRetrySnapshot: () => void;
-  onResolve: (
-    requestId: string,
-    decision: DecisionType,
-    extra?: ToolApprovalResolveExtra,
-  ) => Promise<void>;
+  onResolve: (requestId: string, decision: DecisionType, extra?: ToolApprovalResolveExtra) => Promise<void>;
   isLoading: boolean;
 }
 

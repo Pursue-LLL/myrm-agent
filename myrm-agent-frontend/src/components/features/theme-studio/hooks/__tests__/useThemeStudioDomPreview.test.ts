@@ -38,10 +38,9 @@ describe('useThemeStudioDomPreview', () => {
   it('clears dom preview store when disabled', async () => {
     const profile = { ...getDefaultThemeProfile(), id: 'draft', name: 'Draft preview' };
 
-    const { rerender } = renderHook(
-      ({ enabled }) => useThemeStudioDomPreview(enabled, profile, null),
-      { initialProps: { enabled: true } },
-    );
+    const { rerender } = renderHook(({ enabled }) => useThemeStudioDomPreview(enabled, profile, null), {
+      initialProps: { enabled: true },
+    });
 
     await waitFor(() => {
       expect(useThemeStudioDomPreviewStore.getState().enabled).toBe(true);

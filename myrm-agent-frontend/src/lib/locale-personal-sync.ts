@@ -13,14 +13,16 @@
 import useConfigStore from '@/store/useConfigStore';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
 
-export async function persistLocaleToPersonalSettings(
-  frontendLocale: string | null,
-): Promise<void> {
+export async function persistLocaleToPersonalSettings(frontendLocale: string | null): Promise<void> {
   const backendLocale = normalizeLocaleForBackend(frontendLocale);
-  if (!backendLocale) {return;}
+  if (!backendLocale) {
+    return;
+  }
 
   const { personalSettings, updatePersonalSettings } = useConfigStore.getState();
-  if (personalSettings?.locale === backendLocale) {return;}
+  if (personalSettings?.locale === backendLocale) {
+    return;
+  }
 
   await updatePersonalSettings({ locale: backendLocale });
 }

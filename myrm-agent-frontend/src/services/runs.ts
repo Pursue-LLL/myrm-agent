@@ -49,10 +49,18 @@ export interface ListRunsParams {
 
 export async function listUnifiedRuns(params: ListRunsParams = {}): Promise<UnifiedRunsListResponse> {
   const searchParams = new URLSearchParams();
-  if (params.source) {searchParams.set('source', params.source);}
-  if (params.status) {searchParams.set('status', params.status);}
-  if (params.limit) {searchParams.set('limit', String(params.limit));}
-  if (params.offset) {searchParams.set('offset', String(params.offset));}
+  if (params.source) {
+    searchParams.set('source', params.source);
+  }
+  if (params.status) {
+    searchParams.set('status', params.status);
+  }
+  if (params.limit) {
+    searchParams.set('limit', String(params.limit));
+  }
+  if (params.offset) {
+    searchParams.set('offset', String(params.offset));
+  }
 
   const query = searchParams.toString();
   const endpoint = `/runs${query ? `?${query}` : ''}`;

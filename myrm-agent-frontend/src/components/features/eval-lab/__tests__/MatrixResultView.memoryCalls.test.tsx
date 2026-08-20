@@ -87,12 +87,7 @@ describe('MatrixResultView trajectory disclosure columns', () => {
     report.per_profile.memory_on.limit_hits = 2;
     report.per_profile.memory_on.blocked_count = 1;
 
-    render(
-      <MatrixResultView
-        report={report}
-        profileNames={{ memory_off: 'No Memory', memory_on: 'With Memory' }}
-      />,
-    );
+    render(<MatrixResultView report={report} profileNames={{ memory_off: 'No Memory', memory_on: 'With Memory' }} />);
 
     expect(screen.getByText('evalLab.matrix.toolCalls')).toBeInTheDocument();
     expect(screen.getByText('evalLab.matrix.limitHits')).toBeInTheDocument();
@@ -175,12 +170,7 @@ describe('MatrixResultView shared disclosure area', () => {
     report.eval_type = 'layered';
     report.profile_id = 'hermes_assistant';
 
-    render(
-      <MatrixResultView
-        report={report}
-        profileNames={{ hermes_assistant: 'Hermes Assistant' }}
-      />,
-    );
+    render(<MatrixResultView report={report} profileNames={{ hermes_assistant: 'Hermes Assistant' }} />);
 
     expect(screen.getByText(/evalLab\.layers\.basedOnProfile/)).toHaveTextContent(
       'evalLab.layers.basedOnProfile: Hermes Assistant',

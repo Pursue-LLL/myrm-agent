@@ -21,18 +21,9 @@ import { Loader2, Route, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Label } from '@/components/primitives/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { updateCronJob } from '@/services/cron';
-import {
-  fetchWorkflowTemplates,
-  type WorkflowTemplateSummary,
-} from '@/services/workflowTemplates';
+import { fetchWorkflowTemplates, type WorkflowTemplateSummary } from '@/services/workflowTemplates';
 import WorkflowTemplateArgsDialog from '@/components/features/settings/sections/ai-tools/WorkflowTemplateArgsDialog';
 import type { EditorProps } from './CronDeliveryEditors';
 
@@ -48,7 +39,9 @@ function argsEqual(
   const b = right ?? {};
   const aKeys = Object.keys(a).sort();
   const bKeys = Object.keys(b).sort();
-  if (aKeys.length !== bKeys.length) {return false;}
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
   return aKeys.every((key) => (a[key] ?? '').trim() === (b[key] ?? '').trim());
 }
 
@@ -57,9 +50,7 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
   const [templates, setTemplates] = useState<WorkflowTemplateSummary[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [templateId, setTemplateId] = useState(() => normalizeTemplateId(job.workflow_template_id));
-  const [templateArgs, setTemplateArgs] = useState<Record<string, string> | null>(
-    job.workflow_template_args ?? null,
-  );
+  const [templateArgs, setTemplateArgs] = useState<Record<string, string> | null>(job.workflow_template_args ?? null);
   const [argsDialogOpen, setArgsDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [templatesLoadFailed, setTemplatesLoadFailed] = useState(false);
@@ -86,7 +77,9 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
         }
       })
       .finally(() => {
-        if (!cancelled) {setLoadingTemplates(false);}
+        if (!cancelled) {
+          setLoadingTemplates(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -103,14 +96,11 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
   );
 
   const serverTemplateId = normalizeTemplateId(job.workflow_template_id);
-  const serverBindingInvalid =
-    serverTemplateId !== '__none__' && !job.workflow_template_display_name?.trim();
+  const serverBindingInvalid = serverTemplateId !== '__none__' && !job.workflow_template_display_name?.trim();
 
   const templateMissing = serverBindingInvalid && templateId === serverTemplateId;
 
-  const dirty =
-    templateId !== serverTemplateId ||
-    !argsEqual(templateArgs, job.workflow_template_args);
+  const dirty = templateId !== serverTemplateId || !argsEqual(templateArgs, job.workflow_template_args);
 
   const persistBinding = useCallback(
     async (nextTemplateId: string, nextArgs: Record<string, string> | null) => {
@@ -124,9 +114,7 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
         } else {
           await updateCronJob(job.id, {
             workflow_template_id: nextTemplateId,
-            ...(nextArgs && Object.keys(nextArgs).length > 0
-              ? { workflow_template_args: nextArgs }
-              : {}),
+            ...(nextArgs && Object.keys(nextArgs).length > 0 ? { workflow_template_args: nextArgs } : {}),
           });
         }
         onUpdated();
@@ -147,12 +135,7 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
     if (templateId !== '__none__' && !selectedTemplate && !templateMissing) {
       return;
     }
-    if (
-      templateId !== '__none__' &&
-      selectedTemplate &&
-      selectedTemplate.placeholders.length > 0 &&
-      !templateArgs
-    ) {
+    if (templateId !== '__none__' && selectedTemplate && selectedTemplate.placeholders.length > 0 && !templateArgs) {
       setArgsDialogOpen(true);
       return;
     }
@@ -184,7 +167,7 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
   const displayLabel =
     job.workflow_template_display_name?.trim() ||
     selectedTemplate?.display_name ||
-    (templateMissing ? templateId : job.workflow_template_id?.trim() ?? '');
+    (templateMissing ? templateId : (job.workflow_template_id?.trim() ?? ''));
 
   return (
     <div className="rounded-lg border border-border/60 bg-card/60 px-4 py-3 space-y-3">
@@ -221,9 +204,7 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
           <div className="flex items-start gap-2 min-w-0">
             <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
             <div className="min-w-0 space-y-1">
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                {t('workflowTemplateMissingWarning')}
-              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">{t('workflowTemplateMissingWarning')}</p>
               <p className="text-[11px] text-muted-foreground break-all font-mono">{templateId}</p>
             </div>
           </div>
@@ -291,17 +272,9 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
         </ul>
       ) : null}
 
-      {templateId !== '__none__' &&
-      selectedTemplate &&
-      selectedTemplate.placeholders.length > 0 ? (
+      {templateId !== '__none__' && selectedTemplate && selectedTemplate.placeholders.length > 0 ? (
         <div className="flex justify-start">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={saving}
-            onClick={() => setArgsDialogOpen(true)}
-          >
+          <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setArgsDialogOpen(true)}>
             {t('workflowTemplateEditArgs')}
           </Button>
         </div>

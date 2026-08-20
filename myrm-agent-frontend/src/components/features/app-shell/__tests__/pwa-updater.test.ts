@@ -7,10 +7,7 @@ describe('unregisterServiceWorkers', () => {
     const firstUnregister = vi.fn().mockResolvedValue(true);
     const secondUnregister = vi.fn().mockResolvedValue(true);
     const container = {
-      getRegistrations: vi.fn().mockResolvedValue([
-        { unregister: firstUnregister },
-        { unregister: secondUnregister },
-      ]),
+      getRegistrations: vi.fn().mockResolvedValue([{ unregister: firstUnregister }, { unregister: secondUnregister }]),
     } as unknown as ServiceWorkerContainer;
 
     await unregisterServiceWorkers(container);

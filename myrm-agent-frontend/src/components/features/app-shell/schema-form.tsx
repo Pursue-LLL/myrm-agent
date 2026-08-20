@@ -122,7 +122,9 @@ function renderField(
                 return;
               }
               const num = prop.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
-              if (!isNaN(num)) {onFieldChange(key, num);}
+              if (!isNaN(num)) {
+                onFieldChange(key, num);
+              }
             }}
             onBlur={() => onFieldBlur(key)}
             min={prop.minimum}
@@ -202,7 +204,9 @@ export const SchemaForm = memo<SchemaFormProps>(({ schema, value, onChange, disa
 
   const handleFieldBlur = useCallback((key: string) => {
     setTouched((prev) => {
-      if (prev.has(key)) {return prev;}
+      if (prev.has(key)) {
+        return prev;
+      }
       const next = new Set(prev);
       next.add(key);
       return next;
@@ -223,7 +227,9 @@ export const SchemaForm = memo<SchemaFormProps>(({ schema, value, onChange, disa
   const hasDefaults = Object.values(properties).some((p) => p.default !== undefined);
   const propEntries = Object.entries(properties);
 
-  if (propEntries.length === 0) {return null;}
+  if (propEntries.length === 0) {
+    return null;
+  }
 
   return (
     <div className={cn('space-y-4', className)}>

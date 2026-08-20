@@ -126,9 +126,7 @@ describe('loadMessages workspace merge hydration', () => {
     await loadMessages('chat-wsmr', actions);
 
     expect(state.messages).toHaveLength(1);
-    expect(state.messages[0]?.workspaceMergeFailures).toEqual([
-      { message: 'task_index=1: No space left on device' },
-    ]);
+    expect(state.messages[0]?.workspaceMergeFailures).toEqual([{ message: 'task_index=1: No space left on device' }]);
     expect(state.messages[0]?.workspaceMergeFailedCount).toBe(3);
     expect(state.messages[0]?.workspaceMergeTruncated).toBe(2);
     expect(state.messages[0]?.completionStatus).toBe('warning');

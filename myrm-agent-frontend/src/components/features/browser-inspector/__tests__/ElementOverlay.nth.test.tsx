@@ -8,11 +8,7 @@ import type { BrowserRefInfo } from '@/store/chat/types';
 
 const viewport = { width: 400, height: 300 };
 
-function makeRef(
-  role: string,
-  nth: number | undefined,
-  id: string,
-): [string, BrowserRefInfo] {
+function makeRef(role: string, nth: number | undefined, id: string): [string, BrowserRefInfo] {
   return [
     id,
     {
@@ -38,10 +34,7 @@ function makeRef(
 
 describe('ElementOverlay SOM nth badges', () => {
   it('renders nth corner labels for interactive refs', () => {
-    const refs = Object.fromEntries([
-      makeRef('button', 1, 'd1'),
-      makeRef('textbox', 2, 'd2'),
-    ]);
+    const refs = Object.fromEntries([makeRef('button', 1, 'd1'), makeRef('textbox', 2, 'd2')]);
 
     render(
       <div style={{ width: 400, height: 300, position: 'relative' }}>

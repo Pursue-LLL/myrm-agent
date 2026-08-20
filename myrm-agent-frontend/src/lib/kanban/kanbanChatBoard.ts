@@ -22,16 +22,22 @@ function normalizeKanbanProjectScope(projectId: string | null | undefined): stri
 
 function resolveKanbanStorageKey(projectId: string | null | undefined): string {
   const scope = normalizeKanbanProjectScope(projectId);
-  if (!scope) {return KANBAN_LAST_BOARD_ID_KEY;}
+  if (!scope) {
+    return KANBAN_LAST_BOARD_ID_KEY;
+  }
   return `${KANBAN_LAST_BOARD_ID_KEY}:${scope}`;
 }
 
 export function readKanbanLastBoardId(projectId?: string | null): string | null {
-  if (typeof window === 'undefined') {return null;}
+  if (typeof window === 'undefined') {
+    return null;
+  }
   try {
     const scopedKey = resolveKanbanStorageKey(projectId);
     const scopedValue = localStorage.getItem(scopedKey)?.trim();
-    if (scopedValue) {return scopedValue;}
+    if (scopedValue) {
+      return scopedValue;
+    }
     return null;
   } catch {
     return null;
@@ -39,7 +45,9 @@ export function readKanbanLastBoardId(projectId?: string | null): string | null 
 }
 
 export function writeKanbanLastBoardId(boardId: string | null, projectId?: string | null): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   try {
     const key = resolveKanbanStorageKey(projectId);
     if (boardId?.trim()) {
@@ -53,8 +61,12 @@ export function writeKanbanLastBoardId(boardId: string | null, projectId?: strin
 }
 
 export function resolveKanbanChatBoardId(boards: KanbanBoard[], projectId?: string | null): string | null {
-  if (boards.length === 0) {return null;}
-  if (boards.length === 1) {return boards[0]!.board_id;}
+  if (boards.length === 0) {
+    return null;
+  }
+  if (boards.length === 1) {
+    return boards[0]!.board_id;
+  }
 
   const saved = readKanbanLastBoardId(projectId);
   if (saved && boards.some((b) => b.board_id === saved)) {
@@ -71,7 +83,9 @@ export function resolveKanbanDefaultBoardIdForRequest(
   enabledBuiltinTools: readonly string[],
   projectId?: string | null,
 ): string | undefined {
-  if (!enabledBuiltinTools.includes('kanban')) {return undefined;}
+  if (!enabledBuiltinTools.includes('kanban')) {
+    return undefined;
+  }
   const id = readKanbanLastBoardId(projectId);
   return id ?? undefined;
 }
@@ -92,14 +106,18 @@ export function resolveKanbanSendBlockReasonFromBoards(
   boards: KanbanBoard[],
   projectId?: string | null,
 ): KanbanSendBlockReason | null {
-  if (boards.length === 0) {return 'no_boards';}
+  if (boards.length === 0) {
+    return 'no_boards';
+  }
 
   const saved = readKanbanLastBoardId(projectId);
   if (saved && !boards.some((b) => b.board_id === saved)) {
     writeKanbanLastBoardId(null, projectId);
   }
 
-  if (shouldShowKanbanBoardPicker(boards, projectId)) {return 'need_board';}
+  if (shouldShowKanbanBoardPicker(boards, projectId)) {
+    return 'need_board';
+  }
   return null;
 }
 
@@ -108,7 +126,9 @@ export async function resolveKanbanSendBlockReason(
   enabledBuiltinTools: readonly string[],
   projectId?: string | null,
 ): Promise<KanbanSendBlockReason | null> {
-  if (!enabledBuiltinTools.includes('kanban')) {return null;}
+  if (!enabledBuiltinTools.includes('kanban')) {
+    return null;
+  }
 
   try {
     const { listBoards } = await import('@/services/kanban');

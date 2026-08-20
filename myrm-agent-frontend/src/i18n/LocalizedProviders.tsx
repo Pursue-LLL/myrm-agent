@@ -47,22 +47,22 @@ export async function LocalizedProviders({ children }: LocalizedProvidersProps) 
       <GlobalErrorBoundary>
         <ThemeProvider>
           <ThemeProfileProvider>
-          <TooltipProvider delayDuration={300} skipDelayDuration={100}>
-            <ClientIntlProvider locale={locale as Locale} shellMessages={messages as Messages}>
-              <ToastServiceInitializer />
-              <AuthInitializer />
-              <SettingsSyncInitializer />
-              <GlobalEventsInitializer />
-              <DeepLinkListener />
-              <SystemStatusBanner />
-              <QuarantineDialog />
-              <VaultUnlockModal />
-              <ApprovalDrawer />
-              <DeferredAppInitializers />
-              <PageLayout>{children}</PageLayout>
-              <Toaster position="top-right" expand={true} richColors />
-            </ClientIntlProvider>
-          </TooltipProvider>
+            <TooltipProvider delayDuration={300} skipDelayDuration={100}>
+              <ClientIntlProvider locale={locale as Locale} shellMessages={messages as Messages}>
+                <ToastServiceInitializer />
+                <AuthInitializer />
+                <SettingsSyncInitializer />
+                <GlobalEventsInitializer />
+                <DeepLinkListener />
+                <SystemStatusBanner />
+                <QuarantineDialog />
+                <VaultUnlockModal />
+                <ApprovalDrawer />
+                <DeferredAppInitializers />
+                <PageLayout>{children}</PageLayout>
+                <Toaster position="top-right" expand={true} richColors />
+              </ClientIntlProvider>
+            </TooltipProvider>
           </ThemeProfileProvider>
         </ThemeProvider>
       </GlobalErrorBoundary>

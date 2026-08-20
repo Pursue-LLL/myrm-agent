@@ -16,19 +16,7 @@
 import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  X,
-  Undo2,
-  Redo2,
-  RotateCw,
-  Square,
-  Circle,
-  ArrowUpRight,
-  Pencil,
-  Type,
-  Eraser,
-  Send,
-} from 'lucide-react';
+import { X, Undo2, Redo2, RotateCw, Square, Circle, ArrowUpRight, Pencil, Type, Eraser, Send } from 'lucide-react';
 import { useImageEditor } from './useImageEditor';
 import type { ToolType } from './tools/types';
 import { PALETTE_COLORS, LINE_WIDTHS } from './tools/types';
@@ -88,17 +76,27 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
 
   const handleSend = useCallback(async () => {
     const blob = await exportAsBlob();
-    if (blob) {onComplete(blob);}
+    if (blob) {
+      onComplete(blob);
+    }
   }, [exportAsBlob, onComplete]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {onCancel();}
-    if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-      e.preventDefault();
-      if (e.shiftKey) {redo();}
-      else {undo();}
-    }
-  }, [onCancel, undo, redo]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+    },
+    [onCancel, undo, redo],
+  );
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -180,10 +178,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
-              className={cn(
-                'max-w-full max-h-full object-contain rounded-lg shadow-2xl touch-none',
-                cursorClass,
-              )}
+              className={cn('max-w-full max-h-full object-contain rounded-lg shadow-2xl touch-none', cursorClass)}
               style={{ imageRendering: 'auto' }}
             />
 
@@ -197,8 +192,12 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
                     placeholder={t('textPlaceholder')}
                     className="bg-transparent text-sm text-popover-foreground outline-none min-w-[200px] placeholder:text-muted-foreground/60"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {handleTextSubmit((e.target as HTMLInputElement).value);}
-                      if (e.key === 'Escape') {handleTextSubmit('');}
+                      if (e.key === 'Enter') {
+                        handleTextSubmit((e.target as HTMLInputElement).value);
+                      }
+                      if (e.key === 'Escape') {
+                        handleTextSubmit('');
+                      }
                     }}
                   />
                 </div>
@@ -219,9 +218,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
               onClick={() => setTool(type)}
               className={cn(
                 'p-2.5 rounded-lg transition-colors',
-                tool === type
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/60 hover:text-white hover:bg-white/10',
+                tool === type ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10',
               )}
               aria-label={t(labelKey)}
               title={t(labelKey)}
@@ -257,16 +254,11 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
               onClick={() => setLineWidth(w)}
               className={cn(
                 'p-2 rounded-lg transition-colors',
-                lineWidth === w
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/60 hover:text-white hover:bg-white/10',
+                lineWidth === w ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10',
               )}
               aria-label={`${w}px`}
             >
-              <div
-                className="rounded-full bg-current"
-                style={{ width: w + 4, height: w + 4 }}
-              />
+              <div className="rounded-full bg-current" style={{ width: w + 4, height: w + 4 }} />
             </button>
           ))}
         </div>

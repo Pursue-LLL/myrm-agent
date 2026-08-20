@@ -14,7 +14,9 @@ import type { MemoryCommandTimelineEvent } from '@/services/memory/commandCenter
 export const LIVE_STREAM_LIMIT = 50;
 
 export const isMemoryTimelineEvent = (value: unknown): value is MemoryCommandTimelineEvent => {
-  if (!value || typeof value !== 'object') {return false;}
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
   const candidate = value as Partial<MemoryCommandTimelineEvent>;
   return (
     typeof candidate.id === 'string' &&
@@ -29,7 +31,9 @@ export const isMemoryTimelineEvent = (value: unknown): value is MemoryCommandTim
 
 export const resolveReplaySessionId = (event: MemoryCommandTimelineEvent): string | null => {
   const chatId = event.metadata?.chat_id;
-  if (typeof chatId === 'string' && chatId.length > 0) {return chatId;}
+  if (typeof chatId === 'string' && chatId.length > 0) {
+    return chatId;
+  }
   if (event.target_kind === 'chat' && typeof event.target_id === 'string' && event.target_id.length > 0) {
     return event.target_id;
   }
@@ -41,7 +45,9 @@ export const mergeLiveStreamEvents = (
   incoming: MemoryCommandTimelineEvent,
   limit: number = LIVE_STREAM_LIMIT,
 ): MemoryCommandTimelineEvent[] => {
-  if (previous.some((item) => item.id === incoming.id)) {return previous;}
+  if (previous.some((item) => item.id === incoming.id)) {
+    return previous;
+  }
 
   const messageId = incoming.metadata?.message_id;
   if (incoming.kind === 'recall' && typeof messageId === 'string' && messageId.length > 0) {

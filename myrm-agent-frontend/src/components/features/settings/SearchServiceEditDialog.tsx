@@ -2,19 +2,25 @@
 
 import { memo, useState, useEffect, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { IconX, IconCheck, IconLoader, IconAlertCircle, IconHelpCircle } from '@/components/features/icons/PremiumIcons';
-import { cn } from '@/lib/utils/classnameUtils';
 import {
-  SearchServiceConfigItem,
-  SearchServiceConfig,
-  ValidationResult,
-} from '@/store/config/types';
+  IconX,
+  IconCheck,
+  IconLoader,
+  IconAlertCircle,
+  IconHelpCircle,
+} from '@/components/features/icons/PremiumIcons';
+import { cn } from '@/lib/utils/classnameUtils';
+import { SearchServiceConfigItem, SearchServiceConfig, ValidationResult } from '@/store/config/types';
 import { InputField } from './FormFields';
 import Tooltip from './Tooltip';
 import OptionSelect from './OptionSelect';
 import { useDeployMode } from '@/hooks/shared/useDeployMode';
 import useConfigStore from '@/store/useConfigStore';
-import { fetchSearchProviders, isSoftSearchServiceValidationFailure, type SearchProviderManifestEntry } from '@/services/llm-config';
+import {
+  fetchSearchProviders,
+  isSoftSearchServiceValidationFailure,
+  type SearchProviderManifestEntry,
+} from '@/services/llm-config';
 import { buildSearxngExtraParams, detectSearxngPreset, type SearxngRegionPreset } from '@/lib/search/searxngPresets';
 import { suggestNextPriority } from '@/store/config/searchService';
 
@@ -55,10 +61,7 @@ const SearchServiceEditDialog = memo(
 
     const { searchServiceConfigs } = useConfigStore();
 
-    const activeProvider = useMemo(
-      () => providers.find((p) => p.slug === searchService),
-      [providers, searchService],
-    );
+    const activeProvider = useMemo(() => providers.find((p) => p.slug === searchService), [providers, searchService]);
 
     const recommendedPriority = useMemo(() => {
       if (!isOpen || config) {
@@ -99,16 +102,22 @@ const SearchServiceEditDialog = memo(
       setProvidersLoading(true);
       void fetchSearchProviders(isLocal)
         .then((data) => {
-          if (cancelled) {return;}
+          if (cancelled) {
+            return;
+          }
           setProviders(data.providers);
           setMaxChainSize(data.maxChainSize);
         })
         .catch(() => {
-          if (cancelled) {return;}
+          if (cancelled) {
+            return;
+          }
           setProviders([]);
         })
         .finally(() => {
-          if (!cancelled) {setProvidersLoading(false);}
+          if (!cancelled) {
+            setProvidersLoading(false);
+          }
         });
       return () => {
         cancelled = true;
@@ -201,7 +210,9 @@ const SearchServiceEditDialog = memo(
     };
 
     const handleValidate = async () => {
-      if (!validateForm()) {return;}
+      if (!validateForm()) {
+        return;
+      }
 
       setIsValidating(true);
       setValidationError('');
@@ -236,7 +247,9 @@ const SearchServiceEditDialog = memo(
     };
 
     const handleSave = async () => {
-      if (!validateForm()) {return;}
+      if (!validateForm()) {
+        return;
+      }
 
       if (config?.enabled) {
         const existingConfigs = searchServiceConfigs.filter((c) => c.id !== config?.id);
@@ -353,7 +366,9 @@ const SearchServiceEditDialog = memo(
       (!showApiBaseField || !!apiBase.trim()) &&
       (!activeProvider || activeProvider.backendReady);
 
-    if (!isOpen) {return null;}
+    if (!isOpen) {
+      return null;
+    }
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center">

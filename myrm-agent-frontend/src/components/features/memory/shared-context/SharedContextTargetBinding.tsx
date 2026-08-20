@@ -122,7 +122,9 @@ export function SharedContextTargetBinding({
   }, [availableContexts, selectedContextId]);
 
   const handleBind = useCallback(async () => {
-    if (!targetId || !selectedContextId || disabled) {return;}
+    if (!targetId || !selectedContextId || disabled) {
+      return;
+    }
 
     setActionId('bind');
     try {

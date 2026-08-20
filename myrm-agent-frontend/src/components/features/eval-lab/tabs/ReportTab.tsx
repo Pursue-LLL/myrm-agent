@@ -13,27 +13,33 @@ interface ReportTabProps {
   onViewDiff: (expected: string, actual: string) => void;
 }
 
-export default function ReportTab({ running, evalStage, progress, downloadProgress, report, onViewDiff }: ReportTabProps) {
+export default function ReportTab({
+  running,
+  evalStage,
+  progress,
+  downloadProgress,
+  report,
+  onViewDiff,
+}: ReportTabProps) {
   const t = useTranslations('evalLab');
 
   if (running) {
     const downloading = evalStage === 'downloading';
     const downloaded = downloadProgress?.downloaded_bytes ?? 0;
     const totalBytes = downloadProgress?.total_bytes ?? 0;
-    const width = downloading && totalBytes > 0
-      ? (downloaded / totalBytes) * 100
-      : progress.total > 0
-        ? (progress.completed / progress.total) * 100
-        : 0;
+    const width =
+      downloading && totalBytes > 0
+        ? (downloaded / totalBytes) * 100
+        : progress.total > 0
+          ? (progress.completed / progress.total) * 100
+          : 0;
 
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
         <RefreshCw className="w-8 h-8 animate-spin text-primary" />
         <p>
           {downloading
-            ? `${t('wbBench.downloading')}: ${formatMib(downloaded)} / ${
-                totalBytes > 0 ? formatMib(totalBytes) : '?'
-              }`
+            ? `${t('wbBench.downloading')}: ${formatMib(downloaded)} / ${totalBytes > 0 ? formatMib(totalBytes) : '?'}`
             : `${t('report.evalRunning')} (${progress.completed} / ${progress.total})`}
         </p>
         <div className="w-64 h-2 bg-secondary rounded-full overflow-hidden">
@@ -53,9 +59,7 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
   }
 
   const successRate =
-    typeof report.total === 'number' && report.total > 0
-      ? Math.round(((report.passed ?? 0) / report.total) * 100)
-      : 0;
+    typeof report.total === 'number' && report.total > 0 ? Math.round(((report.passed ?? 0) / report.total) * 100) : 0;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -155,9 +159,7 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
-                    {report.decontam_active
-                      ? t('report.decontamOn')
-                      : t('report.decontamOff')}
+                    {report.decontam_active ? t('report.decontamOn') : t('report.decontamOff')}
                   </span>
                 </p>
               </div>
@@ -213,8 +215,7 @@ export default function ReportTab({ running, evalStage, progress, downloadProgre
                         }`}
                       >
                         {c.scores.pass_rate >= 1 ? '100%' : `${Math.min(99, Math.floor(c.scores.pass_rate * 100))}%`}
-                        {c.scores.tests_total != null &&
-                          ` · ${c.scores.tests_passed ?? 0}/${c.scores.tests_total}`}
+                        {c.scores.tests_total != null && ` · ${c.scores.tests_passed ?? 0}/${c.scores.tests_total}`}
                       </span>
                     )}
                     {c.scores?.span_recall != null && (

@@ -36,9 +36,7 @@ const toastSuccess = vi.fn();
 let mockLoading = false;
 let mockState = {
   pendingGapRetry: null as
-    | { kind: 'capability'; text: string; toolId: string }
-    | { kind: 'skill'; text: string; skillId: string }
-    | null,
+    { kind: 'capability'; text: string; toolId: string } | { kind: 'skill'; text: string; skillId: string } | null,
   currentBuiltinTools: ['web_search', 'memory'] as string[],
   agentConfig: { selectedSkillIds: ['bound_skill'] as string[] },
   loading: false,
@@ -235,9 +233,7 @@ describe('gapEvents', () => {
   });
 
   it('ignores capability_gap for agent baseline tool ids (no UI toggle)', async () => {
-    const result = await gapEvents(
-      createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'file_ops' }),
-    );
+    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'file_ops' }));
     expect(result).toBeNull();
     expect(toastInfo).not.toHaveBeenCalled();
     expect(setPendingGapRetry).not.toHaveBeenCalled();

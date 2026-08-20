@@ -45,9 +45,7 @@ class ConnectionManager {
         origin: this.connectedOrigin,
       });
       window.__MYRM_MULTIPLEX_STATS__ = () => ({
-        pendingByMessage: Object.fromEntries(
-          [...this.pending.entries()].map(([id, chunks]) => [id, chunks.length]),
-        ),
+        pendingByMessage: Object.fromEntries([...this.pending.entries()].map(([id, chunks]) => [id, chunks.length])),
         dispatched: this.dispatchedCount,
         lastMessageId: this.lastMessageId,
       });
@@ -182,7 +180,9 @@ class ConnectionManager {
         }
       },
       onerror(err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {return;}
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
         console.error('Workspace stream error:', err);
         const self = ConnectionManager.getInstance();
         self.isConnected = false;
@@ -223,7 +223,9 @@ class ConnectionManager {
   }
 
   private dispatchChunk(chatId: string | null, messageId: string, rawChunk: string) {
-    if (!chatId || !messageId) {return;}
+    if (!chatId || !messageId) {
+      return;
+    }
     this.dispatchedCount += 1;
     this.lastMessageId = messageId;
 

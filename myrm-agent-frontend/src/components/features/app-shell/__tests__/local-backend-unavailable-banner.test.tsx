@@ -124,9 +124,7 @@ describe('LocalBackendUnavailableBanner', () => {
 
   it('does not show banner on E2E tabs before private backend binding', async () => {
     const { checkBackendReadyOnce } = await import('@/lib/backend-health');
-    const { isChromeE2eTab, waitForChromeE2eBackendBinding } = await import(
-      '@/lib/local-backend-e2e-probe'
-    );
+    const { isChromeE2eTab, waitForChromeE2eBackendBinding } = await import('@/lib/local-backend-e2e-probe');
     vi.mocked(isChromeE2eTab).mockReturnValueOnce(true);
     vi.mocked(waitForChromeE2eBackendBinding).mockResolvedValueOnce(false);
     vi.mocked(checkBackendReadyOnce).mockResolvedValueOnce(false);
@@ -143,9 +141,7 @@ describe('LocalBackendUnavailableBanner', () => {
 
   it('shows banner on E2E tabs only after private backend binding fails health', async () => {
     const { checkBackendReadyOnce } = await import('@/lib/backend-health');
-    const { isChromeE2eTab, waitForChromeE2eBackendBinding } = await import(
-      '@/lib/local-backend-e2e-probe'
-    );
+    const { isChromeE2eTab, waitForChromeE2eBackendBinding } = await import('@/lib/local-backend-e2e-probe');
     vi.mocked(isChromeE2eTab).mockReturnValueOnce(true);
     vi.mocked(waitForChromeE2eBackendBinding).mockResolvedValueOnce(true);
     vi.mocked(checkBackendReadyOnce).mockResolvedValueOnce(false);

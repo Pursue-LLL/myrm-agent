@@ -91,7 +91,9 @@ export function useMemoryAbEval(): MemoryAbEval {
       // stream EOF immediately and firing onerror instead of onmessage.
       // Both paths converge here so the UI never shows stale state.
       const finalize = () => {
-        if (finalized) {return;}
+        if (finalized) {
+          return;
+        }
         finalized = true;
         eventSource?.close();
         setMemoryAbRunning(false);

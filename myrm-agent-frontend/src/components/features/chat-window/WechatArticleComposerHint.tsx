@@ -78,10 +78,7 @@ export function WechatArticleComposerHint({ inputMessage, className }: WechatArt
           {formatterReady ? t('readyDescription') : t('description')}
         </p>
         {!formatterReady ? (
-          <Link
-            href={settingsHref}
-            className="inline-flex font-medium text-primary underline-offset-4 hover:underline"
-          >
+          <Link href={settingsHref} className="inline-flex font-medium text-primary underline-offset-4 hover:underline">
             {t('openSkills')}
           </Link>
         ) : null}

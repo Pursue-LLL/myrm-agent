@@ -10,7 +10,14 @@ import ArtifactErrorBoundary from './ArtifactErrorBoundary';
 import { getStorageUrl } from '@/lib/api';
 import SkeletonLoader from './renderers/SkeletonLoader';
 import NoPreview from './renderers/NoPreview';
-import { HtmlPreview, ImagePreview, VideoPreview, SvgPreview, AudioPreview, type PickedElement } from './renderers/MediaPreview';
+import {
+  HtmlPreview,
+  ImagePreview,
+  VideoPreview,
+  SvgPreview,
+  AudioPreview,
+  type PickedElement,
+} from './renderers/MediaPreview';
 
 const noopAsync = async () => {};
 const noop = () => {};
@@ -105,7 +112,20 @@ interface ArtifactRendererProps {
 }
 
 /** 内部渲染器 */
-const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick, chatId, versions, viewingVersionIndex, onEditSave, onEditDirty }) => {
+const InnerRenderer: React.FC<ArtifactRendererProps> = ({
+  artifact,
+  content,
+  displayMode,
+  loading,
+  onDownload,
+  pickerMode,
+  onElementPick,
+  chatId,
+  versions,
+  viewingVersionIndex,
+  onEditSave,
+  onEditDirty,
+}) => {
   const t = useTranslations('artifacts');
 
   if (loading) {
@@ -177,11 +197,7 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
       return <CodePreview content={content} language="csv" artifactId={artifact.id} />;
     }
     return (
-      <SpreadsheetPreviewDynamic
-        content={content || ''}
-        filename={filename}
-        previewUrl={preview_url || undefined}
-      />
+      <SpreadsheetPreviewDynamic content={content || ''} filename={filename} previewUrl={preview_url || undefined} />
     );
   }
 
@@ -237,7 +253,17 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
       return <CodePreview content={content} language="html" artifactId={artifact.id} />;
     }
     const htmlUrl = preview_url ? getStorageUrl(preview_url) : undefined;
-    return <HtmlPreview url={htmlUrl} content={content} artifactId={artifact.id} pickerMode={pickerMode} onElementPick={onElementPick} storageNamespace={artifact.id} chatId={chatId} />;
+    return (
+      <HtmlPreview
+        url={htmlUrl}
+        content={content}
+        artifactId={artifact.id}
+        pickerMode={pickerMode}
+        onElementPick={onElementPick}
+        storageNamespace={artifact.id}
+        chatId={chatId}
+      />
+    );
   }
 
   // 视频类型

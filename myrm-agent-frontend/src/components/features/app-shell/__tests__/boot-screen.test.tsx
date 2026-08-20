@@ -288,5 +288,4 @@ describe('BootScreen component', () => {
     const svgs = document.querySelectorAll('svg');
     expect(svgs.length).toBeGreaterThan(0);
   });
-
 });

@@ -37,7 +37,9 @@ const SecurityPolicySection = memo(() => {
 
   const policy = useSecurityPolicy(t);
 
-  if (!policy.loaded) {return null;}
+  if (!policy.loaded) {
+    return null;
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -315,10 +317,7 @@ const SecurityPolicySection = memo(() => {
                 })}
               </p>
             </div>
-            <Switch
-              checked={policy.autoReviewEnabled}
-              onCheckedChange={policy.handleAutoReviewToggle}
-            />
+            <Switch checked={policy.autoReviewEnabled} onCheckedChange={policy.handleAutoReviewToggle} />
           </div>
 
           <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
@@ -367,16 +366,14 @@ const SecurityPolicySection = memo(() => {
         title={t('planReview.title', { default: 'Plan Review' })}
         description={t('planReview.description', {
           default:
-            'Review and approve the AI\'s task plan before execution begins. Helps catch mistakes early — before any files are modified.',
+            "Review and approve the AI's task plan before execution begins. Helps catch mistakes early — before any files are modified.",
         })}
       >
         <div className="flex items-center justify-between gap-4 p-4 rounded-lg border border-border bg-background">
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
               <IconEye className="h-4 w-4 text-blue-500" />
-              <span className="font-medium">
-                {t('planReview.enableLabel', { default: 'Enable Plan Review' })}
-              </span>
+              <span className="font-medium">{t('planReview.enableLabel', { default: 'Enable Plan Review' })}</span>
             </div>
             <p className="text-sm text-muted-foreground">
               {t('planReview.enableDesc', {
@@ -442,13 +439,18 @@ const SecurityPolicySection = memo(() => {
                 </p>
                 <div className="text-xs text-destructive/80 space-y-1 mt-2">
                   <p>
-                    • {t('yoloMode.warning.point1', { default: 'All file operations will execute without confirmation' })}
+                    •{' '}
+                    {t('yoloMode.warning.point1', { default: 'All file operations will execute without confirmation' })}
                   </p>
                   <p>
-                    • {t('yoloMode.warning.point2', { default: 'All network requests will execute without confirmation' })}
+                    •{' '}
+                    {t('yoloMode.warning.point2', {
+                      default: 'All network requests will execute without confirmation',
+                    })}
                   </p>
                   <p>
-                    • {t('yoloMode.warning.point3', { default: 'All shell commands will execute without confirmation' })}
+                    •{' '}
+                    {t('yoloMode.warning.point3', { default: 'All shell commands will execute without confirmation' })}
                   </p>
                 </div>
               </div>
@@ -465,7 +467,8 @@ const SecurityPolicySection = memo(() => {
               <li>• {t('yoloMode.useCases.case2', { default: 'CI/CD automation pipelines' })}</li>
               <li>• {t('yoloMode.useCases.case3', { default: 'Scheduled tasks and batch processing' })}</li>
               <li>
-                • {t('yoloMode.useCases.case4', { default: 'Trusted environments with high confidence in AI behavior' })}
+                •{' '}
+                {t('yoloMode.useCases.case4', { default: 'Trusted environments with high confidence in AI behavior' })}
               </li>
             </ul>
           </div>
@@ -475,8 +478,7 @@ const SecurityPolicySection = memo(() => {
       {policy.managedDisableAllowAlways && (
         <p className="text-xs text-muted-foreground px-1">
           {t('managedPolicy.allowAlwaysDisabled', {
-            default:
-              'Your organization disabled saving permanent allowlist entries from approval prompts.',
+            default: 'Your organization disabled saving permanent allowlist entries from approval prompts.',
           })}
         </p>
       )}

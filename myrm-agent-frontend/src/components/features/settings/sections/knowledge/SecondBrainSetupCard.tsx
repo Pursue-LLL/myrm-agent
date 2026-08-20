@@ -51,7 +51,10 @@ function ChecklistRow({
       </div>
       {!item.ready ? (
         <div className="ml-4 space-y-1">
-          <p className="text-xs leading-relaxed text-muted-foreground" data-testid={`second-brain-pitfall-hint-${item.id}`}>
+          <p
+            className="text-xs leading-relaxed text-muted-foreground"
+            data-testid={`second-brain-pitfall-hint-${item.id}`}
+          >
             {hint}
           </p>
           {item.id === 'provider_ready' && providerMissing && providerMissing.length > 0 ? (
@@ -184,9 +187,7 @@ export default function SecondBrainSetupCard({
         ) : (
           <>
             {status?.applied && status.agent_name ? (
-              <p className="text-sm text-muted-foreground">
-                {t('appliedAs', { name: status.agent_name })}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('appliedAs', { name: status.agent_name })}</p>
             ) : null}
             <ul className="space-y-3">
               {(status?.checklist ?? []).map((item) => (

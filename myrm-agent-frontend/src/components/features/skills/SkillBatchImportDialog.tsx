@@ -70,7 +70,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       ),
     [t],
   );
-  
+
   const [file, setFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -109,35 +109,34 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       }
       setParseError(null);
       setFile(selected);
-      
+
       // 自动触发预览
       setIsParsing(true);
       try {
         const formData = new FormData();
         formData.append('file', selected);
-        
+
         const res = await fetch('/api/v1/skills/batch-import/preview', {
           method: 'POST',
           body: formData,
         });
-        
+
         if (!res.ok) {
           const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
           const message = resolveUserFacingApiError(errPayload.detail, t('discover.previewFailed'));
           throw new Error(message);
         }
-        
+
         const data = await res.json();
         setTotalFound(data.total_found);
         setTotalConflicts(data.total_conflicts);
         setSessionId(data.session_id);
-        
+
         const items: PreviewItem[] = data.items.map((item: PreviewResponseItem) => ({
           ...item,
-          resolution: item.conflict_type === 'conflict' ? 'rename_cow' : 'new'
+          resolution: item.conflict_type === 'conflict' ? 'rename_cow' : 'new',
         }));
         setPreviewItems(items);
-        
       } catch (error: unknown) {
         setParseError(resolveErrorMessage(error, t('discover.previewFailed')));
         setFile(null);
@@ -156,19 +155,19 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
   });
 
   const handleResolutionChange = (virtualId: string, resolution: PreviewResolution) => {
-    setPreviewItems(prev => prev.map(item => 
-      item.virtual_id === virtualId ? { ...item, resolution } : item
-    ));
+    setPreviewItems((prev) => prev.map((item) => (item.virtual_id === virtualId ? { ...item, resolution } : item)));
   };
 
   const handleBulkResolutionChange = useCallback((resolution: string) => {
     const parsedResolution = parsePreviewResolution(resolution, 'rename_cow');
-    setPreviewItems(prev => prev.map(item => {
-      if (item.conflict_type === 'conflict') {
-        return { ...item, resolution: parsedResolution };
-      }
-      return item;
-    }));
+    setPreviewItems((prev) =>
+      prev.map((item) => {
+        if (item.conflict_type === 'conflict') {
+          return { ...item, resolution: parsedResolution };
+        }
+        return item;
+      }),
+    );
   }, []);
 
   const handleConfirmImport = async () => {
@@ -176,27 +175,27 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       setIsImporting(true);
       const payload = {
         session_id: sessionId,
-        items: previewItems.map(item => ({
+        items: previewItems.map((item) => ({
           virtual_id: item.virtual_id,
           name: item.name,
           description: item.description,
           resolution: item.resolution,
-          existing_skill_id: item.existing_skill_id
-        }))
+          existing_skill_id: item.existing_skill_id,
+        })),
       };
-      
+
       const res = await fetch('/api/v1/skills/batch-import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      
+
       if (!res.ok) {
         const errPayload = (await res.json().catch(() => ({}))) as ApiErrorPayload;
         const message = resolveUserFacingApiError(errPayload.detail, t('installed.importFailed'));
         throw new Error(message);
       }
-      
+
       const result = await res.json();
       const restoredCount = typeof result.restored_eval_cases === 'number' ? result.restored_eval_cases : 0;
       toast({
@@ -210,7 +209,6 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
       resetForm();
       onOpenChange(false);
       onImportComplete();
-      
     } catch (error: unknown) {
       toast({
         title: t('batchImport.importFailed'),
@@ -223,19 +221,22 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => {
-      if (!val) {resetForm();}
-      onOpenChange(val);
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (!val) {
+          resetForm();
+        }
+        onOpenChange(val);
+      }}
+    >
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <DownloadCloud className="w-5 h-5" />
             {tdlg('title')}
           </DialogTitle>
-          <DialogDescription>
-            {tdlg('description')}
-          </DialogDescription>
+          <DialogDescription>{tdlg('description')}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 px-6 bg-muted/10">
@@ -257,7 +258,9 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                   accept=".zip"
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files?.length) {handleFilesSelected(e.target.files);}
+                    if (e.target.files?.length) {
+                      handleFilesSelected(e.target.files);
+                    }
                   }}
                 />
                 {isParsing ? (
@@ -268,14 +271,10 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                     className={cn('mx-auto mb-4', parseError ? 'text-destructive' : 'text-muted-foreground')}
                   />
                 )}
-                
-                <p className="text-base font-medium">
-                  {isParsing ? tdlg('parsing') : tdlg('dropHint')}
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {tdlg('subHint')}
-                </p>
-                
+
+                <p className="text-base font-medium">{isParsing ? tdlg('parsing') : tdlg('dropHint')}</p>
+                <p className="text-sm text-muted-foreground mt-2">{tdlg('subHint')}</p>
+
                 {parseError && (
                   <Alert variant="destructive" className="mt-6 text-left inline-block">
                     <AlertCircle className="h-4 w-4" />
@@ -300,7 +299,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                     {tdlg('reselect')}
                   </Button>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -327,20 +326,34 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                       </Select>
                     )}
                   </div>
-                  
+
                   <div className="border rounded-xl divide-y bg-background overflow-hidden">
                     {previewItems.map((item) => (
-                      <div key={item.virtual_id} className="p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-muted/50 transition-colors">
+                      <div
+                        key={item.virtual_id}
+                        className="p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-muted/50 transition-colors"
+                      >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium truncate">{item.name}</span>
                             {item.conflict_type === 'conflict' ? (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{tdlg('conflictBadge')}</Badge>
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                {tdlg('conflictBadge')}
+                              </Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 dark:text-green-400">{tdlg('newBadge')}</Badge>
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 dark:text-green-400"
+                              >
+                                {tdlg('newBadge')}
+                              </Badge>
                             )}
                             {item.security_issues && (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 flex items-center gap-1" title={item.security_issues}>
+                              <Badge
+                                variant="destructive"
+                                className="text-[10px] px-1.5 py-0 bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 flex items-center gap-1"
+                                title={item.security_issues}
+                              >
                                 <AlertCircle className="w-3 h-3" /> {tdlg('securityRisk')}
                               </Badge>
                             )}
@@ -352,11 +365,11 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                             </p>
                           )}
                         </div>
-                        
+
                         <div className="shrink-0 w-full sm:w-[180px]">
                           {item.conflict_type === 'conflict' ? (
-                            <Select 
-                              value={item.resolution} 
+                            <Select
+                              value={item.resolution}
                               onValueChange={(value) =>
                                 handleResolutionChange(item.virtual_id, parsePreviewResolution(value, item.resolution))
                               }
@@ -372,8 +385,8 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                               </SelectContent>
                             </Select>
                           ) : (
-                            <Select 
-                              value={item.resolution} 
+                            <Select
+                              value={item.resolution}
                               onValueChange={(value) =>
                                 handleResolutionChange(item.virtual_id, parsePreviewResolution(value, item.resolution))
                               }
@@ -402,7 +415,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
           <div className="text-sm text-muted-foreground">
             {previewItems.length > 0 && (
               <span>
-                {tdlg('selectedCount', { count: String(previewItems.filter(i => i.resolution !== 'skip').length) })}
+                {tdlg('selectedCount', { count: String(previewItems.filter((i) => i.resolution !== 'skip').length) })}
               </span>
             )}
           </div>
@@ -410,9 +423,11 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isImporting}>
               {tdlg('cancel')}
             </Button>
-            <Button 
-              onClick={handleConfirmImport} 
-              disabled={!file || previewItems.length === 0 || isImporting || previewItems.every(i => i.resolution === 'skip')}
+            <Button
+              onClick={handleConfirmImport}
+              disabled={
+                !file || previewItems.length === 0 || isImporting || previewItems.every((i) => i.resolution === 'skip')
+              }
             >
               {isImporting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {isImporting ? tdlg('importing') : tdlg('confirmImport')}

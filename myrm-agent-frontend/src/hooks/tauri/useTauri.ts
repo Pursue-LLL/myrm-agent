@@ -16,9 +16,7 @@ export function useTauri() {
   useEffect(() => {
     if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
       setIsTauri(true);
-      import('@tauri-apps/api/core')
-        .then((mod) => setInvoke(() => mod.invoke))
-        .catch(() => setInvoke(null));
+      import('@tauri-apps/api/core').then((mod) => setInvoke(() => mod.invoke)).catch(() => setInvoke(null));
     }
   }, []);
 

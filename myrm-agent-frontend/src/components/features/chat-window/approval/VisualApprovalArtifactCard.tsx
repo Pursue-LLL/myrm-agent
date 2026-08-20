@@ -21,11 +21,7 @@ interface VisualApprovalArtifactCardProps {
   request: ToolApprovalRequest;
   desktopViewData: InspectorViewSnapshot | null;
   browserViewData: InspectorViewSnapshot | null;
-  onResolve: (
-    requestId: string,
-    decision: DecisionType,
-    extra?: ToolApprovalResolveExtra,
-  ) => Promise<void>;
+  onResolve: (requestId: string, decision: DecisionType, extra?: ToolApprovalResolveExtra) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -89,13 +85,7 @@ export default function VisualApprovalArtifactCard({
       </div>
 
       <div className="border-t border-amber-500/20 bg-background/80 px-2 py-2">
-        <SingleApprovalCard
-          request={request}
-          onResolve={onResolve}
-          isLoading={isLoading}
-          hideVisualHighlight
-          compact
-        />
+        <SingleApprovalCard request={request} onResolve={onResolve} isLoading={isLoading} hideVisualHighlight compact />
       </div>
     </div>
   );

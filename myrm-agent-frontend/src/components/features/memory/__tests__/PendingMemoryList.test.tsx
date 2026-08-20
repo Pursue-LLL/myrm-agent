@@ -4,13 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PendingMemoryList from '../pending/PendingMemoryList';
 
-const toastMock = vi.hoisted(() => Object.assign(vi.fn(), {
-  success: vi.fn(),
-  error: vi.fn(),
-  warning: vi.fn(),
-  info: vi.fn(),
-  dismiss: vi.fn(),
-}));
+const toastMock = vi.hoisted(() =>
+  Object.assign(vi.fn(), {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+);
 
 const mockBatchApprove = vi.hoisted(() => vi.fn());
 const mockBatchReject = vi.hoisted(() => vi.fn());
@@ -52,7 +54,15 @@ vi.mock('@/store/memory', () => ({
 }));
 
 vi.mock('../cards/MemoryCard', () => ({
-  default: ({ memory, onApprove, onReject }: { memory: { id: string; content: string }; onApprove: () => void; onReject: () => void }) => (
+  default: ({
+    memory,
+    onApprove,
+    onReject,
+  }: {
+    memory: { id: string; content: string };
+    onApprove: () => void;
+    onReject: () => void;
+  }) => (
     <div data-testid={`memory-card-${memory.id}`}>
       <span>{memory.content}</span>
       <button onClick={onApprove}>approve-{memory.id}</button>
@@ -161,7 +171,9 @@ describe('PendingMemoryList - batch operations', () => {
     const rejectButton = screen.getByText('batchReject').closest('button');
     expect(approveButton).not.toBeNull();
     expect(rejectButton).not.toBeNull();
-    if (!approveButton || !rejectButton) {throw new Error('batch action buttons missing');}
+    if (!approveButton || !rejectButton) {
+      throw new Error('batch action buttons missing');
+    }
 
     await user.click(approveButton);
 

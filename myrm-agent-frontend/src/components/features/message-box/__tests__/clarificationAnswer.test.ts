@@ -19,11 +19,7 @@ const sampleForm: ClarificationForm = {
 
 describe('buildStructuredClarificationAnswer', () => {
   it('returns option ids keyed by question id (not labels)', () => {
-    const answer = buildStructuredClarificationAnswer(
-      sampleForm,
-      { framework: ['langchain'] },
-      {},
-    );
+    const answer = buildStructuredClarificationAnswer(sampleForm, { framework: ['langchain'] }, {});
     expect(answer).toEqual({ framework: 'langchain' });
   });
 

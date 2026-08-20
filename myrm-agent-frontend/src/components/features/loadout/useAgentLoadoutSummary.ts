@@ -100,10 +100,7 @@ async function countPendingProposalsForBindings(
     return { count: 0, status: 'unavailable' };
   }
 
-  const count = proposalLists.reduce(
-    (sum, response) => sum + (response!.total ?? response!.items.length),
-    0,
-  );
+  const count = proposalLists.reduce((sum, response) => sum + (response!.total ?? response!.items.length), 0);
   return { count, status: 'ok' };
 }
 
@@ -145,10 +142,7 @@ export function useAgentLoadoutSummary({
     };
 
     try {
-      const [agentResult, readinessResult] = await Promise.allSettled([
-        getAgent(agentId),
-        getAgentReadiness(agentId),
-      ]);
+      const [agentResult, readinessResult] = await Promise.allSettled([getAgent(agentId), getAgentReadiness(agentId)]);
 
       if (agentResult.status === 'rejected') {
         throw agentResult.reason;

@@ -46,7 +46,9 @@ const DatasetExportCard = memo(() => {
     setSelectedFormats((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
-        if (next.size > 1) {next.delete(id);}
+        if (next.size > 1) {
+          next.delete(id);
+        }
       } else {
         next.add(id);
       }
@@ -86,8 +88,12 @@ const DatasetExportCard = memo(() => {
   }, [selectedFormats, redactPii, maxSamples, incremental, t, refreshFiles]);
 
   const formatBytes = (bytes: number): string => {
-    if (bytes < 1024) {return `${bytes} B`;}
-    if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
@@ -96,9 +102,7 @@ const DatasetExportCard = memo(() => {
       <div className="space-y-5">
         {/* Format Selection */}
         <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            {t('datasetExport.formats')}
-          </label>
+          <label className="text-sm font-medium text-foreground mb-2 block">{t('datasetExport.formats')}</label>
           <div className="flex flex-wrap gap-2">
             {formats.map((fmt) => (
               <button
@@ -140,9 +144,7 @@ const DatasetExportCard = memo(() => {
           </label>
 
           <label className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground whitespace-nowrap">
-              {t('datasetExport.maxSamples')}
-            </span>
+            <span className="text-muted-foreground whitespace-nowrap">{t('datasetExport.maxSamples')}</span>
             <input
               type="number"
               min={0}

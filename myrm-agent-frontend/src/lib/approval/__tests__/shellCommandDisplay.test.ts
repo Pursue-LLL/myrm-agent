@@ -53,9 +53,7 @@ describe('shellCommandDisplay', () => {
   });
 
   it('parses command span reasons', () => {
-    expect(
-      parseCommandSpanReasons(['safe', 'unknown_command'], 2),
-    ).toEqual(['safe', 'unknown_command']);
+    expect(parseCommandSpanReasons(['safe', 'unknown_command'], 2)).toEqual(['safe', 'unknown_command']);
     expect(parseCommandSpanReasons(['safe', 'bad_code'], 2)).toBeUndefined();
   });
 

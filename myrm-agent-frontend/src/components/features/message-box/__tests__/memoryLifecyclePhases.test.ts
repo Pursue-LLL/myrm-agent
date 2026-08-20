@@ -16,18 +16,8 @@ import {
 
 describe('memoryLifecyclePhases', () => {
   it('matches chat via metadata.chat_id', () => {
-    expect(
-      memoryOperationMatchesChat(
-        { kind: 'extract', metadata: { chat_id: 'chat-1' } },
-        'chat-1',
-      ),
-    ).toBe(true);
-    expect(
-      memoryOperationMatchesChat(
-        { kind: 'extract', metadata: { chat_id: 'chat-2' } },
-        'chat-1',
-      ),
-    ).toBe(false);
+    expect(memoryOperationMatchesChat({ kind: 'extract', metadata: { chat_id: 'chat-1' } }, 'chat-1')).toBe(true);
+    expect(memoryOperationMatchesChat({ kind: 'extract', metadata: { chat_id: 'chat-2' } }, 'chat-1')).toBe(false);
   });
 
   it('marks extract pending for manual retry optimistic UI', () => {
@@ -86,16 +76,14 @@ describe('memoryLifecyclePhases', () => {
 
   it('derives recall success from memory brief', () => {
     expect(
-      deriveRecallPhaseFromMessage(
-        {
-          snapshot_id: 'snap-1',
-          generated_at_ms: 0,
-          namespaces: ['global'],
-          is_cold_start: false,
-          stable: { working_state: true, profile_keys: [], instruction_count: 0, rule_count: 0 },
-          learned: { preference_count: 0, rule_count: 0, correction_count: 0, preference_ids: [], rule_ids: [] },
-        },
-      ).status,
+      deriveRecallPhaseFromMessage({
+        snapshot_id: 'snap-1',
+        generated_at_ms: 0,
+        namespaces: ['global'],
+        is_cold_start: false,
+        stable: { working_state: true, profile_keys: [], instruction_count: 0, rule_count: 0 },
+        learned: { preference_count: 0, rule_count: 0, correction_count: 0, preference_ids: [], rule_ids: [] },
+      }).status,
     ).toBe('success');
   });
 
@@ -169,9 +157,7 @@ describe('memoryLifecyclePhases', () => {
         messageCreatedAtMs,
       ),
     ).toBe(false);
-    expect(
-      isTraceMemoryEventForMessage({ status: 'success', summary: 'no ts' }, messageCreatedAtMs),
-    ).toBe(false);
+    expect(isTraceMemoryEventForMessage({ status: 'success', summary: 'no ts' }, messageCreatedAtMs)).toBe(false);
   });
 
   it('resolveMessageCreatedAtMs accepts ISO strings and Date objects', () => {

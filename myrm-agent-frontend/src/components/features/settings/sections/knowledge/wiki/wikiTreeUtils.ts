@@ -12,10 +12,14 @@ export function filterFolderNodes(nodes: TreeNode[]): TreeNode[] {
 
 export function findTreeNodeById(nodes: TreeNode[], targetId: string): TreeNode | null {
   for (const node of nodes) {
-    if (node.id === targetId) {return node;}
+    if (node.id === targetId) {
+      return node;
+    }
     if (node.children) {
       const found = findTreeNodeById(node.children, targetId);
-      if (found) {return found;}
+      if (found) {
+        return found;
+      }
     }
   }
   return null;
@@ -24,7 +28,9 @@ export function findTreeNodeById(nodes: TreeNode[], targetId: string): TreeNode 
 /** Count files and subfolders inside a folder (excluding the folder itself). */
 export function countDescendantItems(nodes: TreeNode[], folderId: string): number {
   const folder = findTreeNodeById(nodes, folderId);
-  if (!folder?.children?.length) {return 0;}
+  if (!folder?.children?.length) {
+    return 0;
+  }
 
   const walk = (items: TreeNode[]): number =>
     items.reduce((sum, item) => sum + 1 + (item.children ? walk(item.children) : 0), 0);
@@ -36,8 +42,12 @@ export function resolveCreateParentFolder(
   focusedNodeId: string | undefined,
   isDir: boolean | undefined,
 ): string | null {
-  if (!focusedNodeId) {return null;}
-  if (isDir) {return focusedNodeId;}
+  if (!focusedNodeId) {
+    return null;
+  }
+  if (isDir) {
+    return focusedNodeId;
+  }
   const parent = focusedNodeId.split('/').slice(0, -1).join('/');
   return parent || null;
 }
@@ -78,9 +88,7 @@ export function stripYamlFrontmatter(content: string): string {
 function _extractFrontmatterScalar(content: string, key: string): string | null {
   const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   const block = fmMatch?.[1] ?? '';
-  const match = block.match(
-    new RegExp(`^${key}:\\s*(?:"([^"]+)"|'([^']+)'|(\\S+))`, 'm'),
-  );
+  const match = block.match(new RegExp(`^${key}:\\s*(?:"([^"]+)"|'([^']+)'|(\\S+))`, 'm'));
   const value = match?.[1] ?? match?.[2] ?? match?.[3];
   return value?.trim() || null;
 }

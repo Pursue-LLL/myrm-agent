@@ -12,12 +12,7 @@ export interface SkillActivationChipsProps {
   onRemove?: () => void;
 }
 
-export function SkillActivationChips({
-  skillNames,
-  instruction,
-  className,
-  onRemove,
-}: SkillActivationChipsProps) {
+export function SkillActivationChips({ skillNames, instruction, className, onRemove }: SkillActivationChipsProps) {
   const t = useTranslations('chat.skillActivation');
 
   if (skillNames.length === 0) {
@@ -25,10 +20,7 @@ export function SkillActivationChips({
   }
 
   return (
-    <div
-      data-testid="skill-activation-chips"
-      className={cn('flex flex-wrap items-center gap-1.5', className)}
-    >
+    <div data-testid="skill-activation-chips" className={cn('flex flex-wrap items-center gap-1.5', className)}>
       {skillNames.map((name) => (
         <span
           key={name}

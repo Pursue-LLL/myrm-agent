@@ -113,8 +113,7 @@ export function parseUnifiedDiff(diff: string): ParsedDiff {
       if (match) {
         const newPath = match[1];
         result.newFilePath = newPath;
-        result.filePath =
-          newPath === '/dev/null' && result.oldFilePath ? result.oldFilePath : newPath;
+        result.filePath = newPath === '/dev/null' && result.oldFilePath ? result.oldFilePath : newPath;
       }
       continue;
     }
@@ -244,13 +243,39 @@ export function buildSplitPairs(lines: DiffLine[]): SplitPair[] {
 // --------------- 语言推断 ---------------
 
 const EXT_TO_LANGUAGE: Record<string, string> = {
-  ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
-  py: 'python', rs: 'rust', go: 'go', java: 'java', kt: 'kotlin',
-  rb: 'ruby', css: 'css', scss: 'scss', html: 'markup', xml: 'markup',
-  json: 'json', yaml: 'yaml', yml: 'yaml', md: 'markdown', sql: 'sql',
-  sh: 'bash', bash: 'bash', zsh: 'bash', c: 'c', cpp: 'cpp',
-  h: 'c', hpp: 'cpp', cs: 'csharp', swift: 'swift', toml: 'toml',
-  lua: 'lua', r: 'r', php: 'php', dart: 'dart',
+  ts: 'typescript',
+  tsx: 'tsx',
+  js: 'javascript',
+  jsx: 'jsx',
+  py: 'python',
+  rs: 'rust',
+  go: 'go',
+  java: 'java',
+  kt: 'kotlin',
+  rb: 'ruby',
+  css: 'css',
+  scss: 'scss',
+  html: 'markup',
+  xml: 'markup',
+  json: 'json',
+  yaml: 'yaml',
+  yml: 'yaml',
+  md: 'markdown',
+  sql: 'sql',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'bash',
+  c: 'c',
+  cpp: 'cpp',
+  h: 'c',
+  hpp: 'cpp',
+  cs: 'csharp',
+  swift: 'swift',
+  toml: 'toml',
+  lua: 'lua',
+  r: 'r',
+  php: 'php',
+  dart: 'dart',
 };
 
 /** 从文件路径推断 Prism 支持的语言标识符 */

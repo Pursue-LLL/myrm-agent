@@ -6,9 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BuiltinToolsPanel } from '../agent-config-panel/BuiltinToolsPanel';
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/hooks/billing/useFeatureEntitlements', () => ({
@@ -60,9 +58,7 @@ describe('BuiltinToolsPanel browser delegate hint', () => {
       />,
     );
 
-    expect(
-      screen.getByText(/delegate browser tasks to the browser specialist/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/delegate browser tasks to the browser specialist/i)).toBeInTheDocument();
   });
 
   it('hides browser sub-config when browser tool is disabled', () => {
@@ -81,8 +77,6 @@ describe('BuiltinToolsPanel browser delegate hint', () => {
       />,
     );
 
-    expect(
-      screen.queryByText(/delegate browser tasks to the browser specialist/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/delegate browser tasks to the browser specialist/i)).not.toBeInTheDocument();
   });
 });

@@ -13,10 +13,9 @@ const VisualDesktopToggle = dynamic(
   { ssr: false },
 );
 
-const ExtensionTakeoverBanner = dynamic(
-  () => import('@/components/features/chat-window/ExtensionTakeoverBanner'),
-  { ssr: false },
-);
+const ExtensionTakeoverBanner = dynamic(() => import('@/components/features/chat-window/ExtensionTakeoverBanner'), {
+  ssr: false,
+});
 
 const BrowserInspectorToggle = dynamic(
   () =>
@@ -66,15 +65,11 @@ const DesktopLiveView = dynamic(
   { ssr: false },
 );
 
-const FileSnapshotPanel = dynamic(
-  () => import('@/components/features/checkpoint/FileSnapshotPanel'),
-  { ssr: false },
-);
+const FileSnapshotPanel = dynamic(() => import('@/components/features/checkpoint/FileSnapshotPanel'), { ssr: false });
 
-const SessionRevertButton = dynamic(
-  () => import('@/components/features/message-actions/SessionRevertButton'),
-  { ssr: false },
-);
+const SessionRevertButton = dynamic(() => import('@/components/features/message-actions/SessionRevertButton'), {
+  ssr: false,
+});
 
 const SubagentPromptButton = dynamic(() => import('./SubagentPromptButton'), { ssr: false });
 

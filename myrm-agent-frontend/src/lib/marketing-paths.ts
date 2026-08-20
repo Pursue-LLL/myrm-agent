@@ -18,8 +18,7 @@ export function isPetOverlayPath(pathname: string): boolean {
 
 export function isStandalonePath(pathname: string): boolean {
   return (
-    isPetOverlayPath(pathname) ||
-    STANDALONE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+    isPetOverlayPath(pathname) || STANDALONE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
   );
 }
 

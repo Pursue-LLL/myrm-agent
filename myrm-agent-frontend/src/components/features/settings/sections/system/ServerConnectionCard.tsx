@@ -2,16 +2,8 @@
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconPlug,
-  IconCheck,
-  IconAlertCircle,
-} from '@/components/features/icons/PremiumIcons';
-import {
-  isTauriRuntime,
-  getRemoteGatewayConfig,
-  setRemoteGatewayConfig,
-} from '@/lib/deploy-mode';
+import { IconPlug, IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
+import { isTauriRuntime, getRemoteGatewayConfig, setRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 
@@ -86,9 +78,7 @@ const ServerConnectionCard = memo(() => {
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
         <IconPlug className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-          {t('title')}
-        </h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
       </div>
 
       <div className="space-y-6 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
@@ -97,12 +87,8 @@ const ServerConnectionCard = memo(() => {
         {/* Mode toggle */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <label className="text-sm font-bold text-foreground">
-              {isRemote ? t('modeRemote') : t('modeLocal')}
-            </label>
-            <p className="text-xs text-muted-foreground">
-              {isRemote ? t('remoteDesc') : t('localDesc')}
-            </p>
+            <label className="text-sm font-bold text-foreground">{isRemote ? t('modeRemote') : t('modeLocal')}</label>
+            <p className="text-xs text-muted-foreground">{isRemote ? t('remoteDesc') : t('localDesc')}</p>
           </div>
           <button
             type="button"

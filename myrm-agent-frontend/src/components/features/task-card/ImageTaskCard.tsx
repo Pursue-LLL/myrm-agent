@@ -86,7 +86,11 @@ export const ImageTaskCard: React.FC<ImageTaskCardProps> = ({ task_id, className
   // Pending or running state
   if (task.status === 'pending' || task.status === 'queued' || task.status === 'running') {
     return (
-      <TaskCardPlaceholder prompt={getStringPayloadValue(task.payload, 'prompt')} progress={task.progress} className={className} />
+      <TaskCardPlaceholder
+        prompt={getStringPayloadValue(task.payload, 'prompt')}
+        progress={task.progress}
+        className={className}
+      />
     );
   }
 

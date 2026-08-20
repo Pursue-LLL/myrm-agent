@@ -31,10 +31,7 @@ describe('UIList', () => {
       <UIList
         {...defaultProps}
         data={{
-          items: [
-            { id: 'a', title: 'Alpha', subtitle: 'first' },
-            { title: 'Beta' },
-          ],
+          items: [{ id: 'a', title: 'Alpha', subtitle: 'first' }, { title: 'Beta' }],
         }}
       />,
     );

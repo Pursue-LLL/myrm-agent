@@ -63,8 +63,8 @@ interface UninstallCompanionPetResponse {
 
 export async function uninstallCompanionPet(slug: string): Promise<void> {
   const normalized = slug.trim();
-  await apiRequest<UninstallCompanionPetResponse>(
-    `/companion/pets/${encodeURIComponent(normalized)}`,
-    { method: 'DELETE', silent: true },
-  );
+  await apiRequest<UninstallCompanionPetResponse>(`/companion/pets/${encodeURIComponent(normalized)}`, {
+    method: 'DELETE',
+    silent: true,
+  });
 }

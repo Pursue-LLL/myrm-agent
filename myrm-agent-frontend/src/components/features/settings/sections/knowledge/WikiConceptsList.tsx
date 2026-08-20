@@ -94,7 +94,9 @@ export function WikiConceptsList({
 
   useEffect(() => {
     const container = treeContainerRef.current;
-    if (!container) {return;}
+    if (!container) {
+      return;
+    }
 
     const observer = new ResizeObserver(([entry]) => {
       setTreeHeight(Math.max(entry.contentRect.height, 200));
@@ -208,7 +210,9 @@ export function WikiConceptsList({
               placeholder={t('namePlaceholder')}
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {void submitDialog();}
+                if (e.key === 'Enter') {
+                  void submitDialog();
+                }
               }}
             />
           </div>

@@ -3,9 +3,9 @@
  * Chat SSE event handler slice (companionEvents).
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import * as H from './handlerDeps';
 
 export async function companionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;

@@ -12,11 +12,7 @@ import {
   pollGoogleWorkspaceOAuthState,
   startGoogleWorkspaceOAuth,
 } from '@/services/google-workspace-oauth';
-import {
-  disconnectXaiOAuth,
-  pollXaiOAuth,
-  startXaiOAuth,
-} from '@/services/xai-oauth';
+import { disconnectXaiOAuth, pollXaiOAuth, startXaiOAuth } from '@/services/xai-oauth';
 import { apiRequest } from '@/lib/api';
 import {
   OAUTH_POLL_INTERVAL_MS,
@@ -50,8 +46,12 @@ export function useCredentialsOAuth() {
 
   useEffect(() => {
     return () => {
-      if (googlePollRef.current) {clearInterval(googlePollRef.current);}
-      if (xaiPollRef.current) {clearInterval(xaiPollRef.current);}
+      if (googlePollRef.current) {
+        clearInterval(googlePollRef.current);
+      }
+      if (xaiPollRef.current) {
+        clearInterval(xaiPollRef.current);
+      }
     };
   }, []);
 
@@ -74,7 +74,9 @@ export function useCredentialsOAuth() {
   }, []);
 
   const handleConnectOauth = useCallback(async () => {
-    if (!connectModalTarget) {return;}
+    if (!connectModalTarget) {
+      return;
+    }
     if (!tokenInput.trim()) {
       toast({ title: t('tokenRequired', { defaultValue: 'Token is required' }), variant: 'destructive' });
       return;
@@ -102,7 +104,9 @@ export function useCredentialsOAuth() {
   }, [connectModalTarget, fetchOauthCreds, scopeInput, t, tokenInput, userIdInput]);
 
   const handleDisconnectOauth = useCallback(async () => {
-    if (!disconnectConfirmTarget) {return;}
+    if (!disconnectConfirmTarget) {
+      return;
+    }
 
     try {
       const params = clearSyncedMemory ? '?clear_synced_memory=true' : '';
@@ -125,71 +129,82 @@ export function useCredentialsOAuth() {
     }
   }, [clearSyncedMemory, disconnectConfirmTarget, fetchOauthCreds, t]);
 
-  const handleGoogleWorkspaceConnect = useCallback(async (tier: 'readonly' | 'write' = 'readonly') => {
-    setGoogleOauthPolling(true);
-    try {
-      const config = await fetchGoogleWorkspaceOAuthConfig();
-      setGoogleOauthConfigured(config.configured);
-      if (!config.configured) {
-        toast({ title: t('googleOauthNotConfigured'), variant: 'destructive' });
-        setGoogleOauthPolling(false);
-        return;
-      }
-
-      const startRes = await startGoogleWorkspaceOAuth(tier);
-      await openGoogleAuthorizationUrl(startRes.authorization_url);
-
-      if (googlePollRef.current) {clearInterval(googlePollRef.current);}
-      const pollStartedAt = Date.now();
-      googlePollRef.current = setInterval(async () => {
-        if (Date.now() - pollStartedAt > OAUTH_POLL_TIMEOUT_MS) {
-          if (googlePollRef.current) {clearInterval(googlePollRef.current);}
+  const handleGoogleWorkspaceConnect = useCallback(
+    async (tier: 'readonly' | 'write' = 'readonly') => {
+      setGoogleOauthPolling(true);
+      try {
+        const config = await fetchGoogleWorkspaceOAuthConfig();
+        setGoogleOauthConfigured(config.configured);
+        if (!config.configured) {
+          toast({ title: t('googleOauthNotConfigured'), variant: 'destructive' });
           setGoogleOauthPolling(false);
-          toast({ title: t('googleOauthTimeout'), variant: 'destructive' });
           return;
         }
-        try {
-          const statusRes = await pollGoogleWorkspaceOAuthState(startRes.state);
-          if (statusRes.status === 'success') {
-            if (googlePollRef.current) {clearInterval(googlePollRef.current);}
-            setGoogleOauthPolling(false);
-            setConnectModalTarget(null);
-            if (statusRes.skill_was_user_disabled) {
-              toast({ title: t('googleOauthConnectedSkillDisabled') });
-            } else if (statusRes.skill_auto_enabled) {
-              toast({
-                title:
-                  tier === 'write'
-                    ? t('googleOauthWriteConnectedSkillEnabled')
-                    : t('googleOauthConnectedSkillEnabled'),
-              });
-            } else {
-              toast({
-                title:
-                  tier === 'write'
-                    ? t('googleOauthWriteConnected')
-                    : t('connectSuccess', { name: 'Google Workspace' }),
-              });
-            }
-            fetchOauthCreds();
-          } else if (statusRes.status === 'expired_or_invalid') {
-            if (googlePollRef.current) {clearInterval(googlePollRef.current);}
-            setGoogleOauthPolling(false);
-            toast({ title: t('connectError', { name: 'Google Workspace' }), variant: 'destructive' });
-          }
-        } catch {
-          // ignore polling errors
+
+        const startRes = await startGoogleWorkspaceOAuth(tier);
+        await openGoogleAuthorizationUrl(startRes.authorization_url);
+
+        if (googlePollRef.current) {
+          clearInterval(googlePollRef.current);
         }
-      }, OAUTH_POLL_INTERVAL_MS);
-    } catch (error) {
-      setGoogleOauthPolling(false);
-      toast({
-        title: t('connectError', { name: 'Google Workspace' }),
-        description: String(error),
-        variant: 'destructive',
-      });
-    }
-  }, [fetchOauthCreds, t]);
+        const pollStartedAt = Date.now();
+        googlePollRef.current = setInterval(async () => {
+          if (Date.now() - pollStartedAt > OAUTH_POLL_TIMEOUT_MS) {
+            if (googlePollRef.current) {
+              clearInterval(googlePollRef.current);
+            }
+            setGoogleOauthPolling(false);
+            toast({ title: t('googleOauthTimeout'), variant: 'destructive' });
+            return;
+          }
+          try {
+            const statusRes = await pollGoogleWorkspaceOAuthState(startRes.state);
+            if (statusRes.status === 'success') {
+              if (googlePollRef.current) {
+                clearInterval(googlePollRef.current);
+              }
+              setGoogleOauthPolling(false);
+              setConnectModalTarget(null);
+              if (statusRes.skill_was_user_disabled) {
+                toast({ title: t('googleOauthConnectedSkillDisabled') });
+              } else if (statusRes.skill_auto_enabled) {
+                toast({
+                  title:
+                    tier === 'write'
+                      ? t('googleOauthWriteConnectedSkillEnabled')
+                      : t('googleOauthConnectedSkillEnabled'),
+                });
+              } else {
+                toast({
+                  title:
+                    tier === 'write'
+                      ? t('googleOauthWriteConnected')
+                      : t('connectSuccess', { name: 'Google Workspace' }),
+                });
+              }
+              fetchOauthCreds();
+            } else if (statusRes.status === 'expired_or_invalid') {
+              if (googlePollRef.current) {
+                clearInterval(googlePollRef.current);
+              }
+              setGoogleOauthPolling(false);
+              toast({ title: t('connectError', { name: 'Google Workspace' }), variant: 'destructive' });
+            }
+          } catch {
+            // ignore polling errors
+          }
+        }, OAUTH_POLL_INTERVAL_MS);
+      } catch (error) {
+        setGoogleOauthPolling(false);
+        toast({
+          title: t('connectError', { name: 'Google Workspace' }),
+          description: String(error),
+          variant: 'destructive',
+        });
+      }
+    },
+    [fetchOauthCreds, t],
+  );
 
   const handleXaiOAuthConnect = useCallback(async () => {
     setXaiOauthPolling(true);
@@ -200,13 +215,17 @@ export function useCredentialsOAuth() {
 
       window.open(startRes.verification_uri_complete || startRes.verification_uri, '_blank');
 
-      if (xaiPollRef.current) {clearInterval(xaiPollRef.current);}
+      if (xaiPollRef.current) {
+        clearInterval(xaiPollRef.current);
+      }
       const pollStartedAt = Date.now();
       const interval = Math.max((startRes.interval || 5) * 1000, OAUTH_POLL_INTERVAL_MS);
 
       xaiPollRef.current = setInterval(async () => {
         if (Date.now() - pollStartedAt > OAUTH_POLL_TIMEOUT_MS) {
-          if (xaiPollRef.current) {clearInterval(xaiPollRef.current);}
+          if (xaiPollRef.current) {
+            clearInterval(xaiPollRef.current);
+          }
           setXaiOauthPolling(false);
           setXaiUserCode('');
           toast({ title: t('xaiOauthTimeout', { defaultValue: 'Authorization timed out' }), variant: 'destructive' });
@@ -215,14 +234,18 @@ export function useCredentialsOAuth() {
         try {
           const pollRes = await pollXaiOAuth(startRes.user_code);
           if (pollRes.status === 'success') {
-            if (xaiPollRef.current) {clearInterval(xaiPollRef.current);}
+            if (xaiPollRef.current) {
+              clearInterval(xaiPollRef.current);
+            }
             setXaiOauthPolling(false);
             setXaiUserCode('');
             setConnectModalTarget(null);
             toast({ title: t('connectSuccess', { name: 'xAI / SuperGrok' }) });
             fetchOauthCreds();
           } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
-            if (xaiPollRef.current) {clearInterval(xaiPollRef.current);}
+            if (xaiPollRef.current) {
+              clearInterval(xaiPollRef.current);
+            }
             setXaiOauthPolling(false);
             setXaiUserCode('');
             toast({
@@ -272,8 +295,12 @@ export function useCredentialsOAuth() {
   }, []);
 
   const closeConnectModal = useCallback(() => {
-    if (googlePollRef.current) {clearInterval(googlePollRef.current);}
-    if (xaiPollRef.current) {clearInterval(xaiPollRef.current);}
+    if (googlePollRef.current) {
+      clearInterval(googlePollRef.current);
+    }
+    if (xaiPollRef.current) {
+      clearInterval(xaiPollRef.current);
+    }
     setGoogleOauthPolling(false);
     setXaiOauthPolling(false);
     setXaiUserCode('');

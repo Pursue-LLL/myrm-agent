@@ -66,7 +66,9 @@ const CLIWorkingDirectory = memo<CLIWorkingDirectoryProps>(({ workingDirectory, 
 
   // 从 localStorage 加载最近项目
   useEffect(() => {
-    if (typeof window === 'undefined') {return;}
+    if (typeof window === 'undefined') {
+      return;
+    }
     try {
       const stored = localStorage.getItem(CLI_RECENT_PROJECTS_STORAGE_KEY);
       if (stored) {
@@ -79,7 +81,9 @@ const CLIWorkingDirectory = memo<CLIWorkingDirectoryProps>(({ workingDirectory, 
 
   // 保存最近项目到 localStorage
   const saveToRecentProjects = useCallback((path: string) => {
-    if (!path) {return;}
+    if (!path) {
+      return;
+    }
     setRecentProjects((prev) => {
       const filtered = prev.filter((p) => p !== path);
       const updated = [path, ...filtered].slice(0, MAX_RECENT_PROJECTS);
@@ -95,7 +99,9 @@ const CLIWorkingDirectory = memo<CLIWorkingDirectoryProps>(({ workingDirectory, 
   // 从路径获取项目名（最后一级目录）
   const getProjectName = useMemo(() => {
     return (path: string) => {
-      if (!path) {return '';}
+      if (!path) {
+        return '';
+      }
       const parts = path.replace(/\/$/, '').split(/[/\\]/);
       return parts[parts.length - 1] || path;
     };
@@ -159,7 +165,9 @@ const CLIWorkingDirectory = memo<CLIWorkingDirectoryProps>(({ workingDirectory, 
     async (e: React.MouseEvent) => {
       e.stopPropagation();
 
-      if (!isTauriEnvironment()) {return;}
+      if (!isTauriEnvironment()) {
+        return;
+      }
 
       try {
         const { open } = await import('@tauri-apps/plugin-dialog');
@@ -200,7 +208,9 @@ const CLIWorkingDirectory = memo<CLIWorkingDirectoryProps>(({ workingDirectory, 
   // 处理按键
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) {return;}
+      if (e.nativeEvent.isComposing) {
+        return;
+      }
       if (e.key === 'Enter') {
         e.preventDefault();
         handleSave(e as unknown as React.MouseEvent);

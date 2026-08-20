@@ -2,12 +2,7 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconSettings,
-  IconWifi,
-  IconStop,
-  IconRefresh,
-} from '@/components/features/icons/PremiumIcons';
+import { IconSettings, IconWifi, IconStop, IconRefresh } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { isLocalMode, isTauriRuntime } from '@/lib/deploy-mode';
@@ -58,7 +53,9 @@ const ShortcutRecorder = memo<{
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (!isRecording) {return;}
+      if (!isRecording) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 
@@ -82,13 +79,23 @@ const ShortcutRecorder = memo<{
 
       const keys: string[] = [];
 
-      if (e.metaKey) {keys.push('Super');}
-      if (e.ctrlKey) {keys.push('Control');}
-      if (e.altKey) {keys.push('Alt');}
-      if (e.shiftKey) {keys.push('Shift');}
+      if (e.metaKey) {
+        keys.push('Super');
+      }
+      if (e.ctrlKey) {
+        keys.push('Control');
+      }
+      if (e.altKey) {
+        keys.push('Alt');
+      }
+      if (e.shiftKey) {
+        keys.push('Shift');
+      }
 
       let mainKey = e.key.toUpperCase();
-      if (e.code === 'Space') {mainKey = 'Space';}
+      if (e.code === 'Space') {
+        mainKey = 'Space';
+      }
       if (mainKey.length === 1 && mainKey >= 'A' && mainKey <= 'Z') {
         // ok
       } else if (mainKey >= '0' && mainKey <= '9') {
@@ -132,7 +139,9 @@ const AppshotExcludedAppsEditor = memo<{
 
   const handleAdd = useCallback(() => {
     const val = inputValue.trim();
-    if (!val || apps.includes(val)) {return;}
+    if (!val || apps.includes(val)) {
+      return;
+    }
     onChange([...apps, val]);
     setInputValue('');
   }, [inputValue, apps, onChange]);

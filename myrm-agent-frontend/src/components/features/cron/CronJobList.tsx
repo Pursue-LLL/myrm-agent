@@ -32,7 +32,13 @@ function JobListSkeleton() {
   return <ListSkeleton count={3} />;
 }
 
-function EmptyState({ t, onSelectBlueprint }: { t: (key: string) => string; onSelectBlueprint: (bp: CronBlueprint) => void }) {
+function EmptyState({
+  t,
+  onSelectBlueprint,
+}: {
+  t: (key: string) => string;
+  onSelectBlueprint: (bp: CronBlueprint) => void;
+}) {
   return (
     <StandardEmptyState
       icon={Timer}
@@ -69,7 +75,9 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') {return;}
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
       void fetchJobs(true, chatIdFilter);
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -81,8 +89,12 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
   }, [jobIdFilter]);
 
   useEffect(() => {
-    if (!jobIdFilter || loading) {return;}
-    if (openedJobRef.current === jobIdFilter) {return;}
+    if (!jobIdFilter || loading) {
+      return;
+    }
+    if (openedJobRef.current === jobIdFilter) {
+      return;
+    }
     const matched = jobs.find((entry) => entry.id === jobIdFilter);
     if (matched) {
       openedJobRef.current = jobIdFilter;
@@ -116,7 +128,9 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) {return;}
+    if (!deleteTarget) {
+      return;
+    }
     try {
       await deleteJob(deleteTarget.id);
       toast.success(t('deleteSuccess', { name: deleteTarget.name }));
@@ -126,7 +140,9 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
     setDeleteTarget(null);
   };
 
-  if (loading) {return <JobListSkeleton />;}
+  if (loading) {
+    return <JobListSkeleton />;
+  }
 
   return (
     <div className="space-y-4">
@@ -184,14 +200,20 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) {setDeleteTarget(null);}
+          if (!open) {
+            setDeleteTarget(null);
+          }
         }}
         title={t('deleteConfirmTitle')}
         description={(() => {
           const base = t('deleteConfirm', { name: deleteTarget?.name ?? '' });
-          if (!deleteTarget) {return base;}
+          if (!deleteTarget) {
+            return base;
+          }
           const dependents = jobs.filter((j) => j.context_from?.includes(deleteTarget.id));
-          if (dependents.length === 0) {return base;}
+          if (dependents.length === 0) {
+            return base;
+          }
           const names = dependents.map((j) => j.name).join(', ');
           return `${base}\n\n${t('deleteContextFromWarning', { names })}`;
         })()}
@@ -206,7 +228,11 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
       <BlueprintFillDialog
         blueprint={selectedBlueprint}
         open={!!selectedBlueprint}
-        onOpenChange={(open) => { if (!open) {setSelectedBlueprint(null);} }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedBlueprint(null);
+          }
+        }}
       />
     </div>
   );

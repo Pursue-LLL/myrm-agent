@@ -49,7 +49,9 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
     let turns = 0;
 
     for (const msg of messages) {
-      if (msg.role !== 'assistant') {continue;}
+      if (msg.role !== 'assistant') {
+        continue;
+      }
       const wu = msg.wuConsumed ?? (msg.costUsd ? Math.max(1, Math.round(msg.costUsd * wuPerUsd)) : 0);
       const cost = msg.costUsd ?? 0;
       if (wu > 0 || cost > 0) {
@@ -60,11 +62,21 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
         turns += 1;
       }
     }
-    return { lastTurnWu: latestWu, sessionWu: totalWu, lastTurnCost: latestCost, sessionCost: totalCost, assistantTurns: turns };
+    return {
+      lastTurnWu: latestWu,
+      sessionWu: totalWu,
+      lastTurnCost: latestCost,
+      sessionCost: totalCost,
+      assistantTurns: turns,
+    };
   }, [messages, wuPerUsd]);
 
-  if (!sandbox && !local) {return null;}
-  if (sessionWu === 0 && sessionCost === 0) {return null;}
+  if (!sandbox && !local) {
+    return null;
+  }
+  if (sessionWu === 0 && sessionCost === 0) {
+    return null;
+  }
 
   if (sandbox) {
     const balanceWu = entitlements?.balance_wu;
@@ -82,7 +94,9 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
           className,
         )}
       >
-        {lastTurnWu > 0 && <span className="text-orange-600 dark:text-orange-400 font-medium">{t('turnWu', { wu: lastTurnWu })}</span>}
+        {lastTurnWu > 0 && (
+          <span className="text-orange-600 dark:text-orange-400 font-medium">{t('turnWu', { wu: lastTurnWu })}</span>
+        )}
         <span>{t('sessionWu', { wu: sessionWu.toLocaleString() })}</span>
         {etaDays !== null && etaDays < 999 && (
           <span className="text-muted-foreground/70">{t('burnEta', { days: etaDays })}</span>
@@ -90,7 +104,9 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
       </span>
     );
 
-    if (!etaDays || !balanceWu) {return pillContent;}
+    if (!etaDays || !balanceWu) {
+      return pillContent;
+    }
 
     return (
       <TooltipProvider delayDuration={200}>
@@ -108,7 +124,9 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
   }
 
   // Local/Tauri: session cost in USD
-  if (sessionCost <= 0) {return null;}
+  if (sessionCost <= 0) {
+    return null;
+  }
 
   return (
     <span

@@ -17,9 +17,7 @@ export function subscribeBackgroundTasksChanged(listener: () => void): () => voi
 }
 
 /** Refresh panel/tray when a shell background job finishes (global SSE path). */
-export function notifyBackgroundTasksChangedForShellJobFinish(
-  meta: Record<string, unknown>,
-): void {
+export function notifyBackgroundTasksChangedForShellJobFinish(meta: Record<string, unknown>): void {
   if (meta.kind !== 'background_job_finish') {
     return;
   }
@@ -31,9 +29,7 @@ export function notifyBackgroundTasksChangedForShellJobFinish(
 }
 
 /** Refresh panel when a voice-spawned Kanban background task completes. */
-export function notifyBackgroundTasksChangedForVoiceJobFinish(
-  meta: Record<string, unknown>,
-): void {
+export function notifyBackgroundTasksChangedForVoiceJobFinish(meta: Record<string, unknown>): void {
   if (meta.kind !== 'voice_background_task_done') {
     return;
   }

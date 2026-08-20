@@ -14,11 +14,7 @@ function brandIconSrc(displaySize: number): string {
   return displaySize > 64 ? BRAND_ICON_LARGE_SRC : BRAND_ICON_SRC;
 }
 
-export default function BrandLogo({
-  className,
-  size = 40,
-  priority = false,
-}: BrandLogoProps) {
+export default function BrandLogo({ className, size = 40, priority = false }: BrandLogoProps) {
   return (
     <Image
       src={brandIconSrc(size)}

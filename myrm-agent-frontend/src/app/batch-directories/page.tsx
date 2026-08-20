@@ -88,9 +88,13 @@ const EMPTY_FORM: CreateFormState = {
 };
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) {return '—';}
+  if (!iso) {
+    return '—';
+  }
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {return '—';}
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
   return d.toLocaleString();
 }
 
@@ -138,26 +142,33 @@ export default function BatchDirectoriesPage() {
     void fetchBoards();
   }, [fetchProjects, fetchBoards]);
 
-  const browseDir = useCallback(async (path: string) => {
-    setBrowsing(true);
-    try {
-      const res = await browseDirectories(path);
-      setCurrentDir(res.current);
-      setDirEntries(res.entries);
-    } catch {
-      toast.error(t('browseError'));
-    } finally {
-      setBrowsing(false);
-    }
-  }, [t]);
+  const browseDir = useCallback(
+    async (path: string) => {
+      setBrowsing(true);
+      try {
+        const res = await browseDirectories(path);
+        setCurrentDir(res.current);
+        setDirEntries(res.entries);
+      } catch {
+        toast.error(t('browseError'));
+      } finally {
+        setBrowsing(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
-    if (showCreate) {void browseDir('~');}
+    if (showCreate) {
+      void browseDir('~');
+    }
   }, [showCreate, browseDir]);
 
   const progressOf = useCallback((p: BatchProject) => {
     const total = p.total_tasks || 0;
-    if (total === 0) {return 0;}
+    if (total === 0) {
+      return 0;
+    }
     return Math.round(((p.completed_tasks + p.failed_tasks) / total) * 100);
   }, []);
 
@@ -534,12 +545,19 @@ export default function BatchDirectoriesPage() {
                 return (
                   <TableRow key={p.project_id} data-testid="bd-project-row">
                     <TableCell className="font-medium">
-                      <Link href={`/batch-directories/${p.project_id}`} className="hover:underline" data-testid="bd-project-row-name">
+                      <Link
+                        href={`/batch-directories/${p.project_id}`}
+                        className="hover:underline"
+                        data-testid="bd-project-row-name"
+                      >
                         {p.name}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge className={meta.className} data-testid="bd-project-row-status">{meta.icon}{meta.label}</Badge>
+                      <Badge className={meta.className} data-testid="bd-project-row-status">
+                        {meta.icon}
+                        {meta.label}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-36">
@@ -564,7 +582,11 @@ export default function BatchDirectoriesPage() {
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm" disabled={cancellingId === p.project_id}>
-                                {cancellingId === p.project_id ? <Loader2 className="size-4 animate-spin" /> : t('cancelAction')}
+                                {cancellingId === p.project_id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  t('cancelAction')
+                                )}
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -582,7 +604,10 @@ export default function BatchDirectoriesPage() {
                           </AlertDialog>
                         )}
                         {!running && (
-                          <AlertDialog open={confirming?.project_id === p.project_id} onOpenChange={(open) => !open && setConfirming(null)}>
+                          <AlertDialog
+                            open={confirming?.project_id === p.project_id}
+                            onOpenChange={(open) => !open && setConfirming(null)}
+                          >
                             <AlertDialogTrigger asChild>
                               <Button
                                 variant="ghost"

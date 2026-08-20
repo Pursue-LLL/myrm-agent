@@ -36,7 +36,9 @@ const WAVE_UPDATE_INTERVAL = 50;
 
 function resolveThemeColor(el: HTMLElement): string {
   const raw = getComputedStyle(el).getPropertyValue('--primary').trim();
-  if (!raw) {return '59, 130, 246';}
+  if (!raw) {
+    return '59, 130, 246';
+  }
   if (raw.startsWith('#')) {
     const hex = raw.replace('#', '');
     const r = parseInt(hex.slice(0, 2), 16);
@@ -51,7 +53,9 @@ function resolveThemeColor(el: HTMLElement): string {
     const computed = getComputedStyle(temp).color;
     document.body.removeChild(temp);
     const match = computed.match(/\d+/g);
-    if (match && match.length >= 3) {return `${match[0]}, ${match[1]}, ${match[2]}`;}
+    if (match && match.length >= 3) {
+      return `${match[0]}, ${match[1]}, ${match[2]}`;
+    }
   }
   return raw;
 }
@@ -64,12 +68,16 @@ function AudioWaveform({ level, active }: { level: number; active: boolean }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) {return;}
+    if (!canvas) {
+      return;
+    }
 
     colorRef.current = resolveThemeColor(canvas);
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {return;}
+    if (!ctx) {
+      return;
+    }
 
     let lastUpdate = 0;
 
@@ -136,7 +144,9 @@ function StateIndicator({ state }: { state: VoiceSessionState }) {
 
   const { label, dotClass } = config[state];
 
-  if (!label) {return null;}
+  if (!label) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-2">
@@ -147,7 +157,9 @@ function StateIndicator({ state }: { state: VoiceSessionState }) {
 }
 
 function ModeBadge({ mode }: { mode?: VoiceSessionMode }) {
-  if (!mode) {return null;}
+  if (!mode) {
+    return null;
+  }
 
   const label = mode === 'openai_realtime' ? 'Realtime' : mode === 'agent_bridge' ? 'Agent Bridge' : 'Standard';
 
@@ -179,7 +191,9 @@ const VoiceSessionOverlay = memo(
       }
     }, [sessionState, onInterrupt]);
 
-    if (!isOpen) {return null;}
+    if (!isOpen) {
+      return null;
+    }
 
     const isListening = sessionState === 'listening';
     const isSpeaking = sessionState === 'speaking';

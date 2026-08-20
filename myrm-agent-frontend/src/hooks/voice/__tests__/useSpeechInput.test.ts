@@ -102,9 +102,7 @@ describe('useSpeechInput local STT unavailable', () => {
 
   it('shows bilingual toast keys when WS STT reports local-stt missing', async () => {
     const { useSpeechInput } = await import('../useSpeechInput');
-    const { result } = renderHook(() =>
-      useSpeechInput({ onTranscript: mockOnTranscript, minDuration: 0 }),
-    );
+    const { result } = renderHook(() => useSpeechInput({ onTranscript: mockOnTranscript, minDuration: 0 }));
 
     await act(async () => {
       await result.current.startRecording();

@@ -50,14 +50,24 @@ const TONE_STYLES: Record<AgentEventTone, { label: string; className: string }> 
 };
 
 function eventTone(type: string): AgentEventTone {
-  if (type === 'security_audit') {return 'security';}
-  if (type.includes('approval')) {return 'approval';}
-  if (type.startsWith('session')) {return 'session';}
+  if (type === 'security_audit') {
+    return 'security';
+  }
+  if (type.includes('approval')) {
+    return 'approval';
+  }
+  if (type.startsWith('session')) {
+    return 'session';
+  }
   if (/error|failure|failed|cancelled|timeout|denied|rejected|interruption|exhausted|aborted/i.test(type)) {
     return 'error';
   }
-  if (type.startsWith('tool_')) {return 'tool';}
-  if (type.includes('llm')) {return 'llm';}
+  if (type.startsWith('tool_')) {
+    return 'tool';
+  }
+  if (type.includes('llm')) {
+    return 'llm';
+  }
   return 'other';
 }
 
@@ -91,18 +101,16 @@ function isDenyDecision(decision: string): boolean {
 function decisionDenied(decision: SecurityDecision): boolean {
   return (
     decision.tainted === true ||
-    (decision.decision !== null &&
-      decision.decision !== undefined &&
-      isDenyDecision(decision.decision))
+    (decision.decision !== null && decision.decision !== undefined && isDenyDecision(decision.decision))
   );
 }
 
 function extractDecisions(data: Record<string, unknown>): SecurityDecision[] {
   const decisions = data.decisions;
-  if (!Array.isArray(decisions)) {return [];}
-  return decisions.filter(
-    (d): d is SecurityDecision => d !== null && d !== undefined && typeof d === 'object',
-  );
+  if (!Array.isArray(decisions)) {
+    return [];
+  }
+  return decisions.filter((d): d is SecurityDecision => d !== null && d !== undefined && typeof d === 'object');
 }
 
 function extractToolName(data: Record<string, unknown>): string | null {
@@ -111,17 +119,23 @@ function extractToolName(data: Record<string, unknown>): string | null {
 }
 
 function shortSessionId(sid: string): string {
-  if (sid.length <= 12) {return sid;}
+  if (sid.length <= 12) {
+    return sid;
+  }
   return `${sid.slice(0, 8)}…${sid.slice(-4)}`;
 }
 
 function shortUserId(userId: string): string {
-  if (userId.length <= 16) {return userId;}
+  if (userId.length <= 16) {
+    return userId;
+  }
   return `${userId.slice(0, 10)}…${userId.slice(-4)}`;
 }
 
 function shortUserDisplay(display: string): string {
-  if (display.length <= 24) {return display;}
+  if (display.length <= 24) {
+    return display;
+  }
   return `${display.slice(0, 16)}…${display.slice(-6)}`;
 }
 
@@ -144,25 +158,24 @@ export const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onTogg
   const critical = decisions.length > 0 && decisions.some((d) => decisionDenied(d));
   const Chevron = expanded ? IconChevronDown : IconChevronRight;
 
-  const ToneIcon = tone === 'security'
-    ? IconShieldAlert
-    : tone === 'error'
-      ? IconXCircle
-      : tone === 'tool'
-        ? IconWrench
-        : tone === 'approval'
-          ? IconAlertTriangle
-          : tone === 'session'
-            ? IconClock
-            : IconBot;
+  const ToneIcon =
+    tone === 'security'
+      ? IconShieldAlert
+      : tone === 'error'
+        ? IconXCircle
+        : tone === 'tool'
+          ? IconWrench
+          : tone === 'approval'
+            ? IconAlertTriangle
+            : tone === 'session'
+              ? IconClock
+              : IconBot;
 
   return (
     <div
       className={cn(
         'rounded-lg border transition-all duration-200',
-        critical
-          ? 'border-rose-500/30 bg-rose-500/5'
-          : 'border-border/40 bg-background/50 hover:bg-muted/30',
+        critical ? 'border-rose-500/30 bg-rose-500/5' : 'border-border/40 bg-background/50 hover:bg-muted/30',
       )}
     >
       <button onClick={onToggle} className="w-full flex items-center gap-2.5 p-2.5 text-left">
@@ -195,9 +208,7 @@ export const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onTogg
             <span>{new Date(event.ts * 1000).toLocaleString()}</span>
           </div>
         </div>
-        {critical && (
-          <IconShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-        )}
+        {critical && <IconShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-500" />}
       </button>
 
       {expanded && (
@@ -221,9 +232,7 @@ export const AgentEventRow = memo<AgentEventRowProps>(({ event, expanded, onTogg
                     <IconShieldAlert
                       className={cn(
                         'h-3.5 w-3.5 shrink-0 mt-0.5',
-                        decisionDenied(decision)
-                          ? 'text-rose-500'
-                          : 'text-amber-500',
+                        decisionDenied(decision) ? 'text-rose-500' : 'text-amber-500',
                       )}
                     />
                     <div className="min-w-0">

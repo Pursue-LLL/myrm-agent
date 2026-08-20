@@ -36,10 +36,7 @@ const ThemeStudioAdminPanel = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pending, catalog] = await Promise.all([
-        listPendingThemeListings(),
-        listAdminThemeCatalog(),
-      ]);
+      const [pending, catalog] = await Promise.all([listPendingThemeListings(), listAdminThemeCatalog()]);
       setPendingItems(pending);
       setCatalogItems(catalog);
       setVisible(true);
@@ -153,10 +150,7 @@ const ThemeStudioAdminPanel = () => {
 
     return (
       <div className="space-y-2 border-t border-border/60 pt-2">
-        <label
-          htmlFor={`moderation-reason-${listingId}`}
-          className="block text-xs font-medium text-muted-foreground"
-        >
+        <label htmlFor={`moderation-reason-${listingId}`} className="block text-xs font-medium text-muted-foreground">
           {t(labelKey)}
         </label>
         <textarea

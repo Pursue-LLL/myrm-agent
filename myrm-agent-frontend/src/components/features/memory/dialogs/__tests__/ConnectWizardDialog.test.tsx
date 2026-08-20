@@ -16,45 +16,45 @@ const buildZipFromFilesMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
 
 const TRANSLATIONS: Record<string, string> = {
-  'title': 'Connect memory',
-  'description': 'description',
-  'selectMyrmAgent': 'Select agent',
-  'selectMyrmAgentDesc': 'selectMyrmAgentDesc',
-  'selectExternalTool': 'Select external tool',
-  'selectAgentDesc': 'selectAgentDesc',
-  'configFile': 'Config file',
-  'generate': 'Generate',
-  'generating': 'Generating...',
-  'agentPlugin': 'Agent Plugin',
-  'agentPluginDesc': 'agentPluginDesc',
-  'agentPluginEmbedToken': 'agentPluginEmbedToken',
-  'agentPluginEmbedTokenHint': 'agentPluginEmbedTokenHint',
-  'agentPluginGenerate': 'Generate Plugin',
-  'configReady': 'configReady',
-  'memoryScopeAgent': 'Scope: {agent}',
-  'token': 'Token',
-  'tokenWarning': 'tokenWarning',
-  'copy': 'Copy',
-  'copied': 'Copied',
-  'copyConfig': 'copyConfig',
-  'doctor': 'Doctor',
-  'doctorRunning': 'doctorRunning',
-  'revoke': 'Revoke',
-  'revokeConfirm': 'Confirm revoke',
-  'close': 'Close',
-  'clearSyncedMemory': 'clearSyncedMemory',
-  'agentPluginReady': 'agentPluginReady',
-  'pluginFile': 'pluginFile',
-  'download': 'Download',
-  'downloadBundle': 'Download all',
-  'downloadingBundle': 'Downloading...',
-  'downloadBundleFailed': 'Download failed',
+  title: 'Connect memory',
+  description: 'description',
+  selectMyrmAgent: 'Select agent',
+  selectMyrmAgentDesc: 'selectMyrmAgentDesc',
+  selectExternalTool: 'Select external tool',
+  selectAgentDesc: 'selectAgentDesc',
+  configFile: 'Config file',
+  generate: 'Generate',
+  generating: 'Generating...',
+  agentPlugin: 'Agent Plugin',
+  agentPluginDesc: 'agentPluginDesc',
+  agentPluginEmbedToken: 'agentPluginEmbedToken',
+  agentPluginEmbedTokenHint: 'agentPluginEmbedTokenHint',
+  agentPluginGenerate: 'Generate Plugin',
+  configReady: 'configReady',
+  memoryScopeAgent: 'Scope: {agent}',
+  token: 'Token',
+  tokenWarning: 'tokenWarning',
+  copy: 'Copy',
+  copied: 'Copied',
+  copyConfig: 'copyConfig',
+  doctor: 'Doctor',
+  doctorRunning: 'doctorRunning',
+  revoke: 'Revoke',
+  revokeConfirm: 'Confirm revoke',
+  close: 'Close',
+  clearSyncedMemory: 'clearSyncedMemory',
+  agentPluginReady: 'agentPluginReady',
+  pluginFile: 'pluginFile',
+  download: 'Download',
+  downloadBundle: 'Download all',
+  downloadingBundle: 'Downloading...',
+  downloadBundleFailed: 'Download failed',
   'status.ready': 'Ready',
-  'doctorHealthyVerified': 'doctorHealthyVerified',
-  'doctorHealthyTokenValid': 'doctorHealthyTokenValid',
-  'doctorDetailTokenEnv': 'doctorDetailTokenEnv',
-  'doctorDetailTokenMismatch': 'doctorDetailTokenMismatch',
-  'doctorUnhealthy': 'doctorUnhealthy',
+  doctorHealthyVerified: 'doctorHealthyVerified',
+  doctorHealthyTokenValid: 'doctorHealthyTokenValid',
+  doctorDetailTokenEnv: 'doctorDetailTokenEnv',
+  doctorDetailTokenMismatch: 'doctorDetailTokenMismatch',
+  doctorUnhealthy: 'doctorUnhealthy',
 };
 
 const stableT = (key: string, values?: Record<string, string | number>): string => {
@@ -197,7 +197,10 @@ describe('ConnectWizardDialog bundle download', () => {
   it('disables the zip button while a download is in flight', async () => {
     let release!: (value: Blob) => void;
     buildZipFromFilesMock.mockImplementation(
-      () => new Promise<Blob>((resolve) => { release = resolve; }),
+      () =>
+        new Promise<Blob>((resolve) => {
+          release = resolve;
+        }),
     );
     await navigateToPluginStep();
 
@@ -225,10 +228,7 @@ describe('ConnectWizardDialog bundle download', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download all' }));
 
     await waitFor(() => {
-      expect(triggerDownloadMock).toHaveBeenCalledWith(
-        expect.any(Blob),
-        `myrm-memory-${'A'.repeat(64)}.zip`,
-      );
+      expect(triggerDownloadMock).toHaveBeenCalledWith(expect.any(Blob), `myrm-memory-${'A'.repeat(64)}.zip`);
     });
   });
 

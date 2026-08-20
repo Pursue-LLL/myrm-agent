@@ -17,7 +17,14 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/primitives/sheet';
 import { cn } from '@/lib/utils/classnameUtils';
 import { IconBrain, IconFolder } from '@/components/features/icons/PremiumIcons';
 import { listSharedContexts, type SharedContext } from '@/services/memory/sharedContexts';
@@ -65,15 +72,24 @@ const uniqueReferences = (
 ): CitedMemoryReference[] => {
   const byId = new Map<string, CitedMemoryReference>();
   for (const ref of references ?? []) {
-    if (ref.id) {byId.set(ref.id, ref);}
+    if (ref.id) {
+      byId.set(ref.id, ref);
+    }
   }
   for (const id of memoryIds ?? []) {
-    if (!byId.has(id)) {byId.set(id, { id });}
+    if (!byId.has(id)) {
+      byId.set(id, { id });
+    }
   }
   return [...byId.values()];
 };
 
-export default function MemoryCitationsButton({ memoryIds, references, sources, degraded }: MemoryCitationsButtonProps) {
+export default function MemoryCitationsButton({
+  memoryIds,
+  references,
+  sources,
+  degraded,
+}: MemoryCitationsButtonProps) {
   const t = useTranslations('memoryCitations');
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -87,16 +103,22 @@ export default function MemoryCitationsButton({ memoryIds, references, sources, 
   );
 
   useEffect(() => {
-    if (!open || sharedContextIds.length === 0) {return;}
+    if (!open || sharedContextIds.length === 0) {
+      return;
+    }
 
     let cancelled = false;
     listSharedContexts()
       .then((response) => {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setContextsById(new Map(response.items.map((context) => [context.id, context])));
       })
       .catch(() => {
-        if (!cancelled) {setContextsById(new Map());}
+        if (!cancelled) {
+          setContextsById(new Map());
+        }
       });
 
     return () => {
@@ -105,7 +127,9 @@ export default function MemoryCitationsButton({ memoryIds, references, sources, 
   }, [open, sharedContextIds]);
 
   if (evidenceCount === 0) {
-    if (!degraded) {return null;}
+    if (!degraded) {
+      return null;
+    }
     return (
       <span
         className={cn(
@@ -150,7 +174,9 @@ export default function MemoryCitationsButton({ memoryIds, references, sources, 
           {citationRefs.length > 0 && (
             <section className="space-y-3">
               {messageSources.length > 0 && (
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionMemories')}</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('sectionMemories')}
+                </h3>
               )}
               {citationRefs.map((ref, index) => (
                 <MemoryCitationItem
@@ -171,7 +197,9 @@ export default function MemoryCitationsButton({ memoryIds, references, sources, 
           {messageSources.length > 0 && (
             <section className="space-y-3">
               {citationRefs.length > 0 && (
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('sectionSources')}</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('sectionSources')}
+                </h3>
               )}
               {messageSources.map((source, index) => (
                 <SourceItem key={`${source.index}-${index}`} source={source} />

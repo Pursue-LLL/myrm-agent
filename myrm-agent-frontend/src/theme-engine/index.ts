@@ -1,10 +1,13 @@
-export type { ThemeProfileIndexEntry, ThemeProfileRecipe, ThemeLayoutId, ThemeReadabilityScene, CompiledTheme, ThemeMediaKind } from './schema';
+export type {
+  ThemeProfileIndexEntry,
+  ThemeProfileRecipe,
+  ThemeLayoutId,
+  ThemeReadabilityScene,
+  CompiledTheme,
+  ThemeMediaKind,
+} from './schema';
 export { compileThemeProfile, applyCompiledTheme, applyThemeFont, clearThemeRuntime } from './compiler';
-export {
-  resolveReadabilityScene,
-  FUNCTIONAL_ROUTE_PREFIXES,
-  STATIC_APP_SEGMENTS,
-} from './readability-scene';
+export { resolveReadabilityScene, FUNCTIONAL_ROUTE_PREFIXES, STATIC_APP_SEGMENTS } from './readability-scene';
 export {
   effectiveArtWash,
   mergeSceneSurfaces,
@@ -34,19 +37,11 @@ export {
   validateThemeBackgroundFile,
 } from './overlay';
 export type { ThemeBackgroundValidationError } from './overlay';
-export {
-  THEME_PREINIT_STORAGE_KEY,
-  applyThemePreinitFromLocalStorage,
-  writeThemePreinitSnapshot,
-} from './preinit';
+export { THEME_PREINIT_STORAGE_KEY, applyThemePreinitFromLocalStorage, writeThemePreinitSnapshot } from './preinit';
 export type { ThemePreinitSnapshot } from './preinit';
 export { meetsContrast, contrastRatio, derivePalette, resolveContrastSafeForeground } from './oklch';
 export { recommendLayoutFromAspect } from './recommend-layout-from-aspect';
-export {
-  sampleHeroImageBlob,
-  sampleHeroImageData,
-  type HeroImageSample,
-} from './sample-hero-image';
+export { sampleHeroImageBlob, sampleHeroImageData, type HeroImageSample } from './sample-hero-image';
 export { THEME_LAYOUT_CATALOG, getLayoutCatalogItem } from './layout-catalog';
 export type { ThemeLayoutCatalogItem } from './layout-catalog';
 export { parseThemeRecipeJson, ThemeRecipeParseError } from './parse-recipe';

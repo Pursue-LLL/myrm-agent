@@ -36,7 +36,9 @@ export function useToolApprovalResolve() {
       let requestsToRemove: ToolApprovalRequest[] = [];
       try {
         let request = queue.find((r) => r.requestId === requestId);
-        if (!request) {return;}
+        if (!request) {
+          return;
+        }
 
         let resumeValue: { decisions: ReturnType<typeof buildApprovalDecision>[] };
         requestsToRemove = [request];

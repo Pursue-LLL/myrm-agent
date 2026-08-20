@@ -103,7 +103,10 @@ describe('SessionAccessRootsBar', () => {
     fireEvent.click(revokeBtn);
 
     await waitFor(() => {
-      expect(chatService.revokeSessionAccessRoot).toHaveBeenCalledWith('test-chat-1', '/Users/test/workspace/project-a');
+      expect(chatService.revokeSessionAccessRoot).toHaveBeenCalledWith(
+        'test-chat-1',
+        '/Users/test/workspace/project-a',
+      );
       expect(useChatStore.getState().sessionAccessRoots).toEqual([]);
     });
   });

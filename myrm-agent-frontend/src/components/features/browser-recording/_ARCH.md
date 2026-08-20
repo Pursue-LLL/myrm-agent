@@ -6,12 +6,12 @@ WebSocket for real-time capture feedback.
 
 ## Files
 
-| File                       | Role    | Description                                                    | I/O/P |
-| -------------------------- | ------- | -------------------------------------------------------------- | ----- |
-| BrowserRecordingPanel.tsx  | Core    | Main panel — header, recording controls, step list, skill form | Yes   |
+| File                       | Role    | Description                                                      | I/O/P |
+| -------------------------- | ------- | ---------------------------------------------------------------- | ----- |
+| BrowserRecordingPanel.tsx  | Core    | Main panel — header, recording controls, step list, skill form   | Yes   |
 | BrowserRecordingToggle.tsx | Core    | Floating toggle button, visible when browser active or recording | Yes   |
-| RecordingStepCard.tsx      | Support | Individual recorded step card with icon, label, screenshot     | Yes   |
-| index.ts                   | Export  | Barrel exports                                                 | -     |
+| RecordingStepCard.tsx      | Support | Individual recorded step card with icon, label, screenshot       | Yes   |
+| index.ts                   | Export  | Barrel exports                                                   | -     |
 
 ## Dependencies
 

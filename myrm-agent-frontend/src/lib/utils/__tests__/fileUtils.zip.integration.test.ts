@@ -19,8 +19,6 @@ describe('buildZipFromFiles real jszip integration', () => {
     expect(names).toContain('plugin.json');
     expect(names).toContain('mcp.json');
     expect(names).toContain('skills/myrm-memory/SKILL.md');
-    expect(await zip.file('skills/myrm-memory/SKILL.md')?.async('string')).toContain(
-      '# Persistent long-term memory',
-    );
+    expect(await zip.file('skills/myrm-memory/SKILL.md')?.async('string')).toContain('# Persistent long-term memory');
   });
 });

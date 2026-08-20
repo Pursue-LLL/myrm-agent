@@ -50,10 +50,7 @@ function statusClass(status: DoctorCheckStatus): string {
   }
 }
 
-export function CompanionPetDoctorPanel({
-  expanded,
-  onExpandedChange,
-}: CompanionPetDoctorPanelProps) {
+export function CompanionPetDoctorPanel({ expanded, onExpandedChange }: CompanionPetDoctorPanelProps) {
   const t = useTranslations('companion');
   const router = useRouter();
   const spriteEnabled = useCompanionStore((s) => s.spriteEnabled);
@@ -66,44 +63,49 @@ export function CompanionPetDoctorPanel({
   const [error, setError] = useState<string | null>(null);
   const [messageContext, setMessageContext] = useState<DoctorCheckMessageContext>({});
 
-  const runDoctor = useCallback(async (rescan = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const report = await fetchCompanionDoctor(rescan);
-      const clientChecks: CompanionDoctorCheck[] = [
-        {
-          id: 'ui.sprite_enabled',
-          status: spriteEnabled ? 'pass' : 'fail',
-          message: spriteEnabled
-            ? t('doctor.checks.spriteEnabledPass')
-            : t('doctor.checks.spriteEnabledFail'),
-          fixAction: spriteEnabled ? null : 'enable_sprite_overlay',
-        },
-      ];
-      setChecks([...report.checks, ...clientChecks]);
-      setMessageContext({
-        activeSlug: report.activeSlug,
-        installedCount: report.installedCount,
-      });
-      setReady(report.ready && spriteEnabled);
-    } catch (err) {
-      setError(String(err instanceof Error ? err.message : err));
-      setChecks([]);
-      setReady(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [spriteEnabled, t]);
+  const runDoctor = useCallback(
+    async (rescan = false) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const report = await fetchCompanionDoctor(rescan);
+        const clientChecks: CompanionDoctorCheck[] = [
+          {
+            id: 'ui.sprite_enabled',
+            status: spriteEnabled ? 'pass' : 'fail',
+            message: spriteEnabled ? t('doctor.checks.spriteEnabledPass') : t('doctor.checks.spriteEnabledFail'),
+            fixAction: spriteEnabled ? null : 'enable_sprite_overlay',
+          },
+        ];
+        setChecks([...report.checks, ...clientChecks]);
+        setMessageContext({
+          activeSlug: report.activeSlug,
+          installedCount: report.installedCount,
+        });
+        setReady(report.ready && spriteEnabled);
+      } catch (err) {
+        setError(String(err instanceof Error ? err.message : err));
+        setChecks([]);
+        setReady(false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [spriteEnabled, t],
+  );
 
   useEffect(() => {
-    if (!expanded) {return;}
+    if (!expanded) {
+      return;
+    }
     void runDoctor(false);
   }, [expanded, runDoctor]);
 
   const handleFix = useCallback(
     (action: string | null) => {
-      if (!action) {return;}
+      if (!action) {
+        return;
+      }
       if (action === 'open_experimental_companion') {
         router.push('/settings/developer?sub=experimental');
         return;
@@ -145,7 +147,11 @@ export function CompanionPetDoctorPanel({
       >
         <span className="text-xs font-medium text-foreground">{t('doctor.title')}</span>
         <span className="text-[10px] text-muted-foreground">
-          {ready ? t('doctor.ready') : failedCount > 0 ? t('doctor.issues', { count: failedCount }) : t('doctor.runHint')}
+          {ready
+            ? t('doctor.ready')
+            : failedCount > 0
+              ? t('doctor.issues', { count: failedCount })
+              : t('doctor.runHint')}
         </span>
       </button>
 
@@ -158,17 +164,13 @@ export function CompanionPetDoctorPanel({
             </div>
           )}
 
-          {error && (
-            <p className="text-xs text-destructive">{error}</p>
-          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
 
           {!loading && checks.length > 0 && (
             <ul className="space-y-1.5">
               {checks.map((check) => (
                 <li key={check.id} className="flex items-start justify-between gap-2 text-[11px] leading-snug">
-                  <span className={cn('min-w-0 flex-1', statusClass(check.status))}>
-                    {resolveCheckMessage(check)}
-                  </span>
+                  <span className={cn('min-w-0 flex-1', statusClass(check.status))}>{resolveCheckMessage(check)}</span>
                   {check.fixAction && check.status !== 'pass' && (
                     <Button
                       type="button"

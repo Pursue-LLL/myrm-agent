@@ -64,14 +64,19 @@ const CITATION_MARKER_RE = /\u3010(\d+)\u3011/g;
  * so they are rendered by the existing citation component.
  * Only applied post-stream to avoid partial-marker artefacts.
  */
-const escapeHtmlAttr = (s: string): string => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const escapeHtmlAttr = (s: string): string =>
+  s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
-  if (sources.length === 0) {return text;}
+  if (sources.length === 0) {
+    return text;
+  }
   return text.replace(CITATION_MARKER_RE, (_match, numStr: string) => {
     const num = parseInt(numStr, 10);
     const sourceIndex = sources.findIndex((s) => s.index === num);
-    if (sourceIndex === -1) {return `[${numStr}]`;}
+    if (sourceIndex === -1) {
+      return `[${numStr}]`;
+    }
     const source = sources[sourceIndex];
     const safeUrl = escapeHtmlAttr(source?.url || '');
     return `<citation data-num="${numStr}" data-source-index="${sourceIndex}" data-url="${safeUrl}"></citation>`;
@@ -189,7 +194,10 @@ const MarkdownContent = React.memo(
       }
 
       // 计算新增内容
-      if (sanitizedContent.length > prevContentRef.current.length && sanitizedContent.startsWith(prevContentRef.current)) {
+      if (
+        sanitizedContent.length > prevContentRef.current.length &&
+        sanitizedContent.startsWith(prevContentRef.current)
+      ) {
         const newChunk = sanitizedContent.slice(prevContentRef.current.length);
         addChunk(newChunk);
       } else if (sanitizedContent !== prevContentRef.current) {
@@ -232,7 +240,9 @@ const MarkdownContent = React.memo(
     const components = useMemo(
       () => ({
         vault: ({ id }: { id?: string }) => {
-          if (!id) {return null;}
+          if (!id) {
+            return null;
+          }
           return <VaultArtifactCard id={id} />;
         },
         think: ThinkTagProcessor,
@@ -363,7 +373,10 @@ const MarkdownContent = React.memo(
             const mcpDescription =
               mcpCalls.length > 0
                 ? mcpCalls
-                    .map((call: { tool_name: string; result_preview?: string }) => `${call.tool_name}: ${call.result_preview || ''}`)
+                    .map(
+                      (call: { tool_name: string; result_preview?: string }) =>
+                        `${call.tool_name}: ${call.result_preview || ''}`,
+                    )
                     .join('\n\n')
                 : '';
             return <LinkPopover url="#" title={mcpTitle} description={mcpDescription} label={num} />;

@@ -45,9 +45,7 @@ export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: Acti
                       <>
                         <span className="text-border">·</span>
                         <span>
-                          {goal.tokens_used >= 1000
-                            ? `${(goal.tokens_used / 1000).toFixed(1)}k`
-                            : goal.tokens_used}{' '}
+                          {goal.tokens_used >= 1000 ? `${(goal.tokens_used / 1000).toFixed(1)}k` : goal.tokens_used}{' '}
                           tokens
                         </span>
                       </>

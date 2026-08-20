@@ -30,13 +30,27 @@ interface OnboardingWizardProps {
   onComplete: () => void;
 }
 
-type Step = 'welcome' | 'migration' | 'capabilities' | 'tools_connect' | 'sync_folder' | 'routing' | 'smart_guard' | 'telegram_assistant' | 'theme_pick' | 'finishing';
+type Step =
+  | 'welcome'
+  | 'migration'
+  | 'capabilities'
+  | 'tools_connect'
+  | 'sync_folder'
+  | 'routing'
+  | 'smart_guard'
+  | 'telegram_assistant'
+  | 'theme_pick'
+  | 'finishing';
 
 const WELCOME_DURATION_MS = 2500;
 
 function isTelegramConfiguredForOnboarding(creds: TelegramCredentials | null): boolean {
-  if (!creds) {return false;}
-  if ((creds.botToken ?? '').trim()) {return true;}
+  if (!creds) {
+    return false;
+  }
+  if ((creds.botToken ?? '').trim()) {
+    return true;
+  }
   return isSandbox();
 }
 
@@ -63,14 +77,18 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const shouldOfferMigrationStep = isLocalDeployment ? Boolean(discovery && discovery.sources.length > 0) : true;
 
   const shouldShowRouting = useCallback(() => {
-    if (routingAlreadyEnabled) {return false;}
+    if (routingAlreadyEnabled) {
+      return false;
+    }
     return getEnabledModels().length >= 2;
   }, [routingAlreadyEnabled, getEnabledModels]);
 
   const shouldShowSmartGuard = useCallback(() => {
-    if (getEnabledModels().length === 0) {return false;}
+    if (getEnabledModels().length === 0) {
+      return false;
+    }
     const secConfig = getConfigSyncManager().get('securityConfig') as SecurityConfigValue | null;
-    return !(secConfig?.autoReviewEnabled);
+    return !secConfig?.autoReviewEnabled;
   }, [getEnabledModels]);
 
   // We only run the async probes once on mount
@@ -86,7 +104,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           getTelegramCredentials().catch(() => null),
         ]);
 
-        if (!mounted) {return;}
+        if (!mounted) {
+          return;
+        }
 
         setDiscovery(discRes);
         setProbe(probeRes);
@@ -96,10 +116,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         const remaining = Math.max(0, WELCOME_DURATION_MS - elapsed);
 
         setTimeout(() => {
-          if (mounted) {setInitDone(true);}
+          if (mounted) {
+            setInitDone(true);
+          }
         }, remaining);
       } catch {
-        if (mounted) {setInitDone(true);}
+        if (mounted) {
+          setInitDone(true);
+        }
       }
     };
 
@@ -122,7 +146,15 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initDone, isInitialized, step, shouldOfferMigrationStep, isLocalDeployment, hasEnabledProvider, searchConfigured]);
+  }, [
+    initDone,
+    isInitialized,
+    step,
+    shouldOfferMigrationStep,
+    isLocalDeployment,
+    hasEnabledProvider,
+    searchConfigured,
+  ]);
 
   const handleFinish = useCallback(async () => {
     setStep('finishing');
@@ -212,9 +244,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
 
         <div className="relative flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-700">
           <BrandLogo size={64} priority className="w-16 h-16" />
-          <div className="text-2xl font-semibold brand-gradient-text">
-            {t('title')}
-          </div>
+          <div className="text-2xl font-semibold brand-gradient-text">{t('title')}</div>
           <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
             <span className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             {t('step.initServices')}
@@ -238,13 +268,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 {isLocalDeployment ? t('onboarding.migrationTitle') : t('onboarding.migrationCloudTitle')}
               </h1>
               <p className="text-muted-foreground">
-                {isLocalDeployment
-                  ? t('onboarding.migrationDescription')
-                  : t('onboarding.migrationCloudDescription')}
+                {isLocalDeployment ? t('onboarding.migrationDescription') : t('onboarding.migrationCloudDescription')}
               </p>
             </div>
             <div className="bg-card border rounded-xl p-6">
-              <MigrationWizardSection onMigrationComplete={handleMigrationCompleteOrSkip} vaultBindHandoffMode="onboarding" />
+              <MigrationWizardSection
+                onMigrationComplete={handleMigrationCompleteOrSkip}
+                vaultBindHandoffMode="onboarding"
+              />
             </div>
             <div className="flex justify-center mt-6">
               <Button variant="ghost" onClick={handleMigrationCompleteOrSkip}>
@@ -327,10 +358,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               <p className="text-muted-foreground">{t('onboarding.telegramAssistant.pageDescription')}</p>
             </div>
             <div className="bg-card border rounded-xl p-6">
-              <TelegramAssistantOnboardingStep
-                onComplete={advanceToThemePick}
-                onSkip={advanceToThemePick}
-              />
+              <TelegramAssistantOnboardingStep onComplete={advanceToThemePick} onSkip={advanceToThemePick} />
             </div>
           </div>
         )}

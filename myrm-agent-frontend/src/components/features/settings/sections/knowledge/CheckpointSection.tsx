@@ -48,10 +48,7 @@ const CheckpointSection: React.FC = () => {
           <CardDescription>{t('savedCheckpointsDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <CheckpointList
-            sessionId={sessionId}
-            onReinitiate={handleReinitiate}
-          />
+          <CheckpointList sessionId={sessionId} onReinitiate={handleReinitiate} />
         </CardContent>
       </Card>
     </div>

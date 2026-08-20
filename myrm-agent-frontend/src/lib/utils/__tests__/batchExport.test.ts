@@ -60,9 +60,7 @@ describe('batchExportAsZip', () => {
   });
 
   it('skips chats with no messages', async () => {
-    mockExportChat.mockResolvedValueOnce(
-      mockExportData('c1', 'Empty', '2026-07-10T00:00:00Z', 0),
-    );
+    mockExportChat.mockResolvedValueOnce(mockExportData('c1', 'Empty', '2026-07-10T00:00:00Z', 0));
 
     const { result } = await batchExportAsZip(['c1'], 'markdown', defaultOpts);
 
@@ -84,9 +82,7 @@ describe('batchExportAsZip', () => {
   });
 
   it('marks as failed after retry also fails', async () => {
-    mockExportChat
-      .mockRejectedValueOnce(new Error('Fail 1'))
-      .mockRejectedValueOnce(new Error('Fail 2'));
+    mockExportChat.mockRejectedValueOnce(new Error('Fail 1')).mockRejectedValueOnce(new Error('Fail 2'));
 
     const { result } = await batchExportAsZip(['c1'], 'markdown', defaultOpts);
 
@@ -163,9 +159,7 @@ describe('batchExportAsZip', () => {
   });
 
   it('groups files into date-based folders', async () => {
-    mockExportChat.mockResolvedValueOnce(
-      mockExportData('c1', 'Day Chat', '2026-07-15T08:00:00Z'),
-    );
+    mockExportChat.mockResolvedValueOnce(mockExportData('c1', 'Day Chat', '2026-07-15T08:00:00Z'));
 
     const { blob, result } = await batchExportAsZip(['c1'], 'markdown', defaultOpts);
 

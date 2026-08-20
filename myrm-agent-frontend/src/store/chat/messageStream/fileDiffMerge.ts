@@ -7,7 +7,9 @@
  */
 
 export function parseProgressFilePath(item: unknown): string | undefined {
-  if (!item || typeof item !== 'object' || !('file_path' in item)) {return undefined;}
+  if (!item || typeof item !== 'object' || !('file_path' in item)) {
+    return undefined;
+  }
   const fp = (item as { file_path?: unknown }).file_path;
   return typeof fp === 'string' ? fp : undefined;
 }
@@ -21,13 +23,22 @@ export function scoreUnifiedDiffForMerge(diff: string): number {
   let hasMinus = false;
   let hasPlus = false;
   for (const line of diff.split('\n')) {
-    if (line.startsWith('-') && !line.startsWith('---')) {hasMinus = true;}
-    if (line.startsWith('+') && !line.startsWith('+++')) {hasPlus = true;}
+    if (line.startsWith('-') && !line.startsWith('---')) {
+      hasMinus = true;
+    }
+    if (line.startsWith('+') && !line.startsWith('+++')) {
+      hasPlus = true;
+    }
   }
   let score = 0;
-  if (hasMinus && hasPlus) {score += 100;}
-  else if (hasMinus || hasPlus) {score += 10;}
-  if (diff.includes('@@')) {score += 5;}
+  if (hasMinus && hasPlus) {
+    score += 100;
+  } else if (hasMinus || hasPlus) {
+    score += 10;
+  }
+  if (diff.includes('@@')) {
+    score += 5;
+  }
   score += Math.min(diff.length, 500_000) / 50_000;
   return score;
 }
@@ -36,9 +47,15 @@ function diffHasMinusAndPlusLinesMerge(diff: string): boolean {
   let hasMinus = false;
   let hasPlus = false;
   for (const line of diff.split('\n')) {
-    if (line.startsWith('-') && !line.startsWith('---')) {hasMinus = true;}
-    if (line.startsWith('+') && !line.startsWith('+++')) {hasPlus = true;}
-    if (hasMinus && hasPlus) {return true;}
+    if (line.startsWith('-') && !line.startsWith('---')) {
+      hasMinus = true;
+    }
+    if (line.startsWith('+') && !line.startsWith('+++')) {
+      hasPlus = true;
+    }
+    if (hasMinus && hasPlus) {
+      return true;
+    }
   }
   return false;
 }

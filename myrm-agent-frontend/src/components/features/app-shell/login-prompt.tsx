@@ -24,8 +24,7 @@ const LoginPrompt = memo<LoginPromptProps>(
     const { loginMock } = useAuthStore();
 
     const handleSignIn = useCallback(() => {
-      const returnPath =
-        typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
+      const returnPath = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
       window.location.href = buildAuthLoginPath(returnPath);
     }, []);
 

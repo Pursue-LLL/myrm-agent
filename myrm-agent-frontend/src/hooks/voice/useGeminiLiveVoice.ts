@@ -93,7 +93,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
 
   const scheduleAudioChunk = useCallback((pcmData: ArrayBuffer) => {
     const ctx = audioCtxRef.current;
-    if (!ctx || ctx.state === 'closed') {return;}
+    if (!ctx || ctx.state === 'closed') {
+      return;
+    }
 
     const samples = new Int16Array(pcmData);
     const float32 = new Float32Array(samples.length);
@@ -123,10 +125,14 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
 
   const sendVideoFrame = useCallback(() => {
     const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN || !getVideoFrame) {return;}
+    if (!ws || ws.readyState !== WebSocket.OPEN || !getVideoFrame) {
+      return;
+    }
 
     const frame = getVideoFrame();
-    if (!frame) {return;}
+    if (!frame) {
+      return;
+    }
 
     const base64Data = frame.replace(/^data:image\/jpeg;base64,/, '');
     ws.send(
@@ -139,7 +145,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
   }, [getVideoFrame]);
 
   const persistTranscript = useCallback(async () => {
-    if (!chatId || transcriptBufferRef.current.length === 0) {return;}
+    if (!chatId || transcriptBufferRef.current.length === 0) {
+      return;
+    }
     try {
       await apiRequest('/voice/realtime-transcript', {
         method: 'POST',
@@ -171,13 +179,17 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
     const media = mediaRef.current;
     const ws = wsRef.current;
     const audioCtx = audioCtxRef.current;
-    if (!media || !ws || !audioCtx) {return;}
+    if (!media || !ws || !audioCtx) {
+      return;
+    }
 
     const source = audioCtx.createMediaStreamSource(media);
     const processor = audioCtx.createScriptProcessor(4096, 1, 1);
 
     processor.onaudioprocess = (e) => {
-      if (ws.readyState !== WebSocket.OPEN) {return;}
+      if (ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
       const inputData = e.inputBuffer.getChannelData(0);
 
       const ratio = audioCtx.sampleRate / AUDIO_SAMPLE_RATE_INPUT;
@@ -284,7 +296,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
   );
 
   const connect = useCallback(async () => {
-    if (!enabled) {return;}
+    if (!enabled) {
+      return;
+    }
     closedRef.current = false;
     setState('connecting');
     setInterimText('');
@@ -348,7 +362,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions): UseGemin
       });
 
       ws.addEventListener('message', (event) => {
-        if (closedRef.current) {return;}
+        if (closedRef.current) {
+          return;
+        }
         void handleServerMessage(event.data);
       });
 

@@ -56,9 +56,7 @@ const MemoryGuardianPolicyPanel = memo(
             <div className="text-[11px] text-muted-foreground">{t('frequencyTierLabel')}</div>
             <select
               value={policy.frequency_tier}
-              onChange={(e) =>
-                updateField('frequency_tier', e.target.value as MemoryGuardianPolicy['frequency_tier'])
-              }
+              onChange={(e) => updateField('frequency_tier', e.target.value as MemoryGuardianPolicy['frequency_tier'])}
               className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
             >
               <option value="conservative">{t('frequencyTierConservative')}</option>

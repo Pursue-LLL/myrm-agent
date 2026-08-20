@@ -55,9 +55,7 @@ describe('NoProviderBanner', () => {
     mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) => {
       const state = {
         isInitialized: true,
-        providers: [
-          { id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: 'sk-xxx' }] },
-        ],
+        providers: [{ id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: 'sk-xxx' }] }],
       };
       return selector(state);
     });
@@ -96,9 +94,7 @@ describe('NoProviderBanner', () => {
     mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) => {
       const state = {
         isInitialized: true,
-        providers: [
-          { id: 'openai', isEnabled: false, apiKeys: [] },
-        ],
+        providers: [{ id: 'openai', isEnabled: false, apiKeys: [] }],
       };
       return selector(state);
     });
@@ -113,9 +109,7 @@ describe('NoProviderBanner', () => {
     mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) => {
       const state = {
         isInitialized: true,
-        providers: [
-          { id: 'openai', isEnabled: true, apiKeys: [{ isActive: false, key: 'sk-xxx' }] },
-        ],
+        providers: [{ id: 'openai', isEnabled: true, apiKeys: [{ isActive: false, key: 'sk-xxx' }] }],
       };
       return selector(state);
     });
@@ -128,9 +122,7 @@ describe('NoProviderBanner', () => {
     mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) => {
       const state = {
         isInitialized: true,
-        providers: [
-          { id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: '' }] },
-        ],
+        providers: [{ id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: '' }] }],
       };
       return selector(state);
     });

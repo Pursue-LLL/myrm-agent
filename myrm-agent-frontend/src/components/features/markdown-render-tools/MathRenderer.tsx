@@ -15,7 +15,9 @@ const remarkMathOptions: Options = {
 
 /** 处理数学公式内部特殊字符：% 转义、中文 \text → \mathrm */
 export const preprocessMathContent = (content: string): string => {
-  if (!content) {return content;}
+  if (!content) {
+    return content;
+  }
 
   let processed = content;
 
@@ -110,7 +112,9 @@ export function escapeIncompleteBlockMath(text: string): string {
  * 处理链：代码块保护 → LaTeX delimiter 转换 → 流式不完整保护 → 代码块还原 → 内容预处理
  */
 export const preprocessContentMath = (content: string, isStreaming = false): string => {
-  if (!content) {return content;}
+  if (!content) {
+    return content;
+  }
 
   const { processed: withoutCode, restore } = protectCodeBlocks(content);
 

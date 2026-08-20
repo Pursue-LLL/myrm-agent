@@ -101,7 +101,9 @@ const AccountSection = memo(() => {
       }
 
       const { url } = await response.json();
-      if (url) {window.location.href = url;}
+      if (url) {
+        window.location.href = url;
+      }
     } catch {
       toast.error(tSub('portalFailed'));
     } finally {
@@ -109,13 +111,16 @@ const AccountSection = memo(() => {
     }
   };
 
-  if (!isInitialized) {return <div className="h-40 w-full animate-pulse bg-white/5 rounded-3xl" />;}
-  if (!user)
-    {return (
+  if (!isInitialized) {
+    return <div className="h-40 w-full animate-pulse bg-white/5 rounded-3xl" />;
+  }
+  if (!user) {
+    return (
       <div className="p-8">
         <LoginPrompt />
       </div>
-    );}
+    );
+  }
 
   const displayName = user?.display_name || user?.email?.split('@')[0] || t('guest');
 

@@ -201,7 +201,9 @@ function updateProgressItemStatus(
   toolName: string,
   status: 'success' | 'error',
 ): ProgressItem[] {
-  if (!existing) {return [];}
+  if (!existing) {
+    return [];
+  }
   return existing.map((item) => (item.tool_name === toolName ? { ...item, status } : item));
 }
 
@@ -210,7 +212,9 @@ function appendToolCall(existing: ToolCallInfo[] | undefined, item: ToolCallInfo
 }
 
 function formatToolArgs(args: Record<string, unknown> | undefined): string {
-  if (!args) {return '';}
+  if (!args) {
+    return '';
+  }
   const command = args.command;
   if (typeof command === 'string') {
     return command.length > 100 ? command.slice(0, 100) + '...' : command;

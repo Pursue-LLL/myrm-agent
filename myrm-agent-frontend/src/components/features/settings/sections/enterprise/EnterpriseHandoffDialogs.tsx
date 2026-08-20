@@ -10,13 +10,7 @@ import {
   DialogTitle,
 } from '@/components/primitives/dialog';
 import { Label } from '@/components/primitives/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import type { OrgMember } from '@/services/enterprise-org';
 
 function memberLabel(m: OrgMember): string {
@@ -105,9 +99,7 @@ export function TransferDialog({
   t,
 }: TransferDialogProps) {
   const canConfirm =
-    transferSourceId.trim().length > 0 &&
-    transferTargetId.trim().length > 0 &&
-    transferSourceId !== transferTargetId;
+    transferSourceId.trim().length > 0 && transferTargetId.trim().length > 0 && transferSourceId !== transferTargetId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,9 +117,7 @@ export function TransferDialog({
               </SelectTrigger>
               <SelectContent>
                 {sourceCandidates.length === 0 && (
-                  <p className="px-2 py-1.5 text-sm text-muted-foreground">
-                    {t('noTransferableSources')}
-                  </p>
+                  <p className="px-2 py-1.5 text-sm text-muted-foreground">{t('noTransferableSources')}</p>
                 )}
                 {sourceCandidates.map((m) => (
                   <SelectItem key={m.user_id} value={m.user_id}>

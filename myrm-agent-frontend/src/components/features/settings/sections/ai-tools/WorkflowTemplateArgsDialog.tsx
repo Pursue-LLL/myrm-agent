@@ -2,13 +2,7 @@
 
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/primitives/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
@@ -23,14 +17,7 @@ export interface WorkflowTemplateArgsDialogProps {
 }
 
 const WorkflowTemplateArgsDialog = memo(
-  ({
-    open,
-    templateName,
-    placeholders,
-    initialArgs,
-    onOpenChange,
-    onConfirm,
-  }: WorkflowTemplateArgsDialogProps) => {
+  ({ open, templateName, placeholders, initialArgs, onOpenChange, onConfirm }: WorkflowTemplateArgsDialogProps) => {
     const t = useTranslations('settings.skills.workflowTemplates');
     const [values, setValues] = useState<Record<string, string>>({});
 
@@ -40,11 +27,7 @@ const WorkflowTemplateArgsDialog = memo(
       if (!open) {
         return;
       }
-      setValues(
-        Object.fromEntries(
-          sortedPlaceholders.map((key) => [key, initialArgs?.[key]?.trim() ?? '']),
-        ),
-      );
+      setValues(Object.fromEntries(sortedPlaceholders.map((key) => [key, initialArgs?.[key]?.trim() ?? ''])));
     }, [initialArgs, open, sortedPlaceholders]);
 
     const allFilled = sortedPlaceholders.every((key) => values[key]?.trim());
@@ -65,9 +48,7 @@ const WorkflowTemplateArgsDialog = memo(
                 <Input
                   id={`wf-arg-${key}`}
                   value={values[key] ?? ''}
-                  onChange={(event) =>
-                    setValues((prev) => ({ ...prev, [key]: event.target.value }))
-                  }
+                  onChange={(event) => setValues((prev) => ({ ...prev, [key]: event.target.value }))}
                   placeholder={t('argsFieldPlaceholder', { key })}
                 />
               </div>
@@ -81,9 +62,7 @@ const WorkflowTemplateArgsDialog = memo(
               type="button"
               disabled={!allFilled}
               onClick={() => {
-                const args = Object.fromEntries(
-                  sortedPlaceholders.map((key) => [key, values[key]?.trim() ?? '']),
-                );
+                const args = Object.fromEntries(sortedPlaceholders.map((key) => [key, values[key]?.trim() ?? '']));
                 onConfirm(args);
                 onOpenChange(false);
               }}

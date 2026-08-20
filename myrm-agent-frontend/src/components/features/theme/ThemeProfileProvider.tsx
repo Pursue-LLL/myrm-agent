@@ -22,17 +22,11 @@ import {
   type ThemeProfileRecipe,
 } from '@/theme-engine';
 import { isPetOverlayPath } from '@/lib/marketing-paths';
-import {
-  resolveThemeAssetUrl,
-  verifyThemeAssetAvailable,
-} from '@/services/theme-assets/ThemeAssetStore';
+import { resolveThemeAssetUrl, verifyThemeAssetAvailable } from '@/services/theme-assets/ThemeAssetStore';
 import WorkspaceArtLayer from './WorkspaceArtLayer';
 import ThemeAssetMissingBanner from './ThemeAssetMissingBanner';
 
-function resolveActiveProfile(
-  activeId: string | undefined,
-  customProfiles: ThemeProfileRecipe[],
-): ThemeProfileRecipe {
+function resolveActiveProfile(activeId: string | undefined, customProfiles: ThemeProfileRecipe[]): ThemeProfileRecipe {
   let base: ThemeProfileRecipe;
   if (activeId) {
     const builtin = getBuiltinProfile(activeId);
@@ -52,9 +46,7 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const { resolvedTheme } = useTheme();
   const activeThemeProfileId = useConfigStore((s) => s.personalSettings?.activeThemeProfileId);
-  const themeProfiles = useConfigStore(
-    (s) => s.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES,
-  );
+  const themeProfiles = useConfigStore((s) => s.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES);
   const themeFontOverride = useConfigStore((s) => s.personalSettings?.themeFontOverride);
 
   const domPreviewEnabled = useThemeStudioDomPreviewStore((s) => s.enabled);
@@ -64,7 +56,9 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
 
   const configProfile = useMemo(() => {
     const base = resolveActiveProfile(activeThemeProfileId, themeProfiles);
-    if (!themeFontOverride || themeFontOverride === base.fontId) {return base;}
+    if (!themeFontOverride || themeFontOverride === base.fontId) {
+      return base;
+    }
     return { ...base, fontId: themeFontOverride };
   }, [activeThemeProfileId, themeProfiles, themeFontOverride]);
 
@@ -72,19 +66,14 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
 
   const layoutId = profile.layoutId;
 
-  const sceneId = useMemo(
-    () => resolveReadabilityScene(pathname ?? '/'),
-    [pathname],
-  );
+  const sceneId = useMemo(() => resolveReadabilityScene(pathname ?? '/'), [pathname]);
 
   const isPetOverlay = isPetOverlayPath(pathname ?? '');
 
   const colorScheme = resolvedTheme === 'light' ? 'light' : 'dark';
   const prefersReducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const isMobile =
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
@@ -112,36 +101,32 @@ const ThemeProfileProvider = ({ children }: { children: React.ReactNode }) => {
 
     let cancelled = false;
     const loadAssets = async () => {
-      const needsBackground =
-        profile.art.mediaKind !== 'none' && Boolean(profile.art.assetRef);
+      const needsBackground = profile.art.mediaKind !== 'none' && Boolean(profile.art.assetRef);
 
       const refsToVerify: string[] = [];
       if (needsBackground && profile.art.assetRef) {
         refsToVerify.push(profile.art.assetRef);
       }
-      if (
-        needsBackground &&
-        profile.art.posterAssetRef &&
-        profile.art.posterAssetRef !== profile.art.assetRef
-      ) {
+      if (needsBackground && profile.art.posterAssetRef && profile.art.posterAssetRef !== profile.art.assetRef) {
         refsToVerify.push(profile.art.posterAssetRef);
       }
 
-      const availability = await Promise.all(
-        refsToVerify.map((ref) => verifyThemeAssetAvailable(ref)),
-      );
+      const availability = await Promise.all(refsToVerify.map((ref) => verifyThemeAssetAvailable(ref)));
       const missing = refsToVerify.length > 0 && availability.some((ok) => !ok);
 
       const nextMedia = await resolveThemeAssetUrl(profile.art.assetRef);
       const nextPoster = await resolveThemeAssetUrl(profile.art.posterAssetRef);
-      const resolvedPoster =
-        nextPoster ?? (profile.art.mediaKind === 'image' ? nextMedia : null);
+      const resolvedPoster = nextPoster ?? (profile.art.mediaKind === 'image' ? nextMedia : null);
 
-      if (cancelled || assetLoadGenerationRef.current !== generation) {return;}
+      if (cancelled || assetLoadGenerationRef.current !== generation) {
+        return;
+      }
 
       objectUrlRef.current.forEach((url) => URL.revokeObjectURL(url));
       objectUrlRef.current = [];
-      if (nextMedia?.startsWith('blob:')) {objectUrlRef.current.push(nextMedia);}
+      if (nextMedia?.startsWith('blob:')) {
+        objectUrlRef.current.push(nextMedia);
+      }
       if (resolvedPoster?.startsWith('blob:') && resolvedPoster !== nextMedia) {
         objectUrlRef.current.push(resolvedPoster);
       }

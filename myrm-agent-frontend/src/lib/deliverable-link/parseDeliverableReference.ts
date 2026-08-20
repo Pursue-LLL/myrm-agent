@@ -7,9 +7,7 @@
  */
 
 export type DeliverableReference =
-  | { kind: 'workspace'; path: string }
-  | { kind: 'artifact'; id: string }
-  | { kind: 'file_id'; id: string };
+  { kind: 'workspace'; path: string } | { kind: 'artifact'; id: string } | { kind: 'file_id'; id: string };
 
 const ARTIFACT_PREFIX = 'artifact:';
 

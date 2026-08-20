@@ -63,7 +63,9 @@ const AgentToolsToggle = () => {
   const handleToggle = (toolId: BuiltinToolId) => {
     if (toolId === 'web_search' && !currentBuiltinTools.includes(toolId)) {
       const { searchServiceConfigs } = useConfigStore.getState();
-      if (!guardSearchServiceConfigured(searchServiceConfigs)) {return;}
+      if (!guardSearchServiceConfigured(searchServiceConfigs)) {
+        return;
+      }
     }
     toggleBuiltinTool(toolId);
   };

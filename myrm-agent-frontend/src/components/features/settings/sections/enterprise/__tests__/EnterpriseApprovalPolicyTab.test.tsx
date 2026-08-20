@@ -162,10 +162,7 @@ describe('EnterpriseApprovalPolicyTab', () => {
       expect(screen.getByText(/^approvalPolicy\.title/)).toBeInTheDocument();
     });
 
-    await userEvent.type(
-      screen.getAllByPlaceholderText('e.g. claude-opus*')[0],
-      'deepseek-r1*',
-    );
+    await userEvent.type(screen.getAllByPlaceholderText('e.g. claude-opus*')[0], 'deepseek-r1*');
     await userEvent.click(screen.getAllByText(/^approvalPolicy\.addPattern/)[0]);
 
     expect(screen.getByText(/deepseek-r1\*/)).toBeInTheDocument();

@@ -92,7 +92,9 @@ function createContainerWithSelection(text: string, opts: { nearBottom?: boolean
   };
 
   const setupContainer = (el: HTMLDivElement | null) => {
-    if (!el) {return;}
+    if (!el) {
+      return;
+    }
     (containerRef as React.MutableRefObject<HTMLDivElement>).current = el;
 
     mockSelection.anchorNode = el.firstChild || el;
@@ -103,8 +105,12 @@ function createContainerWithSelection(text: string, opts: { nearBottom?: boolean
     Object.defineProperty(el, 'clientHeight', { value: 600, writable: true });
     const nativeContains = Node.prototype.contains.bind(el);
     el.contains = (node: Node | null) => {
-      if (!node) {return false;}
-      if (node === mockSelection.anchorNode) {return true;}
+      if (!node) {
+        return false;
+      }
+      if (node === mockSelection.anchorNode) {
+        return true;
+      }
       return nativeContains(node);
     };
   };
@@ -232,7 +238,9 @@ describe('DocumentSelectionToolbar - useSelectionAction integration', () => {
               Object.defineProperty(el, 'clientHeight', { value: 600, writable: true });
               const originalContains = el.contains.bind(el);
               el.contains = (node: Node | null) => {
-                if (node === mockSel.anchorNode) {return true;}
+                if (node === mockSel.anchorNode) {
+                  return true;
+                }
                 return originalContains(node);
               };
             }

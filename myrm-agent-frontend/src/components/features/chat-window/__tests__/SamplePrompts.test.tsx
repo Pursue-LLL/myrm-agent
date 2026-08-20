@@ -62,7 +62,13 @@ describe('SamplePrompts', () => {
 
   it('uses agent custom suggestion prompts when available', () => {
     mockStore.agentConfig = {
-      suggestionPrompts: ['Custom prompt A', 'Custom prompt B', 'Custom prompt C', 'Custom prompt D', 'Custom prompt E'],
+      suggestionPrompts: [
+        'Custom prompt A',
+        'Custom prompt B',
+        'Custom prompt C',
+        'Custom prompt D',
+        'Custom prompt E',
+      ],
     };
     render(<SamplePrompts />);
     const buttons = screen.getAllByRole('button');

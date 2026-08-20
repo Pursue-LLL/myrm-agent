@@ -22,7 +22,12 @@ import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 import CapabilityIcons from '@/components/features/app-shell/capability-icons';
-import { fetchModelCapabilitiesBatch, fetchModelSwitchPreflight, type ModelCapabilities, type ModelSwitchPreflightResult } from '@/services/llm-config';
+import {
+  fetchModelCapabilitiesBatch,
+  fetchModelSwitchPreflight,
+  type ModelCapabilities,
+  type ModelSwitchPreflightResult,
+} from '@/services/llm-config';
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -116,10 +121,7 @@ export default function ModelPickerPopover({
       return moaPresets;
     }
     const groupMatch =
-      tMoa('groupTitle').toLowerCase().includes(q) ||
-      q.includes('moa') ||
-      q.includes('mixture') ||
-      q.includes('agent');
+      tMoa('groupTitle').toLowerCase().includes(q) || q.includes('moa') || q.includes('mixture') || q.includes('agent');
     return moaPresets.filter(
       (preset) => groupMatch || preset.label.toLowerCase().includes(q) || preset.id.toLowerCase().includes(q),
     );
@@ -145,7 +147,9 @@ export default function ModelPickerPopover({
   }, [open, loadPolicy]);
 
   useEffect(() => {
-    if (!open) {return;}
+    if (!open) {
+      return;
+    }
     setSearch('');
     setActiveSlot('primary');
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -217,9 +221,13 @@ export default function ModelPickerPopover({
     const pairs: { providerId: string; model: string; liteName: string; maxInput: number | null }[] = [];
     for (const em of enabledModels) {
       const prov = providers.find((p) => p.id === em.providerId);
-      if (!prov) {continue;}
+      if (!prov) {
+        continue;
+      }
       const caps = capabilities[em.model];
-      if (!caps) {continue;}
+      if (!caps) {
+        continue;
+      }
       pairs.push({
         providerId: em.providerId,
         model: em.model,
@@ -227,12 +235,16 @@ export default function ModelPickerPopover({
         maxInput: caps.max_input_tokens ?? null,
       });
     }
-    if (pairs.length === 0) {return;}
+    if (pairs.length === 0) {
+      return;
+    }
 
     const signature = `${chatId ?? ''}:${estimatedTokens}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${turnCount ?? ''}:${pairs
       .map((p) => `${p.liteName}:${p.maxInput}`)
       .join('|')}`;
-    if (preflightRequestedRef.current === signature) {return;}
+    if (preflightRequestedRef.current === signature) {
+      return;
+    }
     preflightRequestedRef.current = signature;
 
     fetchModelSwitchPreflight(
@@ -246,11 +258,23 @@ export default function ModelPickerPopover({
       const mapped: Record<string, ModelSwitchPreflightResult> = {};
       for (const p of pairs) {
         const result = results[p.liteName];
-        if (result) {mapped[`${p.providerId}/${p.model}`] = result;}
+        if (result) {
+          mapped[`${p.providerId}/${p.model}`] = result;
+        }
       }
       setPreflightMap(mapped);
     });
-  }, [open, estimatedTokens, capabilities, enabledModels, providers, compressStartRatio, promptMode, turnCount, chatId]);
+  }, [
+    open,
+    estimatedTokens,
+    capabilities,
+    enabledModels,
+    providers,
+    compressStartRatio,
+    promptMode,
+    turnCount,
+    chatId,
+  ]);
 
   const grouped = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -258,10 +282,14 @@ export default function ModelPickerPopover({
     const map: Record<string, (typeof result)[0]> = {};
 
     for (const em of enabledModels) {
-      if (q && !em.model.toLowerCase().includes(q) && !em.providerName.toLowerCase().includes(q)) {continue;}
+      if (q && !em.model.toLowerCase().includes(q) && !em.providerName.toLowerCase().includes(q)) {
+        continue;
+      }
       if (!map[em.providerId]) {
         const prov = providers.find((p) => p.id === em.providerId);
-        if (!prov) {continue;}
+        if (!prov) {
+          continue;
+        }
         map[em.providerId] = { provider: prov, models: [] };
         result.push(map[em.providerId]);
       }
@@ -462,7 +490,8 @@ export default function ModelPickerPopover({
                     const preflight = preflightMap[preflightKey];
                     const acknowledged = acknowledgedCountRef.current[preflightKey] ?? 0;
                     const showCompressWarning = !!preflight?.will_compress && acknowledged < 2;
-                    const policyBlocked = restricted && !isModelAllowed(getLiteLLMModelName(provider.id, model, provider.providerType));
+                    const policyBlocked =
+                      restricted && !isModelAllowed(getLiteLLMModelName(provider.id, model, provider.providerType));
                     const liteModelName = getLiteLLMModelName(provider.id, model, provider.providerType);
                     const highlightColor =
                       activeSlot === 'primary'
@@ -483,9 +512,7 @@ export default function ModelPickerPopover({
                         title={policyBlocked ? t('orgPolicyRestricted') : undefined}
                         className={cn(
                           'flex items-center w-full pl-9 pr-3 py-2.5 text-sm transition-colors gap-2',
-                          policyBlocked
-                            ? 'opacity-40 cursor-not-allowed'
-                            : 'hover:bg-accent cursor-pointer',
+                          policyBlocked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-accent cursor-pointer',
                           isActive && !policyBlocked && highlightColor,
                         )}
                       >

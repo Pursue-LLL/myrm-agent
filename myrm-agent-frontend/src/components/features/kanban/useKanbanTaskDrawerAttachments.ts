@@ -11,18 +11,15 @@ interface UseKanbanTaskDrawerAttachmentsParams {
   t: (key: string) => string;
 }
 
-export function useKanbanTaskDrawerAttachments({
-  task,
-  open,
-  onRefresh,
-  t,
-}: UseKanbanTaskDrawerAttachmentsParams) {
+export function useKanbanTaskDrawerAttachments({ task, open, onRefresh, t }: UseKanbanTaskDrawerAttachmentsParams) {
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
   const handleAttachUpload = useCallback(
     async (files: File[]) => {
-      if (!task || files.length === 0) {return;}
+      if (!task || files.length === 0) {
+        return;
+      }
       const existingCount = task.attachment_ids?.length ?? 0;
       const remaining = 10 - existingCount;
       if (remaining <= 0) {
@@ -40,7 +37,9 @@ export function useKanbanTaskDrawerAttachments({
             const formData = new FormData();
             formData.append('file', file);
             const resp = await fetch(getApiUrl('/files/upload'), { method: 'POST', body: formData });
-            if (!resp.ok) {throw new Error(`Upload failed: ${resp.status}`);}
+            if (!resp.ok) {
+              throw new Error(`Upload failed: ${resp.status}`);
+            }
             const data = await resp.json();
             return data.file_id as string;
           }),
@@ -68,7 +67,9 @@ export function useKanbanTaskDrawerAttachments({
 
   const handleRemoveAttachment = useCallback(
     async (fileId: string) => {
-      if (!task) {return;}
+      if (!task) {
+        return;
+      }
       const updated = (task.attachment_ids ?? []).filter((id) => id !== fileId);
       try {
         await updateTask(task.task_id, { attachment_ids: updated });
@@ -107,7 +108,9 @@ export function useKanbanTaskDrawerAttachments({
   );
 
   useEffect(() => {
-    if (!open) {return;}
+    if (!open) {
+      return;
+    }
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
   }, [open, handlePaste]);

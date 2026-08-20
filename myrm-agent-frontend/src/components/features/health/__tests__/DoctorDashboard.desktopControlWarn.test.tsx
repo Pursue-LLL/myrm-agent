@@ -36,8 +36,7 @@ vi.mock('@tauri-apps/plugin-shell', () => ({
   open: vi.fn(() => Promise.reject(new Error('not tauri'))),
 }));
 
-const ACCESSIBILITY_DEEPLINK =
-  'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
+const ACCESSIBILITY_DEEPLINK = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 
 const warnDesktopControlDoctor: DoctorResponse = {
   harness: [

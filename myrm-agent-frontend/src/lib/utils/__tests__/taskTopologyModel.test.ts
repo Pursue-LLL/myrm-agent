@@ -233,7 +233,10 @@ describe('buildMergedTopologyModel', () => {
   it('accumulates summary metrics from both sources', () => {
     const m = buildMergedTopologyModel(
       [{ ...mkNode({ task_id: 'root', status: 'completed' }), token_usage: { total_cost_usd: 1, total_tokens: 100 } }],
-      { ...topology, nodes: [{ node_id: 'n1', agent_type: 'researcher', objective: 'research', status: 'completed', cost_usd: 0.5 }] },
+      {
+        ...topology,
+        nodes: [{ node_id: 'n1', agent_type: 'researcher', objective: 'research', status: 'completed', cost_usd: 0.5 }],
+      },
     );
     expect(m.activeCount).toBe(0);
     expect(m.totalCostUsd).toBeCloseTo(1.5);

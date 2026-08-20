@@ -95,7 +95,9 @@ export function usePresetAgent({
   // 默认选中通用助手（仅在首次加载且没有现有配置时执行）
   useEffect(() => {
     // 已初始化则跳过
-    if (hasInitializedRef.current) {return;}
+    if (hasInitializedRef.current) {
+      return;
+    }
     hasInitializedRef.current = true;
 
     // 检查是否已有配置（从 store 读取当前状态）

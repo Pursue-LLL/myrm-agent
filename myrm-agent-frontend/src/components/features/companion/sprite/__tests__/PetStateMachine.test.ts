@@ -9,7 +9,9 @@ describe('PetStateMachine', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     sm = new PetStateMachine({
-      onChange: (state) => { currentState = state; },
+      onChange: (state) => {
+        currentState = state;
+      },
       heartbeatTimeoutMs: 5000,
       tickIntervalMs: 100,
     });

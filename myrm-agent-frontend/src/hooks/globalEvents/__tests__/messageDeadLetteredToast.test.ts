@@ -59,10 +59,7 @@ describe('showMessageDeadLetteredToast', () => {
     const handler = vi.fn();
     window.addEventListener('message_dead_lettered', handler);
 
-    showMessageDeadLetteredToast(
-      { channel: 'chat', error_reason: 'orm write failed' },
-      { t, notifyIfLeader: vi.fn() },
-    );
+    showMessageDeadLetteredToast({ channel: 'chat', error_reason: 'orm write failed' }, { t, notifyIfLeader: vi.fn() });
 
     expect(handler).toHaveBeenCalledOnce();
     window.removeEventListener('message_dead_lettered', handler);

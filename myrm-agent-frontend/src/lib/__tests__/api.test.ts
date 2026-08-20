@@ -37,15 +37,11 @@ vi.mock('@/store/useConfigStore', () => ({
 
 describe('getApiUrl', () => {
   it('routes /webui paths without /api/v1 prefix', () => {
-    expect(getApiUrl('/webui/desktop/permissions')).toBe(
-      'http://127.0.0.1:8080/webui/desktop/permissions',
-    );
+    expect(getApiUrl('/webui/desktop/permissions')).toBe('http://127.0.0.1:8080/webui/desktop/permissions');
   });
 
   it('keeps /api/v1 prefix for standard API endpoints', () => {
-    expect(getApiUrl('/integrations/mcp/options')).toBe(
-      'http://127.0.0.1:8080/api/v1/integrations/mcp/options',
-    );
+    expect(getApiUrl('/integrations/mcp/options')).toBe('http://127.0.0.1:8080/api/v1/integrations/mcp/options');
   });
 });
 
@@ -63,9 +59,7 @@ describe('getStorageUrl', () => {
   });
 
   it('prefixes relative storage paths with backend base URL', () => {
-    expect(getStorageUrl('/api/v1/files/storage/abc')).toBe(
-      'http://127.0.0.1:8080/api/v1/files/storage/abc',
-    );
+    expect(getStorageUrl('/api/v1/files/storage/abc')).toBe('http://127.0.0.1:8080/api/v1/files/storage/abc');
   });
 });
 
@@ -192,8 +186,7 @@ describe('apiRequest local backend gate', () => {
 
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
-      value: { location: { href: '', pathname: '/test', search: '', hash: '' } } as Window &
-        typeof globalThis,
+      value: { location: { href: '', pathname: '/test', search: '', hash: '' } } as Window & typeof globalThis,
     });
     Object.defineProperty(globalThis, 'fetch', {
       configurable: true,

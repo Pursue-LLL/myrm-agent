@@ -7,7 +7,10 @@ import { Skeleton } from '@/components/primitives/skeleton';
 import { apiRequest } from '@/lib/api';
 import { IntegrationConnectDialog } from '@/components/features/settings/sections/integration/integrations/IntegrationConnectDialog';
 import { SERVICE_ICONS } from '@/components/features/settings/sections/integration/integrations/service-icons';
-import type { CatalogEntry, CatalogResponse } from '@/components/features/settings/sections/integration/integrations/catalog-types';
+import type {
+  CatalogEntry,
+  CatalogResponse,
+} from '@/components/features/settings/sections/integration/integrations/catalog-types';
 
 const FEATURED_SERVICE_IDS = ['github', 'notion', 'microsoft-todo', 'slack', 'linear'] as const;
 
@@ -28,10 +31,12 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
     const load = async () => {
       try {
         const data = await apiRequest<CatalogResponse>('/integrations/catalog', { silent: true });
-        if (!mounted) {return;}
-        const featured = FEATURED_SERVICE_IDS
-          .map((id) => data.entries.find((e) => e.id === id))
-          .filter((e): e is CatalogEntry => e != null);
+        if (!mounted) {
+          return;
+        }
+        const featured = FEATURED_SERVICE_IDS.map((id) => data.entries.find((e) => e.id === id)).filter(
+          (e): e is CatalogEntry => e != null,
+        );
         const resolved = featured.length > 0 ? featured : data.entries.slice(0, 5);
         if (resolved.length === 0) {
           onSkip();
@@ -39,20 +44,23 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
         }
         setEntries(resolved);
       } catch {
-        if (mounted) {onSkip();}
+        if (mounted) {
+          onSkip();
+        }
       } finally {
-        if (mounted) {setLoading(false);}
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
     void load();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const locale = useMemo(
-    () => (typeof document !== 'undefined' ? document.documentElement.lang : 'en') || 'en',
-    [],
-  );
+  const locale = useMemo(() => (typeof document !== 'undefined' ? document.documentElement.lang : 'en') || 'en', []);
 
   const handleConnected = useCallback((entryId: string) => {
     setConnectedIds((prev) => new Set(prev).add(entryId));
@@ -69,7 +77,9 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
     );
   }
 
-  if (entries.length === 0) {return null;}
+  if (entries.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -88,17 +98,17 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
               disabled={isConnected}
             >
               <div className="rounded-lg bg-muted p-2.5 shrink-0">
-                {IconComponent
-                  ? <IconComponent className="h-6 w-6 text-foreground" />
-                  : <div className="h-6 w-6 rounded bg-muted-foreground/20" />}
+                {IconComponent ? (
+                  <IconComponent className="h-6 w-6 text-foreground" />
+                ) : (
+                  <div className="h-6 w-6 rounded bg-muted-foreground/20" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-foreground">
                   {locale.startsWith('zh') ? entry.nameZh : entry.name}
                 </div>
-                {descText && (
-                  <div className="text-xs text-muted-foreground mt-0.5 truncate">{descText}</div>
-                )}
+                {descText && <div className="text-xs text-muted-foreground mt-0.5 truncate">{descText}</div>}
               </div>
               <div className="shrink-0">
                 {isConnected ? (

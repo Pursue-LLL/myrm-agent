@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  listAssessmentImportArtifactCandidates,
-  normalizeAssessmentImportArtifactCandidates,
-} from '../milestones';
+import { listAssessmentImportArtifactCandidates, normalizeAssessmentImportArtifactCandidates } from '../milestones';
 
 vi.mock('@/lib/api', () => ({
   apiRequest: vi.fn(),

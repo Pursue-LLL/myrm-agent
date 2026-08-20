@@ -80,11 +80,17 @@ const MemoryCard = memo<MemoryCardProps>(
     const displayLabel = confirmed?.projected_label ?? t(`types.${memoryType}`);
 
     const displayContent = (() => {
-      if (memoryType !== 'profile') {return memory.content;}
-      if (confirmed?.value) {return confirmed.value;}
+      if (memoryType !== 'profile') {
+        return memory.content;
+      }
+      if (confirmed?.value) {
+        return confirmed.value;
+      }
       if ('extra_data' in memory && memory.extra_data) {
         const val = memory.extra_data.value;
-        if (typeof val === 'string') {return val;}
+        if (typeof val === 'string') {
+          return val;
+        }
       }
       const colonIdx = memory.content.indexOf(': ');
       return colonIdx > 0 ? memory.content.slice(colonIdx + 2) : memory.content;
@@ -138,9 +144,7 @@ const MemoryCard = memo<MemoryCardProps>(
                   {t('disabled')}
                 </span>
               )}
-              {confirmed?.is_user_locked && (
-                <Lock size={12} className="text-amber-500" aria-label={t('locked')} />
-              )}
+              {confirmed?.is_user_locked && <Lock size={12} className="text-amber-500" aria-label={t('locked')} />}
             </div>
 
             <div className="flex items-center gap-1">
@@ -273,7 +277,9 @@ const MemoryCard = memo<MemoryCardProps>(
                 !confirmed.is_user_locked && (
                   <div className="flex items-center gap-1.5 pl-[18px] text-muted-foreground/80 mt-0.5">
                     <span className="italic">
-                      <span className="font-medium mr-1">{t('fields.ttlDays', { days: confirmed.expected_valid_days })}</span>
+                      <span className="font-medium mr-1">
+                        {t('fields.ttlDays', { days: confirmed.expected_valid_days })}
+                      </span>
                     </span>
                   </div>
                 )}
@@ -294,7 +300,7 @@ const MemoryCard = memo<MemoryCardProps>(
             </div>
           )}
 
-          {confirmed && (confirmed.access_count !== undefined) && (
+          {confirmed && confirmed.access_count !== undefined && (
             <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
               <div className="flex items-center gap-1">
                 <BookOpen size={12} className="opacity-70" />

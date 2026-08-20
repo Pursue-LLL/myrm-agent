@@ -93,7 +93,9 @@ export function GlobalSkillQualityDashboard() {
         `/skill-optimization/export?format=${format}&time_range_days=${timeRange}`,
       );
 
-      if (!response.ok) {throw new Error('Export failed');}
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

@@ -23,7 +23,9 @@ const MermaidLegendPanel: React.FC<MermaidLegendPanelProps> = ({ legends, active
     [isCollapsed],
   );
 
-  if (legends.length === 0) {return null;}
+  if (legends.length === 0) {
+    return null;
+  }
 
   return (
     <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start max-w-[200px] bg-background/95 dark:bg-background/95 border border-border rounded-xl shadow-lg backdrop-blur-md overflow-hidden transition-all duration-300">

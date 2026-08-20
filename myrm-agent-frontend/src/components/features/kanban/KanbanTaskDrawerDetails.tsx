@@ -132,10 +132,7 @@ export function TaskDetailsSection({
         </span>
         {sourceChatId && (
           <>
-            <Link
-              href={`/${sourceChatId}`}
-              className="inline-flex items-center gap-0.5 text-primary hover:underline"
-            >
+            <Link href={`/${sourceChatId}`} className="inline-flex items-center gap-0.5 text-primary hover:underline">
               {t('openSourceChat')}
               <ExternalLink className="w-3 h-3" />
             </Link>
@@ -153,9 +150,7 @@ export function TaskDetailsSection({
       {/* Timeout */}
       {editingTimeout ? (
         <div className="mt-1 rounded border border-chart-5/30 bg-chart-5/5 px-2 py-1.5 space-y-1">
-          <span className="text-[10px] font-semibold text-chart-5 uppercase tracking-wider">
-            {t('timeoutLabel')}
-          </span>
+          <span className="text-[10px] font-semibold text-chart-5 uppercase tracking-wider">{t('timeoutLabel')}</span>
           <select
             value={timeoutValue === null ? '' : String(timeoutValue)}
             onChange={(e) => setTimeoutValue(e.target.value ? Number(e.target.value) : null)}
@@ -176,10 +171,7 @@ export function TaskDetailsSection({
             >
               {t('save')}
             </button>
-            <button
-              onClick={() => setEditingTimeout(false)}
-              className="text-[10px] px-2 py-0.5 rounded hover:bg-muted"
-            >
+            <button onClick={() => setEditingTimeout(false)} className="text-[10px] px-2 py-0.5 rounded hover:bg-muted">
               {t('cancel')}
             </button>
           </div>
@@ -209,17 +201,9 @@ export function TaskDetailsSection({
       {/* Skills */}
       {editingSkills ? (
         <div className="mt-1 space-y-1 rounded border border-chart-3/30 bg-chart-3/5 px-2 py-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-chart-3">
-            {t('skillsLabel')}
-          </span>
-          <KanbanSkillPicker
-            value={skillsText}
-            onChange={setSkillsText}
-            placeholder={t('skillsPlaceholder')}
-          />
-          {task.status === 'running' && (
-            <p className="text-[10px] text-amber-500">{t('skillsRunningNotice')}</p>
-          )}
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-chart-3">{t('skillsLabel')}</span>
+          <KanbanSkillPicker value={skillsText} onChange={setSkillsText} placeholder={t('skillsPlaceholder')} />
+          {task.status === 'running' && <p className="text-[10px] text-amber-500">{t('skillsRunningNotice')}</p>}
           <div className="flex gap-1">
             <button
               onClick={handleSaveSkills}
@@ -228,10 +212,7 @@ export function TaskDetailsSection({
             >
               {t('save')}
             </button>
-            <button
-              onClick={() => setEditingSkills(false)}
-              className="rounded px-2 py-0.5 text-[10px] hover:bg-muted"
-            >
+            <button onClick={() => setEditingSkills(false)} className="rounded px-2 py-0.5 text-[10px] hover:bg-muted">
               {t('cancel')}
             </button>
           </div>
@@ -268,9 +249,7 @@ export function TaskDetailsSection({
       {/* Model override */}
       {editingModel ? (
         <div className="mt-1 rounded border border-chart-2/30 bg-chart-2/5 px-2 py-1.5 space-y-1">
-          <span className="text-[10px] font-semibold text-chart-2 uppercase tracking-wider">
-            {t('modelLabel')}
-          </span>
+          <span className="text-[10px] font-semibold text-chart-2 uppercase tracking-wider">{t('modelLabel')}</span>
           <select
             value={modelValue}
             onChange={(e) => setModelValue(e.target.value)}
@@ -291,10 +270,7 @@ export function TaskDetailsSection({
             >
               {t('save')}
             </button>
-            <button
-              onClick={() => setEditingModel(false)}
-              className="text-[10px] px-2 py-0.5 rounded hover:bg-muted"
-            >
+            <button onClick={() => setEditingModel(false)} className="text-[10px] px-2 py-0.5 rounded hover:bg-muted">
               {t('cancel')}
             </button>
           </div>
@@ -325,9 +301,7 @@ export function TaskDetailsSection({
       {/* Goal mode */}
       {task.goal_mode && (
         <div className="text-xs bg-chart-4/5 rounded px-2 py-1.5 mt-1 space-y-0.5">
-          <p className="flex items-center gap-1 font-medium text-chart-4">
-            {t('goalModeBadge')}
-          </p>
+          <p className="flex items-center gap-1 font-medium text-chart-4">{t('goalModeBadge')}</p>
           {task.goal_max_turns && (
             <p className="text-[10px] text-muted-foreground">
               {t('goalMaxTurnsLabel')}: {task.goal_max_turns}
@@ -430,7 +404,9 @@ export function TaskDetailsSection({
                 {t('editCriteria')}
               </span>
             </div>
-            <KanbanMarkdown className="text-foreground/80 mt-0.5">{completionCriteriaToText(task.completion_criteria)}</KanbanMarkdown>
+            <KanbanMarkdown className="text-foreground/80 mt-0.5">
+              {completionCriteriaToText(task.completion_criteria)}
+            </KanbanMarkdown>
           </div>
         ) : (
           <button

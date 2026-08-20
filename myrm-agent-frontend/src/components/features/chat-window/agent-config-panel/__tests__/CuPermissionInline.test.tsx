@@ -18,8 +18,7 @@ vi.mock('@tauri-apps/plugin-shell', () => ({
 
 const tPanel = (key: string) => key;
 
-const ACCESSIBILITY_DEEPLINK =
-  'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
+const ACCESSIBILITY_DEEPLINK = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 
 describe('CuPermissionInline', () => {
   beforeEach(() => {

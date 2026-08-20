@@ -54,21 +54,26 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {next.delete(id);}
-      else {next.add(id);}
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }, []);
 
   const toggleAll = useCallback(() => {
     setSelectedIds((prev) => {
-      if (prev.size === previews.length) {return new Set();}
+      if (prev.size === previews.length) {
+        return new Set();
+      }
       return new Set(previews.map((i) => i.id));
     });
   }, [previews]);
 
   const handlePreview = useCallback((item: SafeRulePreviewItem) => {
-    setPreviewContent((prev) => prev === item.rendered ? null : item.rendered);
+    setPreviewContent((prev) => (prev === item.rendered ? null : item.rendered));
   }, []);
 
   const handleExport = useCallback(async () => {
@@ -107,16 +112,13 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
             </span>
           </DialogTitle>
           <DialogDescription>
-            Export your AI-learned rules with automatic path anonymization and credential redaction.
-            Safe to share publicly or with your team.
+            Export your AI-learned rules with automatic path anonymization and credential redaction. Safe to share
+            publicly or with your team.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-3 py-2 border-b">
-          <button
-            onClick={toggleAll}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <button onClick={toggleAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             {selectedIds.size === previews.length ? 'Deselect All' : 'Select All'}
           </button>
           <span className="text-xs text-muted-foreground">
@@ -127,7 +129,9 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
               onClick={() => setFormat('markdown')}
               className={cn(
                 'text-xs px-2 py-1 rounded transition-colors',
-                format === 'markdown' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent',
+                format === 'markdown'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent',
               )}
             >
               Markdown
@@ -136,7 +140,9 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
               onClick={() => setFormat('json')}
               className={cn(
                 'text-xs px-2 py-1 rounded transition-colors',
-                format === 'json' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent',
+                format === 'json'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent',
               )}
             >
               JSON

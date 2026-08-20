@@ -11,11 +11,7 @@ export interface WorkflowTemplateArmedBarProps {
   className?: string;
 }
 
-export function WorkflowTemplateArmedBar({
-  templateId,
-  displayName,
-  className,
-}: WorkflowTemplateArmedBarProps) {
+export function WorkflowTemplateArmedBar({ templateId, displayName, className }: WorkflowTemplateArmedBarProps) {
   const t = useTranslations('chat.workflowTemplateArmed');
 
   const handleDisarm = () => {

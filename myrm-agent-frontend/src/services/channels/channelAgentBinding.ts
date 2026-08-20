@@ -16,10 +16,7 @@
 import type { AgentListItem } from '@/services/agent';
 
 /** Built-in Search presets — Web fast-mode only, never Channel bind targets. */
-const CHANNEL_BLOCKED_SEARCH_AGENT_IDS = new Set([
-  'builtin-fast-search',
-  'builtin-deep-search',
-]);
+const CHANNEL_BLOCKED_SEARCH_AGENT_IDS = new Set(['builtin-fast-search', 'builtin-deep-search']);
 
 function isChannelBindableAgent(agent: AgentListItem): boolean {
   if (CHANNEL_BLOCKED_SEARCH_AGENT_IDS.has(agent.id)) {

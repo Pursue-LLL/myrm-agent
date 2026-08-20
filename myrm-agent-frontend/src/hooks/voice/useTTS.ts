@@ -55,7 +55,9 @@ function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
   const stop = useCallback(() => {
-    if (!supported) {return;}
+    if (!supported) {
+      return;
+    }
     window.speechSynthesis.cancel();
     utteranceRef.current = null;
     setState('idle');
@@ -63,20 +65,28 @@ function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
 
   useEffect(() => {
     return () => {
-      if (supported) {window.speechSynthesis.cancel();}
+      if (supported) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, [supported]);
 
   const speak = useCallback(
     (text: string) => {
-      if (!supported) {return;}
+      if (!supported) {
+        return;
+      }
       window.speechSynthesis.cancel();
       const cleaned = stripMarkdown(text);
-      if (!cleaned) {return;}
+      if (!cleaned) {
+        return;
+      }
 
       const utterance = new SpeechSynthesisUtterance(cleaned);
       utterance.rate = rate;
-      if (lang) {utterance.lang = lang;}
+      if (lang) {
+        utterance.lang = lang;
+      }
 
       utterance.onstart = () => setState('playing');
       utterance.onend = () => {
@@ -95,22 +105,30 @@ function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
   );
 
   const pause = useCallback(() => {
-    if (!supported || state !== 'playing') {return;}
+    if (!supported || state !== 'playing') {
+      return;
+    }
     window.speechSynthesis.pause();
     setState('paused');
   }, [supported, state]);
 
   const resume = useCallback(() => {
-    if (!supported || state !== 'paused') {return;}
+    if (!supported || state !== 'paused') {
+      return;
+    }
     window.speechSynthesis.resume();
     setState('playing');
   }, [supported, state]);
 
   const toggle = useCallback(
     (text: string) => {
-      if (state === 'playing') {pause();}
-      else if (state === 'paused') {resume();}
-      else {speak(text);}
+      if (state === 'playing') {
+        pause();
+      } else if (state === 'paused') {
+        resume();
+      } else {
+        speak(text);
+      }
     },
     [state, pause, resume, speak],
   );
@@ -187,7 +205,9 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
   );
 
   const assertTtsResponseOk = useCallback(async (resp: Response): Promise<void> => {
-    if (resp.ok) {return;}
+    if (resp.ok) {
+      return;
+    }
     throw new TtsRequestError(resp.status);
   }, []);
 
@@ -221,7 +241,9 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
       let feeding = false;
 
       const feedBuffer = () => {
-        if (feeding || !queue.length || sourceBuffer.updating) {return;}
+        if (feeding || !queue.length || sourceBuffer.updating) {
+          return;
+        }
         feeding = true;
         const chunk = queue.shift()!;
         try {
@@ -234,7 +256,9 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
 
       sourceBuffer.addEventListener('updateend', () => {
         feeding = false;
-        if (queue.length) {feedBuffer();}
+        if (queue.length) {
+          feedBuffer();
+        }
       });
 
       audio.onplay = () => setState('playing');
@@ -251,8 +275,12 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {break;}
-        if (!value?.length) {continue;}
+        if (done) {
+          break;
+        }
+        if (!value?.length) {
+          continue;
+        }
 
         queue.push(value);
         feedBuffer();
@@ -325,7 +353,9 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
     async (text: string) => {
       stop();
       const cleaned = stripMarkdown(text);
-      if (!cleaned) {return;}
+      if (!cleaned) {
+        return;
+      }
 
       setState('loading');
       const controller = new AbortController();
@@ -338,7 +368,9 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
           await speakFull(cleaned, controller);
         }
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {return;}
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
         if (err instanceof TtsRequestError) {
           notifyTtsFailure(err.status);
         } else {
@@ -351,22 +383,30 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
   );
 
   const pause = useCallback(() => {
-    if (state !== 'playing' || !audioRef.current) {return;}
+    if (state !== 'playing' || !audioRef.current) {
+      return;
+    }
     audioRef.current.pause();
     setState('paused');
   }, [state]);
 
   const resume = useCallback(() => {
-    if (state !== 'paused' || !audioRef.current) {return;}
+    if (state !== 'paused' || !audioRef.current) {
+      return;
+    }
     audioRef.current.play();
     setState('playing');
   }, [state]);
 
   const toggle = useCallback(
     (text: string) => {
-      if (state === 'playing') {pause();}
-      else if (state === 'paused') {resume();}
-      else {speak(text);}
+      if (state === 'playing') {
+        pause();
+      } else if (state === 'paused') {
+        resume();
+      } else {
+        speak(text);
+      }
     },
     [state, pause, resume, speak],
   );

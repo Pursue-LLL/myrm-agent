@@ -137,11 +137,7 @@ describe('loadMessages active-turn SSE recovery', () => {
     await vi.waitFor(() => {
       expect(attachToChatMock).toHaveBeenCalledTimes(1);
     });
-    expect(attachToChatMock).toHaveBeenCalledWith(
-      'chat-active',
-      expect.anything(),
-      expect.any(Function),
-    );
+    expect(attachToChatMock).toHaveBeenCalledWith('chat-active', expect.anything(), expect.any(Function));
   });
 
   it('does not attach when the last message is an assistant reply', async () => {

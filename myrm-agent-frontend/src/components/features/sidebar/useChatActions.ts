@@ -1,5 +1,13 @@
 import { useCallback, useState } from 'react';
-import { ChatItem, updateChatTitle, deleteChat, exportChat, createChatShare, revokeChatShare, getChatShareStatus } from '@/services/chat';
+import {
+  ChatItem,
+  updateChatTitle,
+  deleteChat,
+  exportChat,
+  createChatShare,
+  revokeChatShare,
+  getChatShareStatus,
+} from '@/services/chat';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
@@ -60,7 +68,9 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingChatId) {return;}
+    if (!deletingChatId) {
+      return;
+    }
 
     const chatIdToDelete = deletingChatId;
     try {
@@ -205,11 +215,17 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     setShareLoading(true);
     try {
       const status = await getChatShareStatus(chatId);
-      if (!status.shared) {return;}
+      if (!status.shared) {
+        return;
+      }
       setShareRevoked(status.revoked);
       setSharePasswordProtected(status.password_protected);
-      if (status.share_url) {setShareUrl(status.share_url);}
-      if (status.expires_at) {setShareExpiresAt(status.expires_at);}
+      if (status.share_url) {
+        setShareUrl(status.share_url);
+      }
+      if (status.expires_at) {
+        setShareExpiresAt(status.expires_at);
+      }
     } catch {
       // Query failure falls back to the create form; the dialog stays usable.
     } finally {
@@ -219,7 +235,9 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
 
   const handleShareCreate = useCallback(
     async (ttlDays: number = 7, password?: string) => {
-      if (!shareChatId) {return;}
+      if (!shareChatId) {
+        return;
+      }
       setShareLoading(true);
       try {
         const result = await createChatShare(shareChatId, ttlDays, password);
@@ -241,7 +259,9 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   );
 
   const handleShareRevoke = useCallback(async () => {
-    if (!shareChatId) {return;}
+    if (!shareChatId) {
+      return;
+    }
     try {
       await revokeChatShare(shareChatId);
       setShareUrl(null);

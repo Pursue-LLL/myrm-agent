@@ -12,7 +12,9 @@ const translations: Record<string, string> = {
 };
 
 const tFn = (key: string, values?: Record<string, string | number>): string => {
-  if (values?.effects !== undefined) {return String(values.effects);}
+  if (values?.effects !== undefined) {
+    return String(values.effects);
+  }
   return translations[key] ?? key;
 };
 tFn.has = (key: string): boolean => key in translations;
@@ -47,9 +49,7 @@ const renderCard = (snapshot: FileSnapshotInfo) =>
 describe('FileSnapshotCard', () => {
   it('renders mapped plain-language labels for known external effects', () => {
     renderCard(baseSnapshot({ externalEffects: ['database', 'container_cloud'] }));
-    const badge = screen.getByTitle(
-      'database changes, container or cloud operations',
-    );
+    const badge = screen.getByTitle('database changes, container or cloud operations');
     expect(badge).toBeInTheDocument();
   });
 

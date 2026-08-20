@@ -97,7 +97,9 @@ export const AgentSidebarContent = memo<AgentSidebarContentProps>(
 
     // 过滤智能体（基于 i18n 名称搜索，支持本地化搜索）
     const filteredAgents = useMemo(() => {
-      if (!searchValue.trim()) {return agents;}
+      if (!searchValue.trim()) {
+        return agents;
+      }
       const query = searchValue.toLowerCase();
       return agents.filter((agent) => {
         const name = getBuiltinAgentName(agent.id, agent.name, locale);
@@ -130,7 +132,9 @@ export const AgentSidebarContent = memo<AgentSidebarContentProps>(
     }, []);
 
     const handleConfirmDelete = useCallback(async () => {
-      if (!agentToDelete) {return;}
+      if (!agentToDelete) {
+        return;
+      }
       const success = await remove(agentToDelete.id);
       if (success) {
         toast({ title: t('agent.deleteSuccess') });

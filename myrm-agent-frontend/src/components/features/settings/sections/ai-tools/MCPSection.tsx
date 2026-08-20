@@ -33,7 +33,9 @@ const MCPSection = memo(() => {
     for (const c of mcpConfigs) {
       names.add(c.name);
       const qn = (c.extra_params as Record<string, unknown> | undefined)?.registryQualifiedName;
-      if (typeof qn === 'string') {names.add(qn);}
+      if (typeof qn === 'string') {
+        names.add(qn);
+      }
     }
     return names;
   }, [mcpConfigs]);
@@ -61,7 +63,9 @@ const MCPSection = memo(() => {
       const existingNames = new Set(mcpConfigs.map((c) => c.name));
       if (existingNames.has(finalConfig.name)) {
         let suffix = 2;
-        while (existingNames.has(`${finalConfig.name}-${suffix}`)) {suffix++;}
+        while (existingNames.has(`${finalConfig.name}-${suffix}`)) {
+          suffix++;
+        }
         finalConfig = { ...finalConfig, name: `${finalConfig.name}-${suffix}` };
       }
       addMCPConfig(finalConfig);
@@ -98,7 +102,10 @@ const MCPSection = memo(() => {
       <SettingsSection title={t('menu.mcp')}>
         <div className="flex items-center gap-1 mb-4 bg-secondary rounded-lg p-1">
           <button
-            onClick={() => { setActiveTab('installed'); setInstallTarget(null); }}
+            onClick={() => {
+              setActiveTab('installed');
+              setInstallTarget(null);
+            }}
             className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'installed'
                 ? 'bg-background text-foreground shadow-sm'
@@ -108,7 +115,10 @@ const MCPSection = memo(() => {
             {t('mcpTabInstalled')} ({mcpConfigs.length + orgMcpConfigs.length})
           </button>
           <button
-            onClick={() => { setActiveTab('registry'); setInstallTarget(null); }}
+            onClick={() => {
+              setActiveTab('registry');
+              setInstallTarget(null);
+            }}
             className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'registry'
                 ? 'bg-background text-foreground shadow-sm'
@@ -135,9 +145,7 @@ const MCPSection = memo(() => {
                       <div className="h-2 w-2 rounded-full bg-emerald-500" />
                       <div>
                         <p className="text-sm font-medium">{cfg.name}</p>
-                        {cfg.description && (
-                          <p className="text-xs text-muted-foreground">{cfg.description}</p>
-                        )}
+                        {cfg.description && <p className="text-xs text-muted-foreground">{cfg.description}</p>}
                       </div>
                     </div>
                     <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
@@ -152,10 +160,7 @@ const MCPSection = memo(() => {
         )}
 
         {activeTab === 'registry' && !installTarget && (
-          <MCPRegistryBrowser
-            installedNames={installedNames}
-            onSelectInstall={handleSelectInstall}
-          />
+          <MCPRegistryBrowser installedNames={installedNames} onSelectInstall={handleSelectInstall} />
         )}
 
         {activeTab === 'registry' && installTarget && (

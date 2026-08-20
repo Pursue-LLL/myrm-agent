@@ -14,8 +14,5 @@ export function shouldBlockLocalOnlyInSandbox(input: LocalOnlySandboxGuardInput)
 }
 
 export function shouldBlockCloudLoopbackConnect(input: CloudLoopbackGuardInput): boolean {
-  return (
-    input.status === 'cloud_not_supported' &&
-    shouldBlockLocalOnlyInSandbox(input)
-  );
+  return input.status === 'cloud_not_supported' && shouldBlockLocalOnlyInSandbox(input);
 }

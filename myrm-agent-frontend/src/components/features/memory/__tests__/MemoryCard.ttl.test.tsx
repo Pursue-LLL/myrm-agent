@@ -39,12 +39,7 @@ describe('MemoryCard - procedural TTL display', () => {
   });
 
   it('hides the TTL line for a user-locked rule (permanent retention)', () => {
-    render(
-      <MemoryCard
-        memory={{ ...baseProcedural, is_user_locked: true }}
-        variant="confirmed"
-      />,
-    );
+    render(<MemoryCard memory={{ ...baseProcedural, is_user_locked: true }} variant="confirmed" />);
     expect(screen.queryByText('fields.ttlDays')).not.toBeInTheDocument();
   });
 });

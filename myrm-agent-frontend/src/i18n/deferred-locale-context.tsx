@@ -27,9 +27,7 @@ export function DeferredLocaleProvider({
   deferredLocaleReady: boolean;
   children: React.ReactNode;
 }) {
-  return (
-    <DeferredLocaleContext.Provider value={{ deferredLocaleReady }}>{children}</DeferredLocaleContext.Provider>
-  );
+  return <DeferredLocaleContext.Provider value={{ deferredLocaleReady }}>{children}</DeferredLocaleContext.Provider>;
 }
 
 export function useDeferredLocaleReady(): boolean {

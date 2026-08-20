@@ -3,8 +3,8 @@
  * Chat SSE event handler slice (messageContentEvents).
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import * as H from './handlerDeps';
 
 export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, recievedMessage, state, actions } = ctx;
@@ -22,7 +22,9 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
       state.scheduler.schedule(() => {
         actions.setMessages((updateState) => {
           const messageIndex = H.findAssistantMessageIndex(updateState.messages, data.messageId);
-          if (messageIndex === -1) {return;}
+          if (messageIndex === -1) {
+            return;
+          }
 
           if (!updateState.messages[messageIndex].reasoningStartedAt) {
             updateState.messages[messageIndex].reasoningStartedAt = Date.now();
@@ -47,7 +49,9 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
     // Finalize reasoning duration when first content chunk arrives
     actions.setMessages((updateState) => {
       const messageIndex = H.findAssistantMessageIndex(updateState.messages, data.messageId);
-      if (messageIndex === -1) {return;}
+      if (messageIndex === -1) {
+        return;
+      }
       const msg = updateState.messages[messageIndex];
       if (msg.reasoningStartedAt && !msg.reasoningDurationMs) {
         msg.reasoningDurationMs = Date.now() - msg.reasoningStartedAt;
@@ -88,7 +92,9 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
       state.scheduler.schedule(() => {
         actions.setMessages((updateState) => {
           const messageIndex = H.findAssistantMessageIndex(updateState.messages, data.messageId);
-          if (messageIndex === -1) {return;}
+          if (messageIndex === -1) {
+            return;
+          }
 
           updateState.messages[messageIndex].content = recievedMessage;
 
@@ -107,9 +113,7 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
                     form: clarificationForm,
                   }
                 : {}),
-              isResumeMode:
-                existing?.isResumeMode ??
-                (actionMode !== 'deep_research'),
+              isResumeMode: existing?.isResumeMode ?? actionMode !== 'deep_research',
             };
           }
 

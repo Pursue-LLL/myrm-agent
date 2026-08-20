@@ -25,16 +25,12 @@ describe('listInstalledCompanionPets', () => {
 
   it('returns pets from GET /companion/pets', async () => {
     apiRequestMock.mockResolvedValueOnce({
-      pets: [
-        { slug: 'nous-girl', display_name: 'Nous Girl', content_sha256: 'abc123' },
-      ],
+      pets: [{ slug: 'nous-girl', display_name: 'Nous Girl', content_sha256: 'abc123' }],
     });
 
     const pets = await listInstalledCompanionPets();
     expect(apiRequestMock).toHaveBeenCalledWith('/companion/pets', { silent: true });
-    expect(pets).toEqual([
-      { slug: 'nous-girl', display_name: 'Nous Girl', content_sha256: 'abc123' },
-    ]);
+    expect(pets).toEqual([{ slug: 'nous-girl', display_name: 'Nous Girl', content_sha256: 'abc123' }]);
   });
 
   it('returns empty array when pets field is missing', async () => {
@@ -67,9 +63,7 @@ describe('installCompanionPet', () => {
   it('maps companion feature gate 403 to CompanionFeatureDisabledError', async () => {
     apiRequestMock.mockRejectedValueOnce(new ApiError('Forbidden', 403));
 
-    await expect(installCompanionPet('lobster')).rejects.toBeInstanceOf(
-      CompanionFeatureDisabledError,
-    );
+    await expect(installCompanionPet('lobster')).rejects.toBeInstanceOf(CompanionFeatureDisabledError);
   });
 
   it('rethrows non-403 ApiError unchanged', async () => {

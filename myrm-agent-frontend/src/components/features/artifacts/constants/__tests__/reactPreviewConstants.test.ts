@@ -45,11 +45,32 @@ describe('PRESET_DEPENDENCIES', () => {
 
 describe('OPTIONAL_DEPENDENCIES', () => {
   const RADIX_COMPONENTS = [
-    'accordion', 'alert-dialog', 'avatar', 'checkbox', 'collapsible',
-    'context-menu', 'dialog', 'dropdown-menu', 'hover-card', 'label',
-    'menubar', 'navigation-menu', 'popover', 'progress', 'radio-group',
-    'scroll-area', 'select', 'separator', 'slider', 'slot', 'switch',
-    'tabs', 'toast', 'toggle', 'toggle-group', 'tooltip',
+    'accordion',
+    'alert-dialog',
+    'avatar',
+    'checkbox',
+    'collapsible',
+    'context-menu',
+    'dialog',
+    'dropdown-menu',
+    'hover-card',
+    'label',
+    'menubar',
+    'navigation-menu',
+    'popover',
+    'progress',
+    'radio-group',
+    'scroll-area',
+    'select',
+    'separator',
+    'slider',
+    'slot',
+    'switch',
+    'tabs',
+    'toast',
+    'toggle',
+    'toggle-group',
+    'tooltip',
   ];
 
   it('covers all Shadcn UI Radix primitives', () => {

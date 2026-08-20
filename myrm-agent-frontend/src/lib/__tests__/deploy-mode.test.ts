@@ -189,8 +189,12 @@ describe('remote gateway config', () => {
       location: { hostname: 'desktop.myrm.local' },
       localStorage: {
         getItem: (k: string) => store.get(k) ?? null,
-        setItem: (k: string, v: string) => { store.set(k, v); },
-        removeItem: (k: string) => { store.delete(k); },
+        setItem: (k: string, v: string) => {
+          store.set(k, v);
+        },
+        removeItem: (k: string) => {
+          store.delete(k);
+        },
       },
     };
   }
@@ -295,8 +299,12 @@ describe('remote gateway URL routing', () => {
       location: { hostname: 'desktop.myrm.local' },
       localStorage: {
         getItem: (k: string) => store.get(k) ?? null,
-        setItem: (k: string, v: string) => { store.set(k, v); },
-        removeItem: (k: string) => { store.delete(k); },
+        setItem: (k: string, v: string) => {
+          store.set(k, v);
+        },
+        removeItem: (k: string) => {
+          store.delete(k);
+        },
       },
     };
   }

@@ -37,9 +37,7 @@ describe('CrashRecoveryDialog', () => {
   });
 
   it('renders nothing when visible is false', () => {
-    const { container } = render(
-      <CrashRecoveryDialog visible={false} onDismiss={mockDismiss} />,
-    );
+    const { container } = render(<CrashRecoveryDialog visible={false} onDismiss={mockDismiss} />);
     expect(container.innerHTML).toBe('');
   });
 
@@ -50,20 +48,12 @@ describe('CrashRecoveryDialog', () => {
   });
 
   it('displays error message when provided', () => {
-    render(
-      <CrashRecoveryDialog
-        visible={true}
-        errorMessage="Port 8080 already in use"
-        onDismiss={mockDismiss}
-      />,
-    );
+    render(<CrashRecoveryDialog visible={true} errorMessage="Port 8080 already in use" onDismiss={mockDismiss} />);
     expect(screen.getByText('Port 8080 already in use')).toBeInTheDocument();
   });
 
   it('does not display error badge when errorMessage is null', () => {
-    render(
-      <CrashRecoveryDialog visible={true} errorMessage={null} onDismiss={mockDismiss} />,
-    );
+    render(<CrashRecoveryDialog visible={true} errorMessage={null} onDismiss={mockDismiss} />);
     expect(screen.queryByText('Port 8080 already in use')).not.toBeInTheDocument();
   });
 
@@ -75,9 +65,7 @@ describe('CrashRecoveryDialog', () => {
   });
 
   it('issues sensitive action ticket before export command', async () => {
-    invokeTauriCommandMock
-      .mockResolvedValueOnce('ticket-123')
-      .mockResolvedValueOnce('database-exported');
+    invokeTauriCommandMock.mockResolvedValueOnce('ticket-123').mockResolvedValueOnce('database-exported');
 
     render(<CrashRecoveryDialog visible={true} onDismiss={mockDismiss} />);
     fireEvent.click(screen.getByText('exportDatabase'));

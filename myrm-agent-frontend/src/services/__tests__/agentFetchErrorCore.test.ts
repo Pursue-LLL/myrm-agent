@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  normalizeAgentSecretKeyNames,
-  parseUserAgentFetchErrorMessage,
-} from '../agentFetchErrorCore';
+import { normalizeAgentSecretKeyNames, parseUserAgentFetchErrorMessage } from '../agentFetchErrorCore';
 
 describe('parseUserAgentFetchErrorMessage', () => {
   it('uses detail.message from StandardHTTPException body', () => {
@@ -39,9 +36,10 @@ describe('parseUserAgentFetchErrorMessage', () => {
 
 describe('normalizeAgentSecretKeyNames', () => {
   it('maps key_name objects to string array for Secrets tab', () => {
-    expect(
-      normalizeAgentSecretKeyNames([{ key_name: 'SHOPIFY_API_KEY' }, { key_name: 'GITHUB_TOKEN' }]),
-    ).toEqual(['SHOPIFY_API_KEY', 'GITHUB_TOKEN']);
+    expect(normalizeAgentSecretKeyNames([{ key_name: 'SHOPIFY_API_KEY' }, { key_name: 'GITHUB_TOKEN' }])).toEqual([
+      'SHOPIFY_API_KEY',
+      'GITHUB_TOKEN',
+    ]);
   });
 
   it('returns empty array when payload is missing or not an array', () => {

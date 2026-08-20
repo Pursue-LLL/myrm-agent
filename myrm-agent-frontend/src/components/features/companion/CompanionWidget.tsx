@@ -35,17 +35,23 @@ function getHeuristicCategory(snippet: string): 'error' | 'success' | 'general' 
   const isError = /error|fail|exception|bug|cannot|unable|warn|invalid|incorrect|报错|失败|无法|异常|错误/.test(
     lowercase,
   );
-  if (isError) {return 'error';}
+  if (isError) {
+    return 'error';
+  }
 
   // Heuristic Category 2: Success, completion, passes
   const isSuccess = /success|pass|complete|finish|done|resolve|solved|ok|绿|通过|成功|解决|完成/.test(lowercase);
-  if (isSuccess) {return 'success';}
+  if (isSuccess) {
+    return 'success';
+  }
 
   return 'general';
 }
 
 function isBirthdayToday(hatchedAt: number | null): boolean {
-  if (!hatchedAt) {return false;}
+  if (!hatchedAt) {
+    return false;
+  }
   const now = new Date();
   const born = new Date(hatchedAt);
   return (
@@ -89,7 +95,9 @@ function SnackButton({ t }: { t: ReturnType<typeof useTranslations<'companion'>>
 
   const handleFeed = useCallback(() => {
     const ok = feedSnack();
-    if (!ok) {return;}
+    if (!ok) {
+      return;
+    }
     setJustFed(true);
     clearTimeout(feedTimerRef.current);
     feedTimerRef.current = setTimeout(() => setJustFed(false), 1200);
@@ -157,7 +165,9 @@ function InfoCard({
   );
 
   const handleEvolve = useCallback(() => {
-    if (!evoCheck.canEvolve || !evoCheck.nextRarity || evolving) {return;}
+    if (!evoCheck.canEvolve || !evoCheck.nextRarity || evolving) {
+      return;
+    }
     setEvolving(true);
     const newStats = evolveStats(bones.stats, bones.peakStat, userId, evoCheck.nextRarity);
     evolve(evoCheck.nextRarity, newStats);
@@ -288,7 +298,9 @@ export default function CompanionWidget() {
   const heartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const bones = useMemo(() => {
-    if (!user?.id) {return null;}
+    if (!user?.id) {
+      return null;
+    }
     return generateCompanion(user.id);
   }, [user?.id]);
 
@@ -307,7 +319,9 @@ export default function CompanionWidget() {
       prevLoadingRef.current = true;
       return;
     }
-    if (!prevLoadingRef.current) {return;}
+    if (!prevLoadingRef.current) {
+      return;
+    }
     prevLoadingRef.current = false;
 
     setAnimState('bounce');
@@ -346,7 +360,9 @@ export default function CompanionWidget() {
 
   // Goal status resonance
   useEffect(() => {
-    if (goal?.status === prevGoalStatusRef.current) {return;}
+    if (goal?.status === prevGoalStatusRef.current) {
+      return;
+    }
 
     const store = useCompanionStore.getState();
     if (goal?.status === 'paused') {
@@ -372,7 +388,9 @@ export default function CompanionWidget() {
   );
 
   useEffect(() => {
-    if (!currentReaction) {return;}
+    if (!currentReaction) {
+      return;
+    }
     const { displayDurationMs } = getObserverLimits(effectiveRarity);
     const timer = setTimeout(() => useCompanionStore.getState().setReaction(null), displayDurationMs);
     return () => clearTimeout(timer);
@@ -381,7 +399,9 @@ export default function CompanionWidget() {
   // Check if evolution is available and trigger notification bubble
   const evoNotifiedRef = useRef(false);
   useEffect(() => {
-    if (!bones || evoNotifiedRef.current) {return;}
+    if (!bones || evoNotifiedRef.current) {
+      return;
+    }
     const store = useCompanionStore.getState();
     const evoRarity = (store.evolvedRarity ?? bones.rarity) as Rarity;
     const evo = checkEvolution(evoRarity, store.petCount, store.hatchedAt, store.conversationCount);
@@ -423,17 +443,27 @@ export default function CompanionWidget() {
   }, [loading]);
 
   const bubbleMode = useMemo(() => {
-    if (muted) {return 'hidden' as const;}
-    if (loading) {return 'thinking' as const;}
-    if (currentReaction) {return 'observer' as const;}
-    if (animState === 'bounce') {return 'completion' as const;}
+    if (muted) {
+      return 'hidden' as const;
+    }
+    if (loading) {
+      return 'thinking' as const;
+    }
+    if (currentReaction) {
+      return 'observer' as const;
+    }
+    if (animState === 'bounce') {
+      return 'completion' as const;
+    }
     return 'hidden' as const;
   }, [muted, loading, currentReaction, animState]);
 
   const handleClick = useCallback(() => {
     pet();
     setShowHeart(true);
-    if (heartTimerRef.current) {clearTimeout(heartTimerRef.current);}
+    if (heartTimerRef.current) {
+      clearTimeout(heartTimerRef.current);
+    }
     heartTimerRef.current = setTimeout(() => setShowHeart(false), 1000);
   }, [pet]);
 
@@ -442,7 +472,9 @@ export default function CompanionWidget() {
     setSettingsOpen(true);
   }, []);
 
-  if (!enabled || !bones) {return null;}
+  if (!enabled || !bones) {
+    return null;
+  }
 
   const birthday = isBirthdayToday(hatchedAt);
 

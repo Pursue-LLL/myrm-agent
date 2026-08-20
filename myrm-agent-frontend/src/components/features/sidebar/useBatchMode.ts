@@ -12,8 +12,11 @@ export function useBatchMode(chatHistoryItems: ChatItem[], t: ReturnType<typeof 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {next.delete(id);}
-      else {next.add(id);}
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }, []);
@@ -29,12 +32,16 @@ export function useBatchMode(chatHistoryItems: ChatItem[], t: ReturnType<typeof 
   }, []);
 
   const handleBatchDeleteClick = useCallback(() => {
-    if (selectedIds.size === 0) {return;}
+    if (selectedIds.size === 0) {
+      return;
+    }
     setBatchDeleteDialogOpen(true);
   }, [selectedIds.size]);
 
   const handleBatchDeleteConfirm = useCallback(async () => {
-    if (selectedIds.size === 0) {return;}
+    if (selectedIds.size === 0) {
+      return;
+    }
     try {
       const ids = Array.from(selectedIds);
       const result = await batchDeleteChats(ids);

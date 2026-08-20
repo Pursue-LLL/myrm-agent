@@ -189,8 +189,12 @@ export const listSharedContextWriteProposals = async (
   params: { status?: SharedContextProposalStatus; limit?: number } = {},
 ): Promise<SharedContextWriteProposalListResponse> => {
   const query = new URLSearchParams();
-  if (params.status) {query.set('status', params.status);}
-  if (params.limit) {query.set('limit', String(params.limit));}
+  if (params.status) {
+    query.set('status', params.status);
+  }
+  if (params.limit) {
+    query.set('limit', String(params.limit));
+  }
   const qs = query.toString();
   return apiRequest<SharedContextWriteProposalListResponse>(
     `/memory/shared-contexts/${contextId}/proposals${qs ? `?${qs}` : ''}`,

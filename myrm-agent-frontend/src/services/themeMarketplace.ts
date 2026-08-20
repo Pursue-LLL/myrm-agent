@@ -63,14 +63,17 @@ function parseListing(raw: Record<string, unknown>): ThemeMarketplaceListing {
 
 export async function getThemeListing(listingId: string): Promise<ThemeMarketplaceListing> {
   const res = await fetch(tmUrl(`/listing/${listingId}`), { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Theme listing fetch failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme listing fetch failed: ${res.status}`);
+  }
   const raw = (await res.json()) as Record<string, unknown>;
   return parseListing(raw);
 }
 
-const sleep = (ms: number) => new Promise<void>((resolve) => {
-  window.setTimeout(resolve, ms);
-});
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 
 /** Poll until Stripe webhook grants entitlement (typical delay 1–5s). */
 export async function waitForThemeListingOwnership(
@@ -95,12 +98,16 @@ export async function listThemeMarketplace(options?: {
   origin?: 'official' | 'community';
 }): Promise<ThemeMarketplaceListing[]> {
   const params = new URLSearchParams();
-  if (options?.origin) {params.set('origin', options.origin);}
+  if (options?.origin) {
+    params.set('origin', options.origin);
+  }
   const qs = params.toString();
   const res = await fetch(tmUrl(`/list${qs ? `?${qs}` : ''}`), {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) {throw new Error(`Theme marketplace list failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme marketplace list failed: ${res.status}`);
+  }
   const data = (await res.json()) as Record<string, unknown>[];
   return data.map((row) => parseListing(row));
 }
@@ -110,7 +117,9 @@ export async function acquireThemeListing(listingId: string): Promise<void> {
     method: 'POST',
     headers: getAuthHeaders(),
   });
-  if (!res.ok) {throw new Error(`Theme acquire failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme acquire failed: ${res.status}`);
+  }
 }
 
 export async function issueThemeDownloadToken(listingId: string): Promise<ThemeDownloadToken> {
@@ -118,7 +127,9 @@ export async function issueThemeDownloadToken(listingId: string): Promise<ThemeD
     method: 'POST',
     headers: getAuthHeaders(),
   });
-  if (!res.ok) {throw new Error(`Theme download token failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme download token failed: ${res.status}`);
+  }
   const raw = (await res.json()) as Record<string, unknown>;
   return {
     listingId: String(raw.listingId ?? raw.listing_id),
@@ -128,10 +139,7 @@ export async function issueThemeDownloadToken(listingId: string): Promise<ThemeD
   };
 }
 
-export async function downloadThemePackage(
-  listingId: string,
-  token: ThemeDownloadToken,
-): Promise<Blob> {
+export async function downloadThemePackage(listingId: string, token: ThemeDownloadToken): Promise<Blob> {
   const params = new URLSearchParams({
     signature: token.transportSignature,
     expires_at: String(token.expiresAt),
@@ -139,19 +147,21 @@ export async function downloadThemePackage(
   const res = await fetch(tmUrl(`/listing/${listingId}/package?${params.toString()}`), {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) {throw new Error(`Theme package download failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme package download failed: ${res.status}`);
+  }
   return res.blob();
 }
 
-export async function checkoutThemeListing(
-  listingId: string,
-): Promise<{ checkoutUrl: string; sessionId: string }> {
+export async function checkoutThemeListing(listingId: string): Promise<{ checkoutUrl: string; sessionId: string }> {
   const res = await fetch(tmUrl(`/listing/${listingId}/checkout`), {
     method: 'POST',
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
   });
-  if (!res.ok) {throw new Error(`Theme checkout failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme checkout failed: ${res.status}`);
+  }
   const raw = (await res.json()) as Record<string, unknown>;
   return {
     checkoutUrl: String(raw.checkoutUrl ?? raw.checkout_url),
@@ -179,7 +189,9 @@ export async function submitThemeListing(options: {
     headers: getAuthHeaders(),
     body: fd,
   });
-  if (!res.ok) {throw new Error(`Theme submit failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme submit failed: ${res.status}`);
+  }
   const raw = (await res.json()) as Record<string, unknown>;
   return {
     listingId: String(raw.listingId ?? raw.listing_id),
@@ -190,14 +202,18 @@ export async function submitThemeListing(options: {
 
 export async function listMyThemeListings(): Promise<ThemeMarketplaceListing[]> {
   const res = await fetch(tmUrl('/creator/mine'), { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Theme creator list failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme creator list failed: ${res.status}`);
+  }
   const data = (await res.json()) as Record<string, unknown>[];
   return data.map((row) => parseListing(row));
 }
 
 export async function fetchCreatorThemeStats(): Promise<{ totalEarnedCents: number }> {
   const res = await fetch(tmUrl('/creator/stats'), { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Theme creator stats failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme creator stats failed: ${res.status}`);
+  }
   const raw = (await res.json()) as Record<string, unknown>;
   return {
     totalEarnedCents: Number(raw.totalEarnedCents ?? raw.total_earned_cents ?? 0),
@@ -206,7 +222,9 @@ export async function fetchCreatorThemeStats(): Promise<{ totalEarnedCents: numb
 
 export async function listPendingThemeListings(): Promise<ThemeMarketplaceListing[]> {
   const res = await fetch(tmUrl('/admin/pending'), { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Theme admin list failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme admin list failed: ${res.status}`);
+  }
   const data = (await res.json()) as Record<string, unknown>[];
   return data.map((row) => parseListing(row));
 }
@@ -220,12 +238,16 @@ export async function reviewThemeListing(
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: options.action, reason: options.reason }),
   });
-  if (!res.ok) {throw new Error(`Theme review failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme review failed: ${res.status}`);
+  }
 }
 
 export async function listAdminThemeCatalog(): Promise<ThemeMarketplaceListing[]> {
   const res = await fetch(tmUrl('/admin/catalog'), { headers: getAuthHeaders() });
-  if (!res.ok) {throw new Error(`Theme admin catalog failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme admin catalog failed: ${res.status}`);
+  }
   const data = (await res.json()) as Record<string, unknown>[];
   return data.map((row) => parseListing(row));
 }
@@ -236,7 +258,9 @@ export async function suspendThemeListing(listingId: string, reason: string): Pr
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
   });
-  if (!res.ok) {throw new Error(`Theme suspend failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme suspend failed: ${res.status}`);
+  }
 }
 
 export async function restoreThemeListing(listingId: string, reason: string): Promise<void> {
@@ -245,7 +269,9 @@ export async function restoreThemeListing(listingId: string, reason: string): Pr
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
   });
-  if (!res.ok) {throw new Error(`Theme restore failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme restore failed: ${res.status}`);
+  }
 }
 
 /** Idempotent install counter (Local/WebUI path; sandbox may also record via server internal API). */
@@ -282,7 +308,9 @@ export async function installThemeFromMarketplace(options: {
     headers: getAuthHeaders(),
     body: fd,
   });
-  if (!res.ok) {throw new Error(`Theme marketplace install failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Theme marketplace install failed: ${res.status}`);
+  }
   const payload = (await res.json()) as {
     data?: { install?: { profile?: Record<string, unknown> } };
     success?: boolean;

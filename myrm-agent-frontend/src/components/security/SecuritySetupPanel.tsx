@@ -11,9 +11,13 @@ const MAX_REPOS = 3;
 
 export function normalizeRepoInput(raw: string): string | null {
   const slug = raw.trim();
-  if (!slug.includes('/')) {return null;}
+  if (!slug.includes('/')) {
+    return null;
+  }
   const [owner, name] = slug.split('/', 2);
-  if (!owner?.trim() || !name?.trim()) {return null;}
+  if (!owner?.trim() || !name?.trim()) {
+    return null;
+  }
   return `${owner.trim()}/${name.trim()}`;
 }
 
@@ -65,11 +69,7 @@ function RepoEditor({
       )}
       {repoError && <p className="text-xs text-red-500">{repoError}</p>}
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onSave}
-          className="px-3 py-2 text-sm rounded-lg border hover:bg-accent"
-        >
+        <button type="button" onClick={onSave} className="px-3 py-2 text-sm rounded-lg border hover:bg-accent">
           {t('monitoredReposSave')}
         </button>
         {saveMessage && <span className="text-xs text-green-600 dark:text-green-500">{saveMessage}</span>}
@@ -78,11 +78,7 @@ function RepoEditor({
   );
 }
 
-export function SecuritySetupPanel({
-  setupHints,
-  urlCopied,
-  onCopyWebhookUrl,
-}: SecuritySetupPanelProps) {
+export function SecuritySetupPanel({ setupHints, urlCopied, onCopyWebhookUrl }: SecuritySetupPanelProps) {
   const t = useTranslations('securityDashboard');
   const [repoInputs, setRepoInputs] = useState<string[]>(['']);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -135,7 +131,9 @@ export function SecuritySetupPanel({
 
     for (const input of repoInputs) {
       const trimmed = input.trim();
-      if (!trimmed) {continue;}
+      if (!trimmed) {
+        continue;
+      }
       const slug = normalizeRepoInput(input);
       if (!slug) {
         invalid.push(trimmed);
@@ -145,7 +143,9 @@ export function SecuritySetupPanel({
         seen.add(slug);
         cleaned.push(slug);
       }
-      if (cleaned.length >= MAX_REPOS) {break;}
+      if (cleaned.length >= MAX_REPOS) {
+        break;
+      }
     }
 
     if (invalid.length > 0) {
@@ -231,9 +231,7 @@ export function SecuritySetupPanel({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground mb-1">{t('setupUrl')}</p>
-            <code className="text-xs break-all block p-2 rounded bg-background border">
-              {setupHints.webhookUrl}
-            </code>
+            <code className="text-xs break-all block p-2 rounded bg-background border">{setupHints.webhookUrl}</code>
           </div>
           <button
             type="button"

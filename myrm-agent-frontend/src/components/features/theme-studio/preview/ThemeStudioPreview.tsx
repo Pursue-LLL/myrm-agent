@@ -27,12 +27,7 @@ function previewSceneToReadability(scene: PreviewScene): ThemeReadabilityScene {
   return 'functional';
 }
 
-const ThemeStudioPreview = ({
-  draft,
-  previewAssetUrl,
-  scene,
-  compact = false,
-}: ThemeStudioPreviewProps) => {
+const ThemeStudioPreview = ({ draft, previewAssetUrl, scene, compact = false }: ThemeStudioPreviewProps) => {
   const t = useTranslations('settings.themeStudio.preview');
   const { resolvedTheme } = useTheme();
   const colorScheme = resolvedTheme === 'light' ? 'light' : 'dark';
@@ -73,24 +68,17 @@ const ThemeStudioPreview = ({
   }, [colorScheme, compact, draft, sceneId, mounted, previewAssetUrl]);
 
   if (!compiled) {
-    return (
-      <div className="rounded-xl border border-border bg-secondary/20 h-64 animate-pulse" />
-    );
+    return <div className="rounded-xl border border-border bg-secondary/20 h-64 animate-pulse" />;
   }
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">{t(`scene.${scene}`)}</p>
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-          {sceneId}
-        </span>
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">{sceneId}</span>
       </div>
       <div
-        className={cn(
-          'relative overflow-hidden rounded-xl border border-border',
-          compact ? 'h-48' : 'h-72',
-        )}
+        className={cn('relative overflow-hidden rounded-xl border border-border', compact ? 'h-48' : 'h-72')}
         style={compiled.cssVariables as React.CSSProperties}
       >
         {compiled.artLayer.enabled && previewAssetUrl ? (
@@ -113,7 +101,9 @@ const ThemeStudioPreview = ({
         <div className="relative z-10 flex h-full min-h-0">
           <aside
             className="hidden sm:flex w-14 shrink-0 flex-col gap-2 border-r border-border/40 p-2"
-            style={{ backgroundColor: `color-mix(in srgb, var(--background) ${Math.round(compiled.artLayer.navOpacity * 100)}%, transparent)` }}
+            style={{
+              backgroundColor: `color-mix(in srgb, var(--background) ${Math.round(compiled.artLayer.navOpacity * 100)}%, transparent)`,
+            }}
           >
             <span className="h-2 w-8 rounded bg-primary/40" />
             <span className="h-2 w-6 rounded bg-muted-foreground/20" />
@@ -121,7 +111,9 @@ const ThemeStudioPreview = ({
           </aside>
           <main
             className="flex min-w-0 flex-1 flex-col gap-2 p-3"
-            style={{ backgroundColor: `color-mix(in srgb, var(--background) ${Math.round(compiled.artLayer.mainOpacity * 100)}%, transparent)` }}
+            style={{
+              backgroundColor: `color-mix(in srgb, var(--background) ${Math.round(compiled.artLayer.mainOpacity * 100)}%, transparent)`,
+            }}
           >
             {scene === 'chat' ? (
               <>

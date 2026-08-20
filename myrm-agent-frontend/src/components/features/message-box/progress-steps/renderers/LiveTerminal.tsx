@@ -41,12 +41,13 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [stderrDrawerOpen, setStderrDrawerOpen] = useState(false);
 
-  const evictedBadge = evictedFileRef && (evictedTotalLines || evictedStoredChars)
-    ? t('sizeBadge', {
-        lines: (evictedTotalLines ?? 0).toLocaleString(),
-        size: evictedStoredChars ? formatStoredSize(evictedStoredChars) : '—',
-      })
-    : null;
+  const evictedBadge =
+    evictedFileRef && (evictedTotalLines || evictedStoredChars)
+      ? t('sizeBadge', {
+          lines: (evictedTotalLines ?? 0).toLocaleString(),
+          size: evictedStoredChars ? formatStoredSize(evictedStoredChars) : '—',
+        })
+      : null;
 
   const evictedStderrBadge =
     evictedStderrFileRef && (evictedStderrTotalLines || evictedStderrStoredChars)
@@ -62,17 +63,15 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
     }
   }, [stdout]);
 
-  if (!stdout && !evictedFileRef && !evictedStderrFileRef) {return null;}
+  if (!stdout && !evictedFileRef && !evictedStderrFileRef) {
+    return null;
+  }
 
   const evictedFooter = evictedFileRef ? (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-1.5 px-3 py-1.5 border-t border-zinc-800/80 bg-zinc-900/30">
       <div className="flex flex-col sm:items-end gap-0.5 min-w-0">
-        {evictedBadge && (
-          <span className="text-[10px] text-zinc-500 tabular-nums truncate">{evictedBadge}</span>
-        )}
-        {evictedStorageTruncated && (
-          <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
-        )}
+        {evictedBadge && <span className="text-[10px] text-zinc-500 tabular-nums truncate">{evictedBadge}</span>}
+        {evictedStorageTruncated && <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>}
       </div>
       <button
         data-testid="evicted-view-full-output"
@@ -84,7 +83,17 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
         )}
       >
         {stdout ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="16" y1="13" x2="8" y2="13" />
@@ -115,7 +124,17 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
           'border border-amber-500/20 transition-colors duration-150',
         )}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />
           <line x1="16" y1="13" x2="8" y2="13" />
@@ -139,9 +158,7 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
             {evictedFileRef ? (
               <>
                 <span className="text-[11px] text-zinc-400">{t('savedHint')}</span>
-                {evictedBadge && (
-                  <span className="text-[10px] text-zinc-500 tabular-nums">{evictedBadge}</span>
-                )}
+                {evictedBadge && <span className="text-[10px] text-zinc-500 tabular-nums">{evictedBadge}</span>}
                 {evictedStorageTruncated && (
                   <span className="text-[10px] text-amber-500/80">{t('storageTruncated')}</span>
                 )}
@@ -212,7 +229,9 @@ export const LiveTerminal: React.FC<LiveTerminalProps> = ({
     );
   }
 
-  if (!stdout) {return null;}
+  if (!stdout) {
+    return null;
+  }
 
   const escapeSequence = '\\u001b';
   const imageSequenceRegex = new RegExp(

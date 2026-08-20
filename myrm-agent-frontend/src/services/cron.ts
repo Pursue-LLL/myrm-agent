@@ -50,10 +50,18 @@ export async function listCronJobs(params?: {
   chat_id?: string;
 }): Promise<CronJobsListResponse> {
   const query = new URLSearchParams();
-  if (params?.limit) {query.set('limit', String(params.limit));}
-  if (params?.offset) {query.set('offset', String(params.offset));}
-  if (params?.search) {query.set('search', params.search);}
-  if (params?.chat_id) {query.set('chat_id', params.chat_id);}
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    query.set('offset', String(params.offset));
+  }
+  if (params?.search) {
+    query.set('search', params.search);
+  }
+  if (params?.chat_id) {
+    query.set('chat_id', params.chat_id);
+  }
   const qs = query.toString();
   return apiRequest(`/cron${qs ? `?${qs}` : ''}`);
 }
@@ -122,9 +130,15 @@ export async function listCronRuns(
   params?: { limit?: number; offset?: number; status?: string },
 ): Promise<CronRunsListResponse> {
   const query = new URLSearchParams();
-  if (params?.limit) {query.set('limit', String(params.limit));}
-  if (params?.offset) {query.set('offset', String(params.offset));}
-  if (params?.status) {query.set('status', params.status);}
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    query.set('offset', String(params.offset));
+  }
+  if (params?.status) {
+    query.set('status', params.status);
+  }
   return apiRequest(`/cron/${jobId}/runs?${query.toString()}`);
 }
 
@@ -139,9 +153,15 @@ export async function listAllCronRuns(params?: {
   status?: string;
 }): Promise<CronRunsListResponse> {
   const query = new URLSearchParams();
-  if (params?.limit) {query.set('limit', String(params.limit));}
-  if (params?.offset) {query.set('offset', String(params.offset));}
-  if (params?.status) {query.set('status', params.status);}
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    query.set('offset', String(params.offset));
+  }
+  if (params?.status) {
+    query.set('status', params.status);
+  }
   return apiRequest(`/cron/runs/all?${query.toString()}`);
 }
 

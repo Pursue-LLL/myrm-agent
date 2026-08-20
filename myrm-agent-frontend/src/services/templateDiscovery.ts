@@ -32,7 +32,7 @@ export function templateMatchesSearchQuery(template: TemplateListItem, query: st
     template.name,
     template.description ?? '',
     ...(template.use_cases ?? []),
-    ...((template.members ?? []).flatMap((member) => [member.name, member.description ?? ''])),
+    ...(template.members ?? []).flatMap((member) => [member.name, member.description ?? '']),
   ];
   return searchableParts.some((part) => normalizeTemplateSearchText(part).includes(normalizedQuery));
 }

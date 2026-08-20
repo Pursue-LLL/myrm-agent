@@ -290,9 +290,7 @@ export interface UpdateCronJobRequest {
   delivery?: { channel: string; target?: string };
   failure_delivery?: { channel: string; target?: string } | null;
   failure_alert?:
-    | { enabled: boolean; after?: number; cooldown_seconds?: number; delivery?: CronDelivery }
-    | false
-    | null;
+    { enabled: boolean; after?: number; cooldown_seconds?: number; delivery?: CronDelivery } | false | null;
   active_hours?: ActiveHours | null;
   triggers?: TriggerConfigRequest | null;
   max_retries?: number;

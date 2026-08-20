@@ -119,9 +119,7 @@ export function getCachedSchedulerHealth(): SchedulerHealth | null {
   return cached;
 }
 
-export function subscribeSchedulerHealth(
-  listener: (health: SchedulerHealth | null) => void,
-): () => void {
+export function subscribeSchedulerHealth(listener: (health: SchedulerHealth | null) => void): () => void {
   listeners.add(listener);
   subscriberCount += 1;
   listener(cached);

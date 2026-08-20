@@ -237,9 +237,13 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const handleTranscript = useCallback(
     (text: string) => {
-      if (!sessionActiveRef.current || !autoSend) {return;}
+      if (!sessionActiveRef.current || !autoSend) {
+        return;
+      }
 
-      if (mode === 'agent_bridge') {return;}
+      if (mode === 'agent_bridge') {
+        return;
+      }
 
       if (fullDuplex && isSpeakingRef.current) {
         pendingTTSRef.current = [];
@@ -263,7 +267,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
       const pttCtx = pttScreenContextRef.current;
       pttScreenContextRef.current = null;
       if (pttCtx && Date.now() - pttCtx.timestamp < 30_000) {
-
         if (pttCtx.screenshot) {
           const screenFrame: VisualFrame = {
             id: `ptt-screen-${pttCtx.timestamp}`,
@@ -298,7 +301,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const handleSpeechError = useCallback(
     (error: string) => {
-      if (error === 'tooShort') {return;}
+      if (error === 'tooShort') {
+        return;
+      }
       onError?.(error);
     },
     [onError],
@@ -352,10 +357,14 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const speakResponse = useCallback(
     (text: string, options?: { queue?: boolean }) => {
-      if (!sessionActiveRef.current) {return;}
+      if (!sessionActiveRef.current) {
+        return;
+      }
 
       const segments = extractSpeakableSegments(text);
-      if (segments.length === 0) {return;}
+      if (segments.length === 0) {
+        return;
+      }
 
       // Queue insertion window: append to the pending queue without
       // interrupting an in-flight utterance (e.g. voice background task
@@ -387,7 +396,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   }, [tts.state, speakNext]);
 
   const startSession = useCallback(() => {
-    if (!enabled) {return;}
+    if (!enabled) {
+      return;
+    }
 
     sessionActiveRef.current = true;
     setSessionState('listening');
@@ -398,7 +409,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     }
 
     if (mode === 'gemini_live') {
-      if (cameraEnabled) {void camera.startCamera();}
+      if (cameraEnabled) {
+        void camera.startCamera();
+      }
       geminiLive.connect();
       return;
     }
@@ -452,7 +465,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
       return;
     }
 
-    if (sessionState !== 'speaking') {return;}
+    if (sessionState !== 'speaking') {
+      return;
+    }
 
     pendingTTSRef.current = [];
     isSpeakingRef.current = false;
@@ -469,7 +484,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   // Sync agent bridge state → session state
   useEffect(() => {
-    if (mode !== 'agent_bridge') {return;}
+    if (mode !== 'agent_bridge') {
+      return;
+    }
     const bridgeState = agentBridge.state;
     switch (bridgeState) {
       case 'listening':
@@ -492,7 +509,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   // Sync realtime voice state → session state
   useEffect(() => {
-    if (mode !== 'openai_realtime') {return;}
+    if (mode !== 'openai_realtime') {
+      return;
+    }
     const rtState = realtimeVoice.state;
     switch (rtState) {
       case 'connecting':
@@ -519,7 +538,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   // Sync Gemini Live state → session state
   useEffect(() => {
-    if (mode !== 'gemini_live') {return;}
+    if (mode !== 'gemini_live') {
+      return;
+    }
     const glState = geminiLive.state;
     switch (glState) {
       case 'connecting':

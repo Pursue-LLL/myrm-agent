@@ -43,10 +43,7 @@ export default function AllowAlwaysConfirmDialog({
   isLoading,
 }: AllowAlwaysConfirmDialogProps) {
   const t = useTranslations('toolApproval');
-  const patternPreview = useMemo(
-    () => (shellCommand ? deriveCommandPattern(shellCommand) : null),
-    [shellCommand],
-  );
+  const patternPreview = useMemo(() => (shellCommand ? deriveCommandPattern(shellCommand) : null), [shellCommand]);
   const patternConfirmBlocked =
     allowAlwaysScope === 'pattern' && shellCommand.trim().length > 0 && patternPreview === null;
 

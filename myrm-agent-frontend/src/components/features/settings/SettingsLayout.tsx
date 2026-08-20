@@ -17,19 +17,24 @@ import { SettingsSkeleton } from './common/SettingsSkeleton';
 import { trySettingsSubviewBack } from './settingsSubviewBack';
 
 // 设置区块组件 (动态加载)
-const AccountSection = dynamic(() => import('./sections/personal/AccountSection'), { loading: () => <SettingsSkeleton /> });
+const AccountSection = dynamic(() => import('./sections/personal/AccountSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 const PreferencesSection = dynamic(() => import('./sections/personal/PreferencesSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const ThemeStudioSettingsSection = dynamic(
-  () => import('./sections/personal/ThemeStudioSettingsSection'),
-  { loading: () => <SettingsSkeleton /> },
-);
+const ThemeStudioSettingsSection = dynamic(() => import('./sections/personal/ThemeStudioSettingsSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 const PersonalizationSection = dynamic(() => import('./sections/personal/PersonalizationSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const AgentsSection = dynamic(() => import('./sections/ai-core/AgentsSection'), { loading: () => <SettingsSkeleton /> });
-const SearchSection = dynamic(() => import('./sections/ai-core/SearchSection'), { loading: () => <SettingsSkeleton /> });
+const AgentsSection = dynamic(() => import('./sections/ai-core/AgentsSection'), {
+  loading: () => <SettingsSkeleton />,
+});
+const SearchSection = dynamic(() => import('./sections/ai-core/SearchSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 const MCPSection = dynamic(() => import('./sections/ai-tools/MCPSection'), { loading: () => <SettingsSkeleton /> });
 const SecurityPolicySection = dynamic(() => import('./sections/system/SecurityPolicySection'), {
   loading: () => <SettingsSkeleton />,
@@ -37,7 +42,9 @@ const SecurityPolicySection = dynamic(() => import('./sections/system/SecurityPo
 const ShareLinksSection = dynamic(() => import('./sections/system/ShareLinksSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const RiskRulesSection = dynamic(() => import('./sections/system/RiskRulesSection'), { loading: () => <SettingsSkeleton /> });
+const RiskRulesSection = dynamic(() => import('./sections/system/RiskRulesSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 const CronSection = dynamic(() => import('./sections/system/CronSection'), { loading: () => <SettingsSkeleton /> });
 const KanbanSection = dynamic(() => import('./sections/system/KanbanSection'), { loading: () => <SettingsSkeleton /> });
 const CredentialsSection = dynamic(() => import('./sections/integration/CredentialsSection'), {
@@ -52,13 +59,18 @@ const CheckpointSection = dynamic(() => import('./sections/knowledge/CheckpointS
 const HostingTargetsSection = dynamic(() => import('./sections/hosting/HostingTargetsPanel'), {
   loading: () => <SettingsSkeleton />,
 });
-const OpenAIApiSection = dynamic(() => import('./sections/integration/OpenAIApiSection'), { loading: () => <SettingsSkeleton /> });
+const OpenAIApiSection = dynamic(() => import('./sections/integration/OpenAIApiSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 const WorkspaceRulesSection = dynamic(() => import('./sections/ai-core/WorkspaceRulesSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const IntegrationCatalogSection = dynamic(() => import('./sections/integration/integrations/IntegrationCatalogSection'), {
-  loading: () => <SettingsSkeleton />,
-});
+const IntegrationCatalogSection = dynamic(
+  () => import('./sections/integration/integrations/IntegrationCatalogSection'),
+  {
+    loading: () => <SettingsSkeleton />,
+  },
+);
 const IntegrationMemorySection = dynamic(() => import('./sections/integration/integrations/IntegrationMemorySection'), {
   loading: () => <SettingsSkeleton />,
 });
@@ -94,10 +106,9 @@ const SystemCenterSection = dynamic(() => import('./sections/system/SystemCenter
 const EnterpriseOrgSection = dynamic(() => import('./sections/enterprise/EnterpriseOrgSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const BrandStudioSettingsSection = dynamic(
-  () => import('./sections/knowledge/BrandStudioSettingsSection'),
-  { loading: () => <SettingsSkeleton /> },
-);
+const BrandStudioSettingsSection = dynamic(() => import('./sections/knowledge/BrandStudioSettingsSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 
 /**
  * SettingsLayout - 配置页面布局组件
@@ -303,13 +314,19 @@ function SettingsLayout() {
 
   const flushDirty = useCallback(async (): Promise<boolean> => {
     const store = useSettingsDirtyStore.getState();
-    if (!store.isDirtyAny()) {return true;}
-    if (isSavingRef.current) {return false;}
+    if (!store.isDirtyAny()) {
+      return true;
+    }
+    if (isSavingRef.current) {
+      return false;
+    }
 
     isSavingRef.current = true;
     try {
       const ok = await store.autoSaveAll();
-      if (!ok) {toast.error(t('autoSaveFailed'));}
+      if (!ok) {
+        toast.error(t('autoSaveFailed'));
+      }
       return ok;
     } finally {
       isSavingRef.current = false;
@@ -319,7 +336,9 @@ function SettingsLayout() {
   const handleTabChange = useCallback(
     (tab: SettingsTab, sub?: string) => {
       void flushDirty().then((ok) => {
-        if (!ok) {return;}
+        if (!ok) {
+          return;
+        }
         setPendingTab(tab);
         const url = sub ? `/settings/${tab}?sub=${sub}` : `/settings/${tab}`;
         router.push(url, { scroll: false });
@@ -331,8 +350,12 @@ function SettingsLayout() {
 
   const handleBack = useCallback(() => {
     void flushDirty().then((ok) => {
-      if (!ok) {return;}
-      if (trySettingsSubviewBack()) {return;}
+      if (!ok) {
+        return;
+      }
+      if (trySettingsSubviewBack()) {
+        return;
+      }
       router.push('/');
     });
   }, [flushDirty, router]);

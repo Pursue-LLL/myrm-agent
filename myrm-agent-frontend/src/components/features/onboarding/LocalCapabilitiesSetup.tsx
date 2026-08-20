@@ -9,15 +9,19 @@ import { Button } from '@/components/primitives/button';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import { completeOnboarding } from '@/services/onboarding';
-import {
-  invalidateLocalCapabilitiesProbeCache,
-  type ProbeLocalResponse,
-} from '@/services/localCapabilitiesProbe';
+import { invalidateLocalCapabilitiesProbeCache, type ProbeLocalResponse } from '@/services/localCapabilitiesProbe';
 import { startLocalSearxngAndRefreshProbe } from '@/services/searxngSetup';
 import { buildQuickSearchConfig } from '@/store/config/quickSearchSetup';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import type { SearchServiceType } from '@/store/config/types';
-import { IconArrowRight, IconCheck, IconCpu, IconGlobe, IconLoader, IconZap } from '@/components/features/icons/PremiumIcons';
+import {
+  IconArrowRight,
+  IconCheck,
+  IconCpu,
+  IconGlobe,
+  IconLoader,
+  IconZap,
+} from '@/components/features/icons/PremiumIcons';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
 import {
@@ -46,7 +50,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
   const tModel = useTranslations('chat.localModelDetected');
   const tBoot = useTranslations('boot');
   const router = useRouter();
-  
+
   const [probeResult, setProbeResult] = useState<ProbeLocalResponse | null>(initialProbe);
   const [activatingModel, setActivatingModel] = useState(false);
   const [activatingSearch, setActivatingSearch] = useState(false);
@@ -141,11 +145,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
   const searxngBaseUrl = searxngHit?.base_url || probeResult?.recommended_searxng_url || 'http://127.0.0.1:8081';
 
   useEffect(() => {
-    if (
-      searchConfigured ||
-      !searxngHit ||
-      autoEnabledSearxngRef.current
-    ) {
+    if (searchConfigured || !searxngHit || autoEnabledSearxngRef.current) {
       return;
     }
     autoEnabledSearxngRef.current = true;
@@ -167,7 +167,9 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
 
   const ensureLocalOpenAICompatProvider = useCallback(() => {
     const existing = useProviderStore.getState().providers.find((p) => p.id === LOCAL_OPENAI_COMPAT_PROVIDER_ID);
-    if (existing) {return existing.id;}
+    if (existing) {
+      return existing.id;
+    }
     addProvider(LOCAL_OPENAI_COMPAT_PROVIDER_NAME, 'openai-like');
     const created = useProviderStore.getState().providers.find((p) => p.id === LOCAL_OPENAI_COMPAT_PROVIDER_ID);
     if (!created) {
@@ -293,7 +295,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
             <div className="flex flex-col gap-1">
               <span className="text-base font-semibold">{availableModel ? tModel('title') : tModel('noModels')}</span>
               <span className="text-sm text-muted-foreground">
-                {availableModel 
+                {availableModel
                   ? tModel('description', {
                       provider: availableModel.provider === 'ollama' ? 'Ollama' : 'LM Studio',
                       count: availableModel.models.length,
@@ -324,17 +326,13 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
         </div>
       )}
 
-      {!hasEnabledProvider && (
-        <HardwareCookbook onApplyModel={handleApplyCookbookModel} />
-      )}
+      {!hasEnabledProvider && <HardwareCookbook onApplyModel={handleApplyCookbookModel} />}
 
       {!hasEnabledProvider && (
         <div className="p-4 rounded-xl border bg-card space-y-4">
           <div className="space-y-1">
             <span className="text-base font-semibold">{t('customEndpointTitle')}</span>
-            <span className="block text-sm text-muted-foreground">
-              {t('customEndpointDescription')}
-            </span>
+            <span className="block text-sm text-muted-foreground">{t('customEndpointDescription')}</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
@@ -356,15 +354,9 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
               />
             </label>
           </div>
-          {isLoopbackApiUrl(customApiUrl) && (
-            <p className="text-xs text-muted-foreground">
-              {t('customNoAuthHint')}
-            </p>
-          )}
+          {isLoopbackApiUrl(customApiUrl) && <p className="text-xs text-muted-foreground">{t('customNoAuthHint')}</p>}
           {customNoAuthLocal && (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              {t('customNoAuthDetected')}
-            </p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('customNoAuthDetected')}</p>
           )}
           {customProbeError && <p className="text-xs text-destructive">{customProbeError}</p>}
           <div className="flex flex-wrap gap-2">
@@ -448,10 +440,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
                 {tBoot('onboarding.searchReady')}
               </span>
             ) : (
-              <Button
-                disabled={startingSearxng || activatingSearch}
-                onClick={() => setSearxngConsentOpen(true)}
-              >
+              <Button disabled={startingSearxng || activatingSearch} onClick={() => setSearxngConsentOpen(true)}>
                 {startingSearxng ? (
                   <IconLoader className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -476,7 +465,9 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
         loading={startingSearxng}
         onConfirm={async () => {
           const ok = await handleStartSearxngDocker();
-          if (ok) {setSearxngConsentOpen(false);}
+          if (ok) {
+            setSearxngConsentOpen(false);
+          }
         }}
       />
     </div>

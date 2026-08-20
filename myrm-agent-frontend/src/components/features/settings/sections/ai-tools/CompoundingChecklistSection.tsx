@@ -17,13 +17,7 @@ interface CompoundingChecklistSectionProps {
   className?: string;
 }
 
-function ChecklistRow({
-  item,
-  onNavigate,
-}: {
-  item: CompoundingChecklistItem;
-  onNavigate: (path: string) => void;
-}) {
+function ChecklistRow({ item, onNavigate }: { item: CompoundingChecklistItem; onNavigate: (path: string) => void }) {
   const t = useTranslations('settings.skills.compounding');
 
   return (
@@ -42,9 +36,7 @@ function ChecklistRow({
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{t(`items.${item.id}.title`)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{t(`items.${item.id}.description`)}</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-1">
-            {t('countLabel', { count: item.count })}
-          </p>
+          <p className="text-[11px] text-muted-foreground/70 mt-1">{t('countLabel', { count: item.count })}</p>
         </div>
       </div>
       <Button
@@ -98,7 +90,13 @@ const CompoundingChecklistSection = memo(({ className }: CompoundingChecklistSec
           <h2 className="text-lg font-semibold text-foreground">{t('title')}</h2>
           <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
         </div>
-        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 self-start" onClick={() => void load()} disabled={loading}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs gap-1 self-start"
+          onClick={() => void load()}
+          disabled={loading}
+        >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           {t('refresh')}
         </Button>

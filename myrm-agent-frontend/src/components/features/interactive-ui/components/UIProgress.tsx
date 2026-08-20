@@ -37,9 +37,7 @@ export const UIProgress: React.FC<UIComponentProps> = ({ props, bindings, data }
       {(label || showValue) && (
         <div className="flex items-center justify-between">
           {label && <span className="text-sm font-medium text-foreground">{label}</span>}
-          {showValue && (
-            <span className="text-sm text-muted-foreground tabular-nums">{Math.round(percentage)}%</span>
-          )}
+          {showValue && <span className="text-sm text-muted-foreground tabular-nums">{Math.round(percentage)}%</span>}
         </div>
       )}
       <div className={cn('w-full rounded-full bg-muted overflow-hidden', sizeClasses[size])}>

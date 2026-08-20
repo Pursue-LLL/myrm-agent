@@ -89,8 +89,16 @@ function reportContextBranchForkDiag(diag: ContextBranchForkDiag): void {
 export const CompactedSummaryView = () => {
   const router = useRouter();
   const t = useTranslations('chat.compactedSummary');
-  const { chatId, compactedSummary, setCompactedSummary, lastCompactionMeta, contextBranches, setContextBranches, contextBranchesLoadError, setContextBranchesLoadError } =
-    useChatStore(
+  const {
+    chatId,
+    compactedSummary,
+    setCompactedSummary,
+    lastCompactionMeta,
+    contextBranches,
+    setContextBranches,
+    contextBranchesLoadError,
+    setContextBranchesLoadError,
+  } = useChatStore(
     useShallow((state) => ({
       chatId: state.chatId,
       compactedSummary: state.compactedSummary,
@@ -115,10 +123,7 @@ export const CompactedSummaryView = () => {
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
   const summaryViewRef = useRef<HTMLDivElement>(null);
 
-  const bookmarks = useMemo(
-    () => contextBranches.slice(-MAX_BOOKMARKS_DISPLAY).reverse(),
-    [contextBranches],
-  );
+  const bookmarks = useMemo(() => contextBranches.slice(-MAX_BOOKMARKS_DISPLAY).reverse(), [contextBranches]);
 
   const loadBookmarks = useCallback(async (): Promise<ContextBranchRecord[]> => {
     const requestChatId = chatId;
@@ -150,7 +155,9 @@ export const CompactedSummaryView = () => {
   }, [chatId, setContextBranches, setContextBranchesLoadError]);
 
   const handleEdit = () => {
-    if (!compactedSummary) {return;}
+    if (!compactedSummary) {
+      return;
+    }
     setEditValue(compactedSummary);
     setIsEditing(true);
   };
@@ -160,7 +167,9 @@ export const CompactedSummaryView = () => {
   };
 
   const handleSave = async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     setIsSaving(true);
     try {
       await updateCompactionSummary(chatId, editValue);
@@ -175,7 +184,9 @@ export const CompactedSummaryView = () => {
 
   const handleViewArchive = async () => {
     setIsArchiveOpen(true);
-    if (!chatId || archiveMessages.length > 0) {return;}
+    if (!chatId || archiveMessages.length > 0) {
+      return;
+    }
 
     setIsLoadingArchive(true);
     try {
@@ -190,7 +201,9 @@ export const CompactedSummaryView = () => {
 
   const handleSaveBookmark = async () => {
     const snapshotPath = lastCompactionMeta?.snapshotPath;
-    if (!chatId || !snapshotPath || isSavingBookmark) {return;}
+    if (!chatId || !snapshotPath || isSavingBookmark) {
+      return;
+    }
     setIsSavingBookmark(true);
     try {
       await createContextBranch(chatId, { snapshot_path: snapshotPath });
@@ -213,61 +226,66 @@ export const CompactedSummaryView = () => {
     }
   };
 
-  const handleForkFromBookmark = useCallback(async (bookmark: ContextBranchRecord) => {
-    if (!chatId || forkingBranchId) {return;}
-    if (useChatStore.getState().loading) {
-      reportContextBranchForkDiag({
-        phase: 'blocked-loading',
-        at: Date.now(),
-        chatId,
-        branchId: bookmark.branch_id,
-      });
-      showI18nToast('chat.fork.streamingBlocked', undefined, { type: 'error' });
-      return;
-    }
-    setForkingBranchId(bookmark.branch_id);
-    reportContextBranchForkDiag({
-      phase: 'start',
-      at: Date.now(),
-      chatId,
-      branchId: bookmark.branch_id,
-    });
-    try {
-      const result = await forkContextBranch(chatId, bookmark.branch_id, bookmarkDisplayLabel(bookmark));
-      if (!result.new_chat_id) {
-        throw new Error('Fork response missing new_chat_id');
+  const handleForkFromBookmark = useCallback(
+    async (bookmark: ContextBranchRecord) => {
+      if (!chatId || forkingBranchId) {
+        return;
       }
+      if (useChatStore.getState().loading) {
+        reportContextBranchForkDiag({
+          phase: 'blocked-loading',
+          at: Date.now(),
+          chatId,
+          branchId: bookmark.branch_id,
+        });
+        showI18nToast('chat.fork.streamingBlocked', undefined, { type: 'error' });
+        return;
+      }
+      setForkingBranchId(bookmark.branch_id);
       reportContextBranchForkDiag({
-        phase: 'api-ok',
+        phase: 'start',
         at: Date.now(),
         chatId,
         branchId: bookmark.branch_id,
-        newChatId: result.new_chat_id,
       });
-      useWorkspaceStore.getState().addPane(result.new_chat_id);
-      navigateToForkedChat(result.new_chat_id);
-      reportContextBranchForkDiag({
-        phase: 'navigate',
-        at: Date.now(),
-        chatId,
-        branchId: bookmark.branch_id,
-        newChatId: result.new_chat_id,
-      });
-      showI18nToast('chat.compactedSummary.bookmarkForkSuccess', undefined, { type: 'success' });
-    } catch (err) {
-      reportContextBranchForkDiag({
-        phase: 'api-error',
-        at: Date.now(),
-        chatId,
-        branchId: bookmark.branch_id,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      console.error('[CompactedSummaryView] failed to fork from bookmark', err);
-      showI18nToast('chat.compactedSummary.bookmarkForkFailed', undefined, { type: 'error' });
-    } finally {
-      setForkingBranchId(null);
-    }
-  }, [chatId, forkingBranchId, router]);
+      try {
+        const result = await forkContextBranch(chatId, bookmark.branch_id, bookmarkDisplayLabel(bookmark));
+        if (!result.new_chat_id) {
+          throw new Error('Fork response missing new_chat_id');
+        }
+        reportContextBranchForkDiag({
+          phase: 'api-ok',
+          at: Date.now(),
+          chatId,
+          branchId: bookmark.branch_id,
+          newChatId: result.new_chat_id,
+        });
+        useWorkspaceStore.getState().addPane(result.new_chat_id);
+        navigateToForkedChat(result.new_chat_id);
+        reportContextBranchForkDiag({
+          phase: 'navigate',
+          at: Date.now(),
+          chatId,
+          branchId: bookmark.branch_id,
+          newChatId: result.new_chat_id,
+        });
+        showI18nToast('chat.compactedSummary.bookmarkForkSuccess', undefined, { type: 'success' });
+      } catch (err) {
+        reportContextBranchForkDiag({
+          phase: 'api-error',
+          at: Date.now(),
+          chatId,
+          branchId: bookmark.branch_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        console.error('[CompactedSummaryView] failed to fork from bookmark', err);
+        showI18nToast('chat.compactedSummary.bookmarkForkFailed', undefined, { type: 'error' });
+      } finally {
+        setForkingBranchId(null);
+      }
+    },
+    [chatId, forkingBranchId, router],
+  );
 
   useEffect(() => {
     const root = summaryViewRef.current;
@@ -448,9 +466,7 @@ export const CompactedSummaryView = () => {
                       <span className="truncate">{bookmarkDisplayLabel(bookmark)}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
-                      {bookmarkTime ? (
-                        <span className="tabular-nums text-muted-foreground">{bookmarkTime}</span>
-                      ) : null}
+                      {bookmarkTime ? <span className="tabular-nums text-muted-foreground">{bookmarkTime}</span> : null}
                       <button
                         type="button"
                         data-testid="compacted-summary-bookmark-fork"

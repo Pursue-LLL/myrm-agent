@@ -180,9 +180,7 @@ export function FlowPadInlineRouteSwitcher({
                     </div>
                   </div>
                   {expertTemplatesLoading ? (
-                    <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                      {t('inlineRouteTemplateLoading')}
-                    </p>
+                    <p className="px-2 py-2 text-[11px] text-muted-foreground">{t('inlineRouteTemplateLoading')}</p>
                   ) : expertTemplatesError ? (
                     <button
                       type="button"
@@ -234,9 +232,7 @@ export function FlowPadInlineRouteSwitcher({
                     })
                   ) : (
                     <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                      {templateSearchQuery.trim()
-                        ? t('inlineRouteTemplateNoResults')
-                        : t('inlineRouteTemplateEmpty')}
+                      {templateSearchQuery.trim() ? t('inlineRouteTemplateNoResults') : t('inlineRouteTemplateEmpty')}
                     </p>
                   )}
                 </div>

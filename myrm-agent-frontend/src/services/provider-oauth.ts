@@ -57,22 +57,21 @@ export function getProviderOAuthConfig(provider: ProviderOAuthProvider) {
   return PROVIDER_OAUTH_CONFIGS[provider];
 }
 
-export function getProviderOAuthProviderByProviderId(
-  providerId: string,
-): ProviderOAuthProvider | null {
-  if (providerId === 'anthropic') {return 'anthropic';}
-  if (providerId === 'openai') {return 'openai';}
-  if (providerId === 'copilot' || providerId === 'github_copilot') {return 'copilot';}
+export function getProviderOAuthProviderByProviderId(providerId: string): ProviderOAuthProvider | null {
+  if (providerId === 'anthropic') {
+    return 'anthropic';
+  }
+  if (providerId === 'openai') {
+    return 'openai';
+  }
+  if (providerId === 'copilot' || providerId === 'github_copilot') {
+    return 'copilot';
+  }
   return null;
 }
 
-export async function startProviderOAuth(
-  provider: ProviderOAuthProvider,
-): Promise<ProviderOAuthStartResponse> {
-  return apiRequest<ProviderOAuthStartResponse>(
-    `/integrations/provider-oauth/${provider}/start`,
-    { method: 'POST' },
-  );
+export async function startProviderOAuth(provider: ProviderOAuthProvider): Promise<ProviderOAuthStartResponse> {
+  return apiRequest<ProviderOAuthStartResponse>(`/integrations/provider-oauth/${provider}/start`, { method: 'POST' });
 }
 
 export async function pollProviderOAuth(
@@ -85,18 +84,11 @@ export async function pollProviderOAuth(
   );
 }
 
-export async function fetchProviderOAuthStatus(
-  provider: ProviderOAuthProvider,
-): Promise<ProviderOAuthStatus> {
-  return apiRequest<ProviderOAuthStatus>(
-    `/integrations/provider-oauth/status/${provider}`,
-    { silent: true },
-  );
+export async function fetchProviderOAuthStatus(provider: ProviderOAuthProvider): Promise<ProviderOAuthStatus> {
+  return apiRequest<ProviderOAuthStatus>(`/integrations/provider-oauth/status/${provider}`, { silent: true });
 }
 
-export async function disconnectProviderOAuth(
-  provider: ProviderOAuthProvider,
-): Promise<void> {
+export async function disconnectProviderOAuth(provider: ProviderOAuthProvider): Promise<void> {
   await apiRequest(`/integrations/provider-oauth/disconnect/${provider}`, {
     method: 'DELETE',
   });

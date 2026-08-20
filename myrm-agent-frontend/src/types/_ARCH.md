@@ -6,14 +6,14 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `system.ts` | Tauri / 桌面系统配置（对齐 Rust `SystemConfig`） |
-| `artifact.ts` | 工件门户与预览类型 |
-| `channels.ts` | 渠道配置 UI 类型 |
-| `command.ts` | Slash 命令与内置行为类型 |
-| `presetAgent.ts` | 预置 Agent 模板类型 |
-| `globals.d.ts` | 全局 ambient（Window 扩展等） |
+| 文件             | 职责                                             |
+| ---------------- | ------------------------------------------------ |
+| `system.ts`      | Tauri / 桌面系统配置（对齐 Rust `SystemConfig`） |
+| `artifact.ts`    | 工件门户与预览类型                               |
+| `channels.ts`    | 渠道配置 UI 类型                                 |
+| `command.ts`     | Slash 命令与内置行为类型                         |
+| `presetAgent.ts` | 预置 Agent 模板类型                              |
+| `globals.d.ts`   | 全局 ambient（Window 扩展等）                    |
 
 ## 依赖
 

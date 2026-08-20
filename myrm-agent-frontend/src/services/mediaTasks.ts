@@ -74,20 +74,14 @@ export async function listActiveMediaTasks(): Promise<Task[]> {
 }
 
 /** List recent succeeded/failed image & video tasks for Panel history (excludes active ids). */
-export async function listRecentTerminalMediaTasks(
-  excludeTaskIds: ReadonlySet<string> = new Set(),
-): Promise<Task[]> {
+export async function listRecentTerminalMediaTasks(excludeTaskIds: ReadonlySet<string> = new Set()): Promise<Task[]> {
   const batches = await Promise.all(
     TERMINAL_MEDIA_STATUSES.map((status) => listTasksByStatusWithLimit(status, TERMINAL_FETCH_LIMIT)),
   );
   const byId = new Map<string, Task>();
   for (const batch of batches) {
     for (const task of batch) {
-      if (
-        isMediaTaskType(task.task_type) &&
-        isTerminalMediaStatus(task.status) &&
-        !excludeTaskIds.has(task.task_id)
-      ) {
+      if (isMediaTaskType(task.task_type) && isTerminalMediaStatus(task.status) && !excludeTaskIds.has(task.task_id)) {
         byId.set(task.task_id, task);
       }
     }

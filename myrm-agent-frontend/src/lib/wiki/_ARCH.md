@@ -6,10 +6,10 @@ Wiki 证据与 claim 相关的跨 surface 纯函数（Chat citation drawer + Set
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `claimStatusDisplay.ts` | 核心 | claim 状态 CSS class、i18n label 映射、drawer 降噪规则（仅 contested/unsupported 展示 badge） | ✅ |
-| `__tests__/claimStatusDisplay.test.ts` | 测试 | claimStatusDisplay 单测 | ✅ |
+| 文件                                   | 地位 | 职责                                                                                          | I/O/P |
+| -------------------------------------- | ---- | --------------------------------------------------------------------------------------------- | ----- |
+| `claimStatusDisplay.ts`                | 核心 | claim 状态 CSS class、i18n label 映射、drawer 降噪规则（仅 contested/unsupported 展示 badge） | ✅    |
+| `__tests__/claimStatusDisplay.test.ts` | 测试 | claimStatusDisplay 单测                                                                       | ✅    |
 
 ## 依赖
 

@@ -12,7 +12,9 @@ describe('resolveAssessmentImportErrorMessage', () => {
   });
 
   it('maps structured duplicate reason', () => {
-    const error = new ApiError('ignored', 409, [{ field: 'import_reason', issue: 'artifact_version_already_imported' }]);
+    const error = new ApiError('ignored', 409, [
+      { field: 'import_reason', issue: 'artifact_version_already_imported' },
+    ]);
     expect(resolveAssessmentImportErrorMessage(error, t)).toBe('milestone.importDuplicate');
   });
 

@@ -3,16 +3,34 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock, AlertTriangle, MousePointerClick, Globe, ChevronDown, ChevronUp, DollarSign, Layers, Pencil } from 'lucide-react';
+import {
+  MessageSquare,
+  Clock,
+  AlertTriangle,
+  MousePointerClick,
+  Globe,
+  ChevronDown,
+  ChevronUp,
+  DollarSign,
+  Layers,
+  Pencil,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { ApprovalPayload } from '@/store/useApprovalStore';
 import { Button } from '@/components/primitives/button';
 import { Textarea } from '@/components/primitives/textarea';
-import { LazyMonacoEditor as Editor, LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
+import {
+  LazyMonacoEditor as Editor,
+  LazyMonacoDiffEditor as DiffEditor,
+} from '@/components/features/app-shell/lazy-monaco-editor';
 import ShellCommandDisplay from '@/components/features/chat-window/approval/ShellCommandDisplay';
 import EditModeView from '@/components/features/chat-window/approval/EditModeView';
 import AllowAlwaysConfirmDialog from '@/components/features/chat-window/approval/AllowAlwaysConfirmDialog';
-import { type AllowAlwaysScope, defaultAllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+import {
+  type AllowAlwaysScope,
+  defaultAllowAlwaysScope,
+  scopeToAllowAlwaysValue,
+} from '@/lib/approval/allowAlwaysScope';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import { humanizeApprovalTitle, classifyApprovalSurface, resolveScopeNote } from '@/lib/humanize';
 import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
@@ -47,9 +65,13 @@ interface PolymorphicApprovalCardProps {
 }
 
 function formatRemaining(remainingMs: number, t: ReturnType<typeof useTranslations>): string {
-  if (remainingMs <= 0) {return t('expired');}
+  if (remainingMs <= 0) {
+    return t('expired');
+  }
   const totalSeconds = Math.ceil(remainingMs / 1000);
-  if (totalSeconds < 60) {return t('expiresIn', { seconds: totalSeconds });}
+  if (totalSeconds < 60) {
+    return t('expiresIn', { seconds: totalSeconds });
+  }
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -65,7 +87,9 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
   }, []);
 
   const expiresAtMs = new Date(expiresAt).getTime();
-  if (Number.isNaN(expiresAtMs)) {return null;}
+  if (Number.isNaN(expiresAtMs)) {
+    return null;
+  }
 
   const remaining = expiresAtMs - now;
   const isExpired = remaining <= 0;
@@ -86,7 +110,9 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
 }
 
 function getLanguageFromPath(filePath: string): string {
-  if (!filePath) {return 'markdown';}
+  if (!filePath) {
+    return 'markdown';
+  }
   const ext = filePath.split('.').pop()?.toLowerCase();
   switch (ext) {
     case 'js':
@@ -200,10 +226,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const tNotifications = useTranslations('notifications');
   const router = useRouter();
   const hideDrawer = useApprovalStore((s) => s.hideDrawer);
-  const toolCalls = useMemo(
-    () => approval.payload?.tool_calls ?? [],
-    [approval.payload?.tool_calls],
-  );
+  const toolCalls = useMemo(() => approval.payload?.tool_calls ?? [], [approval.payload?.tool_calls]);
   const primaryToolName = toolCalls[0]?.name ?? 'unknown';
 
   const humanizeCallTitle = useCallback(
@@ -239,17 +262,23 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const isSubagentApproval = approval.action_type === 'subagent_approval';
   const hasAnySmartDenied = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;
-    if (!configs || !Array.isArray(configs)) {return false;}
+    if (!configs || !Array.isArray(configs)) {
+      return false;
+    }
     return configs.some((c) => c?.smartDenied === true);
   }, [approval.payload?.reviewConfigs]);
   const hasAnyHideAllowAlways = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;
-    if (!configs || !Array.isArray(configs)) {return false;}
+    if (!configs || !Array.isArray(configs)) {
+      return false;
+    }
     return configs.some((c) => c?.hideAllowAlways === true);
   }, [approval.payload?.reviewConfigs]);
   const smartDeniedReason = useMemo(() => {
     const reasons = approval.payload?.reviewerReasons;
-    if (!reasons || !Array.isArray(reasons)) {return undefined;}
+    if (!reasons || !Array.isArray(reasons)) {
+      return undefined;
+    }
     return reasons.find((r) => typeof r === 'string' && r.length > 0);
   }, [approval.payload?.reviewerReasons]);
   const singleShellToolCall = useMemo(() => {
@@ -270,8 +299,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     return getShellEditInputEntries(singleShellToolCall.args as Record<string, unknown>);
   }, [singleShellToolCall]);
 
-  const isSingleStringShellParam =
-    shellInputEntries.length === 1 && typeof shellInputEntries[0][1] === 'string';
+  const isSingleStringShellParam = shellInputEntries.length === 1 && typeof shellInputEntries[0][1] === 'string';
 
   const shellCommand = useMemo(() => {
     if (!singleShellToolCall || typeof singleShellToolCall.args !== 'object' || singleShellToolCall.args === null) {
@@ -350,9 +378,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
     setEditValidationErrors([]);
 
-    const allowAlwaysValue = !allowAlwaysInEdit
-      ? false
-      : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
+    const allowAlwaysValue = !allowAlwaysInEdit ? false : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
 
     const hasChanges = shellInputEntries.some(([key, original]) => {
       const editedVal = shellEditedArgs[key];
@@ -392,7 +418,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   ]);
 
   const handleJumpToChat = () => {
-    if (!approval.chat_id) {return;}
+    if (!approval.chat_id) {
+      return;
+    }
     hideDrawer();
     router.push(`/chat/${approval.chat_id}`);
   };
@@ -404,8 +432,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         const workspaceRoot =
           typeof payloadRecord.workspaceRoot === 'string'
             ? payloadRecord.workspaceRoot
-            : typeof (payloadRecord.extensions as { workspaceRoot?: string } | undefined)?.workspaceRoot ===
-                'string'
+            : typeof (payloadRecord.extensions as { workspaceRoot?: string } | undefined)?.workspaceRoot === 'string'
               ? (payloadRecord.extensions as { workspaceRoot: string }).workspaceRoot
               : undefined;
         return (
@@ -413,7 +440,11 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             <h4 className="font-medium text-sm text-muted-foreground">{t('subagentApprovalRequired')}</h4>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {toolCalls.map((call, idx: number) => {
-                if (typeof call.args === 'object' && call.args !== null && classifyApprovalSurface(call.name) === 'compact') {
+                if (
+                  typeof call.args === 'object' &&
+                  call.args !== null &&
+                  classifyApprovalSurface(call.name) === 'compact'
+                ) {
                   const args = call.args as Record<string, unknown>;
                   const filePath =
                     (typeof args.path === 'string' && args.path) ||
@@ -446,25 +477,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 if (isShellApprovalTool(call.name) && typeof call.args === 'object' && call.args !== null) {
                   const args = call.args as Record<string, unknown>;
                   const command = extractShellCommand(args);
-                  const commandSpans = parseCommandSpans(
-                    args.command_spans ?? args.commandSpans,
-                    command.length,
-                  );
+                  const commandSpans = parseCommandSpans(args.command_spans ?? args.commandSpans, command.length);
                   const commandSpanRisks = commandSpans
-                    ? parseCommandSpanRisks(
-                        args.command_span_risks ?? args.commandSpanRisks,
-                        commandSpans.length,
-                      )
+                    ? parseCommandSpanRisks(args.command_span_risks ?? args.commandSpanRisks, commandSpans.length)
                     : undefined;
                   const commandSpanReasons = commandSpans
-                    ? parseCommandSpanReasons(
-                        args.command_span_reasons ?? args.commandSpanReasons,
-                        commandSpans.length,
-                      )
+                    ? parseCommandSpanReasons(args.command_span_reasons ?? args.commandSpanReasons, commandSpans.length)
                     : undefined;
-                  const plainExplanation = parsePlainExplanation(
-                    args.plain_explanation ?? args.plainExplanation,
-                  );
+                  const plainExplanation = parsePlainExplanation(args.plain_explanation ?? args.plainExplanation);
                   const executionIntent =
                     typeof args.execution_intent === 'string' && args.execution_intent.trim()
                       ? args.execution_intent.trim()
@@ -542,16 +562,18 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         const originalContent = approval.payload?.original_content;
         const language = 'markdown';
 
-        return <SkillApprovalContent
-          reason={approval.reason}
-          content={content}
-          originalContent={originalContent}
-          language={language}
-          isDark={isDark}
-          label={t('skillGrowthPending')}
-          viewChangesLabel={t('viewChanges')}
-          hideChangesLabel={t('hideChanges')}
-        />;
+        return (
+          <SkillApprovalContent
+            reason={approval.reason}
+            content={content}
+            originalContent={originalContent}
+            language={language}
+            isDark={isDark}
+            label={t('skillGrowthPending')}
+            viewChangesLabel={t('viewChanges')}
+            hideChangesLabel={t('hideChanges')}
+          />
+        );
       }
       case 'tool_clarification': {
         const errorMsg = approval.reason || 'Tool execution failed';
@@ -615,31 +637,19 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
               <DollarSign className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
               <div>
-                <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">
-                  {t('batchCostTitle')}
-                </h4>
-                <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                  {t('batchCostDescription')}
-                </p>
+                <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">{t('batchCostTitle')}</h4>
+                <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">{t('batchCostDescription')}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border bg-muted/50 p-3 text-center">
-                <div className="text-2xl font-bold text-foreground">
-                  ${estimatedCost.toFixed(2)}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {t('batchCostEstimated')}
-                </div>
+                <div className="text-2xl font-bold text-foreground">${estimatedCost.toFixed(2)}</div>
+                <div className="text-xs text-muted-foreground mt-1">{t('batchCostEstimated')}</div>
               </div>
               <div className="rounded-lg border bg-muted/50 p-3 text-center">
-                <div className="text-2xl font-bold text-foreground">
-                  {taskCount}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {t('batchCostTaskCount')}
-                </div>
+                <div className="text-2xl font-bold text-foreground">{taskCount}</div>
+                <div className="text-xs text-muted-foreground mt-1">{t('batchCostTaskCount')}</div>
               </div>
             </div>
 
@@ -674,12 +684,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       case 'high_risk_dom_action': {
         const element = approval.payload?.element as { role?: string; name?: string; ref?: string } | undefined;
         const pageUrl = (approval.payload?.page_url as string) || '';
-        const toolInput = approval.payload?.tool_input as {
-          action?: string;
-          ref?: string;
-          text?: string;
-          expression?: string;
-        } | undefined;
+        const toolInput = approval.payload?.tool_input as
+          | {
+              action?: string;
+              ref?: string;
+              text?: string;
+              expression?: string;
+            }
+          | undefined;
         const reason = approval.reason || (approval.payload?.reason as string) || '';
 
         return (
@@ -687,9 +699,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3">
               <AlertTriangle className="h-5 w-5 flex-shrink-0 text-destructive" />
               <div>
-                <h4 className="font-semibold text-sm text-destructive">
-                  {t('highRiskDomAction')}
-                </h4>
+                <h4 className="font-semibold text-sm text-destructive">{t('highRiskDomAction')}</h4>
                 <p className="text-xs text-destructive/80 mt-0.5">{reason}</p>
               </div>
             </div>
@@ -713,20 +723,17 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
               {toolInput?.expression ? (
                 <div className="rounded-lg border bg-muted/50 p-3">
-                  <div className="text-xs font-medium text-muted-foreground mb-2">
-                    {t('jsExpression')}
-                  </div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">{t('jsExpression')}</div>
                   <pre className="font-mono text-xs sm:text-sm whitespace-pre-wrap break-all overflow-x-auto max-h-48 rounded-md bg-background/80 p-2 border">
                     {toolInput.expression}
                   </pre>
                 </div>
               ) : toolInput?.action ? (
                 <div className="rounded-lg border bg-muted/50 p-3">
-                  <div className="text-xs font-medium text-muted-foreground mb-2">
-                    {t('action')}
-                  </div>
+                  <div className="text-xs font-medium text-muted-foreground mb-2">{t('action')}</div>
                   <div className="font-mono text-sm break-all">
-                    {toolInput.action}({toolInput.ref ?? ''}{toolInput.text ? `, "${toolInput.text}"` : ''})
+                    {toolInput.action}({toolInput.ref ?? ''}
+                    {toolInput.text ? `, "${toolInput.text}"` : ''})
                   </div>
                 </div>
               ) : null}
@@ -734,7 +741,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               {pageUrl && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
                   <Globe className="h-3 w-3 flex-shrink-0" />
-                  <span className="truncate" title={pageUrl}>{pageUrl}</span>
+                  <span className="truncate" title={pageUrl}>
+                    {pageUrl}
+                  </span>
                 </div>
               )}
             </div>
@@ -753,9 +762,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
               <MessageSquare className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
               <div>
-                <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">
-                  {t('outboundDraftTitle')}
-                </h4>
+                <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">{t('outboundDraftTitle')}</h4>
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
                   {t('outboundDraftDescription')}
                 </p>
@@ -776,15 +783,17 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
             <div className="flex items-center gap-3 text-xs text-muted-foreground px-1 flex-wrap">
               {channelName && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
-                  {channelName}
-                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">{channelName}</span>
               )}
               {recipientId && (
-                <span className="truncate" title={recipientId}>{recipientId}</span>
+                <span className="truncate" title={recipientId}>
+                  {recipientId}
+                </span>
               )}
               {topicId && (
-                <span className="truncate opacity-60" title={topicId}>{topicId}</span>
+                <span className="truncate opacity-60" title={topicId}>
+                  {topicId}
+                </span>
               )}
             </div>
           </div>
@@ -816,7 +825,10 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         const serverName = (approval.payload?.server_name as string) || '';
         const elicitMessage = (approval.payload?.message as string) || approval.reason || '';
         const requestedSchema = approval.payload?.requested_schema as Record<string, unknown> | undefined;
-        const schemaProperties = (requestedSchema?.properties ?? {}) as Record<string, { type?: string; description?: string }>;
+        const schemaProperties = (requestedSchema?.properties ?? {}) as Record<
+          string,
+          { type?: string; description?: string }
+        >;
         const hasFields = Object.keys(schemaProperties).length > 0;
 
         return (
@@ -863,7 +875,10 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
   if (mode === 'editing' && singleShellToolCall) {
     return (
-      <div className="space-y-6" data-subagent-task-id={approval.payload?.subagent_task_id || approval.subagent_task_id}>
+      <div
+        className="space-y-6"
+        data-subagent-task-id={approval.payload?.subagent_task_id || approval.subagent_task_id}
+      >
         <EditModeView
           editedArgs={shellEditedArgs}
           setEditedArgs={setShellEditedArgs}
@@ -919,13 +934,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
           <div>
-            <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">
-              {t('smartDenied.title')}
-            </h4>
+            <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">{t('smartDenied.title')}</h4>
             {smartDeniedReason && (
-              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                {smartDeniedReason}
-              </p>
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">{smartDeniedReason}</p>
             )}
           </div>
         </div>
@@ -967,7 +978,11 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           </>
         ) : (
           <>
-            <Button variant="outline" onClick={() => onResolve('reject', comment, undefined, { feedback: comment || undefined })} disabled={isSubmitting}>
+            <Button
+              variant="outline"
+              onClick={() => onResolve('reject', comment, undefined, { feedback: comment || undefined })}
+              disabled={isSubmitting}
+            >
               {t('reject')}
             </Button>
             {singleShellToolCall && approval.action_type !== 'deploy_approval' && (

@@ -54,11 +54,7 @@ export function FlowPadComposer({
         onChange={(event) => onTextChange(event.target.value)}
         onKeyDown={onKeyDown}
         placeholder={
-          mode === 'inline'
-            ? t('inlinePlaceholder')
-            : hasCaptures
-              ? t('placeholderWithCapture')
-              : t('placeholder')
+          mode === 'inline' ? t('inlinePlaceholder') : hasCaptures ? t('placeholderWithCapture') : t('placeholder')
         }
         className={cn(
           'w-full resize-none border-0 focus:outline-none focus-visible:ring-0',
@@ -71,12 +67,7 @@ export function FlowPadComposer({
         <span className="text-[10px] text-muted-foreground/40">
           Enter {t('toSend')} · Esc {t('toCancel')}
         </span>
-        {isVoiceEnabled && (
-          <SpeechInputButton
-            onTranscript={onSpeechTranscript}
-            disabled={isSubmitting}
-          />
-        )}
+        {isVoiceEnabled && <SpeechInputButton onTranscript={onSpeechTranscript} disabled={isSubmitting} />}
         <Button
           size="icon"
           className="h-8 w-8 rounded-full"

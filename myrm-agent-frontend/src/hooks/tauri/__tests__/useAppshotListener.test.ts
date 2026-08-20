@@ -21,8 +21,7 @@ const mockAddCapture = vi.fn();
 const mockGetState = vi.fn(() => ({ captures: [] }));
 vi.mock('@/store/useFlowPadStore', () => ({
   useFlowPadStore: Object.assign(
-    (selector: (s: { addCapture: typeof mockAddCapture }) => unknown) =>
-      selector({ addCapture: mockAddCapture }),
+    (selector: (s: { addCapture: typeof mockAddCapture }) => unknown) => selector({ addCapture: mockAddCapture }),
     { getState: mockGetState },
   ),
 }));

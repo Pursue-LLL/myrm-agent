@@ -86,9 +86,7 @@ export default function SaveSkillApprovalPreview({
 
   return (
     <div className="space-y-2.5" data-testid="save-skill-approval-preview">
-      {preview.description ? (
-        <p className="text-sm text-foreground/90 leading-relaxed">{preview.description}</p>
-      ) : null}
+      {preview.description ? <p className="text-sm text-foreground/90 leading-relaxed">{preview.description}</p> : null}
 
       {preview.instructions ? (
         <InstructionsPreview

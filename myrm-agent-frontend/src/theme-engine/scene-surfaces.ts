@@ -17,23 +17,16 @@ function clampOpacity(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-export function mergeSceneSurfaces(
-  layoutId: ThemeLayoutId,
-  sceneId: ThemeReadabilityScene,
-): LayoutSurfaceTokens {
+export function mergeSceneSurfaces(layoutId: ThemeLayoutId, sceneId: ThemeReadabilityScene): LayoutSurfaceTokens {
   const layout = getLayoutSurfaces(layoutId);
   if (sceneId === 'immersive') {
     return layout;
   }
   return {
     navOpacity: clampOpacity(Math.max(layout.navOpacity, FUNCTIONAL_SURFACE_FLOORS.navOpacity)),
-    sidebarOpacity: clampOpacity(
-      Math.max(layout.sidebarOpacity, FUNCTIONAL_SURFACE_FLOORS.sidebarOpacity),
-    ),
+    sidebarOpacity: clampOpacity(Math.max(layout.sidebarOpacity, FUNCTIONAL_SURFACE_FLOORS.sidebarOpacity)),
     mainOpacity: clampOpacity(Math.max(layout.mainOpacity, FUNCTIONAL_SURFACE_FLOORS.mainOpacity)),
-    surfaceOpacity: clampOpacity(
-      Math.max(layout.surfaceOpacity, FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity),
-    ),
+    surfaceOpacity: clampOpacity(Math.max(layout.surfaceOpacity, FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity)),
     wash: layout.wash,
   };
 }

@@ -111,7 +111,13 @@ export function WeChatOfficialConfigCard() {
             >
               {t('wechatOfficialEgressCopy')}
             </Button>
-            <Button type="button" variant="ghost" size="sm" disabled={egressLoading} onClick={() => void loadEgressIp()}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={egressLoading}
+              onClick={() => void loadEgressIp()}
+            >
               {t('wechatOfficialEgressRefresh')}
             </Button>
           </div>
@@ -177,12 +183,7 @@ export function WeChatOfficialConfigCard() {
           {saving && <IconLoader className="mr-2 h-3.5 w-3.5 animate-spin" />}
           {t('wechatOfficialSave')}
         </Button>
-        <Button
-          variant="outline"
-          onClick={handleTest}
-          disabled={testing || !creds.appId || !creds.appSecret}
-          size="sm"
-        >
+        <Button variant="outline" onClick={handleTest} disabled={testing || !creds.appId || !creds.appSecret} size="sm">
           {testing ? (
             <IconLoader className="mr-2 h-3.5 w-3.5 animate-spin" />
           ) : (

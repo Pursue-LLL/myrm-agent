@@ -107,10 +107,7 @@ const WebFetchEscalationCard = memo(() => {
   const handleVerify = async (provider: 'jina' | 'firecrawl') => {
     setVerifying(provider);
     try {
-      const apiKey =
-        provider === 'jina'
-          ? jinaKeyText.trim() || null
-          : firecrawlKeyText.trim() || null;
+      const apiKey = provider === 'jina' ? jinaKeyText.trim() || null : firecrawlKeyText.trim() || null;
       await apiRequest('/integrations/web-fetch/verify', {
         method: 'POST',
         body: JSON.stringify({
@@ -132,7 +129,9 @@ const WebFetchEscalationCard = memo(() => {
     }
   };
 
-  if (isLoading) {return null;}
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card/40 overflow-hidden">
@@ -154,9 +153,7 @@ const WebFetchEscalationCard = memo(() => {
             onCheckedChange={(v) => persist({ enabled: v })}
             onClick={(e) => e.stopPropagation()}
           />
-          <ChevronDown
-            className={cn('h-4 w-4 text-muted-foreground transition-transform', expanded && 'rotate-180')}
-          />
+          <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
         </div>
       </button>
 

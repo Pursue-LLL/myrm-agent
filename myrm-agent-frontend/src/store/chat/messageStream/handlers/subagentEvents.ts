@@ -3,9 +3,9 @@
  * Chat SSE event handler slice (subagentEvents).
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import * as H from './handlerDeps';
 
 export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
@@ -121,10 +121,14 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       const taskId = logData.task_id || logData.agent_instance || '';
       if (taskId) {
         const level = logData.level || 'INFO';
-        const kind = level === 'ERROR' ? 'error' as const
-          : logData.tool_name ? 'tool' as const
-          : level === 'DEBUG' ? 'thinking' as const
-          : 'progress' as const;
+        const kind =
+          level === 'ERROR'
+            ? ('error' as const)
+            : logData.tool_name
+              ? ('tool' as const)
+              : level === 'DEBUG'
+                ? ('thinking' as const)
+                : ('progress' as const);
         useSubagentStore.getState().appendStream(taskId, {
           kind,
           text: logData.tool_name
@@ -184,11 +188,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       const payload = data.data;
       const taskId = payload?.task_id;
       if (taskId) {
-        useSubagentStore.getState().markStale(
-          taskId,
-          payload.stale_duration_seconds ?? 0,
-          payload.wasted_tokens ?? 0,
-        );
+        useSubagentStore.getState().markStale(taskId, payload.stale_duration_seconds ?? 0, payload.wasted_tokens ?? 0);
       }
     });
 

@@ -122,13 +122,7 @@ describe('SkillDiscoverTab force-uninstall flow', () => {
   });
 
   it('surfaces the dependent list and force-uninstalls with force=true on 409', async () => {
-    const guardError = new ApiError(
-      'Skill is referenced by 2 skills',
-      409,
-      [],
-      undefined,
-      'DEPENDENTS_EXIST',
-    );
+    const guardError = new ApiError('Skill is referenced by 2 skills', 409, [], undefined, 'DEPENDENTS_EXIST');
     guardError.data = {
       code: 'DEPENDENTS_EXIST',
       impacted_dependents: ['dep-a', 'dep-b'],

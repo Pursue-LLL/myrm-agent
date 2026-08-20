@@ -118,9 +118,10 @@ describe('PageLayout', () => {
   it('renders AppLayout immediately while readiness is still pending', async () => {
     const { getReadinessStatus } = await import('@/services/onboarding');
     vi.mocked(getReadinessStatus).mockImplementation(
-      () => new Promise(() => {
-        /* never resolves */
-      }),
+      () =>
+        new Promise(() => {
+          /* never resolves */
+        }),
     );
     mockShouldShowBootScreen.mockReturnValue(true);
 

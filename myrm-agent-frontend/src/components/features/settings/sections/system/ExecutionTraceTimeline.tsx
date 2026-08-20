@@ -100,13 +100,17 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
           setError(null);
         }
         const data = await getSessionExecutionTrace(sessionId);
-        if (!cancelled) {setTrace(data);}
+        if (!cancelled) {
+          setTrace(data);
+        }
       } catch (err) {
         if (!cancelled && initial) {
           setError(err instanceof Error ? err.message : 'Failed to load trace');
         }
       } finally {
-        if (!cancelled && initial) {setLoading(false);}
+        if (!cancelled && initial) {
+          setLoading(false);
+        }
       }
     };
     void load(true);
@@ -115,7 +119,9 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
     }
     return () => {
       cancelled = true;
-      if (timer) {clearInterval(timer);}
+      if (timer) {
+        clearInterval(timer);
+      }
     };
   }, [sessionId, pollMs]);
 
@@ -384,9 +390,7 @@ const ToolCallItem = memo<ToolCallItemProps>(({ toolCall, traceStartTime, isHigh
                     <IconShieldAlert
                       className={cn(
                         'h-3.5 w-3.5 shrink-0 mt-0.5',
-                        label.tainted || isDenyDecision(label.decision)
-                          ? 'text-rose-500'
-                          : 'text-amber-500',
+                        label.tainted || isDenyDecision(label.decision) ? 'text-rose-500' : 'text-amber-500',
                       )}
                     />
                     <div className="min-w-0">

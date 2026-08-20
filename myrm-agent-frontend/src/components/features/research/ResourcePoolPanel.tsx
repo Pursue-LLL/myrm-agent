@@ -49,20 +49,14 @@ function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
         className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary transition-colors"
         aria-label={resource.selected ? 'Deselect' : 'Select'}
       >
-        {resource.selected ? (
-          <CheckSquare className="w-4 h-4 text-primary" />
-        ) : (
-          <Square className="w-4 h-4" />
-        )}
+        {resource.selected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
       </button>
 
       <Icon className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{resource.name}</p>
-        {resource.summary && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{resource.summary}</p>
-        )}
+        {resource.summary && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{resource.summary}</p>}
       </div>
 
       <button
@@ -81,14 +75,7 @@ function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
 
 export default function ResourcePoolPanel() {
   const t = useTranslations('research');
-  const {
-    resources,
-    addResource,
-    removeResource,
-    toggleResource,
-    selectAll,
-    deselectAll,
-  } = useResearchStore();
+  const { resources, addResource, removeResource, toggleResource, selectAll, deselectAll } = useResearchStore();
 
   const [query, setQuery] = useState('');
   const [conceptResults, setConceptResults] = useState<string[]>([]);
@@ -100,24 +87,29 @@ export default function ResourcePoolPanel() {
   const selectedCount = resources.filter((r) => r.selected).length;
   const allSelected = resources.length > 0 && selectedCount === resources.length;
 
-  const searchConcepts = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      setConceptResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const data: ConceptListResponse = await wikiService.listConcepts(q, 20, 0);
-      setConceptResults(data.concepts);
-    } catch {
-      toast.error(t('errors.searchFailed'));
-    } finally {
-      setIsSearching(false);
-    }
-  }, [t]);
+  const searchConcepts = useCallback(
+    async (q: string) => {
+      if (!q.trim()) {
+        setConceptResults([]);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const data: ConceptListResponse = await wikiService.listConcepts(q, 20, 0);
+        setConceptResults(data.concepts);
+      } catch {
+        toast.error(t('errors.searchFailed'));
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
-    if (!showConceptPicker) {return;}
+    if (!showConceptPicker) {
+      return;
+    }
     const timer = setTimeout(() => searchConcepts(query), 300);
     return () => clearTimeout(timer);
   }, [query, showConceptPicker, searchConcepts]);
@@ -137,7 +129,9 @@ export default function ResourcePoolPanel() {
   const handleFileUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
-      if (!files || files.length === 0) {return;}
+      if (!files || files.length === 0) {
+        return;
+      }
 
       setIsUploading(true);
       try {
@@ -157,7 +151,9 @@ export default function ResourcePoolPanel() {
         toast.error(t('errors.uploadFailed'));
       } finally {
         setIsUploading(false);
-        if (fileInputRef.current) {fileInputRef.current.value = '';}
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     },
     [addResource, t],
@@ -285,12 +281,7 @@ export default function ResourcePoolPanel() {
         ) : (
           <div className="p-2 space-y-0.5">
             {resources.map((resource) => (
-              <ResourceItem
-                key={resource.id}
-                resource={resource}
-                onToggle={toggleResource}
-                onRemove={removeResource}
-              />
+              <ResourceItem key={resource.id} resource={resource} onToggle={toggleResource} onRemove={removeResource} />
             ))}
           </div>
         )}

@@ -50,10 +50,7 @@ export function mapSuppressesYoloForModel(
 }
 
 /** True when org MAP blocks YOLO (global disable or per-model suppress). */
-export function orgBlocksYoloForModel(
-  policy: ManagedPolicyEffective,
-  modelSlug: string | null | undefined,
-): boolean {
+export function orgBlocksYoloForModel(policy: ManagedPolicyEffective, modelSlug: string | null | undefined): boolean {
   if (policy.disableYolo) {
     return true;
   }

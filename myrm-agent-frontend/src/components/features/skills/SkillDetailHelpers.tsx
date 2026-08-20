@@ -46,24 +46,27 @@ const severityConfig: Record<string, { color: string; label: string }> = {
 };
 
 function getScoreConfig(score: number) {
-  if (score >= 80)
-    {return {
+  if (score >= 80) {
+    return {
       icon: ShieldCheck,
       color: 'text-green-600 dark:text-green-400',
       bg: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800',
-    };}
-  if (score >= 50)
-    {return {
+    };
+  }
+  if (score >= 50) {
+    return {
       icon: Shield,
       color: 'text-yellow-600 dark:text-yellow-400',
       bg: 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800',
-    };}
-  if (score >= 25)
-    {return {
+    };
+  }
+  if (score >= 25) {
+    return {
       icon: ShieldAlert,
       color: 'text-orange-600 dark:text-orange-400',
       bg: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800',
-    };}
+    };
+  }
   return {
     icon: ShieldX,
     color: 'text-red-600 dark:text-red-400',
@@ -113,7 +116,9 @@ export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
           {(['critical', 'high', 'medium', 'low'] as const).map((severity) => {
             const cfg = severityConfig[severity];
             const items = security.findings.filter((f) => f.severity === severity);
-            if (!cfg || items.length === 0) {return null;}
+            if (!cfg || items.length === 0) {
+              return null;
+            }
             return (
               <div key={severity}>
                 <div className="flex items-center gap-1.5 mb-1">
@@ -142,13 +147,7 @@ export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
 
 /* ─── EvalCasesSection ─── */
 
-export function EvalCasesSection({
-  cases,
-  t,
-}: {
-  cases: SkillEvalCase[];
-  t: SkillSectionTranslator;
-}) {
+export function EvalCasesSection({ cases, t }: { cases: SkillEvalCase[]; t: SkillSectionTranslator }) {
   const [expanded, setExpanded] = useState(false);
 
   if (cases.length === 0) {
@@ -157,11 +156,7 @@ export function EvalCasesSection({
 
   return (
     <div>
-      <button
-        type="button"
-        className="w-full flex items-center justify-between"
-        onClick={() => setExpanded((v) => !v)}
-      >
+      <button type="button" className="w-full flex items-center justify-between" onClick={() => setExpanded((v) => !v)}>
         <h4 className="text-sm font-medium flex items-center gap-2">
           <FileCheck2 size={14} className="text-primary" />
           {t('detail.evalCases')}
@@ -169,10 +164,7 @@ export function EvalCasesSection({
             {cases.length}
           </Badge>
         </h4>
-        <ChevronDown
-          size={14}
-          className={cn('text-muted-foreground transition-transform', expanded && 'rotate-180')}
-        />
+        <ChevronDown size={14} className={cn('text-muted-foreground transition-transform', expanded && 'rotate-180')} />
       </button>
 
       {expanded && (
@@ -214,13 +206,7 @@ const trapSeverityConfig: Record<string, { color: string; icon: string }> = {
   low: { color: 'text-blue-600 dark:text-blue-400', icon: '~' },
 };
 
-export function KnownPitfallsSection({
-  traps,
-  t,
-}: {
-  traps: SkillTrap[];
-  t: SkillSectionTranslator;
-}) {
+export function KnownPitfallsSection({ traps, t }: { traps: SkillTrap[]; t: SkillSectionTranslator }) {
   return (
     <div>
       <h4 className="text-sm font-medium mb-3 flex items-center gap-2">

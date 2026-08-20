@@ -9,10 +9,7 @@ import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { toast } from '@/hooks/shared/useToast';
 import SettingsSection from '../SettingsSection';
-import {
-  buildRelayCapabilityRows,
-  resolveRelayCapabilityStatusKind,
-} from './extensionRelayCapabilityCore';
+import { buildRelayCapabilityRows, resolveRelayCapabilityStatusKind } from './extensionRelayCapabilityCore';
 import { cn } from '@/lib/utils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import {
@@ -81,11 +78,7 @@ const ExtensionBridgeSection = memo(() => {
     [relayCapabilityRows],
   );
   const relayCapabilityStatus = useMemo(() => {
-    const statusKind = resolveRelayCapabilityStatusKind(
-      status.connected,
-      status.handshake_ready,
-      status.capabilities,
-    );
+    const statusKind = resolveRelayCapabilityStatusKind(status.connected, status.handshake_ready, status.capabilities);
     if (statusKind === 'not_connected') {
       return t('extension.notConnected');
     }
@@ -154,7 +147,9 @@ const ExtensionBridgeSection = memo(() => {
 
   const handleAddDomain = useCallback(async () => {
     const domain = domainInput.trim();
-    if (!domain) {return;}
+    if (!domain) {
+      return;
+    }
 
     const domains = [...status.authorized_domains, domain];
     setSaving(true);
@@ -192,68 +187,71 @@ const ExtensionBridgeSection = memo(() => {
     }
   }, [domainInput, status.authorized_domains, status.allow_all_eligible_tabs, status.paused_tab_ids, t]);
 
-  const handleRemoveDomain = useCallback(async (domain: string) => {
-    const domains = status.authorized_domains.filter((d) => d !== domain);
-    setSaving(true);
-    try {
-      const result = await updateExtensionAccessPolicy({
-        allow_all_eligible_tabs: status.allow_all_eligible_tabs,
-        domains,
-        paused_tab_ids: status.paused_tab_ids,
-      });
-      setStatus((prev) => ({
-        ...prev,
-        authorized_domains: result.authorized_domains,
-        allow_all_eligible_tabs: result.allow_all_eligible_tabs,
-        paused_tab_ids: result.paused_tab_ids,
-        access_policy_valid: result.policy_valid,
-      }));
-      const wildcardWarning = result.warnings.find((w) => w.code === 'wildcard_includes_root');
-      if (wildcardWarning) {
-        toast({
-          title: t('extension.wildcardWarningTitle'),
-          description: t('extension.wildcardIncludesRoot', {
-            pattern: wildcardWarning.pattern,
-            root: wildcardWarning.root_domain,
-          }),
-          variant: 'default',
+  const handleRemoveDomain = useCallback(
+    async (domain: string) => {
+      const domains = status.authorized_domains.filter((d) => d !== domain);
+      setSaving(true);
+      try {
+        const result = await updateExtensionAccessPolicy({
+          allow_all_eligible_tabs: status.allow_all_eligible_tabs,
+          domains,
+          paused_tab_ids: status.paused_tab_ids,
         });
+        setStatus((prev) => ({
+          ...prev,
+          authorized_domains: result.authorized_domains,
+          allow_all_eligible_tabs: result.allow_all_eligible_tabs,
+          paused_tab_ids: result.paused_tab_ids,
+          access_policy_valid: result.policy_valid,
+        }));
+        const wildcardWarning = result.warnings.find((w) => w.code === 'wildcard_includes_root');
+        if (wildcardWarning) {
+          toast({
+            title: t('extension.wildcardWarningTitle'),
+            description: t('extension.wildcardIncludesRoot', {
+              pattern: wildcardWarning.pattern,
+              root: wildcardWarning.root_domain,
+            }),
+            variant: 'default',
+          });
+        }
+        setFetchError(false);
+      } catch {
+        toast({ title: t('extension.saveFailed'), variant: 'destructive' });
+      } finally {
+        setSaving(false);
       }
-      setFetchError(false);
-    } catch {
-      toast({ title: t('extension.saveFailed'), variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  }, [status.authorized_domains, status.allow_all_eligible_tabs, status.paused_tab_ids, t]);
-
-  const handleAllowAllChange = useCallback(async (checked: boolean) => {
-    setSaving(true);
-    try {
-      const result = await updateExtensionAccessPolicy({
-        allow_all_eligible_tabs: checked,
-        domains: status.authorized_domains,
-        paused_tab_ids: status.paused_tab_ids,
-      });
-      setStatus((prev) => ({
-        ...prev,
-        allow_all_eligible_tabs: result.allow_all_eligible_tabs,
-        authorized_domains: result.authorized_domains,
-        paused_tab_ids: result.paused_tab_ids,
-        access_policy_valid: result.policy_valid,
-      }));
-      setFetchError(false);
-    } catch {
-      toast({ title: t('extension.saveFailed'), variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  }, [status.authorized_domains, status.paused_tab_ids, t]);
-
-  const pausedTabIdSet = useMemo(
-    () => new Set(status.paused_tab_ids),
-    [status.paused_tab_ids],
+    },
+    [status.authorized_domains, status.allow_all_eligible_tabs, status.paused_tab_ids, t],
   );
+
+  const handleAllowAllChange = useCallback(
+    async (checked: boolean) => {
+      setSaving(true);
+      try {
+        const result = await updateExtensionAccessPolicy({
+          allow_all_eligible_tabs: checked,
+          domains: status.authorized_domains,
+          paused_tab_ids: status.paused_tab_ids,
+        });
+        setStatus((prev) => ({
+          ...prev,
+          allow_all_eligible_tabs: result.allow_all_eligible_tabs,
+          authorized_domains: result.authorized_domains,
+          paused_tab_ids: result.paused_tab_ids,
+          access_policy_valid: result.policy_valid,
+        }));
+        setFetchError(false);
+      } catch {
+        toast({ title: t('extension.saveFailed'), variant: 'destructive' });
+      } finally {
+        setSaving(false);
+      }
+    },
+    [status.authorized_domains, status.paused_tab_ids, t],
+  );
+
+  const pausedTabIdSet = useMemo(() => new Set(status.paused_tab_ids), [status.paused_tab_ids]);
 
   const handleToggleTabPause = useCallback(
     async (tabId: number) => {
@@ -285,13 +283,7 @@ const ExtensionBridgeSection = memo(() => {
         setSaving(false);
       }
     },
-    [
-      fetchStatus,
-      status.allow_all_eligible_tabs,
-      status.authorized_domains,
-      status.paused_tab_ids,
-      t,
-    ],
+    [fetchStatus, status.allow_all_eligible_tabs, status.authorized_domains, status.paused_tab_ids, t],
   );
 
   const handleDisconnect = useCallback(async () => {
@@ -354,9 +346,7 @@ const ExtensionBridgeSection = memo(() => {
         <p className="text-xs text-muted-foreground">
           {t('extension.relayAutomationStatus')}:{' '}
           <span className="text-foreground">
-            {setupHints.relay_cdp_ready
-              ? t('extension.relayAutomationReady')
-              : t('extension.relayAutomationNotReady')}
+            {setupHints.relay_cdp_ready ? t('extension.relayAutomationReady') : t('extension.relayAutomationNotReady')}
           </span>
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -373,14 +363,11 @@ const ExtensionBridgeSection = memo(() => {
         <p className="text-xs text-muted-foreground">
           {t('extension.cdpStatus')}:{' '}
           <span className="text-foreground">
-            {setupHints.cdp_endpoint_discovered
-              ? t('extension.cdpDetected')
-              : t('extension.cdpNotDetected')}
+            {setupHints.cdp_endpoint_discovered ? t('extension.cdpDetected') : t('extension.cdpNotDetected')}
           </span>
         </p>
         <p className="text-xs text-muted-foreground">
-          {t('extension.relayCapabilityStatus')}:{' '}
-          <span className="text-foreground">{relayCapabilityStatus}</span>
+          {t('extension.relayCapabilityStatus')}: <span className="text-foreground">{relayCapabilityStatus}</span>
         </p>
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground">{t('extension.relayCapabilityMatrixTitle')}</p>
@@ -479,7 +466,9 @@ const ExtensionBridgeSection = memo(() => {
                 className="shrink-0"
                 onClick={async () => {
                   const ok = await writeToClipboard('~/.myrm/myrm-agent/myrm-agent-extension', true);
-                  if (ok) {toast({ title: t('extension.copied'), variant: 'default' });}
+                  if (ok) {
+                    toast({ title: t('extension.copied'), variant: 'default' });
+                  }
                 }}
               >
                 <Copy className="h-4 w-4 mr-1" />

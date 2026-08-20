@@ -125,11 +125,15 @@ export function buildCronAuditFields(job: CronJob): CronAuditField[] {
 export const CRON_AUDIT_CONFIRM_STORAGE_PREFIX = 'myrm:cron-audit-confirmed:';
 
 export function isCronAuditConfirmed(jobId: string): boolean {
-  if (typeof window === 'undefined') {return false;}
+  if (typeof window === 'undefined') {
+    return false;
+  }
   return window.localStorage.getItem(`${CRON_AUDIT_CONFIRM_STORAGE_PREFIX}${jobId}`) === '1';
 }
 
 export function markCronAuditConfirmed(jobId: string): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   window.localStorage.setItem(`${CRON_AUDIT_CONFIRM_STORAGE_PREFIX}${jobId}`, '1');
 }

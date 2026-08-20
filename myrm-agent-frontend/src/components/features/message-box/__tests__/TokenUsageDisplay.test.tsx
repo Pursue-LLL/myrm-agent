@@ -122,7 +122,11 @@ describe('TokenUsageDisplay', () => {
   });
 
   it('formats large token counts with M suffix', () => {
-    render(<TokenUsageDisplay usage={makeUsage({ total_tokens: 1500000, prompt_tokens: 1000000, completion_tokens: 500000 })} />);
+    render(
+      <TokenUsageDisplay
+        usage={makeUsage({ total_tokens: 1500000, prompt_tokens: 1000000, completion_tokens: 500000 })}
+      />,
+    );
     const elements = screen.getAllByText('1.5M');
     expect(elements.length).toBeGreaterThanOrEqual(1);
   });
@@ -252,7 +256,10 @@ describe('TokenUsageDisplay', () => {
 
   it('displays warning status for context budget', () => {
     render(
-      <TokenUsageDisplay usage={makeUsage()} contextBudget={makeBudget({ health_status: 'warning', usage_percent: 75 })} />,
+      <TokenUsageDisplay
+        usage={makeUsage()}
+        contextBudget={makeBudget({ health_status: 'warning', usage_percent: 75 })}
+      />,
     );
     expect(screen.getByText('75%')).toBeInTheDocument();
     expect(screen.getByText('contextWarning')).toBeInTheDocument();
@@ -260,7 +267,10 @@ describe('TokenUsageDisplay', () => {
 
   it('displays critical status for context budget', () => {
     render(
-      <TokenUsageDisplay usage={makeUsage()} contextBudget={makeBudget({ health_status: 'critical', usage_percent: 95 })} />,
+      <TokenUsageDisplay
+        usage={makeUsage()}
+        contextBudget={makeBudget({ health_status: 'critical', usage_percent: 95 })}
+      />,
     );
     expect(screen.getByText('95%')).toBeInTheDocument();
     expect(screen.getByText('contextCritical')).toBeInTheDocument();
@@ -269,12 +279,7 @@ describe('TokenUsageDisplay', () => {
   // --- 缓存失效归因 ---
 
   it('displays cache break reason when no cached tokens', () => {
-    render(
-      <TokenUsageDisplay
-        usage={makeUsage({ cached_tokens: 0 })}
-        cacheBreakReason="System prompt changed"
-      />,
-    );
+    render(<TokenUsageDisplay usage={makeUsage({ cached_tokens: 0 })} cacheBreakReason="System prompt changed" />);
     expect(screen.getAllByText('System prompt changed').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -298,7 +303,7 @@ describe('TokenUsageDisplay', () => {
   it('displays tool breakdown when present', () => {
     const economics = makeTokenEconomics({
       tool_breakdown: {
-        'file_read': { prompt_tokens: 300, completion_tokens: 50, total_tokens: 350, cost_usd: 0.005 },
+        file_read: { prompt_tokens: 300, completion_tokens: 50, total_tokens: 350, cost_usd: 0.005 },
       },
     });
     render(<TokenUsageDisplay usage={makeUsage()} tokenEconomics={economics} />);

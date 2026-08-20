@@ -55,7 +55,9 @@ const Carousel = React.forwardRef<HTMLDivElement, CarouselProps>(
     const [api, setApiState] = React.useState<CarouselApi | null>(null);
 
     React.useEffect(() => {
-      if (!emblaRef) {return;}
+      if (!emblaRef) {
+        return;
+      }
 
       // Simple carousel implementation without embla-carousel dependency
       const container = emblaRef;
@@ -63,7 +65,9 @@ const Carousel = React.forwardRef<HTMLDivElement, CarouselProps>(
       let currentIndex = 0;
 
       const scrollToIndex = (index: number) => {
-        if (index < 0 || index >= slides.length) {return;}
+        if (index < 0 || index >= slides.length) {
+          return;
+        }
         currentIndex = index;
 
         // Check if we need vertical or horizontal scrolling

@@ -48,19 +48,27 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!loaded) {fetchProjects();}
+    if (!loaded) {
+      fetchProjects();
+    }
   }, [loaded, fetchProjects]);
 
   useEffect(() => {
-    if (showInput) {inputRef.current?.focus();}
+    if (showInput) {
+      inputRef.current?.focus();
+    }
   }, [showInput]);
 
   useEffect(() => {
-    if (editingId) {editInputRef.current?.focus();}
+    if (editingId) {
+      editInputRef.current?.focus();
+    }
   }, [editingId]);
 
   useEffect(() => {
-    if (!contextMenu) {return;}
+    if (!contextMenu) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setContextMenu(null);
@@ -83,9 +91,13 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
   }, [inputValue, projects.length, addProject]);
 
   const handleEditSubmit = useCallback(async () => {
-    if (!editingId) {return;}
+    if (!editingId) {
+      return;
+    }
     const name = editingName.trim();
-    if (name) {await updateProject(editingId, { name });}
+    if (name) {
+      await updateProject(editingId, { name });
+    }
     setEditingId(null);
     setEditingName('');
   }, [editingId, editingName, updateProject]);
@@ -162,7 +174,9 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
               onChange={(e) => setEditingName(e.target.value)}
               onBlur={handleEditSubmit}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {handleEditSubmit();}
+                if (e.key === 'Enter') {
+                  handleEditSubmit();
+                }
                 if (e.key === 'Escape') {
                   setEditingId(null);
                   setEditingName('');
@@ -197,7 +211,9 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
               onChange={(e) => setInputValue(e.target.value)}
               onBlur={handleAddSubmit}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {handleAddSubmit();}
+                if (e.key === 'Enter') {
+                  handleAddSubmit();
+                }
                 if (e.key === 'Escape') {
                   setShowInput(false);
                   setInputValue('');
@@ -257,7 +273,9 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
           initialPath={workspaceMountProject.workspacePath}
           open
           onOpenChange={(nextOpen) => {
-            if (!nextOpen) {setWorkspaceMountProject(null);}
+            if (!nextOpen) {
+              setWorkspaceMountProject(null);
+            }
           }}
           onBound={handleWorkspaceBound}
         />
@@ -267,7 +285,9 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
         <ProjectDefaultAgentDialog
           open
           onOpenChange={(nextOpen) => {
-            if (!nextOpen) {setDefaultAgentProject(null);}
+            if (!nextOpen) {
+              setDefaultAgentProject(null);
+            }
           }}
           project={defaultAgentProject}
         />

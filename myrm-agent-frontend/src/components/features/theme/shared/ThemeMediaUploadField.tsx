@@ -5,7 +5,12 @@ import { ImageIcon, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
-import { validateThemeBackgroundFile, type ThemeBackgroundValidationError, type HeroImageSample, sampleHeroImageBlob } from '@/theme-engine';
+import {
+  validateThemeBackgroundFile,
+  type ThemeBackgroundValidationError,
+  type HeroImageSample,
+  sampleHeroImageBlob,
+} from '@/theme-engine';
 import { resolveThemeAssetUrl } from '@/services/theme-assets/ThemeAssetStore';
 import { VideoPosterExtractionError, extractVideoPosterBlob } from '@/services/theme-assets/extractVideoPoster';
 import {
@@ -13,8 +18,7 @@ import {
   uploadThemeBackground,
 } from '@/services/theme-assets/uploadThemeBackground';
 
-const ACCEPTED_BACKGROUND_TYPES =
-  'image/png,image/jpeg,image/webp,video/mp4,.png,.jpg,.jpeg,.webp,.mp4';
+const ACCEPTED_BACKGROUND_TYPES = 'image/png,image/jpeg,image/webp,video/mp4,.png,.jpg,.jpeg,.webp,.mp4';
 
 const VALIDATION_MESSAGE_KEYS: Record<
   ThemeBackgroundValidationError,
@@ -65,9 +69,7 @@ const ThemeMediaUploadField = ({ disabled = false, onUploaded }: ThemeMediaUploa
             uploadThemeBackground(file, { videoPosterBlob: posterBlob }),
           ]);
           heroSample = sample;
-          const previewUrl = await resolveThemeAssetUrl(
-            uploadResult.posterAssetRef ?? uploadResult.assetRef,
-          );
+          const previewUrl = await resolveThemeAssetUrl(uploadResult.posterAssetRef ?? uploadResult.assetRef);
           onUploaded({ ...uploadResult, previewUrl, heroSample });
           return;
         }

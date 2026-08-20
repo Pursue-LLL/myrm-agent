@@ -32,7 +32,9 @@ interface AcceptanceCriteriaEditorProps {
 }
 
 function parseCriteria(raw: CronJob['acceptance_criteria']): CriterionRow[] {
-  if (!raw?.length) {return [];}
+  if (!raw?.length) {
+    return [];
+  }
   return raw.map((entry) => ({
     type: typeof entry.type === 'string' ? entry.type : 'semantic',
     description:
@@ -102,9 +104,7 @@ export function AcceptanceCriteriaEditor({ job, onUpdated }: AcceptanceCriteriaE
           </Select>
           <Input
             placeholder={
-              criterion.type === 'shell'
-                ? t('criterionShellPlaceholder')
-                : t('criterionSemanticPlaceholder')
+              criterion.type === 'shell' ? t('criterionShellPlaceholder') : t('criterionSemanticPlaceholder')
             }
             value={criterion.description}
             onChange={(e) => {

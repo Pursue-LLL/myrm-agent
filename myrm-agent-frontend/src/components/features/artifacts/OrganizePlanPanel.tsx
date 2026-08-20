@@ -30,7 +30,9 @@ import {
 } from './organizePlanUtils';
 
 function notifyWorkspaceFilesChanged(workspacePath: string): void {
-  if (!workspacePath) {return;}
+  if (!workspacePath) {
+    return;
+  }
   window.dispatchEvent(
     new CustomEvent('workspace-file-changed', {
       detail: { workspace_path: workspacePath },
@@ -61,7 +63,9 @@ export const OrganizePlanPanel: React.FC<OrganizePlanPanelProps> = ({
   }, [planContent]);
 
   useEffect(() => {
-    if (!workspace) {return;}
+    if (!workspace) {
+      return;
+    }
     void fetchLatestOrganizeJob(workspace).then((res) => {
       if (res.job?.jobId) {
         setLastJobId(res.job.jobId);
@@ -198,14 +202,34 @@ export const OrganizePlanPanel: React.FC<OrganizePlanPanelProps> = ({
         </table>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <Button type="button" size="sm" variant="outline" disabled={loading} className="w-full sm:w-auto" onClick={() => void handlePreview()}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={loading}
+          className="w-full sm:w-auto"
+          onClick={() => void handlePreview()}
+        >
           {t('preview')}
         </Button>
-        <Button type="button" size="sm" disabled={loading || itemCount === 0} className="w-full sm:w-auto" onClick={() => void handleApply()}>
+        <Button
+          type="button"
+          size="sm"
+          disabled={loading || itemCount === 0}
+          className="w-full sm:w-auto"
+          onClick={() => void handleApply()}
+        >
           {t('apply')}
         </Button>
         {lastJobId ? (
-          <Button type="button" size="sm" variant="secondary" disabled={loading} className="w-full sm:w-auto" onClick={() => void handleRollback()}>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={loading}
+            className="w-full sm:w-auto"
+            onClick={() => void handleRollback()}
+          >
             {t('rollback')}
           </Button>
         ) : null}

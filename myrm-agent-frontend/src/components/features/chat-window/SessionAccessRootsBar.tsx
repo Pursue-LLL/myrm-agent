@@ -50,7 +50,9 @@ export default function SessionAccessRootsBar() {
 
   const handleRevoke = useCallback(
     async (root: SessionAccessRoot) => {
-      if (!chatId || revokingPath) {return;}
+      if (!chatId || revokingPath) {
+        return;
+      }
       setRevokingPath(root.path);
       try {
         const result = await revokeSessionAccessRoot(chatId, root.path);
@@ -74,9 +76,7 @@ export default function SessionAccessRootsBar() {
       className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-border/60 bg-muted/20 px-2 py-1.5 sm:px-2.5"
       data-testid="session-access-roots-bar"
     >
-      <span className="mr-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {t('label')}
-      </span>
+      <span className="mr-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('label')}</span>
       {roots.map((root) => {
         const busy = revokingPath === root.path;
         return (
@@ -94,9 +94,7 @@ export default function SessionAccessRootsBar() {
               <span className="truncate">{shortenHomePath(root.path)}</span>
               <Copy className="h-2.5 w-2.5 shrink-0 opacity-40 hover:opacity-100" />
             </button>
-            <span
-              className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-medium ${accessBadgeClass(root.writable)}`}
-            >
+            <span className={`shrink-0 rounded px-1 py-0.5 text-[10px] font-medium ${accessBadgeClass(root.writable)}`}>
               {root.writable ? t('writable') : t('readOnly')}
             </span>
             <button

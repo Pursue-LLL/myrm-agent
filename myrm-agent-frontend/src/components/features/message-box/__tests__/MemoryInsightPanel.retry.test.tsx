@@ -25,9 +25,7 @@ vi.mock('@/services/statistics', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
 const CHAT_ID = 'chat-retry-test';
@@ -115,14 +113,7 @@ describe('MemoryInsightPanel extract retry', () => {
       chat_id: CHAT_ID,
     });
 
-    render(
-      <MemoryInsightPanel
-        chatId={CHAT_ID}
-        isLast
-        isStreaming={false}
-        messageCreatedAtMs={MESSAGE_MS}
-      />,
-    );
+    render(<MemoryInsightPanel chatId={CHAT_ID} isLast isStreaming={false} messageCreatedAtMs={MESSAGE_MS} />);
 
     const retryButton = await screen.findByRole('button', { name: 'lifecycleRetryExtract' });
     await userEvent.click(retryButton);
@@ -141,14 +132,7 @@ describe('MemoryInsightPanel extract retry', () => {
       chat_id: CHAT_ID,
     });
 
-    render(
-      <MemoryInsightPanel
-        chatId={CHAT_ID}
-        isLast
-        isStreaming={false}
-        messageCreatedAtMs={MESSAGE_MS}
-      />,
-    );
+    render(<MemoryInsightPanel chatId={CHAT_ID} isLast isStreaming={false} messageCreatedAtMs={MESSAGE_MS} />);
 
     const retryButton = await screen.findByRole('button', { name: 'lifecycleRetryExtract' });
     await userEvent.click(retryButton);

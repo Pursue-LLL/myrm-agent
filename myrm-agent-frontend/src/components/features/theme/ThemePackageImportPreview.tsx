@@ -57,13 +57,9 @@ const ThemePackageImportPreview = ({
             />
           ) : null}
 
-          {inspect.tagline ? (
-            <p className="text-sm text-foreground/90">{inspect.tagline}</p>
-          ) : null}
+          {inspect.tagline ? <p className="text-sm text-foreground/90">{inspect.tagline}</p> : null}
 
-          {inspect.author ? (
-            <p className="text-xs text-muted-foreground">{inspect.author}</p>
-          ) : null}
+          {inspect.author ? <p className="text-xs text-muted-foreground">{inspect.author}</p> : null}
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span
@@ -75,12 +71,12 @@ const ThemePackageImportPreview = ({
             <span>·</span>
             <span>{inspect.fontId}</span>
             <span>·</span>
-            <span>{Math.round(inspect.wash * 100)}% {t('backgroundWash').toLowerCase()}</span>
+            <span>
+              {Math.round(inspect.wash * 100)}% {t('backgroundWash').toLowerCase()}
+            </span>
           </div>
 
-          {inspect.description ? (
-            <p className="text-sm text-muted-foreground">{inspect.description}</p>
-          ) : null}
+          {inspect.description ? <p className="text-sm text-muted-foreground">{inspect.description}</p> : null}
 
           {inspect.warnings.length > 0 ? (
             <ul className="space-y-1 text-xs text-amber-600 dark:text-amber-400">

@@ -1,13 +1,8 @@
-"use client";
+'use client';
 
 import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconChat,
-  IconChart,
-  IconChevronDown,
-  IconChevronUp,
-} from '@/components/features/icons/PremiumIcons';
+import { IconChat, IconChart, IconChevronDown, IconChevronUp } from '@/components/features/icons/PremiumIcons';
 import { formatTokenCount, formatCost } from './RoutingAnalyticsPanel';
 import { getModelSessions, type UsageStats, type ModelSessionItem } from '@/services/statistics';
 
@@ -15,7 +10,14 @@ import { getModelSessions, type UsageStats, type ModelSessionItem } from '@/serv
 
 interface ModelBreakdownItemProps {
   model: string;
-  data: { totalTokens: number; inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number; calls: number };
+  data: {
+    totalTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    cachedTokens: number;
+    costUsd: number;
+    calls: number;
+  };
   totalTokens: number;
   t: ReturnType<typeof import('next-intl').useTranslations>;
   timeRange: number;
@@ -34,7 +36,9 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
     const cacheRate = data.inputTokens > 0 ? Math.round((data.cachedTokens / data.inputTokens) * 100) : 0;
 
     useEffect(() => {
-      if (!expanded) {return;}
+      if (!expanded) {
+        return;
+      }
       const fetchSessions = async () => {
         setLoading(true);
         setError(null);
@@ -150,7 +154,9 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
                         <td className="py-2 px-2 max-w-[120px] sm:max-w-[180px] truncate">
                           <div className="font-medium text-foreground truncate">{item.title}</div>
                           <div className="text-[8px] text-muted-foreground/60 mt-0.5 flex items-center gap-1">
-                            <span className="capitalize">{tm.has(item.actionMode) ? tm(item.actionMode) : item.actionMode}</span>
+                            <span className="capitalize">
+                              {tm.has(item.actionMode) ? tm(item.actionMode) : item.actionMode}
+                            </span>
                             <span>·</span>
                             <span>{item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleDateString() : ''}</span>
                           </div>
@@ -190,7 +196,9 @@ interface ModelBreakdownProps {
 
 export const ModelBreakdown = memo<ModelBreakdownProps>(({ stats, t, timeRange, onSelectSession }) => {
   const models = Object.entries(stats.modelBreakdown);
-  if (models.length === 0) {return null;}
+  if (models.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-3">
@@ -215,6 +223,5 @@ export const ModelBreakdown = memo<ModelBreakdownProps>(({ stats, t, timeRange, 
   );
 });
 ModelBreakdown.displayName = 'ModelBreakdown';
-
 
 export type { ModelBreakdownItemProps };

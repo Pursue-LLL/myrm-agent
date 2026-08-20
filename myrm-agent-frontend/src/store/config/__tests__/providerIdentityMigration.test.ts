@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import legacyRemapJson from '@shared/config/provider_legacy_remap.json';
 
-import { remapLegacyProviderId, deriveRoutingProfile, migrateDefaultModelConfig, migrateProvidersBundle } from '../providerIdentityMigration';
+import {
+  remapLegacyProviderId,
+  deriveRoutingProfile,
+  migrateDefaultModelConfig,
+  migrateProvidersBundle,
+} from '../providerIdentityMigration';
 
 describe('providerIdentityMigration legacy remap', () => {
   it('matches shared/config/provider_legacy_remap.json for every entry', () => {

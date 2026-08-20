@@ -10,49 +10,80 @@ type ViewMode = 'board' | 'graph' | 'activity';
 const VALID_MODES: ViewMode[] = ['board', 'graph', 'activity'];
 
 function readViewMode(): ViewMode {
-  if (typeof window === 'undefined') {return 'board';}
+  if (typeof window === 'undefined') {
+    return 'board';
+  }
   try {
     const stored = localStorage.getItem(LS_KEYS.viewMode);
-    if (stored === 'board' || stored === 'graph' || stored === 'activity') {return stored;}
-  } catch { /* private mode / quota */ }
+    if (stored === 'board' || stored === 'graph' || stored === 'activity') {
+      return stored;
+    }
+  } catch {
+    /* private mode / quota */
+  }
   return 'board';
 }
 
 function writeViewMode(mode: ViewMode): void {
-  try { localStorage.setItem(LS_KEYS.viewMode, mode); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(LS_KEYS.viewMode, mode);
+  } catch {
+    /* ignore */
+  }
 }
 
 function readLaneByProfile(): boolean {
-  if (typeof window === 'undefined') {return true;}
-  try { return localStorage.getItem(LS_KEYS.laneByProfile) !== 'false'; } catch { return true; }
+  if (typeof window === 'undefined') {
+    return true;
+  }
+  try {
+    return localStorage.getItem(LS_KEYS.laneByProfile) !== 'false';
+  } catch {
+    return true;
+  }
 }
 
 function writeLaneByProfile(value: boolean): void {
-  try { localStorage.setItem(LS_KEYS.laneByProfile, String(value)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(LS_KEYS.laneByProfile, String(value));
+  } catch {
+    /* ignore */
+  }
 }
 
-interface MinimalBoard { board_id: string }
+interface MinimalBoard {
+  board_id: string;
+}
 
 function writeLastBoardId(board: MinimalBoard | null): void {
   try {
-    if (board) {localStorage.setItem(LS_KEYS.lastBoardId, board.board_id);}
-    else {localStorage.removeItem(LS_KEYS.lastBoardId);}
-  } catch { /* ignore */ }
+    if (board) {
+      localStorage.setItem(LS_KEYS.lastBoardId, board.board_id);
+    } else {
+      localStorage.removeItem(LS_KEYS.lastBoardId);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
-function restoreLastBoard<T extends MinimalBoard>(
-  boards: T[],
-  loading: boolean,
-  selectedBoard: T | null,
-): T | null {
-  if (loading || selectedBoard || boards.length === 0) {return null;}
+function restoreLastBoard<T extends MinimalBoard>(boards: T[], loading: boolean, selectedBoard: T | null): T | null {
+  if (loading || selectedBoard || boards.length === 0) {
+    return null;
+  }
   try {
     const lastId = localStorage.getItem(LS_KEYS.lastBoardId);
-    if (!lastId) {return null;}
+    if (!lastId) {
+      return null;
+    }
     const match = boards.find((b) => b.board_id === lastId);
-    if (match) {return match;}
+    if (match) {
+      return match;
+    }
     localStorage.removeItem(LS_KEYS.lastBoardId);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return null;
 }
 
@@ -173,11 +204,7 @@ describe('Kanban localStorage preference persistence', () => {
   });
 
   describe('board restore logic (useEffect simulation)', () => {
-    const boards: MinimalBoard[] = [
-      { board_id: 'board-1' },
-      { board_id: 'board-2' },
-      { board_id: 'board-3' },
-    ];
+    const boards: MinimalBoard[] = [{ board_id: 'board-1' }, { board_id: 'board-2' }, { board_id: 'board-3' }];
 
     it('restores matching board when lastId exists', () => {
       localStorage.setItem(LS_KEYS.lastBoardId, 'board-2');
@@ -268,7 +295,9 @@ describe('Kanban localStorage preference persistence', () => {
   describe('try-catch robustness', () => {
     it('viewMode getItem throws → defaults to board', () => {
       const original = localStorage.getItem.bind(localStorage);
-      localStorage.getItem = () => { throw new Error('QuotaExceeded'); };
+      localStorage.getItem = () => {
+        throw new Error('QuotaExceeded');
+      };
 
       expect(readViewMode()).toBe('board');
       localStorage.getItem = original;
@@ -276,7 +305,9 @@ describe('Kanban localStorage preference persistence', () => {
 
     it('laneByProfile getItem throws → defaults to true', () => {
       const original = localStorage.getItem.bind(localStorage);
-      localStorage.getItem = () => { throw new Error('SecurityError'); };
+      localStorage.getItem = () => {
+        throw new Error('SecurityError');
+      };
 
       expect(readLaneByProfile()).toBe(true);
       localStorage.getItem = original;
@@ -285,7 +316,9 @@ describe('Kanban localStorage preference persistence', () => {
     it('setItem failure does not crash write functions', () => {
       const proto = Object.getPrototypeOf(localStorage);
       const original = proto.setItem;
-      proto.setItem = () => { throw new Error('QuotaExceeded'); };
+      proto.setItem = () => {
+        throw new Error('QuotaExceeded');
+      };
 
       expect(() => writeViewMode('graph')).not.toThrow();
       expect(() => writeLaneByProfile(false)).not.toThrow();
@@ -297,20 +330,27 @@ describe('Kanban localStorage preference persistence', () => {
     it('removeItem failure does not crash writeLastBoardId(null)', () => {
       const original = localStorage.removeItem.bind(localStorage);
       Object.defineProperty(localStorage, 'removeItem', {
-        value: () => { throw new Error('SecurityError'); },
-        writable: true, configurable: true,
+        value: () => {
+          throw new Error('SecurityError');
+        },
+        writable: true,
+        configurable: true,
       });
 
       expect(() => writeLastBoardId(null)).not.toThrow();
 
       Object.defineProperty(localStorage, 'removeItem', {
-        value: original, writable: true, configurable: true,
+        value: original,
+        writable: true,
+        configurable: true,
       });
     });
 
     it('restoreLastBoard handles getItem failure gracefully', () => {
       const original = localStorage.getItem.bind(localStorage);
-      localStorage.getItem = () => { throw new Error('SecurityError'); };
+      localStorage.getItem = () => {
+        throw new Error('SecurityError');
+      };
 
       const boards = [{ board_id: 'board-1' }];
       const result = restoreLastBoard(boards, false, null);

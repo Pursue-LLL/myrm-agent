@@ -13,14 +13,12 @@ import { IconGlobe, IconCheck, IconLoader, IconAlertTriangle } from '@/component
 import { Switch } from '@/components/primitives/switch';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
-import { getConfigSyncManager, type BrowserCloudProviderConfigValue, type BrowserCloudProviderType } from '@/services/config';
+  getConfigSyncManager,
+  type BrowserCloudProviderConfigValue,
+  type BrowserCloudProviderType,
+} from '@/services/config';
 import { toast } from '@/hooks/shared/useToast';
 
 const PROVIDERS: { value: BrowserCloudProviderType; label: string; desc: string }[] = [
@@ -94,21 +92,18 @@ const CloudBrowserCard = memo(() => {
     }
   }, []);
 
-  if (isLoading) {return null;}
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-3">
           <IconGlobe className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-            {t('title')}
-          </h2>
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
         </div>
-        <Switch
-          checked={config.enabled}
-          onCheckedChange={(v) => handleSave({ enabled: v })}
-        />
+        <Switch checked={config.enabled} onCheckedChange={(v) => handleSave({ enabled: v })} />
       </div>
 
       {config.enabled && (

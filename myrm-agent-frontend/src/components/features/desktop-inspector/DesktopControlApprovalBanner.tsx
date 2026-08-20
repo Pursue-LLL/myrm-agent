@@ -22,21 +22,15 @@ async function resolveApproval(
 
 const DesktopControlApprovalBanner: React.FC = () => {
   const t = useTranslations('chat.desktopInspector.controlApproval');
-  const {
-    pending,
-    requestId,
-    reason,
-    operation,
-    appName,
-    windowTitle,
-    requireAppApproval,
-    clear,
-  } = useDesktopControlApprovalStore();
+  const { pending, requestId, reason, operation, appName, windowTitle, requireAppApproval, clear } =
+    useDesktopControlApprovalStore();
   const [submitting, setSubmitting] = useState(false);
 
   const handleDecision = useCallback(
     async (granted: boolean, scope: DesktopControlApprovalScope = 'once') => {
-      if (!requestId || submitting) {return;}
+      if (!requestId || submitting) {
+        return;
+      }
       setSubmitting(true);
       try {
         await resolveApproval(requestId, granted, scope);
@@ -51,7 +45,9 @@ const DesktopControlApprovalBanner: React.FC = () => {
     [requestId, submitting, clear],
   );
 
-  if (!pending) {return null;}
+  if (!pending) {
+    return null;
+  }
 
   return (
     <div
@@ -69,7 +65,10 @@ const DesktopControlApprovalBanner: React.FC = () => {
           {requireAppApproval && appName ? (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Monitor className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span className="truncate">{appName}{windowTitle ? ` — ${windowTitle}` : ''}</span>
+              <span className="truncate">
+                {appName}
+                {windowTitle ? ` — ${windowTitle}` : ''}
+              </span>
             </p>
           ) : null}
           <p className="text-sm text-foreground/90">{reason}</p>

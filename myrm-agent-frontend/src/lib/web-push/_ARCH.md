@@ -8,11 +8,11 @@ HTTP subscription client: `services/web-push.ts`. React lifecycle: `hooks/pwa/us
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `pushTargetUrl.ts` | 核心 | Sanitize push payload URLs; resolve focus vs navigate on open clients | ✅ |
-| `__tests__/pushTargetUrl.test.ts` | 测试 | Unit tests for routing helpers | — |
-| `__tests__/pushTargetUrl.swImport.test.ts` | 测试 | Asserts `sw.ts` imports shared helpers + `client.navigate` | — |
+| 文件                                       | 地位 | 职责                                                                  | I/O/P |
+| ------------------------------------------ | ---- | --------------------------------------------------------------------- | ----- |
+| `pushTargetUrl.ts`                         | 核心 | Sanitize push payload URLs; resolve focus vs navigate on open clients | ✅    |
+| `__tests__/pushTargetUrl.test.ts`          | 测试 | Unit tests for routing helpers                                        | —     |
+| `__tests__/pushTargetUrl.swImport.test.ts` | 测试 | Asserts `sw.ts` imports shared helpers + `client.navigate`            | —     |
 
 ## 模块依赖
 
@@ -24,9 +24,9 @@ HTTP subscription client: `services/web-push.ts`. React lifecycle: `hooks/pwa/us
 
 Seed: `POST /api/v1/approvals/test/seed-mock` · File: `myrm-agent-server/tests/e2e/test_push_approval_deeplink_chrome_e2e.py`
 
-| Test | Scenario |
-|------|----------|
-| `test_push_approval_deeplink_navigates_on_open_chat_tab` | Chat tab open → navigate `?approval=` → drawer + query strip |
-| `test_push_approval_deeplink_cold_start_opens_drawer` | Cold load deeplink URL → drawer + query strip |
-| `test_push_approval_deeplink_from_different_open_chat_tab` | Chat A open → navigate chat B deeplink → drawer on B |
+| Test                                                                 | Scenario                                                          |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `test_push_approval_deeplink_navigates_on_open_chat_tab`             | Chat tab open → navigate `?approval=` → drawer + query strip      |
+| `test_push_approval_deeplink_cold_start_opens_drawer`                | Cold load deeplink URL → drawer + query strip                     |
+| `test_push_approval_deeplink_from_different_open_chat_tab`           | Chat A open → navigate chat B deeplink → drawer on B              |
 | `test_push_approval_deeplink_unknown_id_strips_query_without_drawer` | Resolved pending + bogus `?approval=` → no drawer, query stripped |

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  containsWeixinArticleUrl,
-  isWechatArticleFormatterActive,
-} from '../wechatComposerHintUtils';
+import { containsWeixinArticleUrl, isWechatArticleFormatterActive } from '../wechatComposerHintUtils';
 
 describe('wechatComposerHintUtils', () => {
   it('detects mp.weixin.qq.com article urls', () => {

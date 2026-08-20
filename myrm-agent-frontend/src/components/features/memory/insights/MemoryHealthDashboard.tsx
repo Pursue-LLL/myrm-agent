@@ -44,9 +44,15 @@ const DIMENSION_ICONS: Record<HealthDimension, string> = {
 };
 
 function getScoreColor(score: number): string {
-  if (score >= 80) {return 'healthy';}
-  if (score >= 50) {return 'degraded';}
-  if (score > 0) {return 'critical';}
+  if (score >= 80) {
+    return 'healthy';
+  }
+  if (score >= 50) {
+    return 'degraded';
+  }
+  if (score > 0) {
+    return 'critical';
+  }
   return 'unknown';
 }
 
@@ -146,9 +152,15 @@ const GuardianStatus = memo(({ health, t }: { health: MemoryCommandHealth; t: T 
   const countdown = health.seconds_until_next;
 
   const countdownLabel = useMemo(() => {
-    if (countdown === undefined || countdown === null || countdown <= 0) {return null;}
-    if (countdown >= 3600) {return `${Math.floor(countdown / 3600)}h ${Math.floor((countdown % 3600) / 60)}m`;}
-    if (countdown >= 60) {return `${Math.floor(countdown / 60)}m ${countdown % 60}s`;}
+    if (countdown === undefined || countdown === null || countdown <= 0) {
+      return null;
+    }
+    if (countdown >= 3600) {
+      return `${Math.floor(countdown / 3600)}h ${Math.floor((countdown % 3600) / 60)}m`;
+    }
+    if (countdown >= 60) {
+      return `${Math.floor(countdown / 60)}m ${countdown % 60}s`;
+    }
     return `${countdown}s`;
   }, [countdown]);
 
@@ -218,7 +230,9 @@ const MemoryHealthDashboard = memo(({ health, t }: MemoryHealthDashboardProps) =
       {hasDimensions && (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {HEALTH_DIMENSIONS.filter((dim) => {
-            if (dim === 'coherence' && !health.has_graph) {return false;}
+            if (dim === 'coherence' && !health.has_graph) {
+              return false;
+            }
             return health.dimensions[DIMENSION_KEYS[dim]] !== null;
           }).map((dim) => (
             <DimensionCard key={dim} dimension={dim} value={health.dimensions[DIMENSION_KEYS[dim]] ?? 0} t={t} />

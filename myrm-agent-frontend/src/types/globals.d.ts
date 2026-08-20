@@ -251,9 +251,7 @@ interface Window {
     simulateBrowserToolStart?: (
       chatId: string,
       toolName?: string,
-    ) => Promise<
-      { ok: true; chatId: string; toolName: string } | { ok: false; reason: string }
-    >;
+    ) => Promise<{ ok: true; chatId: string; toolName: string } | { ok: false; reason: string }>;
     getDesktopInspectorSnapshot?: () => {
       isOpen: boolean;
       isDesktopActive: boolean;
@@ -325,10 +323,7 @@ interface Window {
   };
   /** Dev-only bridge for Wiki settings Chrome E2E (E2EWikiBridge + WikiSection). */
   __MYRM_E2E_WIKI__?: {
-    inject: (payload: {
-      stats?: Record<string, unknown>;
-      health?: Record<string, unknown>;
-    }) => void;
+    inject: (payload: { stats?: Record<string, unknown>; health?: Record<string, unknown> }) => void;
     isHandlersReady: () => boolean;
     registerHandlers: (handlers: {
       applyStats: (stats: unknown) => void;

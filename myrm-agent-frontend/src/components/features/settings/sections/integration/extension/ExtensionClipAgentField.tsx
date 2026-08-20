@@ -3,17 +3,8 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { toast } from '@/hooks/shared/useToast';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
-import {
-  getExtensionClipAgentConfig,
-  updateExtensionClipAgentConfig,
-} from '@/services/extension';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { getExtensionClipAgentConfig, updateExtensionClipAgentConfig } from '@/services/extension';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
@@ -28,11 +19,10 @@ const ExtensionClipAgentField = memo(() => {
     let cancelled = false;
     const loadClipAgentConfig = async () => {
       try {
-        const [agentResponse, clipConfig] = await Promise.all([
-          listAgents(1, 100),
-          getExtensionClipAgentConfig(),
-        ]);
-        if (cancelled) {return;}
+        const [agentResponse, clipConfig] = await Promise.all([listAgents(1, 100), getExtensionClipAgentConfig()]);
+        if (cancelled) {
+          return;
+        }
         setAgents(agentResponse.items);
         setClipAgentId(clipConfig.agent_id);
       } catch {
@@ -82,11 +72,7 @@ const ExtensionClipAgentField = memo(() => {
         <h4 className="text-sm font-medium">{t('extension.clipAgentLabel')}</h4>
         <p className="text-xs text-muted-foreground">{t('extension.clipAgentHint')}</p>
       </div>
-      <Select
-        value={clipAgentId ?? 'default'}
-        onValueChange={handleClipAgentChange}
-        disabled={clipAgentSaving}
-      >
+      <Select value={clipAgentId ?? 'default'} onValueChange={handleClipAgentChange} disabled={clipAgentSaving}>
         <SelectTrigger className="w-full sm:max-w-md">
           <SelectValue placeholder={t('extension.clipAgentDefault')} />
         </SelectTrigger>

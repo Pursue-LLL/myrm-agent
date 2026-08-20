@@ -26,9 +26,7 @@ function localhostSuspenseFallback(): React.ReactNode {
   return <AppShellSkeleton />;
 }
 
-const BootScreen = lazy(() =>
-  import('../features/app-shell/boot-screen').then((mod) => ({ default: mod.default })),
-);
+const BootScreen = lazy(() => import('../features/app-shell/boot-screen').then((mod) => ({ default: mod.default })));
 const OnboardingWizard = lazy(() =>
   import('../features/onboarding/OnboardingWizard').then((mod) => ({ default: mod.default })),
 );
@@ -121,10 +119,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
 
   return (
     <>
-      <AppLayout
-        configReadinessDegraded={readinessDegraded}
-        onRetryConfigReadiness={handleRetryReadiness}
-      >
+      <AppLayout configReadinessDegraded={readinessDegraded} onRetryConfigReadiness={handleRetryReadiness}>
         {children}
       </AppLayout>
 

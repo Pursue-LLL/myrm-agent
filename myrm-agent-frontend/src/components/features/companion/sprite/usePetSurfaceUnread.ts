@@ -20,7 +20,9 @@ export function usePetSurfaceUnread(enabled: boolean): {
   const [unread, setUnread] = useState(false);
 
   useEffect(() => {
-    if (!enabled) {return;}
+    if (!enabled) {
+      return;
+    }
 
     const onAwayCompletion = () => {
       setUnread(true);

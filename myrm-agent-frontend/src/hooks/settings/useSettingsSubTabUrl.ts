@@ -40,7 +40,9 @@ export function useSettingsSubTabUrl(tabSlug: string) {
 
   const syncSubTabUrl = useCallback(
     (value: string, resolveSubParam: (tabValue: string) => string | null) => {
-      if (!shouldSyncSettingsSubTabUrl(window.location.pathname, tabSlug)) {return;}
+      if (!shouldSyncSettingsSubTabUrl(window.location.pathname, tabSlug)) {
+        return;
+      }
 
       const query = buildSettingsSubTabQuery(window.location.search, value, resolveSubParam);
       router.replace(`${window.location.pathname}?${query}`, { scroll: false });

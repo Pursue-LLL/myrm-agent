@@ -17,7 +17,15 @@ function board(id: string, name: string): KanbanBoard {
     board_id: id,
     name,
     description: '',
-    settings: { max_concurrent_tasks: 1, heartbeat_interval_seconds: 30, zombie_timeout_seconds: 300, max_retries_per_task: 3, auto_block_after_consecutive_failures: 3, specify_max_tokens: 4096, auto_specify_on_create: false },
+    settings: {
+      max_concurrent_tasks: 1,
+      heartbeat_interval_seconds: 30,
+      zombie_timeout_seconds: 300,
+      max_retries_per_task: 3,
+      auto_block_after_consecutive_failures: 3,
+      specify_max_tokens: 4096,
+      auto_specify_on_create: false,
+    },
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   };
@@ -95,8 +103,8 @@ describe('kanbanChatBoard', () => {
   });
 
   it('builds board deep link with source chat and board id', () => {
-    expect(
-      buildKanbanBoardDeepLink({ sourceChatId: 'chat-1', boardId: 'board-9' }),
-    ).toBe('/settings/kanban?source_chat=chat-1&board_id=board-9');
+    expect(buildKanbanBoardDeepLink({ sourceChatId: 'chat-1', boardId: 'board-9' })).toBe(
+      '/settings/kanban?source_chat=chat-1&board_id=board-9',
+    );
   });
 });

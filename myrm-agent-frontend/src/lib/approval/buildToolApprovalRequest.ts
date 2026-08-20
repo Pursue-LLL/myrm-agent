@@ -45,9 +45,7 @@ interface BuildToolApprovalRequestParams {
   batchSize?: number;
 }
 
-function resolvePathGrantMeta(
-  action: ApprovalActionPayload,
-): { eligible: boolean; path?: string; writable: boolean } {
+function resolvePathGrantMeta(action: ApprovalActionPayload): { eligible: boolean; path?: string; writable: boolean } {
   const reason = action.description || action.reviewerReason || '';
   if (!reason.includes('Path outside allowed zones')) {
     return { eligible: false, writable: false };
@@ -112,9 +110,7 @@ export function buildToolApprovalRequest({
     domainApproval: reviewConfig?.domainApproval === true ? true : undefined,
     ptcAnnotations: action.ptc_annotations,
     commandSpans,
-    commandSpanRisks: commandSpans
-      ? parseCommandSpanRisks(action.command_span_risks, commandSpans.length)
-      : undefined,
+    commandSpanRisks: commandSpans ? parseCommandSpanRisks(action.command_span_risks, commandSpans.length) : undefined,
     commandSpanReasons: commandSpans
       ? parseCommandSpanReasons(action.command_span_reasons, commandSpans.length)
       : undefined,

@@ -92,9 +92,7 @@ describe('SharedContextTargetBinding', () => {
 
     const user = userEvent.setup();
     const onBindingsChanged = vi.fn();
-    render(
-      <SharedContextTargetBinding targetType="agent" targetId="agent-1" onBindingsChanged={onBindingsChanged} />,
-    );
+    render(<SharedContextTargetBinding targetType="agent" targetId="agent-1" onBindingsChanged={onBindingsChanged} />);
 
     const select = await screen.findByRole('combobox');
     await waitFor(() => {
@@ -129,9 +127,7 @@ describe('SharedContextTargetBinding', () => {
 
     const user = userEvent.setup();
     const onBindingsChanged = vi.fn();
-    render(
-      <SharedContextTargetBinding targetType="agent" targetId="agent-1" onBindingsChanged={onBindingsChanged} />,
-    );
+    render(<SharedContextTargetBinding targetType="agent" targetId="agent-1" onBindingsChanged={onBindingsChanged} />);
 
     expect(await screen.findByText('Customer A')).toBeInTheDocument();
     expect(screen.getByText('Ops')).toBeInTheDocument();

@@ -36,8 +36,16 @@ describe('useMessageInputWikiEvidenceCore', () => {
   it('prefers latest assistant KB evidence message as context key', () => {
     const messages: Message[] = [
       makeMessage({ messageId: 'u-1', role: 'user', content: 'hello' }),
-      makeMessage({ messageId: 'a-1', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
-      makeMessage({ messageId: 'a-2', role: 'assistant', sources: [{ index: 2, type: 'knowledge', kb_name: 'KB', summary: 'S2' }] }),
+      makeMessage({
+        messageId: 'a-1',
+        role: 'assistant',
+        sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }],
+      }),
+      makeMessage({
+        messageId: 'a-2',
+        role: 'assistant',
+        sources: [{ index: 2, type: 'knowledge', kb_name: 'KB', summary: 'S2' }],
+      }),
     ];
 
     expect(resolveChatWikiEvidenceContext(messages, 'chat-xyz')).toEqual({
@@ -48,7 +56,11 @@ describe('useMessageInputWikiEvidenceCore', () => {
 
   it('calculates assistant turn distance for stale evidence context', () => {
     const messages: Message[] = [
-      makeMessage({ messageId: 'a-1', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
+      makeMessage({
+        messageId: 'a-1',
+        role: 'assistant',
+        sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }],
+      }),
       makeMessage({ messageId: 'a-2', role: 'assistant', content: 'no kb evidence' }),
     ];
 
@@ -72,7 +84,11 @@ describe('useMessageInputWikiEvidenceCore', () => {
 
   it('falls back to chat id context when evidence is beyond rollback boundary', () => {
     const messages: Message[] = [
-      makeMessage({ messageId: 'a-evidence', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
+      makeMessage({
+        messageId: 'a-evidence',
+        role: 'assistant',
+        sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }],
+      }),
       ...Array.from({ length: 9 }, (_, idx) =>
         makeMessage({
           messageId: `a-${idx}`,
@@ -90,7 +106,11 @@ describe('useMessageInputWikiEvidenceCore', () => {
 
   it('records chat query attempt metric with resolved context', () => {
     const messages: Message[] = [
-      makeMessage({ messageId: 'a-1', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
+      makeMessage({
+        messageId: 'a-1',
+        role: 'assistant',
+        sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }],
+      }),
     ];
 
     recordWikiQueryAttemptMock.mockReset();
@@ -101,7 +121,11 @@ describe('useMessageInputWikiEvidenceCore', () => {
 
   it('records chat query success metric with resolved context', () => {
     const messages: Message[] = [
-      makeMessage({ messageId: 'a-1', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
+      makeMessage({
+        messageId: 'a-1',
+        role: 'assistant',
+        sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }],
+      }),
     ];
 
     recordWikiQuerySubmittedMock.mockReset();
@@ -112,7 +136,11 @@ describe('useMessageInputWikiEvidenceCore', () => {
 
   it('returns undefined context key when chat id is missing', () => {
     const messages: Message[] = [
-      makeMessage({ messageId: 'a-1', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
+      makeMessage({
+        messageId: 'a-1',
+        role: 'assistant',
+        sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }],
+      }),
     ];
 
     expect(resolveChatWikiEvidenceContext(messages, '   ')).toEqual({
@@ -123,7 +151,11 @@ describe('useMessageInputWikiEvidenceCore', () => {
 
   it('queues pending chat query success with resolved context', () => {
     const messages: Message[] = [
-      makeMessage({ messageId: 'a-1', role: 'assistant', sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }] }),
+      makeMessage({
+        messageId: 'a-1',
+        role: 'assistant',
+        sources: [{ index: 1, type: 'knowledge', kb_name: 'KB', snippet: 'S1' }],
+      }),
     ];
 
     queuePendingChatWikiQuerySuccessMock.mockReset();

@@ -20,24 +20,15 @@ import {
 interface UseWorkflowTemplateTransferOptions {
   templates: WorkflowTemplateSummary[];
   reloadTemplates: () => Promise<void>;
-  toast: (options: {
-    title: string;
-    description?: string;
-    variant?: 'default' | 'destructive';
-  }) => void;
+  toast: (options: { title: string; description?: string; variant?: 'default' | 'destructive' }) => void;
 }
 
-export function useWorkflowTemplateTransfer({
-  templates,
-  reloadTemplates,
-  toast,
-}: UseWorkflowTemplateTransferOptions) {
+export function useWorkflowTemplateTransfer({ templates, reloadTemplates, toast }: UseWorkflowTemplateTransferOptions) {
   const t = useTranslations('settings.skills.workflowTemplates');
   const importInputRef = useRef<HTMLInputElement>(null);
   const [exportingTemplateId, setExportingTemplateId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importOverwriteTarget, setImportOverwriteTarget] =
-    useState<ParsedWorkflowTemplateImport | null>(null);
+  const [importOverwriteTarget, setImportOverwriteTarget] = useState<ParsedWorkflowTemplateImport | null>(null);
 
   const handleExport = useCallback(
     async (template: WorkflowTemplateSummary) => {
@@ -45,10 +36,7 @@ export function useWorkflowTemplateTransfer({
       try {
         const detail = await fetchWorkflowTemplateDetail(template.template_id);
         const bundle = buildWorkflowTemplateBundle(detail);
-        downloadWorkflowTemplateBundle(
-          bundle,
-          workflowTemplateExportFilename(template.template_id),
-        );
+        downloadWorkflowTemplateBundle(bundle, workflowTemplateExportFilename(template.template_id));
         toast({ title: t('exportSuccess'), description: t('exportSuccessHint') });
       } catch (err) {
         toast({

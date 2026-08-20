@@ -31,7 +31,9 @@ export { isTauriEnvironment as isTauriEnv };
 
 async function invoke<T = void>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   try {
-    if (!isTauriEnvironment()) {return null;}
+    if (!isTauriEnvironment()) {
+      return null;
+    }
     const { invoke: tauriInvoke } = await import('@tauri-apps/api/core');
     return await tauriInvoke<T>(cmd, args);
   } catch (error) {
@@ -65,26 +67,26 @@ export async function togglePetSurfaceMainWindow(): Promise<void> {
 }
 
 export async function emitPetSurfaceState(payload: PetSurfaceStatePayload): Promise<void> {
-  if (!isTauriEnvironment()) {return;}
+  if (!isTauriEnvironment()) {
+    return;
+  }
   await emitTo(PET_SURFACE_WINDOW_LABEL, PET_SURFACE_STATE_EVENT, payload);
 }
 
-export async function listenPetSurfaceState(
-  handler: (payload: PetSurfaceStatePayload) => void,
-): Promise<UnlistenFn> {
+export async function listenPetSurfaceState(handler: (payload: PetSurfaceStatePayload) => void): Promise<UnlistenFn> {
   return listen<PetSurfaceStatePayload>(PET_SURFACE_STATE_EVENT, (event) => {
     handler(event.payload);
   });
 }
 
 export async function emitPetSurfaceControl(control: PetSurfaceControl): Promise<void> {
-  if (!isTauriEnvironment()) {return;}
+  if (!isTauriEnvironment()) {
+    return;
+  }
   await emitTo('main', PET_SURFACE_CONTROL_EVENT, control);
 }
 
-export async function listenPetSurfaceControl(
-  handler: (control: PetSurfaceControl) => void,
-): Promise<UnlistenFn> {
+export async function listenPetSurfaceControl(handler: (control: PetSurfaceControl) => void): Promise<UnlistenFn> {
   return listen<PetSurfaceControl>(PET_SURFACE_CONTROL_EVENT, (event) => {
     handler(event.payload);
   });

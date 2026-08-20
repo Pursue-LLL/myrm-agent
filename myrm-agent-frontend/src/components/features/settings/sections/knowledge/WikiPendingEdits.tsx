@@ -190,106 +190,106 @@ export function WikiPendingEdits({
           <div className="space-y-4">
             {filteredEdits.map((edit) => {
               const sourceChatId =
-                edit.provenance === 'chat-compound'
-                  ? extractSourceChatIdFromFrontmatter(edit.proposed_content)
-                  : null;
+                edit.provenance === 'chat-compound' ? extractSourceChatIdFromFrontmatter(edit.proposed_content) : null;
               const sourceMessageId =
                 edit.provenance === 'chat-compound'
                   ? extractSourceMessageIdFromFrontmatter(edit.proposed_content)
                   : null;
               return (
-              <div key={edit.id} className="border rounded-lg overflow-hidden bg-card">
-                <div className="flex items-center justify-between p-4 bg-muted/30 border-b gap-3 flex-wrap">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-semibold text-lg">{edit.concept_name}</span>
-                    {isSynthesisEdit(edit) && (
-                      <Badge variant="outline" className="text-violet-600 border-violet-500/30">
-                        {t('pendingEdits.synthesisBadge')}
-                      </Badge>
-                    )}
-                    {edit.provenance && !isSynthesisEdit(edit) && (
-                      <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30">
-                        {t(`pendingEdits.provenance.${edit.provenance}`, { defaultValue: edit.provenance })}
-                      </Badge>
-                    )}
-                    {sourceChatId && (
-                      <Link
-                        href={
-                          sourceMessageId
-                            ? `/${sourceChatId}?highlight=${encodeURIComponent(sourceMessageId)}`
-                            : `/${sourceChatId}`
-                        }
-                        className="text-xs text-primary hover:underline"
+                <div key={edit.id} className="border rounded-lg overflow-hidden bg-card">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 border-b gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-semibold text-lg">{edit.concept_name}</span>
+                      {isSynthesisEdit(edit) && (
+                        <Badge variant="outline" className="text-violet-600 border-violet-500/30">
+                          {t('pendingEdits.synthesisBadge')}
+                        </Badge>
+                      )}
+                      {edit.provenance && !isSynthesisEdit(edit) && (
+                        <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30">
+                          {t(`pendingEdits.provenance.${edit.provenance}`, { defaultValue: edit.provenance })}
+                        </Badge>
+                      )}
+                      {sourceChatId && (
+                        <Link
+                          href={
+                            sourceMessageId
+                              ? `/${sourceChatId}?highlight=${encodeURIComponent(sourceMessageId)}`
+                              : `/${sourceChatId}`
+                          }
+                          className="text-xs text-primary hover:underline"
+                        >
+                          {t('pendingEdits.openSourceChat')}
+                        </Link>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal"
                       >
-                        {t('pendingEdits.openSourceChat')}
-                      </Link>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal"
-                    >
-                      <IconClock className="w-3 h-3" />
-                      {formatDate(edit.created_at)}
-                    </Badge>
+                        <IconClock className="w-3 h-3" />
+                        {formatDate(edit.created_at)}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {editingId === edit.id ? (
+                        <>
+                          <Button size="sm" variant="outline" onClick={cancelEditing}>
+                            <IconX className="w-4 h-4 mr-1.5" />
+                            {t('pendingEdits.cancelEdit')}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleApprove(edit.id, editContent)}
+                          >
+                            <IconCheck className="w-4 h-4 mr-1.5" />
+                            {t('pendingEdits.saveApprove')}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => handleReject(edit.id)}
+                          >
+                            <IconX className="w-4 h-4 mr-1.5" />
+                            {t('pendingEdits.reject')}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => startEditing(edit)}>
+                            <IconEdit className="w-4 h-4 mr-1.5" />
+                            {t('pendingEdits.edit')}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleApprove(edit.id)}
+                          >
+                            <IconCheck className="w-4 h-4 mr-1.5" />
+                            {t('pendingEdits.approve')}
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="p-4 flex flex-col min-h-[420px]">
                     {editingId === edit.id ? (
-                      <>
-                        <Button size="sm" variant="outline" onClick={cancelEditing}>
-                          <IconX className="w-4 h-4 mr-1.5" />
-                          {t('pendingEdits.cancelEdit')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => handleApprove(edit.id, editContent)}
-                        >
-                          <IconCheck className="w-4 h-4 mr-1.5" />
-                          {t('pendingEdits.saveApprove')}
-                        </Button>
-                      </>
+                      <WikiMarkdownEditor
+                        value={editContent}
+                        onChange={setEditContent}
+                        previewTransform={stripYamlFrontmatter}
+                        messageIdSuffix={`pending-${edit.id}`}
+                        className="flex-1"
+                      />
                     ) : (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => handleReject(edit.id)}
-                        >
-                          <IconX className="w-4 h-4 mr-1.5" />
-                          {t('pendingEdits.reject')}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => startEditing(edit)}>
-                          <IconEdit className="w-4 h-4 mr-1.5" />
-                          {t('pendingEdits.edit')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => handleApprove(edit.id)}
-                        >
-                          <IconCheck className="w-4 h-4 mr-1.5" />
-                          {t('pendingEdits.approve')}
-                        </Button>
-                      </>
+                      <div className="text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+                        {edit.proposed_content}
+                      </div>
                     )}
                   </div>
                 </div>
-                <div className="p-4 flex flex-col min-h-[420px]">
-                  {editingId === edit.id ? (
-                    <WikiMarkdownEditor
-                      value={editContent}
-                      onChange={setEditContent}
-                      previewTransform={stripYamlFrontmatter}
-                      messageIdSuffix={`pending-${edit.id}`}
-                      className="flex-1"
-                    />
-                  ) : (
-                    <div className="text-sm font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">{edit.proposed_content}</div>
-                  )}
-                </div>
-              </div>
-            );
+              );
             })}
           </div>
         )}

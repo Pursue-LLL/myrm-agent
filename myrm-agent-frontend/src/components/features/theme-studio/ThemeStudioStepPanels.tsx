@@ -119,9 +119,7 @@ const ThemeStudioStepPanels = ({
               />
               <span>{heroSample.primaryHex}</span>
               <span aria-hidden>·</span>
-              <span>
-                {tLayouts(getLayoutCatalogItem(heroSample.recommendedLayoutId).nameKey)}
-              </span>
+              <span>{tLayouts(getLayoutCatalogItem(heroSample.recommendedLayoutId).nameKey)}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -208,9 +206,7 @@ const ThemeStudioStepPanels = ({
               maxLength={7}
               className={cn(
                 'w-28 rounded-lg border bg-background px-3 py-2 font-mono text-sm',
-                customHex.length === 7 && !HEX_PATTERN.test(customHex)
-                  ? 'border-destructive'
-                  : 'border-border',
+                customHex.length === 7 && !HEX_PATTERN.test(customHex) ? 'border-destructive' : 'border-border',
               )}
               onChange={(e) => {
                 const raw = e.target.value;

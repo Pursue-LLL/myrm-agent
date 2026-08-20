@@ -85,9 +85,7 @@ export function ProjectDefaultAgentDialog({ open, onOpenChange, project }: Proje
               <button
                 className={cn(
                   'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors text-left',
-                  selectedId === null
-                    ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-black/5 dark:hover:bg-white/5',
+                  selectedId === null ? 'bg-accent text-accent-foreground' : 'hover:bg-black/5 dark:hover:bg-white/5',
                 )}
                 onClick={() => setSelectedId(null)}
               >

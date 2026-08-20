@@ -6,14 +6,14 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 
 ## File Index
 
-| File                        | Role   | Description                                                       | I/O/P |
-| --------------------------- | ------ | ----------------------------------------------------------------- | ----- |
-| DesktopLiveView.tsx         | Core   | Resizable panel with screenshot + ElementOverlay                  | ✅    |
-| DesktopInspectorToggle.tsx  | Core   | Floating toggle when computer_use enabled or desktop tools active | ✅    |
-| DesktopControlApprovalBanner.tsx | Core   | SSE-driven desktop control approval card (Allow once / session / always) | ✅    |
-| DesktopControlApprovalOverlay.tsx | Core  | Always-mounted fixed overlay so approval controls render before panel chunk load | ✅    |
-| DesktopInstructionInput.tsx | Core   | User instruction input with @dref badge                           | ✅    |
-| index.ts                    | Export | Public component exports                                          | ✅    |
+| File                              | Role   | Description                                                                      | I/O/P |
+| --------------------------------- | ------ | -------------------------------------------------------------------------------- | ----- |
+| DesktopLiveView.tsx               | Core   | Resizable panel with screenshot + ElementOverlay                                 | ✅    |
+| DesktopInspectorToggle.tsx        | Core   | Floating toggle when computer_use enabled or desktop tools active                | ✅    |
+| DesktopControlApprovalBanner.tsx  | Core   | SSE-driven desktop control approval card (Allow once / session / always)         | ✅    |
+| DesktopControlApprovalOverlay.tsx | Core   | Always-mounted fixed overlay so approval controls render before panel chunk load | ✅    |
+| DesktopInstructionInput.tsx       | Core   | User instruction input with @dref badge                                          | ✅    |
+| index.ts                          | Export | Public component exports                                                         | ✅    |
 
 ## Dependencies
 
@@ -37,16 +37,17 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 
 ## Unit tests (vitest)
 
-| File | Coverage |
-|------|----------|
-| `__tests__/DesktopControlApprovalBanner.test.tsx` | deny / allow-once POST + pending hidden |
-| `__tests__/DesktopLiveView.permissionBanner.test.tsx` | API fail amber banner / missing-permission details |
-| `../../store/__tests__/selectScopedDesktopViewData.test.ts` | chat-scoped desktop viewData selector |
-| `../../store/chat/messageStream/handlers/__tests__/fileDiffEvents.desktopViewUpdate.test.ts` | DESKTOP_VIEW_UPDATE sourceChatId write |
+| File                                                                                         | Coverage                                           |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `__tests__/DesktopControlApprovalBanner.test.tsx`                                            | deny / allow-once POST + pending hidden            |
+| `__tests__/DesktopLiveView.permissionBanner.test.tsx`                                        | API fail amber banner / missing-permission details |
+| `../../store/__tests__/selectScopedDesktopViewData.test.ts`                                  | chat-scoped desktop viewData selector              |
+| `../../store/chat/messageStream/handlers/__tests__/fileDiffEvents.desktopViewUpdate.test.ts` | DESKTOP_VIEW_UPDATE sourceChatId write             |
 
 ## Permission Guidance
 
 When `viewData.needsPermission` is true, `DesktopLiveView` renders an enhanced `PermissionBanner` that:
+
 1. Calls `/webui/desktop/permissions` to distinguish Accessibility vs Screen Recording failure
 2. Shows per-capability status messages (i18n: `desktopInspector.permissionDenied*`)
 3. Offers an "Open System Settings" button via `@/lib/desktop/permissionDeepLink::openPermissionDeepLinkWithGuideFallback` (platform-aware guide fallback)

@@ -139,9 +139,7 @@ describe('StorageCard security-sensitive migration flow', () => {
     fireEvent.click(screen.getByText('storageChange'));
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        expect.stringContaining('Sensitive action cancelled by user'),
-      );
+      expect(toastErrorMock).toHaveBeenCalledWith(expect.stringContaining('Sensitive action cancelled by user'));
     });
 
     expect(onDataDirChange).not.toHaveBeenCalled();

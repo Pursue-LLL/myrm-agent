@@ -14,13 +14,7 @@ import { apiRequest } from '@/lib/api';
 import { approveSkillDraft, rejectSkillDraft } from './core';
 
 export type SkillGrowthStatus =
-  | 'PENDING_REVIEW'
-  | 'AUTO_APPLIED'
-  | 'FAILED_SCAN'
-  | 'BLOCKED_LOCKED'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'APPLY_FAILED';
+  'PENDING_REVIEW' | 'AUTO_APPLIED' | 'FAILED_SCAN' | 'BLOCKED_LOCKED' | 'APPROVED' | 'REJECTED' | 'APPLY_FAILED';
 
 export type SkillGrowthSource = 'draft' | 'evolution';
 
@@ -297,9 +291,7 @@ export async function listSkillGrowthCases(limit: number = 50): Promise<SkillGro
 }
 
 export async function getSkillGrowthCaseDetail(caseId: string): Promise<SkillGrowthCaseDetail> {
-  const response = await apiRequest<SkillGrowthCaseDetailApiItem>(
-    `/skill-growth/cases/${encodeURIComponent(caseId)}`,
-  );
+  const response = await apiRequest<SkillGrowthCaseDetailApiItem>(`/skill-growth/cases/${encodeURIComponent(caseId)}`);
   return mapDetail(response);
 }
 
@@ -336,7 +328,10 @@ export async function approveSkillGrowthCase(
   });
 }
 
-export async function rejectSkillGrowthCase(item: SkillGrowthCaseSummary, reason?: string): Promise<SkillGrowthActionResult> {
+export async function rejectSkillGrowthCase(
+  item: SkillGrowthCaseSummary,
+  reason?: string,
+): Promise<SkillGrowthActionResult> {
   if (item.source === 'draft') {
     const draftId = item.id.replace('draft:', '');
     const response = await rejectSkillDraft(draftId);

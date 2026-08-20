@@ -38,8 +38,7 @@ describe('stripUiActionPayload', () => {
 
 describe('stripUserMessageDisplayText', () => {
   it('removes datetime tag and ui_action payload', () => {
-    const input =
-      '<current_datetime>t</current_datetime>已提交\n<ui_action_data>{"type":"ui_action"}</ui_action_data>';
+    const input = '<current_datetime>t</current_datetime>已提交\n<ui_action_data>{"type":"ui_action"}</ui_action_data>';
     expect(stripUserMessageDisplayText(input)).toBe('已提交');
   });
 
@@ -49,8 +48,7 @@ describe('stripUserMessageDisplayText', () => {
   });
 
   it('removes bundle skill prefix and instruction', () => {
-    const input =
-      '[use write_report_skill,send_feishu_skill] [instruction: be concise] 生成本周报告';
+    const input = '[use write_report_skill,send_feishu_skill] [instruction: be concise] 生成本周报告';
     expect(stripUserMessageDisplayText(input)).toBe('生成本周报告');
   });
 });
@@ -65,9 +63,7 @@ describe('parseExplicitSkillActivation', () => {
   });
 
   it('parses bundle with instruction', () => {
-    expect(
-      parseExplicitSkillActivation('[use a_skill,b_skill] [instruction: json] run'),
-    ).toEqual({
+    expect(parseExplicitSkillActivation('[use a_skill,b_skill] [instruction: json] run')).toEqual({
       skillNames: ['a_skill', 'b_skill'],
       instruction: 'json',
       userText: 'run',
@@ -77,12 +73,9 @@ describe('parseExplicitSkillActivation', () => {
 
 describe('buildExplicitSkillWireMessage', () => {
   it('builds wire message from pending activation', () => {
-    expect(
-      buildExplicitSkillWireMessage(
-        { skillNames: ['a_skill', 'b_skill'], instruction: 'brief' },
-        'do work',
-      ),
-    ).toBe('[use a_skill,b_skill] [instruction: brief] do work');
+    expect(buildExplicitSkillWireMessage({ skillNames: ['a_skill', 'b_skill'], instruction: 'brief' }, 'do work')).toBe(
+      '[use a_skill,b_skill] [instruction: brief] do work',
+    );
   });
 });
 

@@ -19,17 +19,23 @@ export function ChatCronLink({ chatId }: ChatCronLinkProps) {
     let cancelled = false;
     listCronJobs({ chat_id: chatId, limit: 50 })
       .then((res) => {
-        if (!cancelled) {setCount(res.total);}
+        if (!cancelled) {
+          setCount(res.total);
+        }
       })
       .catch(() => {
-        if (!cancelled) {setCount(0);}
+        if (!cancelled) {
+          setCount(0);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [chatId]);
 
-  if (count <= 0) {return null;}
+  if (count <= 0) {
+    return null;
+  }
 
   return (
     <Tooltip>

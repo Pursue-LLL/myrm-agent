@@ -33,9 +33,7 @@ export function isXLiveSearchUnavailable(skill: Skill): boolean {
 }
 
 export function isEnvGatedSkillUnavailable(skill: Skill): boolean {
-  return (
-    (skill.id === NOTION_WORKSPACE_SKILL_ID || skill.id === LINEAR_PROJECT_SKILL_ID) && !skill.available
-  );
+  return (skill.id === NOTION_WORKSPACE_SKILL_ID || skill.id === LINEAR_PROJECT_SKILL_ID) && !skill.available;
 }
 
 export function isXurlBinUnavailable(skill: Skill): boolean {
@@ -44,9 +42,7 @@ export function isXurlBinUnavailable(skill: Skill): boolean {
 
 export function hasIntegrationSettingsLink(skill: Skill): boolean {
   return (
-    isGoogleWorkspaceOAuthUnavailable(skill) ||
-    isXLiveSearchUnavailable(skill) ||
-    isEnvGatedSkillUnavailable(skill)
+    isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill) || isEnvGatedSkillUnavailable(skill)
   );
 }
 

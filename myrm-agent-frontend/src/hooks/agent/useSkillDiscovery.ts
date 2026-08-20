@@ -65,7 +65,9 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
         const response = await searchDiscoverySkills(query, 30, options?.userId, pkgType);
         setResults(response.results);
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {return;}
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
         setSearchError(error instanceof Error ? error.message : 'Search failed');
         setResults([]);
       } finally {
@@ -91,40 +93,43 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
     }
   }, []);
 
-  const install = useCallback(async (skillId: string, source: string): Promise<DiscoveryInstallResponse | null> => {
-    setIsInstalling(skillId);
-    setInstallError(null);
-    setInstallSuccess(null);
+  const install = useCallback(
+    async (skillId: string, source: string): Promise<DiscoveryInstallResponse | null> => {
+      setIsInstalling(skillId);
+      setInstallError(null);
+      setInstallSuccess(null);
 
-    try {
-      const response = await installDiscoverySkill(skillId, source, {
-        agentId: options?.agentId,
-        mountToAgent: options?.mountToAgent,
-      });
-      if (response.success) {
-        setInstallSuccess(response.skill_name);
-        setResults((prev) =>
-          prev.map((r) =>
-            r.id === skillId && r.source === source
-              ? {
-                  ...r,
-                  installed_version: response.version || r.version || '1.0.0',
-                  installed_skill_id: response.skill_id,
-                }
-              : r,
-          ),
-        );
-        return response;
+      try {
+        const response = await installDiscoverySkill(skillId, source, {
+          agentId: options?.agentId,
+          mountToAgent: options?.mountToAgent,
+        });
+        if (response.success) {
+          setInstallSuccess(response.skill_name);
+          setResults((prev) =>
+            prev.map((r) =>
+              r.id === skillId && r.source === source
+                ? {
+                    ...r,
+                    installed_version: response.version || r.version || '1.0.0',
+                    installed_skill_id: response.skill_id,
+                  }
+                : r,
+            ),
+          );
+          return response;
+        }
+        setInstallError(response.error || 'Installation failed');
+        return null;
+      } catch (error) {
+        setInstallError(error instanceof Error ? error.message : 'Installation failed');
+        return null;
+      } finally {
+        setIsInstalling(null);
       }
-      setInstallError(response.error || 'Installation failed');
-      return null;
-    } catch (error) {
-      setInstallError(error instanceof Error ? error.message : 'Installation failed');
-      return null;
-    } finally {
-      setIsInstalling(null);
-    }
-  }, [options?.agentId, options?.mountToAgent]);
+    },
+    [options?.agentId, options?.mountToAgent],
+  );
 
   const [isUninstalling, setIsUninstalling] = useState<string | null>(null);
 
@@ -168,13 +173,12 @@ export function useSkillDiscovery(options?: UseSkillDiscoveryOptions): UseSkillD
     const handleSkillPoolUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<{ action?: string; skill_id?: string; uninstalled_skills?: string[] }>;
       const detail = customEvent.detail;
-      if (!detail) {return;}
+      if (!detail) {
+        return;
+      }
 
       if (detail.action === 'uninstall') {
-        const uninstalled = new Set([
-          detail.skill_id,
-          ...(detail.uninstalled_skills ?? []),
-        ].filter(Boolean));
+        const uninstalled = new Set([detail.skill_id, ...(detail.uninstalled_skills ?? [])].filter(Boolean));
 
         setResults((prev) =>
           prev.map((r) => {

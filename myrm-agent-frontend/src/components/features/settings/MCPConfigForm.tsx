@@ -64,11 +64,15 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
       }
 
       const parts: string[] = [t('mcpImportSuccessDesc', { count: addedCount })];
-      if (meta.skippedCount > 0) {parts.push(t('mcpImportSkipped', { count: meta.skippedCount }));}
+      if (meta.skippedCount > 0) {
+        parts.push(t('mcpImportSkipped', { count: meta.skippedCount }));
+      }
       if (meta.skippedUnsupportedCount > 0) {
         parts.push(t('mcpImportUnsupportedSkipped', { count: meta.skippedUnsupportedCount }));
       }
-      if (disabledCount > 0) {parts.push(t('mcpImportDisabledNoDesc', { count: disabledCount }));}
+      if (disabledCount > 0) {
+        parts.push(t('mcpImportDisabledNoDesc', { count: disabledCount }));
+      }
 
       mcpConfig.persistConfigs(newConfigs, {
         onComplete: () => {
@@ -86,7 +90,9 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
   );
 
   const handleConfirmImportAck = useCallback(async () => {
-    if (!pendingImportAck) {return;}
+    if (!pendingImportAck) {
+      return;
+    }
     const { configsToImport, newConfigs, ...meta } = pendingImportAck;
     const batchGate = await gateMcpConfigBatch(configsToImport, true);
     if (batchGate.blocked || batchGate.needsAcknowledgement) {
@@ -147,9 +153,7 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
           const blockedIndex = configsToImport.findIndex((cfg) => cfg.name === batchGate.blocked?.name);
           const scanResult = batchGate.scanResults[blockedIndex] ?? batchGate.scanResults[0];
           const first = scanResult?.findings[0];
-          setImportError(
-            first ? `${t('mcpScanBlocked')}: ${getMcpFindingDescription(first, t)}` : t('mcpScanBlocked'),
-          );
+          setImportError(first ? `${t('mcpScanBlocked')}: ${getMcpFindingDescription(first, t)}` : t('mcpScanBlocked'));
           return;
         }
         if (batchGate.needsAcknowledgement) {

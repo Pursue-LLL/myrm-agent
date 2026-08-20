@@ -6,20 +6,20 @@ SaaS（`NEXT_PUBLIC_DEPLOY_MODE=sandbox`）与控制平面认证相关的 UI：�
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-| ---- | ---- | ---- | ----- |
-| `SandboxAuthLayout.tsx` | 核心 | SaaS 登录页分屏布局（品牌区 + 玻璃表单区） | ✅ |
-| `SandboxLoginForm.tsx` | 核心 | CP Google OAuth 登录 | ✅ |
-| `LocalLoginForm.tsx` | 核心 | 本机 WebUI 管理员密码表单 | ✅ |
-| `OAuthButtons.tsx` | 核心 | 拉取 `GET /api/auth/config` 并跳转 OAuth authorize | ✅ |
-| `oauth-provider-icons.tsx` | 辅助 | Google/GitHub 等 OAuth 提供商 SVG 图标 | ✅ |
+| 文件                       | 地位 | 职责                                               | I/O/P |
+| -------------------------- | ---- | -------------------------------------------------- | ----- |
+| `SandboxAuthLayout.tsx`    | 核心 | SaaS 登录页分屏布局（品牌区 + 玻璃表单区）         | ✅    |
+| `SandboxLoginForm.tsx`     | 核心 | CP Google OAuth 登录                               | ✅    |
+| `LocalLoginForm.tsx`       | 核心 | 本机 WebUI 管理员密码表单                          | ✅    |
+| `OAuthButtons.tsx`         | 核心 | 拉取 `GET /api/auth/config` 并跳转 OAuth authorize | ✅    |
+| `oauth-provider-icons.tsx` | 辅助 | Google/GitHub 等 OAuth 提供商 SVG 图标             | ✅    |
 
 ## 路由
 
-| 路径 | 组件 |
-| ---- | ---- |
-| `/auth/login` | `login/page.tsx` → sandbox: `SandboxAuthLayout` + `SandboxLoginForm`；local: `LocalLoginForm` |
-| `/auth/register`、`/auth/verify-email` | `next.config.ts` 永久重定向至 `/auth/login` |
+| 路径                                   | 组件                                                                                          |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `/auth/login`                          | `login/page.tsx` → sandbox: `SandboxAuthLayout` + `SandboxLoginForm`；local: `LocalLoginForm` |
+| `/auth/register`、`/auth/verify-email` | `next.config.ts` 永久重定向至 `/auth/login`                                                   |
 
 ## Locale 接力
 

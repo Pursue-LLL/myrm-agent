@@ -18,13 +18,9 @@ import { Button } from '@/components/primitives/button';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
 import { useVisualApprovalSnapshot } from '@/hooks/approval/useVisualApprovalSnapshot';
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { useGoalPlanSync } from '@/components/features/chat-window/goals/useGoalPlanSync';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
@@ -51,12 +47,8 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   );
 
   const approvalQueue = useToolApprovalStore((s) => s.queue);
-  const desktopViewData = useDesktopInspectorStore((state) =>
-    selectScopedDesktopViewData(state.viewData, chatId),
-  );
-  const browserViewData = useBrowserInspectorStore((state) =>
-    selectScopedBrowserViewData(state.viewData, chatId),
-  );
+  const desktopViewData = useDesktopInspectorStore((state) => selectScopedDesktopViewData(state.viewData, chatId));
+  const browserViewData = useBrowserInspectorStore((state) => selectScopedBrowserViewData(state.viewData, chatId));
   const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
   const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
   const { resolveRequest, approveAll, rejectAll, isLoading: isApprovalLoading } = useToolApprovalResolve();
@@ -104,9 +96,13 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {return;}
+    if (typeof window === 'undefined') {
+      return;
+    }
     const host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1') {return;}
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return;
+    }
     window.__MYRM_E2E_MOBILE_CC__ = {
       setLoading: (loading: boolean) => {
         useChatStore.setState({ loading });
@@ -118,19 +114,27 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   }, []);
 
   useEffect(() => {
-    if (!isMessagesLoaded || loading || autoStartFired.current) {return;}
+    if (!isMessagesLoaded || loading || autoStartFired.current) {
+      return;
+    }
     const pendingMessage = sessionStorage.getItem('myrm_mobile_autostart_message');
-    if (!pendingMessage) {return;}
+    if (!pendingMessage) {
+      return;
+    }
     autoStartFired.current = true;
     sessionStorage.removeItem('myrm_mobile_autostart_message');
     sendMessage(pendingMessage);
   }, [isMessagesLoaded, loading, sendMessage]);
 
   useEffect(() => {
-    if (!lightboxSrc) {return;}
+    if (!lightboxSrc) {
+      return;
+    }
     document.body.style.overflow = 'hidden';
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {setLightboxSrc(null);}
+      if (e.key === 'Escape') {
+        setLightboxSrc(null);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => {
@@ -141,7 +145,9 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
 
   const handleSendQuickCommand = useCallback(() => {
     const text = quickInput.trim();
-    if (!text) {return;}
+    if (!text) {
+      return;
+    }
     const askMatch = text.match(/^\/(?:ask|side)\s*(.*)$/i);
     if (askMatch) {
       setAdvisorQuestion(askMatch[1]?.trim() ?? '');
@@ -149,8 +155,11 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
       setQuickInput('');
       return;
     }
-    if (loading) {steerMessage(text);}
-    else {sendMessage(text);}
+    if (loading) {
+      steerMessage(text);
+    } else {
+      sendMessage(text);
+    }
     setQuickInput('');
   }, [quickInput, sendMessage, steerMessage, loading]);
 
@@ -265,9 +274,14 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
             mode="push-to-talk"
             onTranscript={(text) => {
               const trimmed = text.trim();
-              if (!trimmed) {return;}
-              if (loading) {steerMessage(trimmed);}
-              else {sendMessage(trimmed);}
+              if (!trimmed) {
+                return;
+              }
+              if (loading) {
+                steerMessage(trimmed);
+              } else {
+                sendMessage(trimmed);
+              }
             }}
           />
           <input

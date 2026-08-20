@@ -147,7 +147,7 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
           days,
           kind_filter: selectedKind === 'all' ? undefined : selectedKind,
           limit: 20,
-          cursor: reset ? undefined : nextCursor ?? undefined,
+          cursor: reset ? undefined : (nextCursor ?? undefined),
         });
 
         if (reset) {
@@ -186,7 +186,9 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
   };
 
   const handleSaveEdit = async () => {
-    if (!editingItem) {return;}
+    if (!editingItem) {
+      return;
+    }
     try {
       setSubmitting(true);
       const memoryType = editingItem.kind.replace('_memory', '');
@@ -218,7 +220,9 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
   };
 
   const handleDeleteMemory = async (item: LearningTimelineItem) => {
-    if (!window.confirm(t('deleteConfirm'))) {return;}
+    if (!window.confirm(t('deleteConfirm'))) {
+      return;
+    }
     try {
       const memoryType = item.kind.replace('_memory', '');
       await deleteTimelineMemory(item.id, memoryType);
@@ -231,7 +235,9 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
 
   const handleToggleSkillArchive = async (item: LearningTimelineItem, active: boolean) => {
     const confirmMsg = active ? t('unarchiveConfirm') : t('archiveConfirm');
-    if (!window.confirm(confirmMsg)) {return;}
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
     try {
       const skillId = (item.metadata?.skill_id as string) || item.id;
       await archiveTimelineSkill(skillId, active);
@@ -279,9 +285,7 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="hidden md:inline-block font-mono">
-            {t('stats.totalNodes', { count: totalCount })}
-          </span>
+          <span className="hidden md:inline-block font-mono">{t('stats.totalNodes', { count: totalCount })}</span>
           {userEditedCount > 0 && (
             <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-500 border border-violet-500/20">
               {t('stats.userEditedCount', { count: userEditedCount })}
@@ -306,24 +310,17 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
       </div>
 
       {/* Loading state */}
-      {loading && (
-        <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-dashed border-border/60">
-          <div className="flex flex-col items-center gap-2">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span className="text-xs text-muted-foreground">{t('loading')}</span>
-          </div>
-        </div>
-      )}
+      {loading && <TimelineSkeleton count={4} className="my-2" />}
 
       {/* Empty state */}
       {!loading && items.length === 0 && (
-        <div className="flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-dashed border-border/70 p-8 text-center">
-          <div className="rounded-full bg-muted p-3">
-            <Brain className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h3 className="mt-3 text-sm font-semibold text-foreground">{t('empty.title')}</h3>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">{t('empty.description')}</p>
-        </div>
+        <EmptyState
+          variant="dashed"
+          icon={Brain}
+          title={t('empty.title')}
+          description={t('empty.description')}
+          className="min-h-[260px] my-4"
+        />
       )}
 
       {/* Timeline Stream */}

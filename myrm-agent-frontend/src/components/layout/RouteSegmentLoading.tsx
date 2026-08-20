@@ -21,10 +21,7 @@ interface RouteSegmentLoadingProps {
   className?: string;
 }
 
-export default function RouteSegmentLoading({
-  variant = 'dashboard',
-  className,
-}: RouteSegmentLoadingProps) {
+export default function RouteSegmentLoading({ variant = 'dashboard', className }: RouteSegmentLoadingProps) {
   if (variant === 'chat') {
     return (
       <div

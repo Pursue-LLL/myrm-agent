@@ -112,7 +112,9 @@ export const DEFAULT_AGENT_COLORS: AgentThemeColor[] = ['blue', 'green', 'purple
  * @returns Agent主题颜色
  */
 export const getAgentColor = (agent_instance: string | undefined, agentIndex?: number): AgentThemeColor => {
-  if (!agent_instance) {return 'blue';}
+  if (!agent_instance) {
+    return 'blue';
+  }
 
   // 如果提供了索引，使用索引分配颜色（更均匀）
   if (typeof agentIndex === 'number') {
@@ -141,7 +143,9 @@ export const formatAgentHandle = (agent_instance: string | undefined, display_na
     return display_name.startsWith('@') ? display_name : `@${display_name}`;
   }
 
-  if (!agent_instance) {return '';}
+  if (!agent_instance) {
+    return '';
+  }
 
   // 提取agent_type部分（如"research_agent-a1b2" -> "research"）
   const agentType = agent_instance.split('-')[0].replace(/_agent$/, '');

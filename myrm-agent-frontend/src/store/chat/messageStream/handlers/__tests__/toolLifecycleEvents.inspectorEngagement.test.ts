@@ -107,9 +107,7 @@ describe('toolLifecycleEvents inspector engagement', () => {
       messageId: 'msg-1',
       duration_ms: 100,
     });
-    ctx.state.messages = [
-      { messageId: 'msg-1', chatId: '', createdAt: new Date(), role: 'assistant', content: '' },
-    ];
+    ctx.state.messages = [{ messageId: 'msg-1', chatId: '', createdAt: new Date(), role: 'assistant', content: '' }];
     ctx.state.chatId = 'chat-bg';
 
     await toolLifecycleEvents(ctx);

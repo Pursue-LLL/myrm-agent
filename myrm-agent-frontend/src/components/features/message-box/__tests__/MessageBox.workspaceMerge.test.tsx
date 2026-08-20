@@ -7,10 +7,18 @@ import MessageBox from '@/components/features/message-box/MessageBox';
 import type { Message } from '@/store/chat/types';
 
 const stableT = (key: string, params?: { count?: number }) => {
-  if (key === 'message.workspaceMergeFailedTitle') {return 'Workspace Merge Failed';}
-  if (key === 'message.workspaceMergeFailed') {return `${params?.count ?? 0} merge errors`;}
-  if (key === 'message.workspaceMergeFailedMore') {return `${params?.count ?? 0} more hidden`;}
-  if (key === 'message.workflowMergeWarning') {return 'Generic workflow merge warning';}
+  if (key === 'message.workspaceMergeFailedTitle') {
+    return 'Workspace Merge Failed';
+  }
+  if (key === 'message.workspaceMergeFailed') {
+    return `${params?.count ?? 0} merge errors`;
+  }
+  if (key === 'message.workspaceMergeFailedMore') {
+    return `${params?.count ?? 0} more hidden`;
+  }
+  if (key === 'message.workflowMergeWarning') {
+    return 'Generic workflow merge warning';
+  }
   return key;
 };
 
@@ -112,14 +120,7 @@ const assistantMessage: Message = {
 
 describe('MessageBox workspace merge warning', () => {
   it('renders WorkspaceMergeWarning in MessageBox tree (production path, not E2E fallback)', () => {
-    render(
-      <MessageBox
-        message={assistantMessage}
-        messageIndex={1}
-        loading={false}
-        isLast={true}
-      />,
-    );
+    render(<MessageBox message={assistantMessage} messageIndex={1} loading={false} isLast={true} />);
 
     const panel = screen.getByTestId('workspace-merge-warning');
     expect(panel.getAttribute('data-e2e-merge-fallback')).toBeNull();
@@ -131,14 +132,7 @@ describe('MessageBox workspace merge warning', () => {
   });
 
   it('shows workspace merge warning while last message is still loading', () => {
-    render(
-      <MessageBox
-        message={assistantMessage}
-        messageIndex={1}
-        loading={true}
-        isLast={true}
-      />,
-    );
+    render(<MessageBox message={assistantMessage} messageIndex={1} loading={true} isLast={true} />);
 
     expect(screen.getByTestId('workspace-merge-warning')).toBeTruthy();
   });

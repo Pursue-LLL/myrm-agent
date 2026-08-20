@@ -55,9 +55,7 @@ vi.mock('@/lib/utils/classnameUtils', () => ({
 }));
 
 vi.mock('@radix-ui/react-visually-hidden', () => ({
-  VisuallyHidden: ({ children }: { children: React.ReactNode }) => (
-    <span style={{ display: 'none' }}>{children}</span>
-  ),
+  VisuallyHidden: ({ children }: { children: React.ReactNode }) => <span style={{ display: 'none' }}>{children}</span>,
 }));
 
 import { FlowPadModal } from '../flow-pad-modal';
@@ -235,18 +233,10 @@ describe('FlowPadModal', () => {
       });
     });
 
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.stringContaining('[Appshot Context]'),
-    );
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.stringContaining('**Terminal**'),
-    );
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.stringContaining('npm install completed'),
-    );
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.stringContaining('What happened?'),
-    );
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('[Appshot Context]'));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('**Terminal**'));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('npm install completed'));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('What happened?'));
   });
 
   it('attaches screenshot files via setFiles when captures have screenshots', async () => {
@@ -282,10 +272,7 @@ describe('FlowPadModal', () => {
     mockAgentStore.agents = [{ id: 'builtin-general', name: 'General Assistant', avatar_url: null }];
     useFlowPadStore
       .getState()
-      .openInline(
-        { screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() },
-        1234,
-      );
+      .openInline({ screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() }, 1234);
     render(<FlowPadModal />);
 
     const trigger = await screen.findByTestId('flowpad-inline-route-trigger');
@@ -301,10 +288,7 @@ describe('FlowPadModal', () => {
     mockAgentStore.agents = [{ id: 'custom-research', name: 'Custom Research', avatar_url: null }];
     useFlowPadStore
       .getState()
-      .openInline(
-        { screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() },
-        1234,
-      );
+      .openInline({ screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() }, 1234);
     render(<FlowPadModal />);
 
     const trigger = await screen.findByTestId('flowpad-inline-route-trigger');
@@ -331,9 +315,7 @@ describe('FlowPadModal', () => {
   });
 
   it('does not call setFiles when captures have no screenshots', async () => {
-    useFlowPadStore.getState().addCapture(
-      makeCapture({ screenshot: '', extractedText: 'text only' }),
-    );
+    useFlowPadStore.getState().addCapture(makeCapture({ screenshot: '', extractedText: 'text only' }));
     render(<FlowPadModal />);
 
     const textarea = screen.getByRole('textbox');
@@ -352,9 +334,7 @@ describe('FlowPadModal', () => {
   });
 
   it('sends captures-only message without user text', async () => {
-    useFlowPadStore.getState().addCapture(
-      makeCapture({ windowTitle: 'Browser', extractedText: 'Page content' }),
-    );
+    useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Browser', extractedText: 'Page content' }));
     render(<FlowPadModal />);
 
     const buttons = screen.getAllByRole('button');
@@ -484,9 +464,7 @@ describe('FlowPadModal', () => {
     });
 
     it('sends message with preset prompt on quick action click', async () => {
-      useFlowPadStore.getState().addCapture(
-        makeCapture({ windowTitle: 'Gmail', extractedText: 'Hello from sender' }),
-      );
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Gmail', extractedText: 'Hello from sender' }));
       render(<FlowPadModal />);
 
       const replyBtn = screen.getByText('quickReply');
@@ -495,12 +473,8 @@ describe('FlowPadModal', () => {
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('[Appshot Context]'),
-      );
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('replyPrompt'),
-      );
+      expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('[Appshot Context]'));
+      expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('replyPrompt'));
       expect(useFlowPadStore.getState().isOpen).toBe(false);
     });
 
@@ -570,9 +544,7 @@ describe('FlowPadModal', () => {
         });
 
         expect(mockSendMessage).toHaveBeenCalledTimes(1);
-        expect(mockSendMessage).toHaveBeenCalledWith(
-          expect.stringContaining(prompts[i]),
-        );
+        expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining(prompts[i]));
         unmount();
       }
     });

@@ -17,12 +17,7 @@ export const MEMORY_ARCHIVE_FILE_MAX_BYTES = 25 * 1024 * 1024;
 export type MemoryArchiveSectionName = (typeof MEMORY_ARCHIVE_SECTION_NAMES)[number];
 export type MemoryArchiveSectionStatus = 'ready' | 'empty' | 'partial' | 'unsupported';
 export type MemoryArchiveFileErrorCode =
-  | 'emptyFile'
-  | 'tooLarge'
-  | 'invalidJson'
-  | 'invalidShape'
-  | 'unsupportedFormat'
-  | 'missingSections';
+  'emptyFile' | 'tooLarge' | 'invalidJson' | 'invalidShape' | 'unsupportedFormat' | 'missingSections';
 
 type MemoryArchiveFileErrorParam = string | number;
 
@@ -84,13 +79,7 @@ export interface MemoryArchiveDryRunResponse {
 export type MemoryArchiveRestoreMode = 'safe_merge' | 'review_only' | 'skip';
 export type MemoryArchiveRestoreStatus = 'ready' | 'warning' | 'critical';
 export type MemoryArchiveRestoreItemStatus =
-  | 'planned'
-  | 'restored'
-  | 'skipped'
-  | 'conflict'
-  | 'missing'
-  | 'failed'
-  | 'rolled_back';
+  'planned' | 'restored' | 'skipped' | 'conflict' | 'missing' | 'failed' | 'rolled_back';
 
 export interface MemoryArchiveRestoreSectionPlan {
   section: MemoryArchiveSectionName;
@@ -575,9 +564,7 @@ export const confirmImportMemories = async (
   });
 };
 
-export const recheckImportReadiness = async (
-  importBatchId: string,
-): Promise<MemoryImportReadinessRecheckResponse> => {
+export const recheckImportReadiness = async (importBatchId: string): Promise<MemoryImportReadinessRecheckResponse> => {
   return apiRequest<MemoryImportReadinessRecheckResponse>('/memory/import/readiness-recheck', {
     method: 'POST',
     body: JSON.stringify({ import_batch_id: importBatchId }),

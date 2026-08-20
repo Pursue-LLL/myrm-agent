@@ -14,7 +14,9 @@ const BrowserRecordingToggle: React.FC = () => {
 
   const isActive = status === 'recording' || status === 'paused';
 
-  if (!isBrowserActive && !isActive) {return null;}
+  if (!isBrowserActive && !isActive) {
+    return null;
+  }
 
   return (
     <button
@@ -34,9 +36,7 @@ const BrowserRecordingToggle: React.FC = () => {
       aria-label={t('toggleTitle')}
     >
       <Circle size={18} fill={isActive ? 'currentColor' : 'none'} />
-      {isActive && steps.length > 0 && (
-        <span className="text-xs font-mono font-bold">{steps.length}</span>
-      )}
+      {isActive && steps.length > 0 && <span className="text-xs font-mono font-bold">{steps.length}</span>}
     </button>
   );
 };

@@ -14,7 +14,9 @@ import { loadWebuiAccessPrefs, saveWebuiAccessPrefs } from '@/lib/webui-access-p
 // 动态导入 Tauri API，避免在 Web 环境下报错
 const getTauriInvoke = async (): Promise<typeof import('@tauri-apps/api/core').invoke | null> => {
   // 必须在真正的 Tauri 运行时中才能调用 invoke
-  if (!isTauriRuntime()) {return null;}
+  if (!isTauriRuntime()) {
+    return null;
+  }
   try {
     const tauriCore = await import('@tauri-apps/api/core');
     if (!tauriCore || !tauriCore.invoke) {
@@ -42,9 +44,7 @@ export function useSystemConfig() {
     if (!isTauriRuntime()) {
       const prefs = loadWebuiAccessPrefs();
       setConfig(
-        prefs
-          ? { ...DEFAULT_SYSTEM_CONFIG, enableRemoteAccess: prefs.enableRemoteAccess }
-          : DEFAULT_SYSTEM_CONFIG,
+        prefs ? { ...DEFAULT_SYSTEM_CONFIG, enableRemoteAccess: prefs.enableRemoteAccess } : DEFAULT_SYSTEM_CONFIG,
       );
       setCurrentMode('desktop');
       setLocalIP('');

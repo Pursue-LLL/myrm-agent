@@ -46,12 +46,8 @@ describe('theme-engine compiler', () => {
     expect(light.cssVariables['--primary']).toBe('#588e95');
     expect(dark.cssVariables['--primary']).toBe('#6ba3aa');
     expect(light.dataAttributes['data-myrm-theme-dual-accent']).toBe('true');
-    expect(
-      meetsContrast(light.cssVariables['--primary-foreground'], light.cssVariables['--primary']),
-    ).toBe(true);
-    expect(meetsContrast(dark.cssVariables['--primary-foreground'], dark.cssVariables['--primary'])).toBe(
-      true,
-    );
+    expect(meetsContrast(light.cssVariables['--primary-foreground'], light.cssVariables['--primary'])).toBe(true);
+    expect(meetsContrast(dark.cssVariables['--primary-foreground'], dark.cssVariables['--primary'])).toBe(true);
   });
 
   it('uses functional scene surfaces on kanban without replacing layout id', () => {
@@ -66,9 +62,7 @@ describe('theme-engine compiler', () => {
     });
     expect(compiled.dataAttributes['data-myrm-theme-layout']).toBe('full-bleed');
     expect(compiled.dataAttributes['data-myrm-theme-scene']).toBe('functional');
-    expect(compiled.artLayer.surfaceOpacity).toBeGreaterThanOrEqual(
-      FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity,
-    );
+    expect(compiled.artLayer.surfaceOpacity).toBeGreaterThanOrEqual(FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity);
     expect(compiled.artLayer.mainOpacity).toBeGreaterThanOrEqual(FUNCTIONAL_SURFACE_FLOORS.mainOpacity);
   });
 
@@ -109,9 +103,7 @@ describe('theme-engine compiler', () => {
     expect(functional.artLayer.enabled).toBe(true);
     expect(functional.artLayer.wash).toBe(effectiveArtWash(0.25, 'functional'));
     expect(functional.artLayer.wash).toBeGreaterThanOrEqual(FUNCTIONAL_ART_WASH_FLOOR);
-    expect(functional.artLayer.surfaceOpacity).toBeGreaterThanOrEqual(
-      FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity,
-    );
+    expect(functional.artLayer.surfaceOpacity).toBeGreaterThanOrEqual(FUNCTIONAL_SURFACE_FLOORS.surfaceOpacity);
     expect(functional.artLayer.navOpacity).toBeGreaterThanOrEqual(FUNCTIONAL_SURFACE_FLOORS.navOpacity);
   });
 

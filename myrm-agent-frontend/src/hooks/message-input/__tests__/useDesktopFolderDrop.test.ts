@@ -73,7 +73,9 @@ describe('useDesktopFolderDrop', () => {
   it('registers Tauri drag-drop listeners when in Tauri environment', async () => {
     (tauriLib.isTauriEnvironment as unknown as { mockReturnValue: (v: boolean) => void }).mockReturnValue(true);
     const unlistenMock = vi.fn();
-    (tauriLib.listenTauriEvent as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(unlistenMock);
+    (tauriLib.listenTauriEvent as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(
+      unlistenMock,
+    );
 
     const { unmount } = renderHook(() => useDesktopFolderDrop());
 
@@ -90,35 +92,24 @@ describe('useDesktopFolderDrop', () => {
   it('grants session access root and refreshes store on dropped paths', async () => {
     (tauriLib.isTauriEnvironment as unknown as { mockReturnValue: (v: boolean) => void }).mockReturnValue(true);
     (chatService.grantSessionAccessRoot as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({
-      session_access_roots: [
-        { path: '/Users/test/workspace', writable: true, source: 'desktop_drag_drop' },
-      ],
+      session_access_roots: [{ path: '/Users/test/workspace', writable: true, source: 'desktop_drag_drop' }],
     });
 
     const onGranted = vi.fn();
-    const { result } = renderHook(() =>
-      useDesktopFolderDrop({ onFolderGranted: onGranted }),
-    );
+    const { result } = renderHook(() => useDesktopFolderDrop({ onFolderGranted: onGranted }));
 
     await act(async () => {
       await result.current.handleDroppedPaths(['/Users/test/workspace/']);
     });
 
-    expect(chatService.grantSessionAccessRoot).toHaveBeenCalledWith(
-      'test-chat-123',
-      '/Users/test/workspace',
-      true,
-    );
-    expect(sessionAccessRefresh.refreshSessionAccessRoots).toHaveBeenCalledWith(
-      'test-chat-123',
-      {
-        optimistic: {
-          path: '/Users/test/workspace',
-          writable: true,
-          source: 'desktop_drag_drop',
-        },
+    expect(chatService.grantSessionAccessRoot).toHaveBeenCalledWith('test-chat-123', '/Users/test/workspace', true);
+    expect(sessionAccessRefresh.refreshSessionAccessRoots).toHaveBeenCalledWith('test-chat-123', {
+      optimistic: {
+        path: '/Users/test/workspace',
+        writable: true,
+        source: 'desktop_drag_drop',
       },
-    );
+    });
     expect(onGranted).toHaveBeenCalledWith('/Users/test/workspace');
   });
 });

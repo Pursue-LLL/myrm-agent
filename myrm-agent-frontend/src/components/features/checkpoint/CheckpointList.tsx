@@ -4,12 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { RefreshCw, Trash } from 'lucide-react';
 import CheckpointCard from './CheckpointCard';
-import {
-  listCheckpoints,
-  deleteCheckpoint,
-  cleanupCheckpoints,
-  CheckpointInfo,
-} from '@/services/checkpoint';
+import { listCheckpoints, deleteCheckpoint, cleanupCheckpoints, CheckpointInfo } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/shared/useToast';
 
@@ -55,7 +50,9 @@ const CheckpointList: React.FC<CheckpointListProps> = ({ sessionId, onReinitiate
   };
 
   const handleCleanup = async () => {
-    if (!confirm(t('confirmCleanup'))) {return;}
+    if (!confirm(t('confirmCleanup'))) {
+      return;
+    }
 
     setCleaningUp(true);
     try {

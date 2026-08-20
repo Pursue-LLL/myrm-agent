@@ -11,13 +11,17 @@ import { toast } from '@/lib/utils/toast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 
 function isIOSSafari(): boolean {
-  if (typeof navigator === 'undefined') {return false;}
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
   const ua = navigator.userAgent;
   return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && 'ontouchend' in document);
 }
 
 function isStandalone(): boolean {
-  if (typeof window === 'undefined') {return false;}
+  if (typeof window === 'undefined') {
+    return false;
+  }
   return window.matchMedia('(display-mode: standalone)').matches;
 }
 
@@ -66,7 +70,9 @@ const WebPushCard = memo(function WebPushCard() {
     }
   }, [sendTest, t]);
 
-  if (isTauri) {return null;}
+  if (isTauri) {
+    return null;
+  }
 
   if (state === 'unsupported') {
     return (
@@ -99,22 +105,12 @@ const WebPushCard = memo(function WebPushCard() {
         />
       </div>
 
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
-      {state === 'denied' && (
-        <p className="text-xs text-destructive">{t('webPushDenied')}</p>
-      )}
+      {state === 'denied' && <p className="text-xs text-destructive">{t('webPushDenied')}</p>}
 
       {state === 'subscribed' && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs"
-          onClick={() => void handleTest()}
-          disabled={testing}
-        >
+        <Button variant="outline" size="sm" className="text-xs" onClick={() => void handleTest()} disabled={testing}>
           {testing ? t('webPushTesting') : t('webPushSendTest')}
         </Button>
       )}
@@ -123,9 +119,7 @@ const WebPushCard = memo(function WebPushCard() {
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
           <Smartphone className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
           <div className="text-xs">
-            <p className="font-medium text-amber-700 dark:text-amber-400">
-              {t('webPushIOSHint')}
-            </p>
+            <p className="font-medium text-amber-700 dark:text-amber-400">{t('webPushIOSHint')}</p>
             {isInstallable && (
               <Button
                 variant="link"
@@ -144,9 +138,7 @@ const WebPushCard = memo(function WebPushCard() {
         <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2">
           <Smartphone className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
           <div className="text-xs">
-            <p className="text-blue-700 dark:text-blue-400">
-              {t('webPushInstallHint')}
-            </p>
+            <p className="text-blue-700 dark:text-blue-400">{t('webPushInstallHint')}</p>
             <Button
               variant="link"
               size="sm"

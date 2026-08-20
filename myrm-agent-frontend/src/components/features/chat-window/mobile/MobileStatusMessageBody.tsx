@@ -66,10 +66,8 @@ export function MobileStatusMessageBody({
     );
   }
 
-  const hasProgress =
-    lastAssistantMessage.progressSteps && lastAssistantMessage.progressSteps.length > 0;
-  const hasThinking =
-    lastAssistantMessage.thinkingItems && lastAssistantMessage.thinkingItems.length > 0;
+  const hasProgress = lastAssistantMessage.progressSteps && lastAssistantMessage.progressSteps.length > 0;
+  const hasThinking = lastAssistantMessage.thinkingItems && lastAssistantMessage.thinkingItems.length > 0;
 
   return (
     <>
@@ -123,8 +121,7 @@ export function MobileStatusMessageBody({
                   : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
               }`}
             >
-              {activeGoal.acceptanceResults.filter((r) => r.passed).length}/
-              {activeGoal.acceptanceResults.length}
+              {activeGoal.acceptanceResults.filter((r) => r.passed).length}/{activeGoal.acceptanceResults.length}
             </span>
           </div>
           <div className="p-2 space-y-1">
@@ -132,9 +129,7 @@ export function MobileStatusMessageBody({
               <div
                 key={idx}
                 className={`flex items-center gap-2 p-2 rounded-xl text-xs ${
-                  result.passed
-                    ? 'bg-green-50/50 dark:bg-green-900/10'
-                    : 'bg-red-50/50 dark:bg-red-900/10'
+                  result.passed ? 'bg-green-50/50 dark:bg-green-900/10' : 'bg-red-50/50 dark:bg-red-900/10'
                 }`}
               >
                 <span className={`flex-shrink-0 ${result.passed ? 'text-green-600' : 'text-red-600'}`}>
@@ -172,14 +167,8 @@ export function MobileStatusMessageBody({
             <h2 className="text-sm font-medium">{t('result')}</h2>
           </div>
           <div className="p-3">
-            <p className="text-sm text-foreground leading-relaxed line-clamp-5">
-              {lastAssistantMessage.content}
-            </p>
-            <Button
-              variant="link"
-              className="px-0 mt-2 h-auto text-xs"
-              onClick={() => router.push(`/${chatId}`)}
-            >
+            <p className="text-sm text-foreground leading-relaxed line-clamp-5">{lastAssistantMessage.content}</p>
+            <Button variant="link" className="px-0 mt-2 h-auto text-xs" onClick={() => router.push(`/${chatId}`)}>
               {t('viewFull')} &rarr;
             </Button>
           </div>
@@ -219,42 +208,25 @@ function MobileArtifactList({ artifacts }: { artifacts: Artifact[] }) {
       <div className="p-3 border-b bg-muted/20 flex items-center gap-2">
         <FileText className="h-4 w-4 text-primary" />
         <h2 className="text-sm font-medium">{t('artifacts')}</h2>
-        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-          {artifacts.length}
-        </span>
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">{artifacts.length}</span>
       </div>
       <div className="divide-y">
         {artifacts.map((artifact) => {
           const Icon = getArtifactIcon(artifact.type as ArtifactType, artifact.filename);
           return (
-            <div
-              key={artifact.id}
-              className="flex items-center gap-3 p-3 active:bg-muted/30 transition-colors"
-            >
+            <div key={artifact.id} className="flex items-center gap-3 p-3 active:bg-muted/30 transition-colors">
               <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-muted/40 flex items-center justify-center">
                 <Icon className="w-4.5 h-4.5 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{artifact.filename}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {formatBytes(artifact.size)}
-                </p>
+                <p className="text-[11px] text-muted-foreground">{formatBytes(artifact.size)}</p>
               </div>
               <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => handlePreview(artifact)}
-                >
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePreview(artifact)}>
                   <ExternalLink className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => void handleDownload(artifact)}
-                >
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => void handleDownload(artifact)}>
                   <Download className="h-3.5 w-3.5" />
                 </Button>
               </div>

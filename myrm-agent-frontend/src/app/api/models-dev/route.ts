@@ -24,7 +24,9 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     const isTimeout = error instanceof DOMException && error.name === 'TimeoutError';
-    if (!isTimeout) {console.error('Failed to proxy models.dev API:', error);}
+    if (!isTimeout) {
+      console.error('Failed to proxy models.dev API:', error);
+    }
 
     return NextResponse.json(
       { error: isTimeout ? 'models.dev request timed out' : 'Failed to fetch models data' },

@@ -9,8 +9,7 @@ const mockDeleteMemory = vi.fn();
 const mockToastError = vi.fn();
 const mockToastSuccess = vi.fn();
 
-const stableT = (key: string, values?: Record<string, unknown>) =>
-  values ? `${key}:${JSON.stringify(values)}` : key;
+const stableT = (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,

@@ -4,7 +4,9 @@ import type { ProgressItem } from '@/store/chat/types/progress';
 import { getStepTitle } from '../utils';
 
 const progressT = (key: string) => {
-  if (key === 'file_write_tool') {return 'Writing file';}
+  if (key === 'file_write_tool') {
+    return 'Writing file';
+  }
   return key;
 };
 

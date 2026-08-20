@@ -10,11 +10,7 @@ import { useKanbanTaskDrawer } from './useKanbanTaskDrawer';
 import { StatusActionsBar } from './KanbanTaskDrawerHeader';
 import { TaskDetailsSection } from './KanbanTaskDrawerDetails';
 import { AttachmentsSection, TaskResultSection } from './KanbanTaskDrawerBodySections';
-import {
-  DependenciesSection,
-  CommentInputSection,
-  LatestProgressSection,
-} from './KanbanTaskDrawerBodyMetaSections';
+import { DependenciesSection, CommentInputSection, LatestProgressSection } from './KanbanTaskDrawerBodyMetaSections';
 import KanbanDiagnosticsSection from './KanbanDiagnosticsSection';
 import KanbanTaskExecutionTraceSection from './KanbanTaskExecutionTraceSection';
 import { KanbanRunHistory, KanbanEventTimeline } from './KanbanEventTimeline';
@@ -44,7 +40,9 @@ export default function KanbanTaskDrawer({
 
   const drawer = useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefresh, t });
 
-  if (!task) {return null;}
+  if (!task) {
+    return null;
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

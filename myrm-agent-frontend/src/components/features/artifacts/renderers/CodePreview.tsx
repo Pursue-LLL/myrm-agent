@@ -26,7 +26,9 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
 
   const markAsDirty = useArtifactPortalStore((state) => state.markAsDirty);
   const clearDirtyState = useArtifactPortalStore((state) => state.clearDirtyState);
-  const dirtyArtifactId = useArtifactPortalStore((state) => (artifactId ? state.dirtyArtifacts[artifactId] : undefined));
+  const dirtyArtifactId = useArtifactPortalStore((state) =>
+    artifactId ? state.dirtyArtifacts[artifactId] : undefined,
+  );
   const isDirty = !!dirtyArtifactId;
 
   const isGenerating = useIsGenerating();
@@ -39,7 +41,9 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
 
   // 获取 lineRange
   const lineRange = useArtifactPortalStore((state) => {
-    if (!artifactId) {return undefined;}
+    if (!artifactId) {
+      return undefined;
+    }
     const tab = state.openTabs.find((t) => t.artifact.id === artifactId);
     return tab?.lineRange;
   });
@@ -68,7 +72,9 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
   const applyLineRange = useCallback((rangeStr?: string) => {
     const editor = editorRef.current;
     const monaco = monacoRef.current;
-    if (!editor || !monaco) {return;}
+    if (!editor || !monaco) {
+      return;
+    }
 
     if (!rangeStr) {
       // 清除高亮
@@ -78,7 +84,9 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
 
     const parts = rangeStr.split('-');
     const startLine = parseInt(parts[0], 10);
-    if (isNaN(startLine)) {return;}
+    if (isNaN(startLine)) {
+      return;
+    }
 
     const endLine = parts.length > 1 && parts[1] ? parseInt(parts[1], 10) : startLine;
     const validEndLine = isNaN(endLine) ? startLine : endLine;
@@ -102,10 +110,14 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
   const applyDiffDecorations = useCallback(() => {
     const editor = editorRef.current;
     const monaco = monacoRef.current;
-    if (!editor || !monaco || language !== 'diff') {return;}
+    if (!editor || !monaco || language !== 'diff') {
+      return;
+    }
 
     const model = editor.getModel();
-    if (!model) {return;}
+    if (!model) {
+      return;
+    }
 
     const lines = model.getLinesContent();
     const newDecorations: editor.IModelDeltaDecoration[] = [];
@@ -175,7 +187,9 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
 
   // 映射语言到 Monaco 支持的语言
   const monacoLanguage = useMemo(() => {
-    if (!language) {return 'plaintext';}
+    if (!language) {
+      return 'plaintext';
+    }
     const langMap: Record<string, string> = {
       js: 'javascript',
       ts: 'typescript',

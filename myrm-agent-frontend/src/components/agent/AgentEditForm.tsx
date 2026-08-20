@@ -160,7 +160,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) {return;}
+    if (!file) {
+      return;
+    }
 
     // Local preview instantly
     const objectUrl = URL.createObjectURL(file);
@@ -355,7 +357,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.browserSourceAuto', { fallback: 'Auto (System Default)' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.browserSourceAutoDesc', { fallback: 'Automatically detect the best browser source.' })}
+                            {t('form.browserSourceAutoDesc', {
+                              fallback: 'Automatically detect the best browser source.',
+                            })}
                           </span>
                         </div>
                       </SelectItem>
@@ -363,7 +367,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.browserSourceExtension', { fallback: 'Browser Extension' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.browserSourceExtensionDesc', { fallback: 'Use your real browser via extension bridge. Preserves your login sessions.' })}
+                            {t('form.browserSourceExtensionDesc', {
+                              fallback: 'Use your real browser via extension bridge. Preserves your login sessions.',
+                            })}
                           </span>
                         </div>
                       </SelectItem>
@@ -371,7 +377,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.browserSourceLaunch', { fallback: 'Launch New Browser' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.browserSourceLaunchDesc', { fallback: 'Launch a fresh isolated browser instance.' })}
+                            {t('form.browserSourceLaunchDesc', {
+                              fallback: 'Launch a fresh isolated browser instance.',
+                            })}
                           </span>
                         </div>
                       </SelectItem>
@@ -379,7 +387,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.browserSourceConnect', { fallback: 'Connect Existing Browser' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.browserSourceConnectDesc', { fallback: 'Connect via CDP to your running Chrome/Brave/Edge.' })}
+                            {t('form.browserSourceConnectDesc', {
+                              fallback: 'Connect via CDP to your running Chrome/Brave/Edge.',
+                            })}
                           </span>
                         </div>
                       </SelectItem>
@@ -387,7 +397,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.browserSourceRemote', { fallback: 'Cloud Browser' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.browserSourceRemoteDesc', { fallback: 'Connect to cloud browser services (configure in Settings).' })}
+                            {t('form.browserSourceRemoteDesc', {
+                              fallback: 'Connect to cloud browser services (configure in Settings).',
+                            })}
                           </span>
                         </div>
                       </SelectItem>
@@ -426,7 +438,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.dialogPolicySmart', { fallback: 'Smart (Default)' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.dialogPolicySmartDesc', { fallback: 'Auto-accept alerts/confirms, dismiss prompts.' })}
+                            {t('form.dialogPolicySmartDesc', {
+                              fallback: 'Auto-accept alerts/confirms, dismiss prompts.',
+                            })}
                           </span>
                         </div>
                       </SelectItem>
@@ -450,7 +464,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.dialogPolicyWaitForAgent', { fallback: 'Wait for Agent' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.dialogPolicyWaitForAgentDesc', { fallback: 'Pause and let the AI decide how to respond.' })}
+                            {t('form.dialogPolicyWaitForAgentDesc', {
+                              fallback: 'Pause and let the AI decide how to respond.',
+                            })}
                           </span>
                         </div>
                       </SelectItem>
@@ -479,7 +495,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                         <div className="flex flex-col py-0.5">
                           <span>{t('form.sessionRecordingOnFailure', { fallback: 'On Failure' })}</span>
                           <span className="text-xs text-muted-foreground">
-                            {t('form.sessionRecordingOnFailureDesc', { fallback: 'Keep recording only when task fails.' })}
+                            {t('form.sessionRecordingOnFailureDesc', {
+                              fallback: 'Keep recording only when task fails.',
+                            })}
                           </span>
                         </div>
                       </SelectItem>

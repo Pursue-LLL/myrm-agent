@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useExtensionWebUiOriginSeed } from '@/hooks/extension/useExtensionWebUiOriginSeed';
-import {
-  getExtensionClipAgentConfig,
-  updateExtensionClipAgentConfig,
-} from '@/services/extension';
+import { getExtensionClipAgentConfig, updateExtensionClipAgentConfig } from '@/services/extension';
 
 vi.mock('@/services/extension', () => ({
   getExtensionClipAgentConfig: vi.fn(),
@@ -28,10 +25,7 @@ describe('useExtensionWebUiOriginSeed', () => {
     renderHook(() => useExtensionWebUiOriginSeed());
 
     await waitFor(() => {
-      expect(updateExtensionClipAgentConfig).toHaveBeenCalledWith(
-        'agent-1',
-        'http://localhost:3000',
-      );
+      expect(updateExtensionClipAgentConfig).toHaveBeenCalledWith('agent-1', 'http://localhost:3000');
     });
   });
 

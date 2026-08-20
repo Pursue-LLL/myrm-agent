@@ -28,12 +28,8 @@ import RejectModeView from './approval/RejectModeView';
 import HandoverModeView from './approval/HandoverModeView';
 import BrowserSessionView from './approval/BrowserSessionView';
 import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
 import {
   extractShellCommand,
@@ -43,11 +39,12 @@ import {
 } from '@/lib/approval/shellCommandDisplay';
 import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
 import ShellCommandDisplay from './approval/ShellCommandDisplay';
-import { type AllowAlwaysScope, defaultAllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
 import {
-  classifyApprovalSurface,
-  humanizeApprovalTitle,
-} from '@/lib/humanize';
+  type AllowAlwaysScope,
+  defaultAllowAlwaysScope,
+  scopeToAllowAlwaysValue,
+} from '@/lib/approval/allowAlwaysScope';
+import { classifyApprovalSurface, humanizeApprovalTitle } from '@/lib/humanize';
 import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
 import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
 import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
@@ -58,11 +55,7 @@ type DialogMode = 'default' | 'editing' | 'rejecting';
 
 interface SingleApprovalCardProps {
   request: ToolApprovalRequest;
-  onResolve: (
-    requestId: string,
-    decision: DecisionType,
-    extra?: ToolApprovalResolveExtra,
-  ) => Promise<void>;
+  onResolve: (requestId: string, decision: DecisionType, extra?: ToolApprovalResolveExtra) => Promise<void>;
   isLoading: boolean;
   hideVisualHighlight?: boolean;
   compact?: boolean;
@@ -94,12 +87,8 @@ export default function SingleApprovalCard({
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [grantDirectoryAccess, setGrantDirectoryAccess] = useState(false);
 
-  const desktopViewData = useDesktopInspectorStore((s) =>
-    selectScopedDesktopViewData(s.viewData, request.chatId),
-  );
-  const browserViewData = useBrowserInspectorStore((s) =>
-    selectScopedBrowserViewData(s.viewData, request.chatId),
-  );
+  const desktopViewData = useDesktopInspectorStore((s) => selectScopedDesktopViewData(s.viewData, request.chatId));
+  const browserViewData = useBrowserInspectorStore((s) => selectScopedBrowserViewData(s.viewData, request.chatId));
 
   const visualContext = useMemo(
     () => resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData),
@@ -121,10 +110,7 @@ export default function SingleApprovalCard({
   );
 
   const editedShellCommand = useMemo(
-    () =>
-      isShellApprovalTool(request.toolName)
-        ? extractShellCommand(editedArgs as Record<string, unknown>)
-        : '',
+    () => (isShellApprovalTool(request.toolName) ? extractShellCommand(editedArgs as Record<string, unknown>) : ''),
     [editedArgs, request.toolName],
   );
 
@@ -134,7 +120,9 @@ export default function SingleApprovalCard({
     ['save_session', 'restore_session', 'list_sessions', 'delete_session'].includes(request.toolInput.action);
 
   const browserSessionInfo = useMemo(() => {
-    if (!isBrowserSession) {return null;}
+    if (!isBrowserSession) {
+      return null;
+    }
     const action = String(request.toolInput.action);
     const domain = String(request.toolInput.value ?? '');
     const actionLabels: Record<string, { zh: string; en: string; desc: { zh: string; en: string } }> = {
@@ -195,8 +183,8 @@ export default function SingleApprovalCard({
     request.toolName === 'bash_code_execute_tool' || request.toolName === 'execute_code'
       ? t('permissionTypes.codeInterpreter')
       : request.toolName.startsWith('browser_')
-          ? t('permissionTypes.browser')
-          : t('permissionTypes.default');
+        ? t('permissionTypes.browser')
+        : t('permissionTypes.default');
 
   useEffect(() => {
     const initial: Record<string, string> = {};
@@ -297,9 +285,7 @@ export default function SingleApprovalCard({
 
     setEditValidationErrors([]);
 
-    const allowAlwaysValue = !allowAlwaysInEdit
-      ? false
-      : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
+    const allowAlwaysValue = !allowAlwaysInEdit ? false : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
 
     const hasChanges = inputEntries.some(([key, original]) => {
       const editedVal = editedArgs[key];
@@ -309,9 +295,7 @@ export default function SingleApprovalCard({
 
     const guidanceValue = guidance.trim() || undefined;
     if (hasChanges) {
-      const editedArgsPayload = shellCommand
-        ? mergeShellEditedArgs(request.toolInput, parsed)
-        : parsed;
+      const editedArgsPayload = shellCommand ? mergeShellEditedArgs(request.toolInput, parsed) : parsed;
       await onResolve(request.requestId, 'edit', {
         edited_args: editedArgsPayload,
         allow_always: allowAlwaysValue,
@@ -411,9 +395,7 @@ export default function SingleApprovalCard({
                 <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-sm font-medium truncate">{approvalTitle}</span>
               </div>
-              <span
-                className="text-xs pl-6 break-words block"
-              >
+              <span className="text-xs pl-6 break-words block">
                 <ApprovalScopeNoteLine
                   toolName={request.toolName}
                   toolInput={request.toolInput}
@@ -421,9 +403,7 @@ export default function SingleApprovalCard({
                 />
               </span>
             </div>
-            {request.ptcAnnotations ? (
-              <PtcHintBadges annotations={request.ptcAnnotations} t={t} />
-            ) : null}
+            {request.ptcAnnotations ? <PtcHintBadges annotations={request.ptcAnnotations} t={t} /> : null}
           </div>
 
           {visualContext && !hideVisualHighlight && (
@@ -434,9 +414,7 @@ export default function SingleApprovalCard({
             <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 mb-2">
               <ShieldAlert className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="min-w-0">
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                  {t('smartDenied.title')}
-                </p>
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{t('smartDenied.title')}</p>
                 {request.reviewerReason && (
                   <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5 break-words">
                     {request.reviewerReason}
@@ -560,7 +538,12 @@ export default function SingleApprovalCard({
               {isSaveSkill ? t('saveSkill.approve') : t('approve')}
             </Button>
             {!isSaveSkill && (
-              <Button size="sm" variant="secondary" onClick={() => setMode('editing')} disabled={isLoading || isExpired}>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setMode('editing')}
+                disabled={isLoading || isExpired}
+              >
                 <Pencil className="mr-1 h-3.5 w-3.5" />
                 {t('edit')}
               </Button>

@@ -30,7 +30,7 @@ describe('MessageToc', () => {
 
   it('should not render if there are less than 2 headings', () => {
     const { container } = render(
-      <MessageToc content="# Only one heading" messageId="test-msg" containerRef={mockContainerRef} />
+      <MessageToc content="# Only one heading" messageId="test-msg" containerRef={mockContainerRef} />,
     );
     expect(container.firstChild).toBeNull();
   });

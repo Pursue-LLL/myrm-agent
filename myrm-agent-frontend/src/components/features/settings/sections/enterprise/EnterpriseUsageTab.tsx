@@ -69,7 +69,9 @@ const EnterpriseUsageTab = memo(() => {
   }, [loadData]);
 
   const handleSaveBudget = useCallback(async () => {
-    if (!orgId) {return;}
+    if (!orgId) {
+      return;
+    }
     try {
       const budgetWu = budgetInput ? Number(budgetInput) : null;
       const threshold = Number(thresholdInput) / 100;
@@ -82,9 +84,8 @@ const EnterpriseUsageTab = memo(() => {
     }
   }, [orgId, budgetInput, thresholdInput, t]);
 
-  const usagePercent = summary?.usage_ratio !== null && summary?.usage_ratio !== undefined
-    ? Math.round(summary.usage_ratio * 100)
-    : null;
+  const usagePercent =
+    summary?.usage_ratio !== null && summary?.usage_ratio !== undefined ? Math.round(summary.usage_ratio * 100) : null;
 
   if (loading && !summary) {
     return (
@@ -113,7 +114,11 @@ const EnterpriseUsageTab = memo(() => {
             size="sm"
             variant="outline"
             onClick={() => {
-              setBudgetInput(budget?.budget_wu_monthly !== null && budget?.budget_wu_monthly !== undefined ? String(budget.budget_wu_monthly) : '');
+              setBudgetInput(
+                budget?.budget_wu_monthly !== null && budget?.budget_wu_monthly !== undefined
+                  ? String(budget.budget_wu_monthly)
+                  : '',
+              );
               setThresholdInput(budget ? String(Math.round(budget.alert_threshold * 100)) : '80');
               setShowBudgetDialog(true);
             }}

@@ -39,9 +39,13 @@ interface StoredIntensity {
 }
 
 function getStoredIntensity(modelName: string): StoredIntensity | null {
-  if (typeof window === 'undefined') {return null;}
+  if (typeof window === 'undefined') {
+    return null;
+  }
   const customStored = localStorage.getItem(`${CUSTOM_STORAGE_PREFIX}${modelName}`);
-  if (customStored) {return { intensity: 'off', customValue: customStored };}
+  if (customStored) {
+    return { intensity: 'off', customValue: customStored };
+  }
   const stored = localStorage.getItem(`${STORAGE_PREFIX}${modelName}`);
   if (stored && INTENSITY_OPTIONS.some((o) => o.value === stored)) {
     return { intensity: stored as IntensityLevel, customValue: '' };
@@ -50,7 +54,9 @@ function getStoredIntensity(modelName: string): StoredIntensity | null {
 }
 
 function storeIntensity(modelName: string, level: IntensityLevel): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.removeItem(`${CUSTOM_STORAGE_PREFIX}${modelName}`);
   if (level === DEFAULT_INTENSITY) {
     localStorage.removeItem(`${STORAGE_PREFIX}${modelName}`);
@@ -60,7 +66,9 @@ function storeIntensity(modelName: string, level: IntensityLevel): void {
 }
 
 function storeCustomValue(modelName: string, value: string): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.removeItem(`${STORAGE_PREFIX}${modelName}`);
   if (value) {
     localStorage.setItem(`${CUSTOM_STORAGE_PREFIX}${modelName}`, value);
@@ -114,21 +122,31 @@ function _notify() {
 }
 
 export function setGlobalIntensity(level: IntensityLevel, modelName?: string) {
-  if (_state.intensity === level && _state.customValue === '') {return;}
+  if (_state.intensity === level && _state.customValue === '') {
+    return;
+  }
   _state = { intensity: level, customValue: '' };
-  if (modelName) {storeIntensity(modelName, level);}
+  if (modelName) {
+    storeIntensity(modelName, level);
+  }
   _notify();
 }
 
 export function setGlobalCustomValue(value: string, modelName?: string) {
-  if (_state.customValue === value && _state.intensity === 'off') {return;}
+  if (_state.customValue === value && _state.intensity === 'off') {
+    return;
+  }
   _state = { intensity: 'off', customValue: value };
-  if (modelName) {storeCustomValue(modelName, value);}
+  if (modelName) {
+    storeCustomValue(modelName, value);
+  }
   _notify();
 }
 
 export function getThinkingEffort(): string | undefined {
-  if (_state.customValue) {return _state.customValue;}
+  if (_state.customValue) {
+    return _state.customValue;
+  }
   return intensityToReasoningEffort(_state.intensity);
 }
 
@@ -170,7 +188,9 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
 
   const currentModel = useMemo(() => {
     const selection = resolveActiveModelSelection(actionMode, agentConfig, defaultModelConfig, providers);
-    if (!selection) {return null;}
+    if (!selection) {
+      return null;
+    }
     const key = `${selection.providerId}/${selection.model}`;
     const info = customModelInfo[key];
     return {
@@ -183,7 +203,9 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
   const syncedModelRef = useRef('');
 
   useEffect(() => {
-    if (!modelName || modelName === syncedModelRef.current) {return;}
+    if (!modelName || modelName === syncedModelRef.current) {
+      return;
+    }
     syncedModelRef.current = modelName;
     const stored = getStoredIntensity(modelName);
     if (stored) {
@@ -208,7 +230,9 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
 
   const handleCustomSubmit = useCallback(() => {
     const trimmed = customInputValue.trim();
-    if (!trimmed) {return;}
+    if (!trimmed) {
+      return;
+    }
     setGlobalCustomValue(trimmed, currentModel?.name);
     setShowCustomInput(false);
     setOpen(false);
@@ -220,7 +244,9 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
     }
   }, [showCustomInput]);
 
-  if (!currentModel?.supportsReasoning) {return null;}
+  if (!currentModel?.supportsReasoning) {
+    return null;
+  }
 
   const activeOption = INTENSITY_OPTIONS.find((o) => o.value === intensity);
   const displayLabel = customValue || (intensity !== 'off' ? t(activeOption?.labelKey ?? 'off') : null);
@@ -296,9 +322,15 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
                   value={customInputValue}
                   onChange={(e) => setCustomInputValue(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) {return;}
-                    if (e.key === 'Enter') {handleCustomSubmit();}
-                    if (e.key === 'Escape') {setShowCustomInput(false);}
+                    if (e.nativeEvent.isComposing) {
+                      return;
+                    }
+                    if (e.key === 'Enter') {
+                      handleCustomSubmit();
+                    }
+                    if (e.key === 'Escape') {
+                      setShowCustomInput(false);
+                    }
                   }}
                   placeholder={t('customPlaceholder')}
                   className="flex-1 h-7 px-2 text-xs bg-muted rounded border border-border focus:outline-none focus:border-primary"

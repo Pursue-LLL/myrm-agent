@@ -11,20 +11,14 @@ describe('verifyThemeAssetAvailable', () => {
   });
 
   it('returns false when HEAD reports missing file', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 404 }),
-    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     await expect(verifyThemeAssetAvailable('file:missing')).resolves.toBe(false);
   });
 
   it('falls back to ranged GET when HEAD is not allowed', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce({ ok: false, status: 405 })
-        .mockResolvedValueOnce({ ok: true, status: 206 }),
+      vi.fn().mockResolvedValueOnce({ ok: false, status: 405 }).mockResolvedValueOnce({ ok: true, status: 206 }),
     );
     await expect(verifyThemeAssetAvailable('file:hero')).resolves.toBe(true);
   });

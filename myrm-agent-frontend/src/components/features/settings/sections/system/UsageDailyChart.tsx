@@ -10,10 +10,14 @@ import { CacheBreakTimeline } from './UsageCacheBreakTimeline';
 const GRID_LINES = [0.25, 0.5, 0.75] as const;
 
 function getLabelIndices(len: number): Set<number> {
-  if (len <= 7) {return new Set(Array.from({ length: len }, (_, i) => i));}
+  if (len <= 7) {
+    return new Set(Array.from({ length: len }, (_, i) => i));
+  }
   const step = Math.ceil(len / 5);
   const indices = new Set<number>();
-  for (let i = 0; i < len; i += step) {indices.add(i);}
+  for (let i = 0; i < len; i += step) {
+    indices.add(i);
+  }
   indices.add(len - 1);
   return indices;
 }
@@ -68,7 +72,10 @@ export const DailyChart = memo<{ data: DailyUsage[]; t: ReturnType<typeof import
                   const barH = Math.max((d.totalTokens / maxTokens) * 100, 2);
                   const cacheRate = d.inputTokens > 0 ? ((d.cachedTokens / d.inputTokens) * 100).toFixed(1) : null;
                   return (
-                    <div key={d.date} className="group relative flex-1 min-w-0 max-w-12 h-full flex flex-col justify-end">
+                    <div
+                      key={d.date}
+                      className="group relative flex-1 min-w-0 max-w-12 h-full flex flex-col justify-end"
+                    >
                       <motion.div
                         className="relative w-full rounded-t-lg overflow-hidden cursor-default"
                         style={{ height: `${barH}%`, transformOrigin: 'bottom' }}
@@ -87,7 +94,9 @@ export const DailyChart = memo<{ data: DailyUsage[]; t: ReturnType<typeof import
                           <div className="text-muted-foreground">
                             {formatTokenCount(d.totalTokens)} tokens
                             {cacheRate !== null && (
-                              <span className="ml-1.5 text-emerald-600 dark:text-emerald-400">({cacheRate}% cached)</span>
+                              <span className="ml-1.5 text-emerald-600 dark:text-emerald-400">
+                                ({cacheRate}% cached)
+                              </span>
                             )}
                           </div>
                         </div>
@@ -97,7 +106,11 @@ export const DailyChart = memo<{ data: DailyUsage[]; t: ReturnType<typeof import
                 })}
               </div>
 
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="absolute inset-0 w-full h-full pointer-events-none"
+              >
                 <motion.polyline
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}

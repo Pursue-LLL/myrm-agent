@@ -36,7 +36,9 @@ export function usePortalKeyboard({
   onCloseAllTabs,
 }: UsePortalKeyboardProps) {
   useEffect(() => {
-    if (!isOpen) {return;}
+    if (!isOpen) {
+      return;
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // ESC: 关闭全屏或关闭面板
@@ -51,7 +53,9 @@ export function usePortalKeyboard({
 
       // 以下快捷键需要 Cmd/Ctrl 修饰键
       const isMod = e.metaKey || e.ctrlKey;
-      if (!isMod) {return;}
+      if (!isMod) {
+        return;
+      }
 
       switch (e.key.toLowerCase()) {
         // Cmd/Ctrl + K: 快速切换显示模式（预览 <-> 代码）

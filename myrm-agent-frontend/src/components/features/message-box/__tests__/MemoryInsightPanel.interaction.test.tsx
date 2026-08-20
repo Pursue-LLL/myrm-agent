@@ -44,4 +44,3 @@ describe('MemoryInsightPanel interaction', () => {
     expect(screen.getAllByText('briefStatusSourcePreflight').length).toBeGreaterThan(0);
   });
 });
-

@@ -1,7 +1,7 @@
 /**
  * [OUTPUT]
  * ArtifactType, ArtifactVersion, Artifact.
- * 
+ *
  * [POS]
  * 聊天工件（代码/文档/媒体）契约。
  */

@@ -50,11 +50,7 @@ export const UIList: React.FC<UIComponentProps> = ({ props, bindings, data, chil
   }
 
   if (items.length === 0) {
-    return (
-      <p className={cn('text-sm text-gray-500 dark:text-gray-400', className)}>
-        {emptyText}
-      </p>
-    );
+    return <p className={cn('text-sm text-gray-500 dark:text-gray-400', className)}>{emptyText}</p>;
   }
 
   return (
@@ -76,12 +72,8 @@ export const UIList: React.FC<UIComponentProps> = ({ props, bindings, data, chil
           )}
         >
           <div className="font-medium text-gray-900 dark:text-gray-100">{item.title}</div>
-          {item.subtitle && (
-            <div className="text-sm text-gray-600 dark:text-gray-300">{item.subtitle}</div>
-          )}
-          {item.description && (
-            <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.description}</div>
-          )}
+          {item.subtitle && <div className="text-sm text-gray-600 dark:text-gray-300">{item.subtitle}</div>}
+          {item.description && <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.description}</div>}
         </li>
       ))}
     </ul>

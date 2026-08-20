@@ -12,13 +12,7 @@ const EnterpriseModelPolicyTab = lazy(() => import('./EnterpriseModelPolicyTab')
 const EnterpriseApprovalPolicyTab = lazy(() => import('./EnterpriseApprovalPolicyTab'));
 const EnterpriseSsoTab = lazy(() => import('./EnterpriseSsoTab'));
 
-type EnterpriseTab =
-  | 'members'
-  | 'sso'
-  | 'usage'
-  | 'audit'
-  | 'model-policy'
-  | 'approval-policy';
+type EnterpriseTab = 'members' | 'sso' | 'usage' | 'audit' | 'model-policy' | 'approval-policy';
 
 const TAB_FALLBACK = <div className="animate-pulse h-48 bg-muted rounded" />;
 

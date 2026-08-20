@@ -85,9 +85,7 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
             <GitFork className="h-5 w-5" />
             {t('title')}
           </DialogTitle>
-          <DialogDescription>
-            {t('description', { index: messageIndex })}
-          </DialogDescription>
+          <DialogDescription>{t('description', { index: messageIndex })}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -98,7 +96,11 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
               placeholder={t('titlePlaceholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !isForking) {handleFork();} }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isForking) {
+                  handleFork();
+                }
+              }}
               maxLength={255}
             />
           </div>

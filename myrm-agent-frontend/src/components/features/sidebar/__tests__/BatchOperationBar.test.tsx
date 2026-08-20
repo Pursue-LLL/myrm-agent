@@ -5,13 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BatchOperationBar from '../BatchOperationBar';
 
 const batchMoveChats = vi.hoisted(() => vi.fn());
-const toastMock = vi.hoisted(() => Object.assign(vi.fn(), {
-  success: vi.fn(),
-  error: vi.fn(),
-  warning: vi.fn(),
-  info: vi.fn(),
-  dismiss: vi.fn(),
-}));
+const toastMock = vi.hoisted(() =>
+  Object.assign(vi.fn(), {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+);
 
 vi.mock('@/services/projects', () => ({
   batchMoveChats,
@@ -55,7 +57,9 @@ const defaultProps = {
   onDelete: vi.fn(),
   onExit: vi.fn(),
   t: ((key: string, params?: Record<string, unknown>) => {
-    if (params?.count !== undefined) {return `${key}:${params.count}`;}
+    if (params?.count !== undefined) {
+      return `${key}:${params.count}`;
+    }
     return key;
   }) as ReturnType<typeof import('next-intl').useTranslations>,
 };

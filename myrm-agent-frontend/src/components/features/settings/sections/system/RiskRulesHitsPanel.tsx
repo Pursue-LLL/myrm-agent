@@ -50,9 +50,7 @@ function RiskRulesHitsPanel() {
               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SEVERITY_COLORS[h.severity] || ''}`}>
                 {t(
                   `severity${h.severity.charAt(0).toUpperCase() + h.severity.slice(1)}` as
-                    | 'severityLow'
-                    | 'severityMedium'
-                    | 'severityHigh',
+                    'severityLow' | 'severityMedium' | 'severityHigh',
                 )}
               </span>
               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${ACTION_COLORS[h.action] || ''}`}>

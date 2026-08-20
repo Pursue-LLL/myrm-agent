@@ -6,12 +6,7 @@ import { Plus, Trash2, Bell } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import {
-  listChannelStatuses,
-  listPairings,
-  type ChannelPairing,
-  type ChannelStatus,
-} from '@/services/channels';
+import { listChannelStatuses, listPairings, type ChannelPairing, type ChannelStatus } from '@/services/channels';
 import type { NotifyTarget } from '@/services/agent';
 
 const MANUAL_RECIPIENT_VALUE = '__manual__';
@@ -35,10 +30,7 @@ function pairingLabel(pairing: ChannelPairing): string {
   return pairing.sender_id;
 }
 
-function buildAvailableChannels(
-  runningStatuses: ChannelStatus[],
-  targets: NotifyTarget[],
-): ChannelOption[] {
+function buildAvailableChannels(runningStatuses: ChannelStatus[], targets: NotifyTarget[]): ChannelOption[] {
   const options = new Map<string, ChannelOption>();
 
   for (const status of runningStatuses) {
@@ -76,10 +68,7 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
       .catch(() => setPairings([]));
   }, []);
 
-  const activePairings = useMemo(
-    () => pairings.filter((p) => p.status === 'active'),
-    [pairings],
-  );
+  const activePairings = useMemo(() => pairings.filter((p) => p.status === 'active'), [pairings]);
 
   const pairingsByChannel = useMemo(() => {
     const map = new Map<string, ChannelPairing[]>();
@@ -91,10 +80,7 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
     return map;
   }, [activePairings]);
 
-  const availableChannels = useMemo(
-    () => buildAvailableChannels(runningChannels, targets),
-    [runningChannels, targets],
-  );
+  const availableChannels = useMemo(() => buildAvailableChannels(runningChannels, targets), [runningChannels, targets]);
 
   const handleAdd = useCallback(() => {
     const defaultChannel = availableChannels[0]?.value ?? '';
@@ -243,11 +229,7 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
               className="flex flex-col sm:flex-row sm:items-center gap-2"
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Select
-                  value={target.channel}
-                  onValueChange={(v) => handleChannelChange(idx, v)}
-                  disabled={readonly}
-                >
+                <Select value={target.channel} onValueChange={(v) => handleChannelChange(idx, v)} disabled={readonly}>
                   <SelectTrigger className="w-[120px] h-8 text-xs shrink-0">
                     <SelectValue />
                   </SelectTrigger>

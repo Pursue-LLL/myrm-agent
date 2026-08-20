@@ -6,7 +6,9 @@ const MAX_DETAIL_ITEMS = 30;
 export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, unknown>): void {
   const { data, actions } = ctx;
   const messageId = data.messageId;
-  if (!messageId) {return;}
+  if (!messageId) {
+    return;
+  }
   const sd = statusData;
 
   if ('progress_percent' in sd && typeof sd.progress_percent === 'number') {
@@ -33,7 +35,9 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
   if (sd.phase === 'workflow_suggestion' && sd.status === 'suggested') {
     actions.setMessages((state) => {
       const idx = H.findAssistantMessageIndex(state.messages, messageId);
-      if (idx === -1) {return;}
+      if (idx === -1) {
+        return;
+      }
       state.messages[idx].workflowSuggestion = { status: 'suggested' };
     });
   }
@@ -41,29 +45,35 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
   if (sd.phase === 'plan_confirm') {
     actions.setMessages((state) => {
       const idx = H.findAssistantMessageIndex(state.messages, messageId);
-      if (idx === -1) {return;}
+      if (idx === -1) {
+        return;
+      }
       if (sd.status === 'waiting') {
-        const planItems = Array.isArray(sd.plan_items) ? sd.plan_items as Array<{ id: string; content: string; status?: string }> : undefined;
+        const planItems = Array.isArray(sd.plan_items)
+          ? (sd.plan_items as Array<{ id: string; content: string; status?: string }>)
+          : undefined;
         const rawSource = typeof sd.source === 'string' ? sd.source : undefined;
         const isGeneralAgent = !!planItems;
-        const source = rawSource === 'dynamic_workflow'
-          ? 'dynamic_workflow'
-          : isGeneralAgent
-            ? 'general_agent'
-            : 'deep_research';
-        const planText = typeof sd.plan === 'string' ? sd.plan as string
-          : planItems ? planItems.map((item, i) => `${i + 1}. ${item.content}`).join('\n') : '';
+        const source =
+          rawSource === 'dynamic_workflow' ? 'dynamic_workflow' : isGeneralAgent ? 'general_agent' : 'deep_research';
+        const planText =
+          typeof sd.plan === 'string'
+            ? (sd.plan as string)
+            : planItems
+              ? planItems.map((item, i) => `${i + 1}. ${item.content}`).join('\n')
+              : '';
         state.messages[idx].planConfirmation = {
           plan: planText,
           status: 'waiting',
           planItems,
-          totalItems: typeof sd.total_items === 'number' ? sd.total_items as number : undefined,
-          goal: typeof sd.goal === 'string' ? sd.goal as string : undefined,
+          totalItems: typeof sd.total_items === 'number' ? (sd.total_items as number) : undefined,
+          goal: typeof sd.goal === 'string' ? (sd.goal as string) : undefined,
           source,
-          spawnCount: typeof sd.spawn_count === 'number' ? sd.spawn_count as number : undefined,
-          estimatedCostUsd: typeof sd.estimated_cost_usd === 'number' ? sd.estimated_cost_usd as number : undefined,
-          remainingBudgetUsd: typeof sd.remaining_budget_usd === 'number' ? sd.remaining_budget_usd as number : undefined,
-          costStatus: typeof sd.cost_status === 'string' ? sd.cost_status as string : undefined,
+          spawnCount: typeof sd.spawn_count === 'number' ? (sd.spawn_count as number) : undefined,
+          estimatedCostUsd: typeof sd.estimated_cost_usd === 'number' ? (sd.estimated_cost_usd as number) : undefined,
+          remainingBudgetUsd:
+            typeof sd.remaining_budget_usd === 'number' ? (sd.remaining_budget_usd as number) : undefined,
+          costStatus: typeof sd.cost_status === 'string' ? (sd.cost_status as string) : undefined,
         };
       } else if (sd.status === 'resolved') {
         if (state.messages[idx].planConfirmation) {

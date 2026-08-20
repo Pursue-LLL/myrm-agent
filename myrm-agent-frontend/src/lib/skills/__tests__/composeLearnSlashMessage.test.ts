@@ -18,9 +18,7 @@ describe('composeLearnSlashMessage', () => {
         url: 'https://docs.example.com/api',
         text: 'focus on auth + pagination',
       }),
-    ).toBe(
-      '/learn local source: ~/projects/acme-sdk; URL: https://docs.example.com/api; focus on auth + pagination',
-    );
+    ).toBe('/learn local source: ~/projects/acme-sdk; URL: https://docs.example.com/api; focus on auth + pagination');
   });
 
   it('flattens multiline text', () => {
@@ -45,8 +43,6 @@ describe('buildLearnSlashMessageFromInput', () => {
   });
 
   it('normalizes full slash input', () => {
-    expect(buildLearnSlashMessageFromInput('/learn URL: https://example.com')).toBe(
-      '/learn URL: https://example.com',
-    );
+    expect(buildLearnSlashMessageFromInput('/learn URL: https://example.com')).toBe('/learn URL: https://example.com');
   });
 });

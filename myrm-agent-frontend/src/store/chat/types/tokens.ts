@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  * ./contextMetrics::CostStatus (POS: 成本与上下文预算指标类型)
- * 
+ *
  * [OUTPUT]
  * TokenUsage, TokenEconomicsSnapshot.
- * 
+ *
  * [POS]
  * Token 用量与经济学快照。
  */

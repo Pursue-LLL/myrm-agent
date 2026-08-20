@@ -85,7 +85,9 @@ export const useMemoryDemoSeed = ({
   }, [loadSnapshot, setActionId, t]);
 
   const rollbackDemoData = useCallback(async () => {
-    if (!demoBatchId) {return;}
+    if (!demoBatchId) {
+      return;
+    }
 
     setIsRollingBack(true);
     setActionId('demo:rollback');

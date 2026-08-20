@@ -72,12 +72,7 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
       )}
     >
       <div className="flex-shrink-0 mt-0.5">
-        <div
-          className={cn(
-            'w-7 h-7 rounded-md flex items-center justify-center',
-            'bg-primary/10 text-primary',
-          )}
-        >
+        <div className={cn('w-7 h-7 rounded-md flex items-center justify-center', 'bg-primary/10 text-primary')}>
           <Icon size={14} />
         </div>
       </div>
@@ -89,20 +84,12 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
           {step.isPassword && <Lock size={12} className="text-destructive" />}
         </div>
 
-        {step.elementText && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {step.elementText}
-          </p>
-        )}
+        {step.elementText && <p className="text-xs text-muted-foreground truncate mt-0.5">{step.elementText}</p>}
 
         {displayValue && !step.isPassword && (
-          <p className="text-xs text-muted-foreground/70 truncate mt-0.5 font-mono">
-            {displayValue}
-          </p>
+          <p className="text-xs text-muted-foreground/70 truncate mt-0.5 font-mono">{displayValue}</p>
         )}
-        {step.value && step.isPassword && (
-          <p className="text-xs text-destructive/70 mt-0.5 font-mono">***</p>
-        )}
+        {step.value && step.isPassword && <p className="text-xs text-destructive/70 mt-0.5 font-mono">***</p>}
 
         {step.screenshotB64 && (
           <div className="mt-1.5 rounded overflow-hidden border border-border max-h-24">

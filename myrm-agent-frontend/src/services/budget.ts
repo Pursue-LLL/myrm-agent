@@ -109,8 +109,7 @@ export async function deleteChannelBudget(channelKey: string): Promise<void> {
 }
 
 export async function getChannelAudit(channelKey: string, days = 7): Promise<ChannelAuditResponse> {
-  return apiRequest<ChannelAuditResponse>(
-    `/budget/channels/${encodeURIComponent(channelKey)}/audit?days=${days}`,
-    { silent: true },
-  );
+  return apiRequest<ChannelAuditResponse>(`/budget/channels/${encodeURIComponent(channelKey)}/audit?days=${days}`, {
+    silent: true,
+  });
 }

@@ -16,12 +16,7 @@
 
 import React, { memo } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  SandpackProvider,
-  SandpackPreview,
-  SandpackLayout,
-  SandpackStack,
-} from '@codesandbox/sandpack-react';
+import { SandpackProvider, SandpackPreview, SandpackLayout, SandpackStack } from '@codesandbox/sandpack-react';
 import { nightOwl, githubLight } from '@codesandbox/sandpack-themes';
 import { Code } from 'lucide-react';
 import { TAILWIND_CSS, TAILWIND_CONFIG, CN_UTILS_CODE } from './constants/reactPreviewConstants';
@@ -36,12 +31,7 @@ interface ReactPreviewProps {
 const ReactPreview = memo<ReactPreviewProps>(({ code, filename, isDarkMode = false }) => {
   const t = useTranslations('artifacts');
 
-  const {
-    isValid,
-    wrappedCode,
-    allDependencies,
-    errorLabels,
-  } = useReactPreview({ code, filename, t });
+  const { isValid, wrappedCode, allDependencies, errorLabels } = useReactPreview({ code, filename, t });
 
   if (!isValid) {
     return (

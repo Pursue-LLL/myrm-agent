@@ -16,10 +16,14 @@ export function useWuBalanceWatcher() {
   const firedRef = useRef(false);
 
   useEffect(() => {
-    if (!isSandbox() || firedRef.current || !entitlements) {return;}
+    if (!isSandbox() || firedRef.current || !entitlements) {
+      return;
+    }
 
     const { balance_wu, monthly_allowance_wu } = entitlements;
-    if (monthly_allowance_wu <= 0) {return;}
+    if (monthly_allowance_wu <= 0) {
+      return;
+    }
 
     const ratio = balance_wu / monthly_allowance_wu;
     if (ratio <= LOW_BALANCE_THRESHOLD && balance_wu > 0) {

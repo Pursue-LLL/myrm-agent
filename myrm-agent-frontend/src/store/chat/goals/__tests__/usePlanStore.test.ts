@@ -95,7 +95,9 @@ describe('usePlanStore', () => {
       const freshPlan = makePlan(['in_progress']);
 
       let resolveStale: (v: unknown) => void;
-      const stalePromise = new Promise((r) => { resolveStale = r; });
+      const stalePromise = new Promise((r) => {
+        resolveStale = r;
+      });
 
       fetchMock
         .mockReturnValueOnce(stalePromise)
@@ -115,7 +117,9 @@ describe('usePlanStore', () => {
 
     it('does not update isLoading from stale call', async () => {
       let resolveStale: (v: unknown) => void;
-      const stalePromise = new Promise((r) => { resolveStale = r; });
+      const stalePromise = new Promise((r) => {
+        resolveStale = r;
+      });
 
       fetchMock
         .mockReturnValueOnce(stalePromise)

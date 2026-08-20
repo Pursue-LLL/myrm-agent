@@ -27,9 +27,7 @@ vi.mock('@/services/i18nToastService', () => ({
 }));
 
 function makeAssistantMessage(messageId: string, withWaiting: boolean): Message {
-  const progressSteps: ProgressItem[] = withWaiting
-    ? [{ step_key: 'waiting_for_turn', status: undefined }]
-    : [];
+  const progressSteps: ProgressItem[] = withWaiting ? [{ step_key: 'waiting_for_turn', status: undefined }] : [];
   return {
     messageId,
     chatId: 'chat-1',
@@ -73,10 +71,7 @@ describe('stopMessage waiting_for_turn cleanup', () => {
 
   it('clears the waiting step without touching other messages', () => {
     useChatStore.setState({
-      messages: [
-        makeAssistantMessage('msg-1', true),
-        makeAssistantMessage('msg-2', true),
-      ],
+      messages: [makeAssistantMessage('msg-1', true), makeAssistantMessage('msg-2', true)],
     });
     const { stopMessage } = useChatStore.getState();
 

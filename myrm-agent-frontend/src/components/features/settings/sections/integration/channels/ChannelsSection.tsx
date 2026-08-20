@@ -140,8 +140,12 @@ function useIssueTranslator() {
   return useCallback(
     (text: string, patterns: IssuePattern[]) => {
       for (const [pattern, key, prefixOnly] of patterns) {
-        if (!pattern.test(text)) {continue;}
-        if (prefixOnly) {return `${t(key)} ${text.replace(pattern, '').trim()}`;}
+        if (!pattern.test(text)) {
+          continue;
+        }
+        if (prefixOnly) {
+          return `${t(key)} ${text.replace(pattern, '').trim()}`;
+        }
         return t(key);
       }
       return text;
@@ -224,9 +228,7 @@ function ChannelIssueFix({
             {copied ? t('copiedInstallCommand') : t('copyInstallCommand')}
           </button>
         </div>
-        {installError ? (
-          <p className="text-destructive text-xs">{installError}</p>
-        ) : null}
+        {installError ? <p className="text-destructive text-xs">{installError}</p> : null}
         <p className="text-muted-foreground text-xs">{t('fixRunUvSync')}</p>
         <code className="block min-w-0 break-all rounded-md border border-border/60 bg-background/80 px-2 py-1.5 font-mono text-xs">
           {fix}
@@ -235,9 +237,7 @@ function ChannelIssueFix({
     );
   }
 
-  return (
-    <p className="mt-0.5 text-muted-foreground text-xs">{translate(fix, ISSUE_FIX_PATTERNS)}</p>
-  );
+  return <p className="mt-0.5 text-muted-foreground text-xs">{translate(fix, ISSUE_FIX_PATTERNS)}</p>;
 }
 
 function ChannelIssueBanner({
@@ -250,7 +250,9 @@ function ChannelIssueBanner({
   onInstalled: () => void;
 }) {
   const translate = useIssueTranslator();
-  if (!issues.length) {return null;}
+  if (!issues.length) {
+    return null;
+  }
   return (
     <div className="space-y-2">
       {issues.map((issue, i) => {
@@ -281,8 +283,12 @@ const QR_LOGIN_CHANNELS = new Set(['whatsapp', 'wechat']);
 const CONNECTION_CONFIG_CHANNELS = new Set(['onebot', 'irc']);
 
 function getChannelNotConfiguredKey(channel: string): string {
-  if (QR_LOGIN_CHANNELS.has(channel)) {return 'channelNotConfiguredQr';}
-  if (CONNECTION_CONFIG_CHANNELS.has(channel)) {return 'channelNotConfiguredConnection';}
+  if (QR_LOGIN_CHANNELS.has(channel)) {
+    return 'channelNotConfiguredQr';
+  }
+  if (CONNECTION_CONFIG_CHANNELS.has(channel)) {
+    return 'channelNotConfiguredConnection';
+  }
   return 'channelNotConfigured';
 }
 
@@ -325,7 +331,9 @@ const DEVELOPER_PORTAL_URLS: Record<string, string> = {
 };
 
 function CredentialGuide({ channel, t }: { channel: string; t: (key: string) => string }) {
-  if (!CHANNELS_WITH_GUIDE.has(channel)) {return null;}
+  if (!CHANNELS_WITH_GUIDE.has(channel)) {
+    return null;
+  }
   const guideKey = `credentialGuide${channel.charAt(0).toUpperCase()}${channel.slice(1).replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())}`;
   const url = DEVELOPER_PORTAL_URLS[channel];
   return (
@@ -423,7 +431,9 @@ export default function ChannelsSection() {
   const ingressSnapshot = useIngressRequirement();
   const channelEntries = buildChannelEntries(t, isSandbox());
   const [selectedChannel, _setSelectedChannel] = useState(() => {
-    if (typeof window === 'undefined') {return DEFAULT_CHANNEL;}
+    if (typeof window === 'undefined') {
+      return DEFAULT_CHANNEL;
+    }
     const stored = localStorage.getItem(CHANNEL_STORAGE_KEY);
     return stored && channelEntries.some((e) => e.id === stored) ? stored : DEFAULT_CHANNEL;
   });
@@ -450,8 +460,12 @@ export default function ChannelsSection() {
   const isChannelEffectivelyEnabled = useCallback(
     (ch: string) => {
       const status = state.channelStatuses[ch];
-      if (!status || status === 'disabled' || status === 'unavailable') {return false;}
-      if (ch === 'whatsapp') {return !!state.waStatus?.connected;}
+      if (!status || status === 'disabled' || status === 'unavailable') {
+        return false;
+      }
+      if (ch === 'whatsapp') {
+        return !!state.waStatus?.connected;
+      }
       if (QR_LOGIN_CHANNELS.has(ch)) {
         return status === 'running' || status === 'running_idle';
       }
@@ -490,9 +504,7 @@ export default function ChannelsSection() {
             channelName={ch}
             onInstalled={state.fetchChannelStatuses}
           />
-          {ingressSnapshot?.channels[ch] ? (
-            <ChannelIngressBadge mode={ingressSnapshot.channels[ch]} />
-          ) : null}
+          {ingressSnapshot?.channels[ch] ? <ChannelIngressBadge mode={ingressSnapshot.channels[ch]} /> : null}
           <CredentialGuide channel={ch} t={t} />
           {status && status !== 'disabled' && status !== 'unavailable' && (
             <ChannelConfigPanel

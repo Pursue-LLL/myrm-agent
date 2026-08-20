@@ -190,9 +190,6 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     }
 
     expect(state.messages[0].progressSteps).toHaveLength(2);
-    expect(state.messages[0].progressSteps!.map((s) => s.step_key).sort()).toEqual([
-      'checklist_1',
-      'checklist_2',
-    ]);
+    expect(state.messages[0].progressSteps!.map((s) => s.step_key).sort()).toEqual(['checklist_1', 'checklist_2']);
   });
 });

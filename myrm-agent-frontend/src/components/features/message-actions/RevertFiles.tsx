@@ -62,7 +62,9 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${messageId}`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) {return 'error';}
+      if (!res.ok) {
+        return 'error';
+      }
       const data: FileChange[] = await res.json();
       return data.length > 0 ? data : [];
     } catch {
@@ -93,7 +95,9 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
       const res = await fetch(`/api/v1/files/revert/diff/${chatId}/${messageId}`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) {return null;}
+      if (!res.ok) {
+        return null;
+      }
       const data: FileDiffItem[] = await res.json();
       return data.length > 0 ? data : null;
     } catch {
@@ -104,8 +108,11 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   const toggleExpanded = useCallback((path: string) => {
     setExpandedPaths((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {next.delete(path);}
-      else {next.add(path);}
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
       return next;
     });
   }, []);
@@ -145,7 +152,9 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
   );
 
   const handleTriggerClick = useCallback(async () => {
-    if (triggerLoading) {return;}
+    if (triggerLoading) {
+      return;
+    }
     setTriggerLoading(true);
     try {
       let fileChanges: FileChange[] | 'error';
@@ -196,9 +205,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
           window.dispatchEvent(new CustomEvent('app_resync_required'));
           const revertedCount = data.reverted_files?.length ?? 0;
           const skippedTotal =
-            (data.skipped_files?.length ?? 0) > 0
-              ? (data.skipped_files?.length ?? 0)
-              : nonRevertibleCount;
+            (data.skipped_files?.length ?? 0) > 0 ? (data.skipped_files?.length ?? 0) : nonRevertibleCount;
           toast({
             title:
               skippedTotal > 0
@@ -260,11 +267,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
             void handleTriggerClick();
           }}
           disabled={status === 'loading' || triggerLoading}
-          title={
-            changeCount && changeCount > 0
-              ? t('revertFilesWithCount', { count: changeCount })
-              : t('revertFiles')
-          }
+          title={changeCount && changeCount > 0 ? t('revertFilesWithCount', { count: changeCount }) : t('revertFiles')}
           className={cn(
             'relative p-2 rounded-xl transition duration-200',
             popoverOpen
@@ -284,11 +287,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        side="bottom"
-        align="end"
-        className="w-[min(100vw-2rem,28rem)] p-0 overflow-hidden"
-      >
+      <PopoverContent side="bottom" align="end" className="w-[min(100vw-2rem,28rem)] p-0 overflow-hidden">
         {changes ? (
           <div className="text-sm p-3 max-h-[min(70vh,420px)] overflow-y-auto">
             <p className="font-medium mb-2">{t('revertConfirm')}</p>

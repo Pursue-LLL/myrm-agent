@@ -2,10 +2,7 @@ import { apiRequest } from '@/lib/api';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
-import {
-  normalizeAgentSecretKeyNames,
-  parseUserAgentFetchErrorMessage,
-} from './agentFetchErrorCore';
+import { normalizeAgentSecretKeyNames, parseUserAgentFetchErrorMessage } from './agentFetchErrorCore';
 
 async function throwUserAgentFetchError(response: Response, action: string): Promise<never> {
   const errorText = await response.text();
@@ -321,7 +318,9 @@ export async function deleteAgentSecret(agentId: string, keyName: string): Promi
     },
   });
 
-  if (response.status === 404) {return;}
+  if (response.status === 404) {
+    return;
+  }
   if (!response.ok) {
     await throwUserAgentFetchError(response, 'delete agent secret');
   }
@@ -486,7 +485,9 @@ export async function deleteAgent(agentId: string): Promise<void> {
     },
   });
 
-  if (response.status === 404) {return;}
+  if (response.status === 404) {
+    return;
+  }
   if (!response.ok) {
     await throwUserAgentFetchError(response, 'delete agent');
   }

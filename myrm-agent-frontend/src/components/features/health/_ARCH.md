@@ -6,12 +6,12 @@ System Doctor 健康检查仪表盘与修复引导，含诊断导出能力。健
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 |
-|------|------|------|
-| `DoctorDashboard.tsx` | 核心组件 | 系统诊断看板：健康评分、状态过滤、修复卡片、诊断导出；`DesktopControl` WARN 时展示系统设置深链按钮 |
-| `GuidedRepairCard.tsx` | 子组件 | 引导式修复卡片，支持 dry_run 和 confirm |
-| `doctor-icons.tsx` | 图标集 | DoctorDashboard 专用 SVG 图标组件集 |
-| `__tests__/DoctorDashboard.desktopControlWarn.test.tsx` | 测试 | WARN + `settings_deeplinks` 深链按钮渲染与 click fallback（vitest） |
+| 文件                                                    | 地位     | 职责                                                                                               |
+| ------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
+| `DoctorDashboard.tsx`                                   | 核心组件 | 系统诊断看板：健康评分、状态过滤、修复卡片、诊断导出；`DesktopControl` WARN 时展示系统设置深链按钮 |
+| `GuidedRepairCard.tsx`                                  | 子组件   | 引导式修复卡片，支持 dry_run 和 confirm                                                            |
+| `doctor-icons.tsx`                                      | 图标集   | DoctorDashboard 专用 SVG 图标组件集                                                                |
+| `__tests__/DoctorDashboard.desktopControlWarn.test.tsx` | 测试     | WARN + `settings_deeplinks` 深链按钮渲染与 click fallback（vitest）                                |
 
 ## 依赖
 

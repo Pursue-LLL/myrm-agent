@@ -24,7 +24,9 @@ export interface OriginalAgentSnapshot {
 }
 
 export function normalizeSkillConfigs(configs: AgentSkillConfigMap | undefined): AgentSkillConfigMap {
-  if (!configs) {return {};}
+  if (!configs) {
+    return {};
+  }
   const normalized: AgentSkillConfigMap = {};
   for (const [skillId, cfg] of Object.entries(configs)) {
     normalized[skillId] = {
@@ -43,9 +45,13 @@ export function areSkillConfigsEqual(
   const normalizedRight = normalizeSkillConfigs(right);
   const leftKeys = Object.keys(normalizedLeft).sort();
   const rightKeys = Object.keys(normalizedRight).sort();
-  if (leftKeys.length !== rightKeys.length) {return false;}
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
   return leftKeys.every((key, index) => {
-    if (key !== rightKeys[index]) {return false;}
+    if (key !== rightKeys[index]) {
+      return false;
+    }
     const a = normalizedLeft[key];
     const b = normalizedRight[key];
     return a.is_core === b.is_core && (a.instance_name ?? null) === (b.instance_name ?? null);
@@ -76,39 +82,31 @@ export function detectAgentConfigChanges(
   current: CurrentAgentState | null,
   currentBuiltinTools: BuiltinToolId[],
 ): boolean {
-  if (!current?.agentId) {return false;}
-  if (!original) {return false;}
-  if (original.agentId !== current.agentId) {return false;}
+  if (!current?.agentId) {
+    return false;
+  }
+  if (!original) {
+    return false;
+  }
+  if (original.agentId !== current.agentId) {
+    return false;
+  }
 
-  const arraysEqual = (a: string[], b: string[]) =>
-    a.length === b.length && a.every((v) => b.includes(v));
+  const arraysEqual = (a: string[], b: string[]) => a.length === b.length && a.every((v) => b.includes(v));
 
   const skillConfigsChanged = !areSkillConfigsEqual(original.skillConfigs, current.skillConfigs);
 
-  const skillsChanged = !arraysEqual(
-    original.selectedSkillIds ?? [],
-    current.selectedSkillIds ?? [],
-  );
+  const skillsChanged = !arraysEqual(original.selectedSkillIds ?? [], current.selectedSkillIds ?? []);
 
-  const mcpsChanged = !arraysEqual(
-    original.selectedMcpNames ?? [],
-    current.selectedMcpNames ?? [],
-  );
+  const mcpsChanged = !arraysEqual(original.selectedMcpNames ?? [], current.selectedMcpNames ?? []);
 
   const promptChanged = original.systemPrompt !== (current.systemPrompt || '');
 
-  const autoRestoreDomainsChanged = !arraysEqual(
-    original.autoRestoreDomains ?? [],
-    current.autoRestoreDomains ?? [],
-  );
+  const autoRestoreDomainsChanged = !arraysEqual(original.autoRestoreDomains ?? [], current.autoRestoreDomains ?? []);
 
-  const builtinToolsChanged = !arraysEqual(
-    original.enabledBuiltinTools ?? [],
-    currentBuiltinTools,
-  );
+  const builtinToolsChanged = !arraysEqual(original.enabledBuiltinTools ?? [], currentBuiltinTools);
 
-  const memoryDecayChanged =
-    (original.memoryDecayProfile || 'normal') !== (current.memoryDecayProfile || 'normal');
+  const memoryDecayChanged = (original.memoryDecayProfile || 'normal') !== (current.memoryDecayProfile || 'normal');
 
   const memoryExtractionPresetChanged =
     (original.memoryExtractionPreset || 'auto') !== (current.memoryExtractionPreset || 'auto');
@@ -118,16 +116,13 @@ export function detectAgentConfigChanges(
     (original.modelSelection?.model ?? '') !== (current.modelSelection?.model ?? '');
 
   const fallbackModelChanged =
-    (original.fallbackModelSelection?.providerId ?? '') !==
-      (current.fallbackModelSelection?.providerId ?? '') ||
-    (original.fallbackModelSelection?.model ?? '') !==
-      (current.fallbackModelSelection?.model ?? '');
+    (original.fallbackModelSelection?.providerId ?? '') !== (current.fallbackModelSelection?.providerId ?? '') ||
+    (original.fallbackModelSelection?.model ?? '') !== (current.fallbackModelSelection?.model ?? '');
 
   const safetyFallbackModelChanged =
     (original.safetyFallbackModelSelection?.providerId ?? '') !==
       (current.safetyFallbackModelSelection?.providerId ?? '') ||
-    (original.safetyFallbackModelSelection?.model ?? '') !==
-      (current.safetyFallbackModelSelection?.model ?? '');
+    (original.safetyFallbackModelSelection?.model ?? '') !== (current.safetyFallbackModelSelection?.model ?? '');
 
   return (
     skillsChanged ||

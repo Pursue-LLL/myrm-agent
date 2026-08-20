@@ -23,15 +23,8 @@ import ThemePackageImportPreview from '@/components/features/theme/ThemePackageI
 import { inspectThemePackage } from '@/services/theme-packages/inspectThemePackage';
 import type { ThemePackageInspectResult } from '@/services/theme-packages/inspectThemePackage';
 import { installThemePackage } from '@/services/theme-packages/installThemePackage';
-import {
-  downloadThemePackageBlob,
-  exportThemePackage,
-} from '@/services/theme-packages/exportThemePackage';
-import {
-  BUILTIN_THEME_PROFILES,
-  stripArtOverlay,
-  type ThemeProfileRecipe,
-} from '@/theme-engine';
+import { downloadThemePackageBlob, exportThemePackage } from '@/services/theme-packages/exportThemePackage';
+import { BUILTIN_THEME_PROFILES, stripArtOverlay, type ThemeProfileRecipe } from '@/theme-engine';
 
 interface ThemePackageImportSectionProps {
   className?: string;
@@ -102,8 +95,7 @@ const ThemePackageImportSection = ({
     setPackageBusy(true);
     try {
       const blob = await exportThemePackage(exportProfile);
-      const safeName =
-        exportProfile.name.replace(/[^\w-]+/g, '-').slice(0, 48) || 'workspace-theme';
+      const safeName = exportProfile.name.replace(/[^\w-]+/g, '-').slice(0, 48) || 'workspace-theme';
       downloadThemePackageBlob(blob, `${safeName}.myrmtheme`);
       toast.success(t('packageExportSuccess'));
     } catch (error) {

@@ -1,4 +1,15 @@
-import { FileText, FileSpreadsheet, Trash2, X, ImageOff, Play, Pencil, Music, LoaderCircle, AlertCircle } from 'lucide-react';
+import {
+  FileText,
+  FileSpreadsheet,
+  Trash2,
+  X,
+  ImageOff,
+  Play,
+  Pencil,
+  Music,
+  LoaderCircle,
+  AlertCircle,
+} from 'lucide-react';
 import { File as FileType } from '@/store/useChatStore';
 import { isImageFile, isVideoFile, isAudioFile, isPdfFile, getDisplayUrl } from '@/lib/utils/fileUtils';
 import { useMemo, useRef, useState, useEffect, lazy, Suspense, useCallback } from 'react';
@@ -71,9 +82,7 @@ export const ImageThumbnail = ({
         <div className="absolute inset-0 rounded-lg bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center pointer-events-none z-10">
           <LoaderCircle size={14} className="text-white animate-spin mb-0.5" />
           {typeof file.uploadPercent === 'number' && file.uploadPercent > 0 && (
-            <span className="text-[9px] font-medium text-white tabular-nums leading-none">
-              {file.uploadPercent}%
-            </span>
+            <span className="text-[9px] font-medium text-white tabular-nums leading-none">{file.uploadPercent}%</span>
           )}
         </div>
       )}
@@ -119,7 +128,9 @@ export const VideoThumbnail = ({ file, onRemove }: { file: FileType; onRemove?: 
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) {return;}
+    if (!video || !src) {
+      return;
+    }
     const handleLoaded = () => setReady(true);
     video.addEventListener('loadeddata', handleLoaded);
     video.currentTime = 0.5;
@@ -143,9 +154,7 @@ export const VideoThumbnail = ({ file, onRemove }: { file: FileType; onRemove?: 
         <div className="absolute inset-0 rounded-lg bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center pointer-events-none z-10">
           <LoaderCircle size={14} className="text-white animate-spin mb-0.5" />
           {typeof file.uploadPercent === 'number' && file.uploadPercent > 0 && (
-            <span className="text-[9px] font-medium text-white tabular-nums leading-none">
-              {file.uploadPercent}%
-            </span>
+            <span className="text-[9px] font-medium text-white tabular-nums leading-none">{file.uploadPercent}%</span>
           )}
         </div>
       )}
@@ -242,8 +251,8 @@ const AttachList: React.FC<AttachListProps> = ({
     if (targetFile.previewUrl) {
       URL.revokeObjectURL(targetFile.previewUrl);
     }
-    const newFiles = files.filter(
-      (f) => (targetFile.tempId ? f.tempId !== targetFile.tempId : f.fileName !== targetFile.fileName),
+    const newFiles = files.filter((f) =>
+      targetFile.tempId ? f.tempId !== targetFile.tempId : f.fileName !== targetFile.fileName,
     );
     setFiles(newFiles);
     if (newFiles.length === 0) {
@@ -254,11 +263,15 @@ const AttachList: React.FC<AttachListProps> = ({
 
   const handleAnnotationComplete = useCallback(
     async (blob: Blob) => {
-      if (!editingFile) {return;}
+      if (!editingFile) {
+        return;
+      }
       try {
         const dataUrl = await blobToDataUrl(blob);
         const updatedFiles = files.map((f) =>
-          f.fileName === editingFile.fileName ? { ...f, fileUrl: dataUrl, fileExtension: 'png', status: 'ready' as const } : f,
+          f.fileName === editingFile.fileName
+            ? { ...f, fileUrl: dataUrl, fileExtension: 'png', status: 'ready' as const }
+            : f,
         );
         setFiles(updatedFiles);
         setEditingFile(null);
@@ -273,7 +286,9 @@ const AttachList: React.FC<AttachListProps> = ({
     [editingFile, files, setFiles, tEditor],
   );
 
-  if (files.length === 0) {return null;}
+  if (files.length === 0) {
+    return null;
+  }
 
   const imageFiles = files.filter((file) => isImageFile(file.fileExtension));
 
@@ -289,7 +304,9 @@ const AttachList: React.FC<AttachListProps> = ({
                 file={file}
                 onRemove={() => handleRemoveFile(file)}
                 onClick={() => {
-                  const index = imageFiles.findIndex((f) => (file.tempId ? f.tempId === file.tempId : f.fileName === file.fileName));
+                  const index = imageFiles.findIndex((f) =>
+                    file.tempId ? f.tempId === file.tempId : f.fileName === file.fileName,
+                  );
                   if (index !== -1) {
                     setLightboxIndex(index);
                   }

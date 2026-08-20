@@ -33,15 +33,16 @@ export function MobileStatusLivePreview({
 }: MobileStatusLivePreviewProps) {
   const t = useTranslations('agent.mobileCommand');
 
-  if (!browserViewData && !desktopViewData) {return null;}
+  if (!browserViewData && !desktopViewData) {
+    return null;
+  }
 
   const hasBoth = Boolean(browserViewData) && Boolean(desktopViewData);
   const activeTab = hasBoth ? previewTab : browserViewData ? 'browser' : 'desktop';
   const activeData = activeTab === 'browser' ? browserViewData : desktopViewData;
   const isLoading = activeTab === 'browser' ? browserLoading : desktopLoading;
   const elapsed = activeData?.updatedAt ? Math.round((Date.now() - activeData.updatedAt) / 1000) : null;
-  const timeLabel =
-    elapsed !== null ? (elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m`) : '';
+  const timeLabel = elapsed !== null ? (elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m`) : '';
 
   const label =
     activeTab === 'browser'
@@ -63,9 +64,7 @@ export function MobileStatusLivePreview({
             <Monitor className="h-4 w-4 text-green-500" />
           )}
           <h2 className="text-sm font-medium flex-1 text-left">{t('livePreview')}</h2>
-          {timeLabel && (
-            <span className="text-[10px] text-muted-foreground tabular-nums">{timeLabel}</span>
-          )}
+          {timeLabel && <span className="text-[10px] text-muted-foreground tabular-nums">{timeLabel}</span>}
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform ${previewCollapsed ? '-rotate-90' : ''}`}
           />
@@ -92,16 +91,12 @@ export function MobileStatusLivePreview({
                 </button>
               </div>
             )}
-            {isLoading && !activeData && (
-              <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />
-            )}
+            {isLoading && !activeData && <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />}
             {activeData?.screenshotBase64 && (
               <button
                 type="button"
                 className="relative w-full rounded-xl overflow-hidden bg-muted/30 group"
-                onClick={() =>
-                  onLightboxOpen(`data:${activeData.mimeType};base64,${activeData.screenshotBase64}`)
-                }
+                onClick={() => onLightboxOpen(`data:${activeData.mimeType};base64,${activeData.screenshotBase64}`)}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -115,9 +110,7 @@ export function MobileStatusLivePreview({
                 </div>
               </button>
             )}
-            {label ? (
-              <p className="text-[10px] text-muted-foreground truncate px-1">{label}</p>
-            ) : null}
+            {label ? <p className="text-[10px] text-muted-foreground truncate px-1">{label}</p> : null}
           </div>
         )}
       </div>

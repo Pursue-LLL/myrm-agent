@@ -134,12 +134,13 @@ export default function DailyWrapCard({ date }: DailyWrapCardProps) {
 
         {data.suggestions.length > 0 && (
           <div className="space-y-1">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-              {t('suggestions')}
-            </p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{t('suggestions')}</p>
             <ul className="space-y-0.5">
               {data.suggestions.map((s, i) => (
-                <li key={i} className="text-xs text-muted-foreground pl-3 relative before:content-[''] before:absolute before:left-0 before:top-[7px] before:h-1 before:w-1 before:rounded-full before:bg-primary/40">
+                <li
+                  key={i}
+                  className="text-xs text-muted-foreground pl-3 relative before:content-[''] before:absolute before:left-0 before:top-[7px] before:h-1 before:w-1 before:rounded-full before:bg-primary/40"
+                >
                   {s}
                 </li>
               ))}
@@ -149,7 +150,8 @@ export default function DailyWrapCard({ date }: DailyWrapCardProps) {
 
         {data.generated_at && (
           <p className="text-[10px] text-muted-foreground/60 text-right">
-            {t('generatedAt')} {new Date(data.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {t('generatedAt')}{' '}
+            {new Date(data.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
       </CardContent>

@@ -29,17 +29,9 @@ import {
   mergeProfileIntoLibrary,
   STUDIO_PREVIEW_PROFILE_ID,
 } from '@/components/features/theme-studio/studio-profile';
-import {
-  downloadThemePackageBlob,
-  exportThemePackage,
-} from '@/services/theme-packages/exportThemePackage';
+import { downloadThemePackageBlob, exportThemePackage } from '@/services/theme-packages/exportThemePackage';
 import { resolveThemeAssetUrl } from '@/services/theme-assets/ThemeAssetStore';
-import {
-  EMPTY_THEME_PROFILES,
-  stripArtOverlay,
-  type HeroImageSample,
-  type ThemeProfileRecipe,
-} from '@/theme-engine';
+import { EMPTY_THEME_PROFILES, stripArtOverlay, type HeroImageSample, type ThemeProfileRecipe } from '@/theme-engine';
 import { listSkills } from '@/services/skill';
 import {
   canRestoreOfficialTheme,
@@ -82,15 +74,9 @@ const ThemeStudioSection = () => {
   const hydrateFromStorage = useThemeStudioDraftStore((state) => state.hydrateFromStorage);
   const resetDraft = useThemeStudioDraftStore((state) => state.resetDraft);
 
-  const themeProfiles = useConfigStore(
-    (state) => state.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES,
-  );
-  const activeThemeProfileId = useConfigStore(
-    (state) => state.personalSettings?.activeThemeProfileId,
-  );
-  const themeFontOverride = useConfigStore(
-    (state) => state.personalSettings?.themeFontOverride,
-  );
+  const themeProfiles = useConfigStore((state) => state.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES);
+  const activeThemeProfileId = useConfigStore((state) => state.personalSettings?.activeThemeProfileId);
+  const themeFontOverride = useConfigStore((state) => state.personalSettings?.themeFontOverride);
   const updatePersonalSettings = useConfigStore((state) => state.updatePersonalSettings);
 
   const [previewScene, setPreviewScene] = useState<PreviewScene>('chat');
@@ -147,9 +133,7 @@ const ThemeStudioSection = () => {
         return;
       }
       const url = await resolveThemeAssetUrl(
-        draft.art.mediaKind === 'video'
-          ? (draft.art.posterAssetRef ?? draft.art.assetRef)
-          : draft.art.assetRef,
+        draft.art.mediaKind === 'video' ? (draft.art.posterAssetRef ?? draft.art.assetRef) : draft.art.assetRef,
       );
       if (!cancelled) {
         setPreviewAssetUrl(url);
@@ -181,9 +165,7 @@ const ThemeStudioSection = () => {
     });
     try {
       const finalProfile = buildFinalProfile();
-      const cleaned = stripArtOverlay(
-        themeProfiles.filter((profile) => profile.id !== STUDIO_PREVIEW_PROFILE_ID),
-      );
+      const cleaned = stripArtOverlay(themeProfiles.filter((profile) => profile.id !== STUDIO_PREVIEW_PROFILE_ID));
       await updatePersonalSettings({
         themeProfiles: mergeProfileIntoLibrary(cleaned, finalProfile),
         activeThemeProfileId: finalProfile.id,
@@ -227,9 +209,7 @@ const ThemeStudioSection = () => {
         await updatePersonalSettings({
           activeThemeProfileId: profile.id,
           themeFontOverride: profile.fontId,
-          themeProfiles: stripArtOverlay(
-            themeProfiles.filter((entry) => entry.id !== STUDIO_PREVIEW_PROFILE_ID),
-          ),
+          themeProfiles: stripArtOverlay(themeProfiles.filter((entry) => entry.id !== STUDIO_PREVIEW_PROFILE_ID)),
         });
         toast.success(t('library.applied'));
       } catch (error) {
@@ -246,9 +226,7 @@ const ThemeStudioSection = () => {
       const nextProfiles = themeProfiles.filter((profile) => profile.id !== profileId);
       await updatePersonalSettings({
         themeProfiles: nextProfiles,
-        ...(activeThemeProfileId === profileId
-          ? { activeThemeProfileId: 'official-default' }
-          : {}),
+        ...(activeThemeProfileId === profileId ? { activeThemeProfileId: 'official-default' } : {}),
       });
       toast.success(t('library.deleted'));
     },
@@ -278,8 +256,7 @@ const ThemeStudioSection = () => {
     [draft.art, draft.palette, patchDraft],
   );
 
-  const canGoNext =
-    step === 1 ? draft.art.mediaKind !== 'none' && Boolean(draft.art.assetRef) : true;
+  const canGoNext = step === 1 ? draft.art.mediaKind !== 'none' && Boolean(draft.art.assetRef) : true;
 
   const restoreState = useMemo(
     () => ({ activeThemeProfileId, themeProfiles, themeFontOverride }),
@@ -364,9 +341,7 @@ const ThemeStudioSection = () => {
               onClick={() => setStep(value)}
               className={cn(
                 'rounded-full px-3 py-1 text-xs font-medium border',
-                step === value
-                  ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border text-muted-foreground',
+                step === value ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground',
               )}
             >
               {t(`steps.${value}` as 'steps.1')}
@@ -399,9 +374,7 @@ const ThemeStudioSection = () => {
                   assetRef,
                   mediaKind,
                   posterAssetRef: posterAssetRef ?? null,
-                  ...(sample
-                    ? { focusX: sample.focalX, focusY: sample.focalY }
-                    : {}),
+                  ...(sample ? { focusX: sample.focalX, focusY: sample.focalY } : {}),
                 },
               });
               setPreviewAssetUrl(previewUrl);
@@ -479,26 +452,16 @@ const ThemeStudioSection = () => {
                 onClick={() => setPreviewScene(scene)}
                 className={cn(
                   'rounded-md px-2 py-1 text-xs border',
-                  previewScene === scene
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border text-muted-foreground',
+                  previewScene === scene ? 'border-primary bg-primary/10' : 'border-border text-muted-foreground',
                 )}
               >
                 {t(`preview.scene.${scene}`)}
               </button>
             ))}
           </div>
-          <ThemeStudioPreview
-            draft={debouncedDraft}
-            previewAssetUrl={previewAssetUrl}
-            scene={previewScene}
-          />
+          <ThemeStudioPreview draft={debouncedDraft} previewAssetUrl={previewAssetUrl} scene={previewScene} />
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={livePreview}
-              onChange={(event) => setLivePreview(event.target.checked)}
-            />
+            <input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />
             {t('livePreview')}
           </label>
         </aside>

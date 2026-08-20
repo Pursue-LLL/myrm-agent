@@ -40,14 +40,11 @@ export function isSaveSkillApproval(toolName: string, toolInput: Record<string, 
 /** Normalize OW save_skill and harness skill_manage_tool save args into one preview shape. */
 export function normalizeSaveSkillPreviewArgs(toolInput: Record<string, unknown>): SaveSkillPreviewData {
   const description = readTrimmedString(toolInput.description);
-  const instructions =
-    readTrimmedString(toolInput.instructions) ?? readTrimmedString(toolInput.content);
+  const instructions = readTrimmedString(toolInput.instructions) ?? readTrimmedString(toolInput.content);
 
   let files: string[] | undefined;
   if (Array.isArray(toolInput.files)) {
-    const names = toolInput.files
-      .map((entry) => String(entry).trim())
-      .filter((entry) => entry.length > 0);
+    const names = toolInput.files.map((entry) => String(entry).trim()).filter((entry) => entry.length > 0);
     if (names.length > 0) {
       files = names;
     }

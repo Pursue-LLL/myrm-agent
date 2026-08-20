@@ -49,14 +49,18 @@ function filterSkills(skills: Skill[], filters: SkillFilters): Skill[] {
         skill.name.toLowerCase().includes(searchLower) ||
         skill.description.toLowerCase().includes(searchLower) ||
         skill.tags.some((tag) => tag.toLowerCase().includes(searchLower));
-      if (!matchesSearch) {return false;}
+      if (!matchesSearch) {
+        return false;
+      }
     }
     if (filters.category && skill.category !== filters.category) {
       return false;
     }
     if (filters.tags.length > 0) {
       const hasMatchingTag = filters.tags.some((filterTag) => skill.tags.includes(filterTag));
-      if (!hasMatchingTag) {return false;}
+      if (!hasMatchingTag) {
+        return false;
+      }
     }
     return true;
   });
@@ -67,7 +71,9 @@ const useSkillStore = create<SkillStore>((set, get) => ({
 
   fetchMarketSkills: async (forceRefresh = false) => {
     const { filters, isLoadingMarket, marketSkills } = get();
-    if (isLoadingMarket || (!forceRefresh && marketSkills.length > 0)) {return;}
+    if (isLoadingMarket || (!forceRefresh && marketSkills.length > 0)) {
+      return;
+    }
 
     set({ isLoadingMarket: true, error: null });
     try {
@@ -90,7 +96,9 @@ const useSkillStore = create<SkillStore>((set, get) => ({
     const shouldForceRefresh = forceRefresh;
     const hasLoadedForCurrentUser = lastFetchedConfigUserId !== null;
 
-    if (isLoadingConfig || (!shouldForceRefresh && hasLoadedForCurrentUser)) {return;}
+    if (isLoadingConfig || (!shouldForceRefresh && hasLoadedForCurrentUser)) {
+      return;
+    }
 
     set({ isLoadingConfig: true, error: null });
     try {
@@ -113,7 +121,9 @@ const useSkillStore = create<SkillStore>((set, get) => ({
 
   fetchLocalSkills: async () => {
     const { isLoadingLocal } = get();
-    if (isLoadingLocal) {return;}
+    if (isLoadingLocal) {
+      return;
+    }
 
     set({ isLoadingLocal: true, error: null });
     try {
@@ -145,7 +155,9 @@ const useSkillStore = create<SkillStore>((set, get) => ({
     const { enabledPrebuiltIds, enabledLocalSkillIds, marketSkills, localSkills } = get();
     const isLocal = skillId.startsWith('local::');
     const alreadyEnabled = isLocal ? enabledLocalSkillIds.includes(skillId) : enabledPrebuiltIds.includes(skillId);
-    if (alreadyEnabled) {return;}
+    if (alreadyEnabled) {
+      return;
+    }
 
     try {
       const result = await apiEnableSkill(skillId, force);
@@ -271,7 +283,9 @@ const useSkillStore = create<SkillStore>((set, get) => ({
 
   addLocalSkillPath: async (path: string) => {
     const { localSkillPaths } = get();
-    if (localSkillPaths.includes(path)) {return;}
+    if (localSkillPaths.includes(path)) {
+      return;
+    }
     await get().updateLocalSkillPaths([...localSkillPaths, path]);
   },
 

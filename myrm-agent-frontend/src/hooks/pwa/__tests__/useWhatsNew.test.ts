@@ -10,10 +10,7 @@ vi.mock('@/lib/deploy-mode', () => ({
 }));
 
 vi.mock('@tauri-apps/api/app', () => ({
-  getVersion: () =>
-    mockVersionRejects
-      ? Promise.reject(new Error('no tauri'))
-      : Promise.resolve(mockVersion),
+  getVersion: () => (mockVersionRejects ? Promise.reject(new Error('no tauri')) : Promise.resolve(mockVersion)),
 }));
 
 describe('useWhatsNew', () => {
@@ -85,12 +82,9 @@ describe('useWhatsNew', () => {
   it('does not show modal when fetch returns empty body', async () => {
     mockIsTauri = true;
     mockVersion = '3.0.0';
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ body: '', published_at: '', html_url: '' }),
-        { status: 200 },
-      ),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ body: '', published_at: '', html_url: '' }), { status: 200 }));
 
     const useWhatsNew = await loadHook();
     const { result } = renderHook(() => useWhatsNew());
@@ -103,9 +97,7 @@ describe('useWhatsNew', () => {
   it('does not show modal when fetch fails (404)', async () => {
     mockIsTauri = true;
     mockVersion = '4.0.0';
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('Not Found', { status: 404 }),
-    );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Not Found', { status: 404 }));
 
     const useWhatsNew = await loadHook();
     const { result } = renderHook(() => useWhatsNew());
@@ -117,9 +109,7 @@ describe('useWhatsNew', () => {
   it('does not show modal when fetch throws (network error)', async () => {
     mockIsTauri = true;
     mockVersion = '4.1.0';
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(
-      new Error('Network error'),
-    );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
     const useWhatsNew = await loadHook();
     const { result } = renderHook(() => useWhatsNew());
@@ -148,9 +138,9 @@ describe('useWhatsNew', () => {
   it('handles missing body field in JSON response', async () => {
     mockIsTauri = true;
     mockVersion = '7.0.0';
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ tag_name: 'v7.0.0' }), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ tag_name: 'v7.0.0' }), { status: 200 }));
 
     const useWhatsNew = await loadHook();
     const { result } = renderHook(() => useWhatsNew());
@@ -162,12 +152,11 @@ describe('useWhatsNew', () => {
   it('handles whitespace-only body as empty', async () => {
     mockIsTauri = true;
     mockVersion = '8.0.0';
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ body: '   \n  \n  ', published_at: '', html_url: '' }),
-        { status: 200 },
-      ),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ body: '   \n  \n  ', published_at: '', html_url: '' }), { status: 200 }),
+      );
 
     const useWhatsNew = await loadHook();
     const { result } = renderHook(() => useWhatsNew());

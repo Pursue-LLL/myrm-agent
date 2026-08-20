@@ -31,12 +31,7 @@ interface DiffPreviewProps {
  * 使用 Monaco DiffEditor 显示当前版本与上一版本的差异。
  * 支持 inline（单栏）和 side-by-side（双栏）两种展示模式。
  */
-const DiffPreview: React.FC<DiffPreviewProps> = ({
-  currentContent,
-  versions,
-  viewingVersionIndex,
-  language,
-}) => {
+const DiffPreview: React.FC<DiffPreviewProps> = ({ currentContent, versions, viewingVersionIndex, language }) => {
   const { resolvedTheme } = useTheme();
   const t = useTranslations('artifacts');
   const [renderSideBySide, setRenderSideBySide] = useState(
@@ -48,9 +43,7 @@ const DiffPreview: React.FC<DiffPreviewProps> = ({
     const prevIndex = effectiveIndex - 1;
 
     const modifiedContent =
-      viewingVersionIndex === -1
-        ? currentContent
-        : (versions[effectiveIndex]?.content ?? currentContent);
+      viewingVersionIndex === -1 ? currentContent : (versions[effectiveIndex]?.content ?? currentContent);
 
     const originalContent = prevIndex >= 0 ? (versions[prevIndex]?.content ?? '') : '';
 

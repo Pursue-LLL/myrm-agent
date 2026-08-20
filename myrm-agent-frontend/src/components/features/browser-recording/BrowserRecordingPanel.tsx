@@ -2,16 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  Circle,
-  Square,
-  Pause,
-  Play,
-  Sparkles,
-  X,
-  AlertTriangle,
-  CheckCircle2,
-} from 'lucide-react';
+import { Circle, Square, Pause, Play, Sparkles, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import useBrowserRecordingStore from '@/store/useBrowserRecordingStore';
@@ -53,7 +44,9 @@ const BrowserRecordingPanel: React.FC = () => {
 
   const handleGenerateSkill = useCallback(async () => {
     const name = skillName.trim();
-    if (!name) {return;}
+    if (!name) {
+      return;
+    }
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
       setSkillNameError(t('skillNameInvalid'));
       return;
@@ -62,7 +55,9 @@ const BrowserRecordingPanel: React.FC = () => {
     await generateSkill(name, skillDesc.trim());
   }, [generateSkill, skillName, skillDesc, t]);
 
-  if (!isOpen) {return null;}
+  if (!isOpen) {
+    return null;
+  }
 
   const isRecording = status === 'recording';
   const isPaused = status === 'paused';
@@ -192,14 +187,10 @@ const BrowserRecordingPanel: React.FC = () => {
       {/* Steps List */}
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5 max-h-[40vh]">
         {steps.length === 0 && status !== 'idle' && (
-          <p className="text-center text-xs text-muted-foreground py-4">
-            {t('waitingForActions')}
-          </p>
+          <p className="text-center text-xs text-muted-foreground py-4">{t('waitingForActions')}</p>
         )}
         {steps.length === 0 && status === 'idle' && (
-          <p className="text-center text-xs text-muted-foreground py-4">
-            {t('idleHint')}
-          </p>
+          <p className="text-center text-xs text-muted-foreground py-4">{t('idleHint')}</p>
         )}
         {steps.map((step) => (
           <RecordingStepCard
@@ -239,9 +230,7 @@ const BrowserRecordingPanel: React.FC = () => {
             )}
             pattern="^[a-zA-Z][a-zA-Z0-9_-]*$"
           />
-          {skillNameError && (
-            <p className="text-xs text-destructive">{skillNameError}</p>
-          )}
+          {skillNameError && <p className="text-xs text-destructive">{skillNameError}</p>}
           <input
             type="text"
             value={skillDesc}

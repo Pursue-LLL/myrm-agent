@@ -4,35 +4,35 @@
 
 ## 文件清单
 
-| 文件                         | 地位 | 职责                                                                             | I/O/P |
-| ---------------------------- | ---- | -------------------------------------------------------------------------------- | ----- |
-| KanbanBoardView.tsx          | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理；stats bar running 显示 `count/limit` 并发占用）                | ✅    |
-| KanbanDndComponents.tsx      | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口）  | ✅    |
-| useKanbanDnD.ts              | 核心 | 拖拽状态管理 hook（传感器/事件/破坏性确认）                                      | ✅    |
-| useKanbanAddTask.ts          | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                        | ✅    |
-| KanbanTaskCard.tsx           | 核心 | 单任务卡片渲染（状态/进度/操作菜单；附件 badge 点击打开 Drawer）                 | ✅    |
-| KanbanTaskDrawer.tsx         | 辅助 | 任务详情抽屉面板入口（编排 hook 与子组件）                                       | ✅    |
-| useKanbanTaskDrawer.ts       | 辅助 | 抽屉面板状态管理 hook（数据加载/操作处理/计算属性）                              | ✅    |
-| resolveTaskDepInfos.ts       | 辅助 | 任务依赖图节点标题解析（本地列表 + 远程 fallback）                               | ✅    |
-| useKanbanTaskDrawerAttachments.ts | 辅助 | 抽屉附件上传/拖拽/粘贴子 hook                                              | ✅    |
-| useKanbanTaskDrawerWorkflow.ts | 辅助 | Promote / Move / Reclaim 工作流子 hook                                           | ✅    |
-| KanbanTaskDrawerHeader.tsx   | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                              | ✅    |
-| KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉详情（超时/技能/模型覆盖/审批开关/来源 Chat 与 Board 深链）                            | ✅    |
-| KanbanSkillPicker.tsx        | 辅助 | 任务技能多选选择器（搜索 + 已选 chip + 未知 id 标记；数据源 useSkillStore，创建/详情共用）    | ✅    |
-| KanbanTaskDrawerBodySections.tsx | 辅助 | 抽屉附件与结果区段组件                                                         | ✅    |
-| KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                   | ✅    |
-| KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI（标题/描述/agent/模型覆盖/技能/超时/依赖）                    | ✅    |
-| KanbanBulkActionBar.tsx      | 辅助 | 批量操作工具栏                                                                   | ✅    |
-| KanbanGraphView.tsx          | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画）                | ✅    |
-| KanbanPipelineWizard.tsx     | 辅助 | 流水线模板创建向导（支持 repeat_for fan-out 模板的 multi-select 动态并行任务创建）| ✅    |
-| KanbanDecomposeDialog.tsx    | 辅助 | AI 任务分解对话框                                                                | ✅    |
-| KanbanSpecifyDialog.tsx      | 辅助 | 任务规范化对话框                                                                 | ✅    |
-| KanbanMarkdown.tsx           | 辅助 | 安全 Markdown 渲染（GFM + CodeBlock + XSS 白名单 + 可折叠）                      | ✅    |
-| KanbanDiagnosticsSection.tsx | 辅助 | 任务诊断信息展示                                                                 | ✅    |
-| KanbanEventTimeline.tsx      | 辅助 | 单任务事件时间线                                                                 | ✅    |
-| KanbanTaskExecutionTraceSection.tsx | 辅助 | 任务 Drawer 内嵌 ExecutionTraceTimeline（lazy 折叠，sessionId=task_id，showEvalCase=false——kanban 无 Chat 记录，保存评测用例无意义；taskStatus=running 时 pollMs 实时刷新 trace）   | ✅    |
-| BoardActivityFeed.tsx        | 核心 | Board 级活动流（filter pills + auto-follow + 实时追加）                          | ✅    |
-| kanban-styles.ts             | 辅助 | 共享样式常量                                                                     | ✅    |
+| 文件                                 | 地位 | 职责                                                                                                                                                                              | I/O/P |
+| ------------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| KanbanBoardView.tsx                  | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理；stats bar running 显示 `count/limit` 并发占用）                                                                  | ✅    |
+| KanbanDndComponents.tsx              | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口）                                                                                                     | ✅    |
+| useKanbanDnD.ts                      | 核心 | 拖拽状态管理 hook（传感器/事件/破坏性确认）                                                                                                                                       | ✅    |
+| useKanbanAddTask.ts                  | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                                                                                                                         | ✅    |
+| KanbanTaskCard.tsx                   | 核心 | 单任务卡片渲染（状态/进度/操作菜单；附件 badge 点击打开 Drawer）                                                                                                                  | ✅    |
+| KanbanTaskDrawer.tsx                 | 辅助 | 任务详情抽屉面板入口（编排 hook 与子组件）                                                                                                                                        | ✅    |
+| useKanbanTaskDrawer.ts               | 辅助 | 抽屉面板状态管理 hook（数据加载/操作处理/计算属性）                                                                                                                               | ✅    |
+| resolveTaskDepInfos.ts               | 辅助 | 任务依赖图节点标题解析（本地列表 + 远程 fallback）                                                                                                                                | ✅    |
+| useKanbanTaskDrawerAttachments.ts    | 辅助 | 抽屉附件上传/拖拽/粘贴子 hook                                                                                                                                                     | ✅    |
+| useKanbanTaskDrawerWorkflow.ts       | 辅助 | Promote / Move / Reclaim 工作流子 hook                                                                                                                                            | ✅    |
+| KanbanTaskDrawerHeader.tsx           | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                                                                                                                               | ✅    |
+| KanbanTaskDrawerDetails.tsx          | 辅助 | 抽屉详情（超时/技能/模型覆盖/审批开关/来源 Chat 与 Board 深链）                                                                                                                   | ✅    |
+| KanbanSkillPicker.tsx                | 辅助 | 任务技能多选选择器（搜索 + 已选 chip + 未知 id 标记；数据源 useSkillStore，创建/详情共用）                                                                                        | ✅    |
+| KanbanTaskDrawerBodySections.tsx     | 辅助 | 抽屉附件与结果区段组件                                                                                                                                                            | ✅    |
+| KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                                                                                                                        | ✅    |
+| KanbanInlineAddForm.tsx              | 辅助 | 内联新增任务表单 UI（标题/描述/agent/模型覆盖/技能/超时/依赖）                                                                                                                    | ✅    |
+| KanbanBulkActionBar.tsx              | 辅助 | 批量操作工具栏                                                                                                                                                                    | ✅    |
+| KanbanGraphView.tsx                  | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画）                                                                                                                  | ✅    |
+| KanbanPipelineWizard.tsx             | 辅助 | 流水线模板创建向导（支持 repeat_for fan-out 模板的 multi-select 动态并行任务创建）                                                                                                | ✅    |
+| KanbanDecomposeDialog.tsx            | 辅助 | AI 任务分解对话框                                                                                                                                                                 | ✅    |
+| KanbanSpecifyDialog.tsx              | 辅助 | 任务规范化对话框                                                                                                                                                                  | ✅    |
+| KanbanMarkdown.tsx                   | 辅助 | 安全 Markdown 渲染（GFM + CodeBlock + XSS 白名单 + 可折叠）                                                                                                                       | ✅    |
+| KanbanDiagnosticsSection.tsx         | 辅助 | 任务诊断信息展示                                                                                                                                                                  | ✅    |
+| KanbanEventTimeline.tsx              | 辅助 | 单任务事件时间线                                                                                                                                                                  | ✅    |
+| KanbanTaskExecutionTraceSection.tsx  | 辅助 | 任务 Drawer 内嵌 ExecutionTraceTimeline（lazy 折叠，sessionId=task_id，showEvalCase=false——kanban 无 Chat 记录，保存评测用例无意义；taskStatus=running 时 pollMs 实时刷新 trace） | ✅    |
+| BoardActivityFeed.tsx                | 核心 | Board 级活动流（filter pills + auto-follow + 实时追加）                                                                                                                           | ✅    |
+| kanban-styles.ts                     | 辅助 | 共享样式常量                                                                                                                                                                      | ✅    |
 
 ## Stale Write Guard（乐观 UI 防冲突）
 
@@ -53,15 +53,15 @@
 
 ## API 客户端映射（`@/services/kanban.ts`）
 
-| UI 组件 | 主要 API |
-|---------|----------|
-| `KanbanBoardView` / DnD | `listTasks`、`moveTask`、`bulkAction` |
-| `KanbanSpecifyDialog` | `specifyTask`（dryRun）→ `applySpec` |
-| `KanbanDecomposeDialog` | `decomposeTask` → `applyDecompose` |
-| `KanbanPipelineWizard` | `listPipelines`、`getPipelineDetail`、`instantiatePipeline` |
-| `KanbanDiagnosticsSection` | `getTaskDiagnostics` |
-| `KanbanEventTimeline` / `BoardActivityFeed` | `listEvents`、`listBoardEvents`、`addComment` |
-| `KanbanGraphView` | `listBoardEdges`、`listDependencies` |
+| UI 组件                                     | 主要 API                                                    |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| `KanbanBoardView` / DnD                     | `listTasks`、`moveTask`、`bulkAction`                       |
+| `KanbanSpecifyDialog`                       | `specifyTask`（dryRun）→ `applySpec`                        |
+| `KanbanDecomposeDialog`                     | `decomposeTask` → `applyDecompose`                          |
+| `KanbanPipelineWizard`                      | `listPipelines`、`getPipelineDetail`、`instantiatePipeline` |
+| `KanbanDiagnosticsSection`                  | `getTaskDiagnostics`                                        |
+| `KanbanEventTimeline` / `BoardActivityFeed` | `listEvents`、`listBoardEvents`、`addComment`               |
+| `KanbanGraphView`                           | `listBoardEdges`、`listDependencies`                        |
 
 ## 模块依赖
 

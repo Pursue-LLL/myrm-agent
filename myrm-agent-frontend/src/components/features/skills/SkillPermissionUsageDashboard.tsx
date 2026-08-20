@@ -184,9 +184,13 @@ export function SkillPermissionUsageDashboard({ skillId }: SkillPermissionUsageD
       setLoading(true);
       try {
         const response = await fetch(`/api/v1/skills/${skillId}/permissions/usage?days=${days}`);
-        if (!response.ok) {throw new Error('Failed to load usage stats');}
+        if (!response.ok) {
+          throw new Error('Failed to load usage stats');
+        }
         const data = (await response.json()) as SkillPermissionUsage;
-        if (!cancelled) {setUsage(data);}
+        if (!cancelled) {
+          setUsage(data);
+        }
       } catch (error) {
         console.error('Failed to load usage stats:', error);
         if (!cancelled) {
@@ -197,7 +201,9 @@ export function SkillPermissionUsageDashboard({ skillId }: SkillPermissionUsageD
           });
         }
       } finally {
-        if (!cancelled) {setLoading(false);}
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 

@@ -6,9 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BuiltinToolsPanel } from '../agent-config-panel/BuiltinToolsPanel';
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/hooks/billing/useFeatureEntitlements', () => ({
@@ -59,9 +57,7 @@ describe('BuiltinToolsPanel render_ui surface hint', () => {
       />,
     );
 
-    expect(
-      screen.getByText(/Inline interactive UI renders only in Web Chat/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Inline interactive UI renders only in Web Chat/i)).toBeInTheDocument();
   });
 
   it('hides web-only hint when render_ui is disabled', () => {
@@ -80,8 +76,6 @@ describe('BuiltinToolsPanel render_ui surface hint', () => {
       />,
     );
 
-    expect(
-      screen.queryByText(/Inline interactive UI renders only in Web Chat/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Inline interactive UI renders only in Web Chat/i)).not.toBeInTheDocument();
   });
 });

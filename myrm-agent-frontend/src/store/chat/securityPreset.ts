@@ -45,7 +45,9 @@ export function disableYolo(): void {
 }
 
 export function disarmYoloForPreset(preset: SecurityPreset): void {
-  if (preset === 'hitl') {return;}
+  if (preset === 'hitl') {
+    return;
+  }
   disableYolo();
 }
 
@@ -56,7 +58,9 @@ export function disarmYoloForPreset(preset: SecurityPreset): void {
  * 同步完成或运行时变更时重放检查，确保「非 HITL 预设 ⇄ YOLO」互斥在任何时序下成立。
  */
 export function enforceSecurityPresetYoloMutex(preset: SecurityPreset): void {
-  if (preset === 'hitl') {return;}
+  if (preset === 'hitl') {
+    return;
+  }
   if (isYoloEnabled()) {
     disableYolo();
   }
@@ -67,13 +71,12 @@ export function enforceSecurityPresetYoloMutex(preset: SecurityPreset): void {
  * 避免「显示 hitl=手动审批但实际全部自动批准」的安全假象。
  * 返回 null 表示不改变会话预设（仅关闭 YOLO 或完全无操作），否则返回生效的新预设。
  */
-export function resolvePresetWithYoloMutex(
-  current: SecurityPreset,
-  next: SecurityPreset,
-): SecurityPreset | null {
+export function resolvePresetWithYoloMutex(current: SecurityPreset, next: SecurityPreset): SecurityPreset | null {
   if (isYoloEnabled()) {
     disableYolo();
-    if (next === current) {return null;}
+    if (next === current) {
+      return null;
+    }
   } else if (next === current) {
     return null;
   }

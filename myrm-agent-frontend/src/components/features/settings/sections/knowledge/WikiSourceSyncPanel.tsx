@@ -59,7 +59,9 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
   }, [refresh]);
 
   const handleSave = useCallback(async () => {
-    if (!status) {return;}
+    if (!status) {
+      return;
+    }
     const feeds = rssText
       .split('\n')
       .map((line) => line.trim())
@@ -118,9 +120,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
   }
 
   const syncState = status.state ?? EMPTY_SYNC_STATE;
-  const syncIssue =
-    syncState.last_errors[0] ??
-    (syncState.total_failed > 0 ? t('syncIssueGeneric') : null);
+  const syncIssue = syncState.last_errors[0] ?? (syncState.total_failed > 0 ? t('syncIssueGeneric') : null);
 
   const needsGoogleReconnect = !status.google_connected;
   const needsDriveReconnect =
@@ -144,12 +144,8 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
         ) : (
           <p className="text-xs text-muted-foreground">{t('lastSyncNever')}</p>
         )}
-        {syncIssue ? (
-          <p className="text-xs text-destructive/90">{t('syncIssue', { detail: syncIssue })}</p>
-        ) : null}
-        {needsDriveReconnect ? (
-          <p className="text-xs text-destructive/90">{t('googleDriveReconnectHint')}</p>
-        ) : null}
+        {syncIssue ? <p className="text-xs text-destructive/90">{t('syncIssue', { detail: syncIssue })}</p> : null}
+        {needsDriveReconnect ? <p className="text-xs text-destructive/90">{t('googleDriveReconnectHint')}</p> : null}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-3">
@@ -164,11 +160,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
             checked={status.config.gmail_enabled}
             disabled={!status.google_connected}
             onCheckedChange={(checked) =>
-              setStatus((prev) =>
-                prev
-                  ? { ...prev, config: { ...prev.config, gmail_enabled: checked } }
-                  : prev,
-              )
+              setStatus((prev) => (prev ? { ...prev, config: { ...prev.config, gmail_enabled: checked } } : prev))
             }
           />
         </div>
@@ -181,9 +173,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
               value={status.config.gmail_label}
               onChange={(event) =>
                 setStatus((prev) =>
-                  prev
-                    ? { ...prev, config: { ...prev.config, gmail_label: event.target.value } }
-                    : prev,
+                  prev ? { ...prev, config: { ...prev.config, gmail_label: event.target.value } } : prev,
                 )
               }
             />
@@ -202,11 +192,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
             checked={status.config.gdrive_enabled}
             disabled={!status.google_connected}
             onCheckedChange={(checked) =>
-              setStatus((prev) =>
-                prev
-                  ? { ...prev, config: { ...prev.config, gdrive_enabled: checked } }
-                  : prev,
-              )
+              setStatus((prev) => (prev ? { ...prev, config: { ...prev.config, gdrive_enabled: checked } } : prev))
             }
           />
         </div>
@@ -221,9 +207,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
               placeholder={t('gdriveFolderPlaceholder')}
               onChange={(event) =>
                 setStatus((prev) =>
-                  prev
-                    ? { ...prev, config: { ...prev.config, gdrive_folder_id: event.target.value } }
-                    : prev,
+                  prev ? { ...prev, config: { ...prev.config, gdrive_folder_id: event.target.value } } : prev,
                 )
               }
             />
@@ -242,11 +226,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
             checked={status.config.feishu_enabled}
             disabled={!status.feishu_connected}
             onCheckedChange={(checked) =>
-              setStatus((prev) =>
-                prev
-                  ? { ...prev, config: { ...prev.config, feishu_enabled: checked } }
-                  : prev,
-              )
+              setStatus((prev) => (prev ? { ...prev, config: { ...prev.config, feishu_enabled: checked } } : prev))
             }
           />
         </div>
@@ -290,9 +270,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
             id="wiki-auto-compile"
             checked={status.config.auto_compile}
             onCheckedChange={(checked) =>
-              setStatus((prev) =>
-                prev ? { ...prev, config: { ...prev.config, auto_compile: checked } } : prev,
-              )
+              setStatus((prev) => (prev ? { ...prev, config: { ...prev.config, auto_compile: checked } } : prev))
             }
           />
         </div>
@@ -304,9 +282,7 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
             checked={status.config.mirror_integrations_to_wiki}
             onCheckedChange={(checked) =>
               setStatus((prev) =>
-                prev
-                  ? { ...prev, config: { ...prev.config, mirror_integrations_to_wiki: checked } }
-                  : prev,
+                prev ? { ...prev, config: { ...prev.config, mirror_integrations_to_wiki: checked } } : prev,
               )
             }
           />

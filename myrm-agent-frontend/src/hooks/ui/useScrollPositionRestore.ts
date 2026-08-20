@@ -14,7 +14,9 @@ interface ScrollPositionCache {
 
 // 解析缓存数据
 const parseScrollCache = (data: string | null): ScrollPositionCache | null => {
-  if (!data) {return null;}
+  if (!data) {
+    return null;
+  }
   try {
     // 兼容旧格式（纯数字）
     if (!data.startsWith('{')) {
@@ -67,7 +69,9 @@ export function useScrollPositionRestore({
 
   // 保存滚动位置到 sessionStorage
   const saveScrollPosition = useCallback(() => {
-    if (!id || !enabled) {return;}
+    if (!id || !enabled) {
+      return;
+    }
 
     const scrollPosition = window.scrollY;
     const key = `${SCROLL_POSITION_KEY_PREFIX}${id}`;
@@ -101,7 +105,9 @@ export function useScrollPositionRestore({
 
   // 恢复滚动位置
   const restoreScrollPosition = useCallback(() => {
-    if (!id || !enabled || hasRestoredRef.current) {return;}
+    if (!id || !enabled || hasRestoredRef.current) {
+      return;
+    }
 
     const key = `${SCROLL_POSITION_KEY_PREFIX}${id}`;
 
@@ -141,7 +147,9 @@ export function useScrollPositionRestore({
 
   // 页面卸载或隐藏时立即保存滚动位置
   useEffect(() => {
-    if (!id || !enabled) {return;}
+    if (!id || !enabled) {
+      return;
+    }
 
     const handleBeforeUnload = () => saveScrollPosition();
     const handleVisibilityChange = () => {

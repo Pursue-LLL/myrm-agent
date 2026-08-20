@@ -25,9 +25,7 @@ describe('auth-redirect', () => {
   });
 
   it('buildAuthLoginPath preserves post-auth return target', () => {
-    expect(buildAuthLoginPath('/subscription')).toBe(
-      `/auth/login?${authRedirectQueryParam('/subscription')}`,
-    );
+    expect(buildAuthLoginPath('/subscription')).toBe(`/auth/login?${authRedirectQueryParam('/subscription')}`);
   });
 
   it('readAuthRedirectParam round-trips through URLSearchParams', () => {

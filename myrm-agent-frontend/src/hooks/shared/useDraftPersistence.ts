@@ -58,7 +58,9 @@ export const useDraftPersistence = (storageKey: string | null | undefined, value
 
   // 2. 监听值变化并防抖保存
   useEffect(() => {
-    if (typeof window === 'undefined' || !storageKey) {return;}
+    if (typeof window === 'undefined' || !storageKey) {
+      return;
+    }
 
     // 清除上一次的定时器
     if (timeoutRef.current) {

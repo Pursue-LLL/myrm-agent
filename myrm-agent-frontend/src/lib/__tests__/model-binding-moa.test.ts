@@ -33,25 +33,13 @@ const agentConfig = {
 
 describe('resolveModelPickerTriggerDisplay', () => {
   it('shows primary model and MoA chip when preset is active', () => {
-    const display = resolveModelPickerTriggerDisplay(
-      'agent',
-      agentConfig,
-      defaultModelConfig,
-      providers,
-      'default',
-    );
+    const display = resolveModelPickerTriggerDisplay('agent', agentConfig, defaultModelConfig, providers, 'default');
     expect(display.modelName).toBe('gpt-4o');
     expect(display.moaPresetId).toBe('default');
   });
 
   it('clears MoA chip outside agent mode', () => {
-    const display = resolveModelPickerTriggerDisplay(
-      'fast',
-      agentConfig,
-      defaultModelConfig,
-      providers,
-      'default',
-    );
+    const display = resolveModelPickerTriggerDisplay('fast', agentConfig, defaultModelConfig, providers, 'default');
     expect(display.moaPresetId).toBeNull();
   });
 });

@@ -23,7 +23,7 @@ vi.mock('next-intl', () => ({
         'toolCallStatus.approved': 'Approved',
         'toolCallStatus.rejected': 'Rejected',
         'toolCallStatus.completed': 'Completed',
-        'toolCallPendingBanner': '{count} awaiting',
+        toolCallPendingBanner: '{count} awaiting',
         'ptc.readOnlyLabel': 'Read-Only',
         'ptc.readOnlyTitle': 'Read only hint',
         'ptc.destructiveLabel': 'Destructive',

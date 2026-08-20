@@ -1,8 +1,4 @@
-import {
-  OFFICIAL_DEFAULT_PROFILE_ID,
-  getBuiltinProfile,
-  type ThemeProfileRecipe,
-} from '@/theme-engine';
+import { OFFICIAL_DEFAULT_PROFILE_ID, getBuiltinProfile, type ThemeProfileRecipe } from '@/theme-engine';
 
 /** Curated built-in presets shown on first-run theme pick. */
 export const ONBOARDING_THEME_PRESET_IDS = [

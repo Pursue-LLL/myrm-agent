@@ -36,9 +36,7 @@ const LocalLoginForm = memo(
             <ShieldCheck className="w-10 h-10 text-primary relative z-10 drop-shadow-md" />
           </div>
           <div className="space-y-3">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground/90 font-sans">
-              {t('login.title')}
-            </h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground/90 font-sans">{t('login.title')}</h1>
             <p className="text-sm text-muted-foreground/80 leading-relaxed px-4 font-medium">
               {t('login.descriptionLocal')}
             </p>
@@ -53,9 +51,7 @@ const LocalLoginForm = memo(
                 {error}
               </p>
               {failedAttempts >= 3 && (
-                <p className="text-xs text-red-500/80 mt-2 ml-3.5">
-                  {t('login.tooManyAttempts')}
-                </p>
+                <p className="text-xs text-red-500/80 mt-2 ml-3.5">{t('login.tooManyAttempts')}</p>
               )}
             </div>
           )}

@@ -29,13 +29,7 @@ vi.mock('@/lib/api', () => ({
     code: number;
     businessCode?: string;
 
-    constructor(
-      message: string,
-      code = 500,
-      _details: unknown[] = [],
-      _traceId?: string,
-      businessCode?: string,
-    ) {
+    constructor(message: string, code = 500, _details: unknown[] = [], _traceId?: string, businessCode?: string) {
       super(message);
       this.code = code;
       this.businessCode = businessCode;
@@ -57,12 +51,14 @@ vi.mock('@/components/agent/builtin-agent-i18n', () => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: {
-    agentConfig: { agentId?: string; agentName?: string; enabledBuiltinTools?: string[] } | null;
-    currentBuiltinTools: string[];
-    incognitoMode: boolean;
-    messages: Array<{ role: string; content: string }>;
-  }) => unknown) =>
+  default: (
+    selector: (state: {
+      agentConfig: { agentId?: string; agentName?: string; enabledBuiltinTools?: string[] } | null;
+      currentBuiltinTools: string[];
+      incognitoMode: boolean;
+      messages: Array<{ role: string; content: string }>;
+    }) => unknown,
+  ) =>
     selector({
       agentConfig: {
         agentId: 'research-agent',

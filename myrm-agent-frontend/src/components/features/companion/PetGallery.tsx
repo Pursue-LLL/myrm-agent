@@ -23,7 +23,12 @@ import { useTranslations } from 'next-intl';
 
 import { InstalledPetRow } from '@/components/features/companion/InstalledPetRow';
 import { PetGalleryThumb } from '@/components/features/companion/PetGalleryThumb';
-import { fetchPetdexManifest, rankManifestPets, petdexPetPageUrl, type ManifestPet } from '@/components/features/companion/petGalleryManifest';
+import {
+  fetchPetdexManifest,
+  rankManifestPets,
+  petdexPetPageUrl,
+  type ManifestPet,
+} from '@/components/features/companion/petGalleryManifest';
 import { CompanionPetDoctorPanel } from '@/components/features/companion/CompanionPetDoctorPanel';
 import {
   AlertDialog,
@@ -103,27 +108,37 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
     setInstalledLoading(true);
     listInstalledCompanionPets()
       .then((pets) => {
-        if (generation !== installedFetchGenRef.current) {return;}
+        if (generation !== installedFetchGenRef.current) {
+          return;
+        }
         setInstalledPets(pets);
       })
       .catch(() => {
-        if (generation !== installedFetchGenRef.current) {return;}
+        if (generation !== installedFetchGenRef.current) {
+          return;
+        }
         setInstalledPets([]);
       })
       .finally(() => {
-        if (generation !== installedFetchGenRef.current) {return;}
+        if (generation !== installedFetchGenRef.current) {
+          return;
+        }
         setInstalledLoading(false);
       });
   }, []);
 
   useEffect(() => {
-    if (!reloadInstalledWhen) {return;}
+    if (!reloadInstalledWhen) {
+      return;
+    }
     fetchInstalledPets();
   }, [reloadInstalledWhen, fetchInstalledPets]);
 
   useEffect(() => {
     const slug = spriteConfig?.petSlug;
-    if (!slug) {return;}
+    if (!slug) {
+      return;
+    }
     setInstalledPets((prev) =>
       mergeInstalledPet(prev, {
         slug,
@@ -140,19 +155,29 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
     setManifestError(null);
     fetchPetdexManifest()
       .then((data) => {
-        if (!cancelled) {setManifestPets(data);}
+        if (!cancelled) {
+          setManifestPets(data);
+        }
       })
       .catch((err) => {
-        if (!cancelled) {setManifestError(String(err));}
+        if (!cancelled) {
+          setManifestError(String(err));
+        }
       })
       .finally(() => {
-        if (!cancelled) {setManifestLoading(false);}
+        if (!cancelled) {
+          setManifestLoading(false);
+        }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (!doctorExpandPending) {return;}
+    if (!doctorExpandPending) {
+      return;
+    }
     setDoctorExpanded(true);
     clearDoctorExpandPending();
   }, [doctorExpandPending, clearDoctorExpandPending]);
@@ -163,18 +188,20 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
       installedSlugs,
       activeSlug: currentSlug,
     });
-    if (!search.trim()) {return ranked;}
+    if (!search.trim()) {
+      return ranked;
+    }
     const q = search.trim().toLowerCase();
-    return ranked.filter(
-      (p) => p.slug.toLowerCase().includes(q) || p.displayName.toLowerCase().includes(q),
-    );
+    return ranked.filter((p) => p.slug.toLowerCase().includes(q) || p.displayName.toLowerCase().includes(q));
   }, [manifestPets, installedPets, currentSlug, search]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) {return;}
+    if (!sentinel) {
+      return;
+    }
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length));
@@ -244,7 +271,9 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
 
   const handleConfirmUninstall = useCallback(async () => {
     setUninstallDialogOpen(false);
-    if (!pendingUninstall) {return;}
+    if (!pendingUninstall) {
+      return;
+    }
 
     const pet = pendingUninstall;
     setPendingUninstall(null);
@@ -264,19 +293,11 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
     } finally {
       setUninstallingSlug(null);
     }
-  }, [
-    currentSlug,
-    pendingUninstall,
-    persistSpriteSelection,
-    setSpriteConfig,
-    setSpriteEnabled,
-  ]);
+  }, [currentSlug, pendingUninstall, persistSpriteSelection, setSpriteConfig, setSpriteEnabled]);
 
-  const showFullPageLoading =
-    installedLoading && manifestLoading && installedPets.length === 0 && !manifestError;
+  const showFullPageLoading = installedLoading && manifestLoading && installedPets.length === 0 && !manifestError;
   const showManifestOfflineHint = Boolean(manifestError) && installedPets.length > 0;
-  const showHardError =
-    Boolean(manifestError) && !installedLoading && installedPets.length === 0;
+  const showHardError = Boolean(manifestError) && !installedLoading && installedPets.length === 0;
   const showCatalog = !manifestError && manifestPets.length > 0;
 
   if (showFullPageLoading) {
@@ -289,19 +310,12 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
   }
 
   if (showHardError) {
-    return (
-      <div className="py-6 text-center text-sm text-destructive">
-        {t('gallery.error')}
-      </div>
-    );
+    return <div className="py-6 text-center text-sm text-destructive">{t('gallery.error')}</div>;
   }
 
   return (
     <div className="space-y-4">
-      <CompanionPetDoctorPanel
-        expanded={doctorExpanded}
-        onExpandedChange={setDoctorExpanded}
-      />
+      <CompanionPetDoctorPanel expanded={doctorExpanded} onExpandedChange={setDoctorExpanded} />
 
       <InstalledPetRow
         pets={installedPets}
@@ -318,9 +332,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
         </p>
       )}
 
-      {installError && (
-        <div className="text-xs text-destructive">{installError}</div>
-      )}
+      {installError && <div className="text-xs text-destructive">{installError}</div>}
 
       {uninstallError && (
         <div className="text-xs text-destructive" data-testid="pet-gallery-uninstall-error">
@@ -382,9 +394,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
             className="text-xs"
           />
 
-          <div className="text-xs text-muted-foreground">
-            {t('gallery.count', { count: filtered.length })}
-          </div>
+          <div className="text-xs text-muted-foreground">{t('gallery.count', { count: filtered.length })}</div>
 
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[320px] overflow-y-auto pr-1">
             {visible.map((pet) => {
@@ -395,9 +405,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
                   key={pet.slug}
                   className={cn(
                     'relative flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-all',
-                    isActive
-                      ? 'bg-primary/15 ring-1 ring-primary'
-                      : 'hover:bg-muted',
+                    isActive ? 'bg-primary/15 ring-1 ring-primary' : 'hover:bg-muted',
                     isInstalling && 'opacity-60',
                   )}
                 >
@@ -406,10 +414,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
                     onClick={() => handleInstall(pet)}
                     disabled={isInstalling}
                     title={pet.displayName}
-                    className={cn(
-                      'relative flex w-full flex-col items-center gap-1',
-                      isInstalling && 'cursor-wait',
-                    )}
+                    className={cn('relative flex w-full flex-col items-center gap-1', isInstalling && 'cursor-wait')}
                   >
                     {isInstalling && (
                       <div className="absolute inset-0 flex items-center justify-center">

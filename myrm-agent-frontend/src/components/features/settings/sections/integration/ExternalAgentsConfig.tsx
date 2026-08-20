@@ -61,7 +61,9 @@ const DEFAULT_AGENT: ExternalAgentConfig = {
 const KNOWN_BACKENDS = ['codex', 'claude', 'gemini', 'qwen'] as const;
 function backendKeyFromCommand(command: string): string | null {
   const base = (command.split(/[\\/]/).pop() ?? '').toLowerCase().split('.')[0];
-  if (KNOWN_BACKENDS.includes(base as (typeof KNOWN_BACKENDS)[number])) {return base;}
+  if (KNOWN_BACKENDS.includes(base as (typeof KNOWN_BACKENDS)[number])) {
+    return base;
+  }
   return KNOWN_BACKENDS.find((b) => base.includes(b)) ?? null;
 }
 
@@ -127,7 +129,9 @@ const ExternalAgentsConfig = memo(() => {
   const statusForCommand = useCallback(
     (command: string): ExternalAgentAuthStatus | null => {
       const key = backendKeyFromCommand(command);
-      if (!key) {return null;}
+      if (!key) {
+        return null;
+      }
       return authStatuses.find((s) => s.backend === key) ?? null;
     },
     [authStatuses],
@@ -211,11 +215,15 @@ const ExternalAgentsConfig = memo(() => {
   }, [draft, editingIndex, agents, persist, t]);
 
   const handleDelete = useCallback(() => {
-    if (deleteIndex === null) {return;}
+    if (deleteIndex === null) {
+      return;
+    }
     const updated = agents.filter((_, i) => i !== deleteIndex);
     persist(updated);
     setDeleteIndex(null);
-    if (editingIndex === deleteIndex) {setEditingIndex(null);}
+    if (editingIndex === deleteIndex) {
+      setEditingIndex(null);
+    }
   }, [deleteIndex, agents, persist, editingIndex]);
 
   const handleCancel = useCallback(() => {

@@ -19,11 +19,14 @@ export async function uploadAnnotatedImage(blob: Blob): Promise<void> {
   const result = await uploadFiles([file]);
   if (result.uploaded_count > 0 && result.files?.[0]) {
     const { files, setFiles } = useChatStore.getState();
-    setFiles([...files, {
-      fileName: result.files[0].fileName,
-      fileExtension: 'png',
-      fileUrl: result.files[0].fileUrl,
-      fileType: 'uploaded',
-    }]);
+    setFiles([
+      ...files,
+      {
+        fileName: result.files[0].fileName,
+        fileExtension: 'png',
+        fileUrl: result.files[0].fileUrl,
+        fileType: 'uploaded',
+      },
+    ]);
   }
 }

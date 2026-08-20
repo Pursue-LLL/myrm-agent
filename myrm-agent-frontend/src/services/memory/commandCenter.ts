@@ -511,7 +511,9 @@ export const getMemoryGraph = async (
   namespace?: string,
 ): Promise<MemoryCommandGraphResponse> => {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  if (namespace) {params.set('namespace', namespace);}
+  if (namespace) {
+    params.set('namespace', namespace);
+  }
   return apiRequest<MemoryCommandGraphResponse>(`/memory/command-center/graph?${params.toString()}`);
 };
 

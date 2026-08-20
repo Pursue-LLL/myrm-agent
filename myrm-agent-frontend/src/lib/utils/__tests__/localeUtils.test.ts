@@ -56,9 +56,7 @@ describe('localeUtils', () => {
 
   describe('urlWithoutLocaleParam', () => {
     it('removes locale while preserving redirect and utm params', () => {
-      const source = new URL(
-        'https://app.myrmagent.ai/auth/login?locale=en&redirect=%2Fpricing&utm_source=website',
-      );
+      const source = new URL('https://app.myrmagent.ai/auth/login?locale=en&redirect=%2Fpricing&utm_source=website');
       const cleaned = urlWithoutLocaleParam(source);
       expect(cleaned.searchParams.get('locale')).toBeNull();
       expect(cleaned.searchParams.get('redirect')).toBe('/pricing');

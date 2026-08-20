@@ -4,9 +4,9 @@
  */
 
 import type { MemoryBriefData } from '@/store/chat/types';
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import * as H from './handlerDeps';
 
 function _asStringArray(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
@@ -82,4 +82,3 @@ export async function memoryBriefEvents(ctx: StreamCtx): Promise<StreamTurn | nu
 
   return done(ctx);
 }
-

@@ -38,11 +38,7 @@ const CommunicationSection = memo(() => {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('menu.channels')}</h1>
         <p className="text-sm text-muted-foreground">
-          {activeTab === 'channels'
-            ? tComm('channels')
-            : activeTab === 'routing'
-              ? tComm('routing')
-              : tComm('voice')}
+          {activeTab === 'channels' ? tComm('channels') : activeTab === 'routing' ? tComm('routing') : tComm('voice')}
         </p>
       </div>
 

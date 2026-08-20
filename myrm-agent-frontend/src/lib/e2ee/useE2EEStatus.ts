@@ -25,7 +25,9 @@ export function useE2EEStatus(): E2EEStatus {
     let cancelled = false;
     void ensureMobileE2EE()
       .then((session) => {
-        if (!cancelled && session) {setEstablished(true);}
+        if (!cancelled && session) {
+          setEstablished(true);
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled && err instanceof E2EEHandshakeRequiredError) {

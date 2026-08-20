@@ -22,12 +22,7 @@ import {
   IconWrench,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
-import type {
-  TraceHumanFeedback,
-  TraceLLMCall,
-  TraceMemoryEvent,
-  TraceToolCall,
-} from '@/services/statistics';
+import type { TraceHumanFeedback, TraceLLMCall, TraceMemoryEvent, TraceToolCall } from '@/services/statistics';
 import type { Message } from '@/store/chat/types';
 import { messageReasoning } from '@/components/features/memory/replay/replayTimeline';
 

@@ -4,9 +4,7 @@ import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Globe } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
@@ -94,7 +92,9 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     const container = imageContainerRef.current;
-    if (!container) {return;}
+    if (!container) {
+      return;
+    }
 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
@@ -121,7 +121,9 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     [onSendInstruction, clearSelection],
   );
 
-  if (!isOpen) {return null;}
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div

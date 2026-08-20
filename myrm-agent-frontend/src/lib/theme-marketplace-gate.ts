@@ -15,11 +15,7 @@ import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 
 const LOCAL_ONLY_AUTH_TOKEN = 'local_user_token';
 
-export type ThemeMarketplaceGateState =
-  | 'loading'
-  | 'ready'
-  | 'needs_auth'
-  | 'offline';
+export type ThemeMarketplaceGateState = 'loading' | 'ready' | 'needs_auth' | 'offline';
 
 export function readAuthToken(): string | null {
   if (typeof window === 'undefined') {
@@ -47,9 +43,7 @@ export async function probeCpHealth(baseUrl: string = resolveCpBaseUrl()): Promi
   }
 }
 
-export async function resolveThemeMarketplaceGateState(): Promise<
-  Exclude<ThemeMarketplaceGateState, 'loading'>
-> {
+export async function resolveThemeMarketplaceGateState(): Promise<Exclude<ThemeMarketplaceGateState, 'loading'>> {
   const cpUp = await probeCpHealth();
   if (!cpUp) {
     return 'offline';

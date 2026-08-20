@@ -92,7 +92,9 @@ describe('ResultStep readiness gating', () => {
       import_batch_id: 'memory-import-batch:test',
       readiness: {
         status: 'critical',
-        issues: [{ code: 'providers_not_configured', severity: 'critical', params: {}, settings_path: '/settings/models' }],
+        issues: [
+          { code: 'providers_not_configured', severity: 'critical', params: {}, settings_path: '/settings/models' },
+        ],
       },
     });
 
@@ -102,7 +104,9 @@ describe('ResultStep readiness gating', () => {
           ...baseResult,
           readiness: {
             status: 'critical',
-            issues: [{ code: 'providers_not_configured', severity: 'critical', params: {}, settings_path: '/settings/models' }],
+            issues: [
+              { code: 'providers_not_configured', severity: 'critical', params: {}, settings_path: '/settings/models' },
+            ],
           },
         }}
         skillSubmitResult={null}
@@ -192,7 +196,14 @@ describe('ResultStep readiness gating', () => {
           ...baseResult,
           readiness: {
             status: 'warning',
-            issues: [{ code: 'mcp_servers_imported_disabled', severity: 'warning', params: { count: 1 }, settings_path: '/settings/mcp' }],
+            issues: [
+              {
+                code: 'mcp_servers_imported_disabled',
+                severity: 'warning',
+                params: { count: 1 },
+                settings_path: '/settings/mcp',
+              },
+            ],
           },
         }}
         skillSubmitResult={null}

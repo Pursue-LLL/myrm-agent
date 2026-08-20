@@ -27,16 +27,17 @@ async function createXlsxWithFormulas(): Promise<ArrayBuffer> {
 
 async function createXlsxWithMerges(): Promise<ArrayBuffer> {
   const XLSX = await import('xlsx');
-  const ws = XLSX.utils.aoa_to_sheet([['Title', '', ''], ['a', 'b', 'c']]);
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Title', '', ''],
+    ['a', 'b', 'c'],
+  ]);
   ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
   return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' })).buffer;
 }
 
-async function createMultiSheetXlsx(
-  sheets: Array<{ name: string; data: unknown[][] }>,
-): Promise<ArrayBuffer> {
+async function createMultiSheetXlsx(sheets: Array<{ name: string; data: unknown[][] }>): Promise<ArrayBuffer> {
   const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
   for (const s of sheets) {
@@ -48,7 +49,9 @@ async function createMultiSheetXlsx(
 describe('xlsxToUniverData', () => {
   it('maps string cells to type 1', async () => {
     const buf = await createSimpleXlsx([['hello']]);
-    const result = (await xlsxToUniverData(buf)) as { sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown; t?: number }>> }> };
+    const result = (await xlsxToUniverData(buf)) as {
+      sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown; t?: number }>> }>;
+    };
     const cell = result.sheets['Sheet1']?.cellData[0]?.[0];
     expect(cell).toBeDefined();
     expect(cell!.v).toBe('hello');
@@ -57,7 +60,9 @@ describe('xlsxToUniverData', () => {
 
   it('maps number cells to type 2', async () => {
     const buf = await createSimpleXlsx([[42]]);
-    const result = (await xlsxToUniverData(buf)) as { sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown; t?: number }>> }> };
+    const result = (await xlsxToUniverData(buf)) as {
+      sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown; t?: number }>> }>;
+    };
     const cell = result.sheets['Sheet1']?.cellData[0]?.[0];
     expect(cell).toBeDefined();
     expect(cell!.v).toBe(42);
@@ -66,7 +71,9 @@ describe('xlsxToUniverData', () => {
 
   it('maps boolean cells to type 3', async () => {
     const buf = await createSimpleXlsx([[true]]);
-    const result = (await xlsxToUniverData(buf)) as { sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown; t?: number }>> }> };
+    const result = (await xlsxToUniverData(buf)) as {
+      sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown; t?: number }>> }>;
+    };
     const cell = result.sheets['Sheet1']?.cellData[0]?.[0];
     expect(cell).toBeDefined();
     expect(cell!.v).toBe(true);
@@ -75,7 +82,9 @@ describe('xlsxToUniverData', () => {
 
   it('skips empty/null/undefined cells', async () => {
     const buf = await createSimpleXlsx([['a', '', 'b']]);
-    const result = (await xlsxToUniverData(buf)) as { sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown }>> }> };
+    const result = (await xlsxToUniverData(buf)) as {
+      sheets: Record<string, { cellData: Record<number, Record<number, { v: unknown }>> }>;
+    };
     const row = result.sheets['Sheet1']?.cellData[0];
     expect(row?.[0]).toBeDefined();
     expect(row?.[1]).toBeUndefined();
@@ -92,10 +101,11 @@ describe('xlsxToUniverData', () => {
   });
 
   it('replaces spaces in sheet names for IDs', async () => {
-    const buf = await createMultiSheetXlsx([
-      { name: 'My Sheet', data: [['x']] },
-    ]);
-    const result = (await xlsxToUniverData(buf)) as { sheetOrder: string[]; sheets: Record<string, { id: string; name: string }> };
+    const buf = await createMultiSheetXlsx([{ name: 'My Sheet', data: [['x']] }]);
+    const result = (await xlsxToUniverData(buf)) as {
+      sheetOrder: string[];
+      sheets: Record<string, { id: string; name: string }>;
+    };
     expect(result.sheetOrder).toEqual(['My_Sheet']);
     expect(result.sheets['My_Sheet']?.id).toBe('My_Sheet');
     expect(result.sheets['My_Sheet']?.name).toBe('My Sheet');
@@ -103,7 +113,9 @@ describe('xlsxToUniverData', () => {
 
   it('enforces minimum rowCount=100 and columnCount=26', async () => {
     const buf = await createSimpleXlsx([['single']]);
-    const result = (await xlsxToUniverData(buf)) as { sheets: Record<string, { rowCount: number; columnCount: number }> };
+    const result = (await xlsxToUniverData(buf)) as {
+      sheets: Record<string, { rowCount: number; columnCount: number }>;
+    };
     const sheet = result.sheets['Sheet1']!;
     expect(sheet.rowCount).toBeGreaterThanOrEqual(100);
     expect(sheet.columnCount).toBeGreaterThanOrEqual(26);
@@ -119,7 +131,9 @@ describe('xlsxToUniverData', () => {
       rows.push(row);
     }
     const buf = await createSimpleXlsx(rows);
-    const result = (await xlsxToUniverData(buf)) as { sheets: Record<string, { rowCount: number; columnCount: number }> };
+    const result = (await xlsxToUniverData(buf)) as {
+      sheets: Record<string, { rowCount: number; columnCount: number }>;
+    };
     const sheet = result.sheets['Sheet1']!;
     expect(sheet.rowCount).toBe(150);
     expect(sheet.columnCount).toBe(30);
@@ -138,7 +152,11 @@ describe('xlsxToUniverData', () => {
 
 describe('univerDataToXlsx', () => {
   it('round-trips basic data (xlsx → univer → xlsx → univer)', async () => {
-    const original = [['Name', 'Age'], ['Alice', 30], ['Bob', 25]];
+    const original = [
+      ['Name', 'Age'],
+      ['Alice', 30],
+      ['Bob', 25],
+    ];
     const buf = await createSimpleXlsx(original);
     const univerData = (await xlsxToUniverData(buf)) as unknown as WorkbookSnapshot;
     const blob = await univerDataToXlsx(univerData);
@@ -224,7 +242,9 @@ describe('formula roundtrip', () => {
   it('preserves formulas through xlsx → univer → xlsx cycle', async () => {
     const buf = await createXlsxWithFormulas();
     const univerData = await xlsxToUniverData(buf);
-    const sheets = (univerData as { sheets: Record<string, { cellData: Record<number, Record<number, UniverCellData>> }> }).sheets;
+    const sheets = (
+      univerData as { sheets: Record<string, { cellData: Record<number, Record<number, UniverCellData>> }> }
+    ).sheets;
 
     const a3 = sheets['Sheet1']?.cellData[2]?.[0];
     expect(a3?.f).toBe('SUM(A1:A2)');
@@ -239,7 +259,9 @@ describe('formula roundtrip', () => {
   it('preserves number format (numFmt) on import', async () => {
     const buf = await createXlsxWithFormulas();
     const univerData = await xlsxToUniverData(buf);
-    const sheets = (univerData as { sheets: Record<string, { cellData: Record<number, Record<number, UniverCellData>> }> }).sheets;
+    const sheets = (
+      univerData as { sheets: Record<string, { cellData: Record<number, Record<number, UniverCellData>> }> }
+    ).sheets;
 
     const b1 = sheets['Sheet1']?.cellData[0]?.[1];
     expect(b1?.numFmt).toBe('0.00%');
@@ -268,11 +290,21 @@ describe('merge roundtrip', () => {
   it('preserves merged cells through xlsx → univer → xlsx cycle', async () => {
     const buf = await createXlsxWithMerges();
     const univerData = await xlsxToUniverData(buf);
-    const sheets = (univerData as { sheets: Record<string, { mergeData?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> }> }).sheets;
+    const sheets = (
+      univerData as {
+        sheets: Record<
+          string,
+          { mergeData?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> }
+        >;
+      }
+    ).sheets;
 
     expect(sheets['Sheet1']?.mergeData).toHaveLength(1);
     expect(sheets['Sheet1']?.mergeData?.[0]).toEqual({
-      startRow: 0, endRow: 0, startColumn: 0, endColumn: 2,
+      startRow: 0,
+      endRow: 0,
+      startColumn: 0,
+      endColumn: 2,
     });
 
     const blob = await univerDataToXlsx(univerData as unknown as WorkbookSnapshot);
@@ -280,9 +312,7 @@ describe('merge roundtrip', () => {
     const wb = XLSX.read(await blob.arrayBuffer(), { type: 'array' });
     const ws = wb.Sheets['Sheet1'];
     expect(ws?.['!merges']).toHaveLength(1);
-    expect(ws?.['!merges']?.[0]).toEqual(
-      expect.objectContaining({ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }),
-    );
+    expect(ws?.['!merges']?.[0]).toEqual(expect.objectContaining({ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }));
   });
 });
 
@@ -290,7 +320,10 @@ describe('fidelity warnings', () => {
   it('returns no warnings for plain xlsx', async () => {
     const buf = await createSimpleXlsx([['plain']]);
     const result = await xlsxToUniverData(buf);
-    const warnings = (result as Record<string, unknown>)._fidelityWarnings as { hasMacros: boolean; hasCharts: boolean };
+    const warnings = (result as Record<string, unknown>)._fidelityWarnings as {
+      hasMacros: boolean;
+      hasCharts: boolean;
+    };
     expect(warnings.hasMacros).toBe(false);
     expect(warnings.hasCharts).toBe(false);
   });

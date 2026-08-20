@@ -22,7 +22,10 @@ function uniqueValues(values: readonly string[]): string[] {
   return Array.from(new Set(values));
 }
 
-export function resolveEffectiveTurnSelection(baseValues: readonly string[], selectedValues: readonly string[] | null): string[] {
+export function resolveEffectiveTurnSelection(
+  baseValues: readonly string[],
+  selectedValues: readonly string[] | null,
+): string[] {
   const base = uniqueValues(baseValues);
   if (selectedValues === null) {
     return base;

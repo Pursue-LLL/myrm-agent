@@ -7,7 +7,9 @@ export const PrivacyRoutePanel = memo<{
   t: ReturnType<typeof import('next-intl').useTranslations>;
 }>(({ breakdown, t }) => {
   const total = Object.values(breakdown).reduce((a, b) => a + b, 0);
-  if (total === 0) {return null;}
+  if (total === 0) {
+    return null;
+  }
 
   const localCount = breakdown['local'] ?? 0;
   const cloudCount = breakdown['cloud'] ?? 0;

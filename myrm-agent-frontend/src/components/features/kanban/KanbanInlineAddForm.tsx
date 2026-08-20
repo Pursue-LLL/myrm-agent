@@ -119,13 +119,17 @@ export default function KanbanInlineAddForm({
   const t = useTranslations('kanban');
 
   const handleSubmit = useCallback(() => {
-    if (!title.trim()) {return;}
+    if (!title.trim()) {
+      return;
+    }
     onSubmit();
   }, [title, onSubmit]);
 
   const uploadFiles = useCallback(
     async (files: File[]) => {
-      if (files.length === 0) {return;}
+      if (files.length === 0) {
+        return;
+      }
       const remaining = 10 - attachments.length;
       if (remaining <= 0) {
         toast.warning(t('attachmentLimitExceeded'));
@@ -142,7 +146,9 @@ export default function KanbanInlineAddForm({
           const formData = new FormData();
           formData.append('file', file);
           const resp = await fetch(getApiUrl('/files/upload'), { method: 'POST', body: formData });
-          if (!resp.ok) {throw new Error(`Upload failed: ${resp.status}`);}
+          if (!resp.ok) {
+            throw new Error(`Upload failed: ${resp.status}`);
+          }
           const data = await resp.json();
           return {
             file_id: data.file_id,
@@ -178,7 +184,9 @@ export default function KanbanInlineAddForm({
 
   useEffect(() => {
     const el = formRef.current;
-    if (!el) {return;}
+    if (!el) {
+      return;
+    }
     const onPaste = (e: Event) => {
       const ce = e as ClipboardEvent;
       const items = Array.from(ce.clipboardData?.items ?? []);

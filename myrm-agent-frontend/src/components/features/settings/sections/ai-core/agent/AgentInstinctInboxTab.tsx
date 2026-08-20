@@ -10,12 +10,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles, Check, X, Clock } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { 
-  listSkillDrafts, 
-  approveSkillDraft, 
-  rejectSkillDraft,
-  type SkillDraft 
-} from '@/services/skill';
+import { listSkillDrafts, approveSkillDraft, rejectSkillDraft, type SkillDraft } from '@/services/skill';
 import { toast } from '@/hooks/shared/useToast';
 
 interface AgentInstinctInboxTabProps {
@@ -34,9 +29,7 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
       setLoading(true);
       const res = await listSkillDrafts('PENDING_REVIEW', 100);
       // Filter drafts relevant to this agent (or default if this is the default agent)
-      const relevantDrafts = res.drafts.filter(d => 
-        !agentId || d.agent_id === agentId || d.agent_id === 'default'
-      );
+      const relevantDrafts = res.drafts.filter((d) => !agentId || d.agent_id === agentId || d.agent_id === 'default');
       setDrafts(relevantDrafts);
     } catch (e) {
       console.error('Failed to fetch drafts:', e);
@@ -50,7 +43,9 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
   }, [fetchDrafts]);
 
   const handleApprove = async (draft: SkillDraft) => {
-    if (processingId) {return;}
+    if (processingId) {
+      return;
+    }
     try {
       setProcessingId(draft.id);
       await approveSkillDraft(draft.id, draft.name || undefined, draft.agent_id || agentId || undefined);
@@ -65,7 +60,9 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
   };
 
   const handleReject = async (draft: SkillDraft) => {
-    if (processingId) {return;}
+    if (processingId) {
+      return;
+    }
     try {
       setProcessingId(draft.id);
       await rejectSkillDraft(draft.id);
@@ -103,13 +100,11 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
           <Sparkles className="w-4 h-4 text-purple-500" />
           {t('title')}
         </h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          {t('desc')}
-        </p>
+        <p className="text-xs text-muted-foreground mt-1">{t('desc')}</p>
       </div>
 
       <div className="space-y-4">
-        {drafts.map(draft => (
+        {drafts.map((draft) => (
           <div
             key={draft.id}
             data-testid="instinct-draft-card"
@@ -128,11 +123,9 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
                   </span>
                 </div>
                 <h4 className="text-sm font-semibold text-foreground truncate">{draft.name || draft.draft_type}</h4>
-                <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 leading-relaxed">
-                  {draft.description}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 leading-relaxed">{draft.description}</p>
               </div>
-              
+
               {!readonly && (
                 <div className="flex flex-col gap-2 shrink-0">
                   <Button
@@ -159,10 +152,12 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
                 </div>
               )}
             </div>
-            
+
             {draft.content && (
               <div className="mt-4 pt-3 border-t border-border/50">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('proposedRulesLabel')}:</p>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  {t('proposedRulesLabel')}:
+                </p>
                 <div className="bg-muted/50 rounded-lg p-3 overflow-x-auto">
                   <pre className="text-[11px] font-mono text-foreground/80 whitespace-pre-wrap break-all">
                     {draft.content.length > 300 ? draft.content.substring(0, 300) + '...' : draft.content}

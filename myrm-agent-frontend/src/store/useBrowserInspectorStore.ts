@@ -115,7 +115,9 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
       ...(active ? {} : { isOpen: false, viewData: null, selectedElement: null }),
     })),
   markTurnEngaged: (chatId) => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
     set({ engagedChatId: chatId });
   },
   releaseTurnEngagement: (chatId) =>
@@ -146,10 +148,14 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
     }),
   setInstructionText: (text) => set({ instructionText: text }),
   fetchSnapshot: async (isTurnView = false) => {
-    if (get().isSnapshotLoading) {return false;}
+    if (get().isSnapshotLoading) {
+      return false;
+    }
     const { default: useChatStore } = await import('@/store/useChatStore');
     const chatId = useChatStore.getState().chatId?.trim();
-    if (!chatId) {return false;}
+    if (!chatId) {
+      return false;
+    }
     set({ isSnapshotLoading: true });
     try {
       const data = await apiRequest<BrowserSnapshotResponse>(

@@ -63,10 +63,7 @@ export async function uploadThemeBackground(
   if (mediaKind === 'video') {
     const posterBlob = options?.videoPosterBlob ?? (await extractVideoPosterBlob(file));
     const posterFile = buildPosterFile(file, posterBlob);
-    const [uploaded, posterUploaded] = await Promise.all([
-      uploadThemeAsset(file),
-      uploadThemeAsset(posterFile),
-    ]);
+    const [uploaded, posterUploaded] = await Promise.all([uploadThemeAsset(file), uploadThemeAsset(posterFile)]);
     return {
       assetRef: toFileRef(uploaded.fileId),
       mediaKind,

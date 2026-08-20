@@ -19,12 +19,9 @@ type OAuthButtonsProps = {
 };
 
 const providerStyles: Record<string, string> = {
-  google:
-    'border-border/80 bg-background hover:bg-muted/60 dark:bg-card/80 dark:hover:bg-muted/40',
-  github:
-    'border-border/80 bg-background hover:bg-muted/60 dark:bg-card/80 dark:hover:bg-muted/40',
-  oidc:
-    'border-primary/30 bg-primary/5 hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10',
+  google: 'border-border/80 bg-background hover:bg-muted/60 dark:bg-card/80 dark:hover:bg-muted/40',
+  github: 'border-border/80 bg-background hover:bg-muted/60 dark:bg-card/80 dark:hover:bg-muted/40',
+  oidc: 'border-primary/30 bg-primary/5 hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10',
 };
 
 export default function OAuthButtons({ redirectPath = '/' }: OAuthButtonsProps) {
@@ -86,8 +83,7 @@ export default function OAuthButtons({ redirectPath = '/' }: OAuthButtonsProps) 
   }
 
   const showUnavailableHint =
-    configError
-    || ((edition === 'saas' || edition === 'enterprise') && providers.length === 0);
+    configError || ((edition === 'saas' || edition === 'enterprise') && providers.length === 0);
 
   if (providers.length === 0) {
     if (!showUnavailableHint) {
@@ -98,9 +94,7 @@ export default function OAuthButtons({ redirectPath = '/' }: OAuthButtonsProps) 
         variant="destructive"
         className="border-amber-500/40 bg-amber-500/5 text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100"
       >
-        <AlertDescription className="text-sm leading-relaxed">
-          {t('unavailableHint')}
-        </AlertDescription>
+        <AlertDescription className="text-sm leading-relaxed">{t('unavailableHint')}</AlertDescription>
       </Alert>
     );
   }

@@ -68,9 +68,13 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
 
   const addTag = useCallback((raw: string) => {
     const tag = raw.trim().toLowerCase();
-    if (!tag) {return;}
+    if (!tag) {
+      return;
+    }
     setForm((prev) => {
-      if (prev.tags.includes(tag)) {return prev;}
+      if (prev.tags.includes(tag)) {
+        return prev;
+      }
       return { ...prev, tags: [...prev.tags, tag] };
     });
   }, []);
@@ -79,15 +83,18 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
     setForm((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
   }, []);
 
-  const handleTagKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
-      e.preventDefault();
-      addTag(tagInput);
-      setTagInput('');
-    } else if (e.key === 'Backspace' && !tagInput && form.tags.length > 0) {
-      removeTag(form.tags[form.tags.length - 1]);
-    }
-  }, [tagInput, form.tags, addTag, removeTag]);
+  const handleTagKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+        e.preventDefault();
+        addTag(tagInput);
+        setTagInput('');
+      } else if (e.key === 'Backspace' && !tagInput && form.tags.length > 0) {
+        removeTag(form.tags[form.tags.length - 1]);
+      }
+    },
+    [tagInput, form.tags, addTag, removeTag],
+  );
 
   const isValid = (() => {
     switch (form.memory_type) {
@@ -101,7 +108,9 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
   })();
 
   const handleSubmit = useCallback(async () => {
-    if (!isValid) {return;}
+    if (!isValid) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       const body: CreateMemoryRequest = {
@@ -120,7 +129,9 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
         body.action = form.action.trim();
       } else {
         body.content = form.content.trim();
-        if (form.tags.length > 0) {body.tags = form.tags;}
+        if (form.tags.length > 0) {
+          body.tags = form.tags;
+        }
       }
 
       await createMemory(body);
@@ -276,7 +287,10 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleTagKeyDown}
                     onBlur={() => {
-                      if (tagInput.trim()) { addTag(tagInput); setTagInput(''); }
+                      if (tagInput.trim()) {
+                        addTag(tagInput);
+                        setTagInput('');
+                      }
                     }}
                     placeholder={form.tags.length === 0 ? t('createDialog.tagsPlaceholder') : ''}
                     className="flex-1 min-w-[80px] bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"

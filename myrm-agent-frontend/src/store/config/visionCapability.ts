@@ -12,7 +12,9 @@ function selectionSupportsVision(
   selection: SingleModelSelection | null | undefined,
   getModelInfo: ModelInfoLookup,
 ): boolean {
-  if (!selection) {return false;}
+  if (!selection) {
+    return false;
+  }
   return getModelInfo(selection.providerId, selection.model)?.supports_vision ?? false;
 }
 
@@ -20,7 +22,9 @@ function selectionSupportsVideoInput(
   selection: SingleModelSelection | null | undefined,
   getModelInfo: ModelInfoLookup,
 ): boolean {
-  if (!selection) {return false;}
+  if (!selection) {
+    return false;
+  }
   return getModelInfo(selection.providerId, selection.model)?.supports_video_input ?? false;
 }
 
@@ -29,11 +33,17 @@ export function hasConfiguredVisionCapability(
   defaultModelConfig: DefaultModelConfig | undefined,
   getModelInfo: ModelInfoLookup,
 ): boolean {
-  if (!defaultModelConfig) {return false;}
+  if (!defaultModelConfig) {
+    return false;
+  }
 
   const visionSlot = defaultModelConfig.visionFallbackModel;
-  if (selectionSupportsVision(visionSlot?.primary, getModelInfo)) {return true;}
-  if (selectionSupportsVision(visionSlot?.fallback, getModelInfo)) {return true;}
+  if (selectionSupportsVision(visionSlot?.primary, getModelInfo)) {
+    return true;
+  }
+  if (selectionSupportsVision(visionSlot?.fallback, getModelInfo)) {
+    return true;
+  }
   return selectionSupportsVision(defaultModelConfig.baseModel?.primary, getModelInfo);
 }
 
@@ -44,11 +54,7 @@ export function findRecommendedVisionFallbackSelection(
   exclude?: SingleModelSelection | null,
 ): SingleModelSelection | null {
   for (const entry of enabledModels) {
-    if (
-      exclude &&
-      exclude.providerId === entry.providerId &&
-      exclude.model === entry.model
-    ) {
+    if (exclude && exclude.providerId === entry.providerId && exclude.model === entry.model) {
       continue;
     }
     if (getModelInfo(entry.providerId, entry.model)?.supports_vision) {
@@ -63,8 +69,12 @@ export function shouldOfferVisionFallbackRecommendation(
   defaultModelConfig: DefaultModelConfig | undefined,
   getModelInfo: ModelInfoLookup,
 ): boolean {
-  if (!defaultModelConfig) {return false;}
-  if (defaultModelConfig.visionFallbackModel?.primary) {return false;}
+  if (!defaultModelConfig) {
+    return false;
+  }
+  if (defaultModelConfig.visionFallbackModel?.primary) {
+    return false;
+  }
   return !selectionSupportsVision(defaultModelConfig.baseModel?.primary, getModelInfo);
 }
 
@@ -73,11 +83,17 @@ export function hasVisionFallbackForVideo(
   defaultModelConfig: DefaultModelConfig | undefined,
   getModelInfo: ModelInfoLookup,
 ): boolean {
-  if (!defaultModelConfig) {return false;}
+  if (!defaultModelConfig) {
+    return false;
+  }
 
   const videoSlot = defaultModelConfig.videoFallbackModel;
-  if (selectionSupportsVideoInput(videoSlot?.primary, getModelInfo)) {return true;}
-  if (selectionSupportsVideoInput(videoSlot?.fallback, getModelInfo)) {return true;}
+  if (selectionSupportsVideoInput(videoSlot?.primary, getModelInfo)) {
+    return true;
+  }
+  if (selectionSupportsVideoInput(videoSlot?.fallback, getModelInfo)) {
+    return true;
+  }
 
   const visionSlot = defaultModelConfig.visionFallbackModel;
   return (

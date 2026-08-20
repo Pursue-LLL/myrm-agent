@@ -65,7 +65,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   const [localGap, setLocalGap] = useState<number>(0.15);
 
   const fetchData = useCallback(async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     setLoading(true);
     try {
       const [corpusRes, entriesRes] = await Promise.all([
@@ -89,7 +91,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
 
   const handleToggle = useCallback(
     async (enabled: boolean) => {
-      if (!agentId) {return;}
+      if (!agentId) {
+        return;
+      }
       try {
         const updated = await apiRequest<FaqCorpus>(`/faq/${agentId}/corpus`, {
           method: 'PATCH',
@@ -107,7 +111,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
 
   const handleSettingsUpdate = useCallback(
     async (field: 'threshold' | 'min_score_gap', value: number) => {
-      if (!agentId) {return;}
+      if (!agentId) {
+        return;
+      }
       try {
         const updated = await apiRequest<FaqCorpus>(`/faq/${agentId}/corpus`, {
           method: 'PATCH',
@@ -125,7 +131,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   );
 
   const handleSaveEntry = useCallback(async () => {
-    if (!agentId || !editingEntry?.question?.trim() || !editingEntry?.answer?.trim()) {return;}
+    if (!agentId || !editingEntry?.question?.trim() || !editingEntry?.answer?.trim()) {
+      return;
+    }
     try {
       if (editingEntry.id) {
         await apiRequest(`/faq/entries/${editingEntry.id}`, {
@@ -171,7 +179,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   );
 
   const handleImport = useCallback(async () => {
-    if (!agentId || !importJson.trim()) {return;}
+    if (!agentId || !importJson.trim()) {
+      return;
+    }
     try {
       const parsed = JSON.parse(importJson);
       const items = Array.isArray(parsed) ? parsed : [parsed];
@@ -190,7 +200,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   }, [agentId, importJson, fetchData, t]);
 
   const handleRebuild = useCallback(async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     setRebuilding(true);
     try {
       const res = await apiRequest<{ indexed: number }>(`/faq/${agentId}/rebuild-index`, { method: 'POST' });
@@ -203,7 +215,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
   }, [agentId, t]);
 
   const handleLoadStats = useCallback(async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     setShowStats(true);
     try {
       const [statsRes, unmatchedRes] = await Promise.all([
@@ -217,7 +231,9 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
     }
   }, [agentId]);
 
-  if (!agentId) {return null;}
+  if (!agentId) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -280,12 +296,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
               <Upload className="w-3.5 h-3.5 mr-1" />
               {t('import')}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRebuild}
-              disabled={rebuilding || entries.length === 0}
-            >
+            <Button size="sm" variant="outline" onClick={handleRebuild} disabled={rebuilding || entries.length === 0}>
               <RefreshCw className={cn('w-3.5 h-3.5 mr-1', rebuilding && 'animate-spin')} />
               {t('rebuildIndex')}
             </Button>
@@ -293,10 +304,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
               <BarChart3 className="w-3.5 h-3.5 mr-1" />
               {t('stats')}
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setEditingEntry({ question: '', answer: '', tags: '' })}
-            >
+            <Button size="sm" onClick={() => setEditingEntry({ question: '', answer: '', tags: '' })}>
               <Plus className="w-3.5 h-3.5 mr-1" />
               {t('addEntry')}
             </Button>
@@ -325,9 +333,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
 
         {editingEntry && (
           <div className="mb-4 p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
-            <h4 className="text-sm font-medium">
-              {editingEntry.id ? t('editEntry') : t('addEntry')}
-            </h4>
+            <h4 className="text-sm font-medium">{editingEntry.id ? t('editEntry') : t('addEntry')}</h4>
             <div className="space-y-2">
               <Label className="text-xs">{t('question')}</Label>
               <Input
@@ -394,12 +400,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
                   )}
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    onClick={() => setEditingEntry(entry)}
-                  >
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingEntry(entry)}>
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
                   <Button
@@ -450,9 +451,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
                     className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/30 text-sm"
                   >
                     <span className="truncate flex-1">{item.query}</span>
-                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                      {item.top_score.toFixed(2)}
-                    </span>
+                    <span className="text-xs text-muted-foreground ml-2 shrink-0">{item.top_score.toFixed(2)}</span>
                   </div>
                 ))}
               </div>

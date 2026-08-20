@@ -73,7 +73,9 @@ const SecurityPresetSelector = () => {
   const setPreset = useChatStore((s) => s.setSecurityPreset);
   const actionMode = useChatStore((s) => s.actionMode);
 
-  if (actionMode !== 'agent') {return null;}
+  if (actionMode !== 'agent') {
+    return null;
+  }
 
   const isDefault = preset === 'hitl';
   const colors = PRESET_COLORS[preset];
@@ -82,7 +84,9 @@ const SecurityPresetSelector = () => {
     // 决策前确保 securityConfig 已同步：渐进加载下该 key 为后台异步预加载，
     // 未同步时 YOLO 状态误读为关闭会导致互斥静默跳过（安全假象）。
     const resolved = await resolvePresetWithYoloMutexEnsured(preset, next);
-    if (resolved !== null) {setPreset(resolved);}
+    if (resolved !== null) {
+      setPreset(resolved);
+    }
   };
 
   return (

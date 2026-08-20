@@ -7,12 +7,8 @@ const mockValidateMessageQuota = vi.hoisted(() =>
 const mockRecordChatWikiQueryAttempt = vi.hoisted(() => vi.fn());
 const mockRecordChatWikiQuerySubmitted = vi.hoisted(() => vi.fn());
 const mockQueuePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
-const mockSendMessage = vi.hoisted(() =>
-  vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined),
-);
-const mockSteerMessage = vi.hoisted(() =>
-  vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true),
-);
+const mockSendMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined));
+const mockSteerMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true));
 const mockEnqueue = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilitySelectionSubmitted = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityOverrideApplied = vi.hoisted(() => vi.fn());
@@ -304,12 +300,10 @@ describe('useMessageInput submit telemetry integration', () => {
       await result.current.handleQueueSubmit();
     });
 
-    expect(mockEnqueue).toHaveBeenCalledWith(
-      'hello world',
-      [],
-      undefined,
-      { skillIds: ['skill-b'], mcpNames: ['mcp-a'] },
-    );
+    expect(mockEnqueue).toHaveBeenCalledWith('hello world', [], undefined, {
+      skillIds: ['skill-b'],
+      mcpNames: ['mcp-a'],
+    });
     expect(mockRecordTurnCapabilitySelectionSubmitted).toHaveBeenCalledTimes(1);
     expect(mockRecordTurnCapabilityQueueEnqueued).toHaveBeenCalledTimes(1);
   });

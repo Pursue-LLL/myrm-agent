@@ -10,12 +10,7 @@
  * Unified MCP security gate for Settings UI save, enable, import, and catalog flows.
  */
 
-import {
-  scanMCPConfig,
-  scanMCPConfigBatch,
-  validateMCPConfig,
-  type MCPScanResult,
-} from '@/services/llm-config';
+import { scanMCPConfig, scanMCPConfigBatch, validateMCPConfig, type MCPScanResult } from '@/services/llm-config';
 import type { MCPLastScanSummary, MCPScanFinding, MCPServiceConfig } from '@/store/config/types';
 
 export interface McpGateResult {
@@ -104,9 +99,7 @@ export async function gateMcpConfigBatch(
   }
 
   const scanResults =
-    configs.length === 1
-      ? [await scanMCPConfig(configs[0])]
-      : (await scanMCPConfigBatch(configs)).results;
+    configs.length === 1 ? [await scanMCPConfig(configs[0])] : (await scanMCPConfigBatch(configs)).results;
 
   for (let i = 0; i < configs.length; i += 1) {
     const scanResult = scanResults[i];

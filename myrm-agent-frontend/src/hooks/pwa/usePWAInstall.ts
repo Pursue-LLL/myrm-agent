@@ -58,7 +58,9 @@ export function usePWAInstall() {
   }, []);
 
   const promptInstall = async () => {
-    if (!deferredPrompt) {return;}
+    if (!deferredPrompt) {
+      return;
+    }
 
     // Show the install prompt
     await deferredPrompt.prompt();

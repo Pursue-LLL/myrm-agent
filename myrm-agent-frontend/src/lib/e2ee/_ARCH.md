@@ -6,11 +6,11 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `client.ts` | E2EE 核心：密钥对生成、握手协商、会话存储（sessionStorage）、加解密函数、base64 编解码 |
-| `fingerprint.ts` | 公钥指纹计算纯函数（SHA-512 via `nacl.hash`），支持 raw bytes 和 base64 输入 |
-| `useE2EEStatus.ts` | React Hook：封装 E2EE 握手状态、指纹、算法、会话 ID，供 UI 组件消费 |
+| 文件               | 职责                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| `client.ts`        | E2EE 核心：密钥对生成、握手协商、会话存储（sessionStorage）、加解密函数、base64 编解码 |
+| `fingerprint.ts`   | 公钥指纹计算纯函数（SHA-512 via `nacl.hash`），支持 raw bytes 和 base64 输入           |
+| `useE2EEStatus.ts` | React Hook：封装 E2EE 握手状态、指纹、算法、会话 ID，供 UI 组件消费                    |
 
 ## 依赖
 

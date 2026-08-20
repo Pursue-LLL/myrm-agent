@@ -19,10 +19,7 @@ export type { AssessmentImportFailureReason };
 export type AssessmentImportMetricSurface = 'project_milestone_panel';
 export type AssessmentImportMetricTrigger = 'manual_input' | 'recent_candidate';
 export type AssessmentImportMetricEventType =
-  | 'import_attempted'
-  | 'import_succeeded'
-  | 'import_failed'
-  | 'dropped_report';
+  'import_attempted' | 'import_succeeded' | 'import_failed' | 'dropped_report';
 
 interface AssessmentImportMetricEventPayload {
   event_type: AssessmentImportMetricEventType;
@@ -86,7 +83,9 @@ function normalizeContextKey(contextKey?: string): string {
 }
 
 function clampCount(count: number): number {
-  if (!Number.isFinite(count)) {return 1;}
+  if (!Number.isFinite(count)) {
+    return 1;
+  }
   return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
 }
 
@@ -272,7 +271,9 @@ export async function getAssessmentImportValueSummary(
   if (normalizedProjectId) {
     query.set('project_id', normalizedProjectId);
   }
-  return (await apiRequest(`/statistics/assessment-import/value-summary?${query.toString()}`)) as AssessmentImportValueSummary;
+  return (await apiRequest(
+    `/statistics/assessment-import/value-summary?${query.toString()}`,
+  )) as AssessmentImportValueSummary;
 }
 
 export async function __flushAssessmentImportMetricsForTest(): Promise<void> {

@@ -14,13 +14,8 @@
 
 import { useEffect, useState } from 'react';
 import { isTauriRuntime } from '@/lib/deploy-mode';
-import {
-  type ManagedPolicyEffective,
-} from '@/lib/managedPolicyMatch';
-import {
-  MANAGED_POLICY_UPDATED_EVENT,
-  type ManagedPolicyUpdatedDetail,
-} from '@/lib/managedPolicyEffectiveEvents';
+import { type ManagedPolicyEffective } from '@/lib/managedPolicyMatch';
+import { MANAGED_POLICY_UPDATED_EVENT, type ManagedPolicyUpdatedDetail } from '@/lib/managedPolicyEffectiveEvents';
 import { getConfigSyncManager } from '@/services/config';
 
 interface ManagedPolicyEffectiveState {
@@ -132,10 +127,7 @@ export function useManagedPolicyEffective(): ManagedPolicyEffectiveState {
 
     const refetchOnManagedPolicyUpdated = (event: Event) => {
       const detail = (event as CustomEvent<ManagedPolicyUpdatedDetail>).detail;
-      if (
-        typeof detail?.revision === 'number'
-        && detail.revision <= lastAppliedRevision
-      ) {
+      if (typeof detail?.revision === 'number' && detail.revision <= lastAppliedRevision) {
         return;
       }
       void load();

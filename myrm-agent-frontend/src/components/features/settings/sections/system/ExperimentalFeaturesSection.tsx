@@ -40,7 +40,9 @@ const ExperimentalFeaturesSection = memo(() => {
   const fetchFeatures = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/features/experimental');
-      if (!res.ok) {throw new Error(`HTTP ${res.status}`);}
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data: FeaturesResponse = await res.json();
       setFeatures(data.features);
       setWarnings(data.warnings);

@@ -42,7 +42,10 @@ describe('drawingEngine', () => {
         tool: 'rect',
         color: '#ff0000',
         lineWidth: 2,
-        points: [{ x: 10, y: 10 }, { x: 100, y: 100 }],
+        points: [
+          { x: 10, y: 10 },
+          { x: 100, y: 100 },
+        ],
       };
       renderOperation(ctx, op);
       expect(ctx.strokeRect).toHaveBeenCalledWith(10, 10, 90, 90);
@@ -54,7 +57,10 @@ describe('drawingEngine', () => {
         tool: 'ellipse',
         color: '#0000ff',
         lineWidth: 3,
-        points: [{ x: 0, y: 0 }, { x: 100, y: 50 }],
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 50 },
+        ],
       };
       renderOperation(ctx, op);
       expect(ctx.ellipse).toHaveBeenCalledWith(50, 25, 50, 25, 0, 0, Math.PI * 2);
@@ -66,7 +72,10 @@ describe('drawingEngine', () => {
         tool: 'arrow',
         color: '#00ff00',
         lineWidth: 2,
-        points: [{ x: 10, y: 10 }, { x: 100, y: 100 }],
+        points: [
+          { x: 10, y: 10 },
+          { x: 100, y: 100 },
+        ],
       };
       renderOperation(ctx, op);
       expect(ctx.moveTo).toHaveBeenCalled();
@@ -110,7 +119,10 @@ describe('drawingEngine', () => {
         tool: 'blur',
         color: '#000',
         lineWidth: 2,
-        points: [{ x: 0, y: 0 }, { x: 10, y: 10 }],
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+        ],
       };
       renderOperation(ctx, op);
       expect(ctx.getImageData).toHaveBeenCalledWith(0, 0, 10, 10);
@@ -144,8 +156,24 @@ describe('drawingEngine', () => {
     it('clears canvas, draws base image, then all operations', () => {
       const baseImage = {} as HTMLImageElement;
       const ops: DrawOperation[] = [
-        { tool: 'rect', color: '#f00', lineWidth: 2, points: [{ x: 0, y: 0 }, { x: 50, y: 50 }] },
-        { tool: 'freehand', color: '#0f0', lineWidth: 3, points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] },
+        {
+          tool: 'rect',
+          color: '#f00',
+          lineWidth: 2,
+          points: [
+            { x: 0, y: 0 },
+            { x: 50, y: 50 },
+          ],
+        },
+        {
+          tool: 'freehand',
+          color: '#0f0',
+          lineWidth: 3,
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 10 },
+          ],
+        },
       ];
 
       renderAllOperations(ctx, baseImage, ops);

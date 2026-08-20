@@ -141,7 +141,16 @@ describe('useMatrixEval', () => {
       '/api/v1/eval/matrix/reports/history': { status: 'success', reports: [] },
       '/api/v1/eval/matrix/reports/1750000000': {
         status: 'success',
-        report: { profile_ids: ['agent-1'], total_cases: 2, stable_count: 1, regression_count: 0, stable_rate: 0.5, per_profile: {}, matrix: [], total_ms: 10 },
+        report: {
+          profile_ids: ['agent-1'],
+          total_cases: 2,
+          stable_count: 1,
+          regression_count: 0,
+          stable_rate: 0.5,
+          per_profile: {},
+          matrix: [],
+          total_ms: 10,
+        },
       },
     });
 

@@ -40,9 +40,7 @@ const ConfigLoadError = memo(({ onRetry, className }: ConfigLoadErrorProps) => {
         <p className="text-sm font-medium text-foreground">{t('title')}</p>
         <p className="text-xs text-muted-foreground max-w-[320px]">{t('description')}</p>
         {hint ? (
-          <p className="text-xs text-muted-foreground/90 max-w-[360px] whitespace-pre-line font-mono">
-            {hint}
-          </p>
+          <p className="text-xs text-muted-foreground/90 max-w-[360px] whitespace-pre-line font-mono">{hint}</p>
         ) : null}
       </div>
       <Button variant="outline" size="sm" onClick={handleRetry} className="gap-1.5">

@@ -34,12 +34,7 @@ function isEvictedExpiredResponse(body: unknown): boolean {
   return false;
 }
 
-function buildEvictedPageUrl(
-  chatId: string,
-  filename: string,
-  offset: number,
-  limit: number,
-): string {
+function buildEvictedPageUrl(chatId: string, filename: string, offset: number, limit: number): string {
   const params = new URLSearchParams({
     chat_id: chatId,
     filename,
@@ -183,8 +178,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
 
   const handleCopy = useCallback(async () => {
     try {
-      const fullContent =
-        totalPages <= 1 ? pageContent : await fetchAllContent();
+      const fullContent = totalPages <= 1 ? pageContent : await fetchAllContent();
       await navigator.clipboard.writeText(fullContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -196,7 +190,9 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
   const lines = useMemo(() => pageContent.split('\n'), [pageContent]);
 
   const allMatchIndices = useMemo(() => {
-    if (!searchTerm) {return [] as number[];}
+    if (!searchTerm) {
+      return [] as number[];
+    }
     const lowerSearch = searchTerm.toLowerCase();
     const indices: number[] = [];
     for (let i = 0; i < lines.length; i++) {
@@ -210,7 +206,9 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
   const matchCount = allMatchIndices.length;
 
   const highlightMatches = useMemo(() => {
-    if (!searchTerm) {return new Set<number>();}
+    if (!searchTerm) {
+      return new Set<number>();
+    }
     const matches = new Set<number>();
     for (const idx of allMatchIndices) {
       if (idx >= pageOffset && idx < pageOffset + lines.length) {
@@ -222,14 +220,18 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
 
   const renderInlineHighlight = useCallback(
     (line: string, isCurrent: boolean): React.ReactNode => {
-      if (!searchTerm) {return line || ' ';}
+      if (!searchTerm) {
+        return line || ' ';
+      }
       const parts: React.ReactNode[] = [];
       const lowerLine = line.toLowerCase();
       const lowerSearch = searchTerm.toLowerCase();
       let lastIdx = 0;
       let pos = lowerLine.indexOf(lowerSearch);
       while (pos !== -1) {
-        if (pos > lastIdx) {parts.push(line.slice(lastIdx, pos));}
+        if (pos > lastIdx) {
+          parts.push(line.slice(lastIdx, pos));
+        }
         parts.push(
           <mark
             key={pos}
@@ -245,7 +247,9 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
         lastIdx = pos + searchTerm.length;
         pos = lowerLine.indexOf(lowerSearch, lastIdx);
       }
-      if (lastIdx < line.length) {parts.push(line.slice(lastIdx));}
+      if (lastIdx < line.length) {
+        parts.push(line.slice(lastIdx));
+      }
       return parts.length > 0 ? <>{parts}</> : line || ' ';
     },
     [searchTerm],
@@ -253,10 +257,10 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
 
   const jumpToMatch = useCallback(
     (matchIdx: number) => {
-      if (allMatchIndices.length === 0) {return;}
-      const wrappedIdx =
-        ((matchIdx % allMatchIndices.length) + allMatchIndices.length) %
-        allMatchIndices.length;
+      if (allMatchIndices.length === 0) {
+        return;
+      }
+      const wrappedIdx = ((matchIdx % allMatchIndices.length) + allMatchIndices.length) % allMatchIndices.length;
       setCurrentMatchIdx(wrappedIdx);
       const lineIdx = allMatchIndices[wrappedIdx];
       const targetPage = Math.floor(lineIdx / PAGE_SIZE) + 1;
@@ -316,7 +320,9 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
                 <button
                   onClick={() => {
                     setSearchVisible(!searchVisible);
-                    if (!searchVisible) {setTimeout(() => searchInputRef.current?.focus(), 50);}
+                    if (!searchVisible) {
+                      setTimeout(() => searchInputRef.current?.focus(), 50);
+                    }
                   }}
                   className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
                   title={t('searchTitle')}
@@ -408,14 +414,23 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({
               data-testid="evicted-output-expired"
               className="flex flex-col items-center justify-center h-full gap-3 text-zinc-500"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-zinc-600"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
               <p className="text-sm font-medium text-zinc-400">{t('expiredTitle')}</p>
-              <p className="text-xs text-zinc-600 max-w-[300px] text-center">
-                {t('expiredDesc')}
-              </p>
+              <p className="text-xs text-zinc-600 max-w-[300px] text-center">{t('expiredDesc')}</p>
             </div>
           )}
 

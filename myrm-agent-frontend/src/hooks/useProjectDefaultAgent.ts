@@ -19,12 +19,18 @@ export function useProjectDefaultAgent(): void {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!newChatCreated) {return;}
-    if (agentConfig) {return;}
+    if (!newChatCreated) {
+      return;
+    }
+    if (agentConfig) {
+      return;
+    }
 
     const project = typeof activeFilter === 'string' ? projects.find((p) => p.id === activeFilter) : undefined;
     const defaultAgentId = project?.defaultAgentId;
-    if (!defaultAgentId) {return;}
+    if (!defaultAgentId) {
+      return;
+    }
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -34,12 +40,18 @@ export function useProjectDefaultAgent(): void {
       .getState()
       .fetchAgent(defaultAgentId, controller.signal)
       .then(async (agent) => {
-        if (!agent || controller.signal.aborted) {return;}
-        if (useChatStore.getState().agentConfig) {return;}
+        if (!agent || controller.signal.aborted) {
+          return;
+        }
+        if (useChatStore.getState().agentConfig) {
+          return;
+        }
 
         const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
         await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
-        if (controller.signal.aborted) {return;}
+        if (controller.signal.aborted) {
+          return;
+        }
 
         useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
       })

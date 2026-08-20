@@ -181,7 +181,9 @@ export function SourceItem({ source }: { source: Source }) {
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">[{source.index}]</span>
+              <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                [{source.index}]
+              </span>
               <span className="text-sm font-medium truncate flex-1">{title}</span>
             </div>
             {description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{description}</p>}
@@ -194,12 +196,16 @@ export function SourceItem({ source }: { source: Source }) {
   if (isConversation) {
     const chatId = source.conversation_id;
     const jumpToChat = () => {
-      if (!chatId) {return;}
+      if (!chatId) {
+        return;
+      }
       const highlight = source.message_id ? `?highlight=${encodeURIComponent(source.message_id)}` : '';
       router.push(`/${chatId}${highlight}`);
     };
     const handleExclude = async () => {
-      if (!chatId) {return;}
+      if (!chatId) {
+        return;
+      }
       setBusy(true);
       try {
         await updateChatRecallExclusion(chatId, true);
@@ -212,7 +218,9 @@ export function SourceItem({ source }: { source: Source }) {
       }
     };
     const handleDelete = async () => {
-      if (!chatId) {return;}
+      if (!chatId) {
+        return;
+      }
       setBusy(true);
       try {
         await deleteChat(chatId);
@@ -310,7 +318,9 @@ export function SourceItem({ source }: { source: Source }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">[{source.index}]</span>
+              <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                [{source.index}]
+              </span>
               <span className="text-sm font-medium truncate">{source.skill_name || 'MCP Skill'}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -390,9 +400,7 @@ export function SourceItem({ source }: { source: Source }) {
 
         {clickUrl && <p className="text-xs text-muted-foreground mt-1 truncate">{getDomain(clickUrl)}</p>}
 
-        {sourceDescription && (
-          <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{sourceDescription}</p>
-        )}
+        {sourceDescription && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{sourceDescription}</p>}
       </div>
     </div>
   );
@@ -410,7 +418,9 @@ export function SourceItem({ source }: { source: Source }) {
 
 function formatSourceDate(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {return value;}
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
   return date.toLocaleString();
 }
 

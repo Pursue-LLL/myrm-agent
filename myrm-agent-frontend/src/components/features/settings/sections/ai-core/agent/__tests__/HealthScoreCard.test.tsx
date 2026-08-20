@@ -7,15 +7,23 @@ vi.mock('@/lib/utils/classnameUtils', () => ({
 }));
 
 vi.mock('@/components/primitives/button', () => ({
-  Button: ({ children, onClick, ...props }: React.ComponentPropsWithoutRef<'button'> & { variant?: string; size?: string }) => (
-    <button onClick={onClick} {...props}>{children}</button>
+  Button: ({
+    children,
+    onClick,
+    ...props
+  }: React.ComponentPropsWithoutRef<'button'> & { variant?: string; size?: string }) => (
+    <button onClick={onClick} {...props}>
+      {children}
+    </button>
   ),
 }));
 
 import { HealthScoreCard, type AuditResult } from '../HealthScoreCard';
 
 const mockT = (key: string, values?: Record<string, string | number>) => {
-  if (key === 'checkerIssues' && values?.count !== undefined) {return `${values.count} issues`;}
+  if (key === 'checkerIssues' && values?.count !== undefined) {
+    return `${values.count} issues`;
+  }
   const translations: Record<string, string> = {
     healthScoreTitle: 'Security Health Score',
     checkerPass: 'Pass',
@@ -43,10 +51,38 @@ const RISKY_RESULT: AuditResult = {
   score: 52,
   risk_level: 'medium',
   findings: [
-    { checker: 'tool_exposure', severity: 'high', title: 'Dangerous tool combination', description: 'desc', recommendation: 'rec', source_location: '' },
-    { checker: 'mcp_auth', severity: 'medium', title: 'MCP no auth', description: 'desc', recommendation: 'rec', source_location: '' },
-    { checker: 'policy_gap', severity: 'medium', title: 'Network tools enabled without network policy', description: 'desc', recommendation: 'Add allowlist', source_location: '' },
-    { checker: 'policy_gap', severity: 'info', title: 'Domain HITL approval not enabled', description: 'desc', recommendation: 'Enable HITL', source_location: '' },
+    {
+      checker: 'tool_exposure',
+      severity: 'high',
+      title: 'Dangerous tool combination',
+      description: 'desc',
+      recommendation: 'rec',
+      source_location: '',
+    },
+    {
+      checker: 'mcp_auth',
+      severity: 'medium',
+      title: 'MCP no auth',
+      description: 'desc',
+      recommendation: 'rec',
+      source_location: '',
+    },
+    {
+      checker: 'policy_gap',
+      severity: 'medium',
+      title: 'Network tools enabled without network policy',
+      description: 'desc',
+      recommendation: 'Add allowlist',
+      source_location: '',
+    },
+    {
+      checker: 'policy_gap',
+      severity: 'info',
+      title: 'Domain HITL approval not enabled',
+      description: 'desc',
+      recommendation: 'Enable HITL',
+      source_location: '',
+    },
   ],
   total_findings: 4,
   finding_counts: { high: 1, medium: 2, info: 1 },
@@ -54,16 +90,12 @@ const RISKY_RESULT: AuditResult = {
 
 describe('HealthScoreCard', () => {
   it('returns null when result is null', () => {
-    const { container } = render(
-      <HealthScoreCard result={null} loading={false} t={mockT} />,
-    );
+    const { container } = render(<HealthScoreCard result={null} loading={false} t={mockT} />);
     expect(container.innerHTML).toBe('');
   });
 
   it('shows loading skeleton when loading=true', () => {
-    const { container } = render(
-      <HealthScoreCard result={null} loading={true} t={mockT} />,
-    );
+    const { container } = render(<HealthScoreCard result={null} loading={true} t={mockT} />);
     expect(container.querySelector('.animate-pulse')).not.toBeNull();
   });
 
@@ -156,9 +188,7 @@ describe('HealthScoreCard', () => {
   });
 
   it('applies correct risk level border style', () => {
-    const { container } = render(
-      <HealthScoreCard result={RISKY_RESULT} loading={false} t={mockT} />,
-    );
+    const { container } = render(<HealthScoreCard result={RISKY_RESULT} loading={false} t={mockT} />);
     const card = container.firstChild as HTMLElement;
     expect(card.className).toContain('border-amber-500/30');
   });

@@ -214,7 +214,9 @@ const ArtifactPortal: React.FC = () => {
 
   // 复制内容
   const handleCopy = useCallback(async () => {
-    if (!content) {return;}
+    if (!content) {
+      return;
+    }
     try {
       await writeToClipboard(content);
       setCopied(true);
@@ -226,11 +228,15 @@ const ArtifactPortal: React.FC = () => {
 
   // 下载文件
   const handleDownload = useCallback(async () => {
-    if (!currentArtifact) {return;}
+    if (!currentArtifact) {
+      return;
+    }
     try {
       const fullUrl = getStorageUrl(currentArtifact.download_url);
       const response = await fetch(fullUrl);
-      if (!response.ok) {throw new Error(`HTTP ${response.status}`);}
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -247,7 +253,9 @@ const ArtifactPortal: React.FC = () => {
 
   // 在新标签页打开
   const handleOpenInNewTab = useCallback(() => {
-    if (!currentArtifact) {return;}
+    if (!currentArtifact) {
+      return;
+    }
     window.open(getStorageUrl(currentArtifact.preview_url), '_blank', 'noopener,noreferrer');
   }, [currentArtifact]);
 
@@ -303,7 +311,9 @@ const ArtifactPortal: React.FC = () => {
 
   // 获取错误提示
   const getErrorHint = useCallback(() => {
-    if (!error) {return '';}
+    if (!error) {
+      return '';
+    }
     switch (error.type) {
       case ArtifactErrorType.NotFound:
         return t('errors.notFoundHint');
@@ -318,40 +328,51 @@ const ArtifactPortal: React.FC = () => {
     }
   }, [error, t]);
 
-  const handleEditSave = useCallback(async (blob: Blob) => {
-    if (!currentArtifact) {return;}
-    const file = new File([blob], currentArtifact.filename, {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const result = await uploadFiles([file]);
-    if (result.files.length === 0) {
-      throw new Error('Upload returned empty response');
-    }
-    const uploaded = result.files[0];
-    useArtifactPortalStore.getState().updateCurrentArtifact({
-      preview_url: uploaded.fileUrl,
-      download_url: uploaded.fileUrl,
-    });
-    useArtifactPortalStore.getState().createVersion('Edited in browser');
-  }, [currentArtifact]);
+  const handleEditSave = useCallback(
+    async (blob: Blob) => {
+      if (!currentArtifact) {
+        return;
+      }
+      const file = new File([blob], currentArtifact.filename, {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const result = await uploadFiles([file]);
+      if (result.files.length === 0) {
+        throw new Error('Upload returned empty response');
+      }
+      const uploaded = result.files[0];
+      useArtifactPortalStore.getState().updateCurrentArtifact({
+        preview_url: uploaded.fileUrl,
+        download_url: uploaded.fileUrl,
+      });
+      useArtifactPortalStore.getState().createVersion('Edited in browser');
+    },
+    [currentArtifact],
+  );
 
-  const handleEditDirty = useCallback((dirty: boolean) => {
-    if (!currentArtifact) {return;}
-    if (dirty) {
-      useArtifactPortalStore.getState().markAsDirty(currentArtifact.id, '__spreadsheet_edit__');
-    } else {
-      useArtifactPortalStore.getState().clearDirtyState(currentArtifact.id);
-    }
-  }, [currentArtifact]);
+  const handleEditDirty = useCallback(
+    (dirty: boolean) => {
+      if (!currentArtifact) {
+        return;
+      }
+      if (dirty) {
+        useArtifactPortalStore.getState().markAsDirty(currentArtifact.id, '__spreadsheet_edit__');
+      } else {
+        useArtifactPortalStore.getState().clearDirtyState(currentArtifact.id);
+      }
+    },
+    [currentArtifact],
+  );
 
-  if (!isOpen || !currentArtifact) {return null;}
+  if (!isOpen || !currentArtifact) {
+    return null;
+  }
 
   const canPreviewContent = ['code', 'document', 'svg', 'mermaid', 'html'].includes(currentArtifact.type);
   const isHtml = currentArtifact.type === 'html';
   const isImage = currentArtifact.type === 'image';
   const isEditableSpreadsheet =
-    (currentArtifact.type === 'spreadsheet' ||
-      /\.(xlsx|xls)$/i.test(currentArtifact.filename)) &&
+    (currentArtifact.type === 'spreadsheet' || /\.(xlsx|xls)$/i.test(currentArtifact.filename)) &&
     !!currentArtifact.preview_url;
   const effectiveFullscreen = isFullscreen || isMobile;
 
@@ -402,7 +423,7 @@ const ArtifactPortal: React.FC = () => {
         )}
         style={{
           transitionTimingFunction: isOpen ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.36, 0, 0.66, -0.56)',
-          width: effectiveFullscreen || isMobile ? undefined : (isSideBySide && !isOpen) ? 0 : `${panelWidth}px`,
+          width: effectiveFullscreen || isMobile ? undefined : isSideBySide && !isOpen ? 0 : `${panelWidth}px`,
           transform: isMobile && swipeOffset > 0 ? `translateY(${swipeOffset}px)` : undefined,
           opacity: isMobile && swipeOffset > 0 ? 1 - (swipeOffset / SWIPE_MAX_OFFSET) * 0.5 : undefined,
         }}
@@ -490,7 +511,10 @@ const ArtifactPortal: React.FC = () => {
           onOpenInNewTab={handleOpenInNewTab}
           onToggleFullscreen={toggleFullscreen}
           onClose={closePortal}
-          onTogglePicker={() => { setPickerMode((p) => !p); setPickedElement(null); }}
+          onTogglePicker={() => {
+            setPickerMode((p) => !p);
+            setPickedElement(null);
+          }}
           onSwitchVersion={handleSwitchVersion}
           onRollbackVersion={handleRollbackVersion}
           labels={{
@@ -603,12 +627,16 @@ const ArtifactPortal: React.FC = () => {
 // 辅助组件：处理行号滚动和高亮
 const LineRangeScroller: React.FC<{ lineRange: string; content: string }> = ({ lineRange, content }) => {
   useEffect(() => {
-    if (!lineRange || !content) {return;}
+    if (!lineRange || !content) {
+      return;
+    }
 
     // 解析行号，例如 "10-20" 或 "10-"
     const parts = lineRange.split('-');
     const startLine = parseInt(parts[0], 10);
-    if (isNaN(startLine)) {return;}
+    if (isNaN(startLine)) {
+      return;
+    }
 
     // 延迟执行以确保 DOM 已经渲染完毕 (ArtifactRenderer 内部可能使用了异步高亮)
     const timer = setTimeout(() => {

@@ -49,7 +49,9 @@ export function InstalledPetRow({
 }: InstalledPetRowProps) {
   const t = useTranslations('companion');
 
-  if (pets.length === 0) {return null;}
+  if (pets.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-2" data-testid="pet-gallery-installed">
@@ -82,15 +84,10 @@ export function InstalledPetRow({
                 disabled={isBusy}
                 title={label}
                 data-testid={`installed-pet-${pet.slug}`}
-                className={cn(
-                  'flex w-full flex-col items-center gap-1',
-                  isBusy && 'cursor-wait',
-                )}
+                className={cn('flex w-full flex-col items-center gap-1', isBusy && 'cursor-wait')}
               >
                 <PetGalleryThumb url={companionPetSpritesheetUrl(pet.slug)} alt={label} />
-                <span className="w-full truncate text-center text-[10px] leading-tight text-foreground">
-                  {label}
-                </span>
+                <span className="w-full truncate text-center text-[10px] leading-tight text-foreground">{label}</span>
                 {formatLabelKey && (
                   <span
                     className={cn(

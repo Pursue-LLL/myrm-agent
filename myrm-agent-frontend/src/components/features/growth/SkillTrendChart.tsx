@@ -69,7 +69,9 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
               onClick={() => setMetric(key)}
               className={cn(
                 'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
-                metric === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                metric === key
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon className="h-3 w-3" />
@@ -104,9 +106,7 @@ const SkillTrendChart = memo<{ trends: SkillTrendSeries[] }>(({ trends }) => {
                   opacity: 0.8,
                 }}
               />
-              <span className="text-[9px] text-muted-foreground/70 truncate max-w-full">
-                {point.date.slice(5)}
-              </span>
+              <span className="text-[9px] text-muted-foreground/70 truncate max-w-full">{point.date.slice(5)}</span>
             </div>
           );
         })}

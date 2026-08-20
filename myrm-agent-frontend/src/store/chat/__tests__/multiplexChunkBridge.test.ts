@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { connectionManager } from '@/services/ConnectionManager';
-import {
-  createMultiplexChunkBridge,
-  createMultiplexReadableStream,
-} from '../multiplexChunkBridge';
+import { createMultiplexChunkBridge, createMultiplexReadableStream } from '../multiplexChunkBridge';
 
 const handlerBuckets = new Map<string, Set<(chunk: string) => void>>();
 
@@ -21,24 +18,19 @@ describe('multiplexChunkBridge', () => {
   });
 
   it('buffers chunks emitted before attachConsumer', () => {
-    vi.spyOn(connectionManager, 'registerMultiplexHandler').mockImplementation(
-      (messageId, handler) => {
-        const bucket = handlerBuckets.get(messageId) ?? new Set();
-        bucket.add(handler);
-        handlerBuckets.set(messageId, bucket);
-        return () => {
-          bucket.delete(handler);
-        };
-      },
-    );
+    vi.spyOn(connectionManager, 'registerMultiplexHandler').mockImplementation((messageId, handler) => {
+      const bucket = handlerBuckets.get(messageId) ?? new Set();
+      bucket.add(handler);
+      handlerBuckets.set(messageId, bucket);
+      return () => {
+        bucket.delete(handler);
+      };
+    });
 
     const controller = new AbortController();
     const bridge = createMultiplexChunkBridge('msg_early_gap', controller.signal);
 
-    emitMultiplexChunk(
-      'msg_early_gap',
-      'data: {"type":"capability_gap","data":{"tool_id":"render_ui"}}\n\n',
-    );
+    emitMultiplexChunk('msg_early_gap', 'data: {"type":"capability_gap","data":{"tool_id":"render_ui"}}\n\n');
 
     const received: string[] = [];
     const buffered = bridge.attachConsumer((chunk) => {
@@ -56,24 +48,19 @@ describe('multiplexChunkBridge', () => {
   });
 
   it('createMultiplexReadableStream replays buffered chunks in order', async () => {
-    vi.spyOn(connectionManager, 'registerMultiplexHandler').mockImplementation(
-      (messageId, handler) => {
-        const bucket = handlerBuckets.get(messageId) ?? new Set();
-        bucket.add(handler);
-        handlerBuckets.set(messageId, bucket);
-        return () => {
-          bucket.delete(handler);
-        };
-      },
-    );
+    vi.spyOn(connectionManager, 'registerMultiplexHandler').mockImplementation((messageId, handler) => {
+      const bucket = handlerBuckets.get(messageId) ?? new Set();
+      bucket.add(handler);
+      handlerBuckets.set(messageId, bucket);
+      return () => {
+        bucket.delete(handler);
+      };
+    });
 
     const controller = new AbortController();
     const stream = createMultiplexReadableStream('msg_stream_replay', controller.signal);
 
-    emitMultiplexChunk(
-      'msg_stream_replay',
-      'data: {"type":"capability_gap","messageId":"m1"}\n\n',
-    );
+    emitMultiplexChunk('msg_stream_replay', 'data: {"type":"capability_gap","messageId":"m1"}\n\n');
 
     const reader = stream.getReader();
     const decoder = new TextDecoder();
@@ -81,10 +68,7 @@ describe('multiplexChunkBridge', () => {
     const first = await reader.read();
     expect(decoder.decode(first.value)).toContain('capability_gap');
 
-    emitMultiplexChunk(
-      'msg_stream_replay',
-      'data: {"type":"message_end","messageId":"m1"}\n\n',
-    );
+    emitMultiplexChunk('msg_stream_replay', 'data: {"type":"message_end","messageId":"m1"}\n\n');
     const second = await reader.read();
     expect(decoder.decode(second.value)).toContain('message_end');
 

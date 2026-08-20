@@ -38,12 +38,7 @@ export function ForkButton({ chatId, messageIndex, variant = 'ghost', size = 'sm
       </Button>
 
       {dialogOpen && (
-        <ForkDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          chatId={chatId}
-          messageIndex={messageIndex}
-        />
+        <ForkDialog open={dialogOpen} onOpenChange={setDialogOpen} chatId={chatId} messageIndex={messageIndex} />
       )}
     </>
   );

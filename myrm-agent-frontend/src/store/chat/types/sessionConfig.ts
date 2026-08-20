@@ -2,10 +2,10 @@
  * [INPUT]
  * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
  * ./builtinTools::BuiltinToolId (POS: 内置工具 ID 常量)
- * 
+ *
  * [OUTPUT]
  * ActionMode, AgentConfig, SelectedModels, ModelSelection.
- * 
+ *
  * [POS]
  * 会话级 Agent 与模式配置类型。
  */

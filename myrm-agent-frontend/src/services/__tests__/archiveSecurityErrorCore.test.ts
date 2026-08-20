@@ -62,9 +62,7 @@ describe('archiveSecurityErrorCore', () => {
         'Fallback message',
         translate,
       ),
-    ).toBe(
-      `translated:${ARCHIVE_SECURITY_I18N_KEYS['archive_security.executable_binary_detected']}`,
-    );
+    ).toBe(`translated:${ARCHIVE_SECURITY_I18N_KEYS['archive_security.executable_binary_detected']}`);
     expect(translate).toHaveBeenCalledTimes(1);
   });
 

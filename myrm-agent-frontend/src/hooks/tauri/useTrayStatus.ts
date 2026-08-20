@@ -48,14 +48,13 @@ type SystemNotificationDetail = {
 type UsageSummary = { tokens: number; costUsd: number };
 
 function formatUsageLine(summary: UsageSummary): string {
-  const cost = summary.costUsd < 0.01
-    ? '<$0.01'
-    : `$${summary.costUsd.toFixed(2)}`;
-  const tokens = summary.tokens >= 1_000_000
-    ? `${(summary.tokens / 1_000_000).toFixed(1)}M`
-    : summary.tokens >= 1_000
-      ? `${(summary.tokens / 1_000).toFixed(1)}K`
-      : `${summary.tokens}`;
+  const cost = summary.costUsd < 0.01 ? '<$0.01' : `$${summary.costUsd.toFixed(2)}`;
+  const tokens =
+    summary.tokens >= 1_000_000
+      ? `${(summary.tokens / 1_000_000).toFixed(1)}M`
+      : summary.tokens >= 1_000
+        ? `${(summary.tokens / 1_000).toFixed(1)}K`
+        : `${summary.tokens}`;
   return `${tokens} tokens · ${cost}`;
 }
 
@@ -117,18 +116,24 @@ export function useTrayStatus() {
 
   // Refresh usage when liveness transitions from busy→idle (task just completed)
   useEffect(() => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
     void refreshTodayUsage();
   }, [liveness.state, refreshTodayUsage]);
 
   // Budget-alert → native OS notification (Tauri only)
   useEffect(() => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
 
     const onBudgetAlert = async () => {
       try {
         const status = await getBudgetStatus();
-        if (!status.enabled) {return;}
+        if (!status.enabled) {
+          return;
+        }
         const pct = Math.round(status.usage_pct * 100);
         await sendTauriNativeNotification({
           title: t('budgetAlertTitle'),
@@ -157,9 +162,7 @@ export function useTrayStatus() {
       if (document.visibilityState !== 'hidden') {
         return;
       }
-      void import('@tauri-apps/api/window').then(({ getCurrentWindow }) =>
-        getCurrentWindow().requestUserAttention(2),
-      );
+      void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().requestUserAttention(2));
     };
 
     window.addEventListener('system-notification', onSystemNotification);
@@ -178,17 +181,18 @@ export function useTrayStatus() {
           import('@tauri-apps/api/window'),
         ]);
 
-        let tooltip = liveness.state === 'offline'
-          ? t('trayTooltipOffline')
-          : liveness.state === 'draining'
-            ? t('trayTooltipDraining')
-            : liveness.state === 'busy'
-              ? t('trayTooltipBusy')
-              : liveness.state === 'degraded'
-                ? t('trayTooltipDegraded')
-                : bgRunningCount > 0
-                  ? t('trayTooltipBackground', { count: bgRunningCount })
-                  : t('trayTooltipIdle');
+        let tooltip =
+          liveness.state === 'offline'
+            ? t('trayTooltipOffline')
+            : liveness.state === 'draining'
+              ? t('trayTooltipDraining')
+              : liveness.state === 'busy'
+                ? t('trayTooltipBusy')
+                : liveness.state === 'degraded'
+                  ? t('trayTooltipDegraded')
+                  : bgRunningCount > 0
+                    ? t('trayTooltipBackground', { count: bgRunningCount })
+                    : t('trayTooltipIdle');
 
         if (todayUsage && todayUsage.tokens > 0) {
           tooltip += `\n${t('trayTooltipUsage', { usage: formatUsageLine(todayUsage) })}`;

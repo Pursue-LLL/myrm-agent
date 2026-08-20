@@ -27,7 +27,8 @@ interface BlueprintInlineFillProps {
   onCreated: (job: CronJob) => void;
 }
 
-const TOGGLE_CLS = 'gap-1.5 text-xs h-8 px-3 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40';
+const TOGGLE_CLS =
+  'gap-1.5 text-xs h-8 px-3 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40';
 
 export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: BlueprintInlineFillProps) {
   const t = useTranslations('cron');
@@ -44,13 +45,11 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
 
   useEffect(() => {
     const NON_IM = new Set(['chat', 'webhook', 'none', 'web']);
-    listChannelStatuses().then((statuses) => {
-      setConnectedChannels(
-        statuses
-          .filter((s) => s.status === 'running' && !NON_IM.has(s.name))
-          .map((s) => s.name),
-      );
-    }).catch(() => {});
+    listChannelStatuses()
+      .then((statuses) => {
+        setConnectedChannels(statuses.filter((s) => s.status === 'running' && !NON_IM.has(s.name)).map((s) => s.name));
+      })
+      .catch(() => {});
   }, []);
 
   const getVal = (name: string, fallback: string) => slotValues[name] ?? fallback;
@@ -63,19 +62,15 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      const merged = Object.fromEntries(
-        blueprint.slots.map((s) => [s.name, slotValues[s.name] ?? s.default]),
-      );
-      const delivery = deliveryChannel !== 'chat'
-        ? { channel: toApiChannel(deliveryChannel), ...(deliveryTarget.trim() ? { target: deliveryTarget.trim() } : {}) }
-        : undefined;
-      const payload = await buildBlueprintCreatePayload(
-        blueprint,
-        merged,
-        userTz,
-        locale,
-        delivery,
-      );
+      const merged = Object.fromEntries(blueprint.slots.map((s) => [s.name, slotValues[s.name] ?? s.default]));
+      const delivery =
+        deliveryChannel !== 'chat'
+          ? {
+              channel: toApiChannel(deliveryChannel),
+              ...(deliveryTarget.trim() ? { target: deliveryTarget.trim() } : {}),
+            }
+          : undefined;
+      const payload = await buildBlueprintCreatePayload(blueprint, merged, userTz, locale, delivery);
       const job = await createJob(payload);
       try {
         const auditJob = await prepareJobForSettingsAudit(job);
@@ -194,7 +189,7 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          {(deliveryChannel in IM_CHANNELS) && (
+          {deliveryChannel in IM_CHANNELS && (
             <div className="flex items-center gap-2">
               <Send className="h-3 w-3 text-muted-foreground shrink-0" />
               <Input

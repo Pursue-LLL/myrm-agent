@@ -36,9 +36,7 @@ describe('localizeDoctorCheckMessage', () => {
       message: 'ignored',
       fixAction: null,
     };
-    expect(
-      localizeDoctorCheckMessage(t, check, { activeSlug: 'nous-girl' }),
-    ).toBe('Active pet is nous-girl.');
+    expect(localizeDoctorCheckMessage(t, check, { activeSlug: 'nous-girl' })).toBe('Active pet is nous-girl.');
   });
 
   it('falls back to server message when key missing', () => {

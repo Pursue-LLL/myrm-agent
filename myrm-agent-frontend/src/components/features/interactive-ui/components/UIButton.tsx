@@ -18,7 +18,9 @@ export const UIButton: React.FC<UIComponentProps> = ({ props, events, onAction }
   const className = (props.className as string) || '';
 
   const handleClick = () => {
-    if (loading) {return;} // 加载中不允许点击
+    if (loading) {
+      return;
+    } // 加载中不允许点击
     const actionId = events.onClick;
     if (actionId) {
       onAction(actionId);

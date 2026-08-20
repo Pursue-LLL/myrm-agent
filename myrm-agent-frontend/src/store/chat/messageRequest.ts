@@ -68,10 +68,7 @@ import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
-import {
-  consumeMigrationReadinessAnchorForAgent,
-  peekMigrationBoundProjectId,
-} from '@/lib/migrationChatHandoff';
+import { consumeMigrationReadinessAnchorForAgent, peekMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
 
@@ -88,9 +85,7 @@ function shouldUseMultiplexedAgentStream(): boolean {
   return true;
 }
 
-function resolveKanbanProjectScope(
-  migrationBoundProjectId: string | null | undefined,
-): string | null {
+function resolveKanbanProjectScope(migrationBoundProjectId: string | null | undefined): string | null {
   const migrationScope = migrationBoundProjectId?.trim();
   if (migrationScope) {
     return migrationScope;
@@ -206,11 +201,15 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
       });
     } else {
       const lineMatch = LINE_RANGE_REFERENCE_PATTERN.exec(token);
-      if (!lineMatch) {continue;}
+      if (!lineMatch) {
+        continue;
+      }
       const [, path, startRaw, endRaw] = lineMatch;
       let startLine = Number(startRaw);
       let endLine = endRaw ? Number(endRaw) : startLine;
-      if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(endLine)) {continue;}
+      if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(endLine)) {
+        continue;
+      }
       if (endLine < startLine) {
         [startLine, endLine] = [endLine, startLine];
       }
@@ -238,15 +237,15 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
  * 文件浏览器/全局搜索/拖拽/research 等非文本入口添加的引用不参与过滤。
  */
 const isReferenceTokenAlive = (reference: MentionReference, input: string): boolean => {
-  if (!reference.viaText) {return true;}
+  if (!reference.viaText) {
+    return true;
+  }
   switch (reference.type) {
     case 'agent':
       // toMentionReference 生成的 label 已带 @ 前缀（如 '@研究专家'），直接整体匹配文本 token
       return input.includes(reference.label);
     case 'wiki_concept':
-      return reference.conceptName
-        ? input.includes(`@wiki:${reference.conceptName}`)
-        : input.includes('@wiki:');
+      return reference.conceptName ? input.includes(`@wiki:${reference.conceptName}`) : input.includes('@wiki:');
     case 'prior_chat':
       return input.includes(reference.label);
     case 'workspace_folder':
@@ -272,7 +271,9 @@ const mergeMentionReferences = (selected: MentionReference[], inline: MentionRef
   const merged: MentionReference[] = [];
   for (const reference of [...selected, ...inline]) {
     const key = mentionReferenceKey(reference);
-    if (seen.has(key)) {continue;}
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
     merged.push(reference);
   }
@@ -301,13 +302,19 @@ export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConf
     return null;
   }
 
-  if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) {return null;}
+  if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) {
+    return null;
+  }
   const hasActiveKey = provider.apiKeys.some((k) => k.isActive && k.key);
-  if (!hasActiveKey) {return null;}
+  if (!hasActiveKey) {
+    return null;
+  }
 
   const modelInfo = getModelInfo(selection.providerId, selection.model);
   const modelLevelKwargs: Record<string, unknown> = {};
-  if (modelInfo?.temperature !== undefined) {modelLevelKwargs.temperature = modelInfo.temperature;}
+  if (modelInfo?.temperature !== undefined) {
+    modelLevelKwargs.temperature = modelInfo.temperature;
+  }
   const modelExtraParams = modelInfo?.extraParams || {};
   const mergedKwargs: Record<string, unknown> = {
     temperature: resolved.temperature,
@@ -343,18 +350,24 @@ const resolveSelectionToModelSelection = (
   selection: import('@/store/config/providerTypes').SingleModelSelection | null | undefined,
   extraKwargs?: Record<string, unknown>,
 ): ModelSelection | null => {
-  if (!selection) {return null;}
+  if (!selection) {
+    return null;
+  }
 
   const { providers, getModelInfo } = useProviderStore.getState();
   const provider = providers.find((p) => p.id === selection.providerId);
-  if (!provider) {return null;}
+  if (!provider) {
+    return null;
+  }
 
   // if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) return null;
   // if (!provider.apiKeys.some((k) => k.isActive)) return null;
 
   const modelInfo = getModelInfo(selection.providerId, selection.model);
   const modelLevelKwargs: Record<string, unknown> = {};
-  if (modelInfo?.temperature !== undefined) {modelLevelKwargs.temperature = modelInfo.temperature;}
+  if (modelInfo?.temperature !== undefined) {
+    modelLevelKwargs.temperature = modelInfo.temperature;
+  }
   const modelExtraParams = modelInfo?.extraParams || {};
   const mergedKwargs = { ...extraKwargs, ...modelLevelKwargs, ...modelExtraParams };
 
@@ -410,8 +423,12 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
   const candidates: Array<{ providerId: string; model: string; cost: number }> = [];
 
   for (const provider of providers) {
-    if (!provider.isEnabled) {continue;}
-    if (!hasUsableProviderAuth(provider)) {continue;}
+    if (!provider.isEnabled) {
+      continue;
+    }
+    if (!hasUsableProviderAuth(provider)) {
+      continue;
+    }
     for (const model of provider.enabledModels || []) {
       const info = customModelInfo[`${provider.id}/${model}`];
       if (info?.input_cost_per_million != null) {
@@ -420,7 +437,9 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
     }
   }
 
-  if (candidates.length < 2) {return null;}
+  if (candidates.length < 2) {
+    return null;
+  }
 
   candidates.sort((a, b) => (cheapest ? a.cost - b.cost : b.cost - a.cost));
   const pick = candidates[0];
@@ -430,7 +449,9 @@ const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
 export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {return null;}
+    if (agentRouting.enabled === false) {
+      return null;
+    }
     if (agentRouting.lightModel?.primary) {
       const slotKwargs = agentRouting.lightModel.modelKwargs ?? {};
       return resolveSelectionToModelSelection(agentRouting.lightModel.primary, slotKwargs);
@@ -438,7 +459,9 @@ export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelS
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {return null;}
+  if (routing?.enabled === false) {
+    return null;
+  }
   if (routing?.lightModel?.primary) {
     const slotKwargs = routing.lightModel.modelKwargs ?? {};
     return resolveSelectionToModelSelection(routing.lightModel.primary, slotKwargs);
@@ -449,14 +472,18 @@ export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelS
 export const getFallbackLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {return null;}
+    if (agentRouting.enabled === false) {
+      return null;
+    }
     if (agentRouting.lightModel?.fallback) {
       return resolveSelectionToModelSelection(agentRouting.lightModel.fallback);
     }
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {return null;}
+  if (routing?.enabled === false) {
+    return null;
+  }
   if (routing?.lightModel?.fallback) {
     return resolveSelectionToModelSelection(routing.lightModel.fallback);
   }
@@ -466,7 +493,9 @@ export const getFallbackLightModelSelection = (agentConfig?: AgentConfig | null)
 export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {return null;}
+    if (agentRouting.enabled === false) {
+      return null;
+    }
     if (agentRouting.reasoningModel?.primary) {
       const slotKwargs = agentRouting.reasoningModel.modelKwargs ?? {};
       return resolveSelectionToModelSelection(agentRouting.reasoningModel.primary, slotKwargs);
@@ -474,7 +503,9 @@ export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): Mo
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {return null;}
+  if (routing?.enabled === false) {
+    return null;
+  }
   if (routing?.reasoningModel?.primary) {
     const slotKwargs = routing.reasoningModel.modelKwargs ?? {};
     return resolveSelectionToModelSelection(routing.reasoningModel.primary, slotKwargs);
@@ -485,14 +516,18 @@ export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): Mo
 export const getFallbackReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
   const agentRouting = agentConfig?.routingConfig;
   if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {return null;}
+    if (agentRouting.enabled === false) {
+      return null;
+    }
     if (agentRouting.reasoningModel?.fallback) {
       return resolveSelectionToModelSelection(agentRouting.reasoningModel.fallback);
     }
   }
   const { defaultModelConfig } = useProviderStore.getState();
   const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {return null;}
+  if (routing?.enabled === false) {
+    return null;
+  }
   if (routing?.reasoningModel?.fallback) {
     return resolveSelectionToModelSelection(routing.reasoningModel.fallback);
   }
@@ -642,9 +677,7 @@ export const createMessageRequest = async (
   const migrationBoundProjectId = peekMigrationBoundProjectId();
   const kanbanProjectScope = resolveKanbanProjectScope(migrationBoundProjectId);
   const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools, kanbanProjectScope);
-  const migrationReadinessAnchor = effectiveAgentId
-    ? consumeMigrationReadinessAnchorForAgent(effectiveAgentId)
-    : null;
+  const migrationReadinessAnchor = effectiveAgentId ? consumeMigrationReadinessAnchorForAgent(effectiveAgentId) : null;
 
   const activeMoaPresetId = useChatStore.getState().activeMoaPresetId;
   const pendingWorkflowTemplateId = useChatStore.getState().pendingWorkflowTemplateId;
@@ -813,7 +846,9 @@ export const createMessageRequest = async (
         state.mentionReferences.filter((r) => isReferenceTokenAlive(r, input)),
         extractInlineMentionReferences(input),
       );
-      if (references.length === 0) {return {};}
+      if (references.length === 0) {
+        return {};
+      }
 
       const fileReferences = references.filter((r) => r.type !== 'agent');
       const agentReferences = references.filter((r) => r.type === 'agent');
@@ -957,8 +992,7 @@ export const sendMessage = async (
 
   useChatStore.getState().clearPendingGapRetry();
 
-  const requestMessageId =
-    messageId ?? (isHitlResume ? getCurrentSessionMessageId() : allocateNewSessionMessageId());
+  const requestMessageId = messageId ?? (isHitlResume ? getCurrentSessionMessageId() : allocateNewSessionMessageId());
   const requestState: ChatActionsState =
     agentConfigOverride === undefined ? state : { ...state, agentConfig: agentConfigOverride };
 
@@ -1110,7 +1144,9 @@ export const sendMessage = async (
       if (isNetworkError) {
         smartSetMessages((innerState) => {
           const msg = innerState.messages.find((m) => m.messageId === requestMessageId);
-          if (msg) {msg.sendFailed = true;}
+          if (msg) {
+            msg.sendFailed = true;
+          }
         });
       } else {
         smartSetMessages((innerState) => {
@@ -1321,16 +1357,10 @@ export const attachForHitlRecovery = async (
       };
     }
 
-    const streamResult = await consumeStream(
-      response,
-      '',
-      state,
-      smartActions,
-      attachAbort,
-      false,
-      '',
-      { untilApprovalQueued: true, maxWaitMs: HITL_ATTACH_RECOVERY_MS },
-    );
+    const streamResult = await consumeStream(response, '', state, smartActions, attachAbort, false, '', {
+      untilApprovalQueued: true,
+      maxWaitMs: HITL_ATTACH_RECOVERY_MS,
+    });
     if (streamResult.queueLen > 0) {
       return {
         ok: true,

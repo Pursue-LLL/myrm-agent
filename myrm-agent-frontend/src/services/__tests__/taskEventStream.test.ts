@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resetTaskUpdateEventStreamForTests, subscribeTaskUpdateEvents, isTaskUpdateEventStreamOpen } from '@/services/taskEventStream';
+import {
+  resetTaskUpdateEventStreamForTests,
+  subscribeTaskUpdateEvents,
+  isTaskUpdateEventStreamOpen,
+} from '@/services/taskEventStream';
 
 class MockEventSource {
   static OPEN = 1;

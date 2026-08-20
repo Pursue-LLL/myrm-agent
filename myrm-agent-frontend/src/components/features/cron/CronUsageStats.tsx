@@ -12,13 +12,19 @@ const PERIOD_OPTIONS = [7, 30, 0] as const;
 type Period = (typeof PERIOD_OPTIONS)[number];
 
 function formatTokens(n: number): string {
-  if (n >= 1_000_000) {return `${(n / 1_000_000).toFixed(1)}M`;}
-  if (n >= 1_000) {return `${(n / 1_000).toFixed(1)}K`;}
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(1)}M`;
+  }
+  if (n >= 1_000) {
+    return `${(n / 1_000).toFixed(1)}K`;
+  }
   return String(n);
 }
 
 function pct(part: number, total: number): string {
-  if (total === 0) {return '0%';}
+  if (total === 0) {
+    return '0%';
+  }
   return `${Math.round((part / total) * 100)}%`;
 }
 
@@ -62,7 +68,9 @@ export default function CronUsageStats() {
     );
   }
 
-  if (!data) {return null;}
+  if (!data) {
+    return null;
+  }
 
   const { summary, by_job, by_model } = data;
 

@@ -1,15 +1,9 @@
 import type { TopicBinding } from '@/services/channels';
 import type { Project } from '@/services/projects';
 
-type TopicWorkspaceSource = Pick<
-  TopicBinding,
-  'projectId' | 'authorizedPath' | 'workspaceLabel'
->;
+type TopicWorkspaceSource = Pick<TopicBinding, 'projectId' | 'authorizedPath' | 'workspaceLabel'>;
 
-export function resolveTopicWorkspaceDisplayLabel(
-  topic: TopicWorkspaceSource,
-  projects: Project[],
-): string | null {
+export function resolveTopicWorkspaceDisplayLabel(topic: TopicWorkspaceSource, projects: Project[]): string | null {
   if (topic.projectId) {
     const project = projects.find((item) => item.id === topic.projectId);
     if (project) {

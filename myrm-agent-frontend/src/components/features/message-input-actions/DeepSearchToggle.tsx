@@ -29,7 +29,9 @@ const DeepSearchToggle = () => {
   const searchDepth = useChatStore((s) => s.searchDepth);
   const setSearchDepth = useChatStore((s) => s.setSearchDepth);
 
-  if (actionMode !== 'fast') {return null;}
+  if (actionMode !== 'fast') {
+    return null;
+  }
 
   const isDeep = searchDepth === 'deep';
 

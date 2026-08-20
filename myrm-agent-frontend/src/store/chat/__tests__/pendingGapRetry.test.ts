@@ -4,9 +4,7 @@ const sendMessage = vi.fn().mockResolvedValue(undefined);
 const clearPendingGapRetry = vi.fn();
 let mockState = {
   pendingGapRetry: null as
-    | { kind: 'capability'; text: string; toolId: string }
-    | { kind: 'skill'; text: string; skillId: string }
-    | null,
+    { kind: 'capability'; text: string; toolId: string } | { kind: 'skill'; text: string; skillId: string } | null,
   loading: false,
   currentBuiltinTools: ['web_search', 'memory'],
   agentConfig: { selectedSkillIds: ['bound_skill'] as string[] },
@@ -20,11 +18,7 @@ vi.mock('@/store/useChatStore', () => ({
   },
 }));
 
-import {
-  flushPendingGapRetry,
-  resolveLastPlainUserMessage,
-  scheduleFlushPendingGapRetry,
-} from '../pendingGapRetry';
+import { flushPendingGapRetry, resolveLastPlainUserMessage, scheduleFlushPendingGapRetry } from '../pendingGapRetry';
 import type { Message } from '@/store/chat/types';
 
 describe('pendingGapRetry', () => {

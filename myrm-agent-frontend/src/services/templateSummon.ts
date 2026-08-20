@@ -30,9 +30,7 @@ interface InstantiateTemplateWithMetricsOptions {
   contextKey?: string;
 }
 
-export async function instantiateTemplateWithMetrics(
-  options: InstantiateTemplateWithMetricsOptions,
-): Promise<Agent> {
+export async function instantiateTemplateWithMetrics(options: InstantiateTemplateWithMetricsOptions): Promise<Agent> {
   recordExpertSummonAttempted(options.surface, options.trigger, {
     contextKey: options.contextKey,
     templateKind: options.templateKind,

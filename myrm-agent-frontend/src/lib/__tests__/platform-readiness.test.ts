@@ -40,9 +40,8 @@ describe('platform-readiness', () => {
   });
 
   it('marks unreachable and re-warms after transport failure', async () => {
-    const { getPlatformReadinessSnapshot, markPlatformUnreachable, resetPlatformReadinessForTests } = await import(
-      '@/lib/platform-readiness'
-    );
+    const { getPlatformReadinessSnapshot, markPlatformUnreachable, resetPlatformReadinessForTests } =
+      await import('@/lib/platform-readiness');
     resetPlatformReadinessForTests();
     markPlatformUnreachable();
     expect(getPlatformReadinessSnapshot().state).toBe('unreachable');

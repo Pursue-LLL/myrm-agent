@@ -3,7 +3,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Globe, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isWebpageUrl } from '@/lib/utils/urlUtils';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/primitives/carousel';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/primitives/carousel';
 import useChatStore from '@/store/useChatStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import { useTranslations } from 'next-intl';

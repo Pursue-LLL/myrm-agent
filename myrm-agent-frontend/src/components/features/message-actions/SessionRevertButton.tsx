@@ -38,10 +38,7 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
   const handleClick = useCallback(async () => {
     setStatus('loading');
     try {
-      const data = (await apiRequest(`/files/revert/changes/${sessionId}`)) as Record<
-        string,
-        FileChangeInfo[]
-      >;
+      const data = (await apiRequest(`/files/revert/changes/${sessionId}`)) as Record<string, FileChangeInfo[]>;
       const revertiblePaths = new Set<string>();
       const nonRevertiblePaths = new Set<string>();
       for (const changes of Object.values(data)) {
@@ -86,8 +83,7 @@ export default function SessionRevertButton({ sessionId }: SessionRevertButtonPr
       if (result.reverted_files.length > 0) {
         setStatus('success');
         window.dispatchEvent(new CustomEvent('app_resync_required'));
-        const skippedTotal =
-          result.skipped_files.length > 0 ? result.skipped_files.length : skippedCount;
+        const skippedTotal = result.skipped_files.length > 0 ? result.skipped_files.length : skippedCount;
         toast({
           title:
             skippedTotal > 0

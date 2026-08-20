@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  findActivePendingClarification,
-  normalizeHydratedClarification,
-} from '@/store/chat/clarificationState';
+import { findActivePendingClarification, normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import type { Message } from '@/store/chat/types';
 
 describe('findActivePendingClarification', () => {

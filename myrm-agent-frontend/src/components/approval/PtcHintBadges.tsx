@@ -29,19 +29,12 @@ interface PtcHintBadgesProps {
 }
 
 /** MCP/PTC tool hint badges (read-only / destructive / open-world). */
-export default function PtcHintBadges({
-  annotations,
-  t,
-  className,
-  badgeClassName,
-}: PtcHintBadgesProps) {
+export default function PtcHintBadges({ annotations, t, className, badgeClassName }: PtcHintBadgesProps) {
   if (!annotations.readOnlyHint && !annotations.destructiveHint && !annotations.openWorldHint) {
     return null;
   }
 
-  const baseBadge =
-    badgeClassName ??
-    'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border';
+  const baseBadge = badgeClassName ?? 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border';
 
   return (
     <div className={cn('flex items-center gap-1.5', className)}>

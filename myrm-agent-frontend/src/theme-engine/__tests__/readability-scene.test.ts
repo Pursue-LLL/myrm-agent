@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  FUNCTIONAL_ROUTE_PREFIXES,
-  IMMERSIVE_EXACT_PATHS,
-  resolveReadabilityScene,
-} from '../readability-scene';
+import { FUNCTIONAL_ROUTE_PREFIXES, IMMERSIVE_EXACT_PATHS, resolveReadabilityScene } from '../readability-scene';
 
 describe('readability-scene', () => {
   it('treats chat roots as immersive', () => {

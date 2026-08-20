@@ -15,17 +15,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Shield,
-  Globe,
-  Download,
-  Terminal,
-  FileInput,
-  FileOutput,
-  Plug,
-  Code,
-  Wrench,
-} from 'lucide-react';
+import { Shield, Globe, Download, Terminal, FileInput, FileOutput, Plug, Code, Wrench } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/primitives/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -81,7 +71,13 @@ const CAPABILITY_PRESETS = [
     tools: [...BLUEPRINT_EXECUTION_POLICY.devops.tools],
     toolsSorted: [...BLUEPRINT_EXECUTION_POLICY.devops.toolsSorted],
   },
-  { key: 'full', caps: [] as string[], sorted: [] as string[], tools: [] as BuiltinToolId[], toolsSorted: [] as string[] },
+  {
+    key: 'full',
+    caps: [] as string[],
+    sorted: [] as string[],
+    tools: [] as BuiltinToolId[],
+    toolsSorted: [] as string[],
+  },
 ] as const;
 
 const CRON_BUILTIN_TOOL_IDS = BUILTIN_TOOL_IDS.filter((id) => id !== 'cron') as BuiltinToolId[];
@@ -223,8 +219,7 @@ export function CapabilityEditor({ job, onUpdated }: EditorProps) {
         <p className="text-[11px] text-muted-foreground">{t('toolsAllowedDesc')}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           {TOOL_PRESETS.map(({ key, caps, tools, sorted }) => {
-            const isActive =
-              sortedEqual(sorted, localTools) && sortedEqual(caps, localCaps);
+            const isActive = sortedEqual(sorted, localTools) && sortedEqual(caps, localCaps);
             return (
               <button
                 key={key}

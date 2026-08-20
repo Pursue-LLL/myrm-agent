@@ -2,11 +2,7 @@ const IMG_SRC_PATTERN = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
 
 function isRemoteImageSrc(src: string): boolean {
   const normalized = src.trim().toLowerCase();
-  return (
-    normalized.startsWith('http://')
-    || normalized.startsWith('https://')
-    || normalized.startsWith('data:')
-  );
+  return normalized.startsWith('http://') || normalized.startsWith('https://') || normalized.startsWith('data:');
 }
 
 export function extractFirstLocalImageSrc(html: string): string | null {

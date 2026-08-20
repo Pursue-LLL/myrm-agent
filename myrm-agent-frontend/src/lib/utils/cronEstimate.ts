@@ -16,17 +16,23 @@ const MINUTES_PER_HOUR = 60;
 // For complex expressions, returns a rough estimate based on the minute and hour fields.
 export function estimateCronMonthlyExecutions(expr: string): number | null {
   const parts = expr.trim().split(/\s+/);
-  if (parts.length < 5) {return null;}
+  if (parts.length < 5) {
+    return null;
+  }
 
   const [minuteField, hourField] = parts;
 
   // Parse minute field
   const minuteMultiplier = parseFieldMultiplier(minuteField, 60);
-  if (minuteMultiplier === null) {return null;}
+  if (minuteMultiplier === null) {
+    return null;
+  }
 
   // Parse hour field
   const hourMultiplier = parseFieldMultiplier(hourField, 24);
-  if (hourMultiplier === null) {return null;}
+  if (hourMultiplier === null) {
+    return null;
+  }
 
   // Calculate executions per day
   // minuteMultiplier: how many minutes between executions (e.g., 5 for */5)
@@ -40,7 +46,9 @@ export function estimateCronMonthlyExecutions(expr: string): number | null {
 // Estimate monthly executions for an interval schedule.
 // intervalMs: Interval in milliseconds
 export function estimateIntervalMonthlyExecutions(intervalMs: number): number | null {
-  if (intervalMs <= 0) {return null;}
+  if (intervalMs <= 0) {
+    return null;
+  }
 
   const millisecondsPerMonth = AVG_DAYS_PER_MONTH * HOURS_PER_DAY * MINUTES_PER_HOUR * 60 * 1000;
   return Math.round(millisecondsPerMonth / intervalMs);
@@ -51,7 +59,9 @@ export function estimateIntervalMonthlyExecutions(intervalMs: number): number | 
 // Returns null if the field cannot be parsed.
 function parseFieldMultiplier(field: string, maxValue: number): number | null {
   // Wildcard: every unit
-  if (field === '*') {return 1;}
+  if (field === '*') {
+    return 1;
+  }
 
   // Step: */N or N/M
   const stepMatch = field.match(/^\*\/(\d+)$/);
@@ -78,8 +88,12 @@ function parseFieldMultiplier(field: string, maxValue: number): number | null {
 // Format monthly execution count for display.
 // Returns a human-readable string like "~288 times/month" or "~1,440 times/month".
 export function formatMonthlyExecutions(count: number): string {
-  if (count <= 0) {return '0 times/month';}
-  if (count === 1) {return '1 time/month';}
+  if (count <= 0) {
+    return '0 times/month';
+  }
+  if (count === 1) {
+    return '1 time/month';
+  }
 
   // Format with locale-appropriate number formatting
   const formatted = count.toLocaleString();
@@ -89,7 +103,11 @@ export function formatMonthlyExecutions(count: number): string {
 // Get a risk level indicator for the execution frequency.
 // Returns 'low', 'medium', or 'high' based on monthly executions.
 export function getFrequencyRiskLevel(monthlyExecutions: number): 'low' | 'medium' | 'high' {
-  if (monthlyExecutions <= 30) {return 'low';} // ~once/day
-  if (monthlyExecutions <= 720) {return 'medium';} // ~once/hour
+  if (monthlyExecutions <= 30) {
+    return 'low';
+  } // ~once/day
+  if (monthlyExecutions <= 720) {
+    return 'medium';
+  } // ~once/hour
   return 'high'; // more than once/hour
 }

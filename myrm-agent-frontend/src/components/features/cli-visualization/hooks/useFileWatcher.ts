@@ -101,7 +101,9 @@ export function useFileWatcher(
         for (const entry of entries) {
           // 检查是否应该忽略
           const shouldIgnore = ignorePatterns.some((pattern) => entry.name.includes(pattern) || entry.name === pattern);
-          if (shouldIgnore) {continue;}
+          if (shouldIgnore) {
+            continue;
+          }
 
           const fullPath = `${path}/${entry.name}`;
 

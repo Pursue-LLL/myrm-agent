@@ -47,7 +47,7 @@ describe('formatPrice', () => {
 
   it('formats sub-dollar prices with 2 decimals', () => {
     expect(formatPrice(0.15)).toBe('$0.15/M');
-    expect(formatPrice(0.50)).toBe('$0.50/M');
+    expect(formatPrice(0.5)).toBe('$0.50/M');
   });
 
   it('formats single-digit prices with 1 decimal', () => {

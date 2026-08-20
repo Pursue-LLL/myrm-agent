@@ -58,18 +58,18 @@ function makeCtx(): StreamCtx {
     added: true,
     recievedMessage: 'test response',
     state: {
-      messages: [
-        { messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() },
-      ],
+      messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
       messageAppeared: false,
       loading: true,
     } as never,
     actions: {
-      setMessages: vi.fn((updater: (s: Record<string, unknown>) => void) => updater({
-        messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
-        loading: true,
-        messageAppeared: false,
-      })),
+      setMessages: vi.fn((updater: (s: Record<string, unknown>) => void) =>
+        updater({
+          messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
+          loading: true,
+          messageAppeared: false,
+        }),
+      ),
       setLoading: vi.fn(),
       setMessageAppeared: vi.fn(),
       _processSuggestions: vi.fn(),
@@ -97,10 +97,7 @@ describe('completionEvents notification dispatch', () => {
     await vi.dynamicImportSettled();
 
     expect(mockNotify).toHaveBeenCalledTimes(1);
-    expect(mockNotify).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ fallbackToToast: false }),
-    );
+    expect(mockNotify).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ fallbackToToast: false }));
   });
 
   it('does NOT call notificationService.notify when enableWebNotifications=false', async () => {
@@ -121,10 +118,7 @@ describe('completionEvents notification dispatch', () => {
     await completionEvents(ctx);
     await vi.dynamicImportSettled();
 
-    expect(mockNotify).toHaveBeenCalledWith(
-      'Agent 回复已完成',
-      expect.objectContaining({ fallbackToToast: false }),
-    );
+    expect(mockNotify).toHaveBeenCalledWith('Agent 回复已完成', expect.objectContaining({ fallbackToToast: false }));
 
     document.documentElement.lang = origLang;
   });

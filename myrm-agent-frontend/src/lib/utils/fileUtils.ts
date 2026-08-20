@@ -75,8 +75,12 @@ export const isAudioFile = (fileExtension: string): boolean => {
  * Get the display URL for a file, handling both Web (fileUrl) and Tauri (localPath) environments.
  */
 export const getDisplayUrl = (file: File): string => {
-  if (file.previewUrl) {return file.previewUrl;}
-  if (file.fileUrl) {return file.fileUrl;}
+  if (file.previewUrl) {
+    return file.previewUrl;
+  }
+  if (file.fileUrl) {
+    return file.fileUrl;
+  }
   if (isTauriRuntime() && file.localPath) {
     try {
       const { convertFileSrc } = require('@tauri-apps/api/core');
@@ -214,7 +218,9 @@ export async function triggerDownload(blob: Blob, filename: string): Promise<voi
       import('@tauri-apps/plugin-fs'),
     ]);
     const path = await save({ defaultPath: filename });
-    if (!path) {return;} // 用户取消保存
+    if (!path) {
+      return;
+    } // 用户取消保存
     await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
     return;
   }

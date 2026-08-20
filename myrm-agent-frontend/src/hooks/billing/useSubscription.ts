@@ -156,10 +156,18 @@ async function fetchWithAuth<T>(url: string): Promise<T> {
 }
 
 function mapCpStatus(status: string): SubscriptionStatus['status'] {
-  if (status === 'trialing') {return 'trialing';}
-  if (status === 'cancelled') {return 'cancelled';}
-  if (status === 'past_due') {return 'past_due';}
-  if (status === 'expired') {return 'expired';}
+  if (status === 'trialing') {
+    return 'trialing';
+  }
+  if (status === 'cancelled') {
+    return 'cancelled';
+  }
+  if (status === 'past_due') {
+    return 'past_due';
+  }
+  if (status === 'expired') {
+    return 'expired';
+  }
   return 'active';
 }
 

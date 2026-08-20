@@ -32,7 +32,9 @@ export const useBatchWebSocket = (options: UseBatchWebSocketOptions) => {
   const shouldReconnectRef = useRef(true);
 
   useEffect(() => {
-    if (!batchId) {return;}
+    if (!batchId) {
+      return;
+    }
 
     shouldReconnectRef.current = true;
 

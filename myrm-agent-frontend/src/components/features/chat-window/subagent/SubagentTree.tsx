@@ -30,7 +30,12 @@ import {
   fmtTokens,
   type TreeNode,
 } from '@/lib/utils/subagentTree';
-import { isNodeOvertime, useSubagentStore, type SubagentVerification, type TeammateMessageEntry } from '@/store/chat/useSubagentStore';
+import {
+  isNodeOvertime,
+  useSubagentStore,
+  type SubagentVerification,
+  type TeammateMessageEntry,
+} from '@/store/chat/useSubagentStore';
 import useChatStore from '@/store/useChatStore';
 import { NodeStream, STATUS_ICON_MAP, StatusIcon } from './SubagentStream';
 
@@ -55,7 +60,9 @@ const TeammateMessageRow = ({ entry, nodeTaskId, t }: TeammateRowProps) => {
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
-  if (totalSec < 60) {return `${totalSec}s`;}
+  if (totalSec < 60) {
+    return `${totalSec}s`;
+  }
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
   return `${min}m${sec}s`;
@@ -116,14 +123,22 @@ const VerificationBadge = ({ verification, t }: { verification: SubagentVerifica
 };
 
 function formatRole(role: string | undefined, t: DashboardTranslator): string {
-  if (role === 'orchestrator') {return t('roleOrchestrator');}
-  if (role === 'leaf') {return t('roleLeaf');}
+  if (role === 'orchestrator') {
+    return t('roleOrchestrator');
+  }
+  if (role === 'leaf') {
+    return t('roleLeaf');
+  }
   return role || '';
 }
 
 function formatScope(scope: string | undefined, t: DashboardTranslator): string {
-  if (scope === 'orchestrator') {return t('scopeOrchestrator');}
-  if (scope === 'leaf') {return t('scopeLeaf');}
+  if (scope === 'orchestrator') {
+    return t('scopeOrchestrator');
+  }
+  if (scope === 'leaf') {
+    return t('scopeLeaf');
+  }
   return scope || '';
 }
 
@@ -143,7 +158,9 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   const [elapsedMs, setElapsedMs] = useState(0);
   const isRunningNode = node.status === 'running';
   useEffect(() => {
-    if (!isRunningNode || !node.startedAt) {return;}
+    if (!isRunningNode || !node.startedAt) {
+      return;
+    }
     const startedAt = node.startedAt;
     setElapsedMs(Date.now() - startedAt);
     const timer = setInterval(() => setElapsedMs(Date.now() - startedAt), 1000);
@@ -170,7 +187,9 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   }, [chatId, node.task_id, t]);
 
   const handleSteer = useCallback(async () => {
-    if (!steerMessage.trim()) {return;}
+    if (!steerMessage.trim()) {
+      return;
+    }
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/${node.task_id}/steer`, {
         method: 'POST',
@@ -263,17 +282,21 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                   {formatScope(node.control_scope, t)}
                 </span>
               )}
-              {node.verification && (
-                <VerificationBadge verification={node.verification} t={t} />
-              )}
+              {node.verification && <VerificationBadge verification={node.verification} t={t} />}
               {(() => {
                 const costUsd = extractCostUsd(node);
                 const maxCostUsd = extractMaxCostUsd(node);
-                if (costUsd <= 0) {return null;}
+                if (costUsd <= 0) {
+                  return null;
+                }
                 return (
                   <span
                     className="rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800"
-                    title={maxCostUsd > 0 ? t('costBudgetTitle', { used: fmtBudgetCost(costUsd, 0), limit: `$${maxCostUsd.toFixed(2)}` }) : undefined}
+                    title={
+                      maxCostUsd > 0
+                        ? t('costBudgetTitle', { used: fmtBudgetCost(costUsd, 0), limit: `$${maxCostUsd.toFixed(2)}` })
+                        : undefined
+                    }
                   >
                     {fmtBudgetCost(costUsd, maxCostUsd)}
                   </span>
@@ -286,20 +309,24 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
               )}
               {(() => {
                 const totalTokens = extractTotalTokens(node);
-                if (totalTokens <= 0) {return null;}
+                if (totalTokens <= 0) {
+                  return null;
+                }
                 const budgetTokens = extractBudgetTokens(node);
                 if (budgetTokens > 0) {
                   return (
-                    <span className="tabular-nums shrink-0" title={t('tokenBudgetTitle', { used: totalTokens.toLocaleString('en-US'), limit: budgetTokens.toLocaleString('en-US') })}>
+                    <span
+                      className="tabular-nums shrink-0"
+                      title={t('tokenBudgetTitle', {
+                        used: totalTokens.toLocaleString('en-US'),
+                        limit: budgetTokens.toLocaleString('en-US'),
+                      })}
+                    >
                       {fmtTokens(totalTokens)}/{fmtTokens(budgetTokens)} tok
                     </span>
                   );
                 }
-                return (
-                  <span className="tabular-nums shrink-0">
-                    {totalTokens.toLocaleString('en-US')} tok
-                  </span>
-                );
+                return <span className="tabular-nums shrink-0">{totalTokens.toLocaleString('en-US')} tok</span>;
               })()}
               <span className="truncate">{node.last_tool || t('processing')}</span>
               {Number.isFinite(node.progress) && <span>{Math.round(node.progress)}%</span>}
@@ -430,9 +457,7 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
         </div>
       )}
 
-      {node.stream && node.stream.length > 0 && (
-        <NodeStream stream={node.stream} isRunning={isRunningNode} />
-      )}
+      {node.stream && node.stream.length > 0 && <NodeStream stream={node.stream} isRunning={isRunningNode} />}
 
       {showSteerInput && isRunning && (
         <div className="flex gap-2 items-center px-2">
@@ -475,17 +500,21 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
 };
 
 const AggregateBadge = ({ node }: { node: TreeNode }) => {
-  if (node.children.length === 0) {return null;}
+  if (node.children.length === 0) {
+    return null;
+  }
   const agg = aggregate(node);
-  if (agg.descendantCount === 0) {return null;}
+  if (agg.descendantCount === 0) {
+    return null;
+  }
   const parts: string[] = [`▸ ${agg.descendantCount}`];
   const cost = fmtCost(agg.totalCostUsd);
-  if (cost) {parts.push(cost);}
+  if (cost) {
+    parts.push(cost);
+  }
   const tok = agg.totalTokens > 0 ? `${fmtTokens(agg.totalTokens)} tok` : '';
-  if (tok) {parts.push(tok);}
-  return (
-    <span className="ml-1 text-[10px] text-muted-foreground/70 tabular-nums">
-      {parts.join(' · ')}
-    </span>
-  );
+  if (tok) {
+    parts.push(tok);
+  }
+  return <span className="ml-1 text-[10px] text-muted-foreground/70 tabular-nums">{parts.join(' · ')}</span>;
 };

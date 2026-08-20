@@ -15,12 +15,7 @@ export interface CommandSpan {
 export type SpanRiskLevel = 'safe' | 'unknown';
 
 export type SpanRiskReason =
-  | 'safe'
-  | 'empty_segment'
-  | 'redirect'
-  | 'unknown_command'
-  | 'unknown_subcommand'
-  | 'invalid_flags';
+  'safe' | 'empty_segment' | 'redirect' | 'unknown_command' | 'unknown_subcommand' | 'invalid_flags';
 
 export interface PlainExplanation {
   en: string;
@@ -69,10 +64,7 @@ export function parseCommandSpans(value: unknown, commandLength: number): Comman
   return spans.length > 0 ? spans : undefined;
 }
 
-export function parseCommandSpanRisks(
-  value: unknown,
-  spanCount: number,
-): SpanRiskLevel[] | undefined {
+export function parseCommandSpanRisks(value: unknown, spanCount: number): SpanRiskLevel[] | undefined {
   if (!Array.isArray(value) || value.length !== spanCount) {
     return undefined;
   }
@@ -89,15 +81,12 @@ const SPAN_RISK_REASONS: ReadonlySet<string> = new Set([
   'invalid_flags',
 ]);
 
-export function parseCommandSpanReasons(
-  value: unknown,
-  spanCount: number,
-): SpanRiskReason[] | undefined {
+export function parseCommandSpanReasons(value: unknown, spanCount: number): SpanRiskReason[] | undefined {
   if (!Array.isArray(value) || value.length !== spanCount) {
     return undefined;
   }
-  const reasons = value.filter((item): item is SpanRiskReason =>
-    typeof item === 'string' && SPAN_RISK_REASONS.has(item),
+  const reasons = value.filter(
+    (item): item is SpanRiskReason => typeof item === 'string' && SPAN_RISK_REASONS.has(item),
   );
   return reasons.length === spanCount ? reasons : undefined;
 }
@@ -118,12 +107,8 @@ export function isShellApprovalMetadataKey(key: string): boolean {
 }
 
 /** Remove harness span metadata from shell tool args (not sent back on edit). */
-export function stripShellApprovalMetadata(
-  args: Record<string, unknown>,
-): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(args).filter(([key]) => !SHELL_METADATA_KEYS.has(key)),
-  );
+export function stripShellApprovalMetadata(args: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(args).filter(([key]) => !SHELL_METADATA_KEYS.has(key)));
 }
 
 /**
@@ -141,16 +126,12 @@ export function mergeShellEditedArgs(
 }
 
 /** Editable shell tool args (excludes harness span metadata). */
-export function getShellEditInputEntries(
-  args: Record<string, unknown>,
-): Array<[string, unknown]> {
+export function getShellEditInputEntries(args: Record<string, unknown>): Array<[string, unknown]> {
   const preferredSet = new Set<string>(SHELL_EDIT_PREFERRED_KEYS);
   const preferred = SHELL_EDIT_PREFERRED_KEYS.filter((key) => key in args).map(
     (key) => [key, args[key]] as [string, unknown],
   );
-  const rest = Object.entries(args).filter(
-    ([key]) => !SHELL_METADATA_KEYS.has(key) && !preferredSet.has(key),
-  );
+  const rest = Object.entries(args).filter(([key]) => !SHELL_METADATA_KEYS.has(key) && !preferredSet.has(key));
   return [...preferred, ...rest].slice(0, 8);
 }
 

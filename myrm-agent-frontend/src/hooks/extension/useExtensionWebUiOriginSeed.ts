@@ -1,10 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import {
-  getExtensionClipAgentConfig,
-  updateExtensionClipAgentConfig,
-} from '@/services/extension';
+import { getExtensionClipAgentConfig, updateExtensionClipAgentConfig } from '@/services/extension';
 
 /**
  * Persist WebUI origin for extension wiki-clip deep links (Duplicate Review, security, raw).

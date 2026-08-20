@@ -30,7 +30,9 @@ async function handleSave(
   onSave: (blob: Blob) => Promise<void>,
   onDirty: (dirty: boolean) => void,
 ): Promise<void> {
-  if (sm.state === 'saving') {return;}
+  if (sm.state === 'saving') {
+    return;
+  }
 
   sm.state = 'saving';
 
@@ -42,13 +44,17 @@ async function handleSave(
     sm.state = 'saved';
     sm.timers.forEach(clearTimeout);
     sm.timers = [];
-    const t = setTimeout(() => { sm.state = 'idle'; }, 2000);
+    const t = setTimeout(() => {
+      sm.state = 'idle';
+    }, 2000);
     sm.timers.push(t);
   } catch {
     sm.state = 'saveError';
     sm.timers.forEach(clearTimeout);
     sm.timers = [];
-    const t = setTimeout(() => { sm.state = 'idle'; }, 3000);
+    const t = setTimeout(() => {
+      sm.state = 'idle';
+    }, 3000);
     sm.timers.push(t);
   }
 }
@@ -110,7 +116,9 @@ describe('SpreadsheetEditor save state machine', () => {
 
   it('transitions to saveError on failed save', async () => {
     const sm = createSaveStateMachine();
-    const onSave = vi.fn(async () => { throw new Error('Network error'); });
+    const onSave = vi.fn(async () => {
+      throw new Error('Network error');
+    });
     const onDirty = vi.fn();
 
     await handleSave(sm, onSave, onDirty);
@@ -122,7 +130,9 @@ describe('SpreadsheetEditor save state machine', () => {
 
   it('transitions back to idle after 3000ms from saveError', async () => {
     const sm = createSaveStateMachine();
-    const onSave = vi.fn(async () => { throw new Error('fail'); });
+    const onSave = vi.fn(async () => {
+      throw new Error('fail');
+    });
     const onDirty = vi.fn();
 
     await handleSave(sm, onSave, onDirty);
@@ -140,7 +150,9 @@ describe('SpreadsheetEditor save state machine', () => {
   it('ignores save click while already saving', async () => {
     const sm = createSaveStateMachine();
     let resolveFirst!: () => void;
-    const firstSave = new Promise<void>((r) => { resolveFirst = r; });
+    const firstSave = new Promise<void>((r) => {
+      resolveFirst = r;
+    });
     const onSave = vi.fn(() => firstSave);
     const onDirty = vi.fn();
 
@@ -180,9 +192,15 @@ describe('SpreadsheetEditor save state machine', () => {
 
   it('button text contract: saving→saving, saved→saved, error→retry, idle→saveChanges', () => {
     function getButtonText(state: SaveState): string {
-      if (state === 'saving') {return 'saving';}
-      if (state === 'saved') {return 'saved';}
-      if (state === 'saveError') {return 'retry';}
+      if (state === 'saving') {
+        return 'saving';
+      }
+      if (state === 'saved') {
+        return 'saved';
+      }
+      if (state === 'saveError') {
+        return 'retry';
+      }
       return 'spreadsheet.saveChanges';
     }
 

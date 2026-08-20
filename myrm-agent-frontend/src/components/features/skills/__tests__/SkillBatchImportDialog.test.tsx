@@ -18,7 +18,7 @@ const TRANSLATIONS: Record<string, string> = {
   'batchImport.errors.archiveSecurity.executableBinaryDetected': 'Blocked: executable binary',
   'batchImport.errors.archiveSecurity.totalSizeExceeded': 'Blocked: total size exceeded',
   'batchImportDialog.confirmImport': 'Confirm Import',
-  'confirmImport': 'Confirm Import',
+  confirmImport: 'Confirm Import',
 };
 
 const stableT = (key: string, values?: Record<string, string>): string => {
@@ -158,13 +158,7 @@ describe('SkillBatchImportDialog', () => {
       );
 
     const onImportComplete = vi.fn();
-    render(
-      <SkillBatchImportDialog
-        open={true}
-        onOpenChange={vi.fn()}
-        onImportComplete={onImportComplete}
-      />,
-    );
+    render(<SkillBatchImportDialog open={true} onOpenChange={vi.fn()} onImportComplete={onImportComplete} />);
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
     expect(fileInput).not.toBeNull();

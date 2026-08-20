@@ -119,7 +119,9 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   private attemptChunkReload(error: Error) {
-    if (typeof window === 'undefined') {return;}
+    if (typeof window === 'undefined') {
+      return;
+    }
 
     const lastReloadTs = sessionStorage.getItem(CHUNK_RELOAD_KEY);
     const now = Date.now();

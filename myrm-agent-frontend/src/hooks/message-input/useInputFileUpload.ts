@@ -17,10 +17,7 @@ import { uploadFilesWithProgress } from '@/services/file';
 import { toast } from '@/lib/utils/toast';
 import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
-import {
-  hasConfiguredVisionCapability,
-  hasVisionFallbackForVideo,
-} from '@/store/config/visionCapability';
+import { hasConfiguredVisionCapability, hasVisionFallbackForVideo } from '@/store/config/visionCapability';
 import { showVisionNotConfiguredToast } from '@/store/config/visionConfigGap';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 import type { ActionMode, File as ChatFile } from '@/store/chat/types';
@@ -52,7 +49,9 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
   const uploadInputFiles = useCallback(
     async (inputFiles: globalThis.File[]) => {
-      if (inputFiles.length === 0) {return;}
+      if (inputFiles.length === 0) {
+        return;
+      }
 
       // 1. 瞬时乐观插入：为每个输入文件分配临时 ID 与 Object URL，以 uploading 状态推入 UI
       const pendingItems = inputFiles.map((f) => {
@@ -188,7 +187,9 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
           }
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {return;}
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
         // 标记为 error 状态
         updateFilesHelper((prev) =>
           prev.map((f) => {
@@ -206,12 +207,18 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
   const handleDroppedFiles = useCallback(
     async (droppedFiles: globalThis.File[]) => {
-      if (actionMode === 'fast') {return;}
+      if (actionMode === 'fast') {
+        return;
+      }
 
       const oversized = droppedFiles.find((f) => {
         const ext = getFileExtension(f.name);
-        if (isVideoFile(ext)) {return f.size > MAX_VIDEO_BYTES;}
-        if (isAudioFile(ext)) {return f.size > MAX_AUDIO_BYTES;}
+        if (isVideoFile(ext)) {
+          return f.size > MAX_VIDEO_BYTES;
+        }
+        if (isAudioFile(ext)) {
+          return f.size > MAX_AUDIO_BYTES;
+        }
         return f.size > MAX_FILE_BYTES;
       });
       if (oversized) {
@@ -222,7 +229,9 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
         } else if (isAudioFile(ext)) {
           toast.error(tFiles('audioTooLarge'), { description: tFiles('audioTooLargeDesc', { size: sizeMB }) });
         } else {
-          toast.error(tFiles('fileTooLarge'), { description: tFiles('fileTooLargeDesc', { name: oversized.name, size: sizeMB }) });
+          toast.error(tFiles('fileTooLarge'), {
+            description: tFiles('fileTooLargeDesc', { name: oversized.name, size: sizeMB }),
+          });
         }
         return;
       }
@@ -234,7 +243,8 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
         const selection = defaultModelConfig?.baseModel?.primary;
         if (selection) {
           const modelInfo = getModelInfo(selection.providerId, selection.model);
-          const hasVision = modelInfo?.supports_vision || hasConfiguredVisionCapability(defaultModelConfig, getModelInfo);
+          const hasVision =
+            modelInfo?.supports_vision || hasConfiguredVisionCapability(defaultModelConfig, getModelInfo);
           const hasVideoFallback = hasVisionFallbackForVideo(defaultModelConfig, getModelInfo);
           if (hasImages && !hasVision) {
             showVisionNotConfiguredToast('image');
@@ -252,18 +262,26 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent) => {
-      if (actionMode === 'fast') {return;}
+      if (actionMode === 'fast') {
+        return;
+      }
 
       const dt = e.clipboardData;
-      if (!dt?.items) {return;}
+      if (!dt?.items) {
+        return;
+      }
 
       const imageFiles: globalThis.File[] = [];
       const otherFiles: globalThis.File[] = [];
       for (let i = 0; i < dt.items.length; i++) {
         const item = dt.items[i];
-        if (item.kind !== 'file') {continue;}
+        if (item.kind !== 'file') {
+          continue;
+        }
         const file = item.getAsFile();
-        if (!file) {continue;}
+        if (!file) {
+          continue;
+        }
         if (file.type.startsWith('image/')) {
           imageFiles.push(file);
         } else {
@@ -272,7 +290,9 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
       }
 
       const allFiles = [...otherFiles, ...imageFiles];
-      if (allFiles.length === 0) {return;}
+      if (allFiles.length === 0) {
+        return;
+      }
 
       if (otherFiles.length === 0 && imageFiles.length > 0) {
         const plain = dt.getData('text/plain').trim();

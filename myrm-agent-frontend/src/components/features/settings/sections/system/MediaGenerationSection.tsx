@@ -100,7 +100,9 @@ function ProviderStatusBadge({
   status: ProviderStatus | undefined;
   t: ReturnType<typeof useTranslations>;
 }) {
-  if (!status) {return null;}
+  if (!status) {
+    return null;
+  }
 
   if (status.configured) {
     return (
@@ -173,7 +175,9 @@ const MediaGenerationSection = memo(() => {
     try {
       const result = await testMediaConfig('image', 'openai', imageModel);
       setImageTestStatus(result.ok ? 'success' : 'error');
-      if (!result.ok) {setTestMessage(result.message);}
+      if (!result.ok) {
+        setTestMessage(result.message);
+      }
     } catch {
       setImageTestStatus('error');
       setTestMessage('Network error');
@@ -187,7 +191,9 @@ const MediaGenerationSection = memo(() => {
     try {
       const result = await testMediaConfig('video', videoProvider, videoModel);
       setVideoTestStatus(result.ok ? 'success' : 'error');
-      if (!result.ok) {setTestMessage(result.message);}
+      if (!result.ok) {
+        setTestMessage(result.message);
+      }
     } catch {
       setVideoTestStatus('error');
       setTestMessage('Network error');
@@ -224,7 +230,9 @@ const MediaGenerationSection = memo(() => {
   );
 
   const handleSaveVideoApiKey = useCallback(async () => {
-    if (!videoApiKey.trim()) {return;}
+    if (!videoApiKey.trim()) {
+      return;
+    }
 
     setSavingVideoKey(true);
     try {
@@ -247,7 +255,9 @@ const MediaGenerationSection = memo(() => {
   }, [videoProvider, videoApiKey, addApiKey, t]);
 
   const handleSaveImageApiKey = useCallback(async () => {
-    if (!imageApiKey.trim()) {return;}
+    if (!imageApiKey.trim()) {
+      return;
+    }
 
     setSavingImageKey(true);
     try {

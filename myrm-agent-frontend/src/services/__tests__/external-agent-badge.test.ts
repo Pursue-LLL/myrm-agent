@@ -71,15 +71,21 @@ describe('external agent delegation badge helpers', () => {
     expect(hasExplicitExternalCliBackend([{ enabled: true, command: 'claude' }])).toBe(true);
     expect(hasExplicitExternalCliBackend([])).toBe(false);
     expect(
-      hasAutoDetectedExternalCliBackend([
-        { backend: 'claude', installed: true, readyForDelegation: true } as never,
-      ]),
+      hasAutoDetectedExternalCliBackend([{ backend: 'claude', installed: true, readyForDelegation: true } as never]),
     ).toBe(true);
     expect(
-      hasExternalCliBackendAvailable([], [{ backend: 'claude', installed: true, readyForDelegation: true } as never], true),
+      hasExternalCliBackendAvailable(
+        [],
+        [{ backend: 'claude', installed: true, readyForDelegation: true } as never],
+        true,
+      ),
     ).toBe(true);
     expect(
-      hasExternalCliBackendAvailable([], [{ backend: 'claude', installed: true, readyForDelegation: true } as never], false),
+      hasExternalCliBackendAvailable(
+        [],
+        [{ backend: 'claude', installed: true, readyForDelegation: true } as never],
+        false,
+      ),
     ).toBe(false);
   });
 });

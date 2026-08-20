@@ -91,7 +91,9 @@ export const DeleteProviderDialog = memo<DeleteProviderDialogProps>(
                   <ul className="list-disc pl-4 space-y-1">
                     {usage.agents.map((agent) => (
                       <li key={agent.id}>
-                        <span className="font-medium">{getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}</span>
+                        <span className="font-medium">
+                          {getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}
+                        </span>
                         {agent.model && <span className="text-muted-foreground ml-1">({agent.model})</span>}
                       </li>
                     ))}

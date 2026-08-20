@@ -13,18 +13,18 @@ const triggerDownloadMock = vi.hoisted(() => vi.fn());
 const fetchMarketSkillsMock = vi.hoisted(() => vi.fn());
 
 const TRANSLATIONS: Record<string, string> = {
-  'skillDetected': 'skillDetected',
-  'skillDetectedDesc': 'skillDetectedDesc',
-  'packageSuccess': 'packageSuccess',
-  'packageFailed': 'packageFailed',
-  'registerSuccess': 'registerSuccess',
-  'registerFailed': 'registerFailed',
-  'packageAndDownload': 'packageAndDownload',
-  'packageAndRegister': 'packageAndRegister',
-  'registering': 'registering',
-  'registered': 'registered',
-  'packaging': 'packaging',
-  'evalCasesRestored': '{count} evals restored',
+  skillDetected: 'skillDetected',
+  skillDetectedDesc: 'skillDetectedDesc',
+  packageSuccess: 'packageSuccess',
+  packageFailed: 'packageFailed',
+  registerSuccess: 'registerSuccess',
+  registerFailed: 'registerFailed',
+  packageAndDownload: 'packageAndDownload',
+  packageAndRegister: 'packageAndRegister',
+  registering: 'registering',
+  registered: 'registered',
+  packaging: 'packaging',
+  evalCasesRestored: '{count} evals restored',
 };
 
 const stableT = (key: string, values?: Record<string, string | number>): string => {
@@ -68,14 +68,12 @@ vi.mock('@/store/skill', () => ({
 }));
 
 vi.mock('@/store/useAuthStore', () => ({
-  default: (selector: (state: object) => unknown) =>
-    selector({ user: { id: 'user-1' } } as object),
+  default: (selector: (state: object) => unknown) => selector({ user: { id: 'user-1' } } as object),
 }));
 
 vi.mock('@/store/useChatStore', () => ({
   useShallow: (selector: (state: object) => unknown) => selector,
-  default: (selector: (state: object) => unknown) =>
-    selector({ agentConfig: { selectedSkillIds: [] } } as object),
+  default: (selector: (state: object) => unknown) => selector({ agentConfig: { selectedSkillIds: [] } } as object),
 }));
 
 vi.mock('@/lib/utils/skillErrorMapper', () => ({
@@ -100,9 +98,7 @@ describe('SkillDetectionCard', () => {
   });
 
   it('renders null when no SKILL.md artifact', () => {
-    const { container } = render(
-      <SkillDetectionCard artifacts={[]} chatId="chat-1" />,
-    );
+    const { container } = render(<SkillDetectionCard artifacts={[]} chatId="chat-1" />);
     expect(container.firstChild).toBeNull();
   });
 

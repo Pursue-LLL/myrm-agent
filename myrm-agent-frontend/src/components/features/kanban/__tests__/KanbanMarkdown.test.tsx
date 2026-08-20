@@ -18,8 +18,12 @@ vi.mock('@/components/features/markdown-render-tools/CodeBlock', () => ({
 
 vi.mock('@/lib/utils/reactUtils', () => ({
   getChildrenAsText: (children: any) => {
-    if (typeof children === 'string') {return children;}
-    if (Array.isArray(children)) {return children.join('');}
+    if (typeof children === 'string') {
+      return children;
+    }
+    if (Array.isArray(children)) {
+      return children.join('');
+    }
     return String(children ?? '');
   },
 }));

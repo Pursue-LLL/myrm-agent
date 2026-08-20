@@ -111,7 +111,9 @@ export function CredentialsDialogs({
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) {setDeleteTarget(null);}
+          if (!open) {
+            setDeleteTarget(null);
+          }
         }}
         title={t('deleteConfirmTitle', { defaultValue: 'Delete Credential' })}
         description={t('deleteConfirmDesc', {
@@ -126,7 +128,9 @@ export function CredentialsDialogs({
       <ConfirmDialog
         open={!!deleteVaultTarget}
         onOpenChange={(open) => {
-          if (!open) {setDeleteVaultTarget(null);}
+          if (!open) {
+            setDeleteVaultTarget(null);
+          }
         }}
         title={t('vaultDeleteTitle')}
         description={t('vaultDeleteDesc', { label: deleteVaultTarget ?? '' })}
@@ -140,7 +144,9 @@ export function CredentialsDialogs({
         <Dialog
           open={vaultModalOpen}
           onOpenChange={(open) => {
-            if (!open) {setVaultModalOpen(false);}
+            if (!open) {
+              setVaultModalOpen(false);
+            }
           }}
         >
           <DialogContent className="sm:max-w-md bg-card border border-border">
@@ -153,7 +159,9 @@ export function CredentialsDialogs({
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="vaultLabel" className="text-foreground">{t('vaultLabelField')}</Label>
+                <Label htmlFor="vaultLabel" className="text-foreground">
+                  {t('vaultLabelField')}
+                </Label>
                 <Input
                   id="vaultLabel"
                   type="text"
@@ -194,7 +202,9 @@ export function CredentialsDialogs({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vaultDesc" className="text-foreground">{t('vaultDescField')}</Label>
+                <Label htmlFor="vaultDesc" className="text-foreground">
+                  {t('vaultDescField')}
+                </Label>
                 <Input
                   id="vaultDesc"
                   type="text"
@@ -273,7 +283,14 @@ export function CredentialsDialogs({
       )}
 
       {connectModalTarget && (
-        <Dialog open={!!connectModalTarget} onOpenChange={(open) => { if (!open) {closeConnectModal();} }}>
+        <Dialog
+          open={!!connectModalTarget}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeConnectModal();
+            }
+          }}
+        >
           <DialogContent className="sm:max-w-md bg-card border border-border">
             <DialogHeader>
               <DialogTitle className="text-foreground">
@@ -294,9 +311,7 @@ export function CredentialsDialogs({
                       <span>{t('googleOauthNotConfigured')}</span>
                     </div>
                   )}
-                  {googleOauthPolling && (
-                    <p className="text-xs text-muted-foreground">{t('googleOauthPolling')}</p>
-                  )}
+                  {googleOauthPolling && <p className="text-xs text-muted-foreground">{t('googleOauthPolling')}</p>}
                 </>
               ) : connectModalTarget.oauthFlow === 'xai_device_code' ? (
                 <>
@@ -332,7 +347,9 @@ export function CredentialsDialogs({
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="token" className="text-foreground">{t('tokenLabel')}</Label>
+                    <Label htmlFor="token" className="text-foreground">
+                      {t('tokenLabel')}
+                    </Label>
                     <Input
                       id="token"
                       type="password"
@@ -344,7 +361,9 @@ export function CredentialsDialogs({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="userId" className="text-foreground">{t('userIdLabel')}</Label>
+                    <Label htmlFor="userId" className="text-foreground">
+                      {t('userIdLabel')}
+                    </Label>
                     <Input
                       id="userId"
                       type="text"
@@ -356,7 +375,9 @@ export function CredentialsDialogs({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="scope" className="text-foreground">{t('scopeLabel')}</Label>
+                    <Label htmlFor="scope" className="text-foreground">
+                      {t('scopeLabel')}
+                    </Label>
                     <Input
                       id="scope"
                       type="text"
@@ -382,13 +403,14 @@ export function CredentialsDialogs({
                   {googleOauthPolling ? t('googleOauthPolling') : t('googleOauthConnectBtn')}
                 </Button>
               ) : connectModalTarget.oauthFlow === 'xai_device_code' ? (
-                <Button
-                  onClick={() => void handleXaiOAuthConnect()}
-                  disabled={xaiOauthPolling}
-                >
+                <Button onClick={() => void handleXaiOAuthConnect()} disabled={xaiOauthPolling}>
                   {xaiOauthPolling
-                    ? (locale === 'zh' ? '等待授权...' : 'Waiting...')
-                    : (locale === 'zh' ? '授权 SuperGrok' : 'Authorize SuperGrok')}
+                    ? locale === 'zh'
+                      ? '等待授权...'
+                      : 'Waiting...'
+                    : locale === 'zh'
+                      ? '授权 SuperGrok'
+                      : 'Authorize SuperGrok'}
                 </Button>
               ) : (
                 <Button onClick={() => void handleConnectOauth()}>{t('saveBtn')}</Button>

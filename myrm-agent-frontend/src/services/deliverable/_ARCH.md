@@ -6,10 +6,10 @@ Workspace 交付物在 ArtifactPortal 中的打开与内容拉取 SSOT（`/files
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `openWorkspaceFileInPortal.ts` | 核心 | `resolveWorkspaceDirForBrowse` / `fetchWorkspaceBrowseContent` / `openWorkspaceFileInPortal` | ✅ |
-| `openWorkspaceDeliverable.ts` | 门面 | `DeliverableReferenceLink` 用的 workspace/artifact 打开入口 | ✅ |
+| 文件                           | 地位 | 职责                                                                                         | I/O/P |
+| ------------------------------ | ---- | -------------------------------------------------------------------------------------------- | ----- |
+| `openWorkspaceFileInPortal.ts` | 核心 | `resolveWorkspaceDirForBrowse` / `fetchWorkspaceBrowseContent` / `openWorkspaceFileInPortal` | ✅    |
+| `openWorkspaceDeliverable.ts`  | 门面 | `DeliverableReferenceLink` 用的 workspace/artifact 打开入口                                  | ✅    |
 
 ## 依赖
 

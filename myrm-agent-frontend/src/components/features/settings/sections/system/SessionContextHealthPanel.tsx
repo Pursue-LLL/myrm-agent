@@ -97,10 +97,16 @@ const SessionContextHealthPanel = memo<SessionContextHealthPanelProps>(({ health
             [t('contextHealth.compaction.dedup'), formatTokenCount(health.compaction.dedup_tokens_saved)],
             [t('contextHealth.compaction.integrity'), health.compaction.integrity_skipped.toString()],
             ...(health.compaction.avg_elapsed_ms > 0
-              ? [
-                  [t('contextHealth.compaction.avgElapsed'), `${(health.compaction.avg_elapsed_ms / 1000).toFixed(1)}s`],
-                  [t('contextHealth.compaction.lastElapsed'), `${(health.compaction.last_elapsed_ms / 1000).toFixed(1)}s`],
-                ] as [string, string][]
+              ? ([
+                  [
+                    t('contextHealth.compaction.avgElapsed'),
+                    `${(health.compaction.avg_elapsed_ms / 1000).toFixed(1)}s`,
+                  ],
+                  [
+                    t('contextHealth.compaction.lastElapsed'),
+                    `${(health.compaction.last_elapsed_ms / 1000).toFixed(1)}s`,
+                  ],
+                ] as [string, string][])
               : []),
             [t('contextHealth.compaction.persisted'), health.compaction.summary_persisted ? t('yes') : t('no')],
           ]}

@@ -53,7 +53,10 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('sonner', () => ({
-  toast: { success: (...args: unknown[]) => mockToastSuccess(...args), error: (...args: unknown[]) => mockToastError(...args) },
+  toast: {
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+    error: (...args: unknown[]) => mockToastError(...args),
+  },
 }));
 
 vi.mock('@/components/primitives/scroll-area', () => ({
@@ -93,10 +96,9 @@ describe('SubagentDashboard cancel flow', () => {
     fireEvent.click(screen.getByText('cancelConfirmAction'));
 
     await waitFor(() => {
-      expect(mockFetchWithTimeout).toHaveBeenCalledWith(
-        '/chats/chat-cancel-e2e/subagents/task-cancel-e2e/cancel',
-        { method: 'POST' },
-      );
+      expect(mockFetchWithTimeout).toHaveBeenCalledWith('/chats/chat-cancel-e2e/subagents/task-cancel-e2e/cancel', {
+        method: 'POST',
+      });
     });
     expect(mockSubagentState.completeNode).toHaveBeenCalledWith('task-cancel-e2e', 'cancelled');
     expect(mockToastSuccess).toHaveBeenCalledWith('cancelSuccess');

@@ -38,9 +38,7 @@ describe('chatNavigationSnapshotCache', () => {
       { fileName: 'doc.pdf', fileExtension: 'pdf', fileType: 'uploaded' as const, id: 'f-1' },
     ];
     const mockCameraFrames = ['data:image/jpeg;base64,abc', 'data:image/jpeg;base64,def'];
-    const mockMentionReferences = [
-      { type: 'file' as const, path: '/src/index.ts', display: 'index.ts' },
-    ];
+    const mockMentionReferences = [{ type: 'file' as const, path: '/src/index.ts', display: 'index.ts' }];
 
     const snapshot = extractNavigationSnapshot({
       messages: [],

@@ -87,13 +87,17 @@ async function poll(): Promise<void> {
 }
 
 function startPoller(): void {
-  if (pollerTimer !== null) {return;}
+  if (pollerTimer !== null) {
+    return;
+  }
   void poll();
   pollerTimer = setInterval(() => void poll(), POLL_INTERVAL_MS);
 }
 
 function stopPoller(): void {
-  if (pollerTimer === null) {return;}
+  if (pollerTimer === null) {
+    return;
+  }
   clearInterval(pollerTimer);
   pollerTimer = null;
 }

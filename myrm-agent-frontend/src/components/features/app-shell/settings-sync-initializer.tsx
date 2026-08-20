@@ -54,7 +54,9 @@ export default function SettingsSyncInitializer() {
 
   useEffect(() => {
     const initializeAll = async () => {
-      if (status !== 'idle') {return;}
+      if (status !== 'idle') {
+        return;
+      }
 
       setStatus('loading');
 
@@ -106,10 +108,10 @@ export default function SettingsSyncInitializer() {
 
         const scheduleDeferred =
           typeof window !== 'undefined'
-            ? window.requestIdleCallback ??
+            ? (window.requestIdleCallback ??
               ((callback: () => void) => {
                 window.setTimeout(callback, 1);
-              })
+              }))
             : null;
 
         const runDeferredStores = () => {

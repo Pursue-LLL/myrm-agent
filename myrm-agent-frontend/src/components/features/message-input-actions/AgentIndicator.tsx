@@ -181,12 +181,12 @@ const AgentIndicator = () => {
   const hasCustomInstruction = (agentConfig?.systemPrompt?.trim().length || 0) > 0;
   const totalConfigCount = selectedSkillCount + selectedMcpCount + (hasCustomInstruction ? 1 : 0);
 
-  const hasSelectedAgent =
-    !!agentConfig &&
-    (!!agentConfig.agentId || !!agentConfig.presetId || totalConfigCount > 0);
+  const hasSelectedAgent = !!agentConfig && (!!agentConfig.agentId || !!agentConfig.presetId || totalConfigCount > 0);
 
   const formatAgentName = (name?: string) => {
-    if (!name) {return t('default');}
+    if (!name) {
+      return t('default');
+    }
     return name.length > 5 ? `${name.slice(0, 5)}...` : name;
   };
 
@@ -323,12 +323,7 @@ const AgentIndicator = () => {
         </Tooltip>
       </TooltipProvider>
 
-      <DropdownMenuContent
-        side="top"
-        align="start"
-        sideOffset={8}
-        className="w-64 max-h-80 overflow-y-auto p-1.5"
-      >
+      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-64 max-h-80 overflow-y-auto p-1.5">
         {/* 预置专家 */}
         {presetAgents.length > 0 && (
           <>
@@ -337,9 +332,10 @@ const AgentIndicator = () => {
             </DropdownMenuLabel>
             {presetAgents.map((preset) => {
               const isSelected = currentAgentId === preset.id;
-              const IconComp = (
-                LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>
-              )[preset.icon] || BotIcon;
+              const IconComp =
+                (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[
+                  preset.icon
+                ] || BotIcon;
 
               return (
                 <DropdownMenuItem

@@ -3,10 +3,10 @@
  * Chat SSE event handler slice (artifactEvents).
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { mergeUiDataModel } from "../mergeUiDataModel";
-import type { Artifact, ArtifactType } from "../../types/artifacts";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { mergeUiDataModel } from '../mergeUiDataModel';
+import type { Artifact, ArtifactType } from '../../types/artifacts';
+import * as H from './handlerDeps';
 
 export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
@@ -21,9 +21,7 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
           return;
         }
         const artifacts = state.messages[messageIndex].artifacts ?? [];
-        const matched = artifacts.find(
-          (item) => item.short_file_id === shortFileId || item.id === shortFileId,
-        );
+        const matched = artifacts.find((item) => item.short_file_id === shortFileId || item.id === shortFileId);
         if (matched) {
           void import('@/services/deliverable/openWorkspaceDeliverable').then(({ openArtifactDeliverable }) =>
             openArtifactDeliverable(matched),

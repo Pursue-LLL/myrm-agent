@@ -55,7 +55,9 @@ async function formatContent(
 
 function dateFolderName(isoDate: string): string {
   const d = new Date(isoDate);
-  if (isNaN(d.getTime())) {return 'unknown-date';}
+  if (isNaN(d.getTime())) {
+    return 'unknown-date';
+  }
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -86,7 +88,9 @@ export async function batchExportAsZip(
 
   async function processOne(): Promise<void> {
     while (queuePos < queue.length) {
-      if (options.signal?.aborted) {throw new DOMException('Export cancelled', 'AbortError');}
+      if (options.signal?.aborted) {
+        throw new DOMException('Export cancelled', 'AbortError');
+      }
 
       const { id: chatId, index } = queue[queuePos++];
 
@@ -103,7 +107,9 @@ export async function batchExportAsZip(
         try {
           data = await exportChat(chatId);
         } catch (retryErr) {
-          if (retryErr instanceof DOMException && retryErr.name === 'AbortError') {throw retryErr;}
+          if (retryErr instanceof DOMException && retryErr.name === 'AbortError') {
+            throw retryErr;
+          }
           data = await exportChat(chatId);
         }
 
@@ -134,7 +140,9 @@ export async function batchExportAsZip(
         zip.file(path, content);
         exported++;
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {throw err;}
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          throw err;
+        }
         console.error(`[batchExport] Failed to export chat ${chatId}:`, err);
         failed++;
       }

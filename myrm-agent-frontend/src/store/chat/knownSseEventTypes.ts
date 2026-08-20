@@ -93,10 +93,7 @@ const frontendValues = Object.values(AgentEventType) as string[];
 
 const merged = new Set<string>([...frontendValues, ...HARNESS_AGENT_EVENT_TYPE_VALUES]);
 
-export const KNOWN_SSE_EVENT_TYPE_VALUES = [...merged].sort() as [
-  string,
-  ...string[],
-];
+export const KNOWN_SSE_EVENT_TYPE_VALUES = [...merged].sort() as [string, ...string[]];
 
 export function normalizeSseEventType(type: string): string {
   return HARNESS_SSE_EVENT_ALIASES[type] ?? type;

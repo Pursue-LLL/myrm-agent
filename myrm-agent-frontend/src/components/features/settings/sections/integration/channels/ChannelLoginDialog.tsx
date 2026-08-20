@@ -54,23 +54,33 @@ export function ChannelLoginDialog({
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) {return;}
+    if (!dialog) {
+      return;
+    }
 
     if (open) {
-      if (!dialog.open) {dialog.showModal();}
+      if (!dialog.open) {
+        dialog.showModal();
+      }
       startRef.current();
     } else {
-      if (dialog.open) {dialog.close();}
+      if (dialog.open) {
+        dialog.close();
+      }
       resetRef.current();
     }
   }, [open]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) {return;}
+    if (!dialog) {
+      return;
+    }
 
     const handleClose = () => {
-      if (phase !== 'success') {cancel();}
+      if (phase !== 'success') {
+        cancel();
+      }
       onClose();
     };
     dialog.addEventListener('close', handleClose);
@@ -83,9 +93,7 @@ export function ChannelLoginDialog({
       className="fixed inset-0 z-50 m-auto w-full max-w-sm rounded-xl border border-border bg-background p-0 shadow-2xl backdrop:bg-black/40"
     >
       <div className="flex flex-col items-center gap-4 p-6">
-        <h3 className="text-lg font-semibold">
-          {t('qrLoginTitle', { channel: channelLabel })}
-        </h3>
+        <h3 className="text-lg font-semibold">{t('qrLoginTitle', { channel: channelLabel })}</h3>
 
         <QrContent
           phase={phase}
@@ -110,7 +118,9 @@ export function ChannelLoginDialog({
           <button
             type="button"
             onClick={() => {
-              if (phase !== 'success') {cancel();}
+              if (phase !== 'success') {
+                cancel();
+              }
               onClose();
             }}
             className="flex-1 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
@@ -145,15 +155,11 @@ function QrContent({
   }
 
   if (phase === 'waiting_qr' && qrCodeBase64) {
-    const src = qrCodeBase64.startsWith('data:')
-      ? qrCodeBase64
-      : `data:image/png;base64,${qrCodeBase64}`;
+    const src = qrCodeBase64.startsWith('data:') ? qrCodeBase64 : `data:image/png;base64,${qrCodeBase64}`;
     return (
       <div className="flex flex-col items-center gap-2">
         <img src={src} alt="QR Code" className="h-52 w-52 rounded-lg" />
-        <p className="text-center text-xs text-muted-foreground">
-          {t('qrLoginScanHint', { channel: channelLabel })}
-        </p>
+        <p className="text-center text-xs text-muted-foreground">{t('qrLoginScanHint', { channel: channelLabel })}</p>
       </div>
     );
   }
@@ -170,12 +176,16 @@ function QrContent({
   if (phase === 'success') {
     return (
       <div className="flex h-52 w-52 flex-col items-center justify-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
-        <svg className="h-12 w-12 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg
+          className="h-12 w-12 text-emerald-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
-        <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-          {t('qrLoginSuccess')}
-        </p>
+        <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{t('qrLoginSuccess')}</p>
       </div>
     );
   }
@@ -186,9 +196,7 @@ function QrContent({
         <svg className="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
-        <p className="text-sm text-red-600 dark:text-red-400">
-          {errorMessage ?? t('qrLoginFailed')}
-        </p>
+        <p className="text-sm text-red-600 dark:text-red-400">{errorMessage ?? t('qrLoginFailed')}</p>
       </div>
     );
   }
@@ -200,13 +208,7 @@ function QrContent({
   );
 }
 
-function PhaseHint({
-  phase,
-  t,
-}: {
-  phase: ChannelLoginPhase;
-  t: ReturnType<typeof useTranslations<'channels'>>;
-}) {
+function PhaseHint({ phase, t }: { phase: ChannelLoginPhase; t: ReturnType<typeof useTranslations<'channels'>> }) {
   const hints: Partial<Record<ChannelLoginPhase, string>> = {
     starting: t('qrLoginGenerating'),
     waiting_qr: t('qrLoginWaiting'),
@@ -214,6 +216,8 @@ function PhaseHint({
     success: t('qrLoginConnected'),
   };
   const hint = hints[phase];
-  if (!hint) {return null;}
+  if (!hint) {
+    return null;
+  }
   return <p className="text-center text-sm text-muted-foreground">{hint}</p>;
 }

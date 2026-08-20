@@ -6,16 +6,16 @@
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 |
-|------|------|------|
-| `index.ts` | 门面 | 导出 `UrlEmbed`、`detectEmbed`、`isEmbeddableUrl`、`EmbedDescriptor` |
-| `UrlEmbed.tsx` | 核心 | consent 模式（off/always/per-provider）、lazy 加载、intrinsic size |
-| `EmbedFacade.tsx` | 辅助 | 未 consent 时的「Load {provider}」占位与 always-allow 菜单 |
-| `EmbedFail.tsx` | 辅助 | 渲染失败 fallback |
-| `EmbedErrorBoundary.tsx` | 辅助 | iframe 加载错误边界 |
-| `FrameEmbedRenderer.tsx` | 核心 | iframe 沙箱渲染（lazy chunk） |
-| `OgCard.tsx` | 辅助 | OG 元数据卡片（由 `MarkdownContent` 对非 embeddable 裸链调用） |
-| `providers/` | 子模块 | URL → `EmbedDescriptor` 匹配器注册表 | [_ARCH.md](providers/_ARCH.md) |
+| 文件                     | 地位   | 职责                                                                 |
+| ------------------------ | ------ | -------------------------------------------------------------------- |
+| `index.ts`               | 门面   | 导出 `UrlEmbed`、`detectEmbed`、`isEmbeddableUrl`、`EmbedDescriptor` |
+| `UrlEmbed.tsx`           | 核心   | consent 模式（off/always/per-provider）、lazy 加载、intrinsic size   |
+| `EmbedFacade.tsx`        | 辅助   | 未 consent 时的「Load {provider}」占位与 always-allow 菜单           |
+| `EmbedFail.tsx`          | 辅助   | 渲染失败 fallback                                                    |
+| `EmbedErrorBoundary.tsx` | 辅助   | iframe 加载错误边界                                                  |
+| `FrameEmbedRenderer.tsx` | 核心   | iframe 沙箱渲染（lazy chunk）                                        |
+| `OgCard.tsx`             | 辅助   | OG 元数据卡片（由 `MarkdownContent` 对非 embeddable 裸链调用）       |
+| `providers/`             | 子模块 | URL → `EmbedDescriptor` 匹配器注册表                                 | [_ARCH.md](providers/_ARCH.md) |
 
 ## 依赖
 

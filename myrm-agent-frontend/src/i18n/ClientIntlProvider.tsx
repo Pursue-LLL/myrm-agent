@@ -71,10 +71,7 @@ export default function ClientIntlProvider({ locale, shellMessages, children }: 
     let cancelled = false;
 
     const loadDeferredWithRetry = async (): Promise<void> => {
-      if (
-        typeof sessionStorage !== 'undefined' &&
-        sessionStorage.getItem('e2e_skip_deferred_locale') === 'true'
-      ) {
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('e2e_skip_deferred_locale') === 'true') {
         if (!cancelled) {
           setDeferredLocaleReady(true);
         }

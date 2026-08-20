@@ -57,9 +57,15 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialInd
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {onClose();}
-      if (e.key === 'ArrowLeft') {handlePrevious();}
-      if (e.key === 'ArrowRight') {handleNext();}
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if (e.key === 'ArrowLeft') {
+        handlePrevious();
+      }
+      if (e.key === 'ArrowRight') {
+        handleNext();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -68,7 +74,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialInd
   const currentImage = images[currentIndex];
 
   const src = useMemo(() => {
-    if (!currentImage) {return '';}
+    if (!currentImage) {
+      return '';
+    }
     return getDisplayUrl(currentImage);
   }, [currentImage]);
 
@@ -84,11 +92,15 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialInd
   // Wheel to zoom
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {return;}
+    if (!container) {
+      return;
+    }
 
     const handleNativeWheel = (e: WheelEvent) => {
       // If it's a long image and not zoomed, allow native vertical scrolling
-      if (isLongImage && scale.get() === 1) {return;}
+      if (isLongImage && scale.get() === 1) {
+        return;
+      }
 
       e.preventDefault();
       const zoomSensitivity = 0.005;
@@ -149,7 +161,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialInd
     }
   };
 
-  if (!currentImage || !src) {return null;}
+  if (!currentImage || !src) {
+    return null;
+  }
 
   return (
     <AnimatePresence>
@@ -195,7 +209,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialInd
           ref={containerRef}
           className={`relative w-full h-full flex ${isLongImage && !isZoomed ? 'items-start overflow-auto' : 'items-center overflow-hidden'} justify-center p-4 md:p-12`}
           onClick={(e) => {
-            if (e.target === e.currentTarget) {onClose();}
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
           }}
         >
           <motion.img

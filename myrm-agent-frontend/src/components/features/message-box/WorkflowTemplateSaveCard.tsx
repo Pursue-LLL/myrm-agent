@@ -17,9 +17,7 @@ interface WorkflowTemplateSaveCardProps {
 
 function isDynamicWorkflowMessage(message: Message): boolean {
   return Boolean(
-    message.progressSteps?.some(
-      (step) => step.step_key === 'workflow_init' || step.step_key === 'workflow_execution',
-    ),
+    message.progressSteps?.some((step) => step.step_key === 'workflow_init' || step.step_key === 'workflow_execution'),
   );
 }
 
@@ -33,9 +31,15 @@ const WorkflowTemplateSaveCard = memo(({ message, chatId }: WorkflowTemplateSave
   const [saved, setSaved] = useState(false);
 
   const visible = useMemo(() => {
-    if (message.role !== 'assistant') {return false;}
-    if (saved) {return false;}
-    if (message.completionStatus === 'error' || message.completionStatus === 'cancelled') {return false;}
+    if (message.role !== 'assistant') {
+      return false;
+    }
+    if (saved) {
+      return false;
+    }
+    if (message.completionStatus === 'error' || message.completionStatus === 'cancelled') {
+      return false;
+    }
     return isDynamicWorkflowMessage(message);
   }, [message, saved]);
 

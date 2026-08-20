@@ -152,7 +152,9 @@ export const checkModelReachability = async (config: ModelConfig): Promise<Reach
       method: 'POST',
       body: JSON.stringify(config),
     });
-    if (res.data) {return res.data;}
+    if (res.data) {
+      return res.data;
+    }
     return {
       reachable: res.reachable ?? false,
       latency_ms: res.latency_ms ?? null,
@@ -168,10 +170,7 @@ export const checkModelReachability = async (config: ModelConfig): Promise<Reach
  * Discover models from OpenAI-compatible endpoint.
  * Uses backend SSRF-guarded probe contract.
  */
-export const discoverModelsFromEndpoint = async (
-  apiUrl: string,
-  apiKey?: string,
-): Promise<DiscoverModelsResult> => {
+export const discoverModelsFromEndpoint = async (apiUrl: string, apiKey?: string): Promise<DiscoverModelsResult> => {
   try {
     const response = await apiRequest<DiscoverModelsResult>('/integrations/llm/discover-models', {
       method: 'POST',
@@ -198,7 +197,6 @@ export const discoverModelsFromEndpoint = async (
     };
   }
 };
-
 
 const softSearchServiceValidationFailurePatterns =
   /quota exceeded|apiconnectionerror|rate limit|service unavailable|temporarily unavailable/i;
@@ -554,7 +552,9 @@ function cacheSet(key: string, value: ModelSwitchPreflightResult): void {
   preflightCache.set(key, value);
   while (preflightCache.size > PREFLIGHT_CACHE_LIMIT) {
     const oldestKey = preflightCache.keys().next().value;
-    if (oldestKey === undefined) {break;}
+    if (oldestKey === undefined) {
+      break;
+    }
     preflightCache.delete(oldestKey);
   }
 }
@@ -705,7 +705,9 @@ export const searchMCPRegistry = async (
   pageSize: number = 20,
 ): Promise<MCPRegistrySearchResult> => {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  if (query) {params.set('q', query);}
+  if (query) {
+    params.set('q', query);
+  }
   return apiRequest<MCPRegistrySearchResult>(`/integrations/mcp/registry/search?${params}`, {
     method: 'GET',
     silent: true,

@@ -23,7 +23,9 @@ interface StorageInfo {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) {return '0 B';}
+  if (bytes === 0) {
+    return '0 B';
+  }
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
@@ -60,12 +62,16 @@ const StorageCard = memo<{
   }, [fetchStorageInfo]);
 
   const handleChangeDir = useCallback(async () => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
 
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
       const selected = await open({ directory: true, title: t('storageSelectDir') });
-      if (!selected) {return;}
+      if (!selected) {
+        return;
+      }
 
       const selectedDir = typeof selected === 'string' ? selected : String(selected);
 
@@ -91,17 +97,13 @@ const StorageCard = memo<{
   }
 
   const isLowDisk = storageInfo && storageInfo.disk_free_bytes < LOW_DISK_THRESHOLD;
-  const usagePercent = storageInfo
-    ? Math.round((storageInfo.disk_used_bytes / storageInfo.disk_total_bytes) * 100)
-    : 0;
+  const usagePercent = storageInfo ? Math.round((storageInfo.disk_used_bytes / storageInfo.disk_total_bytes) * 100) : 0;
 
   return (
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
         <IconSettings className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-          {t('storageTitle')}
-        </h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('storageTitle')}</h2>
       </div>
 
       <div className="space-y-5 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">

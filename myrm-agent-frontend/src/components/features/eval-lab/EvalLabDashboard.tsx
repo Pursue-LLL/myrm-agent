@@ -84,15 +84,15 @@ export default function EvalLabDashboard() {
   const selectedProfileName = profiles.find((p) => p.agent_id === selectedProfileIds[0])?.name;
 
   const handleRun = async () => {
-    if (anyBusy) {return;}
+    if (anyBusy) {
+      return;
+    }
     if (casesEval.casesDraft !== casesEval.cases) {
       toast.error(t('saveFirst'));
       return;
     }
     if (isMatrixMode) {
-      await matrixEval.startMatrix(selectedProfileIds, selectedDatasetId, benchmarkMode, () =>
-        setActiveTab('matrix'),
-      );
+      await matrixEval.startMatrix(selectedProfileIds, selectedDatasetId, benchmarkMode, () => setActiveTab('matrix'));
     } else {
       await casesEval.startRun(selectedProfileIds[0] || null, selectedDatasetId, benchmarkMode, () =>
         setActiveTab('report'),
@@ -101,31 +101,43 @@ export default function EvalLabDashboard() {
   };
 
   const handleBenchmarkRun = (benchmarkId: string, limit?: number) => {
-    if (anyBusy) {return;}
+    if (anyBusy) {
+      return;
+    }
     casesEval.startBenchmark(benchmarkId, selectedProfileIds[0] || null, benchmarkMode, limit, () =>
       setActiveTab('report'),
     );
   };
 
   const handleBenchmarkDownload = (benchmarkId: string) => {
-    if (anyBusy) {return;}
+    if (anyBusy) {
+      return;
+    }
     casesEval.startDownload(benchmarkId, () => setActiveTab('sources'));
   };
 
   const handleMemoryAbRun = (benchmarkId: string, limit?: number) => {
-    if (anyBusy) {return;}
+    if (anyBusy) {
+      return;
+    }
     memoryAbEval.start(benchmarkId, selectedProfileIds[0] || null, limit, () => setActiveTab('memory-ab'));
   };
 
   const handleLayerEvalRun = (benchmarkId: string, limit?: number) => {
-    if (anyBusy) {return;}
+    if (anyBusy) {
+      return;
+    }
     matrixEval.startLayer(benchmarkId, selectedProfileIds[0] || null, limit, () => setActiveTab('matrix'));
   };
 
   const handleAbort = async () => {
-    if (memoryAbEval.memoryAbRunning) {await memoryAbEval.abort();}
-    else if (matrixEval.matrixRunning) {await matrixEval.abort();}
-    else {await casesEval.abort();}
+    if (memoryAbEval.memoryAbRunning) {
+      await memoryAbEval.abort();
+    } else if (matrixEval.matrixRunning) {
+      await matrixEval.abort();
+    } else {
+      await casesEval.abort();
+    }
   };
 
   const handleSave = async () => {
@@ -134,7 +146,9 @@ export default function EvalLabDashboard() {
 
   const handleCreateDataset = async () => {
     const name = newDatasetName.trim();
-    if (!name) {return;}
+    if (!name) {
+      return;
+    }
     setCreateDialogOpen(false);
     try {
       const res = await fetch(`/api/v1/eval/datasets/${name}`, {
@@ -156,7 +170,9 @@ export default function EvalLabDashboard() {
   };
 
   const handleHistoryLoad = async (filename: string) => {
-    if (!filename || casesEval.loadingReport) {return;}
+    if (!filename || casesEval.loadingReport) {
+      return;
+    }
     const loaded = await casesEval.loadHistoryReport(filename);
     if (loaded) {
       setActiveTab('report');
@@ -251,7 +267,9 @@ export default function EvalLabDashboard() {
                 <button
                   key={p.agent_id}
                   onClick={() => {
-                    if (anyBusy) {return;}
+                    if (anyBusy) {
+                      return;
+                    }
                     setSelectedProfileIds((prev) =>
                       isSelected ? prev.filter((id) => id !== p.agent_id) : [...prev, p.agent_id],
                     );
@@ -395,7 +413,9 @@ export default function EvalLabDashboard() {
             onChange={(e) => setNewDatasetName(e.target.value)}
             placeholder={t('createDatasetPrompt')}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {handleCreateDataset();}
+              if (e.key === 'Enter') {
+                handleCreateDataset();
+              }
             }}
             autoFocus
           />

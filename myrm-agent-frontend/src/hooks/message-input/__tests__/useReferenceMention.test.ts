@@ -60,8 +60,7 @@ describe('useReferenceMention chat mode', () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ message, cursor }: { message: string; cursor: number }) =>
-        useReferenceMention(message, cursor),
+      ({ message, cursor }: { message: string; cursor: number }) => useReferenceMention(message, cursor),
       { initialProps: { message: '@chat:Alpha', cursor: '@chat:Alpha'.length } },
     );
 
@@ -121,9 +120,7 @@ describe('useReferenceMention chat mode', () => {
     const { result } = renderHook(() => useReferenceMention('@chat:Alpha', '@chat:Alpha'.length));
 
     await waitFor(() => {
-      expect(result.current.results.some((item) => item.reference_type === 'prior_chat')).toBe(
-        true,
-      );
+      expect(result.current.results.some((item) => item.reference_type === 'prior_chat')).toBe(true);
     });
 
     expect(searchCitableChatsMock).toHaveBeenCalledWith('Alpha', 20, 0, undefined);

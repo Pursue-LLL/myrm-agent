@@ -51,10 +51,7 @@ const DesktopPermissionsCardLocal = memo(() => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<DesktopPermissionsStatus>(
-        '/webui/desktop/permissions',
-        { silent: true },
-      );
+      const data = await apiRequest<DesktopPermissionsStatus>('/webui/desktop/permissions', { silent: true });
       setStatus(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to check permissions');
@@ -67,10 +64,7 @@ const DesktopPermissionsCardLocal = memo(() => {
     setIsTrustLoading(true);
     setTrustError(null);
     try {
-      const data = await apiRequest<{ apps: TrustedDesktopApp[] }>(
-        '/webui/desktop/trust/apps',
-        { silent: true },
-      );
+      const data = await apiRequest<{ apps: TrustedDesktopApp[] }>('/webui/desktop/trust/apps', { silent: true });
       setTrustedApps(Array.isArray(data.apps) ? data.apps : []);
     } catch (err) {
       setTrustError(err instanceof Error ? err.message : t('trustedAppsLoadFailed'));
@@ -85,27 +79,35 @@ const DesktopPermissionsCardLocal = memo(() => {
     void fetchTrustedApps();
   }, [fetchPermissions, fetchTrustedApps]);
 
-  const handleRevokeTrustedApp = useCallback(async (trustKey: string) => {
-    if (revokingKey) {return;}
-    setRevokingKey(trustKey);
-    try {
-      await apiRequest('/webui/desktop/trust/apps', {
-        method: 'DELETE',
-        body: JSON.stringify({ trust_key: trustKey }),
-      });
-      setTrustedApps((prev) => prev.filter((app) => app.trust_key !== trustKey));
-      toast.success(t('trustedAppsRevokeSuccess'));
-    } catch {
-      toast.error(t('trustedAppsRevokeFailed'));
-    } finally {
-      setRevokingKey(null);
-    }
-  }, [revokingKey, t]);
+  const handleRevokeTrustedApp = useCallback(
+    async (trustKey: string) => {
+      if (revokingKey) {
+        return;
+      }
+      setRevokingKey(trustKey);
+      try {
+        await apiRequest('/webui/desktop/trust/apps', {
+          method: 'DELETE',
+          body: JSON.stringify({ trust_key: trustKey }),
+        });
+        setTrustedApps((prev) => prev.filter((app) => app.trust_key !== trustKey));
+        toast.success(t('trustedAppsRevokeSuccess'));
+      } catch {
+        toast.error(t('trustedAppsRevokeFailed'));
+      } finally {
+        setRevokingKey(null);
+      }
+    },
+    [revokingKey, t],
+  );
 
-  const handleCopyCommand = useCallback((command: string) => {
-    void navigator.clipboard.writeText(command);
-    toast.success(t('copiedToClipboard'));
-  }, [t]);
+  const handleCopyCommand = useCallback(
+    (command: string) => {
+      void navigator.clipboard.writeText(command);
+      toast.success(t('copiedToClipboard'));
+    },
+    [t],
+  );
 
   const handleOpenDeeplink = useCallback((url: string) => {
     openPermissionDeepLink(url);
@@ -116,9 +118,7 @@ const DesktopPermissionsCardLocal = memo(() => {
       <section className="space-y-6">
         <div className="flex items-center gap-3 px-2">
           <MonitorCheck className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-            {t('title')}
-          </h2>
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
         </div>
         <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm p-5">
           <div className="flex items-center justify-between">
@@ -139,9 +139,7 @@ const DesktopPermissionsCardLocal = memo(() => {
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
         <MonitorCheck className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-          {t('title')}
-        </h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
       </div>
 
       <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden divide-y divide-border/20">
@@ -165,9 +163,7 @@ const DesktopPermissionsCardLocal = memo(() => {
               <p className="text-sm font-semibold text-foreground">
                 {!status ? t('checking') : status.all_granted ? t('allReady') : t('actionRequired')}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {status ? t('platform', { name: status.platform }) : ''}
-              </p>
+              <p className="text-xs text-muted-foreground">{status ? t('platform', { name: status.platform }) : ''}</p>
             </div>
           </div>
           <button
@@ -202,9 +198,7 @@ const DesktopPermissionsCardLocal = memo(() => {
         {/* Deeplinks / repair hints */}
         {status && !status.all_granted && Object.keys(status.settings_deeplinks).length > 0 && (
           <div className="p-5 space-y-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {t('fixHints')}
-            </p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('fixHints')}</p>
             {Object.entries(status.settings_deeplinks).map(([key, value]) => (
               <DeeplinkItem
                 key={key}
@@ -250,9 +244,7 @@ const DesktopPermissionsCardLocal = memo(() => {
               <div key={app.trust_key} className="px-5 py-4 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{app.display_name}</p>
-                  {app.app_id ? (
-                    <p className="text-xs text-muted-foreground font-mono truncate">{app.app_id}</p>
-                  ) : null}
+                  {app.app_id ? <p className="text-xs text-muted-foreground font-mono truncate">{app.app_id}</p> : null}
                 </div>
                 <button
                   type="button"
@@ -275,7 +267,9 @@ const DesktopPermissionsCardLocal = memo(() => {
 DesktopPermissionsCardLocal.displayName = 'DesktopPermissionsCardLocal';
 
 const DesktopPermissionsCard = memo(() => {
-  if (!isLocalMode()) {return null;}
+  if (!isLocalMode()) {
+    return null;
+  }
   return <DesktopPermissionsCardLocal />;
 });
 
@@ -297,23 +291,27 @@ const PermissionRow = memo<{
 }>(({ label, description, granted, isLoading, statusOkLabel, statusMissingLabel }) => (
   <div className="px-5 py-4 flex items-center justify-between">
     <div className="flex items-center gap-3 flex-1 min-w-0">
-      <div className={cn(
-        'w-2 h-2 rounded-full',
-        isLoading ? 'bg-muted-foreground animate-pulse' : granted ? 'bg-emerald-500' : 'bg-rose-500',
-      )} />
+      <div
+        className={cn(
+          'w-2 h-2 rounded-full',
+          isLoading ? 'bg-muted-foreground animate-pulse' : granted ? 'bg-emerald-500' : 'bg-rose-500',
+        )}
+      />
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
     </div>
-    <span className={cn(
-      'text-xs font-medium px-2.5 py-1 rounded-full',
-      isLoading
-        ? 'bg-muted text-muted-foreground'
-        : granted
-          ? 'bg-emerald-500/10 text-emerald-500'
-          : 'bg-rose-500/10 text-rose-500',
-    )}>
+    <span
+      className={cn(
+        'text-xs font-medium px-2.5 py-1 rounded-full',
+        isLoading
+          ? 'bg-muted text-muted-foreground'
+          : granted
+            ? 'bg-emerald-500/10 text-emerald-500'
+            : 'bg-rose-500/10 text-rose-500',
+      )}
+    >
       {isLoading ? '...' : granted ? statusOkLabel : statusMissingLabel}
     </span>
   </div>

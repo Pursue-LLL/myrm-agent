@@ -10,42 +10,24 @@ import {
 
 describe('modelNotifyToastKey', () => {
   it('maps model_not_found to progressSteps SSOT keys', () => {
-    expect(resolveModelFailoverToastKey('model_not_found')).toBe(
-      'progressSteps.model_failover_model_not_found',
-    );
-    expect(resolveModelFailoverProgressStepKey('model_not_found')).toBe(
-      'model_failover_model_not_found',
-    );
+    expect(resolveModelFailoverToastKey('model_not_found')).toBe('progressSteps.model_failover_model_not_found');
+    expect(resolveModelFailoverProgressStepKey('model_not_found')).toBe('model_failover_model_not_found');
   });
 
   it('maps format to response_format_error progress key', () => {
-    expect(resolveModelFailoverToastKey('format')).toBe(
-      'progressSteps.model_failover_response_format_error',
-    );
-    expect(resolveModelFailoverProgressStepKey('format')).toBe(
-      'model_failover_response_format_error',
-    );
+    expect(resolveModelFailoverToastKey('format')).toBe('progressSteps.model_failover_response_format_error');
+    expect(resolveModelFailoverProgressStepKey('format')).toBe('model_failover_response_format_error');
   });
 
   it('maps auth_permanent / session_expired to model_failover_auth', () => {
-    expect(resolveModelFailoverToastKey('auth_permanent')).toBe(
-      'progressSteps.model_failover_auth',
-    );
-    expect(resolveModelFailoverToastKey('session_expired')).toBe(
-      'progressSteps.model_failover_auth',
-    );
-    expect(resolveModelFailoverProgressStepKey('auth_permanent')).toBe(
-      'model_failover_auth',
-    );
+    expect(resolveModelFailoverToastKey('auth_permanent')).toBe('progressSteps.model_failover_auth');
+    expect(resolveModelFailoverToastKey('session_expired')).toBe('progressSteps.model_failover_auth');
+    expect(resolveModelFailoverProgressStepKey('auth_permanent')).toBe('model_failover_auth');
   });
 
   it('maps safety_block to safety_fallback_active for both toast and step key', () => {
-    expect(resolveModelFailoverToastKey('safety_block')).toBe(
-      'progressSteps.safety_fallback_active',
-    );
-    expect(resolveModelFailoverProgressStepKey('safety_block')).toBe(
-      'safety_fallback_active',
-    );
+    expect(resolveModelFailoverToastKey('safety_block')).toBe('progressSteps.safety_fallback_active');
+    expect(resolveModelFailoverProgressStepKey('safety_block')).toBe('safety_fallback_active');
   });
 
   it('falls back to generic model_failover', () => {

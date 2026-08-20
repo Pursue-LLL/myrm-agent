@@ -3,16 +3,13 @@
  * Chat SSE event handler slice (toolsProgressEvents).
  */
 
-import type { ToolApprovalRequest } from "@/store/chat/types";
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import { buildToolApprovalRequest } from "@/lib/approval/buildToolApprovalRequest";
-import { notifyIdleApproval, clearAllNotifications } from "@/lib/approval/approvalAlertService";
-import {
-  getClarificationNotificationTitle,
-  resolveClarificationFormFromEventData,
-} from "../streamHelpers";
-import * as H from "./handlerDeps";
+import type { ToolApprovalRequest } from '@/store/chat/types';
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import { buildToolApprovalRequest } from '@/lib/approval/buildToolApprovalRequest';
+import { notifyIdleApproval, clearAllNotifications } from '@/lib/approval/approvalAlertService';
+import { getClarificationNotificationTitle, resolveClarificationFormFromEventData } from '../streamHelpers';
+import * as H from './handlerDeps';
 
 export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, added, actions } = ctx;
@@ -23,7 +20,9 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
       actions.setMessages((state) => {
         const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex === -1) {return;}
+        if (messageIndex === -1) {
+          return;
+        }
         const msg = state.messages[messageIndex];
         if (!msg.progressSteps) {
           msg.progressSteps = [];
@@ -195,12 +194,17 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   }
 
   if (data.type === H.AgentEventType.CITATION_MAP) {
-    const payload = data.data as { sources?: H.Source[]; audit?: { total_markers: number; valid: number; unresolved: number } };
+    const payload = data.data as {
+      sources?: H.Source[];
+      audit?: { total_markers: number; valid: number; unresolved: number };
+    };
     const citationSources = payload?.sources;
     const auditData = payload?.audit;
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-      if (messageIndex === -1) {return;}
+      if (messageIndex === -1) {
+        return;
+      }
       if (Array.isArray(citationSources) && citationSources.length > 0) {
         const existingSources = state.messages[messageIndex].sources || [];
         state.messages[messageIndex].sources = H.mergeMessageSources(existingSources, citationSources);
@@ -275,9 +279,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   if (data.type === H.AgentEventType.CLARIFICATION_REQUIRED) {
     const form = resolveClarificationFormFromEventData(data.data);
     const payload =
-      data.data && typeof data.data === 'object'
-        ? (data.data as unknown as Record<string, unknown>)
-        : undefined;
+      data.data && typeof data.data === 'object' ? (data.data as unknown as Record<string, unknown>) : undefined;
     const actionMode = H.useChatStore.getState().actionMode;
     const source = typeof payload?.source === 'string' ? payload.source : undefined;
     const isResumeMode = source === 'deep_research' ? false : actionMode !== 'deep_research';
@@ -323,9 +325,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.DIRECTORY_REQUEST_REQUIRED) {
     const payload =
-      data.data && typeof data.data === 'object'
-        ? (data.data as unknown as Record<string, unknown>)
-        : undefined;
+      data.data && typeof data.data === 'object' ? (data.data as unknown as Record<string, unknown>) : undefined;
     const request =
       payload?.request && typeof payload.request === 'object'
         ? (payload.request as Record<string, unknown>)
@@ -416,7 +416,8 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         execution_intent?: unknown;
         reviewerReason?: string;
       };
-      const reviewConfig = reviewConfigs?.[i] as { domainApproval?: boolean; smartDenied?: boolean; hideAllowAlways?: boolean } | undefined;
+      const reviewConfig = reviewConfigs?.[i] as
+        { domainApproval?: boolean; smartDenied?: boolean; hideAllowAlways?: boolean } | undefined;
       const requestId = isBatch ? `${batchId}_${i}` : requestIdFallback;
 
       const approvalRequest = buildToolApprovalRequest({
@@ -444,7 +445,9 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   if (data.type === H.AgentEventType.APPROVAL_PROCESSED) {
     H.useToolApprovalStore.getState().removeRequestsByMessageId(data.messageId);
     const remaining = H.useToolApprovalStore.getState().queue;
-    if (remaining.length === 0) {clearAllNotifications();}
+    if (remaining.length === 0) {
+      clearAllNotifications();
+    }
     return done(ctx);
   }
 

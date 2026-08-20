@@ -38,9 +38,7 @@ export default function HistoryTab({ history, loadingReport, onLoadReport }: His
           <LineChart data={history} margin={{ top: 5, right: 20, bottom: 25, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
             <XAxis
-              dataKey={(d: ReportItem) =>
-                d.timestamp ? new Date(d.timestamp * 1000).toLocaleTimeString() : ''
-              }
+              dataKey={(d: ReportItem) => (d.timestamp ? new Date(d.timestamp * 1000).toLocaleTimeString() : '')}
               tick={{ fontSize: 12 }}
             />
             <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
@@ -103,9 +101,7 @@ export default function HistoryTab({ history, loadingReport, onLoadReport }: His
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs">
-                        {m ? `${m.model_provider}/${m.model_id}` : '-'}
-                      </td>
+                      <td className="px-4 py-3 font-mono text-xs">{m ? `${m.model_provider}/${m.model_id}` : '-'}</td>
                       <td className="px-4 py-3">{h.total}</td>
                       <td className={`px-4 py-3 font-medium ${rate >= 80 ? 'text-green-500' : 'text-amber-500'}`}>
                         {rate}%

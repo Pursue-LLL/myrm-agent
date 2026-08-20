@@ -44,19 +44,18 @@ function DragHandle({ onDrag }: DragHandleProps) {
   const isDragging = useRef(false);
   const lastX = useRef(0);
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      e.preventDefault();
-      isDragging.current = true;
-      lastX.current = e.clientX;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    },
-    [],
-  );
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    lastX.current = e.clientX;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isDragging.current) {return;}
+      if (!isDragging.current) {
+        return;
+      }
       const delta = e.clientX - lastX.current;
       lastX.current = e.clientX;
       onDrag(delta);
@@ -101,11 +100,7 @@ export default function ResearchLayout() {
   if (isMobile) {
     return (
       <div className="flex flex-col h-full">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as ResearchTab)}
-          className="flex flex-col h-full"
-        >
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ResearchTab)} className="flex flex-col h-full">
           <TabsList className="shrink-0 mx-2 mt-2">
             <TabsTrigger value="resources" className="flex-1">
               <BookOpen className="w-4 h-4 mr-1.5" />
@@ -138,10 +133,7 @@ export default function ResearchLayout() {
   return (
     <div className="flex h-full w-full overflow-hidden">
       {/* Left: Resource Pool */}
-      <div
-        className="shrink-0 border-r bg-background overflow-hidden"
-        style={{ width: leftWidth }}
-      >
+      <div className="shrink-0 border-r bg-background overflow-hidden" style={{ width: leftWidth }}>
         <ResourcePoolPanel />
       </div>
 
@@ -155,10 +147,7 @@ export default function ResearchLayout() {
       <DragHandle onDrag={handleRightDrag} />
 
       {/* Right: Output */}
-      <div
-        className="shrink-0 border-l bg-background overflow-hidden"
-        style={{ width: rightWidth }}
-      >
+      <div className="shrink-0 border-l bg-background overflow-hidden" style={{ width: rightWidth }}>
         <ResearchOutputPanel />
       </div>
     </div>

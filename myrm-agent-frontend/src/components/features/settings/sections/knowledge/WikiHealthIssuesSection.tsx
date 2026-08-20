@@ -119,8 +119,7 @@ export function WikiHealthIssuesSection({
 
   const openCount = report.open_actions_count;
   const hasIssues = report.issues.length > 0;
-  const showCrossLinks =
-    report.duplicate_groups_pending > 0 || report.synthesis_pending > 0;
+  const showCrossLinks = report.duplicate_groups_pending > 0 || report.synthesis_pending > 0;
   const isTruncated = report.issues_found > report.issues.length;
 
   if (openCount === 0 && !showCrossLinks && !hasIssues) {
@@ -262,9 +261,7 @@ function HealthIssueRow({
 
   const actionDisabled =
     (issue.action_kind === 'recompile' && isRecompiling) ||
-    (issue.action_kind === 'repair' &&
-      issue.issue_type === 'invalid_frontmatter_type' &&
-      isRepairing);
+    (issue.action_kind === 'repair' && issue.issue_type === 'invalid_frontmatter_type' && isRepairing);
 
   return (
     <li className="rounded-md border border-border/60 bg-background/80 p-3">
@@ -274,23 +271,13 @@ function HealthIssueRow({
             <Badge variant="outline" className={severityClass(issue.severity)}>
               {issueTypeLabel(issue.issue_type, t)}
             </Badge>
-            <span className="truncate text-xs font-mono text-muted-foreground">
-              {locationLabel(issue.location)}
-            </span>
+            <span className="truncate text-xs font-mono text-muted-foreground">{locationLabel(issue.location)}</span>
           </div>
           <p className="text-sm text-foreground">{issue.description}</p>
-          {issue.suggested_fix ? (
-            <p className="text-xs text-muted-foreground">{issue.suggested_fix}</p>
-          ) : null}
+          {issue.suggested_fix ? <p className="text-xs text-muted-foreground">{issue.suggested_fix}</p> : null}
         </div>
         {actionLabel && onAction ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={actionDisabled}
-            onClick={onAction}
-          >
+          <Button type="button" size="sm" variant="outline" disabled={actionDisabled} onClick={onAction}>
             {actionLabel}
           </Button>
         ) : null}

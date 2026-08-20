@@ -35,7 +35,10 @@ const WorkflowModeToggle = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer" />
             )}
             <IconWorkflow
-              className={cn('shrink-0 transition-all duration-500 z-10', isWorkflowMode ? 'text-primary scale-110 drop-shadow-sm' : 'text-current scale-100')}
+              className={cn(
+                'shrink-0 transition-all duration-500 z-10',
+                isWorkflowMode ? 'text-primary scale-110 drop-shadow-sm' : 'text-current scale-100',
+              )}
             />
             <span className="hidden xl:inline z-10 tracking-wide">{t('workflowModeLabel')}</span>
           </button>

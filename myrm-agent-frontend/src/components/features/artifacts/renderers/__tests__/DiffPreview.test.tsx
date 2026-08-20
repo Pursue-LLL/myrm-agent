@@ -65,26 +65,14 @@ function makeVersions(contents: string[]): ArtifactVersion[] {
 describe('DiffPreview', () => {
   it('renders fallback when less than 2 versions', () => {
     const versions = makeVersions(['hello']);
-    render(
-      <DiffPreview
-        currentContent="hello"
-        versions={versions}
-        viewingVersionIndex={-1}
-        language="plaintext"
-      />,
-    );
+    render(<DiffPreview currentContent="hello" versions={versions} viewingVersionIndex={-1} language="plaintext" />);
     expect(screen.getByText('At least two versions are required')).toBeInTheDocument();
   });
 
   it('renders Monaco DiffEditor with correct original/modified when viewing latest', () => {
     const versions = makeVersions(['version 1 content', 'version 2 content']);
     render(
-      <DiffPreview
-        currentContent="version 2 content"
-        versions={versions}
-        viewingVersionIndex={-1}
-        language="python"
-      />,
+      <DiffPreview currentContent="version 2 content" versions={versions} viewingVersionIndex={-1} language="python" />,
     );
     const editor = screen.getByTestId('monaco-diff-editor');
     expect(editor).toBeInTheDocument();
@@ -96,14 +84,7 @@ describe('DiffPreview', () => {
 
   it('renders correct diff when viewing a specific version', () => {
     const versions = makeVersions(['v1', 'v2', 'v3']);
-    render(
-      <DiffPreview
-        currentContent="v3"
-        versions={versions}
-        viewingVersionIndex={1}
-        language="javascript"
-      />,
-    );
+    render(<DiffPreview currentContent="v3" versions={versions} viewingVersionIndex={1} language="javascript" />);
     const editor = screen.getByTestId('monaco-diff-editor');
     expect(editor.getAttribute('data-original')).toBe('v1');
     expect(editor.getAttribute('data-modified')).toBe('v2');
@@ -111,14 +92,7 @@ describe('DiffPreview', () => {
 
   it('switches between inline and side-by-side mode', () => {
     const versions = makeVersions(['old', 'new']);
-    render(
-      <DiffPreview
-        currentContent="new"
-        versions={versions}
-        viewingVersionIndex={-1}
-        language="plaintext"
-      />,
-    );
+    render(<DiffPreview currentContent="new" versions={versions} viewingVersionIndex={-1} language="plaintext" />);
 
     const editor = screen.getByTestId('monaco-diff-editor');
     expect(editor.getAttribute('data-side-by-side')).toBe('true');
@@ -132,27 +106,13 @@ describe('DiffPreview', () => {
 
   it('displays version labels in toolbar', () => {
     const versions = makeVersions(['v1', 'v2', 'v3']);
-    render(
-      <DiffPreview
-        currentContent="v3"
-        versions={versions}
-        viewingVersionIndex={-1}
-        language="plaintext"
-      />,
-    );
+    render(<DiffPreview currentContent="v3" versions={versions} viewingVersionIndex={-1} language="plaintext" />);
     expect(screen.getByText('V2 → V3')).toBeInTheDocument();
   });
 
   it('uses empty string for original when viewing version index 0', () => {
     const versions = makeVersions(['first', 'second']);
-    render(
-      <DiffPreview
-        currentContent="second"
-        versions={versions}
-        viewingVersionIndex={0}
-        language="plaintext"
-      />,
-    );
+    render(<DiffPreview currentContent="second" versions={versions} viewingVersionIndex={0} language="plaintext" />);
     const editor = screen.getByTestId('monaco-diff-editor');
     expect(editor.getAttribute('data-original')).toBe('');
     expect(editor.getAttribute('data-modified')).toBe('first');

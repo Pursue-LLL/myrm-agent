@@ -2,12 +2,11 @@
 
 import type { FrameEmbed } from './providers/types';
 
-const IFRAME_ALLOW = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
+const IFRAME_ALLOW =
+  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
 
 export default function FrameEmbedRenderer({ descriptor }: { descriptor: FrameEmbed }) {
-  const style = descriptor.aspectRatio
-    ? { aspectRatio: descriptor.aspectRatio }
-    : { height: descriptor.height ?? 320 };
+  const style = descriptor.aspectRatio ? { aspectRatio: descriptor.aspectRatio } : { height: descriptor.height ?? 320 };
 
   return (
     <iframe

@@ -24,7 +24,10 @@ function hasKbEvidence(sources: Source[] | undefined): boolean {
   return sources.some((source) => Boolean(source.kb_name) && Boolean(source.snippet || source.summary));
 }
 
-export function resolveChatWikiEvidenceContext(messages: Message[], chatId: string | undefined): ChatWikiEvidenceContext {
+export function resolveChatWikiEvidenceContext(
+  messages: Message[],
+  chatId: string | undefined,
+): ChatWikiEvidenceContext {
   const normalizedChatId = chatId?.trim();
   if (!normalizedChatId) {
     return { contextKey: undefined, turnDistance: undefined };

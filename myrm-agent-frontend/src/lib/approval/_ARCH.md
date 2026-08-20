@@ -6,23 +6,23 @@
 
 ## 模块
 
-| 文件 | 职责 |
-| ---- | ---- |
-| `visualApprovalContext.ts` | 从 inspector snapshot + toolInput 解析 BBox 高亮上下文；`mapScreenSpaceBBoxToImageSpace` 供 inline 红框 |
-| `visualApprovalSurface.ts` | inline（聊天内嵌）vs modal（对话框）表面分区；batch 同 surface |
-| `visualApprovalRenderState.ts` | loading / ready / unavailable 渲染态解析 |
-| `visualApprovalOsOverlay.ts` | Tauri OS overlay IPC payload + show/hide bridge（screen/image 双坐标模式） |
-| `resolveDesktopOverlayTarget.ts` | 最早过期 desktop ready 态 + AttentionBar 主 request 共用选择 |
-| `approvalBulkGroups.ts` | bulk approve/reject 的分组（batchId / messageId） |
-| `approvalDecision.ts` | resume decision payload 构建；`resumeDecisionsIncludeDirectoryGrant` / `extractDirectoryGrantOptimistic` |
-| `allowAlwaysScope.ts` | allow-always scope → harness 扩展值（permission/tool/exact/pattern；shell 默认 exact） |
-| `buildDrawerResumeValue.ts` | ApprovalDrawer subagent 批量 decisions 构建（approve/reject/edit） |
-| `resumeDrawerApprovalStream.ts` | Drawer 在 HTTP resolve **之前** 触发 agent-stream resume（与主路径同机制） |
-| `buildToolApprovalRequest.ts` | SSE/WS actionRequest → ToolApprovalRequest（含 commandSpans/risks/workspaceRoot/executionIntent） |
-| `saveSkillApproval.ts` | save_skill / skill_manage save 审批识别 + args 归一化 |
-| `shellCommandDisplay.ts` | shell 识别、span/risk、`deriveCommandPattern` 预览（镜像 harness SSOT；vitest parity 向量） |
-| `resumeApprovalStream.ts` | 通过 SSE resume 恢复执行；复用 `isAgentBusySseEvent` 对 HTTP 200 + SSE busy fail-fast |
-| `approvalAlertService.ts` | 空闲审批通知：窗口不活跃时发送 6 语言本地化系统通知（Tauri/Browser Notification + Tab 标题闪烁 + requestUserAttention）；`NOTIFICATION_I18N` 字典覆盖 en/zh/zh-TW/ja/ko/de |
+| 文件                             | 职责                                                                                                                                                                       |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `visualApprovalContext.ts`       | 从 inspector snapshot + toolInput 解析 BBox 高亮上下文；`mapScreenSpaceBBoxToImageSpace` 供 inline 红框                                                                    |
+| `visualApprovalSurface.ts`       | inline（聊天内嵌）vs modal（对话框）表面分区；batch 同 surface                                                                                                             |
+| `visualApprovalRenderState.ts`   | loading / ready / unavailable 渲染态解析                                                                                                                                   |
+| `visualApprovalOsOverlay.ts`     | Tauri OS overlay IPC payload + show/hide bridge（screen/image 双坐标模式）                                                                                                 |
+| `resolveDesktopOverlayTarget.ts` | 最早过期 desktop ready 态 + AttentionBar 主 request 共用选择                                                                                                               |
+| `approvalBulkGroups.ts`          | bulk approve/reject 的分组（batchId / messageId）                                                                                                                          |
+| `approvalDecision.ts`            | resume decision payload 构建；`resumeDecisionsIncludeDirectoryGrant` / `extractDirectoryGrantOptimistic`                                                                   |
+| `allowAlwaysScope.ts`            | allow-always scope → harness 扩展值（permission/tool/exact/pattern；shell 默认 exact）                                                                                     |
+| `buildDrawerResumeValue.ts`      | ApprovalDrawer subagent 批量 decisions 构建（approve/reject/edit）                                                                                                         |
+| `resumeDrawerApprovalStream.ts`  | Drawer 在 HTTP resolve **之前** 触发 agent-stream resume（与主路径同机制）                                                                                                 |
+| `buildToolApprovalRequest.ts`    | SSE/WS actionRequest → ToolApprovalRequest（含 commandSpans/risks/workspaceRoot/executionIntent）                                                                          |
+| `saveSkillApproval.ts`           | save_skill / skill_manage save 审批识别 + args 归一化                                                                                                                      |
+| `shellCommandDisplay.ts`         | shell 识别、span/risk、`deriveCommandPattern` 预览（镜像 harness SSOT；vitest parity 向量）                                                                                |
+| `resumeApprovalStream.ts`        | 通过 SSE resume 恢复执行；复用 `isAgentBusySseEvent` 对 HTTP 200 + SSE busy fail-fast                                                                                      |
+| `approvalAlertService.ts`        | 空闲审批通知：窗口不活跃时发送 6 语言本地化系统通知（Tauri/Browser Notification + Tab 标题闪烁 + requestUserAttention）；`NOTIFICATION_I18N` 字典覆盖 en/zh/zh-TW/ja/ko/de |
 
 ## humanize 集成
 

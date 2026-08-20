@@ -17,19 +17,13 @@ export const MOA_PRESET_DEFAULT_ID = 'default';
 export const MOA_PRESET_REVIEW_ID = 'review';
 export const MOA_PRESET_FAST_ID = 'fast';
 
-export const MOA_PRESET_IDS = [
-  MOA_PRESET_DEFAULT_ID,
-  MOA_PRESET_REVIEW_ID,
-  MOA_PRESET_FAST_ID,
-] as const;
+export const MOA_PRESET_IDS = [MOA_PRESET_DEFAULT_ID, MOA_PRESET_REVIEW_ID, MOA_PRESET_FAST_ID] as const;
 
 export type MoaPresetId = (typeof MOA_PRESET_IDS)[number];
 
 type ModelSelection = { providerId: string; model: string };
 
-function overlayBlock(
-  engineParams: Record<string, unknown> | null | undefined,
-): Record<string, unknown> | null {
+function overlayBlock(engineParams: Record<string, unknown> | null | undefined): Record<string, unknown> | null {
   const overlay = engineParams?.moa_overlay;
   if (!overlay || typeof overlay !== 'object') {
     return null;
@@ -105,9 +99,7 @@ export function emptyMoaPresetsMap(): Record<MoaPresetId, { reference_model_sele
   };
 }
 
-export function isMoaPresetConfigured(
-  engineParams: Record<string, unknown> | null | undefined,
-): boolean {
+export function isMoaPresetConfigured(engineParams: Record<string, unknown> | null | undefined): boolean {
   const overlay = overlayBlock(engineParams);
   if (!overlay || !overlay.enabled) {
     return false;
@@ -133,9 +125,7 @@ export function countMoaReferenceModelsForPreset(
 }
 
 /** @deprecated Use countMoaReferenceModelsForPreset — kept for call-site compatibility */
-export function countMoaReferenceModels(
-  engineParams: Record<string, unknown> | null | undefined,
-): number {
+export function countMoaReferenceModels(engineParams: Record<string, unknown> | null | undefined): number {
   return countMoaReferenceModelsForPreset(engineParams, MOA_PRESET_DEFAULT_ID);
 }
 
@@ -151,18 +141,14 @@ const PRESET_LABEL_KEYS: Record<MoaPresetId, MoaPresetOption['labelKey']> = {
   [MOA_PRESET_FAST_ID]: 'fastLabel',
 };
 
-export function resolveMoaPresetLabelKey(
-  presetId: string | null | undefined,
-): MoaPresetOption['labelKey'] | null {
+export function resolveMoaPresetLabelKey(presetId: string | null | undefined): MoaPresetOption['labelKey'] | null {
   if (!presetId || !(MOA_PRESET_IDS as readonly string[]).includes(presetId)) {
     return null;
   }
   return PRESET_LABEL_KEYS[presetId as MoaPresetId];
 }
 
-export function listMoaPresetOptions(
-  engineParams: Record<string, unknown> | null | undefined,
-): MoaPresetOption[] {
+export function listMoaPresetOptions(engineParams: Record<string, unknown> | null | undefined): MoaPresetOption[] {
   return MOA_PRESET_IDS.map((presetId) => ({
     id: presetId,
     labelKey: PRESET_LABEL_KEYS[presetId],

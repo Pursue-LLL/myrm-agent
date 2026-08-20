@@ -10,9 +10,10 @@ export function mapAuditLogEvent(log: Record<string, unknown>): AuditLogEvent {
     resource: (log.resource ?? null) as string | null,
     action: String(log.action ?? ''),
     result: String(log.result ?? ''),
-    metadata: (typeof log.metadata === 'object' && log.metadata !== null
-      ? log.metadata
-      : {}) as Record<string, unknown>,
+    metadata: (typeof log.metadata === 'object' && log.metadata !== null ? log.metadata : {}) as Record<
+      string,
+      unknown
+    >,
     ip_address: (log.ipAddress ?? log.ip_address ?? null) as string | null,
     trace_id: (log.traceId ?? log.trace_id ?? null) as string | null,
     request_id: (log.requestId ?? log.request_id ?? null) as string | null,
@@ -21,10 +22,7 @@ export function mapAuditLogEvent(log: Record<string, unknown>): AuditLogEvent {
 }
 
 export function mapAuditStatsResponse(result: Record<string, unknown>): AuditLogStats {
-  const successFailed = (result.successVsFailed ?? result.success_vs_failed ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const successFailed = (result.successVsFailed ?? result.success_vs_failed ?? {}) as Record<string, unknown>;
 
   return {
     time_series: Array.isArray(result.timeSeries)

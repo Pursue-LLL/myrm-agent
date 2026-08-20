@@ -13,7 +13,9 @@ export const NAVBAR_WIDTH = 60;
 const ROUTE_STORAGE_KEY = 'myrm_last_tab_routes';
 
 function readSavedRoutes(): Record<string, string> {
-  if (typeof window === 'undefined') {return {};}
+  if (typeof window === 'undefined') {
+    return {};
+  }
   try {
     return JSON.parse(localStorage.getItem(ROUTE_STORAGE_KEY) || '{}');
   } catch {
@@ -22,7 +24,9 @@ function readSavedRoutes(): Record<string, string> {
 }
 
 function persistRoute(tab: string, url: string) {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   try {
     const saved = readSavedRoutes();
     saved[tab] = url;
@@ -65,9 +69,7 @@ export function useAppLayoutState() {
   const [savedRoutes] = useState(readSavedRoutes);
   const [lastChatUrl, setLastChatUrl] = useState<string | null>(savedRoutes.chat ?? null);
   const [lastWorkUrl, setLastWorkUrl] = useState<string | null>(savedRoutes.work ?? null);
-  const [lastProjectsUrl, setLastProjectsUrl] = useState<string | null>(
-    savedRoutes.projects ?? null,
-  );
+  const [lastProjectsUrl, setLastProjectsUrl] = useState<string | null>(savedRoutes.projects ?? null);
   const lastScrollPositionRef = useRef(0);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -130,7 +132,9 @@ export function useAppLayoutState() {
 
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const handleResize = () => {
-      if (resizeTimer) {clearTimeout(resizeTimer);}
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
       resizeTimer = setTimeout(() => {
         const mobile = checkIsMobile();
         if (mobile !== isMobile) {
@@ -144,7 +148,9 @@ export function useAppLayoutState() {
 
     window.addEventListener('resize', handleResize);
     return () => {
-      if (resizeTimer) {clearTimeout(resizeTimer);}
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
       window.removeEventListener('resize', handleResize);
     };
   }, [isMobile]);
@@ -152,7 +158,9 @@ export function useAppLayoutState() {
   useEffect(() => () => requestManager.cancelAllRequests(), []);
 
   useEffect(() => {
-    if (!isMobile) {return;}
+    if (!isMobile) {
+      return;
+    }
 
     const handleScroll = () => {
       const currentScrollPosition = window.scrollY;
@@ -161,10 +169,16 @@ export function useAppLayoutState() {
       if (scrollDelta > 10 && currentScrollPosition > 100) {
         setIsNavButtonHidden(true);
       }
-      if (scrollDelta < -10) {setIsNavButtonHidden(false);}
-      if (currentScrollPosition < 50) {setIsNavButtonHidden(false);}
+      if (scrollDelta < -10) {
+        setIsNavButtonHidden(false);
+      }
+      if (currentScrollPosition < 50) {
+        setIsNavButtonHidden(false);
+      }
 
-      if (scrollTimerRef.current) {clearTimeout(scrollTimerRef.current);}
+      if (scrollTimerRef.current) {
+        clearTimeout(scrollTimerRef.current);
+      }
       scrollTimerRef.current = setTimeout(() => setIsNavButtonHidden(false), 1500);
       lastScrollPositionRef.current = currentScrollPosition;
     };
@@ -172,7 +186,9 @@ export function useAppLayoutState() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      if (scrollTimerRef.current) {clearTimeout(scrollTimerRef.current);}
+      if (scrollTimerRef.current) {
+        clearTimeout(scrollTimerRef.current);
+      }
     };
   }, [isMobile]);
 

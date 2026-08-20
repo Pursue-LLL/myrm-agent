@@ -7,15 +7,25 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { UsageStats } from '@/services/statistics';
 
 export function formatTokenCount(count: number | undefined | null): string {
-  if (count == null) {return '0';}
-  if (count >= 1_000_000) {return `${(count / 1_000_000).toFixed(1)}M`;}
-  if (count >= 1_000) {return `${(count / 1_000).toFixed(1)}k`;}
+  if (count == null) {
+    return '0';
+  }
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1)}M`;
+  }
+  if (count >= 1_000) {
+    return `${(count / 1_000).toFixed(1)}k`;
+  }
   return count.toLocaleString();
 }
 
 export function formatCost(cost: number | undefined | null): string {
-  if (cost == null || cost === 0) {return '$0.00';}
-  if (cost < 0.01) {return `$${cost.toFixed(4)}`;}
+  if (cost == null || cost === 0) {
+    return '$0.00';
+  }
+  if (cost < 0.01) {
+    return `$${cost.toFixed(4)}`;
+  }
   return `$${cost.toFixed(2)}`;
 }
 
@@ -46,7 +56,9 @@ interface RoutingAnalyticsProps {
 
 const RoutingAnalyticsPanel = memo<RoutingAnalyticsProps>(({ stats, t }) => {
   const { routingBreakdown, estimatedSavings } = stats;
-  if (!routingBreakdown || Object.keys(routingBreakdown).length === 0) {return null;}
+  if (!routingBreakdown || Object.keys(routingBreakdown).length === 0) {
+    return null;
+  }
 
   const totalRoutedCalls = Object.values(routingBreakdown).reduce((s, v) => s + v.calls, 0);
 
@@ -81,7 +93,9 @@ const RoutingAnalyticsPanel = memo<RoutingAnalyticsProps>(({ stats, t }) => {
         <div className="h-3 rounded-full overflow-hidden flex bg-border/30">
           {TIER_ORDER.map((tier) => {
             const data = routingBreakdown[tier];
-            if (!data || data.calls === 0) {return null;}
+            if (!data || data.calls === 0) {
+              return null;
+            }
             const pct = (data.calls / totalRoutedCalls) * 100;
             return (
               <div
@@ -99,7 +113,9 @@ const RoutingAnalyticsPanel = memo<RoutingAnalyticsProps>(({ stats, t }) => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {TIER_ORDER.map((tier) => {
           const data = routingBreakdown[tier];
-          if (!data) {return null;}
+          if (!data) {
+            return null;
+          }
           const cfg = TIER_CONFIG[tier];
           const Icon = cfg.icon;
           const pct = totalRoutedCalls > 0 ? Math.round((data.calls / totalRoutedCalls) * 100) : 0;

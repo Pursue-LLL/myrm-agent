@@ -65,12 +65,16 @@ export default function KanbanSpecifyDialog({ task, open, onOpenChange, onApplie
   );
 
   useEffect(() => {
-    if (!open || !task) {return;}
+    if (!open || !task) {
+      return;
+    }
     runPreview(task.task_id);
   }, [open, task, runPreview]);
 
   const handleApply = useCallback(async () => {
-    if (!task || !outcome?.ok || !outcome.new_body) {return;}
+    if (!task || !outcome?.ok || !outcome.new_body) {
+      return;
+    }
     setApplying(true);
     try {
       const result = await applySpec(task.task_id, {
@@ -94,11 +98,15 @@ export default function KanbanSpecifyDialog({ task, open, onOpenChange, onApplie
   }, [task, outcome, onApplied, onOpenChange, t]);
 
   const handleRegenerate = useCallback(() => {
-    if (!task) {return;}
+    if (!task) {
+      return;
+    }
     runPreview(task.task_id);
   }, [task, runPreview]);
 
-  if (!task) {return null;}
+  if (!task) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

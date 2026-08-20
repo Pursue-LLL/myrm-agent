@@ -58,7 +58,9 @@ export async function listSkills(params: ListSkillsParams = {}): Promise<SkillLi
   const { type, sortBy = 'name', order = 'asc' } = params;
 
   const queryParams = new URLSearchParams();
-  if (type) {queryParams.append('type', type);}
+  if (type) {
+    queryParams.append('type', type);
+  }
   queryParams.append('sort_by', sortBy);
   queryParams.append('order', order);
 
@@ -435,8 +437,12 @@ export async function searchDiscoverySkills(
   packageType: 'all' | 'skill' | 'agent_plugin' = 'all',
 ): Promise<DiscoverySearchResponse> {
   const params = new URLSearchParams({ q: query, limit: String(limit) });
-  if (userId) {params.set('user_id', userId);}
-  if (packageType && packageType !== 'all') {params.set('package_type', packageType);}
+  if (userId) {
+    params.set('user_id', userId);
+  }
+  if (packageType && packageType !== 'all') {
+    params.set('package_type', packageType);
+  }
   return apiRequest<DiscoverySearchResponse>(`${SKILLS_API_PREFIX}/discovery/search?${params}`);
 }
 
@@ -560,7 +566,9 @@ export async function listSkillDrafts(
   offset: number = 0,
 ): Promise<SkillDraftListResponse> {
   const params = new URLSearchParams();
-  if (status) {params.append('status', status);}
+  if (status) {
+    params.append('status', status);
+  }
   params.append('limit', String(limit));
   params.append('offset', String(offset));
   return apiRequest<SkillDraftListResponse>(`${SKILLS_API_PREFIX}/drafts?${params}`);
@@ -794,7 +802,11 @@ export async function getCustomSources(): Promise<CustomSourceListResponse> {
   return apiRequest<CustomSourceListResponse>(`${SKILLS_API_PREFIX}/discovery/sources`);
 }
 
-export async function addCustomSource(url: string, sourceType: string = 'well-known', label: string = ''): Promise<CustomSourceProbeResponse> {
+export async function addCustomSource(
+  url: string,
+  sourceType: string = 'well-known',
+  label: string = '',
+): Promise<CustomSourceProbeResponse> {
   return apiRequest<CustomSourceProbeResponse>(`${SKILLS_API_PREFIX}/discovery/sources`, {
     method: 'POST',
     body: JSON.stringify({ url, source_type: sourceType, label }),
@@ -816,10 +828,7 @@ export interface SkillPoolSyncResponse {
   failed_agents: string[];
 }
 
-export async function syncSkillPoolToAgents(
-  skillId: string,
-  targetAgentIds: string[],
-): Promise<SkillPoolSyncResponse> {
+export async function syncSkillPoolToAgents(skillId: string, targetAgentIds: string[]): Promise<SkillPoolSyncResponse> {
   return apiRequest<SkillPoolSyncResponse>(`${SKILLS_API_PREFIX}/discovery/pool/sync`, {
     method: 'POST',
     body: JSON.stringify({
@@ -828,4 +837,3 @@ export async function syncSkillPoolToAgents(
     }),
   });
 }
-

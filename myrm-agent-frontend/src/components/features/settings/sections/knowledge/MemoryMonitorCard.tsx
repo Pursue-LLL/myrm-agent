@@ -1,7 +1,13 @@
 'use client';
 
 import { memo, useState, useEffect, useCallback } from 'react';
-import { IconActivity, IconAlertTriangle, IconCpu, IconPlay, IconSquare } from '@/components/features/icons/PremiumIcons';
+import {
+  IconActivity,
+  IconAlertTriangle,
+  IconCpu,
+  IconPlay,
+  IconSquare,
+} from '@/components/features/icons/PremiumIcons';
 import {
   Area,
   AreaChart,
@@ -168,11 +174,7 @@ export const MemoryMonitorCard = memo(() => {
                   fontSize={10}
                   tickMargin={10}
                 />
-                <YAxis
-                  stroke="rgba(255,255,255,0.3)"
-                  fontSize={10}
-                  tickFormatter={(val: number) => `${val}MB`}
-                />
+                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} tickFormatter={(val: number) => `${val}MB`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'rgba(0,0,0,0.8)',

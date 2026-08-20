@@ -68,7 +68,9 @@ function RunStatsSummary({
   stats: { total: number; successRate: number; avgDuration: number };
   t: (key: string) => string;
 }) {
-  if (stats.total === 0) {return null;}
+  if (stats.total === 0) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-2.5 flex-wrap">
@@ -177,13 +179,9 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
 
       {job.job_type === 'agent' ? <WorkflowTemplateEditor job={job} onUpdated={handleEditorUpdated} /> : null}
 
-      {job.job_type !== 'agent' && job.workflow_template_id ? (
-        <CronWorkflowTemplateDetail job={job} />
-      ) : null}
+      {job.job_type !== 'agent' && job.workflow_template_id ? <CronWorkflowTemplateDetail job={job} /> : null}
 
-      {job.job_type === 'agent' && (
-        <AcceptanceCriteriaEditor job={job} onUpdated={handleEditorUpdated} />
-      )}
+      {job.job_type === 'agent' && <AcceptanceCriteriaEditor job={job} onUpdated={handleEditorUpdated} />}
 
       <Tabs value={runsStatusFilter ?? 'all'} onValueChange={(v) => handleFilterChange(v === 'all' ? null : v)}>
         <TabsList className="h-8">

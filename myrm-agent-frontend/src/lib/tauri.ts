@@ -34,8 +34,12 @@ const INVALID_BASE_URL_VALUES = new Set(['undefined', 'null']);
 
 function normalizeConfiguredBaseUrl(value: string | null | undefined, fallback: string): string {
   const candidate = value?.trim();
-  if (!candidate) {return fallback;}
-  if (INVALID_BASE_URL_VALUES.has(candidate.toLowerCase())) {return fallback;}
+  if (!candidate) {
+    return fallback;
+  }
+  if (INVALID_BASE_URL_VALUES.has(candidate.toLowerCase())) {
+    return fallback;
+  }
 
   try {
     const parsed = new URL(candidate);

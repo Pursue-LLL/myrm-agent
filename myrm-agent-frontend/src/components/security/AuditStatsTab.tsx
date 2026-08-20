@@ -123,9 +123,7 @@ export function AuditStatsTab({ auditStatsData, auditLive }: AuditStatsTabProps)
                     className="h-full bg-primary flex items-center justify-end pr-2 text-xs text-white font-medium"
                     style={{
                       width: `${
-                        auditStatsData.total_events > 0
-                          ? (event.count / auditStatsData.total_events) * 100
-                          : 0
+                        auditStatsData.total_events > 0 ? (event.count / auditStatsData.total_events) * 100 : 0
                       }%`,
                     }}
                   >

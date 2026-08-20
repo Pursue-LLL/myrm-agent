@@ -91,13 +91,8 @@ const MemoryCenterSection = memo(() => {
       <MemoryRecallDegradedBanner className="max-w-4xl" />
 
       {migrationUnavailable && (
-        <div
-          role="alert"
-          className="rounded-xl border border-border/60 bg-secondary/40 px-4 py-4 sm:px-5 space-y-3"
-        >
-          <h2 className="text-base font-semibold text-foreground">
-            {t('memoryCenter.migrationUnavailable.title')}
-          </h2>
+        <div role="alert" className="rounded-xl border border-border/60 bg-secondary/40 px-4 py-4 sm:px-5 space-y-3">
+          <h2 className="text-base font-semibold text-foreground">{t('memoryCenter.migrationUnavailable.title')}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
             {t('memoryCenter.migrationUnavailable.description')}
           </p>

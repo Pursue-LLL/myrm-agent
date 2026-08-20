@@ -4,17 +4,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  mockClearActivePlan,
-  mockUnmarkProcessing,
-  mockReleaseTurnInspectorControls,
-  mockFindAssistantMessageIndex,
-} = vi.hoisted(() => ({
-  mockClearActivePlan: vi.fn(),
-  mockUnmarkProcessing: vi.fn(),
-  mockReleaseTurnInspectorControls: vi.fn(),
-  mockFindAssistantMessageIndex: vi.fn(() => 0),
-}));
+const { mockClearActivePlan, mockUnmarkProcessing, mockReleaseTurnInspectorControls, mockFindAssistantMessageIndex } =
+  vi.hoisted(() => ({
+    mockClearActivePlan: vi.fn(),
+    mockUnmarkProcessing: vi.fn(),
+    mockReleaseTurnInspectorControls: vi.fn(),
+    mockFindAssistantMessageIndex: vi.fn(() => 0),
+  }));
 
 vi.mock('@/store/chat/goals/usePlanStore', () => ({
   usePlanStore: { getState: () => ({ clearActivePlan: mockClearActivePlan }) },
@@ -68,16 +64,29 @@ function makeCtx(type: string, extra: Record<string, unknown> = {}): StreamCtx {
     added: true,
     recievedMessage: '',
     state: {
-      messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date(), progressSteps: [] }],
+      messages: [
+        { messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date(), progressSteps: [] },
+      ],
       messageAppeared: false,
       loading: true,
     } as never,
     actions: {
-      setMessages: vi.fn((updater: (s: Record<string, unknown>) => void) => updater({
-        messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date(), progressSteps: [] }],
-        loading: true,
-        messageAppeared: false,
-      })),
+      setMessages: vi.fn((updater: (s: Record<string, unknown>) => void) =>
+        updater({
+          messages: [
+            {
+              messageId: 'msg-1',
+              chatId: 'c1',
+              role: 'assistant',
+              content: '',
+              createdAt: new Date(),
+              progressSteps: [],
+            },
+          ],
+          loading: true,
+          messageAppeared: false,
+        }),
+      ),
       setLoading: vi.fn(),
     } as never,
     files: [],
@@ -153,7 +162,16 @@ describe('agentControlEvents clearActivePlan', () => {
     (ctx.actions.setMessages as unknown as ReturnType<typeof vi.fn>).mockImplementation(
       (updater: (s: Record<string, unknown>) => void) => {
         const base = {
-          messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date(), progressSteps: [] }],
+          messages: [
+            {
+              messageId: 'msg-1',
+              chatId: 'c1',
+              role: 'assistant',
+              content: '',
+              createdAt: new Date(),
+              progressSteps: [],
+            },
+          ],
         };
         updatedState = base;
         updater(base as never);

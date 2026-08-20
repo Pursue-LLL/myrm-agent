@@ -13,10 +13,7 @@
 
 import { getChatDetail } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import {
-  normalizeSessionAccessRoots,
-  type SessionAccessRoot,
-} from '@/store/chat/types/sessionAccess';
+import { normalizeSessionAccessRoots, type SessionAccessRoot } from '@/store/chat/types/sessionAccess';
 
 export interface RefreshSessionAccessRootsOptions {
   /** Applied when GET returns empty roots (eventual consistency after grant). */
@@ -30,12 +27,13 @@ export async function refreshSessionAccessRoots(
   const optimistic = options?.optimistic;
 
   const applyOptimistic = () => {
-    if (!optimistic) {return;}
+    if (!optimistic) {
+      return;
+    }
     const current = useChatStore.getState().sessionAccessRoots;
-    useChatStore.getState().setSessionAccessRoots([
-      ...current.filter((root) => root.path !== optimistic.path),
-      optimistic,
-    ]);
+    useChatStore
+      .getState()
+      .setSessionAccessRoots([...current.filter((root) => root.path !== optimistic.path), optimistic]);
   };
 
   try {

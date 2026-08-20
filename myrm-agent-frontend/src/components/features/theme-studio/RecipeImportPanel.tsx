@@ -23,8 +23,7 @@ const RecipeImportPanel = ({ onImport }: RecipeImportPanelProps) => {
       toast.success(t('success'));
       setValue('');
     } catch (error) {
-      const message =
-        error instanceof ThemeRecipeParseError ? t(`errors.${error.code}`) : t('errors.invalid_json');
+      const message = error instanceof ThemeRecipeParseError ? t(`errors.${error.code}`) : t('errors.invalid_json');
       toast.error(message);
     }
   }, [onImport, t, value]);

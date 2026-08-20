@@ -13,11 +13,14 @@
  */
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { ensureLocalBackendReady, markLocalBackendUnreachable } from '@/lib/backend-health';
-import { getApiBaseUrl, getBackendBaseUrl, isLocalMode, resolveE2eApiBase, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import {
-  BACKEND_UNREACHABLE_CODE,
-  resolveBackendUnreachableMessage,
-} from '@/lib/local-backend-dev';
+  getApiBaseUrl,
+  getBackendBaseUrl,
+  isLocalMode,
+  resolveE2eApiBase,
+  shouldRedirectToLoginOnAuthFailure,
+} from '@/lib/deploy-mode';
+import { BACKEND_UNREACHABLE_CODE, resolveBackendUnreachableMessage } from '@/lib/local-backend-dev';
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
@@ -27,7 +30,9 @@ import useConfigStore from '@/store/useConfigStore';
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
 function redirectToLoginAfterAuthFailure(): void {
-  if (typeof window === 'undefined' || !shouldRedirectToLoginOnAuthFailure()) {return;}
+  if (typeof window === 'undefined' || !shouldRedirectToLoginOnAuthFailure()) {
+    return;
+  }
   clearAuthToken();
   if (!window.location.pathname.startsWith(AUTH_LOGIN_PATH)) {
     window.location.href = AUTH_LOGIN_PATH;
@@ -137,26 +142,46 @@ function inferSeverity(httpCode: number, businessCode?: number | string): ErrorS
     const code = Number(businessCode);
 
     // Critical: 认证和权限错误
-    if (code === 40101 || code === 40301 || code === 53003) {return 'critical';}
+    if (code === 40101 || code === 40301 || code === 53003) {
+      return 'critical';
+    }
 
     // High: 数据库错误、外部服务错误、AI错误
-    if (code >= 51000 && code < 52000) {return 'high';} // 所有数据库错误 (51xxx)
-    if (code >= 52000 && code < 53000) {return 'high';} // 外部服务错误 (52xxx)
-    if (code === 53001 || code === 53002 || code === 53004) {return 'high';} // AI错误
-    if (code === 42901 || code === 50008) {return 'high';} // 限流和超时
+    if (code >= 51000 && code < 52000) {
+      return 'high';
+    } // 所有数据库错误 (51xxx)
+    if (code >= 52000 && code < 53000) {
+      return 'high';
+    } // 外部服务错误 (52xxx)
+    if (code === 53001 || code === 53002 || code === 53004) {
+      return 'high';
+    } // AI错误
+    if (code === 42901 || code === 50008) {
+      return 'high';
+    } // 限流和超时
 
     // Medium: 客户端输入错误、资源错误
-    if (code === 40001 || code === 40401 || code === 40901) {return 'medium';}
+    if (code === 40001 || code === 40401 || code === 40901) {
+      return 'medium';
+    }
 
     // Low: 其他
     return 'low';
   }
 
   // 备选：根据HTTP状态码推断
-  if (httpCode === 401 || httpCode === 403) {return 'critical';}
-  if (httpCode >= 500) {return 'high';}
-  if (httpCode === 429 || httpCode === 408) {return 'high';}
-  if (httpCode >= 400) {return 'medium';}
+  if (httpCode === 401 || httpCode === 403) {
+    return 'critical';
+  }
+  if (httpCode >= 500) {
+    return 'high';
+  }
+  if (httpCode === 429 || httpCode === 408) {
+    return 'high';
+  }
+  if (httpCode >= 400) {
+    return 'medium';
+  }
   return 'low';
 }
 
@@ -173,29 +198,65 @@ function inferRetriable(httpCode: number, businessCode?: number | string): boole
     const code = Number(businessCode);
 
     // 明确可重试的BusinessCode
-    if (code === 51005) {return true;} // DB_STORAGE_BUSY
-    if (code === 51004) {return true;} // DB_TIMEOUT_ERROR
-    if (code === 53002) {return true;} // AI_RATE_LIMIT_ERROR
-    if (code === 53004) {return true;} // AI_TIMEOUT_ERROR
-    if (code === 42901) {return true;} // RATE_LIMIT_ERROR
-    if (code === 50008) {return true;} // TIMEOUT_ERROR
-    if (code === 50003) {return true;} // SERVICE_UNAVAILABLE
-    if (code === 52001) {return true;} // EXTERNAL_SERVICE_ERROR
-    if (code === 52002) {return true;} // SEARCH_SERVICE_ERROR
-    if (code === 52003) {return true;} // FILE_SERVICE_ERROR
+    if (code === 51005) {
+      return true;
+    } // DB_STORAGE_BUSY
+    if (code === 51004) {
+      return true;
+    } // DB_TIMEOUT_ERROR
+    if (code === 53002) {
+      return true;
+    } // AI_RATE_LIMIT_ERROR
+    if (code === 53004) {
+      return true;
+    } // AI_TIMEOUT_ERROR
+    if (code === 42901) {
+      return true;
+    } // RATE_LIMIT_ERROR
+    if (code === 50008) {
+      return true;
+    } // TIMEOUT_ERROR
+    if (code === 50003) {
+      return true;
+    } // SERVICE_UNAVAILABLE
+    if (code === 52001) {
+      return true;
+    } // EXTERNAL_SERVICE_ERROR
+    if (code === 52002) {
+      return true;
+    } // SEARCH_SERVICE_ERROR
+    if (code === 52003) {
+      return true;
+    } // FILE_SERVICE_ERROR
 
     // 明确不可重试的BusinessCode
-    if (code === 40101 || code === 40301) {return false;} // AUTH/PERMISSION错误
-    if (code === 40401 || code === 40901) {return false;} // 资源不存在/冲突
-    if (code === 40001) {return false;} // 验证错误
-    if (code === 51003) {return false;} // DB_INTEGRITY_ERROR
-    if (code === 53003) {return false;} // AI_AUTH_ERROR
+    if (code === 40101 || code === 40301) {
+      return false;
+    } // AUTH/PERMISSION错误
+    if (code === 40401 || code === 40901) {
+      return false;
+    } // 资源不存在/冲突
+    if (code === 40001) {
+      return false;
+    } // 验证错误
+    if (code === 51003) {
+      return false;
+    } // DB_INTEGRITY_ERROR
+    if (code === 53003) {
+      return false;
+    } // AI_AUTH_ERROR
   }
 
   // 备选：根据HTTP状态码推断
-  if (httpCode === 408 || httpCode === 429) {return true;} // Timeout, Rate Limit
-  if (httpCode === 502 || httpCode === 503 || httpCode === 504) {return true;} // Gateway errors
-  if (httpCode === 500) {return true;} // Internal Server Error
+  if (httpCode === 408 || httpCode === 429) {
+    return true;
+  } // Timeout, Rate Limit
+  if (httpCode === 502 || httpCode === 503 || httpCode === 504) {
+    return true;
+  } // Gateway errors
+  if (httpCode === 500) {
+    return true;
+  } // Internal Server Error
 
   // 其他错误不可重试
   return false;
@@ -217,8 +278,12 @@ export const fetchWithTimeout = async (
   const callerSignal = options.signal;
 
   const signals: AbortSignal[] = [];
-  if (callerSignal) {signals.push(callerSignal);}
-  if (timeout > 0) {signals.push(AbortSignal.timeout(timeout));}
+  if (callerSignal) {
+    signals.push(callerSignal);
+  }
+  if (timeout > 0) {
+    signals.push(AbortSignal.timeout(timeout));
+  }
 
   const combinedSignal = signals.length > 0 ? AbortSignal.any(signals) : undefined;
 
@@ -245,19 +310,13 @@ export const fetchWithTimeout = async (
     if (response.status === 401) {
       redirectToLoginAfterAuthFailure();
     } else if (response.status === 403) {
-      const companionFeatureGate =
-        typeof url === 'string' && url.includes('/companion/');
+      const companionFeatureGate = typeof url === 'string' && url.includes('/companion/');
       if (!companionFeatureGate) {
         redirectToLoginAfterAuthFailure();
       }
     }
 
-    if (
-      typeof window !== 'undefined' &&
-      isLocalMode() &&
-      !response.ok &&
-      response.status >= 500
-    ) {
+    if (typeof window !== 'undefined' && isLocalMode() && !response.ok && response.status >= 500) {
       const errorText = await response.clone().text();
       if (isNextProxyPlainTextError(response.status, errorText, false)) {
         await throwLocalBackendUnreachable(await resolveBackendUnreachableMessage());
@@ -331,9 +390,8 @@ async function assertLocalBackendReadyForRequest(): Promise<void> {
   }
   const e2eBase = resolveE2eApiBase();
   if (e2eBase) {
-    const runtimeReady = (
-      window as Window & { __MYRM_E2E_RUNTIME_READY__?: Promise<unknown> }
-    ).__MYRM_E2E_RUNTIME_READY__;
+    const runtimeReady = (window as Window & { __MYRM_E2E_RUNTIME_READY__?: Promise<unknown> })
+      .__MYRM_E2E_RUNTIME_READY__;
     if (runtimeReady) {
       await runtimeReady;
     }
@@ -349,7 +407,9 @@ async function assertLocalBackendReadyForRequest(): Promise<void> {
  * 获取认证 token
  */
 const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') {return null;}
+  if (typeof window === 'undefined') {
+    return null;
+  }
   return localStorage.getItem('auth_token');
 };
 
@@ -380,9 +440,10 @@ export const apiRequest = async <T = unknown>(
     const token = getAuthToken();
 
     // 如果是FormData，不设置Content-Type，让浏览器自动处理
-    const headers: Record<string, string> = fetchOptions.body instanceof FormData
-      ? { ...(fetchOptions.headers as Record<string, string>) }
-      : { 'Content-Type': 'application/json', ...(fetchOptions.headers as Record<string, string>) };
+    const headers: Record<string, string> =
+      fetchOptions.body instanceof FormData
+        ? { ...(fetchOptions.headers as Record<string, string>) }
+        : { 'Content-Type': 'application/json', ...(fetchOptions.headers as Record<string, string>) };
 
     // 添加认证头
     if (token) {
@@ -464,7 +525,9 @@ export const apiRequest = async <T = unknown>(
         inferSeverity(response.status, businessCode),
         inferRetriable(response.status, businessCode),
       );
-      if (detailPayload) {apiError.data = detailPayload;}
+      if (detailPayload) {
+        apiError.data = detailPayload;
+      }
       throw apiError;
     }
 
@@ -535,11 +598,7 @@ const ALWAYS_SHOW_ERROR: ErrorDedupGate = {
   shouldShow: () => true,
 };
 
-function displayApiErrorToast(
-  error: unknown,
-  duration: number | undefined,
-  dedupGate: ErrorDedupGate,
-): void {
+function displayApiErrorToast(error: unknown, duration: number | undefined, dedupGate: ErrorDedupGate): void {
   if (error instanceof ApiError) {
     if (!dedupGate.shouldShow(error)) {
       return;

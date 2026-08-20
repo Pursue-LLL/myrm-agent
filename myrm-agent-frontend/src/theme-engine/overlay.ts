@@ -13,7 +13,9 @@ const ALLOWED_THEME_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'v
 export type ThemeBackgroundValidationError = 'invalidType' | 'tooLarge' | 'empty';
 
 export function validateThemeBackgroundFile(file: File): ThemeBackgroundValidationError | null {
-  if (file.size === 0) {return 'empty';}
+  if (file.size === 0) {
+    return 'empty';
+  }
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
   const allowedExt = ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'webp' || ext === 'mp4';
   if (!ALLOWED_THEME_MIMES.has(file.type) && !allowedExt) {
@@ -25,10 +27,7 @@ export function validateThemeBackgroundFile(file: File): ThemeBackgroundValidati
   return null;
 }
 
-export function mergeArtOverlay(
-  base: ThemeProfileRecipe,
-  customProfiles: ThemeProfileRecipe[],
-): ThemeProfileRecipe {
+export function mergeArtOverlay(base: ThemeProfileRecipe, customProfiles: ThemeProfileRecipe[]): ThemeProfileRecipe {
   const overlay = customProfiles.find((profile) => profile.id === USER_ART_OVERLAY_ID);
   if (!overlay?.art || overlay.art.mediaKind === 'none' || !overlay.art.assetRef) {
     return base;
@@ -53,8 +52,7 @@ export function buildArtOverlayProfile(
   mediaKind: Exclude<ThemeMediaKind, 'none'>,
   posterAssetRef?: string | null,
 ): ThemeProfileRecipe {
-  const resolvedPoster =
-    mediaKind === 'image' ? assetRef : (posterAssetRef ?? null);
+  const resolvedPoster = mediaKind === 'image' ? assetRef : (posterAssetRef ?? null);
   return {
     id: USER_ART_OVERLAY_ID,
     name: 'Workspace background',

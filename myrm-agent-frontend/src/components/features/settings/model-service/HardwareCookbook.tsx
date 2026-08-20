@@ -47,9 +47,13 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   const [profile, setProfile] = useState<HardwareProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<{ status: string; completed?: number; total?: number } | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    status: string;
+    completed?: number;
+    total?: number;
+  } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [deletingModel, setDeletingModel] = useState<string | null>(null);
@@ -69,7 +73,9 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   const fetchHardwareProfile = async () => {
     try {
       const res = await fetch('/api/v1/integrations/hardware/recommendations');
-      if (!res.ok) {throw new Error('Failed to fetch hardware recommendations');}
+      if (!res.ok) {
+        throw new Error('Failed to fetch hardware recommendations');
+      }
       const data = await res.json();
       if (data.code === 0 && data.data) {
         setProfile(data.data);
@@ -95,12 +101,12 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
   const handleDownload = async (modelId: string) => {
     const ollamaModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
-    
+
     setDownloadingModel(modelId);
     setDownloadProgress({ status: t('downloading') });
-    
+
     abortControllerRef.current = new AbortController();
-    
+
     try {
       const res = await fetch('/api/v1/integrations/hardware/ollama/pull', {
         method: 'POST',
@@ -108,20 +114,26 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
         body: JSON.stringify({ model_name: ollamaModelName }),
         signal: abortControllerRef.current.signal,
       });
-      
-      if (!res.ok) {throw new Error('Failed to start download');}
-      if (!res.body) {throw new Error('No response body');}
-      
+
+      if (!res.ok) {
+        throw new Error('Failed to start download');
+      }
+      if (!res.body) {
+        throw new Error('No response body');
+      }
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
-      
+
       while (true) {
         const { value, done } = await reader.read();
-        if (done) {break;}
-        
+        if (done) {
+          break;
+        }
+
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\\n').filter(line => line.trim());
-        
+        const lines = chunk.split('\\n').filter((line) => line.trim());
+
         for (const line of lines) {
           try {
             const data = JSON.parse(line);
@@ -131,24 +143,23 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
             setDownloadProgress({
               status: data.status,
               completed: data.completed,
-              total: data.total
+              total: data.total,
             });
           } catch {
             // ignore parse error for incomplete chunks
           }
         }
       }
-      
+
       // Download complete!
       setDownloadProgress(null);
       setDownloadingModel(null);
       abortControllerRef.current = null;
-      
+
       // 重新拉取以同步最新的磁盘空间和安装状态
       await fetchHardwareProfile();
-      
+
       onApplyModel(modelId);
-      
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         console.log('Download cancelled by user');
@@ -157,7 +168,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
         abortControllerRef.current = null;
         return;
       }
-      
+
       console.error('Download failed:', err);
       setDownloadProgress({ status: `Error: ${err instanceof Error ? err.message : 'Unknown error'}` });
       setTimeout(() => {
@@ -170,7 +181,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
   const handleDelete = async (modelId: string) => {
     const ollamaModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
-    
+
     if (!window.confirm(t('confirmDelete', { model: ollamaModelName }))) {
       return;
     }
@@ -182,9 +193,11 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_name: ollamaModelName }),
       });
-      
-      if (!res.ok) {throw new Error('Failed to delete model');}
-      
+
+      if (!res.ok) {
+        throw new Error('Failed to delete model');
+      }
+
       // 重新拉取以同步最新的磁盘空间和安装状态
       await fetchHardwareProfile();
     } catch (err) {
@@ -222,11 +235,16 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
   const getFitLevelColor = (level: string) => {
     switch (level) {
-      case 'perfect': return 'text-green-500 bg-green-500/10 border-green-500/20';
-      case 'good': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-      case 'fair': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
-      case 'poor': return 'text-red-500 bg-red-500/10 border-red-500/20';
-      default: return 'text-muted-foreground bg-muted border-border';
+      case 'perfect':
+        return 'text-green-500 bg-green-500/10 border-green-500/20';
+      case 'good':
+        return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+      case 'fair':
+        return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
+      case 'poor':
+        return 'text-red-500 bg-red-500/10 border-red-500/20';
+      default:
+        return 'text-muted-foreground bg-muted border-border';
     }
   };
 
@@ -256,7 +274,9 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
             </div>
             <div>
               <div className="text-xs text-muted-foreground">{t('cpuArch')}</div>
-              <div className="font-medium text-sm">{profile.cpu_arch || 'Unknown'} ({profile.os_type})</div>
+              <div className="font-medium text-sm">
+                {profile.cpu_arch || 'Unknown'} ({profile.os_type})
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -265,7 +285,9 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
             </div>
             <div>
               <div className="text-xs text-muted-foreground">{t('memory')}</div>
-              <div className="font-medium text-sm">{profile.total_ram_gb} GB {profile.is_unified_memory ? t('unified') : 'RAM'}</div>
+              <div className="font-medium text-sm">
+                {profile.total_ram_gb} GB {profile.is_unified_memory ? t('unified') : 'RAM'}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -288,7 +310,9 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
             </div>
             <div>
               <div className="text-xs text-muted-foreground">{t('diskSpace')}</div>
-              <div className="font-medium text-sm">{profile.free_disk_gb ? `${profile.free_disk_gb} GB ${t('free')}` : 'Unknown'}</div>
+              <div className="font-medium text-sm">
+                {profile.free_disk_gb ? `${profile.free_disk_gb} GB ${t('free')}` : 'Unknown'}
+              </div>
             </div>
           </div>
         </div>
@@ -298,14 +322,12 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium text-muted-foreground">{t('recommendedModels')}</h4>
           </div>
-          
+
           {profile.ollama_running === false && (
             <Alert variant="destructive" className="mb-4 bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>{t('ollamaNotRunningTitle')}</AlertTitle>
-              <AlertDescription className="text-xs mt-1">
-                {t('ollamaNotRunningDesc')}
-              </AlertDescription>
+              <AlertDescription className="text-xs mt-1">{t('ollamaNotRunningDesc')}</AlertDescription>
             </Alert>
           )}
 
@@ -313,17 +335,18 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
             {profile.recommendations.map((rec, idx) => {
               const isDownloading = downloadingModel === rec.model_id;
               const isDeleting = deletingModel === rec.model_id;
-              const progressPercent = isDownloading && downloadProgress?.total && downloadProgress?.completed 
-                ? Math.round((downloadProgress.completed / downloadProgress.total) * 100) 
-                : 0;
+              const progressPercent =
+                isDownloading && downloadProgress?.total && downloadProgress?.completed
+                  ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
+                  : 0;
 
               // 预估模型大小 (GB)，优先使用云端下发的精准数据，如果没有则默认一个保守估算值
-              const estimatedDiskGb = rec.disk_size_gb || (rec.req_vram_gb * 0.8);
+              const estimatedDiskGb = rec.disk_size_gb || rec.req_vram_gb * 0.8;
               const hasEnoughDisk = profile.free_disk_gb ? profile.free_disk_gb > estimatedDiskGb : true;
 
               return (
-                <div 
-                  key={rec.model_id} 
+                <div
+                  key={rec.model_id}
                   className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg border transition-all ${
                     idx === 0 ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-background hover:bg-muted/50'
                   }`}
@@ -344,11 +367,15 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                         {t('reqVram')}: {rec.req_vram_gb} GB
                       </span>
                       {rec.est_tok_per_sec != null && (
-                        <span className={`font-medium tabular-nums ${
-                          rec.est_tok_per_sec >= 20 ? 'text-green-600 dark:text-green-400' :
-                          rec.est_tok_per_sec >= 8 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>
+                        <span
+                          className={`font-medium tabular-nums ${
+                            rec.est_tok_per_sec >= 20
+                              ? 'text-green-600 dark:text-green-400'
+                              : rec.est_tok_per_sec >= 8
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
                           ~{rec.est_tok_per_sec} tok/s
                         </span>
                       )}
@@ -363,25 +390,31 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                           {rec.fit_score}%
                         </span>
                       </div>
-                      <Progress 
-                        value={rec.fit_score} 
-                        className="h-1.5 w-24" 
+                      <Progress
+                        value={rec.fit_score}
+                        className="h-1.5 w-24"
                         indicatorClassName={
-                          rec.fit_level === 'perfect' || rec.fit_level === 'good' ? 'bg-green-500' :
-                          rec.fit_level === 'fair' ? 'bg-yellow-500' : 'bg-red-500'
+                          rec.fit_level === 'perfect' || rec.fit_level === 'good'
+                            ? 'bg-green-500'
+                            : rec.fit_level === 'fair'
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
                         }
                       />
                     </div>
-                    
+
                     {isDownloading ? (
                       <div className="flex flex-col items-end gap-1 w-full sm:w-[150px]">
                         <div className="flex items-center justify-between w-full">
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={downloadProgress?.status || t('downloading')}>
+                          <span
+                            className="text-[10px] text-muted-foreground truncate max-w-[120px]"
+                            title={downloadProgress?.status || t('downloading')}
+                          >
                             {downloadProgress?.status || t('downloading')}
                           </span>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-4 w-4 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             onClick={handleCancelDownload}
                             title={t('cancel')}
@@ -405,13 +438,22 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                             {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           </Button>
                         )}
-                        <Button 
-                          size="sm" 
-                          variant={rec.is_installed ? "secondary" : (idx === 0 ? "default" : "outline")}
+                        <Button
+                          size="sm"
+                          variant={rec.is_installed ? 'secondary' : idx === 0 ? 'default' : 'outline'}
                           className="shrink-0 min-w-[100px]"
-                          disabled={rec.fit_level === 'poor' || profile.ollama_running === false || downloadingModel !== null || (!rec.is_installed && !hasEnoughDisk)}
-                          onClick={() => rec.is_installed ? onApplyModel(rec.model_id) : handleDownload(rec.model_id)}
-                          title={!rec.is_installed && !hasEnoughDisk ? t('notEnoughDisk', { required: estimatedDiskGb.toFixed(1) }) : undefined}
+                          disabled={
+                            rec.fit_level === 'poor' ||
+                            profile.ollama_running === false ||
+                            downloadingModel !== null ||
+                            (!rec.is_installed && !hasEnoughDisk)
+                          }
+                          onClick={() => (rec.is_installed ? onApplyModel(rec.model_id) : handleDownload(rec.model_id))}
+                          title={
+                            !rec.is_installed && !hasEnoughDisk
+                              ? t('notEnoughDisk', { required: estimatedDiskGb.toFixed(1) })
+                              : undefined
+                          }
                         >
                           {rec.is_installed ? (
                             t('installed')
@@ -429,14 +471,12 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
               );
             })}
           </div>
-          
-          {profile.recommendations.some(r => r.fit_level === 'poor') && (
+
+          {profile.recommendations.some((r) => r.fit_level === 'poor') && (
             <Alert variant="destructive" className="mt-4 bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>{t('warningTitle')}</AlertTitle>
-              <AlertDescription className="text-xs mt-1">
-                {t('warningDesc')}
-              </AlertDescription>
+              <AlertDescription className="text-xs mt-1">{t('warningDesc')}</AlertDescription>
             </Alert>
           )}
         </div>

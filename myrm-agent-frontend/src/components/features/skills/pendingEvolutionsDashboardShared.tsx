@@ -29,10 +29,18 @@ export const EMPTY_SUMMARY: SkillGrowthSummary = {
 };
 
 export function matchesFilter(item: SkillGrowthCaseSummary, filter: GrowthFilter): boolean {
-  if (filter === 'all') {return true;}
-  if (filter === 'pending') {return item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';}
-  if (filter === 'applied') {return item.status === 'AUTO_APPLIED';}
-  if (filter === 'blocked') {return item.status === 'BLOCKED_LOCKED' || item.status === 'FAILED_SCAN';}
+  if (filter === 'all') {
+    return true;
+  }
+  if (filter === 'pending') {
+    return item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
+  }
+  if (filter === 'applied') {
+    return item.status === 'AUTO_APPLIED';
+  }
+  if (filter === 'blocked') {
+    return item.status === 'BLOCKED_LOCKED' || item.status === 'FAILED_SCAN';
+  }
   return item.status === 'APPROVED' || item.status === 'REJECTED';
 }
 

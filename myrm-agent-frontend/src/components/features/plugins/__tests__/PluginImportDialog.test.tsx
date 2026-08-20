@@ -76,14 +76,12 @@ vi.mock('@/components/primitives/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div data-testid="dialog">{children}</div> : null,
   DialogContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="dialog-content" className={className}>{children}</div>
+    <div data-testid="dialog-content" className={className}>
+      {children}
+    </div>
   ),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dialog-header">{children}</div>
-  ),
-  DialogTitle: ({ children }: { children: React.ReactNode }) => (
-    <h2 data-testid="dialog-title">{children}</h2>
-  ),
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-header">{children}</div>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2 data-testid="dialog-title">{children}</h2>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => (
     <p data-testid="dialog-description">{children}</p>
   ),
@@ -135,8 +133,24 @@ const PLUGIN_PREVIEW = {
     keywords: ['pdf'],
   },
   skills: [
-    { name: 'summarize', description: 'Summarize a PDF', file_count: 2, virtual_id: 'skill:0', security_issues: [], oversized_content: false, conflict: false },
-    { name: 'extract', description: 'Extract tables', file_count: 1, virtual_id: 'skill:1', security_issues: [], oversized_content: false, conflict: false },
+    {
+      name: 'summarize',
+      description: 'Summarize a PDF',
+      file_count: 2,
+      virtual_id: 'skill:0',
+      security_issues: [],
+      oversized_content: false,
+      conflict: false,
+    },
+    {
+      name: 'extract',
+      description: 'Extract tables',
+      file_count: 1,
+      virtual_id: 'skill:1',
+      security_issues: [],
+      oversized_content: false,
+      conflict: false,
+    },
   ],
   servers: [
     {
@@ -149,9 +163,7 @@ const PLUGIN_PREVIEW = {
       virtual_id: 'mcp:0',
     },
   ],
-  diagnostics: [
-    { component: 'skill:1', code: 'warn', message: 'Missing description', level: 'warning' },
-  ],
+  diagnostics: [{ component: 'skill:1', code: 'warn', message: 'Missing description', level: 'warning' }],
   is_valid: true,
 };
 
@@ -174,13 +186,7 @@ describe('PluginImportDialog', () => {
     const { default: PluginImportDialog } = await import('../PluginImportDialog');
     const onOpenChange = vi.fn();
     const onImportComplete = vi.fn();
-    render(
-      <PluginImportDialog
-        open={true}
-        onOpenChange={onOpenChange}
-        onImportComplete={onImportComplete}
-      />,
-    );
+    render(<PluginImportDialog open={true} onOpenChange={onOpenChange} onImportComplete={onImportComplete} />);
     return { onOpenChange, onImportComplete };
   }
 
@@ -278,12 +284,10 @@ describe('PluginImportDialog', () => {
   });
 
   it('submits the confirm request with the correct payload and finishes the flow', async () => {
-    fetchMock
-      .mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ imported_skills: 2, imported_servers: 1 }),
-      });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW }).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ imported_skills: 2, imported_servers: 1 }),
+    });
     const { onImportComplete } = await renderDialog();
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
     await screen.findByText('reports-plugin');
@@ -307,9 +311,7 @@ describe('PluginImportDialog', () => {
               { component: 'skill', virtual_id: 'skill:0', name: 'summarize', resolution: 'install' },
               { component: 'skill', virtual_id: 'skill:1', name: 'extract', resolution: 'install' },
             ],
-            servers: [
-              { component: 'mcp', virtual_id: 'mcp:0', name: 'pdf-server', resolution: 'install' },
-            ],
+            servers: [{ component: 'mcp', virtual_id: 'mcp:0', name: 'pdf-server', resolution: 'install' }],
             bind_agent_id: 'agent-1',
           }),
         }),
@@ -551,12 +553,8 @@ describe('PluginImportDialog', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             session_id: 'sess-1',
-            skills: [
-              { component: 'skill', virtual_id: 'skill:0', name: 'summarize', resolution: 'replace' },
-            ],
-            servers: [
-              { component: 'mcp', virtual_id: 'mcp:0', name: 'pdf-server', resolution: 'install' },
-            ],
+            skills: [{ component: 'skill', virtual_id: 'skill:0', name: 'summarize', resolution: 'replace' }],
+            servers: [{ component: 'mcp', virtual_id: 'mcp:0', name: 'pdf-server', resolution: 'install' }],
             bind_agent_id: null,
           }),
         }),

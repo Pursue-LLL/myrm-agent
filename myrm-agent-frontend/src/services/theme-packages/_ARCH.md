@@ -4,11 +4,11 @@ REST clients for `.myrmtheme` import/export (server-authoritative inspect → in
 
 ## Files
 
-| File | Role |
-|------|------|
-| `inspectThemePackage.ts` | `POST /theme/packages/inspect` multipart upload |
-| `installThemePackage.ts` | `POST /theme/packages/install` JSON body |
-| `exportThemePackage.ts` | `POST /theme/packages/export` → Blob + download helper |
+| File                     | Role                                                   |
+| ------------------------ | ------------------------------------------------------ |
+| `inspectThemePackage.ts` | `POST /theme/packages/inspect` multipart upload        |
+| `installThemePackage.ts` | `POST /theme/packages/install` JSON body               |
+| `exportThemePackage.ts`  | `POST /theme/packages/export` → Blob + download helper |
 
 ## Dependencies
 

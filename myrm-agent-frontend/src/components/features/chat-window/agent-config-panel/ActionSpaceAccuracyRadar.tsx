@@ -98,9 +98,7 @@ export function ActionSpaceAccuracyRadar({
             {t('turn1CatalogSummary', {
               inline: catalogPreview.inline_count,
               hidden: catalogPreview.hidden_count,
-              searchState: catalogPreview.search_mounted
-                ? t('turn1CatalogSearchOn')
-                : t('turn1CatalogSearchOff'),
+              searchState: catalogPreview.search_mounted ? t('turn1CatalogSearchOn') : t('turn1CatalogSearchOff'),
             })}
           </p>
           {catalogPreview.hidden_count > 0 && (

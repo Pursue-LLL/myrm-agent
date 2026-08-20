@@ -463,11 +463,7 @@ function NavBarInner({
               href="/settings/browser"
               onClick={closeMobileSidebar}
               className="inline-flex items-center justify-center w-10 h-10 rounded-xl transition-transform hover:scale-105"
-              aria-label={
-                badges.extensionConnected
-                  ? t('nav.extensionConnected')
-                  : t('nav.extensionDisconnected')
-              }
+              aria-label={badges.extensionConnected ? t('nav.extensionConnected') : t('nav.extensionDisconnected')}
             >
               <span
                 className={cn(
@@ -480,9 +476,7 @@ function NavBarInner({
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">
-            {badges.extensionConnected
-              ? t('nav.extensionConnected')
-              : t('nav.extensionDisconnected')}
+            {badges.extensionConnected ? t('nav.extensionConnected') : t('nav.extensionDisconnected')}
           </TooltipContent>
         </Tooltip>
 

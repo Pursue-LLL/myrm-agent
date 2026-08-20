@@ -89,12 +89,7 @@ export default function GrowthDashboard() {
         className="min-h-[50vh] my-6"
         action={
           error ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchData(timeRange)}
-              className="mt-2"
-            >
+            <Button variant="outline" size="sm" onClick={() => fetchData(timeRange)} className="mt-2">
               <RefreshCw className="h-4 w-4 mr-2" />
               {t('empty.retry')}
             </Button>

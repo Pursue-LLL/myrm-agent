@@ -29,8 +29,6 @@ export function canRestoreOfficialTheme(state: ThemeRestoreState = readThemeRest
   return isThemeDeviatedFromOfficial(state);
 }
 
-export function shouldConfirmOfficialThemeRestore(
-  state: ThemeRestoreState = readThemeRestoreState(),
-): boolean {
+export function shouldConfirmOfficialThemeRestore(state: ThemeRestoreState = readThemeRestoreState()): boolean {
   return needsRestoreConfirm(state);
 }

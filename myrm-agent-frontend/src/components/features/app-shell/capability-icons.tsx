@@ -32,7 +32,9 @@ const CapabilityIcons = ({ capabilities, size = 10 }: CapabilityIconsProps) => {
   ];
 
   const visibleIcons = icons.filter((i) => i.show);
-  if (visibleIcons.length === 0) {return null;}
+  if (visibleIcons.length === 0) {
+    return null;
+  }
 
   return (
     <TooltipProvider>

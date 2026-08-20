@@ -46,7 +46,7 @@ const ALL_CHECKERS = [
   'policy_gap',
 ] as const;
 
-type CheckerKey = typeof ALL_CHECKERS[number];
+type CheckerKey = (typeof ALL_CHECKERS)[number];
 
 const CHECKER_ICON_COLORS: Record<CheckerKey, string> = {
   tool_exposure: 'text-orange-500',
@@ -72,7 +72,9 @@ const POLICY_FIX_MAP: Record<string, PolicyFixConfig> = {
 function groupFindingsByChecker(findings: AuditFinding[]): Record<string, AuditFinding[]> {
   const groups: Record<string, AuditFinding[]> = {};
   for (const f of findings) {
-    if (!groups[f.checker]) {groups[f.checker] = [];}
+    if (!groups[f.checker]) {
+      groups[f.checker] = [];
+    }
     groups[f.checker].push(f);
   }
   return groups;
@@ -105,7 +107,9 @@ export function HealthScoreCard({
     );
   }
 
-  if (!result) {return null;}
+  if (!result) {
+    return null;
+  }
 
   const style = RISK_LEVEL_STYLES[result.risk_level] || RISK_LEVEL_STYLES.medium;
   const grouped = groupFindingsByChecker(result.findings);
@@ -113,7 +117,13 @@ export function HealthScoreCard({
   return (
     <div className={cn('rounded-xl border bg-card p-4 space-y-3', style.border)}>
       <div className="flex items-center gap-3">
-        <div className={cn('flex items-center justify-center h-10 w-10 rounded-full text-sm font-bold', style.bg, style.text)}>
+        <div
+          className={cn(
+            'flex items-center justify-center h-10 w-10 rounded-full text-sm font-bold',
+            style.bg,
+            style.text,
+          )}
+        >
           {result.score}
         </div>
         <div>
@@ -134,23 +144,23 @@ export function HealthScoreCard({
                 type="button"
                 disabled={!hasIssues}
                 onClick={() => {
-                  if (!hasIssues) {return;}
+                  if (!hasIssues) {
+                    return;
+                  }
                   setExpandedChecker(isExpanded ? null : checker);
                 }}
                 className={cn(
                   'w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors',
-                  hasIssues
-                    ? 'bg-muted/50 hover:bg-muted cursor-pointer'
-                    : 'cursor-default',
+                  hasIssues ? 'bg-muted/50 hover:bg-muted cursor-pointer' : 'cursor-default',
                 )}
               >
-                <span className={cn('font-medium', CHECKER_ICON_COLORS[checker])}>
-                  {t(`checkers.${checker}`)}
-                </span>
-                <span className={cn(
-                  'text-xs font-medium',
-                  hasIssues ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400',
-                )}>
+                <span className={cn('font-medium', CHECKER_ICON_COLORS[checker])}>{t(`checkers.${checker}`)}</span>
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    hasIssues ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400',
+                  )}
+                >
                   {hasIssues ? t('checkerIssues', { count: issues.length }) : t('checkerPass')}
                 </span>
               </button>
@@ -162,7 +172,10 @@ export function HealthScoreCard({
                     return (
                       <div
                         key={idx}
-                        className={cn('text-xs space-y-0.5 pl-2 border-l-2 flex items-start justify-between gap-2', SEVERITY_BORDER[finding.severity] || 'border-l-muted')}
+                        className={cn(
+                          'text-xs space-y-0.5 pl-2 border-l-2 flex items-start justify-between gap-2',
+                          SEVERITY_BORDER[finding.severity] || 'border-l-muted',
+                        )}
                       >
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-foreground">{finding.title}</p>

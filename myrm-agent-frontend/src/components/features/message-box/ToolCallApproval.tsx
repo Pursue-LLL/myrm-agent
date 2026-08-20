@@ -138,9 +138,7 @@ const ToolCallItem: React.FC<{
             <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayTitle}</span>
           </div>
 
-          {toolCall.ptcAnnotations ? (
-            <PtcHintBadges annotations={toolCall.ptcAnnotations} t={t} />
-          ) : null}
+          {toolCall.ptcAnnotations ? <PtcHintBadges annotations={toolCall.ptcAnnotations} t={t} /> : null}
         </div>
         {getStatusBadge(toolCall.status, t(`toolCallStatus.${toolCall.status}`))}
       </div>
@@ -163,9 +161,7 @@ const ToolCallItem: React.FC<{
         <div className="mb-3">
           <pre className="text-xs bg-gray-100 dark:bg-gray-900 p-2 rounded overflow-x-auto max-h-32 text-gray-700 dark:text-gray-300">
             {JSON.stringify(
-              Object.fromEntries(
-                Object.entries(toolCall.arguments).filter(([key]) => key !== 'reason'),
-              ),
+              Object.fromEntries(Object.entries(toolCall.arguments).filter(([key]) => key !== 'reason')),
               null,
               2,
             )}

@@ -13,12 +13,7 @@ interface CheckpointCardProps {
   isLoading?: boolean;
 }
 
-const CheckpointCard: React.FC<CheckpointCardProps> = ({
-  checkpoint,
-  onReinitiate,
-  onDelete,
-  isLoading = false,
-}) => {
+const CheckpointCard: React.FC<CheckpointCardProps> = ({ checkpoint, onReinitiate, onDelete, isLoading = false }) => {
   const t = useTranslations('checkpoint');
   const [deleting, setDeleting] = useState(false);
 

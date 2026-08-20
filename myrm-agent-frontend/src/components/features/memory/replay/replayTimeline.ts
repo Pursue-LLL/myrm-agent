@@ -40,13 +40,17 @@ export interface ReplayEventMarker {
 }
 
 export function messageTimestamp(message: Message): number | null {
-  if (!message.createdAt) {return null;}
+  if (!message.createdAt) {
+    return null;
+  }
   const ts = message.createdAt instanceof Date ? message.createdAt.getTime() : new Date(message.createdAt).getTime();
   return Number.isFinite(ts) ? ts : null;
 }
 
 export function messageReasoning(message: Message): string | undefined {
-  if (message.reasoning) {return message.reasoning;}
+  if (message.reasoning) {
+    return message.reasoning;
+  }
   const legacy = message as Message & { reasoning_content?: string };
   return legacy.reasoning_content || undefined;
 }
@@ -75,7 +79,9 @@ export function normalizeApiMessage(raw: Message): Message {
 export function mergeMessages(storeMessages: Message[], remoteMessages: Message[]): Message[] {
   const byId = new Map<string, Message>();
   for (const m of [...storeMessages, ...remoteMessages]) {
-    if (m.messageId) {byId.set(m.messageId, m);}
+    if (m.messageId) {
+      byId.set(m.messageId, m);
+    }
   }
   return [...byId.values()].sort((a, b) => (messageTimestamp(a) ?? 0) - (messageTimestamp(b) ?? 0));
 }
@@ -92,7 +98,9 @@ export function buildMessageEvents(
   for (let i = 0; i < sorted.length; i++) {
     const m = sorted[i];
     const baseTs = messageTimestamp(m);
-    if (baseTs === null) {continue;}
+    if (baseTs === null) {
+      continue;
+    }
 
     if (m.role === 'user') {
       events.push({ type: 'message', time: baseTs, data: m });
@@ -138,7 +146,9 @@ export function buildTimeline(messages: Message[], trace: ExecutionTrace): Repla
 
   trace.tool_calls.forEach((tc) => {
     events.push({ type: 'tool_start', time: tc.start_time * 1000, data: tc });
-    if (tc.end_time) {events.push({ type: 'tool_end', time: tc.end_time * 1000, data: tc });}
+    if (tc.end_time) {
+      events.push({ type: 'tool_end', time: tc.end_time * 1000, data: tc });
+    }
   });
 
   trace.llm_calls.forEach((lc) => {
@@ -164,9 +174,15 @@ export function buildTimeline(messages: Message[], trace: ExecutionTrace): Repla
 }
 
 export function isErrorLikeEvent(event: ReplayEvent): boolean {
-  if (event.type === 'error') {return true;}
-  if (event.type === 'tool_end' && !event.data.success) {return true;}
-  if (event.type === 'human_feedback' && event.data.approved === false) {return true;}
+  if (event.type === 'error') {
+    return true;
+  }
+  if (event.type === 'tool_end' && !event.data.success) {
+    return true;
+  }
+  if (event.type === 'human_feedback' && event.data.approved === false) {
+    return true;
+  }
   return false;
 }
 
@@ -195,15 +211,25 @@ export function buildEventMarkers(
 
   for (const event of timeline) {
     let kind: ReplayEventMarkerKind | null = null;
-    if (event.type === 'tool_start') {kind = 'tool';}
-    else if (event.type === 'llm_call') {kind = 'llm';}
-    else if (event.type === 'message') {kind = 'message';}
-    else if (event.type === 'memory') {kind = 'memory';}
-    else if (isErrorLikeEvent(event)) {kind = 'error';}
-    if (!kind) {continue;}
+    if (event.type === 'tool_start') {
+      kind = 'tool';
+    } else if (event.type === 'llm_call') {
+      kind = 'llm';
+    } else if (event.type === 'message') {
+      kind = 'message';
+    } else if (event.type === 'memory') {
+      kind = 'memory';
+    } else if (isErrorLikeEvent(event)) {
+      kind = 'error';
+    }
+    if (!kind) {
+      continue;
+    }
 
     const key = `${kind}-${event.time}`;
-    if (seen.has(key)) {continue;}
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
 
     markers.push({
@@ -217,7 +243,9 @@ export function buildEventMarkers(
 }
 
 export function snapToNearestEventTime(timeline: ReplayEvent[], currentTime: number): number {
-  if (timeline.length === 0) {return currentTime;}
+  if (timeline.length === 0) {
+    return currentTime;
+  }
   let closest = timeline[0].time;
   let minDelta = Math.abs(currentTime - closest);
   for (const event of timeline) {
@@ -233,8 +261,11 @@ export function snapToNearestEventTime(timeline: ReplayEvent[], currentTime: num
 export function findActiveEventIndex(timeline: ReplayEvent[], currentTime: number): number {
   let idx = -1;
   for (let i = 0; i < timeline.length; i++) {
-    if (timeline[i].time <= currentTime) {idx = i;}
-    else {break;}
+    if (timeline[i].time <= currentTime) {
+      idx = i;
+    } else {
+      break;
+    }
   }
   return idx;
 }

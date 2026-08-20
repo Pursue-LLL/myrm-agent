@@ -17,7 +17,9 @@ export function useConfigErrorDetector() {
   const [configError, setConfigError] = useState<ConfigError | null>(null);
 
   useEffect(() => {
-    if (messages.length === 0) {return;}
+    if (messages.length === 0) {
+      return;
+    }
 
     const lastMessage = messages[messages.length - 1];
 

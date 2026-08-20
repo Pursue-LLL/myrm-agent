@@ -5,9 +5,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { LayoutGrid } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 
@@ -29,7 +27,9 @@ const DesktopInspectorToggle: React.FC = () => {
 
   useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
-  if (!isVisible) {return null;}
+  if (!isVisible) {
+    return null;
+  }
 
   const tooltipText = isPending ? t('enabledHint') : t('toggleTitle');
 

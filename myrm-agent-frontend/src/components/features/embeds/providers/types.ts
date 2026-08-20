@@ -1,13 +1,5 @@
 export type EmbedProvider =
-  | 'googlemaps'
-  | 'instagram'
-  | 'openstreetmap'
-  | 'pinterest'
-  | 'spotify'
-  | 'tiktok'
-  | 'twitter'
-  | 'vimeo'
-  | 'youtube';
+  'googlemaps' | 'instagram' | 'openstreetmap' | 'pinterest' | 'spotify' | 'tiktok' | 'twitter' | 'vimeo' | 'youtube';
 
 export type EmbedRenderer = 'frame' | 'tweet';
 

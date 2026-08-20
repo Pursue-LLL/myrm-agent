@@ -3,7 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { IconRefresh, IconTrash, IconUpload, IconDownload, IconCheck, IconX } from '@/components/features/icons/PremiumIcons';
+import {
+  IconRefresh,
+  IconTrash,
+  IconUpload,
+  IconDownload,
+  IconCheck,
+  IconX,
+} from '@/components/features/icons/PremiumIcons';
 import { Cloud } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
@@ -211,7 +218,9 @@ export default function RemoteBackupSection() {
   };
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) {return '0 B';}
+    if (bytes === 0) {
+      return '0 B';
+    }
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));

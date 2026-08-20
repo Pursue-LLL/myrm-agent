@@ -160,9 +160,7 @@ export function QuotaDisplay({ className, compact = false }: QuotaDisplayProps) 
                   <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/50">
                     {t('topupWu')}
                   </span>
-                  <span className="text-sm font-black text-foreground/80 tabular-nums">
-                    {formatNumber(topupWu)}
-                  </span>
+                  <span className="text-sm font-black text-foreground/80 tabular-nums">{formatNumber(topupWu)}</span>
                 </div>
               </div>
             )}

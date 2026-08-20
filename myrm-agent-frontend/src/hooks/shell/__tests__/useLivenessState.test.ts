@@ -7,9 +7,8 @@ import type { LivenessState } from '../useLivenessState';
 // ── toLivenessState: state mapping logic ──
 
 describe('toLivenessState', () => {
-  it.each<LivenessState>(['busy', 'idle', 'degraded', 'draining'])(
-    'accepts valid API state "%s"',
-    (s) => expect(toLivenessState(s)).toBe(s),
+  it.each<LivenessState>(['busy', 'idle', 'degraded', 'draining'])('accepts valid API state "%s"', (s) =>
+    expect(toLivenessState(s)).toBe(s),
   );
 
   it('rejects "offline" as an API state (offline is frontend-only)', () => {

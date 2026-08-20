@@ -5,8 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getPendingEditsMock = vi.fn();
 const approveEditMock = vi.fn();
 
-const stableT = (key: string, values?: Record<string, string>) =>
-  values?.scope ? `${key}:${values.scope}` : key;
+const stableT = (key: string, values?: Record<string, string>) => (values?.scope ? `${key}:${values.scope}` : key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -107,8 +106,7 @@ describe('WikiPendingEdits agent scope reload', () => {
           id: 1,
           concept_name: 'Alpha',
           provenance: 'chat-compound',
-          proposed_content:
-            '---\nsource_chat: chat-123\nsource_message: msg-456\n---\n# Alpha\ndraft',
+          proposed_content: '---\nsource_chat: chat-123\nsource_message: msg-456\n---\n# Alpha\ndraft',
           status: 'pending',
           created_at: '2026-07-29T00:00:00.000Z',
           updated_at: '2026-07-29T00:00:00.000Z',

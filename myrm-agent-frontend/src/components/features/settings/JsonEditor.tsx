@@ -149,7 +149,9 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
           onChange={(e) => handleTextChange(e.target.value)}
           onBlur={() => {
             parseAndUpdateJson();
-            if (onBlur) {onBlur();}
+            if (onBlur) {
+              onBlur();
+            }
           }}
           placeholder={placeholder}
           className="w-full h-40 p-3 bg-transparent font-mono text-sm resize-y outline-none dark:text-white/90 rounded-lg"

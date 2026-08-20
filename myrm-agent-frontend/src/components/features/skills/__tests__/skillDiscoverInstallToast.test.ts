@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  resolveSkillInstallToastMessage,
-  type SkillInstallToastResponse,
-} from '../skillDiscoverInstallToast';
+import { resolveSkillInstallToastMessage, type SkillInstallToastResponse } from '../skillDiscoverInstallToast';
 
 const SKILL = 'Demo Skill';
 

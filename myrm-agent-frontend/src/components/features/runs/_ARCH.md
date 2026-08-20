@@ -6,16 +6,16 @@ Unified Runs Hub：聚合 Cron / Kanban / Shell 后台任务的运行历史，�
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-| ---- | ---- | ---- | ---- |
-| `RunsHub.tsx` | 核心 | 运行列表 UI、筛选 Tabs、RunRow 展开详情、Kanban trace 嵌入（`showEvalCase={false}` + 运行中 `pollMs` 实时刷新）、加载失败态；列表有 running 任务时 30s 轮询自动刷新 | — |
-| `__tests__/RunsHub.test.tsx` | 测试 | error/retry、emptyFiltered、degraded、loadMore toast、badge、Kanban trace 展开 | — |
-| `__tests__/runsLocales.test.ts` | 测试 | 六语 `runs` namespace key 完整性 | — |
+| 文件                            | 地位 | 职责                                                                                                                                                                | I/O/P |
+| ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `RunsHub.tsx`                   | 核心 | 运行列表 UI、筛选 Tabs、RunRow 展开详情、Kanban trace 嵌入（`showEvalCase={false}` + 运行中 `pollMs` 实时刷新）、加载失败态；列表有 running 任务时 30s 轮询自动刷新 | —     |
+| `__tests__/RunsHub.test.tsx`    | 测试 | error/retry、emptyFiltered、degraded、loadMore toast、badge、Kanban trace 展开                                                                                      | —     |
+| `__tests__/runsLocales.test.ts` | 测试 | 六语 `runs` namespace key 完整性                                                                                                                                    | —     |
 
 ## 路由
 
-| 路径 | 页面 |
-| ---- | ---- |
+| 路径    | 页面                                                |
+| ------- | --------------------------------------------------- |
 | `/runs` | [src/app/runs/page.tsx](../../../app/runs/page.tsx) |
 
 ## 依赖

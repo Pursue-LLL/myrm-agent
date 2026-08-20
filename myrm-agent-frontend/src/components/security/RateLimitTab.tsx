@@ -27,12 +27,7 @@ export function RateLimitTab({ rateLimitData, rateLimitLive }: RateLimitTabProps
       </div>
 
       {rateLimitData.length === 0 ? (
-        <EmptyState
-          variant="dashed"
-          icon={IconCheckCircle}
-          title={t('noRateLimits')}
-          className="my-4"
-        />
+        <EmptyState variant="dashed" icon={IconCheckCircle} title={t('noRateLimits')} className="my-4" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -87,9 +82,7 @@ export function RateLimitTab({ rateLimitData, rateLimitLive }: RateLimitTabProps
                             style={{ width: `${Math.min(usagePercent, 100)}%` }}
                           />
                         </div>
-                        <span
-                          className={`text-xs font-medium ${isHigh ? 'text-red-500' : 'text-muted-foreground'}`}
-                        >
+                        <span className={`text-xs font-medium ${isHigh ? 'text-red-500' : 'text-muted-foreground'}`}>
                           {usagePercent.toFixed(0)}%
                         </span>
                       </div>

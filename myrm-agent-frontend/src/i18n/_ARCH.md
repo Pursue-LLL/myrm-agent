@@ -6,21 +6,21 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `config.ts` | 支持 locale 列表与 defaultLocale |
-| `routing.ts` | next-intl routing 配置 |
-| `request.ts` | Server Component locale 解析（`loadShellMessages`） |
-| `load-messages.ts` | Server-only：shell / deferred namespace 文件加载 |
-| `locale-manifest.ts` | SSR shell vs deferred namespace 清单（含 `themeStudio` settings shell；deferred 顶层 `channels`） |
-| `merge-messages.ts` | 浅合并 shell + deferred messages（settings 深合并） |
-| `__tests__/locale-shell.test.ts` | shell/deferred 分割与 merge 单测 |
-| `__tests__/ClientIntlProvider.test.tsx` | deferred fetch retry / fail-closed 单测 |
-| `ClientIntlProvider.tsx` | mount 后 fetch `/api/i18n/deferred` 并 merge messages；失败 fail-closed + 指数 retry |
-| `deferred-locale-context.tsx` | Settings 路由等待 deferred settings 加载后再渲染 |
-| `index.ts` | `getLocale` / `setLocale`（cookie 读写） |
-| `LocalizedProviders.tsx` | 根 i18n + 全局 initializer 树（Suspense 内） |
-| `DocumentLang.tsx` | 客户端同步 `<html lang>` |
+| 文件                                    | 职责                                                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `config.ts`                             | 支持 locale 列表与 defaultLocale                                                                  |
+| `routing.ts`                            | next-intl routing 配置                                                                            |
+| `request.ts`                            | Server Component locale 解析（`loadShellMessages`）                                               |
+| `load-messages.ts`                      | Server-only：shell / deferred namespace 文件加载                                                  |
+| `locale-manifest.ts`                    | SSR shell vs deferred namespace 清单（含 `themeStudio` settings shell；deferred 顶层 `channels`） |
+| `merge-messages.ts`                     | 浅合并 shell + deferred messages（settings 深合并）                                               |
+| `__tests__/locale-shell.test.ts`        | shell/deferred 分割与 merge 单测                                                                  |
+| `__tests__/ClientIntlProvider.test.tsx` | deferred fetch retry / fail-closed 单测                                                           |
+| `ClientIntlProvider.tsx`                | mount 后 fetch `/api/i18n/deferred` 并 merge messages；失败 fail-closed + 指数 retry              |
+| `deferred-locale-context.tsx`           | Settings 路由等待 deferred settings 加载后再渲染                                                  |
+| `index.ts`                              | `getLocale` / `setLocale`（cookie 读写）                                                          |
+| `LocalizedProviders.tsx`                | 根 i18n + 全局 initializer 树（Suspense 内）                                                      |
+| `DocumentLang.tsx`                      | 客户端同步 `<html lang>`                                                                          |
 
 ## 依赖
 
@@ -39,11 +39,11 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 
 ## 首屏体积（prod `next start`，2026-07-13 实测）
 
-| 指标 | 优化前（历史） | 当前 prod |
-|------|----------------|-----------|
-| HTML transfer | ~943KB | ~447KB |
-| TTFB | 120–430ms | ~105ms |
-| SSR `MISSING_MESSAGE` | — | 无（memory 在 shell） |
+| 指标                  | 优化前（历史） | 当前 prod             |
+| --------------------- | -------------- | --------------------- |
+| HTML transfer         | ~943KB         | ~447KB                |
+| TTFB                  | 120–430ms      | ~105ms                |
+| SSR `MISSING_MESSAGE` | —              | 无（memory 在 shell） |
 
 deferred 顶层 namespace 仅 `channels`；`memory` 必须在 SSR shell（`ChatWindow` 等首屏组件引用）。
 home-route `settings.*` 引用必须通过 `scripts/scan-home-i18n-shell.mjs`（CI 在 verify-i18n 内执行）。

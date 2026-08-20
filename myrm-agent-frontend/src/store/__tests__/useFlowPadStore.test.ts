@@ -203,9 +203,7 @@ describe('useFlowPadStore', () => {
     });
 
     it('addCapture with empty screenshot and text still adds', () => {
-      useFlowPadStore.getState().addCapture(
-        makeCapture({ screenshot: '', extractedText: '', windowTitle: '' }),
-      );
+      useFlowPadStore.getState().addCapture(makeCapture({ screenshot: '', extractedText: '', windowTitle: '' }));
       expect(useFlowPadStore.getState().captures).toHaveLength(1);
     });
 

@@ -6,17 +6,17 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `ProgressSteps.tsx` | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位） | ✅ |
-| `utils.ts` | 辅助 | 步骤标题（`@/lib/humanize` SSOT） | ✅ |
-| `treeUtils.ts` | 辅助 | progressSteps 树构建 | ✅ |
-| `toolIcons.tsx` | 辅助 | 步骤图标与 agent 主题色 | ✅ |
-| `ArchiveRestoreStepAction.tsx` | 组件 | 归档恢复步骤操作 | ✅ |
-| `ArchiveRestoreResultChip.tsx` | 组件 | 归档恢复结果 chip | ✅ |
-| `useScrollbarStyles.ts` | 辅助 | 展开面板滚动条样式 | ✅ |
-| `renderers/` | 目录 | 步骤叶子渲染（终端、代码、evicted drawer 等） | [_ARCH.md](renderers/_ARCH.md) |
-| `__tests__/` | 测试 | ProgressSteps guardrail_blocked Badge、utils linkify、ArchiveRestore 单测 | — |
+| 文件                           | 地位 | 职责                                                                                     | I/O/P                          |
+| ------------------------------ | ---- | ---------------------------------------------------------------------------------------- | ------------------------------ |
+| `ProgressSteps.tsx`            | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位） | ✅                             |
+| `utils.ts`                     | 辅助 | 步骤标题（`@/lib/humanize` SSOT）                                                        | ✅                             |
+| `treeUtils.ts`                 | 辅助 | progressSteps 树构建                                                                     | ✅                             |
+| `toolIcons.tsx`                | 辅助 | 步骤图标与 agent 主题色                                                                  | ✅                             |
+| `ArchiveRestoreStepAction.tsx` | 组件 | 归档恢复步骤操作                                                                         | ✅                             |
+| `ArchiveRestoreResultChip.tsx` | 组件 | 归档恢复结果 chip                                                                        | ✅                             |
+| `useScrollbarStyles.ts`        | 辅助 | 展开面板滚动条样式                                                                       | ✅                             |
+| `renderers/`                   | 目录 | 步骤叶子渲染（终端、代码、evicted drawer 等）                                            | [_ARCH.md](renderers/_ARCH.md) |
+| `__tests__/`                   | 测试 | ProgressSteps guardrail_blocked Badge、utils linkify、ArchiveRestore 单测                | —                              |
 
 ## 依赖
 

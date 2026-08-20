@@ -77,9 +77,7 @@ describe('uploadThemeBackground', () => {
 
   it('throws validation error for unsupported files', async () => {
     const file = new File(['x'], 'notes.txt', { type: 'text/plain' });
-    await expect(uploadThemeBackground(file)).rejects.toBeInstanceOf(
-      ThemeBackgroundValidationFailedError,
-    );
+    await expect(uploadThemeBackground(file)).rejects.toBeInstanceOf(ThemeBackgroundValidationFailedError);
     expect(uploadThemeAsset).not.toHaveBeenCalled();
   });
 

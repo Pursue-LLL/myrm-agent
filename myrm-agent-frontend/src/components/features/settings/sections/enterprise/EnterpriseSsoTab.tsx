@@ -45,10 +45,7 @@ const EnterpriseSsoTab = memo(() => {
   const t = useTranslations('settings.enterprise.sso');
   const authUserId = useAuthStore((s) => s.user?.id);
   const [members, setMembers] = useState<OrgMember[]>([]);
-  const isOrgAdmin = useMemo(
-    () => canManageOrgMcp(members, authUserId),
-    [authUserId, members],
-  );
+  const isOrgAdmin = useMemo(() => canManageOrgMcp(members, authUserId), [authUserId, members]);
 
   const [orgId, setOrgId] = useState('');
   const [orgSsoDomain, setOrgSsoDomain] = useState('');
@@ -72,10 +69,7 @@ const EnterpriseSsoTab = memo(() => {
 
   const cpBaseUrl = resolveCpBaseUrl();
   const loginLink = useMemo(
-    () =>
-      orgId
-        ? `${cpBaseUrl}/api/auth/oauth/oidc/authorize?org=${encodeURIComponent(orgId)}`
-        : '',
+    () => (orgId ? `${cpBaseUrl}/api/auth/oauth/oidc/authorize?org=${encodeURIComponent(orgId)}` : ''),
     [cpBaseUrl, orgId],
   );
 
@@ -86,10 +80,7 @@ const EnterpriseSsoTab = memo(() => {
       setOrgId(org.id);
       setOrgSsoDomain(org.sso_domain ?? '');
       setSsoDomainInput(org.sso_domain ?? '');
-      const [sso, memberRows] = await Promise.all([
-        getOrgSsoConfig(org.id),
-        listMembers(org.id),
-      ]);
+      const [sso, memberRows] = await Promise.all([getOrgSsoConfig(org.id), listMembers(org.id)]);
       setMembers(memberRows);
       setConfig(sso);
       if (sso) {
@@ -112,7 +103,9 @@ const EnterpriseSsoTab = memo(() => {
   }, [loadConfig]);
 
   const handleSave = useCallback(async () => {
-    if (!orgId || !issuerUrl.trim() || !clientId.trim()) {return;}
+    if (!orgId || !issuerUrl.trim() || !clientId.trim()) {
+      return;
+    }
     setSaving(true);
     try {
       const saved = await upsertOrgSsoConfig(orgId, {
@@ -137,7 +130,9 @@ const EnterpriseSsoTab = memo(() => {
   }, [orgId, issuerUrl, clientId, clientSecret, autoProvision, enabled, allowedGroups, t]);
 
   const handleDelete = useCallback(async () => {
-    if (!orgId) {return;}
+    if (!orgId) {
+      return;
+    }
     try {
       await deleteOrgSsoConfig(orgId);
       setConfig(null);
@@ -154,7 +149,9 @@ const EnterpriseSsoTab = memo(() => {
   }, [orgId, t]);
 
   const handleSaveDomain = useCallback(async () => {
-    if (!orgId) {return;}
+    if (!orgId) {
+      return;
+    }
     setDomainSaving(true);
     try {
       const org = await updateOrgSsoDomain(orgId, ssoDomainInput);
@@ -238,9 +235,7 @@ const EnterpriseSsoTab = memo(() => {
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
               placeholder={
-                config && config.client_secret_masked
-                  ? maskSecret(config.client_secret_masked)
-                  : t('secretPlaceholder')
+                config && config.client_secret_masked ? maskSecret(config.client_secret_masked) : t('secretPlaceholder')
               }
             />
             <p className="text-xs text-muted-foreground">
@@ -282,9 +277,7 @@ const EnterpriseSsoTab = memo(() => {
               placeholder="engineering, finance"
             />
             <p className="text-xs text-muted-foreground">
-              {domainRestricted
-                ? t('groupsHintDomain', { domain: orgSsoDomain })
-                : t('groupsHint')}
+              {domainRestricted ? t('groupsHintDomain', { domain: orgSsoDomain }) : t('groupsHint')}
             </p>
           </div>
 
@@ -292,9 +285,7 @@ const EnterpriseSsoTab = memo(() => {
             <div>
               <p className="text-sm font-medium">{t('autoProvisionLabel')}</p>
               <p className="text-xs text-muted-foreground">
-                {domainRestricted
-                  ? t('autoProvisionHintDomain', { domain: orgSsoDomain })
-                  : t('autoProvisionHint')}
+                {domainRestricted ? t('autoProvisionHintDomain', { domain: orgSsoDomain }) : t('autoProvisionHint')}
               </p>
             </div>
             <Switch checked={autoProvision} onCheckedChange={setAutoProvision} />
@@ -339,9 +330,7 @@ const EnterpriseSsoTab = memo(() => {
             </div>
             <p className="text-xs text-muted-foreground">{t('loginLinkHint')}</p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-background px-2 py-1.5 rounded break-all">
-                {loginLink}
-              </code>
+              <code className="flex-1 text-xs bg-background px-2 py-1.5 rounded break-all">{loginLink}</code>
               <Button size="sm" variant="outline" onClick={copyLoginLink}>
                 {t('copyLink')}
               </Button>

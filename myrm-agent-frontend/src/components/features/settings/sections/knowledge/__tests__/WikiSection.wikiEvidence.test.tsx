@@ -87,15 +87,7 @@ vi.mock('@/services/wiki/evidenceMetrics', () => ({
 }));
 
 vi.mock('@/components/features/message-box/SourceChunkDrawer', () => ({
-  default: ({
-    open,
-    level,
-    surface,
-  }: {
-    open: boolean;
-    level?: string;
-    surface?: string;
-  }) => (
+  default: ({ open, level, surface }: { open: boolean; level?: string; surface?: string }) => (
     <div
       data-testid="settings-snippet-drawer"
       data-open={open ? '1' : '0'}

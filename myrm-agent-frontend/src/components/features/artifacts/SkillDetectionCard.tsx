@@ -70,7 +70,9 @@ const SkillDetectionCard: React.FC<SkillDetectionCardProps> = ({ artifacts, chat
 
   // 检查工件中的技能是否已经在用户的技能库中注册过
   const isSkillAlreadyRegistered = useMemo(() => {
-    if (!skillDirectory) {return false;}
+    if (!skillDirectory) {
+      return false;
+    }
 
     // 检查是否是来自技能存储的路径（预构建或本地技能）
     // 格式: skills/prebuilt/xxx, skills/xxx
@@ -96,7 +98,9 @@ const SkillDetectionCard: React.FC<SkillDetectionCardProps> = ({ artifacts, chat
   }, [skillDirectory, marketSkills, localSkills, normalizeSkillName]);
 
   const isSkillAlreadyInUse = useMemo(() => {
-    if (!skillDirectory || selectedSkillIds.length === 0) {return false;}
+    if (!skillDirectory || selectedSkillIds.length === 0) {
+      return false;
+    }
 
     const allSkills = [...marketSkills, ...localSkills];
     const directoryParts = skillDirectory.split('/');
@@ -117,7 +121,9 @@ const SkillDetectionCard: React.FC<SkillDetectionCardProps> = ({ artifacts, chat
 
   // 打包下载工作区
   const handlePackageDownload = useCallback(async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
 
     setIsPackaging(true);
     try {
@@ -145,7 +151,9 @@ const SkillDetectionCard: React.FC<SkillDetectionCardProps> = ({ artifacts, chat
 
   // 打包并注册技能
   const handlePackageAndRegister = useCallback(async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
 
     setIsRegistering(true);
     try {
@@ -168,9 +176,7 @@ const SkillDetectionCard: React.FC<SkillDetectionCardProps> = ({ artifacts, chat
         }
 
         const restoredInfo =
-          result.restored_eval_cases > 0
-            ? ` (${t('evalCasesRestored', { count: result.restored_eval_cases })})`
-            : '';
+          result.restored_eval_cases > 0 ? ` (${t('evalCasesRestored', { count: result.restored_eval_cases })})` : '';
 
         toast({
           title: t('registerSuccess'),

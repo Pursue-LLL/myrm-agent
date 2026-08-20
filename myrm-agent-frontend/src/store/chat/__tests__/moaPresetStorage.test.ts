@@ -50,37 +50,21 @@ describe('moaPresetStorage', () => {
 
   it('resolveHydratedMoaPresetId skips incognito and non-agent modes', () => {
     writeStoredMoaPresetId(CHAT_ID, 'review');
-    expect(
-      resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: false }),
-    ).toBe('review');
-    expect(
-      resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: true }),
-    ).toBeNull();
-    expect(
-      resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'fast', incognitoMode: false }),
-    ).toBeNull();
+    expect(resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: false })).toBe('review');
+    expect(resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: true })).toBeNull();
+    expect(resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'fast', incognitoMode: false })).toBeNull();
   });
 
   it('prefers server preset over localStorage when both exist', () => {
     writeStoredMoaPresetId(CHAT_ID, 'fast');
-    expect(
-      resolveHydratedMoaPresetId(
-        CHAT_ID,
-        { actionMode: 'agent', incognitoMode: false },
-        'review',
-      ),
-    ).toBe('review');
+    expect(resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: false }, 'review')).toBe('review');
   });
 
   it('keeps localStorage preset when leaving agent mode (caller clears memory only)', () => {
     writeStoredMoaPresetId(CHAT_ID, 'default');
-    expect(
-      resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'fast', incognitoMode: false }),
-    ).toBeNull();
+    expect(resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'fast', incognitoMode: false })).toBeNull();
     expect(readStoredMoaPresetId(CHAT_ID)).toBe('default');
-    expect(
-      resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: false }),
-    ).toBe('default');
+    expect(resolveHydratedMoaPresetId(CHAT_ID, { actionMode: 'agent', incognitoMode: false })).toBe('default');
   });
 
   it('persistMoaPresetToServer invokes rollback and toast when PATCH fails', async () => {
@@ -90,10 +74,8 @@ describe('moaPresetStorage', () => {
     const rollback = vi.fn();
     await persistMoaPresetToServer(CHAT_ID, 'default', rollback);
     expect(rollback).toHaveBeenCalledOnce();
-    expect(showI18nToast).toHaveBeenCalledWith(
-      'settings.defaultModel.moaPreset.persistFailed',
-      undefined,
-      { type: 'error' },
-    );
+    expect(showI18nToast).toHaveBeenCalledWith('settings.defaultModel.moaPreset.persistFailed', undefined, {
+      type: 'error',
+    });
   });
 });

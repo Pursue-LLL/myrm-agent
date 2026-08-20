@@ -41,11 +41,7 @@ function makeTask(overrides: Partial<KanbanTask> = {}): KanbanTask {
   };
 }
 
-function renderSection(
-  task: KanbanTask,
-  onRequireApprovalChange = vi.fn(),
-  editingSkills = false,
-) {
+function renderSection(task: KanbanTask, onRequireApprovalChange = vi.fn(), editingSkills = false) {
   return render(
     <TaskDetailsSection
       task={task}

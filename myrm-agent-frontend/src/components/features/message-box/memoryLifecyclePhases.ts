@@ -49,7 +49,9 @@ export function memoryOperationMatchesChat(
   payload: MemoryOperationStreamPayload,
   chatId: string | null | undefined,
 ): boolean {
-  if (!chatId) {return false;}
+  if (!chatId) {
+    return false;
+  }
   const resolved = eventChatId(payload);
   return resolved === chatId;
 }
@@ -67,9 +69,7 @@ export interface TraceMemoryEventLike {
 const MESSAGE_EVENT_SKEW_MS = 5000;
 
 /** Normalize API/store message timestamps for P1 lifecycle scoping (ISO string or Date). */
-export function resolveMessageCreatedAtMs(
-  createdAt: Date | string | number | null | undefined,
-): number | undefined {
+export function resolveMessageCreatedAtMs(createdAt: Date | string | number | null | undefined): number | undefined {
   if (createdAt instanceof Date) {
     const ms = createdAt.getTime();
     return Number.isFinite(ms) ? ms : undefined;
@@ -84,12 +84,16 @@ export function resolveMessageCreatedAtMs(
 export function memoryEventTimestampMs(payload: MemoryOperationStreamPayload): number | null {
   if (typeof payload.occurred_at === 'string') {
     const ms = Date.parse(payload.occurred_at);
-    if (Number.isFinite(ms)) {return ms;}
+    if (Number.isFinite(ms)) {
+      return ms;
+    }
   }
   const metaOccurred = payload.metadata?.occurred_at;
   if (typeof metaOccurred === 'string') {
     const ms = Date.parse(metaOccurred);
-    if (Number.isFinite(ms)) {return ms;}
+    if (Number.isFinite(ms)) {
+      return ms;
+    }
   }
   return null;
 }
@@ -106,18 +110,21 @@ export function isMemoryEventForMessage(
   chatId: string,
   messageCreatedAtMs: number,
 ): boolean {
-  if (!memoryOperationMatchesChat(payload, chatId)) {return false;}
+  if (!memoryOperationMatchesChat(payload, chatId)) {
+    return false;
+  }
   const eventMs = memoryEventTimestampMs(payload);
-  if (eventMs == null) {return false;}
+  if (eventMs == null) {
+    return false;
+  }
   return eventMs >= messageCreatedAtMs - MESSAGE_EVENT_SKEW_MS;
 }
 
-export function isTraceMemoryEventForMessage(
-  event: TraceMemoryEventLike,
-  messageCreatedAtMs: number,
-): boolean {
+export function isTraceMemoryEventForMessage(event: TraceMemoryEventLike, messageCreatedAtMs: number): boolean {
   const eventMs = traceMemoryEventTimestampMs(event);
-  if (eventMs == null) {return false;}
+  if (eventMs == null) {
+    return false;
+  }
   return eventMs >= messageCreatedAtMs - MESSAGE_EVENT_SKEW_MS;
 }
 
@@ -169,8 +176,7 @@ export function applyMemoryOperationToPhases(
   const detail = typeof payload.description === 'string' ? payload.description : undefined;
   const rawDuration = payload.metadata?.duration_ms;
   const durationMs = typeof rawDuration === 'number' ? rawDuration : undefined;
-  const rawStored =
-    payload.metadata?.stored_count ?? payload.metadata?.compressed_count;
+  const rawStored = payload.metadata?.stored_count ?? payload.metadata?.compressed_count;
   const storedCount = typeof rawStored === 'number' ? rawStored : undefined;
   const rawVerbatim = payload.metadata?.verbatim_count;
   const verbatimCount = typeof rawVerbatim === 'number' ? rawVerbatim : undefined;
@@ -233,9 +239,15 @@ function ledgerKindFromTraceEvent(event: TraceMemoryEventLike): string {
   if (event.kind && event.kind.trim()) {
     return event.kind.trim();
   }
-  if (event.phase === 'write') {return 'write';}
-  if (event.phase === 'observe') {return 'extract';}
-  if (event.phase === 'recall' || event.phase === 'inject') {return 'recall';}
+  if (event.phase === 'write') {
+    return 'write';
+  }
+  if (event.phase === 'observe') {
+    return 'extract';
+  }
+  if (event.phase === 'recall' || event.phase === 'inject') {
+    return 'recall';
+  }
   return '';
 }
 
@@ -254,14 +266,9 @@ export function hydratePhasesFromTraceEvents(
   events: TraceMemoryEventLike[],
   messageCreatedAtMs?: number,
 ): Record<MemoryLifecyclePhaseId, MemoryLifecyclePhaseState> {
-  const scopedAtMs =
-    messageCreatedAtMs != null && Number.isFinite(messageCreatedAtMs)
-      ? messageCreatedAtMs
-      : undefined;
+  const scopedAtMs = messageCreatedAtMs != null && Number.isFinite(messageCreatedAtMs) ? messageCreatedAtMs : undefined;
   const scopedEvents =
-    scopedAtMs == null
-      ? events
-      : events.filter((event) => isTraceMemoryEventForMessage(event, scopedAtMs));
+    scopedAtMs == null ? events : events.filter((event) => isTraceMemoryEventForMessage(event, scopedAtMs));
   return scopedEvents.reduce(
     (current, event) => applyMemoryOperationToPhases(current, traceMemoryEventToPayload(event)),
     base,

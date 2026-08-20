@@ -29,11 +29,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/primitives/alert-dialog';
 import { toast } from '@/hooks/shared/useToast';
-import {
-  getSkillVersionDetail,
-  listSkillVersions,
-  startShadowAbTest,
-} from '@/services/skill/optimization';
+import { getSkillVersionDetail, listSkillVersions, startShadowAbTest } from '@/services/skill/optimization';
 
 interface ShadowSample {
   id: number;
@@ -70,7 +66,9 @@ interface SkillQualityGuardianProps {
 }
 
 function SimilarityBar({ score }: { score: number | null }) {
-  if (score === null) {return null;}
+  if (score === null) {
+    return null;
+  }
   const pct = Math.round(score * 100);
   const color = pct >= 90 ? 'bg-green-500' : pct >= 70 ? 'bg-amber-500' : 'bg-red-500';
   return (
@@ -164,9 +162,7 @@ export function SkillQualityGuardian({ skillId, onPromoted, onStopped }: SkillQu
 
       const versionsResp = await listSkillVersions(skillId, 20);
       const active = versionsResp.versions.find((v) => v.is_active);
-      const inactive = versionsResp.versions
-        .filter((v) => !v.is_active)
-        .sort((a, b) => b.version - a.version)[0];
+      const inactive = versionsResp.versions.filter((v) => !v.is_active).sort((a, b) => b.version - a.version)[0];
       if (active && inactive && inactive.version > active.version) {
         setCanStartShadow(true);
         setBaselineVersion(active.version);
@@ -196,7 +192,9 @@ export function SkillQualityGuardian({ skillId, onPromoted, onStopped }: SkillQu
   }, [fetchStatus, testStatus?.status]);
 
   const handleStartShadow = async () => {
-    if (baselineVersion === null || pendingCandidateVersion === null) {return;}
+    if (baselineVersion === null || pendingCandidateVersion === null) {
+      return;
+    }
     setIsStarting(true);
     try {
       const detail = await getSkillVersionDetail(skillId, pendingCandidateVersion);
@@ -275,7 +273,9 @@ export function SkillQualityGuardian({ skillId, onPromoted, onStopped }: SkillQu
     );
   }
 
-  if (!testStatus) {return null;}
+  if (!testStatus) {
+    return null;
+  }
 
   const score = testStatus.candidate_score || { success_rate: 0, avg_latency: 0 };
   const matchRate = (score.success_rate * 100).toFixed(0);

@@ -18,9 +18,7 @@ import { ActSection, VerifySection } from '../command-center/MemoryCommandCenter
 type ActSectionProps = Parameters<typeof ActSection>[0];
 type VerifySectionProps = Parameters<typeof VerifySection>[0];
 
-const makeSnapshot = (
-  adapterStatus: Record<string, 'ready' | 'planned' | 'missing'>,
-): MemoryCommandCenterResponse =>
+const makeSnapshot = (adapterStatus: Record<string, 'ready' | 'planned' | 'missing'>): MemoryCommandCenterResponse =>
   ({
     governance: [],
     migration: {

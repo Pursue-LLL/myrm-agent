@@ -17,22 +17,11 @@ import { ensurePlatformReadiness } from '@/lib/platform-readiness';
 import { cloneDeep } from 'lodash-es';
 import { withConfigInitLock } from './configInitLock';
 import { valuesEqual } from './configFingerprint';
-import {
-  isNormalizedDirty,
-  normalizeConfigValue,
-  STARTUP_NORMALIZE_KEYS,
-} from './configNormalizer';
+import { isNormalizedDirty, normalizeConfigValue, STARTUP_NORMALIZE_KEYS } from './configNormalizer';
 import { threeWayMerge } from './mergeUtils';
 import { isThemePersonalSettingsChange } from './themePersonalSettingsSync';
 import { BaseConfigAdapter, TauriConfigAdapter, SandboxConfigAdapter } from './adapters';
-import type {
-  ConfigAdapter,
-  ConfigKey,
-  ConfigRecord,
-  ConfigChange,
-  ConfigValueMap,
-  SyncResult,
-} from './types';
+import type { ConfigAdapter, ConfigKey, ConfigRecord, ConfigChange, ConfigValueMap, SyncResult } from './types';
 import { ALL_CONFIG_KEYS, CORE_CONFIG_KEYS, createInitialVersion, incrementVersion } from './types';
 
 // 防抖延迟（毫秒）
@@ -311,7 +300,9 @@ class ConfigSyncManager {
         }
 
         const base = this.baseCache.get(key);
-        if (!isNormalizedDirty(key, base?.value as ConfigValueMap[typeof key], record.value as ConfigValueMap[typeof key])) {
+        if (
+          !isNormalizedDirty(key, base?.value as ConfigValueMap[typeof key], record.value as ConfigValueMap[typeof key])
+        ) {
           continue;
         }
 
@@ -324,11 +315,7 @@ class ConfigSyncManager {
    * 设置配置（乐观更新 + 异步同步）
    */
   set<K extends ConfigKey>(key: K, value: ConfigValueMap[K]): void {
-    if (
-      typeof window !== 'undefined' &&
-      window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ &&
-      key === 'searchServices'
-    ) {
+    if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ && key === 'searchServices') {
       this.changeQueue = this.changeQueue.filter((change) => change.key !== 'searchServices');
       const current = this.cache.get(key) as ConfigRecord<K> | undefined;
       const currentVersion = current?.meta.version ?? createInitialVersion();
@@ -452,10 +439,7 @@ class ConfigSyncManager {
    * 立即同步所有待处理变更
    */
   private async flushSync(): Promise<SyncResult> {
-    if (
-      typeof window !== 'undefined' &&
-      window.__MYRM_E2E_BLOCK_SEARCH_SYNC__
-    ) {
+    if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) {
       this.changeQueue = this.changeQueue.filter((change) => change.key !== 'searchServices');
     }
     if (this.changeQueue.length === 0) {
@@ -582,8 +566,7 @@ class ConfigSyncManager {
         const baseRecord = this.baseCache.get(key);
 
         if (serverRecord && localRecord) {
-          const sameDevice =
-            serverRecord.meta.deviceId === (this.adapter as BaseConfigAdapter).getDeviceId();
+          const sameDevice = serverRecord.meta.deviceId === (this.adapter as BaseConfigAdapter).getDeviceId();
           const mergeBase = (baseRecord?.value ?? serverRecord.value) as Record<string, unknown>;
 
           const mergeResult = threeWayMerge(
@@ -664,7 +647,9 @@ class ConfigSyncManager {
               record.meta.version = version;
               // 更新 baseCache 的版本号
               const baseRec = this.baseCache.get(key);
-              if (baseRec) {baseRec.meta.version = version;}
+              if (baseRec) {
+                baseRec.meta.version = version;
+              }
             }
           }
         } else {
@@ -718,14 +703,18 @@ class ConfigSyncManager {
   }
 
   private enqueueOfflineChanges(changes: ConfigChange[]): void {
-    if (changes.length === 0) {return;}
+    if (changes.length === 0) {
+      return;
+    }
     this.changeQueue.push(...changes);
     this.saveOfflineQueue(changes);
     this.scheduleSyncDebounced();
   }
 
   private registerOnlineHandler(): void {
-    if (typeof window === 'undefined' || this.onlineHandlerRegistered) {return;}
+    if (typeof window === 'undefined' || this.onlineHandlerRegistered) {
+      return;
+    }
     this.onlineHandlerRegistered = true;
     window.addEventListener('online', () => {
       void this.retryOfflineQueue();
@@ -751,11 +740,15 @@ class ConfigSyncManager {
    * 加载离线队列
    */
   private loadOfflineQueue(): ConfigChange[] {
-    if (typeof window === 'undefined') {return [];}
+    if (typeof window === 'undefined') {
+      return [];
+    }
 
     try {
       const stored = localStorage.getItem(OFFLINE_QUEUE_KEY);
-      if (!stored) {return [];}
+      if (!stored) {
+        return [];
+      }
       return JSON.parse(stored) as ConfigChange[];
     } catch {
       return [];
@@ -766,7 +759,9 @@ class ConfigSyncManager {
    * 保存离线队列
    */
   private saveOfflineQueue(changes: ConfigChange[]): void {
-    if (typeof window === 'undefined') {return;}
+    if (typeof window === 'undefined') {
+      return;
+    }
 
     try {
       // 合并现有队列和新变更
@@ -782,7 +777,9 @@ class ConfigSyncManager {
    * 清空离线队列
    */
   private clearOfflineQueue(): void {
-    if (typeof window === 'undefined') {return;}
+    if (typeof window === 'undefined') {
+      return;
+    }
     localStorage.removeItem(OFFLINE_QUEUE_KEY);
   }
 }

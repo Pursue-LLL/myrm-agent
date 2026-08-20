@@ -92,7 +92,9 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   }, [messageId, steps]);
 
   const handleLinkClick = (text: string) => {
-    if (!isUrl(text)) {return;}
+    if (!isUrl(text)) {
+      return;
+    }
     let url = text;
     if (text.startsWith('www.')) {
       url = `https://${text}`;
@@ -119,7 +121,9 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
   const toggleExpanded = () => setIsExpanded(!isExpanded);
 
-  if (steps.length === 0) {return null;}
+  if (steps.length === 0) {
+    return null;
+  }
 
   const latestStep = steps[steps.length - 1];
   const collapsedStep = (() => {
@@ -135,10 +139,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
       const step = steps[index];
       const ref = step?.evicted_file_ref;
       const stderrRef = step?.evicted_stderr_file_ref;
-      if (
-        (typeof ref === 'string' && ref.length > 0) ||
-        (typeof stderrRef === 'string' && stderrRef.length > 0)
-      ) {
+      if ((typeof ref === 'string' && ref.length > 0) || (typeof stderrRef === 'string' && stderrRef.length > 0)) {
         return steps[index];
       }
     }
@@ -434,9 +435,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
               {step.dropped_manifest && step.dropped_manifest.length > 0 && (
                 <div className="mt-2 p-2.5 rounded-lg border bg-muted/40 border-border/60">
-                  <div className="text-[11px] font-medium text-foreground/70 mb-1.5">
-                    {t('dropped_manifest_title')}
-                  </div>
+                  <div className="text-[11px] font-medium text-foreground/70 mb-1.5">{t('dropped_manifest_title')}</div>
                   <ul className="space-y-1">
                     {step.dropped_manifest.slice(0, 3).map((item, itemIdx) => (
                       <li
@@ -501,10 +500,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 dark:from-blue-400/20 dark:to-purple-400/20 blur-xl rounded-full" />
             <ClipboardList size={22} className="relative text-gray-700 dark:text-gray-200" />
           </div>
-          <h3
-            data-testid="progress-steps-title"
-            className="text-gray-800 dark:text-gray-100 font-medium text-lg"
-          >
+          <h3 data-testid="progress-steps-title" className="text-gray-800 dark:text-gray-100 font-medium text-lg">
             {t('task')}
           </h3>
         </div>
@@ -678,15 +674,16 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
           </div>
         )}
 
-        {!isExpanded && isCollapsedStepCurrent && collapsedStep.stdout && (() => {
-          const lines = collapsedStep.stdout.split('\n').filter(Boolean);
-          const lastLine = lines[lines.length - 1]?.trim();
-          return lastLine ? (
-            <p className="mt-1.5 ml-7 text-[11px] text-muted-foreground/60 font-mono truncate slide-up">
-              {lastLine}
-            </p>
-          ) : null;
-        })()}
+        {!isExpanded &&
+          isCollapsedStepCurrent &&
+          collapsedStep.stdout &&
+          (() => {
+            const lines = collapsedStep.stdout.split('\n').filter(Boolean);
+            const lastLine = lines[lines.length - 1]?.trim();
+            return lastLine ? (
+              <p className="mt-1.5 ml-7 text-[11px] text-muted-foreground/60 font-mono truncate slide-up">{lastLine}</p>
+            ) : null;
+          })()}
 
         {!isExpanded && collapsedEvictedStep && (
           <LiveTerminal

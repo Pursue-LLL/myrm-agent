@@ -99,11 +99,10 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
 
   const selectedEndpointCount =
     !service.selected_endpoints || service.selected_endpoints.length === 0
-      ? parsedSpec?.endpoint_count ?? 0
+      ? (parsedSpec?.endpoint_count ?? 0)
       : service.selected_endpoints.length;
   const estimatedServiceTokens = estimateEndpointTokenLoad(selectedEndpointCount);
-  const serviceOverBudget =
-    parsedSpec !== null && estimatedServiceTokens > OPENAPI_DIRECT_TOKEN_BUDGET;
+  const serviceOverBudget = parsedSpec !== null && estimatedServiceTokens > OPENAPI_DIRECT_TOKEN_BUDGET;
 
   return (
     <div className="rounded-lg border border-border/60 bg-background/50 p-3 space-y-3">
@@ -148,7 +147,9 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                 value={service.spec_url || ''}
                 onChange={(e) => {
                   updateField('spec_url', e.target.value || undefined);
-                  if (e.target.value) {updateField('spec_content', undefined);}
+                  if (e.target.value) {
+                    updateField('spec_content', undefined);
+                  }
                 }}
                 disabled={readonly || !!service.spec_content}
                 className="flex-1"
@@ -234,7 +235,9 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                           const allIds = parsedSpec.endpoints.map((x) => x.operation_id);
 
                           if (e.target.checked) {
-                            if (isCurrentlyAll) {return;}
+                            if (isCurrentlyAll) {
+                              return;
+                            }
                             const next = Array.from(new Set([...service.selected_endpoints!, ep.operation_id]));
                             updateField('selected_endpoints', next.length === allIds.length ? undefined : next);
                           } else {
@@ -261,9 +264,7 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
           )}
 
           {serviceOverBudget && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              {t('turn1BudgetServiceWarning')}
-            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">{t('turn1BudgetServiceWarning')}</p>
           )}
 
           {/* Auth Section */}
@@ -492,8 +493,7 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
 
   const explicitEndpointCount = countExplicitSelectedEndpoints(services);
   const estimatedAggregateTokens = estimateEndpointTokenLoad(explicitEndpointCount);
-  const aggregateOverBudget =
-    explicitEndpointCount > 0 && estimatedAggregateTokens > OPENAPI_DIRECT_TOKEN_BUDGET;
+  const aggregateOverBudget = explicitEndpointCount > 0 && estimatedAggregateTokens > OPENAPI_DIRECT_TOKEN_BUDGET;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">

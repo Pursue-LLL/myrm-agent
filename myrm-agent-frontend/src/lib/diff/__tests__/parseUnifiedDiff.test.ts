@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildSplitPairs,
-  inferLanguage,
-  parseUnifiedDiff,
-  type DiffLine,
-} from '../parseUnifiedDiff';
+import { buildSplitPairs, inferLanguage, parseUnifiedDiff, type DiffLine } from '../parseUnifiedDiff';
 
 describe('parseUnifiedDiff', () => {
   it('returns isolated empty results for blank input', () => {
@@ -48,10 +43,7 @@ describe('parseUnifiedDiff', () => {
   });
 
   it('marks binary diffs without hunks', () => {
-    const diff = [
-      'diff --git a/image.png b/image.png',
-      'Binary files a/image.png and b/image.png differ',
-    ].join('\n');
+    const diff = ['diff --git a/image.png b/image.png', 'Binary files a/image.png and b/image.png differ'].join('\n');
 
     const parsed = parseUnifiedDiff(diff);
 
@@ -118,13 +110,7 @@ describe('parseUnifiedDiff', () => {
   });
 
   it('extracts file paths from ---/+++ when diff --git is absent', () => {
-    const diff = [
-      '--- a/old.py',
-      '+++ b/new.py',
-      '@@ -1,1 +1,1 @@',
-      '-old',
-      '+new',
-    ].join('\n');
+    const diff = ['--- a/old.py', '+++ b/new.py', '@@ -1,1 +1,1 @@', '-old', '+new'].join('\n');
 
     const parsed = parseUnifiedDiff(diff);
 
@@ -136,9 +122,7 @@ describe('parseUnifiedDiff', () => {
 
 describe('buildSplitPairs', () => {
   it('pairs context lines as left+right', () => {
-    const lines: DiffLine[] = [
-      { type: 'context', content: 'foo', oldLineNumber: 1, newLineNumber: 1 },
-    ];
+    const lines: DiffLine[] = [{ type: 'context', content: 'foo', oldLineNumber: 1, newLineNumber: 1 }];
     const pairs = buildSplitPairs(lines);
     expect(pairs).toHaveLength(1);
     expect(pairs[0].left).toBe(lines[0]);

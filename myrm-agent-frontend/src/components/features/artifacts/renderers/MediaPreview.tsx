@@ -50,7 +50,18 @@ const MAX_IFRAME_HEIGHT = 2000;
 
 /** HTML Preview — sandboxed iframe with theme bridge, height sync, link interception, and element picker */
 export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
-  ({ url, content, isStreaming = false, injectTheme = true, autoHeight = false, artifactId: _artifactId, pickerMode = false, onElementPick, storageNamespace, chatId }) => {
+  ({
+    url,
+    content,
+    isStreaming = false,
+    injectTheme = true,
+    autoHeight = false,
+    artifactId: _artifactId,
+    pickerMode = false,
+    onElementPick,
+    storageNamespace,
+    chatId,
+  }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [iframeHeight, setIframeHeight] = useState<number | undefined>(undefined);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -71,20 +82,21 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
 
     // Resolve theme variables on mount and when host Theme Profile / dark mode changes
     useEffect(() => {
-      if (!injectTheme) {return;}
+      if (!injectTheme) {
+        return;
+      }
 
       return subscribeHostThemeVars((newVars) => {
         themeVarsRef.current = newVars;
-        iframeRef.current?.contentWindow?.postMessage(
-          { type: 'widget-theme-update', vars: newVars },
-          '*',
-        );
+        iframeRef.current?.contentWindow?.postMessage({ type: 'widget-theme-update', vars: newVars }, '*');
       });
     }, [injectTheme]);
 
     // Build srcdoc from content + theme
     const srcdoc = useMemo(() => {
-      if (url || !content) {return undefined;}
+      if (url || !content) {
+        return undefined;
+      }
       if (!injectTheme) {
         // No theme injection: wrap in minimal safe HTML
         const safeContent = isStreaming ? content.replace(/<script[\s\S]*?<\/script>/gi, '') : content;
@@ -101,8 +113,12 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
     // Listen for postMessage events from our own iframe only
     const handleMessage = useCallback(
       (e: MessageEvent) => {
-        if (e.source !== iframeRef.current?.contentWindow) {return;}
-        if (!e.data || typeof e.data !== 'object') {return;}
+        if (e.source !== iframeRef.current?.contentWindow) {
+          return;
+        }
+        if (!e.data || typeof e.data !== 'object') {
+          return;
+        }
 
         if (e.data.type === 'widget-resize' && autoHeight) {
           const h = Math.min(Math.max(e.data.height, MIN_IFRAME_HEIGHT), MAX_IFRAME_HEIGHT);
@@ -196,102 +212,98 @@ export const ImagePreview: React.FC<{
   filename: string;
   errorMessage: string;
   showEditButton?: boolean;
-}> = memo(
-  ({ url, filename, errorMessage, showEditButton = true }) => {
-    const [isLoaded, setIsLoaded] = React.useState(false);
-    const [hasError, setHasError] = React.useState(false);
-    const [editing, setEditing] = React.useState(false);
-    const imgRef = useRef<HTMLImageElement>(null);
-    const tEditor = useTranslations('imageEditor');
+}> = memo(({ url, filename, errorMessage, showEditButton = true }) => {
+  const [isLoaded, setIsLoaded] = React.useState(false);
+  const [hasError, setHasError] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const tEditor = useTranslations('imageEditor');
 
-    React.useEffect(() => {
-      const img = imgRef.current;
-      if (!img) {return;}
+  React.useEffect(() => {
+    const img = imgRef.current;
+    if (!img) {
+      return;
+    }
 
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              img.src = url;
-              observer.unobserve(img);
-            }
-          });
-        },
-        { threshold: 0.1, rootMargin: `${IMAGE_LAZY_LOAD_MARGIN}px` },
-      );
-
-      observer.observe(img);
-      return () => observer.disconnect();
-    }, [url]);
-
-    const handleEditComplete = useCallback(async (blob: Blob) => {
-      setEditing(false);
-      try {
-        await uploadAnnotatedImage(blob);
-      } catch (err) {
-        console.error('Failed to upload annotated image:', err);
-      }
-    }, []);
-
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4 group/img relative">
-        {!isLoaded && !hasError && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-full max-w-md aspect-video rounded-lg bg-muted animate-pulse flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-muted-foreground/10" />
-            </div>
-          </div>
-        )}
-
-        {hasError && (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-              <IconImage className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <span className="text-sm">{errorMessage}</span>
-          </div>
-        )}
-
-        <img
-          ref={imgRef}
-          alt={filename}
-          className={cn(
-            'max-w-full max-h-full object-contain rounded-lg shadow-lg transition-opacity duration-300',
-            isLoaded ? 'opacity-100' : 'opacity-0',
-          )}
-          onLoad={() => setIsLoaded(true)}
-          onError={() => setHasError(true)}
-        />
-
-        {isLoaded && !hasError && showEditButton && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className={cn(
-              'absolute top-6 right-6 p-2 rounded-full',
-              'bg-black/50 text-white hover:bg-black/70 transition-all',
-              'opacity-0 group-hover/img:opacity-100',
-            )}
-            aria-label={tEditor('editButton')}
-            title={tEditor('editTooltip')}
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-        )}
-
-        {editing && (
-          <Suspense fallback={null}>
-            <ImageEditorLazy
-              imageSrc={url}
-              onComplete={handleEditComplete}
-              onCancel={() => setEditing(false)}
-            />
-          </Suspense>
-        )}
-      </div>
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            img.src = url;
+            observer.unobserve(img);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: `${IMAGE_LAZY_LOAD_MARGIN}px` },
     );
-  },
-);
+
+    observer.observe(img);
+    return () => observer.disconnect();
+  }, [url]);
+
+  const handleEditComplete = useCallback(async (blob: Blob) => {
+    setEditing(false);
+    try {
+      await uploadAnnotatedImage(blob);
+    } catch (err) {
+      console.error('Failed to upload annotated image:', err);
+    }
+  }, []);
+
+  return (
+    <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4 group/img relative">
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-full max-w-md aspect-video rounded-lg bg-muted animate-pulse flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-muted-foreground/10" />
+          </div>
+        </div>
+      )}
+
+      {hasError && (
+        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+            <IconImage className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <span className="text-sm">{errorMessage}</span>
+        </div>
+      )}
+
+      <img
+        ref={imgRef}
+        alt={filename}
+        className={cn(
+          'max-w-full max-h-full object-contain rounded-lg shadow-lg transition-opacity duration-300',
+          isLoaded ? 'opacity-100' : 'opacity-0',
+        )}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)}
+      />
+
+      {isLoaded && !hasError && showEditButton && (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className={cn(
+            'absolute top-6 right-6 p-2 rounded-full',
+            'bg-black/50 text-white hover:bg-black/70 transition-all',
+            'opacity-0 group-hover/img:opacity-100',
+          )}
+          aria-label={tEditor('editButton')}
+          title={tEditor('editTooltip')}
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+      )}
+
+      {editing && (
+        <Suspense fallback={null}>
+          <ImageEditorLazy imageSrc={url} onComplete={handleEditComplete} onCancel={() => setEditing(false)} />
+        </Suspense>
+      )}
+    </div>
+  );
+});
 ImagePreview.displayName = 'ImagePreview';
 
 /** 视频预览组件（带加载骨架屏） */

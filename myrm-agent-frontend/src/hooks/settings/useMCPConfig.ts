@@ -259,7 +259,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
 
   // 页面加载时自动批量验证所有MCP配置
   useEffect(() => {
-    if (!configs.length) {return;}
+    if (!configs.length) {
+      return;
+    }
     let cancelled = false;
 
     const initialStatus: Record<string, { available: boolean; pending?: boolean; latency?: number }> = {};
@@ -273,8 +275,12 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
 
     const validateAll = async () => {
       for (const config of configs) {
-        if (cancelled) {return;}
-        if (!config.enabled) {continue;}
+        if (cancelled) {
+          return;
+        }
+        if (!config.enabled) {
+          continue;
+        }
         if (configHasSecretRefs(config)) {
           if (!cancelled) {
             setMcpStatus((prev) => ({
@@ -332,10 +338,7 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
   }, []);
 
   const finalizePersist = useCallback(
-    (
-      newConfigs: MCPServiceConfig[],
-      meta?: Omit<PendingReloadConfirmation, 'configs'>,
-    ) => {
+    (newConfigs: MCPServiceConfig[], meta?: Omit<PendingReloadConfirmation, 'configs'>) => {
       setConfigs(newConfigs);
       onSave(newConfigs);
       if (meta?.toast) {
@@ -359,7 +362,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
   );
 
   const handleConfirmReload = useCallback(() => {
-    if (!pendingReloadConfirm) {return;}
+    if (!pendingReloadConfirm) {
+      return;
+    }
     const { configs: newConfigs, onComplete, toast: toastMeta } = pendingReloadConfirm;
     setPendingReloadConfirm(null);
     finalizePersist(newConfigs, { onComplete, toast: toastMeta });
@@ -395,14 +400,14 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
       ...formData,
       args: processedArgs,
       keepaliveInterval:
-        formData.type === 'sse' || formData.type === 'streamable_http'
-          ? (formData.keepaliveInterval ?? null)
-          : null,
+        formData.type === 'sse' || formData.type === 'streamable_http' ? (formData.keepaliveInterval ?? null) : null,
     };
   }, [formData, rawArgsInput]);
 
   useEffect(() => {
-    if (!showConfigModal) {return;}
+    if (!showConfigModal) {
+      return;
+    }
     const draft = buildFinalFormData();
     if (!draft?.name.trim()) {
       setScanFindings([]);
@@ -415,10 +420,14 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
       setIsLiveScanning(true);
       try {
         const scanResult = await scanMCPConfig(draft);
-        if (liveScanRequestRef.current !== requestId) {return;}
+        if (liveScanRequestRef.current !== requestId) {
+          return;
+        }
         setScanFindings(scanResult.findings ?? []);
       } catch {
-        if (liveScanRequestRef.current !== requestId) {return;}
+        if (liveScanRequestRef.current !== requestId) {
+          return;
+        }
         setScanFindings([]);
       } finally {
         if (liveScanRequestRef.current === requestId) {
@@ -583,9 +592,13 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
   );
 
   const handleSaveConfig = useCallback(async () => {
-    if (!validateForm()) {return;}
+    if (!validateForm()) {
+      return;
+    }
     const finalFormData = buildFinalFormData();
-    if (!finalFormData) {return;}
+    if (!finalFormData) {
+      return;
+    }
 
     setIsValidating(true);
     setValidationError('');
@@ -602,7 +615,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
   }, [validateForm, buildFinalFormData, finalizeSave, t]);
 
   const handleConfirmRiskAck = useCallback(async () => {
-    if (!pendingRiskAck) {return;}
+    if (!pendingRiskAck) {
+      return;
+    }
     const { finalFormData } = pendingRiskAck;
     setPendingRiskAck(null);
     setIsValidating(true);
@@ -622,7 +637,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
 
   const handleConfirmDescription = useCallback(
     (chosenDescription: string) => {
-      if (!pendingDescriptionChoice) {return;}
+      if (!pendingDescriptionChoice) {
+        return;
+      }
       const finalData = {
         ...pendingDescriptionChoice.finalFormData,
         description: chosenDescription,
@@ -704,7 +721,9 @@ headers: { "Authorization": "Bearer ..." } // HTTP 头
   );
 
   const handleConfirmToggleAck = useCallback(async () => {
-    if (!pendingToggleAck) {return;}
+    if (!pendingToggleAck) {
+      return;
+    }
     const { index } = pendingToggleAck;
     const config = configs[index];
     setPendingToggleAck(null);

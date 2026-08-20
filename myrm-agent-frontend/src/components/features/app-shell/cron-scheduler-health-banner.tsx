@@ -17,10 +17,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, X } from 'lucide-react';
-import {
-  subscribeSchedulerHealth,
-  type SchedulerHealth,
-} from '@/lib/cron/schedulerHealth';
+import { subscribeSchedulerHealth, type SchedulerHealth } from '@/lib/cron/schedulerHealth';
 import { cn } from '@/lib/utils/classnameUtils';
 
 const DISMISS_STORAGE_KEY = 'myrm_cron_scheduler_banner_dismissed_status';
@@ -48,10 +45,7 @@ export function dismissCronSchedulerBanner(status: DismissedSchedulerStatus): vo
   }
 }
 
-function shouldHideSchedulerBanner(
-  health: SchedulerHealth,
-  dismissedStatus: DismissedSchedulerStatus | null,
-): boolean {
+function shouldHideSchedulerBanner(health: SchedulerHealth, dismissedStatus: DismissedSchedulerStatus | null): boolean {
   if (!dismissedStatus) {
     return false;
   }

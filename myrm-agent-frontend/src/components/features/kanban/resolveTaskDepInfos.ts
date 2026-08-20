@@ -2,10 +2,7 @@ import { getTask } from '@/services/kanban';
 import type { KanbanTask } from '@/services/kanban';
 import type { TaskDepInfo } from './kanban-styles';
 
-export async function resolveTaskDepInfos(
-  ids: string[],
-  currentTasks: KanbanTask[],
-): Promise<TaskDepInfo[]> {
+export async function resolveTaskDepInfos(ids: string[], currentTasks: KanbanTask[]): Promise<TaskDepInfo[]> {
   const infos: TaskDepInfo[] = [];
   for (const id of ids) {
     const local = currentTasks.find((tk) => tk.task_id === id);

@@ -99,11 +99,7 @@ describe('builtin action execute functions', () => {
       const stopAction = actions.find((a) => a.name === 'stop')!;
       const result = await stopAction.execute('');
       expect(stopMessageMock).toHaveBeenCalledOnce();
-      expect(showI18nToastMock).toHaveBeenCalledWith(
-        'commands.builtin.stopped',
-        undefined,
-        { type: 'info' },
-      );
+      expect(showI18nToastMock).toHaveBeenCalledWith('commands.builtin.stopped', undefined, { type: 'info' });
       expect(result).toEqual({ success: true, newInputValue: '' });
     });
   });
@@ -130,11 +126,10 @@ describe('builtin action execute functions', () => {
     it('shows toast hint and returns success', async () => {
       const modelAction = actions.find((a) => a.name === 'model')!;
       const result = await modelAction.execute('');
-      expect(showI18nToastMock).toHaveBeenCalledWith(
-        'commands.builtin.modelHint',
-        undefined,
-        { type: 'info', duration: 4000 },
-      );
+      expect(showI18nToastMock).toHaveBeenCalledWith('commands.builtin.modelHint', undefined, {
+        type: 'info',
+        duration: 4000,
+      });
       expect(result).toEqual({ success: true, newInputValue: '' });
     });
   });
@@ -325,7 +320,9 @@ describe('builtin action execute functions', () => {
   describe('all actions return ActionResult shape', () => {
     it('all execute functions return objects with success field', async () => {
       for (const action of actions) {
-        if (action.name === 'goal') {continue;}
+        if (action.name === 'goal') {
+          continue;
+        }
         const result = await action.execute('');
         expect(result).toHaveProperty('success');
         expect(typeof result.success).toBe('boolean');

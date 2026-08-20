@@ -17,10 +17,7 @@ import { fetchBackendHealth, type BackendHealthPayload } from '@/lib/backend-hea
 
 export const BOOT_SCREEN_STORAGE_KEY = 'myrm_boot_shown';
 
-export type LocalBackendSetupHintTranslator = (
-  key: string,
-  values?: Record<string, string | number>,
-) => string;
+export type LocalBackendSetupHintTranslator = (key: string, values?: Record<string, string | number>) => string;
 
 type ConfigLoadErrorHintKey = 'hintUnreachable' | 'hintSplitDev' | 'hintStandalone';
 
@@ -67,9 +64,7 @@ export function formatLocalBackendSetupHint(
   return t('hintUnreachable');
 }
 
-export async function resolveLocalBackendSetupHint(
-  t: LocalBackendSetupHintTranslator,
-): Promise<string> {
+export async function resolveLocalBackendSetupHint(t: LocalBackendSetupHintTranslator): Promise<string> {
   const health = await fetchBackendHealth();
   return formatLocalBackendSetupHint(t, health);
 }
@@ -82,7 +77,9 @@ function resolveHintLocale(): string {
     return 'en';
   }
   const lang = navigator.language.toLowerCase();
-  if (lang.startsWith('zh')) {return 'zh';}
+  if (lang.startsWith('zh')) {
+    return 'zh';
+  }
   return 'en';
 }
 
@@ -90,10 +87,7 @@ function interpolateHint(template: string, values?: Record<string, string | numb
   if (!values) {
     return template;
   }
-  return Object.entries(values).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
-    template,
-  );
+  return Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), template);
 }
 
 function createLocaleHintTranslator(locale: string): LocalBackendSetupHintTranslator {

@@ -2,12 +2,8 @@
 
 import { useMemo } from 'react';
 
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { usesInlineVisualApprovalSurface } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
@@ -21,12 +17,8 @@ interface VisualApprovalInlineSectionProps {
 
 export default function VisualApprovalInlineSection({ messageId, chatId }: VisualApprovalInlineSectionProps) {
   const queue = useToolApprovalStore((state) => state.queue);
-  const desktopViewData = useDesktopInspectorStore((state) =>
-    selectScopedDesktopViewData(state.viewData, chatId),
-  );
-  const browserViewData = useBrowserInspectorStore((state) =>
-    selectScopedBrowserViewData(state.viewData, chatId),
-  );
+  const desktopViewData = useDesktopInspectorStore((state) => selectScopedDesktopViewData(state.viewData, chatId));
+  const browserViewData = useBrowserInspectorStore((state) => selectScopedBrowserViewData(state.viewData, chatId));
   const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
   const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
   const { resolveRequest, isLoading } = useToolApprovalResolve();
@@ -38,9 +30,7 @@ export default function VisualApprovalInlineSection({ messageId, chatId }: Visua
 
     return queue.filter(
       (request) =>
-        request.messageId === messageId &&
-        request.chatId === chatId &&
-        usesInlineVisualApprovalSurface(request, queue),
+        request.messageId === messageId && request.chatId === chatId && usesInlineVisualApprovalSurface(request, queue),
     );
   }, [chatId, messageId, queue]);
 

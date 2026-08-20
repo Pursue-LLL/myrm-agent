@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  * ./part1::AgentEventType, BaseAgentEvent (POS: SSE 事件类型前半段)
- * 
+ *
  * [OUTPUT]
  * FileDiff, Browser/Desktop view, ToolImageOutput 等 SSE 事件。
- * 
+ *
  * [POS]
  * SSE 事件类型末段。
  */

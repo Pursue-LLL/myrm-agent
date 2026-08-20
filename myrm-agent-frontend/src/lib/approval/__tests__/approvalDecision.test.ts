@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildApprovalDecision, extractDirectoryGrantOptimistic, resumeDecisionsIncludeDirectoryGrant } from '@/lib/approval/approvalDecision';
+import {
+  buildApprovalDecision,
+  extractDirectoryGrantOptimistic,
+  resumeDecisionsIncludeDirectoryGrant,
+} from '@/lib/approval/approvalDecision';
 
 describe('buildApprovalDecision', () => {
   it('builds approve decisions with extensions', () => {

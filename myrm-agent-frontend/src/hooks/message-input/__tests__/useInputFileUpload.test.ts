@@ -10,7 +10,9 @@ const mockToast = vi.hoisted(() => ({
 vi.mock('@/lib/utils/toast', () => ({ toast: mockToast }));
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params) {return `${key}:${JSON.stringify(params)}`;}
+  if (params) {
+    return `${key}:${JSON.stringify(params)}`;
+  }
   return key;
 };
 
@@ -186,9 +188,7 @@ describe('useInputFileUpload', () => {
           currentFiles = updater;
         }
       });
-      const { result } = renderHook(() =>
-        useInputFileUpload({ ...defaultParams, setFiles }),
-      );
+      const { result } = renderHook(() => useInputFileUpload({ ...defaultParams, setFiles }));
       const img = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
 
       await act(async () => {

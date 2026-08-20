@@ -30,7 +30,9 @@ export interface PttScreenContext {
 
 export function useVoicePttListener() {
   useEffect(() => {
-    if (!isTauriRuntime()) {return;}
+    if (!isTauriRuntime()) {
+      return;
+    }
 
     let unlistenStart: (() => void) | undefined;
     let unlistenStop: (() => void) | undefined;
@@ -49,9 +51,7 @@ export function useVoicePttListener() {
         });
 
         unlistenContext = await listen<PttScreenContext>('voice-ptt-context', (event) => {
-          window.dispatchEvent(
-            new CustomEvent('voice-ptt-context', { detail: event.payload, cancelable: true })
-          );
+          window.dispatchEvent(new CustomEvent('voice-ptt-context', { detail: event.payload, cancelable: true }));
         });
       } catch (err) {
         console.error('Failed to setup voice PTT listener:', err);

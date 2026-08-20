@@ -163,7 +163,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       setQuery(value);
       setActiveTag('all');
 
-      if (debounceRef.current) {clearTimeout(debounceRef.current);}
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
       debounceRef.current = setTimeout(() => runSearch(value), 500);
     },
     [runSearch],
@@ -172,7 +174,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
-        if (debounceRef.current) {clearTimeout(debounceRef.current);}
+        if (debounceRef.current) {
+          clearTimeout(debounceRef.current);
+        }
         runSearch(query);
       }
     },
@@ -180,14 +184,17 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   );
 
   const showInstallToast = useCallback(
-    (skillName: string, response: {
-      mounted?: boolean;
-      mount_agent_id?: string;
-      mount_error?: string;
-      mount_already_present?: boolean;
-      allowlist_appended?: boolean;
-      allowlist_append_error?: string;
-    }) => {
+    (
+      skillName: string,
+      response: {
+        mounted?: boolean;
+        mount_agent_id?: string;
+        mount_error?: string;
+        mount_already_present?: boolean;
+        allowlist_appended?: boolean;
+        allowlist_append_error?: string;
+      },
+    ) => {
       const payload = formatSkillInstallToast(skillName, response, t);
       toast(payload);
     },
@@ -243,7 +250,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
   const handleConfirmUninstall = useCallback(async () => {
     setUninstallDialogOpen(false);
-    if (!pendingUninstall) {return;}
+    if (!pendingUninstall) {
+      return;
+    }
 
     const skillId = pendingUninstall.installed_skill_id;
     if (!skillId) {
@@ -281,7 +290,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   }, [pendingUninstall, uninstall, t, onInstalled]);
 
   const handleConfirmForceUninstall = useCallback(async () => {
-    if (!forceUninstallSkill) {return;}
+    if (!forceUninstallSkill) {
+      return;
+    }
     const { skillId, name } = forceUninstallSkill;
     setForceUninstallSkill(null);
     try {
@@ -314,7 +325,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current) {clearTimeout(debounceRef.current);}
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, []);
 
@@ -439,7 +452,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
       <AlertDialog
         open={forceUninstallSkill !== null}
         onOpenChange={(v) => {
-          if (!v) {setForceUninstallSkill(null);}
+          if (!v) {
+            setForceUninstallSkill(null);
+          }
         }}
       >
         <AlertDialogContent>
@@ -551,7 +566,8 @@ const SkillResultCard = memo(
     t,
   }: SkillResultCardProps) => {
     const SourceIcon = SOURCE_ICONS[skill.source] || Globe;
-    const sourceColor = SOURCE_COLORS[skill.source] || (skill.source.startsWith('well-known:') ? 'text-primary' : 'text-gray-500');
+    const sourceColor =
+      SOURCE_COLORS[skill.source] || (skill.source.startsWith('well-known:') ? 'text-primary' : 'text-gray-500');
     const sourceLabel = skill.source.startsWith('well-known:')
       ? skill.source.replace('well-known:', '').replace(/^https?:\/\//, '')
       : t(`source.${skill.source}` as Parameters<typeof t>[0]);
@@ -571,7 +587,10 @@ const SkillResultCard = memo(
                 {sourceLabel}
               </Badge>
               {skill.package_type === 'agent_plugin' && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20"
+                >
                   Plugin
                 </Badge>
               )}

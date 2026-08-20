@@ -20,11 +20,7 @@ import {
   updateOrgMcpServer,
 } from '@/services/enterprise-org';
 import type { OrgMcpType } from './OrgMcpServerFormFields';
-import {
-  OrgMcpCreateDialog,
-  OrgMcpDeleteDialog,
-  OrgMcpEditDialog,
-} from './OrgMcpAdminDialogs';
+import { OrgMcpCreateDialog, OrgMcpDeleteDialog, OrgMcpEditDialog } from './OrgMcpAdminDialogs';
 import { showOrgMcpDeliveryToast } from './orgMcpAdminUtils';
 
 interface OrgMcpAdminPanelProps {
@@ -32,12 +28,17 @@ interface OrgMcpAdminPanelProps {
 }
 
 function typeLabel(type: string): string {
-  if (type === 'tunnel') {return 'Tunnel';}
+  if (type === 'tunnel') {
+    return 'Tunnel';
+  }
   return type.replace('_', ' ').toUpperCase();
 }
 
 function parseAclGroups(raw: string): string[] | undefined {
-  const groups = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  const groups = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   return groups.length > 0 ? groups : undefined;
 }
 
@@ -98,10 +99,16 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   }, [loadData]);
 
   const handleCreate = useCallback(async () => {
-    if (!name.trim()) {return;}
+    if (!name.trim()) {
+      return;
+    }
     const isTunnel = type === 'tunnel';
-    if (isTunnel && !tunnelId) {return;}
-    if (!isTunnel && !url.trim()) {return;}
+    if (isTunnel && !tunnelId) {
+      return;
+    }
+    if (!isTunnel && !url.trim()) {
+      return;
+    }
 
     try {
       setSaving(true);
@@ -143,10 +150,16 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   }, []);
 
   const handleEdit = useCallback(async () => {
-    if (!editTarget || !editName.trim()) {return;}
+    if (!editTarget || !editName.trim()) {
+      return;
+    }
     const isTunnel = editType === 'tunnel';
-    if (isTunnel && !editTunnelId) {return;}
-    if (!isTunnel && !editUrl.trim()) {return;}
+    if (isTunnel && !editTunnelId) {
+      return;
+    }
+    if (!isTunnel && !editUrl.trim()) {
+      return;
+    }
 
     try {
       setSaving(true);
@@ -170,7 +183,19 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
     } finally {
       setSaving(false);
     }
-  }, [orgId, editTarget, editName, editType, editUrl, editDescription, editAuthHeader, editTunnelId, editAclGroups, t, loadData]);
+  }, [
+    orgId,
+    editTarget,
+    editName,
+    editType,
+    editUrl,
+    editDescription,
+    editAuthHeader,
+    editTunnelId,
+    editAclGroups,
+    t,
+    loadData,
+  ]);
 
   const handleToggle = useCallback(
     async (server: OrgMCPServer) => {
@@ -188,7 +213,9 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   );
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) {return;}
+    if (!deleteTarget) {
+      return;
+    }
     try {
       const result = await deleteOrgMcpServer(orgId, deleteTarget.id);
       showOrgMcpDeliveryToast(t, result.delivery);
@@ -267,12 +294,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
                     onCheckedChange={() => void handleToggle(server)}
                   />
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => openEditDialog(server)}
-                  aria-label={t('mcpEdit')}
-                >
+                <Button size="sm" variant="ghost" onClick={() => openEditDialog(server)} aria-label={t('mcpEdit')}>
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <Button

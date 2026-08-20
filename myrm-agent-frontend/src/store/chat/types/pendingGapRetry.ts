@@ -9,5 +9,4 @@
 import type { BuiltinToolId } from './builtinTools';
 
 export type PendingGapRetry =
-  | { kind: 'capability'; text: string; toolId: BuiltinToolId }
-  | { kind: 'skill'; text: string; skillId: string };
+  { kind: 'capability'; text: string; toolId: BuiltinToolId } | { kind: 'skill'; text: string; skillId: string };

@@ -35,7 +35,9 @@ export function HandoffDialog({ open, onOpenChange, chatId, chatTitle, currentSo
   const [transferring, setTransferring] = useState(false);
 
   useEffect(() => {
-    if (!open) {return;}
+    if (!open) {
+      return;
+    }
     setLoading(true);
     setSelectedChannel(null);
     listChannelInstances()
@@ -48,7 +50,9 @@ export function HandoffDialog({ open, onOpenChange, chatId, chatTitle, currentSo
   }, [open, currentSource]);
 
   const handleTransfer = async () => {
-    if (!selectedChannel) {return;}
+    if (!selectedChannel) {
+      return;
+    }
     setTransferring(true);
     try {
       await handoffChat(chatId, selectedChannel);

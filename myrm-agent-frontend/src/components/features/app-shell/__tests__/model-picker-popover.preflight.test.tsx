@@ -14,7 +14,7 @@ const providers = vi.fn(
       providerType: string;
     }>,
 );
-const customModelInfo = vi.fn(() => ({} as Record<string, never>));
+const customModelInfo = vi.fn(() => ({}) as Record<string, never>);
 
 vi.mock('@/store/useProviderStore', () => ({
   default: () => ({
@@ -68,7 +68,9 @@ vi.mock('@/components/primitives/popover', () => {
       return <div>{children}</div>;
     },
     PopoverTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    PopoverContent: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-content">{children}</div>,
+    PopoverContent: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="popover-content">{children}</div>
+    ),
   };
 });
 
@@ -102,14 +104,16 @@ const caps: ModelCapabilities = {
   max_output_tokens: null,
 };
 
-const renderPopover = (props: {
-  estimatedTokens?: number | null;
-  compressStartRatio?: number | null;
-  promptMode?: string | null;
-  turnCount?: number | null;
-  chatId?: string | null;
-  onSelect?: (providerId: string, model: string) => void;
-} = {}) => {
+const renderPopover = (
+  props: {
+    estimatedTokens?: number | null;
+    compressStartRatio?: number | null;
+    promptMode?: string | null;
+    turnCount?: number | null;
+    chatId?: string | null;
+    onSelect?: (providerId: string, model: string) => void;
+  } = {},
+) => {
   const onSelect = props.onSelect ?? vi.fn();
   render(
     <ModelPickerPopover
@@ -253,14 +257,7 @@ describe('ModelPickerPopover preflight warning', () => {
       await Promise.resolve();
     });
 
-    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledWith(
-      9000,
-      expect.any(Array),
-      null,
-      'lean',
-      7,
-      null,
-    );
+    expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledWith(9000, expect.any(Array), null, 'lean', 7, null);
   });
 
   it('re-fetches preflight when turnCount grows past the dynamic-threshold window', async () => {
@@ -302,7 +299,14 @@ describe('ModelPickerPopover preflight warning', () => {
       await Promise.resolve();
     });
     expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledTimes(2);
-    expect(mocks.fetchModelSwitchPreflight).toHaveBeenLastCalledWith(9000, expect.any(Array), null, null, 10, undefined);
+    expect(mocks.fetchModelSwitchPreflight).toHaveBeenLastCalledWith(
+      9000,
+      expect.any(Array),
+      null,
+      null,
+      10,
+      undefined,
+    );
   });
 
   it('re-fetches preflight when promptMode changes mid-session', async () => {

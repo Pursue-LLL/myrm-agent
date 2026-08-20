@@ -71,9 +71,7 @@ describe('useVisualApprovalOsOverlay', () => {
   });
 
   it('shows overlay when a ready desktop target exists', async () => {
-    renderHook(() =>
-      useVisualApprovalOsOverlay([desktopRequest], viewData, null, false, false, false),
-    );
+    renderHook(() => useVisualApprovalOsOverlay([desktopRequest], viewData, null, false, false, false));
 
     await waitFor(() => {
       expect(showMock).toHaveBeenCalledWith({
@@ -92,9 +90,7 @@ describe('useVisualApprovalOsOverlay', () => {
   });
 
   it('hides overlay when no ready desktop target exists', async () => {
-    renderHook(() =>
-      useVisualApprovalOsOverlay([desktopRequest], null, null, true, false, false),
-    );
+    renderHook(() => useVisualApprovalOsOverlay([desktopRequest], null, null, true, false, false));
 
     await waitFor(() => {
       expect(showMock).not.toHaveBeenCalled();

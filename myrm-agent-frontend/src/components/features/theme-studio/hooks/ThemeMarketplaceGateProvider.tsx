@@ -11,19 +11,8 @@
  * Single shared gate probe for Theme Studio marketplace panels (Gallery/Creator/Admin).
  */
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
-import {
-  resolveThemeMarketplaceGateState,
-  type ThemeMarketplaceGateState,
-} from '@/lib/theme-marketplace-gate';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { resolveThemeMarketplaceGateState, type ThemeMarketplaceGateState } from '@/lib/theme-marketplace-gate';
 
 type ThemeMarketplaceGateContextValue = {
   gate: ThemeMarketplaceGateState;
@@ -70,9 +59,7 @@ export function ThemeMarketplaceGateProvider({ children }: { children: ReactNode
 
   const value = useMemo(() => ({ gate, refresh }), [gate, refresh]);
 
-  return (
-    <ThemeMarketplaceGateContext.Provider value={value}>{children}</ThemeMarketplaceGateContext.Provider>
-  );
+  return <ThemeMarketplaceGateContext.Provider value={value}>{children}</ThemeMarketplaceGateContext.Provider>;
 }
 
 export function useThemeMarketplaceGate(): ThemeMarketplaceGateContextValue {

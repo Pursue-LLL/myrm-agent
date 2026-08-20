@@ -104,12 +104,7 @@ describe('DataGrid', () => {
   });
 
   it('renders cells with special characters', () => {
-    render(
-      <DataGrid
-        headers={['Data']}
-        rows={[['<script>alert("xss")</script>'], ['&amp; entities']]}
-      />,
-    );
+    render(<DataGrid headers={['Data']} rows={[['<script>alert("xss")</script>'], ['&amp; entities']]} />);
     expect(screen.getByText('<script>alert("xss")</script>')).toBeDefined();
   });
 

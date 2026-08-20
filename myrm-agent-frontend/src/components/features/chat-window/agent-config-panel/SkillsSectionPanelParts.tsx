@@ -8,7 +8,6 @@ import { SelectableCard } from './AgentConfigSelectableCard';
 import { AgentSkillInstanceSelect } from './AgentSkillInstanceSelect';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 
-
 export function NoiseGauge({
   isNoiseHigh,
   isNoiseCritical,
@@ -30,8 +29,7 @@ export function NoiseGauge({
   onSmartPrune: () => void;
   tPanel: (key: string, values?: Record<string, string | number>) => string;
 }) {
-  const tRadar = (key: string, values?: Record<string, string | number>) =>
-    tPanel(`actionSpaceRadar.${key}`, values);
+  const tRadar = (key: string, values?: Record<string, string | number>) => tPanel(`actionSpaceRadar.${key}`, values);
 
   return (
     <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-2">
@@ -195,7 +193,9 @@ export function CoreSkillsZone({
   const coreSkills = filteredSkills.filter(
     (s) => isOwnSkill(s) && localSkillIds.includes(s.id) && (localSkillConfigs[s.id]?.is_core ?? true),
   );
-  if (coreSkills.length === 0) {return null;}
+  if (coreSkills.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-2">
@@ -237,7 +237,9 @@ export function PeripheralSkillsZone({
   const peripheralSkills = filteredSkills.filter(
     (s) => isOwnSkill(s) && localSkillIds.includes(s.id) && !(localSkillConfigs[s.id]?.is_core ?? true),
   );
-  if (peripheralSkills.length === 0) {return null;}
+  if (peripheralSkills.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-2">
@@ -279,7 +281,9 @@ export function AvailableSkillsZone({
   tPanel: (key: string) => string;
 }) {
   const available = filteredSkills.filter((s) => isOwnSkill(s) && !localSkillIds.includes(s.id));
-  if (available.length === 0) {return null;}
+  if (available.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-2">

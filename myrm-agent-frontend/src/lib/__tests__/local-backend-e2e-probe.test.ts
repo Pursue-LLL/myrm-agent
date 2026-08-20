@@ -1,9 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  isChromeE2eTab,
-  waitForChromeE2eBackendBinding,
-} from '@/lib/local-backend-e2e-probe';
+import { isChromeE2eTab, waitForChromeE2eBackendBinding } from '@/lib/local-backend-e2e-probe';
 
 describe('isChromeE2eTab', () => {
   beforeEach(() => {
@@ -69,9 +66,6 @@ describe('waitForChromeE2eBackendBinding', () => {
     const pending = waitForChromeE2eBackendBinding(1_000);
     await vi.advanceTimersByTimeAsync(250);
     await expect(pending).resolves.toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:18081/api/v1/health',
-      { cache: 'no-store' },
-    );
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:18081/api/v1/health', { cache: 'no-store' });
   });
 });

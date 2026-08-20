@@ -9,10 +9,7 @@
 import { memo, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { BUILT_IN_PROVIDERS, type BuiltInProviderId } from '@/store/config/providerTypes';
-import {
-  getCachedProviderBrandIconUrl,
-  loadProviderBrandIconUrl,
-} from './provider-brand-icon-loaders';
+import { getCachedProviderBrandIconUrl, loadProviderBrandIconUrl } from './provider-brand-icon-loaders';
 
 interface ProviderIconProps {
   providerId: string;
@@ -69,7 +66,9 @@ LetterAvatar.displayName = 'LetterAvatar';
 const ProviderIcon = memo<ProviderIconProps>(({ providerId, providerName, size = 20, className }) => {
   const builtIn = isBuiltInProviderId(providerId);
   const [iconUrl, setIconUrl] = useState<string | null>(() => {
-    if (!builtIn) {return null;}
+    if (!builtIn) {
+      return null;
+    }
     return getCachedProviderBrandIconUrl(providerId) ?? null;
   });
 
@@ -98,10 +97,7 @@ const ProviderIcon = memo<ProviderIconProps>(({ providerId, providerName, size =
   }, [builtIn, providerId]);
 
   return (
-    <div
-      className={cn('flex items-center justify-center shrink-0', className)}
-      style={{ width: size, height: size }}
-    >
+    <div className={cn('flex items-center justify-center shrink-0', className)} style={{ width: size, height: size }}>
       {builtIn && iconUrl ? (
         <img
           src={iconUrl}
@@ -114,11 +110,7 @@ const ProviderIcon = memo<ProviderIconProps>(({ providerId, providerName, size =
         />
       ) : builtIn ? (
         // Reserve space while lazy-loading; avoid flashing LetterAvatar for built-in vendors.
-        <div
-          className="rounded-md bg-muted/20"
-          style={{ width: size, height: size }}
-          aria-hidden="true"
-        />
+        <div className="rounded-md bg-muted/20" style={{ width: size, height: size }} aria-hidden="true" />
       ) : (
         <LetterAvatar name={providerName || providerId} size={size} />
       )}

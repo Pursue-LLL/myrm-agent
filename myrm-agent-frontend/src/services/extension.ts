@@ -121,7 +121,10 @@ export async function getExtensionStatus(): Promise<ExtensionStatus> {
   return apiRequest<ExtensionStatus>('/extension/status');
 }
 
-export async function getAuthorizedDomains(): Promise<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }> {
+export async function getAuthorizedDomains(): Promise<{
+  authorized_domains: string[];
+  warnings: DomainPolicyWarning[];
+}> {
   return apiRequest<{ authorized_domains: string[]; warnings: DomainPolicyWarning[] }>('/extension/domains');
 }
 

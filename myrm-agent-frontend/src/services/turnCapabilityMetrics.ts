@@ -22,11 +22,7 @@ export type TurnCapabilityMetricEventType =
   | 'busy_requeued'
   | 'dropped_report';
 export type TurnCapabilityFailureReason =
-  | 'network_error'
-  | 'archive_restore_invalid'
-  | 'abort'
-  | 'server_error'
-  | 'unknown_error';
+  'network_error' | 'archive_restore_invalid' | 'abort' | 'server_error' | 'unknown_error';
 
 interface TurnCapabilityMetricEventPayload {
   event_type: TurnCapabilityMetricEventType;
@@ -83,7 +79,9 @@ function normalizeContextKey(contextKey?: string): string {
 }
 
 function clampCount(count: number): number {
-  if (!Number.isFinite(count)) {return 1;}
+  if (!Number.isFinite(count)) {
+    return 1;
+  }
   return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
 }
 
@@ -301,7 +299,15 @@ export function recordTurnCapabilitySendCompleted(
   effectiveMcpCount: number,
   contextKey?: string,
 ): void {
-  enqueueSimpleEvent('send_completed', source, contextKey, undefined, undefined, effectiveSkillCount, effectiveMcpCount);
+  enqueueSimpleEvent(
+    'send_completed',
+    source,
+    contextKey,
+    undefined,
+    undefined,
+    effectiveSkillCount,
+    effectiveMcpCount,
+  );
 }
 
 export function recordTurnCapabilitySendFailed(

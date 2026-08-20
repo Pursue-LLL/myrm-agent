@@ -231,10 +231,7 @@ export default function HostingTargetsPanel() {
         </div>
         <ol className="grid gap-3 sm:grid-cols-3 text-sm text-muted-foreground">
           {[t('workflowStep1'), t('workflowStep2'), t('workflowStep3')].map((step, index) => (
-            <li
-              key={step}
-              className="flex gap-3 rounded-xl border border-border/60 bg-background/70 px-3 py-3"
-            >
+            <li key={step} className="flex gap-3 rounded-xl border border-border/60 bg-background/70 px-3 py-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
                 {index + 1}
               </span>

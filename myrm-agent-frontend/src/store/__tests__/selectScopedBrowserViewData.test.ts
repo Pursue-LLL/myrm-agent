@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  selectScopedBrowserViewData,
-  type BrowserViewData,
-} from '@/store/useBrowserInspectorStore';
+import { selectScopedBrowserViewData, type BrowserViewData } from '@/store/useBrowserInspectorStore';
 
 const sampleView: BrowserViewData = {
   screenshotBase64: 'abc',

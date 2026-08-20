@@ -52,7 +52,9 @@ export default function ResearchOutputPanel() {
   const closeAllTabs = useArtifactPortalStore((s) => s.closeAllTabs);
 
   const handleDownload = useCallback(() => {
-    if (!activeTab) {return;}
+    if (!activeTab) {
+      return;
+    }
     const { artifact } = activeTab;
     const filename = getDownloadFilename(artifact.filename);
     const a = document.createElement('a');
@@ -71,7 +73,9 @@ export default function ResearchOutputPanel() {
   }, [activeTab, content]);
 
   const handleSaveToWiki = useCallback(async () => {
-    if (!activeTab) {return;}
+    if (!activeTab) {
+      return;
+    }
     try {
       const agentId = useChatStore.getState().agentConfig?.agentId;
       const result = await wikiService.ingestArtifact(activeTab.artifact.id, agentId);

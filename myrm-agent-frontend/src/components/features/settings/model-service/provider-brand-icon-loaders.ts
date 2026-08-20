@@ -82,10 +82,14 @@ export function getCachedProviderBrandIconUrl(providerId: BuiltInProviderId): st
 
 export async function loadProviderBrandIconUrl(providerId: BuiltInProviderId): Promise<string | null> {
   const cached = iconUrlCache.get(providerId);
-  if (cached) {return cached;}
+  if (cached) {
+    return cached;
+  }
 
   const inFlight = iconLoadPromises.get(providerId);
-  if (inFlight) {return inFlight;}
+  if (inFlight) {
+    return inFlight;
+  }
 
   const promise = BUILT_IN_PROVIDER_ICON_LOADERS[providerId]()
     .then((mod) => {

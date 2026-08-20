@@ -1,11 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  FUNCTIONAL_ART_WASH_FLOOR,
-  FUNCTIONAL_ROUTE_PREFIXES,
-  FUNCTIONAL_SURFACE_FLOORS,
-} from '@/theme-engine';
+import { FUNCTIONAL_ART_WASH_FLOOR, FUNCTIONAL_ROUTE_PREFIXES, FUNCTIONAL_SURFACE_FLOORS } from '@/theme-engine';
 import { THEME_PRE_INIT_SCRIPT } from '../theme-pre-init-script';
 
 const publicScript = readFileSync(resolve(process.cwd(), 'public/theme-init.js'), 'utf8');

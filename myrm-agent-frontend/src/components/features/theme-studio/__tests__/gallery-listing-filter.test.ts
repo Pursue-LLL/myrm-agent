@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  filterAndSortGalleryItems,
-  type GallerySort,
-} from '@/components/features/theme-studio/gallery-listing-filter';
+import { filterAndSortGalleryItems, type GallerySort } from '@/components/features/theme-studio/gallery-listing-filter';
 import type { ThemeMarketplaceListing } from '@/services/themeMarketplace';
 
 function listing(

@@ -21,7 +21,8 @@ const SAMPLE_DETAIL: WorkflowTemplateDetailResponse = {
     created_at: '2026-08-06T00:00:00.000Z',
     updated_at: '2026-08-06T00:00:00.000Z',
   },
-  script_code: 'import myrm_tools\nmyrm_tools.spawn_subagent(task_id="t1", agent_type="generalPurpose", task_description="hello", readonly=True)',
+  script_code:
+    'import myrm_tools\nmyrm_tools.spawn_subagent(task_id="t1", agent_type="generalPurpose", task_description="hello", readonly=True)',
   bound_cron_count: 0,
 };
 

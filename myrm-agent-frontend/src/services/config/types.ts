@@ -108,11 +108,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
 ] as const;
 
 /** 首屏核心配置（优先加载以加快启动） */
-export const CORE_CONFIG_KEYS: readonly ConfigKey[] = [
-  'providers',
-  'chatSettings',
-  'personalSettings',
-] as const;
+export const CORE_CONFIG_KEYS: readonly ConfigKey[] = ['providers', 'chatSettings', 'personalSettings'] as const;
 
 // ============================================================================
 // 配置值类型映射
@@ -607,7 +603,9 @@ export function compareVersions(a: ConfigVersion, b: ConfigVersion): number {
   const [aTs, aCtr] = a.split('_').map(Number);
   const [bTs, bCtr] = b.split('_').map(Number);
 
-  if (aTs !== bTs) {return aTs - bTs;}
+  if (aTs !== bTs) {
+    return aTs - bTs;
+  }
   return aCtr - bCtr;
 }
 

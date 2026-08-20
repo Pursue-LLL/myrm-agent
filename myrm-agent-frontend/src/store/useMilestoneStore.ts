@@ -26,8 +26,17 @@ interface MilestoneState {
 
 interface MilestoneActions {
   fetchMilestones: (projectId: string) => Promise<void>;
-  addMilestone: (projectId: string, title: string, description?: string, acceptanceCriteria?: string) => Promise<Milestone>;
-  updateMilestone: (projectId: string, milestoneId: string, updates: { title?: string; description?: string; acceptance_criteria?: string; status?: string }) => Promise<void>;
+  addMilestone: (
+    projectId: string,
+    title: string,
+    description?: string,
+    acceptanceCriteria?: string,
+  ) => Promise<Milestone>;
+  updateMilestone: (
+    projectId: string,
+    milestoneId: string,
+    updates: { title?: string; description?: string; acceptance_criteria?: string; status?: string },
+  ) => Promise<void>;
   removeMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   completeMilestone: (projectId: string, milestoneId: string) => Promise<void>;
   importAssessment: (
@@ -51,10 +60,7 @@ export const useMilestoneStore = create<MilestoneState & MilestoneActions>()((se
   fetchMilestones: async (projectId) => {
     set({ loading: true, currentProjectId: projectId });
     try {
-      const [milestones, progressList] = await Promise.all([
-        getMilestones(projectId),
-        getBatchProgress(projectId),
-      ]);
+      const [milestones, progressList] = await Promise.all([getMilestones(projectId), getBatchProgress(projectId)]);
       const progressMap: Record<string, MilestoneProgress> = {};
       for (const p of progressList) {
         progressMap[p.milestoneId] = p;
@@ -98,10 +104,7 @@ export const useMilestoneStore = create<MilestoneState & MilestoneActions>()((se
 
   importAssessment: async (projectId, payload) => {
     const receipt = await importAssessmentArtifact(projectId, payload);
-    const [milestones, progressList] = await Promise.all([
-      getMilestones(projectId),
-      getBatchProgress(projectId),
-    ]);
+    const [milestones, progressList] = await Promise.all([getMilestones(projectId), getBatchProgress(projectId)]);
     const progressMap: Record<string, MilestoneProgress> = {};
     for (const p of progressList) {
       progressMap[p.milestoneId] = p;

@@ -18,10 +18,7 @@ export default function RunStatusChip({ chatId }: RunStatusChipProps) {
   const { digest } = useRunDigest(chatId);
   const [expanded, setExpanded] = useState(false);
 
-  const active =
-    loading ||
-    digest?.phase === 'running' ||
-    digest?.phase === 'waiting_approval';
+  const active = loading || digest?.phase === 'running' || digest?.phase === 'waiting_approval';
 
   const headline = useMemo(() => resolveRunDigestHeadline(digest, t), [digest, t]);
 

@@ -3,11 +3,7 @@ import type { PrecacheEntry } from '@serwist/precaching';
 import { installSerwist } from '@serwist/sw';
 import { ExpirationPlugin, NetworkFirst } from 'serwist';
 
-import {
-  chatIdFromPushPath,
-  resolvePushClientFocusAction,
-  sanitizePushTargetUrl,
-} from '../lib/web-push/pushTargetUrl';
+import { chatIdFromPushPath, resolvePushClientFocusAction, sanitizePushTargetUrl } from '../lib/web-push/pushTargetUrl';
 
 declare const self: ServiceWorkerGlobalScope & {
   __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
@@ -57,7 +53,9 @@ interface PushPayload {
 }
 
 self.addEventListener('push', (event: PushEvent) => {
-  if (!event.data) {return;}
+  if (!event.data) {
+    return;
+  }
 
   let payload: PushPayload = {};
   try {

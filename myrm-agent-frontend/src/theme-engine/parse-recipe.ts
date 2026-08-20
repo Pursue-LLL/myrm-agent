@@ -78,22 +78,10 @@ function parsePalette(raw: unknown, fallback: ThemePaletteTokens): ThemePaletteT
   return {
     primaryLight: readHexColor(raw.primaryLight ?? fallback.primaryLight, 'primaryLight'),
     primaryDark: readHexColor(raw.primaryDark ?? fallback.primaryDark, 'primaryDark'),
-    primaryHoverLight: readHexColor(
-      raw.primaryHoverLight ?? fallback.primaryHoverLight,
-      'primaryHoverLight',
-    ),
-    primaryHoverDark: readHexColor(
-      raw.primaryHoverDark ?? fallback.primaryHoverDark,
-      'primaryHoverDark',
-    ),
-    primaryDarkLight: readHexColor(
-      raw.primaryDarkLight ?? fallback.primaryDarkLight,
-      'primaryDarkLight',
-    ),
-    primaryDarkDark: readHexColor(
-      raw.primaryDarkDark ?? fallback.primaryDarkDark,
-      'primaryDarkDark',
-    ),
+    primaryHoverLight: readHexColor(raw.primaryHoverLight ?? fallback.primaryHoverLight, 'primaryHoverLight'),
+    primaryHoverDark: readHexColor(raw.primaryHoverDark ?? fallback.primaryHoverDark, 'primaryHoverDark'),
+    primaryDarkLight: readHexColor(raw.primaryDarkLight ?? fallback.primaryDarkLight, 'primaryDarkLight'),
+    primaryDarkDark: readHexColor(raw.primaryDarkDark ?? fallback.primaryDarkDark, 'primaryDarkDark'),
     dualAccent: readBoolean(raw.dualAccent, fallback.dualAccent),
     accentWarmLight: readString(raw.accentWarmLight) ?? fallback.accentWarmLight,
     accentWarmDark: readString(raw.accentWarmDark) ?? fallback.accentWarmDark,

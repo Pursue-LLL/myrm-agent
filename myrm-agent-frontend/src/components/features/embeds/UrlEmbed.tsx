@@ -20,13 +20,17 @@ function intrinsicHeight(descriptor: EmbedDescriptor): number {
 
 function LazyRenderer({ descriptor }: { descriptor: EmbedDescriptor }) {
   if (descriptor.renderer === 'tweet') {
-    return <FrameEmbedRenderer descriptor={{
-      ...descriptor,
-      renderer: 'frame' as const,
-      embedUrl: `https://platform.twitter.com/embed/Tweet.html?dnt=true&id=${descriptor.tweetId}&theme=light`,
-      aspectRatio: undefined,
-      height: 300,
-    }} />;
+    return (
+      <FrameEmbedRenderer
+        descriptor={{
+          ...descriptor,
+          renderer: 'frame' as const,
+          embedUrl: `https://platform.twitter.com/embed/Tweet.html?dnt=true&id=${descriptor.tweetId}&theme=light`,
+          aspectRatio: undefined,
+          height: 300,
+        }}
+      />
+    );
   }
 
   return <FrameEmbedRenderer descriptor={descriptor} />;

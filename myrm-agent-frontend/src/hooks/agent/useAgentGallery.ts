@@ -54,7 +54,9 @@ export function useAgentGallery({
 
   // 本地管理的工作目录状态（从 localStorage 读取）
   const [localWorkingDirectory, setLocalWorkingDirectory] = useState<string>(() => {
-    if (typeof window === 'undefined') {return '';}
+    if (typeof window === 'undefined') {
+      return '';
+    }
     return localStorage.getItem(CLI_WORKING_DIRECTORY_STORAGE_KEY) || '';
   });
 

@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  healthReportFromMaintainResponse,
-  resolveHealthIssueNavigationTarget,
-} from '../wikiSectionUtils';
+import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from '../wikiSectionUtils';
 
 describe('resolveHealthIssueNavigationTarget', () => {
   it('maps absolute concept paths to concept tree ids', () => {
-    const target = resolveHealthIssueNavigationTarget(
-      '/vault/wiki/concepts/notes/alpha.md',
-    );
+    const target = resolveHealthIssueNavigationTarget('/vault/wiki/concepts/notes/alpha.md');
     expect(target).toEqual({ kind: 'concept', path: 'notes/alpha' });
   });
 

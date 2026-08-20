@@ -17,7 +17,9 @@ const PendingMemoryBadge = memo<PendingMemoryBadgeProps>(({ onClick, className, 
 
   const totalCount = pendingCount + conflictCount;
 
-  if (totalCount === 0) {return null;}
+  if (totalCount === 0) {
+    return null;
+  }
 
   return (
     <button

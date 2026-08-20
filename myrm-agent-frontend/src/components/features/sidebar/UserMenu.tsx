@@ -4,7 +4,18 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { CreditCard, Settings, LogOut, User, FlaskConical, Crown, Zap, Layers, BrainCircuit, BookOpenCheck } from 'lucide-react';
+import {
+  CreditCard,
+  Settings,
+  LogOut,
+  User,
+  FlaskConical,
+  Crown,
+  Zap,
+  Layers,
+  BrainCircuit,
+  BookOpenCheck,
+} from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
@@ -67,8 +78,7 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
 
   const handleSignIn = useCallback(() => {
     onMobileClose();
-    const returnPath =
-      typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
+    const returnPath = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
     router.push(buildAuthLoginPath(returnPath));
   }, [onMobileClose, router]);
 

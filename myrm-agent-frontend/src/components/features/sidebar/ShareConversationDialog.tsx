@@ -46,7 +46,9 @@ export function ShareConversationDialog({
   const isLocal = isLocalMode();
 
   const handleCopy = useCallback(async () => {
-    if (!shareUrl) {return;}
+    if (!shareUrl) {
+      return;
+    }
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -85,11 +87,7 @@ export function ShareConversationDialog({
           ) : shareUrl ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Input
-                  readOnly
-                  value={shareUrl}
-                  className="h-8 flex-1 truncate font-mono text-sm"
-                />
+                <Input readOnly value={shareUrl} className="h-8 flex-1 truncate font-mono text-sm" />
                 <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0">
                   {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                   <span className="ml-1.5">{copied ? t('chat.share.copied') : t('chat.share.copyLink')}</span>

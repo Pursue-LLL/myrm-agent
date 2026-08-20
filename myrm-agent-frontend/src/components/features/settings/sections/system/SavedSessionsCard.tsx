@@ -70,10 +70,10 @@ const SavedSessionsCard = memo(() => {
     async (domain: string) => {
       setDeletingDomain(domain);
       try {
-        const resp = await fetch(
-          `${getBackendUrl()}/api/v1/browser/sessions/${encodeURIComponent(domain)}`,
-          { method: 'DELETE', headers: getAuthHeaders() },
-        );
+        const resp = await fetch(`${getBackendUrl()}/api/v1/browser/sessions/${encodeURIComponent(domain)}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
         if (resp.ok) {
           setSessions((prev) => prev.filter((s) => s.domain !== domain));
           toast.success(t('deleteSuccess', { domain }));
@@ -164,9 +164,7 @@ const SavedSessionsCard = memo(() => {
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-foreground truncate">
-                    {session.domain}
-                  </span>
+                  <span className="text-xs font-medium text-foreground truncate">{session.domain}</span>
                   {session.is_expired && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 dark:text-red-400 font-medium">
                       {t('expired')}
@@ -180,13 +178,9 @@ const SavedSessionsCard = memo(() => {
                   <span className="text-[10px] text-muted-foreground">
                     {t('localStorage')}: {session.local_storage_count}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatDate(session.created_at)}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">{formatDate(session.created_at)}</span>
                   {session.expires_at && (
-                    <span className="text-[10px] text-muted-foreground">
-                      → {formatDate(session.expires_at)}
-                    </span>
+                    <span className="text-[10px] text-muted-foreground">→ {formatDate(session.expires_at)}</span>
                   )}
                 </div>
               </div>

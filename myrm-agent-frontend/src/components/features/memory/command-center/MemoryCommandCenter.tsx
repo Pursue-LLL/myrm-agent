@@ -103,7 +103,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   const projectsLoaded = useRef(false);
 
   useEffect(() => {
-    if (projectsLoaded.current) {return;}
+    if (projectsLoaded.current) {
+      return;
+    }
     projectsLoaded.current = true;
     getProjects()
       .then(setProjects)
@@ -129,7 +131,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         getConsolidationLastSummary().catch(() => null),
         getMemoryDiagnosticHistory(24).catch(() => ({ items: [] })),
       ]);
-      if (controller.signal.aborted) {return;}
+      if (controller.signal.aborted) {
+        return;
+      }
       registerMigrationSourceManifest(snap.migration.source_manifest, {
         authoritative: snap.migration.source_manifest_authoritative,
       });
@@ -137,10 +141,14 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
       setConsolidationSummary(consolSummary);
       setDiagnosticHistory(history.items);
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {return;}
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
       setError(err instanceof Error ? err.message : t('unknownError'));
     } finally {
-      if (!controller.signal.aborted) {setLoading(false);}
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [t, selectedProjectId]);
 
@@ -174,7 +182,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   useEffect(() => {
     const onMemoryOperation = (event: Event) => {
       const incoming = (event as CustomEvent<unknown>).detail;
-      if (!isMemoryTimelineEvent(incoming)) {return;}
+      if (!isMemoryTimelineEvent(incoming)) {
+        return;
+      }
       setLiveStream((previous) => mergeLiveStreamEvents(previous, incoming));
     };
     window.addEventListener('memory_operation', onMemoryOperation);
@@ -227,7 +237,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
       setActionId(`diagnostics:${action}`);
       try {
         const result = await runMemoryDiagnosticRepair({ plan_id: action, mode: 'execute' });
-        if (result.run) {setDiagnosticRun(result.run);}
+        if (result.run) {
+          setDiagnosticRun(result.run);
+        }
         toast({
           title:
             result.result.status === 'completed'
@@ -270,7 +282,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
   );
 
   const confirmRollbackImport = useCallback(async () => {
-    if (!rollbackPreview) {return;}
+    if (!rollbackPreview) {
+      return;
+    }
     const importBatchId = rollbackPreview.import_batch_id;
     setActionId(`migration:rollback:${importBatchId}`);
     try {
@@ -362,7 +376,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
 
   const generatedAt = useMemo(() => (snapshot ? formatTime(snapshot.generated_at) : ''), [snapshot]);
 
-  if (loading && !snapshot) {return <CommandCenterSkeleton className={className} />;}
+  if (loading && !snapshot) {
+    return <CommandCenterSkeleton className={className} />;
+  }
 
   if (error && !snapshot) {
     return (
@@ -380,7 +396,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     );
   }
 
-  if (!snapshot) {return null;}
+  if (!snapshot) {
+    return null;
+  }
 
   const healthStatus = isHealthStatus(snapshot.health.status) ? snapshot.health.status : 'unknown';
 

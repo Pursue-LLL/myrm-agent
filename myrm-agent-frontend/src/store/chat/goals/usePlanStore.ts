@@ -35,13 +35,17 @@ export const usePlanStore = create<PlanStore>((set) => ({
   clearPlan: () => set({ plan: null }),
   clearActivePlan: () =>
     set((state) => {
-      if (!state.plan) {return state;}
+      if (!state.plan) {
+        return state;
+      }
       const hasActive = state.plan.steps.some((s) => s.status === 'pending' || s.status === 'in_progress');
       return hasActive ? { plan: null } : state;
     }),
   updateStepStatus: (stepId, status) =>
     set((state) => {
-      if (!state.plan) {return state;}
+      if (!state.plan) {
+        return state;
+      }
       const steps = state.plan.steps.map((step) => (step.step_id === stepId ? { ...step, status } : step));
       return { plan: { ...state.plan, steps } };
     }),
@@ -50,13 +54,17 @@ export const usePlanStore = create<PlanStore>((set) => ({
     set({ isLoading: true });
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/plan`);
-      if (fetchId !== _lastFetchId) {return;}
+      if (fetchId !== _lastFetchId) {
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         set({ plan: data.plan || null });
       }
     } catch (error) {
-      if (fetchId !== _lastFetchId) {return;}
+      if (fetchId !== _lastFetchId) {
+        return;
+      }
       console.error('Failed to fetch goal progress:', error);
     } finally {
       if (fetchId === _lastFetchId) {

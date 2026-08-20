@@ -9,12 +9,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isVisualApprovalToolName } from '@/lib/approval/visualApprovalContext';
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
 export type VisualApprovalSnapshotStatus = 'idle' | 'loading' | 'ready' | 'failed';
@@ -24,10 +20,7 @@ function needsDesktopSnapshot(requests: ToolApprovalRequest[]): boolean {
     (request) =>
       isVisualApprovalToolName(request.toolName) &&
       request.toolName.startsWith('desktop_') &&
-      !selectScopedDesktopViewData(
-        useDesktopInspectorStore.getState().viewData,
-        request.chatId,
-      )?.screenshotBase64,
+      !selectScopedDesktopViewData(useDesktopInspectorStore.getState().viewData, request.chatId)?.screenshotBase64,
   );
 }
 
@@ -36,44 +29,27 @@ function needsBrowserSnapshot(requests: ToolApprovalRequest[]): boolean {
     (request) =>
       isVisualApprovalToolName(request.toolName) &&
       request.toolName.startsWith('browser_') &&
-      !selectScopedBrowserViewData(
-        useBrowserInspectorStore.getState().viewData,
-        request.chatId,
-      )?.screenshotBase64,
+      !selectScopedBrowserViewData(useBrowserInspectorStore.getState().viewData, request.chatId)?.screenshotBase64,
   );
 }
 
 function hasDesktopSnapshotForRequests(requests: ToolApprovalRequest[]): boolean {
   return requests
-    .filter(
-      (request) =>
-        isVisualApprovalToolName(request.toolName) && request.toolName.startsWith('desktop_'),
-    )
-    .every(
-      (request) =>
-        Boolean(
-          selectScopedDesktopViewData(
-            useDesktopInspectorStore.getState().viewData,
-            request.chatId,
-          )?.screenshotBase64,
-        ),
+    .filter((request) => isVisualApprovalToolName(request.toolName) && request.toolName.startsWith('desktop_'))
+    .every((request) =>
+      Boolean(
+        selectScopedDesktopViewData(useDesktopInspectorStore.getState().viewData, request.chatId)?.screenshotBase64,
+      ),
     );
 }
 
 function hasBrowserSnapshotForRequests(requests: ToolApprovalRequest[]): boolean {
   return requests
-    .filter(
-      (request) =>
-        isVisualApprovalToolName(request.toolName) && request.toolName.startsWith('browser_'),
-    )
-    .every(
-      (request) =>
-        Boolean(
-          selectScopedBrowserViewData(
-            useBrowserInspectorStore.getState().viewData,
-            request.chatId,
-          )?.screenshotBase64,
-        ),
+    .filter((request) => isVisualApprovalToolName(request.toolName) && request.toolName.startsWith('browser_'))
+    .every((request) =>
+      Boolean(
+        selectScopedBrowserViewData(useBrowserInspectorStore.getState().viewData, request.chatId)?.screenshotBase64,
+      ),
     );
 }
 

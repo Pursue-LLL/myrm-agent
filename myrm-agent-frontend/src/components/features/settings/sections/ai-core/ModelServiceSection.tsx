@@ -61,7 +61,9 @@ const ModelServiceSection = memo(() => {
 
   // 从 localStorage 读取上次选择的服务商
   const [selectedProviderId, setSelectedProviderId] = useState<string>(() => {
-    if (typeof window === 'undefined') {return '';}
+    if (typeof window === 'undefined') {
+      return '';
+    }
     return localStorage.getItem(STORAGE_KEY) || '';
   });
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -145,7 +147,9 @@ const ModelServiceSection = memo(() => {
   const handleConfirmDelete = useCallback(
     async (force: boolean) => {
       const { id } = deleteDialogState;
-      if (!id) {return;}
+      if (!id) {
+        return;
+      }
 
       if (force) {
         await clearProviderUsage(id);
@@ -157,13 +161,7 @@ const ModelServiceSection = memo(() => {
         handleSelectProvider(remaining[0]?.id || '');
       }
     },
-    [
-	deleteDialogState,
-	removeProvider,
-	selectedProviderId,
-	providers,
-	handleSelectProvider
-],
+    [deleteDialogState, removeProvider, selectedProviderId, providers, handleSelectProvider],
   );
 
   // 验证单个模型 - 实时从 store 获取 provider 数据，避免闭包捕获过时的 apiKey
@@ -210,7 +208,9 @@ const ModelServiceSection = memo(() => {
 
   const handleToggleEnabled = useCallback(
     async (enabled: boolean): Promise<boolean> => {
-      if (!selectedProviderId) {return false;}
+      if (!selectedProviderId) {
+        return false;
+      }
       setProviderEnabled(selectedProviderId, enabled);
       return true;
     },
@@ -220,9 +220,13 @@ const ModelServiceSection = memo(() => {
   const speedTestModels = useMemo(() => {
     const configs: { config: ModelConfig; displayName: string }[] = [];
     for (const provider of providers) {
-      if (!provider.isEnabled) {continue;}
+      if (!provider.isEnabled) {
+        continue;
+      }
       const requestApiKey = resolveProviderApiKeyForRequests(provider);
-      if (!requestApiKey || !hasUsableProviderAuth(provider)) {continue;}
+      if (!requestApiKey || !hasUsableProviderAuth(provider)) {
+        continue;
+      }
       for (const model of provider.enabledModels ?? []) {
         const fullName = getLiteLLMModelName(provider.id, model, provider.providerType);
         configs.push({
@@ -239,57 +243,60 @@ const ModelServiceSection = memo(() => {
     return configs;
   }, [providers]);
 
-  const handleApplyRecommendedModel = useCallback((modelId: string) => {
-    // 提取纯模型名，例如 'ollama/qwen2.5:3b' -> 'qwen2.5:3b'
-    const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
-    
-    // 查找是否已有 Ollama 提供商
-    const ollamaProvider = providers.find(p => p.id === 'ollama');
-    
-    if (!ollamaProvider) {
-      // 如果没有，自动添加一个（Ollama 是内置本地提供商）
-      const newId = 'ollama';
-      const newProvider: ProviderConfigType = {
-        id: newId,
-        name: 'Ollama Local',
-        isBuiltIn: true,
-        isEnabled: true,
-        apiKeys: [],
-        apiUrl: 'http://localhost:11434/v1',
-        enabledModels: [pureModelName],
-        availableModels: [pureModelName],
-        providerType: undefined,
-        routingProfile: 'ollama',
-      };
-      setProviders([...providers, newProvider]);
-      handleSelectProvider(newId);
-      return;
-    }
-    
-    // 切换到 Ollama 提供商
-    handleSelectProvider(ollamaProvider.id);
-    
-    // 将模型添加到 availableModels 列表中（如果不存在）
-    const currentCustomModels = ollamaProvider.availableModels || [];
-    if (!currentCustomModels.includes(pureModelName)) {
-      const updatedProvider = {
-        ...ollamaProvider,
-        availableModels: [...currentCustomModels, pureModelName],
-        // 自动将该模型加入已启用列表
-        enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName]
-      };
-      updateProvider(ollamaProvider.id, updatedProvider);
-    } else {
-      // 如果已在自定义列表中，确保它被启用
-      if (!(ollamaProvider.enabledModels || []).includes(pureModelName)) {
+  const handleApplyRecommendedModel = useCallback(
+    (modelId: string) => {
+      // 提取纯模型名，例如 'ollama/qwen2.5:3b' -> 'qwen2.5:3b'
+      const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
+
+      // 查找是否已有 Ollama 提供商
+      const ollamaProvider = providers.find((p) => p.id === 'ollama');
+
+      if (!ollamaProvider) {
+        // 如果没有，自动添加一个（Ollama 是内置本地提供商）
+        const newId = 'ollama';
+        const newProvider: ProviderConfigType = {
+          id: newId,
+          name: 'Ollama Local',
+          isBuiltIn: true,
+          isEnabled: true,
+          apiKeys: [],
+          apiUrl: 'http://localhost:11434/v1',
+          enabledModels: [pureModelName],
+          availableModels: [pureModelName],
+          providerType: undefined,
+          routingProfile: 'ollama',
+        };
+        setProviders([...providers, newProvider]);
+        handleSelectProvider(newId);
+        return;
+      }
+
+      // 切换到 Ollama 提供商
+      handleSelectProvider(ollamaProvider.id);
+
+      // 将模型添加到 availableModels 列表中（如果不存在）
+      const currentCustomModels = ollamaProvider.availableModels || [];
+      if (!currentCustomModels.includes(pureModelName)) {
         const updatedProvider = {
           ...ollamaProvider,
-          enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName]
+          availableModels: [...currentCustomModels, pureModelName],
+          // 自动将该模型加入已启用列表
+          enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName],
         };
         updateProvider(ollamaProvider.id, updatedProvider);
+      } else {
+        // 如果已在自定义列表中，确保它被启用
+        if (!(ollamaProvider.enabledModels || []).includes(pureModelName)) {
+          const updatedProvider = {
+            ...ollamaProvider,
+            enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName],
+          };
+          updateProvider(ollamaProvider.id, updatedProvider);
+        }
       }
-    }
-  }, [providers, handleSelectProvider, addProvider, updateProvider]);
+    },
+    [providers, handleSelectProvider, addProvider, updateProvider],
+  );
 
   if (initError) {
     return <ConfigLoadError onRetry={retryInit} className="min-h-[400px]" />;
@@ -358,7 +365,7 @@ const ModelServiceSection = memo(() => {
           {/* 右侧配置区域 */}
           <div className="flex-1 min-w-0 space-y-6">
             <HardwareCookbook onApplyModel={handleApplyRecommendedModel} />
-            
+
             {selectedProvider ? (
               <ProviderConfig
                 provider={selectedProvider}

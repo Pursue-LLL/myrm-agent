@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  TUNNEL_AGENT_IMAGE,
-  buildTunnelDockerBuildCommand,
-  buildTunnelDockerRunCommand,
-} from '@/lib/tunnel-deploy';
+import { TUNNEL_AGENT_IMAGE, buildTunnelDockerBuildCommand, buildTunnelDockerRunCommand } from '@/lib/tunnel-deploy';
 
 describe('buildTunnelDockerBuildCommand', () => {
   it('builds docker build with pinned image tag', () => {

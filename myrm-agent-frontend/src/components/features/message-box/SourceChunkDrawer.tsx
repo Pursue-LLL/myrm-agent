@@ -47,7 +47,9 @@ interface SourceChunkDrawerProps {
 }
 
 function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.ReactNode[] {
-  if (!text) {return [];}
+  if (!text) {
+    return [];
+  }
 
   const sentences = text.split(/(?<=[。.!?！？\n])\s*/);
   const segments = sentences.slice(0, maxSegments);
@@ -59,7 +61,23 @@ function renderSnippetParagraphs(text: string, maxSegments: number = 3): React.R
 }
 
 const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
-  ({ open, onOpenChange, title, section, snippet, level, snapshotStatus, claimStatus, claimConfidence, claimText, resourceUri, supersededFromUri, thumbnailUrl, surface = 'chat', contextKey }) => {
+  ({
+    open,
+    onOpenChange,
+    title,
+    section,
+    snippet,
+    level,
+    snapshotStatus,
+    claimStatus,
+    claimConfidence,
+    claimText,
+    resourceUri,
+    supersededFromUri,
+    thumbnailUrl,
+    surface = 'chat',
+    contextKey,
+  }) => {
     const t = useTranslations('MessageSources');
     const tWiki = useTranslations('settings.wiki');
     const tWikiConcepts = useTranslations('settings.wiki.concepts');
@@ -101,9 +119,15 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
     }, [contextKey, surface]);
 
     const levelLabel = useMemo(() => {
-      if (level === 'L0') {return t('kb_level_l0');}
-      if (level === 'L1') {return t('kb_level_l1');}
-      if (level === 'L2') {return t('kb_level_l2');}
+      if (level === 'L0') {
+        return t('kb_level_l0');
+      }
+      if (level === 'L1') {
+        return t('kb_level_l1');
+      }
+      if (level === 'L2') {
+        return t('kb_level_l2');
+      }
       return '';
     }, [level, t]);
 
@@ -174,9 +198,7 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
               </div>
             ) : null}
             <div className="flex items-center gap-1.5 mb-3">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {excerptLabel}
-              </span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{excerptLabel}</span>
             </div>
 
             <div className="bg-muted/40 rounded-lg p-4 border border-border/30">
@@ -200,12 +222,12 @@ const SourceChunkDrawer: React.FC<SourceChunkDrawerProps> = React.memo(
               </p>
             )}
             {snapshotStatus === 'stale' && (
-              <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-3">
-                {tWiki('evidenceSnapshotStale')}
-              </p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-3">{tWiki('evidenceSnapshotStale')}</p>
             )}
             {resourceUri ? (
-              <p className="text-[11px] text-muted-foreground mt-2 font-mono break-all">{tWiki('evidenceResourceUri', { uri: resourceUri })}</p>
+              <p className="text-[11px] text-muted-foreground mt-2 font-mono break-all">
+                {tWiki('evidenceResourceUri', { uri: resourceUri })}
+              </p>
             ) : null}
             {supersededFromUri ? (
               <p className="text-[11px] text-amber-700/90 dark:text-amber-300/90 mt-1 font-mono break-all">

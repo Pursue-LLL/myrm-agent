@@ -20,18 +20,24 @@ export const useSidebarState = () => {
 
   // 滚动检测
   useEffect(() => {
-    if (!isMobile) {return;}
+    if (!isMobile) {
+      return;
+    }
 
     const handleScroll = () => {
       setIsScrolling(true);
-      if (scrollTimeoutRef.current) {clearTimeout(scrollTimeoutRef.current);}
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
       scrollTimeoutRef.current = setTimeout(() => setIsScrolling(false), DRAG_CONFIG.SCROLL_DELAY);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      if (scrollTimeoutRef.current) {clearTimeout(scrollTimeoutRef.current);}
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     };
   }, [isMobile]);
 

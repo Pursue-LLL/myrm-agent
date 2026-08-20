@@ -81,7 +81,12 @@ export interface CasesEval {
   loadingReport: string | null;
   diffView: { expected: string; actual: string } | null;
   ready: boolean;
-  startRun: (profileId: string | null, datasetId: string, benchmarkMode: boolean, onStarted?: () => void) => Promise<void>;
+  startRun: (
+    profileId: string | null,
+    datasetId: string,
+    benchmarkMode: boolean,
+    onStarted?: () => void,
+  ) => Promise<void>;
   startBenchmark: (
     benchmarkId: string,
     profileId: string | null,
@@ -193,7 +198,9 @@ export function useCasesEval(selectedDatasetId: string): CasesEval {
       // onerror instead of onmessage. Both paths converge here so the UI
       // always re-pulls the report and sources after a completed run.
       const finalize = () => {
-        if (finalized) {return;}
+        if (finalized) {
+          return;
+        }
         finalized = true;
         eventSource?.close();
         setRunning(false);

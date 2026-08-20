@@ -138,7 +138,7 @@ async function mobileFetch(path: string, init: RequestInit = {}): Promise<Respon
   const headers = withMobilePairHeaders(
     init.headers instanceof Headers
       ? Object.fromEntries(init.headers.entries())
-      : (init.headers as Record<string, string> | undefined) ?? {},
+      : ((init.headers as Record<string, string> | undefined) ?? {}),
   );
   const session = loadStoredE2EESession();
   let body = init.body;
@@ -182,10 +182,9 @@ export async function refreshMobilePairToken(): Promise<string | undefined> {
   if (!current) {
     return undefined;
   }
-  const payload = await mobileApiRequest<PairingTokenResponse>(
-    '/api/v1/remote-access/pairing-token/refresh',
-    { method: 'POST' },
-  );
+  const payload = await mobileApiRequest<PairingTokenResponse>('/api/v1/remote-access/pairing-token/refresh', {
+    method: 'POST',
+  });
   const token = payload.token;
   if (!token) {
     return undefined;

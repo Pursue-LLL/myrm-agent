@@ -142,7 +142,9 @@ export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
   }, [chatId, takeoverMessageId, takeoverReason, takeoverPageUrl, t]);
 
   useEffect(() => {
-    if (!lightboxSrc) {return;}
+    if (!lightboxSrc) {
+      return;
+    }
     document.body.style.overflow = 'hidden';
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -229,7 +231,9 @@ export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
               </div>
             </button>
           ) : (
-            <p className="rounded-xl bg-muted/20 px-3 py-4 text-xs text-muted-foreground">{t('takeoverExtensionHint')}</p>
+            <p className="rounded-xl bg-muted/20 px-3 py-4 text-xs text-muted-foreground">
+              {t('takeoverExtensionHint')}
+            </p>
           )}
 
           {preview?.pageUrl ? (

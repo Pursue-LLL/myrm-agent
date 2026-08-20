@@ -57,7 +57,9 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
     [onElementClick],
   );
 
-  if (interactiveRefs.length === 0) {return null;}
+  if (interactiveRefs.length === 0) {
+    return null;
+  }
 
   return (
     <div className="absolute inset-0 pointer-events-none">
@@ -73,7 +75,9 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
         const width = bbox.width * scaleX;
         const height = bbox.height * scaleY;
 
-        if (width < 2 || height < 2) {return null;}
+        if (width < 2 || height < 2) {
+          return null;
+        }
 
         return (
           <button

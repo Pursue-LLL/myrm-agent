@@ -60,7 +60,9 @@ const DesktopInstructionInput: React.FC<DesktopInstructionInputProps> = ({
 
   const handleSubmit = useCallback(() => {
     const trimmed = instructionText.trim();
-    if (!trimmed && !selectedRefId) {return;}
+    if (!trimmed && !selectedRefId) {
+      return;
+    }
     onSubmit(trimmed, selectedRefId);
     onInstructionChange('');
   }, [instructionText, selectedRefId, onSubmit, onInstructionChange]);

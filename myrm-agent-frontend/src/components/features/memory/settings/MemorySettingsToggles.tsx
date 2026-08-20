@@ -73,10 +73,7 @@ const MemorySettingsToggles = memo<MemorySettingsTogglesProps>(
               <h3 className="text-sm font-medium text-foreground">{t('enableConversationSearch')}</h3>
               <p className="mt-1 text-xs text-muted-foreground">{t('enableConversationSearchDesc')}</p>
             </div>
-            <Switch
-              checked={memoryEnableConversationSearch}
-              onCheckedChange={setMemoryEnableConversationSearch}
-            />
+            <Switch checked={memoryEnableConversationSearch} onCheckedChange={setMemoryEnableConversationSearch} />
           </div>
         )}
 

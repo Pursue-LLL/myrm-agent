@@ -108,7 +108,8 @@ export function KanbanEventTimeline({ events }: KanbanEventTimelineProps) {
                   })}
                   {Array.isArray(ev.payload.conflicts) && ev.payload.conflicts.length > 0 && (
                     <>
-                      {' '}·{' '}
+                      {' '}
+                      ·{' '}
                       {t('mergeConflictFileCount', {
                         count: ev.payload.conflicts.length,
                       })}

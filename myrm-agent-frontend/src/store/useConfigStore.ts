@@ -59,469 +59,468 @@ const syncSearchServices = (searchServiceConfigs: SearchServiceConfigItem[]) => 
 };
 
 const useConfigStore = create<ConfigState>()((set, get) => ({
-      // ============ 初始状态 ============
-      fetchRawWebpage: DEFAULT_PERSONAL_SETTINGS.fetchRawWebpage,
-      extractDocumentText: DEFAULT_PERSONAL_SETTINGS.extractDocumentText,
-      generateSearchSuggestions: DEFAULT_PERSONAL_SETTINGS.generateSearchSuggestions,
-      enableCostEstimation: DEFAULT_PERSONAL_SETTINGS.enableCostEstimation,
-      enableCacheBreakNotification: DEFAULT_PERSONAL_SETTINGS.enableCacheBreakNotification,
-      showContextUsage: DEFAULT_PERSONAL_SETTINGS.showContextUsage,
-      reasoningDisplayMode: DEFAULT_PERSONAL_SETTINGS.reasoningDisplayMode,
-      enableMemory: DEFAULT_PERSONAL_SETTINGS.enableMemory,
-      memoryRequireConfirmation: DEFAULT_PERSONAL_SETTINGS.memoryRequireConfirmation,
-      enableMemoryAutoExtraction: DEFAULT_PERSONAL_SETTINGS.enableMemoryAutoExtraction,
-      memoryEnableConversationSearch: DEFAULT_PERSONAL_SETTINGS.memoryEnableConversationSearch,
-      preCompactEnabled: DEFAULT_PERSONAL_SETTINGS.preCompactEnabled,
-      preCompactBudgetTokens: DEFAULT_PERSONAL_SETTINGS.preCompactBudgetTokens,
-      enableAutoTitleGeneration: DEFAULT_PERSONAL_SETTINGS.enableAutoTitleGeneration,
-      webTtsProvider: DEFAULT_PERSONAL_SETTINGS.webTtsProvider,
-      systemInstructions: DEFAULT_PERSONAL_SETTINGS.systemInstructions,
-      timezone: DEFAULT_PERSONAL_SETTINGS.timezone,
-      enableWebNotifications: DEFAULT_PERSONAL_SETTINGS.enableWebNotifications,
-      enableCompletionSound: DEFAULT_PERSONAL_SETTINGS.enableCompletionSound,
-      enableIdleApprovalNotification: DEFAULT_PERSONAL_SETTINGS.enableIdleApprovalNotification,
-      approvalNotificationSound: DEFAULT_PERSONAL_SETTINGS.approvalNotificationSound,
-      privacyEnabled: false,
-      privacyS2Action: 'warn' as const,
-      privacyS3Action: 'redact' as const,
-      privacyDeepScan: false,
-      privacyRouting: {},
-      privacyCustomKeywordsS2: [] as string[],
-      privacyCustomKeywordsS3: [] as string[],
-      privacyCustomPatternsS2: [] as string[],
-      privacyCustomPatternsS3: [] as string[],
-      privacySensitiveToolsS2: [] as string[],
-      privacySensitiveToolsS3: [] as string[],
-      codeExecutionAllowNetwork: DEFAULT_PERSONAL_SETTINGS.codeExecutionAllowNetwork ?? true,
-      enableEvalLab: DEFAULT_PERSONAL_SETTINGS.enableEvalLab ?? false,
-      smoothStreamEnabled: DEFAULT_PERSONAL_SETTINGS.smoothStreamEnabled ?? true,
-      suggestWorkflowMode: DEFAULT_PERSONAL_SETTINGS.suggestWorkflowMode ?? false,
-      autoContinueInterruptedTurns: DEFAULT_PERSONAL_SETTINGS.autoContinueInterruptedTurns ?? true,
-      publicIngressBaseUrl: DEFAULT_PERSONAL_SETTINGS.publicIngressBaseUrl ?? '',
-      searchServiceConfigs: DEFAULT_SEARCH_SERVICES.searchServiceConfigs,
-      mcpConfigs: DEFAULT_MCP_SERVERS.mcpConfigs,
-      orgMcpConfigs: [],
+  // ============ 初始状态 ============
+  fetchRawWebpage: DEFAULT_PERSONAL_SETTINGS.fetchRawWebpage,
+  extractDocumentText: DEFAULT_PERSONAL_SETTINGS.extractDocumentText,
+  generateSearchSuggestions: DEFAULT_PERSONAL_SETTINGS.generateSearchSuggestions,
+  enableCostEstimation: DEFAULT_PERSONAL_SETTINGS.enableCostEstimation,
+  enableCacheBreakNotification: DEFAULT_PERSONAL_SETTINGS.enableCacheBreakNotification,
+  showContextUsage: DEFAULT_PERSONAL_SETTINGS.showContextUsage,
+  reasoningDisplayMode: DEFAULT_PERSONAL_SETTINGS.reasoningDisplayMode,
+  enableMemory: DEFAULT_PERSONAL_SETTINGS.enableMemory,
+  memoryRequireConfirmation: DEFAULT_PERSONAL_SETTINGS.memoryRequireConfirmation,
+  enableMemoryAutoExtraction: DEFAULT_PERSONAL_SETTINGS.enableMemoryAutoExtraction,
+  memoryEnableConversationSearch: DEFAULT_PERSONAL_SETTINGS.memoryEnableConversationSearch,
+  preCompactEnabled: DEFAULT_PERSONAL_SETTINGS.preCompactEnabled,
+  preCompactBudgetTokens: DEFAULT_PERSONAL_SETTINGS.preCompactBudgetTokens,
+  enableAutoTitleGeneration: DEFAULT_PERSONAL_SETTINGS.enableAutoTitleGeneration,
+  webTtsProvider: DEFAULT_PERSONAL_SETTINGS.webTtsProvider,
+  systemInstructions: DEFAULT_PERSONAL_SETTINGS.systemInstructions,
+  timezone: DEFAULT_PERSONAL_SETTINGS.timezone,
+  enableWebNotifications: DEFAULT_PERSONAL_SETTINGS.enableWebNotifications,
+  enableCompletionSound: DEFAULT_PERSONAL_SETTINGS.enableCompletionSound,
+  enableIdleApprovalNotification: DEFAULT_PERSONAL_SETTINGS.enableIdleApprovalNotification,
+  approvalNotificationSound: DEFAULT_PERSONAL_SETTINGS.approvalNotificationSound,
+  privacyEnabled: false,
+  privacyS2Action: 'warn' as const,
+  privacyS3Action: 'redact' as const,
+  privacyDeepScan: false,
+  privacyRouting: {},
+  privacyCustomKeywordsS2: [] as string[],
+  privacyCustomKeywordsS3: [] as string[],
+  privacyCustomPatternsS2: [] as string[],
+  privacyCustomPatternsS3: [] as string[],
+  privacySensitiveToolsS2: [] as string[],
+  privacySensitiveToolsS3: [] as string[],
+  codeExecutionAllowNetwork: DEFAULT_PERSONAL_SETTINGS.codeExecutionAllowNetwork ?? true,
+  enableEvalLab: DEFAULT_PERSONAL_SETTINGS.enableEvalLab ?? false,
+  smoothStreamEnabled: DEFAULT_PERSONAL_SETTINGS.smoothStreamEnabled ?? true,
+  suggestWorkflowMode: DEFAULT_PERSONAL_SETTINGS.suggestWorkflowMode ?? false,
+  autoContinueInterruptedTurns: DEFAULT_PERSONAL_SETTINGS.autoContinueInterruptedTurns ?? true,
+  publicIngressBaseUrl: DEFAULT_PERSONAL_SETTINGS.publicIngressBaseUrl ?? '',
+  searchServiceConfigs: DEFAULT_SEARCH_SERVICES.searchServiceConfigs,
+  mcpConfigs: DEFAULT_MCP_SERVERS.mcpConfigs,
+  orgMcpConfigs: [],
 
-      // ============ 基础设置 Actions ============
+  // ============ 基础设置 Actions ============
 
-      setFetchRawWebpage: (fetch) => {
-        set({ fetchRawWebpage: fetch });
-        syncPersonalSettings({ fetchRawWebpage: fetch });
+  setFetchRawWebpage: (fetch) => {
+    set({ fetchRawWebpage: fetch });
+    syncPersonalSettings({ fetchRawWebpage: fetch });
+  },
+
+  setExtractDocumentText: (enabled) => {
+    set({ extractDocumentText: enabled });
+    syncPersonalSettings({ extractDocumentText: enabled });
+  },
+
+  setGenerateSearchSuggestions: (generate) => {
+    set({ generateSearchSuggestions: generate });
+    syncPersonalSettings({ generateSearchSuggestions: generate });
+  },
+
+  setEnableCostEstimation: (enable) => {
+    set({ enableCostEstimation: enable });
+    syncPersonalSettings({ enableCostEstimation: enable });
+  },
+
+  setEnableCacheBreakNotification: (enable) => {
+    set({ enableCacheBreakNotification: enable });
+    syncPersonalSettings({ enableCacheBreakNotification: enable });
+  },
+
+  setShowContextUsage: (show) => {
+    set({ showContextUsage: show });
+    syncPersonalSettings({ showContextUsage: show });
+  },
+
+  setEnableMemory: (enable) => {
+    set({ enableMemory: enable });
+    syncPersonalSettings({ enableMemory: enable });
+  },
+
+  setMemoryRequireConfirmation: (enable) => {
+    set({ memoryRequireConfirmation: enable });
+    syncPersonalSettings({ memoryRequireConfirmation: enable });
+  },
+
+  setEnableMemoryAutoExtraction: (enable) => {
+    set({ enableMemoryAutoExtraction: enable });
+    syncPersonalSettings({ enableMemoryAutoExtraction: enable });
+  },
+
+  setMemoryEnableConversationSearch: (enable) => {
+    set({ memoryEnableConversationSearch: enable });
+    syncPersonalSettings({ memoryEnableConversationSearch: enable });
+  },
+
+  setPreCompactEnabled: (enable) => {
+    set({ preCompactEnabled: enable });
+    syncPersonalSettings({ preCompactEnabled: enable });
+  },
+
+  setPreCompactBudgetTokens: (tokens) => {
+    const normalized = Math.max(800, Math.min(tokens, 2000));
+    set({ preCompactBudgetTokens: normalized });
+    syncPersonalSettings({ preCompactBudgetTokens: normalized });
+  },
+
+  setEnableAutoTitleGeneration: (enable) => {
+    set({ enableAutoTitleGeneration: enable });
+    syncPersonalSettings({ enableAutoTitleGeneration: enable });
+  },
+
+  setWebTtsProvider: (provider) => {
+    set({ webTtsProvider: provider });
+    syncPersonalSettings({ webTtsProvider: provider });
+  },
+
+  updatePersonalSettings: async (settings) => {
+    set((state) => ({
+      ...settings,
+      personalSettings: {
+        ...DEFAULT_PERSONAL_SETTINGS,
+        ...state.personalSettings,
+        ...settings,
       },
+    }));
+    syncPersonalSettings(settings);
+  },
 
-      setExtractDocumentText: (enabled) => {
-        set({ extractDocumentText: enabled });
-        syncPersonalSettings({ extractDocumentText: enabled });
-      },
+  setSystemInstructions: (instructions) => {
+    set({ systemInstructions: instructions });
+    syncPersonalSettings({ systemInstructions: instructions });
+  },
 
-      setGenerateSearchSuggestions: (generate) => {
-        set({ generateSearchSuggestions: generate });
-        syncPersonalSettings({ generateSearchSuggestions: generate });
-      },
+  setTimezone: (tz) => {
+    set({ timezone: tz });
+    syncPersonalSettings({ timezone: tz });
+  },
 
-      setEnableCostEstimation: (enable) => {
-        set({ enableCostEstimation: enable });
-        syncPersonalSettings({ enableCostEstimation: enable });
-      },
+  setEnableWebNotifications: (enable) => {
+    set({ enableWebNotifications: enable });
+    syncPersonalSettings({ enableWebNotifications: enable });
+  },
 
-      setEnableCacheBreakNotification: (enable) => {
-        set({ enableCacheBreakNotification: enable });
-        syncPersonalSettings({ enableCacheBreakNotification: enable });
-      },
+  setEnableCompletionSound: (enable) => {
+    set({ enableCompletionSound: enable });
+    syncPersonalSettings({ enableCompletionSound: enable });
+  },
 
-      setShowContextUsage: (show) => {
-        set({ showContextUsage: show });
-        syncPersonalSettings({ showContextUsage: show });
-      },
+  setEnableIdleApprovalNotification: (enable) => {
+    set({ enableIdleApprovalNotification: enable });
+    syncPersonalSettings({ enableIdleApprovalNotification: enable });
+  },
 
-      setEnableMemory: (enable) => {
-        set({ enableMemory: enable });
-        syncPersonalSettings({ enableMemory: enable });
-      },
+  setApprovalNotificationSound: (enable) => {
+    set({ approvalNotificationSound: enable });
+    syncPersonalSettings({ approvalNotificationSound: enable });
+  },
 
-      setMemoryRequireConfirmation: (enable) => {
-        set({ memoryRequireConfirmation: enable });
-        syncPersonalSettings({ memoryRequireConfirmation: enable });
-      },
+  setPrivacyEnabled: (enable) => {
+    set({ privacyEnabled: enable });
+    syncPersonalSettings({ privacyEnabled: enable });
+  },
 
-      setEnableMemoryAutoExtraction: (enable) => {
-        set({ enableMemoryAutoExtraction: enable });
-        syncPersonalSettings({ enableMemoryAutoExtraction: enable });
-      },
+  setPrivacyS2Action: (action) => {
+    set({ privacyS2Action: action });
+    syncPersonalSettings({ privacyS2Action: action });
+  },
 
-      setMemoryEnableConversationSearch: (enable) => {
-        set({ memoryEnableConversationSearch: enable });
-        syncPersonalSettings({ memoryEnableConversationSearch: enable });
-      },
+  setPrivacyS3Action: (action) => {
+    set({ privacyS3Action: action });
+    syncPersonalSettings({ privacyS3Action: action });
+  },
 
-      setPreCompactEnabled: (enable) => {
-        set({ preCompactEnabled: enable });
-        syncPersonalSettings({ preCompactEnabled: enable });
-      },
+  setPrivacyDeepScan: (enable) => {
+    set({ privacyDeepScan: enable });
+    syncPersonalSettings({ privacyDeepScan: enable });
+  },
 
-      setPreCompactBudgetTokens: (tokens) => {
-        const normalized = Math.max(800, Math.min(tokens, 2000));
-        set({ preCompactBudgetTokens: normalized });
-        syncPersonalSettings({ preCompactBudgetTokens: normalized });
-      },
+  setPrivacyRouting: (config) => {
+    set({ privacyRouting: config });
+    syncPersonalSettings({ privacyRouting: config });
+  },
 
-      setEnableAutoTitleGeneration: (enable) => {
-        set({ enableAutoTitleGeneration: enable });
-        syncPersonalSettings({ enableAutoTitleGeneration: enable });
-      },
+  setPrivacyCustomKeywordsS2: (keywords) => {
+    set({ privacyCustomKeywordsS2: keywords });
+    syncPersonalSettings({ privacyCustomKeywordsS2: keywords });
+  },
 
-      setWebTtsProvider: (provider) => {
-        set({ webTtsProvider: provider });
-        syncPersonalSettings({ webTtsProvider: provider });
-      },
+  setPrivacyCustomKeywordsS3: (keywords) => {
+    set({ privacyCustomKeywordsS3: keywords });
+    syncPersonalSettings({ privacyCustomKeywordsS3: keywords });
+  },
 
-      updatePersonalSettings: async (settings) => {
-        set((state) => ({
-          ...settings,
-          personalSettings: {
-            ...DEFAULT_PERSONAL_SETTINGS,
-            ...state.personalSettings,
-            ...settings,
-          },
-        }));
-        syncPersonalSettings(settings);
-      },
+  setPrivacyCustomPatternsS2: (patterns) => {
+    set({ privacyCustomPatternsS2: patterns });
+    syncPersonalSettings({ privacyCustomPatternsS2: patterns });
+  },
 
-      setSystemInstructions: (instructions) => {
-        set({ systemInstructions: instructions });
-        syncPersonalSettings({ systemInstructions: instructions });
-      },
+  setPrivacyCustomPatternsS3: (patterns) => {
+    set({ privacyCustomPatternsS3: patterns });
+    syncPersonalSettings({ privacyCustomPatternsS3: patterns });
+  },
 
-      setTimezone: (tz) => {
-        set({ timezone: tz });
-        syncPersonalSettings({ timezone: tz });
-      },
+  setPrivacySensitiveToolsS2: (tools) => {
+    set({ privacySensitiveToolsS2: tools });
+    syncPersonalSettings({ privacySensitiveToolsS2: tools });
+  },
 
-      setEnableWebNotifications: (enable) => {
-        set({ enableWebNotifications: enable });
-        syncPersonalSettings({ enableWebNotifications: enable });
-      },
+  setPrivacySensitiveToolsS3: (tools) => {
+    set({ privacySensitiveToolsS3: tools });
+    syncPersonalSettings({ privacySensitiveToolsS3: tools });
+  },
 
-      setEnableCompletionSound: (enable) => {
-        set({ enableCompletionSound: enable });
-        syncPersonalSettings({ enableCompletionSound: enable });
-      },
+  setCodeExecutionAllowNetwork: (allow) => {
+    set({ codeExecutionAllowNetwork: allow });
+    syncPersonalSettings({ codeExecutionAllowNetwork: allow });
+  },
 
-      setEnableIdleApprovalNotification: (enable) => {
-        set({ enableIdleApprovalNotification: enable });
-        syncPersonalSettings({ enableIdleApprovalNotification: enable });
-      },
+  setEnableEvalLab: (enable) => {
+    set({ enableEvalLab: enable });
+    syncPersonalSettings({ enableEvalLab: enable });
+  },
 
-      setApprovalNotificationSound: (enable) => {
-        set({ approvalNotificationSound: enable });
-        syncPersonalSettings({ approvalNotificationSound: enable });
-      },
+  setSmoothStreamEnabled: (enable) => {
+    set({ smoothStreamEnabled: enable });
+    syncPersonalSettings({ smoothStreamEnabled: enable });
+  },
 
-      setPrivacyEnabled: (enable) => {
-        set({ privacyEnabled: enable });
-        syncPersonalSettings({ privacyEnabled: enable });
-      },
+  setSuggestWorkflowMode: (enable: boolean) => {
+    set({ suggestWorkflowMode: enable });
+    syncPersonalSettings({ suggestWorkflowMode: enable });
+  },
 
-      setPrivacyS2Action: (action) => {
-        set({ privacyS2Action: action });
-        syncPersonalSettings({ privacyS2Action: action });
-      },
+  setAutoContinueInterruptedTurns: (enable: boolean) => {
+    set({ autoContinueInterruptedTurns: enable });
+    syncPersonalSettings({ autoContinueInterruptedTurns: enable });
+  },
 
-      setPrivacyS3Action: (action) => {
-        set({ privacyS3Action: action });
-        syncPersonalSettings({ privacyS3Action: action });
-      },
+  setPublicIngressBaseUrl: (url) => {
+    const normalized = normalizePublicIngressBaseUrl(url ?? '');
+    set({ publicIngressBaseUrl: normalized });
+    if (!normalized || isValidPublicIngressBaseUrl(normalized)) {
+      syncPersonalSettings({ publicIngressBaseUrl: normalized });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ingress-requirement-changed'));
+      }
+    }
+  },
 
-      setPrivacyDeepScan: (enable) => {
-        set({ privacyDeepScan: enable });
-        syncPersonalSettings({ privacyDeepScan: enable });
-      },
+  setNotificationDeliveries: (deliveries) => {
+    const current = get().personalSettings;
+    const updated = { ...current, notificationDeliveries: deliveries ?? undefined };
+    set({
+      personalSettings: updated as import('@/services/config/types').PersonalSettingsConfigValue,
+    });
+    syncPersonalSettings({ notificationDeliveries: deliveries ?? undefined });
+  },
 
-      setPrivacyRouting: (config) => {
-        set({ privacyRouting: config });
-        syncPersonalSettings({ privacyRouting: config });
-      },
+  setImageGeneration: (config) => {
+    set({ imageGeneration: config });
+    syncPersonalSettings({ imageGeneration: config });
+  },
 
-      setPrivacyCustomKeywordsS2: (keywords) => {
-        set({ privacyCustomKeywordsS2: keywords });
-        syncPersonalSettings({ privacyCustomKeywordsS2: keywords });
-      },
+  setVideoGeneration: (config) => {
+    set({ videoGeneration: config });
+    syncPersonalSettings({ videoGeneration: config });
+  },
 
-      setPrivacyCustomKeywordsS3: (keywords) => {
-        set({ privacyCustomKeywordsS3: keywords });
-        syncPersonalSettings({ privacyCustomKeywordsS3: keywords });
-      },
+  // ============ MCP 配置管理 ============
 
-      setPrivacyCustomPatternsS2: (patterns) => {
-        set({ privacyCustomPatternsS2: patterns });
-        syncPersonalSettings({ privacyCustomPatternsS2: patterns });
-      },
+  setMCPConfigs: (configs) => {
+    const newConfigs = mcpManager.setMCPConfigs(configs);
+    set({ mcpConfigs: newConfigs });
+    syncMCPServers(newConfigs);
+  },
 
-      setPrivacyCustomPatternsS3: (patterns) => {
-        set({ privacyCustomPatternsS3: patterns });
-        syncPersonalSettings({ privacyCustomPatternsS3: patterns });
-      },
+  addMCPConfig: (config) => {
+    const state = get();
+    const newConfigs = mcpManager.addMCPConfig(state.mcpConfigs, config);
+    set({ mcpConfigs: newConfigs });
+    syncMCPServers(newConfigs);
+  },
 
-      setPrivacySensitiveToolsS2: (tools) => {
-        set({ privacySensitiveToolsS2: tools });
-        syncPersonalSettings({ privacySensitiveToolsS2: tools });
-      },
+  updateMCPConfig: (index, config) => {
+    const state = get();
+    const newConfigs = mcpManager.updateMCPConfig(state.mcpConfigs, index, config);
+    set({ mcpConfigs: newConfigs });
+    syncMCPServers(newConfigs);
+  },
 
-      setPrivacySensitiveToolsS3: (tools) => {
-        set({ privacySensitiveToolsS3: tools });
-        syncPersonalSettings({ privacySensitiveToolsS3: tools });
-      },
+  removeMCPConfig: (index) => {
+    const state = get();
+    const newConfigs = mcpManager.removeMCPConfig(state.mcpConfigs, index);
+    set({ mcpConfigs: newConfigs });
+    syncMCPServers(newConfigs);
+  },
 
-      setCodeExecutionAllowNetwork: (allow) => {
-        set({ codeExecutionAllowNetwork: allow });
-        syncPersonalSettings({ codeExecutionAllowNetwork: allow });
-      },
+  toggleMCPConfig: (index) => {
+    const state = get();
+    const newConfigs = mcpManager.toggleMCPConfig(state.mcpConfigs, index);
+    set({ mcpConfigs: newConfigs });
+    syncMCPServers(newConfigs);
+  },
 
-      setEnableEvalLab: (enable) => {
-        set({ enableEvalLab: enable });
-        syncPersonalSettings({ enableEvalLab: enable });
-      },
+  // ============ 搜索服务配置管理 ============
 
-      setSmoothStreamEnabled: (enable) => {
-        set({ smoothStreamEnabled: enable });
-        syncPersonalSettings({ smoothStreamEnabled: enable });
-      },
+  setSearchServiceConfigs: (configs) => {
+    const newConfigs = searchServiceManager.setSearchServiceConfigs(configs);
+    set({ searchServiceConfigs: newConfigs });
+    syncSearchServices(newConfigs);
+    invalidateLocalCapabilitiesProbeCache();
+  },
 
-      setSuggestWorkflowMode: (enable: boolean) => {
-        set({ suggestWorkflowMode: enable });
-        syncPersonalSettings({ suggestWorkflowMode: enable });
-      },
+  addSearchServiceConfig: (config) => {
+    const state = get();
+    const newConfigs = searchServiceManager.addSearchServiceConfig(state.searchServiceConfigs, config);
+    set({ searchServiceConfigs: newConfigs });
+    syncSearchServices(newConfigs);
+    invalidateLocalCapabilitiesProbeCache();
+  },
 
-      setAutoContinueInterruptedTurns: (enable: boolean) => {
-        set({ autoContinueInterruptedTurns: enable });
-        syncPersonalSettings({ autoContinueInterruptedTurns: enable });
-      },
+  updateSearchServiceConfig: (id, updates) => {
+    const state = get();
+    const newConfigs = searchServiceManager.updateSearchServiceConfig(state.searchServiceConfigs, id, updates);
+    set({ searchServiceConfigs: newConfigs });
+    syncSearchServices(newConfigs);
+    invalidateLocalCapabilitiesProbeCache();
+  },
 
-      setPublicIngressBaseUrl: (url) => {
-        const normalized = normalizePublicIngressBaseUrl(url ?? '');
-        set({ publicIngressBaseUrl: normalized });
-        if (!normalized || isValidPublicIngressBaseUrl(normalized)) {
-          syncPersonalSettings({ publicIngressBaseUrl: normalized });
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('ingress-requirement-changed'));
-          }
-        }
-      },
+  removeSearchServiceConfig: (id) => {
+    const state = get();
+    const newConfigs = searchServiceManager.removeSearchServiceConfig(state.searchServiceConfigs, id);
+    set({ searchServiceConfigs: newConfigs });
+    syncSearchServices(newConfigs);
+    invalidateLocalCapabilitiesProbeCache();
+  },
 
-      setNotificationDeliveries: (deliveries) => {
-        const current = get().personalSettings;
-        const updated = { ...current, notificationDeliveries: deliveries ?? undefined };
+  enableSearchServiceConfig: (id) => {
+    const state = get();
+    const newConfigs = searchServiceManager.enableSearchServiceConfig(state.searchServiceConfigs, id);
+    set({ searchServiceConfigs: newConfigs });
+    syncSearchServices(newConfigs);
+    invalidateLocalCapabilitiesProbeCache();
+  },
+
+  getActiveSearchServiceConfig: () => {
+    const state = get();
+    return searchServiceManager.getActiveSearchServiceConfig(state.searchServiceConfigs);
+  },
+
+  // ============ 导入导出 ============
+
+  exportConfig: () => {
+    const state = get();
+    return importExportManager.exportConfig(state);
+  },
+
+  importConfig: async (configJson) => {
+    const state = get();
+    return importExportManager.importConfig(configJson, {
+      setSystemInstructions: state.setSystemInstructions,
+      setFetchRawWebpage: state.setFetchRawWebpage,
+      setExtractDocumentText: state.setExtractDocumentText,
+      setGenerateSearchSuggestions: state.setGenerateSearchSuggestions,
+      setEnableCostEstimation: state.setEnableCostEstimation,
+      setSearchServiceConfigs: state.setSearchServiceConfigs,
+      setMCPConfigs: state.setMCPConfigs,
+    });
+  },
+
+  // ============ 初始化 ============
+
+  initConfig: async () => {
+    // 防止重复初始化（使用 store 内部标志，而非 syncManager.isInitialized）
+    if (get()._configStoreReady) {
+      console.log('[ConfigStore] Already initialized, skipping');
+      return;
+    }
+
+    try {
+      // syncManager 可能已由 SettingsSyncInitializer 初始化
+      if (!syncManager.isInitialized) {
+        await syncManager.initialize();
+      }
+
+      set({ _configStoreReady: true });
+
+      // 应用后端配置到 Store
+      const personalSettings = syncManager.get('personalSettings');
+      const mcpServers = syncManager.get('mcpServers');
+      const orgMcpServers = syncManager.get('orgMcpServers') as { servers?: MCPServiceConfig[] } | null;
+      const searchServices = syncManager.get('searchServices');
+
+      const migratedPersonal = normalizePersonalSettings(personalSettings);
+
+      const rawSearchConfigs = searchServices?.searchServiceConfigs ?? [];
+      const validatedSearchConfigs = searchServiceManager.setSearchServiceConfigs(rawSearchConfigs);
+
+      const orgConfigs: MCPServiceConfig[] = (orgMcpServers?.servers ?? []).map((s) => ({
+        ...s,
+        enabled: true,
+        description: s.description || '',
+        extra_params: { ...s.extra_params, scope: 'org' },
+      })) as MCPServiceConfig[];
+      const normalizedMcpConfigs = mcpManager.setMCPConfigs(mcpServers?.mcpConfigs ?? []);
+      const normalizedOrgConfigs = mcpManager.setMCPConfigs(orgConfigs);
+
+      set({
+        ...migratedPersonal,
+        personalSettings: migratedPersonal,
+        mcpConfigs: normalizedMcpConfigs,
+        orgMcpConfigs: normalizedOrgConfigs,
+        searchServiceConfigs: validatedSearchConfigs,
+      });
+
+      syncManager.subscribe('personalSettings', (_key, value) => {
         set({
-          personalSettings: updated as import('@/services/config/types').PersonalSettingsConfigValue,
+          ...(value as PersonalSettingsConfigValue),
+          personalSettings: value as PersonalSettingsConfigValue,
         });
-        syncPersonalSettings({ notificationDeliveries: deliveries ?? undefined });
-      },
+      });
 
-      setImageGeneration: (config) => {
-        set({ imageGeneration: config });
-        syncPersonalSettings({ imageGeneration: config });
-      },
+      syncManager.subscribe('mcpServers', (_key, value) => {
+        const v = value as MCPServersConfigValue;
+        set({ mcpConfigs: mcpManager.setMCPConfigs(v.mcpConfigs ?? []) });
+      });
 
-      setVideoGeneration: (config) => {
-        set({ videoGeneration: config });
-        syncPersonalSettings({ videoGeneration: config });
-      },
+      syncManager.subscribe('orgMcpServers', (_key, value) => {
+        const v = value as { servers?: MCPServiceConfig[] } | null;
+        const configs: MCPServiceConfig[] = (v?.servers ?? []).map((s) => ({
+          ...s,
+          enabled: true,
+          description: s.description || '',
+          extra_params: { ...s.extra_params, scope: 'org' },
+        })) as MCPServiceConfig[];
+        set({ orgMcpConfigs: mcpManager.setMCPConfigs(configs) });
+      });
 
-      // ============ MCP 配置管理 ============
-
-      setMCPConfigs: (configs) => {
-        const newConfigs = mcpManager.setMCPConfigs(configs);
-        set({ mcpConfigs: newConfigs });
-        syncMCPServers(newConfigs);
-      },
-
-      addMCPConfig: (config) => {
-        const state = get();
-        const newConfigs = mcpManager.addMCPConfig(state.mcpConfigs, config);
-        set({ mcpConfigs: newConfigs });
-        syncMCPServers(newConfigs);
-      },
-
-      updateMCPConfig: (index, config) => {
-        const state = get();
-        const newConfigs = mcpManager.updateMCPConfig(state.mcpConfigs, index, config);
-        set({ mcpConfigs: newConfigs });
-        syncMCPServers(newConfigs);
-      },
-
-      removeMCPConfig: (index) => {
-        const state = get();
-        const newConfigs = mcpManager.removeMCPConfig(state.mcpConfigs, index);
-        set({ mcpConfigs: newConfigs });
-        syncMCPServers(newConfigs);
-      },
-
-      toggleMCPConfig: (index) => {
-        const state = get();
-        const newConfigs = mcpManager.toggleMCPConfig(state.mcpConfigs, index);
-        set({ mcpConfigs: newConfigs });
-        syncMCPServers(newConfigs);
-      },
-
-      // ============ 搜索服务配置管理 ============
-
-      setSearchServiceConfigs: (configs) => {
-        const newConfigs = searchServiceManager.setSearchServiceConfigs(configs);
-        set({ searchServiceConfigs: newConfigs });
-        syncSearchServices(newConfigs);
-        invalidateLocalCapabilitiesProbeCache();
-      },
-
-      addSearchServiceConfig: (config) => {
-        const state = get();
-        const newConfigs = searchServiceManager.addSearchServiceConfig(state.searchServiceConfigs, config);
-        set({ searchServiceConfigs: newConfigs });
-        syncSearchServices(newConfigs);
-        invalidateLocalCapabilitiesProbeCache();
-      },
-
-      updateSearchServiceConfig: (id, updates) => {
-        const state = get();
-        const newConfigs = searchServiceManager.updateSearchServiceConfig(state.searchServiceConfigs, id, updates);
-        set({ searchServiceConfigs: newConfigs });
-        syncSearchServices(newConfigs);
-        invalidateLocalCapabilitiesProbeCache();
-      },
-
-      removeSearchServiceConfig: (id) => {
-        const state = get();
-        const newConfigs = searchServiceManager.removeSearchServiceConfig(state.searchServiceConfigs, id);
-        set({ searchServiceConfigs: newConfigs });
-        syncSearchServices(newConfigs);
-        invalidateLocalCapabilitiesProbeCache();
-      },
-
-      enableSearchServiceConfig: (id) => {
-        const state = get();
-        const newConfigs = searchServiceManager.enableSearchServiceConfig(state.searchServiceConfigs, id);
-        set({ searchServiceConfigs: newConfigs });
-        syncSearchServices(newConfigs);
-        invalidateLocalCapabilitiesProbeCache();
-      },
-
-      getActiveSearchServiceConfig: () => {
-        const state = get();
-        return searchServiceManager.getActiveSearchServiceConfig(state.searchServiceConfigs);
-      },
-
-      // ============ 导入导出 ============
-
-      exportConfig: () => {
-        const state = get();
-        return importExportManager.exportConfig(state);
-      },
-
-      importConfig: async (configJson) => {
-        const state = get();
-        return importExportManager.importConfig(configJson, {
-          setSystemInstructions: state.setSystemInstructions,
-          setFetchRawWebpage: state.setFetchRawWebpage,
-          setExtractDocumentText: state.setExtractDocumentText,
-          setGenerateSearchSuggestions: state.setGenerateSearchSuggestions,
-          setEnableCostEstimation: state.setEnableCostEstimation,
-          setSearchServiceConfigs: state.setSearchServiceConfigs,
-          setMCPConfigs: state.setMCPConfigs,
-        });
-      },
-
-      // ============ 初始化 ============
-
-      initConfig: async () => {
-        // 防止重复初始化（使用 store 内部标志，而非 syncManager.isInitialized）
-        if (get()._configStoreReady) {
-          console.log('[ConfigStore] Already initialized, skipping');
+      syncManager.subscribe('searchServices', (_key, value) => {
+        if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) {
           return;
         }
+        const v = value as SearchServicesConfigValue;
+        set({ searchServiceConfigs: v.searchServiceConfigs });
+      });
 
-        try {
-          // syncManager 可能已由 SettingsSyncInitializer 初始化
-          if (!syncManager.isInitialized) {
-            await syncManager.initialize();
-          }
+      console.log('[ConfigStore] Initialized from backend');
+    } catch (error) {
+      console.warn('[ConfigStore] Failed to initialize from backend, using local state:', error);
+    }
+  },
 
-          set({ _configStoreReady: true });
+  // ============ 验证方法 ============
 
-          // 应用后端配置到 Store
-          const personalSettings = syncManager.get('personalSettings');
-          const mcpServers = syncManager.get('mcpServers');
-          const orgMcpServers = syncManager.get('orgMcpServers') as { servers?: MCPServiceConfig[] } | null;
-          const searchServices = syncManager.get('searchServices');
+  validateSearchServiceConfig: async (config: SearchServiceConfig) => {
+    return validation.validateSearchServiceConfig(config);
+  },
 
-          const migratedPersonal = normalizePersonalSettings(personalSettings);
-
-          const rawSearchConfigs = searchServices?.searchServiceConfigs ?? [];
-          const validatedSearchConfigs = searchServiceManager.setSearchServiceConfigs(rawSearchConfigs);
-
-          const orgConfigs: MCPServiceConfig[] = (orgMcpServers?.servers ?? []).map((s) => ({
-            ...s,
-            enabled: true,
-            description: s.description || '',
-            extra_params: { ...s.extra_params, scope: 'org' },
-          })) as MCPServiceConfig[];
-          const normalizedMcpConfigs = mcpManager.setMCPConfigs(mcpServers?.mcpConfigs ?? []);
-          const normalizedOrgConfigs = mcpManager.setMCPConfigs(orgConfigs);
-
-          set({
-            ...migratedPersonal,
-            personalSettings: migratedPersonal,
-            mcpConfigs: normalizedMcpConfigs,
-            orgMcpConfigs: normalizedOrgConfigs,
-            searchServiceConfigs: validatedSearchConfigs,
-          });
-
-          syncManager.subscribe('personalSettings', (_key, value) => {
-            set({
-              ...(value as PersonalSettingsConfigValue),
-              personalSettings: value as PersonalSettingsConfigValue,
-            });
-          });
-
-          syncManager.subscribe('mcpServers', (_key, value) => {
-            const v = value as MCPServersConfigValue;
-            set({ mcpConfigs: mcpManager.setMCPConfigs(v.mcpConfigs ?? []) });
-          });
-
-          syncManager.subscribe('orgMcpServers', (_key, value) => {
-            const v = value as { servers?: MCPServiceConfig[] } | null;
-            const configs: MCPServiceConfig[] = (v?.servers ?? []).map((s) => ({
-              ...s,
-              enabled: true,
-              description: s.description || '',
-              extra_params: { ...s.extra_params, scope: 'org' },
-            })) as MCPServiceConfig[];
-            set({ orgMcpConfigs: mcpManager.setMCPConfigs(configs) });
-          });
-
-          syncManager.subscribe('searchServices', (_key, value) => {
-            if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) {
-              return;
-            }
-            const v = value as SearchServicesConfigValue;
-            set({ searchServiceConfigs: v.searchServiceConfigs });
-          });
-
-          console.log('[ConfigStore] Initialized from backend');
-        } catch (error) {
-          console.warn('[ConfigStore] Failed to initialize from backend, using local state:', error);
-        }
-      },
-
-      // ============ 验证方法 ============
-
-      validateSearchServiceConfig: async (config: SearchServiceConfig) => {
-        return validation.validateSearchServiceConfig(config);
-      },
-
-      validateMCPConfig: async (config: MCPServiceConfig) => {
-        return validation.validateMCPConfig(config);
-      },
-    }),
-);
+  validateMCPConfig: async (config: MCPServiceConfig) => {
+    return validation.validateMCPConfig(config);
+  },
+}));
 
 export default useConfigStore;
 

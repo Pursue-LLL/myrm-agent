@@ -72,13 +72,19 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove }:
       setDraggedTaskId(null);
       setDragOverColumn(null);
 
-      if (!targetStatus) {return;}
+      if (!targetStatus) {
+        return;
+      }
 
       const task = tasks.find((tk) => tk.task_id === taskId);
-      if (!task || task.status === targetStatus) {return;}
+      if (!task || task.status === targetStatus) {
+        return;
+      }
 
       // IN_REVIEW is an approval-gate state: no drag source/target escapes it.
-      if (task.status === 'in_review' || targetStatus === 'in_review') {return;}
+      if (task.status === 'in_review' || targetStatus === 'in_review') {
+        return;
+      }
 
       const movingIds = selectedTaskIds.includes(taskId) && selectedTaskIds.length > 1 ? selectedTaskIds : [taskId];
 
@@ -102,7 +108,9 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove }:
   }, []);
 
   const handleDropConfirm = useCallback(() => {
-    if (!dropConfirmState) {return;}
+    if (!dropConfirmState) {
+      return;
+    }
     const { taskId, targetStatus } = dropConfirmState;
     setDropConfirmState(null);
 

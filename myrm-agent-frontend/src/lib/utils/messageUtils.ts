@@ -28,8 +28,7 @@ export const stripUiActionPayload = (text: string): string => {
 };
 
 /** Matches harness `_preload_explicit_skill()` and channel `skill_command_handler` wire prefix. */
-const EXPLICIT_SKILL_ACTIVATION_PATTERN =
-  /^\[use\s+([\w,\s-]+)\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?([\s\S]*)$/;
+const EXPLICIT_SKILL_ACTIVATION_PATTERN = /^\[use\s+([\w,\s-]+)\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?([\s\S]*)$/;
 
 export interface ExplicitSkillActivation {
   skillNames: string[];
@@ -37,8 +36,7 @@ export interface ExplicitSkillActivation {
   userText: string;
 }
 
-export const formatSkillChipLabel = (skillName: string): string =>
-  skillName.replace(/_skill$/, '').replace(/_/g, ' ');
+export const formatSkillChipLabel = (skillName: string): string => skillName.replace(/_skill$/, '').replace(/_/g, ' ');
 
 /** Parse `[use s1,s2] [instruction: ...] user text` wire prefix when present. */
 export const parseExplicitSkillActivation = (text: string): ExplicitSkillActivation | null => {

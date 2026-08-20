@@ -10,10 +10,7 @@ const { showI18nToast } = vi.hoisted(() => ({ showI18nToast: vi.fn() }));
 vi.mock('../handlerDeps', () => ({
   findAssistantMessageIndex: vi.fn(() => 0),
   ensureAssistantStreamMessage: vi.fn(),
-  discardStreamedDraft: (ctx: {
-    recievedMessage: string;
-    state?: { scheduler?: { cancel?: () => void } };
-  }) => {
+  discardStreamedDraft: (ctx: { recievedMessage: string; state?: { scheduler?: { cancel?: () => void } } }) => {
     ctx.recievedMessage = '';
     ctx.state?.scheduler?.cancel?.();
   },
@@ -132,13 +129,7 @@ describe('modelNotifyEvents MODEL_FAILOVER progress-step dedupe', () => {
   });
 
   it('drops partial text and reasoning streamed before the failure', async () => {
-    const { state, ctx } = makeFailoverCtx(
-      'agnes',
-      'MiniMax-M3',
-      'overloaded',
-      [],
-      'Partial draft ',
-    );
+    const { state, ctx } = makeFailoverCtx('agnes', 'MiniMax-M3', 'overloaded', [], 'Partial draft ');
 
     await modelNotifyEvents(ctx);
 
@@ -149,13 +140,7 @@ describe('modelNotifyEvents MODEL_FAILOVER progress-step dedupe', () => {
   });
 
   it('cancels the pending render task so the stale draft cannot be written back', async () => {
-    const { state, ctx, cancel } = makeFailoverCtx(
-      'agnes',
-      'MiniMax-M3',
-      'overloaded',
-      [],
-      'Partial draft ',
-    );
+    const { state, ctx, cancel } = makeFailoverCtx('agnes', 'MiniMax-M3', 'overloaded', [], 'Partial draft ');
 
     await modelNotifyEvents(ctx);
 

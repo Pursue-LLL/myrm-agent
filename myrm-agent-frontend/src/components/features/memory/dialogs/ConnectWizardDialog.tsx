@@ -23,7 +23,13 @@ import {
 } from '@/services/connect';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { countProviderTrees } from '@/services/memory/integration';
-import { getFileExtension, getMimeType, triggerDownload, buildZipFromFiles, sanitizeFilename } from '@/lib/utils/fileUtils';
+import {
+  getFileExtension,
+  getMimeType,
+  triggerDownload,
+  buildZipFromFiles,
+  sanitizeFilename,
+} from '@/lib/utils/fileUtils';
 import { resolveDoctorMessageKey, resolveDoctorSeverity, type DoctorSeverity } from '@/lib/i18n/connectDoctor';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -123,7 +129,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   );
 
   const handleGenerate = useCallback(async () => {
-    if (!selectedProfile) {return;}
+    if (!selectedProfile) {
+      return;
+    }
     setLoading(true);
     try {
       const result = await generateConnectConfig(selectedProfile, selectedAgentId);
@@ -137,7 +145,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [selectedProfile, selectedAgentId]);
 
   const handleCopyConfig = useCallback(async () => {
-    if (!configResult) {return;}
+    if (!configResult) {
+      return;
+    }
     const configJson = configResult.config_json;
     const text = (configJson as Record<string, unknown>)._toml_snippet
       ? String((configJson as Record<string, unknown>)._toml_snippet)
@@ -148,7 +158,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [configResult]);
 
   const handleCopyToken = useCallback(async () => {
-    if (!configResult) {return;}
+    if (!configResult) {
+      return;
+    }
     await navigator.clipboard.writeText(configResult.token);
     setCopiedToken(true);
     setTimeout(() => setCopiedToken(false), 2000);
@@ -169,31 +181,36 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [selectedAgentId, pluginEmbedToken]);
 
   const handleCopyPluginFile = useCallback(async () => {
-    if (!pluginResult || !selectedFile) {return;}
+    if (!pluginResult || !selectedFile) {
+      return;
+    }
     await navigator.clipboard.writeText(pluginResult.files[selectedFile] ?? '');
     setCopiedFile(true);
     setTimeout(() => setCopiedFile(false), 2000);
   }, [pluginResult, selectedFile]);
 
-  const handleDownloadPluginFile = useCallback(
-    async () => {
-      if (!pluginResult || !selectedFile) {return;}
-      const content = pluginResult.files[selectedFile] ?? '';
-      if (!content) {return;}
-      const filename = selectedFile.split('/').pop() ?? selectedFile;
-      try {
-        await triggerDownload(new Blob([content], { type: getMimeType(getFileExtension(filename)) }), filename);
-      } catch (err) {
-        console.error('[ConnectWizard] plugin file download failed:', err);
-      }
-    },
-    [pluginResult, selectedFile],
-  );
+  const handleDownloadPluginFile = useCallback(async () => {
+    if (!pluginResult || !selectedFile) {
+      return;
+    }
+    const content = pluginResult.files[selectedFile] ?? '';
+    if (!content) {
+      return;
+    }
+    const filename = selectedFile.split('/').pop() ?? selectedFile;
+    try {
+      await triggerDownload(new Blob([content], { type: getMimeType(getFileExtension(filename)) }), filename);
+    } catch (err) {
+      console.error('[ConnectWizard] plugin file download failed:', err);
+    }
+  }, [pluginResult, selectedFile]);
 
   const [downloadingBundle, setDownloadingBundle] = useState(false);
 
   const handleDownloadPluginBundle = useCallback(async () => {
-    if (!pluginResult || downloadingBundle) {return;}
+    if (!pluginResult || downloadingBundle) {
+      return;
+    }
     setDownloadingBundle(true);
     try {
       const blob = await buildZipFromFiles(pluginResult.files);
@@ -209,7 +226,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [pluginResult, agents, downloadingBundle, t]);
 
   const handleCopyPluginToken = useCallback(async () => {
-    if (!pluginResult) {return;}
+    if (!pluginResult) {
+      return;
+    }
     await navigator.clipboard.writeText(pluginResult.token);
     setCopiedToken(true);
     setTimeout(() => setCopiedToken(false), 2000);
@@ -228,7 +247,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, []);
 
   const handleDoctor = useCallback(async () => {
-    if (!selectedProfile) {return;}
+    if (!selectedProfile) {
+      return;
+    }
     setDoctorRunning(true);
     try {
       const result = await runConnectDoctor(selectedProfile);
@@ -262,7 +283,9 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [revokeConfirming]);
 
   const handleRevoke = useCallback(async () => {
-    if (!selectedProfile) {return;}
+    if (!selectedProfile) {
+      return;
+    }
     if (!revokeConfirming) {
       setRevokeConfirming(true);
       countProviderTrees(selectedProfile)

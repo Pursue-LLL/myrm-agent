@@ -126,11 +126,17 @@ const STATIC_SPECIAL_RESULTS: ReferenceSuggestion[] = [
 function extractMentionQuery(text: string, cursorPos: number): { query: string; start: number } | null {
   const before = text.slice(0, cursorPos);
   const atIndex = before.lastIndexOf('@');
-  if (atIndex === -1) {return null;}
-  if (atIndex > 0 && /\S/.test(before[atIndex - 1])) {return null;}
+  if (atIndex === -1) {
+    return null;
+  }
+  if (atIndex > 0 && /\S/.test(before[atIndex - 1])) {
+    return null;
+  }
 
   const query = before.slice(atIndex + 1);
-  if (query.includes('\n') || query.includes(' ')) {return null;}
+  if (query.includes('\n') || query.includes(' ')) {
+    return null;
+  }
   return { query, start: atIndex };
 }
 
@@ -164,7 +170,9 @@ function historyResultToSuggestion(item: SearchResult): ReferenceSuggestion {
 function toMentionReference(item: ReferenceSuggestion): MentionReference | null {
   if (item.reference_type === 'prior_chat') {
     const chatId = item.file_id ?? item.relative_path;
-    if (!chatId) {return null;}
+    if (!chatId) {
+      return null;
+    }
     return {
       type: 'prior_chat',
       label: item.label.startsWith('@') ? item.label : `@chat:${item.basename}`,
@@ -198,22 +206,36 @@ function toMentionReference(item: ReferenceSuggestion): MentionReference | null 
 }
 
 function replacementFor(item: ReferenceSuggestion, folderMode: boolean): string {
-  if (item.reference_type === 'git_staged') {return '@staged ';}
-  if (item.reference_type === 'git_diff') {return '@diff ';}
-  if (item.reference_type === 'url') {return '@url:';}
+  if (item.reference_type === 'git_staged') {
+    return '@staged ';
+  }
+  if (item.reference_type === 'git_diff') {
+    return '@diff ';
+  }
+  if (item.reference_type === 'url') {
+    return '@url:';
+  }
   if (item.reference_type === 'workspace_folder') {
-    if (item.relative_path) {return `@folder:${item.relative_path} `;}
+    if (item.relative_path) {
+      return `@folder:${item.relative_path} `;
+    }
     return '@folder:';
   }
   if (item.reference_type === 'wiki_concept') {
-    if (item.concept_name) {return `@wiki:${item.concept_name} `;}
+    if (item.concept_name) {
+      return `@wiki:${item.concept_name} `;
+    }
     return '@wiki:';
   }
   if (item.reference_type === 'prior_chat') {
-    if (item.file_id) {return `@chat:${item.basename} `;}
+    if (item.file_id) {
+      return `@chat:${item.basename} `;
+    }
     return '@chat:';
   }
-  if (folderMode && item.relative_path) {return `@folder:${item.relative_path} `;}
+  if (folderMode && item.relative_path) {
+    return `@folder:${item.relative_path} `;
+  }
   return `@${item.relative_path ?? item.label} `;
 }
 
@@ -262,7 +284,9 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
       results: specialResults,
     }));
 
-    if (debounceRef.current) {clearTimeout(debounceRef.current);}
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
 
@@ -270,11 +294,15 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
       debounceRef.current = setTimeout(async () => {
         try {
           const data = await searchCitableChats(query, 20, 0, chatId ?? undefined);
-          if (requestSeqRef.current !== requestSeq) {return;}
+          if (requestSeqRef.current !== requestSeq) {
+            return;
+          }
           const seen = new Set<string>();
           const chatResults = data.items
             .filter((item) => {
-              if (seen.has(item.chat_id)) {return false;}
+              if (seen.has(item.chat_id)) {
+                return false;
+              }
               seen.add(item.chat_id);
               return !chatId || item.chat_id !== chatId;
             })
@@ -285,40 +313,50 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
             selectedIndex: 0,
           }));
         } catch {
-          if (requestSeqRef.current !== requestSeq) {return;}
+          if (requestSeqRef.current !== requestSeq) {
+            return;
+          }
           setState((prev) => ({ ...prev, results: [], selectedIndex: 0 }));
         }
       }, DEBOUNCE_MS);
       return () => {
-        if (debounceRef.current) {clearTimeout(debounceRef.current);}
+        if (debounceRef.current) {
+          clearTimeout(debounceRef.current);
+        }
       };
     }
 
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
 
     debounceRef.current = setTimeout(async () => {
       try {
         const data = await suggestReferences(chatId, query, 30, folderMode ? 'directory' : 'any');
-        if (requestSeqRef.current !== requestSeq) {return;}
+        if (requestSeqRef.current !== requestSeq) {
+          return;
+        }
         const serverResults = folderMode
           ? data.results
           : wikiMode
             ? data.results.filter((item) => item.source === 'wiki')
             : data.results.filter((item) => item.source !== 'special');
-        
+
         let agentResults: ReferenceSuggestion[] = [];
         if (!folderMode && !wikiMode && !chatMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
-            .filter(a => {
-              if (!query) {return true;}
+            .filter((a) => {
+              if (!query) {
+                return true;
+              }
               const localized = getBuiltinAgentName(a.id, a.name, locale);
               return (
                 a.name.toLowerCase().includes(query.toLowerCase()) ||
                 localized.toLowerCase().includes(query.toLowerCase())
               );
             })
-            .map(a => {
+            .map((a) => {
               const localized = getBuiltinAgentName(a.id, a.name, locale);
               return {
                 source: 'agent',
@@ -345,21 +383,25 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
           selectedIndex: 0,
         }));
       } catch {
-        if (requestSeqRef.current !== requestSeq) {return;}
+        if (requestSeqRef.current !== requestSeq) {
+          return;
+        }
 
         let agentResults: ReferenceSuggestion[] = [];
         if (!folderMode && !wikiMode && !chatMode) {
           const agents = useAgentStore.getState().agents;
           agentResults = agents
-            .filter(a => {
-              if (!query) {return true;}
+            .filter((a) => {
+              if (!query) {
+                return true;
+              }
               const localized = getBuiltinAgentName(a.id, a.name, locale);
               return (
                 a.name.toLowerCase().includes(query.toLowerCase()) ||
                 localized.toLowerCase().includes(query.toLowerCase())
               );
             })
-            .map(a => {
+            .map((a) => {
               const localized = getBuiltinAgentName(a.id, a.name, locale);
               return {
                 source: 'agent',
@@ -385,7 +427,9 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     }, DEBOUNCE_MS);
 
     return () => {
-      if (debounceRef.current) {clearTimeout(debounceRef.current);}
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, [chatId, cursorPosition, inputMessage]);
 
@@ -415,7 +459,9 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (!state.isOpen || state.results.length === 0) {return false;}
+      if (!state.isOpen || state.results.length === 0) {
+        return false;
+      }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setState((prev) => ({ ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.results.length }));

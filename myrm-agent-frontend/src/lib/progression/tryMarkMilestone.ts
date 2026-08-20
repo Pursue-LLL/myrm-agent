@@ -30,7 +30,9 @@ function getLevelUpMessage(milestoneId: string, newLevel: number): string {
 export function tryMarkMilestone(milestoneId: string): void {
   const { milestones, currentLevel, markMilestone } = useProgressionStore.getState();
 
-  if (milestones.some((m) => m.id === milestoneId && m.completed_at !== null)) {return;}
+  if (milestones.some((m) => m.id === milestoneId && m.completed_at !== null)) {
+    return;
+  }
 
   const prevLevel = currentLevel;
 

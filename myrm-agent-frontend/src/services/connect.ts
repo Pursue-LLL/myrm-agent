@@ -89,10 +89,7 @@ export async function runConnectDoctor(profileId: string): Promise<DoctorRespons
   });
 }
 
-export async function revokeConnect(
-  profileId: string,
-  clearSyncedMemory: boolean = false,
-): Promise<RevokeResponse> {
+export async function revokeConnect(profileId: string, clearSyncedMemory: boolean = false): Promise<RevokeResponse> {
   return apiRequest<RevokeResponse>('/connect/revoke', {
     method: 'POST',
     body: JSON.stringify({ profile_id: profileId, clear_synced_memory: clearSyncedMemory }),

@@ -34,8 +34,7 @@ export interface ParsedWorkflowTemplateImport {
 }
 
 export type ParseWorkflowTemplateBundleResult =
-  | { ok: true; value: ParsedWorkflowTemplateImport }
-  | { ok: false; error: string };
+  { ok: true; value: ParsedWorkflowTemplateImport } | { ok: false; error: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -61,9 +60,7 @@ export function isValidTemplateId(templateId: string): boolean {
   return TEMPLATE_ID_PATTERN.test(templateId);
 }
 
-export function buildWorkflowTemplateBundle(
-  detail: WorkflowTemplateDetailResponse,
-): WorkflowTemplateBundle {
+export function buildWorkflowTemplateBundle(detail: WorkflowTemplateDetailResponse): WorkflowTemplateBundle {
   return {
     version: WORKFLOW_TEMPLATE_BUNDLE_VERSION,
     template: {
@@ -130,15 +127,15 @@ export function parseWorkflowTemplateBundle(raw: string): ParseWorkflowTemplateB
 }
 
 export function workflowTemplateExportFilename(templateId: string): string {
-  const safeId = templateId.trim().replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  const safeId = templateId
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
   const base = safeId.length > 0 ? safeId : 'workflow-template';
   return `${base}.myrm-workflow.json`;
 }
 
-export function downloadWorkflowTemplateBundle(
-  bundle: WorkflowTemplateBundle,
-  filename: string,
-): void {
+export function downloadWorkflowTemplateBundle(bundle: WorkflowTemplateBundle, filename: string): void {
   const blob = new Blob([serializeWorkflowTemplateBundle(bundle)], {
     type: 'application/json;charset=utf-8',
   });

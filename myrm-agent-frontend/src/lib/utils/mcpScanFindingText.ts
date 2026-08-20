@@ -1,9 +1,6 @@
 import type { MCPScanFinding } from '@/store/config/types';
 
-type SettingsTranslate = (
-  key: string,
-  values?: Record<string, string | number | Date>,
-) => string;
+type SettingsTranslate = (key: string, values?: Record<string, string | number | Date>) => string;
 
 function localizedOrFallback(t: SettingsTranslate, key: string, fallback: string): string {
   const translated = t(key);
@@ -14,10 +11,7 @@ export function getMcpFindingDescription(finding: MCPScanFinding, t: SettingsTra
   return localizedOrFallback(t, `mcpThreat.${finding.threatType}`, finding.description);
 }
 
-export function getMcpFindingRecommendation(
-  finding: MCPScanFinding,
-  t: SettingsTranslate,
-): string | undefined {
+export function getMcpFindingRecommendation(finding: MCPScanFinding, t: SettingsTranslate): string | undefined {
   if (!finding.recommendation) {
     return undefined;
   }

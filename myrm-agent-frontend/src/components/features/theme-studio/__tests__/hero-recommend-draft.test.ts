@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildHeroSampleApplyPatch,
-  shouldClearHeroSampleOnDraftPatch,
-} from '../hero-recommend-draft';
+import { buildHeroSampleApplyPatch, shouldClearHeroSampleOnDraftPatch } from '../hero-recommend-draft';
 import type { HeroImageSample } from '@/theme-engine';
 
 const SAMPLE: HeroImageSample = {

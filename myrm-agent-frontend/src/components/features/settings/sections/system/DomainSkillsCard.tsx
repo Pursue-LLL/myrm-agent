@@ -15,11 +15,7 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconTerminal,
-  IconTrash,
-  IconRefresh,
-} from '@/components/features/icons/PremiumIcons';
+import { IconTerminal, IconTrash, IconRefresh } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
@@ -65,13 +61,15 @@ const DomainSkillsCard = memo(() => {
 
   const handleDelete = useCallback(
     async (skill: DomainSkillInfo) => {
-      if (!window.confirm(t('confirmDelete', { name: skill.name }))) {return;}
+      if (!window.confirm(t('confirmDelete', { name: skill.name }))) {
+        return;
+      }
       setDeletingId(skill.id);
       try {
-        const resp = await fetch(
-          `${getBackendUrl()}/api/v1/browser/domain-skills/${encodeURIComponent(skill.id)}`,
-          { method: 'DELETE', headers: getAuthHeaders() },
-        );
+        const resp = await fetch(`${getBackendUrl()}/api/v1/browser/domain-skills/${encodeURIComponent(skill.id)}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
         if (resp.ok) {
           setSkills((prev) => prev.filter((s) => s.id !== skill.id));
           toast.success(t('deleteSuccess', { name: skill.name }));
@@ -124,9 +122,7 @@ const DomainSkillsCard = memo(() => {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {skill.name}
-                    </span>
+                    <span className="text-xs font-medium text-foreground truncate">{skill.name}</span>
                     <span
                       className={cn(
                         'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
@@ -137,9 +133,7 @@ const DomainSkillsCard = memo(() => {
                     >
                       {isBuiltin ? t('builtinBadge') : t('userBadge')}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {t('tools', { count: toolCount })}
-                    </span>
+                    <span className="text-[10px] text-muted-foreground">{t('tools', { count: toolCount })}</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-[10px] text-muted-foreground">

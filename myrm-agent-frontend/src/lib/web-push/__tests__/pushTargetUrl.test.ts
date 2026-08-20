@@ -1,24 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  chatIdFromPushPath,
-  resolvePushClientFocusAction,
-  sanitizePushTargetUrl,
-} from '../pushTargetUrl';
+import { chatIdFromPushPath, resolvePushClientFocusAction, sanitizePushTargetUrl } from '../pushTargetUrl';
 
 const ORIGIN = 'https://app.example.com';
 
 describe('sanitizePushTargetUrl', () => {
   it('allows settings paths with query', () => {
-    expect(sanitizePushTargetUrl('/settings/system?tab=alerts', ORIGIN)).toBe(
-      '/settings/system?tab=alerts',
-    );
+    expect(sanitizePushTargetUrl('/settings/system?tab=alerts', ORIGIN)).toBe('/settings/system?tab=alerts');
   });
 
   it('allows chat paths with approval query', () => {
-    expect(
-      sanitizePushTargetUrl('/session-abcdef12?approval=ap-1', ORIGIN),
-    ).toBe('/session-abcdef12?approval=ap-1');
+    expect(sanitizePushTargetUrl('/session-abcdef12?approval=ap-1', ORIGIN)).toBe('/session-abcdef12?approval=ap-1');
   });
 
   it('rejects cross-origin URLs', () => {
@@ -40,12 +32,9 @@ describe('sanitizePushTargetUrl', () => {
   });
 
   it('accepts absolute same-origin chat URLs', () => {
-    expect(
-      sanitizePushTargetUrl(
-        'https://app.example.com/session-abcdef12?approval=ap-2',
-        ORIGIN,
-      ),
-    ).toBe('/session-abcdef12?approval=ap-2');
+    expect(sanitizePushTargetUrl('https://app.example.com/session-abcdef12?approval=ap-2', ORIGIN)).toBe(
+      '/session-abcdef12?approval=ap-2',
+    );
   });
 
   it('falls back to home when URL parsing throws', () => {
@@ -86,23 +75,13 @@ describe('resolvePushClientFocusAction', () => {
 
   it('returns null when pathname differs', () => {
     expect(
-      resolvePushClientFocusAction(
-        'https://app.example.com/other-chat-99',
-        '/session-abcdef12?approval=ap-1',
-        ORIGIN,
-      ),
+      resolvePushClientFocusAction('https://app.example.com/other-chat-99', '/session-abcdef12?approval=ap-1', ORIGIN),
     ).toBeNull();
   });
 
   it('returns null for malformed client or target URLs', () => {
     expect(resolvePushClientFocusAction('not-a-url', '/session-abcdef12', ORIGIN)).toBeNull();
-    expect(
-      resolvePushClientFocusAction(
-        'https://app.example.com/session-abcdef12',
-        '::::',
-        ORIGIN,
-      ),
-    ).toBeNull();
+    expect(resolvePushClientFocusAction('https://app.example.com/session-abcdef12', '::::', ORIGIN)).toBeNull();
   });
 
   it('navigates when query params differ even if pathname matches', () => {

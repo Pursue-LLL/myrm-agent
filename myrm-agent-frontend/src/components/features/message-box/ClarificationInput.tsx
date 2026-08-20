@@ -222,10 +222,14 @@ const ClarificationInput = ({
     buildStructuredClarificationAnswer(form, formSelections, formTexts);
 
   const handleSubmit = async () => {
-    if (submitting) {return;}
+    if (submitting) {
+      return;
+    }
 
     const finalAnswer = hasStructuredForm ? buildStructuredAnswer() : buildSingleAnswer();
-    if (!finalAnswer) {return;}
+    if (!finalAnswer) {
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -244,7 +248,9 @@ const ClarificationInput = ({
   };
 
   const handleSkip = async () => {
-    if (submitting) {return;}
+    if (submitting) {
+      return;
+    }
     setSubmitting(true);
     try {
       if (isResumeMode) {
@@ -262,7 +268,9 @@ const ClarificationInput = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) {return;}
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -358,7 +366,9 @@ const ClarificationInput = ({
                           {index + 1}
                         </span>
                       ) : null}
-                      <p className="text-sm font-medium leading-relaxed text-foreground sm:text-[15px]">{question.prompt}</p>
+                      <p className="text-sm font-medium leading-relaxed text-foreground sm:text-[15px]">
+                        {question.prompt}
+                      </p>
                     </div>
 
                     {question.options && question.options.length > 0 ? (
@@ -382,16 +392,12 @@ const ClarificationInput = ({
                       </div>
                     ) : null}
 
-                    {hasQuestionOptions ? (
-                      <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
-                    ) : null}
+                    {hasQuestionOptions ? <p className="text-xs text-muted-foreground">{t('optionalNote')}</p> : null}
 
                     <textarea
                       className={clarificationTextareaClass}
                       rows={2}
-                      placeholder={
-                        hasQuestionOptions ? t('freeTextWithOptionsPlaceholder') : t('placeholder')
-                      }
+                      placeholder={hasQuestionOptions ? t('freeTextWithOptionsPlaceholder') : t('placeholder')}
                       value={questionText}
                       onChange={(e) =>
                         setFormTexts((prev) => ({

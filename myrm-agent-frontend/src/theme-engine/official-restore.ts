@@ -15,9 +15,7 @@ export interface OfficialThemeRestorePatch {
 }
 
 function hasManagedCustomProfiles(profiles: ThemeProfileRecipe[]): boolean {
-  return profiles.some(
-    (profile) => profile.id.startsWith('studio/') || profile.id.startsWith('imported/'),
-  );
+  return profiles.some((profile) => profile.id.startsWith('studio/') || profile.id.startsWith('imported/'));
 }
 
 export function buildOfficialThemeRestorePatch(): OfficialThemeRestorePatch {

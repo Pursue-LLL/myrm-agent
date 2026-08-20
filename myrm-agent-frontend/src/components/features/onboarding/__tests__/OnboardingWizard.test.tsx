@@ -13,9 +13,9 @@ const mockProbeLocalCapabilities = vi.fn<
     recommended_model: string | null;
   }>
 >(() => Promise.resolve({ results: [], search: [], has_available: false, recommended_model: null }));
-const mockGetTelegramCredentials = vi.fn<
-  () => Promise<{ botToken: string; botPolicy: string } | null>
->(() => Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }));
+const mockGetTelegramCredentials = vi.fn<() => Promise<{ botToken: string; botPolicy: string } | null>>(() =>
+  Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
+);
 const mockIsLocalMode = vi.hoisted(() => ({ value: true }));
 
 const stableT = (key: string) => key;
@@ -62,14 +62,18 @@ vi.mock('@/components/features/app-shell/BrandLogo', () => ({
 
 vi.mock('@/components/primitives/button', () => ({
   Button: ({ children, onClick, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button onClick={onClick} {...rest}>{children}</button>
+    <button onClick={onClick} {...rest}>
+      {children}
+    </button>
   ),
 }));
 
 vi.mock('@/components/features/settings/sections/knowledge/MigrationWizardSection', () => ({
   default: ({ onMigrationComplete }: { onMigrationComplete: () => void }) => (
     <div data-testid="migration-wizard">
-      <button data-testid="migration-done" onClick={onMigrationComplete}>Done</button>
+      <button data-testid="migration-done" onClick={onMigrationComplete}>
+        Done
+      </button>
     </div>
   ),
 }));
@@ -77,7 +81,9 @@ vi.mock('@/components/features/settings/sections/knowledge/MigrationWizardSectio
 vi.mock('../LocalCapabilitiesSetup', () => ({
   default: ({ onComplete }: { onComplete: () => void }) => (
     <div data-testid="local-capabilities">
-      <button data-testid="capabilities-done" onClick={onComplete}>Done</button>
+      <button data-testid="capabilities-done" onClick={onComplete}>
+        Done
+      </button>
     </div>
   ),
 }));
@@ -85,8 +91,12 @@ vi.mock('../LocalCapabilitiesSetup', () => ({
 vi.mock('../SyncFolderOnboardingStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="sync-folder-step">
-      <button data-testid="sync-folder-done" onClick={onComplete}>Done</button>
-      <button data-testid="sync-folder-skip" onClick={onSkip}>Skip</button>
+      <button data-testid="sync-folder-done" onClick={onComplete}>
+        Done
+      </button>
+      <button data-testid="sync-folder-skip" onClick={onSkip}>
+        Skip
+      </button>
     </div>
   ),
 }));
@@ -94,8 +104,12 @@ vi.mock('../SyncFolderOnboardingStep', () => ({
 vi.mock('../SmartRoutingStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="smart-routing-step">
-      <button data-testid="routing-enable" onClick={onComplete}>Enable</button>
-      <button data-testid="routing-skip" onClick={onSkip}>Skip</button>
+      <button data-testid="routing-enable" onClick={onComplete}>
+        Enable
+      </button>
+      <button data-testid="routing-skip" onClick={onSkip}>
+        Skip
+      </button>
     </div>
   ),
 }));
@@ -103,8 +117,12 @@ vi.mock('../SmartRoutingStep', () => ({
 vi.mock('../SmartGuardStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="smart-guard-step">
-      <button data-testid="guard-enable" onClick={onComplete}>Enable</button>
-      <button data-testid="guard-skip" onClick={onSkip}>Skip</button>
+      <button data-testid="guard-enable" onClick={onComplete}>
+        Enable
+      </button>
+      <button data-testid="guard-skip" onClick={onSkip}>
+        Skip
+      </button>
     </div>
   ),
 }));
@@ -112,8 +130,12 @@ vi.mock('../SmartGuardStep', () => ({
 vi.mock('../TelegramAssistantOnboardingStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="telegram-onboarding-step">
-      <button data-testid="telegram-setup-done" onClick={onComplete}>Done</button>
-      <button data-testid="telegram-setup-skip" onClick={onSkip}>Skip</button>
+      <button data-testid="telegram-setup-done" onClick={onComplete}>
+        Done
+      </button>
+      <button data-testid="telegram-setup-skip" onClick={onSkip}>
+        Skip
+      </button>
     </div>
   ),
 }));
@@ -121,8 +143,12 @@ vi.mock('../TelegramAssistantOnboardingStep', () => ({
 vi.mock('../ToolsConnectOnboardingStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="tools-connect-step">
-      <button data-testid="tools-connect-done" onClick={onComplete}>Done</button>
-      <button data-testid="tools-connect-skip" onClick={onSkip}>Skip</button>
+      <button data-testid="tools-connect-done" onClick={onComplete}>
+        Done
+      </button>
+      <button data-testid="tools-connect-skip" onClick={onSkip}>
+        Skip
+      </button>
     </div>
   ),
 }));
@@ -130,8 +156,12 @@ vi.mock('../ToolsConnectOnboardingStep', () => ({
 vi.mock('../ThemeOnboardingStep', () => ({
   default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
     <div data-testid="theme-onboarding-step">
-      <button data-testid="theme-continue" onClick={onComplete}>Continue</button>
-      <button data-testid="theme-skip" onClick={onSkip}>Skip</button>
+      <button data-testid="theme-continue" onClick={onComplete}>
+        Continue
+      </button>
+      <button data-testid="theme-skip" onClick={onSkip}>
+        Skip
+      </button>
     </div>
   ),
 }));
@@ -179,7 +209,7 @@ const mockUpdatePersonalSettings = vi.hoisted(() => vi.fn(() => Promise.resolve(
 
 vi.mock('@/services/config', () => ({
   getConfigSyncManager: () => ({
-    get: (key: string) => key === 'securityConfig' ? mockSecurityConfig.value : null,
+    get: (key: string) => (key === 'securityConfig' ? mockSecurityConfig.value : null),
   }),
 }));
 

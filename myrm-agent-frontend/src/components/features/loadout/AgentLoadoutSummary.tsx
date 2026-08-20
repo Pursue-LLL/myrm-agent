@@ -26,10 +26,7 @@ import {
   skillsSettingsHref,
   teamAssetsHubHref,
 } from '@/components/features/loadout/loadoutDeepLinks';
-import {
-  readinessLevelTone,
-  useAgentLoadoutSummary,
-} from '@/components/features/loadout/useAgentLoadoutSummary';
+import { readinessLevelTone, useAgentLoadoutSummary } from '@/components/features/loadout/useAgentLoadoutSummary';
 
 interface AgentLoadoutSummaryProps {
   agentId: string | null;
@@ -41,17 +38,7 @@ interface AgentLoadoutSummaryProps {
   sharedContextTileHref?: string;
 }
 
-function SummaryTile({
-  title,
-  value,
-  href,
-  badge,
-}: {
-  title: string;
-  value: string;
-  href: string;
-  badge?: number;
-}) {
+function SummaryTile({ title, value, href, badge }: { title: string; value: string; href: string; badge?: number }) {
   return (
     <Link
       href={href}
@@ -90,14 +77,23 @@ export function AgentLoadoutSummary({
   });
 
   useEffect(() => {
-    if (typeof window === 'undefined' || loading || !data) {return;}
-    if (window.location.hash.replace(/^#/, '') !== 'loadout') {return;}
+    if (typeof window === 'undefined' || loading || !data) {
+      return;
+    }
+    if (window.location.hash.replace(/^#/, '') !== 'loadout') {
+      return;
+    }
     document.getElementById('loadout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [loading, data]);
 
   if (!agentId) {
     return (
-      <div className={cn('rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground', className)}>
+      <div
+        className={cn(
+          'rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground',
+          className,
+        )}
+      >
         {t('saveAgentFirst')}
       </div>
     );
@@ -105,7 +101,12 @@ export function AgentLoadoutSummary({
 
   if (loading && !data) {
     return (
-      <div className={cn('flex items-center gap-2 rounded-xl border border-border/40 bg-accent/10 px-4 py-6 text-sm text-muted-foreground', className)}>
+      <div
+        className={cn(
+          'flex items-center gap-2 rounded-xl border border-border/40 bg-accent/10 px-4 py-6 text-sm text-muted-foreground',
+          className,
+        )}
+      >
         <Loader2 className="h-4 w-4 animate-spin" />
         {t('loading')}
       </div>
@@ -114,7 +115,12 @@ export function AgentLoadoutSummary({
 
   if (error) {
     return (
-      <div className={cn('rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive', className)}>
+      <div
+        className={cn(
+          'rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive',
+          className,
+        )}
+      >
         {error}
       </div>
     );

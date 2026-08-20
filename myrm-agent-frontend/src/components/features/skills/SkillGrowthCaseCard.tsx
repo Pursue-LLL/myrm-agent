@@ -8,7 +8,18 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { CalendarClock, Check, ChevronDown, ChevronUp, Clock3, Edit3, ExternalLink, Loader2, ShieldAlert, X } from 'lucide-react';
+import {
+  CalendarClock,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock3,
+  Edit3,
+  ExternalLink,
+  Loader2,
+  ShieldAlert,
+  X,
+} from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
 import { useTheme } from 'next-themes';
@@ -89,19 +100,19 @@ export default function SkillGrowthCaseCard({
   const isMobile = useIsMobile();
   const statusStyle = STATUS_STYLES[item.status];
   const statusLabel = t(`status.${item.status}` as Parameters<typeof t>[0]);
-  const sourceLabel = item.source === 'evolution'
-    ? t('source.manualEvolution')
-    : item.growthType === 'semantic_memory'
-      ? t('source.memoryExtraction')
-      : t('source.backgroundReview');
+  const sourceLabel =
+    item.source === 'evolution'
+      ? t('source.manualEvolution')
+      : item.growthType === 'semantic_memory'
+        ? t('source.memoryExtraction')
+        : t('source.backgroundReview');
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
   const runtimeFailure = item.runtimeFailure;
   const canRevise = showReviewActions && item.source === 'evolution' && onRevise;
 
-  const hasExpandableContent =
-    item.hasDiff || item.hasTrajectory || item.hasTriggerCondition || item.hasSkillSteps;
+  const hasExpandableContent = item.hasDiff || item.hasTrajectory || item.hasTriggerCondition || item.hasSkillSteps;
 
   const originalContent = detail?.originalContent ?? null;
   const proposedContent = detail?.proposedContent ?? null;
@@ -182,7 +193,9 @@ export default function SkillGrowthCaseCard({
 
   const handleSaveRevision = useCallback(async () => {
     const content = modifiedEditorRef.current?.getValue() ?? editedContent;
-    if (!onRevise || !content.trim()) {return;}
+    if (!onRevise || !content.trim()) {
+      return;
+    }
     await onRevise(content);
     setIsEditing(false);
     setEditedContent('');
@@ -222,34 +235,43 @@ export default function SkillGrowthCaseCard({
           <p className={cn('text-muted-foreground', isSimple ? 'text-base font-medium text-foreground' : 'text-sm')}>
             {item.summary}
           </p>
-          <div className={cn('flex flex-wrap items-center gap-3 text-muted-foreground', isSimple ? 'text-sm' : 'text-xs')}>
+          <div
+            className={cn('flex flex-wrap items-center gap-3 text-muted-foreground', isSimple ? 'text-sm' : 'text-xs')}
+          >
             <span className="inline-flex items-center gap-1">
               <Clock3 className="h-3.5 w-3.5" />
               {createdAt}
             </span>
             {item.chatId && (
-              <Link
-                href={`/${item.chatId}`}
-                className="inline-flex items-center gap-1 text-primary hover:underline"
-              >
+              <Link href={`/${item.chatId}`} className="inline-flex items-center gap-1 text-primary hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" />
                 {t('viewSourceChat')}
               </Link>
             )}
             {item.confidence !== null && (
-              <span className={cn('inline-flex items-center gap-1', isSimple && (
-                item.confidence >= 0.8 ? 'text-emerald-600 dark:text-emerald-400' :
-                item.confidence >= 0.5 ? 'text-amber-600 dark:text-amber-400' :
-                'text-red-600 dark:text-red-400'
-              ))}>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1',
+                  isSimple &&
+                    (item.confidence >= 0.8
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : item.confidence >= 0.5
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-red-600 dark:text-red-400'),
+                )}
+              >
                 <IconGlow className="h-3.5 w-3.5" />
                 {t('confidence', { value: (item.confidence * 100).toFixed(1) })}
               </span>
             )}
             {item.testPassed !== null && (
-              <span className={cn('inline-flex items-center gap-1', isSimple && (
-                item.testPassed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-              ))}>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1',
+                  isSimple &&
+                    (item.testPassed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'),
+                )}
+              >
                 <ShieldAlert className="h-3.5 w-3.5" />
                 {item.testPassed ? t('testPassed') : t('testFailed')}
               </span>
@@ -446,13 +468,19 @@ export default function SkillGrowthCaseCard({
       {isEditing && detail && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('actions.reviseLabel')}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('actions.reviseLabel')}
+            </p>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isProcessing}>
                 <X className="mr-1 h-3.5 w-3.5" />
                 {t('actions.cancelRevise')}
               </Button>
-              <Button size="sm" onClick={() => void handleSaveRevision()} disabled={isProcessing || !editedContent.trim()}>
+              <Button
+                size="sm"
+                onClick={() => void handleSaveRevision()}
+                disabled={isProcessing || !editedContent.trim()}
+              >
                 <Check className="mr-1 h-3.5 w-3.5" />
                 {t('actions.saveRevision')}
               </Button>

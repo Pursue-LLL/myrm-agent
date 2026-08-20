@@ -34,10 +34,18 @@ vi.mock('next-intl', () => ({
 }));
 
 const MOCK_CONTENT = Array.from({ length: 20 }, (_, i) => {
-  if (i === 3) {return '$ npm install';}
-  if (i === 7) {return 'Error: something failed here';}
-  if (i === 12) {return 'warning: deprecated module found';}
-  if (i === 15) {return 'Error: second error line';}
+  if (i === 3) {
+    return '$ npm install';
+  }
+  if (i === 7) {
+    return 'Error: something failed here';
+  }
+  if (i === 12) {
+    return 'warning: deprecated module found';
+  }
+  if (i === 15) {
+    return 'Error: second error line';
+  }
   return `line ${i + 1} output`;
 }).join('\n');
 
@@ -69,9 +77,7 @@ describe('EvictedOutputDrawer', () => {
 
   async function renderDrawer() {
     const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-    const result = render(
-      <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
-    );
+    const result = render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />);
     await waitFor(() => expect(screen.getByText(/line 1 output/)).toBeInTheDocument());
     return result;
   }
@@ -255,9 +261,7 @@ describe('EvictedOutputDrawer', () => {
     it('shows loading spinner initially', async () => {
       global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-      render(
-        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
-      );
+      render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />);
       expect(screen.getByText('Loading full output...')).toBeInTheDocument();
     });
 
@@ -268,9 +272,7 @@ describe('EvictedOutputDrawer', () => {
         json: () => Promise.resolve({ expired: true }),
       });
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-      render(
-        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
-      );
+      render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />);
       await waitFor(() => expect(screen.getByText('Output Expired')).toBeInTheDocument());
     });
 
@@ -281,9 +283,7 @@ describe('EvictedOutputDrawer', () => {
         json: () => Promise.resolve({ detail: { expired: true } }),
       });
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-      render(
-        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
-      );
+      render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />);
       await waitFor(() => expect(screen.getByText('Output Expired')).toBeInTheDocument());
     });
 
@@ -294,9 +294,7 @@ describe('EvictedOutputDrawer', () => {
         json: () => Promise.reject(new Error('blocked')),
       });
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-      render(
-        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
-      );
+      render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />);
       await waitFor(() => expect(screen.getByText('Output Expired')).toBeInTheDocument());
     });
 
@@ -307,9 +305,7 @@ describe('EvictedOutputDrawer', () => {
         json: () => Promise.resolve({}),
       });
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-      render(
-        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
-      );
+      render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />);
       await waitFor(() => expect(screen.getByText('Failed to load output')).toBeInTheDocument());
     });
   });
@@ -317,14 +313,7 @@ describe('EvictedOutputDrawer', () => {
   describe('storage cap banner', () => {
     it('shows banner when storageTruncated prop is true', async () => {
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-      render(
-        <EvictedOutputDrawer
-          filename="test.log"
-          chatId="chat-1"
-          onClose={onClose}
-          storageTruncated
-        />,
-      );
+      render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} storageTruncated />);
       await waitFor(() => expect(screen.getByText(/line 1 output/)).toBeInTheDocument());
       expect(screen.getByTestId('evicted-output-storage-truncated')).toBeInTheDocument();
       expect(screen.getByText('Storage capped; file may be incomplete')).toBeInTheDocument();
@@ -344,12 +333,8 @@ describe('EvictedOutputDrawer', () => {
           }),
       });
       const EvictedOutputDrawer = (await import('../EvictedOutputDrawer')).default;
-      render(
-        <EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />,
-      );
-      await waitFor(() =>
-        expect(screen.getByTestId('evicted-output-storage-truncated')).toBeInTheDocument(),
-      );
+      render(<EvictedOutputDrawer filename="test.log" chatId="chat-1" onClose={onClose} />);
+      await waitFor(() => expect(screen.getByTestId('evicted-output-storage-truncated')).toBeInTheDocument());
     });
   });
 

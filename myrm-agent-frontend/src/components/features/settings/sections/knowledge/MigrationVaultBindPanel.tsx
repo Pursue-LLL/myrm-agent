@@ -143,7 +143,12 @@ export default function MigrationVaultBindPanel({
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" className="h-8 w-full sm:w-auto" disabled={preparing} onClick={() => void handleChooseFolder()}>
+        <Button
+          size="sm"
+          className="h-8 w-full sm:w-auto"
+          disabled={preparing}
+          onClick={() => void handleChooseFolder()}
+        >
           {preparing ? tWizard('preparing') : tWizard('chooseFolder')}
         </Button>
         {showSkip && onSkip && (

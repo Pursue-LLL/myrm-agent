@@ -6,12 +6,12 @@ Research 三栏研究工作台 GUI。左栏资料池、中栏 ChatWindow 对话�
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `ResearchLayout.tsx` | 核心 | 三栏布局容器（可拖拽分割线 + 移动端 Tab 降级） | ✅ |
-| `ResourcePoolPanel.tsx` | 核心 | 左栏资料池（Wiki 概念搜索 + 文件上传 + checkbox 勾选） | ✅ |
-| `ResearchOutputPanel.tsx` | 核心 | 右栏工件输出（复用 ArtifactRenderer + PortalTabs + 下载/存 Wiki，**chat agentConfig.agentId scoped ingest**）；Vitest：`__tests__/ResearchOutputPanel.scope.test.tsx` | ✅ |
-| `useResearchSync.ts` | 辅助 | 勾选资料 → ChatStore mentionReferences 同步 Hook | ✅ |
+| 文件                      | 地位 | 职责                                                                                                                                                                  | I/O/P |
+| ------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `ResearchLayout.tsx`      | 核心 | 三栏布局容器（可拖拽分割线 + 移动端 Tab 降级）                                                                                                                        | ✅    |
+| `ResourcePoolPanel.tsx`   | 核心 | 左栏资料池（Wiki 概念搜索 + 文件上传 + checkbox 勾选）                                                                                                                | ✅    |
+| `ResearchOutputPanel.tsx` | 核心 | 右栏工件输出（复用 ArtifactRenderer + PortalTabs + 下载/存 Wiki，**chat agentConfig.agentId scoped ingest**）；Vitest：`__tests__/ResearchOutputPanel.scope.test.tsx` | ✅    |
+| `useResearchSync.ts`      | 辅助 | 勾选资料 → ChatStore mentionReferences 同步 Hook                                                                                                                      | ✅    |
 
 ## 依赖
 

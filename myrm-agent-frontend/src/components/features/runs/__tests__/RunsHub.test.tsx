@@ -22,27 +22,16 @@ vi.mock('@/services/runs', () => ({
   listUnifiedRuns: (...args: unknown[]) => mockListUnifiedRuns(...args),
 }));
 
-vi.mock(
-  '@/components/features/settings/sections/system/ExecutionTraceTimeline',
-  () => ({
-    default: ({
-      sessionId,
-      showEvalCase,
-      pollMs,
-    }: {
-      sessionId: string;
-      showEvalCase?: boolean;
-      pollMs?: number;
-    }) => (
-      <div
-        data-testid="mock-trace-timeline"
-        data-session-id={sessionId}
-        data-show-eval-case={String(showEvalCase)}
-        data-poll-ms={pollMs ?? ''}
-      />
-    ),
-  }),
-);
+vi.mock('@/components/features/settings/sections/system/ExecutionTraceTimeline', () => ({
+  default: ({ sessionId, showEvalCase, pollMs }: { sessionId: string; showEvalCase?: boolean; pollMs?: number }) => (
+    <div
+      data-testid="mock-trace-timeline"
+      data-session-id={sessionId}
+      data-show-eval-case={String(showEvalCase)}
+      data-poll-ms={pollMs ?? ''}
+    />
+  ),
+}));
 
 import { toast } from 'sonner';
 import { RunsHub } from '../RunsHub';

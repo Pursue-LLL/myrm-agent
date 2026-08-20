@@ -37,7 +37,15 @@ import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { updateCronJob, duplicateCronJob } from '@/services/cron';
-import { formatNextRun, formatRelativeTime, formatTime, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
+import {
+  formatNextRun,
+  formatRelativeTime,
+  formatTime,
+  isCronOverdue,
+  statusBorderColor,
+  STATUS_BADGE_STYLE,
+  STATUS_DOT_COLOR,
+} from './cron-utils';
 import { humanizeSchedule, type ScheduleT } from './cron-blueprints';
 import useCronStore from '@/store/useCronStore';
 import useChatStore from '@/store/useChatStore';
@@ -57,13 +65,17 @@ interface CronJobCardProps {
 
 function parseLiteLLM(model: string): { providerId: string; model: string } {
   const idx = model.indexOf('/');
-  if (idx > 0) {return { providerId: model.slice(0, idx), model: model.slice(idx + 1) };}
+  if (idx > 0) {
+    return { providerId: model.slice(0, idx), model: model.slice(idx + 1) };
+  }
   return { providerId: 'openai', model };
 }
 
 function ScheduleLabel({ job, t, locale }: { job: CronJob; t: ScheduleT; locale: string }) {
   const s = job.schedule;
-  if (!s) {return null;}
+  if (!s) {
+    return null;
+  }
   const label = humanizeSchedule(s, t, locale);
   return label ? <span>{label}</span> : null;
 }
@@ -71,7 +83,9 @@ function ScheduleLabel({ job, t, locale }: { job: CronJob; t: ScheduleT; locale:
 function AgentLabel({ agentId }: { agentId?: string | null }) {
   const agents = useAgentStore((s) => s.agents);
   const locale = useLocale();
-  if (!agentId) {return null;}
+  if (!agentId) {
+    return null;
+  }
   const agent = agents.find((a) => a.id === agentId);
   const name = agent ? getBuiltinAgentName(agent.id, agent.name, locale) : agentId;
   return (
@@ -84,7 +98,9 @@ function AgentLabel({ agentId }: { agentId?: string | null }) {
 
 function ThreadBadge({ chatId, t }: { chatId?: string; t: (key: string) => string }) {
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
-  if (!chatId) {return null;}
+  if (!chatId) {
+    return null;
+  }
   const chat = chatHistoryItems.find((c) => c.id === chatId);
   const label = chat?.title || chatId.slice(0, 8);
   return (
@@ -163,14 +179,21 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   };
   const isScriptJob = job.job_type === 'router' && !!job.pre_condition_script && !job.prompt;
   const isReminderJob = job.job_type === 'reminder';
-  const TypeIcon =
-    job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : isReminderJob ? Clock : Timer;
+  const TypeIcon = job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : isReminderJob ? Clock : Timer;
 
   const canResume = useMemo(() => {
-    if (job.status === 'active') {return true;}
-    if (job.status === 'completed') {return false;}
-    if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) {return false;}
-    if (job.max_fires !== null && job.max_fires !== undefined && job.fire_count >= job.max_fires) {return false;}
+    if (job.status === 'active') {
+      return true;
+    }
+    if (job.status === 'completed') {
+      return false;
+    }
+    if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) {
+      return false;
+    }
+    if (job.max_fires !== null && job.max_fires !== undefined && job.fire_count >= job.max_fires) {
+      return false;
+    }
     return true;
   }, [job.status, job.expires_at, job.max_fires, job.fire_count]);
 
@@ -191,7 +214,9 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   const [triggering, setTriggering] = useState(false);
 
   const handleTrigger = useCallback(async () => {
-    if (triggering) {return;}
+    if (triggering) {
+      return;
+    }
     setTriggering(true);
     try {
       await triggerJob(job.id);
@@ -207,7 +232,9 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   const [duplicating, setDuplicating] = useState(false);
 
   const handleDuplicate = useCallback(async () => {
-    if (duplicating) {return;}
+    if (duplicating) {
+      return;
+    }
     setDuplicating(true);
     try {
       await duplicateCronJob(job.id);
@@ -233,7 +260,9 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
         statusBorderColor(job),
       )}
       onClick={() => {
-        if (!suppressNavRef.current) {onSelect(job);}
+        if (!suppressNavRef.current) {
+          onSelect(job);
+        }
       }}
       onKeyDown={(e) => {
         if ((e.key === 'Enter' || e.key === ' ') && !suppressNavRef.current) {
@@ -476,11 +505,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
         </div>
       </div>
 
-      <div
-        role="presentation"
-        className="flex items-center gap-0.5 shrink-0"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div role="presentation" className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -518,11 +543,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {job.status === 'active'
-              ? t('pause')
-              : canResume
-                ? t('resume')
-                : t('resumeBlocked')}
+            {job.status === 'active' ? t('pause') : canResume ? t('resume') : t('resumeBlocked')}
           </TooltipContent>
         </Tooltip>
 

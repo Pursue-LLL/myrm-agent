@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PetState } from '../PetStateMachine';
-import {
-  pickPetBubbleSpec,
-  shouldShowPetStatusBubble,
-} from '../petStatusBubbleSpec';
+import { pickPetBubbleSpec, shouldShowPetStatusBubble } from '../petStatusBubbleSpec';
 
 describe('petStatusBubbleSpec', () => {
   it('shows bubble only for active work states', () => {

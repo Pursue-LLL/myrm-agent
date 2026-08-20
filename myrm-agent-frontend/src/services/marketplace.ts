@@ -57,39 +57,47 @@ export async function listMarketplaceEntries(
   options?: { search?: string; limit?: number; offset?: number },
 ): Promise<MarketplaceEntry[]> {
   const params = new URLSearchParams();
-  if (options?.search) {params.set('search', options.search);}
-  if (options?.limit) {params.set('limit', String(options.limit));}
-  if (options?.offset) {params.set('offset', String(options.offset));}
+  if (options?.search) {
+    params.set('search', options.search);
+  }
+  if (options?.limit) {
+    params.set('limit', String(options.limit));
+  }
+  if (options?.offset) {
+    params.set('offset', String(options.offset));
+  }
   const qs = params.toString();
   const url = mpUrl(`/list/${orgId}${qs ? `?${qs}` : ''}`);
   const res = await fetch(url);
-  if (!res.ok) {throw new Error(`List marketplace failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`List marketplace failed: ${res.status}`);
+  }
   return res.json();
 }
 
 export async function getMarketplaceEntry(entryId: string): Promise<MarketplaceEntry> {
   const res = await fetch(mpUrl(`/entry/${entryId}`));
-  if (!res.ok) {throw new Error(`Get entry failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Get entry failed: ${res.status}`);
+  }
   return res.json();
 }
 
-export async function getMarketplaceVersion(
-  entryId: string,
-  version?: number,
-): Promise<MarketplaceVersion> {
+export async function getMarketplaceVersion(entryId: string, version?: number): Promise<MarketplaceVersion> {
   const params = version ? `?version=${version}` : '';
   const res = await fetch(mpUrl(`/version/${entryId}${params}`));
-  if (!res.ok) {throw new Error(`Get version failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Get version failed: ${res.status}`);
+  }
   return res.json();
 }
 
-export async function installFromMarketplace(
-  entryId: string,
-  version?: number,
-): Promise<InstallResult> {
+export async function installFromMarketplace(entryId: string, version?: number): Promise<InstallResult> {
   const params = version ? `?version=${version}` : '';
   const res = await fetch(mpUrl(`/install/${entryId}${params}`), { method: 'POST' });
-  if (!res.ok) {throw new Error(`Install failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Install failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -107,13 +115,17 @@ export async function publishToMarketplace(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {throw new Error(`Publish failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Publish failed: ${res.status}`);
+  }
   return res.json();
 }
 
 export async function archiveMarketplaceEntry(entryId: string): Promise<void> {
   const res = await fetch(mpUrl(`/entry/${entryId}`), { method: 'DELETE' });
-  if (!res.ok) {throw new Error(`Archive failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Archive failed: ${res.status}`);
+  }
 }
 
 export interface ForcePushResult {
@@ -127,7 +139,9 @@ export interface ForcePushResult {
 
 export async function forcePushUpdate(entryId: string): Promise<ForcePushResult> {
   const res = await fetch(mpUrl(`/force-push/${entryId}`), { method: 'POST' });
-  if (!res.ok) {throw new Error(`Force push failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Force push failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -156,7 +170,9 @@ export async function importMarketplaceAgent(
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {throw new Error(`Marketplace import failed: ${res.status}`);}
+  if (!res.ok) {
+    throw new Error(`Marketplace import failed: ${res.status}`);
+  }
   const json = await res.json();
   return json.data;
 }

@@ -10,14 +10,14 @@
  * Chat SSE event handler slice (fileDiffEvents)。
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import * as H from "./handlerDeps";
-import { takeoverVncOpenFailedMessage } from "./takeoverVncMessages";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import * as H from './handlerDeps';
+import { takeoverVncOpenFailedMessage } from './takeoverVncMessages';
 
 async function notifyTakeoverVncOpenFailed(): Promise<void> {
-  const { getClientLocale } = await import("@/lib/utils/localeUtils");
-  const { toast } = await import("@/lib/utils/toast");
+  const { getClientLocale } = await import('@/lib/utils/localeUtils');
+  const { toast } = await import('@/lib/utils/toast');
   toast.error(takeoverVncOpenFailedMessage(getClientLocale()), { duration: 8000 });
 }
 
@@ -100,10 +100,14 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       const mergedRow = (() => {
         for (let i = steps.length - 1; i >= 0; i -= 1) {
           const step = steps[i];
-          if (!step.items || !Array.isArray(step.items)) {continue;}
+          if (!step.items || !Array.isArray(step.items)) {
+            continue;
+          }
           for (const raw of step.items) {
             const fp = H.parseProgressFilePath(raw);
-            if (!fp || !H.pathsMatchForFileDiff(diffData.path, fp)) {continue;}
+            if (!fp || !H.pathsMatchForFileDiff(diffData.path, fp)) {
+              continue;
+            }
             if (raw && typeof raw === 'object' && 'file_path' in raw) {
               const row = raw as H.ProgressFileItem;
               if (row.diff) {
@@ -126,7 +130,9 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.TOOL_IMAGE_OUTPUT) {
     const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) {return done(ctx);}
+    if (messageIndex === -1) {
+      return done(ctx);
+    }
 
     const message = state.messages[messageIndex];
     const imgEntry: import('@/store/chat/types').ToolImageOutput = {
@@ -207,9 +213,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST) {
-    const { default: useDesktopControlApprovalStore } = await import(
-      '@/store/useDesktopControlApprovalStore'
-    );
+    const { default: useDesktopControlApprovalStore } = await import('@/store/useDesktopControlApprovalStore');
     const approvalPayload = {
       request_id: String(data.data.request_id ?? ''),
       reason: String(data.data.reason ?? ''),
@@ -262,8 +266,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     activateBrowserTakeover({
       reason: eventReason,
       url: eventPageUrl || undefined,
-      screenshot_base64:
-        typeof data.data.screenshot_base64 === 'string' ? data.data.screenshot_base64 : undefined,
+      screenshot_base64: typeof data.data.screenshot_base64 === 'string' ? data.data.screenshot_base64 : undefined,
       messageId:
         typeof data.messageId === 'string' && data.messageId.trim()
           ? data.messageId
@@ -272,8 +275,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
             : undefined,
       is_managed: isManaged,
       auto_detect_completion: autoDetectCompletion,
-      live_assist_url:
-        typeof data.data.live_assist_url === 'string' ? data.data.live_assist_url : undefined,
+      live_assist_url: typeof data.data.live_assist_url === 'string' ? data.data.live_assist_url : undefined,
     });
 
     actions.setLoading(false);
@@ -284,13 +286,15 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: data.data.reason || '' }),
-      }).then(async (res) => {
-        if (!res.ok) {
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            await notifyTakeoverVncOpenFailed();
+          }
+        })
+        .catch(async () => {
           await notifyTakeoverVncOpenFailed();
-        }
-      }).catch(async () => {
-        await notifyTakeoverVncOpenFailed();
-      });
+        });
     } else {
       const { default: useChatStore } = await import('@/store/useChatStore');
       const fallbackChatId = H.resolveStreamChatId(state);
@@ -311,8 +315,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
               return;
             }
 
-            const absoluteBase =
-              typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+            const absoluteBase = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
             const absoluteUrl =
               rawPath.startsWith('http://') || rawPath.startsWith('https://')
                 ? rawPath

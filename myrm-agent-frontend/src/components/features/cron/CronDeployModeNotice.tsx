@@ -18,7 +18,9 @@ export default function CronDeployModeNotice() {
   const t = useTranslations('cron');
   const { isLocal, isSandbox, isLoading } = useDeployMode();
 
-  if (isLoading) {return null;}
+  if (isLoading) {
+    return null;
+  }
 
   const isCloud = isSandbox && !isLocal;
 
@@ -31,11 +33,7 @@ export default function CronDeployModeNotice() {
           : 'border-amber-500/25 bg-amber-500/5 text-amber-700 dark:text-amber-300',
       )}
     >
-      {isCloud ? (
-        <Cloud className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-      ) : (
-        <Laptop className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-      )}
+      {isCloud ? <Cloud className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <Laptop className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
       <div className="min-w-0 space-y-0.5">
         {isCloud ? (
           <p>{t('deployCloudNotice')}</p>

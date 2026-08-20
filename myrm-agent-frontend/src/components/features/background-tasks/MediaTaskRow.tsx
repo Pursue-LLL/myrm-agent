@@ -14,12 +14,7 @@
 import { Navigation } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  IconCheckCircle,
-  IconLoader,
-  IconStop,
-  IconXCircle,
-} from '@/components/features/icons/PremiumIcons';
+import { IconCheckCircle, IconLoader, IconStop, IconXCircle } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getMediaTaskChatId, getMediaTaskPrompt } from '@/services/mediaTasks';
@@ -38,27 +33,16 @@ const ACTIVE_STATUS_DOT: Record<'pending' | 'queued' | 'running', string> = {
   running: 'bg-primary',
 };
 
-export function MediaTaskRow({
-  task,
-  variant = 'active',
-  onCancel,
-  onNavigateChat,
-}: MediaTaskRowProps) {
+export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateChat }: MediaTaskRowProps) {
   const t = useTranslations('backgroundTasks.media');
   const prompt = getMediaTaskPrompt(task.payload);
   const chatId = getMediaTaskChatId(task.payload);
   const typeLabel = task.task_type === 'video_generate' ? t('videoGenerate') : t('imageGenerate');
   const isTerminal = variant === 'terminal';
   const statusKey: keyof typeof ACTIVE_STATUS_DOT =
-    task.status === 'pending' || task.status === 'queued' || task.status === 'running'
-      ? task.status
-      : 'running';
+    task.status === 'pending' || task.status === 'queued' || task.status === 'running' ? task.status : 'running';
 
-  const statusLabel = isTerminal
-    ? task.status === 'succeeded'
-      ? t('succeeded')
-      : t('failed')
-    : t(statusKey);
+  const statusLabel = isTerminal ? (task.status === 'succeeded' ? t('succeeded') : t('failed')) : t(statusKey);
 
   const handleRowNavigate = () => {
     if (chatId) {
@@ -83,10 +67,7 @@ export function MediaTaskRow({
 
   return (
     <div
-      className={cn(
-        'px-4 py-3 transition-colors hover:bg-muted/30',
-        chatId && 'cursor-pointer',
-      )}
+      className={cn('px-4 py-3 transition-colors hover:bg-muted/30', chatId && 'cursor-pointer')}
       data-testid={`media-task-row-${task.task_id}`}
       data-variant={variant}
       onClick={chatId ? handleRowNavigate : undefined}
@@ -106,13 +87,9 @@ export function MediaTaskRow({
       <div className="flex items-start gap-2.5">
         {statusIcon}
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm leading-snug text-foreground">
-            {prompt || t('untitledPrompt')}
-          </p>
+          <p className="line-clamp-2 text-sm leading-snug text-foreground">{prompt || t('untitledPrompt')}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {!isTerminal && (
-              <span className={cn('h-1.5 w-1.5 rounded-full', ACTIVE_STATUS_DOT[statusKey])} />
-            )}
+            {!isTerminal && <span className={cn('h-1.5 w-1.5 rounded-full', ACTIVE_STATUS_DOT[statusKey])} />}
             <span>{typeLabel}</span>
             <span className="text-border">·</span>
             <span>{statusLabel}</span>

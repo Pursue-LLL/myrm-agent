@@ -6,12 +6,7 @@ import { Input } from '@/components/primitives/input';
 import { Skill } from '@/store/skill/types';
 import { AddMoreButton } from './AgentConfigSelectableCard';
 
-import {
-  NoiseGauge,
-  CoreSkillsZone,
-  PeripheralSkillsZone,
-  AvailableSkillsZone,
-} from './SkillsSectionPanelParts';
+import { NoiseGauge, CoreSkillsZone, PeripheralSkillsZone, AvailableSkillsZone } from './SkillsSectionPanelParts';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 
 export interface SkillsSectionPanelProps {

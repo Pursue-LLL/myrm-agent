@@ -55,9 +55,7 @@ export function WikiImportConflictDialog({
                   <li key={path}>{path}</li>
                 ))}
               </ul>
-              {remaining > 0 ? (
-                <p className="text-xs">{t('conflictMore', { count: remaining })}</p>
-              ) : null}
+              {remaining > 0 ? <p className="text-xs">{t('conflictMore', { count: remaining })}</p> : null}
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

@@ -61,9 +61,7 @@ describe('THEME_PRE_INIT_SCRIPT', () => {
     eval(THEME_PRE_INIT_SCRIPT);
     expect(document.documentElement.getAttribute('data-myrm-theme-scene')).toBe('functional');
     expect(document.documentElement.style.getPropertyValue('--myrm-theme-main-opacity')).toBe('0.94');
-    expect(Number(document.documentElement.style.getPropertyValue('--myrm-theme-art-wash'))).toBeGreaterThan(
-      0.25,
-    );
+    expect(Number(document.documentElement.style.getPropertyValue('--myrm-theme-art-wash'))).toBeGreaterThan(0.25);
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: { ...window.location, pathname: originalPathname },

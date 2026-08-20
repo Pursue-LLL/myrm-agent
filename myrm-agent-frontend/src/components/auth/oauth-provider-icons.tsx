@@ -38,17 +38,8 @@ export function GitHubOAuthIcon({ className }: IconProps) {
 export function SsoOAuthIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true" fill="none">
-      <path
-        d="M12 3l7 4v10l-7 4-7-4V7l7-4z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M9 12h6M12 9v6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
+      <path d="M12 3l7 4v10l-7 4-7-4V7l7-4z" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M9 12h6M12 9v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }

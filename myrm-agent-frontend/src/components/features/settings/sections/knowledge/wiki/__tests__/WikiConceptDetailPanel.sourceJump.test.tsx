@@ -92,12 +92,7 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
       source_chat: 'chat-123',
       source_message: 'msg-456',
     };
-    render(
-      <WikiConceptDetailPanel
-        {...baseProps}
-        selectedConcept={concept}
-      />,
-    );
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
     const link = screen.getByText('sourceChat') as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('/chat-123?highlight=msg-456');
   });
@@ -109,12 +104,7 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
       source_chat: 'chat-123',
       source_message: null,
     };
-    render(
-      <WikiConceptDetailPanel
-        {...baseProps}
-        selectedConcept={concept}
-      />,
-    );
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
     const link = screen.getByText('sourceChat') as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('/chat-123');
   });
@@ -126,12 +116,7 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
       source_chat: null,
       source_message: null,
     };
-    render(
-      <WikiConceptDetailPanel
-        {...baseProps}
-        selectedConcept={concept}
-      />,
-    );
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
     expect(screen.queryByText('sourceChat')).toBeNull();
   });
 });

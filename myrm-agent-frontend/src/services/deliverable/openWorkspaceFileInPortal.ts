@@ -7,16 +7,12 @@
  */
 
 import { fetchWithTimeout } from '@/lib/api';
-import useArtifactPortalStore, {
-  ArtifactErrorType,
-  type OpenArtifactTabOptions,
-} from '@/store/useArtifactPortalStore';
+import useArtifactPortalStore, { ArtifactErrorType, type OpenArtifactTabOptions } from '@/store/useArtifactPortalStore';
 import type { Artifact } from '@/store/chat/types/artifacts';
 import useChatStore from '@/store/useChatStore';
 
 export type FetchWorkspaceBrowseResult =
-  | { ok: true; content: string; truncated: boolean }
-  | { ok: false; status: number; detail: string };
+  { ok: true; content: string; truncated: boolean } | { ok: false; status: number; detail: string };
 
 export async function resolveWorkspaceDirForBrowse(
   chatId?: string,
@@ -92,8 +88,7 @@ export async function openWorkspaceFileInPortal({
   formatNotFound,
   onMissingContext,
 }: OpenWorkspaceFileInPortalParams): Promise<void> {
-  const { openArtifact, setContent, setContentLoading, setError, clearError } =
-    useArtifactPortalStore.getState();
+  const { openArtifact, setContent, setContentLoading, setError, clearError } = useArtifactPortalStore.getState();
 
   openArtifact(artifact, portalOpenOptions);
   setContentLoading(true);

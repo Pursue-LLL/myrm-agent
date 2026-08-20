@@ -345,8 +345,7 @@ export function readMigrationWorkspaceBindCandidates(): MigrationWorkspaceBindCa
         }
         const label = typeof record.label === 'string' ? record.label.trim() : path;
         const mdCountRaw = record.markdown_file_count;
-        const markdown_file_count =
-          typeof mdCountRaw === 'number' ? mdCountRaw : Number(mdCountRaw ?? 0) || 0;
+        const markdown_file_count = typeof mdCountRaw === 'number' ? mdCountRaw : Number(mdCountRaw ?? 0) || 0;
         return {
           path,
           label: label || path,

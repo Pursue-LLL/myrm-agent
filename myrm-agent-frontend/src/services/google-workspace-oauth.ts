@@ -42,10 +42,7 @@ export async function pollGoogleWorkspaceOAuthState(state: string): Promise<{
     status: string;
     skill_auto_enabled?: boolean;
     skill_was_user_disabled?: boolean;
-  }>(
-    `/integrations/google-workspace/oauth/status/${encodeURIComponent(state)}`,
-    { silent: true },
-  );
+  }>(`/integrations/google-workspace/oauth/status/${encodeURIComponent(state)}`, { silent: true });
 }
 
 export async function fetchGoogleWorkspaceOAuthStatus(): Promise<GoogleWorkspaceOAuthStatus> {

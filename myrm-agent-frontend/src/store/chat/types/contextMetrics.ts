@@ -1,7 +1,7 @@
 /**
  * [OUTPUT]
  * CostStatus, ContextHealthStatus, ContextBudget.
- * 
+ *
  * [POS]
  * 成本与上下文预算指标类型。
  */

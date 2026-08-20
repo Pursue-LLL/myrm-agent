@@ -4,10 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
-import {
-  queueMigrationObsidianVaultImport,
-  type MigrationWorkspaceBindCandidate,
-} from '@/lib/migrationChatHandoff';
+import { queueMigrationObsidianVaultImport, type MigrationWorkspaceBindCandidate } from '@/lib/migrationChatHandoff';
 import { applySecondBrainPreset } from '@/services/onboarding';
 
 interface CodexWikiCompletionLaneProps {
@@ -76,7 +73,12 @@ export default function CodexWikiCompletionLane({
         <Button size="sm" variant="default" onClick={goWikiImport} data-testid="codex-completion-import-wiki">
           {t('actions.importWiki')}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => void handleApplySecondBrain()} data-testid="codex-completion-second-brain">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void handleApplySecondBrain()}
+          data-testid="codex-completion-second-brain"
+        >
           {t('actions.secondBrain')}
         </Button>
         <Button size="sm" variant="outline" onClick={goGraph} data-testid="codex-completion-view-graph">

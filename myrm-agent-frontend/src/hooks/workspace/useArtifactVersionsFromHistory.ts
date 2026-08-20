@@ -13,7 +13,9 @@ export const useArtifactVersionsFromHistory = (artifactId: string | undefined): 
   const messages = useChatStore((state) => state.messages);
 
   return useMemo(() => {
-    if (!artifactId) {return [];}
+    if (!artifactId) {
+      return [];
+    }
 
     const versions: ArtifactVersion[] = [];
     let versionNumber = 1;

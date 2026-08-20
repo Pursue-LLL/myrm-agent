@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  resolveVisionConfigGapActionLabel,
-  runVisionConfigGapAction,
-  VISION_SETTINGS_PATH,
-} from '../visionConfigGap';
+import { resolveVisionConfigGapActionLabel, runVisionConfigGapAction, VISION_SETTINGS_PATH } from '../visionConfigGap';
 
 describe('visionConfigGap', () => {
   beforeEach(() => {

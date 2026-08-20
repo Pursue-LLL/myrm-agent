@@ -1,12 +1,6 @@
 import type { ScopeNote, TranslateFn } from './types';
 
-const EXTERNAL_TOOLS = new Set([
-  'send_message',
-  'send_message_tool',
-  'send_file',
-  'channel_send',
-  'deploy_approval',
-]);
+const EXTERNAL_TOOLS = new Set(['send_message', 'send_message_tool', 'send_file', 'channel_send', 'deploy_approval']);
 
 export function platformLabelFromTarget(target: string): string {
   const platform = target.split(':')[0]?.toLowerCase() ?? '';
@@ -19,11 +13,7 @@ export function platformLabelFromTarget(target: string): string {
 }
 
 /** Plain-words scope note for approval cards. */
-export function resolveScopeNote(
-  toolName: string,
-  toolInput: Record<string, unknown>,
-  t: TranslateFn,
-): ScopeNote {
+export function resolveScopeNote(toolName: string, toolInput: Record<string, unknown>, t: TranslateFn): ScopeNote {
   if (toolName === 'save_skill' || toolName === 'save_skill_tool') {
     return { text: t('scope.save_skill'), external: false };
   }
@@ -47,10 +37,7 @@ export function resolveScopeNote(
     return { text: t('scope.connector'), external: true };
   }
 
-  const overwrite =
-    toolInput.overwrite === true ||
-    toolInput.overwrite === 'true' ||
-    toolInput.overwrite === 1;
+  const overwrite = toolInput.overwrite === true || toolInput.overwrite === 'true' || toolInput.overwrite === 1;
   if (overwrite) {
     return { text: t('scope.local_overwrite'), external: false };
   }

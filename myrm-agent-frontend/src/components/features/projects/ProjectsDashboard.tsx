@@ -79,12 +79,11 @@ function useProjectStats(): ProjectStats {
     let cancelled = false;
 
     async function load() {
-      const [boardsRes, cronRes] = await Promise.allSettled([
-        listBoards(),
-        listCronJobs({ limit: 1 }),
-      ]);
+      const [boardsRes, cronRes] = await Promise.allSettled([listBoards(), listCronJobs({ limit: 1 })]);
 
-      if (cancelled) {return;}
+      if (cancelled) {
+        return;
+      }
 
       setStats({
         kanbanBoards: boardsRes.status === 'fulfilled' ? boardsRes.value.total : null,
@@ -93,7 +92,9 @@ function useProjectStats(): ProjectStats {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return stats;
@@ -105,9 +106,13 @@ export default function ProjectsDashboard() {
   const stats = useProjectStats();
 
   const renderStat = (entry: ProjectEntry) => {
-    if (!entry.statKey || !entry.statLabelKey) {return null;}
+    if (!entry.statKey || !entry.statLabelKey) {
+      return null;
+    }
     const count = stats[entry.statKey];
-    if (count === null) {return null;}
+    if (count === null) {
+      return null;
+    }
     return (
       <div className="flex items-center gap-2 text-sm">
         <span className="text-2xl font-semibold text-foreground">{count}</span>
@@ -148,9 +153,7 @@ export default function ProjectsDashboard() {
                 <CardTitle className="text-base">{t(entry.titleKey)}</CardTitle>
                 <CardDescription>{t(entry.descKey)}</CardDescription>
               </CardHeader>
-              <CardContent className="pt-2">
-                {renderStat(entry)}
-              </CardContent>
+              <CardContent className="pt-2">{renderStat(entry)}</CardContent>
             </Card>
           );
         })}

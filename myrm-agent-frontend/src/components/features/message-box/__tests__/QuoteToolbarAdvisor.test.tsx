@@ -11,8 +11,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/store/useChatStore', () => ({
   __esModule: true,
-  default: (selector: (s: { loading: boolean }) => unknown) =>
-    selector({ loading: true }),
+  default: (selector: (s: { loading: boolean }) => unknown) => selector({ loading: true }),
 }));
 
 vi.mock('@/store/useQuoteStore', () => ({
@@ -26,9 +25,7 @@ vi.mock('@/lib/utils/clipboardUtils', () => ({
 
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
-      <div {...props}>{children}</div>
-    ),
+    div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => <div {...props}>{children}</div>,
   },
   AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
 }));

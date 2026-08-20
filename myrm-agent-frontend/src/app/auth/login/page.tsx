@@ -44,7 +44,9 @@ export default function LoginPage() {
   }, [router, postAuthPath]);
 
   const checkAuth = useCallback(async () => {
-    if (sandbox) {return;}
+    if (sandbox) {
+      return;
+    }
     try {
       const response = await fetch(getWebuiUrl('/auth/status'), {
         credentials: 'include',
@@ -208,7 +210,7 @@ export default function LoginPage() {
         <div className="bg-background/80 backdrop-blur-2xl border border-white/10 dark:border-white/5 shadow-2xl rounded-3xl p-8 relative overflow-hidden ring-1 ring-black/5 dark:ring-white/5">
           {/* Top highlight line */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          
+
           <LocalLoginForm
             username={username}
             password={password}

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildOfficialThemeRestorePatch,
-  isThemeDeviatedFromOfficial,
-  needsRestoreConfirm,
-} from '../official-restore';
+import { buildOfficialThemeRestorePatch, isThemeDeviatedFromOfficial, needsRestoreConfirm } from '../official-restore';
 import { OFFICIAL_DEFAULT_PROFILE_ID, getDefaultThemeProfile } from '../presets';
 import { buildArtOverlayProfile, EMPTY_THEME_PROFILES } from '../overlay';
 

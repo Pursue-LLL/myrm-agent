@@ -28,7 +28,9 @@ export default function ExtractToSkillButton({ message }: { message: Message }) 
   const [state, setState] = useState<ExtractState>('idle');
 
   const handleExtract = useCallback(async () => {
-    if (state !== 'idle') {return;}
+    if (state !== 'idle') {
+      return;
+    }
     if (useChatStore.getState().loading) {
       toast.warning(t('extractToSkill.busy'));
       return;
@@ -45,7 +47,9 @@ export default function ExtractToSkillButton({ message }: { message: Message }) 
     }
   }, [message.content, state, t]);
 
-  if (!message.content.trim()) {return null;}
+  if (!message.content.trim()) {
+    return null;
+  }
 
   const btnBase = 'p-2 rounded-xl transition duration-200';
 
@@ -64,11 +68,7 @@ export default function ExtractToSkillButton({ message }: { message: Message }) 
             disabled={state !== 'idle'}
             aria-label={t('extractToSkill.title')}
           >
-            {state === 'sending' ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
+            {state === 'sending' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom">

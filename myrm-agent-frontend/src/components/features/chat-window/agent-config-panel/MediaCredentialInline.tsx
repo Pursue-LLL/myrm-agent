@@ -9,10 +9,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { apiRequest } from '@/lib/api';
 import type { BuiltinToolId } from '@/store/chat/types';
 import type { VoiceConfigValue } from '@/services/config/types';
-import {
-  collectMediaCredentialWarnings,
-  type MediaCredentialWarningTool,
-} from '@/lib/utils/mediaCredentialReadiness';
+import { collectMediaCredentialWarnings, type MediaCredentialWarningTool } from '@/lib/utils/mediaCredentialReadiness';
 import { fetchMediaProviderStatus, type MediaProviderStatus } from '@/lib/utils/mediaProviderStatus';
 import { cn } from '@/lib/utils/classnameUtils';
 

@@ -17,11 +17,7 @@ import {
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/approvalDecision';
 
-const DRAWER_RESUME_ACTION_TYPES = new Set([
-  'subagent_approval',
-  'deploy_approval',
-  'high_risk_dom_action',
-]);
+const DRAWER_RESUME_ACTION_TYPES = new Set(['subagent_approval', 'deploy_approval', 'high_risk_dom_action']);
 
 /**
  * [INPUT] Drawer approval record + user decision
@@ -54,9 +50,7 @@ export function buildDrawerResumeValue(
     const toolCount = approval.payload?.tool_calls?.length ?? 0;
     const decisionCount = Math.max(toolCount, 1);
     return {
-      decisions: Array.from({ length: decisionCount }, () =>
-        buildApprovalDecision(decisionType, resolveExtra),
-      ),
+      decisions: Array.from({ length: decisionCount }, () => buildApprovalDecision(decisionType, resolveExtra)),
     };
   }
 

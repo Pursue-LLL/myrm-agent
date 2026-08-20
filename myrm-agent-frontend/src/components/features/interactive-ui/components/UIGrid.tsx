@@ -24,36 +24,67 @@ export const UIGrid: React.FC<UIComponentProps> = ({ props, children }) => {
     const colClasses: string[] = [];
 
     // 移动端
-    if (mobileColumns === 1) {colClasses.push('grid-cols-1');}
-    else if (mobileColumns === 2) {colClasses.push('grid-cols-2');}
-    else {colClasses.push(`grid-cols-${mobileColumns}`);}
+    if (mobileColumns === 1) {
+      colClasses.push('grid-cols-1');
+    } else if (mobileColumns === 2) {
+      colClasses.push('grid-cols-2');
+    } else {
+      colClasses.push(`grid-cols-${mobileColumns}`);
+    }
 
     // 平板
-    if (tabletColumns === 1) {colClasses.push('md:grid-cols-1');}
-    else if (tabletColumns === 2) {colClasses.push('md:grid-cols-2');}
-    else if (tabletColumns === 3) {colClasses.push('md:grid-cols-3');}
-    else {colClasses.push(`md:grid-cols-${tabletColumns}`);}
+    if (tabletColumns === 1) {
+      colClasses.push('md:grid-cols-1');
+    } else if (tabletColumns === 2) {
+      colClasses.push('md:grid-cols-2');
+    } else if (tabletColumns === 3) {
+      colClasses.push('md:grid-cols-3');
+    } else {
+      colClasses.push(`md:grid-cols-${tabletColumns}`);
+    }
 
     // 桌面
-    if (columns === 1) {colClasses.push('lg:grid-cols-1');}
-    else if (columns === 2) {colClasses.push('lg:grid-cols-2');}
-    else if (columns === 3) {colClasses.push('lg:grid-cols-3');}
-    else if (columns === 4) {colClasses.push('lg:grid-cols-4');}
-    else if (columns === 5) {colClasses.push('lg:grid-cols-5');}
-    else if (columns === 6) {colClasses.push('lg:grid-cols-6');}
-    else {colClasses.push(`lg:grid-cols-${columns}`);}
+    if (columns === 1) {
+      colClasses.push('lg:grid-cols-1');
+    } else if (columns === 2) {
+      colClasses.push('lg:grid-cols-2');
+    } else if (columns === 3) {
+      colClasses.push('lg:grid-cols-3');
+    } else if (columns === 4) {
+      colClasses.push('lg:grid-cols-4');
+    } else if (columns === 5) {
+      colClasses.push('lg:grid-cols-5');
+    } else if (columns === 6) {
+      colClasses.push('lg:grid-cols-6');
+    } else {
+      colClasses.push(`lg:grid-cols-${columns}`);
+    }
 
     return colClasses.join(' ');
   };
 
   const getGapClass = () => {
-    if (gap === 1) {return 'gap-1';}
-    if (gap === 2) {return 'gap-2';}
-    if (gap === 3) {return 'gap-3';}
-    if (gap === 4) {return 'gap-4';}
-    if (gap === 5) {return 'gap-5';}
-    if (gap === 6) {return 'gap-6';}
-    if (gap === 8) {return 'gap-8';}
+    if (gap === 1) {
+      return 'gap-1';
+    }
+    if (gap === 2) {
+      return 'gap-2';
+    }
+    if (gap === 3) {
+      return 'gap-3';
+    }
+    if (gap === 4) {
+      return 'gap-4';
+    }
+    if (gap === 5) {
+      return 'gap-5';
+    }
+    if (gap === 6) {
+      return 'gap-6';
+    }
+    if (gap === 8) {
+      return 'gap-8';
+    }
     return `gap-${gap}`;
   };
 

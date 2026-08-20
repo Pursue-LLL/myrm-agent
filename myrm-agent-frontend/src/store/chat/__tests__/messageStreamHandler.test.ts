@@ -37,11 +37,7 @@ const createStatefulActions = (state: StreamHandlerState): StreamHandlerActions 
   scheduleAutoSave: () => undefined,
 });
 
-const findProgressStepText = (
-  state: StreamHandlerState,
-  messageId: string,
-  stepKey: string,
-): string | undefined => {
+const findProgressStepText = (state: StreamHandlerState, messageId: string, stepKey: string): string | undefined => {
   const message = state.messages.find((m) => m.messageId === messageId);
   const step = message?.progressSteps?.find((s) => s.step_key === stepKey);
   const item = step?.items?.[0];

@@ -56,11 +56,7 @@ export {
   normalizeGoalState,
   normalizeSubagentStatus,
 } from '../streamHelpers';
-export {
-  parseProgressFilePath,
-  pathsMatchForFileDiff,
-  pickMergedFileDiffPayload,
-} from '../fileDiffMerge';
+export { parseProgressFilePath, pathsMatchForFileDiff, pickMergedFileDiffPayload } from '../fileDiffMerge';
 export { sanitizeStreamText } from '../textSanitize';
 
 /**

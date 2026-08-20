@@ -41,7 +41,9 @@ interface ScanConfirmDialogProps {
 const ScanConfirmDialog = memo(({ open, previewResult, onConfirm, onCancel }: ScanConfirmDialogProps) => {
   const t = useTranslations('settings.skills.discover');
 
-  if (!previewResult) {return null;}
+  if (!previewResult) {
+    return null;
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={(v) => !v && onCancel()}>
@@ -70,9 +72,7 @@ const ScanConfirmDialog = memo(({ open, previewResult, onConfirm, onCancel }: Sc
                     </Badge>
                     <span className="text-foreground">
                       {finding.line_number != null && (
-                        <span className="font-mono text-[11px] text-muted-foreground mr-1">
-                          L{finding.line_number}
-                        </span>
+                        <span className="font-mono text-[11px] text-muted-foreground mr-1">L{finding.line_number}</span>
                       )}
                       {finding.description}
                     </span>

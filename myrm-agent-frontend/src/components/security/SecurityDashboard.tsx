@@ -53,7 +53,9 @@ export default function SecurityDashboard() {
     try {
       setLoading(true);
       const response = await fetch('/api/v1/security/dashboard');
-      if (!response.ok) {throw new Error(`HTTP ${response.status}: ${response.statusText}`);}
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       setData(await response.json());
       setError(null);
     } catch (err) {
@@ -68,7 +70,9 @@ export default function SecurityDashboard() {
     try {
       setLoading(true);
       const response = await fetch('/api/v1/security/rate-limits');
-      if (!response.ok) {throw new Error(`HTTP ${response.status}: ${response.statusText}`);}
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const result = await response.json();
       setRateLimitData(Array.isArray(result.items) ? result.items : []);
       setRateLimitLive(Boolean(result.isLive));
@@ -85,7 +89,9 @@ export default function SecurityDashboard() {
     try {
       setLoading(true);
       const response = await fetch('/api/v1/security/audit/logs?limit=100');
-      if (!response.ok) {throw new Error(`HTTP ${response.status}: ${response.statusText}`);}
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const result = await response.json();
       const rawEvents = Array.isArray(result.events) ? result.events : [];
       setAuditLogData(rawEvents.map((log: Record<string, unknown>) => mapAuditLogEvent(log)));
@@ -103,7 +109,9 @@ export default function SecurityDashboard() {
     try {
       setLoading(true);
       const response = await fetch('/api/v1/security/audit/stats?hours=24');
-      if (!response.ok) {throw new Error(`HTTP ${response.status}: ${response.statusText}`);}
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const result = await response.json();
       setAuditStatsData(mapAuditStatsResponse(result as Record<string, unknown>));
       setAuditLive(Boolean(result.isLive));
@@ -121,10 +129,15 @@ export default function SecurityDashboard() {
   }, [fetchSetupHints]);
 
   useEffect(() => {
-    if (activeTab === 'dependencies') {fetchSecurityData();}
-    else if (activeTab === 'rate-limit') {fetchRateLimitData();}
-    else if (activeTab === 'audit-logs') {fetchAuditLogData();}
-    else if (activeTab === 'audit-stats') {fetchAuditStatsData();}
+    if (activeTab === 'dependencies') {
+      fetchSecurityData();
+    } else if (activeTab === 'rate-limit') {
+      fetchRateLimitData();
+    } else if (activeTab === 'audit-logs') {
+      fetchAuditLogData();
+    } else if (activeTab === 'audit-stats') {
+      fetchAuditStatsData();
+    }
   }, [activeTab, fetchSecurityData, fetchRateLimitData, fetchAuditLogData, fetchAuditStatsData]);
 
   useEffect(() => {
@@ -134,14 +147,10 @@ export default function SecurityDashboard() {
     }
     let filtered = auditLogData;
     if (searchUserId) {
-      filtered = filtered.filter((event) =>
-        event.user_id?.toLowerCase().includes(searchUserId.toLowerCase()),
-      );
+      filtered = filtered.filter((event) => event.user_id?.toLowerCase().includes(searchUserId.toLowerCase()));
     }
     if (searchEventType) {
-      filtered = filtered.filter((event) =>
-        event.event_type.toLowerCase().includes(searchEventType.toLowerCase()),
-      );
+      filtered = filtered.filter((event) => event.event_type.toLowerCase().includes(searchEventType.toLowerCase()));
     }
     if (searchResult !== 'all') {
       filtered =
@@ -153,13 +162,19 @@ export default function SecurityDashboard() {
   }, [auditLogData, searchUserId, searchEventType, searchResult]);
 
   const dataSourceLabel = (source: SecurityDashboardData['dataSource']) => {
-    if (source === 'merged') {return t('dataSourceMerged');}
-    if (source === 'control_plane') {return t('dataSourceCp');}
+    if (source === 'merged') {
+      return t('dataSourceMerged');
+    }
+    if (source === 'control_plane') {
+      return t('dataSourceCp');
+    }
     return t('dataSourceGithub');
   };
 
   const copyWebhookUrl = async () => {
-    if (!setupHints?.webhookUrl) {return;}
+    if (!setupHints?.webhookUrl) {
+      return;
+    }
     await navigator.clipboard.writeText(setupHints.webhookUrl);
     setUrlCopied(true);
     setTimeout(() => setUrlCopied(false), 2000);
@@ -168,7 +183,9 @@ export default function SecurityDashboard() {
   const exportAuditLogs = async (format: 'csv' | 'json') => {
     try {
       const response = await fetch(`/api/v1/security/audit/export?format=${format}`);
-      if (!response.ok) {throw new Error(`HTTP ${response.status}: ${response.statusText}`);}
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const blob = await response.blob();
       const filename = `auth_audit_logs_${new Date().toISOString().split('T')[0]}.${format}`;
       const url = window.URL.createObjectURL(blob);
@@ -186,10 +203,15 @@ export default function SecurityDashboard() {
   };
 
   const refreshActiveTab = () => {
-    if (activeTab === 'dependencies') {fetchSecurityData();}
-    else if (activeTab === 'rate-limit') {fetchRateLimitData();}
-    else if (activeTab === 'audit-logs') {fetchAuditLogData();}
-    else if (activeTab === 'audit-stats') {fetchAuditStatsData();}
+    if (activeTab === 'dependencies') {
+      fetchSecurityData();
+    } else if (activeTab === 'rate-limit') {
+      fetchRateLimitData();
+    } else if (activeTab === 'audit-logs') {
+      fetchAuditLogData();
+    } else if (activeTab === 'audit-stats') {
+      fetchAuditStatsData();
+    }
   };
 
   if (loading) {
@@ -217,7 +239,9 @@ export default function SecurityDashboard() {
     );
   }
 
-  if (activeTab === 'dependencies' && !data) {return null;}
+  if (activeTab === 'dependencies' && !data) {
+    return null;
+  }
 
   const tabs = [
     { id: 'dependencies' as SecurityTabType, label: t('tabDependencies'), icon: Shield },
@@ -235,9 +259,7 @@ export default function SecurityDashboard() {
             {t('title')}
           </h1>
           <p className="text-muted-foreground mt-1">{t('subtitle')}</p>
-          {data?.dataSource && (
-            <p className="text-xs text-muted-foreground mt-2">{dataSourceLabel(data.dataSource)}</p>
-          )}
+          {data?.dataSource && <p className="text-xs text-muted-foreground mt-2">{dataSourceLabel(data.dataSource)}</p>}
         </div>
         <div className="flex items-center gap-2">
           {activeTab === 'audit-logs' && (
@@ -258,21 +280,14 @@ export default function SecurityDashboard() {
               </button>
             </>
           )}
-          <button
-            onClick={refreshActiveTab}
-            className="px-4 py-2 rounded-lg border hover:bg-accent transition-colors"
-          >
+          <button onClick={refreshActiveTab} className="px-4 py-2 rounded-lg border hover:bg-accent transition-colors">
             {t('refresh')}
           </button>
         </div>
       </div>
 
       {setupHints && (
-        <SecuritySetupPanel
-          setupHints={setupHints}
-          urlCopied={urlCopied}
-          onCopyWebhookUrl={copyWebhookUrl}
-        />
+        <SecuritySetupPanel setupHints={setupHints} urlCopied={urlCopied} onCopyWebhookUrl={copyWebhookUrl} />
       )}
 
       <div className="flex flex-wrap gap-2 border-b overflow-x-auto">
@@ -298,9 +313,7 @@ export default function SecurityDashboard() {
       {activeTab === 'dependencies' && data && (
         <DependenciesTab data={data} githubTokenConfigured={setupHints?.githubTokenConfigured} />
       )}
-      {activeTab === 'rate-limit' && (
-        <RateLimitTab rateLimitData={rateLimitData} rateLimitLive={rateLimitLive} />
-      )}
+      {activeTab === 'rate-limit' && <RateLimitTab rateLimitData={rateLimitData} rateLimitLive={rateLimitLive} />}
       {activeTab === 'audit-logs' && (
         <AuditLogsTab
           auditLive={auditLive}

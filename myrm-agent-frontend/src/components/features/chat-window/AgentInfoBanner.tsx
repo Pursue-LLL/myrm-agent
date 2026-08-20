@@ -36,15 +36,23 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
     const loadAgent = async () => {
       try {
         const data = await getAgent(agentId);
-        if (!stale) {setAgent(data);}
+        if (!stale) {
+          setAgent(data);
+        }
       } catch {
-        if (!stale) {setAgent(null);}
+        if (!stale) {
+          setAgent(null);
+        }
       } finally {
-        if (!stale) {setInitialLoading(false);}
+        if (!stale) {
+          setInitialLoading(false);
+        }
       }
     };
     loadAgent();
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+    };
   }, [agentId]);
 
   useEffect(() => {
@@ -60,7 +68,9 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
 
       try {
         const fullAgent = await getAgent(targetAgentId);
-        if (!fullAgent) {return;}
+        if (!fullAgent) {
+          return;
+        }
 
         useChatStore.getState().setAgentConfig(buildAgentConfig(fullAgent));
         setAgent(fullAgent);
@@ -74,7 +84,9 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
     [agentId, locale, t],
   );
 
-  if (initialLoading || !agent) {return null;}
+  if (initialLoading || !agent) {
+    return null;
+  }
 
   return (
     <div className={cn('flex items-center gap-3 px-4 py-2 bg-muted/50 border-b border-border', className)}>

@@ -103,7 +103,9 @@ const getNodeDisplayName = (node: ForceNode): string => {
   if (typeof props.content === 'string' && props.content.length > 0) {
     return props.content.length > 60 ? `${props.content.slice(0, 57)}…` : props.content;
   }
-  if (typeof props.name === 'string') {return props.name;}
+  if (typeof props.name === 'string') {
+    return props.name;
+  }
   return node.labels[0] ?? node.id.slice(0, 8);
 };
 
@@ -139,7 +141,9 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
         const fgData = toForceGraph(resp);
         setData(fgData);
         if (initialFocusNodeId) {
-          const match = fgData.nodes.find((n) => n.id === initialFocusNodeId || (n.properties?.id as string) === initialFocusNodeId);
+          const match = fgData.nodes.find(
+            (n) => n.id === initialFocusNodeId || (n.properties?.id as string) === initialFocusNodeId,
+          );
           if (match) {
             setSelectedNode(match);
           }
@@ -159,9 +163,13 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
   }, [load]);
 
   useEffect(() => {
-    if (!fullscreen) {return;}
+    if (!fullscreen) {
+      return;
+    }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {setFullscreen(false);}
+      if (e.key === 'Escape') {
+        setFullscreen(false);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -169,7 +177,9 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
 
   useEffect(() => {
     const container = fullscreen ? document.body : containerRef.current;
-    if (!container) {return;}
+    if (!container) {
+      return;
+    }
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
@@ -184,7 +194,9 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
   }, [fullscreen]);
 
   const filteredData = useMemo<ForceGraphData | null>(() => {
-    if (!data) {return null;}
+    if (!data) {
+      return null;
+    }
     const q = searchQuery.toLowerCase().trim();
     const visibleNodes = q
       ? data.nodes.filter(
@@ -202,13 +214,19 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
   }, [data, searchQuery, hiddenRelTypes]);
 
   const neighbors = useMemo<Set<string>>(() => {
-    if (!selectedNode || !data) {return new Set();}
+    if (!selectedNode || !data) {
+      return new Set();
+    }
     const set = new Set<string>();
     for (const l of data.links) {
       const src = nodeId(l.source);
       const tgt = nodeId(l.target);
-      if (src === selectedNode.id) {set.add(tgt);}
-      if (tgt === selectedNode.id) {set.add(src);}
+      if (src === selectedNode.id) {
+        set.add(tgt);
+      }
+      if (tgt === selectedNode.id) {
+        set.add(src);
+      }
     }
     return set;
   }, [selectedNode, data]);
@@ -265,10 +283,14 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
     (link: unknown) => {
       const graphLink = link as ForceLink;
       const c = getLinkColor(graphLink.rel_type);
-      if (!selectedNode) {return c;}
+      if (!selectedNode) {
+        return c;
+      }
       const src = nodeId(graphLink.source);
       const tgt = nodeId(graphLink.target);
-      if (src === selectedNode.id || tgt === selectedNode.id) {return c;}
+      if (src === selectedNode.id || tgt === selectedNode.id) {
+        return c;
+      }
       return 'rgba(100,100,100,0.08)';
     },
     [selectedNode],
@@ -277,8 +299,11 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
   const toggleRelType = useCallback((relType: string) => {
     setHiddenRelTypes((prev) => {
       const next = new Set(prev);
-      if (next.has(relType)) {next.delete(relType);}
-      else {next.add(relType);}
+      if (next.has(relType)) {
+        next.delete(relType);
+      } else {
+        next.add(relType);
+      }
       return next;
     });
   }, []);

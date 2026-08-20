@@ -21,9 +21,7 @@ export const systemService = {
   },
 
   async getLocalNetwork(port: number): Promise<{ ip: string; url: string; hint: string }> {
-    return apiRequest<{ ip: string; url: string; hint: string }>(
-      `/system/local-network?port=${port}`,
-    );
+    return apiRequest<{ ip: string; url: string; hint: string }>(`/system/local-network?port=${port}`);
   },
 
   async testIngressHealth(baseUrl: string): Promise<boolean> {

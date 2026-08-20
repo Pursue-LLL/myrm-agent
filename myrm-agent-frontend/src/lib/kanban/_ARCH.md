@@ -6,10 +6,10 @@ Frontend helpers for kanban chat activation: localStorage SSOT for target board 
 
 ## File Index
 
-| File | Role | Description |
-|------|------|-------------|
-| `kanbanChatBoard.ts` | Core | `KANBAN_LAST_BOARD_ID_KEY`, read/write, request board id, send guard (stale id clear + `resolveKanbanSendBlockReason*`) |
-| `__tests__/kanbanChatBoard.test.ts` | Test | SSOT, picker visibility, send-block rules |
+| File                                | Role | Description                                                                                                             |
+| ----------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------- |
+| `kanbanChatBoard.ts`                | Core | `KANBAN_LAST_BOARD_ID_KEY`, read/write, request board id, send guard (stale id clear + `resolveKanbanSendBlockReason*`) |
+| `__tests__/kanbanChatBoard.test.ts` | Test | SSOT, picker visibility, send-block rules                                                                               |
 
 ## Dependencies
 

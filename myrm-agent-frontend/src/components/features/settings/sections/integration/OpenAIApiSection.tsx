@@ -51,7 +51,9 @@ const OpenAIApiSection = memo(() => {
   }, [loadKeys]);
 
   const handleCreate = async () => {
-    if (!keyName.trim()) {return;}
+    if (!keyName.trim()) {
+      return;
+    }
     setIsCreating(true);
     try {
       const result = await createApiKey({
@@ -80,7 +82,9 @@ const OpenAIApiSection = memo(() => {
   };
 
   const handleRevoke = async () => {
-    if (revokeTarget === null) {return;}
+    if (revokeTarget === null) {
+      return;
+    }
     try {
       await revokeApiKey(revokeTarget);
       await loadKeys();
@@ -93,7 +97,9 @@ const OpenAIApiSection = memo(() => {
   };
 
   const handleDelete = async () => {
-    if (deleteTarget === null) {return;}
+    if (deleteTarget === null) {
+      return;
+    }
     try {
       await deleteApiKey(deleteTarget);
       await loadKeys();
@@ -106,8 +112,12 @@ const OpenAIApiSection = memo(() => {
   };
 
   const getKeyStatus = (key: APIKeyInfo): 'active' | 'revoked' | 'expired' => {
-    if (!key.is_active) {return 'revoked';}
-    if (key.expires_at && new Date(key.expires_at) < new Date()) {return 'expired';}
+    if (!key.is_active) {
+      return 'revoked';
+    }
+    if (key.expires_at && new Date(key.expires_at) < new Date()) {
+      return 'expired';
+    }
     return 'active';
   };
 
@@ -324,7 +334,6 @@ for chunk in response:
         cancelText={t('cancel')}
         variant="destructive"
       />
-
     </div>
   );
 });

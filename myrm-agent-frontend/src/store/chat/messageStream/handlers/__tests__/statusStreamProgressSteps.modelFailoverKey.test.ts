@@ -7,14 +7,25 @@ vi.mock('../handlerDeps', () => {
   return {
     findAssistantMessageIndex: vi.fn(() => 0),
     ensureAssistantStreamMessage: (
-      messages: Array<{ messageId: string; role: string; chatId: string; content: string; progressSteps: unknown[]; createdAt: Date }>,
+      messages: Array<{
+        messageId: string;
+        role: string;
+        chatId: string;
+        content: string;
+        progressSteps: unknown[];
+        createdAt: Date;
+      }>,
       messageId: string | undefined,
       chatIdFallback: string,
     ) => {
       const normalizedId = messageId?.trim();
-      if (!normalizedId) {return -1;}
+      if (!normalizedId) {
+        return -1;
+      }
       const existing = messages.findIndex((m) => m.messageId === normalizedId && m.role === 'assistant');
-      if (existing !== -1) {return existing;}
+      if (existing !== -1) {
+        return existing;
+      }
       messages.push({
         content: '',
         messageId: normalizedId,
@@ -28,10 +39,7 @@ vi.mock('../handlerDeps', () => {
     parseArchiveRestoreBlockPayload: vi.fn(),
     parseArchiveRestoreResultPayload: vi.fn(),
     buildArchiveRestoreActions: vi.fn(() => []),
-    discardStreamedDraft: (ctx: {
-      recievedMessage: string;
-      state?: { scheduler?: { cancel?: () => void } };
-    }) => {
+    discardStreamedDraft: (ctx: { recievedMessage: string; state?: { scheduler?: { cancel?: () => void } } }) => {
       ctx.recievedMessage = '';
       ctx.state?.scheduler?.cancel?.();
     },
@@ -92,8 +100,7 @@ function makeFailoverCtx(errorKind?: string): StreamCtx {
 }
 
 function schedulerCancelOf(ctx: StreamCtx): ReturnType<typeof vi.fn> {
-  return (ctx.state as unknown as { scheduler: { cancel: ReturnType<typeof vi.fn> } }).scheduler
-    .cancel;
+  return (ctx.state as unknown as { scheduler: { cancel: ReturnType<typeof vi.fn> } }).scheduler.cancel;
 }
 
 describe('applyStatusProgressStep model_failover displayKey', () => {
@@ -139,7 +146,8 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
     expect(step.step_key).toBe('model_failover');
   });
 
-  it('creates assistant placeholder when model_failover arrives before MESSAGE', async () => {    const { findAssistantMessageIndex } = await import('../handlerDeps');
+  it('creates assistant placeholder when model_failover arrives before MESSAGE', async () => {
+    const { findAssistantMessageIndex } = await import('../handlerDeps');
     // applyStatusProgressStep calls findAssistantMessageIndex exactly once per
     // invocation; mockReturnValueOnce keeps the -1 scoped to this test instead of
     // leaking into later tests (a persistent mockReturnValue would make every
@@ -155,7 +163,14 @@ describe('applyStatusProgressStep model_failover displayKey', () => {
           role: 'user' as const,
           createdAt: new Date(),
         },
-      ] as Array<{ content: string; messageId: string; chatId: string; role: string; createdAt: Date; progressSteps?: Array<{ step_key?: string }> }>,
+      ] as Array<{
+        content: string;
+        messageId: string;
+        chatId: string;
+        role: string;
+        createdAt: Date;
+        progressSteps?: Array<{ step_key?: string }>;
+      }>,
     };
     const setMessages = vi.fn((updater: (s: typeof state) => void) => {
       updater(state);

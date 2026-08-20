@@ -138,10 +138,12 @@ describe('isNodeOvertime', () => {
 
 describe('internal nodes', () => {
   it('setNodes skips internal nodes', () => {
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: 'biz', internal: false }),
-      makeNode({ task_id: 'verify-worker-1', internal: true }),
-    ]);
+    useSubagentStore
+      .getState()
+      .setNodes([
+        makeNode({ task_id: 'biz', internal: false }),
+        makeNode({ task_id: 'verify-worker-1', internal: true }),
+      ]);
     const nodes = useSubagentStore.getState().nodes;
     expect(nodes['biz']).toBeDefined();
     expect(nodes['verify-worker-1']).toBeUndefined();
@@ -154,12 +156,8 @@ describe('setNodes terminal-state protection', () => {
   });
 
   it('does not downgrade a cancelled node to running via late SSE snapshot', () => {
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: 't1', status: 'cancelled' }),
-    ]);
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: 't1', status: 'running', progress: 40 }),
-    ]);
+    useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'cancelled' })]);
+    useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'running', progress: 40 })]);
     const node = useSubagentStore.getState().nodes['t1'];
     expect(node.status).toBe('cancelled');
   });
@@ -181,9 +179,7 @@ describe('setNodes terminal-state protection', () => {
 
   it('still merges non-status fields from late snapshots', () => {
     useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'cancelled' })]);
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: 't1', status: 'running', last_tool: 'bash' }),
-    ]);
+    useSubagentStore.getState().setNodes([makeNode({ task_id: 't1', status: 'running', last_tool: 'bash' })]);
     const node = useSubagentStore.getState().nodes['t1'];
     expect(node.status).toBe('cancelled');
     expect(node.last_tool).toBe('bash');

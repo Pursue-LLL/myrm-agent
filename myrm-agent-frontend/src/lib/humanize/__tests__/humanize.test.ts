@@ -34,35 +34,22 @@ const t: TranslateFn = (key, values) => {
 
 describe('humanizeToolLine', () => {
   it('humanizes file_write with basename', () => {
-    expect(
-      humanizeToolLine('file_write_tool', { filename: 'report.md' }, t, 'progress'),
-    ).toBe('Wrote report.md');
+    expect(humanizeToolLine('file_write_tool', { filename: 'report.md' }, t, 'progress')).toBe('Wrote report.md');
   });
 
   it('humanizes browser_navigate with host', () => {
     expect(
-      humanizeToolLine(
-        'browser_navigate_tool',
-        { url: 'https://customer.example.com/dashboard' },
-        t,
-        'approval',
-      ),
+      humanizeToolLine('browser_navigate_tool', { url: 'https://customer.example.com/dashboard' }, t, 'approval'),
     ).toBe('Open webpage — customer.example.com');
   });
 
   it('humanizes approval mode', () => {
-    expect(
-      humanizeApprovalTitle('file_write_tool', { file_path: '/workspace/src/app.ts' }, t),
-    ).toBe('Write app.ts');
+    expect(humanizeApprovalTitle('file_write_tool', { file_path: '/workspace/src/app.ts' }, t)).toBe('Write app.ts');
   });
 
   it('humanizes skill_manage_tool save action', () => {
     expect(
-      humanizeApprovalTitle(
-        'skill_manage_tool',
-        { action: 'save', name: 'incident-summary', content: '# body' },
-        t,
-      ),
+      humanizeApprovalTitle('skill_manage_tool', { action: 'save', name: 'incident-summary', content: '# body' }, t),
     ).toBe('Add skill: incident-summary');
   });
 });
@@ -111,9 +98,13 @@ describe('resolveScopeNote', () => {
   });
 
   it('does not treat non-channel tools with colon-like targets as external', () => {
-    const note = resolveScopeNote('browser_manage_tool', {
-      target: 'document.querySelector(".pay")',
-    }, t);
+    const note = resolveScopeNote(
+      'browser_manage_tool',
+      {
+        target: 'document.querySelector(".pay")',
+      },
+      t,
+    );
     expect(note.external).toBe(false);
   });
 });

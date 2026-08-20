@@ -27,7 +27,9 @@ function columnLabel(index: number): string {
 }
 
 function isNumeric(value: string): boolean {
-  if (value === '') {return false;}
+  if (value === '') {
+    return false;
+  }
   const cleaned = value.replace(/[$€¥£,\s%]/g, '');
   return !isNaN(Number(cleaned)) && cleaned.length > 0;
 }
@@ -39,9 +41,13 @@ function detectNumericColumns(headers: string[], rows: string[][]): boolean[] {
     let nonEmptyCount = 0;
     for (let i = 0; i < sampleSize; i++) {
       const val = rows[i]?.[colIdx] ?? '';
-      if (val.trim() === '') {continue;}
+      if (val.trim() === '') {
+        continue;
+      }
       nonEmptyCount++;
-      if (isNumeric(val)) {numericCount++;}
+      if (isNumeric(val)) {
+        numericCount++;
+      }
     }
     return nonEmptyCount > 0 && numericCount / nonEmptyCount > 0.7;
   });
@@ -68,13 +74,17 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
   const numericCols = useMemo(() => detectNumericColumns(headers, rows), [headers, rows]);
 
   const filteredRows = useMemo(() => {
-    if (!deferredSearch.trim()) {return rows;}
+    if (!deferredSearch.trim()) {
+      return rows;
+    }
     const q = deferredSearch.toLowerCase();
     return rows.filter((row) => row.some((cell) => cell.toLowerCase().includes(q)));
   }, [rows, deferredSearch]);
 
   const sortedRows = useMemo(() => {
-    if (sortCol === null || sortDir === null) {return filteredRows;}
+    if (sortCol === null || sortDir === null) {
+      return filteredRows;
+    }
     const isNum = numericCols[sortCol];
     const sorted = [...filteredRows].sort((a, b) => compareValues(a[sortCol], b[sortCol], isNum));
     return sortDir === 'desc' ? sorted.reverse() : sorted;
@@ -90,8 +100,9 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
   const handleSort = useCallback(
     (colIdx: number) => {
       if (sortCol === colIdx) {
-        if (sortDir === 'asc') {setSortDir('desc');}
-        else if (sortDir === 'desc') {
+        if (sortDir === 'asc') {
+          setSortDir('desc');
+        } else if (sortDir === 'desc') {
           setSortCol(null);
           setSortDir(null);
         }
@@ -117,9 +128,7 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
       return cell;
     };
     const headerLine = headers.map(escapeCell).join(',');
-    const dataLines = sortedRows
-      .map((r) => r.map(escapeCell).join(','))
-      .join('\n');
+    const dataLines = sortedRows.map((r) => r.map(escapeCell).join(',')).join('\n');
     const blob = new Blob([`${headerLine}\n${dataLines}`], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -181,9 +190,7 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
                 style={{ minWidth: 72, maxWidth: 320, flex: '1 0 auto' }}
               >
                 <span className="truncate">{h || columnLabel(i)}</span>
-                {sortCol === i && (
-                  <span className="ml-1 text-primary">{sortDir === 'asc' ? '↑' : '↓'}</span>
-                )}
+                {sortCol === i && <span className="ml-1 text-primary">{sortDir === 'asc' ? '↑' : '↓'}</span>}
               </div>
             ))}
           </div>

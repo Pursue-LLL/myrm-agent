@@ -108,10 +108,7 @@ export async function rerunBatchProject(projectId: string): Promise<BatchProject
   return apiRequest(`/batch-directories/${projectId}/rerun`, { method: 'POST' });
 }
 
-export async function retryBatchTask(
-  projectId: string,
-  taskId: string,
-): Promise<BatchProjectDetail> {
+export async function retryBatchTask(projectId: string, taskId: string): Promise<BatchProjectDetail> {
   return apiRequest(`/batch-directories/${projectId}/tasks/${taskId}/retry`, { method: 'POST' });
 }
 

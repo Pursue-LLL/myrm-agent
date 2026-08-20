@@ -144,12 +144,16 @@ const DiagnosticTrendSection = ({
   t: MemoryTranslation;
 }) => {
   const withBenchmark = history.filter((item) => item.benchmark);
-  if (withBenchmark.length < 2) {return null;}
+  if (withBenchmark.length < 2) {
+    return null;
+  }
 
   const points = [...withBenchmark].reverse();
   const latest = points[points.length - 1];
   const previous = points[points.length - 2];
-  if (!latest.benchmark || !previous.benchmark) {return null;}
+  if (!latest.benchmark || !previous.benchmark) {
+    return null;
+  }
 
   return (
     <div className="rounded-lg border border-border/50 bg-background/70 p-3">
@@ -197,7 +201,9 @@ const CategoryBreakdown = ({
   bordered?: boolean;
 }) => {
   const entries = Object.entries(categories);
-  if (!entries.length) {return null;}
+  if (!entries.length) {
+    return null;
+  }
   return (
     <div className={bordered ? 'mt-2 border-t border-border/40 pt-2' : ''}>
       <div className="mb-1 text-[10px] text-muted-foreground">{t('commandCenter.benchmarkCategories')}</div>
@@ -240,7 +246,9 @@ const TrendMetric = ({
 }) => {
   const latestSummary = latest.benchmark;
   const previousSummary = previous.benchmark;
-  if (!latestSummary || !previousSummary) {return null;}
+  if (!latestSummary || !previousSummary) {
+    return null;
+  }
 
   const latestValue = latestSummary[metric];
   const previousValue = previousSummary[metric];
@@ -442,8 +450,12 @@ const MetricCard = ({ label, value, colorClass }: { label: string; value: string
 );
 
 const metricColor = (value: number, thresholds: { good: number; warn: number }): string => {
-  if (value >= thresholds.good) {return 'text-emerald-500 dark:text-emerald-400';}
-  if (value >= thresholds.warn) {return 'text-amber-500 dark:text-amber-400';}
+  if (value >= thresholds.good) {
+    return 'text-emerald-500 dark:text-emerald-400';
+  }
+  if (value >= thresholds.warn) {
+    return 'text-amber-500 dark:text-amber-400';
+  }
   return 'text-red-500 dark:text-red-400';
 };
 
@@ -510,7 +522,9 @@ const RepairPlanList = ({
   actionId: string | null;
   onDoctorAction: (action: DoctorExecutableAction) => void;
 }) => {
-  if (!plans.length) {return null;}
+  if (!plans.length) {
+    return null;
+  }
   return (
     <div className="mt-3 grid gap-2 border-t border-border/40 pt-2">
       {plans.map((plan) => {
@@ -596,10 +610,14 @@ const FactInline = ({ label, value }: { label: string; value: string }) => (
 );
 
 const statusClassName = (status: string): string => {
-  if (status === 'ready') {return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';}
+  if (status === 'ready') {
+    return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+  }
   if (status === 'warning' || status === 'missing') {
     return 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300';
   }
-  if (status === 'critical') {return 'border-destructive/20 bg-destructive/10 text-destructive';}
+  if (status === 'critical') {
+    return 'border-destructive/20 bg-destructive/10 text-destructive';
+  }
   return 'border-border bg-background text-muted-foreground';
 };

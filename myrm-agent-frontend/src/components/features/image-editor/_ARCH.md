@@ -6,12 +6,12 @@
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `ImageEditor.tsx` | 核心 | 全屏编辑器 overlay：Canvas 画布 + 工具栏 + 颜色/笔触选择 + 发送/取消 | ✅ |
-| `useImageEditor.ts` | 核心 | 编辑器状态管理 Hook：工具切换、绘图操作栈、撤销/重做、旋转、导出 | ✅ |
-| `uploadAnnotated.ts` | 辅助 | `blobToDataUrl` 工具函数；标注图片上传并插入对话（ToolImageGallery / MediaPreview） | ✅ |
-| `tools/` | 辅助 | Canvas 绘图原语（类型 + 渲染引擎） | [tools/_ARCH.md](tools/_ARCH.md) |
+| 文件                 | 地位 | 职责                                                                                | I/O/P                            |
+| -------------------- | ---- | ----------------------------------------------------------------------------------- | -------------------------------- |
+| `ImageEditor.tsx`    | 核心 | 全屏编辑器 overlay：Canvas 画布 + 工具栏 + 颜色/笔触选择 + 发送/取消                | ✅                               |
+| `useImageEditor.ts`  | 核心 | 编辑器状态管理 Hook：工具切换、绘图操作栈、撤销/重做、旋转、导出                    | ✅                               |
+| `uploadAnnotated.ts` | 辅助 | `blobToDataUrl` 工具函数；标注图片上传并插入对话（ToolImageGallery / MediaPreview） | ✅                               |
+| `tools/`             | 辅助 | Canvas 绘图原语（类型 + 渲染引擎）                                                  | [tools/_ARCH.md](tools/_ARCH.md) |
 
 ## 集成点
 

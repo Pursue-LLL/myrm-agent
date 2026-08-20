@@ -8,11 +8,7 @@ import type { CredentialsSectionState } from './useCredentialsSection';
 
 type CredentialsVaultPanelProps = Pick<
   CredentialsSectionState,
-  | 'isVaultLoading'
-  | 'openVaultCreateModal'
-  | 'openVaultEditModal'
-  | 'setDeleteVaultTarget'
-  | 'vaultCredentials'
+  'isVaultLoading' | 'openVaultCreateModal' | 'openVaultEditModal' | 'setDeleteVaultTarget' | 'vaultCredentials'
 >;
 
 export function CredentialsVaultPanel({
@@ -64,8 +60,16 @@ export function CredentialsVaultPanel({
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <div className="font-mono text-sm font-medium">{cred.label}</div>
-                  {cred.has_password && <Badge variant="outline" className="text-xs">Password</Badge>}
-                  {cred.has_totp_seed && <Badge variant="outline" className="text-xs">TOTP</Badge>}
+                  {cred.has_password && (
+                    <Badge variant="outline" className="text-xs">
+                      Password
+                    </Badge>
+                  )}
+                  {cred.has_totp_seed && (
+                    <Badge variant="outline" className="text-xs">
+                      TOTP
+                    </Badge>
+                  )}
                 </div>
                 {cred.description && <div className="text-xs text-muted-foreground mt-1">{cred.description}</div>}
               </div>

@@ -7,13 +7,9 @@ import useProviderStore from '@/store/useProviderStore';
 import { IconRoute, IconZap, IconBrain, IconCpu } from '@/components/features/icons/PremiumIcons';
 import type { SingleModelSelection } from '@/store/config/providerTypes';
 
-const REASONING_MODEL_KEYWORDS = [
-  'o1', 'o3', 'o4-mini', 'deepseek-r1', 'qwq', 'reasoning', 'opus',
-] as const;
+const REASONING_MODEL_KEYWORDS = ['o1', 'o3', 'o4-mini', 'deepseek-r1', 'qwq', 'reasoning', 'opus'] as const;
 
-const LITE_MODEL_KEYWORDS = [
-  'mini', 'flash', 'haiku', 'nano', 'lite', 'small',
-] as const;
+const LITE_MODEL_KEYWORDS = ['mini', 'flash', 'haiku', 'nano', 'lite', 'small'] as const;
 
 const LITE_SIZE_RE = /\b[1-8]b\b/i;
 
@@ -24,9 +20,15 @@ interface SmartRoutingStepProps {
 
 function classifyModel(modelName: string): 'lite' | 'reasoning' | 'standard' {
   const lower = modelName.toLowerCase();
-  if (REASONING_MODEL_KEYWORDS.some((p) => lower.includes(p))) {return 'reasoning';}
-  if (LITE_MODEL_KEYWORDS.some((p) => lower.includes(p))) {return 'lite';}
-  if (LITE_SIZE_RE.test(lower)) {return 'lite';}
+  if (REASONING_MODEL_KEYWORDS.some((p) => lower.includes(p))) {
+    return 'reasoning';
+  }
+  if (LITE_MODEL_KEYWORDS.some((p) => lower.includes(p))) {
+    return 'lite';
+  }
+  if (LITE_SIZE_RE.test(lower)) {
+    return 'lite';
+  }
   return 'standard';
 }
 
@@ -42,7 +44,9 @@ export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingSte
   const setRoutingReasoningModel = useProviderStore((s) => s.setRoutingReasoningModel);
 
   const recommendation = useMemo(() => {
-    if (enabledModels.length < 2) {return null;}
+    if (enabledModels.length < 2) {
+      return null;
+    }
 
     const classified = enabledModels.map((m) => ({
       ...m,
@@ -57,7 +61,9 @@ export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingSte
       (m) => m.tier === 'reasoning' && !(m.providerId === baseModel?.providerId && m.model === baseModel?.model),
     );
 
-    if (!liteCandidate && !reasoningCandidate) {return null;}
+    if (!liteCandidate && !reasoningCandidate) {
+      return null;
+    }
 
     return { lite: liteCandidate, reasoning: reasoningCandidate };
   }, [enabledModels, defaultModelConfig.baseModel.primary]);
@@ -107,9 +113,7 @@ export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingSte
               <IconZap className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-foreground">{t('liteLabel')}</div>
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {recommendation.lite.model}
-                </div>
+                <div className="text-xs text-muted-foreground truncate mt-0.5">{recommendation.lite.model}</div>
               </div>
             </div>
           )}
@@ -129,9 +133,7 @@ export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingSte
               <IconBrain className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-foreground">{t('reasoningLabel')}</div>
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {recommendation.reasoning.model}
-                </div>
+                <div className="text-xs text-muted-foreground truncate mt-0.5">{recommendation.reasoning.model}</div>
               </div>
             </div>
           )}

@@ -30,7 +30,9 @@ function mkNode(overrides: Partial<SubagentNode> & { task_id: string }): Subagen
 
 function mkRecord(...nodes: SubagentNode[]): Record<string, SubagentNode> {
   const r: Record<string, SubagentNode> = {};
-  for (const n of nodes) {r[n.task_id] = n;}
+  for (const n of nodes) {
+    r[n.task_id] = n;
+  }
   return r;
 }
 
@@ -95,9 +97,7 @@ describe('buildTree', () => {
   });
 
   it('creates flat roots when no parent links', () => {
-    const roots = buildTree(
-      mkRecord(mkNode({ task_id: 'a' }), mkNode({ task_id: 'b' })),
-    );
+    const roots = buildTree(mkRecord(mkNode({ task_id: 'a' }), mkNode({ task_id: 'b' })));
     expect(roots).toHaveLength(2);
     expect(roots.every((r) => r.children.length === 0)).toBe(true);
   });
@@ -116,11 +116,7 @@ describe('buildTree', () => {
   });
 
   it('orphaned nodes become roots', () => {
-    const roots = buildTree(
-      mkRecord(
-        mkNode({ task_id: 'a', parent_task_id: 'missing' }),
-      ),
-    );
+    const roots = buildTree(mkRecord(mkNode({ task_id: 'a', parent_task_id: 'missing' })));
     expect(roots).toHaveLength(1);
     expect(roots[0].task_id).toBe('a');
   });
@@ -259,9 +255,21 @@ describe('treeTotals', () => {
 
 describe('sortNodes', () => {
   const makeNodes = (): TreeNode[] => [
-    { ...mkNode({ task_id: 'a', status: 'completed', duration_seconds: 5 }), children: [], token_usage: { total_cost_usd: 0.1 } },
-    { ...mkNode({ task_id: 'b', status: 'failed', duration_seconds: 20 }), children: [], token_usage: { total_cost_usd: 2.0 } },
-    { ...mkNode({ task_id: 'c', status: 'running', duration_seconds: 10 }), children: [], token_usage: { total_cost_usd: 0.5 } },
+    {
+      ...mkNode({ task_id: 'a', status: 'completed', duration_seconds: 5 }),
+      children: [],
+      token_usage: { total_cost_usd: 0.1 },
+    },
+    {
+      ...mkNode({ task_id: 'b', status: 'failed', duration_seconds: 20 }),
+      children: [],
+      token_usage: { total_cost_usd: 2.0 },
+    },
+    {
+      ...mkNode({ task_id: 'c', status: 'running', duration_seconds: 10 }),
+      children: [],
+      token_usage: { total_cost_usd: 0.5 },
+    },
   ];
 
   it('spawn mode preserves order', () => {

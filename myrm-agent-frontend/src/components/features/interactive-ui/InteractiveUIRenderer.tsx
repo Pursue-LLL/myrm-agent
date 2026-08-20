@@ -86,7 +86,9 @@ export const InteractiveUIRenderer: React.FC<InteractiveUIRendererProps> = ({ ar
   const validateSingleField = useCallback(
     (path: string, value: unknown): ValidationErrorInfo | null => {
       const fieldConfig = fieldValidationMap.get(path);
-      if (!fieldConfig) {return null;}
+      if (!fieldConfig) {
+        return null;
+      }
       return validateField(value, fieldConfig.rules, fieldConfig.label);
     },
     [fieldValidationMap],
@@ -155,7 +157,9 @@ export const InteractiveUIRenderer: React.FC<InteractiveUIRendererProps> = ({ ar
   const handleAction = useCallback(
     (actionId: string) => {
       const action = actionMap.get(actionId);
-      if (!action) {return;}
+      if (!action) {
+        return;
+      }
 
       // 如果是提交动作，先验证所有字段
       if (action.type === 'submit') {
@@ -178,8 +182,12 @@ export const InteractiveUIRenderer: React.FC<InteractiveUIRendererProps> = ({ ar
   // 评估条件表达式
   const evaluateCondition = useCallback(
     (condition: string | boolean | undefined, data: Record<string, unknown>): boolean => {
-      if (condition === undefined || condition === true) {return true;}
-      if (condition === false) {return false;}
+      if (condition === undefined || condition === true) {
+        return true;
+      }
+      if (condition === false) {
+        return false;
+      }
 
       // 如果是路径表达式（如 "form.showExtra"），从数据中获取值
       if (typeof condition === 'string') {
@@ -194,9 +202,11 @@ export const InteractiveUIRenderer: React.FC<InteractiveUIRendererProps> = ({ ar
           const actualValue = getValueByPath(data, path.trim());
           // 尝试解析 expectedValue
           let parsedExpected: unknown = expectedValue.trim();
-          if (parsedExpected === 'true') {parsedExpected = true;}
-          else if (parsedExpected === 'false') {parsedExpected = false;}
-          else if (/^["'].*["']$/.test(parsedExpected as string)) {
+          if (parsedExpected === 'true') {
+            parsedExpected = true;
+          } else if (parsedExpected === 'false') {
+            parsedExpected = false;
+          } else if (/^["'].*["']$/.test(parsedExpected as string)) {
             parsedExpected = (parsedExpected as string).slice(1, -1);
           } else if (!isNaN(Number(parsedExpected))) {
             parsedExpected = Number(parsedExpected);
@@ -209,9 +219,11 @@ export const InteractiveUIRenderer: React.FC<InteractiveUIRendererProps> = ({ ar
           const [, path, expectedValue] = neqMatch;
           const actualValue = getValueByPath(data, path.trim());
           let parsedExpected: unknown = expectedValue.trim();
-          if (parsedExpected === 'true') {parsedExpected = true;}
-          else if (parsedExpected === 'false') {parsedExpected = false;}
-          else if (/^["'].*["']$/.test(parsedExpected as string)) {
+          if (parsedExpected === 'true') {
+            parsedExpected = true;
+          } else if (parsedExpected === 'false') {
+            parsedExpected = false;
+          } else if (/^["'].*["']$/.test(parsedExpected as string)) {
             parsedExpected = (parsedExpected as string).slice(1, -1);
           } else if (!isNaN(Number(parsedExpected))) {
             parsedExpected = Number(parsedExpected);

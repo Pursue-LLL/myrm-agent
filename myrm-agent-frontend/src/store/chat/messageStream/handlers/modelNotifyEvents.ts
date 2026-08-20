@@ -3,9 +3,9 @@
  * Chat SSE event handler slice (modelNotifyEvents).
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import * as H from "./handlerDeps";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import * as H from './handlerDeps';
 import {
   MODEL_ESCALATED_REASON_KEY,
   MODEL_ESCALATED_TOAST_KEY,
@@ -13,7 +13,7 @@ import {
   MODEL_RECOVERY_TOAST_KEY,
   resolveModelFailoverProgressStepKey,
   resolveModelFailoverToastKey,
-} from "./modelNotifyToastKey";
+} from './modelNotifyToastKey';
 
 export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
@@ -30,12 +30,16 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       const reason = payload.reason;
 
       const { showI18nToast } = await import('@/services/i18nToastService');
-      showI18nToast(MODEL_ESCALATED_TOAST_KEY, { from, to }, {
-        descriptionKey: reason ? MODEL_ESCALATED_REASON_KEY : undefined,
-        descriptionValues: reason ? { reason } : undefined,
-        type: 'info',
-        duration: 5000,
-      });
+      showI18nToast(
+        MODEL_ESCALATED_TOAST_KEY,
+        { from, to },
+        {
+          descriptionKey: reason ? MODEL_ESCALATED_REASON_KEY : undefined,
+          descriptionValues: reason ? { reason } : undefined,
+          type: 'info',
+          duration: 5000,
+        },
+      );
 
       // Escalation clears the turn and re-plays it with a stronger model, so
       // any text containing the escalation marker is a draft to drop.
@@ -115,9 +119,7 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           const steps = state.messages[messageIndex].progressSteps ?? [];
           const displayKey = resolveModelFailoverProgressStepKey(payload.reason);
           const existingStep = steps.find(
-            (step) =>
-              step.step_key?.startsWith('model_failover') ||
-              step.step_key === 'safety_fallback_active',
+            (step) => step.step_key?.startsWith('model_failover') || step.step_key === 'safety_fallback_active',
           );
           const failoverStep = {
             step_key: displayKey,
@@ -145,19 +147,19 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       | undefined;
     if (payload?.model) {
       const downtimeSec =
-        payload.downtimeMs !== undefined && payload.downtimeMs !== null
-          ? Math.round(payload.downtimeMs / 1000)
-          : null;
+        payload.downtimeMs !== undefined && payload.downtimeMs !== null ? Math.round(payload.downtimeMs / 1000) : null;
 
       const { showI18nToast } = await import('@/services/i18nToastService');
-      showI18nToast(MODEL_RECOVERY_TOAST_KEY, { model: payload.model }, {
-        descriptionKey:
-          downtimeSec !== null ? MODEL_RECOVERY_DOWNTIME_KEY : undefined,
-        descriptionValues:
-          downtimeSec !== null ? { seconds: downtimeSec } : undefined,
-        type: 'success',
-        duration: 4000,
-      });
+      showI18nToast(
+        MODEL_RECOVERY_TOAST_KEY,
+        { model: payload.model },
+        {
+          descriptionKey: downtimeSec !== null ? MODEL_RECOVERY_DOWNTIME_KEY : undefined,
+          descriptionValues: downtimeSec !== null ? { seconds: downtimeSec } : undefined,
+          type: 'success',
+          duration: 4000,
+        },
+      );
 
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
@@ -184,7 +186,6 @@ export async function modelNotifyEvents(ctx: StreamCtx): Promise<StreamTurn | nu
     }
     return done(ctx);
   }
-
 
   return null;
 }

@@ -33,7 +33,9 @@ interface ScrollToBottomButtonProps {
 const ScrollToBottomButton = memo<ScrollToBottomButtonProps>(({ visible, hasNewMessage, onClick }) => {
   const t = useTranslations('chat.scrollCue');
 
-  if (!visible) {return null;}
+  if (!visible) {
+    return null;
+  }
 
   return (
     <button
@@ -62,9 +64,7 @@ const ScrollToBottomButton = memo<ScrollToBottomButtonProps>(({ visible, hasNewM
             ],
       )}
     >
-      {hasNewMessage && (
-        <span className="text-xs font-medium whitespace-nowrap">{t('newMessage')}</span>
-      )}
+      {hasNewMessage && <span className="text-xs font-medium whitespace-nowrap">{t('newMessage')}</span>}
       <ArrowDown className={cn('shrink-0', hasNewMessage ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
     </button>
   );

@@ -63,16 +63,24 @@ export interface RemoteGatewayConfig {
 }
 
 export function getRemoteGatewayConfig(): RemoteGatewayConfig | null {
-  if (typeof window === 'undefined') {return null;}
+  if (typeof window === 'undefined') {
+    return null;
+  }
   try {
     const raw = window.localStorage.getItem(REMOTE_GATEWAY_STORAGE_KEY);
-    if (!raw) {return null;}
+    if (!raw) {
+      return null;
+    }
     const parsed = JSON.parse(raw) as Partial<RemoteGatewayConfig>;
-    if (!parsed.enabled || !parsed.url) {return null;}
+    if (!parsed.enabled || !parsed.url) {
+      return null;
+    }
     const url = parsed.url.trim().replace(/\/+$/, '');
     try {
       const p = new URL(url);
-      if (p.protocol !== 'http:' && p.protocol !== 'https:') {return null;}
+      if (p.protocol !== 'http:' && p.protocol !== 'https:') {
+        return null;
+      }
     } catch {
       return null;
     }
@@ -83,7 +91,9 @@ export function getRemoteGatewayConfig(): RemoteGatewayConfig | null {
 }
 
 export function setRemoteGatewayConfig(config: RemoteGatewayConfig | null): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   if (!config || !config.enabled) {
     window.localStorage.removeItem(REMOTE_GATEWAY_STORAGE_KEY);
     restoreLocalAuthToken();
@@ -99,16 +109,22 @@ export function isRemoteGatewayActive(): boolean {
 }
 
 function backupLocalAuthToken(): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   const current = window.localStorage.getItem('auth_token');
-  if (current && current !== 'local_user_token') {return;}
+  if (current && current !== 'local_user_token') {
+    return;
+  }
   if (current) {
     window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
   }
 }
 
 function restoreLocalAuthToken(): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   const backup = window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY);
   if (backup) {
     window.localStorage.setItem('auth_token', backup);
@@ -123,8 +139,12 @@ const INVALID_BASE_URL_VALUES = new Set(['undefined', 'null']);
 
 export function normalizeConfiguredBaseUrl(value: string | null | undefined, fallback: string): string {
   const candidate = value?.trim();
-  if (!candidate) {return fallback;}
-  if (INVALID_BASE_URL_VALUES.has(candidate.toLowerCase())) {return fallback;}
+  if (!candidate) {
+    return fallback;
+  }
+  if (INVALID_BASE_URL_VALUES.has(candidate.toLowerCase())) {
+    return fallback;
+  }
 
   try {
     const parsed = new URL(candidate);
@@ -142,7 +162,9 @@ export function normalizeConfiguredBaseUrl(value: string | null | undefined, fal
  * 检测是否运行在 Tauri 桌面端（基于 window.__TAURI__ 运行时检测，不受配置覆盖影响）
  */
 export function isTauriRuntime(): boolean {
-  if (typeof window === 'undefined') {return false;}
+  if (typeof window === 'undefined') {
+    return false;
+  }
   return '__TAURI__' in window;
 }
 
@@ -206,7 +228,9 @@ export function getDeployMode(): DeployMode {
     return 'sandbox';
   }
 
-  if (envMode) {return envMode;}
+  if (envMode) {
+    return envMode;
+  }
 
   return 'tauri';
 }

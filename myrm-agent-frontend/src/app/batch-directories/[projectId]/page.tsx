@@ -65,9 +65,13 @@ import {
 } from '@/services/batch-directory';
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) {return '—';}
+  if (!iso) {
+    return '—';
+  }
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {return '—';}
+  if (Number.isNaN(d.getTime())) {
+    return '—';
+  }
   return d.toLocaleString();
 }
 
@@ -95,7 +99,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   useEffect(() => {
     let active = true;
     void params.then((p) => {
-      if (active) {setProjectId(p.projectId);}
+      if (active) {
+        setProjectId(p.projectId);
+      }
     });
     return () => {
       active = false;
@@ -117,12 +123,16 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   );
 
   useEffect(() => {
-    if (projectId) {void fetchDetail(projectId);}
+    if (projectId) {
+      void fetchDetail(projectId);
+    }
   }, [projectId, fetchDetail]);
 
   // 运行中每 10s 自动刷新进度
   useEffect(() => {
-    if (!projectId || !project || isBatchTerminalStatus(project.status)) {return;}
+    if (!projectId || !project || isBatchTerminalStatus(project.status)) {
+      return;
+    }
     const timer = window.setInterval(() => {
       void fetchDetail(projectId);
     }, 10_000);
@@ -130,7 +140,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, project, fetchDetail]);
 
   const handleCancel = useCallback(async () => {
-    if (!projectId) {return;}
+    if (!projectId) {
+      return;
+    }
     setCancelling(true);
     try {
       await cancelBatchProject(projectId);
@@ -145,7 +157,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, project?.name, fetchDetail, t]);
 
   const handleRetry = useCallback(async () => {
-    if (!projectId) {return;}
+    if (!projectId) {
+      return;
+    }
     setRetrying(true);
     try {
       const updated = await retryBatchProject(projectId);
@@ -159,7 +173,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handleRerun = useCallback(async () => {
-    if (!projectId) {return;}
+    if (!projectId) {
+      return;
+    }
     setRerunning(true);
     try {
       const updated = await rerunBatchProject(projectId);
@@ -174,7 +190,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handlePause = useCallback(async () => {
-    if (!projectId) {return;}
+    if (!projectId) {
+      return;
+    }
     setPausing(true);
     try {
       const updated = await pauseBatchProject(projectId);
@@ -189,7 +207,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handleResume = useCallback(async () => {
-    if (!projectId) {return;}
+    if (!projectId) {
+      return;
+    }
     setResuming(true);
     try {
       const updated = await resumeBatchProject(projectId);
@@ -203,7 +223,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   }, [projectId, fetchDetail, t]);
 
   const handleApproveAll = useCallback(async () => {
-    if (!projectId) {return;}
+    if (!projectId) {
+      return;
+    }
     setApproving(true);
     try {
       const updated = await approveAllBatchResults(projectId);
@@ -219,7 +241,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
 
   const handleRetryTask = useCallback(
     async (taskId: string) => {
-      if (!projectId) {return;}
+      if (!projectId) {
+        return;
+      }
       setRetryingTaskId(taskId);
       try {
         const updated = await retryBatchTask(projectId, taskId);
@@ -236,7 +260,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   );
 
   const handleDelete = useCallback(async () => {
-    if (!projectId) {return;}
+    if (!projectId) {
+      return;
+    }
     try {
       await deleteBatchProject(projectId);
       toast.success(t('deleteSuccess', { name: project?.name ?? '' }));
@@ -277,8 +303,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
   const active = running || paused;
   const inReviewCount = project.tasks.filter((task) => task.status === 'in_review').length;
   const hasRetryable =
-    (project.failed_directories?.length ?? 0) > 0 ||
-    (project.missing_artifact_directories?.length ?? 0) > 0;
+    (project.failed_directories?.length ?? 0) > 0 || (project.missing_artifact_directories?.length ?? 0) > 0;
 
   const isTaskRetryable = (task: BatchProjectDetail['tasks'][number]) =>
     task.status === 'failed' ||
@@ -292,7 +317,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
       case 'paused':
         return <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-600">{t('statusPaused')}</Badge>;
       case 'completed':
-        return <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600">{t('statusCompleted')}</Badge>;
+        return (
+          <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600">{t('statusCompleted')}</Badge>
+        );
       case 'failed':
         return <Badge className="border-destructive/30 bg-destructive/10 text-destructive">{t('statusFailed')}</Badge>;
       case 'cancelled':
@@ -353,7 +380,12 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/batch-directories')} aria-label={t('backToList')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push('/batch-directories')}
+            aria-label={t('backToList')}
+          >
             <ChevronLeft className="size-5 shrink-0" />
           </Button>
           <div className="min-w-0" data-testid="bd-project-header">
@@ -362,7 +394,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
             </h1>
             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
               <span data-testid="bd-project-status">{statusLabel(project.status)}</span>
-              <span className="text-xs" data-testid="bd-project-id">{t('projectIdLabel', { id: project.project_id })}</span>
+              <span className="text-xs" data-testid="bd-project-id">
+                {t('projectIdLabel', { id: project.project_id })}
+              </span>
             </p>
           </div>
         </div>
@@ -375,7 +409,11 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
             <AlertDialog open={confirmApproveAll} onOpenChange={setConfirmApproveAll}>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" disabled={approving || pausing || resuming}>
-                  {approving ? <Loader2 className="size-4 mr-1 animate-spin" /> : <CheckCheck className="size-4 mr-1" />}
+                  {approving ? (
+                    <Loader2 className="size-4 mr-1 animate-spin" />
+                  ) : (
+                    <CheckCheck className="size-4 mr-1" />
+                  )}
                   {t('approveAllAction', { count: inReviewCount })}
                 </Button>
               </AlertDialogTrigger>
@@ -386,7 +424,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>{t('cancelButton')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => void handleApproveAll()}>{t('confirmApproveAllAction')}</AlertDialogAction>
+                  <AlertDialogAction onClick={() => void handleApproveAll()}>
+                    {t('confirmApproveAllAction')}
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -478,7 +518,10 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>{t('cancelButton')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => void handleDelete()} className="bg-destructive text-destructive-foreground">
+                  <AlertDialogAction
+                    onClick={() => void handleDelete()}
+                    className="bg-destructive text-destructive-foreground"
+                  >
                     {t('confirmDeleteAction')}
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -605,9 +648,7 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
       <Card data-testid="bd-directories-card">
         <CardHeader>
           <CardTitle className="text-base">{t('directoriesTitle')}</CardTitle>
-          <CardDescription>
-            {t('dirsCountTitle', { count: project.directories.length })}
-          </CardDescription>
+          <CardDescription>{t('dirsCountTitle', { count: project.directories.length })}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -720,9 +761,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                               {task.result}
                             </span>
                           )}
-                          {!task.result && task.artifact_status !== 'verified' && task.artifact_status !== 'missing' && (
-                            <span>{t('taskCompletedNoResult')}</span>
-                          )}
+                          {!task.result &&
+                            task.artifact_status !== 'verified' &&
+                            task.artifact_status !== 'missing' && <span>{t('taskCompletedNoResult')}</span>}
                         </div>
                       ) : (
                         <span className="block max-w-72 truncate">{t('taskPending')}</span>
@@ -730,10 +771,17 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                     </TableCell>
                     <TableCell>
                       {retryable ? (
-                        <AlertDialog open={confirmRetryTaskId === task.task_id} onOpenChange={(open) => setConfirmRetryTaskId(open ? task.task_id : null)}>
+                        <AlertDialog
+                          open={confirmRetryTaskId === task.task_id}
+                          onOpenChange={(open) => setConfirmRetryTaskId(open ? task.task_id : null)}
+                        >
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="sm" disabled={taskRetrying || retrying || rerunning}>
-                              {taskRetrying ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                              {taskRetrying ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <RotateCcw className="size-3.5" />
+                              )}
                               <span className="ml-1">{t('retryTaskAction')}</span>
                             </Button>
                           </AlertDialogTrigger>
@@ -744,7 +792,9 @@ export default function BatchProjectDetailPage({ params }: { params: Promise<{ p
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>{t('cancelButton')}</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => void handleRetryTask(task.task_id)}>{t('confirmRetryTaskAction')}</AlertDialogAction>
+                              <AlertDialogAction onClick={() => void handleRetryTask(task.task_id)}>
+                                {t('confirmRetryTaskAction')}
+                              </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

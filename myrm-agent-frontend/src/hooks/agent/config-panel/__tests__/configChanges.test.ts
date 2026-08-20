@@ -195,10 +195,7 @@ describe('detectAgentConfigChanges', () => {
 describe('areSkillConfigsEqual', () => {
   it('treats null instance_name same as missing field', () => {
     expect(
-      areSkillConfigsEqual(
-        { 'skill-a': { is_core: true, instance_name: null } },
-        { 'skill-a': { is_core: true } },
-      ),
+      areSkillConfigsEqual({ 'skill-a': { is_core: true, instance_name: null } }, { 'skill-a': { is_core: true } }),
     ).toBe(true);
   });
 

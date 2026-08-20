@@ -23,12 +23,7 @@ export default function YoloModeBanner() {
   const providers = useProviderStore((state) => state.providers);
 
   const activeModelSlug = useMemo(() => {
-    const selection = resolveActiveModelSelection(
-      actionMode,
-      agentConfig,
-      defaultModelConfig,
-      providers,
-    );
+    const selection = resolveActiveModelSelection(actionMode, agentConfig, defaultModelConfig, providers);
     return selection?.model ?? '';
   }, [actionMode, agentConfig, defaultModelConfig, providers]);
 
@@ -67,13 +62,17 @@ export default function YoloModeBanner() {
   const isCountingDown = remaining !== null && remaining > 0;
 
   useEffect(() => {
-    if (timerRef.current) {clearInterval(timerRef.current);}
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
 
     if (isCountingDown) {
       timerRef.current = setInterval(() => {
         setRemaining((prev) => {
           if (prev === null || prev <= 1) {
-            if (timerRef.current) {clearInterval(timerRef.current);}
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+            }
             const syncManager = getConfigSyncManager();
             const config = syncManager.get('securityConfig');
             if (config) {
@@ -93,7 +92,9 @@ export default function YoloModeBanner() {
     }
 
     return () => {
-      if (timerRef.current) {clearInterval(timerRef.current);}
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     };
   }, [isCountingDown]);
 
@@ -112,7 +113,9 @@ export default function YoloModeBanner() {
     setRemaining(null);
   }, []);
 
-  if (!yoloEnabled) {return null;}
+  if (!yoloEnabled) {
+    return null;
+  }
 
   const countdownText = remaining !== null ? ` (${formatCountdown(remaining)})` : '';
   const bannerMessage = orgGloballyDisabled
@@ -121,8 +124,7 @@ export default function YoloModeBanner() {
       })
     : orgSuppressesYolo
       ? t('orgConstrainedMessage', {
-          default:
-            "YOLO is on, but your organization's policy still requires approval for this agent's model.",
+          default: "YOLO is on, but your organization's policy still requires approval for this agent's model.",
         })
       : t('message', { default: 'YOLO Mode Active – All tools auto-approved' });
 

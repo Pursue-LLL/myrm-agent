@@ -5,10 +5,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { IconGift } from '@/components/features/icons/PremiumIcons';
 import useCompanionStore from '@/store/useCompanionStore';
 import useAgentStore from '@/store/useAgentStore';
-import {
-  resolveCompanionRarityVisual,
-  useCompanionThemeEpoch,
-} from '@/services/companion/companionTheme';
+import { resolveCompanionRarityVisual, useCompanionThemeEpoch } from '@/services/companion/companionTheme';
 
 import { getRarityAbilities } from './companionGenerator';
 import { SPECIES_ICON_MAP, HAT_ICON_MAP } from './CompanionIcons';
@@ -63,10 +60,7 @@ export default function CompanionSprite({
   const mood = useCompanionStore((s) => s.mood);
   const effectiveRarity: Rarity = (evolvedRarity ?? bones.rarity) as Rarity;
   const abilities = getRarityAbilities(effectiveRarity);
-  const rarityVisual = useMemo(
-    () => resolveCompanionRarityVisual(effectiveRarity),
-    [effectiveRarity, themeEpoch],
-  );
+  const rarityVisual = useMemo(() => resolveCompanionRarityVisual(effectiveRarity), [effectiveRarity, themeEpoch]);
 
   const activeAgent = useAgentStore((s) => s.selectedAgent);
   const activeAgentId = activeAgent?.id ?? '';
@@ -80,28 +74,44 @@ export default function CompanionSprite({
     if (isEmojiAvatar) {
       species = avatar;
       if (hatOverride === undefined) {
-        if (activeAgentId === 'builtin-developer') {hat = '🔥';}
-        else if (activeAgentId === 'builtin-researcher') {hat = '🎓';}
-        else if (activeAgentId === 'builtin-writer') {hat = '🌸';}
-        else if (activeAgentId === 'builtin-meeting-scribe') {hat = '🎀';}
-        else if (activeAgentId === 'builtin-product-manager') {hat = '👑';}
+        if (activeAgentId === 'builtin-developer') {
+          hat = '🔥';
+        } else if (activeAgentId === 'builtin-researcher') {
+          hat = '🎓';
+        } else if (activeAgentId === 'builtin-writer') {
+          hat = '🌸';
+        } else if (activeAgentId === 'builtin-meeting-scribe') {
+          hat = '🎀';
+        } else if (activeAgentId === 'builtin-product-manager') {
+          hat = '👑';
+        }
       }
     } else {
       if (activeAgentId === 'builtin-developer') {
         species = '🤖';
-        if (hatOverride === undefined) {hat = '🔥';}
+        if (hatOverride === undefined) {
+          hat = '🔥';
+        }
       } else if (activeAgentId === 'builtin-researcher') {
         species = '🦉';
-        if (hatOverride === undefined) {hat = '🎓';}
+        if (hatOverride === undefined) {
+          hat = '🎓';
+        }
       } else if (activeAgentId === 'builtin-writer') {
         species = '🦊';
-        if (hatOverride === undefined) {hat = '🌸';}
+        if (hatOverride === undefined) {
+          hat = '🌸';
+        }
       } else if (activeAgentId === 'builtin-meeting-scribe') {
         species = '🐼';
-        if (hatOverride === undefined) {hat = '🎀';}
+        if (hatOverride === undefined) {
+          hat = '🎀';
+        }
       } else if (activeAgentId === 'builtin-product-manager') {
         species = '🐙';
-        if (hatOverride === undefined) {hat = '👑';}
+        if (hatOverride === undefined) {
+          hat = '👑';
+        }
       }
     }
   }
@@ -145,7 +155,11 @@ export default function CompanionSprite({
       <div className="relative">
         {SpeciesIcon ? (
           <span
-            className={cn('block', rarityColorClass, (bones.shiny || abilities.legendaryFlair) && 'animate-shimmer-overlay')}
+            className={cn(
+              'block',
+              rarityColorClass,
+              (bones.shiny || abilities.legendaryFlair) && 'animate-shimmer-overlay',
+            )}
             style={rarityColorStyle}
           >
             <SpeciesIcon size={28} />

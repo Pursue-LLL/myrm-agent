@@ -34,8 +34,7 @@ vi.mock('next-intl', () => ({
       }
       return key;
     };
-    t.has = (key: string): boolean =>
-      namespace === 'mode' ? key in modeKeys : true;
+    t.has = (key: string): boolean => (namespace === 'mode' ? key in modeKeys : true);
     return t;
   },
 }));

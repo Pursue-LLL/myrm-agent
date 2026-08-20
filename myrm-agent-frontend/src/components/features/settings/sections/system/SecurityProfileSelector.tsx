@@ -58,7 +58,9 @@ const SecurityProfileSelector = memo(function SecurityProfileSelector({
   const fetchProfiles = useCallback(async () => {
     try {
       const res = await fetchWithTimeout('/security/profiles', { method: 'GET' }, 10_000);
-      if (!res.ok) {throw new Error(`HTTP ${res.status}`);}
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data: ProfileListResponse = await res.json();
       setProfiles(data.profiles);
       setActiveKey(data.active_key);
@@ -78,7 +80,9 @@ const SecurityProfileSelector = memo(function SecurityProfileSelector({
       setActivating(profileKey);
       try {
         const res = await fetchWithTimeout(`/security/profiles/${profileKey}/activate`, { method: 'POST' }, 10_000);
-        if (!res.ok) {throw new Error(`HTTP ${res.status}`);}
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const activated: SecurityProfile = await res.json();
         setActiveKey(activated.profile_key);
         toast.success(`Activated profile: ${activated.display_name}`);

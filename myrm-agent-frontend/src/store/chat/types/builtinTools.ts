@@ -86,10 +86,7 @@ export const BUILTIN_TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string
   skill_manage: { en: 'Skill Management', zh: '技能管理' },
 };
 
-export function getBuiltinToolDisplayLabel(
-  toolId: BuiltinToolId,
-  locale: 'en' | 'zh',
-): string {
+export function getBuiltinToolDisplayLabel(toolId: BuiltinToolId, locale: 'en' | 'zh'): string {
   return locale === 'zh' ? BUILTIN_TOOL_LABELS[toolId].zh : BUILTIN_TOOL_LABELS[toolId].en;
 }
 

@@ -10,8 +10,8 @@ Settings 中 Hosting Targets 配置面板：Vercel / Cloudflare Pages / Netlify 
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 |
-|------|------|------|
+| 文件                      | 地位 | 职责                                  |
+| ------------------------- | ---- | ------------------------------------- |
 | `HostingTargetsPanel.tsx` | 核心 | target 列表、表单、make-default、删除 |
 
 ---

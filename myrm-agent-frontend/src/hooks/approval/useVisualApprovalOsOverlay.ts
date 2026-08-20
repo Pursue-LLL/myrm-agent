@@ -17,10 +17,7 @@ import { useEffect } from 'react';
 
 import type { InspectorViewSnapshot } from '@/lib/approval/visualApprovalContext';
 import { resolveDesktopOverlayTarget } from '@/lib/approval/resolveDesktopOverlayTarget';
-import {
-  hideVisualApprovalOsOverlay,
-  showVisualApprovalOsOverlay,
-} from '@/lib/approval/visualApprovalOsOverlay';
+import { hideVisualApprovalOsOverlay, showVisualApprovalOsOverlay } from '@/lib/approval/visualApprovalOsOverlay';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
@@ -60,12 +57,5 @@ export function useVisualApprovalOsOverlay(
     return () => {
       void hideVisualApprovalOsOverlay().catch((error) => logOverlayError('hide', error));
     };
-  }, [
-    inlineRequests,
-    desktopViewData,
-    browserViewData,
-    desktopLoading,
-    browserLoading,
-    snapshotFetchFailed,
-  ]);
+  }, [inlineRequests, desktopViewData, browserViewData, desktopLoading, browserLoading, snapshotFetchFailed]);
 }

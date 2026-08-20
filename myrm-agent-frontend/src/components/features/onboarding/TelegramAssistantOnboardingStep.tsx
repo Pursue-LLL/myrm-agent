@@ -10,10 +10,7 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { ApiError } from '@/lib/api';
 import { isSandbox } from '@/lib/deploy-mode';
-import {
-  applyTelegramAssistantOnboarding,
-  type TelegramAssistantOnboardingResponse,
-} from '@/services/onboarding';
+import { applyTelegramAssistantOnboarding, type TelegramAssistantOnboardingResponse } from '@/services/onboarding';
 
 interface TelegramAssistantOnboardingStepProps {
   onComplete: () => void;
@@ -48,10 +45,7 @@ function parseErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export default function TelegramAssistantOnboardingStep({
-  onComplete,
-  onSkip,
-}: TelegramAssistantOnboardingStepProps) {
+export default function TelegramAssistantOnboardingStep({ onComplete, onSkip }: TelegramAssistantOnboardingStepProps) {
   const t = useTranslations('boot.onboarding.telegramAssistant');
   const sandbox = isSandbox();
 

@@ -11,8 +11,7 @@ import {
   pickSettingsDeepLinkFromMeta,
 } from '../permissionDeepLink';
 
-const ACCESSIBILITY_DEEPLINK =
-  'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
+const ACCESSIBILITY_DEEPLINK = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 
 vi.mock('@tauri-apps/plugin-shell', () => ({
   open: vi.fn(() => Promise.resolve()),

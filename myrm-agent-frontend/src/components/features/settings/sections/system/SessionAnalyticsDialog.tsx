@@ -2,7 +2,15 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconX, IconClock, IconChat, IconChart, IconZap, IconAlertCircle, IconShieldAlert } from '@/components/features/icons/PremiumIcons';
+import {
+  IconX,
+  IconClock,
+  IconChat,
+  IconChart,
+  IconZap,
+  IconAlertCircle,
+  IconShieldAlert,
+} from '@/components/features/icons/PremiumIcons';
 import { getSessionAnalytics, type SessionAnalytics } from '@/services/statistics';
 import { formatCost, formatTokenCount } from './RoutingAnalyticsPanel';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -114,7 +122,8 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
           <div className="flex-1">
             <h2 className="text-xl font-bold text-foreground">{data.title || t('untitledSession')}</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {tm.has(data.action_mode) ? tm(data.action_mode) : data.action_mode} • {data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
+              {tm.has(data.action_mode) ? tm(data.action_mode) : data.action_mode} •{' '}
+              {data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
             </p>
           </div>
           <button
@@ -288,8 +297,12 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                   >
                     <span className="text-sm font-medium text-foreground">{tool.tool_name}</span>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>{tool.call_count} {t('calls')}</span>
-                      <span>{Math.round(tool.total_duration_ms)}ms {t('total')}</span>
+                      <span>
+                        {tool.call_count} {t('calls')}
+                      </span>
+                      <span>
+                        {Math.round(tool.total_duration_ms)}ms {t('total')}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -310,12 +323,16 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                     key={kind}
                     className="flex items-center justify-between p-3 bg-background/60 border border-border/40 rounded-lg"
                   >
-                    <span className={cn(
-                      'text-sm font-medium',
-                      kind.includes('BLOCKED') || kind.includes('DENY') ? 'text-destructive' :
-                      kind.includes('WARN') || kind.includes('DETECTED') ? 'text-amber-600 dark:text-amber-400' :
-                      'text-foreground'
-                    )}>
+                    <span
+                      className={cn(
+                        'text-sm font-medium',
+                        kind.includes('BLOCKED') || kind.includes('DENY')
+                          ? 'text-destructive'
+                          : kind.includes('WARN') || kind.includes('DETECTED')
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-foreground',
+                      )}
+                    >
                       {kind}
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">{count}</span>

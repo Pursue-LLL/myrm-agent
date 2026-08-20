@@ -13,16 +13,18 @@ export default function ExtensionDisconnectedBanner() {
   const t = useTranslations('extensionBanner');
   const [dismissed, setDismissed] = useState(false);
   const badges = useNavBadges();
-  const browserSource = useChatStore(
-    useShallow((s) => s.agentConfig?.browserSource),
-  );
+  const browserSource = useChatStore(useShallow((s) => s.agentConfig?.browserSource));
 
   useEffect(() => {
-    if (badges.extensionConnected) {setDismissed(false);}
+    if (badges.extensionConnected) {
+      setDismissed(false);
+    }
   }, [badges.extensionConnected]);
 
   const needsExtension = browserSource === 'extension';
-  if (!needsExtension || badges.extensionConnected || dismissed) {return null;}
+  if (!needsExtension || badges.extensionConnected || dismissed) {
+    return null;
+  }
 
   return (
     <div
@@ -35,12 +37,7 @@ export default function ExtensionDisconnectedBanner() {
       )}
     >
       <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-amber-500/80 via-amber-500 to-amber-500/40" />
-      <div
-        className={cn(
-          'flex items-center justify-between gap-2',
-          'px-3 py-2 pl-4 sm:px-4 sm:pl-5',
-        )}
-      >
+      <div className={cn('flex items-center justify-between gap-2', 'px-3 py-2 pl-4 sm:px-4 sm:pl-5')}>
         <div className="flex min-w-0 items-center gap-2.5">
           <span
             className={cn(

@@ -64,9 +64,7 @@ export const CUSTOM_PROVIDER_TYPE_INFO: Record<CustomProviderType, CustomProvide
 };
 
 /** Resolve custom provider compat metadata; ignores legacy/invalid providerType values. */
-export function resolveCustomProviderTypeInfo(
-  providerType?: string,
-): CustomProviderTypeInfo | undefined {
+export function resolveCustomProviderTypeInfo(providerType?: string): CustomProviderTypeInfo | undefined {
   if (!providerType || !CUSTOM_PROVIDER_TYPES.includes(providerType as CustomProviderType)) {
     return undefined;
   }
@@ -377,17 +375,29 @@ export const LOCAL_NO_AUTH_API_KEY_MARKER = '__myrm_local_no_auth__';
 
 function isLoopbackHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase().trim();
-  if (normalized === 'localhost') {return true;}
-  if (normalized === '127.0.0.1') {return true;}
-  if (normalized === '::1' || normalized === '[::1]') {return true;}
-  if (normalized === '0.0.0.0') {return true;}
+  if (normalized === 'localhost') {
+    return true;
+  }
+  if (normalized === '127.0.0.1') {
+    return true;
+  }
+  if (normalized === '::1' || normalized === '[::1]') {
+    return true;
+  }
+  if (normalized === '0.0.0.0') {
+    return true;
+  }
   return false;
 }
 
 export const isLoopbackApiUrl = (apiUrl?: string | null): boolean => {
-  if (!apiUrl) {return false;}
+  if (!apiUrl) {
+    return false;
+  }
   const trimmed = apiUrl.trim();
-  if (!trimmed) {return false;}
+  if (!trimmed) {
+    return false;
+  }
   const candidate = trimmed.includes('://') ? trimmed : `http://${trimmed}`;
   try {
     const parsed = new URL(candidate);
@@ -401,9 +411,7 @@ export const hasActiveApiKey = (provider: Pick<ProviderConfig, 'apiKeys'>): bool
   return provider.apiKeys?.some((k) => k.isActive && k.key) ?? false;
 };
 
-export const supportsProviderNoAuth = (
-  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl'>,
-): boolean => {
+export const supportsProviderNoAuth = (provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl'>): boolean => {
   if (provider.id === 'ollama' || provider.id === 'lm_studio') {
     return true;
   }
@@ -423,8 +431,12 @@ export const resolveProviderApiKeyForRequests = (
   provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl' | 'apiKeys'>,
 ): string | undefined => {
   const active = provider.apiKeys.find((k) => k.isActive && k.key)?.key;
-  if (active) {return active;}
-  if (supportsProviderNoAuth(provider)) {return LOCAL_NO_AUTH_API_KEY_MARKER;}
+  if (active) {
+    return active;
+  }
+  if (supportsProviderNoAuth(provider)) {
+    return LOCAL_NO_AUTH_API_KEY_MARKER;
+  }
   return undefined;
 };
 
@@ -524,7 +536,9 @@ export const getInitialDefaultModelConfig = (): DefaultModelConfig => ({
  *   https://api.openai.com/v1 → https://api.openai.com/v1 (不变)
  */
 export const normalizeApiUrl = (url: string): string => {
-  if (!url) {return url;}
+  if (!url) {
+    return url;
+  }
 
   const normalized = url.replace(/\/+$/, '');
 

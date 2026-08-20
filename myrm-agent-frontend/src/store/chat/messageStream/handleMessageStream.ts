@@ -37,11 +37,10 @@ export const handleMessageStream = async (
   meta?: TurnMeta;
 }> => {
   if (data && typeof data === 'object' && 'type' in data && typeof data.type === 'string') {
-    const recorder = (window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null, data?: unknown) => void }).__MYRM_E2E_RECORD_SSE__;
-    const messageId =
-      'messageId' in data && typeof data.messageId === 'string'
-        ? data.messageId
-        : null;
+    const recorder = (
+      window as Window & { __MYRM_E2E_RECORD_SSE__?: (type: string, messageId?: string | null, data?: unknown) => void }
+    ).__MYRM_E2E_RECORD_SSE__;
+    const messageId = 'messageId' in data && typeof data.messageId === 'string' ? data.messageId : null;
     recorder?.(data.type, messageId, (data as { data?: unknown }).data);
   }
 

@@ -49,8 +49,8 @@ describe('VisualApprovalHighlight', () => {
     );
 
     const bbox = screen.getByTestId('visual-approval-bbox');
-    const expectedX = (500 * (1280 / 1440)) / 1280 * 100;
-    const expectedY = (300 * (800 / 900)) / 800 * 100;
+    const expectedX = ((500 * (1280 / 1440)) / 1280) * 100;
+    const expectedY = ((300 * (800 / 900)) / 800) * 100;
     expect(bbox).toHaveStyle({
       left: `${expectedX}%`,
       top: `${expectedY}%`,

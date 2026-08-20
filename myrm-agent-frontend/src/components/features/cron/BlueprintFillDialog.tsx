@@ -74,26 +74,23 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
   }, [open]);
 
   const getVal = (slotName: string, fallback: string) => values[slotName] ?? fallback;
-  const setVal = (slotName: string, val: string) =>
-    setValues((prev) => ({ ...prev, [slotName]: val }));
+  const setVal = (slotName: string, val: string) => setValues((prev) => ({ ...prev, [slotName]: val }));
 
   const handleSubmit = useCallback(async () => {
-    if (!blueprint) {return;}
+    if (!blueprint) {
+      return;
+    }
     setSaving(true);
     try {
-      const merged = Object.fromEntries(
-        blueprint.slots.map((s) => [s.name, values[s.name] ?? s.default]),
-      );
-      const delivery = deliveryChannel !== 'chat'
-        ? { channel: toApiChannel(deliveryChannel), ...(deliveryTarget.trim() ? { target: deliveryTarget.trim() } : {}) }
-        : undefined;
-      const payload = await buildBlueprintCreatePayload(
-        blueprint,
-        merged,
-        userTz,
-        locale,
-        delivery,
-      );
+      const merged = Object.fromEntries(blueprint.slots.map((s) => [s.name, values[s.name] ?? s.default]));
+      const delivery =
+        deliveryChannel !== 'chat'
+          ? {
+              channel: toApiChannel(deliveryChannel),
+              ...(deliveryTarget.trim() ? { target: deliveryTarget.trim() } : {}),
+            }
+          : undefined;
+      const payload = await buildBlueprintCreatePayload(blueprint, merged, userTz, locale, delivery);
       const job = await createJob(payload);
       try {
         const auditJob = await prepareJobForSettingsAudit(job);
@@ -110,7 +107,9 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
     }
   }, [blueprint, values, userTz, locale, deliveryChannel, deliveryTarget, createJob, t, onOpenChange]);
 
-  if (!blueprint) {return null;}
+  if (!blueprint) {
+    return null;
+  }
 
   const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
   const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
@@ -123,7 +122,9 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) {resetForm();}
+        if (!v) {
+          resetForm();
+        }
         onOpenChange(v);
       }}
     >
@@ -158,117 +159,125 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
             </div>
           </div>
         ) : (
-        <div className="space-y-4 pt-2">
-          <p className="text-xs text-muted-foreground">{displayDesc}</p>
+          <div className="space-y-4 pt-2">
+            <p className="text-xs text-muted-foreground">{displayDesc}</p>
 
-          {blueprint.slots.map((slot) => (
-            <div key={slot.name} className="space-y-1.5">
-              <Label className="text-xs">
-                {t(slot.label)}
-                {slot.optional ? (
-                  <span className="text-muted-foreground font-normal ml-1">({t('blueprint.slotOptional')})</span>
-                ) : null}
-              </Label>
-              {slot.type === 'time' && (
-                <Input
-                  type="time"
-                  value={getVal(slot.name, slot.default)}
-                  onChange={(e) => setVal(slot.name, e.target.value)}
-                  className="h-8 text-sm w-32"
-                />
-              )}
-              {slot.type === 'text' && (
-                <Input
-                  value={getVal(slot.name, slot.default)}
-                  onChange={(e) => setVal(slot.name, e.target.value)}
-                  placeholder={slot.default || t('blueprint.slotTextPlaceholder')}
-                  className="h-8 text-sm"
-                />
-              )}
-              {slot.type === 'enum' && slot.name === 'day' && (
-                <Select value={getVal(slot.name, slot.default)} onValueChange={(v) => setVal(slot.name, v)}>
-                  <SelectTrigger className="h-8 text-sm w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WEEKDAY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {t(opt.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {slot.type === 'enum' && slot.name !== 'day' && slot.options && (
-                <Select value={getVal(slot.name, slot.default)} onValueChange={(v) => setVal(slot.name, v)}>
-                  <SelectTrigger className="h-8 text-sm w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {slot.options.map((opt) => (
-                      <SelectItem key={opt} value={opt}>
-                        {t(`blueprint.enum.${opt}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          ))}
-
-          {/* Delivery channel */}
-          {connectedChannels.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('deliveryLabel')}</Label>
-              <ToggleGroup
-                type="single"
-                value={deliveryChannel}
-                onValueChange={(v) => v && setDeliveryChannel(v)}
-                className="flex-wrap justify-start"
-                size="sm"
-              >
-                <ToggleGroupItem value="chat" className={TOGGLE_CLS}>
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  {t('deliveryChat')}
-                </ToggleGroupItem>
-                {connectedChannels.map((ch) => (
-                  <ToggleGroupItem key={ch} value={ch} className={TOGGLE_CLS}>
-                    <ChannelIcon channelId={ch} size={14} />
-                    {IM_CHANNELS[ch]?.label ?? ch}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              {(deliveryChannel in IM_CHANNELS) && (
-                <div className="flex items-center gap-2">
-                  <Send className="h-3 w-3 text-muted-foreground shrink-0" />
+            {blueprint.slots.map((slot) => (
+              <div key={slot.name} className="space-y-1.5">
+                <Label className="text-xs">
+                  {t(slot.label)}
+                  {slot.optional ? (
+                    <span className="text-muted-foreground font-normal ml-1">({t('blueprint.slotOptional')})</span>
+                  ) : null}
+                </Label>
+                {slot.type === 'time' && (
                   <Input
-                    placeholder={IM_CHANNELS[deliveryChannel]?.hint ?? ''}
-                    value={deliveryTarget}
-                    onChange={(e) => setDeliveryTarget(e.target.value)}
-                    className="h-7 text-xs flex-1"
+                    type="time"
+                    value={getVal(slot.name, slot.default)}
+                    onChange={(e) => setVal(slot.name, e.target.value)}
+                    className="h-8 text-sm w-32"
                   />
-                </div>
-              )}
+                )}
+                {slot.type === 'text' && (
+                  <Input
+                    value={getVal(slot.name, slot.default)}
+                    onChange={(e) => setVal(slot.name, e.target.value)}
+                    placeholder={slot.default || t('blueprint.slotTextPlaceholder')}
+                    className="h-8 text-sm"
+                  />
+                )}
+                {slot.type === 'enum' && slot.name === 'day' && (
+                  <Select value={getVal(slot.name, slot.default)} onValueChange={(v) => setVal(slot.name, v)}>
+                    <SelectTrigger className="h-8 text-sm w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WEEKDAY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {t(opt.labelKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {slot.type === 'enum' && slot.name !== 'day' && slot.options && (
+                  <Select value={getVal(slot.name, slot.default)} onValueChange={(v) => setVal(slot.name, v)}>
+                    <SelectTrigger className="h-8 text-sm w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {slot.options.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {t(`blueprint.enum.${opt}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            ))}
+
+            {/* Delivery channel */}
+            {connectedChannels.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t('deliveryLabel')}</Label>
+                <ToggleGroup
+                  type="single"
+                  value={deliveryChannel}
+                  onValueChange={(v) => v && setDeliveryChannel(v)}
+                  className="flex-wrap justify-start"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="chat" className={TOGGLE_CLS}>
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    {t('deliveryChat')}
+                  </ToggleGroupItem>
+                  {connectedChannels.map((ch) => (
+                    <ToggleGroupItem key={ch} value={ch} className={TOGGLE_CLS}>
+                      <ChannelIcon channelId={ch} size={14} />
+                      {IM_CHANNELS[ch]?.label ?? ch}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+                {deliveryChannel in IM_CHANNELS && (
+                  <div className="flex items-center gap-2">
+                    <Send className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <Input
+                      placeholder={IM_CHANNELS[deliveryChannel]?.hint ?? ''}
+                      value={deliveryTarget}
+                      onChange={(e) => setDeliveryTarget(e.target.value)}
+                      className="h-7 text-xs flex-1"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                <Sparkles className="h-3 w-3 inline mr-1" />
+                {humanizeSchedule(previewSchedule, t, locale)}
+              </p>
             </div>
-          )}
 
-          <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-            <p className="text-xs text-muted-foreground">
-              <Sparkles className="h-3 w-3 inline mr-1" />
-              {humanizeSchedule(previewSchedule, t, locale)}
-            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  resetForm();
+                  onOpenChange(false);
+                }}
+                disabled={saving}
+              >
+                {t('cancel')}
+              </Button>
+              <Button size="sm" onClick={handleSubmit} disabled={saving} className="gap-1.5">
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {t('createSubmit')}
+              </Button>
+            </div>
           </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" size="sm" onClick={() => { resetForm(); onOpenChange(false); }} disabled={saving}>
-              {t('cancel')}
-            </Button>
-            <Button size="sm" onClick={handleSubmit} disabled={saving} className="gap-1.5">
-              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {t('createSubmit')}
-            </Button>
-          </div>
-        </div>
         )}
       </DialogContent>
     </Dialog>

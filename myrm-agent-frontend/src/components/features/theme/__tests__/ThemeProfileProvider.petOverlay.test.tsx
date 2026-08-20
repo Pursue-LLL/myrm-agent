@@ -34,10 +34,7 @@ vi.mock('@/lib/fonts', () => ({
 }));
 
 import ThemeProfileProvider from '../ThemeProfileProvider';
-import {
-  resolveThemeAssetUrl,
-  verifyThemeAssetAvailable,
-} from '@/services/theme-assets/ThemeAssetStore';
+import { resolveThemeAssetUrl, verifyThemeAssetAvailable } from '@/services/theme-assets/ThemeAssetStore';
 
 function mockMatchMedia() {
   Object.defineProperty(window, 'matchMedia', {

@@ -30,15 +30,21 @@ export default function SiblingNav({ chatId, siblingGroupId, siblingIndex, sibli
 
   const handleSwitch = useCallback(
     async (direction: 'prev' | 'next') => {
-      if (loading) {return;}
+      if (loading) {
+        return;
+      }
       setLoading(true);
       try {
         const { siblings } = await getSiblings(chatId, siblingGroupId);
-        if (!siblings.length) {return;}
+        if (!siblings.length) {
+          return;
+        }
 
         const activeIdx = siblings.findIndex((s) => s.is_active);
         const targetIdx = direction === 'prev' ? activeIdx - 1 : activeIdx + 1;
-        if (targetIdx < 0 || targetIdx >= siblings.length) {return;}
+        if (targetIdx < 0 || targetIdx >= siblings.length) {
+          return;
+        }
 
         const target = siblings[targetIdx];
         const result = await switchSibling(chatId, siblingGroupId, target.id);
@@ -54,7 +60,9 @@ export default function SiblingNav({ chatId, siblingGroupId, siblingIndex, sibli
     [chatId, siblingGroupId, loading, reloadMessages],
   );
 
-  if (siblingCount <= 1) {return null;}
+  if (siblingCount <= 1) {
+    return null;
+  }
 
   return (
     <div className="inline-flex items-center gap-0.5 text-xs text-muted-foreground select-none">

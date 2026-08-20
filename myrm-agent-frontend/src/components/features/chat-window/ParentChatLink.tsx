@@ -61,11 +61,7 @@ export function ParentChatLink({ chatId }: ParentChatLinkProps) {
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        <span>
-          {forkPoint !== null
-            ? t('parentLinkWithIndex', { index: forkPoint })
-            : t('parentLink')}
-        </span>
+        <span>{forkPoint !== null ? t('parentLinkWithIndex', { index: forkPoint }) : t('parentLink')}</span>
       </Link>
     </div>
   );

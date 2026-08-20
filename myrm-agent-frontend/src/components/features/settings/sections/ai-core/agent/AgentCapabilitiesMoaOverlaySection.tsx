@@ -37,7 +37,10 @@ const PRIVACY_OPTIONS = [
   { value: 'full', labelKey: 'moaOverlayPrivacyFull' },
 ] as const;
 
-const PRESET_TAB_KEYS: Record<MoaPresetId, 'moaOverlayPresetDefaultTab' | 'moaOverlayPresetReviewTab' | 'moaOverlayPresetFastTab'> = {
+const PRESET_TAB_KEYS: Record<
+  MoaPresetId,
+  'moaOverlayPresetDefaultTab' | 'moaOverlayPresetReviewTab' | 'moaOverlayPresetFastTab'
+> = {
   [MOA_PRESET_DEFAULT_ID]: 'moaOverlayPresetDefaultTab',
   [MOA_PRESET_REVIEW_ID]: 'moaOverlayPresetReviewTab',
   [MOA_PRESET_FAST_ID]: 'moaOverlayPresetFastTab',
@@ -118,8 +121,7 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
                 reference_model_selections:
                   defaultRefs.length > 0
                     ? defaultRefs
-                    : ((overlay.reference_model_selections as Array<{ providerId: string; model: string }>) ??
-                      []),
+                    : ((overlay.reference_model_selections as Array<{ providerId: string; model: string }>) ?? []),
                 presets,
               });
               return;
@@ -154,10 +156,7 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
               setConsensus={(patch) => {
                 const refs = patch.reference_model_selections;
                 if (Array.isArray(refs)) {
-                  setPresetRefs(
-                    activePresetTab,
-                    refs as Array<{ providerId: string; model: string }>,
-                  );
+                  setPresetRefs(activePresetTab, refs as Array<{ providerId: string; model: string }>);
                 }
               }}
               t={t}
@@ -165,9 +164,7 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
-                  {t('agent.moaOverlayFanout')}
-                </label>
+                <label className="text-xs font-medium text-muted-foreground">{t('agent.moaOverlayFanout')}</label>
                 <Select
                   value={(overlay.fanout as string) || 'user_turn'}
                   onValueChange={(v) => setOverlay({ fanout: v })}
@@ -186,25 +183,19 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
               </div>
               {(overlay.fanout as string) === 'every_n' && (
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    {t('agent.moaOverlayEveryN')}
-                  </label>
+                  <label className="text-xs font-medium text-muted-foreground">{t('agent.moaOverlayEveryN')}</label>
                   <Input
                     type="number"
                     min={1}
                     max={20}
                     value={(overlay.every_n as number) ?? 2}
-                    onChange={(e) =>
-                      setOverlay({ every_n: Math.max(1, parseInt(e.target.value, 10) || 2) })
-                    }
+                    onChange={(e) => setOverlay({ every_n: Math.max(1, parseInt(e.target.value, 10) || 2) })}
                     className="w-full mt-1"
                   />
                 </div>
               )}
               <div>
-                <label className="text-xs font-medium text-muted-foreground">
-                  {t('agent.moaOverlayPrivacy')}
-                </label>
+                <label className="text-xs font-medium text-muted-foreground">{t('agent.moaOverlayPrivacy')}</label>
                 <Select
                   value={(overlay.privacy_filter as string) || 'off'}
                   onValueChange={(v) => setOverlay({ privacy_filter: v })}

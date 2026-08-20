@@ -174,9 +174,7 @@ const PresetAgentCard = ({
                     );
                   })}
                   {agent.tools.length > 4 && (
-                    <span className="text-[10px] text-muted-foreground/70">
-                      +{agent.tools.length - 4}
-                    </span>
+                    <span className="text-[10px] text-muted-foreground/70">+{agent.tools.length - 4}</span>
                   )}
                 </div>
               )}

@@ -84,9 +84,7 @@ const disableSamePriority = (
   priority: number,
   exceptId?: string,
 ): SearchServiceConfigItem[] => {
-  return configs.map((c) =>
-    c.id !== exceptId && c.enabled && c.priority === priority ? { ...c, enabled: false } : c,
-  );
+  return configs.map((c) => (c.id !== exceptId && c.enabled && c.priority === priority ? { ...c, enabled: false } : c));
 };
 
 // 加载搜索服务配置列表（已废弃，persist 自动处理）
@@ -128,7 +126,9 @@ export const updateSearchServiceConfig = (
     return withoutConflict.map((config) => (config.id === id ? merged : config));
   }
 
-  return currentConfigs.map((config) => (config.id === id ? { ...config, ...updates, priority: merged.priority } : config));
+  return currentConfigs.map((config) =>
+    config.id === id ? { ...config, ...updates, priority: merged.priority } : config,
+  );
 };
 
 export const removeSearchServiceConfig = (
@@ -213,7 +213,9 @@ export const showSearchNotConfiguredToast = (): void => {
 };
 
 export const guardSearchServiceConfigured = (configs: SearchServiceConfigItem[]): boolean => {
-  if (getActiveSearchServiceConfig(configs)) {return true;}
+  if (getActiveSearchServiceConfig(configs)) {
+    return true;
+  }
   showSearchNotConfiguredToast();
   return false;
 };

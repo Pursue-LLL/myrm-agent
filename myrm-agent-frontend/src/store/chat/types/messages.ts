@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  * 多模块 Message 字段依赖（artifacts, tokens, agentStream 等）
- * 
+ *
  * [OUTPUT]
  * Message, File, ChatHistoryItem, MentionReference, PaginationInfo, Clarification*.
- * 
+ *
  * [POS]
  * 持久化与渲染用的聊天消息实体。
  */

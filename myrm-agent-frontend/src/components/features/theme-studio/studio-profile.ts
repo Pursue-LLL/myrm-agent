@@ -33,18 +33,12 @@ export function isEditableStudioProfile(profile: ThemeProfileRecipe): boolean {
     return false;
   }
   return (
-    profile.id.startsWith('studio/') ||
-    profile.id.startsWith('imported/') ||
-    profile.id === STUDIO_PREVIEW_PROFILE_ID
+    profile.id.startsWith('studio/') || profile.id.startsWith('imported/') || profile.id === STUDIO_PREVIEW_PROFILE_ID
   );
 }
 
 export function listManagedProfiles(profiles: ThemeProfileRecipe[]): ThemeProfileRecipe[] {
-  return profiles.filter(
-    (profile) =>
-      profile.id.startsWith('studio/') ||
-      profile.id.startsWith('imported/'),
-  );
+  return profiles.filter((profile) => profile.id.startsWith('studio/') || profile.id.startsWith('imported/'));
 }
 
 export function mergeProfileIntoLibrary(

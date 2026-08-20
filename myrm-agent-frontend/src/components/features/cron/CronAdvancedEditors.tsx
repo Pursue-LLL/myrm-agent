@@ -74,7 +74,9 @@ export function MaxFiresEditor({ job, onUpdated }: EditorProps) {
 
   useEffect(() => {
     setEnabled(job.max_fires != null);
-    if (job.max_fires != null) {setValue(job.max_fires);}
+    if (job.max_fires != null) {
+      setValue(job.max_fires);
+    }
   }, [job.max_fires]);
 
   const handleToggle = async () => {
@@ -151,7 +153,9 @@ export function ExpiresAtEditor({ job, onUpdated }: EditorProps) {
 
   useEffect(() => {
     setEnabled(job.expires_at != null);
-    if (job.expires_at) {setValue(job.expires_at.slice(0, 16));}
+    if (job.expires_at) {
+      setValue(job.expires_at.slice(0, 16));
+    }
   }, [job.expires_at]);
 
   const handleToggle = async () => {
@@ -173,7 +177,9 @@ export function ExpiresAtEditor({ job, onUpdated }: EditorProps) {
   };
 
   const handleSave = async () => {
-    if (!value) {return;}
+    if (!value) {
+      return;
+    }
     setSaving(true);
     try {
       await updateCronJob(job.id, { expires_at: new Date(value).toISOString() });
@@ -595,7 +601,9 @@ export function PreConditionEditor({ job, onUpdated }: EditorProps) {
 
   useEffect(() => {
     setEnabled(job.pre_condition_script != null);
-    if (job.pre_condition_script != null) {setValue(job.pre_condition_script);}
+    if (job.pre_condition_script != null) {
+      setValue(job.pre_condition_script);
+    }
   }, [job.pre_condition_script]);
 
   const handleToggle = async () => {

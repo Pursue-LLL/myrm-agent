@@ -58,7 +58,9 @@ export default function ToolStabilitySection() {
   }, [load]);
 
   const tableRows = useMemo(() => {
-    if (!data?.daily_stability?.length) {return [];}
+    if (!data?.daily_stability?.length) {
+      return [];
+    }
     return [...data.daily_stability]
       .sort((a, b) => b.date.localeCompare(a.date) || b.tool_name.localeCompare(a.tool_name))
       .slice(0, 40);
@@ -141,9 +143,7 @@ export default function ToolStabilitySection() {
           </div>
         )}
 
-        {loading && !data && !error && (
-          <CardGridSkeleton count={5} columns={3} className="my-2" />
-        )}
+        {loading && !data && !error && <CardGridSkeleton count={5} columns={3} className="my-2" />}
 
         {data && (
           <>

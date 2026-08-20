@@ -6,13 +6,7 @@ import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { useSkillStore } from '@/store/skill';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from '@/components/primitives/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/primitives/command';
 
 interface KanbanSkillPickerProps {
   /** Comma-separated skill ids, e.g. `web-search, code-review` */
@@ -44,8 +38,12 @@ export function KanbanSkillPicker({ value, onChange, placeholder }: KanbanSkillP
   const fetchLocalSkills = useSkillStore((s) => s.fetchLocalSkills);
 
   useEffect(() => {
-    if (marketSkills.length === 0) {void fetchMarketSkills();}
-    if (localSkills.length === 0) {void fetchLocalSkills();}
+    if (marketSkills.length === 0) {
+      void fetchMarketSkills();
+    }
+    if (localSkills.length === 0) {
+      void fetchLocalSkills();
+    }
   }, [marketSkills.length, localSkills.length, fetchMarketSkills, fetchLocalSkills]);
 
   const selectedIds = useMemo(() => splitSkillIds(value), [value]);
@@ -112,11 +110,11 @@ export function KanbanSkillPicker({ value, onChange, placeholder }: KanbanSkillP
             })}
           </div>
         )}
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                data-testid="kanban-skill-picker-trigger"
-                className={cn(
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            data-testid="kanban-skill-picker-trigger"
+            className={cn(
               'flex w-full items-center gap-1.5 rounded border bg-background px-2 py-1 text-left text-xs focus:outline-none focus:ring-1 focus:ring-chart-3',
               selectedIds.length === 0 && 'text-muted-foreground',
             )}

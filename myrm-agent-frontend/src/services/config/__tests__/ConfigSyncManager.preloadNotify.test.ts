@@ -28,9 +28,7 @@ function configRecord(key: string, value: unknown) {
 
 function configsResponse(entries: Array<[string, unknown]>) {
   return {
-    configs: Object.fromEntries(
-      entries.map(([key, value]) => [key, configRecord(key, value)]),
-    ),
+    configs: Object.fromEntries(entries.map(([key, value]) => [key, configRecord(key, value)])),
   };
 }
 
@@ -84,8 +82,6 @@ describe('ConfigSyncManager progressive preload notifies listeners', () => {
     expect(manager.get('securityConfig')).not.toBeNull();
     expect(listener).toHaveBeenCalled();
     expect(listener.mock.calls[0]?.[0]).toBe('securityConfig');
-    expect(manager.get('securityConfig')).toEqual(
-      expect.objectContaining({ yoloModeEnabled: true }),
-    );
+    expect(manager.get('securityConfig')).toEqual(expect.objectContaining({ yoloModeEnabled: true }));
   });
 });

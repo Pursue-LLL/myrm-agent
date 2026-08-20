@@ -24,10 +24,7 @@ function isStreamTerminalChunk(chunk: string): boolean {
   return chunk.includes('"type":"message_end"') || chunk.includes('"type": "message_end"');
 }
 
-export function createMultiplexChunkBridge(
-  requestMessageId: string,
-  abortSignal: AbortSignal,
-): MultiplexChunkBridge {
+export function createMultiplexChunkBridge(requestMessageId: string, abortSignal: AbortSignal): MultiplexChunkBridge {
   const pendingChunks: string[] = [];
   let onChunk: MultiplexChunkHandler | null = null;
   let unregisterManager: (() => void) | null = null;

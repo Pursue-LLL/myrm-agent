@@ -106,9 +106,7 @@ export async function listSkillVersions(skillId: string, limit = 20): Promise<Sk
 }
 
 export async function getSkillVersionDetail(skillId: string, version: number): Promise<SkillVersionDetailResponse> {
-  return apiRequest<SkillVersionDetailResponse>(
-    `${PREFIX}/versions/${encodeURIComponent(skillId)}/${version}`,
-  );
+  return apiRequest<SkillVersionDetailResponse>(`${PREFIX}/versions/${encodeURIComponent(skillId)}/${version}`);
 }
 
 export async function rollbackSkillVersion(skillId: string, targetVersion: number): Promise<{ to_version: number }> {

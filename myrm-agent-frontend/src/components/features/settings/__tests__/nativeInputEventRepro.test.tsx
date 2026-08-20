@@ -3,15 +3,19 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 
 // Minimal repro: a controlled input wired exactly like InputField
-function ControlledInput({ label, value, onValueChange }: { label: string; value: string; onValueChange: (v: string) => void }) {
+function ControlledInput({
+  label,
+  value,
+  onValueChange,
+}: {
+  label: string;
+  value: string;
+  onValueChange: (v: string) => void;
+}) {
   return (
     <div className="flex flex-col space-y-1">
       <p className="text-sm">{label}</p>
-      <input
-        data-testid={label}
-        value={value}
-        onChange={(e) => onValueChange(e.target.value)}
-      />
+      <input data-testid={label} value={value} onChange={(e) => onValueChange(e.target.value)} />
     </div>
   );
 }
@@ -27,10 +31,7 @@ describe('controlled input native setter + input event (React 19)', () => {
     const el = screen.getByTestId('cmd') as HTMLInputElement;
 
     // Simulate exactly what _fill_input_by_label_js does:
-    const setter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
-      'value',
-    )?.set;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
     expect(setter).toBeTruthy();
     setter!.call(el, 'hello');
     el.dispatchEvent(new Event('input', { bubbles: true }));

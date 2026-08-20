@@ -2,7 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ButtonHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ToolsConnectOnboardingStep from '../ToolsConnectOnboardingStep';
-import type { CatalogEntry, CatalogResponse } from '@/components/features/settings/sections/integration/integrations/catalog-types';
+import type {
+  CatalogEntry,
+  CatalogResponse,
+} from '@/components/features/settings/sections/integration/integrations/catalog-types';
 
 const mockApiRequest = vi.hoisted(() => vi.fn());
 
@@ -27,15 +30,23 @@ vi.mock('@/components/primitives/skeleton', () => ({
 }));
 
 vi.mock('@/components/features/settings/sections/integration/integrations/IntegrationConnectDialog', () => ({
-  IntegrationConnectDialog: ({ entry, onClose, onConnected }: {
+  IntegrationConnectDialog: ({
+    entry,
+    onClose,
+    onConnected,
+  }: {
     entry: CatalogEntry;
     onClose: () => void;
     onConnected: () => void;
   }) => (
     <div data-testid="connect-dialog">
       <span>{entry.name}</span>
-      <button type="button" onClick={onConnected}>confirm-connect</button>
-      <button type="button" onClick={onClose}>close-dialog</button>
+      <button type="button" onClick={onConnected}>
+        confirm-connect
+      </button>
+      <button type="button" onClick={onClose}>
+        close-dialog
+      </button>
     </div>
   ),
 }));

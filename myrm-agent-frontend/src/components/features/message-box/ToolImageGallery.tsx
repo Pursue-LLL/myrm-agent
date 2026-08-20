@@ -19,7 +19,9 @@ const LIGHTBOX_BTN_CLASS = cn(
 );
 
 function getImageSrc(img: ToolImageOutput): string {
-  if (img.url) {return img.url;}
+  if (img.url) {
+    return img.url;
+  }
   return `data:${img.mimeType};base64,${img.base64}`;
 }
 
@@ -46,7 +48,9 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   }, [images.length]);
 
   const handleDownload = useCallback(async () => {
-    if (lightboxIndex === null) {return;}
+    if (lightboxIndex === null) {
+      return;
+    }
     const img = images[lightboxIndex];
     const ext = img.mimeType.includes('jpeg') || img.mimeType.includes('jpg') ? 'jpg' : 'png';
     const filename = `${img.toolName || 'screenshot'}_${lightboxIndex + 1}.${ext}`;
@@ -74,7 +78,9 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   }, [lightboxIndex, images]);
 
   const handleEdit = useCallback(() => {
-    if (lightboxIndex === null) {return;}
+    if (lightboxIndex === null) {
+      return;
+    }
     setEditingSrc(getImageSrc(images[lightboxIndex]));
   }, [lightboxIndex, images]);
 
@@ -93,12 +99,18 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   }, []);
 
   useEffect(() => {
-    if (lightboxIndex === null) {return;}
+    if (lightboxIndex === null) {
+      return;
+    }
     document.body.style.overflow = 'hidden';
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {closeLightbox();}
-      else if (e.key === 'ArrowLeft') {goToPrev();}
-      else if (e.key === 'ArrowRight') {goToNext();}
+      if (e.key === 'Escape') {
+        closeLightbox();
+      } else if (e.key === 'ArrowLeft') {
+        goToPrev();
+      } else if (e.key === 'ArrowRight') {
+        goToNext();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => {
@@ -107,7 +119,9 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
     };
   }, [lightboxIndex, closeLightbox, goToPrev, goToNext]);
 
-  if (images.length === 0) {return null;}
+  if (images.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -168,7 +182,13 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
         >
           {/* Top toolbar */}
           <div className="absolute top-4 right-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={handleEdit} className={LIGHTBOX_BTN_CLASS} aria-label={tEditor('editButton')} title={tEditor('editTooltip')}>
+            <button
+              type="button"
+              onClick={handleEdit}
+              className={LIGHTBOX_BTN_CLASS}
+              aria-label={tEditor('editButton')}
+              title={tEditor('editTooltip')}
+            >
               <Pencil className="w-5 h-5" />
             </button>
             <button type="button" onClick={handleDownload} className={LIGHTBOX_BTN_CLASS} aria-label="Download">
@@ -219,10 +239,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
 
           {/* Counter */}
           {images.length > 1 && (
-            <div
-              className="absolute bottom-4 text-sm text-white/70 select-none"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="absolute bottom-4 text-sm text-white/70 select-none" onClick={(e) => e.stopPropagation()}>
               {lightboxIndex + 1} / {images.length}
             </div>
           )}
@@ -230,11 +247,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
       )}
       {editingSrc && (
         <Suspense fallback={null}>
-          <ImageEditor
-            imageSrc={editingSrc}
-            onComplete={handleEditComplete}
-            onCancel={handleEditCancel}
-          />
+          <ImageEditor imageSrc={editingSrc} onComplete={handleEditComplete} onCancel={handleEditCancel} />
         </Suspense>
       )}
     </>

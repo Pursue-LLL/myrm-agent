@@ -161,14 +161,18 @@ export const createMemory = async (body: CreateMemoryRequest): Promise<Memory> =
 
 export const getPendingMemories = async (userId?: string): Promise<PendingMemoryListResponse> => {
   const params = new URLSearchParams();
-  if (userId) {params.append('user_id', userId);}
+  if (userId) {
+    params.append('user_id', userId);
+  }
   const qs = params.toString();
   return apiRequest<PendingMemoryListResponse>(`/memory/pending${qs ? `?${qs}` : ''}`);
 };
 
 export const approveMemory = async (memoryId: string, editedContent?: string): Promise<void> => {
   const body: ApproveMemoryRequest = {};
-  if (editedContent) {body.edited_content = editedContent;}
+  if (editedContent) {
+    body.edited_content = editedContent;
+  }
   await apiRequest(`/memory/pending/${memoryId}/approve`, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -223,13 +227,27 @@ export const getMemories = async (
   } = {},
 ): Promise<MemoryListResponse> => {
   const searchParams = new URLSearchParams();
-  if (params.type) {searchParams.append('type', params.type);}
-  if (params.page) {searchParams.append('page', params.page.toString());}
-  if (params.pageSize) {searchParams.append('page_size', params.pageSize.toString());}
-  if (params.search) {searchParams.append('search', params.search);}
-  if (params.tag) {searchParams.append('tag', params.tag);}
-  if (params.sortBy) {searchParams.append('sort_by', params.sortBy);}
-  if (params.sortOrder) {searchParams.append('sort_order', params.sortOrder);}
+  if (params.type) {
+    searchParams.append('type', params.type);
+  }
+  if (params.page) {
+    searchParams.append('page', params.page.toString());
+  }
+  if (params.pageSize) {
+    searchParams.append('page_size', params.pageSize.toString());
+  }
+  if (params.search) {
+    searchParams.append('search', params.search);
+  }
+  if (params.tag) {
+    searchParams.append('tag', params.tag);
+  }
+  if (params.sortBy) {
+    searchParams.append('sort_by', params.sortBy);
+  }
+  if (params.sortOrder) {
+    searchParams.append('sort_order', params.sortOrder);
+  }
   const qs = searchParams.toString();
   return apiRequest<MemoryListResponse>(`/memory/${qs ? `?${qs}` : ''}`);
 };
@@ -264,7 +282,9 @@ export const searchMemories = async (
   if (params.memoryTypes?.length) {
     searchParams.append('memory_types', params.memoryTypes.join(','));
   }
-  if (params.limit) {searchParams.append('limit', params.limit.toString());}
+  if (params.limit) {
+    searchParams.append('limit', params.limit.toString());
+  }
   return apiRequest<MemorySearchResponse>(`/memory/search?${searchParams}`);
 };
 
@@ -294,12 +314,16 @@ export const exportMemories = async (): Promise<MemoryExportResponse> => {
 
 export const exportMemoriesMarkdown = async (agentId?: string): Promise<void> => {
   const params = new URLSearchParams();
-  if (agentId) {params.append('agent_id', agentId);}
+  if (agentId) {
+    params.append('agent_id', agentId);
+  }
   const qs = params.toString();
   const response = await fetch(`/api/v1/memory/export/markdown${qs ? `?${qs}` : ''}`, {
     credentials: 'include',
   });
-  if (!response.ok) {throw new Error('Export markdown failed');}
+  if (!response.ok) {
+    throw new Error('Export markdown failed');
+  }
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -324,9 +348,15 @@ export const previewRulesSafe = async (params: {
   format?: 'markdown' | 'json';
 }): Promise<SafeRulePreviewItem[]> => {
   const qs = new URLSearchParams();
-  if (params.agentId) {qs.append('agent_id', params.agentId);}
-  if (params.ruleIds?.length) {qs.append('rule_ids', params.ruleIds.join(','));}
-  if (params.format) {qs.append('output_format', params.format);}
+  if (params.agentId) {
+    qs.append('agent_id', params.agentId);
+  }
+  if (params.ruleIds?.length) {
+    qs.append('rule_ids', params.ruleIds.join(','));
+  }
+  if (params.format) {
+    qs.append('output_format', params.format);
+  }
   return apiRequest<SafeRulePreviewItem[]>(`/memory/export/rules-safe/preview?${qs.toString()}`);
 };
 
@@ -336,13 +366,21 @@ export const exportRulesSafe = async (params: {
   format?: 'markdown' | 'json';
 }): Promise<void> => {
   const qs = new URLSearchParams();
-  if (params.agentId) {qs.append('agent_id', params.agentId);}
-  if (params.ruleIds?.length) {qs.append('rule_ids', params.ruleIds.join(','));}
-  if (params.format) {qs.append('output_format', params.format ?? 'markdown');}
+  if (params.agentId) {
+    qs.append('agent_id', params.agentId);
+  }
+  if (params.ruleIds?.length) {
+    qs.append('rule_ids', params.ruleIds.join(','));
+  }
+  if (params.format) {
+    qs.append('output_format', params.format ?? 'markdown');
+  }
   const response = await fetch(`/api/v1/memory/export/rules-safe?${qs.toString()}`, {
     credentials: 'include',
   });
-  if (!response.ok) {throw new Error('Export rules failed');}
+  if (!response.ok) {
+    throw new Error('Export rules failed');
+  }
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -484,9 +522,7 @@ export const getMemoryGuardianPolicy = async (): Promise<MemoryGuardianPolicy> =
   return apiRequest<MemoryGuardianPolicy>('/memory/guardian/policy', { silent: true });
 };
 
-export const updateMemoryGuardianPolicy = async (
-  policy: MemoryGuardianPolicy,
-): Promise<MemoryGuardianPolicy> => {
+export const updateMemoryGuardianPolicy = async (policy: MemoryGuardianPolicy): Promise<MemoryGuardianPolicy> => {
   return apiRequest<MemoryGuardianPolicy>('/memory/guardian/policy', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -546,9 +582,15 @@ export const getArchivedMemories = async (
   params: { type?: MemoryType; page?: number; pageSize?: number } = {},
 ): Promise<MemoryListResponse> => {
   const searchParams = new URLSearchParams();
-  if (params.type) {searchParams.append('type', params.type);}
-  if (params.page) {searchParams.append('page', params.page.toString());}
-  if (params.pageSize) {searchParams.append('page_size', params.pageSize.toString());}
+  if (params.type) {
+    searchParams.append('type', params.type);
+  }
+  if (params.page) {
+    searchParams.append('page', params.page.toString());
+  }
+  if (params.pageSize) {
+    searchParams.append('page_size', params.pageSize.toString());
+  }
   const qs = searchParams.toString();
   return apiRequest<MemoryListResponse>(`/memory/trash${qs ? `?${qs}` : ''}`);
 };

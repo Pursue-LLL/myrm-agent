@@ -34,35 +34,59 @@ const DIMENSION_LABELS: Record<string, { en: string; zh: string; icon: typeof Ic
 };
 
 function getHealthColor(score: number): string {
-  if (score >= 80) {return 'text-emerald-600 dark:text-emerald-400';}
-  if (score >= 60) {return 'text-amber-600 dark:text-amber-400';}
+  if (score >= 80) {
+    return 'text-emerald-600 dark:text-emerald-400';
+  }
+  if (score >= 60) {
+    return 'text-amber-600 dark:text-amber-400';
+  }
   return 'text-red-600 dark:text-red-400';
 }
 
 function getHealthBg(score: number): string {
-  if (score >= 80) {return 'bg-emerald-500';}
-  if (score >= 60) {return 'bg-amber-500';}
+  if (score >= 80) {
+    return 'bg-emerald-500';
+  }
+  if (score >= 60) {
+    return 'bg-amber-500';
+  }
   return 'bg-red-500';
 }
 
 function getHealthLabel(score: number, t: ReturnType<typeof useTranslations>): string {
-  if (score >= 80) {return t('healthGood');}
-  if (score >= 60) {return t('healthFair');}
+  if (score >= 80) {
+    return t('healthGood');
+  }
+  if (score >= 60) {
+    return t('healthFair');
+  }
   return t('healthPoor');
 }
 
 function formatTimeAgo(timestamp: number | null, t: ReturnType<typeof useTranslations>): string {
-  if (!timestamp) {return t('never');}
+  if (!timestamp) {
+    return t('never');
+  }
   const seconds = Math.floor(Date.now() / 1000 - timestamp);
-  if (seconds < 60) {return t('justNow');}
-  if (seconds < 3600) {return t('minutesAgo', { count: Math.floor(seconds / 60) });}
-  if (seconds < 86400) {return t('hoursAgo', { count: Math.floor(seconds / 3600) });}
+  if (seconds < 60) {
+    return t('justNow');
+  }
+  if (seconds < 3600) {
+    return t('minutesAgo', { count: Math.floor(seconds / 60) });
+  }
+  if (seconds < 86400) {
+    return t('hoursAgo', { count: Math.floor(seconds / 3600) });
+  }
   return t('daysAgo', { count: Math.floor(seconds / 86400) });
 }
 
 function formatCountdown(seconds: number | null, t: ReturnType<typeof useTranslations>): string {
-  if (!seconds || seconds <= 0) {return t('soon');}
-  if (seconds < 3600) {return t('inMinutes', { count: Math.ceil(seconds / 60) });}
+  if (!seconds || seconds <= 0) {
+    return t('soon');
+  }
+  if (seconds < 3600) {
+    return t('inMinutes', { count: Math.ceil(seconds / 60) });
+  }
   return t('inHours', { count: Math.round(seconds / 3600) });
 }
 
@@ -79,7 +103,9 @@ function getBrowserTimezoneOffsetMinutes(): number {
 }
 
 function describeSkipReason(reason: string, t: ReturnType<typeof useTranslations>): string {
-  if (reason.startsWith('maintenance_skipped')) {return t('skipMaintenance');}
+  if (reason.startsWith('maintenance_skipped')) {
+    return t('skipMaintenance');
+  }
   switch (reason) {
     case 'outside_quiet_window':
       return t('skipOutsideQuietWindow');
@@ -185,10 +211,13 @@ const MemoryGuardianCard = memo(() => {
     }
   }, [policy, t, fetchHealth, setPolicyDirtyFlag]);
 
-  const handlePolicyChange = useCallback((nextPolicy: MemoryGuardianPolicy) => {
-    setPolicy(nextPolicy);
-    setPolicyDirtyFlag(true);
-  }, [setPolicyDirtyFlag]);
+  const handlePolicyChange = useCallback(
+    (nextPolicy: MemoryGuardianPolicy) => {
+      setPolicy(nextPolicy);
+      setPolicyDirtyFlag(true);
+    },
+    [setPolicyDirtyFlag],
+  );
 
   if (loading) {
     return (
@@ -382,11 +411,7 @@ const MemoryGuardianCard = memo(() => {
                 hours: guardUnavailableAlert.window_hours,
               })}
             </span>
-            {guardAlertDominantReason && (
-              <span className="block opacity-90">
-                {guardAlertDominantReason}
-              </span>
-            )}
+            {guardAlertDominantReason && <span className="block opacity-90">{guardAlertDominantReason}</span>}
             <span className="block opacity-90">
               {t('guardAlertObservedDetail', {
                 count: guardUnavailableAlert.dominant_reason_count,

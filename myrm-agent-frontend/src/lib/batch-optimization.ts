@@ -246,8 +246,7 @@ export const resolveBatchRollbackToastParams = (
   outcome: BatchRollbackOutcome,
   mode: BatchRollbackToastMode,
 ): BatchRollbackToastParams => {
-  const isFullSuccess =
-    mode === 'cancel' ? outcome.rollback_performed === true : outcome.success === true;
+  const isFullSuccess = mode === 'cancel' ? outcome.rollback_performed === true : outcome.success === true;
 
   if (isFullSuccess) {
     return { variant: 'success', count: outcome.rolled_back };

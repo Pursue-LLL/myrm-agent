@@ -38,10 +38,7 @@ function resolveRemainingSeconds(expiresAt: number, nowMs: number): number {
   return Math.max(0, Math.ceil(expiresAt - nowMs / 1000));
 }
 
-export default function VisualApprovalAttentionBar({
-  messages,
-  onJumpToMessage,
-}: VisualApprovalAttentionBarProps) {
+export default function VisualApprovalAttentionBar({ messages, onJumpToMessage }: VisualApprovalAttentionBarProps) {
   const t = useTranslations('toolApproval');
   const chatId = useChatStore((state) => state.chatId);
   const queue = useToolApprovalStore((state) => state.queue);
@@ -57,10 +54,7 @@ export default function VisualApprovalAttentionBar({
     return partitionApprovalQueue(chatQueue).inlineRequests;
   }, [chatId, queue]);
 
-  const primaryRequest = useMemo(
-    () => selectEarliestInlineRequest(inlineRequests),
-    [inlineRequests],
-  );
+  const primaryRequest = useMemo(() => selectEarliestInlineRequest(inlineRequests), [inlineRequests]);
 
   const remainingSeconds = primaryRequest ? resolveRemainingSeconds(primaryRequest.expiresAt, nowMs) : 0;
 
@@ -78,9 +72,7 @@ export default function VisualApprovalAttentionBar({
       return;
     }
 
-    const targetIndex = messages.findIndex(
-      (message) => String(message.messageId) === String(primaryRequest.messageId),
-    );
+    const targetIndex = messages.findIndex((message) => String(message.messageId) === String(primaryRequest.messageId));
     if (targetIndex >= 0) {
       onJumpToMessage(targetIndex);
     }

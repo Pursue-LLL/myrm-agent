@@ -69,7 +69,9 @@ export default function SetupPasswordPage() {
   // Fallback: if URL has no token and we're in Tauri, try IPC
   useEffect(() => {
     if (urlToken || !isTauriRuntime()) {
-      if (!urlToken) {setError(t('setup.errorNoToken'));}
+      if (!urlToken) {
+        setError(t('setup.errorNoToken'));
+      }
       return;
     }
 

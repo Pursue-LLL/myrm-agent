@@ -58,7 +58,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
    * 在应用启动时调用，从 localStorage 读取状态
    */
   initAuth: () => {
-    if (get().isInitialized) {return;}
+    if (get().isInitialized) {
+      return;
+    }
 
     const isGuest = checkIsGuest();
     const isAuthenticated = checkIsAuthenticated();
@@ -97,7 +99,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
    * 后端不可达时回退到静态 fallback。
    */
   initTauriLocalUser: async () => {
-    if (get().isInitialized) {return;}
+    if (get().isInitialized) {
+      return;
+    }
     set({ isInitialized: true });
 
     let localUser: User = {

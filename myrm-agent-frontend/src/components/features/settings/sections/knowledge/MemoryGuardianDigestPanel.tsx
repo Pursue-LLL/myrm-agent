@@ -10,17 +10,25 @@ interface MemoryGuardianDigestPanelProps {
 }
 
 function formatDigestTime(occurredAt: string | undefined, fallback: string): string {
-  if (!occurredAt) {return fallback;}
+  if (!occurredAt) {
+    return fallback;
+  }
   const ts = new Date(occurredAt);
-  if (Number.isNaN(ts.getTime())) {return fallback;}
+  if (Number.isNaN(ts.getTime())) {
+    return fallback;
+  }
   return ts.toLocaleString();
 }
 
 function formatWindowRange(startAt: string | undefined, endAt: string | undefined): string | null {
-  if (!startAt || !endAt) {return null;}
+  if (!startAt || !endAt) {
+    return null;
+  }
   const start = new Date(startAt);
   const end = new Date(endAt);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {return null;}
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
   return `${start.toLocaleString()} - ${end.toLocaleString()}`;
 }
 
@@ -28,14 +36,20 @@ function describeWindowMode(
   mode: MemoryGuardianMorningDigest['window_mode'],
   t: ReturnType<typeof useTranslations>,
 ): string {
-  if (mode === 'quiet_window') {return t('digestWindowModeQuiet');}
-  if (mode === 'rolling_24h') {return t('digestWindowModeRolling');}
+  if (mode === 'quiet_window') {
+    return t('digestWindowModeQuiet');
+  }
+  if (mode === 'rolling_24h') {
+    return t('digestWindowModeRolling');
+  }
   return t('digestWindowModeUnknown');
 }
 
 const MemoryGuardianDigestPanel = memo(({ digest }: MemoryGuardianDigestPanelProps) => {
   const t = useTranslations('settings.memoryGuardian');
-  if (!digest.available || !digest.counts) {return null;}
+  if (!digest.available || !digest.counts) {
+    return null;
+  }
   const windowRange = formatWindowRange(digest.window_started_at, digest.window_ended_at);
   const windowModeLabel = describeWindowMode(digest.window_mode, t);
 
@@ -46,7 +60,9 @@ const MemoryGuardianDigestPanel = memo(({ digest }: MemoryGuardianDigestPanelPro
         <span className="text-[11px] text-muted-foreground">{formatDigestTime(digest.occurred_at, t('never'))}</span>
       </div>
       <p className="text-[11px] text-muted-foreground">{t('digestWindowMode', { mode: windowModeLabel })}</p>
-      {windowRange && <p className="text-[11px] text-muted-foreground leading-5">{t('digestWindow', { range: windowRange })}</p>}
+      {windowRange && (
+        <p className="text-[11px] text-muted-foreground leading-5">{t('digestWindow', { range: windowRange })}</p>
+      )}
       {digest.summary && <p className="text-[11px] text-muted-foreground leading-5">{digest.summary}</p>}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
         {typeof digest.event_count === 'number' && (

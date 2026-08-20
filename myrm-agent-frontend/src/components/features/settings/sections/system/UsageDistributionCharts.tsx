@@ -50,7 +50,9 @@ export const WeekDistributionChart = memo<{ data: Record<string, number> }>(({ d
 WeekDistributionChart.displayName = 'WeekDistributionChart';
 
 export const ActivityDailyChart = memo<{ data: Array<{ date: string; tool_calls: number }> }>(({ data }) => {
-  if (!data || data.length === 0) {return null;}
+  if (!data || data.length === 0) {
+    return null;
+  }
 
   const maxValue = Math.max(...data.map((d) => d.tool_calls), 1);
   const labels = data.map((d) => {

@@ -80,7 +80,11 @@ function CapabilityRow({
   );
 }
 
-export default function TurnCapabilityToggle({ selection, onSelectionChange, disabled = false }: TurnCapabilityToggleProps) {
+export default function TurnCapabilityToggle({
+  selection,
+  onSelectionChange,
+  disabled = false,
+}: TurnCapabilityToggleProps) {
   const t = useTranslations('chat.turnCapabilities');
   const [open, setOpen] = useState(false);
 
@@ -212,12 +216,7 @@ export default function TurnCapabilityToggle({ selection, onSelectionChange, dis
           </TooltipContent>
         </Tooltip>
 
-        <PopoverContent
-          className="w-72 max-w-[calc(100vw-2rem)] p-0"
-          side="top"
-          align="start"
-          sideOffset={8}
-        >
+        <PopoverContent className="w-72 max-w-[calc(100vw-2rem)] p-0" side="top" align="start" sideOffset={8}>
           <div className="px-3 py-2.5 border-b border-border/50 flex items-center justify-between">
             <span className="text-sm font-medium">{t('popoverTitle')}</span>
             {hasOverride && (

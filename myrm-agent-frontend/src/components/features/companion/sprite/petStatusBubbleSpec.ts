@@ -20,10 +20,10 @@ const STATE_KEYS: Partial<Record<PetState, readonly string[]>> = {
 
 export function shouldShowPetStatusBubble(petState: PetState): boolean {
   return (
-    petState === PetState.RUNNING
-    || petState === PetState.REVIEWING
-    || petState === PetState.FAILED
-    || petState === PetState.WAITING
+    petState === PetState.RUNNING ||
+    petState === PetState.REVIEWING ||
+    petState === PetState.FAILED ||
+    petState === PetState.WAITING
   );
 }
 
@@ -41,9 +41,7 @@ export function pickPetBubbleSpec(petState: PetState, previousKey: string | null
   const picked = pool[Math.floor(Math.random() * pool.length)] ?? keys[0];
 
   const tone: PetBubbleTone =
-    petState === PetState.WAITING ? 'wait'
-      : petState === PetState.FAILED ? 'error'
-        : 'neutral';
+    petState === PetState.WAITING ? 'wait' : petState === PetState.FAILED ? 'error' : 'neutral';
 
   return { messageKey: picked, tone };
 }

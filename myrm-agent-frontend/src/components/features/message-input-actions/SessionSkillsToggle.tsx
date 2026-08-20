@@ -35,7 +35,9 @@ export default function SessionSkillsToggle() {
   );
 
   const enabledSkills = useMemo(() => {
-    if (!selectedSkillIds?.length) {return [];}
+    if (!selectedSkillIds?.length) {
+      return [];
+    }
     const all = [...marketSkills, ...localSkills].filter((s) => s.user_invocable !== false);
     return all.filter((skill) => selectedSkillIds.includes(skill.id));
   }, [marketSkills, localSkills, selectedSkillIds]);
@@ -45,7 +47,9 @@ export default function SessionSkillsToggle() {
 
   const isSkillActive = useCallback(
     (skillName: string) => {
-      if (!hasOverride) {return true;}
+      if (!hasOverride) {
+        return true;
+      }
       return sessionSkillOverrides!.includes(skillName);
     },
     [hasOverride, sessionSkillOverrides],
@@ -53,7 +57,9 @@ export default function SessionSkillsToggle() {
 
   const persistOverrides = useCallback(
     async (names: string[] | null) => {
-      if (!chatId) {return;}
+      if (!chatId) {
+        return;
+      }
       setSaving(true);
       try {
         await updateSessionSkills(chatId, names);
@@ -70,14 +76,10 @@ export default function SessionSkillsToggle() {
 
   const toggleSkill = useCallback(
     (skillName: string) => {
-      const currentActive = hasOverride
-        ? sessionSkillOverrides!
-        : enabledSkills.map((s) => s.name);
+      const currentActive = hasOverride ? sessionSkillOverrides! : enabledSkills.map((s) => s.name);
 
       const isActive = currentActive.includes(skillName);
-      const next = isActive
-        ? currentActive.filter((n) => n !== skillName)
-        : [...currentActive, skillName];
+      const next = isActive ? currentActive.filter((n) => n !== skillName) : [...currentActive, skillName];
 
       const allNames = enabledSkills.map((s) => s.name);
       const isAllSelected = next.length >= allNames.length && allNames.every((n) => next.includes(n));
@@ -120,12 +122,7 @@ export default function SessionSkillsToggle() {
           </TooltipContent>
         </Tooltip>
 
-        <PopoverContent
-          className="w-64 max-w-[calc(100vw-2rem)] p-0"
-          side="top"
-          align="start"
-          sideOffset={8}
-        >
+        <PopoverContent className="w-64 max-w-[calc(100vw-2rem)] p-0" side="top" align="start" sideOffset={8}>
           <div className="px-3 py-2.5 border-b border-border/50 flex items-center justify-between">
             <span className="text-sm font-medium">{t('popoverTitle')}</span>
             {hasOverride && (
@@ -163,7 +160,13 @@ export default function SessionSkillsToggle() {
                   >
                     {active && (
                       <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path
+                          d="M1 4L3.5 6.5L9 1"
+                          stroke="white"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </div>

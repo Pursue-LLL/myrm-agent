@@ -54,12 +54,7 @@ describe('isCronOverdue', () => {
   });
 
   it('一次性任务不算 overdue（无周期预期）', () => {
-    expect(
-      isCronOverdue(
-        makeJob({ schedule: { kind: 'once' }, next_run_at: justLate }),
-        now,
-      ),
-    ).toBe(false);
+    expect(isCronOverdue(makeJob({ schedule: { kind: 'once' }, next_run_at: justLate }), now)).toBe(false);
   });
 
   it('无 next_run_at → false', () => {
@@ -83,10 +78,18 @@ describe('formatRelativeTime', () => {
   const now = Date.parse('2026-01-10T12:00:00Z');
   const locale = 'en-US';
   const t = vi.fn((key: string, values?: Record<string, number>) => {
-    if (key === 'relativeDate.justNow') {return 'just now';}
-    if (key === 'relativeDate.minutesAgo') {return `${values?.count}m ago`;}
-    if (key === 'relativeDate.hoursAgo') {return `${values?.count}h ago`;}
-    if (key === 'relativeDate.daysAgo') {return `${values?.count}d ago`;}
+    if (key === 'relativeDate.justNow') {
+      return 'just now';
+    }
+    if (key === 'relativeDate.minutesAgo') {
+      return `${values?.count}m ago`;
+    }
+    if (key === 'relativeDate.hoursAgo') {
+      return `${values?.count}h ago`;
+    }
+    if (key === 'relativeDate.daysAgo') {
+      return `${values?.count}d ago`;
+    }
     return key;
   });
 
@@ -112,9 +115,7 @@ describe('formatRelativeTime', () => {
 
   it('超过 7 天 → 回退为短日期（month/day）', () => {
     const old = new Date(now - 10 * 86_400_000).toISOString();
-    const expected = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(
-      now - 10 * 86_400_000,
-    );
+    const expected = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(now - 10 * 86_400_000);
     expect(formatRelativeTime(old, t, locale, now)).toBe(expected);
   });
 

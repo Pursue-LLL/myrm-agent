@@ -23,18 +23,16 @@ const E2EESecurityPanel = memo<E2EESecurityPanelProps>(
 
     if (error) {
       return (
-        <div
-          className="flex items-center gap-1.5 text-destructive"
-          role="status"
-          aria-label={t('handshakeFailed')}
-        >
+        <div className="flex items-center gap-1.5 text-destructive" role="status" aria-label={t('handshakeFailed')}>
           <ShieldX className="h-4 w-4" />
           <span className="text-[10px] font-medium">{t('handshakeFailed')}</span>
         </div>
       );
     }
 
-    if (!established) {return null;}
+    if (!established) {
+      return null;
+    }
 
     return (
       <Popover>

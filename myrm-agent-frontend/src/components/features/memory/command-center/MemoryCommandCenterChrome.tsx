@@ -210,8 +210,14 @@ const FactLine = ({ label, value }: { label: string; value: string }) => (
 );
 
 const healthClassName = (status: string): string => {
-  if (status === 'healthy') {return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300';}
-  if (status === 'degraded') {return 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300';}
-  if (status === 'critical') {return 'bg-destructive/10 text-destructive border-destructive/20';}
+  if (status === 'healthy') {
+    return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300';
+  }
+  if (status === 'degraded') {
+    return 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300';
+  }
+  if (status === 'critical') {
+    return 'bg-destructive/10 text-destructive border-destructive/20';
+  }
   return 'bg-muted text-muted-foreground border-border';
 };

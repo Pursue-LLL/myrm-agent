@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  basenamePath,
-  isSaveSkillApproval,
-  normalizeSaveSkillPreviewArgs,
-} from '../saveSkillApproval';
+import { basenamePath, isSaveSkillApproval, normalizeSaveSkillPreviewArgs } from '../saveSkillApproval';
 
 describe('isSaveSkillApproval', () => {
   it('detects OW save_skill tools', () => {

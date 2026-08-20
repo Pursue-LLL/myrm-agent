@@ -9,8 +9,7 @@ const openWorkspaceDeliverable = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined),
 );
 
-const stableT = (key: string) =>
-  key === 'awaitingArtifact' ? 'Waiting for artifact sync' : key;
+const stableT = (key: string) => (key === 'awaitingArtifact' ? 'Waiting for artifact sync' : key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -30,7 +29,6 @@ describe('DeliverableReferenceLink', () => {
   });
 
   it('opens portal via short_file_id artifact match', async () => {
-
     render(
       <DeliverableReferenceLink
         reference={{ kind: 'file_id', id: '@file_001' }}

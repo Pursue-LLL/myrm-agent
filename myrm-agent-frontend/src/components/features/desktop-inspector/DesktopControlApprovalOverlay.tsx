@@ -10,7 +10,9 @@ import DesktopControlApprovalBanner from './DesktopControlApprovalBanner';
  */
 const DesktopControlApprovalOverlay: React.FC = () => {
   const pending = useDesktopControlApprovalStore((state) => state.pending);
-  if (!pending) {return null;}
+  if (!pending) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 left-1/2 z-[60] w-[min(100%-1.5rem,32rem)] -translate-x-1/2 pointer-events-auto">

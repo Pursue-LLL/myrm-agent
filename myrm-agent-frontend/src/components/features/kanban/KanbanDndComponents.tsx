@@ -82,17 +82,26 @@ export function KanbanDropColumn({
   const isHighlighted = (isOver || dragOverColumn === status) && draggedTaskId !== null;
 
   const agentLanes = useMemo(() => {
-    if (!laneByProfile || status !== 'running') {return null;}
+    if (!laneByProfile || status !== 'running') {
+      return null;
+    }
     const groups = new Map<string | null, KanbanTask[]>();
     for (const task of columnTaskItems) {
       const key = task.agent_id ?? null;
       const arr = groups.get(key);
-      if (arr) {arr.push(task);}
-      else {groups.set(key, [task]);}
+      if (arr) {
+        arr.push(task);
+      } else {
+        groups.set(key, [task]);
+      }
     }
     return [...groups.entries()].sort(([a], [b]) => {
-      if (a === null) {return 1;}
-      if (b === null) {return -1;}
+      if (a === null) {
+        return 1;
+      }
+      if (b === null) {
+        return -1;
+      }
       const nameA = agentNameMap?.get(a) ?? a;
       const nameB = agentNameMap?.get(b) ?? b;
       return nameA.localeCompare(nameB);

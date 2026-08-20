@@ -152,7 +152,9 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
   );
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteTarget) {return;}
+    if (!deleteTarget) {
+      return;
+    }
     const templateId = deleteTarget.template_id;
     try {
       await deleteWorkflowTemplate(templateId);
@@ -183,13 +185,7 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {t('refresh')}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 shrink-0"
-          disabled={importing}
-          onClick={openImportPicker}
-        >
+        <Button variant="outline" size="sm" className="gap-2 shrink-0" disabled={importing} onClick={openImportPicker}>
           {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           {t('import')}
         </Button>
@@ -342,9 +338,7 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
         }}
         title={t('importOverwriteTitle')}
         description={
-          importOverwriteTarget
-            ? t('importOverwriteConfirm', { name: importOverwriteTarget.displayName })
-            : ''
+          importOverwriteTarget ? t('importOverwriteConfirm', { name: importOverwriteTarget.displayName }) : ''
         }
         confirmText={t('importOverwriteAction')}
         cancelText={t('deleteCancel')}

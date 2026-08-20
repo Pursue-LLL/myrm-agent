@@ -19,15 +19,26 @@ interface TaskDeliverableBundleProps {
 function inferArtifactType(filename: string): ArtifactType {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
   const typeMap: Record<string, ArtifactType> = {
-    xlsx: 'spreadsheet', xls: 'spreadsheet', csv: 'spreadsheet',
-    pptx: 'presentation', ppt: 'presentation',
-    docx: 'word_document', doc: 'word_document',
+    xlsx: 'spreadsheet',
+    xls: 'spreadsheet',
+    csv: 'spreadsheet',
+    pptx: 'presentation',
+    ppt: 'presentation',
+    docx: 'word_document',
+    doc: 'word_document',
     pdf: 'pdf',
-    html: 'html', htm: 'html',
+    html: 'html',
+    htm: 'html',
     svg: 'svg',
-    png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image',
-    mp4: 'video', webm: 'video',
-    mp3: 'audio', wav: 'audio',
+    png: 'image',
+    jpg: 'image',
+    jpeg: 'image',
+    gif: 'image',
+    webp: 'image',
+    mp4: 'video',
+    webm: 'video',
+    mp3: 'audio',
+    wav: 'audio',
     mmd: 'mermaid',
   };
   return typeMap[ext] ?? 'document';
@@ -44,13 +55,21 @@ function inferContentType(filename: string): string {
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     doc: 'application/msword',
     pdf: 'application/pdf',
-    html: 'text/html', htm: 'text/html',
+    html: 'text/html',
+    htm: 'text/html',
     svg: 'image/svg+xml',
-    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
-    mp4: 'video/mp4', webm: 'video/webm',
-    mp3: 'audio/mpeg', wav: 'audio/wav',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
     mmd: 'text/x-mermaid',
-    md: 'text/markdown', txt: 'text/plain',
+    md: 'text/markdown',
+    txt: 'text/plain',
     json: 'application/json',
   };
   return mimeMap[ext] ?? 'application/octet-stream';
@@ -64,7 +83,9 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
   const deliverables = goal.deliverables;
 
   const handleDownloadAll = useCallback(async () => {
-    if (!deliverables) {return;}
+    if (!deliverables) {
+      return;
+    }
     setDownloading(true);
     try {
       const ids = deliverables.map((d) => d.id);

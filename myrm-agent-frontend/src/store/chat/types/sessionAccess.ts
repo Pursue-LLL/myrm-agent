@@ -8,12 +8,18 @@ export interface SessionAccessRoot {
 }
 
 export function normalizeSessionAccessRoots(raw: unknown): SessionAccessRoot[] {
-  if (!Array.isArray(raw)) {return [];}
+  if (!Array.isArray(raw)) {
+    return [];
+  }
   const roots: SessionAccessRoot[] = [];
   for (const item of raw) {
-    if (!item || typeof item !== 'object') {continue;}
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
     const path = (item as { path?: unknown }).path;
-    if (typeof path !== 'string' || !path.trim()) {continue;}
+    if (typeof path !== 'string' || !path.trim()) {
+      continue;
+    }
     const writable = (item as { writable?: unknown }).writable;
     const label = (item as { label?: unknown }).label;
     const source = (item as { source?: unknown }).source;

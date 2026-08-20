@@ -23,15 +23,23 @@ vi.mock('@/components/primitives/button', () => ({
 }));
 
 vi.mock('@/components/features/settings/sections/integration/integrations/IntegrationConnectDialog', () => ({
-  IntegrationConnectDialog: ({ entry, onClose, onConnected }: {
+  IntegrationConnectDialog: ({
+    entry,
+    onClose,
+    onConnected,
+  }: {
     entry: CatalogEntry;
     onClose: () => void;
     onConnected: () => void;
   }) => (
     <div data-testid="connect-dialog">
       <span>{entry.name}</span>
-      <button type="button" onClick={onConnected}>confirm-connect</button>
-      <button type="button" onClick={onClose}>close-dialog</button>
+      <button type="button" onClick={onConnected}>
+        confirm-connect
+      </button>
+      <button type="button" onClick={onClose}>
+        close-dialog
+      </button>
     </div>
   ),
 }));

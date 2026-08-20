@@ -141,7 +141,9 @@ const EXTENSION_ICON_MAP: Record<string, React.ElementType> = {
 /** 根据文件名获取扩展名 */
 function getFileExtension(filename: string): string {
   const lastDot = filename.lastIndexOf('.');
-  if (lastDot === -1 || lastDot === filename.length - 1) {return '';}
+  if (lastDot === -1 || lastDot === filename.length - 1) {
+    return '';
+  }
   return filename.slice(lastDot + 1).toLowerCase();
 }
 
@@ -168,7 +170,9 @@ export { isPreviewable, needsContentLoad, inferLanguage };
 
 /** 获取语言显示名称 */
 export function getLanguageDisplayName(language: string | undefined): string {
-  if (!language) {return 'Plain Text';}
+  if (!language) {
+    return 'Plain Text';
+  }
 
   const languageMap: Record<string, string> = {
     js: 'JavaScript',
@@ -247,9 +251,9 @@ export function isPublicationStale(
 ): boolean {
   return Boolean(
     publication.publication_status === 'READY' &&
-      publication.publication_version_id &&
-      latestVersionId &&
-      publication.publication_version_id !== latestVersionId,
+    publication.publication_version_id &&
+    latestVersionId &&
+    publication.publication_version_id !== latestVersionId,
   );
 }
 
@@ -279,10 +283,7 @@ function publicationSnapshot(publications: ArtifactPublication[]): string {
   );
 }
 
-export function publicationsChanged(
-  previous: ArtifactPublication[],
-  next: ArtifactPublication[],
-): boolean {
+export function publicationsChanged(previous: ArtifactPublication[], next: ArtifactPublication[]): boolean {
   return publicationSnapshot(previous) !== publicationSnapshot(next);
 }
 
@@ -299,9 +300,7 @@ export interface ArtifactDeployPreflight {
   hint: string | null;
 }
 
-export async function fetchArtifactDeployPreflight(
-  artifactId: string,
-): Promise<ArtifactDeployPreflight | null> {
+export async function fetchArtifactDeployPreflight(artifactId: string): Promise<ArtifactDeployPreflight | null> {
   const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/publish/preflight`));
   if (!response.ok) {
     return null;

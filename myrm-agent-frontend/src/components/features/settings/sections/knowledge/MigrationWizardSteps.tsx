@@ -27,7 +27,11 @@ import useConfigStore from '@/store/useConfigStore';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getMigrationSourceDisplayName, type ExternalSource, type DiscoveryResponse } from '@/services/migrationDiscovery';
+import {
+  getMigrationSourceDisplayName,
+  type ExternalSource,
+  type DiscoveryResponse,
+} from '@/services/migrationDiscovery';
 import type { AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import type {
@@ -109,13 +113,18 @@ function CloudUploadZone({
         'rounded-xl border-2 border-dashed p-8 text-center transition-colors',
         dragOver ? 'border-primary bg-primary/5' : 'border-border/50 bg-secondary/20',
       )}
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
         e.preventDefault();
         setDragOver(false);
         const file = e.dataTransfer.files[0];
-        if (file) {handleFile(file);}
+        if (file) {
+          handleFile(file);
+        }
       }}
     >
       <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
@@ -128,7 +137,9 @@ function CloudUploadZone({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) {handleFile(file);}
+          if (file) {
+            handleFile(file);
+          }
         }}
       />
       <Button
@@ -138,11 +149,7 @@ function CloudUploadZone({
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
       >
-        {uploading ? (
-          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Upload className="mr-2 h-3.5 w-3.5" />
-        )}
+        {uploading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
         {uploading ? t('cloudUploading') : t('cloudUploadButton')}
       </Button>
     </div>
@@ -150,7 +157,9 @@ function CloudUploadZone({
 }
 
 export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]; t: TranslationFn }) {
-  if (items.length === 0) {return null;}
+  if (items.length === 0) {
+    return null;
+  }
 
   const statusStyles: Record<string, string> = {
     ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
@@ -376,7 +385,9 @@ function SourceCard({
 }
 
 function MigrationLaneMatrix({ lanes, t }: { lanes: MigrationLanePreviewItem[]; t: TranslationFn }) {
-  if (lanes.length === 0) {return null;}
+  if (lanes.length === 0) {
+    return null;
+  }
 
   const statusStyles: Record<string, string> = {
     ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
@@ -406,11 +417,18 @@ function MigrationLaneMatrix({ lanes, t }: { lanes: MigrationLanePreviewItem[]; 
   );
 }
 
-function TokenEconomicsCard({ data, sourceName, t }: { data: TokenEconomicsComparison; sourceName: string; t: TranslationFn }) {
+function TokenEconomicsCard({
+  data,
+  sourceName,
+  t,
+}: {
+  data: TokenEconomicsComparison;
+  sourceName: string;
+  t: TranslationFn;
+}) {
   const sourcePercent = 100;
-  const myrmPercent = data.source_tokens_per_turn > 0
-    ? Math.round((data.myrm_tokens_per_turn / data.source_tokens_per_turn) * 100)
-    : 0;
+  const myrmPercent =
+    data.source_tokens_per_turn > 0 ? Math.round((data.myrm_tokens_per_turn / data.source_tokens_per_turn) * 100) : 0;
 
   return (
     <div className="space-y-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
@@ -427,9 +445,7 @@ function TokenEconomicsCard({ data, sourceName, t }: { data: TokenEconomicsCompa
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">{sourceName}</span>
-            <span className="tabular-nums font-medium">
-              {data.source_tokens_per_turn.toLocaleString()} tokens
-            </span>
+            <span className="tabular-nums font-medium">{data.source_tokens_per_turn.toLocaleString()} tokens</span>
           </div>
           <div className="h-2 rounded-full bg-secondary overflow-hidden">
             <div
@@ -446,10 +462,7 @@ function TokenEconomicsCard({ data, sourceName, t }: { data: TokenEconomicsCompa
             </span>
           </div>
           <div className="h-2 rounded-full bg-secondary overflow-hidden">
-            <div
-              className="h-full rounded-full bg-emerald-500 transition-all"
-              style={{ width: `${myrmPercent}%` }}
-            />
+            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${myrmPercent}%` }} />
           </div>
         </div>
       </div>
@@ -533,7 +546,11 @@ export function PreviewStep({
       )}
 
       {dryRun.token_economics && (
-        <TokenEconomicsCard data={dryRun.token_economics} sourceName={getMigrationSourceDisplayName(source.competitor)} t={t} />
+        <TokenEconomicsCard
+          data={dryRun.token_economics}
+          sourceName={getMigrationSourceDisplayName(source.competitor)}
+          t={t}
+        />
       )}
 
       {(dryRun.instruction_total_chars ?? 0) > 8000 && (
@@ -663,9 +680,7 @@ export function PreviewStep({
                   </div>
                 )}
                 {srv.keepaliveIntervalIgnored && (
-                  <div className="text-amber-600 dark:text-amber-400">
-                    {t('preview.mcpKeepaliveIgnored')}
-                  </div>
+                  <div className="text-amber-600 dark:text-amber-400">{t('preview.mcpKeepaliveIgnored')}</div>
                 )}
               </div>
             ))}
@@ -785,9 +800,7 @@ export function ResultStep({
 }) {
   const router = useRouter();
   const memoryEnableConversationSearch = useConfigStore((s) => s.memoryEnableConversationSearch);
-  const setMemoryEnableConversationSearch = useConfigStore(
-    (s) => s.setMemoryEnableConversationSearch,
-  );
+  const setMemoryEnableConversationSearch = useConfigStore((s) => s.setMemoryEnableConversationSearch);
   const [readinessOverride, setReadinessOverride] = useState<MemoryImportReadiness | null>(null);
   const [startingChat, setStartingChat] = useState(false);
 
@@ -804,9 +817,7 @@ export function ResultStep({
   const resultAnchorQueuedRef = useRef(false);
   const showSettingsVaultBind = vaultBindHandoffMode === 'settings' && isLocalMode();
   const primaryObsidianCandidate =
-    workspaceBindCandidates.find((candidate) => candidate.has_obsidian_config) ??
-    workspaceBindCandidates[0] ??
-    null;
+    workspaceBindCandidates.find((candidate) => candidate.has_obsidian_config) ?? workspaceBindCandidates[0] ?? null;
 
   useEffect(() => {
     if (resultAnchorQueuedRef.current || !result.target_agent_id) {
@@ -908,20 +919,14 @@ export function ResultStep({
                 {t('result.cronImportFailed', { count: result.cron_import_summary.failed_count })}
               </p>
             )}
-            {result.cron_import_summary.imported_count === 0
-              && result.cron_import_summary.skipped_count > 0 && (
+            {result.cron_import_summary.imported_count === 0 && result.cron_import_summary.skipped_count > 0 && (
               <p className="text-sm text-muted-foreground">
                 {t('result.cronSkippedOnly', { count: result.cron_import_summary.skipped_count })}
               </p>
             )}
           </>
         )}
-        <div
-          className={cn(
-            'rounded-xl border px-4 py-3 text-left text-xs',
-            IMPORT_READINESS_STYLES[readinessStatus],
-          )}
-        >
+        <div className={cn('rounded-xl border px-4 py-3 text-left text-xs', IMPORT_READINESS_STYLES[readinessStatus])}>
           <p className="font-medium">{t(`result.readinessStatus.${readinessStatus}`)}</p>
           <p className="mt-1 opacity-90">{t('result.readinessSummary')}</p>
           {readinessIssues.length > 0 && (
@@ -953,10 +958,7 @@ export function ResultStep({
       )}
 
       {migrationSource === 'codex' && result.target_agent_id ? (
-        <CodexWikiCompletionLane
-          targetAgentId={result.target_agent_id}
-          vaultCandidate={primaryObsidianCandidate}
-        />
+        <CodexWikiCompletionLane targetAgentId={result.target_agent_id} vaultCandidate={primaryObsidianCandidate} />
       ) : null}
 
       <div className="flex flex-wrap justify-center gap-4 text-[11px] text-muted-foreground/50">
@@ -975,12 +977,7 @@ export function ResultStep({
 
       <div className="flex flex-wrap justify-center gap-2">
         {result.target_agent_id && (
-          <Button
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => void handleStartChat()}
-            disabled={startingChat}
-          >
+          <Button size="sm" className="h-8 text-xs" onClick={() => void handleStartChat()} disabled={startingChat}>
             {startingChat && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
             {startingChat
               ? t('result.startChatChecking')
@@ -1010,12 +1007,7 @@ export function ResultStep({
           <Link href={teamAssetsHubHref()}>{t('result.reviewTeamAssets')}</Link>
         </Button>
         {!memoryEnableConversationSearch && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-8 text-xs"
-            onClick={handleEnableConversationSearch}
-          >
+          <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={handleEnableConversationSearch}>
             {t('result.enableConversationSearch')}
           </Button>
         )}

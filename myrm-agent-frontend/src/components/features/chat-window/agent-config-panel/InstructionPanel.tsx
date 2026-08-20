@@ -8,13 +8,14 @@ import dynamic from 'next/dynamic';
 const SmartPromptEditor = dynamic(
   () => import('./SmartPromptEditor').then((module) => ({ default: module.SmartPromptEditor })),
   {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[300px] flex items-center justify-center bg-secondary border rounded-lg text-sm text-muted-foreground">
-      <Loader2 size={18} className="animate-spin" />
-    </div>
-  ),
-});
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[300px] flex items-center justify-center bg-secondary border rounded-lg text-sm text-muted-foreground">
+        <Loader2 size={18} className="animate-spin" />
+      </div>
+    ),
+  },
+);
 
 export interface InstructionPanelProps {
   localPrompt: string;
@@ -62,7 +63,13 @@ export const InstructionPanel = ({
               <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100">{t('systemPromptHidden')}</h4>
               <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">{t('systemPromptHiddenDesc')}</p>
             </div>
-            <Button onClick={onShowSystemPrompt} disabled={loadingSystemPrompt} variant="outline" size="sm" className="ml-4 gap-2">
+            <Button
+              onClick={onShowSystemPrompt}
+              disabled={loadingSystemPrompt}
+              variant="outline"
+              size="sm"
+              className="ml-4 gap-2"
+            >
               {loadingSystemPrompt ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />

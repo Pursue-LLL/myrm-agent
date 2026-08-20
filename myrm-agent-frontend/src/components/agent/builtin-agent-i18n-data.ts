@@ -131,7 +131,8 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
   'builtin-fast-search': {
     en: {
       name: 'Quick Search',
-      description: 'Fast web search — concise, real-time answers with source citations. Ideal for quick facts and news.',
+      description:
+        'Fast web search — concise, real-time answers with source citations. Ideal for quick facts and news.',
     },
     zh: { name: '快速搜索', description: '快速网页搜索——简洁实时、带来源引用，适合查事实与新闻。' },
     'zh-TW': { name: '快速搜尋', description: '快速網頁搜尋——簡潔即時、附來源引用，適合查事實與新聞。' },
@@ -304,8 +305,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
     },
     de: {
       name: 'Designer',
-      description:
-        'Kreativer Design-Assistent — erzeugt Bilder, bewertet UI/UX und liefert visuelle Inspiration.',
+      description: 'Kreativer Design-Assistent — erzeugt Bilder, bewertet UI/UX und liefert visuelle Inspiration.',
     },
   },
   'builtin-video-studio': {
@@ -332,8 +332,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
     },
     de: {
       name: 'Video-Studio',
-      description:
-        'KI-Video-Produktionsassistent — Skripte, Storyboards, Visuals, Voiceover und fertige Videomontage.',
+      description: 'KI-Video-Produktionsassistent — Skripte, Storyboards, Visuals, Voiceover und fertige Videomontage.',
     },
   },
   'builtin-seo': {
@@ -511,7 +510,10 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
       description: 'Supports programming assistants like Claude Code, Codex, and Gemini CLI in local sandbox',
     },
     zh: { name: 'CLI 可视化助手', description: '在本地沙箱中支持 Claude Code、Codex、Gemini CLI 等编程助手。' },
-    'zh-TW': { name: 'CLI 視覺化助手', description: '在本地沙箱中支援 Claude Code、Codex、Gemini CLI 等程式設計助手。' },
+    'zh-TW': {
+      name: 'CLI 視覺化助手',
+      description: '在本地沙箱中支援 Claude Code、Codex、Gemini CLI 等程式設計助手。',
+    },
     ja: {
       name: 'CLIビジュアルエージェント',
       description: 'ローカルサンドボックスで Claude Code、Codex、Gemini CLI などのプログラミング助手をサポート。',
@@ -522,8 +524,7 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
     },
     de: {
       name: 'CLI-Visual-Agent',
-      description:
-        'Unterstützt Programmier-Assistenten wie Claude Code, Codex und Gemini CLI in der lokalen Sandbox.',
+      description: 'Unterstützt Programmier-Assistenten wie Claude Code, Codex und Gemini CLI in der lokalen Sandbox.',
     },
   },
   'builtin-hr_screener': {
@@ -583,7 +584,8 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
     },
     ja: {
       name: 'ソーシャルインテリジェンス',
-      description: 'X (Twitter) 上の議論、センチメント、トレンドを追跡 — インフルエンサー、ブランド、競合をモニタリング。',
+      description:
+        'X (Twitter) 上の議論、センチメント、トレンドを追跡 — インフルエンサー、ブランド、競合をモニタリング。',
     },
     ko: {
       name: '소셜 인텔리전스',

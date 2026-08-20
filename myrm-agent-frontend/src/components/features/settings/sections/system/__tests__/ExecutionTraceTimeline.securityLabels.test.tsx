@@ -12,8 +12,7 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: unknown) => unknown) =>
-    selector({ activeSessionAnalyticsMessageId: null, messages: [] }),
+  default: (selector: (state: unknown) => unknown) => selector({ activeSessionAnalyticsMessageId: null, messages: [] }),
 }));
 
 vi.mock('@/services/statistics', async (importOriginal) => {
@@ -91,9 +90,7 @@ describe('ExecutionTraceTimeline tool call security labels', () => {
           error: null,
           tool_call_id: 'call-1',
           message_id: 'm1',
-          security_labels: [
-            { decision: 'DENY', reason: 'rm -rf blocked', tainted: true, ts: 1000.5 },
-          ],
+          security_labels: [{ decision: 'DENY', reason: 'rm -rf blocked', tainted: true, ts: 1000.5 }],
         },
       ],
     });
@@ -117,9 +114,7 @@ describe('ExecutionTraceTimeline tool call security labels', () => {
           error: null,
           tool_call_id: 'call-1',
           message_id: 'm1',
-          security_labels: [
-            { decision: 'ALLOW', reason: 'low risk', tainted: false, ts: 1000.5 },
-          ],
+          security_labels: [{ decision: 'ALLOW', reason: 'low risk', tainted: false, ts: 1000.5 }],
         },
       ],
     });
@@ -147,9 +142,7 @@ describe('ExecutionTraceTimeline tool call security labels', () => {
           error: null,
           tool_call_id: 'call-1',
           message_id: 'm1',
-          security_labels: [
-            { decision: 'DENY', reason: 'destructive path blocked', tainted: true, ts: 1000.5 },
-          ],
+          security_labels: [{ decision: 'DENY', reason: 'destructive path blocked', tainted: true, ts: 1000.5 }],
         },
       ],
     });

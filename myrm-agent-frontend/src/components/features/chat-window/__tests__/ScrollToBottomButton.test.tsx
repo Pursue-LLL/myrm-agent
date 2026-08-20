@@ -17,9 +17,7 @@ describe('ScrollToBottomButton', () => {
   };
 
   it('renders nothing when visible=false', () => {
-    const { container } = render(
-      <ScrollToBottomButton {...defaultProps} visible={false} />,
-    );
+    const { container } = render(<ScrollToBottomButton {...defaultProps} visible={false} />);
     expect(container.firstChild).toBeNull();
   });
 

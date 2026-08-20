@@ -29,7 +29,8 @@ vi.mock('@/components/features/cli-visualization/CLIFileIcon', () => ({
 vi.mock('@/services/chat', () => ({
   fetchWorkspaceFileContent: vi.fn().mockResolvedValue('file content'),
   getWorkspaceFileContentUrl: vi.fn(
-    (path: string, _workspace: string, _download?: boolean) => `/api/v1/files/browse/content?path=${encodeURIComponent(path)}`,
+    (path: string, _workspace: string, _download?: boolean) =>
+      `/api/v1/files/browse/content?path=${encodeURIComponent(path)}`,
   ),
   saveWorkspaceFileContent: vi.fn().mockResolvedValue(undefined),
 }));
@@ -59,7 +60,9 @@ vi.mock('@/components/features/artifacts/renderers/MediaPreview', () => ({
 vi.mock('@/components/features/artifacts/PdfPreview', () => ({ default: () => <div data-testid="pdf" /> }));
 vi.mock('@/components/features/artifacts/renderers/DocxPreview', () => ({ default: () => <div data-testid="docx" /> }));
 vi.mock('@/components/features/artifacts/renderers/PptxPreview', () => ({ default: () => <div data-testid="pptx" /> }));
-vi.mock('@/components/features/artifacts/renderers/SpreadsheetPreview', () => ({ default: () => <div data-testid="xlsx" /> }));
+vi.mock('@/components/features/artifacts/renderers/SpreadsheetPreview', () => ({
+  default: () => <div data-testid="xlsx" />,
+}));
 
 import { fetchWorkspaceFileContent } from '@/services/chat';
 import { WorkspaceFilePreview } from '../WorkspaceFilePreview';

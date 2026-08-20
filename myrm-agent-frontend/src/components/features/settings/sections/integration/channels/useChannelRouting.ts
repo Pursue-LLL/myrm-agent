@@ -73,12 +73,12 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     };
 
     void fetchInitialData();
-  }, [
-    messages.initialLoadError,
-  ]);
+  }, [messages.initialLoadError]);
 
   useEffect(() => {
-    if (!selectedChannel) {return;}
+    if (!selectedChannel) {
+      return;
+    }
 
     const fetchTopics = async () => {
       setLoadingTopics(true);
@@ -98,14 +98,14 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   }, [selectedChannel, messages.topicsLoadError]);
 
   const handleBindTopic = async (topicId: string, agentId: string) => {
-    if (!selectedChannel) {return;}
+    if (!selectedChannel) {
+      return;
+    }
     setSaving(topicId);
     try {
       const newAgentId = agentId === 'none' ? null : agentId;
       await bindTopicAgent(selectedChannel, topicId, newAgentId);
-      setTopics((prev) => prev.map((topic) => (
-        topic.topicId === topicId ? { ...topic, agentId: newAgentId } : topic
-      )));
+      setTopics((prev) => prev.map((topic) => (topic.topicId === topicId ? { ...topic, agentId: newAgentId } : topic)));
       toast.success(messages.agentBoundToast);
     } catch (error) {
       console.error('Failed to bind agent:', error);
@@ -116,14 +116,14 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleSetThreadSharingMode = async (topicId: string, mode: ThreadSharingMode) => {
-    if (!selectedChannel) {return;}
+    if (!selectedChannel) {
+      return;
+    }
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
       await bindTopicAgent(selectedChannel, topicId, topic?.agentId ?? null, mode);
-      setTopics((prev) => prev.map((item) => (
-        item.topicId === topicId ? { ...item, threadSharingMode: mode } : item
-      )));
+      setTopics((prev) => prev.map((item) => (item.topicId === topicId ? { ...item, threadSharingMode: mode } : item)));
       toast.success(messages.threadSharingUpdatedToast);
     } catch (error) {
       console.error('Failed to set sharing mode:', error);
@@ -134,7 +134,9 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleSetReplyMode = async (topicId: string, mode: ReplyMode) => {
-    if (!selectedChannel) {return;}
+    if (!selectedChannel) {
+      return;
+    }
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
@@ -147,9 +149,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         topic?.draftTimeoutMinutes,
         topic?.draftTimeoutAction,
       );
-      setTopics((prev) => prev.map((item) => (
-        item.topicId === topicId ? { ...item, replyMode: mode } : item
-      )));
+      setTopics((prev) => prev.map((item) => (item.topicId === topicId ? { ...item, replyMode: mode } : item)));
       toast.success(messages.replyModeUpdatedToast);
     } catch (error) {
       console.error('Failed to set reply mode:', error);
@@ -159,12 +159,10 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     }
   };
 
-  const handleSetDraftTimeout = async (
-    topicId: string,
-    minutes: number,
-    action: DraftTimeoutAction,
-  ) => {
-    if (!selectedChannel) {return;}
+  const handleSetDraftTimeout = async (topicId: string, minutes: number, action: DraftTimeoutAction) => {
+    if (!selectedChannel) {
+      return;
+    }
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
@@ -177,11 +175,11 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         minutes,
         action,
       );
-      setTopics((prev) => prev.map((item) => (
-        item.topicId === topicId
-          ? { ...item, draftTimeoutMinutes: minutes, draftTimeoutAction: action }
-          : item
-      )));
+      setTopics((prev) =>
+        prev.map((item) =>
+          item.topicId === topicId ? { ...item, draftTimeoutMinutes: minutes, draftTimeoutAction: action } : item,
+        ),
+      );
       toast.success(messages.draftTimeoutUpdatedToast);
     } catch (error) {
       console.error('Failed to set draft timeout:', error);
@@ -192,7 +190,9 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleSetGlobalAgent = async (agentId: string) => {
-    if (!selectedChannel) {return;}
+    if (!selectedChannel) {
+      return;
+    }
     setSaving('global');
     try {
       const newAgentId = agentId === 'none' ? null : agentId;
@@ -208,7 +208,9 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
   };
 
   const handleBindTopicWorkspace = async (topicId: string, projectId: string | null) => {
-    if (!selectedChannel) {return;}
+    if (!selectedChannel) {
+      return;
+    }
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
@@ -222,19 +224,21 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         topic?.draftTimeoutAction,
         { projectId },
       );
-      setTopics((prev) => prev.map((item) => (
-        item.topicId === topicId
-          ? {
-              ...item,
-              projectId,
-              authorizedPath: null,
-              workspaceLabel: resolveTopicWorkspaceDisplayLabel(
-                { projectId, authorizedPath: null, workspaceLabel: null },
-                projects,
-              ),
-            }
-          : item
-      )));
+      setTopics((prev) =>
+        prev.map((item) =>
+          item.topicId === topicId
+            ? {
+                ...item,
+                projectId,
+                authorizedPath: null,
+                workspaceLabel: resolveTopicWorkspaceDisplayLabel(
+                  { projectId, authorizedPath: null, workspaceLabel: null },
+                  projects,
+                ),
+              }
+            : item,
+        ),
+      );
       toast.success(messages.workspaceBoundToast);
     } catch (error) {
       console.error('Failed to bind workspace:', error);

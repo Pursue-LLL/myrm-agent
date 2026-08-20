@@ -80,10 +80,9 @@ export function ChannelRoutingTopicRow({
         <span className="text-xs text-muted-foreground">{t('workspace.label')}:</span>
         <select
           value={topic.projectId || 'none'}
-          onChange={(event) => onBindTopicWorkspace(
-            topic.topicId,
-            event.target.value === 'none' ? null : event.target.value,
-          )}
+          onChange={(event) =>
+            onBindTopicWorkspace(topic.topicId, event.target.value === 'none' ? null : event.target.value)
+          }
           disabled={isSaving || projects.length === 0}
           className="bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none max-w-full"
         >
@@ -108,9 +107,7 @@ export function ChannelRoutingTopicRow({
             </Tooltip>
           </TooltipProvider>
         )}
-        {projects.length === 0 && (
-          <span className="text-xs text-muted-foreground">{t('workspace.emptyProjects')}</span>
-        )}
+        {projects.length === 0 && <span className="text-xs text-muted-foreground">{t('workspace.emptyProjects')}</span>}
       </div>
 
       <div className="flex items-center gap-2 pl-11">
@@ -198,11 +195,7 @@ export function ChannelRoutingTopicRow({
           <span className="text-xs text-muted-foreground">{t('replyMode.timeout')}:</span>
           <select
             value={topic.draftTimeoutMinutes}
-            onChange={(event) => onSetDraftTimeout(
-              topic.topicId,
-              Number(event.target.value),
-              topic.draftTimeoutAction,
-            )}
+            onChange={(event) => onSetDraftTimeout(topic.topicId, Number(event.target.value), topic.draftTimeoutAction)}
             disabled={isSaving}
             className="bg-background border border-input rounded text-xs px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none"
           >
@@ -217,11 +210,9 @@ export function ChannelRoutingTopicRow({
           <span className="text-xs text-muted-foreground">{t('replyMode.onExpiry')}:</span>
           <select
             value={topic.draftTimeoutAction}
-            onChange={(event) => onSetDraftTimeout(
-              topic.topicId,
-              topic.draftTimeoutMinutes,
-              event.target.value as DraftTimeoutAction,
-            )}
+            onChange={(event) =>
+              onSetDraftTimeout(topic.topicId, topic.draftTimeoutMinutes, event.target.value as DraftTimeoutAction)
+            }
             disabled={isSaving}
             className="bg-background border border-input rounded text-xs px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none"
           >

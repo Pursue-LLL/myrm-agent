@@ -23,10 +23,7 @@ import { getApiUrl } from '@/lib/api';
 import type { BuiltinToolId } from '@/store/chat/types';
 import { Textarea } from '@/components/primitives/textarea';
 import { useSkillStore } from '@/store/skill';
-import {
-  isFormalKoreanRepliesEnabled,
-  setFormalKoreanRepliesEnabled,
-} from '@/lib/utils/responseLocalePolicy';
+import { isFormalKoreanRepliesEnabled, setFormalKoreanRepliesEnabled } from '@/lib/utils/responseLocalePolicy';
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'faq' | 'inbox';
 
@@ -51,10 +48,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
 
   const editor = useAgentEditor(agentId, isNew, t);
 
-  const formalKoreanReplies = useMemo(
-    () => isFormalKoreanRepliesEnabled(editor.engineParams),
-    [editor.engineParams],
-  );
+  const formalKoreanReplies = useMemo(() => isFormalKoreanRepliesEnabled(editor.engineParams), [editor.engineParams]);
 
   const handleFormalKoreanRepliesChange = useCallback(
     (enabled: boolean) => {
@@ -64,11 +58,15 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   );
 
   useEffect(() => {
-    if (typeof window === 'undefined' || isNew) {return;}
+    if (typeof window === 'undefined' || isNew) {
+      return;
+    }
     const applyHashTab = () => {
       const hash = window.location.hash.replace(/^#/, '');
       const tab = HASH_TAB_MAP[hash];
-      if (tab) {setActiveTab(tab);}
+      if (tab) {
+        setActiveTab(tab);
+      }
     };
     applyHashTab();
     window.addEventListener('hashchange', applyHashTab);
@@ -86,7 +84,9 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
 
   const handleAiBuild = useCallback(
     async (intent: string) => {
-      if (!intent.trim() || aiGenerating) {return;}
+      if (!intent.trim() || aiGenerating) {
+        return;
+      }
       setAiGenerating(true);
       let fullJson = '';
       try {
@@ -100,17 +100,23 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
           throw new Error(err?.detail || `HTTP ${response.status}`);
         }
         const reader = response.body?.getReader();
-        if (!reader) {throw new Error('No response body');}
+        if (!reader) {
+          throw new Error('No response body');
+        }
         const decoder = new TextDecoder();
         let buffer = '';
         while (true) {
           const { done, value } = await reader.read();
-          if (done) {break;}
+          if (done) {
+            break;
+          }
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
           for (const line of lines) {
-            if (!line.startsWith('data: ')) {continue;}
+            if (!line.startsWith('data: ')) {
+              continue;
+            }
             try {
               const evt = JSON.parse(line.slice(6));
               if (evt.type === 'content' && typeof evt.data === 'string') {
@@ -125,11 +131,17 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
         cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '');
         const jsonStart = cleaned.indexOf('{');
         const jsonEnd = cleaned.lastIndexOf('}');
-        if (jsonStart !== -1 && jsonEnd > jsonStart) {cleaned = cleaned.slice(jsonStart, jsonEnd + 1);}
+        if (jsonStart !== -1 && jsonEnd > jsonStart) {
+          cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+        }
         const config = JSON.parse(cleaned);
 
-        if (config.name) {editor.setName(config.name);}
-        if (config.description) {editor.setDescription(config.description);}
+        if (config.name) {
+          editor.setName(config.name);
+        }
+        if (config.description) {
+          editor.setDescription(config.description);
+        }
 
         const validSkillIds = new Set(editor.enabledSkills.map((s) => s.id));
         const validMcpNames = new Set(editor.enabledMcps.map((m) => m.name));
@@ -168,7 +180,9 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   );
 
   const handleRollback = async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     try {
       setRollingBack(true);
       const { rollbackAgentProfile } = await import('@/services/agent');
@@ -193,7 +207,9 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   };
 
   const handleExport = async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     try {
       setExporting(true);
       const data = await exportAgent(agentId);
@@ -469,9 +485,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
             </div>
           )}
 
-          {activeTab === 'faq' && (
-            <AgentFaqTab agentId={agentId} />
-          )}
+          {activeTab === 'faq' && <AgentFaqTab agentId={agentId} />}
 
           {activeTab === 'inbox' && (
             <div>

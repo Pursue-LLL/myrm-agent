@@ -46,9 +46,7 @@ function makeCtx(overrides: Partial<StreamCtx> = {}): StreamCtx {
     added: true,
     recievedMessage: '',
     state: {
-      messages: [
-        { messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() },
-      ],
+      messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
       messageAppeared: false,
       loading: true,
     } as never,

@@ -41,8 +41,12 @@ const PushNotificationCard = memo(() => {
   const t = useTranslations('settings.system');
   const { state, loading, error, subscribe, unsubscribe, sendTest } = usePushSubscription();
 
-  if (isTauriRuntime()) {return null;}
-  if (state === 'unsupported') {return null;}
+  if (isTauriRuntime()) {
+    return null;
+  }
+  if (state === 'unsupported') {
+    return null;
+  }
 
   const isEnabled = state === 'subscribed';
   const canToggle = state !== 'denied';
@@ -74,18 +78,14 @@ const PushNotificationCard = memo(() => {
     <section className="space-y-4">
       <div className="flex items-center gap-3 px-2">
         <IconBell className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-          {t('push.title')}
-        </h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('push.title')}</h2>
       </div>
 
       <div className="p-5 rounded-2xl border border-border/50 bg-card/50 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1 min-w-0">
             <p className="text-sm font-bold text-foreground">{t('push.label')}</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {t('push.description')}
-            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t('push.description')}</p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
@@ -110,13 +110,9 @@ const PushNotificationCard = memo(() => {
           </div>
         </div>
 
-        {state === 'denied' && (
-          <p className="text-xs text-destructive">{t('push.deniedHint')}</p>
-        )}
+        {state === 'denied' && <p className="text-xs text-destructive">{t('push.deniedHint')}</p>}
 
-        {error && (
-          <p className="text-xs text-destructive">{error}</p>
-        )}
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
     </section>
   );

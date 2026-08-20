@@ -27,7 +27,9 @@ const useSettingsDirtyStore = create<SettingsDirtyState>((set, get) => ({
 
   markClean: (tab) => {
     set((state) => {
-      if (!state._dirtyTabs.has(tab)) {return state;}
+      if (!state._dirtyTabs.has(tab)) {
+        return state;
+      }
       const next = new Map(state._dirtyTabs);
       next.delete(tab);
       return { _dirtyTabs: next };
@@ -40,12 +42,16 @@ const useSettingsDirtyStore = create<SettingsDirtyState>((set, get) => ({
 
   autoSaveAll: async () => {
     const entries = Array.from(get()._dirtyTabs.entries());
-    if (entries.length === 0) {return true;}
+    if (entries.length === 0) {
+      return true;
+    }
 
     const results = await Promise.allSettled(
       entries.map(async ([tab, saveFn]) => {
         const ok = await saveFn();
-        if (ok) {get().markClean(tab);}
+        if (ok) {
+          get().markClean(tab);
+        }
         return ok;
       }),
     );

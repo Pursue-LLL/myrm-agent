@@ -13,14 +13,18 @@ import {
 type CopiedState = 'idle' | 'markdown' | 'text';
 
 function buildMarkdownContent(content: string, sources?: { url?: string }[]): string {
-  if (!sources || sources.length === 0) {return content;}
+  if (!sources || sources.length === 0) {
+    return content;
+  }
   const citations = sources.map((s, i) => `[${i + 1}] ${s.url || 'Unknown source'}`).join('\n');
   return `${content}\n\nCitations:\n${citations}`;
 }
 
 function getRenderedHtml(markdownRef: RefObject<HTMLDivElement | null>): string {
   const el = markdownRef.current;
-  if (!el) {return '';}
+  if (!el) {
+    return '';
+  }
   const clone = el.cloneNode(true) as HTMLElement;
   clone.querySelectorAll('button').forEach((btn) => btn.remove());
   return clone.innerHTML;

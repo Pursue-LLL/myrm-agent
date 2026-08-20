@@ -32,8 +32,17 @@ export default function ProjectMilestonePanel() {
   const t = useTranslations();
   const { error: toastError, success: toastSuccess } = useToast();
   const { activeFilter, projects } = useProjectStore();
-  const { milestones, progressMap, loading, fetchMilestones, addMilestone, updateMilestone, completeMilestone, removeMilestone, importAssessment } =
-    useMilestoneStore();
+  const {
+    milestones,
+    progressMap,
+    loading,
+    fetchMilestones,
+    addMilestone,
+    updateMilestone,
+    completeMilestone,
+    removeMilestone,
+    importAssessment,
+  } = useMilestoneStore();
   const [expanded, setExpanded] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -59,7 +68,9 @@ export default function ProjectMilestonePanel() {
   }, [activeProject, fetchMilestones]);
 
   useEffect(() => {
-    if (showInput) {inputRef.current?.focus();}
+    if (showInput) {
+      inputRef.current?.focus();
+    }
   }, [showInput]);
 
   useEffect(() => {
@@ -90,7 +101,9 @@ export default function ProjectMilestonePanel() {
 
   const handleComplete = useCallback(
     async (ms: Milestone) => {
-      if (!activeProject) {return;}
+      if (!activeProject) {
+        return;
+      }
       try {
         await completeMilestone(activeProject.id, ms.id);
       } catch {
@@ -102,7 +115,9 @@ export default function ProjectMilestonePanel() {
 
   const handleDelete = useCallback(
     async (ms: Milestone) => {
-      if (!activeProject) {return;}
+      if (!activeProject) {
+        return;
+      }
       try {
         await removeMilestone(activeProject.id, ms.id);
       } catch {
@@ -114,7 +129,9 @@ export default function ProjectMilestonePanel() {
 
   const handleRename = useCallback(
     async (ms: Milestone, newTitle: string) => {
-      if (!activeProject || newTitle === ms.title) {return;}
+      if (!activeProject || newTitle === ms.title) {
+        return;
+      }
       try {
         await updateMilestone(activeProject.id, ms.id, { title: newTitle });
       } catch {
@@ -124,129 +141,122 @@ export default function ProjectMilestonePanel() {
     [activeProject, updateMilestone, toastError, t],
   );
 
-  const loadArtifactCandidates = useCallback(async (projectId: string) => {
-    if (artifactCandidatesLoading) {
-      return;
-    }
-    const requestId = candidateRequestIdRef.current + 1;
-    candidateRequestIdRef.current = requestId;
-    setArtifactCandidatesLoading(true);
-    setArtifactCandidatesLoadFailed(false);
-    try {
-      const candidates = await listAssessmentImportArtifactCandidates(12, projectId);
-      if (candidateRequestIdRef.current !== requestId) {
+  const loadArtifactCandidates = useCallback(
+    async (projectId: string) => {
+      if (artifactCandidatesLoading) {
         return;
       }
-      if (activeProject?.id !== projectId) {
-        return;
+      const requestId = candidateRequestIdRef.current + 1;
+      candidateRequestIdRef.current = requestId;
+      setArtifactCandidatesLoading(true);
+      setArtifactCandidatesLoadFailed(false);
+      try {
+        const candidates = await listAssessmentImportArtifactCandidates(12, projectId);
+        if (candidateRequestIdRef.current !== requestId) {
+          return;
+        }
+        if (activeProject?.id !== projectId) {
+          return;
+        }
+        setArtifactCandidates(candidates);
+      } catch {
+        if (candidateRequestIdRef.current !== requestId) {
+          return;
+        }
+        setArtifactCandidatesLoadFailed(true);
+      } finally {
+        if (candidateRequestIdRef.current === requestId) {
+          setArtifactCandidatesLoaded(true);
+          setArtifactCandidatesLoading(false);
+        }
       }
-      setArtifactCandidates(candidates);
-    } catch {
-      if (candidateRequestIdRef.current !== requestId) {
-        return;
-      }
-      setArtifactCandidatesLoadFailed(true);
-    } finally {
-      if (candidateRequestIdRef.current === requestId) {
-        setArtifactCandidatesLoaded(true);
-        setArtifactCandidatesLoading(false);
-      }
-    }
-  }, [activeProject?.id, artifactCandidatesLoading]);
+    },
+    [activeProject?.id, artifactCandidatesLoading],
+  );
 
-  const loadImportValueSummary = useCallback(async (
-    projectId: string,
-    options?: { force?: boolean },
-  ) => {
-    if (importValueSummaryLoading && !options?.force) {
-      return;
-    }
-    const requestId = valueSummaryRequestIdRef.current + 1;
-    valueSummaryRequestIdRef.current = requestId;
-    setImportValueSummaryLoading(true);
-    try {
-      const summary = await getAssessmentImportValueSummary(30, projectId);
-      if (valueSummaryRequestIdRef.current !== requestId) {
+  const loadImportValueSummary = useCallback(
+    async (projectId: string, options?: { force?: boolean }) => {
+      if (importValueSummaryLoading && !options?.force) {
         return;
       }
-      if (activeProject?.id !== projectId) {
-        return;
+      const requestId = valueSummaryRequestIdRef.current + 1;
+      valueSummaryRequestIdRef.current = requestId;
+      setImportValueSummaryLoading(true);
+      try {
+        const summary = await getAssessmentImportValueSummary(30, projectId);
+        if (valueSummaryRequestIdRef.current !== requestId) {
+          return;
+        }
+        if (activeProject?.id !== projectId) {
+          return;
+        }
+        setImportValueSummary(summary);
+      } catch {
+        if (valueSummaryRequestIdRef.current !== requestId) {
+          return;
+        }
+        setImportValueSummary(null);
+      } finally {
+        if (valueSummaryRequestIdRef.current === requestId) {
+          setImportValueSummaryLoading(false);
+        }
       }
-      setImportValueSummary(summary);
-    } catch {
-      if (valueSummaryRequestIdRef.current !== requestId) {
-        return;
-      }
-      setImportValueSummary(null);
-    } finally {
-      if (valueSummaryRequestIdRef.current === requestId) {
-        setImportValueSummaryLoading(false);
-      }
-    }
-  }, [activeProject?.id, importValueSummaryLoading]);
+    },
+    [activeProject?.id, importValueSummaryLoading],
+  );
 
   useEffect(() => {
     if (!expanded || !activeProject || artifactCandidatesLoaded || artifactCandidatesLoading) {
       return;
     }
     void loadArtifactCandidates(activeProject.id);
-  }, [
-    expanded,
-    activeProject,
-    artifactCandidatesLoaded,
-    artifactCandidatesLoading,
-    loadArtifactCandidates,
-  ]);
+  }, [expanded, activeProject, artifactCandidatesLoaded, artifactCandidatesLoading, loadArtifactCandidates]);
 
   useEffect(() => {
     if (!expanded || !activeProject || importValueSummaryLoading || importValueSummary !== null) {
       return;
     }
     void loadImportValueSummary(activeProject.id);
-  }, [
-    expanded,
-    activeProject,
-    importValueSummaryLoading,
-    importValueSummary,
-    loadImportValueSummary,
-  ]);
+  }, [expanded, activeProject, importValueSummaryLoading, importValueSummary, loadImportValueSummary]);
 
-  const executeImportAssessment = useCallback(async (
-    rawArtifactId: string,
-    trigger: AssessmentImportMetricTrigger,
-  ) => {
-    if (!activeProject) {return;}
-    const artifactId = rawArtifactId.trim();
-    if (!artifactId) {
-      toastError(t('milestone.importArtifactRequired'));
-      return;
-    }
-    const metricContextKey = activeProject.id;
-    recordAssessmentImportAttempted(trigger, { contextKey: metricContextKey });
-    setImportArtifactId(artifactId);
-    setImporting(true);
-    try {
-      const receipt = await importAssessment(activeProject.id, { artifact_id: artifactId });
-      recordAssessmentImportSucceeded(trigger, { contextKey: metricContextKey });
-      setImportArtifactId('');
-      setLastImportSummary({ milestones: receipt.total_milestones, tasks: receipt.total_tasks });
-      setArtifactCandidatesLoaded(false);
-      void loadImportValueSummary(activeProject.id, { force: true });
-      toastSuccess(
-        t('milestone.importSuccess', {
-          milestones: receipt.total_milestones,
-          tasks: receipt.total_tasks,
-        }),
-      );
-    } catch (error) {
-      recordAssessmentImportFailed(trigger, resolveAssessmentImportFailureReason(error), {
-        contextKey: metricContextKey,
-      });
-      toastError(resolveAssessmentImportErrorMessage(error, t));
-    } finally {
-      setImporting(false);
-    }
-  }, [activeProject, importAssessment, loadImportValueSummary, toastError, toastSuccess, t]);
+  const executeImportAssessment = useCallback(
+    async (rawArtifactId: string, trigger: AssessmentImportMetricTrigger) => {
+      if (!activeProject) {
+        return;
+      }
+      const artifactId = rawArtifactId.trim();
+      if (!artifactId) {
+        toastError(t('milestone.importArtifactRequired'));
+        return;
+      }
+      const metricContextKey = activeProject.id;
+      recordAssessmentImportAttempted(trigger, { contextKey: metricContextKey });
+      setImportArtifactId(artifactId);
+      setImporting(true);
+      try {
+        const receipt = await importAssessment(activeProject.id, { artifact_id: artifactId });
+        recordAssessmentImportSucceeded(trigger, { contextKey: metricContextKey });
+        setImportArtifactId('');
+        setLastImportSummary({ milestones: receipt.total_milestones, tasks: receipt.total_tasks });
+        setArtifactCandidatesLoaded(false);
+        void loadImportValueSummary(activeProject.id, { force: true });
+        toastSuccess(
+          t('milestone.importSuccess', {
+            milestones: receipt.total_milestones,
+            tasks: receipt.total_tasks,
+          }),
+        );
+      } catch (error) {
+        recordAssessmentImportFailed(trigger, resolveAssessmentImportFailureReason(error), {
+          contextKey: metricContextKey,
+        });
+        toastError(resolveAssessmentImportErrorMessage(error, t));
+      } finally {
+        setImporting(false);
+      }
+    },
+    [activeProject, importAssessment, loadImportValueSummary, toastError, toastSuccess, t],
+  );
 
   const handleImportAssessment = useCallback(async () => {
     await executeImportAssessment(importArtifactId, 'manual_input');
@@ -262,7 +272,9 @@ export default function ProjectMilestonePanel() {
     });
   }, [artifactCandidates, importArtifactId]);
 
-  if (!activeProject) {return null;}
+  if (!activeProject) {
+    return null;
+  }
 
   const activeMilestones = milestones.filter((m) => m.status === 'active');
   const completedMilestones = milestones.filter((m) => m.status === 'completed');
@@ -313,7 +325,9 @@ export default function ProjectMilestonePanel() {
               onChange={(e) => setInputValue(e.target.value)}
               onBlur={handleAddSubmit}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {handleAddSubmit();}
+                if (e.key === 'Enter') {
+                  handleAddSubmit();
+                }
                 if (e.key === 'Escape') {
                   setShowInput(false);
                   setInputValue('');
@@ -356,7 +370,9 @@ export default function ProjectMilestonePanel() {
               <span>{importing ? t('milestone.importing') : t('milestone.importAction')}</span>
             </button>
             <div className="space-y-0.5">
-              <div className="text-[11px] sm:text-[10px] text-muted-foreground/55">{t('milestone.importRecentLabel')}</div>
+              <div className="text-[11px] sm:text-[10px] text-muted-foreground/55">
+                {t('milestone.importRecentLabel')}
+              </div>
               {artifactCandidatesLoading ? (
                 <div className="text-[11px] sm:text-[10px] text-muted-foreground/45">{t('common.loading')}</div>
               ) : artifactCandidatesLoadFailed ? (
@@ -397,7 +413,9 @@ export default function ProjectMilestonePanel() {
                   ))}
                 </div>
               ) : (
-                <div className="text-[11px] sm:text-[10px] text-muted-foreground/45">{t('milestone.importRecentEmpty')}</div>
+                <div className="text-[11px] sm:text-[10px] text-muted-foreground/45">
+                  {t('milestone.importRecentEmpty')}
+                </div>
               )}
             </div>
             {lastImportSummary && (
@@ -450,7 +468,9 @@ function MilestoneRow({
   const hasTasks = progress && progress.totalTasks > 0;
 
   useEffect(() => {
-    if (editing) {editRef.current?.focus();}
+    if (editing) {
+      editRef.current?.focus();
+    }
   }, [editing]);
 
   const commitRename = () => {
@@ -483,7 +503,9 @@ function MilestoneRow({
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={commitRename}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {commitRename();}
+                if (e.key === 'Enter') {
+                  commitRename();
+                }
                 if (e.key === 'Escape') {
                   setEditing(false);
                   setEditValue(milestone.title);
@@ -527,9 +549,7 @@ function MilestoneRow({
       {open && hasDetails && (
         <div className="ml-4 mt-0.5 text-[9px] text-muted-foreground/60 space-y-0.5">
           {milestone.description && <p className="line-clamp-2">{milestone.description}</p>}
-          {milestone.acceptanceCriteria && (
-            <p className="line-clamp-1 italic">{milestone.acceptanceCriteria}</p>
-          )}
+          {milestone.acceptanceCriteria && <p className="line-clamp-1 italic">{milestone.acceptanceCriteria}</p>}
         </div>
       )}
     </div>

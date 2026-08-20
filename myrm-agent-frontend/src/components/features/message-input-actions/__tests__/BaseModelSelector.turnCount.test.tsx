@@ -3,10 +3,11 @@ import { render } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockChatMessages = vi.hoisted(
-  () => [] as Array<{
-    role: string;
-    contextBudget?: { turn_count?: number; current_tokens?: number; messages_estimated_tokens?: number };
-  }>,
+  () =>
+    [] as Array<{
+      role: string;
+      contextBudget?: { turn_count?: number; current_tokens?: number; messages_estimated_tokens?: number };
+    }>,
 );
 const mockAgentConfig = vi.hoisted(() => ({ engineParams: { compress_start_ratio: 0.4 }, promptMode: 'full' }));
 

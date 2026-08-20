@@ -17,14 +17,25 @@ vi.mock('../handlerDeps', () => {
     AgentEventType,
     findAssistantMessageIndex: vi.fn(() => 0),
     ensureAssistantStreamMessage: (
-      messages: Array<{ messageId: string; role: string; chatId: string; content: string; progressSteps: unknown[]; createdAt: Date }>,
+      messages: Array<{
+        messageId: string;
+        role: string;
+        chatId: string;
+        content: string;
+        progressSteps: unknown[];
+        createdAt: Date;
+      }>,
       messageId: string | undefined,
       chatIdFallback: string,
     ) => {
       const normalizedId = messageId?.trim();
-      if (!normalizedId) {return -1;}
+      if (!normalizedId) {
+        return -1;
+      }
       const existing = messages.findIndex((m) => m.messageId === normalizedId && m.role === 'assistant');
-      if (existing !== -1) {return existing;}
+      if (existing !== -1) {
+        return existing;
+      }
       messages.push({
         content: '',
         messageId: normalizedId,
@@ -38,10 +49,7 @@ vi.mock('../handlerDeps', () => {
     parseArchiveRestoreBlockPayload: vi.fn(),
     parseArchiveRestoreResultPayload: vi.fn(),
     buildArchiveRestoreActions: vi.fn(() => []),
-    discardStreamedDraft: (ctx: {
-      recievedMessage: string;
-      state?: { scheduler?: { cancel?: () => void } };
-    }) => {
+    discardStreamedDraft: (ctx: { recievedMessage: string; state?: { scheduler?: { cancel?: () => void } } }) => {
       ctx.recievedMessage = '';
       ctx.state?.scheduler?.cancel?.();
     },
@@ -91,7 +99,10 @@ function makeWaitingCtx(stepKey: string): StreamCtx {
       step_key: stepKey,
       messageId: 'msg-1',
       status: stepKey === 'waiting_for_turn_clear' ? 'success' : 'waiting',
-      data: stepKey === 'waiting_for_turn' ? { message: 'Waiting for other agents in the project to finish...' } : undefined,
+      data:
+        stepKey === 'waiting_for_turn'
+          ? { message: 'Waiting for other agents in the project to finish...' }
+          : undefined,
     } as never,
     input: '',
     sources: undefined,
@@ -143,7 +154,14 @@ describe('statusStreamEvents waiting_for_turn', () => {
           role: 'user' as const,
           createdAt: new Date(),
         },
-      ] as Array<{ content: string; messageId: string; chatId: string; role: string; createdAt: Date; progressSteps?: Array<{ step_key?: string }> }>,
+      ] as Array<{
+        content: string;
+        messageId: string;
+        chatId: string;
+        role: string;
+        createdAt: Date;
+        progressSteps?: Array<{ step_key?: string }>;
+      }>,
     };
     const setMessages = vi.fn((updater: (s: typeof state) => void) => {
       updater(state);

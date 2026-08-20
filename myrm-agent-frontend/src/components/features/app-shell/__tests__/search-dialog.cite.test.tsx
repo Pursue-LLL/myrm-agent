@@ -49,10 +49,9 @@ vi.mock('@/services/chat', () => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: Object.assign(
-    (selector: (state: typeof mockChatState) => unknown) => selector(mockChatState),
-    { getState: () => mockChatState },
-  ),
+  default: Object.assign((selector: (state: typeof mockChatState) => unknown) => selector(mockChatState), {
+    getState: () => mockChatState,
+  }),
 }));
 
 const searchItem: SearchResult = {

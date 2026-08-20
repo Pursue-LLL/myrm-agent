@@ -17,7 +17,11 @@ export function useResearchSync() {
   const removeMentionReferencesByTypes = useChatStore((s) => s.removeMentionReferencesByTypes);
 
   const selectedKey = useMemo(
-    () => resources.filter((r) => r.selected).map((r) => r.id).join(','),
+    () =>
+      resources
+        .filter((r) => r.selected)
+        .map((r) => r.id)
+        .join(','),
     [resources],
   );
 
@@ -26,21 +30,22 @@ export function useResearchSync() {
 
     const selected = resources.filter((r) => r.selected);
     for (const resource of selected) {
-      const ref: MentionReference = resource.type === 'concept'
-        ? {
-            type: 'wiki_concept',
-            label: resource.name,
-            source: 'special',
-            size: null,
-            conceptName: resource.name,
-          }
-        : {
-            type: 'wiki_raw_file',
-            label: resource.name,
-            path: resource.id.replace('file:', ''),
-            source: 'special',
-            size: null,
-          };
+      const ref: MentionReference =
+        resource.type === 'concept'
+          ? {
+              type: 'wiki_concept',
+              label: resource.name,
+              source: 'special',
+              size: null,
+              conceptName: resource.name,
+            }
+          : {
+              type: 'wiki_raw_file',
+              label: resource.name,
+              path: resource.id.replace('file:', ''),
+              source: 'special',
+              size: null,
+            };
       addMentionReference(ref);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

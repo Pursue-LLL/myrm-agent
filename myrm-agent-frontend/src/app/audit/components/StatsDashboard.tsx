@@ -31,7 +31,9 @@ const StatsDashboard = () => {
     setLoading(true);
     try {
       const response = await fetch('/api/v1/audit/bash/stats');
-      if (!response.ok) {throw new Error('Failed to fetch stats');}
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
 
       const data = await response.json();
       setStats(data);

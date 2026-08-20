@@ -12,8 +12,7 @@ const stableT: (key: string) => string = (key) => {
     'badges.bundled': 'Bundled files',
     'serverState.enabled': 'Active',
     'serverState.disabled': 'Disabled',
-    'serverState.disabledHint':
-      'Enable this MCP server in MCP Settings before using it',
+    'serverState.disabledHint': 'Enable this MCP server in MCP Settings before using it',
     'actions.refresh': 'Refresh',
     'actions.close': 'Close',
     'actions.cancel': 'Cancel',
@@ -51,15 +50,9 @@ vi.mock('sonner', () => ({
 vi.mock('@/components/primitives/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div data-testid="dialog">{children}</div> : null,
-  DialogContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dialog-content">{children}</div>
-  ),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dialog-header">{children}</div>
-  ),
-  DialogTitle: ({ children }: { children: React.ReactNode }) => (
-    <h2 data-testid="dialog-title">{children}</h2>
-  ),
+  DialogContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-content">{children}</div>,
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-header">{children}</div>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2 data-testid="dialog-title">{children}</h2>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => (
     <p data-testid="dialog-description">{children}</p>
   ),
@@ -155,10 +148,6 @@ describe('PluginManagerDialog', () => {
 
     render(<PluginManagerDialog {...baseProps} />);
 
-    await waitFor(() =>
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({ variant: 'destructive' }),
-      ),
-    );
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
   });
 });

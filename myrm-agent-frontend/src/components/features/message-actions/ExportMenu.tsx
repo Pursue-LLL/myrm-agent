@@ -39,7 +39,9 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
 
   const withGuard = useCallback(
     async (fn: () => Promise<void>) => {
-      if (exportingRef.current) {return;}
+      if (exportingRef.current) {
+        return;
+      }
       exportingRef.current = true;
       setExporting(true);
       try {
@@ -69,10 +71,14 @@ export default function ExportMenu({ message, markdownRef }: ExportMenuProps) {
 
   const handleImage = useCallback(() => {
     const el = markdownRef.current;
-    if (!el) {return;}
+    if (!el) {
+      return;
+    }
     if (message.content.length > LONG_CONTENT_THRESHOLD) {
       const confirmed = window.confirm(t('exportMessage.longContentWarning'));
-      if (!confirmed) {return;}
+      if (!confirmed) {
+        return;
+      }
     }
     void withGuard(() => downloadMessageAsImage(el, message));
   }, [markdownRef, message, t, withGuard]);

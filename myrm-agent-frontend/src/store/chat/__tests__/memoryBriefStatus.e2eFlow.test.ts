@@ -90,9 +90,8 @@ vi.mock('../messageStream/handlers/handlerDeps', () => ({
     FILE_MUTATION_FAILED: 'file_mutation_failed',
     MESSAGE_END: 'message_end',
   },
-  findAssistantMessageIndex: vi.fn(
-    (messages: Array<{ messageId: string; role: string }>, messageId: string) =>
-      messages.findIndex((msg) => msg.role === 'assistant' && msg.messageId === messageId)
+  findAssistantMessageIndex: vi.fn((messages: Array<{ messageId: string; role: string }>, messageId: string) =>
+    messages.findIndex((msg) => msg.role === 'assistant' && msg.messageId === messageId),
   ),
   normalizeGoalState: vi.fn(),
   useChatStore: {
@@ -230,9 +229,6 @@ describe('memoryBriefStatus end-to-end flow', () => {
 
     const hydratedStatus = chatState.messages[0]?.memoryBriefStatus;
     expect(hydratedStatus).toEqual(streamedStatus);
-    expect(resolveBriefUnavailableDescriptionKey(hydratedStatus)).toBe(
-      'briefUnavailableDescriptionToolsMode'
-    );
+    expect(resolveBriefUnavailableDescriptionKey(hydratedStatus)).toBe('briefUnavailableDescriptionToolsMode');
   });
 });
-

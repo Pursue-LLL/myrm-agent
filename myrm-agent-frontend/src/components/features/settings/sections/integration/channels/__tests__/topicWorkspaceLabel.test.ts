@@ -37,10 +37,7 @@ describe('resolveTopicWorkspaceDisplayLabel', () => {
 
   it('returns null when no workspace is bound', () => {
     expect(
-      resolveTopicWorkspaceDisplayLabel(
-        { projectId: null, authorizedPath: null, workspaceLabel: null },
-        projects,
-      ),
+      resolveTopicWorkspaceDisplayLabel({ projectId: null, authorizedPath: null, workspaceLabel: null }, projects),
     ).toBeNull();
   });
 });

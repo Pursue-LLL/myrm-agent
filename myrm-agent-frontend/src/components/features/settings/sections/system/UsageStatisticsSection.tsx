@@ -130,7 +130,9 @@ function UsageStatisticsSection() {
     );
   }
 
-  if (!stats) {return null;}
+  if (!stats) {
+    return null;
+  }
 
   return localizeReactNode(
     <div className="space-y-6">

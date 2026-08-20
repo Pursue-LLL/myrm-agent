@@ -49,13 +49,7 @@ interface FilePreview {
   skippedCount: number;
 }
 
-export function RewindDialog({
-  open,
-  onOpenChange,
-  chatId,
-  messageId,
-  messageIndex,
-}: RewindDialogProps) {
+export function RewindDialog({ open, onOpenChange, chatId, messageId, messageIndex }: RewindDialogProps) {
   const { toast } = useToast();
   const t = useTranslations('chat.rewind');
   const [isRewinding, setIsRewinding] = useState(false);
@@ -67,7 +61,9 @@ export function RewindDialog({
   });
 
   useEffect(() => {
-    if (!open) {return;}
+    if (!open) {
+      return;
+    }
 
     let cancelled = false;
     setPreview({ status: 'checking', fileCount: 0, skippedCount: 0 });
@@ -90,7 +86,9 @@ export function RewindDialog({
             const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${mid}`, {
               headers: getAuthHeaders(),
             });
-            if (!res.ok) {return [] as FileChangeInfo[];}
+            if (!res.ok) {
+              return [] as FileChangeInfo[];
+            }
             const body = (await res.json()) as unknown;
             return Array.isArray(body) ? (body as FileChangeInfo[]) : [];
           } catch {
@@ -98,7 +96,9 @@ export function RewindDialog({
           }
         }),
       );
-      if (cancelled) {return;}
+      if (cancelled) {
+        return;
+      }
 
       const revertiblePaths = new Set<string>();
       const skippedPaths = new Set<string>();
@@ -136,9 +136,7 @@ export function RewindDialog({
       const payload = envelope.data ?? (response as RewindResult);
       const composerRaw = typeof payload.composer_text === 'string' ? payload.composer_text : '';
       const activation = parseExplicitSkillActivation(composerRaw);
-      const composerText = activation
-        ? activation.instruction
-        : stripUserMessageDisplayText(composerRaw);
+      const composerText = activation ? activation.instruction : stripUserMessageDisplayText(composerRaw);
 
       useChatStore.setState((state) => ({
         messages: state.messages.slice(0, messageIndex),
@@ -213,15 +211,11 @@ export function RewindDialog({
                   type="button"
                   onClick={() => setScope(option.value)}
                   className={`rounded-lg border p-3 text-left transition-colors ${
-                    active
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:bg-muted'
+                    active ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
                   }`}
                 >
                   <span className="block text-sm font-medium">{option.title}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {option.description}
-                  </span>
+                  <span className="block text-xs text-muted-foreground">{option.description}</span>
                 </button>
               );
             })}
@@ -231,17 +225,13 @@ export function RewindDialog({
             <p className="text-sm text-muted-foreground">{t('filesChecking')}</p>
           )}
           {scope === 'both' && preview.status === 'ready' && (
-            <p className="text-sm text-muted-foreground">
-              {t('fileRevertSummary', { count: preview.fileCount })}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('fileRevertSummary', { count: preview.fileCount })}</p>
           )}
           {scope === 'both' && preview.status === 'empty' && (
             <p className="text-sm text-muted-foreground">{t('noFileSnapshots')}</p>
           )}
           {scope === 'both' && preview.skippedCount > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {t('filesSkippedNotice', { count: preview.skippedCount })}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('filesSkippedNotice', { count: preview.skippedCount })}</p>
           )}
         </div>
 

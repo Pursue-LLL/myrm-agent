@@ -2,16 +2,7 @@
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  AlertTriangle,
-  ArrowRight,
-  Check,
-  GitMerge,
-  RotateCcw,
-  Trash2,
-  Clock,
-  Pencil,
-} from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, GitMerge, RotateCcw, Trash2, Clock, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { PendingMemory, ConflictResolution } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
@@ -34,7 +25,9 @@ const formatDate = (dateString: string) => {
 
 const formatTimeRemaining = (autoResolveAt: string, t: ReturnType<typeof useTranslations<'memory'>>): string => {
   const diff = new Date(autoResolveAt).getTime() - Date.now();
-  if (diff <= 0) {return t('conflict.autoResolveSoon', { defaultMessage: '即将自动解决' });}
+  if (diff <= 0) {
+    return t('conflict.autoResolveSoon', { defaultMessage: '即将自动解决' });
+  }
   const minutes = Math.floor(diff / (1000 * 60));
   if (minutes < 60) {
     return t('conflict.autoResolveInMinutes', { minutes, defaultMessage: '{minutes}分钟后自动保留旧记忆' });
@@ -51,9 +44,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
   const t = useTranslations('memory');
   const [resolving, setResolving] = useState(false);
   const [showMergeEditor, setShowMergeEditor] = useState(false);
-  const [mergedContent, setMergedContent] = useState(
-    conflict.extra_data?.merge_suggestion as string || '',
-  );
+  const [mergedContent, setMergedContent] = useState((conflict.extra_data?.merge_suggestion as string) || '');
 
   const handleResolve = useCallback(
     async (resolution: ConflictResolution, content?: string) => {
@@ -67,9 +58,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
     [conflict.id, onResolve],
   );
 
-  const importancePercent = conflict.conflict_importance
-    ? Math.round(conflict.conflict_importance * 100)
-    : null;
+  const importancePercent = conflict.conflict_importance ? Math.round(conflict.conflict_importance * 100) : null;
 
   // High-risk conflicts (server keeps auto_resolve_at None) never auto-resolve.
   // isHighRisk is the authoritative signal from the server; the badge follows it
@@ -91,10 +80,20 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
     >
       {/* Header */}
       <div className="flex flex-wrap items-center gap-2 px-4 pt-4 pb-2">
-        <div className={cn('flex items-center justify-center h-7 w-7 rounded-lg', isHighRisk ? 'bg-red-600/15' : 'bg-amber-500/15')}>
+        <div
+          className={cn(
+            'flex items-center justify-center h-7 w-7 rounded-lg',
+            isHighRisk ? 'bg-red-600/15' : 'bg-amber-500/15',
+          )}
+        >
           <AlertTriangle size={16} className={isHighRisk ? 'text-red-500' : 'text-amber-500'} />
         </div>
-        <span className={cn('text-xs font-semibold uppercase tracking-wide', isHighRisk ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400')}>
+        <span
+          className={cn(
+            'text-xs font-semibold uppercase tracking-wide',
+            isHighRisk ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400',
+          )}
+        >
           {t('conflict.title', { defaultMessage: '记忆冲突' })}
         </span>
         <MemoryTypeIcon type={conflict.memory_type} size={14} showBackground />
@@ -110,9 +109,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
                     : 'bg-muted text-muted-foreground',
               )}
             >
-              {showHighRiskBadge
-                ? `${t('conflict.highRisk', { defaultMessage: '高风险' })} · `
-                : ''}
+              {showHighRiskBadge ? `${t('conflict.highRisk', { defaultMessage: '高风险' })} · ` : ''}
               {t('conflict.importance', { defaultMessage: '重要度' })} {importancePercent}%
             </span>
           )}
@@ -157,9 +154,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
               {t('conflict.newMemory', { defaultMessage: '新提取内容' })}
             </span>
           </div>
-          <p className="text-sm text-foreground leading-relaxed line-clamp-4">
-            {conflict.content}
-          </p>
+          <p className="text-sm text-foreground leading-relaxed line-clamp-4">{conflict.content}</p>
         </div>
 
         {/* Merge editor */}
@@ -190,7 +185,8 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
           <span>{formatDate(conflict.created_at)}</span>
           {conflict.conflict_accuracy_score !== undefined && conflict.conflict_accuracy_score !== null && (
             <span>
-              {t('conflict.accuracy', { defaultMessage: '准确度' })}: {Math.round(conflict.conflict_accuracy_score * 100)}%
+              {t('conflict.accuracy', { defaultMessage: '准确度' })}:{' '}
+              {Math.round(conflict.conflict_accuracy_score * 100)}%
             </span>
           )}
         </div>

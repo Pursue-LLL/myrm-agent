@@ -20,7 +20,9 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@/store/useAgentStore', () => ({
-  default: (selector: (state: { agents: { id: string; name: string }[]; fetchAgents: typeof mockFetchAgents }) => unknown) =>
+  default: (
+    selector: (state: { agents: { id: string; name: string }[]; fetchAgents: typeof mockFetchAgents }) => unknown,
+  ) =>
     selector({
       agents: [{ id: 'agent-1', name: 'Work Assistant' }],
       fetchAgents: mockFetchAgents,

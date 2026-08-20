@@ -73,9 +73,7 @@ export default function ExtensionTakeoverBanner() {
             <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
               {awaitingUser ? t('takeoverExtensionHint') : t('takeoverCaptchaAutoHint')}
             </p>
-            {reason ? (
-              <p className="text-xs leading-relaxed text-foreground/80 line-clamp-3">{reason}</p>
-            ) : null}
+            {reason ? <p className="text-xs leading-relaxed text-foreground/80 line-clamp-3">{reason}</p> : null}
             {url ? (
               <p className="truncate text-[11px] text-muted-foreground" title={url}>
                 {url}
@@ -95,7 +93,9 @@ export default function ExtensionTakeoverBanner() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {return;}
+                    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+                      return;
+                    }
                     void navigator.clipboard.writeText(liveAssistUrl);
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-background"

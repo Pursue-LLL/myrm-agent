@@ -150,7 +150,9 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
             const filters: Record<string, string> = {};
             s.filters.split(',').forEach((pair) => {
               const [k, v] = pair.split('=').map((x) => x.trim());
-              if (k && v) {filters[k] = v;}
+              if (k && v) {
+                filters[k] = v;
+              }
             });
             return { source: s.source.trim(), event_type: s.event_type.trim(), filters };
           }),

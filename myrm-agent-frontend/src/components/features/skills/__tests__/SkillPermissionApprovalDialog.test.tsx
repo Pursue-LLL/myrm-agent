@@ -53,8 +53,7 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('@/components/primitives/dialog', () => ({
-  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
-    open ? <div>{children}</div> : null,
+  Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) => (open ? <div>{children}</div> : null),
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -63,7 +62,15 @@ vi.mock('@/components/primitives/dialog', () => ({
 }));
 
 vi.mock('@/components/primitives/button', () => ({
-  Button: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+  }) => (
     <button type="button" onClick={onClick} disabled={disabled}>
       {children}
     </button>
@@ -92,11 +99,7 @@ vi.mock('@/components/primitives/select', () => ({
   SelectValue: () => null,
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <button
-      type="button"
-      data-testid={`template-${value}`}
-      onClick={() => selectState.onValueChange?.(value)}
-    >
+    <button type="button" data-testid={`template-${value}`} onClick={() => selectState.onValueChange?.(value)}>
       {children}
     </button>
   ),
@@ -205,13 +208,7 @@ describe('SkillPermissionApprovalDialog', () => {
 
   it('renders nothing when request is null', () => {
     const { container } = render(
-      <SkillPermissionApprovalDialog
-        open
-        request={null}
-        onOpenChange={vi.fn()}
-        onApprove={vi.fn()}
-        onDeny={vi.fn()}
-      />,
+      <SkillPermissionApprovalDialog open request={null} onOpenChange={vi.fn()} onApprove={vi.fn()} onDeny={vi.fn()} />,
     );
     expect(container.firstChild).toBeNull();
   });

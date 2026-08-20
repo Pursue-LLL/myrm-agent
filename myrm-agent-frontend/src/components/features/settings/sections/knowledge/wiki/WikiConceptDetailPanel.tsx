@@ -12,7 +12,12 @@ import { WikiMarkdownEditor } from './WikiMarkdownEditor';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
-import { claimStatusClass, claimStatusLabel, formatClaimConfidence, shouldShowClaimConfidence } from '@/lib/wiki/claimStatusDisplay';
+import {
+  claimStatusClass,
+  claimStatusLabel,
+  formatClaimConfidence,
+  shouldShowClaimConfidence,
+} from '@/lib/wiki/claimStatusDisplay';
 
 interface WikiConceptDetailPanelProps {
   selectedConcept: Concept | null;
@@ -151,7 +156,11 @@ export function WikiConceptDetailPanel({
                     onChange={onEditCompiledTruthChange}
                     placeholder={t('editTruthPlaceholder')}
                     messageIdSuffix="truth"
-                    onSaveShortcut={() => { if (!isSaving) {onSave();} }}
+                    onSaveShortcut={() => {
+                      if (!isSaving) {
+                        onSave();
+                      }
+                    }}
                     className="flex-1"
                   />
                 )}
@@ -207,7 +216,11 @@ export function WikiConceptDetailPanel({
                       onChange={onEditContentChange}
                       placeholder={t('editPlaceholder')}
                       messageIdSuffix="advanced"
-                      onSaveShortcut={() => { if (!isSaving) {onSave();} }}
+                      onSaveShortcut={() => {
+                        if (!isSaving) {
+                          onSave();
+                        }
+                      }}
                       className="flex-1"
                     />
                   </div>

@@ -21,7 +21,9 @@ const MobileDragButton = memo<MobileDragButtonProps>(({ isScrolling, onToggle })
 
   const updateButtonPosition = useCallback(
     (offset: { x: number; y: number }, animate = false) => {
-      if (!buttonRef.current) {return;}
+      if (!buttonRef.current) {
+        return;
+      }
 
       const windowHeight = window.innerHeight;
       const currentY = (buttonPosition / 100) * windowHeight + offset.y;
@@ -65,7 +67,9 @@ const MobileDragButton = memo<MobileDragButtonProps>(({ isScrolling, onToggle })
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      if (!isDragging) {return;}
+      if (!isDragging) {
+        return;
+      }
 
       const touch = e.touches[0];
       const newOffset = {
@@ -80,7 +84,9 @@ const MobileDragButton = memo<MobileDragButtonProps>(({ isScrolling, onToggle })
   );
 
   const handleTouchEnd = useCallback(() => {
-    if (!isDragging) {return;}
+    if (!isDragging) {
+      return;
+    }
 
     setIsDragging(false);
 
@@ -89,7 +95,9 @@ const MobileDragButton = memo<MobileDragButtonProps>(({ isScrolling, onToggle })
     }
 
     const newPosition = updateButtonPosition(currentOffset, true);
-    if (newPosition) {setButtonPosition(newPosition);}
+    if (newPosition) {
+      setButtonPosition(newPosition);
+    }
 
     setCurrentOffset({ x: 0, y: 0 });
   }, [isDragging, currentOffset, onToggle, updateButtonPosition]);

@@ -53,16 +53,19 @@ export default function ThemeOnboardingStep({ onComplete, onSkip }: ThemeOnboard
       <ThemePresetGrid
         profiles={presets}
         activeProfileId={selectedId}
-        labelForProfile={(profile) =>
-          tAppearance(`presets.${profile.id}` as 'presets.official-default')
-        }
+        labelForProfile={(profile) => tAppearance(`presets.${profile.id}` as 'presets.official-default')}
         onSelect={setSelectedId}
       />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-center sm:gap-3">
         <Button type="button" variant="ghost" disabled={busy} onClick={onSkip}>
           {t('skipButton')}
         </Button>
-        <Button type="button" disabled={busy} onClick={() => void handleContinue()} className="inline-flex items-center gap-2">
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => void handleContinue()}
+          className="inline-flex items-center gap-2"
+        >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
           {t('continueButton')}
         </Button>

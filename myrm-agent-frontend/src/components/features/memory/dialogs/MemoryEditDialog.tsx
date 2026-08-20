@@ -52,45 +52,57 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
 
   const addTag = useCallback((raw: string) => {
     const tag = raw.trim().toLowerCase();
-    if (!tag) {return;}
-    setTags((prev) => prev.includes(tag) ? prev : [...prev, tag]);
+    if (!tag) {
+      return;
+    }
+    setTags((prev) => (prev.includes(tag) ? prev : [...prev, tag]));
   }, []);
 
   const removeTag = useCallback((tag: string) => {
     setTags((prev) => prev.filter((t) => t !== tag));
   }, []);
 
-  const handleTagKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
-      e.preventDefault();
-      addTag(tagInput);
-      setTagInput('');
-    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
-      removeTag(tags[tags.length - 1]);
-    }
-  }, [tagInput, tags, addTag, removeTag]);
+  const handleTagKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+        e.preventDefault();
+        addTag(tagInput);
+        setTagInput('');
+      } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+        removeTag(tags[tags.length - 1]);
+      }
+    },
+    [tagInput, tags, addTag, removeTag],
+  );
 
   const canEdit = memory && EDITABLE_TYPES.includes(memory.memory_type);
 
   const tagsChanged = memory && JSON.stringify(tags) !== JSON.stringify(memory.tags ?? []);
 
   const isChanged =
-    memory && (
-      content.trim() !== memory.content || 
+    memory &&
+    (content.trim() !== memory.content ||
       reasoning.trim() !== (memory.reasoning ?? '') ||
       application.trim() !== (memory.application ?? '') ||
       parseFloat(importance) !== (memory.importance ?? 0.5) ||
-      tagsChanged
-    );
+      tagsChanged);
 
   const handleSave = useCallback(async () => {
-    if (!memory || !canEdit || !isChanged) {return;}
+    if (!memory || !canEdit || !isChanged) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       await updateMemory(memory.memory_type, memory.id, {
         content: content.trim() !== memory.content ? content.trim() : undefined,
-        reasoning: memory.memory_type === 'procedural' && reasoning.trim() !== (memory.reasoning ?? '') ? reasoning.trim() : undefined,
-        application: memory.memory_type === 'procedural' && application.trim() !== (memory.application ?? '') ? application.trim() : undefined,
+        reasoning:
+          memory.memory_type === 'procedural' && reasoning.trim() !== (memory.reasoning ?? '')
+            ? reasoning.trim()
+            : undefined,
+        application:
+          memory.memory_type === 'procedural' && application.trim() !== (memory.application ?? '')
+            ? application.trim()
+            : undefined,
         importance: parseFloat(importance) !== (memory.importance ?? 0.5) ? parseFloat(importance) : undefined,
         tags: tagsChanged ? tags : undefined,
       });
@@ -105,9 +117,24 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
     } finally {
       setIsSubmitting(false);
     }
-  }, [memory, canEdit, isChanged, content, reasoning, application, importance, tags, tagsChanged, updateMemory, onOpenChange, t]);
+  }, [
+    memory,
+    canEdit,
+    isChanged,
+    content,
+    reasoning,
+    application,
+    importance,
+    tags,
+    tagsChanged,
+    updateMemory,
+    onOpenChange,
+    t,
+  ]);
 
-  if (!memory) {return null;}
+  if (!memory) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -173,7 +200,10 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
                       onChange={(e) => setTagInput(e.target.value)}
                       onKeyDown={handleTagKeyDown}
                       onBlur={() => {
-                        if (tagInput.trim()) { addTag(tagInput); setTagInput(''); }
+                        if (tagInput.trim()) {
+                          addTag(tagInput);
+                          setTagInput('');
+                        }
                       }}
                       placeholder={tags.length === 0 ? t('createDialog.tagsPlaceholder') : ''}
                       className="flex-1 min-w-[80px] bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
@@ -186,7 +216,9 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
             {memory.memory_type === 'procedural' && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label htmlFor="memory-reasoning-input" className="text-xs font-medium text-muted-foreground">Why (Context/Rationale)</label>
+                  <label htmlFor="memory-reasoning-input" className="text-xs font-medium text-muted-foreground">
+                    Why (Context/Rationale)
+                  </label>
                   <input
                     id="memory-reasoning-input"
                     type="text"
@@ -199,12 +231,14 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
                       'text-sm text-foreground placeholder:text-muted-foreground/50',
                       'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50',
                       'transition-all duration-200',
-                      !canEdit && 'opacity-60 cursor-not-allowed'
+                      !canEdit && 'opacity-60 cursor-not-allowed',
                     )}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="memory-application-input" className="text-xs font-medium text-muted-foreground">How (Nuances/Boundaries)</label>
+                  <label htmlFor="memory-application-input" className="text-xs font-medium text-muted-foreground">
+                    How (Nuances/Boundaries)
+                  </label>
                   <input
                     id="memory-application-input"
                     type="text"
@@ -217,7 +251,7 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
                       'text-sm text-foreground placeholder:text-muted-foreground/50',
                       'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50',
                       'transition-all duration-200',
-                      !canEdit && 'opacity-60 cursor-not-allowed'
+                      !canEdit && 'opacity-60 cursor-not-allowed',
                     )}
                   />
                 </div>

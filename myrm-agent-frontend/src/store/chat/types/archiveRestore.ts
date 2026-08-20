@@ -1,7 +1,7 @@
 /**
  * [OUTPUT]
  * ArchiveRestoreAction, ArchiveRestoreBlockPayload, ArchiveRestoreResultPayload 等。
- * 
+ *
  * [POS]
  * 归档恢复 SSE/进度条 payload 契约。
  */

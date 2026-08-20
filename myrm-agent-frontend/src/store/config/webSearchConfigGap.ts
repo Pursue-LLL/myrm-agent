@@ -44,9 +44,7 @@ export function resolveWebSearchConfigGapActionLabel(isZh?: boolean): string {
 /**
  * Run search config gap CTA: local quick-enable when available, else navigate to settings.
  */
-export async function runWebSearchConfigGapAction(
-  settingsPath: string = SEARCH_SETTINGS_PATH,
-): Promise<void> {
+export async function runWebSearchConfigGapAction(settingsPath: string = SEARCH_SETTINGS_PATH): Promise<void> {
   if (isLocalMode()) {
     const { probeAndBuildQuickSearchConfig } = await import('@/store/config/quickSearchSetup');
     const config = await probeAndBuildQuickSearchConfig();

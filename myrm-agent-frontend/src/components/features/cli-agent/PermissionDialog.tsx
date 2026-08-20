@@ -41,7 +41,9 @@ export function PermissionDialog() {
   const { isOpen, request, allow, deny, pendingCount } = usePermissionDialog();
   const [alwaysAllow, setAlwaysAllow] = useState(false);
 
-  if (!request) {return null;}
+  if (!request) {
+    return null;
+  }
 
   const handleAllow = () => {
     allow(alwaysAllow);

@@ -21,7 +21,9 @@ interface ModelInfoItem {
 
 /** 解析 API 错误信息，提取可读的 detail 字段 */
 function parseErrorMessage(msg: string): string {
-  if (!msg?.trim()) {return msg;}
+  if (!msg?.trim()) {
+    return msg;
+  }
   try {
     const parsed = JSON.parse(msg) as { detail?: string };
     return typeof parsed.detail === 'string' ? parsed.detail : msg;

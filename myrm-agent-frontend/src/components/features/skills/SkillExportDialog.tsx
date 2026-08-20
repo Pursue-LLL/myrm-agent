@@ -61,7 +61,9 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
 
   const handleExport = useCallback(
     async (applyRedactions: boolean) => {
-      if (!skill) {return;}
+      if (!skill) {
+        return;
+      }
       setIsExporting(true);
       try {
         const { blob, filename } = await downloadSkill(skill.id, applyRedactions, ignoredRedactions);
@@ -106,7 +108,9 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
     });
   }, []);
 
-  if (!skill) {return null;}
+  if (!skill) {
+    return null;
+  }
 
   const hasRedactions = preview?.redactions && Object.keys(preview.redactions).length > 0;
 
@@ -132,7 +136,9 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                   <AlertTitle className="text-green-800 dark:text-green-300">{t('safeTitle')}</AlertTitle>
                   <AlertDescription className="text-green-700 dark:text-green-400">
                     {t('safeDescription')}
-                    {preview.eval_cases_count > 0 ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}` : ''}
+                    {preview.eval_cases_count > 0
+                      ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}`
+                      : ''}
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -141,7 +147,9 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                   <AlertTitle>{t('warningTitle')}</AlertTitle>
                   <AlertDescription>
                     {t('warningDescription')}
-                    {preview.eval_cases_count > 0 ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}` : ''}
+                    {preview.eval_cases_count > 0
+                      ? ` ${t('evalCasesIncluded', { count: preview.eval_cases_count })}`
+                      : ''}
                   </AlertDescription>
                 </Alert>
               )}
@@ -158,13 +166,22 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                         <div className="bg-muted/50 px-3 py-1.5 text-xs font-mono border-y first:border-t-0 flex items-center justify-between">
                           <span>{filename}</span>
                           <div className="flex items-center gap-2">
-                            <Checkbox 
+                            <Checkbox
                               id={`toggle-all-${filename}`}
                               checked={(ignoredRedactions[filename] || []).length === 0}
-                              onCheckedChange={() => toggleAllRedactions(filename, redactions.length, (ignoredRedactions[filename] || []).length === 0)}
+                              onCheckedChange={() =>
+                                toggleAllRedactions(
+                                  filename,
+                                  redactions.length,
+                                  (ignoredRedactions[filename] || []).length === 0,
+                                )
+                              }
                               className="h-3 w-3"
                             />
-                            <label htmlFor={`toggle-all-${filename}`} className="cursor-pointer select-none text-[10px] text-muted-foreground">
+                            <label
+                              htmlFor={`toggle-all-${filename}`}
+                              className="cursor-pointer select-none text-[10px] text-muted-foreground"
+                            >
                               {t('toggleAll')}
                             </label>
                           </div>
@@ -173,10 +190,13 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                           {redactions.map((r, i) => {
                             const isIgnored = (ignoredRedactions[filename] || []).includes(i);
                             return (
-                              <div key={i} className={`text-xs font-mono border rounded overflow-hidden transition-opacity ${isIgnored ? 'opacity-60' : ''}`}>
+                              <div
+                                key={i}
+                                className={`text-xs font-mono border rounded overflow-hidden transition-opacity ${isIgnored ? 'opacity-60' : ''}`}
+                              >
                                 <div className="bg-muted/30 px-2 py-1 border-b text-[10px] text-muted-foreground flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <Checkbox 
+                                    <Checkbox
                                       id={`redact-${filename}-${i}`}
                                       checked={!isIgnored}
                                       onCheckedChange={() => toggleRedaction(filename, i)}
@@ -230,7 +250,11 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                 </Button>
               )}
               <Button onClick={() => handleExport(true)} disabled={isExporting}>
-                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                {isExporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
                 {hasRedactions ? t('exportRedacted') : t('export')}
               </Button>
             </>

@@ -46,11 +46,15 @@ const EnterpriseModelPolicyTab = memo(() => {
     (async () => {
       try {
         const org = await getMyOrg();
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setOrgId(org.id);
         await fetchPolicies(org.id);
       } catch {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         toast.error(t('modelPolicy.loadFailed', { default: 'Failed to load model policy' }));
         setLoading(false);
       }
@@ -66,15 +70,16 @@ const EnterpriseModelPolicyTab = memo(() => {
     }
     toast.warning(
       t('modelPolicy.fanoutPartial', {
-        default:
-          'Policy saved, but {failed} member sandbox(es) did not sync. Active members may need to refresh.',
+        default: 'Policy saved, but {failed} member sandbox(es) did not sync. Active members may need to refresh.',
         failed: String(failed),
       }),
     );
   };
 
   const handleAdd = async () => {
-    if (!newPattern.trim() || !orgId) {return;}
+    if (!newPattern.trim() || !orgId) {
+      return;
+    }
     setAdding(true);
     try {
       const saved = await addModelPolicy(orgId, newPattern.trim(), newDescription.trim());
@@ -95,7 +100,9 @@ const EnterpriseModelPolicyTab = memo(() => {
   };
 
   const handleRemove = async (entryId: string) => {
-    if (!orgId) {return;}
+    if (!orgId) {
+      return;
+    }
     try {
       const saved = await removeModelPolicy(orgId, entryId);
       toast.success(t('modelPolicy.removed', { default: 'Pattern removed' }));
@@ -103,9 +110,7 @@ const EnterpriseModelPolicyTab = memo(() => {
       await fetchPolicies(orgId);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : t('modelPolicy.removeFailed', { default: 'Failed to remove pattern' }),
+        error instanceof Error ? error.message : t('modelPolicy.removeFailed', { default: 'Failed to remove pattern' }),
       );
     }
   };
@@ -125,9 +130,7 @@ const EnterpriseModelPolicyTab = memo(() => {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-sm font-medium">
-          {t('modelPolicy.title', { default: 'Allowed Models' })}
-        </h3>
+        <h3 className="text-sm font-medium">{t('modelPolicy.title', { default: 'Allowed Models' })}</h3>
         <p className="text-xs text-muted-foreground">
           {t('modelPolicy.description', {
             default:
@@ -153,12 +156,7 @@ const EnterpriseModelPolicyTab = memo(() => {
             className="text-sm"
           />
         </div>
-        <Button
-          size="sm"
-          onClick={handleAdd}
-          disabled={!newPattern.trim() || adding}
-          className="w-full sm:w-auto"
-        >
+        <Button size="sm" onClick={handleAdd} disabled={!newPattern.trim() || adding} className="w-full sm:w-auto">
           <IconPlus className="h-3.5 w-3.5 mr-1" />
           {t('modelPolicy.add', { default: 'Add' })}
         </Button>
@@ -173,12 +171,8 @@ const EnterpriseModelPolicyTab = memo(() => {
           {policies.map((entry) => (
             <div key={entry.id} className="flex items-center justify-between px-4 py-3">
               <div className="flex-1 min-w-0">
-                <code className="text-sm font-mono bg-muted px-2 py-0.5 rounded">
-                  {entry.pattern}
-                </code>
-                {entry.description && (
-                  <span className="ml-3 text-xs text-muted-foreground">{entry.description}</span>
-                )}
+                <code className="text-sm font-mono bg-muted px-2 py-0.5 rounded">{entry.pattern}</code>
+                {entry.description && <span className="ml-3 text-xs text-muted-foreground">{entry.description}</span>}
               </div>
               <Button
                 variant="ghost"

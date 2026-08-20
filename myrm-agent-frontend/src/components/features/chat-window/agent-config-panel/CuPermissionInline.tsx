@@ -16,10 +16,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  openPermissionDeepLinkWithGuideFallback,
-  pickSettingsDeepLink,
-} from '@/lib/desktop/permissionDeepLink';
+import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
 
 interface CuPermissionsResponse {
   accessibility: boolean;
@@ -111,7 +108,9 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
                 onClick={() => {
                   const link = pickSettingsDeepLink(status?.settings_deeplinks);
-                  if (link) {openPermissionDeepLinkWithGuideFallback(link, status?.platform);}
+                  if (link) {
+                    openPermissionDeepLinkWithGuideFallback(link, status?.platform);
+                  }
                 }}
               >
                 <ExternalLink size={12} />

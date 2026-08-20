@@ -51,7 +51,9 @@ export default function KanbanBulkActionBar({
     }
   };
 
-  if (selectedIds.length === 0) {return null;}
+  if (selectedIds.length === 0) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200 max-w-[calc(100vw-2rem)]">

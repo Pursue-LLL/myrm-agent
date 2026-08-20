@@ -12,11 +12,7 @@
  * readiness can consume them without creating a circular module dependency.
  */
 import { isLocalMode } from '@/lib/deploy-mode';
-import {
-  markPlatformUnreachable,
-  resetPlatformReadinessForTests,
-  whenDatabaseReady,
-} from '@/lib/platform-readiness';
+import { markPlatformUnreachable, resetPlatformReadinessForTests, whenDatabaseReady } from '@/lib/platform-readiness';
 
 export {
   BACKEND_HEALTH_MAX_ATTEMPTS,

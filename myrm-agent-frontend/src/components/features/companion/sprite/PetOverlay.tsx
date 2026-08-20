@@ -132,7 +132,9 @@ const PetOverlay = memo(function PetOverlay() {
   useEffect(() => {
     const handleStatusEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (!detail?.step_key) {return;}
+      if (!detail?.step_key) {
+        return;
+      }
 
       const petEvent = stepKeyToPetEvent(detail.step_key);
       if (petEvent) {
@@ -147,7 +149,9 @@ const PetOverlay = memo(function PetOverlay() {
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (e.button !== 0) {return;}
+      if (e.button !== 0) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 
@@ -164,26 +168,33 @@ const PetOverlay = memo(function PetOverlay() {
     [position],
   );
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    const drag = dragRef.current;
-    if (!drag) {return;}
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag) {
+        return;
+      }
 
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
 
-    if (!drag.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
-      drag.moved = true;
-    }
+      if (!drag.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+        drag.moved = true;
+      }
 
-    if (drag.moved) {
-      setPosition(clampPosition({ x: drag.posX + dx, y: drag.posY + dy }, petSize));
-    }
-  }, [petSize]);
+      if (drag.moved) {
+        setPosition(clampPosition({ x: drag.posX + dx, y: drag.posY + dy }, petSize));
+      }
+    },
+    [petSize],
+  );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       const drag = dragRef.current;
-      if (!drag) {return;}
+      if (!drag) {
+        return;
+      }
 
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -201,20 +212,25 @@ const PetOverlay = memo(function PetOverlay() {
     [position, isTauri, toggleSurfaceMode],
   );
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const menuW = 160;
-    const menuH = isTauri ? 220 : 180;
-    setContextMenu({
-      visible: true,
-      x: Math.max(0, Math.min(e.clientX, window.innerWidth - menuW)),
-      y: Math.max(0, Math.min(e.clientY, window.innerHeight - menuH)),
-    });
-  }, [isTauri]);
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const menuW = 160;
+      const menuH = isTauri ? 220 : 180;
+      setContextMenu({
+        visible: true,
+        x: Math.max(0, Math.min(e.clientX, window.innerWidth - menuW)),
+        y: Math.max(0, Math.min(e.clientY, window.innerHeight - menuH)),
+      });
+    },
+    [isTauri],
+  );
 
   useEffect(() => {
-    if (!contextMenu.visible) {return;}
+    if (!contextMenu.visible) {
+      return;
+    }
     const close = () => setContextMenu((prev) => ({ ...prev, visible: false }));
     const timer = setTimeout(() => window.addEventListener('click', close, { once: true }), 0);
     return () => {
@@ -265,8 +281,12 @@ const PetOverlay = memo(function PetOverlay() {
     return () => window.removeEventListener('resize', handleResize);
   }, [petSize]);
 
-  if (!spriteEnabled || !sheetUrl) {return null;}
-  if (poppedOut) {return null;}
+  if (!spriteEnabled || !sheetUrl) {
+    return null;
+  }
+  if (poppedOut) {
+    return null;
+  }
 
   const resolvedRow = resolvePetSheetRow(petState, sheetRows);
 
@@ -274,10 +294,7 @@ const PetOverlay = memo(function PetOverlay() {
     <>
       <div
         ref={containerRef}
-        className={cn(
-          'fixed z-[60] select-none',
-          isDragging ? 'cursor-grabbing' : 'cursor-grab',
-        )}
+        className={cn('fixed z-[60] select-none', isDragging ? 'cursor-grabbing' : 'cursor-grab')}
         style={{
           left: position.x,
           top: position.y,
@@ -306,9 +323,7 @@ const PetOverlay = memo(function PetOverlay() {
           className="fixed z-[70] min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-            {t('sprite.contextTitle')}
-          </div>
+          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{t('sprite.contextTitle')}</div>
 
           {isTauri && (
             <button
@@ -329,9 +344,7 @@ const PetOverlay = memo(function PetOverlay() {
                 onClick={() => handleSizeChange(s)}
                 className={cn(
                   'rounded px-1.5 py-0.5 text-xs transition-colors',
-                  s === petSize
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted text-foreground',
+                  s === petSize ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground',
                 )}
               >
                 {s}

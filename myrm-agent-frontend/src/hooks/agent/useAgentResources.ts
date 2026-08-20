@@ -13,10 +13,7 @@ export interface AgentResources {
   enabledMcps: MCPServiceConfig[];
 }
 
-export function useAgentResources(
-  selectedSkillIds: string[],
-  selectedMcpNames: string[],
-): AgentResources {
+export function useAgentResources(selectedSkillIds: string[], selectedMcpNames: string[]): AgentResources {
   const { user, isInitialized } = useAuthStore();
 
   const mcpConfigs = useConfigStore((state) => state.mcpConfigs);

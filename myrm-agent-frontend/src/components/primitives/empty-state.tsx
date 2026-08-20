@@ -26,9 +26,7 @@ const emptyStateVariants = cva(
   },
 );
 
-export interface EmptyStateProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof emptyStateVariants> {
+export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof emptyStateVariants> {
   icon?: React.ComponentType<{ className?: string }>;
   title: React.ReactNode;
   description?: React.ReactNode;
@@ -37,19 +35,7 @@ export interface EmptyStateProps
 }
 
 const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
-  (
-    {
-      className,
-      variant,
-      icon: Icon,
-      title,
-      description,
-      action,
-      secondaryAction,
-      ...props
-    },
-    ref,
-  ) => {
+  ({ className, variant, icon: Icon, title, description, action, secondaryAction, ...props }, ref) => {
     return (
       <div
         ref={ref}
@@ -62,27 +48,14 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
           <div
             className={cn(
               'mb-4 flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 hover:scale-105',
-              variant === 'error'
-                ? 'bg-destructive/10 text-destructive'
-                : 'bg-muted/80 text-muted-foreground',
+              variant === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted/80 text-muted-foreground',
             )}
           >
-            <Icon
-              className={cn(
-                'h-7 w-7',
-                variant === 'error' ? 'text-destructive' : 'text-primary/80',
-              )}
-            />
+            <Icon className={cn('h-7 w-7', variant === 'error' ? 'text-destructive' : 'text-primary/80')} />
           </div>
         )}
-        <h3 className="text-base font-semibold tracking-tight text-foreground">
-          {title}
-        </h3>
-        {description && (
-          <p className="mt-1.5 max-w-sm text-sm text-muted-foreground leading-relaxed">
-            {description}
-          </p>
-        )}
+        <h3 className="text-base font-semibold tracking-tight text-foreground">{title}</h3>
+        {description && <p className="mt-1.5 max-w-sm text-sm text-muted-foreground leading-relaxed">{description}</p>}
         {(action || secondaryAction) && (
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             {action}

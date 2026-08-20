@@ -74,8 +74,7 @@ describe('wikiTreeUtils', () => {
   });
 
   it('ignores same-key lines in the body outside the frontmatter block', () => {
-    const content =
-      '---\nsource_chat: chat-abc\n---\n# title\n\nsource_message: body-only-msg';
+    const content = '---\nsource_chat: chat-abc\n---\n# title\n\nsource_message: body-only-msg';
     expect(extractSourceMessageIdFromFrontmatter(content)).toBeNull();
     expect(extractSourceChatIdFromFrontmatter(content)).toBe('chat-abc');
   });

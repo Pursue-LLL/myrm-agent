@@ -23,10 +23,9 @@ import { isSandbox } from '@/lib/deploy-mode';
 import { buildVncWebSocketUrl, fetchSandboxVncUrl, fetchUserSandbox } from '@/lib/cp-sandbox';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 
-const VisualDesktop = dynamic(
-  () => import('./VisualDesktop').then((module) => ({ default: module.VisualDesktop })),
-  { ssr: false },
-);
+const VisualDesktop = dynamic(() => import('./VisualDesktop').then((module) => ({ default: module.VisualDesktop })), {
+  ssr: false,
+});
 
 export const VisualDesktopToggle = () => {
   const t = useTranslations('billing.vnc');

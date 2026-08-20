@@ -335,7 +335,9 @@ const SIZE_MAP = {
 
 export function AgentIcon({ iconId, size = 'md', className }: AgentIconProps) {
   const def = AGENT_ICON_REGISTRY[iconId];
-  if (!def) {return null;}
+  if (!def) {
+    return null;
+  }
 
   const [from, to] = def.gradient;
 
@@ -357,12 +359,23 @@ export function AgentIcon({ iconId, size = 'md', className }: AgentIconProps) {
  * Returns the matched icon or LucideIcons.Bot as fallback.
  */
 export function resolveLucideIcon(iconName: string): React.ComponentType<{ size?: number; className?: string }> {
-  const componentName = iconName.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+  const componentName = iconName
+    .split('-')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('');
   const iconMap = LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>;
   return iconMap[componentName] || LucideIcons.Bot;
 }
 
-export function LucideAgentIcon({ iconName, size = 'md', className }: { iconName: string, size?: 'sm' | 'md' | 'lg', className?: string }) {
+export function LucideAgentIcon({
+  iconName,
+  size = 'md',
+  className,
+}: {
+  iconName: string;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}) {
   const IconComponent = resolveLucideIcon(iconName);
 
   const sizeMap = {
@@ -373,7 +386,13 @@ export function LucideAgentIcon({ iconName, size = 'md', className }: { iconName
   const iconSize = sizeMap[size];
 
   return (
-    <div className={cn(SIZE_MAP[size], 'rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary', className)}>
+    <div
+      className={cn(
+        SIZE_MAP[size],
+        'rounded-xl flex items-center justify-center shrink-0 bg-primary/10 text-primary',
+        className,
+      )}
+    >
       <IconComponent size={iconSize} />
     </div>
   );

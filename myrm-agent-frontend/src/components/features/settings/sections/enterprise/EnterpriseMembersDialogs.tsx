@@ -11,13 +11,7 @@ import {
 } from '@/components/primitives/dialog';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 
 const ROLE_OPTIONS = ['member', 'admin'] as const;
 
@@ -52,11 +46,7 @@ export function AddMemberDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>{t('userId')}</Label>
-            <Input
-              value={email}
-              onChange={(e) => onEmailChange(e.target.value)}
-              placeholder={t('userIdPlaceholder')}
-            />
+            <Input value={email} onChange={(e) => onEmailChange(e.target.value)} placeholder={t('userIdPlaceholder')} />
           </div>
           <div className="space-y-2">
             <Label>{t('role')}</Label>
@@ -93,21 +83,14 @@ interface UnlinkOauthDialogProps {
   t: (key: string) => string;
 }
 
-export function UnlinkOauthDialog({
-  open,
-  memberLabel,
-  onOpenChange,
-  onConfirm,
-  t,
-}: UnlinkOauthDialogProps) {
+export function UnlinkOauthDialog({ open, memberLabel, onOpenChange, onConfirm, t }: UnlinkOauthDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('unlinkOauth')}</DialogTitle>
           <DialogDescription>
-            {t('unlinkOauthDesc')}{' '}
-            <code className="text-xs bg-muted px-1 py-0.5 rounded">{memberLabel}</code>
+            {t('unlinkOauthDesc')} <code className="text-xs bg-muted px-1 py-0.5 rounded">{memberLabel}</code>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -131,21 +114,14 @@ interface RemoveMemberDialogProps {
   t: (key: string) => string;
 }
 
-export function RemoveMemberDialog({
-  open,
-  memberLabel,
-  onOpenChange,
-  onConfirm,
-  t,
-}: RemoveMemberDialogProps) {
+export function RemoveMemberDialog({ open, memberLabel, onOpenChange, onConfirm, t }: RemoveMemberDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('removeMember')}</DialogTitle>
           <DialogDescription>
-            {t('removeMemberDesc')}{' '}
-            <code className="text-xs bg-muted px-1 py-0.5 rounded">{memberLabel}</code>
+            {t('removeMemberDesc')} <code className="text-xs bg-muted px-1 py-0.5 rounded">{memberLabel}</code>
           </DialogDescription>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">{t('removeMemberRevokeNote')}</p>

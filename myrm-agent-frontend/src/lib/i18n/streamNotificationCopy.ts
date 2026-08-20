@@ -20,9 +20,7 @@ type NotificationCopy = {
 function toNotificationCopy(module: Record<string, unknown>): NotificationCopy {
   return {
     clarificationNeeded:
-      typeof module.clarificationNeeded === 'string'
-        ? module.clarificationNeeded
-        : 'Agent needs your input',
+      typeof module.clarificationNeeded === 'string' ? module.clarificationNeeded : 'Agent needs your input',
     desktopControlApprovalNeeded:
       typeof module.desktopControlApprovalNeeded === 'string'
         ? module.desktopControlApprovalNeeded
@@ -31,11 +29,16 @@ function toNotificationCopy(module: Record<string, unknown>): NotificationCopy {
 }
 
 const localeLoaders: Record<StreamLocale, () => Promise<NotificationCopy>> = {
-  en: () => import('../../../locales/namespaces/en/notifications.json').then((module) => toNotificationCopy(module.default)),
-  zh: () => import('../../../locales/namespaces/zh/notifications.json').then((module) => toNotificationCopy(module.default)),
-  ja: () => import('../../../locales/namespaces/ja/notifications.json').then((module) => toNotificationCopy(module.default)),
-  ko: () => import('../../../locales/namespaces/ko/notifications.json').then((module) => toNotificationCopy(module.default)),
-  de: () => import('../../../locales/namespaces/de/notifications.json').then((module) => toNotificationCopy(module.default)),
+  en: () =>
+    import('../../../locales/namespaces/en/notifications.json').then((module) => toNotificationCopy(module.default)),
+  zh: () =>
+    import('../../../locales/namespaces/zh/notifications.json').then((module) => toNotificationCopy(module.default)),
+  ja: () =>
+    import('../../../locales/namespaces/ja/notifications.json').then((module) => toNotificationCopy(module.default)),
+  ko: () =>
+    import('../../../locales/namespaces/ko/notifications.json').then((module) => toNotificationCopy(module.default)),
+  de: () =>
+    import('../../../locales/namespaces/de/notifications.json').then((module) => toNotificationCopy(module.default)),
 };
 
 const notificationCache: Partial<Record<StreamLocale, NotificationCopy>> = {};
@@ -80,10 +83,18 @@ void localeLoaders.zh().then((copy) => {
 });
 
 export function resolveStreamLocale(lang: string): StreamLocale {
-  if (lang.startsWith('zh')) {return 'zh';}
-  if (lang.startsWith('ja')) {return 'ja';}
-  if (lang.startsWith('ko')) {return 'ko';}
-  if (lang.startsWith('de')) {return 'de';}
+  if (lang.startsWith('zh')) {
+    return 'zh';
+  }
+  if (lang.startsWith('ja')) {
+    return 'ja';
+  }
+  if (lang.startsWith('ko')) {
+    return 'ko';
+  }
+  if (lang.startsWith('de')) {
+    return 'de';
+  }
   return 'en';
 }
 

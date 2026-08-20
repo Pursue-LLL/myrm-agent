@@ -49,9 +49,7 @@ function PetPaletteBody({ paletteOpen }: { paletteOpen: boolean }) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{t('sprite.activePet')}</p>
-            <p className="text-sm font-medium truncate">
-              {activeName ?? t('sprite.activePetEmpty')}
-            </p>
+            <p className="text-sm font-medium truncate">{activeName ?? t('sprite.activePetEmpty')}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Label htmlFor="pet-palette-overlay" className="text-xs text-muted-foreground">

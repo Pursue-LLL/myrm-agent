@@ -50,7 +50,9 @@ export async function fetchHostingTargets(): Promise<HostingTarget[]> {
   return data.targets ?? [];
 }
 
-export async function saveHostingTarget(target: Omit<HostingTarget, 'id'> & { id?: string }): Promise<HostingTarget | null> {
+export async function saveHostingTarget(
+  target: Omit<HostingTarget, 'id'> & { id?: string },
+): Promise<HostingTarget | null> {
   const method = target.id ? 'PUT' : 'POST';
   const url = target.id
     ? getApiUrl(`/files/artifacts/hosting/targets/${target.id}`)
@@ -134,11 +136,7 @@ export async function fetchPublishPreflight(artifactId: string, targetId?: strin
   return (await response.json()) as PublishPreflight;
 }
 
-export async function publishArtifact(
-  artifactId: string,
-  targetId: string,
-  token = '',
-): Promise<PublishResult> {
+export async function publishArtifact(artifactId: string, targetId: string, token = ''): Promise<PublishResult> {
   const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/publish`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -151,11 +149,7 @@ export async function publishArtifact(
   return (await response.json()) as PublishResult;
 }
 
-export function buildPublishStatusWsUrl(
-  artifactId: string,
-  providerPublicationRef: string,
-  targetId: string,
-): string {
+export function buildPublishStatusWsUrl(artifactId: string, providerPublicationRef: string, targetId: string): string {
   const wsBase = getApiUrl('/files/artifacts').replace(/^http/, 'ws');
   return `${wsBase}/${artifactId}/publish/status/${providerPublicationRef}?target_id=${encodeURIComponent(targetId)}`;
 }

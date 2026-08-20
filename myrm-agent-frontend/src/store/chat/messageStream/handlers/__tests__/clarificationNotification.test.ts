@@ -85,9 +85,7 @@ function makeCtx(eventType: string, extra: Record<string, unknown> = {}): Stream
     added: true,
     recievedMessage: '',
     state: {
-      messages: [
-        { messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() },
-      ],
+      messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
     } as never,
     actions: {
       setLoading: vi.fn(),
@@ -116,10 +114,7 @@ describe('toolsProgressEvents clarification notification', () => {
     await vi.dynamicImportSettled();
 
     expect(mockNotify).toHaveBeenCalledTimes(1);
-    expect(mockNotify).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ fallbackToToast: false }),
-    );
+    expect(mockNotify).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ fallbackToToast: false }));
   });
 
   it('passes unwrapped form title as notification body', async () => {
@@ -193,10 +188,7 @@ describe('toolsProgressEvents clarification notification', () => {
     await toolsProgressEvents(ctx);
     await vi.dynamicImportSettled();
 
-    expect(mockNotify).toHaveBeenCalledWith(
-      'Agent 需要您的输入',
-      expect.objectContaining({ fallbackToToast: false }),
-    );
+    expect(mockNotify).toHaveBeenCalledWith('Agent 需要您的输入', expect.objectContaining({ fallbackToToast: false }));
 
     document.documentElement.lang = origLang;
   });

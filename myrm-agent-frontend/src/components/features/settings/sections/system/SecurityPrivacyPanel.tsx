@@ -51,7 +51,9 @@ const SecurityPrivacyPanel = memo(() => {
   );
 
   const handleTestLocalModel = useCallback(async () => {
-    if (!privacyRouting?.localModel) {return;}
+    if (!privacyRouting?.localModel) {
+      return;
+    }
     setTestingLocalModel(true);
     try {
       const resp = await fetchWithTimeout(
@@ -280,9 +282,7 @@ const SecurityPrivacyPanel = memo(() => {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-foreground">
-                      {t('privacy.routing.localFallback')}
-                    </label>
+                    <label className="text-xs font-medium text-foreground">{t('privacy.routing.localFallback')}</label>
                     <Select
                       value={privacyRouting?.localFallback ?? 'block'}
                       onValueChange={(v: string) => updateRoutingField('localFallback', v as PrivacyLocalFallback)}

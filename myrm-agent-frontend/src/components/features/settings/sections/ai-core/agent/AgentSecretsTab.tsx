@@ -23,8 +23,12 @@ interface AgentSecretsTabProps {
 }
 
 function getErrorMessage(err: unknown): string {
-  if (err instanceof Error) {return err.message;}
-  if (typeof err === 'string') {return err;}
+  if (err instanceof Error) {
+    return err.message;
+  }
+  if (typeof err === 'string') {
+    return err;
+  }
   return 'Unknown error';
 }
 
@@ -42,7 +46,9 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const fetchSecrets = useCallback(async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -63,7 +69,9 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
   }, [agentId, isNew, fetchSecrets]);
 
   const refreshReadiness = useCallback(async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     try {
       await invalidateAgentReadiness(agentId);
       await mutate(`${READINESS_SWR_KEY_PREFIX}${agentId}`);
@@ -73,7 +81,9 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
   }, [agentId]);
 
   const handleSave = async () => {
-    if (!agentId) {return;}
+    if (!agentId) {
+      return;
+    }
     if (!keyName.trim() || !secretValue.trim()) {
       toast.warning(t('agent.secrets.validationError', { fallback: 'Key and Value are required.' }));
       return;
@@ -102,7 +112,9 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
   };
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!agentId || !deleteTarget) {return;}
+    if (!agentId || !deleteTarget) {
+      return;
+    }
 
     try {
       await deleteAgentSecret(agentId, deleteTarget);
@@ -284,7 +296,9 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) {setDeleteTarget(null);}
+          if (!open) {
+            setDeleteTarget(null);
+          }
         }}
         title={t('agent.secrets.deleteTitle', { fallback: 'Delete Secret' })}
         description={t('agent.secrets.deleteDesc', {

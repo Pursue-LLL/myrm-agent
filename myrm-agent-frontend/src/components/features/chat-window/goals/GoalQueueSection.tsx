@@ -70,7 +70,15 @@ const GripVerticalIcon = ({ className = 'w-3 h-3' }) => (
   </svg>
 );
 
-function SortableQueueItem({ goal, index, onCancel }: { goal: QueuedGoal; index: number; onCancel: (id: string) => void }) {
+function SortableQueueItem({
+  goal,
+  index,
+  onCancel,
+}: {
+  goal: QueuedGoal;
+  index: number;
+  onCancel: (id: string) => void;
+}) {
   const t = useTranslations('Goal');
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: goal.goal_id });
 
@@ -125,12 +133,16 @@ export function GoalQueueSection() {
   const sortableIds = useMemo(() => queuedGoals.map((g) => g.goal_id), [queuedGoals]);
 
   useEffect(() => {
-    if (chatId) {fetchQueue(chatId);}
+    if (chatId) {
+      fetchQueue(chatId);
+    }
   }, [chatId, fetchQueue, activeGoal?.status]);
 
   const handleCancel = useCallback(
     (goalId: string) => {
-      if (chatId) {cancelQueuedGoal(chatId, goalId);}
+      if (chatId) {
+        cancelQueuedGoal(chatId, goalId);
+      }
     },
     [chatId, cancelQueuedGoal],
   );
@@ -138,20 +150,29 @@ export function GoalQueueSection() {
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
-      if (!over || active.id === over.id || !chatId) {return;}
+      if (!over || active.id === over.id || !chatId) {
+        return;
+      }
 
       const oldIndex = queuedGoals.findIndex((g) => g.goal_id === active.id);
       const newIndex = queuedGoals.findIndex((g) => g.goal_id === over.id);
-      if (oldIndex === -1 || newIndex === -1) {return;}
+      if (oldIndex === -1 || newIndex === -1) {
+        return;
+      }
 
       const reordered = arrayMove(queuedGoals, oldIndex, newIndex);
       useGoalStore.setState({ queuedGoals: reordered });
-      reorderQueue(chatId, reordered.map((g) => g.goal_id));
+      reorderQueue(
+        chatId,
+        reordered.map((g) => g.goal_id),
+      );
     },
     [chatId, queuedGoals, reorderQueue],
   );
 
-  if (queuedGoals.length === 0) {return null;}
+  if (queuedGoals.length === 0) {
+    return null;
+  }
 
   return (
     <div className="mt-4 p-3 rounded-lg border bg-muted/30 border-border/60">

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  isFormalKoreanRepliesEnabled,
-  setFormalKoreanRepliesEnabled,
-} from '../responseLocalePolicy';
+import { isFormalKoreanRepliesEnabled, setFormalKoreanRepliesEnabled } from '../responseLocalePolicy';
 
 describe('responseLocalePolicy', () => {
   it('returns false when policy is missing', () => {

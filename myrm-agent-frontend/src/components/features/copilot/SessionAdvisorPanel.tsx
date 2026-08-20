@@ -3,19 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
-import {
-  askAdvisor,
-  clearAdvisorMessages,
-  fetchAdvisorMessages,
-  type AdvisorMessage,
-} from '@/services/copilot';
+import { askAdvisor, clearAdvisorMessages, fetchAdvisorMessages, type AdvisorMessage } from '@/services/copilot';
 import { Button } from '@/components/primitives/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/primitives/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
 
 interface SessionAdvisorPanelProps {
   chatId: string;
@@ -47,7 +37,9 @@ export default function SessionAdvisorPanel({
   const performAsk = useCallback(
     async (question: string) => {
       const trimmed = question.trim();
-      if (!trimmed || pendingRef.current) {return false;}
+      if (!trimmed || pendingRef.current) {
+        return false;
+      }
       pendingRef.current = true;
       setPending(true);
       setInput('');
@@ -74,11 +66,17 @@ export default function SessionAdvisorPanel({
   }, [open, loadMessages]);
 
   useEffect(() => {
-    if (!open) {return;}
+    if (!open) {
+      return;
+    }
     const question = initialQuestion.trim();
-    if (!question) {return;}
+    if (!question) {
+      return;
+    }
     const dedupeKey = `${chatId}:${question}:${selectionSnippet ?? ''}`;
-    if (autoAskKeyRef.current === dedupeKey) {return;}
+    if (autoAskKeyRef.current === dedupeKey) {
+      return;
+    }
     autoAskKeyRef.current = dedupeKey;
     void performAsk(question);
   }, [open, initialQuestion, chatId, selectionSnippet, performAsk]);
@@ -95,11 +93,7 @@ export default function SessionAdvisorPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        data-testid="copilot-advisor-panel"
-        className="flex w-full flex-col sm:max-w-md"
-      >
+      <SheetContent side="right" data-testid="copilot-advisor-panel" className="flex w-full flex-col sm:max-w-md">
         <SheetHeader className="flex flex-row items-center justify-between space-y-0">
           <SheetTitle>{t('advisorTitle')}</SheetTitle>
           <Button type="button" variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
@@ -108,16 +102,12 @@ export default function SessionAdvisorPanel({
         </SheetHeader>
         <p className="text-xs text-muted-foreground">{t('advisorHint')}</p>
         <div data-testid="copilot-advisor-messages" className="min-h-0 flex-1 overflow-y-auto space-y-3 py-3">
-          {messages.length === 0 && (
-            <p className="text-sm text-muted-foreground">{t('advisorEmpty')}</p>
-          )}
+          {messages.length === 0 && <p className="text-sm text-muted-foreground">{t('advisorEmpty')}</p>}
           {messages.map((msg) => (
             <div
               key={msg.id}
               className={`rounded-lg px-3 py-2 text-sm ${
-                msg.role === 'user'
-                  ? 'bg-primary/10 text-foreground'
-                  : 'bg-muted text-foreground/90'
+                msg.role === 'user' ? 'bg-primary/10 text-foreground' : 'bg-muted text-foreground/90'
               }`}
             >
               {msg.role === 'assistant' ? (

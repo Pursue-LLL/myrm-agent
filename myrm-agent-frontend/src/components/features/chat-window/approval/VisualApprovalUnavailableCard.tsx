@@ -16,11 +16,7 @@ interface VisualApprovalUnavailableCardProps {
   request: ToolApprovalRequest;
   reason: VisualApprovalUnavailableReason;
   onRetrySnapshot: () => void;
-  onResolve: (
-    requestId: string,
-    decision: DecisionType,
-    extra?: ToolApprovalResolveExtra,
-  ) => Promise<void>;
+  onResolve: (requestId: string, decision: DecisionType, extra?: ToolApprovalResolveExtra) => Promise<void>;
   isLoading: boolean;
   isRetrying: boolean;
 }
@@ -75,13 +71,7 @@ export default function VisualApprovalUnavailableCard({
       </div>
 
       <div className="border-t border-amber-500/20 bg-background/80 px-2 py-2">
-        <SingleApprovalCard
-          request={request}
-          onResolve={onResolve}
-          isLoading={isLoading}
-          hideVisualHighlight
-          compact
-        />
+        <SingleApprovalCard request={request} onResolve={onResolve} isLoading={isLoading} hideVisualHighlight compact />
       </div>
     </div>
   );

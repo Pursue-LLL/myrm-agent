@@ -27,11 +27,7 @@ describe('resolveClipNotifyPayload', () => {
   });
 
   it('duplicate picks linked body when openUrl present', () => {
-    const payload = resolveClipNotifyPayload(
-      'duplicate',
-      { openUrl: 'http://localhost:3000/settings/wiki' },
-      t,
-    );
+    const payload = resolveClipNotifyPayload('duplicate', { openUrl: 'http://localhost:3000/settings/wiki' }, t);
     expect(payload.body).toBe('__notifyClipDuplicateBody__');
   });
 

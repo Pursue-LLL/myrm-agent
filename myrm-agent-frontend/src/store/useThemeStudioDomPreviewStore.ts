@@ -21,8 +21,7 @@ const useThemeStudioDomPreviewStore = create<ThemeStudioDomPreviewState>((set) =
   profile: null,
   mediaUrl: null,
   posterUrl: null,
-  setPreview: ({ profile, mediaUrl, posterUrl }) =>
-    set({ enabled: true, profile, mediaUrl, posterUrl }),
+  setPreview: ({ profile, mediaUrl, posterUrl }) => set({ enabled: true, profile, mediaUrl, posterUrl }),
   clearPreview: () => set({ enabled: false, profile: null, mediaUrl: null, posterUrl: null }),
 }));
 

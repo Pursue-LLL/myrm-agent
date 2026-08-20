@@ -69,7 +69,9 @@ export function useMessageMemoryLifecycle({
   }, [recallSeed]);
 
   useEffect(() => {
-    if (!trackWriteExtract || !chatId) {return;}
+    if (!trackWriteExtract || !chatId) {
+      return;
+    }
 
     let cancelled = false;
 
@@ -78,18 +80,20 @@ export function useMessageMemoryLifecycle({
       for (let attempt = 1; attempt <= maxAttempts && !cancelled; attempt += 1) {
         try {
           const trace = await getSessionExecutionTrace(chatId, { silent: true });
-          if (cancelled) {return;}
+          if (cancelled) {
+            return;
+          }
           const events = trace.memory_events ?? [];
           if (events.length === 0) {
             await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
             continue;
           }
-          setPhases((current) =>
-            hydratePhasesFromTraceEvents(current, events, scopedMessageCreatedAtMs),
-          );
+          setPhases((current) => hydratePhasesFromTraceEvents(current, events, scopedMessageCreatedAtMs));
           return;
         } catch {
-          if (attempt >= maxAttempts) {return;}
+          if (attempt >= maxAttempts) {
+            return;
+          }
           await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
         }
       }
@@ -103,16 +107,22 @@ export function useMessageMemoryLifecycle({
   }, [chatId, scopedMessageCreatedAtMs, trackWriteExtract]);
 
   useEffect(() => {
-    if (!trackWriteExtract || !chatId) {return;}
+    if (!trackWriteExtract || !chatId) {
+      return;
+    }
 
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<MemoryOperationStreamPayload>).detail;
-      if (!detail || !memoryOperationMatchesChatScoped(detail)) {return;}
+      if (!detail || !memoryOperationMatchesChatScoped(detail)) {
+        return;
+      }
       setPhases((current) => applyMemoryOperationToPhases(current, detail));
     };
 
     function memoryOperationMatchesChatScoped(detail: MemoryOperationStreamPayload): boolean {
-      if (!chatId) {return false;}
+      if (!chatId) {
+        return false;
+      }
       if (scopedMessageCreatedAtMs == null) {
         return memoryOperationMatchesChat(detail, chatId);
       }

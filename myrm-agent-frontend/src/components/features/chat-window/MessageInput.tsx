@@ -11,17 +11,7 @@
  * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
  */
 import * as React from 'react';
-import {
-  ArrowRight,
-  Square,
-  Plus,
-  X,
-  Navigation,
-  ListPlus,
-  Maximize2,
-  Minimize2,
-  CornerDownLeft,
-} from 'lucide-react';
+import { ArrowRight, Square, Plus, X, Navigation, ListPlus, Maximize2, Minimize2, CornerDownLeft } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import AttachList from '../message-input-actions/AttachList';
 import AttachButton from '../message-input-actions/AttachButton';
@@ -89,7 +79,9 @@ function extractKeyterms(messages: { content: string; role: string }[]): string[
   const recent = messages.slice(-6);
   const text = recent.map((m) => m.content).join(' ');
   const matches = text.match(KEYTERM_PATTERN);
-  if (!matches) {return [];}
+  if (!matches) {
+    return [];
+  }
 
   const counts = new Map<string, number>();
   for (const m of matches) {
@@ -140,14 +132,8 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   const mentionReferences = useChatStore((s) => s.mentionReferences);
   const removeMentionReference = useChatStore((s) => s.removeMentionReference);
   const keyterms = React.useMemo(() => extractKeyterms(messages), [messages]);
-  const pendingClarification = React.useMemo(
-    () => findActivePendingClarification(messages),
-    [messages],
-  );
-  const pendingDirectoryRequest = React.useMemo(
-    () => findActivePendingDirectoryRequest(messages),
-    [messages],
-  );
+  const pendingClarification = React.useMemo(() => findActivePendingClarification(messages), [messages]);
+  const pendingDirectoryRequest = React.useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
   const isComposerClarifyMode = pendingClarification !== null;
   const isComposerDirectoryMode = pendingDirectoryRequest !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
@@ -160,10 +146,14 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   }, [fetchProjects, projectsLoaded]);
 
   const hideChatWorkspacePicker = React.useMemo(() => {
-    if (!chatId) {return false;}
+    if (!chatId) {
+      return false;
+    }
     const chatItem = chatHistoryItems.find((item) => item.id === chatId);
     const projectId = chatItem?.projectId;
-    if (!projectId) {return false;}
+    if (!projectId) {
+      return false;
+    }
     const project = projects.find((item) => item.id === projectId);
     return Boolean(project?.workspacePath?.trim());
   }, [chatHistoryItems, chatId, projects]);
@@ -232,7 +222,6 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     agentId: agentConfig?.agentId,
     getInputValue: () => inputMessage,
   });
-
 
   const mobileSheetEntries = useMobileSheetEntries({
     onClose: () => setIsMobileSheetOpen(false),
@@ -382,7 +371,9 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
             if (inputHistory.handleKeyDown(e)) {
               if (inputHistory.popup.open && (e.key === 'Tab' || e.key === 'Enter')) {
                 const text = inputHistory.confirm();
-                if (text) {setInputMessage(text);}
+                if (text) {
+                  setInputMessage(text);
+                }
               }
               return;
             }
@@ -477,7 +468,9 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               popup={inputHistory.popup}
               onSelect={(index) => {
                 const text = inputHistory.confirm(index);
-                if (text) {setInputMessage(text);}
+                if (text) {
+                  setInputMessage(text);
+                }
               }}
               onHover={inputHistory.setActiveIndex}
               onClose={inputHistory.close}
@@ -504,197 +497,197 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               />
             ) : (
               <>
-            {pendingWorkflowTemplateId ? (
-              <WorkflowTemplateArmedBar
-                templateId={pendingWorkflowTemplateId}
-                displayName={pendingWorkflowTemplateDisplayName}
-                className="mb-2"
-              />
-            ) : null}
-            {pendingExplicitSkillActivation ? (
-              <SkillActivationChips
-                skillNames={pendingExplicitSkillActivation.skillNames}
-                instruction={pendingExplicitSkillActivation.instruction}
-                className="mb-2"
-                onRemove={() => setPendingExplicitSkillActivation(null)}
-              />
-            ) : null}
-            <WechatArticleComposerHint inputMessage={inputMessage} />
-            {showBtwDisambiguation ? (
-              <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-                {commandsT('builtin.btwDisambiguation')}
-              </p>
-            ) : null}
-            <TextareaAutosize
-              ref={inputRef}
-              data-chat-input
-              value={inputMessage}
-              onFocus={() => {
-                if (shouldPrewarm) {
-                  void triggerPrewarm();
-                }
-              }}
-              onBlur={() => {
-                window.setTimeout(() => {
-                  const active = document.activeElement;
-                  if (active instanceof HTMLElement && active.closest('[data-chat-composer]')) {
-                    return;
-                  }
-                  void cancelPrewarm();
-                }, 120);
-              }}
-              onChange={(e) => {
-                handleInputChange(e);
-                updateCursorPosition();
-                if (inputHistory.popup.open) {inputHistory.close();}
-              }}
-              onPaste={handlePaste}
-              onKeyUp={updateCursorPosition}
-              onClick={updateCursorPosition}
-              minRows={2}
-              className={`bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
-              placeholder={
-                inputHistory.ghostText
-                  ? inputHistory.ghostText
-                  : loading
-                    ? chatT('queue.placeholder')
-                    : chatT('input.placeholder')
-              }
-            />
-            {/* 操作栏 */}
-            <div className="flex flex-row items-center justify-between mt-4 gap-2">
-              {/* 左侧：功能按钮 */}
-              <div className="flex flex-row items-center gap-1 sm:gap-2 min-w-0 flex-1">
-                {/* 移动端精简版：+ 按钮触发 ActionSheet + 核心快捷入口 */}
-                <div className="flex sm:hidden flex-row items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileSheetOpen(true)}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors"
-                    aria-label={chatT('input.expandToolbar')}
-                    data-testid="sendbox-mobile-plus-btn"
-                  >
-                    <Plus size={16} />
-                  </button>
-                  <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
-                </div>
-                {/* 桌面版：可横向滚动，避免工具栏互相挤压 */}
-                <div className="hidden sm:flex flex-row flex-nowrap items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
-                  <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
-                  <DeepSearchToggle />
-                  <WorkflowModeToggle />
-                  <BaseModelSelector />
-                  <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
-                  <GoalModeToggle />
-                  <IncognitoModeToggle />
-                  <SandboxModeToggle />
-                  <SecurityPresetSelector />
-                  <FocusFlushButton />
-                  {chatId && messages.length > 0 && !loading && (
-                    <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
-                  )}
-                  <AgentIndicator />
-                  <SessionSkillsToggle />
-                  <TurnCapabilityToggle
-                    selection={turnCapabilitySelection}
-                    onSelectionChange={setTurnCapabilitySelection}
-                    disabled={loading}
+                {pendingWorkflowTemplateId ? (
+                  <WorkflowTemplateArmedBar
+                    templateId={pendingWorkflowTemplateId}
+                    displayName={pendingWorkflowTemplateDisplayName}
+                    className="mb-2"
                   />
-                  <ToolsPanel />
-                  {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
-                  <button
-                    type="button"
-                    onClick={() => setIsExpanded((prev) => !prev)}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    aria-label={isExpanded ? 'Collapse editor' : 'Expand editor'}
-                    title="Ctrl+Shift+Enter"
-                  >
-                    {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                  </button>
-                </div>
-              </div>
-              {/* 右侧：发送操作 */}
-              <div className="flex flex-row items-center gap-1 sm:gap-2 flex-shrink-0">
-                <div className="flex items-center gap-1 overflow-x-auto max-w-[45vw] sm:max-w-none">
-                  <WorkUnitBalanceBar compact className="shrink-0" />
-                  <SessionSpendSurface className="shrink-0" />
-                  <ContextUsageIndicator />
-                  <ReadinessBadge />
-                  <LivenessIndicator />
-                  <div className="hidden sm:flex items-center gap-1">
-                    <EnvironmentShield />
-                    <BudgetBadge />
-                  </div>
-                </div>
-                {/* 附件按钮在所有设备上都显示在右侧 */}
-                {actionMode !== 'fast' && <AttachButton files={files} setFiles={setFiles} />}
-                {isVoiceEnabled && (
-                  <SpeechInputButton onTranscript={handleTranscript} disabled={loading} keyterms={keyterms} />
-                )}
-                {isVoiceEnabled && <VoiceSessionButton disabled={loading} keyterms={keyterms} />}
-                {loading ? (
-                  <div className="flex items-center gap-1">
-                    {inputMessage.trim().length > 0 || pendingExplicitSkillActivation ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleRedirectSubmit}
-                          className="bg-primary text-primary-foreground hover:bg-primary/80 transition duration-100 rounded-full p-2"
-                          aria-label={chatT('redirect.send')}
-                          title={chatT('redirect.tooltip')}
-                        >
-                          <CornerDownLeft size={17} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSteerSubmit}
-                          className="bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30 transition duration-100 rounded-full p-2"
-                          aria-label={chatT('steer.send')}
-                          title={chatT('steer.tooltip')}
-                        >
-                          <Navigation size={17} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleQueueSubmit()}
-                          className="bg-accent/60 text-white hover:bg-accent/80 transition duration-100 rounded-full p-2"
-                          aria-label={chatT('queue.sendLater')}
-                          title={chatT('queue.sendLaterTooltip')}
-                        >
-                          <ListPlus size={17} />
-                        </button>
-                      </>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={stopMessage}
-                      className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 transition duration-100 rounded-full p-2"
-                      aria-label="Stop"
-                    >
-                      <Square size={17} />
-                    </button>
-                  </div>
-                ) : (
-                  <span className="brand-elevation-slot">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleSubmit();
-                      }}
-                      disabled={
-                        inputMessage.trim().length === 0 &&
-                        files.length === 0 &&
-                        !pendingExplicitSkillActivation
+                ) : null}
+                {pendingExplicitSkillActivation ? (
+                  <SkillActivationChips
+                    skillNames={pendingExplicitSkillActivation.skillNames}
+                    instruction={pendingExplicitSkillActivation.instruction}
+                    className="mb-2"
+                    onRemove={() => setPendingExplicitSkillActivation(null)}
+                  />
+                ) : null}
+                <WechatArticleComposerHint inputMessage={inputMessage} />
+                {showBtwDisambiguation ? (
+                  <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                    {commandsT('builtin.btwDisambiguation')}
+                  </p>
+                ) : null}
+                <TextareaAutosize
+                  ref={inputRef}
+                  data-chat-input
+                  value={inputMessage}
+                  onFocus={() => {
+                    if (shouldPrewarm) {
+                      void triggerPrewarm();
+                    }
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(() => {
+                      const active = document.activeElement;
+                      if (active instanceof HTMLElement && active.closest('[data-chat-composer]')) {
+                        return;
                       }
-                      className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
-                      aria-label={commonT('send')}
-                    >
-                      <ArrowRight size={17} />
-                    </button>
-                  </span>
-                )}
-              </div>
-            </div>
+                      void cancelPrewarm();
+                    }, 120);
+                  }}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    updateCursorPosition();
+                    if (inputHistory.popup.open) {
+                      inputHistory.close();
+                    }
+                  }}
+                  onPaste={handlePaste}
+                  onKeyUp={updateCursorPosition}
+                  onClick={updateCursorPosition}
+                  minRows={2}
+                  className={`bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
+                  placeholder={
+                    inputHistory.ghostText
+                      ? inputHistory.ghostText
+                      : loading
+                        ? chatT('queue.placeholder')
+                        : chatT('input.placeholder')
+                  }
+                />
+                {/* 操作栏 */}
+                <div className="flex flex-row items-center justify-between mt-4 gap-2">
+                  {/* 左侧：功能按钮 */}
+                  <div className="flex flex-row items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                    {/* 移动端精简版：+ 按钮触发 ActionSheet + 核心快捷入口 */}
+                    <div className="flex sm:hidden flex-row items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsMobileSheetOpen(true)}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors"
+                        aria-label={chatT('input.expandToolbar')}
+                        data-testid="sendbox-mobile-plus-btn"
+                      >
+                        <Plus size={16} />
+                      </button>
+                      <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
+                    </div>
+                    {/* 桌面版：可横向滚动，避免工具栏互相挤压 */}
+                    <div className="hidden sm:flex flex-row flex-nowrap items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+                      <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
+                      <DeepSearchToggle />
+                      <WorkflowModeToggle />
+                      <BaseModelSelector />
+                      <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
+                      <GoalModeToggle />
+                      <IncognitoModeToggle />
+                      <SandboxModeToggle />
+                      <SecurityPresetSelector />
+                      <FocusFlushButton />
+                      {chatId && messages.length > 0 && !loading && (
+                        <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
+                      )}
+                      <AgentIndicator />
+                      <SessionSkillsToggle />
+                      <TurnCapabilityToggle
+                        selection={turnCapabilitySelection}
+                        onSelectionChange={setTurnCapabilitySelection}
+                        disabled={loading}
+                      />
+                      <ToolsPanel />
+                      {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
+                      <button
+                        type="button"
+                        onClick={() => setIsExpanded((prev) => !prev)}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label={isExpanded ? 'Collapse editor' : 'Expand editor'}
+                        title="Ctrl+Shift+Enter"
+                      >
+                        {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                      </button>
+                    </div>
+                  </div>
+                  {/* 右侧：发送操作 */}
+                  <div className="flex flex-row items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 overflow-x-auto max-w-[45vw] sm:max-w-none">
+                      <WorkUnitBalanceBar compact className="shrink-0" />
+                      <SessionSpendSurface className="shrink-0" />
+                      <ContextUsageIndicator />
+                      <ReadinessBadge />
+                      <LivenessIndicator />
+                      <div className="hidden sm:flex items-center gap-1">
+                        <EnvironmentShield />
+                        <BudgetBadge />
+                      </div>
+                    </div>
+                    {/* 附件按钮在所有设备上都显示在右侧 */}
+                    {actionMode !== 'fast' && <AttachButton files={files} setFiles={setFiles} />}
+                    {isVoiceEnabled && (
+                      <SpeechInputButton onTranscript={handleTranscript} disabled={loading} keyterms={keyterms} />
+                    )}
+                    {isVoiceEnabled && <VoiceSessionButton disabled={loading} keyterms={keyterms} />}
+                    {loading ? (
+                      <div className="flex items-center gap-1">
+                        {inputMessage.trim().length > 0 || pendingExplicitSkillActivation ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleRedirectSubmit}
+                              className="bg-primary text-primary-foreground hover:bg-primary/80 transition duration-100 rounded-full p-2"
+                              aria-label={chatT('redirect.send')}
+                              title={chatT('redirect.tooltip')}
+                            >
+                              <CornerDownLeft size={17} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSteerSubmit}
+                              className="bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30 transition duration-100 rounded-full p-2"
+                              aria-label={chatT('steer.send')}
+                              title={chatT('steer.tooltip')}
+                            >
+                              <Navigation size={17} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleQueueSubmit()}
+                              className="bg-accent/60 text-white hover:bg-accent/80 transition duration-100 rounded-full p-2"
+                              aria-label={chatT('queue.sendLater')}
+                              title={chatT('queue.sendLaterTooltip')}
+                            >
+                              <ListPlus size={17} />
+                            </button>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={stopMessage}
+                          className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 transition duration-100 rounded-full p-2"
+                          aria-label="Stop"
+                        >
+                          <Square size={17} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="brand-elevation-slot">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleSubmit();
+                          }}
+                          disabled={
+                            inputMessage.trim().length === 0 && files.length === 0 && !pendingExplicitSkillActivation
+                          }
+                          className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
+                          aria-label={commonT('send')}
+                        >
+                          <ArrowRight size={17} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                </div>
               </>
             )}
           </div>

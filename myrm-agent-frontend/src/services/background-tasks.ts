@@ -2,13 +2,7 @@ import { apiRequest } from '@/lib/api';
 
 export type BackgroundTaskKind = 'agent' | 'shell';
 
-export type BackgroundTaskStatus =
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'timed_out'
-  | 'cancelled'
-  | 'orphaned';
+export type BackgroundTaskStatus = 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled' | 'orphaned';
 
 export interface BackgroundTask {
   kind: BackgroundTaskKind;

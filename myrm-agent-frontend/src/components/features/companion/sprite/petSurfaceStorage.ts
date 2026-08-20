@@ -10,7 +10,9 @@ const BOUNDS_KEY = 'myrm-pet-surface-bounds.v1';
 export function loadPetSurfaceMode(): PetSurfaceMode {
   try {
     const raw = localStorage.getItem(MODE_KEY);
-    if (raw === 'popped-out') {return 'popped-out';}
+    if (raw === 'popped-out') {
+      return 'popped-out';
+    }
   } catch {
     /* ignore */
   }
@@ -31,10 +33,10 @@ export function loadPetSurfaceBounds(fallbackWidth: number, fallbackHeight: numb
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PetSurfaceBounds>;
       if (
-        typeof parsed.x === 'number'
-        && typeof parsed.y === 'number'
-        && typeof parsed.width === 'number'
-        && typeof parsed.height === 'number'
+        typeof parsed.x === 'number' &&
+        typeof parsed.y === 'number' &&
+        typeof parsed.width === 'number' &&
+        typeof parsed.height === 'number'
       ) {
         return {
           x: parsed.x,

@@ -128,29 +128,17 @@ export function ObsidianVaultActions({
               >
                 {isRevealing ? t('opening') : t('revealFolder')}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!wikiPath}
-                onClick={() => void handleCopyPath()}
-              >
+              <Button variant="ghost" size="sm" disabled={!wikiPath} onClick={() => void handleCopyPath()}>
                 {t('copyPath')}
               </Button>
             </>
           )}
-          <Button
-            variant="default"
-            size="sm"
-            disabled={!vaultReady || isExporting}
-            onClick={() => void handleExport()}
-          >
+          <Button variant="default" size="sm" disabled={!vaultReady || isExporting} onClick={() => void handleExport()}>
             <IconDatabase className="w-4 h-4 mr-2" />
             {isExporting ? t('exporting') : t('downloadPack')}
           </Button>
         </div>
-        {!showLocalActions && (
-          <p className="text-xs text-muted-foreground">{t('cloudHint')}</p>
-        )}
+        {!showLocalActions && <p className="text-xs text-muted-foreground">{t('cloudHint')}</p>}
       </CardContent>
     </Card>
   );

@@ -12,27 +12,24 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import {
-  ChatState,
-  Message,
-  DEFAULT_ENABLED_BUILTIN_TOOLS,
-  type BuiltinToolId,
-} from '@/store/chat/types';
+import { ChatState, Message, DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 export type { Message, File, ProgressItem, ChatHistoryItem, PaginationInfo, AgentConfig } from '@/store/chat/types';
 import { normalizeArchiveRestoreActions } from './chat/archiveRestoreActions';
 import { sendMessage } from './chat/messageRequest';
 import { generateStreamRequestMessageId } from './chat/streamRequestMessageId';
-import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat, persistActiveChatNavigationSnapshot, resolveInstantChatSnapshot } from './chat/messageManagement';
+import {
+  loadMessages,
+  loadOlderMessages,
+  initializeChat,
+  autoSaveChat,
+  persistActiveChatNavigationSnapshot,
+  resolveInstantChatSnapshot,
+} from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
 import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
-import {
-  getChatHistory,
-  cancelAgentRequest,
-  cancelActiveChatAgent,
-  type ChatItem,
-} from '@/services/chat';
+import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent, type ChatItem } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
 import { fetchWithTimeout } from '@/lib/api';
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
@@ -50,10 +47,7 @@ import {
  * callbacks can deliver the same chat more than once; React list keys must stay
  * unique even when that happens.
  */
-function mergeChatHistoryItems(
-  existing: ChatItem[],
-  incoming: ChatItem[],
-): ChatItem[] {
+function mergeChatHistoryItems(existing: ChatItem[], incoming: ChatItem[]): ChatItem[] {
   const byId = new Map<string, ChatItem>();
   for (const item of [...existing, ...incoming]) {
     if (item.id) {
@@ -98,8 +92,7 @@ export function hydrateChatPreferencesFromStorage(): void {
 
   useChatStore.setState({
     actionMode: actionMode === 'fast' || actionMode === 'agent' ? actionMode : useChatStore.getState().actionMode,
-    searchDepth:
-      searchDepth === 'normal' || searchDepth === 'deep' ? searchDepth : useChatStore.getState().searchDepth,
+    searchDepth: searchDepth === 'normal' || searchDepth === 'deep' ? searchDepth : useChatStore.getState().searchDepth,
     currentBuiltinTools: readStoredBuiltinTools(),
   });
 }
@@ -229,7 +222,15 @@ const useChatStore = create<ChatState>()(
 
       // 设置方法
       setChatId: (id) => {
-        set({ chatId: id, lastCompactionMeta: null, compactionRefreshNonce: 0, contextBranches: [], contextPinnedFiles: [], contextBranchesLoadError: null, contextPinnedFilesLoadError: null });
+        set({
+          chatId: id,
+          lastCompactionMeta: null,
+          compactionRefreshNonce: 0,
+          contextBranches: [],
+          contextPinnedFiles: [],
+          contextBranchesLoadError: null,
+          contextPinnedFilesLoadError: null,
+        });
         useQuoteStore.getState().clearQuote();
       },
       setNewChatCreated: (created) => set({ newChatCreated: created }),
@@ -393,8 +394,7 @@ const useChatStore = create<ChatState>()(
         set({ currentBuiltinTools: tools });
       },
       setInputMessage: (message) => set({ inputMessage: message }),
-      setPendingExplicitSkillActivation: (activation) =>
-        set({ pendingExplicitSkillActivation: activation }),
+      setPendingExplicitSkillActivation: (activation) => set({ pendingExplicitSkillActivation: activation }),
       setPendingArchiveRestoreAction: (action) => {
         const actions = action ? normalizeArchiveRestoreActions([action]) : [];
         set({
@@ -510,12 +510,10 @@ const useChatStore = create<ChatState>()(
         }),
       clearEnvironmentAlerts: () => set({ environmentAlerts: new Set<string>() }),
       stopMessage: () => {
-        const {
-          chatId,
-          abortController: chatAbortController,
-          currentSessionMessageId: chatSessionMessageId,
-        } = get();
-        if (!chatId) {return;}
+        const { chatId, abortController: chatAbortController, currentSessionMessageId: chatSessionMessageId } = get();
+        if (!chatId) {
+          return;
+        }
 
         const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
 
@@ -556,7 +554,9 @@ const useChatStore = create<ChatState>()(
           return;
         }
 
-        if (!chatAbortController) {return;}
+        if (!chatAbortController) {
+          return;
+        }
 
         void (async () => {
           try {
@@ -579,7 +579,9 @@ const useChatStore = create<ChatState>()(
       },
       steerMessage: async (message: string) => {
         const { chatId } = get();
-        if (!chatId) {return false;}
+        if (!chatId) {
+          return false;
+        }
         try {
           const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
           if (isMobileRemoteSurface()) {
@@ -598,7 +600,9 @@ const useChatStore = create<ChatState>()(
       },
       redirectMessage: async (message: string) => {
         const { chatId } = get();
-        if (!chatId) {return false;}
+        if (!chatId) {
+          return false;
+        }
         try {
           const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
           if (isMobileRemoteSurface()) {
@@ -815,9 +819,7 @@ const useChatStore = create<ChatState>()(
               if (currentChatId === streamChatId) {
                 set({ loading: false, abortController: null });
               }
-              const paneId = useWorkspaceStore.getState().panes.find(
-                (pane) => pane.chatId === streamChatId,
-              )?.id;
+              const paneId = useWorkspaceStore.getState().panes.find((pane) => pane.chatId === streamChatId)?.id;
               if (paneId) {
                 useWorkspaceStore.getState().setPaneAbortController(paneId, null);
               }
@@ -926,7 +928,12 @@ const useChatStore = create<ChatState>()(
         };
         initializeChat(
           id,
-          { messages: state.messages, chatId: state.chatId, loading: state.loading, currentSessionMessageId: state.currentSessionMessageId },
+          {
+            messages: state.messages,
+            chatId: state.chatId,
+            loading: state.loading,
+            currentSessionMessageId: state.currentSessionMessageId,
+          },
           actions,
           options,
         );
@@ -963,7 +970,13 @@ const useChatStore = create<ChatState>()(
       },
 
       loadMoreChatHistory: async () => {
-        const { chatHistoryPagination, chatHistoryItems, chatHistoryLoading, chatHistorySourceFilter, chatHistorySearchKeyword } = get();
+        const {
+          chatHistoryPagination,
+          chatHistoryItems,
+          chatHistoryLoading,
+          chatHistorySourceFilter,
+          chatHistorySearchKeyword,
+        } = get();
 
         if (chatHistoryLoading || !chatHistoryPagination?.has_next) {
           return;
@@ -1041,7 +1054,9 @@ const useChatStore = create<ChatState>()(
         const prev = get().chatHistoryItems;
         const items = prev.map((item) => {
           const idx = orderedIds.indexOf(item.id);
-          if (idx !== -1) {return { ...item, pinOrder: idx + 1 };}
+          if (idx !== -1) {
+            return { ...item, pinOrder: idx + 1 };
+          }
           return item;
         });
         set({ chatHistoryItems: items });

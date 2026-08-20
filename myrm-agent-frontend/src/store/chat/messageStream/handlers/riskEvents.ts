@@ -4,9 +4,9 @@
  * Handles risk_blocked events from the server-side input risk gate.
  */
 
-import type { StreamCtx, StreamTurn } from "../streamContext";
-import { done } from "../streamContext";
-import { AgentEventType } from "../../types/agentStream/part1";
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import { AgentEventType } from '../../types/agentStream/part1';
 
 interface RiskBlockedPayload {
   message: string;

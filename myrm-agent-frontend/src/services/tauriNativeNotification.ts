@@ -9,14 +9,10 @@
  * Tauri-only notification helper shared by tray budget alerts and media task completion hooks.
  */
 
-export async function sendTauriNativeNotification(options: {
-  title: string;
-  body?: string;
-}): Promise<boolean> {
+export async function sendTauriNativeNotification(options: { title: string; body?: string }): Promise<boolean> {
   try {
-    const { sendNotification, isPermissionGranted, requestPermission } = await import(
-      '@tauri-apps/plugin-notification'
-    );
+    const { sendNotification, isPermissionGranted, requestPermission } =
+      await import('@tauri-apps/plugin-notification');
     let granted = await isPermissionGranted();
     if (!granted) {
       const permission = await requestPermission();

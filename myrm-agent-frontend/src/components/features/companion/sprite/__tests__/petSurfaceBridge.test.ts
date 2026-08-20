@@ -18,12 +18,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { emitTo } from '@tauri-apps/api/event';
 
 import { PetState } from '../PetStateMachine';
-import {
-  emitPetSurfaceState,
-  hidePetSurface,
-  isTauriEnv,
-  showPetSurface,
-} from '../petSurfaceBridge';
+import { emitPetSurfaceState, hidePetSurface, isTauriEnv, showPetSurface } from '../petSurfaceBridge';
 
 describe('petSurfaceBridge', () => {
   afterEach(() => {

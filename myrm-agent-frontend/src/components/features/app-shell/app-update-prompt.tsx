@@ -23,7 +23,9 @@ function shouldShow(phase: AppUpdatePhase): boolean {
 const DISMISSED_VERSION_KEY = 'myrm-update-dismissed-version';
 
 function isDismissedForVersion(version: string | undefined): boolean {
-  if (!version) {return false;}
+  if (!version) {
+    return false;
+  }
   try {
     return localStorage.getItem(DISMISSED_VERSION_KEY) === version;
   } catch {
@@ -67,7 +69,9 @@ export function AppUpdatePrompt() {
     if (info?.version) {
       try {
         localStorage.setItem(DISMISSED_VERSION_KEY, info.version);
-      } catch { /* quota exceeded — graceful degrade */ }
+      } catch {
+        /* quota exceeded — graceful degrade */
+      }
     }
   }, [info?.version]);
 
@@ -84,8 +88,12 @@ export function AppUpdatePrompt() {
     setDismissed(true);
   }, [currentErrorKey, reset]);
 
-  if (!isTauriRuntime() || !shouldShow(phase) || dismissed) {return null;}
-  if (typeof document === 'undefined') {return null;}
+  if (!isTauriRuntime() || !shouldShow(phase) || dismissed) {
+    return null;
+  }
+  if (typeof document === 'undefined') {
+    return null;
+  }
 
   return createPortal(
     <div
@@ -201,7 +209,9 @@ function ReleaseNotes({ body }: { body: string }) {
   const t = useTranslations('appUpdate');
   const [expanded, setExpanded] = useState(false);
   const trimmed = body.trim();
-  if (!trimmed) {return null;}
+  if (!trimmed) {
+    return null;
+  }
   const isLong = trimmed.length > 160;
   const display = expanded || !isLong ? trimmed : `${trimmed.slice(0, 160).trimEnd()}…`;
   return (

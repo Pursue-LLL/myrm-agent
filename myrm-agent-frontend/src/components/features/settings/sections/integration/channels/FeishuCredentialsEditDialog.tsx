@@ -9,11 +9,7 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Switch } from '@/components/primitives/switch';
 import { IconEye, IconEyeOff, IconLoader } from '@/components/features/icons/PremiumIcons';
-import {
-  getChannelCredentials,
-  saveChannelCredentials,
-  testFeishuConnection,
-} from '@/services/channels';
+import { getChannelCredentials, saveChannelCredentials, testFeishuConnection } from '@/services/channels';
 
 interface FeishuCredentialsEditDialogProps {
   open: boolean;
@@ -173,10 +169,7 @@ export function FeishuCredentialsEditDialog({
               </div>
             </div>
             <div className="flex items-center gap-2 pt-1">
-              <Switch
-                checked={form.useLark}
-                onCheckedChange={(v) => setForm((prev) => ({ ...prev, useLark: v }))}
-              />
+              <Switch checked={form.useLark} onCheckedChange={(v) => setForm((prev) => ({ ...prev, useLark: v }))} />
               <span className="text-sm text-muted-foreground">{t('feishuUseLark')}</span>
             </div>
             <div className="flex items-center gap-3 pt-2">

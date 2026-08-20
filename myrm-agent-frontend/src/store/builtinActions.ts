@@ -4,17 +4,29 @@ import { showI18nToast } from '@/services/i18nToastService';
 import { toast } from 'sonner';
 
 function parseYoloArgs(inputValue: string): { action: 'toggle' | 'on' | 'off'; timeout?: number } {
-  const args = inputValue.replace(/^\/yolo\s*/i, '').trim().toLowerCase();
-  if (!args) {return { action: 'toggle' };}
-  if (args === 'on') {return { action: 'on' };}
-  if (args === 'off') {return { action: 'off' };}
+  const args = inputValue
+    .replace(/^\/yolo\s*/i, '')
+    .trim()
+    .toLowerCase();
+  if (!args) {
+    return { action: 'toggle' };
+  }
+  if (args === 'on') {
+    return { action: 'on' };
+  }
+  if (args === 'off') {
+    return { action: 'off' };
+  }
 
   const timeoutMatch = args.match(/^(?:on\s+)?(\d+)\s*([smh]?)$/);
   if (timeoutMatch) {
     let seconds = parseInt(timeoutMatch[1], 10);
     const unit = timeoutMatch[2] || 's';
-    if (unit === 'm') {seconds *= 60;}
-    else if (unit === 'h') {seconds *= 3600;}
+    if (unit === 'm') {
+      seconds *= 60;
+    } else if (unit === 'h') {
+      seconds *= 3600;
+    }
     return { action: 'on', timeout: seconds };
   }
   return { action: 'toggle' };
@@ -126,9 +138,13 @@ export function buildBuiltinActions(): SlashAction[] {
         const currentlyEnabled = config.yoloModeEnabled ?? false;
 
         let newEnabled: boolean;
-        if (action === 'toggle') {newEnabled = !currentlyEnabled;}
-        else if (action === 'on') {newEnabled = true;}
-        else {newEnabled = false;}
+        if (action === 'toggle') {
+          newEnabled = !currentlyEnabled;
+        } else if (action === 'on') {
+          newEnabled = true;
+        } else {
+          newEnabled = false;
+        }
 
         syncManager.set('securityConfig', {
           ...config,
@@ -156,7 +172,10 @@ export function buildBuiltinActions(): SlashAction[] {
       type: 'action',
       execute: async (inputValue: string) => {
         const { apiRequest } = await import('@/lib/api');
-        const args = inputValue.replace(/^\/freeze\s*/i, '').trim().toLowerCase();
+        const args = inputValue
+          .replace(/^\/freeze\s*/i, '')
+          .trim()
+          .toLowerCase();
         const shouldResume = args === 'off' || args === 'resume';
 
         const toastId = toast.loading('…');
@@ -164,9 +183,7 @@ export function buildBuiltinActions(): SlashAction[] {
           await apiRequest<{ level: string; reason: string }>('/security/estop', {
             method: 'POST',
             body: JSON.stringify(
-              shouldResume
-                ? { action: 'resume' }
-                : { action: 'activate', reason: 'User triggered /freeze' },
+              shouldResume ? { action: 'resume' } : { action: 'activate', reason: 'User triggered /freeze' },
             ),
           });
 

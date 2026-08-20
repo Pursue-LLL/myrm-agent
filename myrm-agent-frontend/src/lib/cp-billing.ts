@@ -15,12 +15,7 @@
 export type BillingPlanKey = 'free' | 'companion' | 'plus' | 'pro' | 'max';
 export type PaidBillingPlanKey = Exclude<BillingPlanKey, 'free'>;
 
-export const PAID_BILLING_PLAN_KEYS: readonly PaidBillingPlanKey[] = [
-  'companion',
-  'plus',
-  'pro',
-  'max',
-];
+export const PAID_BILLING_PLAN_KEYS: readonly PaidBillingPlanKey[] = ['companion', 'plus', 'pro', 'max'];
 
 export function isPaidBillingPlan(plan: string): plan is PaidBillingPlanKey {
   return (PAID_BILLING_PLAN_KEYS as readonly string[]).includes(plan);

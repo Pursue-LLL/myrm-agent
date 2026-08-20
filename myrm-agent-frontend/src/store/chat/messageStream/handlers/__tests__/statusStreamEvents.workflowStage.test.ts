@@ -39,10 +39,7 @@ function makeMessagesState() {
   };
 }
 
-function makeWorkflowStageCtx(
-  message: string,
-  overrides: Record<string, unknown> = {},
-): StreamCtx {
+function makeWorkflowStageCtx(message: string, overrides: Record<string, unknown> = {}): StreamCtx {
   return {
     data: {
       type: 'status',

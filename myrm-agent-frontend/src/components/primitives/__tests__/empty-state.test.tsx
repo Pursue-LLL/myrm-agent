@@ -2,28 +2,15 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EmptyState } from '../empty-state';
-import {
-  ListSkeleton,
-  CardGridSkeleton,
-  TableSkeleton,
-  FormSkeleton,
-  ListDetailSkeleton,
-} from '../skeleton-templates';
+import { ListSkeleton, CardGridSkeleton, TableSkeleton, FormSkeleton, ListDetailSkeleton } from '../skeleton-templates';
 
 describe('EmptyState Primitive', () => {
   it('renders title and description properly', () => {
-    render(
-      <EmptyState
-        title="No Results Found"
-        description="Try searching with different keywords"
-      />,
-    );
+    render(<EmptyState title="No Results Found" description="Try searching with different keywords" />);
 
     expect(screen.getByRole('status')).toBeInTheDocument();
     expect(screen.getByText('No Results Found')).toBeInTheDocument();
-    expect(
-      screen.getByText('Try searching with different keywords'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Try searching with different keywords')).toBeInTheDocument();
   });
 
   it('renders icon when provided', () => {
@@ -31,12 +18,7 @@ describe('EmptyState Primitive', () => {
       <svg data-testid="custom-icon" className={className} />
     );
 
-    render(
-      <EmptyState
-        icon={CustomIcon}
-        title="Empty List"
-      />,
-    );
+    render(<EmptyState icon={CustomIcon} title="Empty List" />);
 
     expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
   });
@@ -64,12 +46,7 @@ describe('EmptyState Primitive', () => {
   });
 
   it('applies variant classes correctly', () => {
-    const { container } = render(
-      <EmptyState
-        variant="dashed"
-        title="Dashed State"
-      />,
-    );
+    const { container } = render(<EmptyState variant="dashed" title="Dashed State" />);
 
     const el = container.firstChild as HTMLElement;
     expect(el.className).toContain('border-dashed');

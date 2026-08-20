@@ -80,9 +80,7 @@ describe('completionEvents workspace merge failures', () => {
 
     await completionEvents(ctx);
 
-    expect(state.messages[0]?.workspaceMergeFailures).toEqual([
-      { message: 'task_index=1: disk full' },
-    ]);
+    expect(state.messages[0]?.workspaceMergeFailures).toEqual([{ message: 'task_index=1: disk full' }]);
     expect(state.messages[0]?.workspaceMergeFailedCount).toBe(3);
     expect(state.messages[0]?.workspaceMergeTruncated).toBe(1);
   });

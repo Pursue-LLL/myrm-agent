@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  rankManifestPets,
-  type ManifestPet,
-} from '@/components/features/companion/petGalleryManifest';
+import { rankManifestPets, type ManifestPet } from '@/components/features/companion/petGalleryManifest';
 
 describe('rankManifestPets', () => {
   const pets: ManifestPet[] = [

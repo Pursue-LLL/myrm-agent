@@ -7,12 +7,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { toast } from '@/hooks/shared/useToast';
-import {
-  getCustomSources,
-  addCustomSource,
-  removeCustomSource,
-  type CustomSource,
-} from '@/services/skill';
+import { getCustomSources, addCustomSource, removeCustomSource, type CustomSource } from '@/services/skill';
 
 const SkillSourcesPanel = memo(() => {
   const t = useTranslations('settings.skills.discover.customSources');
@@ -39,7 +34,9 @@ const SkillSourcesPanel = memo(() => {
   }, [fetchSources]);
 
   const handleAdd = useCallback(async () => {
-    if (!addingUrl.trim()) {return;}
+    if (!addingUrl.trim()) {
+      return;
+    }
     setIsAdding(true);
     try {
       const res = await addCustomSource(addingUrl.trim(), 'well-known', addingLabel.trim());
@@ -61,18 +58,21 @@ const SkillSourcesPanel = memo(() => {
     }
   }, [addingUrl, addingLabel, t, fetchSources]);
 
-  const handleRemove = useCallback(async (url: string) => {
-    setRemovingUrl(url);
-    try {
-      await removeCustomSource(url);
-      toast({ title: t('removed'), variant: 'default' });
-      await fetchSources();
-    } catch {
-      toast({ title: t('removeFailed'), variant: 'destructive' });
-    } finally {
-      setRemovingUrl(null);
-    }
-  }, [t, fetchSources]);
+  const handleRemove = useCallback(
+    async (url: string) => {
+      setRemovingUrl(url);
+      try {
+        await removeCustomSource(url);
+        toast({ title: t('removed'), variant: 'default' });
+        await fetchSources();
+      } catch {
+        toast({ title: t('removeFailed'), variant: 'destructive' });
+      } finally {
+        setRemovingUrl(null);
+      }
+    },
+    [t, fetchSources],
+  );
 
   if (loading) {
     return (
@@ -105,12 +105,7 @@ const SkillSourcesPanel = memo(() => {
           placeholder={t('labelPlaceholder')}
           className="w-32 h-8 text-sm"
         />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleAdd}
-          disabled={isAdding || !addingUrl.trim()}
-        >
+        <Button variant="outline" size="sm" onClick={handleAdd} disabled={isAdding || !addingUrl.trim()}>
           {isAdding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
           <span className="ml-1">{isAdding ? t('adding') : t('addSource')}</span>
         </Button>
@@ -139,12 +134,8 @@ const SkillSourcesPanel = memo(() => {
                   <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
                 )}
                 <div className="overflow-hidden">
-                  <p className="text-sm font-medium truncate">
-                    {source.label || source.url}
-                  </p>
-                  {source.label && (
-                    <p className="text-xs text-muted-foreground truncate">{source.url}</p>
-                  )}
+                  <p className="text-sm font-medium truncate">{source.label || source.url}</p>
+                  {source.label && <p className="text-xs text-muted-foreground truncate">{source.url}</p>}
                 </div>
               </div>
               <Button

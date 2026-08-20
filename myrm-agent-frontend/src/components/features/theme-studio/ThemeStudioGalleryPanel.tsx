@@ -24,19 +24,13 @@ import { useThemeMarketplaceGate } from '@/components/features/theme-studio/hook
 import { EMPTY_THEME_PROFILES, type ThemeProfileRecipe } from '@/theme-engine';
 import { mergeProfileIntoLibrary } from '@/components/features/theme-studio/studio-profile';
 import ThemeStudioMarketplacePreviewDialog from '@/components/features/theme-studio/ThemeStudioMarketplacePreviewDialog';
-import {
-  filterAndSortGalleryItems,
-  type GallerySort,
-} from '@/components/features/theme-studio/gallery-listing-filter';
+import { filterAndSortGalleryItems, type GallerySort } from '@/components/features/theme-studio/gallery-listing-filter';
 
 type GalleryTab = 'official' | 'community' | 'owned';
 
 type PurchaseReturnPhase = 'idle' | 'completing' | 'failed';
 
-async function recordThemeInstallWithRetry(
-  listingId: string,
-  warnMessage: string,
-): Promise<void> {
+async function recordThemeInstallWithRetry(listingId: string, warnMessage: string): Promise<void> {
   try {
     await recordThemeInstall(listingId);
     return;
@@ -69,31 +63,32 @@ const ThemeStudioGalleryPanel = () => {
     listingId: string | null;
   }>({ phase: 'idle', listingId: null });
 
-  const themeProfiles = useConfigStore(
-    (state) => state.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES,
-  );
+  const themeProfiles = useConfigStore((state) => state.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES);
   const updatePersonalSettings = useConfigStore((state) => state.updatePersonalSettings);
   const { gate } = useThemeMarketplaceGate();
 
-  const load = useCallback(async (tabOverride?: GalleryTab) => {
-    const activeTab = tabOverride ?? tab;
-    setLoading(true);
-    try {
-      const rows = await listThemeMarketplace(
-        activeTab === 'community'
-          ? { origin: 'community' }
-          : activeTab === 'official'
-            ? { origin: 'official' }
-            : undefined,
-      );
-      const filtered = activeTab === 'owned' ? rows.filter((row) => row.isOwned) : rows;
-      setItems(filtered);
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [tab]);
+  const load = useCallback(
+    async (tabOverride?: GalleryTab) => {
+      const activeTab = tabOverride ?? tab;
+      setLoading(true);
+      try {
+        const rows = await listThemeMarketplace(
+          activeTab === 'community'
+            ? { origin: 'community' }
+            : activeTab === 'official'
+              ? { origin: 'official' }
+              : undefined,
+        );
+        const filtered = activeTab === 'owned' ? rows.filter((row) => row.isOwned) : rows;
+        setItems(filtered);
+      } catch {
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [tab],
+  );
 
   useEffect(() => {
     if (gate !== 'ready') {
@@ -209,10 +204,7 @@ const ThemeStudioGalleryPanel = () => {
     [t],
   );
 
-  const displayItems = useMemo(
-    () => filterAndSortGalleryItems(items, searchQuery, sort),
-    [items, searchQuery, sort],
-  );
+  const displayItems = useMemo(() => filterAndSortGalleryItems(items, searchQuery, sort), [items, searchQuery, sort]);
 
   const handleTabChange = useCallback(
     (nextTab: GalleryTab) => {
@@ -349,10 +341,7 @@ const ThemeStudioGalleryPanel = () => {
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
             {displayItems.map((listing) => (
-              <li
-                key={listing.id}
-                className="rounded-lg border border-border/60 bg-background/80 p-3 space-y-2"
-              >
+              <li key={listing.id} className="rounded-lg border border-border/60 bg-background/80 p-3 space-y-2">
                 {listing.previewThumbnail ? (
                   <div
                     className="aspect-video w-full rounded-md border border-border/50 bg-muted bg-cover bg-center"
@@ -405,7 +394,9 @@ const ThemeStudioGalleryPanel = () => {
         busy={installingId !== null}
         onClose={() => setPreviewListing(null)}
         onConfirm={() => {
-          if (previewListing) {void runInstall(previewListing);}
+          if (previewListing) {
+            void runInstall(previewListing);
+          }
         }}
       />
     </>

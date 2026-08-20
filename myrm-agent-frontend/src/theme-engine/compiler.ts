@@ -2,12 +2,7 @@ import type { FontId } from '@/lib/fonts';
 import { getFontStack } from '@/lib/fonts';
 import { resolveContrastSafeForeground } from './oklch';
 import { effectiveArtWash, mergeSceneSurfaces } from './scene-surfaces';
-import type {
-  CompiledTheme,
-  CompiledThemeArtLayer,
-  ThemeCompileContext,
-  ThemeProfileRecipe,
-} from './schema';
+import type { CompiledTheme, CompiledThemeArtLayer, ThemeCompileContext, ThemeProfileRecipe } from './schema';
 
 export interface ThemeAssetUrls {
   mediaUrl: string | null;
@@ -21,8 +16,8 @@ function pickPrimary(recipe: ThemeProfileRecipe, colorScheme: 'light' | 'dark') 
   const primaryDark = isDark ? recipe.palette.primaryDarkDark : recipe.palette.primaryDarkLight;
   const accentWarm = recipe.palette.dualAccent
     ? isDark
-      ? recipe.palette.accentWarmDark ?? primary
-      : recipe.palette.accentWarmLight ?? primary
+      ? (recipe.palette.accentWarmDark ?? primary)
+      : (recipe.palette.accentWarmLight ?? primary)
     : primary;
   const primaryForeground = resolveContrastSafeForeground(primary);
   const accentWarmForeground = resolveContrastSafeForeground(accentWarm);
@@ -49,7 +44,9 @@ function buildBrandShadows(primary: string, accentWarm: string, dual: boolean): 
 }
 
 function isVideoMimeUrl(url: string | null): boolean {
-  if (!url) {return false;}
+  if (!url) {
+    return false;
+  }
   const lower = url.toLowerCase();
   return lower.includes('.mp4') || lower.includes('video/mp4');
 }
@@ -64,19 +61,12 @@ function buildArtLayer(
   const posterUrl = assetUrls.posterUrl;
   const mediaUrl = assetUrls.mediaUrl;
   const staticImageUrl =
-    posterUrl ??
-    (recipe.art.mediaKind === 'image' && mediaUrl && !isVideoMimeUrl(mediaUrl) ? mediaUrl : null);
+    posterUrl ?? (recipe.art.mediaKind === 'image' && mediaUrl && !isVideoMimeUrl(mediaUrl) ? mediaUrl : null);
 
-  const canPlayVideo =
-    isVideoSource &&
-    Boolean(mediaUrl) &&
-    !context.prefersReducedMotion &&
-    !context.isMobile;
+  const canPlayVideo = isVideoSource && Boolean(mediaUrl) && !context.prefersReducedMotion && !context.isMobile;
 
   const useVideo = canPlayVideo;
-  const enabled =
-    recipe.art.mediaKind !== 'none' &&
-    Boolean(useVideo ? mediaUrl : staticImageUrl);
+  const enabled = recipe.art.mediaKind !== 'none' && Boolean(useVideo ? mediaUrl : staticImageUrl);
 
   let displayMediaKind = recipe.art.mediaKind;
   let displayMediaUrl: string | null = null;
@@ -116,8 +106,10 @@ export function compileThemeProfile(
   context: ThemeCompileContext,
   assetUrls: ThemeAssetUrls = { mediaUrl: null, posterUrl: null },
 ): CompiledTheme {
-  const { primary, primaryHover, primaryDark, accentWarm, primaryForeground, accentWarmForeground } =
-    pickPrimary(recipe, context.colorScheme);
+  const { primary, primaryHover, primaryDark, accentWarm, primaryForeground, accentWarmForeground } = pickPrimary(
+    recipe,
+    context.colorScheme,
+  );
   const dual = recipe.palette.dualAccent;
   const brand = buildBrandShadows(primary, accentWarm, dual);
   const artLayer = buildArtLayer(recipe, context, assetUrls);
@@ -163,10 +155,7 @@ export function compileThemeProfile(
   };
 }
 
-export function applyCompiledTheme(
-  root: HTMLElement,
-  compiled: CompiledTheme,
-): void {
+export function applyCompiledTheme(root: HTMLElement, compiled: CompiledTheme): void {
   for (const [name, value] of Object.entries(compiled.cssVariables)) {
     root.style.setProperty(name, value);
   }

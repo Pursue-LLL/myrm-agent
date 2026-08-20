@@ -24,8 +24,7 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
   const { policy, active } = useManagedPolicyEffective();
   const defaultModelConfig = useProviderStore((state) => state.defaultModelConfig);
   const boundModelSlug = editor.modelSelection?.model?.trim() ?? '';
-  const effectiveModelSlug =
-    boundModelSlug || defaultModelConfig.baseModel.primary?.model?.trim() || '';
+  const effectiveModelSlug = boundModelSlug || defaultModelConfig.baseModel.primary?.model?.trim() || '';
   const orgConstraints = useMemo(
     () => (active ? managedPolicyConstraintsForModel(policy, effectiveModelSlug) : null),
     [active, policy, effectiveModelSlug],
@@ -39,9 +38,7 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
       </div>
       <ModelPickerPopover
         currentSelection={editor.modelSelection}
-        onSelect={(providerId, model) =>
-          editor.setModelSelection({ ...editor.modelSelection, providerId, model })
-        }
+        onSelect={(providerId, model) => editor.setModelSelection({ ...editor.modelSelection, providerId, model })}
         fallbackSelection={
           editor.modelSelection?.fallbackProviderId && editor.modelSelection?.fallbackModel
             ? { providerId: editor.modelSelection.fallbackProviderId, model: editor.modelSelection.fallbackModel }
@@ -51,7 +48,11 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
           editor.setModelSelection({ ...editor.modelSelection!, fallbackProviderId: providerId, fallbackModel: model })
         }
         onClearFallback={() =>
-          editor.setModelSelection({ ...editor.modelSelection!, fallbackProviderId: undefined, fallbackModel: undefined })
+          editor.setModelSelection({
+            ...editor.modelSelection!,
+            fallbackProviderId: undefined,
+            fallbackModel: undefined,
+          })
         }
         trigger={
           <button
@@ -64,9 +65,7 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
             )}
           >
             <div className="flex items-center gap-2 min-w-0">
-              {editor.modelSelection && (
-                <ProviderIcon providerId={editor.modelSelection.providerId} size={14} />
-              )}
+              {editor.modelSelection && <ProviderIcon providerId={editor.modelSelection.providerId} size={14} />}
               <span className="truncate">{editor.modelSelection?.model ?? t('agent.useDefaultModel')}</span>
             </div>
             <IconChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
@@ -131,7 +130,9 @@ export function ModelParamsSection({ editor, t }: SectionProps) {
         <TemperatureSlider
           value={(kwargs.top_p as number) ?? 1.0}
           onChange={(val) => setKwarg('top_p', val)}
-          min={0} max={1} step={0.05}
+          min={0}
+          max={1}
+          step={0.05}
           label={t('agent.topP')}
           minLabel={t('agent.focused')}
           maxLabel={t('agent.diverse')}
@@ -141,7 +142,9 @@ export function ModelParamsSection({ editor, t }: SectionProps) {
           <label className="text-sm font-medium text-foreground">{t('agent.maxTokens')}</label>
           <p className="text-xs text-muted-foreground mt-0.5 mb-2">{t('agent.maxTokensDesc')}</p>
           <Input
-            type="number" min={1} max={128000}
+            type="number"
+            min={1}
+            max={128000}
             placeholder={t('agent.maxTokensPlaceholder')}
             value={(kwargs.max_tokens as number) ?? ''}
             onChange={(e) => {
@@ -164,7 +167,9 @@ export function MaxIterationsSection({ editor, t }: SectionProps) {
         <p className="text-xs text-muted-foreground mt-0.5">{t('agent.maxIterationsDesc')}</p>
       </div>
       <Input
-        type="number" min={5} max={500}
+        type="number"
+        min={5}
+        max={500}
         placeholder={t('agent.maxIterationsPlaceholder')}
         value={editor.maxIterations ?? ''}
         onChange={(e) => {
@@ -187,7 +192,9 @@ export function WorkspacePolicySection({ editor, t }: SectionProps) {
       <div className="flex flex-col sm:flex-row gap-2">
         {(['INHERIT_REQUESTER', 'ISOLATED_COPY', 'READ_ONLY_SANDBOX'] as const).map((policy) => (
           <button
-            key={policy} type="button" disabled={editor.isReadonly}
+            key={policy}
+            type="button"
+            disabled={editor.isReadonly}
             className={cn(
               'flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
               'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -213,7 +220,9 @@ export function ParallelFissionSection({ editor, t }: SectionProps) {
         <p className="text-xs text-muted-foreground mt-0.5">{t('agent.maxParallelFissionDesc')}</p>
       </div>
       <Input
-        type="number" min={1} max={5}
+        type="number"
+        min={1}
+        max={5}
         placeholder={t('agent.maxParallelFissionPlaceholder')}
         value={(editor.engineParams?.max_parallel_fission as number) ?? ''}
         onChange={(e) => {
@@ -231,8 +240,7 @@ export function ParallelFissionSection({ editor, t }: SectionProps) {
 
 export function IdleCompactSection({ editor, t }: SectionProps) {
   const ep = editor.engineParams ?? {};
-  const idleSeconds =
-    typeof ep.idle_compact_after_seconds === 'number' ? ep.idle_compact_after_seconds : 0;
+  const idleSeconds = typeof ep.idle_compact_after_seconds === 'number' ? ep.idle_compact_after_seconds : 0;
   const enabled = idleSeconds > 0;
   const idleMinutes = enabled ? Math.max(1, Math.round(idleSeconds / 60)) : 30;
 
@@ -294,8 +302,12 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3">
-        <h3 className="text-sm font-medium text-foreground">{t('agent.advancedEngineParams', { fallback: 'Advanced Engine Parameters' })}</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">{t('agent.advancedEngineParamsDesc', { fallback: 'Configure internal engine limits and topology toggles' })}</p>
+        <h3 className="text-sm font-medium text-foreground">
+          {t('agent.advancedEngineParams', { fallback: 'Advanced Engine Parameters' })}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {t('agent.advancedEngineParamsDesc', { fallback: 'Configure internal engine limits and topology toggles' })}
+        </p>
       </div>
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -308,8 +320,11 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
             <div key={key}>
               <label className="text-xs font-medium text-muted-foreground">{key}</label>
               <Input
-                type="number" min={min}
-                placeholder={def ? t('agent.engineParam.defaultValue', { value: def }) : t('agent.engineParam.defaultNone')}
+                type="number"
+                min={min}
+                placeholder={
+                  def ? t('agent.engineParam.defaultValue', { value: def }) : t('agent.engineParam.defaultNone')
+                }
                 value={(ep[key] as number) ?? ''}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -324,8 +339,20 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
         <div className="pt-2 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             { key: 'enable_replan', label: 'enableReplan', desc: 'enableReplanDesc', defaultVal: true, invert: false },
-            { key: 'enable_context_compression', label: 'contextCompression', desc: 'contextCompressionDesc', defaultVal: true, invert: false },
-            { key: 'enable_parallel_tool_calls', label: 'parallelToolCalls', desc: 'parallelToolCallsDesc', defaultVal: true, invert: false },
+            {
+              key: 'enable_context_compression',
+              label: 'contextCompression',
+              desc: 'contextCompressionDesc',
+              defaultVal: true,
+              invert: false,
+            },
+            {
+              key: 'enable_parallel_tool_calls',
+              label: 'parallelToolCalls',
+              desc: 'parallelToolCallsDesc',
+              defaultVal: true,
+              invert: false,
+            },
           ].map(({ key, label, desc, defaultVal }) => (
             <div key={key} className="flex items-center justify-between">
               <div>
@@ -347,7 +374,9 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
 type RoutingMode = 'global' | 'custom' | 'disabled';
 
 function getRoutingMode(ms: AgentCapabilitiesTabProps['editor']['modelSelection']): RoutingMode {
-  if (!ms || ms.routingEnabled === undefined) {return 'global';}
+  if (!ms || ms.routingEnabled === undefined) {
+    return 'global';
+  }
   return ms.routingEnabled ? 'custom' : 'disabled';
 }
 
@@ -356,9 +385,18 @@ export function RoutingOverrideSection({ editor, t }: SectionProps) {
   const mode = getRoutingMode(ms);
 
   const setMode = (next: RoutingMode) => {
-    if (!ms) {return;}
+    if (!ms) {
+      return;
+    }
     if (next === 'global') {
-      const { routingEnabled: _, lightProviderId: _lp, lightModel: _lm, reasoningProviderId: _rp, reasoningModel: _rm, ...rest } = ms;
+      const {
+        routingEnabled: _,
+        lightProviderId: _lp,
+        lightModel: _lm,
+        reasoningProviderId: _rp,
+        reasoningModel: _rm,
+        ...rest
+      } = ms;
       editor.setModelSelection(rest);
     } else {
       editor.setModelSelection({ ...ms, routingEnabled: next === 'custom' });
@@ -375,7 +413,8 @@ export function RoutingOverrideSection({ editor, t }: SectionProps) {
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         {(['global', 'custom', 'disabled'] as const).map((opt) => (
           <button
-            key={opt} type="button"
+            key={opt}
+            type="button"
             className={cn(
               'flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
               mode === opt
@@ -405,7 +444,9 @@ export function RoutingOverrideSection({ editor, t }: SectionProps) {
             model={ms.reasoningModel}
             placeholder={t('agent.routingSelectModel')}
             onSelect={(pid, m) => editor.setModelSelection({ ...ms, reasoningProviderId: pid, reasoningModel: m })}
-            onClear={() => editor.setModelSelection({ ...ms, reasoningProviderId: undefined, reasoningModel: undefined })}
+            onClear={() =>
+              editor.setModelSelection({ ...ms, reasoningProviderId: undefined, reasoningModel: undefined })
+            }
           />
         </div>
       )}
@@ -414,7 +455,12 @@ export function RoutingOverrideSection({ editor, t }: SectionProps) {
 }
 
 function RoutingModelSlot({
-  label, providerId, model, placeholder, onSelect, onClear,
+  label,
+  providerId,
+  model,
+  placeholder,
+  onSelect,
+  onClear,
 }: {
   label: string;
   providerId?: string;

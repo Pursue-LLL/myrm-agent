@@ -35,7 +35,9 @@ vi.mock('@/store/useChatStore', () => ({
 vi.mock('@/store/chat/goals/useGoalStore', () => ({
   useGoalStore: Object.assign(
     vi.fn((selector?: (state: typeof mockGoalState) => unknown) => {
-      if (selector) {return selector(mockGoalState);}
+      if (selector) {
+        return selector(mockGoalState);
+      }
       return mockGoalState;
     }),
     { getState: () => mockGoalState },

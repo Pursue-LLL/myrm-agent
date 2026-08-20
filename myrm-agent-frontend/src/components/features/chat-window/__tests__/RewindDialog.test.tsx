@@ -40,15 +40,7 @@ const makeMessage = (id: string, role: Message['role']): Message => ({
 
 const renderDialog = (messageIndex = 2) => {
   const onOpenChange = vi.fn();
-  render(
-    <RewindDialog
-      open
-      onOpenChange={onOpenChange}
-      chatId="c1"
-      messageId="u2"
-      messageIndex={messageIndex}
-    />,
-  );
+  render(<RewindDialog open onOpenChange={onOpenChange} chatId="c1" messageId="u2" messageIndex={messageIndex} />);
   return { onOpenChange };
 };
 
@@ -113,11 +105,7 @@ describe('RewindDialog', () => {
 
   it('rewinds conversation-only scope and truncates messages', async () => {
     useChatStore.setState({
-      messages: [
-        makeMessage('u0', 'user'),
-        makeMessage('a0', 'assistant'),
-        makeMessage('u2', 'user'),
-      ],
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
       loading: false,
     });
     rewindToMessageMock.mockResolvedValue({
@@ -142,11 +130,7 @@ describe('RewindDialog', () => {
 
   it('shows files-reverted toast when both scope reverts files', async () => {
     useChatStore.setState({
-      messages: [
-        makeMessage('u0', 'user'),
-        makeMessage('a0', 'assistant'),
-        makeMessage('u2', 'user'),
-      ],
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
       loading: false,
     });
     rewindToMessageMock.mockResolvedValue({
@@ -164,9 +148,7 @@ describe('RewindDialog', () => {
     await waitFor(() => {
       expect(rewindToMessageMock).toHaveBeenCalledWith('c1', 'u2', 'both');
     });
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ description: 'filesRevertedToast:1' }),
-    );
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ description: 'filesRevertedToast:1' }));
   });
 
   it('blocks rewind while the agent is streaming', () => {
@@ -174,8 +156,6 @@ describe('RewindDialog', () => {
     renderDialog();
     fireEvent.click(screen.getByText('confirm'));
     expect(rewindToMessageMock).not.toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ description: 'streamingBlocked' }),
-    );
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ description: 'streamingBlocked' }));
   });
 });

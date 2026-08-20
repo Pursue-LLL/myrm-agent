@@ -77,14 +77,18 @@ export default function ShareLinksSection() {
 
   const handleOpen = useCallback((record: ArtifactShareRecord) => {
     const url = record.share_url ?? record.share_path;
-    if (!url) {return;}
+    if (!url) {
+      return;
+    }
     window.open(buildPublicArtifactShareUrl(url), '_blank', 'noopener,noreferrer');
   }, []);
 
   const handleCopy = useCallback(
     async (record: ArtifactShareRecord) => {
       const url = record.share_url ?? record.share_path;
-      if (!url) {return;}
+      if (!url) {
+        return;
+      }
       try {
         await navigator.clipboard.writeText(buildPublicArtifactShareUrl(url));
         setCopiedId(record.id);
@@ -137,7 +141,10 @@ export default function ShareLinksSection() {
         )}
 
         {loadState === 'ready' && records.length === 0 && (
-          <div className="rounded-xl border border-dashed border-border/60 py-12 text-center" data-testid="shares-empty">
+          <div
+            className="rounded-xl border border-dashed border-border/60 py-12 text-center"
+            data-testid="shares-empty"
+          >
             <Link2Off className="mx-auto h-8 w-8 text-muted-foreground/40" />
             <p className="mt-3 text-sm text-muted-foreground">{t('empty')}</p>
           </div>
@@ -192,8 +199,12 @@ export default function ShareLinksSection() {
                         <span className="text-xs text-muted-foreground">{t('linkProtected')}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{record.password_protected ? t('yes') : t('no')}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatShareTimestamp(record.expires_at, locale)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {record.password_protected ? t('yes') : t('no')}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatShareTimestamp(record.expires_at, locale)}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <Button
                         variant="ghost"
@@ -230,9 +241,7 @@ export default function ShareLinksSection() {
             <div className="space-y-2 rounded-lg border border-border/50 bg-muted/30 p-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t('table.artifact')}</span>
-                <span className="max-w-[60%] truncate font-medium text-foreground">
-                  {pendingRevoke.artifact_name}
-                </span>
+                <span className="max-w-[60%] truncate font-medium text-foreground">{pendingRevoke.artifact_name}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t('table.type')}</span>
@@ -248,9 +257,7 @@ export default function ShareLinksSection() {
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t('table.protected')}</span>
-                <span className="text-foreground">
-                  {pendingRevoke.password_protected ? t('yes') : t('no')}
-                </span>
+                <span className="text-foreground">{pendingRevoke.password_protected ? t('yes') : t('no')}</span>
               </div>
             </div>
           )}

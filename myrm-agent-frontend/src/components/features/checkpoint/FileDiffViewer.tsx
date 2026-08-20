@@ -27,17 +27,29 @@ const changeTypeLabels: Record<string, string> = {
 };
 
 function formatSize(bytes: number | null): string {
-  if (bytes === null || bytes === undefined) {return '-';}
-  if (bytes < 1024) {return `${bytes}B`;}
-  if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)}KB`;}
+  if (bytes === null || bytes === undefined) {
+    return '-';
+  }
+  if (bytes < 1024) {
+    return `${bytes}B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)}KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 function formatLineStat(change: FileChange): string | null {
-  if (change.linesAdded === null && change.linesDeleted === null) {return null;}
+  if (change.linesAdded === null && change.linesDeleted === null) {
+    return null;
+  }
   const parts: string[] = [];
-  if (change.linesAdded !== null && change.linesAdded > 0) {parts.push(`+${change.linesAdded}`);}
-  if (change.linesDeleted !== null && change.linesDeleted > 0) {parts.push(`-${change.linesDeleted}`);}
+  if (change.linesAdded !== null && change.linesAdded > 0) {
+    parts.push(`+${change.linesAdded}`);
+  }
+  if (change.linesDeleted !== null && change.linesDeleted > 0) {
+    parts.push(`-${change.linesDeleted}`);
+  }
   return parts.length > 0 ? parts.join('/') : null;
 }
 
@@ -72,7 +84,9 @@ const FileDiffViewer: React.FC<FileDiffViewerProps> = ({ snapshotId, changes, on
   }, [selectedFiles.size, changes]);
 
   const handleRestoreSelected = useCallback(async () => {
-    if (selectedFiles.size === 0) {return;}
+    if (selectedFiles.size === 0) {
+      return;
+    }
     setRestoring(true);
     setShowConfirm(false);
     try {
@@ -95,9 +109,7 @@ const FileDiffViewer: React.FC<FileDiffViewerProps> = ({ snapshotId, changes, on
   return (
     <div className="border border-border rounded-lg bg-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted">
-        <div className="text-sm font-medium text-foreground">
-          {t('diffTitle')}
-        </div>
+        <div className="text-sm font-medium text-foreground">{t('diffTitle')}</div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {added.length > 0 && <span className="text-green-600 dark:text-green-400">+{added.length}</span>}
           {modified.length > 0 && <span className="text-yellow-600 dark:text-yellow-400">~{modified.length}</span>}
@@ -149,9 +161,7 @@ const FileDiffViewer: React.FC<FileDiffViewerProps> = ({ snapshotId, changes, on
                     </span>
                     <span className="flex-1 truncate text-foreground">{change.path}</span>
                     {lineStat && (
-                      <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
-                        {lineStat}
-                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">{lineStat}</span>
                     )}
                     <span className="text-muted-foreground whitespace-nowrap">
                       {change.changeType === 'modified' ? (

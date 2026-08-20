@@ -41,11 +41,9 @@ export async function submitWorkflowTemplateRun(
     return { ok: false, reason: 'busy' };
   }
 
-  useChatStore.getState().setPendingWorkflowTemplate(
-    templateId,
-    options.templateArgs ?? null,
-    options.displayName?.trim() || null,
-  );
+  useChatStore
+    .getState()
+    .setPendingWorkflowTemplate(templateId, options.templateArgs ?? null, options.displayName?.trim() || null);
   useChatStore.getState().setIsWorkflowMode(true);
 
   try {

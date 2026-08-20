@@ -9,9 +9,7 @@ export function filterAndSortGalleryItems(
 ): ThemeMarketplaceListing[] {
   const needle = searchQuery.trim().toLowerCase();
   const filtered = needle
-    ? items.filter((listing) =>
-        `${listing.name} ${listing.tagline} ${listing.slug}`.toLowerCase().includes(needle),
-      )
+    ? items.filter((listing) => `${listing.name} ${listing.tagline} ${listing.slug}`.toLowerCase().includes(needle))
     : items;
 
   return [...filtered].sort((left, right) => {

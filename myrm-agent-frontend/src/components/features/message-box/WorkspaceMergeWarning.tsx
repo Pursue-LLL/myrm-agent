@@ -26,14 +26,17 @@ export function WorkspaceMergeWarning({ failures, failedCount, truncated }: Work
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('chat');
 
-  if (!failures.length) {return null;}
+  if (!failures.length) {
+    return null;
+  }
 
   const totalCount = failedCount && failedCount > failures.length ? failedCount : failures.length;
-  const hiddenCount = truncated && truncated > 0
-    ? truncated
-    : failedCount && failedCount > failures.length
-      ? failedCount - failures.length
-      : 0;
+  const hiddenCount =
+    truncated && truncated > 0
+      ? truncated
+      : failedCount && failedCount > failures.length
+        ? failedCount - failures.length
+        : 0;
 
   return (
     <div
@@ -46,9 +49,7 @@ export function WorkspaceMergeWarning({ failures, failedCount, truncated }: Work
         className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
       >
         <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-        <span className="font-medium text-amber-800 dark:text-amber-200">
-          {t('message.workspaceMergeFailedTitle')}
-        </span>
+        <span className="font-medium text-amber-800 dark:text-amber-200">{t('message.workspaceMergeFailedTitle')}</span>
         <span className="text-amber-600 dark:text-amber-400 text-xs ml-auto mr-1">
           {t('message.workspaceMergeFailed', { count: totalCount })}
         </span>

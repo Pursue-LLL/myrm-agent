@@ -75,10 +75,7 @@ export function isTtsMediaCredentialReady(
   return providerHasActiveApiKey(providers, provider);
 }
 
-export type MediaCredentialWarningTool = Extract<
-  BuiltinToolId,
-  'image_generation' | 'video_generation' | 'tts'
->;
+export type MediaCredentialWarningTool = Extract<BuiltinToolId, 'image_generation' | 'video_generation' | 'tts'>;
 
 export function collectMediaCredentialWarnings(
   enabledBuiltinTools: BuiltinToolId[],

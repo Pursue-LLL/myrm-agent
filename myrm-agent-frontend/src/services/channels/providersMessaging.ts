@@ -120,7 +120,9 @@ export async function getSlackCredentials(): Promise<SlackCredentials | null> {
   if (isSandbox()) {
     try {
       const status = await cpChannelRequest<{ configured: string[] }>('/api/channels/credentials/status');
-      if (!status.configured.includes('slack')) {return null;}
+      if (!status.configured.includes('slack')) {
+        return null;
+      }
       return { botToken: '', appToken: '', signingSecret: '', replyInThread: true };
     } catch {
       return null;
@@ -181,7 +183,9 @@ export async function getDiscordCredentials(): Promise<DiscordCredentials | null
   if (isSandbox()) {
     try {
       const status = await cpChannelRequest<{ configured: string[] }>('/api/channels/credentials/status');
-      if (!status.configured.includes('discord')) {return null;}
+      if (!status.configured.includes('discord')) {
+        return null;
+      }
       return { botToken: '', botPolicy: 'mention_only', enableGateway: true };
     } catch {
       return null;
@@ -381,7 +385,9 @@ export async function getTelegramCredentials(): Promise<TelegramCredentials | nu
       const status = await cpChannelRequest<{ configured: string[]; webhook_urls: Record<string, string> }>(
         '/api/channels/credentials/status',
       );
-      if (!status.configured.includes('telegram')) {return null;}
+      if (!status.configured.includes('telegram')) {
+        return null;
+      }
       return {
         botToken: '',
         botPolicy: 'mention_only',

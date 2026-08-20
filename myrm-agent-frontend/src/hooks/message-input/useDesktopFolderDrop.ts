@@ -25,7 +25,9 @@ import useChatStore from '@/store/useChatStore';
  */
 export function normalizeDesktopPath(rawPath: string): string {
   const trimmed = rawPath.trim();
-  if (!trimmed) {return '';}
+  if (!trimmed) {
+    return '';
+  }
 
   let normalized = trimmed.replace(/\\+/g, '/');
   // Collapse multiple consecutive slashes (except initial // for UNC if any)
@@ -56,13 +58,15 @@ export function useDesktopFolderDrop(options: UseDesktopFolderDropOptions = {}) 
 
   const handleDroppedPaths = useCallback(
     async (rawPaths: string[]) => {
-      if (disabled || !rawPaths.length) {return;}
+      if (disabled || !rawPaths.length) {
+        return;
+      }
 
-      const validPaths = rawPaths
-        .map(normalizeDesktopPath)
-        .filter((p) => p.length > 0);
+      const validPaths = rawPaths.map(normalizeDesktopPath).filter((p) => p.length > 0);
 
-      if (!validPaths.length) {return;}
+      if (!validPaths.length) {
+        return;
+      }
 
       for (const targetPath of validPaths) {
         try {

@@ -4,9 +4,7 @@ import React from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { ScanSearch } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
 
 const BrowserInspectorToggle: React.FC = () => {
@@ -15,7 +13,9 @@ const BrowserInspectorToggle: React.FC = () => {
   const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
   const hasScopedView = Boolean(selectScopedBrowserViewData(viewData, chatId));
 
-  if (!isBrowserActive || !hasScopedView) {return null;}
+  if (!isBrowserActive || !hasScopedView) {
+    return null;
+  }
 
   return (
     <button

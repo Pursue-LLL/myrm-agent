@@ -79,11 +79,7 @@ function extractSuccessStoredDetail(
   if (phase.storedCount != null && phase.storedCount > 0) {
     return t('lifecycleStoredCount', { count: phase.storedCount });
   }
-  if (
-    phase.storedCount === 0 &&
-    phase.verbatimCount != null &&
-    phase.verbatimCount > 0
-  ) {
+  if (phase.storedCount === 0 && phase.verbatimCount != null && phase.verbatimCount > 0) {
     return t('lifecycleVerbatimStored', { count: phase.verbatimCount });
   }
   if (phase.storedCount != null) {
@@ -114,16 +110,11 @@ export function MemoryLifecycleTimeline({
 
   return (
     <div
-      className={cn(
-        'w-full rounded-lg border border-border/50 bg-muted/20 px-3 py-2',
-        className,
-      )}
+      className={cn('w-full rounded-lg border border-border/50 bg-muted/20 px-3 py-2', className)}
       data-testid="memory-lifecycle-timeline"
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('lifecycleTitle')}
-        </p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t('lifecycleTitle')}</p>
         <Link
           href="/settings/memory?sub=explorer"
           className="shrink-0 text-[10px] font-medium text-primary/80 hover:text-primary"
@@ -142,9 +133,7 @@ export function MemoryLifecycleTimeline({
             >
               <div className="flex items-center gap-1.5">
                 {statusIcon(phase.status)}
-                <span className="truncate text-[11px] font-medium text-foreground">
-                  {t(phaseLabelKey(phaseId))}
-                </span>
+                <span className="truncate text-[11px] font-medium text-foreground">{t(phaseLabelKey(phaseId))}</span>
               </div>
               <span className="text-[10px] text-muted-foreground">
                 {t(statusLabelKey(phaseId, phase.status))}

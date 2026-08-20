@@ -4,11 +4,7 @@ import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import ThemePresetGrid from '@/components/features/theme/shared/ThemePresetGrid';
 import { listManagedProfiles } from '@/components/features/theme-studio/studio-profile';
-import {
-  BUILTIN_THEME_PROFILES,
-  EMPTY_THEME_PROFILES,
-  type ThemeProfileRecipe,
-} from '@/theme-engine';
+import { BUILTIN_THEME_PROFILES, EMPTY_THEME_PROFILES, type ThemeProfileRecipe } from '@/theme-engine';
 
 interface ThemeProfilePickerProps {
   themeProfiles?: ThemeProfileRecipe[];

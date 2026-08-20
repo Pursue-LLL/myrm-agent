@@ -81,9 +81,7 @@ describe('SessionReplayPlayer security labels', () => {
           error: null,
           tool_call_id: 'call-1',
           message_id: 'm1',
-          security_labels: [
-            { decision: 'DENY', reason: 'rm -rf blocked', tainted: true, ts: 1000.5 },
-          ],
+          security_labels: [{ decision: 'DENY', reason: 'rm -rf blocked', tainted: true, ts: 1000.5 }],
         },
       ],
     });
@@ -109,9 +107,7 @@ describe('SessionReplayPlayer security labels', () => {
           error: null,
           tool_call_id: 'call-1',
           message_id: 'm1',
-          security_labels: [
-            { decision: 'ALLOW', reason: 'low risk', tainted: false, ts: 1000.5 },
-          ],
+          security_labels: [{ decision: 'ALLOW', reason: 'low risk', tainted: false, ts: 1000.5 }],
         },
       ],
     });
@@ -140,9 +136,7 @@ describe('SessionReplayPlayer security labels', () => {
           error: null,
           tool_call_id: 'call-1',
           message_id: 'm1',
-          security_labels: [
-            { decision: 'DENY', reason: 'destructive path blocked', tainted: true, ts: 1000.5 },
-          ],
+          security_labels: [{ decision: 'DENY', reason: 'destructive path blocked', tainted: true, ts: 1000.5 }],
         },
       ],
     });

@@ -39,7 +39,9 @@ const EMPTY_SKILL_CONFIGS: AgentSkillConfigMap = {};
 const EMPTY_EPHEMERAL_SUBAGENTS: Record<string, EphemeralSubagentConfig> = {};
 
 const MCPToolSelector = dynamic(() => import('./MCPToolSelector'), { ssr: false });
-const SkillsSection = dynamic(() => import('@/components/features/settings/sections/ai-tools/SkillsSection'), { ssr: false });
+const SkillsSection = dynamic(() => import('@/components/features/settings/sections/ai-tools/SkillsSection'), {
+  ssr: false,
+});
 const MCPSection = dynamic(() => import('@/components/features/settings/sections/ai-tools/MCPSection'), { ssr: false });
 
 interface AgentConfigEditDialogProps {
@@ -113,14 +115,20 @@ const AgentConfigEditDialog = ({
   const [localSkillIds, setLocalSkillIds] = useState<string[]>(initialSkillIds || []);
   const [localSkillConfigs, setLocalSkillConfigs] = useState<AgentSkillConfigMap>(initialSkillConfigs || {});
   const [localMcpNames, setLocalMcpNames] = useState<string[]>(initialMcpNames || []);
-  const [localMcpToolSelections, setLocalMcpToolSelections] = useState<Record<string, string[]>>(initialMcpToolSelections || {});
+  const [localMcpToolSelections, setLocalMcpToolSelections] = useState<Record<string, string[]>>(
+    initialMcpToolSelections || {},
+  );
   const [localPrompt, setLocalPrompt] = useState(initialPrompt || '');
   const [localUseGlobalInstruction, setLocalUseGlobalInstruction] = useState(initialUseGlobalInstruction ?? true);
   const [localAutoRestoreDomains, setLocalAutoRestoreDomains] = useState<string[]>(initialAutoRestoreDomains || []);
   const [localBuiltinTools, setLocalBuiltinTools] = useState<BuiltinToolId[]>(initialBuiltinTools || []);
   const [localBrowserSource, setLocalBrowserSource] = useState<string | undefined>(initialBrowserSource);
-  const [localDialogPolicy, setLocalDialogPolicy] = useState<'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined>(initialDialogPolicy);
-  const [localSessionRecording, setLocalSessionRecording] = useState<'off' | 'on_failure' | 'always' | undefined>(initialSessionRecording);
+  const [localDialogPolicy, setLocalDialogPolicy] = useState<
+    'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent' | undefined
+  >(initialDialogPolicy);
+  const [localSessionRecording, setLocalSessionRecording] = useState<'off' | 'on_failure' | 'always' | undefined>(
+    initialSessionRecording,
+  );
   const [localEphemeralSubagents, setLocalEphemeralSubagents] = useState<Record<string, EphemeralSubagentConfig>>(
     initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>,
   );
@@ -145,7 +153,9 @@ const AgentConfigEditDialog = ({
   /* ─── AI generation ─── */
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isSmartPruning, setIsSmartPruning] = useState(false);
-  const [history, setHistory] = useState<Array<{ id: string; version: number; systemPrompt: string; createdAt: string }>>([]);
+  const [history, setHistory] = useState<
+    Array<{ id: string; version: number; systemPrompt: string; createdAt: string }>
+  >([]);
 
   /* ─── sync on open ─── */
   useEffect(() => {
@@ -164,9 +174,15 @@ const AgentConfigEditDialog = ({
       setExternalCliBackendReady(null);
     }
   }, [
-    open, initialSkillIds, initialSkillConfigs,
-    initialMcpNames, initialPrompt, initialUseGlobalInstruction,
-    initialAutoRestoreDomains, initialBuiltinTools, initialEphemeralSubagents,
+    open,
+    initialSkillIds,
+    initialSkillConfigs,
+    initialMcpNames,
+    initialPrompt,
+    initialUseGlobalInstruction,
+    initialAutoRestoreDomains,
+    initialBuiltinTools,
+    initialEphemeralSubagents,
   ]);
 
   useEffect(() => {
@@ -181,61 +197,96 @@ const AgentConfigEditDialog = ({
     if (open && type === 'instruction' && agentId) {
       fetch(getApiUrl(`/user-agents/${agentId}/history`))
         .then((res) => res.json())
-        .then((data) => { if (data.data) {setHistory(data.data);} })
+        .then((data) => {
+          if (data.data) {
+            setHistory(data.data);
+          }
+        })
         .catch((err) => console.error('Failed to fetch history:', err));
     }
   }, [open, type, agentId]);
 
   /* ─── AI prompt generation (streaming) ─── */
-  const handleAiGenerate = useCallback(async (intent: string) => {
-    if (!intent.trim()) {return;}
-    setIsGeneratingAi(true);
-    const currentPrompt = localPrompt;
-    try {
-      const response = await fetch(getApiUrl('/user-agents/generate-prompt'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intent, locale: navigator.language || 'en-US', current_prompt: currentPrompt }),
-      });
-      if (!response.ok) {
-        if (response.status === 422) {
-          const errorData = await response.json();
-          toast({ title: t('aiGenerateConfigMissing'), description: typeof errorData.detail === 'string' ? errorData.detail : undefined, variant: 'destructive' });
-          return;
-        }
-        throw new Error('Failed to generate prompt');
+  const handleAiGenerate = useCallback(
+    async (intent: string) => {
+      if (!intent.trim()) {
+        return;
       }
-      if (!response.body) {throw new Error('No response body');}
-      let isFirstChunk = true;
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {break;}
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === 'content' && data.data) {
-                if (isFirstChunk) { setLocalPrompt(''); isFirstChunk = false; }
-                setLocalPrompt((prev) => prev + data.data);
-              } else if (data.type === 'error') {
-                toast({ title: t('aiGenerateFailed'), description: typeof data.error === 'string' ? data.error : undefined, variant: 'destructive' });
+      setIsGeneratingAi(true);
+      const currentPrompt = localPrompt;
+      try {
+        const response = await fetch(getApiUrl('/user-agents/generate-prompt'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intent, locale: navigator.language || 'en-US', current_prompt: currentPrompt }),
+        });
+        if (!response.ok) {
+          if (response.status === 422) {
+            const errorData = await response.json();
+            toast({
+              title: t('aiGenerateConfigMissing'),
+              description: typeof errorData.detail === 'string' ? errorData.detail : undefined,
+              variant: 'destructive',
+            });
+            return;
+          }
+          throw new Error('Failed to generate prompt');
+        }
+        if (!response.body) {
+          throw new Error('No response body');
+        }
+        let isFirstChunk = true;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.type === 'content' && data.data) {
+                  if (isFirstChunk) {
+                    setLocalPrompt('');
+                    isFirstChunk = false;
+                  }
+                  setLocalPrompt((prev) => prev + data.data);
+                } else if (data.type === 'error') {
+                  toast({
+                    title: t('aiGenerateFailed'),
+                    description: typeof data.error === 'string' ? data.error : undefined,
+                    variant: 'destructive',
+                  });
+                }
+              } catch (e) {
+                console.error('Failed to parse SSE chunk', e);
               }
-            } catch (e) { console.error('Failed to parse SSE chunk', e); }
+            }
           }
         }
+      } catch (error) {
+        console.error('Failed to generate AI prompt:', error);
+      } finally {
+        setIsGeneratingAi(false);
       }
-    } catch (error) { console.error('Failed to generate AI prompt:', error); }
-    finally { setIsGeneratingAi(false); }
-  }, [localPrompt, t]);
+    },
+    [localPrompt, t],
+  );
 
   /* ─── action space evaluation ─── */
-  const [accuracyData, setAccuracyData] = useState({ accuracyLevel: 100, actionSpaceScore: 0, maxSafeScore: 1500, isNoiseHigh: false, isNoiseCritical: false });
+  const [accuracyData, setAccuracyData] = useState({
+    accuracyLevel: 100,
+    actionSpaceScore: 0,
+    maxSafeScore: 1500,
+    isNoiseHigh: false,
+    isNoiseCritical: false,
+  });
   const [catalogPreview, setCatalogPreview] = useState<Turn1CatalogPreview | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
 
@@ -246,7 +297,12 @@ const AgentConfigEditDialog = ({
         const response = await fetch(getApiUrl('/user-agents/evaluate-action-space'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skill_ids: localSkillIds, skill_configs: localSkillConfigs, mcp_servers: localMcpNames, enabled_builtin_tools: localBuiltinTools }),
+          body: JSON.stringify({
+            skill_ids: localSkillIds,
+            skill_configs: localSkillConfigs,
+            mcp_servers: localMcpNames,
+            enabled_builtin_tools: localBuiltinTools,
+          }),
         });
         if (response.ok) {
           const resData = await response.json();
@@ -272,8 +328,11 @@ const AgentConfigEditDialog = ({
             }
           }
         }
-      } catch (e) { console.error('Failed to evaluate action space', e); }
-      finally { setIsEvaluating(false); }
+      } catch (e) {
+        console.error('Failed to evaluate action space', e);
+      } finally {
+        setIsEvaluating(false);
+      }
     }, 500);
     return () => clearTimeout(timer);
   }, [localSkillIds, localSkillConfigs, localMcpNames, localBuiltinTools]);
@@ -284,14 +343,18 @@ const AgentConfigEditDialog = ({
   const staleCoreSkills = useMemo(() => {
     return localSkillIds.filter((id) => {
       const isCore = localSkillConfigs?.[id]?.is_core ?? false;
-      if (!isCore) {return false;}
+      if (!isCore) {
+        return false;
+      }
       const skill = enabledSkills?.find((s) => s.id === id);
       return skill?.usage_stats?.lifecycle_status === 'stale';
     });
   }, [localSkillIds, localSkillConfigs, enabledSkills]);
 
   const handleSmartPrune = useCallback(async () => {
-    if (isSmartPruning) {return;}
+    if (isSmartPruning) {
+      return;
+    }
     setIsSmartPruning(true);
     try {
       toast({ title: tPanel('actionSpaceRadar.smartPruneRunning') });
@@ -316,7 +379,9 @@ const AgentConfigEditDialog = ({
   /* ─── save handler ─── */
   const handleSave = useCallback(() => {
     if (type === 'subagents') {
-      if (Object.values(displayNameErrors).some((e) => e !== '')) {return;}
+      if (Object.values(displayNameErrors).some((e) => e !== '')) {
+        return;
+      }
     }
     if (externalCliSaveBlocked) {
       toast({ title: tPanel('externalCliSaveBlocked'), variant: 'destructive' });
@@ -327,29 +392,77 @@ const AgentConfigEditDialog = ({
         onSave({ selectedSkillIds: localSkillIds, skillConfigs: localSkillConfigs });
         break;
       case 'mcp':
-        onSave({ selectedMcpNames: localMcpNames, mcpToolSelections: Object.keys(localMcpToolSelections).length > 0 ? localMcpToolSelections : undefined });
+        onSave({
+          selectedMcpNames: localMcpNames,
+          mcpToolSelections: Object.keys(localMcpToolSelections).length > 0 ? localMcpToolSelections : undefined,
+        });
         break;
       case 'instruction':
         onSave({ systemPrompt: localPrompt, useGlobalInstruction: localUseGlobalInstruction });
         break;
       case 'builtin_tools':
-        onSave({ enabledBuiltinTools: localBuiltinTools, autoRestoreDomains: localAutoRestoreDomains, browserSource: localBrowserSource, dialogPolicy: localDialogPolicy, sessionRecording: localSessionRecording });
+        onSave({
+          enabledBuiltinTools: localBuiltinTools,
+          autoRestoreDomains: localAutoRestoreDomains,
+          browserSource: localBrowserSource,
+          dialogPolicy: localDialogPolicy,
+          sessionRecording: localSessionRecording,
+        });
         break;
       case 'subagents':
         onSave({ ephemeralSubagents: localEphemeralSubagents });
         break;
     }
     onOpenChange(false);
-  }, [type, localSkillIds, localSkillConfigs, localMcpNames, localPrompt, localUseGlobalInstruction, localBuiltinTools, localEphemeralSubagents, displayNameErrors, externalCliSaveBlocked, tPanel, onSave, onOpenChange]);
+  }, [
+    type,
+    localSkillIds,
+    localSkillConfigs,
+    localMcpNames,
+    localPrompt,
+    localUseGlobalInstruction,
+    localBuiltinTools,
+    localEphemeralSubagents,
+    displayNameErrors,
+    externalCliSaveBlocked,
+    tPanel,
+    onSave,
+    onOpenChange,
+  ]);
 
   /* ─── dialog config ─── */
   const getDialogConfig = () => {
     switch (type) {
-      case 'skills': return { icon: <Wand2 size={20} className="text-blue-500" />, title: t('skillsSection'), description: t('skillsSectionDesc') };
-      case 'mcp': return { icon: <Plug size={20} className="text-purple-500" />, title: t('mcpSection'), description: t('mcpSectionDesc') };
-      case 'builtin_tools': return { icon: <Wrench size={20} className="text-orange-500" />, title: t('builtinToolsSection'), description: t('builtinToolsSectionDesc') };
-      case 'subagents': return { icon: <Globe size={20} className="text-green-500" />, title: t('subagentsSection'), description: t('subagentsSectionDesc') };
-      case 'instruction': return { icon: <FileText size={20} className="text-amber-500" />, title: t('instructionSection'), description: '' };
+      case 'skills':
+        return {
+          icon: <Wand2 size={20} className="text-blue-500" />,
+          title: t('skillsSection'),
+          description: t('skillsSectionDesc'),
+        };
+      case 'mcp':
+        return {
+          icon: <Plug size={20} className="text-purple-500" />,
+          title: t('mcpSection'),
+          description: t('mcpSectionDesc'),
+        };
+      case 'builtin_tools':
+        return {
+          icon: <Wrench size={20} className="text-orange-500" />,
+          title: t('builtinToolsSection'),
+          description: t('builtinToolsSectionDesc'),
+        };
+      case 'subagents':
+        return {
+          icon: <Globe size={20} className="text-green-500" />,
+          title: t('subagentsSection'),
+          description: t('subagentsSectionDesc'),
+        };
+      case 'instruction':
+        return {
+          icon: <FileText size={20} className="text-amber-500" />,
+          title: t('instructionSection'),
+          description: '',
+        };
     }
   };
 
@@ -357,10 +470,15 @@ const AgentConfigEditDialog = ({
 
   /* ─── mcp ─── */
   const filteredMcps = (enabledMcps || []).filter((m) => m.name.toLowerCase().includes(mcpSearchQuery.toLowerCase()));
-  const toggleMcp = (name: string) => { setLocalMcpNames((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name])); };
+  const toggleMcp = (name: string) => {
+    setLocalMcpNames((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
+  };
   const handleMcpToolSelectionChange = useCallback((serverName: string, tools: string[] | undefined) => {
     setLocalMcpToolSelections((prev) => {
-      if (!tools) { const { [serverName]: _, ...rest } = prev; return rest; }
+      if (!tools) {
+        const { [serverName]: _, ...rest } = prev;
+        return rest;
+      }
       return { ...prev, [serverName]: tools };
     });
   }, []);
@@ -382,7 +500,13 @@ const AgentConfigEditDialog = ({
             setLocalSkillIds={setLocalSkillIds}
             localSkillConfigs={localSkillConfigs}
             setLocalSkillConfigs={setLocalSkillConfigs}
-            noiseData={{ isNoiseHigh, isNoiseCritical, noiseLevel, coreSkillsTokenCost: actionSpaceScore, maxCoreTokens: maxSafeScore }}
+            noiseData={{
+              isNoiseHigh,
+              isNoiseCritical,
+              noiseLevel,
+              coreSkillsTokenCost: actionSpaceScore,
+              maxCoreTokens: maxSafeScore,
+            }}
             staleCoreSkills={staleCoreSkills}
             isSmartPruning={isSmartPruning}
             onSmartPrune={handleSmartPrune}
@@ -544,9 +668,21 @@ const AgentConfigEditDialog = ({
           <SheetHeader className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4">
             <div className="flex items-center justify-between">
               <SheetTitle>
-                {settingsSheetType === 'skills' ? t('skillsSection') : settingsSheetType === 'mcp' ? t('mcpSection') : ''}
+                {settingsSheetType === 'skills'
+                  ? t('skillsSection')
+                  : settingsSheetType === 'mcp'
+                    ? t('mcpSection')
+                    : ''}
               </SheetTitle>
-              <Button variant="ghost" size="icon" onClick={() => { setSettingsSheetOpen(false); setSettingsSheetType(null); }} className="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setSettingsSheetOpen(false);
+                  setSettingsSheetType(null);
+                }}
+                className="h-8 w-8"
+              >
                 <X size={18} />
               </Button>
             </div>

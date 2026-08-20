@@ -11,19 +11,19 @@
 
 ## 文件清单
 
-| 文件 / 目录 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `types.ts` | 核心 | `StreamHandlerState`（含 `chatId`：发送时快照的 stream 归属 chat，供新 chat 首轮在 messages 为空时解析 chatId） / `StreamHandlerActions` | ✅ |
-| `streamContext.ts` | 核心 | 每事件 handler 上下文与 `done()` | ✅ |
-| `handleMessageStream.ts` | 核心 | SSE 事件分发器 | ✅ |
-| `handlers/index.ts` | 核心 | `STREAM_EVENT_HANDLERS` 顺序表 | ✅ |
-| `handlers/handlerDeps.ts` | 辅助 | 切片共享 import | ✅ |
-| `handlers/*.ts` | 核心 | 各 `AgentEventType` 域的状态合并 | ✅ |
-| `handlers/gapEvents.test.ts` | 测试 | CAPABILITY_GAP / SKILL_GAP 一键开启与绑定 | ✅ |
-| `streamHelpers.ts` | 辅助 | 来源合并、澄清表单 unwrap（`resolveClarificationFormFromEventData`）、Goal 归一化、`getUserFriendlyError`（`concurrency_limit` kind 的 i18n 兜底文案，供 `diagnostic_result` 缺失时呈现） | ✅ |
-| `mergeUiDataModel.ts` | 辅助 | UI artifact `data` 深合并（`data_update` SSE 补丁） | ✅ |
-| `fileDiffMerge.ts` | 辅助 | FILE_DIFF 路径匹配与 diff 择优合并 | ✅ |
-| `textSanitize.ts` | 辅助 | 流式文本控制字符剥离 | ✅ |
+| 文件 / 目录                  | 地位 | 职责                                                                                                                                                                                      | I/O/P |
+| ---------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `types.ts`                   | 核心 | `StreamHandlerState`（含 `chatId`：发送时快照的 stream 归属 chat，供新 chat 首轮在 messages 为空时解析 chatId） / `StreamHandlerActions`                                                  | ✅    |
+| `streamContext.ts`           | 核心 | 每事件 handler 上下文与 `done()`                                                                                                                                                          | ✅    |
+| `handleMessageStream.ts`     | 核心 | SSE 事件分发器                                                                                                                                                                            | ✅    |
+| `handlers/index.ts`          | 核心 | `STREAM_EVENT_HANDLERS` 顺序表                                                                                                                                                            | ✅    |
+| `handlers/handlerDeps.ts`    | 辅助 | 切片共享 import                                                                                                                                                                           | ✅    |
+| `handlers/*.ts`              | 核心 | 各 `AgentEventType` 域的状态合并                                                                                                                                                          | ✅    |
+| `handlers/gapEvents.test.ts` | 测试 | CAPABILITY_GAP / SKILL_GAP 一键开启与绑定                                                                                                                                                 | ✅    |
+| `streamHelpers.ts`           | 辅助 | 来源合并、澄清表单 unwrap（`resolveClarificationFormFromEventData`）、Goal 归一化、`getUserFriendlyError`（`concurrency_limit` kind 的 i18n 兜底文案，供 `diagnostic_result` 缺失时呈现） | ✅    |
+| `mergeUiDataModel.ts`        | 辅助 | UI artifact `data` 深合并（`data_update` SSE 补丁）                                                                                                                                       | ✅    |
+| `fileDiffMerge.ts`           | 辅助 | FILE_DIFF 路径匹配与 diff 择优合并                                                                                                                                                        | ✅    |
+| `textSanitize.ts`            | 辅助 | 流式文本控制字符剥离                                                                                                                                                                      | ✅    |
 
 ## 依赖
 

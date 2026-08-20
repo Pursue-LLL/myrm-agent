@@ -10,18 +10,18 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `OnboardingWizard.tsx` | 步骤编排与完成回调 |
-| `ThemeOnboardingStep.tsx` | 末步：3 款内置 preset 选肤（复用 ThemePresetGrid + ConfigSync） |
-| `__tests__/ThemeOnboardingStep.test.tsx` | 选肤步持久化与 Skip 行为单测 |
-| `onboarding-theme-presets.ts` | 首装精选 preset id 列表 |
-| `LocalCapabilitiesSetup.tsx` | 本地 Ollama/LM Studio 探测、**OpenAI-compatible Paste-URL 一步接入**（服务端 discover-models 探测 + 激活前 reachability 1-token 校验 + 原子写入 provider/default model）、SearXNG、**HardwareCookbook**（无 provider 时展示硬件推荐）、**云端快速开始卡片**（无本地模型时展示云端 Provider 引导） |
-| `ToolsConnectOnboardingStep.tsx` | 工具连接发现步骤：从 Catalog API 拉取精选服务（GitHub/Notion/Gmail/Slack/Linear），复用 IntegrationConnectDialog 完成连接，失败时静默跳过 |
-| `SmartRoutingStep.tsx` | Smart Routing 引导步骤：自动检测已配置模型并分类为 lite/standard/reasoning 三档，展示预估节省比例，一键启用或跳过 |
-| `SmartGuardStep.tsx` | Smart Intent Guard 引导步骤：默认启用 + 轻量模型智能预选（优先 mini/flash/haiku 等低成本模型），通过 ConfigSyncManager 写入 securityConfig |
-| `TelegramAssistantOnboardingStep.tsx` | Telegram 助手一键接入步骤 |
-| `SyncFolderOnboardingStep.tsx` | Local 可选步骤：复用 `MigrationVaultBindPanel`；消费 migration workspace bind 候选预填；bind 后 handoff projectId |
+| 文件                                     | 职责                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OnboardingWizard.tsx`                   | 步骤编排与完成回调                                                                                                                                                                                                                                                                                |
+| `ThemeOnboardingStep.tsx`                | 末步：3 款内置 preset 选肤（复用 ThemePresetGrid + ConfigSync）                                                                                                                                                                                                                                   |
+| `__tests__/ThemeOnboardingStep.test.tsx` | 选肤步持久化与 Skip 行为单测                                                                                                                                                                                                                                                                      |
+| `onboarding-theme-presets.ts`            | 首装精选 preset id 列表                                                                                                                                                                                                                                                                           |
+| `LocalCapabilitiesSetup.tsx`             | 本地 Ollama/LM Studio 探测、**OpenAI-compatible Paste-URL 一步接入**（服务端 discover-models 探测 + 激活前 reachability 1-token 校验 + 原子写入 provider/default model）、SearXNG、**HardwareCookbook**（无 provider 时展示硬件推荐）、**云端快速开始卡片**（无本地模型时展示云端 Provider 引导） |
+| `ToolsConnectOnboardingStep.tsx`         | 工具连接发现步骤：从 Catalog API 拉取精选服务（GitHub/Notion/Gmail/Slack/Linear），复用 IntegrationConnectDialog 完成连接，失败时静默跳过                                                                                                                                                         |
+| `SmartRoutingStep.tsx`                   | Smart Routing 引导步骤：自动检测已配置模型并分类为 lite/standard/reasoning 三档，展示预估节省比例，一键启用或跳过                                                                                                                                                                                 |
+| `SmartGuardStep.tsx`                     | Smart Intent Guard 引导步骤：默认启用 + 轻量模型智能预选（优先 mini/flash/haiku 等低成本模型），通过 ConfigSyncManager 写入 securityConfig                                                                                                                                                        |
+| `TelegramAssistantOnboardingStep.tsx`    | Telegram 助手一键接入步骤                                                                                                                                                                                                                                                                         |
+| `SyncFolderOnboardingStep.tsx`           | Local 可选步骤：复用 `MigrationVaultBindPanel`；消费 migration workspace bind 候选预填；bind 后 handoff projectId                                                                                                                                                                                 |
 
 ## 依赖
 

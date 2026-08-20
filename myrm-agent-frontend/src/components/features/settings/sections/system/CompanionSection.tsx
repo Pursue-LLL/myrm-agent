@@ -76,7 +76,9 @@ const CompanionSection = memo(() => {
   } = useCompanionStore();
 
   const bones = useMemo(() => {
-    if (!user?.id) {return null;}
+    if (!user?.id) {
+      return null;
+    }
     return generateCompanion(user.id);
   }, [user?.id]);
 
@@ -100,7 +102,9 @@ const CompanionSection = memo(() => {
   }, [nameOverride, speciesOverride, hatOverride, saveConfigToServer]);
 
   useEffect(() => {
-    if (!enabled || !bones || !user?.id) {return;}
+    if (!enabled || !bones || !user?.id) {
+      return;
+    }
     let cancelled = false;
 
     const fetchStatus = async () => {
@@ -108,7 +112,9 @@ const CompanionSection = memo(() => {
         const resp = await apiRequest<{ data: EvolutionStatusData }>(
           `/companion/evolution-status?current_rarity=${effectiveRarity}`,
         );
-        if (!cancelled) {setEvoStatus(resp.data);}
+        if (!cancelled) {
+          setEvoStatus(resp.data);
+        }
       } catch {
         /* non-critical */
       }
@@ -121,7 +127,9 @@ const CompanionSection = memo(() => {
   }, [enabled, bones, user?.id, effectiveRarity, evolvedAt]);
 
   const handleEvolve = useCallback(() => {
-    if (!evoStatus?.can_evolve || !bones || !user?.id || evoLoading) {return;}
+    if (!evoStatus?.can_evolve || !bones || !user?.id || evoLoading) {
+      return;
+    }
     setEvoLoading(true);
 
     const nextRarityIdx = RARITIES.indexOf(effectiveRarity) + 1;
@@ -134,7 +142,9 @@ const CompanionSection = memo(() => {
     setTimeout(() => setJustEvolved(false), 3000);
   }, [evoStatus, bones, user?.id, evoLoading, effectiveRarity, evolve]);
 
-  if (!bones) {return null;}
+  if (!bones) {
+    return null;
+  }
 
   const currentName = nameOverride ?? bones.defaultName;
   const currentSpecies = speciesOverride ?? bones.species;
@@ -234,10 +244,7 @@ const CompanionSection = memo(() => {
         <div className="space-y-1 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
           <Label>{t('themeFollowWorkspace')}</Label>
           <p className="text-xs text-muted-foreground">{t('themeFollowWorkspaceDesc')}</p>
-          <Link
-            href="/settings/preferences"
-            className="inline-flex text-xs font-medium text-primary hover:underline"
-          >
+          <Link href="/settings/preferences" className="inline-flex text-xs font-medium text-primary hover:underline">
             {t('themeFollowWorkspaceLink')}
           </Link>
         </div>

@@ -17,9 +17,7 @@ import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { resolveBrowserTakeoverMessageId } from '@/store/useApprovalStore';
-import useBrowserTakeoverStore, {
-  type BrowserTakeoverUiMode,
-} from '@/store/useBrowserTakeoverStore';
+import useBrowserTakeoverStore, { type BrowserTakeoverUiMode } from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
 
 async function resumeVncSession(uiMode: BrowserTakeoverUiMode): Promise<{ learned: boolean } | null> {
@@ -58,10 +56,10 @@ export function useBrowserTakeoverActions() {
       chatId: useChatStore.getState().chatId,
     });
     if (!resumeMessageId) {
-      console.error(
-        '[TAKEOVER_DONE] No resumeMessageId after all fallbacks — agent resume will not fire.',
-        { storeMessageId: snapshot.messageId, chatId: useChatStore.getState().chatId },
-      );
+      console.error('[TAKEOVER_DONE] No resumeMessageId after all fallbacks — agent resume will not fire.', {
+        storeMessageId: snapshot.messageId,
+        chatId: useChatStore.getState().chatId,
+      });
       toast.error(t('takeoverResumeFailed'));
       useBrowserTakeoverStore.getState().requestTakeover({
         reason: snapshot.reason,
@@ -77,9 +75,7 @@ export function useBrowserTakeoverActions() {
     try {
       const resumeData = await resumeVncSession(snapshot.uiMode);
       console.log('[TAKEOVER_DONE] Calling sendMessage with resumeId:', resumeMessageId);
-      await useChatStore
-        .getState()
-        .sendMessage('', resumeMessageId, undefined, { action: 'completed', message: '' });
+      await useChatStore.getState().sendMessage('', resumeMessageId, undefined, { action: 'completed', message: '' });
       console.log('[TAKEOVER_DONE] sendMessage completed');
       if (resumeData?.learned) {
         toast.success(t('takeoverLearned'), { duration: 3000 });
@@ -116,9 +112,7 @@ export function useBrowserTakeoverActions() {
     }
     try {
       await resumeVncSession(snapshot.uiMode);
-      await useChatStore
-        .getState()
-        .sendMessage('', resumeMessageId, undefined, { action: 'skipped', message: '' });
+      await useChatStore.getState().sendMessage('', resumeMessageId, undefined, { action: 'skipped', message: '' });
     } catch (error) {
       console.error('[TAKEOVER] Skip failed:', error);
       useBrowserTakeoverStore.getState().requestTakeover({

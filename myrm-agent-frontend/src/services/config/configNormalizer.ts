@@ -13,10 +13,7 @@ import {
 import type { ConfigKey, ConfigValueMap, PersonalSettingsConfigValue, ProvidersConfigValue } from './types';
 import { DEFAULT_PERSONAL_SETTINGS } from './types';
 import { valuesEqual } from './configFingerprint';
-import {
-  sanitizeActiveThemeProfileId,
-  stripStudioPreviewProfiles,
-} from '@/theme-engine/studio-constants';
+import { sanitizeActiveThemeProfileId, stripStudioPreviewProfiles } from '@/theme-engine/studio-constants';
 
 function mergeProviders(providers: ProviderConfig[]): ProviderConfig[] {
   if (!providers || !Array.isArray(providers)) {

@@ -9,10 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  applyThemePreinitFromLocalStorage,
-  THEME_PREINIT_STORAGE_KEY,
-} from '@/theme-engine/preinit';
+import { applyThemePreinitFromLocalStorage, THEME_PREINIT_STORAGE_KEY } from '@/theme-engine/preinit';
 
 import PetStatusBubble from './PetStatusBubble';
 import {
@@ -47,7 +44,9 @@ export default function PetOverlayWindowApp() {
   const ignoreRef = useRef(true);
 
   const setIgnore = useCallback((ignore: boolean) => {
-    if (ignoreRef.current === ignore) {return;}
+    if (ignoreRef.current === ignore) {
+      return;
+    }
     ignoreRef.current = ignore;
     void setPetSurfaceIgnoreCursor(ignore);
   }, []);
@@ -63,7 +62,9 @@ export default function PetOverlayWindowApp() {
     });
     return () => {
       unlisten?.();
-      if (clickTimerRef.current) {clearTimeout(clickTimerRef.current);}
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+      }
     };
   }, []);
 
@@ -87,11 +88,17 @@ export default function PetOverlayWindowApp() {
 
   const sampleCanvasAlpha = useCallback((clientX: number, clientY: number): boolean => {
     const canvas = canvasRef.current;
-    if (!canvas) {return true;}
+    if (!canvas) {
+      return true;
+    }
     const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {return true;}
+    if (rect.width === 0 || rect.height === 0) {
+      return true;
+    }
     const ctx = canvas.getContext('2d');
-    if (!ctx) {return true;}
+    if (!ctx) {
+      return true;
+    }
     const px = Math.floor((clientX - rect.left) * (canvas.width / rect.width));
     const py = Math.floor((clientY - rect.top) * (canvas.height / rect.height));
     try {
@@ -111,10 +118,10 @@ export default function PetOverlayWindowApp() {
       }
       const target = document.elementFromPoint(ev.clientX, ev.clientY);
       const interactive =
-        target instanceof HTMLButtonElement
-        || target instanceof HTMLInputElement
-        || (containerRef.current?.contains(target ?? null) && !(target instanceof HTMLCanvasElement))
-        || sampleCanvasAlpha(ev.clientX, ev.clientY);
+        target instanceof HTMLButtonElement ||
+        target instanceof HTMLInputElement ||
+        (containerRef.current?.contains(target ?? null) && !(target instanceof HTMLCanvasElement)) ||
+        sampleCanvasAlpha(ev.clientX, ev.clientY);
       setIgnore(!interactive);
     };
 
@@ -123,14 +130,18 @@ export default function PetOverlayWindowApp() {
   }, [composerOpen, sampleCanvasAlpha, setIgnore]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.button !== 0) {return;}
+    if (e.button !== 0) {
+      return;
+    }
     dragRef.current = { startX: e.screenX, startY: e.screenY, moved: false };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }, []);
 
   const handlePointerMove = useCallback(async (e: React.PointerEvent) => {
     const drag = dragRef.current;
-    if (!drag) {return;}
+    if (!drag) {
+      return;
+    }
     const dx = e.screenX - drag.startX;
     const dy = e.screenY - drag.startY;
     if (!drag.moved && (Math.abs(dx) > CLICK_SLOP_PX || Math.abs(dy) > CLICK_SLOP_PX)) {
@@ -159,7 +170,9 @@ export default function PetOverlayWindowApp() {
       } catch {
         /* ignore */
       }
-      if (!drag) {return;}
+      if (!drag) {
+        return;
+      }
 
       if (drag.moved) {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
@@ -200,7 +213,9 @@ export default function PetOverlayWindowApp() {
 
   const handleSubmit = useCallback(() => {
     const text = draft.trim();
-    if (!text) {return;}
+    if (!text) {
+      return;
+    }
     void emitPetSurfaceControl({ type: 'submit', text });
     setDraft('');
     setComposerOpen(false);

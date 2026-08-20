@@ -22,12 +22,18 @@ function parseUrl(raw: string): URL | null {
 }
 
 export function detectEmbed(rawUrl: string | null | undefined): EmbedDescriptor | null {
-  if (!rawUrl) {return null;}
+  if (!rawUrl) {
+    return null;
+  }
   const url = parseUrl(rawUrl);
-  if (!url) {return null;}
+  if (!url) {
+    return null;
+  }
   for (const match of MATCHERS) {
     const descriptor = match(url);
-    if (descriptor) {return descriptor;}
+    if (descriptor) {
+      return descriptor;
+    }
   }
   return null;
 }

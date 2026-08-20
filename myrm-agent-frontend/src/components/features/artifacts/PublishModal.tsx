@@ -101,10 +101,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
         }
         setTargets(loadedTargets);
         const preferred =
-          initialTargetId ??
-          loadedTargets.find((item) => item.is_default)?.id ??
-          loadedTargets[0]?.id ??
-          '';
+          initialTargetId ?? loadedTargets.find((item) => item.is_default)?.id ?? loadedTargets[0]?.id ?? '';
         setSelectedTargetId(preferred);
       } finally {
         if (!cancelled) {
@@ -397,8 +394,17 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                   className="bg-transparent border-none focus-visible:ring-0 font-mono text-sm text-primary"
                 />
                 <div className="flex gap-1 pr-1">
-                  <Button size="icon" variant="ghost" onClick={() => void handleCopy()} className="hover:bg-muted rounded-xl">
-                    {copied ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => void handleCopy()}
+                    className="hover:bg-muted rounded-xl"
+                  >
+                    {copied ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-muted-foreground" />
+                    )}
                   </Button>
                   <Button
                     size="icon"

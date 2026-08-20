@@ -35,9 +35,7 @@ export function FlowPadCapturesStrip({
             capture={capture}
             collapseLabel={collapseLabel}
             onRemove={() => onRemoveCapture(idx)}
-            onImageClick={() =>
-              capture.screenshot && onOpenLightbox(`data:image/jpeg;base64,${capture.screenshot}`)
-            }
+            onImageClick={() => capture.screenshot && onOpenLightbox(`data:image/jpeg;base64,${capture.screenshot}`)}
           />
         ))}
       </div>

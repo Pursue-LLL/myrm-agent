@@ -8,119 +8,120 @@
 
 ### 入口与容器
 
-| 文件 | 职责 |
-|------|------|
-| `SystemSection.tsx` | WebUI 开关、端口、系统诊断等主面板 |
-| `SystemCenterSection.tsx` | 系统 Tab 容器 |
-| `AboutSection.tsx` | 关于/版本信息 |
-| `ImportExportSection.tsx` | 配置导入导出 |
+| 文件                      | 职责                               |
+| ------------------------- | ---------------------------------- |
+| `SystemSection.tsx`       | WebUI 开关、端口、系统诊断等主面板 |
+| `SystemCenterSection.tsx` | 系统 Tab 容器                      |
+| `AboutSection.tsx`        | 关于/版本信息                      |
+| `ImportExportSection.tsx` | 配置导入导出                       |
 
 ### 存储管理
 
-| 文件 | 职责 |
-|------|------|
-| `StorageCard.tsx` | 存储位置管理（当前路径、磁盘用量、迁移、低空间预警） |
+| 文件                             | 职责                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `StorageCard.tsx`                | 存储位置管理（当前路径、磁盘用量、迁移、低空间预警）                                                |
 | `__tests__/StorageCard.test.tsx` | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示 |
 
 ### 网络与访问
 
-| 文件 | 职责 |
-|------|------|
-| `AccessCard.tsx` | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情 |
-| `ServerConnectionCard.tsx` | Tauri Desktop 远程服务器网关：本地/远程模式切换、URL 输入、连接测试、断开恢复本地 token |
-| `WebuiAccessSecurityPanel.tsx` | WebUI 访问安全配置 |
+| 文件                           | 职责                                                                                    |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| `AccessCard.tsx`               | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情                  |
+| `ServerConnectionCard.tsx`     | Tauri Desktop 远程服务器网关：本地/远程模式切换、URL 输入、连接测试、断开恢复本地 token |
+| `WebuiAccessSecurityPanel.tsx` | WebUI 访问安全配置                                                                      |
 
 ### 通知
 
-| 文件 | 职责 |
-|------|------|
+| 文件                       | 职责                                                        |
+| -------------------------- | ----------------------------------------------------------- |
 | `PushNotificationCard.tsx` | Web Push VAPID 订阅（`usePushSubscription` SSOT；非 Tauri） |
 
 ### 浏览器管理
 
-| 文件 | 职责 |
-|------|------|
-| `BrowserPoolCard.tsx` | 本地浏览器池管理 |
-| `BrowserDoctorCard.tsx` | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test）+ 孤儿进程清理（`DELETE /health/browser/orphans?confirm=true`，含失败明细、清理前后状态清理、弹窗失败即关）；错误响应 JSON 解析（FastAPI `{"detail": ...}` 字符串/校验数组首项、server 全局兜底 `{success, message}` → 可读文案，非 JSON 原样显示，空值兜底本地化） |
-| `CloudBrowserCard.tsx` | 云端浏览器配置 |
-| `BrowserProxyCard.tsx` | 浏览器代理配置 |
-| `DomainSkillsCard.tsx` | 域技能管理（列表/删除/内置标识） |
-| `SavedSessionsCard.tsx` | 已保存浏览器会话管理（加密登录态/删除/过期清理） |
-| `LockedUseCard.tsx` | 锁定使用模式（Computer Use 锁屏管理） |
-| `DesktopPermissionsCard.tsx` | 桌面自动化就绪检测（`/webui/desktop/permissions`）+ 始终信任应用列表与撤销（`GET/DELETE /webui/desktop/trust/apps`） |
-| `__tests__/DesktopPermissionsCard.test.tsx` | vitest：permissions / deeplink / trusted revoke / trust load error（5 cases） |
+| 文件                                        | 职责                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BrowserPoolCard.tsx`                       | 本地浏览器池管理                                                                                                                                                                                                                                                                                                              |
+| `BrowserDoctorCard.tsx`                     | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test）+ 孤儿进程清理（`DELETE /health/browser/orphans?confirm=true`，含失败明细、清理前后状态清理、弹窗失败即关）；错误响应 JSON 解析（FastAPI `{"detail": ...}` 字符串/校验数组首项、server 全局兜底 `{success, message}` → 可读文案，非 JSON 原样显示，空值兜底本地化） |
+| `CloudBrowserCard.tsx`                      | 云端浏览器配置                                                                                                                                                                                                                                                                                                                |
+| `BrowserProxyCard.tsx`                      | 浏览器代理配置                                                                                                                                                                                                                                                                                                                |
+| `DomainSkillsCard.tsx`                      | 域技能管理（列表/删除/内置标识）                                                                                                                                                                                                                                                                                              |
+| `SavedSessionsCard.tsx`                     | 已保存浏览器会话管理（加密登录态/删除/过期清理）                                                                                                                                                                                                                                                                              |
+| `LockedUseCard.tsx`                         | 锁定使用模式（Computer Use 锁屏管理）                                                                                                                                                                                                                                                                                         |
+| `DesktopPermissionsCard.tsx`                | 桌面自动化就绪检测（`/webui/desktop/permissions`）+ 始终信任应用列表与撤销（`GET/DELETE /webui/desktop/trust/apps`）                                                                                                                                                                                                          |
+| `__tests__/DesktopPermissionsCard.test.tsx` | vitest：permissions / deeplink / trusted revoke / trust load error（5 cases）                                                                                                                                                                                                                                                 |
 
 ### 安全策略
 
-| 文件 | 职责 |
-|------|------|
-| `SecurityPolicySection.tsx` | 安全策略 UI（权限规则/超时/域名白名单与 blocklist/YOLO/Smart Intent Guard；Org MAP 只读 banner + global YOLO/allow-always lock） |
-| `useSecurityPolicy.ts` | 安全策略状态 hook；复用 `useManagedPolicyEffective`（tab visible 时自动 refetch org MAP 锁） |
-| `securityPolicyUtils.ts` | 安全策略工具函数（常量/权限扁平化/构建/默认配置） |
-| `SecurityPrivacyPanel.tsx` | PII 隐私保护面板 |
-| `SecurityProfileSelector.tsx` | 安全配置模板选择器 |
-| `NLPolicyGenerator.tsx` | AI 自然语言策略生成器 |
-| `AllowlistSection.tsx` | Allow Always 持久记录管理（/security/allowlist；permission/tool/exact/pattern 粒度） |
-| `DomainAllowlistEditor.tsx` | 域名白名单编辑器 |
-| `DomainBlocklistEditor.tsx` | URL 域名 blocklist 编辑器（Settings 全局策略） |
-| `CommandDenylistEditor.tsx` | 命令禁止列表编辑器（fnmatch glob 模式，YOLO 不可绕过） |
-| `__tests__/useSecurityPolicy.test.ts` | useSecurityPolicy hook 单测（command denylist toast 反馈一致性） |
-| `PathPolicyEditor.tsx` | 路径策略编辑器 |
-| `RiskRulesSection.tsx` | 风控规则配置 |
-| `RiskRulesHitsPanel.tsx` | 风控规则命中记录 |
-| `RiskRulesTestPanel.tsx` | 风控规则测试 |
-| `risk-rules-types.ts` | 风控规则类型定义 |
-| `ShareLinksSection.tsx` | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新；复制/打开优先服务端 `share_url`，无 ingress 时按后端基址/当前 origin 组装；密码分享（share_path 有值）同样渲染复制/打开，无 share_path 的历史密码分享降级为「密码保护中」提示） |
+| 文件                                  | 职责                                                                                                                                                                                                                                                                                               |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SecurityPolicySection.tsx`           | 安全策略 UI（权限规则/超时/域名白名单与 blocklist/YOLO/Smart Intent Guard；Org MAP 只读 banner + global YOLO/allow-always lock）                                                                                                                                                                   |
+| `useSecurityPolicy.ts`                | 安全策略状态 hook；复用 `useManagedPolicyEffective`（tab visible 时自动 refetch org MAP 锁）                                                                                                                                                                                                       |
+| `securityPolicyUtils.ts`              | 安全策略工具函数（常量/权限扁平化/构建/默认配置）                                                                                                                                                                                                                                                  |
+| `SecurityPrivacyPanel.tsx`            | PII 隐私保护面板                                                                                                                                                                                                                                                                                   |
+| `SecurityProfileSelector.tsx`         | 安全配置模板选择器                                                                                                                                                                                                                                                                                 |
+| `NLPolicyGenerator.tsx`               | AI 自然语言策略生成器                                                                                                                                                                                                                                                                              |
+| `AllowlistSection.tsx`                | Allow Always 持久记录管理（/security/allowlist；permission/tool/exact/pattern 粒度）                                                                                                                                                                                                               |
+| `DomainAllowlistEditor.tsx`           | 域名白名单编辑器                                                                                                                                                                                                                                                                                   |
+| `DomainBlocklistEditor.tsx`           | URL 域名 blocklist 编辑器（Settings 全局策略）                                                                                                                                                                                                                                                     |
+| `CommandDenylistEditor.tsx`           | 命令禁止列表编辑器（fnmatch glob 模式，YOLO 不可绕过）                                                                                                                                                                                                                                             |
+| `__tests__/useSecurityPolicy.test.ts` | useSecurityPolicy hook 单测（command denylist toast 反馈一致性）                                                                                                                                                                                                                                   |
+| `PathPolicyEditor.tsx`                | 路径策略编辑器                                                                                                                                                                                                                                                                                     |
+| `RiskRulesSection.tsx`                | 风控规则配置                                                                                                                                                                                                                                                                                       |
+| `RiskRulesHitsPanel.tsx`              | 风控规则命中记录                                                                                                                                                                                                                                                                                   |
+| `RiskRulesTestPanel.tsx`              | 风控规则测试                                                                                                                                                                                                                                                                                       |
+| `risk-rules-types.ts`                 | 风控规则类型定义                                                                                                                                                                                                                                                                                   |
+| `ShareLinksSection.tsx`               | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新；复制/打开优先服务端 `share_url`，无 ingress 时按后端基址/当前 origin 组装；密码分享（share_path 有值）同样渲染复制/打开，无 share_path 的历史密码分享降级为「密码保护中」提示） |
 
 ### 用量与成本
 
-| 文件 | 职责 |
-|------|------|
-| `UsageStatisticsSection.tsx` | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate） |
-| `UsageStatisticsCharts.tsx` | 用量图表 barrel 导出 |
-| `UsageStatCard.tsx` | 统计卡片 |
-| `UsageCacheBreakTimeline.tsx` | 缓存击穿时间线 |
-| `UsageDailyChart.tsx` | 日趋势柱状图 + 缓存命中率折线 |
-| `UsageSessionTable.tsx` | Top 会话表格 |
-| `UsageDistributionCharts.tsx` | 周/日/小时活动分布图 |
-| `UsagePrivacyRoutePanel.tsx` | 隐私路由 local/cloud 占比 |
-| `UsageModelBreakdown.tsx` | 模型用量明细 |
-| `AgentUsageCard.tsx` | Agent 用量卡片 |
-| `BudgetPolicySection.tsx` | 预算策略配置 |
-| `ChannelBudgetSection.tsx` | 渠道预算管理 |
-| `MemoryGuardianCard.tsx` | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合） |
-| `RateLimitMonitor.tsx` | 速率限制监控 |
-| `RoutingAnalyticsPanel.tsx` | 路由分析面板（模型路由/成本格式化） |
+| 文件                          | 职责                                                                                                                               |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `UsageStatisticsSection.tsx`  | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate） |
+| `UsageStatisticsCharts.tsx`   | 用量图表 barrel 导出                                                                                                               |
+| `UsageStatCard.tsx`           | 统计卡片                                                                                                                           |
+| `UsageCacheBreakTimeline.tsx` | 缓存击穿时间线                                                                                                                     |
+| `UsageDailyChart.tsx`         | 日趋势柱状图 + 缓存命中率折线                                                                                                      |
+| `UsageSessionTable.tsx`       | Top 会话表格                                                                                                                       |
+| `UsageDistributionCharts.tsx` | 周/日/小时活动分布图                                                                                                               |
+| `UsagePrivacyRoutePanel.tsx`  | 隐私路由 local/cloud 占比                                                                                                          |
+| `UsageModelBreakdown.tsx`     | 模型用量明细                                                                                                                       |
+| `AgentUsageCard.tsx`          | Agent 用量卡片                                                                                                                     |
+| `BudgetPolicySection.tsx`     | 预算策略配置                                                                                                                       |
+| `ChannelBudgetSection.tsx`    | 渠道预算管理                                                                                                                       |
+| `MemoryGuardianCard.tsx`      | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                  |
+| `RateLimitMonitor.tsx`        | 速率限制监控                                                                                                                       |
+| `RoutingAnalyticsPanel.tsx`   | 路由分析面板（模型路由/成本格式化）                                                                                                |
+
 ### Trace 可视化与调试
 
-| 文件 | 职责 |
-|------|------|
-| `ExecutionTraceTimeline.tsx` | 执行 Trace 时间轴（LLM/Tool 调用链、Replay 入口）；`showEvalCase` prop 控制「保存为评测用例」按钮（kanban 任务无 Chat 记录，RunsHub/看板 Drawer 复用传 `false`）；`pollMs` prop 在任务运行中轮询刷新 trace（展开时实时看到执行过程）；ToolCallItem 渲染 `security_labels`（tainted/deny 徽标 + 展开明细） |
-| `SessionAnalyticsDialog.tsx` | 会话分析对话框（嵌入 ExecutionTraceTimeline + 上下文健康） |
-| `SessionContextHealthPanel.tsx` | 会话上下文健康面板（压缩/裁剪/缓存命中） |
-| `SessionContextHealthPanelRestore.tsx` | 上下文健康恢复面板 |
-| `SystemHealthPanel.tsx` | 系统健康面板（Context Bundle 迁移/诊断） |
+| 文件                                   | 职责                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ExecutionTraceTimeline.tsx`           | 执行 Trace 时间轴（LLM/Tool 调用链、Replay 入口）；`showEvalCase` prop 控制「保存为评测用例」按钮（kanban 任务无 Chat 记录，RunsHub/看板 Drawer 复用传 `false`）；`pollMs` prop 在任务运行中轮询刷新 trace（展开时实时看到执行过程）；ToolCallItem 渲染 `security_labels`（tainted/deny 徽标 + 展开明细） |
+| `SessionAnalyticsDialog.tsx`           | 会话分析对话框（嵌入 ExecutionTraceTimeline + 上下文健康）                                                                                                                                                                                                                                                |
+| `SessionContextHealthPanel.tsx`        | 会话上下文健康面板（压缩/裁剪/缓存命中）                                                                                                                                                                                                                                                                  |
+| `SessionContextHealthPanelRestore.tsx` | 上下文健康恢复面板                                                                                                                                                                                                                                                                                        |
+| `SystemHealthPanel.tsx`                | 系统健康面板（Context Bundle 迁移/诊断）                                                                                                                                                                                                                                                                  |
 
 ### 开发者工具
 
-| 文件 | 职责 |
-|------|------|
-| `DeveloperSection.tsx` | 开发者选项入口 |
-| `DeveloperCenterSection.tsx` | 开发者中心 |
-| `DatasetExportCard.tsx` | 数据集导出 |
+| 文件                              | 职责           |
+| --------------------------------- | -------------- |
+| `DeveloperSection.tsx`            | 开发者选项入口 |
+| `DeveloperCenterSection.tsx`      | 开发者中心     |
+| `DatasetExportCard.tsx`           | 数据集导出     |
 | `ExperimentalFeaturesSection.tsx` | 实验性功能开关 |
 
 ### 功能扩展
 
-| 文件 | 职责 |
-|------|------|
-| `HeartbeatSection.tsx` | 心跳巡检配置（含 Agent 绑定 + 模型继承显示） |
-| `CompanionSection.tsx` | 伴侣模式配置 |
-| `CronSection.tsx` | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich |
-| `DLQSection.tsx` | 死信队列管理 |
-| `KanbanSection.tsx` | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务） |
-| `MediaGenerationSection.tsx` | 媒体生成配置 |
-| `TimezoneSelector.tsx` | 时区选择器 |
+| 文件                         | 职责                                                                                                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）                                                                                                                |
+| `CompanionSection.tsx`       | 伴侣模式配置                                                                                                                                                |
+| `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
+| `DLQSection.tsx`             | 死信队列管理                                                                                                                                                |
+| `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务） |
+| `MediaGenerationSection.tsx` | 媒体生成配置                                                                                                                                                |
+| `TimezoneSelector.tsx`       | 时区选择器                                                                                                                                                  |
 
 ## 连通性 UX
 

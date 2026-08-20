@@ -146,7 +146,12 @@ describe('ConnectSection', () => {
   });
 
   it('shows a warning toast for a warn-level blind spot', async () => {
-    runConnectDoctorMock.mockResolvedValue({ profile_id: 'cursor', healthy: false, detail: 'token_env', severity: 'warn' });
+    runConnectDoctorMock.mockResolvedValue({
+      profile_id: 'cursor',
+      healthy: false,
+      detail: 'token_env',
+      severity: 'warn',
+    });
     await renderSection();
     fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
     await waitFor(() => expect(toastWarningMock).toHaveBeenCalledWith('doctorDetailTokenEnv'));

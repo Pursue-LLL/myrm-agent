@@ -79,7 +79,9 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
 
   // 提取所有唯一的 group
   const uniqueGroups = useMemo(() => {
-    if (!data) {return [];}
+    if (!data) {
+      return [];
+    }
     const groups = new Set<number>();
     data.nodes.forEach((n) => groups.add(n.group));
     return Array.from(groups).sort((a, b) => a - b);
@@ -106,7 +108,9 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
         // 如果当前是全选状态（size === 0），我们需要先将所有其他 group 加入 activeGroups
         if (prev.size === 0) {
           uniqueGroups.forEach((g) => {
-            if (g !== group) {next.add(g);}
+            if (g !== group) {
+              next.add(g);
+            }
           });
         } else {
           if (next.has(group)) {
@@ -162,21 +166,20 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
     const graphNode = node as GraphNode;
     try {
       const center = graphNode.id || graphNode.name;
-      if (!center) {return;}
+      if (!center) {
+        return;
+      }
 
       const response = await fetch(
-        getApiUrl(
-          buildWikiApiPath(
-            `/wiki/graph?center_node=${encodeURIComponent(center)}&depth=1&limit=50`,
-            agentId,
-          ),
-        ),
+        getApiUrl(buildWikiApiPath(`/wiki/graph?center_node=${encodeURIComponent(center)}&depth=1&limit=50`, agentId)),
       );
       if (response.ok) {
         const newApi: ApiResponse = await response.json();
         const newData = apiToForceGraph(newApi);
         setData((prev) => {
-          if (!prev) {return newData;}
+          if (!prev) {
+            return newData;
+          }
 
           const nodeMap = new Map(prev.nodes.map((n) => [n.id, n]));
           newData.nodes.forEach((n) => nodeMap.set(n.id, n));
@@ -259,11 +262,11 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
             linkVisibility={(link) => {
               const srcGroup =
                 typeof link.source === 'object'
-                  ? ((link.source as unknown) as GraphNode).group
+                  ? (link.source as unknown as GraphNode).group
                   : data.nodes.find((n) => n.id === link.source)?.group;
               const tgtGroup =
                 typeof link.target === 'object'
-                  ? ((link.target as unknown) as GraphNode).group
+                  ? (link.target as unknown as GraphNode).group
                   : data.nodes.find((n) => n.id === link.target)?.group;
               return (
                 srcGroup !== undefined && tgtGroup !== undefined && isGroupActive(srcGroup) && isGroupActive(tgtGroup)
@@ -275,12 +278,16 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
             backgroundColor="rgba(0,0,0,0)"
             nodeRelSize={5}
             nodeOpacity={0.9}
-            linkWidth={(link) => Math.max(0.5, (((link as GraphLink).weight) || 1) / 3)}
+            linkWidth={(link) => Math.max(0.5, ((link as GraphLink).weight || 1) / 3)}
             linkColor={(link) => {
               const source = typeof link.source === 'object' ? (link.source as unknown as GraphNode).id : link.source;
               const target = typeof link.target === 'object' ? (link.target as unknown as GraphNode).id : link.target;
-              if (!hoveredNode) {return 'rgba(150, 150, 255, 0.4)';}
-              if (source === hoveredNode || target === hoveredNode) {return 'rgba(100, 200, 255, 0.9)';}
+              if (!hoveredNode) {
+                return 'rgba(150, 150, 255, 0.4)';
+              }
+              if (source === hoveredNode || target === hoveredNode) {
+                return 'rgba(100, 200, 255, 0.9)';
+              }
               return 'rgba(150, 150, 255, 0.1)';
             }}
             onNodeHover={(node) => setHoveredNode((node as GraphNode | null)?.id || null)}
@@ -349,7 +356,10 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
           )}
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center" data-testid="wiki-graph-empty">
+        <div
+          className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center"
+          data-testid="wiki-graph-empty"
+        >
           <p className="text-muted-foreground">{t('graph.empty')}</p>
           <p className="max-w-md text-xs text-muted-foreground">{t('graph.emptyFirstWin')}</p>
           <Button asChild variant="outline" size="sm">

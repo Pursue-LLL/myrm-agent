@@ -13,9 +13,7 @@ import { isShellApprovalTool } from '@/lib/approval/shellCommandDisplay';
 
 export type AllowAlwaysScope = 'permission' | 'tool' | 'exact' | 'pattern';
 
-export type AllowAlwaysValue =
-  | boolean
-  | { tool?: boolean; args?: boolean; pattern?: boolean };
+export type AllowAlwaysValue = boolean | { tool?: boolean; args?: boolean; pattern?: boolean };
 
 /**
  * [INPUT] User-selected allow-always scope from confirm dialog

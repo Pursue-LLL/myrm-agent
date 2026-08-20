@@ -103,14 +103,7 @@ describe('IntegrationConnectDialog', () => {
     const entry = makeCatalogEntry();
     const onClose = vi.fn();
     const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={onClose}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={onClose} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
@@ -146,14 +139,7 @@ describe('IntegrationConnectDialog', () => {
       shouldBlockConnect: true,
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
@@ -182,14 +168,7 @@ describe('IntegrationConnectDialog', () => {
       error: 'raw backend detail should not be exposed in toc',
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
@@ -224,14 +203,7 @@ describe('IntegrationConnectDialog', () => {
         status: 'reachable',
       });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
@@ -271,14 +243,7 @@ describe('IntegrationConnectDialog', () => {
         status: 'reachable',
       });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
@@ -315,14 +280,7 @@ describe('IntegrationConnectDialog', () => {
       recommendedMode: 'local_or_tauri',
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={onClose}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={onClose} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
@@ -359,14 +317,7 @@ describe('IntegrationConnectDialog', () => {
       error: 'TLS certificate verification failed — trust the MCP certificate or configure a valid CA bundle',
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
@@ -425,14 +376,7 @@ describe('IntegrationConnectDialog', () => {
       helpUrl: 'https://to-do.office.com',
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     expect(screen.getByText('Sign in with your Microsoft account through the assistant.')).toBeInTheDocument();
     expect(screen.queryByText('noAuthRequired')).not.toBeInTheDocument();
@@ -448,14 +392,7 @@ describe('IntegrationConnectDialog', () => {
       helpTextZh: '通过助手使用你的 Microsoft 账户登录。',
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="zh"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="zh" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     expect(screen.getByText('通过助手使用你的 Microsoft 账户登录。')).toBeInTheDocument();
     expect(screen.queryByText('English help')).not.toBeInTheDocument();
@@ -468,14 +405,7 @@ describe('IntegrationConnectDialog', () => {
       helpUrl: null,
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     expect(screen.getByText('noAuthRequired')).toBeInTheDocument();
   });
@@ -486,14 +416,7 @@ describe('IntegrationConnectDialog', () => {
       helpText: 'No API key needed',
     });
 
-    render(
-      <IntegrationConnectDialog
-        entry={entry}
-        locale="en"
-        onClose={vi.fn()}
-        onConnected={vi.fn()}
-      />,
-    );
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
 
     expect(screen.getByText('No API key needed')).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();

@@ -307,10 +307,7 @@ describe('AgentAuditView', () => {
     await waitFor(() => {
       expect(screen.getByText(/^agentOrgLoadFailed/)).toBeInTheDocument();
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/enterprise/org/me'),
-      expect.anything(),
-    );
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/enterprise/org/me'), expect.anything());
   });
 
   it('shows an error banner when the agent audit request fails', async () => {
@@ -333,10 +330,7 @@ describe('AgentAuditView', () => {
     await waitFor(() => {
       expect(screen.getByText(/^agentLoadFailed/)).toBeInTheDocument();
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/agent-audit/events'),
-      expect.anything(),
-    );
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/agent-audit/events'), expect.anything());
   });
 
   it('refetches with the new window when the time range changes', async () => {
@@ -370,10 +364,7 @@ describe('AgentAuditView', () => {
     await waitFor(() => {
       expect(screen.getAllByText('5').length).toBeGreaterThan(0);
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('hours=168'),
-      expect.anything(),
-    );
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('hours=168'), expect.anything());
   });
 
   it('ignores a stale response when the time range changes quickly', async () => {

@@ -68,13 +68,9 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
                 {t('externalEffects')}
               </span>
             )}
-            <span className="text-xs text-muted-foreground">
-              {t('filesCount', { count: snapshot.fileCount })}
-            </span>
+            <span className="text-xs text-muted-foreground">{t('filesCount', { count: snapshot.fileCount })}</span>
           </div>
-          {snapshot.description && (
-            <p className="text-sm text-foreground truncate">{snapshot.description}</p>
-          )}
+          {snapshot.description && <p className="text-sm text-foreground truncate">{snapshot.description}</p>}
         </div>
       </div>
 

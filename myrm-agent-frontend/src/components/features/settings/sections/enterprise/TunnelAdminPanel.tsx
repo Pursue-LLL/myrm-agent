@@ -20,10 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/primitives/dialog';
-import {
-  buildTunnelDockerBuildCommand,
-  buildTunnelDockerRunCommand,
-} from '@/lib/tunnel-deploy';
+import { buildTunnelDockerBuildCommand, buildTunnelDockerRunCommand } from '@/lib/tunnel-deploy';
 import {
   type Tunnel,
   bindTunnelToOrgMcp,
@@ -76,12 +73,12 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
   }, [loadTunnels]);
 
   const handleCreate = useCallback(async () => {
-    if (!name.trim() || !upstreamUrl.trim()) {return;}
+    if (!name.trim() || !upstreamUrl.trim()) {
+      return;
+    }
     try {
       setSaving(true);
-      const upstreamHeaders = upstreamAuth.trim()
-        ? { Authorization: upstreamAuth.trim() }
-        : undefined;
+      const upstreamHeaders = upstreamAuth.trim() ? { Authorization: upstreamAuth.trim() } : undefined;
       const result = await createTunnel(orgId, {
         name: name.trim(),
         upstream_url: upstreamUrl.trim(),
@@ -107,7 +104,9 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
   }, [orgId, name, upstreamUrl, upstreamAuth, description, t, loadTunnels]);
 
   const handleBindOrgMcp = useCallback(async () => {
-    if (!deployContext) {return;}
+    if (!deployContext) {
+      return;
+    }
     try {
       setBindingMcp(true);
       await bindTunnelToOrgMcp(orgId, deployContext.tunnelId);
@@ -151,9 +150,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
   );
 
   const dockerBuildCommand = buildTunnelDockerBuildCommand();
-  const dockerRunCommand = deployContext
-    ? buildTunnelDockerRunCommand(deployContext)
-    : '';
+  const dockerRunCommand = deployContext ? buildTunnelDockerRunCommand(deployContext) : '';
 
   const copyToken = useCallback(() => {
     if (deployContext) {
@@ -209,11 +206,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                     <span className="font-medium text-sm">{tunnel.name}</span>
                     <Badge
                       variant={
-                        tunnel.status === 'online'
-                          ? 'default'
-                          : tunnel.status === 'degraded'
-                            ? 'secondary'
-                            : 'outline'
+                        tunnel.status === 'online' ? 'default' : tunnel.status === 'degraded' ? 'secondary' : 'outline'
                       }
                       className="text-xs"
                     >
@@ -225,24 +218,24 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{tunnel.upstream_url}</p>
-                  {tunnel.description && (
-                    <p className="text-xs text-muted-foreground">{tunnel.description}</p>
-                  )}
+                  {tunnel.description && <p className="text-xs text-muted-foreground">{tunnel.description}</p>}
                   {tunnel.status === 'degraded' && tunnel.last_upstream_error && (
                     <p className="text-xs text-destructive/90 break-words">
                       {t('tunnelLastUpstreamError', { error: tunnel.last_upstream_error })}
                     </p>
                   )}
-                  {tunnel.status === 'degraded' && tunnel.last_error_at !== null && tunnel.last_error_at !== undefined && (
-                    <p className="text-xs text-muted-foreground">
-                      {t('tunnelLastErrorAt', {
-                        time: formatDistanceToNow(new Date(tunnel.last_error_at * 1000), {
-                          addSuffix: true,
-                          locale: dateFnsLocale,
-                        }),
-                      })}
-                    </p>
-                  )}
+                  {tunnel.status === 'degraded' &&
+                    tunnel.last_error_at !== null &&
+                    tunnel.last_error_at !== undefined && (
+                      <p className="text-xs text-muted-foreground">
+                        {t('tunnelLastErrorAt', {
+                          time: formatDistanceToNow(new Date(tunnel.last_error_at * 1000), {
+                            addSuffix: true,
+                            locale: dateFnsLocale,
+                          }),
+                        })}
+                      </p>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Button
@@ -279,11 +272,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>{t('tunnelName')}</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="internal-crm-mcp"
-              />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="internal-crm-mcp" />
             </div>
             <div className="space-y-2">
               <Label>{t('tunnelUpstreamUrl')}</Label>
@@ -317,10 +306,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
             <Button variant="outline" onClick={() => setShowCreate(false)}>
               {t('cancel')}
             </Button>
-            <Button
-              onClick={() => void handleCreate()}
-              disabled={saving || !name.trim() || !upstreamUrl.trim()}
-            >
+            <Button onClick={() => void handleCreate()} disabled={saving || !name.trim() || !upstreamUrl.trim()}>
               {t('confirm')}
             </Button>
           </DialogFooter>

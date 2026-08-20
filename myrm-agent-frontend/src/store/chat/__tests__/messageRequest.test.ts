@@ -293,19 +293,11 @@ describe('messageRequest - turn capability telemetry contract', () => {
       currentBuiltinTools: [],
     } as unknown as ChatActionsState;
 
-    await createMessageRequest(
-      'telemetry request',
-      'msg-telemetry',
-      state,
-      null,
-      undefined,
-      undefined,
-      {
-        source: 'direct',
-        effectiveSkillCount: 2,
-        effectiveMcpCount: 1,
-      },
-    );
+    await createMessageRequest('telemetry request', 'msg-telemetry', state, null, undefined, undefined, {
+      source: 'direct',
+      effectiveSkillCount: 2,
+      effectiveMcpCount: 1,
+    });
 
     const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
     expect(requestBody).toMatchObject({
@@ -361,20 +353,17 @@ describe('messageRequest - security preset contract', () => {
       ...overrides,
     }) as unknown as ChatActionsState;
 
-  it.each(['hitl', 'accept_edits', 'explore'] as const)(
-    'always sends security_preset even for %s',
-    async (preset) => {
-      const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
-      createAISearchStreamMock.mockClear();
-      createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
-      useChatStore.setState({ securityPreset: preset });
+  it.each(['hitl', 'accept_edits', 'explore'] as const)('always sends security_preset even for %s', async (preset) => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+    useChatStore.setState({ securityPreset: preset });
 
-      await createMessageRequest('security request', 'msg-sec', makeState(), null);
+    await createMessageRequest('security request', 'msg-sec', makeState(), null);
 
-      const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
-      expect(requestBody).toMatchObject({ security_preset: preset });
-    },
-  );
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({ security_preset: preset });
+  });
 });
 
 describe('messageRequest - memory settings contract', () => {
@@ -684,7 +673,14 @@ describe('messageRequest - processing lock lifecycle', () => {
       setInputMessage: vi.fn(),
     } as unknown as ChatActionsMethods;
 
-    await sendMessage('请测试处理锁释放', 'req-1', state, actions, () => 'req-1', () => 'req-1-alloc');
+    await sendMessage(
+      '请测试处理锁释放',
+      'req-1',
+      state,
+      actions,
+      () => 'req-1',
+      () => 'req-1-alloc',
+    );
 
     expect(markProcessing).toHaveBeenCalledTimes(1);
     expect(markProcessing).toHaveBeenCalledWith('req-1');
@@ -786,7 +782,14 @@ describe('messageRequest - send preconditions', () => {
   it('shows toast when approval processing lock is active', async () => {
     useToolApprovalStore.getState().markProcessing('req-lock');
 
-    await sendMessage('hello', 'req-lock', baseState, baseActions, () => 'req-lock', () => 'req-lock-alloc');
+    await sendMessage(
+      'hello',
+      'req-lock',
+      baseState,
+      baseActions,
+      () => 'req-lock',
+      () => 'req-lock-alloc',
+    );
 
     expect(showI18nToastMock).toHaveBeenCalledWith(
       'chat.sendBlocked.title',

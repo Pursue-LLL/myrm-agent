@@ -3,19 +3,20 @@
 ## 架构概述
 
 会话检查点与文件快照管理 UI。包含两套功能：
+
 1. **Agent 任务检查点** (CheckpointList/Card) — 展示中断的 Agent 任务，提供「重新发起」入口（将任务描述回填聊天输入框，让用户重跑任务）
 2. **文件快照** (FileSnapshotPanel/List/Card/DiffViewer) — 用于查看和恢复 Agent 操作产生的文件变更
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `CheckpointCard.tsx` | 组件 | 单个 Agent 任务检查点卡片（时间/状态/重新发起入口） | ✅ |
-| `CheckpointList.tsx` | 组件 | Agent 任务检查点列表（重新发起/删除/清理） | ✅ |
-| `FileDiffViewer.tsx` | 核心 | 文件级 diff 视图，支持 checkbox 选择性恢复、行数统计显示 | ✅ |
-| `FileSnapshotCard.tsx` | 组件 | 单个文件快照卡片（触发类型/文件数/时间戳） | ✅ |
-| `FileSnapshotList.tsx` | 组件 | 文件快照列表（创建版本/恢复/删除/清理/查看 diff） | ✅ |
-| `FileSnapshotPanel.tsx` | 入口 | 浮动按钮 + 侧滑面板，集成到 ChatWindow | ✅ |
+| 文件                    | 地位 | 职责                                                     | I/O/P |
+| ----------------------- | ---- | -------------------------------------------------------- | ----- |
+| `CheckpointCard.tsx`    | 组件 | 单个 Agent 任务检查点卡片（时间/状态/重新发起入口）      | ✅    |
+| `CheckpointList.tsx`    | 组件 | Agent 任务检查点列表（重新发起/删除/清理）               | ✅    |
+| `FileDiffViewer.tsx`    | 核心 | 文件级 diff 视图，支持 checkbox 选择性恢复、行数统计显示 | ✅    |
+| `FileSnapshotCard.tsx`  | 组件 | 单个文件快照卡片（触发类型/文件数/时间戳）               | ✅    |
+| `FileSnapshotList.tsx`  | 组件 | 文件快照列表（创建版本/恢复/删除/清理/查看 diff）        | ✅    |
+| `FileSnapshotPanel.tsx` | 入口 | 浮动按钮 + 侧滑面板，集成到 ChatWindow                   | ✅    |
 
 ## 关键设计
 

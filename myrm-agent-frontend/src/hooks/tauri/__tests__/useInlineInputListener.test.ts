@@ -27,12 +27,12 @@ interface InlineInputPayload {
 type ListenCallback<T> = (event: { payload: T }) => void;
 const mockListeners = new Map<string, ListenCallback<unknown>>();
 const mockUnlisten = vi.fn<() => void>(() => undefined);
-const mockListen = vi.fn<
-  (eventName: string, callback: ListenCallback<unknown>) => Promise<() => void>
->(async (eventName: string, callback: ListenCallback<unknown>) => {
-  mockListeners.set(eventName, callback);
-  return mockUnlisten;
-});
+const mockListen = vi.fn<(eventName: string, callback: ListenCallback<unknown>) => Promise<() => void>>(
+  async (eventName: string, callback: ListenCallback<unknown>) => {
+    mockListeners.set(eventName, callback);
+    return mockUnlisten;
+  },
+);
 
 vi.mock('@tauri-apps/api/event', () => ({
   listen: (...args: [string, ListenCallback<unknown>]) => mockListen(...args),
@@ -46,12 +46,10 @@ describe('useInlineInputListener', () => {
     mockListeners.clear();
     mockIsTauriRuntime = false;
     mockListen.mockReset();
-    mockListen.mockImplementation(
-      async (eventName: string, callback: ListenCallback<unknown>) => {
-        mockListeners.set(eventName, callback);
-        return mockUnlisten;
-      },
-    );
+    mockListen.mockImplementation(async (eventName: string, callback: ListenCallback<unknown>) => {
+      mockListeners.set(eventName, callback);
+      return mockUnlisten;
+    });
   });
 
   afterEach(() => {

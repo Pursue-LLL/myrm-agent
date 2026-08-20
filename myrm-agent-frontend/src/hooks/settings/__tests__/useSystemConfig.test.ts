@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { DEFAULT_SYSTEM_CONFIG, type SystemConfig } from '@/types/system';
-import {
-  readTauriSystemConfigCache,
-  TAURI_SYSTEM_CONFIG_CACHE_KEY,
-} from '@/lib/tauri-system-config-cache';
+import { readTauriSystemConfigCache, TAURI_SYSTEM_CONFIG_CACHE_KEY } from '@/lib/tauri-system-config-cache';
 
 const { mockInvoke } = vi.hoisted(() => ({
   mockInvoke: vi.fn(),

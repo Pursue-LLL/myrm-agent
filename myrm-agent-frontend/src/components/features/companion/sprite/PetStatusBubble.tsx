@@ -4,10 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  resolveCompanionBubbleTone,
-  useCompanionThemeEpoch,
-} from '@/services/companion/companionTheme';
+import { resolveCompanionBubbleTone, useCompanionThemeEpoch } from '@/services/companion/companionTheme';
 
 import { pickPetBubbleSpec, type PetBubbleSpec } from './petStatusBubbleSpec';
 import { PetState } from './PetStateMachine';

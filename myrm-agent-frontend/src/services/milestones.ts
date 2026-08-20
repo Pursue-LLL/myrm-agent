@@ -104,8 +104,7 @@ export function normalizeAssessmentImportArtifactCandidates(
     }
     const nameValue = typeof artifact.name === 'string' ? artifact.name.trim() : '';
     const updatedAtValue = typeof artifact.updated_at === 'string' ? artifact.updated_at.trim() : '';
-    const latestVersionValue =
-      typeof artifact.latest_version_id === 'string' ? artifact.latest_version_id.trim() : '';
+    const latestVersionValue = typeof artifact.latest_version_id === 'string' ? artifact.latest_version_id.trim() : '';
     const status = artifact.assessment_import_candidate?.status;
     const candidateStatus: AssessmentImportCandidateStatus =
       status === 'importable' || status === 'not_importable' || status === 'already_imported' || status === 'unknown'

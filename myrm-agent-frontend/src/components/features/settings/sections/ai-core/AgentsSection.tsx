@@ -91,7 +91,9 @@ export default function AgentsSection() {
 
   // 过滤后的智能体列表
   const filteredAgents = useMemo(() => {
-    if (!searchQuery.trim()) {return agents;}
+    if (!searchQuery.trim()) {
+      return agents;
+    }
     const query = searchQuery.toLowerCase();
     return agents.filter((agent) => {
       const name = getBuiltinAgentName(agent.id, agent.name, locale);
@@ -137,7 +139,9 @@ export default function AgentsSection() {
   const handleImportAgent = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (!file) {return;}
+      if (!file) {
+        return;
+      }
 
       try {
         const text = await file.text();
@@ -151,8 +155,12 @@ export default function AgentsSection() {
 
         if (!validation.isValid) {
           const missingParts = [];
-          if (validation.missingSkills.length > 0) {missingParts.push(`${validation.missingSkills.length} 个技能`);}
-          if (validation.missingMcps.length > 0) {missingParts.push(`${validation.missingMcps.length} 个 MCP 服务`);}
+          if (validation.missingSkills.length > 0) {
+            missingParts.push(`${validation.missingSkills.length} 个技能`);
+          }
+          if (validation.missingMcps.length > 0) {
+            missingParts.push(`${validation.missingMcps.length} 个 MCP 服务`);
+          }
 
           toast({
             title: '导入成功，但存在依赖缺失',
@@ -183,7 +191,9 @@ export default function AgentsSection() {
 
   // 处理删除智能体
   const handleDeleteAgent = useCallback(async () => {
-    if (!agentToDelete) {return;}
+    if (!agentToDelete) {
+      return;
+    }
 
     try {
       await deleteAgent(agentToDelete.id);

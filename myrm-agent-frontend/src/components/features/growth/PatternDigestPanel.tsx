@@ -120,7 +120,13 @@ export default function PatternDigestPanel() {
           </h3>
           <p className="text-sm text-muted-foreground mt-0.5">{t('description')}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleTrigger} disabled={triggering} className="self-start shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTrigger}
+          disabled={triggering}
+          className="self-start shrink-0"
+        >
           {triggering ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Play className="h-4 w-4 mr-1.5" />}
           {triggering ? t('triggering') : t('triggerButton')}
         </Button>
@@ -131,7 +137,10 @@ export default function PatternDigestPanel() {
         <p className="text-xs text-muted-foreground">
           {t('patternCount', { count: patterns.length })}
           {latestEvent.occurred_at && (
-            <> · {t('discoveredAt')}: {new Date(latestEvent.occurred_at).toLocaleDateString()}</>
+            <>
+              {' '}
+              · {t('discoveredAt')}: {new Date(latestEvent.occurred_at).toLocaleDateString()}
+            </>
           )}
         </p>
       )}

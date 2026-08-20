@@ -15,9 +15,7 @@ import type { QueueStatus } from '@/services/wikiService';
 export const QUEUE_POLL_INTERVAL_MS = 10_000;
 export const SILENT_FAIL_STALE_THRESHOLD = 2;
 
-export function computeShouldPollQueue(
-  queueData: QueueStatus | null | undefined,
-): boolean {
+export function computeShouldPollQueue(queueData: QueueStatus | null | undefined): boolean {
   if (!queueData) {
     return false;
   }
@@ -27,9 +25,7 @@ export function computeShouldPollQueue(
   return queueData.stats.processing > 0 || queueData.stats.pending > 0;
 }
 
-export function shouldShowStaleRefreshBanner(
-  consecutiveSilentFailures: number,
-): boolean {
+export function shouldShowStaleRefreshBanner(consecutiveSilentFailures: number): boolean {
   return consecutiveSilentFailures >= SILENT_FAIL_STALE_THRESHOLD;
 }
 
@@ -48,9 +44,9 @@ export function queueStatsDiverge(
     return true;
   }
   return (
-    liveStats.pending !== cachedStats.pending
-    || liveStats.processing !== cachedStats.processing
-    || liveStats.completed !== cachedStats.completed
-    || liveStats.failed !== cachedStats.failed
+    liveStats.pending !== cachedStats.pending ||
+    liveStats.processing !== cachedStats.processing ||
+    liveStats.completed !== cachedStats.completed ||
+    liveStats.failed !== cachedStats.failed
   );
 }

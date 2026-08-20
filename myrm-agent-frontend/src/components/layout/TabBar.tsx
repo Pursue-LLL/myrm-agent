@@ -13,11 +13,13 @@ export default function TabBar() {
 
   // Sync URL with active pane
   useEffect(() => {
-    if (pathname === '/work') {return;} // Dashboard view
-    
+    if (pathname === '/work') {
+      return;
+    } // Dashboard view
+
     const chatId = pathname === '/' ? null : pathname.replace('/', '');
-    const pane = panes.find(p => p.chatId === chatId);
-    
+    const pane = panes.find((p) => p.chatId === chatId);
+
     if (!pane) {
       // If we navigated to a URL not in our panes, add it
       const newPaneId = addPane(chatId || undefined, chatId ? `Chat ${chatId.substring(0, 4)}` : 'New Chat');
@@ -41,7 +43,7 @@ export default function TabBar() {
     removePane(paneId);
     // The store automatically selects the first available pane
     // We need to sync the URL
-    const nextPane = useWorkspaceStore.getState().panes.find(p => p.id === useWorkspaceStore.getState().activePaneId);
+    const nextPane = useWorkspaceStore.getState().panes.find((p) => p.id === useWorkspaceStore.getState().activePaneId);
     if (nextPane) {
       router.push(nextPane.chatId ? `/${nextPane.chatId}` : '/');
     } else {
@@ -58,28 +60,26 @@ export default function TabBar() {
       <button
         onClick={() => router.push('/work')}
         className={cn(
-          "flex items-center justify-center w-10 h-8 rounded-md mr-2 flex-shrink-0 transition-colors",
-          pathname === '/work' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:bg-muted/50"
+          'flex items-center justify-center w-10 h-8 rounded-md mr-2 flex-shrink-0 transition-colors',
+          pathname === '/work' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:bg-muted/50',
         )}
         title="Dashboard"
       >
         <LayoutDashboard size={16} />
       </button>
 
-      {panes.map(pane => (
+      {panes.map((pane) => (
         <div
           key={pane.id}
           onClick={() => handleTabClick(pane.id, pane.chatId)}
           className={cn(
-            "group flex items-center h-8 px-3 mx-1 rounded-md min-w-[120px] max-w-[200px] cursor-pointer select-none transition-all flex-shrink-0",
-            activePaneId === pane.id 
-              ? "bg-background shadow-sm text-foreground border border-border/50" 
-              : "text-muted-foreground hover:bg-muted/50 border border-transparent"
+            'group flex items-center h-8 px-3 mx-1 rounded-md min-w-[120px] max-w-[200px] cursor-pointer select-none transition-all flex-shrink-0',
+            activePaneId === pane.id
+              ? 'bg-background shadow-sm text-foreground border border-border/50'
+              : 'text-muted-foreground hover:bg-muted/50 border border-transparent',
           )}
         >
-          <div className="flex-1 truncate text-sm font-medium">
-            {pane.title}
-          </div>
+          <div className="flex-1 truncate text-sm font-medium">{pane.title}</div>
           <button
             onClick={(e) => handleCloseTab(e, pane.id)}
             className="ml-2 p-0.5 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 transition-opacity"

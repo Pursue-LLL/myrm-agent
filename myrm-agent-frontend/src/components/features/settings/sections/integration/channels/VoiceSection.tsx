@@ -143,13 +143,17 @@ const VoiceSection = memo(() => {
       });
     setVoiceMode(localStorage.getItem('voiceSessionMode') || 'audio_only');
     return () => {
-      if (saveTimerRef.current) {clearTimeout(saveTimerRef.current);}
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
     };
   }, []);
 
   const debouncedSave = useCallback(
     (next: VoiceFormState) => {
-      if (saveTimerRef.current) {clearTimeout(saveTimerRef.current);}
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
       saveTimerRef.current = setTimeout(async () => {
         try {
           await saveVoiceConfig(next);

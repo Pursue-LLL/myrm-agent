@@ -26,11 +26,7 @@ import EStopBanner from './EStopBanner';
 import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import ExtensionTakeoverBanner from './ExtensionTakeoverBanner';
 import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
-import ChatWindowSatellites, {
-  GoalControlPlane,
-  GoalStatusCard,
-  LifeStatusCapsule,
-} from './ChatWindowSatellites';
+import ChatWindowSatellites, { GoalControlPlane, GoalStatusCard, LifeStatusCapsule } from './ChatWindowSatellites';
 import { ParentChatLink } from './ParentChatLink';
 import { ChatCronLink } from './ChatCronLink';
 import SessionRevertButton from '../message-actions/SessionRevertButton';
@@ -86,9 +82,9 @@ function isChatRouteHydratedForId(chatId: string | undefined): boolean {
   }
   const state = useChatStore.getState();
   return (
-    state.chatId === chatId
-    && state.isMessagesLoaded
-    && (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
+    state.chatId === chatId &&
+    state.isMessagesLoaded &&
+    (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
   );
 }
 
@@ -99,9 +95,9 @@ function subscribeChatRouteHydrated(chatId: string | undefined, onStoreChange: (
   return useChatStore.subscribe((state, prevState) => {
     const nextReady = isChatRouteHydratedForId(chatId);
     const prevReady =
-      prevState.chatId === chatId
-      && prevState.isMessagesLoaded
-      && (prevState.messages.length > 0 || Boolean(prevState.compactedSummary?.trim()));
+      prevState.chatId === chatId &&
+      prevState.isMessagesLoaded &&
+      (prevState.messages.length > 0 || Boolean(prevState.compactedSummary?.trim()));
     if (nextReady !== prevReady) {
       onStoreChange();
     }
@@ -134,9 +130,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     }
     return useChatStore.subscribe((state) => {
       if (
-        state.chatId === id
-        && state.isMessagesLoaded
-        && (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
+        state.chatId === id &&
+        state.isMessagesLoaded &&
+        (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
       ) {
         setRouteHydrationEpoch((epoch) => epoch + 1);
       }
@@ -204,10 +200,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   );
 
   const chatRouteHydratedFromSelector =
-    Boolean(id)
-    && storeChatId === id
-    && isMessagesLoaded
-    && (messages.length > 0 || Boolean(compactedSummary?.trim()));
+    Boolean(id) && storeChatId === id && isMessagesLoaded && (messages.length > 0 || Boolean(compactedSummary?.trim()));
 
   const chatRouteHydratedDirect = Boolean(id) && isChatRouteHydratedForId(id);
 
@@ -218,9 +211,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   );
 
   const storeMessageCountDirect =
-    id && useChatStore.getState().chatId === id
-      ? useChatStore.getState().messages.length
-      : 0;
+    id && useChatStore.getState().chatId === id ? useChatStore.getState().messages.length : 0;
 
   const storeMessageCountSync = useSyncExternalStore(
     (onStoreChange) => useChatStore.subscribe(onStoreChange),
@@ -228,23 +219,16 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     () => 0,
   );
 
-  const storeMessagesDirect =
-    id && useChatStore.getState().chatId === id
-      ? useChatStore.getState().messages
-      : [];
+  const storeMessagesDirect = id && useChatStore.getState().chatId === id ? useChatStore.getState().messages : [];
 
-  const chatMessagesForRender =
-    messages.length > 0 ? messages : storeMessagesDirect;
+  const chatMessagesForRender = messages.length > 0 ? messages : storeMessagesDirect;
 
-  const chatRouteHydrated =
-    chatRouteHydratedFromSelector || chatRouteHydratedSync || chatRouteHydratedDirect;
+  const chatRouteHydrated = chatRouteHydratedFromSelector || chatRouteHydratedSync || chatRouteHydratedDirect;
   const storeMessageCount = Math.max(storeMessageCountSync, storeMessageCountDirect);
   void routeHydrationEpoch;
 
   const hasChatContent =
-    messages.length > 0
-    || (Boolean(compactedSummary?.trim()) && Boolean(id) && isMessagesLoaded)
-    || chatRouteHydrated;
+    messages.length > 0 || (Boolean(compactedSummary?.trim()) && Boolean(id) && isMessagesLoaded) || chatRouteHydrated;
 
   const initConfig = useConfigStore((state) => state.initConfig);
   const mcpConfigs = useConfigStore((state) => state.mcpConfigs);
@@ -310,8 +294,12 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   useEffect(() => {
     const processInbox = async () => {
-      if (pendingInboxRef.current.length === 0) {return;}
-      if (useChatStore.getState().loading) {return;} // 再次检查确保安全
+      if (pendingInboxRef.current.length === 0) {
+        return;
+      }
+      if (useChatStore.getState().loading) {
+        return;
+      } // 再次检查确保安全
 
       const chunk = pendingInboxRef.current.shift();
       if (!chunk) {
@@ -354,7 +342,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       const { session_id, chunk } = customEvent.detail;
 
       // 只处理当前会话的流数据
-      if (session_id !== id) {return;}
+      if (session_id !== id) {
+        return;
+      }
 
       const store = useChatStore.getState();
 
@@ -371,7 +361,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       processInbox();
     };
 
-      // 监听全局的 loading 状态变化，当对话结束（loading 变为 false）时，恢复执行 inbox 中的积压任务
+    // 监听全局的 loading 状态变化，当对话结束（loading 变为 false）时，恢复执行 inbox 中的积压任务
     const unsubscribe = useChatStore.subscribe((state, prevState) => {
       if (prevState.loading === true && state.loading === false) {
         processInbox();
@@ -395,7 +385,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         });
       }
 
-      if (meta?.chat_id === id && (meta?.kind === 'background_job_finish' || meta?.kind === 'voice_background_task_done')) {
+      if (
+        meta?.chat_id === id &&
+        (meta?.kind === 'background_job_finish' || meta?.kind === 'voice_background_task_done')
+      ) {
         void initializeChat(id);
       }
 
@@ -406,7 +399,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
     window.addEventListener('async-agent-stream-chunk', handleAsyncChunk);
     window.addEventListener('system-notification', handleSystemNotification);
-    
+
     return () => {
       window.removeEventListener('async-agent-stream-chunk', handleAsyncChunk);
       window.removeEventListener('system-notification', handleSystemNotification);
@@ -424,9 +417,13 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   // 处理 agent_id URL 参数 - 自动切换到智能代理模式并应用智能体配置
   useEffect(() => {
-    if (!agentIdFromUrl) {return;}
+    if (!agentIdFromUrl) {
+      return;
+    }
     // 避免重复应用同一个智能体
-    if (hasAppliedAgentRef.current === agentIdFromUrl) {return;}
+    if (hasAppliedAgentRef.current === agentIdFromUrl) {
+      return;
+    }
 
     const applyAgentConfig = async () => {
       try {
@@ -599,11 +596,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                 <Chat
                   loading={loading}
                   messageAppeared={messageAppeared}
-                  messagesOverride={
-                    chatMessagesForRender.length > messages.length
-                      ? chatMessagesForRender
-                      : undefined
-                  }
+                  messagesOverride={chatMessagesForRender.length > messages.length ? chatMessagesForRender : undefined}
                 />
               </div>
             </div>

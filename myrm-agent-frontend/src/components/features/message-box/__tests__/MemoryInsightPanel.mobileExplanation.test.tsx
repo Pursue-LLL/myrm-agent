@@ -27,13 +27,9 @@ describe('MemoryInsightPanel mobile explanation', () => {
 
     const descriptions = screen.getAllByText('briefUnavailableDescriptionNotInjected');
     expect(descriptions.length).toBeGreaterThanOrEqual(1);
-    expect(
-      descriptions.some((node) => node.closest('[class*="md:hidden"]') !== null),
-    ).toBe(true);
+    expect(descriptions.some((node) => node.closest('[class*="md:hidden"]') !== null)).toBe(true);
     const sources = screen.getAllByText('briefStatusSourceRuntimeFallback');
     expect(sources.length).toBeGreaterThanOrEqual(1);
-    expect(
-      sources.some((node) => node.closest('[class*="md:hidden"]') !== null),
-    ).toBe(true);
+    expect(sources.some((node) => node.closest('[class*="md:hidden"]') !== null)).toBe(true);
   });
 });

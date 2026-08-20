@@ -47,10 +47,12 @@ import {
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
 
-const ACCEPTED_BACKGROUND_TYPES =
-  'image/png,image/jpeg,image/webp,video/mp4,.png,.jpg,.jpeg,.webp,.mp4';
+const ACCEPTED_BACKGROUND_TYPES = 'image/png,image/jpeg,image/webp,video/mp4,.png,.jpg,.jpeg,.webp,.mp4';
 
-const VALIDATION_MESSAGE_KEYS: Record<ThemeBackgroundValidationError, 'backgroundInvalidType' | 'backgroundTooLarge' | 'backgroundEmpty'> = {
+const VALIDATION_MESSAGE_KEYS: Record<
+  ThemeBackgroundValidationError,
+  'backgroundInvalidType' | 'backgroundTooLarge' | 'backgroundEmpty'
+> = {
   invalidType: 'backgroundInvalidType',
   tooLarge: 'backgroundTooLarge',
   empty: 'backgroundEmpty',
@@ -67,9 +69,7 @@ const AppearancePanel = ({ className }: { className?: string }) => {
   const activeThemeProfileId = useConfigStore(
     (s) => s.personalSettings?.activeThemeProfileId ?? OFFICIAL_DEFAULT_PROFILE_ID,
   );
-  const themeProfiles = useConfigStore(
-    (s) => s.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES,
-  );
+  const themeProfiles = useConfigStore((s) => s.personalSettings?.themeProfiles ?? EMPTY_THEME_PROFILES);
   const updatePersonalSettings = useConfigStore((s) => s.updatePersonalSettings);
 
   const activeProfile =
@@ -79,8 +79,7 @@ const AppearancePanel = ({ className }: { className?: string }) => {
 
   const backgroundActive = hasArtOverlay(themeProfiles);
   const artOverlay = getArtOverlayProfile(themeProfiles);
-  const needsPosterReupload =
-    artOverlay?.art.mediaKind === 'video' && !artOverlay.art.posterAssetRef;
+  const needsPosterReupload = artOverlay?.art.mediaKind === 'video' && !artOverlay.art.posterAssetRef;
   const persistedWash = artOverlay?.art.wash ?? activeProfile.art.wash;
   const [washDraft, setWashDraft] = useState(persistedWash);
 
@@ -88,9 +87,7 @@ const AppearancePanel = ({ className }: { className?: string }) => {
     setWashDraft(persistedWash);
   }, [persistedWash]);
 
-  const activeFontId = useConfigStore(
-    (s) => s.personalSettings?.themeFontOverride ?? activeProfile.fontId,
-  );
+  const activeFontId = useConfigStore((s) => s.personalSettings?.themeFontOverride ?? activeProfile.fontId);
 
   const handleSelectProfile = useCallback(
     async (profileId: string) => {
@@ -139,7 +136,9 @@ const AppearancePanel = ({ className }: { className?: string }) => {
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       event.target.value = '';
-      if (!file) {return;}
+      if (!file) {
+        return;
+      }
 
       const validationError = validateThemeBackgroundFile(file);
       if (validationError) {
@@ -252,9 +251,7 @@ const AppearancePanel = ({ className }: { className?: string }) => {
           <div className="mt-3 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-medium text-muted-foreground">{t('backgroundWash')}</p>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {Math.round(washDraft * 100)}%
-              </span>
+              <span className="text-xs tabular-nums text-muted-foreground">{Math.round(washDraft * 100)}%</span>
             </div>
             <input
               type="range"

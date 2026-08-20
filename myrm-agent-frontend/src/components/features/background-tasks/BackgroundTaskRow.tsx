@@ -58,7 +58,9 @@ export function BackgroundTaskRow({
   const LogActionIcon = canViewVaultLog ? FileText : Navigation;
 
   const handleSecondaryAction = () => {
-    if (!task.chat_id) {return;}
+    if (!task.chat_id) {
+      return;
+    }
     if (canViewVaultLog) {
       onViewVaultLog!(task.chat_id, task.vault_log_ref!);
       return;
@@ -224,7 +226,9 @@ export function BackgroundTaskRow({
                 value={steerInput}
                 onChange={(e) => onSteerInputChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {onSteer(task.task_id);}
+                  if (e.key === 'Enter') {
+                    onSteer(task.task_id);
+                  }
                 }}
               />
               <Button

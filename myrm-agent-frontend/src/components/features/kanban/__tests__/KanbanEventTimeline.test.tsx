@@ -10,9 +10,7 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('../KanbanMarkdown', () => ({
-  default: ({ children }: { children: string }) => (
-    <div data-testid="kanban-markdown">{children}</div>
-  ),
+  default: ({ children }: { children: string }) => <div data-testid="kanban-markdown">{children}</div>,
 }));
 
 function event(overrides: Partial<TaskEvent>): TaskEvent {
@@ -32,11 +30,7 @@ describe('KanbanEventTimeline approval details', () => {
   });
 
   it('renders approver for approved events', () => {
-    render(
-      <KanbanEventTimeline
-        events={[event({ kind: 'approved', payload: { approver: 'alice' } })]}
-      />,
-    );
+    render(<KanbanEventTimeline events={[event({ kind: 'approved', payload: { approver: 'alice' } })]} />);
     expect(tMock).toHaveBeenCalledWith('approvedBy', { approver: 'alice' });
   });
 
@@ -61,11 +55,7 @@ describe('KanbanEventTimeline approval details', () => {
   });
 
   it('omits reason block when rejected payload has no reason', () => {
-    render(
-      <KanbanEventTimeline
-        events={[event({ kind: 'rejected', payload: { approver: 'bob' } })]}
-      />,
-    );
+    render(<KanbanEventTimeline events={[event({ kind: 'rejected', payload: { approver: 'bob' } })]} />);
     expect(tMock).toHaveBeenCalledWith('rejectedBy', { approver: 'bob' });
     expect(screen.queryByTestId('kanban-markdown')).toBeNull();
   });

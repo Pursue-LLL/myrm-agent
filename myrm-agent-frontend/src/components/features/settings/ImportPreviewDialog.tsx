@@ -1,7 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { IconAlertCircle, IconCheckCircle, IconChevronDown, IconChevronUp } from '@/components/features/icons/PremiumIcons';
+import {
+  IconAlertCircle,
+  IconCheckCircle,
+  IconChevronDown,
+  IconChevronUp,
+} from '@/components/features/icons/PremiumIcons';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import {
@@ -106,7 +111,9 @@ export function ImportPreviewDialog({
   const t = useTranslations('settings.importPreview');
   const [expandedCategory, setExpandedCategory] = useState<ImportCategory | null>(null);
 
-  if (!parsedData) {return null;}
+  if (!parsedData) {
+    return null;
+  }
 
   const categoryLabels: Record<ImportCategory, string> = {
     systemInstructions: t('systemInstructions'),

@@ -14,13 +14,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 
 interface AgentBrowserConfigSectionProps {
   browserSource: string | undefined;
@@ -52,9 +46,7 @@ export function AgentBrowserConfigSection({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Browser Source */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            {tEditor('browserSource.label')}
-          </label>
+          <label className="text-xs font-medium text-muted-foreground">{tEditor('browserSource.label')}</label>
           <Select
             value={browserSource || 'auto'}
             onValueChange={(v) => onBrowserSourceChange(v === 'auto' ? undefined : v)}
@@ -66,9 +58,7 @@ export function AgentBrowserConfigSection({
               <SelectItem value="auto">
                 <div className="flex flex-col py-0.5">
                   <span className="font-medium text-xs">{tEditor('browserSource.options.auto')}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {tEditor('browserSource.options.autoDesc')}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">{tEditor('browserSource.options.autoDesc')}</span>
                 </div>
               </SelectItem>
               <SelectItem value="extension">
@@ -111,9 +101,7 @@ export function AgentBrowserConfigSection({
             </p>
           )}
           {browserSource === 'connect' && (
-            <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1">
-              {tEditor('browserSource.connectInfo')}
-            </p>
+            <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1">{tEditor('browserSource.connectInfo')}</p>
           )}
           {browserSource === 'remote' && (
             <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
@@ -124,9 +112,7 @@ export function AgentBrowserConfigSection({
 
         {/* Dialog Policy */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            {t('dialogPolicy.label')}
-          </label>
+          <label className="text-xs font-medium text-muted-foreground">{t('dialogPolicy.label')}</label>
           <Select
             value={dialogPolicy || 'smart'}
             onValueChange={(v) =>
@@ -142,9 +128,7 @@ export function AgentBrowserConfigSection({
               <SelectItem value="smart">
                 <div className="flex flex-col py-0.5">
                   <span className="font-medium text-xs">{tEditor('dialogPolicy.options.smart')}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {tEditor('dialogPolicy.options.smartDesc')}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">{tEditor('dialogPolicy.options.smartDesc')}</span>
                 </div>
               </SelectItem>
               <SelectItem value="auto_accept">
@@ -177,9 +161,7 @@ export function AgentBrowserConfigSection({
 
         {/* Session Recording */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            {t('sessionRecording.label')}
-          </label>
+          <label className="text-xs font-medium text-muted-foreground">{t('sessionRecording.label')}</label>
           <Select
             value={sessionRecording || 'off'}
             onValueChange={(v) =>

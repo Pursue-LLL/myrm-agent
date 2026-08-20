@@ -21,11 +21,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { getCronJob, pauseCronJob } from '@/services/cron';
 import type { CronJob } from '@/services/cron.types';
-import {
-  buildCronAuditFields,
-  isCronAuditConfirmed,
-  markCronAuditConfirmed,
-} from '@/lib/cron/buildCronAuditFields';
+import { buildCronAuditFields, isCronAuditConfirmed, markCronAuditConfirmed } from '@/lib/cron/buildCronAuditFields';
 import { resumeJobAfterAuditConfirm } from '@/lib/cron/cronCreateAuditGate';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -100,7 +96,9 @@ export const CronJobAuditPanel = memo<CronJobAuditPanelProps>(
     const fields = useMemo(() => (job ? buildCronAuditFields(job) : []), [job]);
 
     const handleConfirm = useCallback(async () => {
-      if (!job) {return;}
+      if (!job) {
+        return;
+      }
       setActionPending(true);
       try {
         if (enforceSettingsGate && job.status === 'paused') {
@@ -118,7 +116,9 @@ export const CronJobAuditPanel = memo<CronJobAuditPanelProps>(
     }, [enforceSettingsGate, job, jobId, t, onJobChange]);
 
     const handlePause = useCallback(async () => {
-      if (!job || job.status !== 'active') {return;}
+      if (!job || job.status !== 'active') {
+        return;
+      }
       setActionPending(true);
       try {
         await pauseCronJob(job.id);
@@ -143,11 +143,7 @@ export const CronJobAuditPanel = memo<CronJobAuditPanelProps>(
     }
 
     if (error || !job) {
-      return (
-        <div className={cn('text-sm text-destructive py-2', className)}>
-          {error ?? t('loadFailed')}
-        </div>
-      );
+      return <div className={cn('text-sm text-destructive py-2', className)}>{error ?? t('loadFailed')}</div>;
     }
 
     const showPausedHint = enforceSettingsGate && job.status === 'paused' && !confirmed;

@@ -79,9 +79,7 @@ const DEFAULT_MIGRATION_SOURCE_MANIFEST: readonly MigrationSourceManifestItem[] 
     deep_link_enabled: true,
   },
 ];
-const DEFAULT_MIGRATION_SOURCE_MANIFEST_BY_ID = buildManifestById(
-  DEFAULT_MIGRATION_SOURCE_MANIFEST,
-);
+const DEFAULT_MIGRATION_SOURCE_MANIFEST_BY_ID = buildManifestById(DEFAULT_MIGRATION_SOURCE_MANIFEST);
 
 let discoveryCache: DiscoveryResponse | null = null;
 let discoveryCachedAt = 0;
@@ -99,7 +97,9 @@ function buildManifestById(
   const byId: Record<string, MigrationSourceManifestItem> = {};
   for (const entry of entries) {
     const id = normalizeSourceId(entry.id);
-    if (!id) {continue;}
+    if (!id) {
+      continue;
+    }
     byId[id] = {
       id,
       display_name: entry.display_name.trim() || entry.id,
@@ -113,7 +113,9 @@ function buildManifestById(
 
 function resolveManifestEntry(sourceId: string): MigrationSourceManifestItem | null {
   const normalized = normalizeSourceId(sourceId);
-  if (!normalized) {return null;}
+  if (!normalized) {
+    return null;
+  }
   return sourceManifestById[normalized] ?? null;
 }
 

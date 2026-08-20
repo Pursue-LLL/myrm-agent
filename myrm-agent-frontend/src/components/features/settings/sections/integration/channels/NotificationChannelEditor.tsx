@@ -56,7 +56,9 @@ const NotificationChannelEditor = memo(function NotificationChannelEditor() {
   }, []);
 
   useEffect(() => {
-    if (initializedRef.current || deliveries.length === 0) {return;}
+    if (initializedRef.current || deliveries.length === 0) {
+      return;
+    }
     initializedRef.current = true;
     const init: Record<string, string> = {};
     for (const d of deliveries) {
@@ -69,7 +71,9 @@ const NotificationChannelEditor = memo(function NotificationChannelEditor() {
     (ch: string, on: boolean) => {
       if (on) {
         const raw = targets[ch]?.trim();
-        if (!raw) {return;}
+        if (!raw) {
+          return;
+        }
         const tgt = ch === 'whatsapp' ? toWaTarget(raw) : raw;
         const next: NotificationDelivery[] = [
           ...deliveries.filter((d) => d.channel !== ch),
@@ -87,9 +91,13 @@ const NotificationChannelEditor = memo(function NotificationChannelEditor() {
   const handleTargetBlur = useCallback(
     (ch: string) => {
       const existing = deliveries.find((d) => d.channel === ch);
-      if (!existing) {return;}
+      if (!existing) {
+        return;
+      }
       const raw = targets[ch]?.trim();
-      if (!raw) {return;}
+      if (!raw) {
+        return;
+      }
       const tgt = ch === 'whatsapp' ? toWaTarget(raw) : raw;
       if (existing.target !== tgt) {
         const next = deliveries.map((d) => (d.channel === ch ? { ...d, target: tgt } : d));

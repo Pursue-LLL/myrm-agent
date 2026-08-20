@@ -37,7 +37,9 @@ export function OgCard({ url }: { url: string }) {
           }
         }
       } catch {
-        if (!cancelled) {setFailed(true);}
+        if (!cancelled) {
+          setFailed(true);
+        }
       }
     };
     fetchOg();
@@ -46,7 +48,9 @@ export function OgCard({ url }: { url: string }) {
     };
   }, [url]);
 
-  if (failed || !og) {return null;}
+  if (failed || !og) {
+    return null;
+  }
 
   const hostname = (() => {
     try {
@@ -92,8 +96,12 @@ export function OgCard({ url }: { url: string }) {
           )}
           <span>{og.site_name || hostname}</span>
         </div>
-        {og.title && <p className="text-sm font-medium leading-snug text-foreground line-clamp-2">{truncate(og.title, 100)}</p>}
-        {og.description && <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">{truncate(og.description, 160)}</p>}
+        {og.title && (
+          <p className="text-sm font-medium leading-snug text-foreground line-clamp-2">{truncate(og.title, 100)}</p>
+        )}
+        {og.description && (
+          <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">{truncate(og.description, 160)}</p>
+        )}
       </div>
     </a>
   );

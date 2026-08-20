@@ -116,10 +116,7 @@ describe('EnterpriseModelPolicyTab', () => {
       expect(screen.getByText(/^modelPolicy\.title/)).toBeInTheDocument();
     });
 
-    await userEvent.type(
-      screen.getByPlaceholderText('e.g. openai/*, deepseek/*, claude/*'),
-      'anthropic/*',
-    );
+    await userEvent.type(screen.getByPlaceholderText('e.g. openai/*, deepseek/*, claude/*'), 'anthropic/*');
     await userEvent.click(screen.getByText(/^modelPolicy\.add/));
 
     await waitFor(() => {
@@ -147,10 +144,7 @@ describe('EnterpriseModelPolicyTab', () => {
       expect(screen.getByText(/^modelPolicy\.title/)).toBeInTheDocument();
     });
 
-    await userEvent.type(
-      screen.getByPlaceholderText('e.g. openai/*, deepseek/*, claude/*'),
-      'anthropic/*',
-    );
+    await userEvent.type(screen.getByPlaceholderText('e.g. openai/*, deepseek/*, claude/*'), 'anthropic/*');
     await userEvent.click(screen.getByText(/^modelPolicy\.add/));
 
     await waitFor(() => {

@@ -62,7 +62,11 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
 
   if (task.status === 'pending' || task.status === 'queued' || task.status === 'running') {
     return (
-      <TaskCardPlaceholder prompt={getStringPayloadValue(task.payload, 'prompt')} progress={task.progress} className={className} />
+      <TaskCardPlaceholder
+        prompt={getStringPayloadValue(task.payload, 'prompt')}
+        progress={task.progress}
+        className={className}
+      />
     );
   }
 
@@ -71,21 +75,14 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
     if (!result) {
       return (
         <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
-          <p className="text-sm text-muted-foreground">
-            {t('videoCompletedFallback')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('videoCompletedFallback')}</p>
         </div>
       );
     }
 
     const card = (
       <div className="rounded-lg border border-border/50 bg-card p-4 space-y-3">
-        <video
-          controls
-          className="w-full rounded-md bg-black/80"
-          src={result.videoUrls[0]}
-          preload="metadata"
-        >
+        <video controls className="w-full rounded-md bg-black/80" src={result.videoUrls[0]} preload="metadata">
           {t('videoUnsupported')}
         </video>
         {result.videoUrls.length > 1 && (
@@ -104,9 +101,21 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
           </div>
         )}
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {result.provider && <span>{t('providerLabel')}: {result.provider}</span>}
-          {result.model && <span>{t('modelLabel')}: {result.model}</span>}
-          {typeof result.latencyMs === 'number' && <span>{t('latencyLabel')}: {Math.round(result.latencyMs)}ms</span>}
+          {result.provider && (
+            <span>
+              {t('providerLabel')}: {result.provider}
+            </span>
+          )}
+          {result.model && (
+            <span>
+              {t('modelLabel')}: {result.model}
+            </span>
+          )}
+          {typeof result.latencyMs === 'number' && (
+            <span>
+              {t('latencyLabel')}: {Math.round(result.latencyMs)}ms
+            </span>
+          )}
         </div>
       </div>
     );

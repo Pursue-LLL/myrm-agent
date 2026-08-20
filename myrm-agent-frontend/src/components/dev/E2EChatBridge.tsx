@@ -31,12 +31,8 @@ import { guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { SearchServiceConfigItem } from '@/store/config/types';
 import type { DefaultModelConfig, ProviderConfig, CustomModelInfo } from '@/store/config/providerTypes';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
-import useDesktopInspectorStore, {
-  selectScopedDesktopViewData,
-} from '@/store/useDesktopInspectorStore';
-import useBrowserInspectorStore, {
-  selectScopedBrowserViewData,
-} from '@/store/useBrowserInspectorStore';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
@@ -53,7 +49,9 @@ import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 
 function isLocalDevHost(): boolean {
-  if (typeof window === 'undefined') {return false;}
+  if (typeof window === 'undefined') {
+    return false;
+  }
   const host = window.location.hostname;
   return host === '127.0.0.1' || host === 'localhost';
 }
@@ -565,14 +563,9 @@ async function submitAndObserveTurn(
     let submitError: string | null = null;
     let sendSettledEmpty = false;
     const kickoffAt = Date.now();
-    const sendPromise = useChatStore.getState().sendMessage(
-      trimmed,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      agentConfigOverride,
-    );
+    const sendPromise = useChatStore
+      .getState()
+      .sendMessage(trimmed, undefined, undefined, undefined, undefined, agentConfigOverride);
     await Promise.resolve();
     void sendPromise
       .then(() => {
@@ -723,22 +716,22 @@ async function submitAndObserveTurn(
   }
 }
 
-export type SseEventRecorder = (
-  type: string,
-  messageId?: string | null,
-  data?: unknown,
-) => void;
+export type SseEventRecorder = (type: string, messageId?: string | null, data?: unknown) => void;
 
 export default function E2EChatBridge() {
   useLayoutEffect(() => {
-    if (!isLocalDevHost()) {return;}
+    if (!isLocalDevHost()) {
+      return;
+    }
 
     const sseEvents: Array<{ type: string; messageId: string | null; data?: unknown }> = [];
     let sseCaptureMessageId: string | null = null;
     let sseCaptureLocked = false;
-    (
-      window as Window & { __MYRM_E2E_RECORD_SSE__?: SseEventRecorder }
-    ).__MYRM_E2E_RECORD_SSE__ = (type: string, messageId?: string | null, data?: unknown) => {
+    (window as Window & { __MYRM_E2E_RECORD_SSE__?: SseEventRecorder }).__MYRM_E2E_RECORD_SSE__ = (
+      type: string,
+      messageId?: string | null,
+      data?: unknown,
+    ) => {
       if (sseCaptureLocked) {
         const normalizedId = typeof messageId === 'string' && messageId.trim() ? messageId.trim() : null;
         if (type !== 'capability_gap' || !normalizedId) {
@@ -1224,7 +1217,9 @@ export default function E2EChatBridge() {
       getGoalMode: () => useChatStore.getState().isGoalMode,
       getActiveGoalSnapshot: () => {
         const goal = useGoalStore.getState().activeGoal;
-        if (!goal) {return null;}
+        if (!goal) {
+          return null;
+        }
         return {
           status: goal.status,
           reason: goal.reason ?? null,
@@ -1841,9 +1836,7 @@ export default function E2EChatBridge() {
         if (!normalizedChatId) {
           return { ok: false as const, reason: 'empty-chat-id' };
         }
-        const { fileDiffEvents } = await import(
-          '@/store/chat/messageStream/handlers/fileDiffEvents'
-        );
+        const { fileDiffEvents } = await import('@/store/chat/messageStream/handlers/fileDiffEvents');
         const { AgentEventType } = await import('@/store/chat/types');
         const messageId = `e2e-blvc-view-${Date.now()}`;
         await fileDiffEvents({
@@ -1898,9 +1891,7 @@ export default function E2EChatBridge() {
         if (!normalizedChatId || !normalizedTool.startsWith('browser_')) {
           return { ok: false as const, reason: 'invalid-args' };
         }
-        const { toolLifecycleEvents } = await import(
-          '@/store/chat/messageStream/handlers/toolLifecycleEvents'
-        );
+        const { toolLifecycleEvents } = await import('@/store/chat/messageStream/handlers/toolLifecycleEvents');
         const { AgentEventType } = await import('@/store/chat/types');
         const messageId = `e2e-blvc-tool-${Date.now()}`;
         await toolLifecycleEvents({
@@ -1960,9 +1951,7 @@ export default function E2EChatBridge() {
         if (!normalizedChatId) {
           return { ok: false as const, reason: 'empty-chat-id' };
         }
-        const { fileDiffEvents } = await import(
-          '@/store/chat/messageStream/handlers/fileDiffEvents'
-        );
+        const { fileDiffEvents } = await import('@/store/chat/messageStream/handlers/fileDiffEvents');
         const { AgentEventType } = await import('@/store/chat/types');
         const messageId = `e2e-blvc-desktop-${Date.now()}`;
         await fileDiffEvents({
@@ -2015,9 +2004,7 @@ export default function E2EChatBridge() {
         if (!normalizedChatId) {
           return { ok: false as const, reason: 'empty-chat-id' };
         }
-        const { fileDiffEvents } = await import(
-          '@/store/chat/messageStream/handlers/fileDiffEvents'
-        );
+        const { fileDiffEvents } = await import('@/store/chat/messageStream/handlers/fileDiffEvents');
         const { AgentEventType } = await import('@/store/chat/types');
         const messageId = `e2e-blvc-desktop-approval-${Date.now()}`;
         await fileDiffEvents({

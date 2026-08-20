@@ -46,21 +46,12 @@ export default function LocaleLayout({ children }: { children: React.ReactNode }
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="preload" as="image" href="/brand/brand-mark-128.webp" type="image/webp" />
       </head>
-      <body
-        className={cn('min-h-full', fontSans.variable, fontMono.variable)}
-        suppressHydrationWarning
-      >
-        <Script
-          id="e2e-runtime-bootstrap"
-          src="/e2e-runtime-bootstrap.js"
-          strategy="beforeInteractive"
-        />
+      <body className={cn('min-h-full', fontSans.variable, fontMono.variable)} suppressHydrationWarning>
+        <Script id="e2e-runtime-bootstrap" src="/e2e-runtime-bootstrap.js" strategy="beforeInteractive" />
         <Script id="theme-pre-init" src="/theme-init.js" strategy="beforeInteractive" />
         <WebVitals />
         <E2eBridgeLoader />
-        <Suspense
-          fallback={process.env.NODE_ENV === 'development' ? null : <AppShellSkeleton />}
-        >
+        <Suspense fallback={process.env.NODE_ENV === 'development' ? null : <AppShellSkeleton />}>
           <LocalizedProviders>{children}</LocalizedProviders>
         </Suspense>
       </body>

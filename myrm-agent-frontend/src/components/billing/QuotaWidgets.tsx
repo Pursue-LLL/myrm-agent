@@ -9,26 +9,32 @@ import { IconCrown, IconGlow } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 
 export function formatNumber(num: number): string {
-  if (num >= 1000000) {return `${(num / 1000000).toFixed(1)}M`;}
-  if (num >= 1000) {return `${(num / 1000).toFixed(0)}K`;}
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}M`;
+  }
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(0)}K`;
+  }
   return num.toString();
 }
 
 export function getUsageStatus(percentage: number) {
-  if (percentage >= 90)
-    {return {
+  if (percentage >= 90) {
+    return {
       color: 'text-rose-500',
       bg: 'bg-rose-500',
       glow: 'shadow-[0_0_8px_rgba(244,63,94,0.4)]',
       border: 'border-rose-500/20',
-    };}
-  if (percentage >= 70)
-    {return {
+    };
+  }
+  if (percentage >= 70) {
+    return {
       color: 'text-amber-500',
       bg: 'bg-amber-500',
       glow: 'shadow-[0_0_8px_rgba(245,158,11,0.4)]',
       border: 'border-amber-500/20',
-    };}
+    };
+  }
   return {
     color: 'text-emerald-500',
     bg: 'bg-emerald-500',

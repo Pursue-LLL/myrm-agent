@@ -83,39 +83,48 @@ describe('cron-blueprints', () => {
     });
 
     it('handles midnight and 23:59', () => {
-      expect(buildScheduleFromSlots(MORNING_DEF, { time: '00:00', weekdays: 'everyday' }).expr).toBe(
-        '0 0 * * *',
-      );
-      expect(buildScheduleFromSlots(MORNING_DEF, { time: '23:59', weekdays: 'weekends' }).expr).toBe(
-        '59 23 * * 0,6',
-      );
+      expect(buildScheduleFromSlots(MORNING_DEF, { time: '00:00', weekdays: 'everyday' }).expr).toBe('0 0 * * *');
+      expect(buildScheduleFromSlots(MORNING_DEF, { time: '23:59', weekdays: 'weekends' }).expr).toBe('59 23 * * 0,6');
     });
   });
 
   describe('humanizeSchedule', () => {
     const locale = 'en-US';
-    const t = vi.fn(
-      (key: string, values?: Record<string, string | number>): string => {
-        const map: Record<string, string | number> = values ?? {};
-        switch (key) {
-          case 'schedule.once': return 'Once';
-          case 'schedule.onceAt': return `Once at ${map.time}`;
-          case 'schedule.everyMinutes': return `Every ${map.count} min`;
-          case 'schedule.dailyAt': return `Daily at ${map.time}`;
-          case 'schedule.weekdaysAt': return `Weekdays at ${map.time}`;
-          case 'schedule.weekendsAt': return `Weekends at ${map.time}`;
-          case 'schedule.weekdayListAt': return `${map.days} at ${map.time}`;
-          case 'blueprint.daySun': return 'Sunday';
-          case 'blueprint.dayMon': return 'Monday';
-          case 'blueprint.dayTue': return 'Tuesday';
-          case 'blueprint.dayWed': return 'Wednesday';
-          case 'blueprint.dayThu': return 'Thursday';
-          case 'blueprint.dayFri': return 'Friday';
-          case 'blueprint.daySat': return 'Saturday';
-          default: return key;
-        }
-      },
-    );
+    const t = vi.fn((key: string, values?: Record<string, string | number>): string => {
+      const map: Record<string, string | number> = values ?? {};
+      switch (key) {
+        case 'schedule.once':
+          return 'Once';
+        case 'schedule.onceAt':
+          return `Once at ${map.time}`;
+        case 'schedule.everyMinutes':
+          return `Every ${map.count} min`;
+        case 'schedule.dailyAt':
+          return `Daily at ${map.time}`;
+        case 'schedule.weekdaysAt':
+          return `Weekdays at ${map.time}`;
+        case 'schedule.weekendsAt':
+          return `Weekends at ${map.time}`;
+        case 'schedule.weekdayListAt':
+          return `${map.days} at ${map.time}`;
+        case 'blueprint.daySun':
+          return 'Sunday';
+        case 'blueprint.dayMon':
+          return 'Monday';
+        case 'blueprint.dayTue':
+          return 'Tuesday';
+        case 'blueprint.dayWed':
+          return 'Wednesday';
+        case 'blueprint.dayThu':
+          return 'Thursday';
+        case 'blueprint.dayFri':
+          return 'Friday';
+        case 'blueprint.daySat':
+          return 'Saturday';
+        default:
+          return key;
+      }
+    });
 
     it('returns "Daily at HH:MM" for everyday cron', () => {
       expect(humanizeSchedule({ kind: 'cron', expr: '0 8 * * *' }, t, locale)).toBe('Daily at 08:00');
@@ -275,12 +284,7 @@ describe('cron-blueprints', () => {
       vi.mocked(fillBlueprint).mockRejectedValue(new Error('network'));
 
       await expect(
-        buildBlueprintCreatePayload(
-          mockBlueprint,
-          { time: '08:00', weekdays: 'everyday' },
-          'UTC',
-          'en',
-        ),
+        buildBlueprintCreatePayload(mockBlueprint, { time: '08:00', weekdays: 'everyday' }, 'UTC', 'en'),
       ).rejects.toThrow('network');
     });
 
@@ -288,12 +292,7 @@ describe('cron-blueprints', () => {
       vi.mocked(fillBlueprint).mockRejectedValue(new ApiError('bad slot', 422));
 
       await expect(
-        buildBlueprintCreatePayload(
-          mockBlueprint,
-          { time: '08:00', weekdays: 'everyday' },
-          'UTC',
-          'en',
-        ),
+        buildBlueprintCreatePayload(mockBlueprint, { time: '08:00', weekdays: 'everyday' }, 'UTC', 'en'),
       ).rejects.toBeInstanceOf(ApiError);
     });
   });

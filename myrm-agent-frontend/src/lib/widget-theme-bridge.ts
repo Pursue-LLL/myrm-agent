@@ -38,23 +38,23 @@ const THEME_VAR_NAMES = [
 ] as const;
 
 /** Host attributes that affect computed theme tokens for widget iframes. */
-export const HOST_THEME_MUTATION_ATTRIBUTES = [
-  'class',
-  'data-myrm-theme-profile',
-  'style',
-] as const;
+export const HOST_THEME_MUTATION_ATTRIBUTES = ['class', 'data-myrm-theme-profile', 'style'] as const;
 
 /**
  * Read computed CSS variable values from the host document.
  * Must be called client-side only.
  */
 export function resolveThemeVars(): Record<string, string> {
-  if (typeof window === 'undefined') {return {};}
+  if (typeof window === 'undefined') {
+    return {};
+  }
   const computed = getComputedStyle(document.documentElement);
   const vars: Record<string, string> = {};
   for (const name of THEME_VAR_NAMES) {
     const val = computed.getPropertyValue(name).trim();
-    if (val) {vars[name] = val;}
+    if (val) {
+      vars[name] = val;
+    }
   }
   vars['--is-dark'] = document.documentElement.classList.contains('dark') ? '1' : '0';
   return vars;
@@ -64,9 +64,7 @@ export function resolveThemeVars(): Record<string, string> {
  * Subscribe to host theme token changes (dark mode, Theme Profile preset, inline CSS vars).
  * Returns unsubscribe. No-op on SSR.
  */
-export function subscribeHostThemeVars(
-  onChange: (vars: Record<string, string>) => void,
-): () => void {
+export function subscribeHostThemeVars(onChange: (vars: Record<string, string>) => void): () => void {
   if (typeof window === 'undefined') {
     return () => {};
   }
@@ -164,8 +162,7 @@ export function buildWidgetStyleBlock(resolvedVars: Record<string, string>): str
     .join('');
   const isDark = resolvedVars['--is-dark'] === '1';
   const fontFamily =
-    resolvedVars['--font-override'] ??
-    "-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif";
+    resolvedVars['--font-override'] ?? "-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif";
 
   return `<style>
 :root{${rootVars}}

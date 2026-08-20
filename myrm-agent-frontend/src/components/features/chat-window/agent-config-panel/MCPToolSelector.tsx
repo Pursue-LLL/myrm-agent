@@ -20,8 +20,12 @@ interface MCPToolSelectorProps {
 type RiskLevel = 'safe' | 'caution' | 'danger';
 
 function getRiskLevel(tool: MCPToolDetail): RiskLevel {
-  if (tool.destructiveHint) {return 'danger';}
-  if (!tool.readOnlyHint && !tool.idempotentHint) {return 'caution';}
+  if (tool.destructiveHint) {
+    return 'danger';
+  }
+  if (!tool.readOnlyHint && !tool.idempotentHint) {
+    return 'caution';
+  }
   return 'safe';
 }
 
@@ -54,7 +58,9 @@ const MCPToolSelector = ({
   selectedToolsRef.current = selectedTools;
 
   const loadTools = useCallback(async () => {
-    if (fetchedRef.current || !isServerEnabled) {return;}
+    if (fetchedRef.current || !isServerEnabled) {
+      return;
+    }
     setLoading(true);
     setLoadError(false);
     try {
@@ -122,7 +128,9 @@ const MCPToolSelector = ({
     onSelectionChange(serverName, undefined);
   };
 
-  if (!isServerEnabled) {return null;}
+  if (!isServerEnabled) {
+    return null;
+  }
 
   const filterSummary =
     selectedTools && tools.length > 0
@@ -173,7 +181,9 @@ const MCPToolSelector = ({
               {selectedTools &&
                 (() => {
                   const disabledDangerous = tools.filter((item) => item.destructiveHint && !enabledSet.has(item.name));
-                  if (disabledDangerous.length === 0) {return null;}
+                  if (disabledDangerous.length === 0) {
+                    return null;
+                  }
                   return (
                     <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-destructive/10 text-[11px] text-destructive/80">
                       <AlertTriangle size={11} />

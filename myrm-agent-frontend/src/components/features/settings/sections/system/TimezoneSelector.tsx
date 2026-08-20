@@ -87,11 +87,15 @@ const TimezoneSelector = memo<{ value: string; onChange: (tz: string) => void }>
   }, [search]);
 
   useEffect(() => {
-    if (open && inputRef.current) {inputRef.current.focus();}
+    if (open && inputRef.current) {
+      inputRef.current.focus();
+    }
   }, [open]);
 
   useEffect(() => {
-    if (!open) {return;}
+    if (!open) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
       if (listRef.current && !listRef.current.contains(e.target as Node)) {
         setOpen(false);

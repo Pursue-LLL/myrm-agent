@@ -31,7 +31,9 @@ const PptxPreview: React.FC<PptxPreviewProps> = memo(({ previewUrl }) => {
   useEffect(() => {
     let cancelled = false;
     const container = containerRef.current;
-    if (!container) {return;}
+    if (!container) {
+      return;
+    }
 
     const load = async () => {
       setLoading(true);
@@ -39,10 +41,14 @@ const PptxPreview: React.FC<PptxPreviewProps> = memo(({ previewUrl }) => {
 
       try {
         const res = await fetch(getStorageUrl(previewUrl));
-        if (!res.ok) {throw new Error(`HTTP ${res.status}`);}
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
         const buffer = await res.arrayBuffer();
 
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
 
         const { PptxViewer: Viewer, RECOMMENDED_ZIP_LIMITS } = await import('@aiden0z/pptx-renderer');
 
@@ -57,7 +63,9 @@ const PptxPreview: React.FC<PptxPreviewProps> = memo(({ previewUrl }) => {
           renderMode: 'list',
           listOptions: { windowed: true, showSlideLabels: true },
           onSlideChange: (index: number) => {
-            if (!cancelled) {setCurrentSlide(index);}
+            if (!cancelled) {
+              setCurrentSlide(index);
+            }
           },
         });
 
@@ -70,10 +78,14 @@ const PptxPreview: React.FC<PptxPreviewProps> = memo(({ previewUrl }) => {
         setTotalSlides(viewer.slideCount);
         setCurrentSlide(viewer.currentSlideIndex);
       } catch (err) {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setError(err instanceof Error ? err.message : String(err));
       } finally {
-        if (!cancelled) {setLoading(false);}
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -87,13 +99,17 @@ const PptxPreview: React.FC<PptxPreviewProps> = memo(({ previewUrl }) => {
 
   const handlePrev = useCallback(() => {
     const viewer = viewerRef.current;
-    if (!viewer || viewer.currentSlideIndex <= 0) {return;}
+    if (!viewer || viewer.currentSlideIndex <= 0) {
+      return;
+    }
     viewer.goToSlide(viewer.currentSlideIndex - 1);
   }, []);
 
   const handleNext = useCallback(() => {
     const viewer = viewerRef.current;
-    if (!viewer || viewer.currentSlideIndex >= viewer.slideCount - 1) {return;}
+    if (!viewer || viewer.currentSlideIndex >= viewer.slideCount - 1) {
+      return;
+    }
     viewer.goToSlide(viewer.currentSlideIndex + 1);
   }, []);
 
@@ -127,9 +143,7 @@ const PptxPreview: React.FC<PptxPreviewProps> = memo(({ previewUrl }) => {
             disabled={currentSlide === 0}
             className={cn(
               'h-7 px-3 text-xs rounded border border-border transition-colors',
-              currentSlide === 0
-                ? 'text-muted-foreground/40 cursor-not-allowed'
-                : 'text-foreground hover:bg-muted',
+              currentSlide === 0 ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-muted',
             )}
           >
             <ChevronLeft className="w-3.5 h-3.5" />

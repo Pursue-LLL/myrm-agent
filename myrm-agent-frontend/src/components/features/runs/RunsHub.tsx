@@ -22,12 +22,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Skeleton } from '@/components/primitives/skeleton';
-import {
-  listUnifiedRuns,
-  type UnifiedRun,
-  type RunSource,
-  type RunStatus,
-} from '@/services/runs';
+import { listUnifiedRuns, type UnifiedRun, type RunSource, type RunStatus } from '@/services/runs';
 
 const ExecutionTraceTimeline = dynamic(
   () => import('@/components/features/settings/sections/system/ExecutionTraceTimeline'),
@@ -56,12 +51,18 @@ const SOURCE_COLORS: Record<RunSource, string> = {
 };
 
 function formatDuration(ms: number | null): string {
-  if (ms == null) {return '-';}
+  if (ms == null) {
+    return '-';
+  }
   const seconds = ms / 1000;
-  if (seconds < 60) {return `${seconds.toFixed(1)}s`;}
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}s`;
+  }
   const minutes = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  if (minutes < 60) {return `${minutes}m ${secs}s`;}
+  if (minutes < 60) {
+    return `${minutes}m ${secs}s`;
+  }
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
 }
@@ -69,21 +70,39 @@ function formatDuration(ms: number | null): string {
 function formatRelativeTime(isoDate: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) {return t('timeJustNow');}
-  if (minutes < 60) {return t('timeMinutesAgo', { count: minutes });}
+  if (minutes < 1) {
+    return t('timeJustNow');
+  }
+  if (minutes < 60) {
+    return t('timeMinutesAgo', { count: minutes });
+  }
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) {return t('timeHoursAgo', { count: hours });}
+  if (hours < 24) {
+    return t('timeHoursAgo', { count: hours });
+  }
   const days = Math.floor(hours / 24);
   return t('timeDaysAgo', { count: days });
 }
 
 function stopReasonLabelKey(code: string | undefined): string {
-  if (!code) {return 'stopReasonUnknown';}
-  if (code === 'iteration_limit_reached') {return 'stopReasonIterationLimit';}
-  if (code === 'engine_limit_reached') {return 'stopReasonEngineLimit';}
-  if (code === 'timed_out') {return 'stopReasonTimedOut';}
-  if (code === 'agent_cancelled' || code === 'user_cancelled') {return 'stopReasonCancelled';}
-  if (code === 'error') {return 'stopReasonError';}
+  if (!code) {
+    return 'stopReasonUnknown';
+  }
+  if (code === 'iteration_limit_reached') {
+    return 'stopReasonIterationLimit';
+  }
+  if (code === 'engine_limit_reached') {
+    return 'stopReasonEngineLimit';
+  }
+  if (code === 'timed_out') {
+    return 'stopReasonTimedOut';
+  }
+  if (code === 'agent_cancelled' || code === 'user_cancelled') {
+    return 'stopReasonCancelled';
+  }
+  if (code === 'error') {
+    return 'stopReasonError';
+  }
   return 'stopReasonUnknown';
 }
 
@@ -190,7 +209,9 @@ export function RunsHub() {
   // Live-refresh list while any run is in progress so status/progress stay current.
   const hasRunning = runs.some((r) => r.status === 'running');
   useEffect(() => {
-    if (!hasRunning) {return;}
+    if (!hasRunning) {
+      return;
+    }
     const interval = setInterval(() => {
       // silent keeps the current scroll/loadMore position and avoids a loading flicker.
       void fetchRuns(offsetRef.current, false, true);
@@ -317,12 +338,7 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
         <div className="flex-1 min-w-0 space-y-0.5">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground truncate">{run.title}</span>
-            <span
-              className={cn(
-                'shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium',
-                SOURCE_COLORS[run.source],
-              )}
-            >
+            <span className={cn('shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium', SOURCE_COLORS[run.source])}>
               {t(SOURCE_LABEL_KEY[run.source])}
             </span>
             {run.has_execution_steps && (
@@ -349,9 +365,12 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
               {formatDuration(run.duration_ms)}
             </span>
           )}
-          {hasDetail && (
-            expanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />
-          )}
+          {hasDetail &&
+            (expanded ? (
+              <ChevronUp className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            ))}
         </div>
       </div>
 
@@ -372,15 +391,9 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
               <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 uppercase tracking-wide">
                 {t('stopReasonTitle')}
               </p>
-              {stopReasonLabel && (
-                <p className="text-xs text-foreground/90">
-                  {stopReasonLabel}
-                </p>
-              )}
+              {stopReasonLabel && <p className="text-xs text-foreground/90">{stopReasonLabel}</p>}
               {stopReasonMessage && (
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
-                  {stopReasonMessage}
-                </p>
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{stopReasonMessage}</p>
               )}
             </div>
           )}
@@ -407,16 +420,16 @@ function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslati
                 {(run.metadata.progressSteps as Array<{ tool_name?: string; step_key?: string; error?: string }>).map(
                   (step, idx) => (
                     <div key={idx} className="flex items-center gap-1.5 text-[10px]">
-                      <span className={cn(
-                        'h-1.5 w-1.5 rounded-full shrink-0',
-                        step.error ? 'bg-red-400' : 'bg-emerald-400',
-                      )} />
+                      <span
+                        className={cn(
+                          'h-1.5 w-1.5 rounded-full shrink-0',
+                          step.error ? 'bg-red-400' : 'bg-emerald-400',
+                        )}
+                      />
                       <span className="font-mono text-foreground/80 truncate">
                         {step.tool_name || step.step_key || `step ${idx + 1}`}
                       </span>
-                      {step.error && (
-                        <span className="text-red-400 truncate ml-1">{step.error}</span>
-                      )}
+                      {step.error && <span className="text-red-400 truncate ml-1">{step.error}</span>}
                     </div>
                   ),
                 )}

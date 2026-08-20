@@ -6,12 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
-import {
-  type ApprovalPolicyState,
-  getApprovalPolicy,
-  getMyOrg,
-  saveApprovalPolicy,
-} from '@/services/enterprise-org';
+import { type ApprovalPolicyState, getApprovalPolicy, getMyOrg, saveApprovalPolicy } from '@/services/enterprise-org';
 
 const EMPTY_POLICY: ApprovalPolicyState = {
   ignoreAllowlistForModels: [],
@@ -57,11 +52,15 @@ const EnterpriseApprovalPolicyTab = memo(() => {
     (async () => {
       try {
         const org = await getMyOrg();
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setOrgId(org.id);
         await fetchPolicy(org.id);
       } catch {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         toast.error(t('approvalPolicy.loadFailed', { default: 'Failed to load approval policy' }));
         setLoading(false);
       }
@@ -72,7 +71,9 @@ const EnterpriseApprovalPolicyTab = memo(() => {
   }, [fetchPolicy, t]);
 
   const handleSave = async () => {
-    if (!orgId) {return;}
+    if (!orgId) {
+      return;
+    }
     setSaving(true);
     try {
       const saved = await saveApprovalPolicy(orgId, policy);
@@ -99,18 +100,19 @@ const EnterpriseApprovalPolicyTab = memo(() => {
 
   const addPattern = (field: 'ignoreAllowlistForModels' | 'forceAutoReviewForModels', raw: string) => {
     const pattern = raw.trim();
-    if (!pattern) {return;}
+    if (!pattern) {
+      return;
+    }
     setPolicy((prev) => {
       const list = prev[field];
-      if (list.includes(pattern)) {return prev;}
+      if (list.includes(pattern)) {
+        return prev;
+      }
       return { ...prev, [field]: [...list, pattern] };
     });
   };
 
-  const removePattern = (
-    field: 'ignoreAllowlistForModels' | 'forceAutoReviewForModels',
-    pattern: string,
-  ) => {
+  const removePattern = (field: 'ignoreAllowlistForModels' | 'forceAutoReviewForModels', pattern: string) => {
     setPolicy((prev) => ({
       ...prev,
       [field]: prev[field].filter((entry) => entry !== pattern),
@@ -187,9 +189,7 @@ const EnterpriseApprovalPolicyTab = memo(() => {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h3 className="text-sm font-medium">
-          {t('approvalPolicy.title', { default: 'Approval Policy' })}
-        </h3>
+        <h3 className="text-sm font-medium">{t('approvalPolicy.title', { default: 'Approval Policy' })}</h3>
         <p className="text-xs text-muted-foreground">
           {t('approvalPolicy.description', {
             default:
@@ -259,9 +259,7 @@ const EnterpriseApprovalPolicyTab = memo(() => {
           </div>
           <Switch
             checked={policy.disableAllowAlways}
-            onCheckedChange={(checked) =>
-              setPolicy((prev) => ({ ...prev, disableAllowAlways: checked }))
-            }
+            onCheckedChange={(checked) => setPolicy((prev) => ({ ...prev, disableAllowAlways: checked }))}
           />
         </div>
       </div>

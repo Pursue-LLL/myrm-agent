@@ -53,15 +53,11 @@ describe('mapSuppressesYoloForModel', () => {
 
 describe('orgBlocksYoloForModel', () => {
   it('blocks YOLO when org globally disables YOLO', () => {
-    expect(
-      orgBlocksYoloForModel({ disableYolo: true }, 'gpt-4o'),
-    ).toBe(true);
+    expect(orgBlocksYoloForModel({ disableYolo: true }, 'gpt-4o')).toBe(true);
   });
 
   it('blocks YOLO for per-model suppress rules', () => {
-    expect(
-      orgBlocksYoloForModel({ ignoreAllowlistForModels: ['gpt-*'] }, 'gpt-4o'),
-    ).toBe(true);
+    expect(orgBlocksYoloForModel({ ignoreAllowlistForModels: ['gpt-*'] }, 'gpt-4o')).toBe(true);
   });
 });
 

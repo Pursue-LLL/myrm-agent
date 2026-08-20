@@ -26,7 +26,11 @@ import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
-import { stripDatetimeTag, parseExplicitSkillActivation, buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
+import {
+  stripDatetimeTag,
+  parseExplicitSkillActivation,
+  buildExplicitSkillWireMessage,
+} from '@/lib/utils/messageUtils';
 import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
@@ -167,26 +171,16 @@ const MessageBox = ({
 }) => {
   const [parsedMessage, setParsedMessage] = useState('');
   const [showSystemMessages, setShowSystemMessages] = useState(false);
-  const [isReasoningExpanded, setIsReasoningExpanded] = useState(
-    () => isLast && loading && !message.content,
-  );
+  const [isReasoningExpanded, setIsReasoningExpanded] = useState(() => isLast && loading && !message.content);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const markdownRef = useRef<HTMLDivElement>(null);
   const { state: quoteState, dismiss: dismissQuote } = useQuoteSelection(markdownRef);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const messages = useChatStore((state) => state.messages);
-  const composerPendingClarification = useMemo(
-    () => findActivePendingClarification(messages),
-    [messages],
-  );
-  const composerPendingDirectoryRequest = useMemo(
-    () => findActivePendingDirectoryRequest(messages),
-    [messages],
-  );
-  const hideInlineClarification =
-    composerPendingClarification?.messageId === message.messageId;
-  const hideInlineDirectoryRequest =
-    composerPendingDirectoryRequest?.messageId === message.messageId;
+  const composerPendingClarification = useMemo(() => findActivePendingClarification(messages), [messages]);
+  const composerPendingDirectoryRequest = useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
+  const hideInlineClarification = composerPendingClarification?.messageId === message.messageId;
+  const hideInlineDirectoryRequest = composerPendingDirectoryRequest?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
   const workspaceDir = useChatStore((state) => state.workspaceDir ?? undefined);
   const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
@@ -198,7 +192,8 @@ const MessageBox = ({
   const tProgress = useTranslations('progressSteps');
   const tUiAction = useTranslations('interactiveUI.userAction');
   const hasKbEvidenceOnCurrentMessage = useMemo(
-    () => message.sources?.some((source) => Boolean(source.kb_name) && Boolean(source.snippet || source.summary)) ?? false,
+    () =>
+      message.sources?.some((source) => Boolean(source.kb_name) && Boolean(source.snippet || source.summary)) ?? false,
     [message.sources],
   );
 
@@ -228,23 +223,17 @@ const MessageBox = ({
   const toolImages: ToolImageOutput[] = Array.isArray(message.toolImages)
     ? (message.toolImages as ToolImageOutput[])
     : [];
-  const uiArtifacts: UIArtifact[] = Array.isArray(message.uiArtifacts)
-    ? (message.uiArtifacts as UIArtifact[])
-    : [];
-  const mcpApps: McpAppView[] = Array.isArray(message.mcpApps)
-    ? (message.mcpApps as McpAppView[])
-    : [];
-  const toolCalls: ToolCallInfo[] = Array.isArray(message.toolCalls)
-    ? (message.toolCalls as ToolCallInfo[])
-    : [];
+  const uiArtifacts: UIArtifact[] = Array.isArray(message.uiArtifacts) ? (message.uiArtifacts as UIArtifact[]) : [];
+  const mcpApps: McpAppView[] = Array.isArray(message.mcpApps) ? (message.mcpApps as McpAppView[]) : [];
+  const toolCalls: ToolCallInfo[] = Array.isArray(message.toolCalls) ? (message.toolCalls as ToolCallInfo[]) : [];
   const cronJobResult =
-    message.metadata &&
-    typeof message.metadata === 'object' &&
-    'cron_job_result' in message.metadata
+    message.metadata && typeof message.metadata === 'object' && 'cron_job_result' in message.metadata
       ? (message.metadata.cron_job_result as import('./CronJobSystemCard').CronJobResult)
       : null;
   const kanbanTasksCreated = (() => {
-    if (!message.metadata || typeof message.metadata !== 'object') {return [];}
+    if (!message.metadata || typeof message.metadata !== 'object') {
+      return [];
+    }
     const raw = message.metadata.kanban_tasks_created;
     if (Array.isArray(raw)) {
       return raw.filter(
@@ -259,10 +248,7 @@ const MessageBox = ({
     return [];
   })();
   const sessionRecordingCard: React.ReactNode = sessionRecordingData ? (
-    <SessionRecordingCard
-      filename={sessionRecordingData.filename}
-      previewUrl={sessionRecordingData.preview_url}
-    />
+    <SessionRecordingCard filename={sessionRecordingData.filename} previewUrl={sessionRecordingData.preview_url} />
   ) : null;
 
   useEffect(() => {
@@ -281,11 +267,11 @@ const MessageBox = ({
   // 自动折叠思考过程：当思考结束（开始输出正文）时自动折叠
   useEffect(() => {
     if (
-      reasoningDisplayMode !== 'inline'
-      && message.reasoning
-      && message.content
-      && message.content.length > 0
-      && isReasoningExpanded
+      reasoningDisplayMode !== 'inline' &&
+      message.reasoning &&
+      message.content &&
+      message.content.length > 0 &&
+      isReasoningExpanded
     ) {
       setIsReasoningExpanded(false);
     }
@@ -304,7 +290,9 @@ const MessageBox = ({
   };
 
   const handleRegenerate = async (instruction?: string) => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
 
     try {
       const result = await regenerateLastTurn(chatId, instruction);
@@ -347,7 +335,9 @@ const MessageBox = ({
 
   // 撤销：先调用后端 API 持久化删除整轮对话，再同步前端 UI 状态
   const handleUndo = async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
 
     try {
       const result = await undoLastTurn(chatId);
@@ -532,13 +522,13 @@ const MessageBox = ({
     const handleEdit = () => setEditingMessageId(message.messageId);
 
     const handleEditSubmit = async (newContent: string) => {
-      if (loading || !chatId) {return;}
+      if (loading || !chatId) {
+        return;
+      }
       setEditingMessageId(null);
 
       const activation = parseExplicitSkillActivation(message.content);
-      const wireContent = activation
-        ? buildExplicitSkillWireMessage(activation, newContent)
-        : newContent;
+      const wireContent = activation ? buildExplicitSkillWireMessage(activation, newContent) : newContent;
 
       try {
         await truncateAfterMessage(chatId, message.messageId);
@@ -616,13 +606,7 @@ const MessageBox = ({
           if (!resolvedProgressSteps || resolvedProgressSteps.length === 0) {
             return null;
           }
-          return (
-            <ProgressSteps
-              messageId={message.messageId}
-              steps={resolvedProgressSteps}
-              loading={loading}
-            />
-          );
+          return <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />;
         })()}
 
         {message.consensusRefs && message.consensusRefs.length > 0 && (
@@ -696,9 +680,7 @@ const MessageBox = ({
 
         {/* Kanban 任务创建卡片 */}
         {kanbanTasksCreated.length > 0 && chatId
-          ? kanbanTasksCreated.map((item) => (
-              <KanbanTaskCreatedCard key={item.task_id} result={item} chatId={chatId} />
-            ))
+          ? kanbanTasksCreated.map((item) => <KanbanTaskCreatedCard key={item.task_id} result={item} chatId={chatId} />)
           : null}
 
         {/* 回复 */}
@@ -746,17 +728,14 @@ const MessageBox = ({
             )}
 
             {message.workflowSuggestion && (
-              <WorkflowSuggestionCard
-                messageId={message.messageId}
-                status={message.workflowSuggestion.status}
-              />
+              <WorkflowSuggestionCard messageId={message.messageId} status={message.workflowSuggestion.status} />
             )}
 
-            <MessageToc 
-              content={parsedMessage} 
+            <MessageToc
+              content={parsedMessage}
               messageId={message.messageId}
-              isStreaming={isLast && loading} 
-              containerRef={markdownRef as React.RefObject<HTMLElement>} 
+              isStreaming={isLast && loading}
+              containerRef={markdownRef as React.RefObject<HTMLElement>}
             />
 
             <div
@@ -829,15 +808,15 @@ const MessageBox = ({
               isStreaming={isLast && loading}
             />
 
-            <MemoryInsightPanel 
+            <MemoryInsightPanel
               chatId={chatId}
               isLast={isLast}
               isStreaming={isLast && loading}
               messageCreatedAtMs={resolveMessageCreatedAtMs(message.createdAt)}
               memoryBrief={message.memoryBrief}
               memoryBriefStatus={message.memoryBriefStatus}
-              memoryBudget={message.memoryBudget} 
-              citations={message.citations} 
+              memoryBudget={message.memoryBudget}
+              citations={message.citations}
             />
 
             <MessageActionBar
@@ -890,13 +869,14 @@ const MessageBox = ({
                 <span className="text-orange-700 dark:text-orange-300">{t('message.budgetBlocked')}</span>
               </div>
             )}
-            {!(isLast && loading) && message.completionStatus === 'warning'
-              && !(message.workspaceMergeFailures && message.workspaceMergeFailures.length > 0) && (
-              <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                <span className="text-amber-700 dark:text-amber-300">{t('message.workflowMergeWarning')}</span>
-              </div>
-            )}
+            {!(isLast && loading) &&
+              message.completionStatus === 'warning' &&
+              !(message.workspaceMergeFailures && message.workspaceMergeFailures.length > 0) && (
+                <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-amber-700 dark:text-amber-300">{t('message.workflowMergeWarning')}</span>
+                </div>
+              )}
 
             {/* 建议 */}
             {isLast && <Suggestions message={message} loading={loading} />}

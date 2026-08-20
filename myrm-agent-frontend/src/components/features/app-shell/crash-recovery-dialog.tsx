@@ -81,7 +81,9 @@ export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }
     }
   }, [onDismiss]);
 
-  if (!visible) {return null;}
+  if (!visible) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-background/95 p-6 backdrop-blur-sm">
@@ -90,9 +92,7 @@ export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
           <div>
             <h2 className="text-[15px] font-semibold tracking-tight">{t('title')}</h2>
-            <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
-              {t('description')}
-            </p>
+            <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{t('description')}</p>
           </div>
         </div>
 
@@ -104,50 +104,23 @@ export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }
           ) : null}
 
           <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={handleExport}
-              disabled={busy !== null}
-              variant="default"
-              size="sm"
-            >
-              {busy === 'export' ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
+            <Button onClick={handleExport} disabled={busy !== null} variant="default" size="sm">
+              {busy === 'export' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               {t('exportDatabase')}
             </Button>
 
-            <Button
-              onClick={handleRevealLogs}
-              disabled={busy !== null}
-              variant="secondary"
-              size="sm"
-            >
+            <Button onClick={handleRevealLogs} disabled={busy !== null} variant="secondary" size="sm">
               <FolderOpen className="h-4 w-4" />
               {t('viewLogs')}
             </Button>
 
-            <Button
-              onClick={handleRestart}
-              disabled={busy !== null}
-              variant="outline"
-              size="sm"
-            >
-              {busy === 'restart' ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
+            <Button onClick={handleRestart} disabled={busy !== null} variant="outline" size="sm">
+              {busy === 'restart' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {t('retryStart')}
             </Button>
           </div>
 
-          {result ? (
-            <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-              {result}
-            </p>
-          ) : null}
+          {result ? <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{result}</p> : null}
 
           <p className="text-xs text-muted-foreground/70">{t('hint')}</p>
         </div>

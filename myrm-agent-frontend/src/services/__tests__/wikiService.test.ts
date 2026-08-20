@@ -26,8 +26,6 @@ describe('buildWikiApiPath', () => {
 
   it('appends agent_id query parameter for scoped requests', () => {
     expect(buildWikiApiPath('/wiki/pending', 'agent-a')).toBe('/wiki/pending?agent_id=agent-a');
-    expect(buildWikiApiPath('/wiki/concepts?limit=10', 'agent/b')).toBe(
-      '/wiki/concepts?limit=10&agent_id=agent%2Fb',
-    );
+    expect(buildWikiApiPath('/wiki/concepts?limit=10', 'agent/b')).toBe('/wiki/concepts?limit=10&agent_id=agent%2Fb');
   });
 });

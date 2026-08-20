@@ -6,19 +6,19 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `types.ts` | `EmbedProvider`、`EmbedDescriptor`、`EmbedMatcher`、`bareHost()` |
-| `index.ts` | `detectEmbed` / `isEmbeddableUrl`；MATCHERS 注册顺序 |
-| `youtube.ts` | YouTube watch/shorts → frame embed |
-| `vimeo.ts` | Vimeo → frame embed |
-| `instagram.ts` | Instagram post/reel → frame embed |
-| `pinterest.ts` | Pinterest pin → frame embed |
-| `tiktok.ts` | TikTok → frame embed |
-| `twitter.ts` | X/Twitter status → tweet renderer |
-| `spotify.ts` | Spotify track/album/playlist → frame embed |
-| `maps.ts` | Google Maps / OpenStreetMap → frame embed |
-| `__tests__/detectEmbed.test.ts` | `detectEmbed` / `isEmbeddableUrl` provider 矩阵回归 |
+| 文件                            | 职责                                                             |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `types.ts`                      | `EmbedProvider`、`EmbedDescriptor`、`EmbedMatcher`、`bareHost()` |
+| `index.ts`                      | `detectEmbed` / `isEmbeddableUrl`；MATCHERS 注册顺序             |
+| `youtube.ts`                    | YouTube watch/shorts → frame embed                               |
+| `vimeo.ts`                      | Vimeo → frame embed                                              |
+| `instagram.ts`                  | Instagram post/reel → frame embed                                |
+| `pinterest.ts`                  | Pinterest pin → frame embed                                      |
+| `tiktok.ts`                     | TikTok → frame embed                                             |
+| `twitter.ts`                    | X/Twitter status → tweet renderer                                |
+| `spotify.ts`                    | Spotify track/album/playlist → frame embed                       |
+| `maps.ts`                       | Google Maps / OpenStreetMap → frame embed                        |
+| `__tests__/detectEmbed.test.ts` | `detectEmbed` / `isEmbeddableUrl` provider 矩阵回归              |
 
 ## 依赖
 

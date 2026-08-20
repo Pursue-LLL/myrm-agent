@@ -60,7 +60,9 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
   const handleAnalyze = useCallback(
     async (urlToAnalyze?: string) => {
       const targetUrl = urlToAnalyze || url;
-      if (!targetUrl.trim()) {return;}
+      if (!targetUrl.trim()) {
+        return;
+      }
       setIsAnalyzing(true);
       setError(null);
       try {
@@ -129,7 +131,9 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
 
   const handleImportSelected = useCallback(() => {
     const urlsToInstall = Array.from(selectedUrls);
-    if (urlsToInstall.length === 0) {return;}
+    if (urlsToInstall.length === 0) {
+      return;
+    }
     handleInstallList(urlsToInstall);
   }, [selectedUrls]);
 

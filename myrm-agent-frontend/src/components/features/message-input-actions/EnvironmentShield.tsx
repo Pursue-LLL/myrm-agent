@@ -14,7 +14,9 @@ const EnvironmentShield = () => {
   const activeAlerts = KNOWN_CATEGORIES.filter((c) => alerts.has(c));
   const isHealthy = activeAlerts.length === 0;
 
-  if (isHealthy) {return null;}
+  if (isHealthy) {
+    return null;
+  }
 
   return (
     <TooltipProvider>

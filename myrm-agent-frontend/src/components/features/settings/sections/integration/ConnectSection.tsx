@@ -227,10 +227,7 @@ const ConnectSection = memo(() => {
             const agentIcon = AGENT_ICONS[connector.profile_id];
             const IconComponent = agentIcon?.icon ?? Share2;
             const iconColor = agentIcon?.color ?? 'text-muted-foreground';
-            const doctorSeverity = resolveDoctorSeverity(
-              connector.last_doctor_detail,
-              connector.doctor_ok,
-            );
+            const doctorSeverity = resolveDoctorSeverity(connector.last_doctor_detail, connector.doctor_ok);
             const doctorChecked = Boolean(connector.last_doctor_at);
             const doctorStatusKey = resolveDoctorStatusKey(doctorChecked, doctorSeverity);
 

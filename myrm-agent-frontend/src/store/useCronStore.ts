@@ -65,7 +65,9 @@ const useCronStore = create<CronState>()(
 
     fetchJobs: async (force = false, chatId?: string) => {
       const { loading, jobs } = get();
-      if (!force && (loading || jobs.length > 0)) {return;}
+      if (!force && (loading || jobs.length > 0)) {
+        return;
+      }
       set({ loading: true, error: null });
       try {
         const res = await listCronJobs(chatId ? { chat_id: chatId } : undefined);
@@ -87,7 +89,9 @@ const useCronStore = create<CronState>()(
       const job = await apiUpdate(id, data);
       set((s) => {
         const idx = s.jobs.findIndex((j) => j.id === id);
-        if (idx >= 0) {s.jobs[idx] = job;}
+        if (idx >= 0) {
+          s.jobs[idx] = job;
+        }
       });
       return job;
     },
@@ -103,7 +107,9 @@ const useCronStore = create<CronState>()(
       const job = await apiPause(id);
       set((s) => {
         const idx = s.jobs.findIndex((j) => j.id === id);
-        if (idx >= 0) {s.jobs[idx] = job;}
+        if (idx >= 0) {
+          s.jobs[idx] = job;
+        }
       });
     },
 
@@ -111,7 +117,9 @@ const useCronStore = create<CronState>()(
       const job = await apiResume(id);
       set((s) => {
         const idx = s.jobs.findIndex((j) => j.id === id);
-        if (idx >= 0) {s.jobs[idx] = job;}
+        if (idx >= 0) {
+          s.jobs[idx] = job;
+        }
       });
     },
 

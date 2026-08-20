@@ -15,9 +15,7 @@ export function splitTagsInput(raw: string): string[] {
     .filter(Boolean);
 }
 
-export type HealthIssueNavigationTarget =
-  | { kind: 'raw'; path: string }
-  | { kind: 'concept'; path: string };
+export type HealthIssueNavigationTarget = { kind: 'raw'; path: string } | { kind: 'concept'; path: string };
 
 /** Map harness lint issue locations to Settings wiki navigation targets. */
 export function resolveHealthIssueNavigationTarget(location: string): HealthIssueNavigationTarget {

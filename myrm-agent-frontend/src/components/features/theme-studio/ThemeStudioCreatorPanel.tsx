@@ -7,10 +7,7 @@ import { toast } from '@/lib/utils/toast';
 import ThemeMarketplaceGateBanner from '@/components/features/theme-studio/ThemeMarketplaceGateBanner';
 import { useThemeMarketplaceGate } from '@/components/features/theme-studio/hooks/useThemeMarketplaceGate';
 import ThemePackageImportPreview from '@/components/features/theme/ThemePackageImportPreview';
-import {
-  inspectThemePackage,
-  type ThemePackageInspectResult,
-} from '@/services/theme-packages/inspectThemePackage';
+import { inspectThemePackage, type ThemePackageInspectResult } from '@/services/theme-packages/inspectThemePackage';
 import {
   fetchCreatorThemeStats,
   listMyThemeListings,
@@ -18,14 +15,7 @@ import {
   type ThemeMarketplaceListing,
 } from '@/services/themeMarketplace';
 
-const CREATOR_LISTING_STATUSES = [
-  'pending',
-  'pending_review',
-  'published',
-  'rejected',
-  'suspended',
-  'draft',
-] as const;
+const CREATOR_LISTING_STATUSES = ['pending', 'pending_review', 'published', 'rejected', 'suspended', 'draft'] as const;
 
 type CreatorListingStatus = (typeof CREATOR_LISTING_STATUSES)[number];
 
@@ -49,10 +39,7 @@ const ThemeStudioCreatorPanel = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [listings, stats] = await Promise.all([
-        listMyThemeListings(),
-        fetchCreatorThemeStats(),
-      ]);
+      const [listings, stats] = await Promise.all([listMyThemeListings(), fetchCreatorThemeStats()]);
       setMine(listings);
       setTotalEarnedCents(stats.totalEarnedCents);
     } catch {
@@ -282,10 +269,7 @@ const ThemeStudioCreatorPanel = () => {
           ) : (
             <ul className="space-y-2 text-xs text-muted-foreground">
               {mine.map((row) => (
-                <li
-                  key={row.id}
-                  className="rounded-md border border-border/50 bg-background/60 px-2 py-1.5 space-y-1"
-                >
+                <li key={row.id} className="rounded-md border border-border/50 bg-background/60 px-2 py-1.5 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-foreground font-medium">{row.name}</span>
                     <span className="shrink-0">{formatStatus(row.status)}</span>

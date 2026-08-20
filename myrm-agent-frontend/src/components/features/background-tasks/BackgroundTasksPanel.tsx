@@ -23,12 +23,7 @@ import { useMediaBackgroundTasks } from '@/hooks/tasks/useMediaBackgroundTasks';
 import { ActiveGoalsSection } from './ActiveGoalsSection';
 import { BackgroundTaskRow } from './BackgroundTaskRow';
 import { MediaTaskRow } from './MediaTaskRow';
-import {
-  type ActiveGoal,
-  IDLE_STOP_THRESHOLD,
-  POLL_FAST_MS,
-  POLL_SLOW_MS,
-} from './backgroundTasksPanel.constants';
+import { type ActiveGoal, IDLE_STOP_THRESHOLD, POLL_FAST_MS, POLL_SLOW_MS } from './backgroundTasksPanel.constants';
 import EvictedDrawerSuspenseFallback from '@/components/features/message-box/progress-steps/renderers/EvictedDrawerSuspenseFallback';
 
 const EvictedOutputDrawer = lazy(
@@ -76,7 +71,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const fetchActiveGoals = useCallback(async () => {
     try {
       const res = await fetchWithTimeout('/goals/active');
-      if (!res.ok) {return;}
+      if (!res.ok) {
+        return;
+      }
       const data = await res.json();
       setActiveGoals(data.goals || []);
     } catch {
@@ -85,7 +82,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   }, []);
 
   useEffect(() => {
-    if (!isOpen) {return;}
+    if (!isOpen) {
+      return;
+    }
     idleCountRef.current = 0;
     fetchTasks();
     fetchActiveGoals();
@@ -99,15 +98,21 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   }, [isOpen, fetchTasks, fetchActiveGoals, refetchMediaTasks]);
 
   useEffect(() => {
-    if (isOpen) {return;}
+    if (isOpen) {
+      return;
+    }
 
     fetchTasks();
     fetchActiveGoals();
     void refetchMediaTasks();
 
     const interval = setInterval(() => {
-      if (document.visibilityState !== 'visible') {return;}
-      if (idleCountRef.current >= IDLE_STOP_THRESHOLD) {return;}
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      if (idleCountRef.current >= IDLE_STOP_THRESHOLD) {
+        return;
+      }
       fetchTasks();
       fetchActiveGoals();
       void refetchMediaTasks();
@@ -118,14 +123,8 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
 
   useEffect(() => subscribeBackgroundTasksChanged(fetchTasks), [fetchTasks]);
 
-  const agentTasks = useMemo(
-    () => tasks.filter((task) => (task.kind ?? 'agent') !== 'shell'),
-    [tasks],
-  );
-  const shellTasks = useMemo(
-    () => tasks.filter((task) => task.kind === 'shell'),
-    [tasks],
-  );
+  const agentTasks = useMemo(() => tasks.filter((task) => (task.kind ?? 'agent') !== 'shell'), [tasks]);
+  const shellTasks = useMemo(() => tasks.filter((task) => task.kind === 'shell'), [tasks]);
 
   const handleGoalAction = async (sessionId: string, action: string) => {
     try {
@@ -134,7 +133,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      if (!res.ok) {throw new Error('Failed');}
+      if (!res.ok) {
+        throw new Error('Failed');
+      }
       toast.success(t('goalActionSuccess'));
       fetchActiveGoals();
     } catch {
@@ -175,7 +176,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   };
 
   const handleSteer = async (taskId: string) => {
-    if (!steerInput.trim()) {return;}
+    if (!steerInput.trim()) {
+      return;
+    }
     try {
       await steerBackgroundTask(taskId, steerInput.trim());
       toast.success(t('steerSuccess'));
@@ -201,7 +204,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   };
 
   const handleShellInputSend = async (taskId: string) => {
-    if (!shellInput.trim()) {return;}
+    if (!shellInput.trim()) {
+      return;
+    }
     try {
       await sendShellBackgroundStdin(taskId, shellInput, { submit: true });
       toast.success(t('shellInputSuccess'));
@@ -229,183 +234,180 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const activeMediaCount = mediaTasks.length;
   const totalBadge = runningCount + activeGoals.length + activeMediaCount;
   const hasPanelContent =
-    tasks.length > 0 ||
-    activeGoals.length > 0 ||
-    mediaTasks.length > 0 ||
-    recentTerminalMediaTasks.length > 0;
+    tasks.length > 0 || activeGoals.length > 0 || mediaTasks.length > 0 || recentTerminalMediaTasks.length > 0;
 
   return (
     <>
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <Tooltip open={isOpen ? false : undefined}>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <div className="relative inline-flex cursor-pointer">
-              {trigger}
-              {totalBadge > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-                  {totalBadge}
-                </span>
-              )}
-            </div>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="right">{t('title')}</TooltipContent>
-      </Tooltip>
-      <PopoverContent
-        className="w-[340px] p-0 border-border/50 bg-popover/95 backdrop-blur-xl sm:w-[380px]"
-        align="end"
-        sideOffset={8}
-      >
-        <div className="border-b border-border/50 px-4 py-3">
-          <h3 className="text-sm font-medium text-foreground">{t('title')}</h3>
-          {registryEphemeral ? (
-            <p className="mt-1 text-xs text-muted-foreground/80">{t('ephemeralRegistryNotice')}</p>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground/80">{t('durableRegistryNotice')}</p>
-          )}
-        </div>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Tooltip open={isOpen ? false : undefined}>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <div className="relative inline-flex cursor-pointer">
+                {trigger}
+                {totalBadge > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                    {totalBadge}
+                  </span>
+                )}
+              </div>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right">{t('title')}</TooltipContent>
+        </Tooltip>
+        <PopoverContent
+          className="w-[340px] p-0 border-border/50 bg-popover/95 backdrop-blur-xl sm:w-[380px]"
+          align="end"
+          sideOffset={8}
+        >
+          <div className="border-b border-border/50 px-4 py-3">
+            <h3 className="text-sm font-medium text-foreground">{t('title')}</h3>
+            {registryEphemeral ? (
+              <p className="mt-1 text-xs text-muted-foreground/80">{t('ephemeralRegistryNotice')}</p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground/80">{t('durableRegistryNotice')}</p>
+            )}
+          </div>
 
-        <div className="max-h-[360px] overflow-y-auto sm:max-h-[400px]">
-          <ActiveGoalsSection
-            goals={activeGoals}
-            onNavigateChat={handleNavigateChat}
-            onGoalAction={handleGoalAction}
-          />
+          <div className="max-h-[360px] overflow-y-auto sm:max-h-[400px]">
+            <ActiveGoalsSection
+              goals={activeGoals}
+              onNavigateChat={handleNavigateChat}
+              onGoalAction={handleGoalAction}
+            />
 
-          {hasPanelContent ? (
-            <>
-              {mediaTasks.length > 0 && (
-                <div className="border-b border-border/30">
-                  <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
-                    {t('media.section')} ({mediaTasks.length})
-                  </div>
-                  <div className="divide-y divide-border/20">
-                    {mediaTasks.map((task) => (
-                      <MediaTaskRow
-                        key={task.task_id}
-                        task={task}
-                        variant="active"
-                        onCancel={handleCancelMediaTask}
-                        onNavigateChat={handleNavigateChat}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {recentTerminalMediaTasks.length > 0 && (
-                <div className="border-b border-border/30">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:bg-muted/20"
-                    onClick={() => setRecentMediaExpanded((expanded) => !expanded)}
-                    aria-expanded={recentMediaExpanded}
-                    data-testid="media-recent-toggle"
-                  >
-                    <span>
-                      {t('media.recentSection')} ({recentTerminalMediaTasks.length})
-                    </span>
-                    <span className="normal-case tracking-normal text-muted-foreground">
-                      {recentMediaExpanded ? t('media.hideRecent') : t('media.showRecent')}
-                    </span>
-                  </button>
-                  {recentMediaExpanded && (
+            {hasPanelContent ? (
+              <>
+                {mediaTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                      {t('media.section')} ({mediaTasks.length})
+                    </div>
                     <div className="divide-y divide-border/20">
-                      {recentTerminalMediaTasks.map((task) => (
+                      {mediaTasks.map((task) => (
                         <MediaTaskRow
                           key={task.task_id}
                           task={task}
-                          variant="terminal"
+                          variant="active"
+                          onCancel={handleCancelMediaTask}
                           onNavigateChat={handleNavigateChat}
                         />
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {shellTasks.length > 0 && (
-                <div className="border-b border-border/30">
-                  <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
-                    <Terminal className="mr-1 inline h-3 w-3" />
-                    {t('shellSection')} ({shellTasks.length})
+                {recentTerminalMediaTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:bg-muted/20"
+                      onClick={() => setRecentMediaExpanded((expanded) => !expanded)}
+                      aria-expanded={recentMediaExpanded}
+                      data-testid="media-recent-toggle"
+                    >
+                      <span>
+                        {t('media.recentSection')} ({recentTerminalMediaTasks.length})
+                      </span>
+                      <span className="normal-case tracking-normal text-muted-foreground">
+                        {recentMediaExpanded ? t('media.hideRecent') : t('media.showRecent')}
+                      </span>
+                    </button>
+                    {recentMediaExpanded && (
+                      <div className="divide-y divide-border/20">
+                        {recentTerminalMediaTasks.map((task) => (
+                          <MediaTaskRow
+                            key={task.task_id}
+                            task={task}
+                            variant="terminal"
+                            onNavigateChat={handleNavigateChat}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="divide-y divide-border/20">
-                    {shellTasks.map((task) => (
-                      <BackgroundTaskRow
-                        key={task.task_id}
-                        task={task}
-                        allowSteer={false}
-                        allowShellInput={task.status === 'running' && !task.stdin_closed}
-                        steerTaskId={steerTaskId}
-                        shellInputTaskId={shellInputTaskId}
-                        steerInput={steerInput}
-                        shellInput={shellInput}
-                        onSteerInputChange={setSteerInput}
-                        onShellInputChange={setShellInput}
-                        onToggleSteer={handleToggleSteer}
-                        onToggleShellInput={handleToggleShellInput}
-                        onSteer={handleSteer}
-                        onShellInputSend={handleShellInputSend}
-                        onShellInputClose={handleShellInputClose}
-                        onCancel={handleCancel}
-                        onNavigateChat={handleNavigateChat}
-                        onViewVaultLog={handleViewVaultLog}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+                )}
 
-              {agentTasks.length > 0 && (
-                <div className="border-b border-border/30">
-                  <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
-                    {t('agentSection')} ({agentTasks.length})
+                {shellTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                      <Terminal className="mr-1 inline h-3 w-3" />
+                      {t('shellSection')} ({shellTasks.length})
+                    </div>
+                    <div className="divide-y divide-border/20">
+                      {shellTasks.map((task) => (
+                        <BackgroundTaskRow
+                          key={task.task_id}
+                          task={task}
+                          allowSteer={false}
+                          allowShellInput={task.status === 'running' && !task.stdin_closed}
+                          steerTaskId={steerTaskId}
+                          shellInputTaskId={shellInputTaskId}
+                          steerInput={steerInput}
+                          shellInput={shellInput}
+                          onSteerInputChange={setSteerInput}
+                          onShellInputChange={setShellInput}
+                          onToggleSteer={handleToggleSteer}
+                          onToggleShellInput={handleToggleShellInput}
+                          onSteer={handleSteer}
+                          onShellInputSend={handleShellInputSend}
+                          onShellInputClose={handleShellInputClose}
+                          onCancel={handleCancel}
+                          onNavigateChat={handleNavigateChat}
+                          onViewVaultLog={handleViewVaultLog}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="divide-y divide-border/20">
-                    {agentTasks.map((task) => (
-                      <BackgroundTaskRow
-                        key={task.task_id}
-                        task={task}
-                        allowSteer
-                        allowShellInput={false}
-                        steerTaskId={steerTaskId}
-                        shellInputTaskId={shellInputTaskId}
-                        steerInput={steerInput}
-                        shellInput={shellInput}
-                        onSteerInputChange={setSteerInput}
-                        onShellInputChange={setShellInput}
-                        onToggleSteer={handleToggleSteer}
-                        onToggleShellInput={handleToggleShellInput}
-                        onSteer={handleSteer}
-                        onShellInputSend={handleShellInputSend}
-                        onShellInputClose={handleShellInputClose}
-                        onCancel={handleCancel}
-                        onNavigateChat={handleNavigateChat}
-                        onViewVaultLog={handleViewVaultLog}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t('empty')}</div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+                )}
 
-    {vaultLogDrawer && (
-      <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
-        <EvictedOutputDrawer
-          filename={vaultLogDrawer.filename}
-          chatId={vaultLogDrawer.chatId}
-          onClose={() => setVaultLogDrawer(null)}
-        />
-      </Suspense>
-    )}
+                {agentTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                      {t('agentSection')} ({agentTasks.length})
+                    </div>
+                    <div className="divide-y divide-border/20">
+                      {agentTasks.map((task) => (
+                        <BackgroundTaskRow
+                          key={task.task_id}
+                          task={task}
+                          allowSteer
+                          allowShellInput={false}
+                          steerTaskId={steerTaskId}
+                          shellInputTaskId={shellInputTaskId}
+                          steerInput={steerInput}
+                          shellInput={shellInput}
+                          onSteerInputChange={setSteerInput}
+                          onShellInputChange={setShellInput}
+                          onToggleSteer={handleToggleSteer}
+                          onToggleShellInput={handleToggleShellInput}
+                          onSteer={handleSteer}
+                          onShellInputSend={handleShellInputSend}
+                          onShellInputClose={handleShellInputClose}
+                          onCancel={handleCancel}
+                          onNavigateChat={handleNavigateChat}
+                          onViewVaultLog={handleViewVaultLog}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t('empty')}</div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {vaultLogDrawer && (
+        <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
+          <EvictedOutputDrawer
+            filename={vaultLogDrawer.filename}
+            chatId={vaultLogDrawer.chatId}
+            onClose={() => setVaultLogDrawer(null)}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

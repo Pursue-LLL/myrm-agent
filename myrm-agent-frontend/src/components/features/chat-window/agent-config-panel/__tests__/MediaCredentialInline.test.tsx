@@ -41,9 +41,7 @@ describe('MediaCredentialInline', () => {
 
   it('renders nothing when no media tools enabled', async () => {
     const enabled: BuiltinToolId[] = ['web_search', 'memory'];
-    const { container } = render(
-      <MediaCredentialInline enabledBuiltinTools={enabled} tPanel={tPanel} />,
-    );
+    const { container } = render(<MediaCredentialInline enabledBuiltinTools={enabled} tPanel={tPanel} />);
     await waitFor(() => {
       expect(container.firstChild).toBeNull();
     });
@@ -76,9 +74,7 @@ describe('MediaCredentialInline', () => {
     ];
 
     const enabled: BuiltinToolId[] = ['image_generation'];
-    const { container } = render(
-      <MediaCredentialInline enabledBuiltinTools={enabled} tPanel={tPanel} />,
-    );
+    const { container } = render(<MediaCredentialInline enabledBuiltinTools={enabled} tPanel={tPanel} />);
 
     await waitFor(() => {
       expect(fetchMediaProviderStatus).toHaveBeenCalled();

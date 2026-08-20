@@ -375,7 +375,9 @@ const EventList = ({
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!live || events.length === 0) {return;}
+    if (!live || events.length === 0) {
+      return;
+    }
     listRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [events, live]);
 
@@ -492,9 +494,7 @@ const MigrationPanel = ({
   const rollbackPreviewActionId = importBatchId ? `migration:rollback-preview:${importBatchId}` : '';
   const rollbackBusy = actionId === rollbackActionId || actionId === rollbackPreviewActionId;
   const adapterStatus = snapshot.migration.adapter_status;
-  const sourceOrder = Array.from(
-    new Set([...snapshot.migration.supported_sources, ...Object.keys(adapterStatus)]),
-  );
+  const sourceOrder = Array.from(new Set([...snapshot.migration.supported_sources, ...Object.keys(adapterStatus)]));
   const adapterEntries = sourceOrder.map((source) => {
     const rawStatus = adapterStatus[source];
     return {
@@ -593,18 +593,14 @@ const MigrationPanel = ({
               {snapshot.migration.last_import_readiness_status && (
                 <div className="mt-1 truncate text-[11px] text-muted-foreground">
                   {t('commandCenter.lastImportReadiness', {
-                    status: t(
-                      `commandCenter.readinessStatus.${snapshot.migration.last_import_readiness_status}`,
-                    ),
+                    status: t(`commandCenter.readinessStatus.${snapshot.migration.last_import_readiness_status}`),
                   })}
                 </div>
               )}
               {snapshot.migration.last_import_first_turn_outcome && (
                 <div className="mt-1 truncate text-[11px] text-muted-foreground">
                   {t('commandCenter.lastImportFirstTurn', {
-                    outcome: t(
-                      `commandCenter.firstTurnOutcome.${snapshot.migration.last_import_first_turn_outcome}`,
-                    ),
+                    outcome: t(`commandCenter.firstTurnOutcome.${snapshot.migration.last_import_first_turn_outcome}`),
                   })}
                 </div>
               )}
@@ -686,15 +682,7 @@ const MetricTile = ({ label, value, dense = false }: { label: string; value: num
   </div>
 );
 
-const RuntimeRow = ({
-  label,
-  value,
-  alert,
-}: {
-  label: string;
-  value: string;
-  alert?: boolean;
-}) => (
+const RuntimeRow = ({ label, value, alert }: { label: string; value: string; alert?: boolean }) => (
   <div
     className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
       alert ? 'border-amber-500/50 bg-amber-500/10' : 'border-border/50 bg-accent/20'
@@ -724,7 +712,9 @@ const translateRecordStatus = (value: string, t: MemoryTranslation): string =>
 const translateRuntimeStatus = (value: string, t: MemoryTranslation): string =>
   isRuntimeStatus(value) ? t(`commandCenter.runtimeStatus.${value}`) : value;
 const translateTimelineTitle = (event: MemoryCommandTimelineEvent, t: MemoryTranslation): string => {
-  if (event.title === 'memory_health') {return t('commandCenter.healthCheck');}
+  if (event.title === 'memory_health') {
+    return t('commandCenter.healthCheck');
+  }
   return translateMemoryType(event.title, t);
 };
 

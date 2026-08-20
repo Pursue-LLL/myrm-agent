@@ -29,9 +29,7 @@ export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({ prompt
       {prompt && <p className="text-sm text-foreground/70 line-clamp-2">{prompt}</p>}
 
       <p className="text-xs text-muted-foreground">
-        {progress > 0
-          ? t('generatingProgress', { percent: Math.round(progress * 100) })
-          : t('queued')}
+        {progress > 0 ? t('generatingProgress', { percent: Math.round(progress * 100) }) : t('queued')}
       </p>
       <p className="text-xs text-muted-foreground/80">{t('backgroundHint')}</p>
     </div>

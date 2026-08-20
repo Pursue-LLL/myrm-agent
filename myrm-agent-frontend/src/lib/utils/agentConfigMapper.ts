@@ -18,7 +18,9 @@ function toSingleSelection(
   ms: AgentModelSelection | null | undefined,
   pickProvider: 'primary' | 'fallback' | 'safetyFallback',
 ): SingleModelSelection | undefined {
-  if (!ms) {return undefined;}
+  if (!ms) {
+    return undefined;
+  }
   if (pickProvider === 'primary') {
     return ms.providerId && ms.model ? { providerId: ms.providerId, model: ms.model } : undefined;
   }
@@ -33,7 +35,9 @@ function toSingleSelection(
 }
 
 function toRoutingConfig(ms: AgentModelSelection | null | undefined): RoutingConfig | undefined {
-  if (!ms || ms.routingEnabled === undefined) {return undefined;}
+  if (!ms || ms.routingEnabled === undefined) {
+    return undefined;
+  }
   return {
     enabled: ms.routingEnabled,
     lightModel: {

@@ -163,9 +163,7 @@ describe('BrowserDoctorCard', () => {
       const orphanStatus = doctorCalls === 1 ? 'warning' : 'ok';
       return Promise.resolve(jsonResponse(doctorReport(orphanStatus)));
     });
-    const deleteMock = vi.fn(() =>
-      Promise.resolve(jsonResponse({ killed: 2, dry_run: false, failed: [] })),
-    );
+    const deleteMock = vi.fn(() => Promise.resolve(jsonResponse({ killed: 2, dry_run: false, failed: [] })));
     fetchMock.mockImplementation((_url: string) =>
       String(_url).includes('/browser/doctor') ? doctorMock(_url) : deleteMock(),
     );
@@ -240,12 +238,8 @@ describe('BrowserDoctorCard', () => {
   });
 
   it('shows the server error detail instead of a raw JSON string when cleanup fails', async () => {
-    const doctorMock = vi.fn((_url: string) =>
-      Promise.resolve(jsonResponse(doctorReport('warning'))),
-    );
-    const deleteMock = vi.fn(() =>
-      Promise.resolve(jsonResponse({ detail: 'Failed to process orphans' }, false)),
-    );
+    const doctorMock = vi.fn((_url: string) => Promise.resolve(jsonResponse(doctorReport('warning'))));
+    const deleteMock = vi.fn(() => Promise.resolve(jsonResponse({ detail: 'Failed to process orphans' }, false)));
     fetchMock.mockImplementation((_url: string) =>
       String(_url).includes('/browser/doctor') ? doctorMock(_url) : deleteMock(),
     );
@@ -279,10 +273,7 @@ describe('BrowserDoctorCard', () => {
   it('shows the server message field instead of the raw JSON envelope', async () => {
     fetchMock.mockImplementation((_url: string) =>
       Promise.resolve(
-        jsonResponse(
-          { success: false, code: 500, message: 'Internal server error', error: null },
-          false,
-        ),
+        jsonResponse({ success: false, code: 500, message: 'Internal server error', error: null }, false),
       ),
     );
 
@@ -294,10 +285,7 @@ describe('BrowserDoctorCard', () => {
   it('extracts the first issue message from a FastAPI validation array', async () => {
     fetchMock.mockImplementation((_url: string) =>
       Promise.resolve(
-        jsonResponse(
-          { detail: [{ loc: ['query', 'launch_test'], msg: 'Input should be a valid boolean' }] },
-          false,
-        ),
+        jsonResponse({ detail: [{ loc: ['query', 'launch_test'], msg: 'Input should be a valid boolean' }] }, false),
       ),
     );
 

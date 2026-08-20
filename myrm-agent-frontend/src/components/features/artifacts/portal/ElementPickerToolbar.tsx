@@ -12,10 +12,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { PickedElement } from '../renderers/MediaPreview';
-import {
-  ArrowRight01Icon,
-  Cancel01Icon,
-} from 'hugeicons-react';
+import { ArrowRight01Icon, Cancel01Icon } from 'hugeicons-react';
 import { useSelectionAction } from './useSelectionAction';
 
 interface ElementPickerToolbarProps {
@@ -51,7 +48,9 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
 
   const buildElementContext = useCallback(
     (instruction: string): string => {
-      if (!pickedElement) {return '';}
+      if (!pickedElement) {
+        return '';
+      }
 
       const truncatedHTML =
         pickedElement.outerHTML.length > MAX_OUTER_HTML_CONTEXT
@@ -64,10 +63,14 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
   );
 
   const handleSubmit = useCallback(() => {
-    if (!inputValue.trim() || !pickedElement) {return;}
+    if (!inputValue.trim() || !pickedElement) {
+      return;
+    }
 
     const message = buildElementContext(inputValue.trim());
-    if (!message) {return;}
+    if (!message) {
+      return;
+    }
 
     sendAction({ message });
   }, [inputValue, pickedElement, buildElementContext, sendAction]);
@@ -84,7 +87,9 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
     [handleSubmit, onDismiss],
   );
 
-  if (!pickedElement) {return null;}
+  if (!pickedElement) {
+    return null;
+  }
 
   return (
     <div
@@ -112,10 +117,7 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
             </span>
             <span className="truncate font-mono text-[10px]">{pickedElement.breadcrumb}</span>
           </div>
-          <button
-            onClick={onDismiss}
-            className="flex-shrink-0 p-0.5 rounded hover:bg-accent transition-colors"
-          >
+          <button onClick={onDismiss} className="flex-shrink-0 p-0.5 rounded hover:bg-accent transition-colors">
             <Cancel01Icon className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         </div>

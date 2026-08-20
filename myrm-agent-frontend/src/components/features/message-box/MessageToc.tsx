@@ -87,7 +87,9 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
 
   // 2. 滚动同步 (Scroll Sync)
   useEffect(() => {
-    if (!containerRef.current || toc.length === 0) {return;}
+    if (!containerRef.current || toc.length === 0) {
+      return;
+    }
 
     // 清理旧的 observer
     if (observerRef.current) {
@@ -97,7 +99,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
     const observerCallback: IntersectionObserverCallback = (entries) => {
       // 找到所有在视口中的标题
       const visibleEntries = entries.filter((entry) => entry.isIntersecting);
-      
+
       if (visibleEntries.length > 0) {
         // 如果有多个标题在视口中，取最上面的一个（即在 DOM 树中靠前的）
         // IntersectionObserver 不保证顺序，所以我们按 y 坐标排序
@@ -158,7 +160,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
             item.level >= 4 && 'ml-6 text-xs text-muted-foreground',
             activeId === item.id
               ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
           )}
           title={item.text}
         >
@@ -173,7 +175,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
       {/* 移动端/小屏幕：顶部折叠面板 */}
       <div className="2xl:hidden mb-4">
         <div className="bg-muted/20 border border-border/50 rounded-lg p-3">
-          <div 
+          <div
             className="flex items-center justify-between cursor-pointer group"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
@@ -181,14 +183,14 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
               <ListTree className="w-4 h-4" />
               <span>{t('tableOfContents')}</span>
             </div>
-            <ChevronRight 
+            <ChevronRight
               className={cn(
-                "w-4 h-4 text-muted-foreground transition-transform duration-200",
-                !isCollapsed && "rotate-90"
-              )} 
+                'w-4 h-4 text-muted-foreground transition-transform duration-200',
+                !isCollapsed && 'rotate-90',
+              )}
             />
           </div>
-          
+
           {!isCollapsed && (
             <div className="mt-3 pt-3 border-t border-border/50 max-h-64 overflow-y-auto">
               <TocContent />

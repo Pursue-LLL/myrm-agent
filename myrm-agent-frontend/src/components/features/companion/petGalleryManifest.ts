@@ -43,15 +43,21 @@ export async function fetchPetdexManifest(): Promise<ManifestPet[]> {
   } catch {}
 
   const resp = await fetch(MANIFEST_URL);
-  if (!resp.ok) {throw new Error(`Manifest fetch failed: ${resp.status}`);}
+  if (!resp.ok) {
+    throw new Error(`Manifest fetch failed: ${resp.status}`);
+  }
 
   const payload = await resp.json();
   const raw = payload?.pets;
-  if (!Array.isArray(raw)) {throw new Error('Invalid manifest format');}
+  if (!Array.isArray(raw)) {
+    throw new Error('Invalid manifest format');
+  }
 
   const pets: ManifestPet[] = [];
   for (const entry of raw) {
-    if (!entry?.slug || !entry?.spritesheetUrl) {continue;}
+    if (!entry?.slug || !entry?.spritesheetUrl) {
+      continue;
+    }
     pets.push({
       slug: String(entry.slug),
       displayName: String(entry.displayName || entry.slug),
@@ -77,9 +83,7 @@ export function rankManifestPets(
   const installed = options.installedSlugs ?? new Set<string>();
   const activeSlug = options.activeSlug;
   const score = (pet: ManifestPet) =>
-    (pet.curated ? 4 : 0) +
-    (installed.has(pet.slug) ? 2 : 0) +
-    (activeSlug === pet.slug ? 1 : 0);
+    (pet.curated ? 4 : 0) + (installed.has(pet.slug) ? 2 : 0) + (activeSlug === pet.slug ? 1 : 0);
   return [...pets].sort((a, b) => score(b) - score(a));
 }
 

@@ -61,7 +61,9 @@ export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
     }, [open, fromProviderId]);
 
     const handleMigrate = async () => {
-      if (!toProviderId || !toModel) {return;}
+      if (!toProviderId || !toModel) {
+        return;
+      }
 
       try {
         setMigrating(true);
@@ -149,7 +151,9 @@ export const BatchMigrateDialog = memo<BatchMigrateDialogProps>(
                         key={agent.id}
                         className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0"
                       >
-                        <span className="font-medium">{getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}</span>
+                        <span className="font-medium">
+                          {getBuiltinAgentName(agent.id, agent.name || agent.id, locale)}
+                        </span>
                         <div className="flex items-center text-xs text-muted-foreground">
                           <span>{agent.current_model || 'none'}</span>
                           {toModel && (

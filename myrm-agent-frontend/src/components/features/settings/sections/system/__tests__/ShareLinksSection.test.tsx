@@ -106,9 +106,7 @@ describe('ShareLinksSection', () => {
   });
 
   it('renders share records in a table', async () => {
-    const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
-    ]);
+    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] }]);
     vi.stubGlobal('fetch', fetchMock);
 
     render(<ShareLinksSection />);
@@ -120,13 +118,9 @@ describe('ShareLinksSection', () => {
   });
 
   it('copies the share link for unprotected records', async () => {
-    const clipboardSpy = vi
-      .spyOn(navigator.clipboard, 'writeText')
-      .mockImplementation(async () => undefined);
+    const clipboardSpy = vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(async () => undefined);
     vi.stubGlobal('location', { origin: 'http://localhost:3000' });
-    const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
-    ]);
+    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] }]);
     vi.stubGlobal('fetch', fetchMock);
 
     render(<ShareLinksSection />);
@@ -135,9 +129,7 @@ describe('ShareLinksSection', () => {
     await userEvent.click(screen.getByRole('button', { name: /copyLabel/ }));
 
     await waitFor(() =>
-      expect(clipboardSpy).toHaveBeenCalledWith(
-        'http://localhost:3000/api/v1/public/artifact-share/abc.def',
-      ),
+      expect(clipboardSpy).toHaveBeenCalledWith('http://localhost:3000/api/v1/public/artifact-share/abc.def'),
     );
     expect(screen.getByText('copied')).toBeInTheDocument();
   });
@@ -146,9 +138,7 @@ describe('ShareLinksSection', () => {
     const openSpy = vi.fn();
     vi.stubGlobal('location', { origin: 'http://localhost:3000' });
     vi.stubGlobal('open', openSpy);
-    const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
-    ]);
+    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] }]);
     vi.stubGlobal('fetch', fetchMock);
 
     render(<ShareLinksSection />);
@@ -164,13 +154,9 @@ describe('ShareLinksSection', () => {
   });
 
   it('prefers the server-provided absolute share_url when copying', async () => {
-    const clipboardSpy = vi
-      .spyOn(navigator.clipboard, 'writeText')
-      .mockImplementation(async () => undefined);
+    const clipboardSpy = vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(async () => undefined);
     vi.stubGlobal('location', { origin: 'http://localhost:3000' });
-    const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/files/artifacts/shares', body: [absoluteShareRecord] },
-    ]);
+    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/files/artifacts/shares', body: [absoluteShareRecord] }]);
     vi.stubGlobal('fetch', fetchMock);
 
     render(<ShareLinksSection />);
@@ -179,9 +165,7 @@ describe('ShareLinksSection', () => {
     await userEvent.click(screen.getByRole('button', { name: /copyLabel/ }));
 
     await waitFor(() =>
-      expect(clipboardSpy).toHaveBeenCalledWith(
-        'https://myrm-x.example.com/api/v1/public/artifact-share/xyz.uvw',
-      ),
+      expect(clipboardSpy).toHaveBeenCalledWith('https://myrm-x.example.com/api/v1/public/artifact-share/xyz.uvw'),
     );
   });
 
@@ -189,9 +173,7 @@ describe('ShareLinksSection', () => {
     const openSpy = vi.fn();
     vi.stubGlobal('location', { origin: 'http://localhost:3000' });
     vi.stubGlobal('open', openSpy);
-    const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/files/artifacts/shares', body: [absoluteShareRecord] },
-    ]);
+    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/files/artifacts/shares', body: [absoluteShareRecord] }]);
     vi.stubGlobal('fetch', fetchMock);
 
     render(<ShareLinksSection />);
@@ -271,9 +253,7 @@ describe('ShareLinksSection', () => {
   });
 
   it('does not revoke when the dialog is dismissed', async () => {
-    const fetchMock = mockFetchRoutes([
-      { method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] },
-    ]);
+    const fetchMock = mockFetchRoutes([{ method: 'GET', url: '/files/artifacts/shares', body: [shareRecord] }]);
     vi.stubGlobal('fetch', fetchMock);
 
     render(<ShareLinksSection />);

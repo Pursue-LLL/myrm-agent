@@ -1,19 +1,15 @@
 /**
  * [INPUT]
  * ./archiveRestore::* (POS: 归档恢复 SSE/进度条 payload 契约)
- * 
+ *
  * [OUTPUT]
  * RecoveryAction, ProgressItem.
- * 
+ *
  * [POS]
  * 聊天进度步骤树节点类型。
  */
 
-import type {
-  ArchiveRestoreAction,
-  ArchiveRestoreBlockPayload,
-  ArchiveRestoreResultPayload,
-} from './archiveRestore';
+import type { ArchiveRestoreAction, ArchiveRestoreBlockPayload, ArchiveRestoreResultPayload } from './archiveRestore';
 
 export type RecoveryAction = {
   id: string;

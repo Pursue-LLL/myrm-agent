@@ -45,7 +45,9 @@ export function usePortalGestures({
   // 触摸开始
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if (!isMobile) {return;}
+      if (!isMobile) {
+        return;
+      }
       touchStartY.current = e.touches[0].clientY;
       touchCurrentY.current = e.touches[0].clientY;
       setIsSwiping(true);
@@ -56,7 +58,9 @@ export function usePortalGestures({
   // 触摸移动
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      if (!isMobile || !isSwiping) {return;}
+      if (!isMobile || !isSwiping) {
+        return;
+      }
       touchCurrentY.current = e.touches[0].clientY;
       const delta = touchCurrentY.current - touchStartY.current;
       // 只允许向下滑动
@@ -69,7 +73,9 @@ export function usePortalGestures({
 
   // 触摸结束
   const handleTouchEnd = useCallback(() => {
-    if (!isMobile || !isSwiping) {return;}
+    if (!isMobile || !isSwiping) {
+      return;
+    }
     setIsSwiping(false);
 
     // 如果下滑超过阈值，关闭 Portal
@@ -94,10 +100,14 @@ export function usePortalGestures({
 
   // 拖拽移动和结束
   useEffect(() => {
-    if (!isDragging) {return;}
+    if (!isDragging) {
+      return;
+    }
 
     const handleDragMove = (e: MouseEvent) => {
-      if (rafRef.current) {cancelAnimationFrame(rafRef.current);}
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
       rafRef.current = requestAnimationFrame(() => {
         const delta = dragStartX.current - e.clientX;
         const rawWidth = dragStartWidth.current + delta;
@@ -122,7 +132,9 @@ export function usePortalGestures({
     return () => {
       document.removeEventListener('mousemove', handleDragMove);
       document.removeEventListener('mouseup', handleDragEnd);
-      if (rafRef.current) {cancelAnimationFrame(rafRef.current);}
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
     };
   }, [isDragging, onSetPanelWidth]);
 

@@ -155,13 +155,19 @@ describe('useSmoothStream', () => {
 
     // Simulate multiple animation frames until queue is empty
     act(() => {
-      if (rafCallback) {rafCallback(performance.now());}
+      if (rafCallback) {
+        rafCallback(performance.now());
+      }
     });
     act(() => {
-      if (rafCallback) {rafCallback(performance.now());}
+      if (rafCallback) {
+        rafCallback(performance.now());
+      }
     });
     act(() => {
-      if (rafCallback) {rafCallback(performance.now());}
+      if (rafCallback) {
+        rafCallback(performance.now());
+      }
     });
 
     // After enough frames, all content should be displayed

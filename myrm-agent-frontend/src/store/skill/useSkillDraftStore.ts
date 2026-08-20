@@ -37,7 +37,9 @@ export const useSkillDraftStore = create<SkillDraftStore>((set, get) => ({
 
   fetchDrafts: async (status = 'PENDING_REVIEW') => {
     const { isLoading } = get();
-    if (isLoading) {return;}
+    if (isLoading) {
+      return;
+    }
 
     set({ isLoading: true, error: null });
     try {

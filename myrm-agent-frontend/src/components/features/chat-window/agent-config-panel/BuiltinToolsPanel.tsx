@@ -138,7 +138,9 @@ export const BuiltinToolsPanel = ({
                 description={description}
                 checked={checked}
                 onCheckedChange={() => {
-                  if (disabled && !checked) {return;}
+                  if (disabled && !checked) {
+                    return;
+                  }
                   toggleBuiltinTool(id);
                 }}
                 icon={BUILTIN_TOOL_ICONS[id]}
@@ -355,7 +357,9 @@ function BrowserConfigSection({
         <Select
           value={localDialogPolicy || 'smart'}
           onValueChange={(value) =>
-            setLocalDialogPolicy(value === 'smart' ? undefined : (value as 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent'))
+            setLocalDialogPolicy(
+              value === 'smart' ? undefined : (value as 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent'),
+            )
           }
         >
           <SelectTrigger className="w-full bg-background">

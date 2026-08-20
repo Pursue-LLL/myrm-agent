@@ -1,7 +1,7 @@
 /**
  * [OUTPUT]
  * UIComponent, UIArtifact, UIActionEvent 等 A2UI 类型。
- * 
+ *
  * [POS]
  * 交互式 UI 工件与组件白名单类型。
  */

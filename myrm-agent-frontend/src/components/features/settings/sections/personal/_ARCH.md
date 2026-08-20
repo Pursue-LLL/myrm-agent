@@ -6,12 +6,12 @@ Settings「Personal」分组：账户、偏好与个性化 Tab Section。
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `AccountSection.tsx` | 账户信息与凭据 |
-| `PreferencesSection.tsx` | 通用偏好（语言、主题、Link Embeds consent 等）；含 `WebPushCard`（`usePushSubscription` SSOT） |
-| `WebPushCard.tsx` | Personal 分组 Web Push 开关 + iOS PWA 引导 + 测试推送 |
-| `PersonalizationSection.tsx` | 个性化与伴侣相关选项 |
+| 文件                         | 职责                                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- |
+| `AccountSection.tsx`         | 账户信息与凭据                                                                                 |
+| `PreferencesSection.tsx`     | 通用偏好（语言、主题、Link Embeds consent 等）；含 `WebPushCard`（`usePushSubscription` SSOT） |
+| `WebPushCard.tsx`            | Personal 分组 Web Push 开关 + iOS PWA 引导 + 测试推送                                          |
+| `PersonalizationSection.tsx` | 个性化与伴侣相关选项                                                                           |
 
 ## 依赖
 

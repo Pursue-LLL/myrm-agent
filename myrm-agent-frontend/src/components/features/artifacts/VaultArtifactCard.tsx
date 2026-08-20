@@ -18,7 +18,9 @@ export const getVaultMeta = async (objId: string): Promise<VaultObjectMeta> => {
 };
 
 const formatBytes = (bytes: number) => {
-  if (bytes === 0) {return '0 B';}
+  if (bytes === 0) {
+    return '0 B';
+  }
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -26,12 +28,18 @@ const formatBytes = (bytes: number) => {
 };
 
 const getFileIcon = (contentType: string) => {
-  if (contentType.includes('json')) {return <FileJson className="w-6 h-6 text-yellow-500" />;}
-  if (contentType.includes('csv')) {return <Database className="w-6 h-6 text-green-500" />;}
-  if (contentType.includes('markdown') || contentType.includes('text'))
-    {return <FileText className="w-6 h-6 text-blue-500" />;}
-  if (contentType.includes('javascript') || contentType.includes('python'))
-    {return <FileCode className="w-6 h-6 text-purple-500" />;}
+  if (contentType.includes('json')) {
+    return <FileJson className="w-6 h-6 text-yellow-500" />;
+  }
+  if (contentType.includes('csv')) {
+    return <Database className="w-6 h-6 text-green-500" />;
+  }
+  if (contentType.includes('markdown') || contentType.includes('text')) {
+    return <FileText className="w-6 h-6 text-blue-500" />;
+  }
+  if (contentType.includes('javascript') || contentType.includes('python')) {
+    return <FileCode className="w-6 h-6 text-purple-500" />;
+  }
   return <File className="w-6 h-6 text-gray-500" />;
 };
 
@@ -45,11 +53,17 @@ export default function VaultArtifactCard({ id }: { id: string }) {
     const fetchMeta = async () => {
       try {
         const data = await getVaultMeta(id);
-        if (mounted) {setMeta(data);}
+        if (mounted) {
+          setMeta(data);
+        }
       } catch (err: any) {
-        if (mounted) {setError(err.message || '加载 Artifact 失败');}
+        if (mounted) {
+          setError(err.message || '加载 Artifact 失败');
+        }
       } finally {
-        if (mounted) {setLoading(false);}
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
     fetchMeta();

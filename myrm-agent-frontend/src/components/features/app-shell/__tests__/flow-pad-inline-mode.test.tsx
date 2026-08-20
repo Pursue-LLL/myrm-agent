@@ -35,20 +35,14 @@ const mockInstantiateTemplateWithMetrics = vi.fn().mockResolvedValue({ id: 'clou
 const makeMockAgentDetail = (agentId: string) => ({
   id: agentId,
   user_id: 'user-1',
-  name:
-    agentId === 'writer-agent'
-      ? 'Writer Agent'
-      : agentId === 'cloudq-instance'
-        ? 'CloudQ Team'
-        : 'General Agent',
+  name: agentId === 'writer-agent' ? 'Writer Agent' : agentId === 'cloudq-instance' ? 'CloudQ Team' : 'General Agent',
   system_prompt:
     agentId === 'writer-agent'
       ? 'Write with concise style.'
       : agentId === 'cloudq-instance'
         ? 'Handle cloud incidents with strict RCA structure.'
         : '',
-  skill_ids:
-    agentId === 'writer-agent' ? ['writing'] : agentId === 'cloudq-instance' ? ['ops-triage'] : [],
+  skill_ids: agentId === 'writer-agent' ? ['writing'] : agentId === 'cloudq-instance' ? ['ops-triage'] : [],
   mcp_ids: [],
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -108,9 +102,7 @@ vi.mock('@/lib/utils/classnameUtils', () => ({
 }));
 
 vi.mock('@radix-ui/react-visually-hidden', () => ({
-  VisuallyHidden: ({ children }: { children: React.ReactNode }) => (
-    <span style={{ display: 'none' }}>{children}</span>
-  ),
+  VisuallyHidden: ({ children }: { children: React.ReactNode }) => <span style={{ display: 'none' }}>{children}</span>,
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({
@@ -132,8 +124,7 @@ vi.mock('@/services/agent', () => ({
 }));
 
 vi.mock('@/services/templateSummon', () => ({
-  instantiateTemplateWithMetrics: (...args: unknown[]) =>
-    mockInstantiateTemplateWithMetrics(...args),
+  instantiateTemplateWithMetrics: (...args: unknown[]) => mockInstantiateTemplateWithMetrics(...args),
 }));
 
 vi.mock('@/services/expertSummonMetrics', () => ({
@@ -196,10 +187,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('subscribes to useChatStore when entering inline mode', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      100,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 100);
 
     render(<FlowPadModal />);
 
@@ -213,10 +201,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('bridges streaming messages to inlineResult', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'VS Code', extractedText: '', timestamp: 1 },
-      200,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'VS Code', extractedText: '', timestamp: 1 }, 200);
     render(<FlowPadModal />);
     const requestMessageId = await submitInlineMessage('Inline bridge test');
 
@@ -232,10 +219,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('updates inlineResult progressively during streaming', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      300,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 300);
     render(<FlowPadModal />);
     const requestMessageId = await submitInlineMessage('Inline progressive test');
 
@@ -256,10 +240,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('sets inlineGenerating=false when loading transitions to false', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      400,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 400);
     render(<FlowPadModal />);
     const requestMessageId = await submitInlineMessage('Inline completion test');
 
@@ -279,10 +260,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('unsubscribes when modal closes', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      500,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 500);
     const { rerender } = render(<FlowPadModal />);
     expect(subscribers.length).toBe(1);
 
@@ -295,10 +273,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('ignores changes when both loading states are false', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      600,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 600);
     render(<FlowPadModal />);
 
     act(() => {
@@ -312,10 +287,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('ignores assistant stream updates before inline submit', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      700,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 700);
     render(<FlowPadModal />);
 
     act(() => {
@@ -332,10 +304,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('displays streaming result text in the UI', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      800,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 800);
     useFlowPadStore.setState({ inlineResult: 'Visible result text', inlineGenerating: false });
 
     render(<FlowPadModal />);
@@ -344,10 +313,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('shows Paste and Copy buttons when inlineResult exists', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      900,
-    );
+    useFlowPadStore.getState().openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 900);
     useFlowPadStore.setState({ inlineResult: 'Some result', inlineGenerating: false });
 
     render(<FlowPadModal />);
@@ -357,10 +323,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('shows loading spinner when inlineGenerating is true and content exists', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1000,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1000);
     useFlowPadStore.setState({ inlineResult: 'Partial result...', inlineGenerating: true });
 
     render(<FlowPadModal />);
@@ -369,10 +334,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('does not show result section when inlineResult is empty', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1100,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1100);
     useFlowPadStore.setState({ inlineResult: '', inlineGenerating: true });
 
     render(<FlowPadModal />);
@@ -382,10 +346,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('keeps modal open after submit in inline mode (for paste-back)', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'VS Code', extractedText: 'some text', timestamp: 1 },
-      1200,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'VS Code', extractedText: 'some text', timestamp: 1 }, 1200);
     render(<FlowPadModal />);
 
     const textarea = screen.getByRole('textbox');
@@ -405,10 +368,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('hides Paste/Copy buttons while still generating', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1300,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1300);
     useFlowPadStore.setState({ inlineResult: 'Partial...', inlineGenerating: true });
 
     render(<FlowPadModal />);
@@ -419,10 +381,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('picks the LAST assistant message for the active request id', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1400,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1400);
     render(<FlowPadModal />);
     const requestMessageId = await submitInlineMessage('Last assistant test');
 
@@ -442,20 +403,18 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('shows inline-specific placeholder text', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1500,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1500);
     render(<FlowPadModal />);
 
     expect(screen.getByPlaceholderText('inlinePlaceholder')).toBeInTheDocument();
   });
 
   it('shows Inline badge in header', () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1600,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1600);
     render(<FlowPadModal />);
 
     expect(screen.getByText('Inline')).toBeInTheDocument();
@@ -468,10 +427,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
       clipboard: { writeText: writeTextMock },
     });
 
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1700,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1700);
     useFlowPadStore.setState({ inlineResult: 'Copy this text', inlineGenerating: false });
 
     render(<FlowPadModal />);
@@ -485,10 +443,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('covers inline route send-to-stream-to-paste chain', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
-      1750,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 }, 1750);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -543,10 +500,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('ignores assistant chunks from unrelated request ids after inline submit', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
-      1760,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 }, 1760);
     render(<FlowPadModal />);
 
     const textarea = screen.getByRole('textbox');
@@ -580,10 +536,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('routes inline send with selected agent profile config', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
-      1800,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 }, 1800);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -608,10 +563,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
     });
 
     expect(mockChatState.sendMessage).toHaveBeenCalledTimes(1);
-    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith(
-      'writer-agent',
-      expect.any(AbortSignal),
-    );
+    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith('writer-agent', expect.any(AbortSignal));
     const sendArgs = mockChatState.sendMessage.mock.calls[0];
     expect(sendArgs[0]).toContain('Route this request');
     expect(sendArgs[5]).toMatchObject({
@@ -622,9 +574,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('blocks submit while route switch is still in progress', async () => {
-    let resolveFetch:
-      | ((value: ReturnType<typeof makeMockAgentDetail>) => void)
-      | undefined;
+    let resolveFetch: ((value: ReturnType<typeof makeMockAgentDetail>) => void) | undefined;
     mockAgentStoreState.fetchAgent.mockImplementationOnce(
       () =>
         new Promise<ReturnType<typeof makeMockAgentDetail>>((resolve) => {
@@ -632,10 +582,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
         }),
     );
 
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
-      1850,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 }, 1850);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -674,10 +623,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   it('shows fallback action after route switch failure', async () => {
     mockAgentStoreState.fetchAgent.mockRejectedValueOnce(new Error('switch failed'));
 
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
-      1875,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 }, 1875);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -711,10 +659,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('clears stale route override when a later route switch fails', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 },
-      1888,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: 'ctx', timestamp: 1 }, 1888);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -755,10 +702,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('can reset to follow current session routing', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1900,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1900);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -797,10 +743,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('resets inline route selection when modal is reopened', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1915,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1915);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -815,10 +760,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
 
     act(() => {
       useFlowPadStore.getState().close();
-      useFlowPadStore.getState().openInline(
-        { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 },
-        1916,
-      );
+      useFlowPadStore
+        .getState()
+        .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 }, 1916);
     });
 
     const textarea = await screen.findByRole('textbox');
@@ -846,10 +790,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
         }),
     );
 
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1920,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1920);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -863,10 +806,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
 
     act(() => {
       useFlowPadStore.getState().close();
-      useFlowPadStore.getState().openInline(
-        { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 },
-        1921,
-      );
+      useFlowPadStore
+        .getState()
+        .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 }, 1921);
     });
 
     await act(async () => {
@@ -890,10 +832,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
         }),
     );
 
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 },
-      1930,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 1 }, 1930);
     render(<FlowPadModal />);
 
     const trigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -907,10 +848,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
 
     act(() => {
       useFlowPadStore.getState().close();
-      useFlowPadStore.getState().openInline(
-        { screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 },
-        1931,
-      );
+      useFlowPadStore
+        .getState()
+        .openInline({ screenshot: '', windowTitle: 'App', extractedText: '', timestamp: 2 }, 1931);
     });
 
     expect(capturedSignals).toHaveLength(1);
@@ -924,10 +864,9 @@ describe('FlowPadModal - Inline Mode Integration', () => {
   });
 
   it('can summon expert template from route menu and prefill use case prompt', async () => {
-    useFlowPadStore.getState().openInline(
-      { screenshot: '', windowTitle: 'Cloud Console', extractedText: 'alert', timestamp: 1 },
-      1940,
-    );
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: '', windowTitle: 'Cloud Console', extractedText: 'alert', timestamp: 1 }, 1940);
     render(<FlowPadModal />);
 
     const switcherTrigger = screen.getByTestId('flowpad-inline-route-trigger');
@@ -935,9 +874,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
       fireEvent.click(switcherTrigger);
     });
 
-    const useCaseButton = await screen.findByTestId(
-      'flowpad-inline-template-usecase-cloudq-team-template-0',
-    );
+    const useCaseButton = await screen.findByTestId('flowpad-inline-template-usecase-cloudq-team-template-0');
     await act(async () => {
       fireEvent.click(useCaseButton);
     });
@@ -948,10 +885,7 @@ describe('FlowPadModal - Inline Mode Integration', () => {
         surface: 'flow_pad_inline',
       }),
     );
-    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith(
-      'cloudq-instance',
-      expect.any(AbortSignal),
-    );
+    expect(mockAgentStoreState.fetchAgent).toHaveBeenCalledWith('cloudq-instance', expect.any(AbortSignal));
 
     await screen.findByDisplayValue('Diagnose cloud outage');
   });

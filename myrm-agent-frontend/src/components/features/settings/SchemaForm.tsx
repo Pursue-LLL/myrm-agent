@@ -71,14 +71,22 @@ export function SchemaForm<T extends object>({
       setLoading(true);
       try {
         const res = await fetch(`/api/v1/config/schema/${configKey}`);
-        if (!res.ok) {throw new Error('Failed to fetch schema');}
+        if (!res.ok) {
+          throw new Error('Failed to fetch schema');
+        }
         const data = await res.json();
-        if (!cancelled) {setSchema(data);}
+        if (!cancelled) {
+          setSchema(data);
+        }
       } catch (error) {
         console.error('Schema fetch error:', error);
-        if (!cancelled) {toast.error(loadFailedMessage);}
+        if (!cancelled) {
+          toast.error(loadFailedMessage);
+        }
       } finally {
-        if (!cancelled) {setLoading(false);}
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -195,4 +203,4 @@ export function SchemaForm<T extends object>({
         })}
     </div>
   );
-};
+}

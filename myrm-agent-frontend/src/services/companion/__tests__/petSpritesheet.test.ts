@@ -4,10 +4,7 @@ vi.mock('@/lib/api', () => ({
   getApiUrl: (endpoint: string) => `http://localhost:8080/api/v1${endpoint}`,
 }));
 
-import {
-  companionPetSpritesheetUrl,
-  resolveCompanionSpritesheetUrl,
-} from '../petSpritesheet';
+import { companionPetSpritesheetUrl, resolveCompanionSpritesheetUrl } from '../petSpritesheet';
 
 describe('petSpritesheet', () => {
   it('builds spritesheet URL from pet slug', () => {

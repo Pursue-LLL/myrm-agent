@@ -30,7 +30,9 @@ export interface AdvisorMessage {
 
 export async function fetchRunDigest(chatId: string): Promise<RunDigest | null> {
   const res = await fetchWithTimeout(`/chats/${chatId}/copilot/run-digest`);
-  if (!res.ok) {return null;}
+  if (!res.ok) {
+    return null;
+  }
   const json = (await res.json()) as { data?: { digest?: RunDigest | null } };
   return json.data?.digest ?? null;
 }
@@ -48,17 +50,23 @@ export async function askAdvisor(
       selection_snippet: selectionSnippet ?? null,
     }),
   });
-  if (!res.ok) {return null;}
+  if (!res.ok) {
+    return null;
+  }
   const json = (await res.json()) as {
     data?: { reply: string; tier: string; message: AdvisorMessage };
   };
-  if (!json.data) {return null;}
+  if (!json.data) {
+    return null;
+  }
   return json.data;
 }
 
 export async function fetchAdvisorMessages(chatId: string): Promise<AdvisorMessage[]> {
   const res = await fetchWithTimeout(`/chats/${chatId}/copilot/advisor/messages`);
-  if (!res.ok) {return [];}
+  if (!res.ok) {
+    return [];
+  }
   const json = (await res.json()) as { data?: { messages?: AdvisorMessage[] } };
   return json.data?.messages ?? [];
 }

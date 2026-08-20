@@ -27,11 +27,15 @@ const VisionCapabilityNotice = memo(({ cameraActive }: VisionCapabilityNoticePro
 
   const supportsVision = useMemo(() => {
     const selection = defaultModelConfig?.baseModel?.primary;
-    if (!selection) {return false;}
+    if (!selection) {
+      return false;
+    }
     return getModelInfo(selection.providerId, selection.model)?.supports_vision ?? false;
   }, [defaultModelConfig, getModelInfo]);
 
-  if (!cameraActive || supportsVision) {return null;}
+  if (!cameraActive || supportsVision) {
+    return null;
+  }
 
   const modelName = defaultModelConfig?.baseModel?.primary?.model ?? '';
 

@@ -36,9 +36,7 @@ export const UITable: React.FC<UIComponentProps> = ({ props, bindings, data, onD
   const tableData = Array.isArray(rawData) ? (rawData as Record<string, unknown>[]) : [];
 
   const selectedPath = bindings.selected;
-  const selectedIds = selectable && selectedPath
-    ? normalizeSelectedIds(getValueByPath(data, selectedPath))
-    : [];
+  const selectedIds = selectable && selectedPath ? normalizeSelectedIds(getValueByPath(data, selectedPath)) : [];
 
   const resolveRowId = (row: Record<string, unknown>, rowIndex: number): string => {
     const rawId = row[rowIdKey];
@@ -52,9 +50,7 @@ export const UITable: React.FC<UIComponentProps> = ({ props, bindings, data, onD
     if (!selectedPath) {
       return;
     }
-    const next = selectedIds.includes(rowId)
-      ? selectedIds.filter((id) => id !== rowId)
-      : [...selectedIds, rowId];
+    const next = selectedIds.includes(rowId) ? selectedIds.filter((id) => id !== rowId) : [...selectedIds, rowId];
     onDataChange(selectedPath, next);
   };
 

@@ -150,7 +150,11 @@ const SplitHalf: React.FC<{
 }> = memo(({ line, side, language, prismTheme }) => {
   const isDeletion = line?.type === 'deletion';
   const isAddition = line?.type === 'addition';
-  const bgClass = isDeletion ? 'bg-red-500/10 dark:bg-red-500/20' : isAddition ? 'bg-green-500/10 dark:bg-green-500/20' : '';
+  const bgClass = isDeletion
+    ? 'bg-red-500/10 dark:bg-red-500/20'
+    : isAddition
+      ? 'bg-green-500/10 dark:bg-green-500/20'
+      : '';
   const numClass = isDeletion
     ? 'text-red-600 dark:text-red-400'
     : isAddition

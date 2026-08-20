@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  dispatchPetSurfaceAwayCompletion,
-  PET_SURFACE_AWAY_COMPLETION_EVENT,
-} from '../petSurfaceAwayCompletion';
+import { dispatchPetSurfaceAwayCompletion, PET_SURFACE_AWAY_COMPLETION_EVENT } from '../petSurfaceAwayCompletion';
 
 describe('petSurfaceAwayCompletion', () => {
   it('dispatches when document is hidden', () => {

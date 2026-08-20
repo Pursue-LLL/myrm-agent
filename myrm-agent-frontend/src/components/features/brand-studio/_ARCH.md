@@ -8,12 +8,12 @@
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `BrandStudioSection.tsx` | 核心 | 品牌编辑面板：字段表单 / 实时预览 / 保存 / 清空 | ✅ |
-| `brandSchema.ts` | 辅助 | 纯函数：`brand_*` key 映射 / 字段校验 / 预览值提取（无 I/O，可单测） | ✅ |
-| `__tests__/brandSchema.test.ts` | 测试 | brandSchema 纯函数单元测试 | ✅ |
-| `__tests__/BrandStudioResetConfirm.test.tsx` | 测试 | 清空二次确认交互（取消保留 / 确认清空并删除）jsdom 单测 | ✅ |
+| 文件                                         | 地位 | 职责                                                                 | I/O/P |
+| -------------------------------------------- | ---- | -------------------------------------------------------------------- | ----- |
+| `BrandStudioSection.tsx`                     | 核心 | 品牌编辑面板：字段表单 / 实时预览 / 保存 / 清空                      | ✅    |
+| `brandSchema.ts`                             | 辅助 | 纯函数：`brand_*` key 映射 / 字段校验 / 预览值提取（无 I/O，可单测） | ✅    |
+| `__tests__/brandSchema.test.ts`              | 测试 | brandSchema 纯函数单元测试                                           | ✅    |
+| `__tests__/BrandStudioResetConfirm.test.tsx` | 测试 | 清空二次确认交互（取消保留 / 确认清空并删除）jsdom 单测              | ✅    |
 
 ## 依赖
 

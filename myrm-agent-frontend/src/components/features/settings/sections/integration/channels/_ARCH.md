@@ -8,24 +8,24 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `ChannelsSection.tsx` | 渠道总览、安装依赖、各 Provider 配置卡片 |
-| `ChannelRoutingSection.tsx` | 渠道路由页壳与布局 |
-| `useChannelRouting.ts` | 渠道路由状态与 API 绑定 handlers；暴露 `channelBindableAgents`（`filterChannelBindableAgents(agents)` 结果，General-only） |
-| `ChannelRoutingTopicRow.tsx` | 单 Topic 绑定行（Agent / Project workspace / 线程共享 / 回复模式）；展示 `{项目名} · {路径}` |
-| `topicWorkspaceLabel.ts` | `resolveTopicWorkspaceDisplayLabel`：从已加载 projects 解析人类可读 workspace 路径 |
-| `VoiceSection.tsx` | 语音输入输出设置 |
-| `ChannelList.tsx` / `ChannelIcon.tsx` | 渠道列表与图标 |
-| `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx` | 连接状态、Ingress 提示与配对管理 |
-| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks |
-| `@/hooks/billing/useIngressRequirement.ts` | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge` |
-| `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
-| `FeishuQrRegisterDialog.tsx` | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫） |
-| `FeishuCredentialsEditDialog.tsx` | 多应用实例「编辑凭据」弹窗（App ID / Secret / Lark；Secret 留空保留旧值，merge 落库后重建实例生效） |
-| `FeishuMultiAppSection.tsx` | 飞书多应用管理区（实例列表/添加/删除/重命名/编辑凭据，上限 UX；删除实例不可逆，需二次确认） |
-| `DmPolicySelector.tsx` / `GroupManager.tsx` | DM 策略与群组管理 |
-| `NotificationChannelEditor.tsx` | 通知渠道编辑（Preferences 复用） |
+| 文件                                                                          | 职责                                                                                                                       |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `ChannelsSection.tsx`                                                         | 渠道总览、安装依赖、各 Provider 配置卡片                                                                                   |
+| `ChannelRoutingSection.tsx`                                                   | 渠道路由页壳与布局                                                                                                         |
+| `useChannelRouting.ts`                                                        | 渠道路由状态与 API 绑定 handlers；暴露 `channelBindableAgents`（`filterChannelBindableAgents(agents)` 结果，General-only） |
+| `ChannelRoutingTopicRow.tsx`                                                  | 单 Topic 绑定行（Agent / Project workspace / 线程共享 / 回复模式）；展示 `{项目名} · {路径}`                               |
+| `topicWorkspaceLabel.ts`                                                      | `resolveTopicWorkspaceDisplayLabel`：从已加载 projects 解析人类可读 workspace 路径                                         |
+| `VoiceSection.tsx`                                                            | 语音输入输出设置                                                                                                           |
+| `ChannelList.tsx` / `ChannelIcon.tsx`                                         | 渠道列表与图标                                                                                                             |
+| `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx`      | 连接状态、Ingress 提示与配对管理                                                                                           |
+| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks                                                                                                             |
+| `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                         |
+| `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引）                      |
+| `FeishuQrRegisterDialog.tsx`                                                  | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫）                             |
+| `FeishuCredentialsEditDialog.tsx`                                             | 多应用实例「编辑凭据」弹窗（App ID / Secret / Lark；Secret 留空保留旧值，merge 落库后重建实例生效）                        |
+| `FeishuMultiAppSection.tsx`                                                   | 飞书多应用管理区（实例列表/添加/删除/重命名/编辑凭据，上限 UX；删除实例不可逆，需二次确认）                                |
+| `DmPolicySelector.tsx` / `GroupManager.tsx`                                   | DM 策略与群组管理                                                                                                          |
+| `NotificationChannelEditor.tsx`                                               | 通知渠道编辑（Preferences 复用）                                                                                           |
 
 ## 测试
 

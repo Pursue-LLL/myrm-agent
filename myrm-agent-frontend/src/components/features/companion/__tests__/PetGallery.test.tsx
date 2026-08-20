@@ -14,12 +14,13 @@ const companionStoreState: Record<string, unknown> = {
 };
 
 vi.mock('@/store/useCompanionStore', () => ({
-  default: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector(companionStoreState),
+  default: (selector: (s: Record<string, unknown>) => unknown) => selector(companionStoreState),
 }));
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
-  if (key === 'gallery.count') {return `${values?.count ?? 0} pets`;}
+  if (key === 'gallery.count') {
+    return `${values?.count ?? 0} pets`;
+  }
   const labels: Record<string, string> = {
     'gallery.loading': 'Loading pets...',
     'gallery.error': 'Failed to load pet gallery',
@@ -81,10 +82,7 @@ describe('PetGallery local-first', () => {
       displayName: 'Nous Girl',
       contentSha256: 'abc123',
     };
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockRejectedValue(new Error('Manifest fetch failed: 503')),
-    );
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Manifest fetch failed: 503')));
     listInstalledCompanionPetsMock.mockResolvedValue([
       { slug: 'nous-girl', display_name: 'Nous Girl', content_sha256: 'abc123' },
       { slug: 'lobster', display_name: 'Lobster', content_sha256: 'def456' },

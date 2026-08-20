@@ -51,7 +51,9 @@ export function GroupManager({
   const enabledCount = useMemo(() => channelGroups.filter((g) => g.is_enabled).length, [channelGroups]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) {return channelGroups;}
+    if (!search.trim()) {
+      return channelGroups;
+    }
     const q = search.toLowerCase();
     return channelGroups.filter((g) => g.name.toLowerCase().includes(q) || g.jid.toLowerCase().includes(q));
   }, [channelGroups, search]);
@@ -61,7 +63,9 @@ export function GroupManager({
 
   const handleEnableAll = () => {
     for (const g of channelGroups) {
-      if (!g.is_enabled) {onToggle(g.jid, true);}
+      if (!g.is_enabled) {
+        onToggle(g.jid, true);
+      }
     }
   };
 

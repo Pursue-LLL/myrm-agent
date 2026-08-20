@@ -197,7 +197,9 @@ const UserMessage = React.memo(
           return;
         }
         if (e.key === 'Enter' && !e.shiftKey) {
-          if (e.nativeEvent.isComposing || isLoading) {return;}
+          if (e.nativeEvent.isComposing || isLoading) {
+            return;
+          }
           e.preventDefault();
           const trimmed = editText.trim();
           if (trimmed && onEditSubmit) {
@@ -226,168 +228,168 @@ const UserMessage = React.memo(
     return localizeReactNode(
       <>
         <div className={cn('w-full group', isFirst ? 'pt-16' : 'pt-8', 'break-words')}>
-        <div ref={contentRef} data-message-id={messageId} className="flex items-start gap-3">
-          {isEditing ? (
-            <div className="flex-1 lg:w-9/12">
-              <textarea
-                ref={editTextareaRef}
-                value={editText}
-                onChange={(e) => {
-                  setEditText(e.target.value);
-                  handleAutoResize(e.target);
-                }}
-                onKeyDown={handleEditKeyDown}
-                className={cn(
-                  'w-full resize-none rounded-xl border border-primary/30 bg-background px-4 py-3',
-                  'text-base text-foreground placeholder:text-muted-foreground',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
-                  'transition-all duration-200',
-                )}
-                style={{ maxHeight: EDIT_TEXTAREA_MAX_HEIGHT, overflowY: 'auto' }}
-              />
-              <div className="flex items-center gap-2 mt-2">
-                <button
-                  onClick={handleSubmitEdit}
-                  disabled={!editText.trim() || isLoading}
+          <div ref={contentRef} data-message-id={messageId} className="flex items-start gap-3">
+            {isEditing ? (
+              <div className="flex-1 lg:w-9/12">
+                <textarea
+                  ref={editTextareaRef}
+                  value={editText}
+                  onChange={(e) => {
+                    setEditText(e.target.value);
+                    handleAutoResize(e.target);
+                  }}
+                  onKeyDown={handleEditKeyDown}
                   className={cn(
-                    'px-4 py-1.5 text-sm font-medium rounded-lg transition-colors',
-                    editText.trim() && !isLoading
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'bg-muted text-muted-foreground cursor-not-allowed',
+                    'w-full resize-none rounded-xl border border-primary/30 bg-background px-4 py-3',
+                    'text-base text-foreground placeholder:text-muted-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50',
+                    'transition-all duration-200',
+                  )}
+                  style={{ maxHeight: EDIT_TEXTAREA_MAX_HEIGHT, overflowY: 'auto' }}
+                />
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={handleSubmitEdit}
+                    disabled={!editText.trim() || isLoading}
+                    className={cn(
+                      'px-4 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                      editText.trim() && !isLoading
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        : 'bg-muted text-muted-foreground cursor-not-allowed',
+                    )}
+                  >
+                    {t('editSubmit')}
+                  </button>
+                  <button
+                    onClick={onCancelEdit}
+                    className="px-4 py-1.5 text-sm font-medium rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+                  >
+                    {t('cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {skillActivation ? (
+                  <SkillActivationChips
+                    skillNames={skillActivation.skillNames}
+                    instruction={skillActivation.instruction}
+                    className="mb-2 lg:w-9/12"
+                  />
+                ) : null}
+                <h2
+                  className={cn(
+                    'font-medium text-2xl lg:w-9/12 flex-1',
+                    sendFailed ? 'text-destructive dark:text-destructive' : 'text-black dark:text-white',
                   )}
                 >
-                  {t('editSubmit')}
-                </button>
-                <button
-                  onClick={onCancelEdit}
-                  className="px-4 py-1.5 text-sm font-medium rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
-                >
-                  {t('cancel')}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {skillActivation ? (
-                <SkillActivationChips
-                  skillNames={skillActivation.skillNames}
-                  instruction={skillActivation.instruction}
-                  className="mb-2 lg:w-9/12"
-                />
-              ) : null}
-              <h2
-                className={cn(
-                  'font-medium text-2xl lg:w-9/12 flex-1',
-                  sendFailed ? 'text-destructive dark:text-destructive' : 'text-black dark:text-white',
-                )}
-              >
-                {parts.map((part, index) => {
-                  if (part.type === 'link') {
-                    return (
-                      <span
-                        key={index}
-                        className="text-primary hover:text-primary-hover transition-colors cursor-pointer underline decoration-2"
-                        onClick={() => {
-                          const url = part.content.substring(1);
-                          const fullUrl = url.startsWith('http') ? url : `https://${url}`;
-                          window.open(fullUrl, '_blank', 'noopener,noreferrer');
-                        }}
-                      >
-                        {part.content}
-                      </span>
-                    );
-                  }
-                  return <span key={index}>{part.content}</span>;
-                })}
-              </h2>
+                  {parts.map((part, index) => {
+                    if (part.type === 'link') {
+                      return (
+                        <span
+                          key={index}
+                          className="text-primary hover:text-primary-hover transition-colors cursor-pointer underline decoration-2"
+                          onClick={() => {
+                            const url = part.content.substring(1);
+                            const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                          }}
+                        >
+                          {part.content}
+                        </span>
+                      );
+                    }
+                    return <span key={index}>{part.content}</span>;
+                  })}
+                </h2>
 
-              <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
-                {timestamp && (
-                  <span className="text-xs text-muted-foreground/60 mr-1 select-none" title={timestamp.title}>
-                    {timestamp.label}
-                  </span>
-                )}
-                <button
-                  onClick={handleCopy}
-                  className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
-                  title="复制 / Copy"
-                >
-                  {copied ? <Check size={16} /> : <Copy size={16} />}
-                </button>
-                {onEdit && (
+                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
+                  {timestamp && (
+                    <span className="text-xs text-muted-foreground/60 mr-1 select-none" title={timestamp.title}>
+                      {timestamp.label}
+                    </span>
+                  )}
                   <button
-                    onClick={onEdit}
-                    disabled={continuityBlocked}
-                    className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none"
-                    title={t('message.edit')}
+                    onClick={handleCopy}
+                    className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
+                    title="复制 / Copy"
                   >
-                    <Pencil size={16} />
+                    {copied ? <Check size={16} /> : <Copy size={16} />}
                   </button>
-                )}
-                {chatId && messageIndex !== undefined && (
-                  <>
+                  {onEdit && (
                     <button
-                      type="button"
-                      onClick={() => setRewindOpen(true)}
+                      onClick={onEdit}
                       disabled={continuityBlocked}
                       className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none"
-                      title={continuityBlocked ? t('rewind.streamingBlocked') : t('rewind.buttonTitle')}
-                      aria-label={t('rewind.buttonLabel')}
+                      title={t('message.edit')}
                     >
-                      <Undo2 size={16} />
+                      <Pencil size={16} />
                     </button>
-                    {!continuityBlocked && (
-                      <ForkButton chatId={chatId} messageIndex={messageIndex} />
-                    )}
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-        {!isEditing && <QuoteToolbar state={quoteState} onDismiss={dismissQuote} />}
-
-        {sendFailed && onRetry && !isEditing && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-sm text-destructive/80">{t('messageFailed.networkError')}</span>
-            <button
-              onClick={onRetry}
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-            >
-              <RotateCw size={14} />
-              {t('retry')}
-            </button>
-          </div>
-        )}
-
-        {files && files.length > 0 && (
-          <div className="flex gap-2.5 mt-3 overflow-x-auto scrollbar-hide items-end">
-            {files.map((file) =>
-              isImageFile(file.fileExtension) ? (
-                <HistoryImageItem
-                  key={file.fileName}
-                  file={file}
-                  messageId={messageId}
-                  onPreview={() => {
-                    const idx = imageFiles.findIndex((f) => f.fileName === file.fileName);
-                    if (idx !== -1) {setLightboxIndex(idx);}
-                  }}
-                />
-              ) : (
-                <FileContentBlock key={file.fileName} file={file} />
-              ),
+                  )}
+                  {chatId && messageIndex !== undefined && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setRewindOpen(true)}
+                        disabled={continuityBlocked}
+                        className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none"
+                        title={continuityBlocked ? t('rewind.streamingBlocked') : t('rewind.buttonTitle')}
+                        aria-label={t('rewind.buttonLabel')}
+                      >
+                        <Undo2 size={16} />
+                      </button>
+                      {!continuityBlocked && <ForkButton chatId={chatId} messageIndex={messageIndex} />}
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </div>
-        )}
+          {!isEditing && <QuoteToolbar state={quoteState} onDismiss={dismissQuote} />}
 
-        {lightboxIndex !== null && (
-          <ImageLightbox
-            images={imageFiles}
-            initialIndex={lightboxIndex}
-            onClose={() => setLightboxIndex(null)}
-            layoutIdPrefix={`${messageId}-`}
-          />
-        )}
+          {sendFailed && onRetry && !isEditing && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-sm text-destructive/80">{t('messageFailed.networkError')}</span>
+              <button
+                onClick={onRetry}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <RotateCw size={14} />
+                {t('retry')}
+              </button>
+            </div>
+          )}
+
+          {files && files.length > 0 && (
+            <div className="flex gap-2.5 mt-3 overflow-x-auto scrollbar-hide items-end">
+              {files.map((file) =>
+                isImageFile(file.fileExtension) ? (
+                  <HistoryImageItem
+                    key={file.fileName}
+                    file={file}
+                    messageId={messageId}
+                    onPreview={() => {
+                      const idx = imageFiles.findIndex((f) => f.fileName === file.fileName);
+                      if (idx !== -1) {
+                        setLightboxIndex(idx);
+                      }
+                    }}
+                  />
+                ) : (
+                  <FileContentBlock key={file.fileName} file={file} />
+                ),
+              )}
+            </div>
+          )}
+
+          {lightboxIndex !== null && (
+            <ImageLightbox
+              images={imageFiles}
+              initialIndex={lightboxIndex}
+              onClose={() => setLightboxIndex(null)}
+              layoutIdPrefix={`${messageId}-`}
+            />
+          )}
         </div>
         {chatId && messageIndex !== undefined && (
           <RewindDialog

@@ -36,11 +36,10 @@ const mockUseAgentLoadoutSummary = vi.hoisted(() => vi.fn());
 const stableT = (key: string, params?: Record<string, string | number>) => {
   const fullKey = `loadout.${key}`;
   const template = messages[fullKey] ?? key;
-  if (!params) {return template;}
-  return Object.entries(params).reduce(
-    (acc, [name, value]) => acc.replace(`{${name}}`, String(value)),
-    template,
-  );
+  if (!params) {
+    return template;
+  }
+  return Object.entries(params).reduce((acc, [name, value]) => acc.replace(`{${name}}`, String(value)), template);
 };
 
 vi.mock('next-intl', () => ({
@@ -90,10 +89,7 @@ describe('AgentLoadoutSummary', () => {
     expect(screen.getByText('Agent loadout')).toBeInTheDocument();
     expect(screen.getByText('Team Pool')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Team assets' })).toHaveAttribute(
-      'href',
-      '/settings/memory?sub=team-hub',
-    );
+    expect(screen.getByRole('link', { name: 'Team assets' })).toHaveAttribute('href', '/settings/memory?sub=team-hub');
   });
 
   it('hides proposal badge when proposals are unavailable', () => {

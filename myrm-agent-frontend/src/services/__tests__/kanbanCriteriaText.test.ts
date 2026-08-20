@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  completionCriteriaToText,
-  type CompletionCriteria,
-  type CompletionCriterion,
-} from '@/services/kanban';
+import { completionCriteriaToText, type CompletionCriteria, type CompletionCriterion } from '@/services/kanban';
 
 describe('completionCriteriaToText', () => {
   it('passes plain-string criteria through verbatim', () => {
@@ -17,15 +13,11 @@ describe('completionCriteriaToText', () => {
       { type: 'semantic', criteria: 'Covers 5 competitors' },
       { type: 'semantic', criteria: 'Links sources' },
     ];
-    expect(completionCriteriaToText(criteria)).toBe(
-      '- Covers 5 competitors\n- Links sources',
-    );
+    expect(completionCriteriaToText(criteria)).toBe('- Covers 5 competitors\n- Links sources');
   });
 
   it('falls back to command for shell criteria', () => {
-    const criteria: CompletionCriterion[] = [
-      { type: 'shell', command: 'test -f /out.csv', timeout_seconds: 60 },
-    ];
+    const criteria: CompletionCriterion[] = [{ type: 'shell', command: 'test -f /out.csv', timeout_seconds: 60 }];
     expect(completionCriteriaToText(criteria)).toBe('- test -f /out.csv');
   });
 
@@ -36,9 +28,7 @@ describe('completionCriteriaToText', () => {
       { type: 'shell', command: '' },
       { type: 'semantic', criteria: 'kept item' },
     ] as CompletionCriteria;
-    expect(completionCriteriaToText(criteria)).toBe(
-      '- plain string item\n- kept item',
-    );
+    expect(completionCriteriaToText(criteria)).toBe('- plain string item\n- kept item');
   });
 
   it('returns empty for null / undefined / non-array junk', () => {

@@ -42,21 +42,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // 权限类型
 export type SkillPermissionType =
-  | 'file_read'
-  | 'file_write'
-  | 'file_delete'
-  | 'shell_exec'
-  | 'code_interpreter'
-  | 'network_access'
-  | 'env_var_access';
+  'file_read' | 'file_write' | 'file_delete' | 'shell_exec' | 'code_interpreter' | 'network_access' | 'env_var_access';
 
 // 权限模板类型
 export type PermissionTemplateType =
-  | 'developer_tools'
-  | 'data_analysis'
-  | 'web_automation'
-  | 'system_admin'
-  | 'readonly';
+  'developer_tools' | 'data_analysis' | 'web_automation' | 'system_admin' | 'readonly';
 
 export interface SkillPermissionRequest {
   skillId: string;
@@ -113,7 +103,9 @@ export function SkillPermissionApprovalDialog({
   const t = useTranslations('skills.permissions');
   const [selectedTemplate, setSelectedTemplate] = useState<PermissionTemplateType | ''>('');
 
-  if (!request) {return null;}
+  if (!request) {
+    return null;
+  }
 
   const hasDangerousPermissions = request.requiredPermissions.some(isDangerousPermission);
   const dangerousPermissions = request.requiredPermissions.filter(isDangerousPermission);
@@ -347,7 +339,6 @@ export function SkillPermissionApprovalDialog({
               </AlertDescription>
             </Alert>
           )}
-
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">

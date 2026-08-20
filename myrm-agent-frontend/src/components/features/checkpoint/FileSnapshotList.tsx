@@ -42,10 +42,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
   const [filterAgentId, setFilterAgentId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const agentIds = useMemo(
-    () => snapshots.map((s) => s.agentId),
-    [snapshots],
-  );
+  const agentIds = useMemo(() => snapshots.map((s) => s.agentId), [snapshots]);
   const agentNameMap = useAgentNameMap(agentIds);
 
   const uniqueAgents = useMemo(() => {
@@ -59,7 +56,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
   }, [snapshots, agentNameMap]);
 
   const filteredSnapshots = useMemo(
-    () => filterAgentId ? snapshots.filter((s) => s.agentId === filterAgentId) : snapshots,
+    () => (filterAgentId ? snapshots.filter((s) => s.agentId === filterAgentId) : snapshots),
     [snapshots, filterAgentId],
   );
 
@@ -85,14 +82,18 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.meta_data?.type === 'snapshot_created') {
-        if (debounceRef.current) {clearTimeout(debounceRef.current);}
+        if (debounceRef.current) {
+          clearTimeout(debounceRef.current);
+        }
         debounceRef.current = setTimeout(() => void loadSnapshots(), SSE_REFRESH_DEBOUNCE_MS);
       }
     };
     window.addEventListener('system-notification', handler);
     return () => {
       window.removeEventListener('system-notification', handler);
-      if (debounceRef.current) {clearTimeout(debounceRef.current);}
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, [loadSnapshots]);
 
@@ -244,7 +245,9 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
             value={createDescription}
             onChange={(e) => setCreateDescription(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && createDescription.trim() && !isCreating) {void handleCreate();}
+              if (e.key === 'Enter' && createDescription.trim() && !isCreating) {
+                void handleCreate();
+              }
             }}
             placeholder={t('createPlaceholder')}
             maxLength={80}
@@ -302,11 +305,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
         </div>
       )}
 
-      {error && (
-        <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{error}</div>}
 
       {loading && snapshots.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">{t('loading')}</div>

@@ -31,10 +31,7 @@ import { useInputFileUpload } from './useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
 import { recordChatWikiQueryAttempt, queuePendingChatWikiQuerySuccess } from './useMessageInputWikiEvidenceCore';
 import { addInputHistory } from './useInputHistory';
-import {
-  buildTurnAgentConfigOverride,
-  type TurnCapabilitySelection,
-} from './turnCapabilityOverrideCore';
+import { buildTurnAgentConfigOverride, type TurnCapabilitySelection } from './turnCapabilityOverrideCore';
 import {
   recordTurnCapabilityBusyRequeued,
   recordTurnCapabilityOverrideApplied,
@@ -209,7 +206,12 @@ export const useMessageInput = () => {
   );
 
   const recordTurnOverrideApplied = useCallback(
-    (source: TurnCapabilityMetricSource, selection: TurnCapabilitySelection, effectiveSkillCount: number, effectiveMcpCount: number) => {
+    (
+      source: TurnCapabilityMetricSource,
+      selection: TurnCapabilitySelection,
+      effectiveSkillCount: number,
+      effectiveMcpCount: number,
+    ) => {
       recordTurnCapabilityOverrideApplied(
         source,
         getOptionalSelectionCount(selection.skillIds),
@@ -274,7 +276,9 @@ export const useMessageInput = () => {
     }
 
     const nextMessage = dequeue();
-    if (!nextMessage) {return;}
+    if (!nextMessage) {
+      return;
+    }
 
     setTimeout(() => {
       const queuedTurnSelection = nextMessage.turnCapabilitySelection ?? null;
@@ -418,7 +422,9 @@ export const useMessageInput = () => {
       while (Date.now() - start < 30000) {
         const checkFiles = useChatStore.getState().files;
         const stillUploading = checkFiles.some((f) => f.status === 'uploading');
-        if (!stillUploading) {break;}
+        if (!stillUploading) {
+          break;
+        }
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       const finalFiles = useChatStore.getState().files;
@@ -469,7 +475,9 @@ export const useMessageInput = () => {
    * Steer 模式提交：中断当前任务的后续工具调用，立即转向新指令
    */
   const handleSteerSubmit = useCallback(async () => {
-    if (!(await _validateAndPrepare())) {return;}
+    if (!(await _validateAndPrepare())) {
+      return;
+    }
     clearDraft();
     recordChatQueryMetric();
     const steerText = composeOutboundUserMessage(inputMessage.trim());
@@ -481,29 +489,29 @@ export const useMessageInput = () => {
     if (success) {
       const chatState = useChatStore.getState();
       const currentSessionMessageId =
-        typeof chatState.getCurrentSessionMessageId === 'function'
-          ? chatState.getCurrentSessionMessageId()
-          : undefined;
+        typeof chatState.getCurrentSessionMessageId === 'function' ? chatState.getCurrentSessionMessageId() : undefined;
       queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
     } else {
       sendMessage(injectedText, undefined, undefined, undefined, undefined, undefined, true).catch(() => {});
     }
   }, [
-	_validateAndPrepare,
-	clearDraft,
-	inputMessage,
-	setInputMessage,
-	steerMessage,
-	sendMessage,
-	_injectDirtyArtifacts,
-	recordChatQueryMetric
-]);
+    _validateAndPrepare,
+    clearDraft,
+    inputMessage,
+    setInputMessage,
+    steerMessage,
+    sendMessage,
+    _injectDirtyArtifacts,
+    recordChatQueryMetric,
+  ]);
 
   /**
    * Redirect 模式提交：立即中断模型生成，保留 partial 输出，注入纠偏指令
    */
   const handleRedirectSubmit = useCallback(async () => {
-    if (!(await _validateAndPrepare())) {return;}
+    if (!(await _validateAndPrepare())) {
+      return;
+    }
     clearDraft();
     recordChatQueryMetric();
     const redirectText = composeOutboundUserMessage(inputMessage.trim());
@@ -515,30 +523,30 @@ export const useMessageInput = () => {
     if (success) {
       const chatState = useChatStore.getState();
       const currentSessionMessageId =
-        typeof chatState.getCurrentSessionMessageId === 'function'
-          ? chatState.getCurrentSessionMessageId()
-          : undefined;
+        typeof chatState.getCurrentSessionMessageId === 'function' ? chatState.getCurrentSessionMessageId() : undefined;
       queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
     } else {
       await handleSteerSubmit();
     }
   }, [
-	_validateAndPrepare,
-	clearDraft,
-	inputMessage,
-	setInputMessage,
-	redirectMessage,
-	handleSteerSubmit,
-	_injectDirtyArtifacts,
-	recordChatQueryMetric
-]);
+    _validateAndPrepare,
+    clearDraft,
+    inputMessage,
+    setInputMessage,
+    redirectMessage,
+    handleSteerSubmit,
+    _injectDirtyArtifacts,
+    recordChatQueryMetric,
+  ]);
 
   /**
    * Queue 模式提交：不干扰当前任务，等完成后自动发送
    */
   const handleQueueSubmit = useCallback(
     async (queuedTurnSelection?: TurnCapabilitySelection | null, skipValidation: boolean = false) => {
-      if (!skipValidation && !(await _validateAndPrepare())) {return;}
+      if (!skipValidation && !(await _validateAndPrepare())) {
+        return;
+      }
       clearDraft();
       recordChatQueryMetric();
       const queueText = composeOutboundUserMessage(inputMessage.trim());

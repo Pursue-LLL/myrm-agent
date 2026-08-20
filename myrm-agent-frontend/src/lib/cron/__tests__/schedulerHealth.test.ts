@@ -44,10 +44,7 @@ describe('schedulerHealth', () => {
         }),
     );
 
-    const [first, second] = await Promise.all([
-      fetchSchedulerHealthOnce(),
-      fetchSchedulerHealthOnce(),
-    ]);
+    const [first, second] = await Promise.all([fetchSchedulerHealthOnce(), fetchSchedulerHealthOnce()]);
 
     expect(first).toEqual(second);
     expect(apiRequest).toHaveBeenCalledTimes(1);

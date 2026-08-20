@@ -14,9 +14,7 @@ function seededManager(adapter: { get: ReturnType<typeof vi.fn> }) {
   return manager;
 }
 
-function securityConfigValue(
-  overrides: Partial<SecurityConfigValue> = {},
-): SecurityConfigValue {
+function securityConfigValue(overrides: Partial<SecurityConfigValue> = {}): SecurityConfigValue {
   return {
     permissions: {},
     approvalTimeoutSeconds: 60,
@@ -33,19 +31,14 @@ function record(key: ConfigKey, value: SecurityConfigValue) {
 }
 
 function yoloOf(manager: ReturnType<typeof getConfigSyncManager>): boolean {
-  return (
-    (manager.get('securityConfig') as Partial<SecurityConfigValue> | null)
-      ?.yoloModeEnabled ?? false
-  );
+  return (manager.get('securityConfig') as Partial<SecurityConfigValue> | null)?.yoloModeEnabled ?? false;
 }
 
 describe('ConfigSyncManager.ensureKeyLoaded', () => {
   it('returns immediately when the key is already cached', async () => {
     const adapter = { get: vi.fn() };
     const securityConfig = securityConfigValue({ yoloModeEnabled: true });
-    const cache = new Map([
-      ['securityConfig', record('securityConfig', securityConfig)],
-    ]);
+    const cache = new Map([['securityConfig', record('securityConfig', securityConfig)]]);
     const manager = seededManager(adapter);
     Object.assign(manager, { cache });
 

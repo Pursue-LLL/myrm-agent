@@ -34,10 +34,7 @@ export function WikiAgentScopeProvider({
   scopeLabel,
   children,
 }: WikiAgentScopeProviderProps) {
-  const value = useMemo(
-    () => ({ agentScopeId, scopeRevision, scopeLabel }),
-    [agentScopeId, scopeRevision, scopeLabel],
-  );
+  const value = useMemo(() => ({ agentScopeId, scopeRevision, scopeLabel }), [agentScopeId, scopeRevision, scopeLabel]);
   return <WikiAgentScopeContext.Provider value={value}>{children}</WikiAgentScopeContext.Provider>;
 }
 

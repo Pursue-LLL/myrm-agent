@@ -21,10 +21,7 @@ const DEFAULT_PRESETS: RegistryPreset[] = [
   { id: 'cn', url: 'https://skill.xfyun.cn' },
 ];
 
-function resolvePresetFromUrl(
-  url: string,
-  presets: RegistryPreset[],
-): { preset: MirrorPreset; customUrl: string } {
+function resolvePresetFromUrl(url: string, presets: RegistryPreset[]): { preset: MirrorPreset; customUrl: string } {
   const normalized = url.trim();
   const cnPreset = presets.find((item) => item.id === 'cn');
   if (!normalized) {
@@ -69,10 +66,7 @@ const SkillRegistryMirrorPanel = memo(() => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const cnPresetUrl = useMemo(
-    () => presets.find((item) => item.id === 'cn')?.url ?? '',
-    [presets],
-  );
+  const cnPresetUrl = useMemo(() => presets.find((item) => item.id === 'cn')?.url ?? '', [presets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,15 +74,10 @@ const SkillRegistryMirrorPanel = memo(() => {
       try {
         const config = await getUserSkillConfig();
         const loadedPresets =
-          config.registry_presets && config.registry_presets.length > 0
-            ? config.registry_presets
-            : DEFAULT_PRESETS;
+          config.registry_presets && config.registry_presets.length > 0 ? config.registry_presets : DEFAULT_PRESETS;
         if (!cancelled) {
           setPresets(loadedPresets);
-          const resolved = resolvePresetFromUrl(
-            config.clawhub_registry_url ?? '',
-            loadedPresets,
-          );
+          const resolved = resolvePresetFromUrl(config.clawhub_registry_url ?? '', loadedPresets);
           setPreset(resolved.preset);
           setCustomUrl(resolved.customUrl);
         }
@@ -115,9 +104,7 @@ const SkillRegistryMirrorPanel = memo(() => {
 
       setSaving(true);
       try {
-        const reachable = await probeRegistry(
-          nextPreset === 'cn' ? cnPresetUrl : targetUrl,
-        );
+        const reachable = await probeRegistry(nextPreset === 'cn' ? cnPresetUrl : targetUrl);
         if (!reachable) {
           toast({
             title: t('mirrorUnreachable'),
@@ -169,11 +156,7 @@ const SkillRegistryMirrorPanel = memo(() => {
         <span className="text-sm font-medium">{t('title')}</span>
       </div>
       <p className="text-xs text-muted-foreground">{t('description')}</p>
-      <Select
-        value={preset}
-        onValueChange={(value) => handlePresetChange(value as MirrorPreset)}
-        disabled={saving}
-      >
+      <Select value={preset} onValueChange={(value) => handlePresetChange(value as MirrorPreset)} disabled={saving}>
         <SelectTrigger className="h-8 text-sm">
           <SelectValue />
         </SelectTrigger>

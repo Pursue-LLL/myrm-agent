@@ -12,12 +12,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  getWorkingState,
-  updateWorkingState,
-  clearWorkingState,
-  type WorkingStateResponse,
-} from '@/services/memory';
+import { getWorkingState, updateWorkingState, clearWorkingState, type WorkingStateResponse } from '@/services/memory';
 
 const WorkingStateCard = memo(() => {
   const t = useTranslations('settings.workingState');
@@ -53,7 +48,9 @@ const WorkingStateCard = memo(() => {
   }, [t]);
 
   const handleSave = useCallback(async () => {
-    if (!editContent.trim()) {return;}
+    if (!editContent.trim()) {
+      return;
+    }
     setSaving(true);
     try {
       const res = await updateWorkingState(editContent.trim());
@@ -90,7 +87,7 @@ const WorkingStateCard = memo(() => {
         'rounded-xl border p-4 transition-colors',
         hasContent
           ? 'border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/10'
-          : 'border-border bg-card'
+          : 'border-border bg-card',
       )}
     >
       <div className="flex items-center justify-between mb-2">
@@ -152,9 +149,7 @@ const WorkingStateCard = memo(() => {
         </div>
       ) : hasContent ? (
         <div className="space-y-1">
-          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
-            {data.content}
-          </p>
+          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{data.content}</p>
           {data.updated_at && (
             <p className="text-xs text-muted-foreground">
               {t('updatedAt', { time: new Date(data.updated_at).toLocaleString() })}

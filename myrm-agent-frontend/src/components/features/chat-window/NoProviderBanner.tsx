@@ -14,7 +14,9 @@ const NoProviderBanner = memo(() => {
   const isInitialized = useProviderStore((s) => s.isInitialized);
   const hasEnabledProvider = useProviderStore((s) => s.providers.some((p) => p.isEnabled && hasUsableProviderAuth(p)));
 
-  if (!isInitialized || hasEnabledProvider) {return null;}
+  if (!isInitialized || hasEnabledProvider) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-3 w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">

@@ -14,13 +14,11 @@ import { DEFAULT_CONFIG } from '@/components/features/settings/sections/system/s
 
 const CHEAP_MODEL_KEYWORDS = ['mini', 'flash', 'haiku', 'nano', 'lite', 'small'] as const;
 
-function pickCheapestModel(
-  enabledModels: { providerId: string; model: string }[],
-): SingleModelSelection | null {
-  if (enabledModels.length === 0) {return null;}
-  const cheap = enabledModels.find((m) =>
-    CHEAP_MODEL_KEYWORDS.some((k) => m.model.toLowerCase().includes(k)),
-  );
+function pickCheapestModel(enabledModels: { providerId: string; model: string }[]): SingleModelSelection | null {
+  if (enabledModels.length === 0) {
+    return null;
+  }
+  const cheap = enabledModels.find((m) => CHEAP_MODEL_KEYWORDS.some((k) => m.model.toLowerCase().includes(k)));
   return cheap
     ? { providerId: cheap.providerId, model: cheap.model }
     : { providerId: enabledModels[0].providerId, model: enabledModels[0].model };
@@ -43,7 +41,9 @@ export default function SmartGuardStep({ onComplete, onSkip }: SmartGuardStepPro
   const [selectedModel, setSelectedModel] = useState<SingleModelSelection | null>(preselected);
 
   const handleEnable = useCallback(() => {
-    if (!selectedModel) {return;}
+    if (!selectedModel) {
+      return;
+    }
     const syncManager = getConfigSyncManager();
     const current = syncManager.get('securityConfig') as SecurityConfigValue | null;
     syncManager.set('securityConfig', {
@@ -93,10 +93,7 @@ export default function SmartGuardStep({ onComplete, onSkip }: SmartGuardStepPro
         <Button variant="ghost" onClick={onSkip}>
           {t('skip')}
         </Button>
-        <Button
-          onClick={enabled ? handleEnable : onSkip}
-          disabled={enabled && !selectedModel}
-        >
+        <Button onClick={enabled ? handleEnable : onSkip} disabled={enabled && !selectedModel}>
           {enabled ? t('enable') : t('skip')}
         </Button>
       </div>

@@ -31,14 +31,16 @@ const subscribeMock = vi.fn();
 
 vi.mock('@/lib/cron/schedulerHealth', () => ({
   subscribeSchedulerHealth: (
-    listener: (health: {
-      status: 'green' | 'yellow' | 'red';
-      running: boolean;
-      last_tick_at: string | null;
-      tick_errors: number;
-      last_tick_age_seconds: number | null;
-      has_timer: boolean;
-    } | null) => void,
+    listener: (
+      health: {
+        status: 'green' | 'yellow' | 'red';
+        running: boolean;
+        last_tick_at: string | null;
+        tick_errors: number;
+        last_tick_age_seconds: number | null;
+        has_timer: boolean;
+      } | null,
+    ) => void,
   ) => {
     subscribeMock(listener);
     listener({

@@ -9,7 +9,8 @@ vi.mock('next-intl', () => ({
 const stableT = (key: string) => key;
 
 vi.mock('@/services/chat', () => ({
-  getWorkspaceFileContentUrl: (filePath: string, _workspace: string) => `/api/v1/files/browse/content?path=${encodeURIComponent(filePath)}`,
+  getWorkspaceFileContentUrl: (filePath: string, _workspace: string) =>
+    `/api/v1/files/browse/content?path=${encodeURIComponent(filePath)}`,
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -24,7 +25,9 @@ vi.mock('next/dynamic', () => ({
       useEffect(() => {
         let alive = true;
         loader().then((mod) => {
-          if (!alive) {return;}
+          if (!alive) {
+            return;
+          }
           const m = mod as { default?: React.ComponentType<Record<string, unknown>> };
           setComp(() => (m.default ?? mod) as React.ComponentType<Record<string, unknown>>);
         });
@@ -32,7 +35,9 @@ vi.mock('next/dynamic', () => ({
           alive = false;
         };
       }, []);
-      if (!Comp) {return null;}
+      if (!Comp) {
+        return null;
+      }
       return <Comp {...props} />;
     };
     return DynamicComponent;
@@ -50,7 +55,9 @@ vi.mock('@/components/features/artifacts/renderers/MediaPreview', () => ({
 vi.mock('@/components/features/artifacts/PdfPreview', () => ({ default: () => <div data-testid="pdf" /> }));
 vi.mock('@/components/features/artifacts/renderers/DocxPreview', () => ({ default: () => <div data-testid="docx" /> }));
 vi.mock('@/components/features/artifacts/renderers/PptxPreview', () => ({ default: () => <div data-testid="pptx" /> }));
-vi.mock('@/components/features/artifacts/renderers/SpreadsheetPreview', () => ({ default: () => <div data-testid="xlsx" /> }));
+vi.mock('@/components/features/artifacts/renderers/SpreadsheetPreview', () => ({
+  default: () => <div data-testid="xlsx" />,
+}));
 
 import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from '../RichMediaFilePreview';
 

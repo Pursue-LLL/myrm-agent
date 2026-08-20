@@ -1,7 +1,7 @@
 /**
  * [OUTPUT]
  * 重导出 types/ 下全部聊天域类型。
- * 
+ *
  * [POS]
  * 聊天类型 barrel；由 ../types.ts 再导出。
  */

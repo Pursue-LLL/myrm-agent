@@ -115,23 +115,26 @@ const BrowserDoctorCard = memo(() => {
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [cleanupHasFailures, setCleanupHasFailures] = useState(false);
 
-  const fetchDoctor = useCallback(async (includeLaunchTest: boolean) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = includeLaunchTest ? '?launch_test=true' : '?launch_test=false';
-      const resp = await fetch(`/api/v1/health/browser/doctor${qs}`);
-      if (!resp.ok) {
-        throw new Error(await readApiErrorDetail(resp, t('loadFailed')));
+  const fetchDoctor = useCallback(
+    async (includeLaunchTest: boolean) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const qs = includeLaunchTest ? '?launch_test=true' : '?launch_test=false';
+        const resp = await fetch(`/api/v1/health/browser/doctor${qs}`);
+        if (!resp.ok) {
+          throw new Error(await readApiErrorDetail(resp, t('loadFailed')));
+        }
+        setReport(await resp.json());
+      } catch (err) {
+        setReport(null);
+        setError(err instanceof Error ? err.message : t('loadFailed'));
+      } finally {
+        setLoading(false);
       }
-      setReport(await resp.json());
-    } catch (err) {
-      setReport(null);
-      setError(err instanceof Error ? err.message : t('loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   const runDiagnosis = useCallback(() => {
     setCleanupMessage(null);
@@ -178,8 +181,7 @@ const BrowserDoctorCard = memo(() => {
   const healthy = report?.overall_healthy ?? false;
   const orphanCheck = report?.checks?.orphan_processes;
   const hasOrphans = orphanCheck !== undefined && orphanCheck.status !== 'ok';
-  const orphanCount =
-    typeof orphanCheck?.details?.count === 'number' ? orphanCheck.details.count : 0;
+  const orphanCount = typeof orphanCheck?.details?.count === 'number' ? orphanCheck.details.count : 0;
 
   return (
     <section className="space-y-4">
@@ -189,14 +191,7 @@ const BrowserDoctorCard = memo(() => {
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={loading}
-            onClick={runDiagnosis}
-            className="gap-2"
-          >
+          <Button type="button" variant="outline" size="sm" disabled={loading} onClick={runDiagnosis} className="gap-2">
             <IconRefresh className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
             {loading ? t('running') : t('runCheck')}
           </Button>
@@ -210,11 +205,7 @@ const BrowserDoctorCard = memo(() => {
           <label htmlFor="browser-doctor-launch-test" className="text-sm text-foreground">
             {t('launchTest')}
           </label>
-          <Switch
-            id="browser-doctor-launch-test"
-            checked={launchTest}
-            onCheckedChange={setLaunchTest}
-          />
+          <Switch id="browser-doctor-launch-test" checked={launchTest} onCheckedChange={setLaunchTest} />
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
@@ -235,7 +226,9 @@ const BrowserDoctorCard = memo(() => {
 
             {report.recommendations.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('recommendations')}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t('recommendations')}
+                </p>
                 <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
                   {report.recommendations.map((item) => (
                     <li key={item}>{item}</li>
@@ -251,11 +244,11 @@ const BrowserDoctorCard = memo(() => {
                   <div key={name} className="rounded-lg border border-white/5 bg-background/40 p-3 text-xs">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <span className="break-all font-medium">
-                        {(KNOWN_CHECK_NAMES as readonly string[]).includes(name)
-                          ? t(`checkNames.${name}`)
-                          : name}
+                        {(KNOWN_CHECK_NAMES as readonly string[]).includes(name) ? t(`checkNames.${name}`) : name}
                       </span>
-                      <span className={cn('font-bold uppercase', STATUS_COLOR[check.status] ?? 'text-muted-foreground')}>
+                      <span
+                        className={cn('font-bold uppercase', STATUS_COLOR[check.status] ?? 'text-muted-foreground')}
+                      >
                         {t(STATUS_KEYS[check.status] ?? check.status)}
                       </span>
                     </div>
@@ -281,18 +274,11 @@ const BrowserDoctorCard = memo(() => {
                       </div>
                     )}
                     {name === 'orphan_processes' && cleanupMessage && (
-                      <p
-                        className={cn(
-                          'mt-1',
-                          cleanupHasFailures ? 'text-amber-400/90' : 'text-emerald-400/90',
-                        )}
-                      >
+                      <p className={cn('mt-1', cleanupHasFailures ? 'text-amber-400/90' : 'text-emerald-400/90')}>
                         {cleanupMessage}
                       </p>
                     )}
-                    {name === 'orphan_processes' && cleanupError && (
-                      <p className="mt-1 text-red-400">{cleanupError}</p>
-                    )}
+                    {name === 'orphan_processes' && cleanupError && <p className="mt-1 text-red-400">{cleanupError}</p>}
                   </div>
                 ))}
               </div>
@@ -305,9 +291,7 @@ const BrowserDoctorCard = memo(() => {
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('confirmCleanupTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('confirmCleanupDescription', { count: orphanCount })}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('confirmCleanupDescription', { count: orphanCount })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cleaning}>{t('cancel')}</AlertDialogCancel>

@@ -45,7 +45,9 @@ const BucketCard = ({ bucket, title }: { bucket: RateLimitBucket | null; title: 
   const [localRemainingSeconds, setLocalRemainingSeconds] = useState(bucket?.remaining_seconds_now || 0);
 
   useEffect(() => {
-    if (!bucket) {return;}
+    if (!bucket) {
+      return;
+    }
     setLocalRemainingSeconds(bucket.remaining_seconds_now);
 
     // Setup local tick-down for a smooth UI experience
@@ -56,12 +58,17 @@ const BucketCard = ({ bucket, title }: { bucket: RateLimitBucket | null; title: 
     return () => clearInterval(interval);
   }, [bucket]);
 
-  if (!bucket) {return null;}
+  if (!bucket) {
+    return null;
+  }
 
   const usagePct = bucket.usage_pct * 100;
   let colorClass = 'text-green-500';
-  if (usagePct >= 80) {colorClass = 'text-red-500';}
-  else if (usagePct >= 50) {colorClass = 'text-yellow-500';}
+  if (usagePct >= 80) {
+    colorClass = 'text-red-500';
+  } else if (usagePct >= 50) {
+    colorClass = 'text-yellow-500';
+  }
 
   return (
     <div className="flex flex-col items-center p-4 bg-muted/10 rounded-lg border border-border/50">
@@ -95,7 +102,9 @@ export const RateLimitMonitor = () => {
         }
       } catch (error) {
         console.error('Failed to fetch rate limits:', error);
-        if (mounted) {setLoading(false);}
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 

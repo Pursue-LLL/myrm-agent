@@ -6,11 +6,7 @@ import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_INTEGRATIONS } from './credentialsConstants';
-import {
-  getOauthBadgeStyles,
-  getPlatformDescription,
-  resolveOauthCardState,
-} from './credentialsOAuthUtils';
+import { getOauthBadgeStyles, getPlatformDescription, resolveOauthCardState } from './credentialsOAuthUtils';
 import type { CredentialsSectionState } from './useCredentialsSection';
 
 type CredentialsOAuthPanelProps = Pick<
@@ -56,9 +52,13 @@ export function CredentialsOAuthPanel({
             const { badgeColorClass, badgePulseDotClass } = getOauthBadgeStyles(state);
 
             let badgeText = t('disconnected');
-            if (state === 'connected') {badgeText = t('connected');}
-            else if (state === 'expiring') {badgeText = t('expiringSoon', { days: daysLeft });}
-            else if (state === 'expired') {badgeText = t('expired');}
+            if (state === 'connected') {
+              badgeText = t('connected');
+            } else if (state === 'expiring') {
+              badgeText = t('expiringSoon', { days: daysLeft });
+            } else if (state === 'expired') {
+              badgeText = t('expired');
+            }
 
             return (
               <div
@@ -154,9 +154,7 @@ export function CredentialsOAuthPanel({
                       <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">{t('expiresAt')}:</span>
                         <span className="font-medium text-foreground">
-                          {active.expires_at
-                            ? new Date(active.expires_at * 1000).toLocaleString()
-                            : t('neverExpires')}
+                          {active.expires_at ? new Date(active.expires_at * 1000).toLocaleString() : t('neverExpires')}
                         </span>
                       </div>
                     </div>

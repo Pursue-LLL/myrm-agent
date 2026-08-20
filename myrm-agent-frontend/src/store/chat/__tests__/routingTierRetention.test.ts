@@ -71,7 +71,9 @@ const serial = async (
     );
     added = turn.added;
     received = turn.recievedMessage;
-    if (turn.meta) {meta = turn.meta;}
+    if (turn.meta) {
+      meta = turn.meta;
+    }
   }
   state.scheduler.flush();
   state.scheduler.cancel();

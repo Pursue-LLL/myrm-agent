@@ -6,10 +6,10 @@
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `index.ts` | 入口 | 导出 `ImagePreview` 等公共组件 | ✅ |
-| `ImagePreview.tsx` | 核心 | 图片懒加载预览（png/jpg/jpeg/gif/webp） | ✅ |
+| 文件               | 地位 | 职责                                    | I/O/P |
+| ------------------ | ---- | --------------------------------------- | ----- |
+| `index.ts`         | 入口 | 导出 `ImagePreview` 等公共组件          | ✅    |
+| `ImagePreview.tsx` | 核心 | 图片懒加载预览（png/jpg/jpeg/gif/webp） | ✅    |
 
 ## 使用
 

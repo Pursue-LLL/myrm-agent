@@ -70,7 +70,9 @@ function RiskRulesSection() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (categoryFilter !== 'all') {params.set('category', categoryFilter);}
+      if (categoryFilter !== 'all') {
+        params.set('category', categoryFilter);
+      }
       const data = await apiRequest<RiskRule[]>(`/risk/rules?${params}`);
       setRules(Array.isArray(data) ? data : []);
     } catch {
@@ -103,7 +105,9 @@ function RiskRulesSection() {
   const handleBatchToggle = useCallback(
     async (enabled: boolean) => {
       const ids = rules.map((r) => r.rule_id);
-      if (ids.length === 0) {return;}
+      if (ids.length === 0) {
+        return;
+      }
       try {
         await apiRequest('/risk/rules/batch-toggle', {
           method: 'POST',
@@ -119,7 +123,9 @@ function RiskRulesSection() {
   );
 
   const confirmDelete = useCallback(async () => {
-    if (!deleteTarget) {return;}
+    if (!deleteTarget) {
+      return;
+    }
     try {
       await apiRequest(`/risk/rules/${deleteTarget}`, { method: 'DELETE' });
       setRules((prev) => prev.filter((r) => r.rule_id !== deleteTarget));
@@ -132,7 +138,9 @@ function RiskRulesSection() {
   }, [deleteTarget, t]);
 
   const handleSave = useCallback(async () => {
-    if (!editingRule) {return;}
+    if (!editingRule) {
+      return;
+    }
     try {
       if (isCreating) {
         await apiRequest('/risk/rules', { method: 'POST', body: JSON.stringify(editingRule) });
@@ -186,11 +194,15 @@ function RiskRulesSection() {
     input.accept = '.json';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) {return;}
+      if (!file) {
+        return;
+      }
       try {
         const text = await file.text();
         const parsed = JSON.parse(text) as Array<Record<string, unknown>>;
-        if (!Array.isArray(parsed)) {throw new Error('Invalid format');}
+        if (!Array.isArray(parsed)) {
+          throw new Error('Invalid format');
+        }
         const validRules = parsed.filter((r) => r.rule_id && r.pattern);
         if (validRules.length === 0) {
           toast.error(t('importError'));
@@ -210,7 +222,9 @@ function RiskRulesSection() {
   }, [loadRules, t]);
 
   const filteredRules = useMemo(() => {
-    if (!searchQuery.trim()) {return rules;}
+    if (!searchQuery.trim()) {
+      return rules;
+    }
     const q = searchQuery.toLowerCase();
     return rules.filter((r) => {
       const name = getRuleName(r).toLowerCase();
@@ -417,16 +431,13 @@ function RiskRulesSection() {
                   >
                     {t(
                       `severity${rule.severity.charAt(0).toUpperCase() + rule.severity.slice(1)}` as
-                        | 'severityLow'
-                        | 'severityMedium'
-                        | 'severityHigh',
+                        'severityLow' | 'severityMedium' | 'severityHigh',
                     )}
                   </span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ACTION_COLORS[rule.action] || ''}`}>
                     {t(
                       `action${rule.action.charAt(0).toUpperCase() + rule.action.slice(1)}` as
-                        | 'actionAllow'
-                        | 'actionBlock',
+                        'actionAllow' | 'actionBlock',
                     )}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
@@ -490,7 +501,9 @@ function RiskRulesSection() {
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) {setDeleteTarget(null);}
+          if (!open) {
+            setDeleteTarget(null);
+          }
         }}
       >
         <AlertDialogContent>

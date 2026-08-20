@@ -71,11 +71,13 @@ function makeCtx(): StreamCtx {
       loading: true,
     } as never,
     actions: {
-      setMessages: vi.fn((updater: (s: Record<string, unknown>) => void) => updater({
-        messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
-        loading: true,
-        messageAppeared: false,
-      })),
+      setMessages: vi.fn((updater: (s: Record<string, unknown>) => void) =>
+        updater({
+          messages: [{ messageId: 'msg-1', chatId: 'c1', role: 'assistant', content: '', createdAt: new Date() }],
+          loading: true,
+          messageAppeared: false,
+        }),
+      ),
       setLoading: vi.fn(),
       setMessageAppeared: vi.fn(),
       _processSuggestions: vi.fn(),

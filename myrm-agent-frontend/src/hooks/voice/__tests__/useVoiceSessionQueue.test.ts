@@ -93,9 +93,7 @@ vi.mock('../../multimodal/useCameraInput', () => ({
 
 vi.mock('../../multimodal/useVisionIntent', () => ({
   useVisionIntent: () => ({
-    classify: vi.fn(
-      (): VisionIntentResult => ({ needsVision: false, type: 'none', confidence: 0.6, reason: 'test' }),
-    ),
+    classify: vi.fn((): VisionIntentResult => ({ needsVision: false, type: 'none', confidence: 0.6, reason: 'test' })),
   }),
 }));
 
@@ -141,9 +139,7 @@ describe('useVoiceSession speakResponse queue insertion', () => {
   });
 
   it('plays immediately when not speaking and no queue flag', () => {
-    const { result } = renderHook(() =>
-      useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }),
-    );
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
 
     act(() => {
       result.current.startSession();
@@ -186,9 +182,7 @@ describe('useVoiceSession speakResponse queue insertion', () => {
   });
 
   it('replaces the pending queue when the queue flag is not set', () => {
-    const { result } = renderHook(() =>
-      useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }),
-    );
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
 
     act(() => {
       result.current.startSession();
@@ -204,9 +198,7 @@ describe('useVoiceSession speakResponse queue insertion', () => {
   });
 
   it('ignores speakResponse when the session is inactive', () => {
-    const { result } = renderHook(() =>
-      useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }),
-    );
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
 
     act(() => {
       result.current.speakResponse('Nobody hears this.');
@@ -216,9 +208,7 @@ describe('useVoiceSession speakResponse queue insertion', () => {
   });
 
   it('stops the session and clears the queue', () => {
-    const { result } = renderHook(() =>
-      useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }),
-    );
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
 
     act(() => {
       result.current.startSession();

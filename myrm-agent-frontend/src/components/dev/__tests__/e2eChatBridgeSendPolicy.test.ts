@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  shouldPreserveE2eActionMode,
-  shouldRunPrepareAutomationSend,
-} from '../e2eChatBridgeSendPolicy';
+import { shouldPreserveE2eActionMode, shouldRunPrepareAutomationSend } from '../e2eChatBridgeSendPolicy';
 
 describe('e2eChatBridgeSendPolicy', () => {
   it('preserves fast and deep_research action modes on send', () => {

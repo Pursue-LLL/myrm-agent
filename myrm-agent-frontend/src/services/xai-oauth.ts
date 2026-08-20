@@ -30,10 +30,10 @@ export async function startXaiOAuth(): Promise<XaiOAuthStartResponse> {
 }
 
 export async function pollXaiOAuth(userCode: string): Promise<XaiOAuthPollResponse> {
-  return apiRequest<XaiOAuthPollResponse>(
-    `/integrations/xai/oauth/poll?user_code=${encodeURIComponent(userCode)}`,
-    { method: 'POST', silent: true },
-  );
+  return apiRequest<XaiOAuthPollResponse>(`/integrations/xai/oauth/poll?user_code=${encodeURIComponent(userCode)}`, {
+    method: 'POST',
+    silent: true,
+  });
 }
 
 export async function fetchXaiOAuthStatus(): Promise<XaiOAuthStatus> {

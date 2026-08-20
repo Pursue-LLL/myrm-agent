@@ -1,10 +1,4 @@
-import {
-  IconBan,
-  IconCheckCircle,
-  IconClock,
-  IconLoader,
-  IconXCircle,
-} from '@/components/features/icons/PremiumIcons';
+import { IconBan, IconCheckCircle, IconClock, IconLoader, IconXCircle } from '@/components/features/icons/PremiumIcons';
 
 export interface ActiveGoal {
   goal_id: string;

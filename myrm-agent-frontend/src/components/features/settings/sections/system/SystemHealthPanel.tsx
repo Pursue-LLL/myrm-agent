@@ -269,10 +269,7 @@ function SceneCard({ scene }: { scene: ContextBundleSceneHealth }) {
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-foreground">{sceneLabel}</span>
         <span
-          className={cn(
-            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-            style.badge,
-          )}
+          className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', style.badge)}
         >
           <span className={cn('h-1.5 w-1.5 rounded-full', style.dot)} />
           {t(`sceneStatus.${scene.index_status}`)}

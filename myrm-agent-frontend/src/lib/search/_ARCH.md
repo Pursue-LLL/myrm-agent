@@ -6,11 +6,11 @@
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 |
-|------|------|------|
-| `searxngPresets.ts` | 核心 | SearXNG region preset 常量与 detect/build 辅助函数 |
-| `retrievalProviders.ts` | 核心 | Embedding/Reranker provider 目录与 `toLiteLLMFormat`（Settings Apply 路径） |
-| `__tests__/searxngPresets.test.ts` | 测试 | preset detect/build 单元测试 |
+| 文件                               | 地位 | 职责                                                                        |
+| ---------------------------------- | ---- | --------------------------------------------------------------------------- |
+| `searxngPresets.ts`                | 核心 | SearXNG region preset 常量与 detect/build 辅助函数                          |
+| `retrievalProviders.ts`            | 核心 | Embedding/Reranker provider 目录与 `toLiteLLMFormat`（Settings Apply 路径） |
+| `__tests__/searxngPresets.test.ts` | 测试 | preset detect/build 单元测试                                                |
 
 ## 依赖
 

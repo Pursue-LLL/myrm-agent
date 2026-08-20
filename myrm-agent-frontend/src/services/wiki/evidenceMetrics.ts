@@ -81,7 +81,10 @@ function normalizeContextKey(contextKey?: string): string {
   return normalized && normalized.length > 0 ? normalized : DEFAULT_CONTEXT_KEY;
 }
 
-async function postWikiEvidenceEvent(payload: WikiEvidenceEventPayload, countAsDropped: boolean = true): Promise<boolean> {
+async function postWikiEvidenceEvent(
+  payload: WikiEvidenceEventPayload,
+  countAsDropped: boolean = true,
+): Promise<boolean> {
   try {
     await apiRequest('/statistics/wiki-evidence/events', {
       method: 'POST',
@@ -149,7 +152,9 @@ function consumeRequeryWindow(contextKey: string): boolean {
   const nowMs = Date.now();
   const lastInteractionAtMs = lastEvidenceInteractionAtMsByContext.get(contextKey);
   const matched =
-    lastInteractionAtMs !== undefined && nowMs - lastInteractionAtMs >= 0 && nowMs - lastInteractionAtMs <= REQUERY_WINDOW_MS;
+    lastInteractionAtMs !== undefined &&
+    nowMs - lastInteractionAtMs >= 0 &&
+    nowMs - lastInteractionAtMs <= REQUERY_WINDOW_MS;
   if (matched) {
     lastEvidenceInteractionAtMsByContext.delete(contextKey);
   }
@@ -157,12 +162,16 @@ function consumeRequeryWindow(contextKey: string): boolean {
 }
 
 function clampCount(count: number): number {
-  if (!Number.isFinite(count)) {return 1;}
+  if (!Number.isFinite(count)) {
+    return 1;
+  }
   return Math.max(1, Math.min(MAX_EVENT_COUNT, Math.floor(count)));
 }
 
 function clampDwellMs(dwellMs: number): number {
-  if (!Number.isFinite(dwellMs)) {return 0;}
+  if (!Number.isFinite(dwellMs)) {
+    return 0;
+  }
   return Math.max(0, Math.min(MAX_DWELL_MS, Math.floor(dwellMs)));
 }
 
@@ -322,7 +331,11 @@ export function recordWikiQuerySubmitted(
   );
 }
 
-export function recordQualityOutcomeNegative(surface: WikiEvidenceSurface = 'chat', count: number = 1, contextKey?: string): void {
+export function recordQualityOutcomeNegative(
+  surface: WikiEvidenceSurface = 'chat',
+  count: number = 1,
+  contextKey?: string,
+): void {
   if (count <= 0) {
     return;
   }

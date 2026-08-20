@@ -59,7 +59,12 @@ describe('UIChart', () => {
     render(
       <UIChart
         {...makeProps({ type: 'pie' })}
-        data={{ items: [{ label: 'X', value: 0 }, { label: 'Y', value: 0 }] }}
+        data={{
+          items: [
+            { label: 'X', value: 0 },
+            { label: 'Y', value: 0 },
+          ],
+        }}
       />,
     );
     expect(screen.getByText('allZero')).toBeInTheDocument();
@@ -67,12 +72,7 @@ describe('UIChart', () => {
   });
 
   it('renders allZero message for donut chart when all values are 0', () => {
-    render(
-      <UIChart
-        {...makeProps({ type: 'donut' })}
-        data={{ items: [{ label: 'X', value: 0 }] }}
-      />,
-    );
+    render(<UIChart {...makeProps({ type: 'donut' })} data={{ items: [{ label: 'X', value: 0 }] }} />);
     expect(screen.getByText('allZero')).toBeInTheDocument();
   });
 
@@ -80,7 +80,12 @@ describe('UIChart', () => {
     const { container } = render(
       <UIChart
         {...makeProps({ type: 'pie' })}
-        data={{ items: [{ label: 'X', value: 50 }, { label: 'Y', value: 50 }] }}
+        data={{
+          items: [
+            { label: 'X', value: 50 },
+            { label: 'Y', value: 50 },
+          ],
+        }}
       />,
     );
     const svg = container.querySelector('svg');
@@ -93,7 +98,12 @@ describe('UIChart', () => {
     const { container } = render(
       <UIChart
         {...makeProps({ type: 'pie' })}
-        data={{ items: [{ label: 'Half', value: 50 }, { label: 'Other', value: 50 }] }}
+        data={{
+          items: [
+            { label: 'Half', value: 50 },
+            { label: 'Other', value: 50 },
+          ],
+        }}
       />,
     );
     expect(screen.getByText('Half')).toBeInTheDocument();
@@ -108,7 +118,12 @@ describe('UIChart', () => {
     const { container } = render(
       <UIChart
         {...makeProps({ type: 'line' })}
-        data={{ items: [{ label: 'Jan', value: 10 }, { label: 'Feb', value: 30 }] }}
+        data={{
+          items: [
+            { label: 'Jan', value: 10 },
+            { label: 'Feb', value: 30 },
+          ],
+        }}
       />,
     );
     const svg = container.querySelector('svg');
@@ -134,7 +149,12 @@ describe('UIChart', () => {
     render(
       <UIChart
         {...makeProps({ type: 'line' })}
-        data={{ items: [{ label: 'Q1', value: 100 }, { label: 'Q2', value: 200 }] }}
+        data={{
+          items: [
+            { label: 'Q1', value: 100 },
+            { label: 'Q2', value: 200 },
+          ],
+        }}
       />,
     );
     expect(screen.getByText('Q1')).toBeInTheDocument();
@@ -185,10 +205,7 @@ describe('UIChart', () => {
 
   it('renders single-item pie chart with valid arc path', () => {
     const { container } = render(
-      <UIChart
-        {...makeProps({ type: 'pie' })}
-        data={{ items: [{ label: 'Only', value: 100 }] }}
-      />,
+      <UIChart {...makeProps({ type: 'pie' })} data={{ items: [{ label: 'Only', value: 100 }] }} />,
     );
     const svg = container.querySelector('svg');
     expect(svg).toBeTruthy();
@@ -205,10 +222,7 @@ describe('UIChart', () => {
 
   it('handles single data point in line chart without error', () => {
     const { container } = render(
-      <UIChart
-        {...makeProps({ type: 'line' })}
-        data={{ items: [{ label: 'Only', value: 5 }] }}
-      />,
+      <UIChart {...makeProps({ type: 'line' })} data={{ items: [{ label: 'Only', value: 5 }] }} />,
     );
     const dots = container.querySelectorAll('.rounded-full');
     expect(dots.length).toBe(1);

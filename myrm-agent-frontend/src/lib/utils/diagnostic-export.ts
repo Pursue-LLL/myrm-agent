@@ -38,34 +38,45 @@ function collectClientContext(): ClientContext {
     route: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
     timestamp: new Date().toISOString(),
     locale: typeof navigator !== 'undefined' ? navigator.language : 'unknown',
-    screenSize:
-      typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'unknown',
+    screenSize: typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : 'unknown',
   };
 }
 
 function statusEmoji(status: string): string {
-  if (status === 'pass') {return '\u2705';}
-  if (status === 'warn') {return '\u26a0\ufe0f';}
+  if (status === 'pass') {
+    return '\u2705';
+  }
+  if (status === 'warn') {
+    return '\u26a0\ufe0f';
+  }
   return '\u274c';
 }
 
 function formatReportGroup(reports: HealthReport[], layerName: string): string {
-  if (reports.length === 0) {return '';}
+  if (reports.length === 0) {
+    return '';
+  }
 
   const passCount = reports.filter((r) => r.status === 'pass').length;
   const lines = [`### ${layerName} (${passCount}/${reports.length} healthy)\n`];
 
   for (const r of reports) {
     lines.push(`- ${statusEmoji(r.status)} **${r.component_name}** — ${r.message}`);
-    if (r.detail) {lines.push(`  - \`${r.detail}\``);}
-    if (r.fix_suggestion) {lines.push(`  - Fix: ${r.fix_suggestion}`);}
+    if (r.detail) {
+      lines.push(`  - \`${r.detail}\``);
+    }
+    if (r.fix_suggestion) {
+      lines.push(`  - Fix: ${r.fix_suggestion}`);
+    }
   }
 
   return lines.join('\n');
 }
 
 function formatRepairActions(actions: RepairAction[]): string {
-  if (actions.length === 0) {return '';}
+  if (actions.length === 0) {
+    return '';
+  }
 
   const lines = ['### Repair Actions\n'];
   for (const a of actions) {

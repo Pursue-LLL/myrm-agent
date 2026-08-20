@@ -54,46 +54,61 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
-    if (!agentConfig?.selectedSkillIds?.length) {return;}
+    if (!agentConfig?.selectedSkillIds?.length) {
+      return;
+    }
     void fetchMarketSkills();
     void fetchLocalSkills();
   }, [agentConfig?.selectedSkillIds, fetchMarketSkills, fetchLocalSkills]);
 
   const skillActions = useMemo((): SlashAction[] => {
-    if (!agentConfig?.selectedSkillIds?.length) {return [];}
+    if (!agentConfig?.selectedSkillIds?.length) {
+      return [];
+    }
     const allSkills = [...marketSkills, ...localSkills];
     const boundSkills: Array<{ id: string; name: string; description: string; user_invocable: boolean }> =
-      agentConfig.selectedSkillIds.flatMap((id): Array<{ id: string; name: string; description: string; user_invocable: boolean }> => {
-        const fromCatalog = allSkills.find((skill) => skill.id === id);
-        if (fromCatalog) {
-          return fromCatalog.user_invocable === false ? [] : [{ id: fromCatalog.id, name: fromCatalog.name, description: fromCatalog.description, user_invocable: true }];
-        }
-        return [{ id, name: id, description: id, user_invocable: true }];
-      });
+      agentConfig.selectedSkillIds.flatMap(
+        (id): Array<{ id: string; name: string; description: string; user_invocable: boolean }> => {
+          const fromCatalog = allSkills.find((skill) => skill.id === id);
+          if (fromCatalog) {
+            return fromCatalog.user_invocable === false
+              ? []
+              : [
+                  {
+                    id: fromCatalog.id,
+                    name: fromCatalog.name,
+                    description: fromCatalog.description,
+                    user_invocable: true,
+                  },
+                ];
+          }
+          return [{ id, name: id, description: id, user_invocable: true }];
+        },
+      );
 
-    const singleSkillActions: SlashAction[] = boundSkills.map(
-      (skill): SlashAction => ({
-        id: `skill:${skill.id}`,
-        name: skill.name.replace(/_skill$/, ''),
-        description: skill.description,
-        icon: 'zap',
-        type: 'action',
-        execute: async (_input: string) => ({
-          success: true,
-          skillActivation: { skillNames: [skill.name] },
-        }),
+    const singleSkillActions: SlashAction[] = boundSkills.map((skill): SlashAction => ({
+      id: `skill:${skill.id}`,
+      name: skill.name.replace(/_skill$/, ''),
+      description: skill.description,
+      icon: 'zap',
+      type: 'action',
+      execute: async (_input: string) => ({
+        success: true,
+        skillActivation: { skillNames: [skill.name] },
       }),
-    );
+    }));
 
     const bundleActions: SlashAction[] = [];
     const bindings = agentConfig.commandBindings ?? [];
     for (const binding of bindings) {
       const ids = binding.skill_ids ?? [];
-      if (ids.length <= 1) {continue;}
-      const names = ids
-        .map((id: string) => allSkills.find((s) => s.id === id)?.name || id)
-        .filter(Boolean);
-      if (!names.length) {continue;}
+      if (ids.length <= 1) {
+        continue;
+      }
+      const names = ids.map((id: string) => allSkills.find((s) => s.id === id)?.name || id).filter(Boolean);
+      if (!names.length) {
+        continue;
+      }
       const instrPart = binding.instruction ? binding.instruction : undefined;
       bundleActions.push({
         id: `bundle:${binding.command_name}`,
@@ -132,7 +147,9 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
 
   // 过滤后的命令列表（合并系统命令 + 技能快捷触发）
   const filteredItems = useMemo(() => {
-    if (!shouldShow) {return [];}
+    if (!shouldShow) {
+      return [];
+    }
 
     const baseItems = !query ? getAllItems() : searchItems(query);
 
@@ -140,14 +157,10 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
     const matchingSkills = !query
       ? skillActions
       : skillActions.filter(
-          (s) =>
-            s.name.toLowerCase().includes(lowerQuery) ||
-            s.description.toLowerCase().includes(lowerQuery),
+          (s) => s.name.toLowerCase().includes(lowerQuery) || s.description.toLowerCase().includes(lowerQuery),
         );
 
-    return [...baseItems, ...matchingSkills].filter(
-      (item) => item.id !== 'builtin:pet' || isCompanionEnabled,
-    );
+    return [...baseItems, ...matchingSkills].filter((item) => item.id !== 'builtin:pet' || isCompanionEnabled);
   }, [shouldShow, query, getAllItems, searchItems, skillActions, isCompanionEnabled]);
 
   // 执行命令
@@ -203,7 +216,9 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
   // 键盘导航
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (!shouldShow || filteredItems.length === 0) {return;}
+      if (!shouldShow || filteredItems.length === 0) {
+        return;
+      }
 
       switch (e.key) {
         case 'ArrowDown':

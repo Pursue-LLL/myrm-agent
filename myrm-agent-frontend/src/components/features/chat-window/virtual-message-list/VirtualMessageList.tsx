@@ -125,7 +125,9 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
 
     // 暴露 scrollToIndex 给外部（JumpBar 等组件使用）
     useEffect(() => {
-      if (!scrollToMessageRef) {return;}
+      if (!scrollToMessageRef) {
+        return;
+      }
       scrollToMessageRef.current = (index: number) => {
         userScrolledRef.current = true;
         virtualizer.scrollToIndex(index, { align: 'start', behavior: 'smooth' });
@@ -141,7 +143,9 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
     // 注意：流式更新时使用 auto 避免跳跃，用户操作时使用 smooth
     const scrollToBottom = useCallback(
       (smooth = false) => {
-        if (!parentRef.current || userScrolledRef.current) {return;}
+        if (!parentRef.current || userScrolledRef.current) {
+          return;
+        }
         virtualizer.scrollToIndex(messages.length - 1, {
           align: 'end',
           behavior: smooth ? 'smooth' : 'auto',
@@ -152,7 +156,9 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
 
     // 暴露 scrollToBottom 给外部（ScrollToBottomButton 使用）
     useEffect(() => {
-      if (!scrollToBottomRef) {return;}
+      if (!scrollToBottomRef) {
+        return;
+      }
       scrollToBottomRef.current = () => {
         userScrolledRef.current = false;
         onUserScrolledChange?.(false);
@@ -179,7 +185,9 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
 
     // 搜索结果跳转：滚动到高亮消息
     useEffect(() => {
-      if (!highlightMessageId || highlightScrolledRef.current || messages.length === 0) {return;}
+      if (!highlightMessageId || highlightScrolledRef.current || messages.length === 0) {
+        return;
+      }
       const targetIndex = messages.findIndex((m) => String(m.messageId) === highlightMessageId);
       if (targetIndex >= 0) {
         highlightScrolledRef.current = true;
@@ -196,7 +204,9 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
     // 监听滚动事件，检测用户是否手动滚动 + 向上加载更多
     useEffect(() => {
       const scrollElement = parentRef.current;
-      if (!scrollElement) {return;}
+      if (!scrollElement) {
+        return;
+      }
 
       let lastScrollTop = scrollElement.scrollTop;
 
@@ -344,7 +354,9 @@ const MessageRow = memo<MessageRowProps>(({ message, messageIndex, loading, isLa
 
   useEffect(() => {
     const element = rowRef.current;
-    if (!element) {return;}
+    if (!element) {
+      return;
+    }
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {

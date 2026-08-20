@@ -15,10 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Task } from '@/store/tasks/types';
 import { notificationService } from '@/services/notification';
-import {
-  isTaskUpdateEventStreamOpen,
-  subscribeTaskUpdateEvents,
-} from '@/services/taskEventStream';
+import { isTaskUpdateEventStreamOpen, subscribeTaskUpdateEvents } from '@/services/taskEventStream';
 import useConfigStore from '@/store/useConfigStore';
 
 export function useTasksSubscription(task_ids: string[]) {
@@ -28,7 +25,9 @@ export function useTasksSubscription(task_ids: string[]) {
   const stableIds = useMemo(() => task_ids.join(','), [task_ids]);
 
   useEffect(() => {
-    if (!stableIds) {return;}
+    if (!stableIds) {
+      return;
+    }
 
     const ids = stableIds.split(',');
     const notifiedTerminalTaskIds = new Set<string>();

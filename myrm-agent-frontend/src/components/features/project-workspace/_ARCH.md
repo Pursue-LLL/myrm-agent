@@ -6,9 +6,9 @@ Project 级同步目录绑定 UI（Mount Wizard）。将用户选择的本地/Ta
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `ProjectWorkspaceMount.tsx` | 核心 | Tauri 原生目录选择 + Web browse 弹层；调用 projects API 持久化绑定 | ✅ |
+| 文件                        | 地位 | 职责                                                               | I/O/P |
+| --------------------------- | ---- | ------------------------------------------------------------------ | ----- |
+| `ProjectWorkspaceMount.tsx` | 核心 | Tauri 原生目录选择 + Web browse 弹层；调用 projects API 持久化绑定 | ✅    |
 
 ## 依赖
 

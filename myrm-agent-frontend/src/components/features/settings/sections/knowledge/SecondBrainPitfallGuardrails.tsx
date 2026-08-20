@@ -7,13 +7,7 @@ import { Button } from '@/components/primitives/button';
 import { getDocsUrl } from '@/lib/deploy-mode';
 import useChatStore from '@/store/useChatStore';
 
-const TEAM_KB_SCENARIO_KEYS = [
-  'opsSop',
-  'onboardingGuide',
-  'projectRetro',
-  'customerFaq',
-  'inspectionMaint',
-] as const;
+const TEAM_KB_SCENARIO_KEYS = ['opsSop', 'onboardingGuide', 'projectRetro', 'customerFaq', 'inspectionMaint'] as const;
 
 type TeamKbScenarioKey = (typeof TEAM_KB_SCENARIO_KEYS)[number];
 

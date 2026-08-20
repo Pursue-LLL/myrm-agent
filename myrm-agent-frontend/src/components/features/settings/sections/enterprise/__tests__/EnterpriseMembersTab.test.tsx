@@ -75,11 +75,7 @@ interface MemberInput {
   email?: string | null;
 }
 
-function membersRoutes(
-  members: MemberInput[],
-  withUnlinkRoute = false,
-  handoffLogs: unknown[] = [],
-): Route[] {
+function membersRoutes(members: MemberInput[], withUnlinkRoute = false, handoffLogs: unknown[] = []): Route[] {
   const routes: Route[] = [
     {
       method: 'GET',

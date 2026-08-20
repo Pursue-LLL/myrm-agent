@@ -64,11 +64,7 @@ function tierBadgeClass(tier: WikiDedupTier): string {
   return 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30';
 }
 
-export function WikiDuplicateReviewPanel({
-  agentScopeId,
-  scopeLabel,
-  onVaultMutated,
-}: WikiDuplicateReviewPanelProps) {
+export function WikiDuplicateReviewPanel({ agentScopeId, scopeLabel, onVaultMutated }: WikiDuplicateReviewPanelProps) {
   const t = useTranslations('settings.wiki.duplicateReview');
   const locale = useLocale();
   const [groups, setGroups] = useState<WikiDedupGroup[]>([]);
@@ -367,7 +363,12 @@ export function WikiDuplicateReviewPanel({
               t('scan.run')
             )}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => void refreshAll()} disabled={isLoading || isHygieneLoading}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void refreshAll()}
+            disabled={isLoading || isHygieneLoading}
+          >
             {t('actions.refresh')}
           </Button>
         </div>
@@ -413,12 +414,8 @@ export function WikiDuplicateReviewPanel({
                     <Badge variant="outline" className={tierBadgeClass(group.tier)}>
                       {t(`tiers.${group.tier}`)}
                     </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {t('groupLabel', { id: group.group_id })}
-                    </span>
-                    {group.status === 'deferred' && (
-                      <Badge variant="outline">{t('status.deferred')}</Badge>
-                    )}
+                    <span className="text-sm text-muted-foreground">{t('groupLabel', { id: group.group_id })}</span>
+                    {group.status === 'deferred' && <Badge variant="outline">{t('status.deferred')}</Badge>}
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Button
@@ -444,25 +441,13 @@ export function WikiDuplicateReviewPanel({
                       </>
                     ) : (
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => startDisposition(group.group_id, 'defer')}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => startDisposition(group.group_id, 'defer')}>
                           {t('actions.defer')}
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => startDisposition(group.group_id, 'dismiss')}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => startDisposition(group.group_id, 'dismiss')}>
                           {t('actions.dismiss')}
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => startDisposition(group.group_id, 'exclude')}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => startDisposition(group.group_id, 'exclude')}>
                           {t('actions.exclude')}
                         </Button>
                         <Button size="sm" onClick={() => startDisposition(group.group_id, 'trash')}>
@@ -503,10 +488,7 @@ export function WikiDuplicateReviewPanel({
                     ))}
                   </ul>
                   {expandedSnippetGroupId === group.group_id && (
-                    <div
-                      className="grid gap-3 md:grid-cols-2"
-                      data-testid={`wiki-dedup-snippets-${group.group_id}`}
-                    >
+                    <div className="grid gap-3 md:grid-cols-2" data-testid={`wiki-dedup-snippets-${group.group_id}`}>
                       {(snippetCache[group.group_id] ?? []).map((item) => (
                         <div key={item.relative_path} className="rounded-md border bg-muted/20 p-3 space-y-2">
                           <code className="text-xs break-all">{item.relative_path}</code>
@@ -567,9 +549,7 @@ export function WikiDuplicateReviewPanel({
                     >
                       <div className="min-w-0 space-y-1">
                         <code className="text-xs break-all">{entry.relative_path}</code>
-                        {entry.reason && (
-                          <p className="text-xs text-muted-foreground break-words">{entry.reason}</p>
-                        )}
+                        {entry.reason && <p className="text-xs text-muted-foreground break-words">{entry.reason}</p>}
                       </div>
                       <Button
                         size="sm"

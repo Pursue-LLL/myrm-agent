@@ -96,7 +96,9 @@ const EnterpriseAuditTab = memo(() => {
   }, []);
 
   const successRate = useMemo(() => {
-    if (!stats || stats.total_events === 0) {return 0;}
+    if (!stats || stats.total_events === 0) {
+      return 0;
+    }
     return Math.round((stats.success_vs_failed.success / stats.total_events) * 100);
   }, [stats]);
 
@@ -241,7 +243,10 @@ const EnterpriseAuditTab = memo(() => {
                       <div className="space-y-1">
                         <div className="text-xs font-medium text-muted-foreground mb-2">{t('topIps')}</div>
                         {stats.top_ips.slice(0, 5).map((ip) => (
-                          <div key={ip.ip_address} className="flex justify-between text-xs py-1 border-b border-border/30">
+                          <div
+                            key={ip.ip_address}
+                            className="flex justify-between text-xs py-1 border-b border-border/30"
+                          >
                             <span className="font-mono">{ip.ip_address}</span>
                             <span className="text-muted-foreground">{ip.request_count}</span>
                           </div>

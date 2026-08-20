@@ -27,16 +27,22 @@ const AgentAuditView = memo(() => {
       try {
         setLoading(true);
         const result = await queryOrgAgentAudit(targetOrgId, { hours: targetHours, limit: 200 });
-        if (seq !== requestSeqRef.current) {return;}
+        if (seq !== requestSeqRef.current) {
+          return;
+        }
         setData(result);
         setError(null);
       } catch (e) {
-        if (seq !== requestSeqRef.current) {return;}
+        if (seq !== requestSeqRef.current) {
+          return;
+        }
         const detail = e instanceof Error ? e.message : undefined;
         setError({ title: t('agentLoadFailed'), detail });
         toast.error(detail ?? t('agentLoadFailed'));
       } finally {
-        if (seq === requestSeqRef.current) {setLoading(false);}
+        if (seq === requestSeqRef.current) {
+          setLoading(false);
+        }
       }
     },
     [t],
@@ -47,11 +53,15 @@ const AgentAuditView = memo(() => {
     (async () => {
       try {
         const org = await getMyOrg();
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setOrgId(org.id);
         await loadData(org.id, 24);
       } catch (e) {
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         const detail = e instanceof Error ? e.message : undefined;
         setError({ title: t('agentOrgLoadFailed'), detail });
         setLoading(false);
@@ -77,7 +87,11 @@ const AgentAuditView = memo(() => {
   const toggleExpanded = useCallback((key: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {next.delete(key);} else {next.add(key);}
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   }, []);
@@ -143,12 +157,7 @@ const AgentAuditView = memo(() => {
                 <div className="text-xs text-muted-foreground">{t('agentToolCalls')}</div>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <div
-                  className={cn(
-                    'text-2xl font-bold',
-                    securityDenyTotal > 0 ? 'text-red-600' : 'text-foreground',
-                  )}
-                >
+                <div className={cn('text-2xl font-bold', securityDenyTotal > 0 ? 'text-red-600' : 'text-foreground')}>
                   {securityDenyTotal}
                 </div>
                 <div className="text-xs text-muted-foreground">{t('agentSecurityBlocks')}</div>

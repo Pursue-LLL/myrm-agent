@@ -127,11 +127,11 @@ export function useWikiConceptsList(options?: {
 
   const hasUnsavedEdits = Boolean(
     editBaseline &&
-      (editContent !== editBaseline.content ||
-        editCompiledTruth !== editBaseline.compiledTruth ||
-        editTimelineAppend !== editBaseline.timelineAppend ||
-        editTags !== editBaseline.tags ||
-        editAliases !== editBaseline.aliases),
+    (editContent !== editBaseline.content ||
+      editCompiledTruth !== editBaseline.compiledTruth ||
+      editTimelineAppend !== editBaseline.timelineAppend ||
+      editTags !== editBaseline.tags ||
+      editAliases !== editBaseline.aliases),
   );
 
   const handleSelectConcept = useCallback(
@@ -222,12 +222,16 @@ export function useWikiConceptsList(options?: {
 
   const handleMove = async ({ dragIds, parentId }: { dragIds: string[]; parentId: string | null; index: number }) => {
     const sourceId = dragIds[0];
-    if (!sourceId) {return;}
+    if (!sourceId) {
+      return;
+    }
 
     const sourceName = sourceId.split('/').pop() || sourceId;
     const targetPath = parentId ? `${parentId}/${sourceName}` : sourceName;
 
-    if (sourceId === targetPath) {return;}
+    if (sourceId === targetPath) {
+      return;
+    }
 
     try {
       await wikiService.moveNode(sourceId, targetPath, agentScopeId);
@@ -263,7 +267,9 @@ export function useWikiConceptsList(options?: {
   };
 
   const submitDialog = async () => {
-    if (!dialogInput.trim()) {return;}
+    if (!dialogInput.trim()) {
+      return;
+    }
 
     try {
       if (dialogMode === 'create') {
@@ -309,7 +315,9 @@ export function useWikiConceptsList(options?: {
   };
 
   const handleSave = async () => {
-    if (!selectedConcept) {return;}
+    if (!selectedConcept) {
+      return;
+    }
     setIsSaving(true);
     const lease = editContentHash ? { if_match: editContentHash } : {};
     try {
@@ -397,7 +405,9 @@ export function useWikiConceptsList(options?: {
   };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) {return;}
+    if (!deleteTarget) {
+      return;
+    }
 
     const { name, isDir } = deleteTarget;
     setIsDeleting(name);

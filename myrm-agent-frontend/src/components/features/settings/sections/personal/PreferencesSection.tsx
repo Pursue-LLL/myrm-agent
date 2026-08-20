@@ -175,9 +175,7 @@ const PreferencesSection = memo(() => {
             </div>
             <div className="min-w-0 flex-1 space-y-2">
               <div>
-                <p className="text-sm font-medium text-foreground">
-                  {t('linkEmbedsMode') || 'Inline Embeds'}
-                </p>
+                <p className="text-sm font-medium text-foreground">{t('linkEmbedsMode') || 'Inline Embeds'}</p>
                 <p className="text-xs text-muted-foreground">
                   {t('linkEmbedsDesc') || 'Show rich previews for YouTube, X, Spotify and other links in conversations'}
                 </p>
@@ -196,10 +194,7 @@ const PreferencesSection = memo(() => {
                   <p className="text-xs text-muted-foreground">
                     {t('linkEmbedsAllowed') || 'Allowed providers'}: {allowedProviders.join(', ')}
                   </p>
-                  <button
-                    onClick={clearAllowed}
-                    className="text-xs text-destructive hover:underline"
-                  >
+                  <button onClick={clearAllowed} className="text-xs text-destructive hover:underline">
                     {t('linkEmbedsClear') || 'Clear all'}
                   </button>
                 </div>

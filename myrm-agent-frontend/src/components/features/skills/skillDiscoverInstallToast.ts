@@ -27,10 +27,7 @@ export type SkillInstallToastMessage = {
   variant?: 'destructive';
 };
 
-type TranslateFn = (
-  key: string,
-  params?: Record<string, string>,
-) => string;
+type TranslateFn = (key: string, params?: Record<string, string>) => string;
 
 /** Resolve a single install toast from discovery install API fields. */
 export function resolveSkillInstallToastMessage(
@@ -47,9 +44,7 @@ export function resolveSkillInstallToastMessage(
       };
     }
 
-    const titleKey = response.mount_already_present
-      ? 'installedAlreadyEnabled'
-      : 'installedAndEnabled';
+    const titleKey = response.mount_already_present ? 'installedAlreadyEnabled' : 'installedAndEnabled';
 
     if (response.allowlist_appended) {
       return {
@@ -91,8 +86,7 @@ export function formatSkillInstallToast(
       message.titleKey === 'installed'
         ? `${t('installed')} ${skillName}`
         : t(message.titleKey, message.titleParams ?? { name: skillName }),
-    description: message.descriptionText
-      ?? (message.descriptionKey ? t(message.descriptionKey) : undefined),
+    description: message.descriptionText ?? (message.descriptionKey ? t(message.descriptionKey) : undefined),
     variant: message.variant,
   };
 }

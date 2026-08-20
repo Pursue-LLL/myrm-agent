@@ -195,37 +195,25 @@ describe('showMemoryOperationToasts', () => {
     });
 
     it('skips toast when status is skipped', () => {
-      showMemoryOperationToasts(
-        { kind: 'write', description: 'test', status: 'skipped' },
-        { t, router },
-      );
+      showMemoryOperationToasts({ kind: 'write', description: 'test', status: 'skipped' }, { t, router });
 
       expect(toastMocks.info).not.toHaveBeenCalled();
     });
 
     it('skips toast when status is error', () => {
-      showMemoryOperationToasts(
-        { kind: 'write', description: 'test', status: 'error' },
-        { t, router },
-      );
+      showMemoryOperationToasts({ kind: 'write', description: 'test', status: 'error' }, { t, router });
 
       expect(toastMocks.info).not.toHaveBeenCalled();
     });
 
     it('skips toast for unhandled kind', () => {
-      showMemoryOperationToasts(
-        { kind: 'recall', description: 'test', status: 'success' },
-        { t, router },
-      );
+      showMemoryOperationToasts({ kind: 'recall', description: 'test', status: 'success' }, { t, router });
 
       expect(toastMocks.info).not.toHaveBeenCalled();
     });
 
     it('navigates to memory center on action click', () => {
-      showMemoryOperationToasts(
-        { kind: 'write', description: 'test', status: 'success' },
-        { t, router },
-      );
+      showMemoryOperationToasts({ kind: 'write', description: 'test', status: 'success' }, { t, router });
 
       toastMocks.info.mock.calls[0][1]?.action?.onClick();
       expect(router.push).toHaveBeenCalledWith('/settings/memory');
@@ -249,10 +237,7 @@ describe('showMemoryOperationToasts', () => {
     });
 
     it('uses high-risk description when conflict metadata marks high_risk', async () => {
-      showMemoryOperationToasts(
-        { kind: 'conflict', metadata: { high_risk: true }, status: 'success' },
-        { t, router },
-      );
+      showMemoryOperationToasts({ kind: 'conflict', metadata: { high_risk: true }, status: 'success' }, { t, router });
 
       expect(toastMocks.warning).toHaveBeenCalledOnce();
       const call = toastMocks.warning.mock.calls[0];
@@ -271,10 +256,7 @@ describe('showMemoryOperationToasts', () => {
     });
 
     it('skips conflict toast when status is error', () => {
-      showMemoryOperationToasts(
-        { kind: 'conflict', description: 'test', status: 'error' },
-        { t, router },
-      );
+      showMemoryOperationToasts({ kind: 'conflict', description: 'test', status: 'error' }, { t, router });
 
       expect(toastMocks.warning).not.toHaveBeenCalled();
       expect(storeMocks.fetchConflicts).not.toHaveBeenCalled();

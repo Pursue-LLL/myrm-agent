@@ -3,10 +3,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_PROVIDERS } from '@/store/config/providerTypes';
-import {
-  BUILT_IN_PROVIDER_ICON_LOADERS,
-  BUILT_IN_PROVIDER_SVG_SLUGS,
-} from '../provider-brand-icon-loaders';
+import { BUILT_IN_PROVIDER_ICON_LOADERS, BUILT_IN_PROVIDER_SVG_SLUGS } from '../provider-brand-icon-loaders';
 
 const require = createRequire(import.meta.url);
 
@@ -30,9 +27,9 @@ describe('provider brand icon loaders', () => {
 
   it('keeps slug SSOT aligned with explicit dynamic import paths', () => {
     for (const [providerId, slug] of Object.entries(BUILT_IN_PROVIDER_SVG_SLUGS)) {
-      expect(BUILT_IN_PROVIDER_ICON_LOADERS[providerId as keyof typeof BUILT_IN_PROVIDER_SVG_SLUGS].toString()).toContain(
-        `icons/${slug}.svg`,
-      );
+      expect(
+        BUILT_IN_PROVIDER_ICON_LOADERS[providerId as keyof typeof BUILT_IN_PROVIDER_SVG_SLUGS].toString(),
+      ).toContain(`icons/${slug}.svg`);
     }
   });
 });

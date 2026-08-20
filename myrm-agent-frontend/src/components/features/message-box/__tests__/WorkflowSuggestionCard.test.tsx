@@ -20,22 +20,17 @@ const mockState = vi.hoisted(() => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({
-  default: Object.assign(
-    (selector: (state: typeof mockState) => unknown) => selector(mockState),
-    {
-      getState: () => mockState,
-      setState: (updater: (state: typeof mockState) => void) => {
-        // immer 语义：传入 updater 函数，draft 可原地修改
-        updater(mockState);
-      },
+  default: Object.assign((selector: (state: typeof mockState) => unknown) => selector(mockState), {
+    getState: () => mockState,
+    setState: (updater: (state: typeof mockState) => void) => {
+      // immer 语义：传入 updater 函数，draft 可原地修改
+      updater(mockState);
     },
-  ),
+  }),
 }));
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({
-  IconWorkflow: ({ className }: { className?: string }) => (
-    <svg data-testid="icon-workflow" className={className} />
-  ),
+  IconWorkflow: ({ className }: { className?: string }) => <svg data-testid="icon-workflow" className={className} />,
 }));
 
 import WorkflowSuggestionCard from '../WorkflowSuggestionCard';

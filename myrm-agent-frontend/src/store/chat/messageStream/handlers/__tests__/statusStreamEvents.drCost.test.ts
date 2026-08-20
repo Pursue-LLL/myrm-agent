@@ -32,9 +32,7 @@ function makeMessagesState() {
         messageId: 'msg-1',
         chatId: 'c1',
         role: 'assistant' as const,
-        progressSteps: [
-          { step_key: 'deep_research_researching' },
-        ] as ProgressItem[],
+        progressSteps: [{ step_key: 'deep_research_researching' }] as ProgressItem[],
         createdAt: new Date(),
       },
     ],

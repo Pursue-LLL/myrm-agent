@@ -266,7 +266,9 @@ const SearchSection = memo(() => {
           onOpenChange={(open) => {
             setSearxngConsentOpen(open);
             if (!open) {
-              if (pendingQuickEnable) {setQuickEnabling(false);}
+              if (pendingQuickEnable) {
+                setQuickEnabling(false);
+              }
               setPendingQuickEnable(false);
             }
           }}

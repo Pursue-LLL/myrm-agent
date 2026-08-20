@@ -43,10 +43,18 @@ function WorkspaceRulesSection() {
   }, []);
 
   const getSourceBadgeColor = (source: string) => {
-    if (source.includes('cursor')) {return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';}
-    if (source.includes('myrm')) {return 'bg-primary/10 text-primary border-primary/20';}
-    if (source === 'AGENTS.md') {return 'bg-primary/10 text-primary border-primary/20';}
-    if (source === 'CLAUDE.md') {return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';}
+    if (source.includes('cursor')) {
+      return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';
+    }
+    if (source.includes('myrm')) {
+      return 'bg-primary/10 text-primary border-primary/20';
+    }
+    if (source === 'AGENTS.md') {
+      return 'bg-primary/10 text-primary border-primary/20';
+    }
+    if (source === 'CLAUDE.md') {
+      return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';
+    }
     return 'bg-muted text-muted-foreground border-border';
   };
 
@@ -145,9 +153,7 @@ function WorkspaceRulesSection() {
                         <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-words font-mono max-h-96 overflow-y-auto leading-relaxed">
                           {rule.content || t('emptyRule')}
                         </pre>
-                        {rule.truncated && (
-                          <p className="text-xs text-amber-500 mt-2">{t('truncatedHint')}</p>
-                        )}
+                        {rule.truncated && <p className="text-xs text-amber-500 mt-2">{t('truncatedHint')}</p>}
                       </div>
                     )}
                   </div>
