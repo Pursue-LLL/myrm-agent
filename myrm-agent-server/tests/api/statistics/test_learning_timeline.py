@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.memory import MemoryType
 
 from app.api.statistics.learning_timeline import (
     LearningTimelineItem,
@@ -19,7 +18,6 @@ from app.api.statistics.learning_timeline import (
     get_learning_timeline,
     update_timeline_memory_item,
 )
-from app.core.utils.errors import StandardHTTPException
 from app.services.skills.growth.audit_queries import SkillGrowthTimelineEventRead
 from app.services.skills.growth.case_types import SkillGrowthCaseSource, SkillGrowthCaseStatus
 

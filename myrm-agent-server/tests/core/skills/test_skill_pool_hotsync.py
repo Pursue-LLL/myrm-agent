@@ -23,9 +23,10 @@ def test_skill_model_installed_from_roundtrip() -> None:
     }
     skill = Skill(
         id="local::sample_skill",
+        type=SkillType.LOCAL,
         name="sample_skill",
         description="A sample skill",
-        skill_type=SkillType.LOCAL,
+        storage_path="/tmp/sample",
         installed_from=provenance,
     )
     data = skill.to_dict()
@@ -69,8 +70,8 @@ async def test_sync_skill_to_agents_and_orphan_cleanup() -> None:
         # Verify agents have the skill
         updated_a1 = await AgentService.get_agent_by_id(agent1.id)
         updated_a2 = await AgentService.get_agent_by_id(agent2.id)
-        assert updated_a1 is not None and target_skill_id in (updated_a1.skill_ids or [])
-        assert updated_a2 is not None and target_skill_id in (updated_a2.skill_ids or [])
+        assert updated_a1 is not None and target_skill_id in (updated_a1.skills or [])
+        assert updated_a2 is not None and target_skill_id in (updated_a2.skills or [])
 
         # 3. Perform orphan cleanup
         cleaned_count = await remove_skill_from_all_agents(target_skill_id)
@@ -79,8 +80,8 @@ async def test_sync_skill_to_agents_and_orphan_cleanup() -> None:
         # Verify skill removed from all agent allowlists
         after_cleanup_a1 = await AgentService.get_agent_by_id(agent1.id)
         after_cleanup_a2 = await AgentService.get_agent_by_id(agent2.id)
-        assert after_cleanup_a1 is not None and target_skill_id not in (after_cleanup_a1.skill_ids or [])
-        assert after_cleanup_a2 is not None and target_skill_id not in (after_cleanup_a2.skill_ids or [])
+        assert after_cleanup_a1 is not None and target_skill_id not in (after_cleanup_a1.skills or [])
+        assert after_cleanup_a2 is not None and target_skill_id not in (after_cleanup_a2.skills or [])
     finally:
         # Cleanup test agents
         await AgentService.delete_agent(agent1.id)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -120,6 +120,9 @@ async def test_wecom_self_built_router_no_zombie_integration() -> None:
 
     # Mock _api_send to capture outbound messages
     sent_api_calls: list[dict[str, object]] = []
+
+    ch._token = "valid_mock_token"
+    ch._token_expires_at = 9999999999.0
 
     async def _mock_api_send(touser: str, msgtype: str, content: dict[str, object], **kwargs: object) -> bool:
         sent_api_calls.append({"touser": touser, "msgtype": msgtype, "content": content})
