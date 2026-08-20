@@ -34,17 +34,18 @@ function JobListSkeleton() {
 
 function EmptyState({ t, onSelectBlueprint }: { t: (key: string) => string; onSelectBlueprint: (bp: CronBlueprint) => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-8 text-center">
-      <div className="rounded-full bg-muted p-4 mb-4">
-        <Timer className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="text-sm font-medium mb-1">{t('emptyTitle')}</h3>
-      <p className="text-xs text-muted-foreground max-w-[240px] mb-4">{t('emptyDesc')}</p>
-      <div className="w-full max-w-md">
-        <p className="text-xs font-medium text-muted-foreground mb-2 text-left">{t('blueprint.quickStart')}</p>
-        <BlueprintCatalog onSelect={onSelectBlueprint} maxItems={4} />
-      </div>
-    </div>
+    <StandardEmptyState
+      icon={Timer}
+      title={t('emptyTitle')}
+      description={t('emptyDesc')}
+      className="py-6"
+      action={
+        <div className="w-full max-w-md pt-2">
+          <p className="text-xs font-medium text-muted-foreground mb-2 text-left">{t('blueprint.quickStart')}</p>
+          <BlueprintCatalog onSelect={onSelectBlueprint} maxItems={4} />
+        </div>
+      }
+    />
   );
 }
 

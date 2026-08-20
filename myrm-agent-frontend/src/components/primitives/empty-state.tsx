@@ -1,3 +1,9 @@
+/**
+ * [INPUT] classnameUtils::cn (POS: Tailwind 类名合并工具)
+ * [OUTPUT] EmptyState: 通用空状态/过渡态展示基元组件, emptyStateVariants: 样式变体配置
+ * [POS] UI基元层。提供符合 Maka UI 视觉体系的标准化空状态布局、图标光晕及操作按钮槽位。
+ */
+
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils/classnameUtils';

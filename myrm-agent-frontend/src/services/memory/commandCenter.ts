@@ -231,6 +231,8 @@ export interface MemoryCommandBenchmarkSummary {
   ndcg_at_k: number;
   mrr_score: number;
   precision_at_k: number;
+  duplicate_rate?: number;
+  distinct_source_ratio?: number;
   latency_p50_ms: number;
   latency_p95_ms: number;
   top_k: number;

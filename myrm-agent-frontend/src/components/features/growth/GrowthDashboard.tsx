@@ -42,6 +42,13 @@ export default function GrowthDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>(30);
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [highlightMemoryId, setHighlightMemoryId] = useState<string | null>(null);
+
+  const handleSelectMemoryForGraph = useCallback((memoryId: string) => {
+    setHighlightMemoryId(memoryId);
+    setActiveTab('graph');
+  }, []);
 
   const fetchData = useCallback(async (days: number) => {
     try {
@@ -164,7 +171,7 @@ export default function GrowthDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabsTrigger value="timeline" className="gap-1.5">
@@ -193,7 +200,7 @@ export default function GrowthDashboard() {
               <p className="text-xs text-muted-foreground mt-0.5">{t('learningTimeline.description')}</p>
             </CardHeader>
             <CardContent className="px-4 pb-4 md:px-6 md:pb-5">
-              <LearningTimeline />
+              <LearningTimeline onSelectMemoryForGraph={handleSelectMemoryForGraph} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -216,7 +223,7 @@ export default function GrowthDashboard() {
                   </div>
                 }
               >
-                <MemoryKnowledgeGraph className="min-h-[450px]" />
+                <MemoryKnowledgeGraph className="min-h-[450px]" initialFocusNodeId={highlightMemoryId ?? undefined} />
               </Suspense>
             </CardContent>
           </Card>

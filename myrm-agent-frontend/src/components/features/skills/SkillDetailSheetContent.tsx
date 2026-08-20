@@ -287,6 +287,49 @@ export function SkillDetailSheetContent({
         </div>
       )}
 
+      {/* Provenance installed_from */}
+      {skill.installed_from && (
+        <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
+          <div className="flex items-center gap-2">
+            <ExternalLink size={14} className="text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium">{t('detail.installedFrom')}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+            {Boolean(skill.installed_from.source) && (
+              <div>
+                <span className="opacity-70">{t('detail.installedFromSource')}: </span>
+                <span className="font-mono text-foreground">{String(skill.installed_from.source)}</span>
+              </div>
+            )}
+            {Boolean(skill.installed_from.version) && (
+              <div>
+                <span className="opacity-70">{t('detail.installedFromVersion')}: </span>
+                <span className="font-mono text-foreground">{String(skill.installed_from.version)}</span>
+              </div>
+            )}
+            {Boolean(skill.installed_from.installed_at) && (
+              <div>
+                <span className="opacity-70">{t('detail.installedFromDate')}: </span>
+                <span>{new Date(String(skill.installed_from.installed_at)).toLocaleDateString()}</span>
+              </div>
+            )}
+            {Boolean(skill.installed_from.origin_url || skill.installed_from.url) && (
+              <div className="col-span-2 truncate">
+                <span className="opacity-70">{t('detail.installedFromUrl')}: </span>
+                <a
+                  href={String(skill.installed_from.origin_url || skill.installed_from.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {String(skill.installed_from.origin_url || skill.installed_from.url)}
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Evolution lock */}
       {skill.type === 'local' && (
         <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">

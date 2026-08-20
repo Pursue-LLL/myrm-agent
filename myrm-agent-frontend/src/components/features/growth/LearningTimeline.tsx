@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/services/statistics::getLearningTimeline, updateTimelineMemory, deleteTimelineMemory, archiveTimelineSkill (POS: 学习时间线与治理数据接口)
+ * - @/components/primitives/button::Button, @/components/primitives/card::Card (POS: 基础 UI 原语)
+ *
+ * [OUTPUT]
+ * - LearningTimeline: 记忆与技能统一学习成长时间线面板，支持按类型过滤、时间跨度选择、就地行内编辑/删除/归档。
+ *
+ * [POS]
+ * 成长与进化模块组件。在 /journey 页面提供直观的时序成长足迹展示与即时治理界面。
+ */
+
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {

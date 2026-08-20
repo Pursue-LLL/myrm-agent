@@ -52,7 +52,7 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
     _BenchmarkPair(
         case_id="arch_decision_en",
         category="architecture_decision",
-        content="diagnostic benchmark {run_id} architecture decision: chose PostgreSQL for billing data integrity over MongoDB",
+        content="diagnostic benchmark {run_id} architecture decision: chose PostgreSQL for billing data integrity",
         query="architecture decision recall PostgreSQL billing {run_id}",
         memory_type=MemoryType.SEMANTIC,
     ),
@@ -97,7 +97,7 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
     _BenchmarkPair(
         case_id="temporal_en",
         category="temporal_reasoning",
-        content="diagnostic benchmark {run_id} temporal: last Monday CI pipeline down 3 hours Docker Hub rate limit switched to GHCR",
+        content="diagnostic benchmark {run_id} temporal: last Monday CI pipeline down 3 hours Docker Hub rate limit",
         query="when CI pipeline down Docker Hub rate limit {run_id}",
         memory_type=MemoryType.EPISODIC,
     ),
@@ -128,7 +128,7 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
     _BenchmarkPair(
         case_id="multi_session_en",
         category="multi_session",
-        content="diagnostic benchmark {run_id} multi-session: API rate limiting evolved from fixed window to sliding window counters in Redis",
+        content="diagnostic benchmark {run_id} multi-session: API rate limiting evolved from fixed window to sliding window",
         query="API rate limiting strategy evolution sliding window {run_id}",
         memory_type=MemoryType.SEMANTIC,
     ),
@@ -143,7 +143,7 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
     _BenchmarkPair(
         case_id="knowledge_update_en",
         category="knowledge_update",
-        content="diagnostic benchmark {run_id} knowledge update: switched mobile API from REST to GraphQL, REST decision deprecated",
+        content="diagnostic benchmark {run_id} knowledge update: switched mobile API from REST to GraphQL",
         query="mobile API GraphQL REST deprecated update {run_id}",
         memory_type=MemoryType.SEMANTIC,
     ),
@@ -170,9 +170,6 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
         memory_type=MemoryType.SEMANTIC,
         language="zh",
     ),
-    # -------------------------------------------------------------------------
-    # Long-document Head vs Tail penetration probes (Citadel-aligned verification)
-    # -------------------------------------------------------------------------
     _BenchmarkPair(
         case_id="longdoc_head_zh",
         category="longdoc_penetration",
@@ -279,10 +276,8 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                 label="Golden recall benchmark",
                 status=summary.status,
                 evidence=evidence,
-                impact="Synthetic recall checks verify that memory write-then-retrieve works across 9 categories, long-doc penetration, and 2 languages.",
-                next_action="No action required."
-                if summary.status == "ready"
-                else "Review retrieval trace, vector index, and embedding configuration, then rerun diagnostics.",
+                impact="Synthetic recall checks verify memory write-then-retrieve across 9 categories and 2 languages.",
+                next_action="No action required." if summary.status == "ready" else "Review retrieval trace and rerun diagnostics.",
                 safe_to_retry=True,
                 duration_ms=round((perf_counter() - started) * 1000, 2),
                 benchmark_summary=MemoryCommandBenchmarkSummary(

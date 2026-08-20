@@ -1,3 +1,9 @@
+/**
+ * [INPUT] skeleton::Skeleton (POS: 基础微光脉冲占位基元), classnameUtils::cn (POS: Tailwind 类名合并工具)
+ * [OUTPUT] ListSkeleton, CardGridSkeleton, TableSkeleton, FormSkeleton, ListDetailSkeleton: 常用结构骨架模板
+ * [POS] UI基元层。提供多种标准化页面拓扑骨架模板，消除加载阶段布局跳动(CLS)。
+ */
+
 import * as React from 'react';
 import { Skeleton } from './skeleton';
 import { cn } from '@/lib/utils/classnameUtils';

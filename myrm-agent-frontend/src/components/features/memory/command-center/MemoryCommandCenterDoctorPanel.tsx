@@ -477,6 +477,20 @@ const BenchmarkMetrics = ({ summary, t }: { summary: MemoryCommandBenchmarkSumma
           label={t('commandCenter.benchmarkPrecision', { k })}
           value={formatPercent(summary.precision_at_k)}
         />
+        {summary.duplicate_rate !== undefined && (
+          <MetricCard
+            label={t('commandCenter.benchmarkDuplicateRate') || '重复分块率'}
+            value={formatPercent(summary.duplicate_rate)}
+            colorClass={metricColor(1 - summary.duplicate_rate, { good: 0.8, warn: 0.6 })}
+          />
+        )}
+        {summary.distinct_source_ratio !== undefined && (
+          <MetricCard
+            label={t('commandCenter.benchmarkDistinctSources') || '来源多样性'}
+            value={formatPercent(summary.distinct_source_ratio)}
+            colorClass={metricColor(summary.distinct_source_ratio, { good: 0.8, warn: 0.6 })}
+          />
+        )}
         <MetricCard label={t('commandCenter.benchmarkLatencyP50')} value={`${Math.round(summary.latency_p50_ms)}ms`} />
         <MetricCard label={t('commandCenter.benchmarkLatencyP95')} value={`${Math.round(summary.latency_p95_ms)}ms`} />
       </div>

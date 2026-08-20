@@ -1,10 +1,17 @@
-"""Learning Timeline API — Unified memory and skill learning stream with inline mutations.
+"""[INPUT]
+- myrm_agent_harness.toolkits.memory::MemoryManager (POS: Harness 记忆底座管理器)
+- app.services.memory.manager_deps::get_crud_memory_manager (POS: 记忆管理器依赖注入)
+- app.core.skills.store.service::skills_service (POS: 技能存储管理服务)
+- app.services.skills.growth.audit_queries::list_skill_growth_timeline (POS: 技能成长审计查询)
 
-Provides:
-- GET /statistics/learning-timeline: Aggregated timeline of memory ingest & skill evolution events.
-- PUT /statistics/learning-timeline/memory/{memory_type}/{memory_id}: Inline edit memory item with user lock.
-- POST /statistics/learning-timeline/skill/{skill_id}/archive: Inline archive/disable skill.
-- DELETE /statistics/learning-timeline/memory/{memory_id}: Inline delete memory.
+[OUTPUT]
+- get_learning_timeline: 聚合全域记忆与技能成长时序流
+- update_timeline_memory: 行内更新记忆并锁定用户校准
+- archive_timeline_skill: 行内归档/启用技能
+- delete_timeline_memory: 行内删除记忆
+
+[POS]
+统一学习时间线 API。汇聚 Agent 记忆沉淀与技能演化生命周期事件，提供游标分页与行内即时治理能力。
 """
 
 from __future__ import annotations

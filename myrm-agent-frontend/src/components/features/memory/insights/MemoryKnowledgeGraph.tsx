@@ -107,7 +107,12 @@ const getNodeDisplayName = (node: ForceNode): string => {
   return node.labels[0] ?? node.id.slice(0, 8);
 };
 
-const MemoryKnowledgeGraph = memo<{ className?: string }>(({ className }) => {
+interface MemoryKnowledgeGraphProps {
+  className?: string;
+  initialFocusNodeId?: string;
+}
+
+const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initialFocusNodeId }) => {
   const t = useTranslations('memory');
   const themeColors = useCanvasLabelColor();
   const containerRef = useRef<HTMLDivElement>(null);
