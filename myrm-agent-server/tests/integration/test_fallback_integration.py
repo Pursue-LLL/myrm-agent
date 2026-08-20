@@ -30,12 +30,8 @@ class TestProviderChainIntegration:
     @pytest.mark.asyncio
     async def test_chain_with_invalid_tavily_key(self):
         cfg = _chain_config(
-            SearchServiceConfig(
-                search_service="tavily", api_key="tvly-invalid-key-for-fallback-test"
-            ),
-            SearchServiceConfig(
-                search_service="searxng", api_base="http://localhost:8081"
-            ),
+            SearchServiceConfig(search_service="tavily", api_key="tvly-invalid-key-for-fallback-test"),
+            SearchServiceConfig(search_service="searxng", api_base="http://localhost:8081"),
         )
 
         metrics = WebSearchMetrics()
@@ -61,9 +57,7 @@ class TestProviderChainIntegration:
 
         cfg = _chain_config(
             SearchServiceConfig(search_service="tavily", api_key=api_key),
-            SearchServiceConfig(
-                search_service="searxng", api_base="http://localhost:8081"
-            ),
+            SearchServiceConfig(search_service="searxng", api_base="http://localhost:8081"),
         )
 
         metrics = WebSearchMetrics()
@@ -75,9 +69,7 @@ class TestProviderChainIntegration:
             assert len(results) > 0
 
             snap = metrics.snapshot()
-            assert (
-                snap["chain_hop_count"] == 0
-            ), "Chain hop should not occur when primary succeeds"
+            assert snap["chain_hop_count"] == 0, "Chain hop should not occur when primary succeeds"
 
             print(f"✓ Primary service test passed: {len(results)} results from Tavily")
         except SearchAPIError as e:

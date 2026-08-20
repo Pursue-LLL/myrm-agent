@@ -127,9 +127,7 @@ class LocalEmbeddingServer:
         if self.port == 0:
             self.port = self._server.server_address[1]
             self.base_url = f"http://127.0.0.1:{self.port}/v1"
-        self._thread = threading.Thread(
-            target=self._server.serve_forever, daemon=True, name="local-embedding-server"
-        )
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True, name="local-embedding-server")
         self._thread.start()
         return self
 

@@ -103,9 +103,7 @@ def test_compress_returns_none_for_unsupported_real_image(tmp_path: Path) -> Non
     from PIL import Image
 
     src = tmp_path / "anim.gif"
-    Image.new("RGB", (100, 100), (10, 200, 30)).save(
-        src, format="GIF", save_all=True, loop=0
-    )
+    Image.new("RGB", (100, 100), (10, 200, 30)).save(src, format="GIF", save_all=True, loop=0)
     assert compress_oversized_image(src, max_bytes=10_000) is None
 
 

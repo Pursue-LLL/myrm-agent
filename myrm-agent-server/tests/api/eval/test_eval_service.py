@@ -64,9 +64,7 @@ class TestBuildEvalManifest:
             "app.core.channel_bridge.config_loader.load_user_configs",
             new=AsyncMock(return_value=configs),
         ):
-            manifest = await _build_eval_manifest(
-                profile_id=None, dataset_id="ds", cases_path=cases_path
-            )
+            manifest = await _build_eval_manifest(profile_id=None, dataset_id="ds", cases_path=cases_path)
 
         assert manifest.profile_id == "default"
         assert manifest.benchmark_mode is False
@@ -396,9 +394,7 @@ class TestResolveJudgeConfig:
 
         with patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
-            new=AsyncMock(
-                return_value=SimpleNamespace(model_cfg=SimpleNamespace(model=None))
-            ),
+            new=AsyncMock(return_value=SimpleNamespace(model_cfg=SimpleNamespace(model=None))),
         ):
             judge, label = await _resolve_judge_config()
         assert judge is None
@@ -450,9 +446,7 @@ class TestRunEvalSuite:
                 "app.core.eval.service._build_eval_manifest",
                 new=AsyncMock(return_value=MagicMock(to_dict=lambda: {"x": 1})),
             ),
-            patch(
-                "app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()
-            ),
+            patch("app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()),
             patch("app.core.eval.service.EvalRunner") as mock_runner_cls,
             patch("app.core.eval.service.JsonlReporter", FakeJsonlReporter),
         ):
@@ -496,16 +490,12 @@ class TestRunEvalSuite:
             avg_pass_rate: float | None = None
 
         with (
-            patch(
-                "app.core.eval.service.get_dataset_path", return_value=cases_path
-            ),
+            patch("app.core.eval.service.get_dataset_path", return_value=cases_path),
             patch(
                 "app.core.eval.service._build_eval_manifest",
                 new=AsyncMock(return_value=MagicMock(to_dict=lambda: {"x": 1})),
             ),
-            patch(
-                "app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()
-            ),
+            patch("app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()),
             patch("app.core.eval.service.EvalRunner") as mock_runner_cls,
             patch("app.core.eval.service.JsonlReporter", FakeJsonlReporter),
             patch(
@@ -529,7 +519,8 @@ class TestRunEvalSuite:
 
     @pytest.mark.asyncio
     async def test_suite_discloses_decontam_active_when_blocked(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """run_eval_suite reports decontam_active from injected blocklists.
 
@@ -537,6 +528,7 @@ class TestRunEvalSuite:
         active so a plain benchmark run cannot be mistaken for a guarded one
         (same disclosure contract as layered and memory A/B reports).
         """
+
         class FakeCase:
             def __init__(self) -> None:
                 self.metadata: dict[str, object] = {}
@@ -558,9 +550,7 @@ class TestRunEvalSuite:
                 "app.core.eval.service._build_eval_manifest",
                 new=AsyncMock(return_value=MagicMock(to_dict=lambda: {"x": 1})),
             ),
-            patch(
-                "app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()
-            ),
+            patch("app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()),
             patch("app.core.eval.service.EvalRunner") as mock_runner_cls,
             patch("app.core.eval.service.JsonlReporter", FakeJsonlReporter),
         ):
@@ -594,16 +584,12 @@ class TestRunEvalSuite:
             avg_pass_rate: float | None = None
 
         with (
-            patch(
-                "app.core.eval.service.get_dataset_path", return_value=cases_path
-            ),
+            patch("app.core.eval.service.get_dataset_path", return_value=cases_path),
             patch(
                 "app.core.eval.service._build_eval_manifest",
                 new=AsyncMock(return_value=MagicMock(to_dict=lambda: {"x": 1})),
             ),
-            patch(
-                "app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()
-            ),
+            patch("app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()),
             patch("app.core.eval.service.EvalRunner") as mock_runner_cls,
             patch("app.core.eval.service.JsonlReporter", FakeJsonlReporter),
             patch(
@@ -636,9 +622,7 @@ class TestBackgroundWrappers:
     @pytest.mark.asyncio
     async def test_background_skips_when_already_running(self) -> None:
         service_mod._eval_state["is_running"] = True
-        with patch(
-            "app.core.eval.service.run_eval_suite", new=AsyncMock()
-        ) as mock_suite:
+        with patch("app.core.eval.service.run_eval_suite", new=AsyncMock()) as mock_suite:
             await run_eval_suite_background(dataset_id="ds")
         mock_suite.assert_not_awaited()
 
@@ -695,9 +679,7 @@ class TestBackgroundWrappers:
         with (
             patch(
                 "app.core.eval.wb_bench.ensure_wb_bench_source",
-                new=AsyncMock(
-                    side_effect=RuntimeError("DownloadAbortedError")
-                ),
+                new=AsyncMock(side_effect=RuntimeError("DownloadAbortedError")),
             ),
             patch("app.core.eval.service.logger.info") as mock_info,
         ):

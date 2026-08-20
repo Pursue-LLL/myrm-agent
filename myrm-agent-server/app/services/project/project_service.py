@@ -59,17 +59,13 @@ class ProjectService:
     @staticmethod
     async def list_projects() -> list[dict[str, object]]:
         async with get_session() as db:
-            stmt = select(Project).order_by(
-                Project.sort_order.asc(), Project.created_at.asc()
-            )
+            stmt = select(Project).order_by(Project.sort_order.asc(), Project.created_at.asc())
             result = await db.execute(stmt)
             projects = result.scalars().all()
             return [_project_to_dict(p) for p in projects]
 
     @staticmethod
-    async def create_project(
-        name: str, color: str | None = None, description: str = ""
-    ) -> dict[str, object]:
+    async def create_project(name: str, color: str | None = None, description: str = "") -> dict[str, object]:
         async with get_session() as db:
             count_stmt = select(func.count(Project.id))
             count_result = await db.execute(count_stmt)
@@ -94,9 +90,7 @@ class ProjectService:
                 name=f"Project: {project.name}",
                 description=f"Shared memory context for project {project.name}",
             )
-            await shared_context_svc.bind_context(
-                context_id=context.id, target_type="project", target_id=project.id
-            )
+            await shared_context_svc.bind_context(context_id=context.id, target_type="project", target_id=project.id)
 
             await db.commit()
             await db.refresh(project)
@@ -155,11 +149,7 @@ class ProjectService:
             if not project:
                 return False
 
-            await db.execute(
-                update(Chat)
-                .where(Chat.project_id == project_id)
-                .values(project_id=None)
-            )
+            await db.execute(update(Chat).where(Chat.project_id == project_id).values(project_id=None))
             await db.execute(delete(Project).where(Project.id == project_id))
             await db.commit()
 
@@ -200,11 +190,7 @@ class ProjectService:
                 if not proj_result.scalar_one_or_none():
                     return 0
 
-            stmt = (
-                update(Chat)
-                .where(Chat.id.in_(chat_ids), Chat.deleted_at.is_(None))
-                .values(project_id=project_id)
-            )
+            stmt = update(Chat).where(Chat.id.in_(chat_ids), Chat.deleted_at.is_(None)).values(project_id=project_id)
             result = await db.execute(stmt)
             await db.commit()
             return result.rowcount  # type: ignore[return-value]

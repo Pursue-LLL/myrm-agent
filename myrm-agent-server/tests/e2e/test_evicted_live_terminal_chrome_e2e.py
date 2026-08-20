@@ -82,9 +82,7 @@ def _seed_uecd_fixture(api_base: str, *, variant: str = "full") -> dict[str, obj
     return seeded
 
 
-def _wait_fixture_assistant_via_api(
-    api_base: str, chat_id: str, *, timeout_sec: float = 60.0
-) -> None:
+def _wait_fixture_assistant_via_api(api_base: str, chat_id: str, *, timeout_sec: float = 60.0) -> None:
     deadline = time.monotonic() + timeout_sec
     last_count = 0
     while time.monotonic() < deadline:
@@ -99,31 +97,22 @@ def _wait_fixture_assistant_via_api(
                         (
                             item
                             for item in messages
-                            if item.get("role") == "assistant"
-                            and _FIXTURE_ANSWER in str(item.get("content") or "")
+                            if item.get("role") == "assistant" and _FIXTURE_ANSWER in str(item.get("content") or "")
                         ),
                         None,
                     )
                     if assistant is not None:
-                        meta = (
-                            assistant.get("metadata")
-                            if isinstance(assistant.get("metadata"), dict)
-                            else {}
-                        )
+                        meta = assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
                         steps = meta.get("progressSteps")
                         if (
                             isinstance(steps, list)
                             and steps
-                            and any(
-                                isinstance(step, dict) and step.get("evicted_file_ref")
-                                for step in steps
-                            )
+                            and any(isinstance(step, dict) and step.get("evicted_file_ref") for step in steps)
                         ):
                             return
         time.sleep(0.5)
     raise AssertionError(
-        f"Fixture assistant not ready via API for chat {chat_id} after {timeout_sec:.0f}s "
-        f"(last_message_count={last_count})"
+        f"Fixture assistant not ready via API for chat {chat_id} after {timeout_sec:.0f}s (last_message_count={last_count})"
     )
 
 
@@ -148,9 +137,7 @@ def _run_drawer_flow(
         terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
         assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
     clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
-    assert (
-        isinstance(clear_result, dict) and clear_result.get("ready") is True
-    ), clear_result
+    assert isinstance(clear_result, dict) and clear_result.get("ready") is True, clear_result
 
     # Pre-register the fetch probe so the click-triggered evicted API request is
     # observed regardless of resource-timing buffer saturation.
@@ -192,26 +179,18 @@ def _run_drawer_flow(
         evicted_request_probe_js(expected_offset=0, expected_limit=500),
         timeout_sec=60.0,
     )
-    assert request_probe.get("hit") is True, json.dumps(
-        request_probe, ensure_ascii=False
-    )
-    assert request_probe.get("hasLimitZero") is False, json.dumps(
-        request_probe, ensure_ascii=False
-    )
+    assert request_probe.get("hit") is True, json.dumps(request_probe, ensure_ascii=False)
+    assert request_probe.get("hasLimitZero") is False, json.dumps(request_probe, ensure_ascii=False)
 
     if expect_expired:
         drawer = wait_for_state(client, page, drawer_expired_js(), timeout_sec=45.0)
     else:
         assert marker_line is not None
-        drawer = wait_for_state(
-            client, page, drawer_ready_js(marker_line), timeout_sec=90.0
-        )
+        drawer = wait_for_state(client, page, drawer_ready_js(marker_line), timeout_sec=90.0)
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_live_terminal_evicted_drawer_reads_uecd_spill_and_expired() -> None:

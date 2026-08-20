@@ -27,16 +27,31 @@ def _make_messages() -> list[MessageDTO]:
     now = datetime.now(timezone.utc)
     return [
         MessageDTO(
-            id="m1", chat_id="chat-1", role="user", content="Hello",
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            id="m1",
+            chat_id="chat-1",
+            role="user",
+            content="Hello",
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
         MessageDTO(
-            id="m2", chat_id="chat-1", role="assistant", content="Hi there!",
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            id="m2",
+            chat_id="chat-1",
+            role="assistant",
+            content="Hi there!",
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
         MessageDTO(
-            id="m3", chat_id="chat-1", role="system", content="System prompt",
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            id="m3",
+            chat_id="chat-1",
+            role="system",
+            content="System prompt",
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
     ]
 
@@ -87,14 +102,22 @@ async def test_render_share_html_escapes_xss(mock_db) -> None:
     now = datetime.now(timezone.utc)
     xss_messages = [
         MessageDTO(
-            id="m1", chat_id="chat-1", role="user",
+            id="m1",
+            chat_id="chat-1",
+            role="user",
             content='<script>alert("xss")</script>',
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
         MessageDTO(
-            id="m2", chat_id="chat-1", role="assistant",
-            content='<img onerror=alert(1) src=x> and **bold**',
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            id="m2",
+            chat_id="chat-1",
+            role="assistant",
+            content="<img onerror=alert(1) src=x> and **bold**",
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
     ]
     with (
@@ -122,14 +145,22 @@ async def test_render_message_markdown(mock_db) -> None:
     now = datetime.now(timezone.utc)
     messages = [
         MessageDTO(
-            id="m1", chat_id="chat-1", role="user",
+            id="m1",
+            chat_id="chat-1",
+            role="user",
             content="**not bold** `not code`",
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
         MessageDTO(
-            id="m2", chat_id="chat-1", role="assistant",
+            id="m2",
+            chat_id="chat-1",
+            role="assistant",
             content="**bold** and `code`\n\n```python\nprint(1)\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |",
-            sent_at=now, sent_timezone="UTC", created_at=now,
+            sent_at=now,
+            sent_timezone="UTC",
+            created_at=now,
         ),
     ]
     with (

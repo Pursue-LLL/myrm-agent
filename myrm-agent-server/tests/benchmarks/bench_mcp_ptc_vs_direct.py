@@ -36,10 +36,7 @@ def _resolve_12306_mcp_stdio() -> tuple[str, list[str]]:
         return global_bin, []
     node = shutil.which("node")
     if node:
-        candidate = (
-            Path(node).resolve().parent.parent
-            / "lib/node_modules/12306-mcp/build/index.js"
-        )
+        candidate = Path(node).resolve().parent.parent / "lib/node_modules/12306-mcp/build/index.js"
         if candidate.is_file():
             return node, [str(candidate)]
     npx_cmd = shutil.which("npx")
@@ -75,9 +72,7 @@ def _load_model_configs() -> list[dict[str, str]]:
             }
         )
     if not configs:
-        raise RuntimeError(
-            "No credentials in .env.test. Set BASIC_API_KEY, BASIC_BASE_URL, BASIC_MODEL (and optionally LITE_*)."
-        )
+        raise RuntimeError("No credentials in .env.test. Set BASIC_API_KEY, BASIC_BASE_URL, BASIC_MODEL (and optionally LITE_*).")
     return configs
 
 
@@ -86,9 +81,7 @@ async def _get_mcp_tools() -> tuple[list[object], list[dict[str, object]], int]:
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
     mcp_cmd, mcp_args = _resolve_12306_mcp_stdio()
-    client = MultiServerMCPClient(
-        {"12306": {"command": mcp_cmd, "args": mcp_args, "transport": "stdio"}}
-    )
+    client = MultiServerMCPClient({"12306": {"command": mcp_cmd, "args": mcp_args, "transport": "stdio"}})
     tools = await client.get_tools()
 
     tool_defs = []
@@ -206,10 +199,7 @@ async def bench_direct(
         "mcp_time": total_exec,
         "total_input": sum(u.get("prompt_tokens", 0) for u in all_usages),
         "total_output": sum(u.get("completion_tokens", 0) for u in all_usages),
-        "cached": sum(
-            u.get("prompt_tokens_details", {}).get("cached_tokens", 0)
-            for u in all_usages
-        ),
+        "cached": sum(u.get("prompt_tokens_details", {}).get("cached_tokens", 0) for u in all_usages),
         "schema_per_round": schema_tokens,
     }
 
@@ -339,10 +329,7 @@ G9 北京南-上海虹桥 10:00-14:32 4h32m 二等座¥553 有票"""
         "mcp_time": 0,
         "total_input": sum(u.get("prompt_tokens", 0) for u in all_usages),
         "total_output": sum(u.get("completion_tokens", 0) for u in all_usages),
-        "cached": sum(
-            u.get("prompt_tokens_details", {}).get("cached_tokens", 0)
-            for u in all_usages
-        ),
+        "cached": sum(u.get("prompt_tokens_details", {}).get("cached_tokens", 0) for u in all_usages),
         "schema_per_round": schema_tokens,
     }
 
@@ -379,9 +366,7 @@ async def main() -> None:
             try:
                 # 每次新建 MCP 连接以模拟真实场景
                 fresh_tools, fresh_defs, fresh_schema = await _get_mcp_tools()
-                d = await bench_direct(
-                    api_key, base_url, model, fresh_tools, fresh_defs, fresh_schema
-                )
+                d = await bench_direct(api_key, base_url, model, fresh_tools, fresh_defs, fresh_schema)
                 print(
                     f"  [直连] {d['rounds']}轮 | {d['total_time']:.1f}s | in={d['total_input']} out={d['total_output']} cached={d['cached']}"
                 )
@@ -473,9 +458,7 @@ async def main() -> None:
                 d_str = f"{d_avg:.0f}"
                 p_str = f"{p_avg:.0f}"
 
-            winner = (
-                "PTC更优" if ratio < 0.95 else ("直连更优" if ratio > 1.05 else "持平")
-            )
+            winner = "PTC更优" if ratio < 0.95 else ("直连更优" if ratio > 1.05 else "持平")
             print(f"  {mlabel:<22} {d_str:<18} {p_str:<18} {ratio:.2f}x ({winner})")
 
         # 每轮明细
@@ -496,32 +479,16 @@ async def main() -> None:
     print("                         📋 总结论")
     print(f"{'=' * 80}")
 
-    total_d_input = sum(
-        r["direct"]["total_input"] for r in all_results if not r["direct"].get("error")
-    )
-    total_p_input = sum(
-        r["ptc"]["total_input"] for r in all_results if not r["ptc"].get("error")
-    )
-    total_d_time = sum(
-        r["direct"]["total_time"] for r in all_results if not r["direct"].get("error")
-    )
-    total_p_time = sum(
-        r["ptc"]["total_time"] for r in all_results if not r["ptc"].get("error")
-    )
-    n_valid = sum(
-        1
-        for r in all_results
-        if not r["direct"].get("error") and not r["ptc"].get("error")
-    )
+    total_d_input = sum(r["direct"]["total_input"] for r in all_results if not r["direct"].get("error"))
+    total_p_input = sum(r["ptc"]["total_input"] for r in all_results if not r["ptc"].get("error"))
+    total_d_time = sum(r["direct"]["total_time"] for r in all_results if not r["direct"].get("error"))
+    total_p_time = sum(r["ptc"]["total_time"] for r in all_results if not r["ptc"].get("error"))
+    n_valid = sum(1 for r in all_results if not r["direct"].get("error") and not r["ptc"].get("error"))
 
     if n_valid > 0:
         print(f"\n  有效测试: {n_valid} 次")
-        print(
-            f"  全局输入token: 直连 {total_d_input} vs PTC {total_p_input} (PTC/直连 = {total_p_input / total_d_input:.2f}x)"
-        )
-        print(
-            f"  全局耗时: 直连 {total_d_time:.1f}s vs PTC {total_p_time:.1f}s (PTC/直连 = {total_p_time / total_d_time:.2f}x)"
-        )
+        print(f"  全局输入token: 直连 {total_d_input} vs PTC {total_p_input} (PTC/直连 = {total_p_input / total_d_input:.2f}x)")
+        print(f"  全局耗时: 直连 {total_d_time:.1f}s vs PTC {total_p_time:.1f}s (PTC/直连 = {total_p_time / total_d_time:.2f}x)")
 
         if total_p_input < total_d_input:
             pct = (1 - total_p_input / total_d_input) * 100

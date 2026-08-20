@@ -136,9 +136,7 @@ def test_team_hub_renders_builtin_badge_and_localized_names() -> None:
         assert state.get("hasBuiltinBadge") is True
         assert state.get("hasLocalizedName") is True
         assert state.get("agentRows") and state["agentRows"] > 0
-        assert state.get("leaksEnglishName") is False, (
-            "zh UI leaked raw English built-in agent name; getBuiltinAgentName missing"
-        )
+        assert state.get("leaksEnglishName") is False, "zh UI leaked raw English built-in agent name; getBuiltinAgentName missing"
 
         # Follow-ups tab: built-in agent name in the agent filter dropdown must be localized.
         client.navigate(
@@ -152,9 +150,7 @@ def test_team_hub_renders_builtin_badge_and_localized_names() -> None:
             _FOLLOW_UPS_STATE_JS,
             timeout_sec=_warm_ui_parallel_wait_sec(60.0),
         )
-        assert follow_state.get("ready") is True, json.dumps(
-            follow_state, indent=2, ensure_ascii=False
-        )
+        assert follow_state.get("ready") is True, json.dumps(follow_state, indent=2, ensure_ascii=False)
         assert follow_state.get("hasLocalizedAgentName") is True
         assert follow_state.get("leaksEnglishName") is False, (
             "zh UI leaked raw English built-in agent name in follow-ups filter; getBuiltinAgentName missing"

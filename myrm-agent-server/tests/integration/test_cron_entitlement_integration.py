@@ -35,9 +35,7 @@ async def test_create_job_succeeds_in_local_entitlement_mode() -> None:
     mgr = _build_guarded_manager()
     schedule = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=300_000)
 
-    with patch(
-        "app.platform_utils.deployment_capabilities.get_deployment_capabilities"
-    ) as mock_caps:
+    with patch("app.platform_utils.deployment_capabilities.get_deployment_capabilities") as mock_caps:
         mock_caps.return_value.uses_cp_entitlements = False
         job = await mgr.create_job(
             user_id="default",
@@ -64,9 +62,7 @@ async def test_create_job_blocked_when_sandbox_not_entitled() -> None:
     from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
 
     with (
-        patch(
-            "app.platform_utils.deployment_capabilities.get_deployment_capabilities"
-        ) as mock_caps,
+        patch("app.platform_utils.deployment_capabilities.get_deployment_capabilities") as mock_caps,
         patch(
             "app.platform_utils.sandbox.entitlements.entitlement_guard.fetch_sandbox_entitlements",
             return_value=mock_ent,
@@ -98,9 +94,7 @@ async def test_create_job_blocked_at_max_cron_triggers() -> None:
     mock_ent.max_cron_triggers = 1
 
     with (
-        patch(
-            "app.platform_utils.deployment_capabilities.get_deployment_capabilities"
-        ) as mock_caps,
+        patch("app.platform_utils.deployment_capabilities.get_deployment_capabilities") as mock_caps,
         patch(
             "app.platform_utils.sandbox.entitlements.entitlement_guard.fetch_sandbox_entitlements",
             return_value=mock_ent,

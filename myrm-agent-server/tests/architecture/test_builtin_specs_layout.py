@@ -31,9 +31,7 @@ _FORBIDDEN_LEGACY_FLAT_FILES = (
 
 @pytest.mark.architecture
 def test_builtin_specs_subpackage_layout() -> None:
-    assert _BUILTIN_SPECS_PACKAGE.is_dir(), (
-        f"Missing {_BUILTIN_SPECS_PACKAGE}. See app/services/agent/builtin_specs/_ARCH.md."
-    )
+    assert _BUILTIN_SPECS_PACKAGE.is_dir(), f"Missing {_BUILTIN_SPECS_PACKAGE}. See app/services/agent/builtin_specs/_ARCH.md."
     for filename in _REQUIRED_MODULE_FILES:
         path = _BUILTIN_SPECS_PACKAGE / filename
         assert path.is_file(), f"Missing required builtin_specs module file: {path}"
@@ -44,17 +42,14 @@ def test_builtin_specs_subpackage_layout() -> None:
 def test_builtin_specs_legacy_flat_files_removed(legacy_filename: str) -> None:
     legacy_path = _AGENT_SERVICES_ROOT / legacy_filename
     assert not legacy_path.exists(), (
-        f"Legacy flat builtin specs file must not reappear: {legacy_path}. "
-        "Use app/services/agent/builtin_specs/ instead."
+        f"Legacy flat builtin specs file must not reappear: {legacy_path}. Use app/services/agent/builtin_specs/ instead."
     )
 
 
 @pytest.mark.architecture
 def test_builtin_specs_public_facade_at_agent_root() -> None:
     facade_path = _AGENT_SERVICES_ROOT / "builtin_agent_specs.py"
-    assert facade_path.is_file(), (
-        "Public aggregation facade must remain at app/services/agent/builtin_agent_specs.py"
-    )
+    assert facade_path.is_file(), "Public aggregation facade must remain at app/services/agent/builtin_agent_specs.py"
 
 
 @pytest.mark.architecture

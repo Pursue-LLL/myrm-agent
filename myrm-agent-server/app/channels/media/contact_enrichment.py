@@ -68,7 +68,7 @@ def _parse_vcard(text: str) -> dict[str, str | list[str]]:
             continue
 
         key_part = line[:colon_idx].upper()
-        value = line[colon_idx + 1:].strip()
+        value = line[colon_idx + 1 :].strip()
         if not value:
             continue
 

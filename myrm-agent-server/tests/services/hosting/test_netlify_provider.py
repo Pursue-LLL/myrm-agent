@@ -58,9 +58,7 @@ async def test_netlify_publish_success() -> None:
 @pytest.mark.asyncio
 async def test_netlify_poll_status_ready() -> None:
     provider = NetlifyHostingProvider()
-    target = HostingTarget(
-        id="n1", name="N", provider_type="netlify", config={}, is_default=False
-    )
+    target = HostingTarget(id="n1", name="N", provider_type="netlify", config={}, is_default=False)
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -92,9 +90,7 @@ async def test_netlify_test_connection_success() -> None:
         return httpx.Response(200, json={"email": "user@example.com"}, request=request)
 
     transport = httpx.MockTransport(handler)
-    target = HostingTarget(
-        id="n1", name="N", provider_type="netlify", config={}, is_default=False
-    )
+    target = HostingTarget(id="n1", name="N", provider_type="netlify", config={}, is_default=False)
     with patch(
         "app.services.hosting.providers.netlify.httpx.AsyncClient",
         return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
@@ -117,9 +113,7 @@ async def test_netlify_publish_non_json_response() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":
-            return httpx.Response(
-                200, text="<html>Gateway error page</html>", request=request
-            )
+            return httpx.Response(200, text="<html>Gateway error page</html>", request=request)
         return httpx.Response(404, request=request)
 
     transport = httpx.MockTransport(handler)
@@ -143,9 +137,7 @@ async def test_netlify_publish_non_json_response() -> None:
 @pytest.mark.asyncio
 async def test_netlify_publish_missing_credentials() -> None:
     provider = NetlifyHostingProvider()
-    target = HostingTarget(
-        id="n1", name="N", provider_type="netlify", config={}, is_default=False
-    )
+    target = HostingTarget(id="n1", name="N", provider_type="netlify", config={}, is_default=False)
     result = await provider.publish(
         target=target,
         credentials={},

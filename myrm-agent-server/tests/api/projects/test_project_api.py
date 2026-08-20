@@ -512,9 +512,7 @@ async def test_update_name_and_default_agent_together(async_client: httpx.AsyncC
     create_resp = await async_client.post(f"{PREFIX}/", json={"name": "DA Combined"})
     project_id = create_resp.json()["data"]["project"]["id"]
 
-    resp = await async_client.put(
-        f"{PREFIX}/{project_id}", json={"name": "DA Combined Updated", "default_agent_id": agent_id}
-    )
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"name": "DA Combined Updated", "default_agent_id": agent_id})
     assert resp.status_code == 200
     project = resp.json()["data"]["project"]
     assert project["name"] == "DA Combined Updated"

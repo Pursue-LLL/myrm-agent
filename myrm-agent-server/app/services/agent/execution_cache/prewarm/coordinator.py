@@ -56,18 +56,12 @@ class TurnPrewarmCoordinator:
     def _prune_agent_ready_at(self) -> None:
         self._brief_cache.prune_expired()
         now = time.monotonic()
-        stale_keys = [
-            key
-            for key, ready_at in self._agent_ready_at.items()
-            if now - ready_at > _AGENT_READY_TTL_SECONDS
-        ]
+        stale_keys = [key for key, ready_at in self._agent_ready_at.items() if now - ready_at > _AGENT_READY_TTL_SECONDS]
         for key in stale_keys:
             self._agent_ready_at.pop(key, None)
         if len(self._agent_ready_at) > _AGENT_READY_MAX_ENTRIES:
             excess = len(self._agent_ready_at) - _AGENT_READY_MAX_ENTRIES
-            oldest = sorted(self._agent_ready_at, key=lambda key: self._agent_ready_at[key])[
-                :excess
-            ]
+            oldest = sorted(self._agent_ready_at, key=lambda key: self._agent_ready_at[key])[:excess]
             for key in oldest:
                 self._agent_ready_at.pop(key, None)
 
@@ -119,18 +113,10 @@ class TurnPrewarmCoordinator:
             for key, task in list(self._inflight_brief.items()):
                 if key.startswith(prefix) and not task.done():
                     task.cancel()
-            self._inflight_acquire = {
-                k: v for k, v in self._inflight_acquire.items() if not k.startswith(prefix)
-            }
-            self._inflight_brief = {
-                k: v for k, v in self._inflight_brief.items() if not k.startswith(prefix)
-            }
+            self._inflight_acquire = {k: v for k, v in self._inflight_acquire.items() if not k.startswith(prefix)}
+            self._inflight_brief = {k: v for k, v in self._inflight_brief.items() if not k.startswith(prefix)}
         self._brief_cache.invalidate_scope(scope_key)
-        self._agent_ready_at = {
-            key: ready_at
-            for key, ready_at in self._agent_ready_at.items()
-            if not key.startswith(prefix)
-        }
+        self._agent_ready_at = {key: ready_at for key, ready_at in self._agent_ready_at.items() if not key.startswith(prefix)}
 
     async def join_for_turn(
         self,

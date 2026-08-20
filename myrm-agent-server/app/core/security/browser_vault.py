@@ -147,8 +147,6 @@ async def cleanup_all_agent_vaults() -> int:
             removed = await vault.cleanup_expired()
             total_removed += removed
         except Exception as exc:
-            logger.warning(
-                "Failed to cleanup expired sessions for agent %s: %s", agent_id, exc
-            )
+            logger.warning("Failed to cleanup expired sessions for agent %s: %s", agent_id, exc)
 
     return total_removed

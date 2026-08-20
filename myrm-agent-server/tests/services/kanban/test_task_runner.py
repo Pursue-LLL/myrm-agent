@@ -37,16 +37,12 @@ async def test_kanban_task_runner_uses_unattended_mode():
     mock_settings.event_log_max_jsonl_line_bytes = 1024
 
     with (
-        patch(
-            "app.ai_agents.agents.AgentFactory.create_general_agent"
-        ) as mock_create_agent,
+        patch("app.ai_agents.agents.AgentFactory.create_general_agent") as mock_create_agent,
         patch(
             "app.services.kanban.task_runner.runner.build_task_context",
             new_callable=AsyncMock,
         ) as mock_build_context,
-        patch.object(
-            runner, "_resolve_profile", new_callable=AsyncMock
-        ) as mock_resolve_profile,
+        patch.object(runner, "_resolve_profile", new_callable=AsyncMock) as mock_resolve_profile,
         patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
             new_callable=AsyncMock,
@@ -93,15 +89,9 @@ async def test_kanban_task_runner_uses_unattended_mode():
         params = mock_create_agent.call_args[0][0]
 
         assert isinstance(params, GeneralAgentParams)
-        assert (
-            params.unattended_mode is True
-        ), "Kanban tasks must run in unattended_mode to prevent blocking"
-        assert (
-            params.event_log_dir == "/tmp/test-event-logs"
-        ), "Kanban tasks must write event logs so runs trace is available"
-        assert (
-            params.event_log_max_jsonl_line_bytes == 1024
-        ), "Kanban task event logs must cap JSONL line bytes"
+        assert params.unattended_mode is True, "Kanban tasks must run in unattended_mode to prevent blocking"
+        assert params.event_log_dir == "/tmp/test-event-logs", "Kanban tasks must write event logs so runs trace is available"
+        assert params.event_log_max_jsonl_line_bytes == 1024, "Kanban task event logs must cap JSONL line bytes"
 
 
 class TestResolvedProfile:
@@ -235,9 +225,7 @@ class TestBuildMultimodalQuery:
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
-            patch.object(
-                runner, "_extract_pdf_text", return_value="extracted pdf content"
-            ),
+            patch.object(runner, "_extract_pdf_text", return_value="extracted pdf content"),
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,
@@ -256,9 +244,7 @@ class TestBuildMultimodalQuery:
         task = KanbanTask(task_id="t1", board_id="b1", title="T")
 
         mock_file = MagicMock()
-        mock_file.content_type = (
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+        mock_file.content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         mock_file.filename = "spec.docx"
 
         mock_fs = MagicMock()
@@ -270,9 +256,7 @@ class TestBuildMultimodalQuery:
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
-            patch.object(
-                runner, "_extract_document_text", return_value="document text here"
-            ),
+            patch.object(runner, "_extract_document_text", return_value="document text here"),
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,
@@ -294,9 +278,7 @@ class TestBuildMultimodalQuery:
         pdf_file = MagicMock(content_type="application/pdf", filename="notes.pdf")
 
         mock_fs = MagicMock()
-        mock_fs.get_file = AsyncMock(
-            side_effect=lambda fid: img_file if fid == "img1" else pdf_file
-        )
+        mock_fs.get_file = AsyncMock(side_effect=lambda fid: img_file if fid == "img1" else pdf_file)
 
         mock_configs = MagicMock()
         mock_configs.personal_settings_dict = {"extractDocumentText": True}
@@ -473,9 +455,7 @@ class TestBuildMultimodalRealExtraction:
         task = KanbanTask(task_id="t1", board_id="b1", title="T")
 
         mock_file = MagicMock()
-        mock_file.content_type = (
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+        mock_file.content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         mock_file.filename = "spec.docx"
 
         mock_fs = MagicMock()
@@ -613,9 +593,7 @@ class TestResolveRunOutcome:
         mock_store.get_task.return_value = task
         runner = KanbanTaskRunner(mock_store)
 
-        ok, msg = await runner._resolve_run_outcome(
-            "t-violation", (True, "forgot kanban_complete")
-        )
+        ok, msg = await runner._resolve_run_outcome("t-violation", (True, "forgot kanban_complete"))
 
         assert ok is False
         assert msg == _PROTOCOL_VIOLATION_MSG
@@ -683,9 +661,7 @@ class TestTaskModelOverride:
             return mock_model_cfg
 
         with (
-            patch(
-                "app.ai_agents.agents.AgentFactory.create_general_agent"
-            ) as mock_create_agent,
+            patch("app.ai_agents.agents.AgentFactory.create_general_agent") as mock_create_agent,
             patch(
                 "app.services.kanban.task_runner.runner.build_task_context",
                 new_callable=AsyncMock,
@@ -787,9 +763,7 @@ class TestKanbanEnableMemory:
             ({}, False),
         ],
     )
-    async def test_enable_memory_follows_global_switch(
-        self, personal_settings, expected
-    ):
+    async def test_enable_memory_follows_global_switch(self, personal_settings, expected):
         task = KanbanTask(
             task_id="memory-task-1",
             board_id="board-1",
@@ -809,16 +783,12 @@ class TestKanbanEnableMemory:
         mock_settings.event_log_max_jsonl_line_bytes = 1024
 
         with (
-            patch(
-                "app.ai_agents.agents.AgentFactory.create_general_agent"
-            ) as mock_create_agent,
+            patch("app.ai_agents.agents.AgentFactory.create_general_agent") as mock_create_agent,
             patch(
                 "app.services.kanban.task_runner.runner.build_task_context",
                 new_callable=AsyncMock,
             ) as mock_build_context,
-            patch.object(
-                runner, "_resolve_profile", new_callable=AsyncMock
-            ) as mock_resolve_profile,
+            patch.object(runner, "_resolve_profile", new_callable=AsyncMock) as mock_resolve_profile,
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,

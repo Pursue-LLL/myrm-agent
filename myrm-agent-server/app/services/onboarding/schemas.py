@@ -24,9 +24,7 @@ _ORIGIN = "second_brain_preset"
 
 
 class ChecklistItem(BaseModel):
-    id: Literal[
-        "agent_tools", "cron_job", "vault_content", "corpus_dedup", "provider_ready"
-    ]
+    id: Literal["agent_tools", "cron_job", "vault_content", "corpus_dedup", "provider_ready"]
     ready: bool
 
 

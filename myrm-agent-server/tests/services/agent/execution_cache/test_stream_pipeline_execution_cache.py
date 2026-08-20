@@ -64,9 +64,7 @@ async def _collect_pipeline_events(
 @pytest.mark.asyncio
 async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
         chat_id="chat-pool-1",
         agent_id="agent-a",
@@ -110,9 +108,7 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
         patch(
             "app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware.reset_answer_tool_convergence",
         ),
-        patch(
-            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
-        ),
+        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
         patch(
             "app.services.web_fetch.binding.open_web_fetch_escalation_context",
             noop_async_context,
@@ -142,9 +138,7 @@ async def test_pooled_same_chat_builds_once_across_two_messages() -> None:
 @pytest.mark.asyncio
 async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
         chat_id="chat-ephemeral-1",
     )
@@ -188,9 +182,7 @@ async def test_ephemeral_same_chat_rebuilds_each_message() -> None:
         patch(
             "app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware.reset_answer_tool_convergence",
         ),
-        patch(
-            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
-        ),
+        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
         patch(
             "app.services.web_fetch.binding.open_web_fetch_escalation_context",
             noop_async_context,
@@ -230,9 +222,7 @@ async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
     from myrm_agent_harness.agent.security.types import SecurityConfig
 
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
         chat_id="chat-yolo-ctx",
         agent_id="agent-yolo",
@@ -285,9 +275,7 @@ async def test_pooled_stream_seeds_yolo_security_context_before_run() -> None:
             "myrm_agent_harness.api.hooks.set_security_config",
             side_effect=_capture_seed,
         ),
-        patch(
-            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
-        ),
+        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
         patch(
             "app.services.web_fetch.binding.open_web_fetch_escalation_context",
             noop_async_context,
@@ -316,9 +304,7 @@ async def test_goal_provider_injection_decoupled_from_memory_manager() -> None:
     keep working).
     """
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
         chat_id="chat-goal-provider",
     )
@@ -366,9 +352,7 @@ async def test_goal_provider_injection_decoupled_from_memory_manager() -> None:
         patch(
             "app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware.reset_answer_tool_convergence",
         ),
-        patch(
-            "app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context
-        ),
+        patch("app.services.infra.sleep_inhibitor.SleepInhibitor.hold", noop_async_context),
         patch(
             "app.services.web_fetch.binding.open_web_fetch_escalation_context",
             noop_async_context,

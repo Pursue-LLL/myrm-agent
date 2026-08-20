@@ -29,12 +29,8 @@ class TestCollectChannelArtifacts:
 
         collect_channel_artifacts(event, acc)
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
-    )
-    def test_shareable_artifact_tracked(
-        self, mock_shareable: MagicMock, tmp_path
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
+    def test_shareable_artifact_tracked(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
         f = tmp_path / "chart.html"
         f.write_text("<html></html>")
         acc = StreamAccumulator()
@@ -58,12 +54,8 @@ class TestCollectChannelArtifacts:
         assert sa.filename == "chart.html"
         assert sa.artifact_type == "text/html"
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=False
-    )
-    def test_non_shareable_not_tracked(
-        self, mock_shareable: MagicMock, tmp_path
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=False)
+    def test_non_shareable_not_tracked(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
         f = tmp_path / "data.csv"
         f.write_text("a,b\n1,2")
         acc = StreamAccumulator()
@@ -82,12 +74,8 @@ class TestCollectChannelArtifacts:
         assert len(acc.file_attachments) == 1
         assert len(acc.shareable_artifacts) == 0
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
-    )
-    def test_missing_artifact_id_not_tracked(
-        self, mock_shareable: MagicMock, tmp_path
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
+    def test_missing_artifact_id_not_tracked(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
         f = tmp_path / "page.html"
         f.write_text("<html></html>")
         acc = StreamAccumulator()
@@ -160,10 +148,7 @@ class TestBuildArtifactDeepLinks:
 
         assert buttons == ()
         assert linked == frozenset()
-        assert any(
-            "no public ingress base URL" in record.message
-            for record in caplog.records
-        )
+        assert any("no public ingress base URL" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
     @patch(
@@ -201,10 +186,7 @@ class TestBuildArtifactDeepLinks:
 
         assert buttons == ()
         assert linked == frozenset()
-        assert any(
-            "no artifact versions found" in record.message
-            for record in caplog.records
-        )
+        assert any("no artifact versions found" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
     @patch(
@@ -250,10 +232,7 @@ class TestBuildArtifactDeepLinks:
 
         assert len(buttons) == 1
         assert linked == frozenset({"report.html"})
-        assert any(
-            "no version_id in DB" in record.message and "art-missing" in record.message
-            for record in caplog.records
-        )
+        assert any("no version_id in DB" in record.message and "art-missing" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
     @patch(
@@ -492,12 +471,8 @@ class TestBuildArtifactDeepLinks:
         )
 
         acc = StreamAccumulator()
-        acc.shareable_artifacts.append(
-            ShareableArtifact("art-001", "a.html", "text/html")
-        )
-        acc.shareable_artifacts.append(
-            ShareableArtifact("art-002", "b.pdf", "application/pdf")
-        )
+        acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
+        acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.pdf", "application/pdf"))
         buttons, linked = await build_artifact_deep_links(acc, "zh")
         assert len(buttons) == 2
         # channel_t called with artifact_deep_link_named for multi
@@ -537,9 +512,7 @@ class TestBuildArtifactDeepLinks:
         )
 
         acc = StreamAccumulator()
-        acc.shareable_artifacts.append(
-            ShareableArtifact("art-001", "chart.html", "text/html")
-        )
+        acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "text/html"))
         buttons, linked = await build_artifact_deep_links(acc, "en")
         # Token failed, no buttons generated, nothing linked.
         assert buttons == ()
@@ -549,12 +522,8 @@ class TestBuildArtifactDeepLinks:
 class TestCollectMultipleArtifacts:
     """Edge cases for collecting multiple artifacts."""
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
-    )
-    def test_oversized_shareable_tracked_with_fallback_note(
-        self, mock_shareable: MagicMock, tmp_path
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
+    def test_oversized_shareable_tracked_with_fallback_note(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
         f = tmp_path / "huge.html"
         f.write_bytes(b"x" * (6 * 1024 * 1024))  # 6MB > 5MB limit
         acc = StreamAccumulator()
@@ -587,9 +556,7 @@ class TestCollectMultipleArtifacts:
         "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
         return_value="",
     )
-    async def test_deep_link_failure_keeps_fallback_note(
-        self, mock_base: MagicMock
-    ):  # noqa: ANN001
+    async def test_deep_link_failure_keeps_fallback_note(self, mock_base: MagicMock):  # noqa: ANN001
         """No public base URL → no button, but the fallback note survives."""
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
@@ -606,12 +573,8 @@ class TestCollectMultipleArtifacts:
         # Note must stay present when no button was produced.
         assert acc.oversized_deliverables == [("report.pdf", "8.0 MB")]
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=False
-    )
-    def test_oversized_non_shareable_reported(
-        self, mock_shareable: MagicMock, tmp_path
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=False)
+    def test_oversized_non_shareable_reported(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
         f = tmp_path / "huge.csv"
         f.write_bytes(b"x" * (6 * 1024 * 1024))  # 6MB > 5MB limit
         acc = StreamAccumulator()
@@ -637,9 +600,7 @@ class TestCollectMultipleArtifacts:
         assert len(acc.shareable_artifacts) == 0
         assert acc.oversized_deliverables == [("huge.csv", "6.0 MB")]
 
-    def test_oversized_image_compressed_into_attachment(
-        self, tmp_path, monkeypatch
-    ):  # noqa: ANN001
+    def test_oversized_image_compressed_into_attachment(self, tmp_path, monkeypatch):  # noqa: ANN001
         from PIL import Image
 
         from app.core.channel_bridge.agent_executor.deliverable import deep_links
@@ -676,9 +637,7 @@ class TestCollectMultipleArtifacts:
         for p in acc.pending_tmp_paths:
             Path(p).unlink(missing_ok=True)
 
-    def test_oversized_webp_compressed_filename_aligned(
-        self, tmp_path, monkeypatch
-    ):  # noqa: ANN001
+    def test_oversized_webp_compressed_filename_aligned(self, tmp_path, monkeypatch):  # noqa: ANN001
         from PIL import Image
 
         from app.core.channel_bridge.agent_executor.deliverable import deep_links
@@ -712,12 +671,8 @@ class TestCollectMultipleArtifacts:
         for p in acc.pending_tmp_paths:
             Path(p).unlink(missing_ok=True)
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
-    )
-    def test_nonexistent_file_skipped(
-        self, mock_shareable: MagicMock, caplog: pytest.LogCaptureFixture
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
+    def test_nonexistent_file_skipped(self, mock_shareable: MagicMock, caplog: pytest.LogCaptureFixture):  # noqa: ANN001
         acc = StreamAccumulator()
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
@@ -739,10 +694,7 @@ class TestCollectMultipleArtifacts:
             )
         assert len(acc.file_attachments) == 0
         assert len(acc.shareable_artifacts) == 0
-        assert any(
-            "Skipping artifact with missing file_path" in record.message
-            for record in caplog.records
-        )
+        assert any("Skipping artifact with missing file_path" in record.message for record in caplog.records)
 
     def test_invalid_data_types_skipped(self):
         acc = StreamAccumulator()
@@ -753,12 +705,8 @@ class TestCollectMultipleArtifacts:
         collect_channel_artifacts({"data": ["not_a_dict", 42, None]}, acc)
         assert len(acc.file_attachments) == 0
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
-    )
-    def test_non_string_file_path_skipped(
-        self, mock_shareable: MagicMock
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
+    def test_non_string_file_path_skipped(self, mock_shareable: MagicMock):  # noqa: ANN001
         acc = StreamAccumulator()
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             collect_channel_artifacts,
@@ -780,12 +728,8 @@ class TestCollectMultipleArtifacts:
         assert len(acc.file_attachments) == 0
         assert len(acc.shareable_artifacts) == 0
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
-    )
-    def test_getsize_oserror_skipped(
-        self, mock_shareable: MagicMock, tmp_path, monkeypatch: pytest.MonkeyPatch
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
+    def test_getsize_oserror_skipped(self, mock_shareable: MagicMock, tmp_path, monkeypatch: pytest.MonkeyPatch):  # noqa: ANN001
         f = tmp_path / "race.html"
         f.write_text("<html></html>")
         monkeypatch.setattr(
@@ -854,9 +798,7 @@ class TestFetchArtifactVersions:
         from app.database.models import Base
         from app.database.models.artifact import Artifact, ArtifactVersion
 
-        engine = create_async_engine(
-            "sqlite+aiosqlite:///file:deep_links_test?mode=memory&cache=shared&uri=true"
-        )
+        engine = create_async_engine("sqlite+aiosqlite:///file:deep_links_test?mode=memory&cache=shared&uri=true")
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -912,9 +854,7 @@ class TestFetchArtifactVersions:
             await db.commit()
 
             # Give the two versions distinct creation times so the max pick is deterministic.
-            stmt = select(ArtifactVersion).where(
-                ArtifactVersion.artifact_id == "art-1"
-            )
+            stmt = select(ArtifactVersion).where(ArtifactVersion.artifact_id == "art-1")
             rows = (await db.execute(stmt)).scalars().all()
             import datetime
 
@@ -926,12 +866,8 @@ class TestFetchArtifactVersions:
             async def fake_get_session():
                 yield db
 
-            with patch(
-                "app.database.connection.get_session", new=fake_get_session
-            ):
-                result = await fetch_artifact_versions(
-                    ["art-1", "art-2", "art-3", "art-4"]
-                )
+            with patch("app.database.connection.get_session", new=fake_get_session):
+                result = await fetch_artifact_versions(["art-1", "art-2", "art-3", "art-4"])
 
         assert result == {"art-1": "v-new", "art-2": "v-solo"}
         await engine.dispose()
@@ -940,12 +876,8 @@ class TestFetchArtifactVersions:
 class TestCollectEmptyFileSkipped:
     """Zero-byte files must be skipped."""
 
-    @patch(
-        "app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True
-    )
-    def test_zero_byte_file_skipped(
-        self, mock_shareable: MagicMock, tmp_path
-    ):  # noqa: ANN001
+    @patch("app.services.artifacts.share.share_token.is_shareable_artifact", return_value=True)
+    def test_zero_byte_file_skipped(self, mock_shareable: MagicMock, tmp_path):  # noqa: ANN001
         f = tmp_path / "empty.html"
         f.write_bytes(b"")
         acc = StreamAccumulator()

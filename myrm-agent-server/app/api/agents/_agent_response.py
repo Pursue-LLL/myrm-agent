@@ -57,9 +57,7 @@ def _meta_str(meta: dict[str, object], key: str) -> str | None:
     return v if isinstance(v, str) else None
 
 
-def _meta_str_list(
-    meta: dict[str, object], key: str, *, default: list[str] | None = None
-) -> list[str]:
+def _meta_str_list(meta: dict[str, object], key: str, *, default: list[str] | None = None) -> list[str]:
     v = meta.get(key)
     if isinstance(v, list):
         return [str(x) for x in v]
@@ -89,9 +87,7 @@ def _meta_list_or_empty(meta: dict[str, object], key: str) -> list[dict[str, obj
     return []
 
 
-def _meta_list_or_none(
-    meta: dict[str, object], key: str
-) -> list[dict[str, str]] | None:
+def _meta_list_or_none(meta: dict[str, object], key: str) -> list[dict[str, str]] | None:
     v = meta.get(key)
     if isinstance(v, list) and v:
         return [item for item in v if isinstance(item, dict)]
@@ -105,11 +101,7 @@ _WORKSPACE_POLICY_MAP: dict[str, WorkspacePolicyLiteral] = {
 
 
 def _workspace_policy_from_metadata(raw: object) -> WorkspacePolicyLiteral:
-    return (
-        _WORKSPACE_POLICY_MAP.get(str(raw), "INHERIT_REQUESTER")
-        if raw
-        else "INHERIT_REQUESTER"
-    )
+    return _WORKSPACE_POLICY_MAP.get(str(raw), "INHERIT_REQUESTER") if raw else "INHERIT_REQUESTER"
 
 
 def _response_memory_policy(agent: AgentProfile) -> AgentMemoryPolicyConfig | None:
@@ -128,9 +120,7 @@ def _response_session_policy(
     return AgentSessionPolicyConfig.model_validate(raw)
 
 
-def _build_model_selection(
-    model: str | None, metadata: dict[str, object]
-) -> ModelSelection | None:
+def _build_model_selection(model: str | None, metadata: dict[str, object]) -> ModelSelection | None:
     """Build ModelSelection from stored model_selection JSON or fallback to basic."""
     full = metadata.get("model_selection_full")
     if isinstance(full, dict) and full.get("model"):
@@ -189,9 +179,7 @@ def _to_agent_response(
         browser_source=_meta_str(metadata, "browser_source"),
         dialog_policy=_meta_str(metadata, "dialog_policy"),
         session_recording=_meta_str(metadata, "session_recording"),
-        auto_restore_domains=_meta_str_list(
-            metadata, "auto_restore_domains", default=[]
-        ),
+        auto_restore_domains=_meta_str_list(metadata, "auto_restore_domains", default=[]),
         suggestion_prompts=_meta_str_list_or_none(metadata, "suggestion_prompts"),
         model_selection=_build_model_selection(agent.model, metadata),
         security_overrides=_meta_dict_or_none(metadata, "security_overrides"),
@@ -200,9 +188,7 @@ def _to_agent_response(
         personality_style=_safe_personality(metadata.get("personality_style")),
         subagent_ids=_meta_str_list(metadata, "subagent_ids", default=[]),
         max_iterations=agent.max_iterations,
-        workspace_policy=_workspace_policy_from_metadata(
-            metadata.get("workspace_policy", "INHERIT_REQUESTER")
-        ),
+        workspace_policy=_workspace_policy_from_metadata(metadata.get("workspace_policy", "INHERIT_REQUESTER")),
         memory_policy=_response_memory_policy(agent),
         session_policy=_response_session_policy(metadata),
         engine_params=_meta_dict_or_none(metadata, "engine_params"),

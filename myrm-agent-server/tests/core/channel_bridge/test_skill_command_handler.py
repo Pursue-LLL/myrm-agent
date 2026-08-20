@@ -23,9 +23,7 @@ def handler() -> ChannelSkillCommandHandler:
 class TestSingleSkillRewrite:
     @pytest.mark.asyncio
     async def test_rewrite_with_args(self, handler: ChannelSkillCommandHandler) -> None:
-        result = await handler(
-            _make_msg(), skill_ids=("daily_report_skill",), user_args="generate today's report"
-        )
+        result = await handler(_make_msg(), skill_ids=("daily_report_skill",), user_args="generate today's report")
         assert result is not None
         assert result.content == "[use daily_report_skill] generate today's report"
 
@@ -43,9 +41,7 @@ class TestSingleSkillRewrite:
 
     @pytest.mark.asyncio
     async def test_hyphenated_skill_id(self, handler: ChannelSkillCommandHandler) -> None:
-        result = await handler(
-            _make_msg(), skill_ids=("my-great-skill",), user_args="do stuff"
-        )
+        result = await handler(_make_msg(), skill_ids=("my-great-skill",), user_args="do stuff")
         assert result is not None
         assert result.content == "[use my-great-skill] do stuff"
 
@@ -75,17 +71,13 @@ class TestEmptySkillIds:
 class TestMultiSkillBundle:
     @pytest.mark.asyncio
     async def test_two_skills(self, handler: ChannelSkillCommandHandler) -> None:
-        result = await handler(
-            _make_msg(), skill_ids=("skill_a", "skill_b"), user_args="run both"
-        )
+        result = await handler(_make_msg(), skill_ids=("skill_a", "skill_b"), user_args="run both")
         assert result is not None
         assert result.content == "[use skill_a,skill_b] run both"
 
     @pytest.mark.asyncio
     async def test_three_skills_no_args(self, handler: ChannelSkillCommandHandler) -> None:
-        result = await handler(
-            _make_msg(), skill_ids=("a", "b", "c"), user_args=""
-        )
+        result = await handler(_make_msg(), skill_ids=("a", "b", "c"), user_args="")
         assert result is not None
         assert result.content == "[use a,b,c]"
 

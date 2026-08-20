@@ -120,11 +120,7 @@ class RunDigestStore:
             session = _RunSession(started_at=time.monotonic())
             cls._sessions[chat_id] = session
         session.pending_approval_count = max(0, count)
-        phase = (
-            RunDigestPhase.WAITING_APPROVAL
-            if session.pending_approval_count > 0
-            else RunDigestPhase.RUNNING
-        )
+        phase = RunDigestPhase.WAITING_APPROVAL if session.pending_approval_count > 0 else RunDigestPhase.RUNNING
         cls._publish(
             chat_id,
             phase,

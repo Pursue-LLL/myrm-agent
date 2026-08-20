@@ -43,13 +43,9 @@ def _build_payload(chat_id: str) -> dict[str, object]:
     }
 
 
-def _stream_turn(
-    client: TestClient, payload: dict[str, object]
-) -> list[dict[str, object]]:
+def _stream_turn(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
     events: list[dict[str, object]] = []
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=payload, timeout=180.0
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=180.0) as response:
         if response.status_code != 200:
             body = response.text
             response.read()
@@ -70,15 +66,10 @@ def _stream_turn(
     return events
 
 
-def _collect_turn_with_approvals(
-    client: TestClient, payload: dict[str, object]
-) -> list[dict[str, object]]:
+def _collect_turn_with_approvals(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
     events = _stream_turn(client, payload)
     for _ in range(8):
-        if not any(
-            event.get("type") in ("approval_required", "tool_approval_request")
-            for event in reversed(events)
-        ):
+        if not any(event.get("type") in ("approval_required", "tool_approval_request") for event in reversed(events)):
             break
         resume_payload = dict(payload)
         resume_payload["resumeValue"] = build_approval_resume_value()
@@ -105,9 +96,7 @@ def test_message_end_context_budget_includes_provider_total_and_breakdown(
 
     message_end = _find_message_end(events)
     budget = message_end.get("context_budget")
-    assert isinstance(
-        budget, dict
-    ), f"context_budget missing on message_end: {message_end.keys()}"
+    assert isinstance(budget, dict), f"context_budget missing on message_end: {message_end.keys()}"
 
     current_tokens = budget.get("current_tokens")
     assert isinstance(current_tokens, int) and current_tokens > 0
@@ -116,9 +105,9 @@ def test_message_end_context_budget_includes_provider_total_and_breakdown(
     assert budget.get("health_status") in {"healthy", "warning", "critical"}
 
     tools_overhead = budget.get("bound_tools_overhead_tokens")
-    assert (
-        isinstance(tools_overhead, int) and tools_overhead > 0
-    ), "bound_tools_overhead_tokens should be present for default agent tool bind"
+    assert isinstance(tools_overhead, int) and tools_overhead > 0, (
+        "bound_tools_overhead_tokens should be present for default agent tool bind"
+    )
 
     messages_est = budget.get("messages_estimated_tokens")
     assert isinstance(messages_est, int) and messages_est >= 0

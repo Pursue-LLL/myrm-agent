@@ -26,9 +26,7 @@ def _client(bridge: ExtensionCdpRelayBridge) -> list[str]:
     return sent
 
 
-def _attach_extension(
-    bridge: ExtensionCdpRelayBridge, result: object | None = None
-) -> None:
+def _attach_extension(bridge: ExtensionCdpRelayBridge, result: object | None = None) -> None:
     async def fake_call(command: dict[str, object]) -> object:
         if command.get("type") == "attach":
             if result is not None:
@@ -169,9 +167,7 @@ async def test_cdp_client_message_parse_errors() -> None:
     await bridge._handle_cdp_client_message(client, json.dumps(["not", "a", "dict"]))
     assert json.loads(sent[-1])["error"]["message"] == "Invalid request"
 
-    await bridge._handle_cdp_client_message(
-        client, json.dumps({"id": "bad-id", "method": 123})
-    )
+    await bridge._handle_cdp_client_message(client, json.dumps({"id": "bad-id", "method": 123}))
     assert json.loads(sent[-1])["error"]["message"] == "Invalid request"
 
     await bridge._handle_cdp_client_message(client, json.dumps({"id": 1}))
@@ -225,9 +221,7 @@ async def test_browser_scoped_noop_methods() -> None:
         "Browser.setDownloadBehavior",
         "Target.setDiscoverTargets",
     ):
-        await bridge._handle_browser_scoped(
-            bridge._clients[-1], 1, method, {}, None
-        )
+        await bridge._handle_browser_scoped(bridge._clients[-1], 1, method, {}, None)
         assert json.loads(sent[-1])["id"] == 1
 
 
@@ -241,27 +235,19 @@ async def test_target_get_target_info_branches() -> None:
     await bridge._ensure_tab_attached(7)
 
     # Browser target.
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Target.getTargetInfo", {"targetId": BROWSER_TARGET_ID}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.getTargetInfo", {"targetId": BROWSER_TARGET_ID}, None)
     assert json.loads(sent[-1])["result"]["targetInfo"]["type"] == "browser"
 
     # Unknown target -> error.
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 2, "Target.getTargetInfo", {"targetId": "tab-999"}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 2, "Target.getTargetInfo", {"targetId": "tab-999"}, None)
     assert json.loads(sent[-1])["error"]["code"] == -32602
 
     # Attached tab target.
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 3, "Target.getTargetInfo", {"targetId": "tab-7"}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 3, "Target.getTargetInfo", {"targetId": "tab-7"}, None)
     assert json.loads(sent[-1])["result"]["targetInfo"]["url"] == "https://x.com"
 
     # No targetId -> browser info.
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 4, "Target.getTargetInfo", {}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 4, "Target.getTargetInfo", {}, None)
     assert json.loads(sent[-1])["result"]["targetInfo"]["type"] == "browser"
 
 
@@ -274,9 +260,7 @@ async def test_target_get_targets_only_attached() -> None:
     bridge.sync_tabs([_mk_tab(7), _mk_tab(8, url="https://y.com")])
     await bridge._ensure_tab_attached(7)  # only 7 attached
 
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Target.getTargets", {}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.getTargets", {}, None)
     infos = json.loads(sent[-1])["result"]["targetInfos"]
     assert [i["targetId"] for i in infos] == ["tab-7"]
 
@@ -286,9 +270,7 @@ async def test_target_attach_to_browser_target() -> None:
     bridge = ExtensionCdpRelayBridge()
     sent: list[str] = []
     bridge.attach_cdp_client(sent.append)
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Target.attachToBrowserTarget", {}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.attachToBrowserTarget", {}, None)
     session_id = json.loads(sent[-1])["result"]["sessionId"]
     assert session_id in bridge._browser_sessions
 
@@ -301,17 +283,13 @@ async def test_target_set_auto_attach() -> None:
     _attach_extension(bridge)
     bridge.sync_tabs([_mk_tab(7)])
 
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Target.setAutoAttach", {"autoAttach": True}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.setAutoAttach", {"autoAttach": True}, None)
     assert json.loads(sent[-1])["id"] == 1
     assert any("Target.attachedToTarget" in raw for raw in sent)
 
     # autoAttach=False skips announcement.
     before = len(sent)
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 2, "Target.setAutoAttach", {"autoAttach": False}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 2, "Target.setAutoAttach", {"autoAttach": False}, None)
     assert json.loads(sent[-1])["id"] == 2
     assert len(sent) == before + 1
 
@@ -325,9 +303,7 @@ async def test_target_attach_to_target_auxiliary_session() -> None:
     bridge.sync_tabs([_mk_tab(7)])
 
     # First create a browser session.
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Target.attachToBrowserTarget", {}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.attachToBrowserTarget", {}, None)
     browser_session = json.loads(sent[-1])["result"]["sessionId"]
 
     await bridge._handle_browser_scoped(
@@ -359,9 +335,7 @@ async def test_target_attach_to_target_root_session() -> None:
     _attach_extension(bridge)
     bridge.sync_tabs([_mk_tab(7)])
 
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Target.attachToTarget", {"targetId": "tab-7"}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.attachToTarget", {"targetId": "tab-7"}, None)
     assert json.loads(sent[-1])["result"]["sessionId"].startswith("myrm-tab-7-")
 
 
@@ -373,9 +347,7 @@ async def test_target_detach_from_target() -> None:
     _attach_extension(bridge)
     bridge.sync_tabs([_mk_tab(7)])
 
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Target.attachToBrowserTarget", {}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Target.attachToBrowserTarget", {}, None)
     browser_session = json.loads(sent[-1])["result"]["sessionId"]
     assert browser_session in bridge._browser_sessions
 
@@ -433,9 +405,7 @@ async def test_unsupported_browser_method_errors() -> None:
     bridge = ExtensionCdpRelayBridge()
     sent: list[str] = []
     bridge.attach_cdp_client(sent.append)
-    await bridge._handle_browser_scoped(
-        bridge._clients[-1], 1, "Some.randomMethod", {}, None
-    )
+    await bridge._handle_browser_scoped(bridge._clients[-1], 1, "Some.randomMethod", {}, None)
     assert json.loads(sent[-1])["error"]["code"] == -32601
 
 

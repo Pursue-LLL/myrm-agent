@@ -257,9 +257,7 @@ def build_realtime_tools(
     tools: list[RealtimeToolDef] = list(_ALWAYS_AVAILABLE_TOOLS)
     for tool_key in enabled_builtin_tools:
         if tool_key == "memory":
-            if include_memory_search_in_voice_catalog(
-                memory_context, enabled_builtin_tools
-            ):
+            if include_memory_search_in_voice_catalog(memory_context, enabled_builtin_tools):
                 tools.append(build_realtime_memory_tool(memory_context))
             continue
         if tool_key in _REALTIME_TOOL_CATALOG:

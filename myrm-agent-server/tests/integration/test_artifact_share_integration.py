@@ -45,9 +45,7 @@ async def db_session():
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    session_factory = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
     await engine.dispose()
@@ -128,10 +126,7 @@ def _extract_unlock_cookie(response: TestClient.response_class) -> str | None:
     return match.group(1) if match else None
 
 
-HTML_WITH_CSS = (
-    '<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head>'
-    "<body><h1>Share me</h1></body></html>"
-)
+HTML_WITH_CSS = '<!doctype html><html><head><link rel="stylesheet" href="styles.css"></head><body><h1>Share me</h1></body></html>'
 
 
 @pytest.mark.asyncio
@@ -220,13 +215,9 @@ async def test_password_share_full_flow_real_vault(share_client, db_session, tmp
     gated = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert gated.status_code == 403
 
-    unlocked = share_client.get(
-        f"/public/artifact-share/{token}?p=s3cret", follow_redirects=False
-    )
+    unlocked = share_client.get(f"/public/artifact-share/{token}?p=s3cret", follow_redirects=False)
     assert unlocked.status_code == 307
-    index = share_client.get(
-        f"/public/artifact-share/{token}/?p=s3cret", follow_redirects=False
-    )
+    index = share_client.get(f"/public/artifact-share/{token}/?p=s3cret", follow_redirects=False)
     assert index.status_code == 200
     unlock = _extract_unlock_cookie(index)
     assert unlock is not None
@@ -241,16 +232,12 @@ async def test_password_share_full_flow_real_vault(share_client, db_session, tmp
     gated_asset = share_client.get(f"/public/artifact-share/{token}/styles.css")
     assert gated_asset.status_code == 403
 
-    wrong = share_client.get(
-        f"/public/artifact-share/{token}/?p=wrong", follow_redirects=False
-    )
+    wrong = share_client.get(f"/public/artifact-share/{token}/?p=wrong", follow_redirects=False)
     assert wrong.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_pdf_share_real_vault_serves_pdf_media_type(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_pdf_share_real_vault_serves_pdf_media_type(share_client, db_session, tmp_path) -> None:
     """Extension-less vault PDF object must be served as application/pdf.
 
     Regression for the physical-uuid naming bug: without the artifact-name hint
@@ -294,13 +281,9 @@ async def test_pdf_share_real_vault_serves_pdf_media_type(
 
 
 @pytest.mark.asyncio
-async def test_bundle_removed_then_re_materialized(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_bundle_removed_then_re_materialized(share_client, db_session, tmp_path) -> None:
     """Deleting the materialized bundle self-heals on the next public access."""
-    artifact, _ = await _seed_html_artifact(
-        db_session, tmp_path, html="<h1>self-heal</h1>"
-    )
+    artifact, _ = await _seed_html_artifact(db_session, tmp_path, html="<h1>self-heal</h1>")
     response = share_client.post(
         f"/{artifact.id}/share-preview",
         json={"ttl_days": 7, "artifact_type": "html"},
@@ -322,9 +305,7 @@ async def test_bundle_removed_then_re_materialized(
 
 
 @pytest.mark.asyncio
-async def test_invalid_manifest_and_traversal_rejected(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_invalid_manifest_and_traversal_rejected(share_client, db_session, tmp_path) -> None:
     """Invalid token, manifest.json, and traversal attempts all return 404."""
     artifact, _ = await _seed_html_artifact(
         db_session,
@@ -363,13 +344,9 @@ async def test_invalid_manifest_and_traversal_rejected(
 
 
 @pytest.mark.asyncio
-async def test_nested_asset_and_binary_real_vault(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_nested_asset_and_binary_real_vault(share_client, db_session, tmp_path) -> None:
     """Deeply nested resources and binary assets are served from the bundle."""
-    html = (
-        '<!doctype html><html><body><img src="assets/img/logo.png"></body></html>'
-    )
+    html = '<!doctype html><html><body><img src="assets/img/logo.png"></body></html>'
     artifact, _ = await _seed_html_artifact(
         db_session,
         tmp_path,
@@ -395,14 +372,10 @@ async def test_nested_asset_and_binary_real_vault(
 
 
 @pytest.mark.asyncio
-async def test_document_share_without_suffix_real_vault(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_document_share_without_suffix_real_vault(share_client, db_session, tmp_path) -> None:
     """Extension-less document artifacts share via the SSE artifact_type hint."""
     markdown = "# 季度报告\n\n已完成全部交付物。"
-    artifact, _ = await _seed_html_artifact(
-        db_session, tmp_path, html=markdown, name="季度报告"
-    )
+    artifact, _ = await _seed_html_artifact(db_session, tmp_path, html=markdown, name="季度报告")
     response = share_client.post(
         f"/{artifact.id}/share-preview",
         json={"ttl_days": 7, "artifact_type": "document"},
@@ -416,4 +389,3 @@ async def test_document_share_without_suffix_real_vault(
     # Extension-less document entries resolve their media type from the share
     # token's artifact_type instead of the text/html fallback.
     assert entry.headers["content-type"].startswith("text/markdown")
-

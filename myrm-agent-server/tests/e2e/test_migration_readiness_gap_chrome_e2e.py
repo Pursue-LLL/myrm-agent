@@ -90,8 +90,7 @@ def _wait_assistant_message_via_api(
                 return content[:400]
         time.sleep(2.0)
     raise AssertionError(
-        f"assistant message not ready via API for chat {chat_id} after {timeout_sec}s; "
-        f"last_payload={last_payload!r}"
+        f"assistant message not ready via API for chat {chat_id} after {timeout_sec}s; last_payload={last_payload!r}"
     )
 
 
@@ -150,10 +149,7 @@ def _seed_migration_readiness(*, variant: str = "mcp_warning") -> dict[str, str]
     import httpx
 
     api_base = get_e2e_api_url()
-    url = (
-        f"{api_base.rstrip('/')}/api/v1/memory/test/seed-migration-readiness-fixture"
-        f"?variant={variant}"
-    )
+    url = f"{api_base.rstrip('/')}/api/v1/memory/test/seed-migration-readiness-fixture?variant={variant}"
     last_error: BaseException | None = None
     last_response: httpx.Response | None = None
     for attempt in range(12):
@@ -343,9 +339,7 @@ def _gap_poll_snapshot_js(
 
 def _assert_gap_wall_budget(wall_deadline: float) -> None:
     if time.monotonic() > wall_deadline:
-        pytest.fail(
-            f"migration gap E2E exceeded {_E2E_GAP_TEST_WALL_SEC}s body wall budget"
-        )
+        pytest.fail(f"migration gap E2E exceeded {_E2E_GAP_TEST_WALL_SEC}s body wall budget")
 
 
 async def _evaluate_gap_snapshot(
@@ -374,9 +368,7 @@ async def _send_and_collect_migration_gap(
     _assert_gap_wall_budget(wall_deadline)
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
 
-    idle = await chat.evaluate(
-        _WAIT_CHAT_IDLE_BEFORE_SEND_JS, intent=EvaluateIntent.AGENT_SUBMIT
-    )
+    idle = await chat.evaluate(_WAIT_CHAT_IDLE_BEFORE_SEND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
     assert isinstance(idle, dict) and idle.get("ok") is True, idle
 
     pre_send = await chat.evaluate(
@@ -394,9 +386,7 @@ async def _send_and_collect_migration_gap(
         _ENSURE_DIRECT_SSE_OFF_JS,
         intent=EvaluateIntent.SYNC_PROBE,
     )
-    assert (
-        isinstance(direct_off, dict) and direct_off.get("directSse") is False
-    ), direct_off
+    assert isinstance(direct_off, dict) and direct_off.get("directSse") is False, direct_off
 
     send_task = asyncio.create_task(
         chat.send_chat_message_atomic(_AGENT_PROMPT, baseline_user_msgs=0),
@@ -417,19 +407,10 @@ async def _send_and_collect_migration_gap(
             wall_deadline=wall_deadline,
             gap_pattern=gap_pattern,
         )
-        if (
-            isinstance(snapshot.get("streamMessageId"), str)
-            and snapshot["streamMessageId"].strip()
-        ):
+        if isinstance(snapshot.get("streamMessageId"), str) and snapshot["streamMessageId"].strip():
             stream_message_id = snapshot["streamMessageId"].strip()
-        toast_state = (
-            snapshot.get("toast") if isinstance(snapshot.get("toast"), dict) else {}
-        )
-        sse_events = (
-            snapshot.get("sseEvents")
-            if isinstance(snapshot.get("sseEvents"), list)
-            else []
-        )
+        toast_state = snapshot.get("toast") if isinstance(snapshot.get("toast"), dict) else {}
+        sse_events = snapshot.get("sseEvents") if isinstance(snapshot.get("sseEvents"), list) else []
         best_toast = toast_state
         best_sse = [str(item) for item in sse_events]
         if "capability_gap" in best_sse:
@@ -473,9 +454,7 @@ async def _open_migration_chat_page(
     last_error: RuntimeError | None = None
     for attempt in range(3):
         try:
-            return await asyncio.to_thread(
-                client.new_page, chat_url, timeout_ms=120_000
-            )
+            return await asyncio.to_thread(client.new_page, chat_url, timeout_ms=120_000)
         except RuntimeError as exc:
             last_error = exc
             message = str(exc)
@@ -495,10 +474,7 @@ async def _open_migration_chat_page(
             from mux.transport_supervisor import reset_session_recovery_budget
 
             reset_session_recovery_budget()
-            if (
-                "unexpected server response: 404" in lowered
-                or "could not connect to chrome" in lowered
-            ):
+            if "unexpected server response: 404" in lowered or "could not connect to chrome" in lowered:
                 from mux.attach_force_restart import force_mux_attach_restart_scoped
 
                 await asyncio.to_thread(
@@ -538,22 +514,17 @@ async def _run_migration_readiness_gap_e2e(
             api_url=api_base,
             timeout_sec=initial_provider_wait_sec,
         ):
-            pytest.fail(
-                f"E2E provider not ready on {api_base} "
-                f"(wait={initial_provider_wait_sec}s variant={variant})"
-            )
+            pytest.fail(f"E2E provider not ready on {api_base} (wait={initial_provider_wait_sec}s variant={variant})")
 
     seed = _seed_migration_readiness(variant=variant)
-    assert (
-        seed.get("readiness_status") == expected_readiness
-    ), f"seed fixture must report {expected_readiness} readiness; seed={seed!r}"
+    assert seed.get("readiness_status") == expected_readiness, (
+        f"seed fixture must report {expected_readiness} readiness; seed={seed!r}"
+    )
     await asyncio.sleep(1.0)
     api_base = get_e2e_api_url()
     provider_wait_sec = 180.0 if skip_warm_ui else 120.0
     if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=provider_wait_sec):
-        pytest.fail(
-            f"E2E provider not ready after seed on {api_base} variant={variant}"
-        )
+        pytest.fail(f"E2E provider not ready after seed on {api_base} variant={variant}")
 
     prepare_e2e_ui_session(api_base)
     if skip_warm_ui:
@@ -602,31 +573,25 @@ async def _run_migration_readiness_gap_e2e(
             intent=EvaluateIntent.SYNC_PROBE,
         )
         assert isinstance(binding, dict), binding
-        bound_api = str(
-            binding.get("apiBase") or binding.get("runtimeApi") or ""
-        ).rstrip("/")
-        assert bound_api == api_base.rstrip(
-            "/"
-        ), f"SHPOIB API binding mismatch: expected {api_base}, got {binding!r}"
+        bound_api = str(binding.get("apiBase") or binding.get("runtimeApi") or "").rstrip("/")
+        assert bound_api == api_base.rstrip("/"), f"SHPOIB API binding mismatch: expected {api_base}, got {binding!r}"
 
         workspace_ready = await chat.evaluate(
             WAIT_WORKSPACE_STREAM_JS,
             intent=EvaluateIntent.AGENT_SUBMIT,
         )
-        assert (
-            isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
-        ), f"workspace stream not ready: {workspace_ready!r}; api={api_base}"
+        assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, (
+            f"workspace stream not ready: {workspace_ready!r}; api={api_base}"
+        )
 
-        toast_state, sse_events, send_result, diag = (
-            await _send_and_collect_migration_gap(
-                chat,
-                api_base=api_base,
-                seed=seed,
-                wall_deadline=wall_deadline,
-                gap_pattern=gap_pattern,
-                gap_timeout_sec=90.0,
-                require_assistant_reply=False,
-            )
+        toast_state, sse_events, send_result, diag = await _send_and_collect_migration_gap(
+            chat,
+            api_base=api_base,
+            seed=seed,
+            wall_deadline=wall_deadline,
+            gap_pattern=gap_pattern,
+            gap_timeout_sec=90.0,
+            require_assistant_reply=False,
         )
 
         recorded_sse = list(sse_events)
@@ -647,12 +612,8 @@ async def _run_migration_readiness_gap_e2e(
         if not chat_id:
             turn = diag.get("turn") if isinstance(diag.get("turn"), dict) else {}
             chat_id = str(turn.get("chatId") or "").strip()
-        assert (
-            chat_id
-        ), f"missing chat id after send; send={send_result!r}; diag={diag!r}"
-        assert (
-            send_result.get("ok") is True
-        ), f"send turn failed: {send_result!r}; diag={diag!r}"
+        assert chat_id, f"missing chat id after send; send={send_result!r}; diag={diag!r}"
+        assert send_result.get("ok") is True, f"send turn failed: {send_result!r}; diag={diag!r}"
 
         if chat_id:
             e2e_resource_ledger.register("chat", chat_id)

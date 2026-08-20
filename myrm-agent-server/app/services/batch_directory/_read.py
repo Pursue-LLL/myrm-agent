@@ -44,9 +44,7 @@ logger = logging.getLogger(__name__)
 
 async def list_projects(service: BatchDirectoryService) -> list[dict[str, object]]:
     async with get_session() as session:
-        stmt = select(BatchDirectoryProjectModel).order_by(
-            BatchDirectoryProjectModel.created_at.desc()
-        )
+        stmt = select(BatchDirectoryProjectModel).order_by(BatchDirectoryProjectModel.created_at.desc())
         result = await session.execute(stmt)
         projects = list(result.scalars().all())
 
@@ -58,13 +56,7 @@ async def list_projects(service: BatchDirectoryService) -> list[dict[str, object
     rows: dict[str, list[KanbanTaskModel]] = {}
     async with get_session() as session:
         stmt = select(KanbanTaskModel).where(
-            or_(
-                *[
-                    KanbanTaskModel.metadata_json["batch_project_id"].as_string()
-                    == pid
-                    for pid in ids
-                ]
-            )
+            or_(*[KanbanTaskModel.metadata_json["batch_project_id"].as_string() == pid for pid in ids])
         )
         result = await session.execute(stmt)
         for task in result.scalars().all():
@@ -95,9 +87,7 @@ async def list_projects(service: BatchDirectoryService) -> list[dict[str, object
     return items
 
 
-async def get_project(
-    service: BatchDirectoryService, project_id: str
-) -> dict[str, object] | None:
+async def get_project(service: BatchDirectoryService, project_id: str) -> dict[str, object] | None:
     async with get_session() as session:
         model = await session.get(BatchDirectoryProjectModel, project_id)
         if model is None:
@@ -151,12 +141,8 @@ async def _resolve_artifact_results(
                     "agent_id": t.agent_id,
                     "result": t.result,
                     "error": t.error,
-                    "created_at": (
-                        t.created_at.isoformat() if t.created_at else None
-                    ),
-                    "completed_at": (
-                        t.completed_at.isoformat() if t.completed_at else None
-                    ),
+                    "created_at": (t.created_at.isoformat() if t.created_at else None),
+                    "completed_at": (t.completed_at.isoformat() if t.completed_at else None),
                     "artifact_status": artifact_status,
                 }
             )
@@ -177,12 +163,7 @@ def _schedule_finalize_if_due(
     without a dispatcher event (e.g. REST manual move to a terminal
     status) — schedule the (idempotent) finalize check. Paused batches are
     excluded: freezing must be stable until the operator resumes/cancels."""
-    if (
-        status in _PROJECT_TERMINAL_STATUSES
-        or status == "paused"
-        or not total
-        or done < total
-    ):
+    if status in _PROJECT_TERMINAL_STATUSES or status == "paused" or not total or done < total:
         return
     try:
         asyncio.get_running_loop().create_task(service.maybe_finalize(project_id))

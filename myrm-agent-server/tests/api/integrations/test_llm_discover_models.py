@@ -249,9 +249,7 @@ def test_discover_models_provider_http_error(client: TestClient) -> None:
         patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
         patch(
             "app.api.integrations.llms.secure_request",
-            return_value=_json_response(
-                {"error": "boom"}, status_code=503
-            ),
+            return_value=_json_response({"error": "boom"}, status_code=503),
         ),
         patch("app.api.integrations.llms.is_local_mode", return_value=True),
     ):

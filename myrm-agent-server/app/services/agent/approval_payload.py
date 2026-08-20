@@ -39,6 +39,4 @@ def extract_approval_registry_payload(approval_data: dict[str, object]) -> dict[
     nested_payload = approval_data.get("payload")
     if isinstance(nested_payload, dict) and nested_payload:
         return dict(nested_payload)
-    return {
-        k: v for k, v in approval_data.items() if k not in _APPROVAL_META_KEYS and v is not None
-    }
+    return {k: v for k, v in approval_data.items() if k not in _APPROVAL_META_KEYS and v is not None}

@@ -17,13 +17,8 @@ def test_unit_tree_has_no_api_subpackage() -> None:
     if not _UNIT_ROOT.is_dir():
         return
 
-    violations = sorted(
-        path.relative_to(_TESTS_ROOT).as_posix()
-        for path in _UNIT_ROOT.rglob("api")
-        if path.is_dir()
-    )
+    violations = sorted(path.relative_to(_TESTS_ROOT).as_posix() for path in _UNIT_ROOT.rglob("api") if path.is_dir())
     assert not violations, (
         "tests/unit/**/api/ collides with tests/api/ under importlib. "
-        "Place unit tests directly under tests/unit/ (e.g. tests/unit/test_system_storage.py):\n"
-        + "\n".join(violations)
+        "Place unit tests directly under tests/unit/ (e.g. tests/unit/test_system_storage.py):\n" + "\n".join(violations)
     )

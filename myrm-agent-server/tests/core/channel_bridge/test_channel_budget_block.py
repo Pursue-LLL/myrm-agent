@@ -73,7 +73,8 @@ async def test_channel_budget_block_returns_channel_specific_message() -> None:
         ),
     ):
         events = [
-            event async for event in executor.execute_stream(
+            event
+            async for event in executor.execute_stream(
                 _inbound_message(is_group=True),
             )
         ]
@@ -100,7 +101,8 @@ async def test_channel_budget_not_checked_for_dm() -> None:
         ) as mock_block,
     ):
         events = [
-            event async for event in executor.execute_stream(
+            event
+            async for event in executor.execute_stream(
                 _inbound_message(is_group=False),
             )
         ]

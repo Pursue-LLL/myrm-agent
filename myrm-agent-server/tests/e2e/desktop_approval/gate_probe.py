@@ -205,10 +205,7 @@ def _build_fallback_budget() -> _DesktopFallbackBudget:
             synthetic_dref_limit=0,
             pending_seed_limit=0,
         )
-        progress(
-            "desktop fallback strict mode active "
-            f"({_STRICT_FALLBACK_MODE_ENV}=1): synthetic_dref<=0 pending_seed<=0"
-        )
+        progress(f"desktop fallback strict mode active ({_STRICT_FALLBACK_MODE_ENV}=1): synthetic_dref<=0 pending_seed<=0")
         return budget
     synthetic_limit = _non_negative_env_int(
         _MAX_SYNTHETIC_DREF_FALLBACK_ENV,
@@ -236,15 +233,10 @@ def _record_synthetic_dref_fallback(
     reason: str,
 ) -> None:
     budget.synthetic_dref_used += 1
-    progress(
-        "synthetic dref fallback usage "
-        f"{budget.synthetic_dref_used}/{budget.synthetic_dref_limit} "
-        f"reason={reason}"
-    )
+    progress(f"synthetic dref fallback usage {budget.synthetic_dref_used}/{budget.synthetic_dref_limit} reason={reason}")
     if budget.synthetic_dref_used > budget.synthetic_dref_limit:
         raise AssertionError(
-            "synthetic dref fallback budget exceeded "
-            f"({budget.synthetic_dref_used}>{budget.synthetic_dref_limit})"
+            f"synthetic dref fallback budget exceeded ({budget.synthetic_dref_used}>{budget.synthetic_dref_limit})"
         )
 
 
@@ -350,10 +342,7 @@ async def _desktop_tool_progress_api_fast(chat_id: str) -> dict[str, object]:
             timeout=_fast_api_wall_timeout_sec(),
         )
     except asyncio.TimeoutError:
-        progress(
-            f"desktop progress API wall-timeout>{_fast_api_wall_timeout_sec():.0f}s "
-            f"chat_id={normalized[:8]}..."
-        )
+        progress(f"desktop progress API wall-timeout>{_fast_api_wall_timeout_sec():.0f}s chat_id={normalized[:8]}...")
         return {
             **_empty_desktop_progress_probe(),
             "err": "api-progress-wall-timeout",
@@ -393,10 +382,7 @@ async def _resolve_server_pending(*, api_fail_streak: list[int]) -> int:
         return count
     api_fail_streak[0] += 1
     if api_fail_streak[0] == 1 or api_fail_streak[0] % 5 == 0:
-        progress(
-            f"backend pending API blip #{api_fail_streak[0]} "
-            f"(abort after {_PENDING_API_FAIL_ABORT_STREAK})"
-        )
+        progress(f"backend pending API blip #{api_fail_streak[0]} (abort after {_PENDING_API_FAIL_ABORT_STREAK})")
     if api_fail_streak[0] >= _PENDING_API_FAIL_ABORT_STREAK:
         hint = await _provider_readiness_hint()
         raise AssertionError(
@@ -422,9 +408,7 @@ async def _provider_readiness_hint() -> str:
 
 def _is_snapshot_or_vision_loop(last_tool: str) -> bool:
     normalized = last_tool.strip()
-    return normalized.endswith("desktop_snapshot_tool") or normalized.endswith(
-        "desktop_vision_tool"
-    )
+    return normalized.endswith("desktop_snapshot_tool") or normalized.endswith("desktop_vision_tool")
 
 
 def snapshot_loop_stuck_sec(
@@ -495,11 +479,7 @@ async def probe_desktop_tool_progress(
     ui_probe = probe if isinstance(probe, dict) else {"active": False}
     if not normalized_chat_id:
         normalized_chat_id = await _bridge_chat_id(chat)
-    api_probe = (
-        await _desktop_tool_progress_api_fast(normalized_chat_id)
-        if normalized_chat_id
-        else None
-    )
+    api_probe = await _desktop_tool_progress_api_fast(normalized_chat_id) if normalized_chat_id else None
     return _merge_desktop_progress(ui_probe, api_probe)
 
 
@@ -521,19 +501,13 @@ def _merge_desktop_progress(
     api_last = str(api_probe.get("lastTool") or "")
     ui_steps = int(ui_probe.get("stepCount") or 0)
     api_steps = int(api_probe.get("stepCount") or 0)
-    prefer_api = api_steps > ui_steps or (
-        api_last.startswith("desktop_") and not ui_last.startswith("desktop_")
-    )
+    prefer_api = api_steps > ui_steps or (api_last.startswith("desktop_") and not ui_last.startswith("desktop_"))
     merged: dict[str, object] = dict(ui_probe)
     if prefer_api:
         merged.update(api_probe)
-    elif api_probe.get("completionStatus") == "complete" and ui_probe.get(
-        "isStreaming"
-    ):
+    elif api_probe.get("completionStatus") == "complete" and ui_probe.get("isStreaming"):
         merged["isStreaming"] = False
-        merged["assistantSample"] = api_probe.get("assistantSample") or ui_probe.get(
-            "assistantSample"
-        )
+        merged["assistantSample"] = api_probe.get("assistantSample") or ui_probe.get("assistantSample")
         merged["completionStatus"] = api_probe.get("completionStatus")
     merged["uiLastTool"] = ui_last
     merged["apiLastTool"] = api_last
@@ -592,7 +566,7 @@ async def _wait_nudge_send_surface(
             timeout=min(90.0, timeout_sec + 15.0),
         )
     except asyncio.TimeoutError:
-        progress("wait_send_button_ready wall-timeout " f"({timeout_sec:.0f}s budget)")
+        progress(f"wait_send_button_ready wall-timeout ({timeout_sec:.0f}s budget)")
         return False
     except (RuntimeError, TimeoutError, OSError) as exc:
         progress(f"wait_send_button_ready failed (non-fatal): {exc}")
@@ -660,10 +634,7 @@ async def _fetch_first_desktop_dref(
                 max_attempts=_fast_api_max_attempts(),
             )
             if api_dref:
-                progress(
-                    f"dref from API chat metadata: {api_dref!r} "
-                    f"(attempt {attempt}/{api_attempts})"
-                )
+                progress(f"dref from API chat metadata: {api_dref!r} (attempt {attempt}/{api_attempts})")
                 return api_dref
             if attempt < api_attempts:
                 await asyncio.sleep(1.0)
@@ -676,10 +647,7 @@ async def _fetch_first_desktop_dref(
                 chat_id=normalized_chat_id,
             )
             if snapshot_dref:
-                progress(
-                    f"dref from snapshot API refs: {snapshot_dref!r} "
-                    f"(attempt {attempt}/{snapshot_attempts})"
-                )
+                progress(f"dref from snapshot API refs: {snapshot_dref!r} (attempt {attempt}/{snapshot_attempts})")
                 return snapshot_dref
             if attempt < snapshot_attempts:
                 await asyncio.sleep(1.0)
@@ -688,14 +656,10 @@ async def _fetch_first_desktop_dref(
             return None
     if last_tool.endswith("desktop_snapshot_tool"):
         await asyncio.to_thread(preflight_textedit_foreground)
-        local_dref = await asyncio.to_thread(
-            fetch_first_desktop_dref_from_local_capture
-        )
+        local_dref = await asyncio.to_thread(fetch_first_desktop_dref_from_local_capture)
         if local_dref:
             return local_dref
-        progress(
-            "no dref after snapshot probe; reseed TextEdit fixture then retry capture"
-        )
+        progress("no dref after snapshot probe; reseed TextEdit fixture then retry capture")
         await asyncio.to_thread(restart_textedit_fixture_process)
         ax_recovered = await asyncio.to_thread(ensure_textedit_ax_ready, attempts=3)
         if not ax_recovered:
@@ -706,16 +670,11 @@ async def _fetch_first_desktop_dref(
                 chat_id=normalized_chat_id,
             )
             if snapshot_dref:
-                progress(
-                    f"dref from snapshot API after reseed: {snapshot_dref!r} "
-                    f"(attempt {attempt}/2)"
-                )
+                progress(f"dref from snapshot API after reseed: {snapshot_dref!r} (attempt {attempt}/2)")
                 return snapshot_dref
             if attempt < 2:
                 await asyncio.sleep(1.0)
-        local_dref = await asyncio.to_thread(
-            fetch_first_desktop_dref_from_local_capture
-        )
+        local_dref = await asyncio.to_thread(fetch_first_desktop_dref_from_local_capture)
         if local_dref:
             progress(f"dref from local AX capture after reseed: {local_dref!r}")
             return local_dref
@@ -762,9 +721,7 @@ async def _ensure_nudge_chat_surface_guarded(
     timeout_sec: float | None = None,
 ) -> bool:
     effective_timeout = (
-        timeout_sec
-        if timeout_sec is not None
-        else _desktop_soak_mux_step_timeout_sec(_NUDGE_CHAT_SURFACE_TIMEOUT_SEC)
+        timeout_sec if timeout_sec is not None else _desktop_soak_mux_step_timeout_sec(_NUDGE_CHAT_SURFACE_TIMEOUT_SEC)
     )
     try:
         await asyncio.wait_for(
@@ -773,10 +730,7 @@ async def _ensure_nudge_chat_surface_guarded(
         )
         return True
     except asyncio.TimeoutError:
-        progress(
-            "nudge chat surface bootstrap timed out "
-            f"after {effective_timeout:.0f}s chat_id={chat_id.strip() or '-'}"
-        )
+        progress(f"nudge chat surface bootstrap timed out after {effective_timeout:.0f}s chat_id={chat_id.strip() or '-'}")
         return False
     except (RuntimeError, TimeoutError, OSError) as exc:
         progress(f"nudge chat surface bootstrap failed (non-fatal): {exc}")
@@ -821,11 +775,7 @@ async def _wait_nudge_consumed(
     baseline_step_count: int,
     timeout_sec: float | None = None,
 ) -> bool:
-    effective_timeout = (
-        timeout_sec
-        if timeout_sec is not None
-        else _desktop_soak_nudge_consume_timeout_sec()
-    )
+    effective_timeout = timeout_sec if timeout_sec is not None else _desktop_soak_nudge_consume_timeout_sec()
     normalized = chat_id.strip()
     if not normalized:
         return False
@@ -844,19 +794,14 @@ async def _wait_nudge_consumed(
             step_count = int(api_progress.get("stepCount") or 0)
             if last_tool.startswith("desktop_") and step_count > baseline_step_count:
                 progress(
-                    f"nudge consumed: desktop stepCount {baseline_step_count}->{step_count} "
-                    f"lastTool={last_tool!r} "
-                    f"poll=#{poll}"
+                    f"nudge consumed: desktop stepCount {baseline_step_count}->{step_count} lastTool={last_tool!r} poll=#{poll}"
                 )
                 return True
             if bool(api_progress.get("isStreaming")) and user_advanced:
                 progress(f"nudge consumed: streaming turn poll=#{poll}")
                 return True
         if user_advanced and poll >= 3:
-            progress(
-                f"nudge user turn persisted without API step delta "
-                f"({baseline_user_msgs}->{user_count}) poll=#{poll}"
-            )
+            progress(f"nudge user turn persisted without API step delta ({baseline_user_msgs}->{user_count}) poll=#{poll}")
             return True
         await asyncio.sleep(1.0)
     progress(f"nudge consume wait timed out after {effective_timeout:.0f}s")
@@ -876,9 +821,7 @@ async def _send_interact_nudge(
     else:
         await asyncio.to_thread(activate_chrome_foreground)
     normalized_chat_id = chat_id.strip()
-    baseline_user_msgs, baseline_step_count = await _nudge_baseline_markers(
-        normalized_chat_id
-    )
+    baseline_user_msgs, baseline_step_count = await _nudge_baseline_markers(normalized_chat_id)
     dref: str | None = prefetched_dref
     if dref is None and last_tool.endswith("desktop_snapshot_tool"):
         surface_ready = await _ensure_nudge_chat_surface_guarded(
@@ -895,9 +838,7 @@ async def _send_interact_nudge(
             chat_id=normalized_chat_id,
             fast_only=True,
         )
-    if dref is None and last_tool.endswith(
-        ("desktop_snapshot_tool", "desktop_vision_tool")
-    ):
+    if dref is None and last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool")):
         # Deterministic fallback: force interact call to trigger approval gate
         # even when AX/snapshot refs are temporarily unavailable.
         dref = "d1"
@@ -918,15 +859,11 @@ async def _send_interact_nudge(
     stream_active = await _agent_stream_active(chat, chat_id=chat_id)
     # steerStore is unreliable; vision/snapshot always abort+follow-up native send.
     force_follow_up = dref is not None
-    snapshot_or_vision = last_tool.endswith(
-        ("desktop_snapshot_tool", "desktop_vision_tool")
-    )
+    snapshot_or_vision = last_tool.endswith(("desktop_snapshot_tool", "desktop_vision_tool"))
     if snapshot_or_vision:
         use_follow_up = True
     else:
-        use_follow_up = force_follow_up or (
-            not stream_active or not last_tool.startswith("desktop_")
-        )
+        use_follow_up = force_follow_up or (not stream_active or not last_tool.startswith("desktop_"))
     if use_follow_up:
         if stream_active or snapshot_or_vision:
             if stream_active:
@@ -940,10 +877,7 @@ async def _send_interact_nudge(
                 timeout_sec=20.0,
             )
             if not stream_idle and snapshot_or_vision:
-                progress(
-                    "stream remained active after abort; retry abort once before "
-                    "follow-up tolerance"
-                )
+                progress("stream remained active after abort; retry abort once before follow-up tolerance")
                 await _abort_stuck_ui_stream(chat)
                 stream_idle = await _wait_stream_idle(
                     chat,
@@ -952,44 +886,26 @@ async def _send_interact_nudge(
                 )
             if not stream_idle:
                 if snapshot_or_vision:
-                    progress(
-                        "stream remained active after abort; continue follow-up send "
-                        "(snapshot/vision tolerance)"
-                    )
+                    progress("stream remained active after abort; continue follow-up send (snapshot/vision tolerance)")
                 else:
-                    raise TimeoutError(
-                        "stream still active after abort before follow-up nudge"
-                    )
+                    raise TimeoutError("stream still active after abort before follow-up nudge")
         send_surface_ready = True
         if stream_active or force_follow_up or snapshot_or_vision:
-            send_surface_ready = await _wait_nudge_send_surface(
-                chat, chat_id=normalized_chat_id
-            )
+            send_surface_ready = await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
         if not send_surface_ready:
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
-                reason=(
-                    "E2E fallback: seed desktop approval when follow-up send "
-                    "surface is not ready"
-                ),
+                reason=("E2E fallback: seed desktop approval when follow-up send surface is not ready"),
             )
             if seeded_request_id:
                 progress(
-                    "follow-up send surface not ready; seeded pending desktop "
-                    f"approval fallback request_id={seeded_request_id}"
+                    f"follow-up send surface not ready; seeded pending desktop approval fallback request_id={seeded_request_id}"
                 )
             else:
-                progress(
-                    "follow-up send surface not ready; pending seed unavailable "
-                    "(continue gate stage)"
-                )
+                progress("follow-up send surface not ready; pending seed unavailable (continue gate stage)")
             await asyncio.to_thread(activate_textedit_foreground)
             return
-        reason = (
-            "snapshot turn complete"
-            if last_tool.endswith("desktop_snapshot_tool")
-            else "turn complete"
-        )
+        reason = "snapshot turn complete" if last_tool.endswith("desktop_snapshot_tool") else "turn complete"
         progress(f"follow-up native send ({reason}, not steer)")
 
         async def _submit_follow_up_native_once() -> dict[str, object]:
@@ -1005,9 +921,7 @@ async def _send_interact_nudge(
                     timeout=60.0,
                 )
             except asyncio.TimeoutError as exc:
-                raise TimeoutError(
-                    "follow-up native send wall timeout after 60s"
-                ) from exc
+                raise TimeoutError("follow-up native send wall timeout after 60s") from exc
 
         async def _submit_follow_up_native_with_recover(
             *,
@@ -1025,11 +939,9 @@ async def _send_interact_nudge(
                     chat_id=chat_id,
                 )
                 if not surface_repaired:
-                    seeded_request_id = (
-                        await _seed_pending_desktop_approval_with_budget(
-                            fallback_budget,
-                            reason=f"{seed_reason_prefix} surface repair timeout",
-                        )
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
+                        reason=f"{seed_reason_prefix} surface repair timeout",
                     )
                     if seeded_request_id:
                         progress(
@@ -1038,20 +950,13 @@ async def _send_interact_nudge(
                             f"request_id={seeded_request_id}"
                         )
                     else:
-                        progress(
-                            f"{stage_label} surface repair timed out; pending seed "
-                            "unavailable (continue gate stage)"
-                        )
+                        progress(f"{stage_label} surface repair timed out; pending seed unavailable (continue gate stage)")
                     return None
-                send_surface_ready_retry = await _wait_nudge_send_surface(
-                    chat, chat_id=normalized_chat_id
-                )
+                send_surface_ready_retry = await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
                 if not send_surface_ready_retry:
-                    seeded_request_id = (
-                        await _seed_pending_desktop_approval_with_budget(
-                            fallback_budget,
-                            reason=f"{seed_reason_prefix} retry surface not ready",
-                        )
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
+                        reason=f"{seed_reason_prefix} retry surface not ready",
                     )
                     if seeded_request_id:
                         progress(
@@ -1060,10 +965,7 @@ async def _send_interact_nudge(
                             f"request_id={seeded_request_id}"
                         )
                     else:
-                        progress(
-                            f"{stage_label} retry surface not ready; pending seed "
-                            "unavailable (continue gate stage)"
-                        )
+                        progress(f"{stage_label} retry surface not ready; pending seed unavailable (continue gate stage)")
                     return None
                 return await _submit_follow_up_native_once()
 
@@ -1077,25 +979,17 @@ async def _send_interact_nudge(
         progress(f"nudge follow-up send: {send_result.get('submit', send_result)}")
         if normalized_chat_id:
             submit_user_count = _submit_turn_user_count(send_result)
-            submit_user_advanced = (
-                submit_user_count is not None and submit_user_count > baseline_user_msgs
-            )
+            submit_user_advanced = submit_user_count is not None and submit_user_count > baseline_user_msgs
             consumed = await _wait_nudge_consumed(
                 normalized_chat_id,
                 baseline_user_msgs=baseline_user_msgs,
                 baseline_step_count=baseline_step_count,
             )
             if not consumed and submit_user_advanced:
-                progress(
-                    "follow-up submit accepted by userCount "
-                    f"{baseline_user_msgs}->{submit_user_count}; continue gate wait"
-                )
+                progress(f"follow-up submit accepted by userCount {baseline_user_msgs}->{submit_user_count}; continue gate wait")
                 seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                     fallback_budget,
-                    reason=(
-                        "E2E fallback: seed desktop approval when follow-up submit "
-                        "advanced userCount without interact"
-                    ),
+                    reason=("E2E fallback: seed desktop approval when follow-up submit advanced userCount without interact"),
                 )
                 if seeded_request_id:
                     progress(
@@ -1112,21 +1006,12 @@ async def _send_interact_nudge(
                     chat_id=normalized_chat_id,
                     timeout_sec=15.0,
                 )
-                retry_user_msgs, retry_step_count = await _nudge_baseline_markers(
-                    normalized_chat_id
-                )
-                send_surface_ready = await _wait_nudge_send_surface(
-                    chat, chat_id=normalized_chat_id
-                )
+                retry_user_msgs, retry_step_count = await _nudge_baseline_markers(normalized_chat_id)
+                send_surface_ready = await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
                 if not send_surface_ready:
-                    seeded_request_id = (
-                        await _seed_pending_desktop_approval_with_budget(
-                            fallback_budget,
-                            reason=(
-                                "E2E fallback: seed desktop approval after follow-up "
-                                "resend surface not ready"
-                            ),
-                        )
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
+                        reason=("E2E fallback: seed desktop approval after follow-up resend surface not ready"),
                     )
                     if seeded_request_id:
                         progress(
@@ -1134,30 +1019,19 @@ async def _send_interact_nudge(
                             f"desktop approval fallback request_id={seeded_request_id}"
                         )
                     else:
-                        progress(
-                            "follow-up resend surface not ready; pending seed "
-                            "unavailable (continue gate stage)"
-                        )
+                        progress("follow-up resend surface not ready; pending seed unavailable (continue gate stage)")
                     await asyncio.to_thread(activate_textedit_foreground)
                     return
                 retry_result = await _submit_follow_up_native_with_recover(
                     stage_label="follow-up resend",
-                    seed_reason_prefix=(
-                        "E2E fallback: seed desktop approval after follow-up resend"
-                    ),
+                    seed_reason_prefix=("E2E fallback: seed desktop approval after follow-up resend"),
                 )
                 if retry_result is None:
                     await asyncio.to_thread(activate_textedit_foreground)
                     return
-                progress(
-                    f"nudge follow-up resend: "
-                    f"{retry_result.get('submit', retry_result)}"
-                )
+                progress(f"nudge follow-up resend: {retry_result.get('submit', retry_result)}")
                 retry_submit_user_count = _submit_turn_user_count(retry_result)
-                retry_submit_user_advanced = (
-                    retry_submit_user_count is not None
-                    and retry_submit_user_count > retry_user_msgs
-                )
+                retry_submit_user_advanced = retry_submit_user_count is not None and retry_submit_user_count > retry_user_msgs
                 consumed = await _wait_nudge_consumed(
                     normalized_chat_id,
                     baseline_user_msgs=retry_user_msgs,
@@ -1166,15 +1040,11 @@ async def _send_interact_nudge(
                 )
                 if not consumed and retry_submit_user_advanced:
                     progress(
-                        "follow-up resend accepted by userCount "
-                        f"{retry_user_msgs}->{retry_submit_user_count}; continue gate wait"
+                        f"follow-up resend accepted by userCount {retry_user_msgs}->{retry_submit_user_count}; continue gate wait"
                     )
                     seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                         fallback_budget,
-                        reason=(
-                            "E2E fallback: seed desktop approval when follow-up resend "
-                            "advanced userCount without interact"
-                        ),
+                        reason=("E2E fallback: seed desktop approval when follow-up resend advanced userCount without interact"),
                     )
                     if seeded_request_id:
                         progress(
@@ -1199,9 +1069,7 @@ async def _send_interact_nudge(
                     raise TimeoutError("follow-up nudge not consumed after resend")
         await asyncio.to_thread(activate_textedit_foreground)
         return
-    progress(
-        f"steer nudge after {last_tool or 'idle'} " f"(stream_active={stream_active})"
-    )
+    progress(f"steer nudge after {last_tool or 'idle'} (stream_active={stream_active})")
     try:
         send_result = await chat.submit_desktop_nudge(
             nudge_prompt,
@@ -1216,10 +1084,7 @@ async def _send_interact_nudge(
         if not surface_repaired:
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
-                reason=(
-                    "E2E fallback: seed desktop approval when steer nudge "
-                    "surface repair timed out"
-                ),
+                reason=("E2E fallback: seed desktop approval when steer nudge surface repair timed out"),
             )
             if seeded_request_id:
                 progress(
@@ -1227,10 +1092,7 @@ async def _send_interact_nudge(
                     f"approval fallback request_id={seeded_request_id}"
                 )
             else:
-                progress(
-                    "steer nudge surface repair timed out; pending seed unavailable "
-                    "(continue gate stage)"
-                )
+                progress("steer nudge surface repair timed out; pending seed unavailable (continue gate stage)")
             return
         send_result = await chat.submit_desktop_nudge(
             nudge_prompt,
@@ -1249,18 +1111,11 @@ async def _send_interact_nudge(
             await _wait_stream_idle(chat, chat_id=normalized_chat_id)
 
             async def _steer_fallback_follow_up() -> None:
-                send_surface_ready = await _wait_nudge_send_surface(
-                    chat, chat_id=normalized_chat_id
-                )
+                send_surface_ready = await _wait_nudge_send_surface(chat, chat_id=normalized_chat_id)
                 if not send_surface_ready:
-                    seeded_request_id = (
-                        await _seed_pending_desktop_approval_with_budget(
-                            fallback_budget,
-                            reason=(
-                                "E2E fallback: seed desktop approval when steer "
-                                "follow-up surface is not ready"
-                            ),
-                        )
+                    seeded_request_id = await _seed_pending_desktop_approval_with_budget(
+                        fallback_budget,
+                        reason=("E2E fallback: seed desktop approval when steer follow-up surface is not ready"),
                     )
                     if seeded_request_id:
                         progress(
@@ -1268,10 +1123,7 @@ async def _send_interact_nudge(
                             f"desktop approval fallback request_id={seeded_request_id}"
                         )
                     else:
-                        progress(
-                            "steer follow-up surface not ready; pending seed "
-                            "unavailable (continue gate stage)"
-                        )
+                        progress("steer follow-up surface not ready; pending seed unavailable (continue gate stage)")
                     return
                 await asyncio.to_thread(activate_chrome_foreground)
                 send_result = await chat.fast_desktop_agent_submit(
@@ -1281,10 +1133,7 @@ async def _send_interact_nudge(
                     baseline_user_msgs_hint=baseline_user_msgs,
                     wait_stream_started=False,
                 )
-                progress(
-                    f"steer fallback follow-up send: "
-                    f"{send_result.get('submit', send_result)}"
-                )
+                progress(f"steer fallback follow-up send: {send_result.get('submit', send_result)}")
                 if normalized_chat_id:
                     await _wait_nudge_consumed(
                         normalized_chat_id,
@@ -1307,9 +1156,7 @@ async def _agent_stream_active(
     api_only: bool = False,
 ) -> bool:
     if api_only and chat_id.strip():
-        tool_activity = await probe_desktop_tool_progress(
-            chat, chat_id=chat_id, api_only=True
-        )
+        tool_activity = await probe_desktop_tool_progress(chat, chat_id=chat_id, api_only=True)
         return bool(tool_activity.get("isStreaming"))
     stream_probe = await chat.probe_desktop_approval_once()
     tool_activity = await probe_desktop_tool_progress(chat, chat_id=chat_id)
@@ -1338,9 +1185,7 @@ async def _fail_if_model_completed_without_desktop_tools(
     if probe.get("err") == "model-completed-without-desktop-tools":
         hint = await _provider_readiness_hint()
         raise AssertionError(f"Model finished without desktop tools: {probe}{hint}")
-    sample = str(
-        tool_activity.get("assistantSample") or probe.get("lastAssistantSample") or ""
-    )
+    sample = str(tool_activity.get("assistantSample") or probe.get("lastAssistantSample") or "")
     completion_status = str(tool_activity.get("completionStatus") or "")
     is_streaming = bool(probe.get("isStreaming") or tool_activity.get("isStreaming"))
     if is_streaming and completion_status != "complete" and not sample:
@@ -1358,8 +1203,7 @@ async def _fail_if_model_completed_without_desktop_tools(
     if "done" in lowered:
         hint = await _provider_readiness_hint()
         raise AssertionError(
-            "Model replied DONE without desktop_interact_tool "
-            f"(lastTool={last_tool!r}, sample={sample[:120]!r}).{hint}"
+            f"Model replied DONE without desktop_interact_tool (lastTool={last_tool!r}, sample={sample[:120]!r}).{hint}"
         )
     if completion_status == "complete" or sample:
         hint = await _provider_readiness_hint()
@@ -1393,9 +1237,7 @@ async def wait_for_interact_or_approval(
     while asyncio.get_event_loop().time() < deadline:
         poll += 1
         if wall_started_at is not None:
-            assert_desktop_e2e_wall_clock(
-                wall_started_at, phase="wait_for_interact_or_approval"
-            )
+            assert_desktop_e2e_wall_clock(wall_started_at, phase="wait_for_interact_or_approval")
         heartbeat_once()
         if api_only and poll % 5 == 0:
             await asyncio.to_thread(activate_textedit_foreground)
@@ -1521,21 +1363,13 @@ async def _wait_desktop_tool_activity_failfast(
                 f"apiLastTool={last.get('apiLastTool')} streaming={last.get('isStreaming')} "
                 f"complete={last.get('completionStatus')}"
             )
-        if (
-            progress_api_timeout_streak >= streak_threshold
-            or progress_api_timeout_total >= total_threshold
-        ):
+        if progress_api_timeout_streak >= streak_threshold or progress_api_timeout_total >= total_threshold:
             threshold_reason = (
-                f"streak>={streak_threshold}"
-                if progress_api_timeout_streak >= streak_threshold
-                else f"total>={total_threshold}"
+                f"streak>={streak_threshold}" if progress_api_timeout_streak >= streak_threshold else f"total>={total_threshold}"
             )
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
-                reason=(
-                    "E2E fallback: seed desktop approval after progress API "
-                    f"wall-timeout ({threshold_reason})"
-                ),
+                reason=(f"E2E fallback: seed desktop approval after progress API wall-timeout ({threshold_reason})"),
             )
             if seeded_request_id:
                 progress(
@@ -1563,9 +1397,7 @@ async def _wait_desktop_tool_activity_failfast(
                 "pendingSource": "synthetic-fallback",
             }
         if wall_started_at is not None:
-            assert_desktop_e2e_wall_clock(
-                wall_started_at, phase="wait_desktop_tool_activity"
-            )
+            assert_desktop_e2e_wall_clock(wall_started_at, phase="wait_desktop_tool_activity")
         server_pending = await _resolve_server_pending(api_fail_streak=api_fail_streak)
         if server_pending > 0:
             return {
@@ -1592,10 +1424,7 @@ async def _wait_desktop_tool_activity_failfast(
                 and now - streaming_started >= GATE_STREAM_NUDGE_SEC
                 and not last_tool.startswith("desktop_")
             ):
-                progress(
-                    f"streaming {now - streaming_started:.0f}s without desktop tools "
-                    f"— abort stream then steer nudge"
-                )
+                progress(f"streaming {now - streaming_started:.0f}s without desktop tools — abort stream then steer nudge")
                 await _abort_stuck_ui_stream(chat)
                 await _wait_stream_idle(chat, chat_id=chat_id, timeout_sec=15.0)
                 try:
@@ -1609,15 +1438,11 @@ async def _wait_desktop_tool_activity_failfast(
                     progress(f"early stream nudge skipped (non-fatal): {exc}")
                 stream_nudge_sent = True
                 streaming_started = now
-            elif (
-                now - streaming_started >= GATE_STREAM_STUCK_SEC
-                and not last_tool.startswith("desktop_")
-            ):
+            elif now - streaming_started >= GATE_STREAM_STUCK_SEC and not last_tool.startswith("desktop_"):
                 if not api_only:
                     await _abort_stuck_ui_stream(chat)
                 raise AssertionError(
-                    f"Agent stream stuck >{GATE_STREAM_STUCK_SEC:.0f}s without desktop tools "
-                    "(aborted for retry)"
+                    f"Agent stream stuck >{GATE_STREAM_STUCK_SEC:.0f}s without desktop tools (aborted for retry)"
                 )
         else:
             streaming_started = None
@@ -1636,9 +1461,7 @@ async def _wait_desktop_tool_activity_failfast(
             if idle_started is None:
                 idle_started = now
             elif not idle_nudge_sent and now - idle_started >= GATE_IDLE_NUDGE_SEC:
-                progress(
-                    f"idle {now - idle_started:.0f}s without desktop tools — early nudge"
-                )
+                progress(f"idle {now - idle_started:.0f}s without desktop tools — early nudge")
                 try:
                     await _send_interact_nudge(
                         chat,
@@ -1650,21 +1473,14 @@ async def _wait_desktop_tool_activity_failfast(
                     progress(f"early idle nudge skipped (non-fatal): {exc}")
                 idle_nudge_sent = True
                 idle_started = now
-            elif (
-                idle_nudge_sent
-                and not idle_seed_attempted
-                and now - idle_started >= GATE_IDLE_NUDGE_SEC
-            ):
+            elif idle_nudge_sent and not idle_seed_attempted and now - idle_started >= GATE_IDLE_NUDGE_SEC:
                 idle_seed_attempted = True
                 seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                     fallback_budget,
                     reason="E2E fallback: seed desktop approval after idle no-tool window",
                 )
                 if seeded_request_id:
-                    progress(
-                        "idle no-tool window seeded pending desktop approval fallback "
-                        f"request_id={seeded_request_id}"
-                    )
+                    progress(f"idle no-tool window seeded pending desktop approval fallback request_id={seeded_request_id}")
                     return {
                         **last,
                         "pending": True,
@@ -1684,9 +1500,7 @@ async def _wait_desktop_tool_activity_failfast(
             idle_started = None
         await asyncio.sleep(1.0)
     hint = await _provider_readiness_hint()
-    raise AssertionError(
-        f"Desktop tool activity timeout after {timeout_sec:.0f}s: {last}{hint}"
-    )
+    raise AssertionError(f"Desktop tool activity timeout after {timeout_sec:.0f}s: {last}{hint}")
 
 
 async def ensure_interact_gate(
@@ -1720,19 +1534,13 @@ async def ensure_interact_gate(
             fast_only=True,
         )
         if prefetched_dref:
-            progress(
-                f"prefetched dref={prefetched_dref!r} before approval chrome activate"
-            )
+            progress(f"prefetched dref={prefetched_dref!r} before approval chrome activate")
     if textedit_foreground:
         if _is_snapshot_or_vision_loop(last_tool):
-            progress(
-                "agent turn observed via API — keep TextEdit foreground for snapshot/interact"
-            )
+            progress("agent turn observed via API — keep TextEdit foreground for snapshot/interact")
             await asyncio.to_thread(activate_textedit_foreground)
         else:
-            progress(
-                "agent turn observed via API — activate Chrome for CDP + approval banner"
-            )
+            progress("agent turn observed via API — activate Chrome for CDP + approval banner")
             await asyncio.to_thread(activate_chrome_foreground)
     progress(
         f"desktop tool activity result active={tool_activity.get('active')} "
@@ -1764,9 +1572,7 @@ async def ensure_interact_gate(
             ui_pending=ui_pending,
         ) or not last_tool.endswith("desktop_vision_tool"):
             break
-        progress(
-            f"vision detected — steer nudge round {vision_round}/{_VISION_NUDGE_ROUNDS}"
-        )
+        progress(f"vision detected — steer nudge round {vision_round}/{_VISION_NUDGE_ROUNDS}")
         try:
             await _send_interact_nudge(
                 chat,
@@ -1864,14 +1670,10 @@ async def ensure_interact_gate(
             break
         if last_tool.endswith("desktop_interact_tool"):
             interact_seen = True
-            progress(
-                "desktop_interact_tool observed — stop nudging and wait pending gate"
-            )
+            progress("desktop_interact_tool observed — stop nudging and wait pending gate")
             break
         if round_idx == 0 and not _is_snapshot_or_vision_loop(last_tool):
-            tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(
-                45.0
-            )
+            tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(45.0)
             interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
             if _desktop_gate_satisfied(
                 last_tool=last_tool,
@@ -1879,10 +1681,7 @@ async def ensure_interact_gate(
                 ui_pending=ui_pending,
             ):
                 break
-        progress(
-            f"nudge model to call desktop_interact_tool "
-            f"round {round_idx + 1}/{max_nudge_rounds} lastTool={last_tool!r}"
-        )
+        progress(f"nudge model to call desktop_interact_tool round {round_idx + 1}/{max_nudge_rounds} lastTool={last_tool!r}")
         try:
             await _send_interact_nudge(
                 chat,
@@ -1910,10 +1709,7 @@ async def ensure_interact_gate(
                 reason="E2E fallback: seed desktop approval during repeated vision loop",
             )
             if seeded_request_id:
-                progress(
-                    "vision-loop mid-round seeded pending desktop approval fallback "
-                    f"request_id={seeded_request_id}"
-                )
+                progress(f"vision-loop mid-round seeded pending desktop approval fallback request_id={seeded_request_id}")
                 if isinstance(tool_activity, dict):
                     tool_activity = {
                         **tool_activity,
@@ -1924,9 +1720,7 @@ async def ensure_interact_gate(
         post_nudge_wait = 30.0 if _is_snapshot_or_vision_loop(last_tool) else 60.0
         if textedit_foreground and _is_snapshot_or_vision_loop(last_tool):
             await asyncio.to_thread(activate_textedit_foreground)
-        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(
-            post_nudge_wait
-        )
+        tool_activity, last_tool, server_pending, ui_pending = await _wait_gate(post_nudge_wait)
         interact_seen = interact_seen or last_tool.endswith("desktop_interact_tool")
 
     if interact_seen and not _desktop_gate_satisfied(
@@ -1937,8 +1731,7 @@ async def ensure_interact_gate(
         grace_deadline = asyncio.get_event_loop().time() + GATE_PENDING_GRACE_SEC
         grace_poll = 0
         progress(
-            f"interact_tool observed without pending gate — grace wait "
-            f"{GATE_PENDING_GRACE_SEC:.0f}s for approval to register"
+            f"interact_tool observed without pending gate — grace wait {GATE_PENDING_GRACE_SEC:.0f}s for approval to register"
         )
         while asyncio.get_event_loop().time() < grace_deadline:
             grace_poll += 1
@@ -1948,16 +1741,9 @@ async def ensure_interact_gate(
             if normalized_chat_id:
                 probe = await _desktop_tool_progress_api_fast(normalized_chat_id)
             else:
-                probe = await probe_desktop_tool_progress(
-                    chat, chat_id=chat_id, api_only=api_only
-                )
-            ui_pending = (
-                bool(probe.get("pending")) if isinstance(probe, dict) else False
-            )
-            last_tool = str(
-                (probe.get("lastTool") if isinstance(probe, dict) else None)
-                or last_tool
-            )
+                probe = await probe_desktop_tool_progress(chat, chat_id=chat_id, api_only=api_only)
+            ui_pending = bool(probe.get("pending")) if isinstance(probe, dict) else False
+            last_tool = str((probe.get("lastTool") if isinstance(probe, dict) else None) or last_tool)
             if grace_poll == 1 or grace_poll % 8 == 0:
                 progress(
                     "interact pending grace poll "
@@ -1977,10 +1763,7 @@ async def ensure_interact_gate(
         server_pending=server_pending,
         ui_pending=ui_pending,
     ):
-        progress(
-            "interact_tool observed without pending gate — send rescue nudge "
-            "before banner stage"
-        )
+        progress("interact_tool observed without pending gate — send rescue nudge before banner stage")
         try:
             await _send_interact_nudge(
                 chat,
@@ -2001,10 +1784,7 @@ async def ensure_interact_gate(
                 reason="E2E fallback: seed desktop approval after pending-gate stall",
             )
             if seeded_request_id:
-                progress(
-                    "rescue stage seeded pending desktop approval fallback "
-                    f"request_id={seeded_request_id}"
-                )
+                progress(f"rescue stage seeded pending desktop approval fallback request_id={seeded_request_id}")
                 if isinstance(tool_activity, dict):
                     tool_activity = {
                         **tool_activity,
@@ -2045,10 +1825,7 @@ async def ensure_interact_gate(
             reason="E2E fallback: seed desktop approval after vision/snapshot loop",
         )
         if seeded_request_id:
-            progress(
-                "vision/snapshot loop seeded pending desktop approval fallback "
-                f"request_id={seeded_request_id}"
-            )
+            progress(f"vision/snapshot loop seeded pending desktop approval fallback request_id={seeded_request_id}")
             if isinstance(tool_activity, dict):
                 tool_activity = {
                     **tool_activity,

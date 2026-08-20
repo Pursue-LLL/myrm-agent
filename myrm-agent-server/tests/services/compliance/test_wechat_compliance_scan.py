@@ -51,11 +51,7 @@ def test_extract_visible_text_skips_script_blocks() -> None:
 
 
 def test_extract_visible_text_skips_pre_code_blocks() -> None:
-    html = (
-        "<html><body><p>正常正文</p>"
-        "<pre><code>保本理财，稳赚不赔</code></pre>"
-        "</body></html>"
-    )
+    html = "<html><body><p>正常正文</p><pre><code>保本理财，稳赚不赔</code></pre></body></html>"
     assert extract_visible_text_from_html(html) == "正常正文"
     assert_wechat_draft_compliance_html(html)
 

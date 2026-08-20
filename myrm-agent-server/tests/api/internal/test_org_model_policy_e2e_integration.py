@@ -62,9 +62,7 @@ def fake_config():
 
 
 @pytest.mark.asyncio
-async def test_full_roundtrip_sync_then_read(
-    policy_app: FastAPI, fake_config: FakeConfigStore
-) -> None:
+async def test_full_roundtrip_sync_then_read(policy_app: FastAPI, fake_config: FakeConfigStore) -> None:
     """CP syncs patterns → frontend GET returns them → restricted flag correct."""
     transport = ASGITransport(app=policy_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -83,9 +81,7 @@ async def test_full_roundtrip_sync_then_read(
 
 
 @pytest.mark.asyncio
-async def test_roundtrip_empty_clears_restriction(
-    policy_app: FastAPI, fake_config: FakeConfigStore
-) -> None:
+async def test_roundtrip_empty_clears_restriction(policy_app: FastAPI, fake_config: FakeConfigStore) -> None:
     """Sync non-empty then sync empty → restriction cleared."""
     transport = ASGITransport(app=policy_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -105,9 +101,7 @@ async def test_roundtrip_empty_clears_restriction(
 
 
 @pytest.mark.asyncio
-async def test_litellm_format_models_matched_by_policy(
-    policy_app: FastAPI, fake_config: FakeConfigStore
-) -> None:
+async def test_litellm_format_models_matched_by_policy(policy_app: FastAPI, fake_config: FakeConfigStore) -> None:
     """Verify that LiteLLM-format model names (provider/model) are correctly
     matched by glob patterns — this is the critical integration point."""
     from fnmatch import fnmatch
@@ -144,9 +138,7 @@ async def test_litellm_format_models_matched_by_policy(
 
 
 @pytest.mark.asyncio
-async def test_policy_enforcement_backend_frontend_parity(
-    policy_app: FastAPI, fake_config: FakeConfigStore
-) -> None:
+async def test_policy_enforcement_backend_frontend_parity(policy_app: FastAPI, fake_config: FakeConfigStore) -> None:
     """Backend fnmatch and the pattern matching produce identical results
     for real-world LiteLLM model names."""
     from fnmatch import fnmatch

@@ -105,9 +105,7 @@ def _poll_clip_job(client: TestClient, job_id: str) -> dict[str, object]:
 def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     try:
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -138,9 +136,7 @@ def test_wiki_clip_accepts_and_writes_raw(tmp_path: Path) -> None:
 def test_wiki_clip_queue_compile_false_string(tmp_path: Path) -> None:
     client, archiver, structure = _build_wiki_client(tmp_path)
     try:
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -228,9 +224,7 @@ def test_wiki_clip_payload_bytes_counts_asset_urls_field() -> None:
         "folder_path": "",
         "queue_compile": "false",
     }
-    huge_asset_urls = json.dumps(
-        [f"https://example.com/{'a' * (MAX_CLIP_PAYLOAD_BYTES + 1)}"]
-    )
+    huge_asset_urls = json.dumps([f"https://example.com/{'a' * (MAX_CLIP_PAYLOAD_BYTES + 1)}"])
     payload_bytes = clip_form_payload_bytes(
         **small_body,
         asset_urls=huge_asset_urls,
@@ -251,9 +245,7 @@ def test_wiki_clip_job_not_found(tmp_path: Path) -> None:
 def test_wiki_clip_html_path_writes_raw(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     try:
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -280,9 +272,7 @@ def test_wiki_clip_html_path_writes_raw(tmp_path: Path) -> None:
 def test_wiki_clip_custom_folder_path_writes_raw(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     try:
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -316,9 +306,7 @@ def test_wiki_clip_conflict_job_response(tmp_path: Path) -> None:
         existing.parent.mkdir(parents=True, exist_ok=True)
         existing.write_text("existing content", encoding="utf-8")
 
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -376,9 +364,7 @@ def test_wiki_clip_security_blocked_job_response(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
     try:
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -405,9 +391,7 @@ def test_wiki_clip_multipart_assets(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     try:
         png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             response = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -435,9 +419,7 @@ def test_wiki_clip_reclip_same_source_url_replaces_raw(tmp_path: Path) -> None:
     client, _archiver, structure = _build_wiki_client(tmp_path)
     source_url = "https://example.com/reclip-api"
     try:
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             first = client.post(
                 "/api/v1/wiki/clip",
                 data={
@@ -453,9 +435,7 @@ def test_wiki_clip_reclip_same_source_url_replaces_raw(tmp_path: Path) -> None:
         assert first_final["written"] is True
         rel_path = str(first_final["relative_path"])
 
-        with patch(
-            "app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None
-        ):
+        with patch("app.services.wiki.dedup_runner.schedule_wiki_dedup_scan", return_value=None):
             second = client.post(
                 "/api/v1/wiki/clip",
                 data={

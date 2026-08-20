@@ -49,6 +49,7 @@ def client():
 
 # ── Fake ORM objects ────────────────────────────────────────────
 
+
 class _FakeVersion:
     def __init__(self, vault_uri: str = "vault://obj-abc-123", ts: datetime | None = None):
         self.id = "v1"
@@ -72,6 +73,7 @@ class _FakeArtifact:
 
 
 # ── Helpers ─────────────────────────────────────────────────────
+
 
 def _mock_session_ctx(artifact: _FakeArtifact | None):
     """Return an async context manager factory that yields a mocked DB session."""
@@ -185,6 +187,7 @@ def ingest_env(tmp_path: Path):
 
 # ── Happy Path ──────────────────────────────────────────────────
 
+
 class TestIngestSuccess:
     def test_writes_raw_file_and_enqueues(self, client: TestClient, ingest_env) -> None:
         artifact = _FakeArtifact(name="analysis_report.md")
@@ -237,6 +240,7 @@ class TestIngestSuccess:
 
 # ── Error Paths ─────────────────────────────────────────────────
 
+
 class TestIngestErrors:
     def test_artifact_not_found_404(self, client: TestClient, ingest_env) -> None:
         stack, _ = ingest_env(None)
@@ -273,6 +277,7 @@ class TestIngestErrors:
 
 # ── Request Validation (no mocks needed) ────────────────────────
 
+
 class TestIngestValidation:
     def test_empty_artifact_id_422(self, client: TestClient) -> None:
         resp = client.post("/api/v1/wiki/ingest", json={"artifact_id": ""})
@@ -288,6 +293,7 @@ class TestIngestValidation:
 
 
 # ── Edge Cases ──────────────────────────────────────────────────
+
 
 class TestIngestEdgeCases:
     def test_name_with_slashes_and_spaces_sanitized(self, client: TestClient, ingest_env) -> None:

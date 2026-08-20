@@ -151,7 +151,9 @@ def test_apply_telegram_onboarding_rolls_back_on_failure() -> None:
                     )
                 ),
             ),
-            patch("app.services.agent.agent_service.AgentService.delete_agent", new=AsyncMock(return_value=True)) as delete_agent_mock,
+            patch(
+                "app.services.agent.agent_service.AgentService.delete_agent", new=AsyncMock(return_value=True)
+            ) as delete_agent_mock,
             TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=False) as client,
         ):
             _put_config(
@@ -307,9 +309,7 @@ async def test_resolve_or_create_telegram_agent_returns_conflict_when_cross_proc
         botToken="1234567890:VALID_TOKEN",
         assistantName="Busy Assistant",
     )
-    lock_path = config_router._telegram_agent_cross_process_lock_path(
-        request.assistant_name
-    )
+    lock_path = config_router._telegram_agent_cross_process_lock_path(request.assistant_name)
     busy_lock = FileLock(str(lock_path))
     busy_lock.acquire(timeout=0)
     monkeypatch.setattr(

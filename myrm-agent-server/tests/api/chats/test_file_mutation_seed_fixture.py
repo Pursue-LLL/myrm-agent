@@ -37,9 +37,7 @@ async def _seed_visible_agent(agent_id: str, *, display_name: str) -> None:
 
 @pytest.mark.integration
 class TestFileMutationSeedIntegration:
-    def test_empty_write_variant_persists_mutation_failures(
-        self, client: TestClient
-    ) -> None:
+    def test_empty_write_variant_persists_mutation_failures(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
         asyncio.run(_seed_visible_agent(agent_id, display_name="Mutation Seed Agent"))
 
@@ -47,9 +45,7 @@ class TestFileMutationSeedIntegration:
             "app.api.chats.test_fixtures.file_mutation.is_local_mode",
             return_value=True,
         ):
-            resp = client.post(
-                "/api/v1/chats/test/seed-file-mutation-fixture?variant=empty_write"
-            )
+            resp = client.post("/api/v1/chats/test/seed-file-mutation-fixture?variant=empty_write")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         chat_id = str(body["chat_id"])
@@ -60,11 +56,7 @@ class TestFileMutationSeedIntegration:
         payload = messages_resp.json()["data"]
         messages = payload["messages"]
         assistant = next(
-            (
-                msg
-                for msg in messages
-                if isinstance(msg, dict) and msg.get("role") == "assistant"
-            ),
+            (msg for msg in messages if isinstance(msg, dict) and msg.get("role") == "assistant"),
             None,
         )
         assert assistant is not None
@@ -72,6 +64,4 @@ class TestFileMutationSeedIntegration:
         failures = metadata.get("fileMutationFailures")
         assert isinstance(failures, list) and len(failures) == 1
         assert failures[0]["tool"] == "file_write_tool"
-        assert "Cannot write empty file content" in str(
-            failures[0].get("error_preview") or ""
-        )
+        assert "Cannot write empty file content" in str(failures[0].get("error_preview") or "")

@@ -201,8 +201,7 @@ async def test_rewind_conversation_via_webui(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for rewind Chrome E2E — run via "
-            "./myrm test -m chrome_e2e after ./myrm ready --chrome",
+            "Provider config not ready for rewind Chrome E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome",
         )
 
     api_base = get_e2e_api_url()
@@ -239,13 +238,10 @@ async def test_rewind_conversation_via_webui(
                 wait_e2e_backend_ready(timeout_sec=15.0, api_url=api_base)
             await asyncio.sleep(1.0)
         raise AssertionError(
-            f"Backend user messages did not reach {expected} (mode={mode}) "
-            f"within {timeout_sec}s (last={last}, seen={seen[-12:]})"
+            f"Backend user messages did not reach {expected} (mode={mode}) within {timeout_sec}s (last={last}, seen={seen[-12:]})"
         )
 
-    async def _wait_store_user_count(
-        chat: McpChatSession, expected: int, *, timeout_sec: float
-    ) -> None:
+    async def _wait_store_user_count(chat: McpChatSession, expected: int, *, timeout_sec: float) -> None:
         """Poll the frontend store (via E2E bridge) for the expected user count.
 
         Unlike the backend API poll, this reflects what the UI actually renders,
@@ -264,9 +260,7 @@ async def test_rewind_conversation_via_webui(
                 if probe.get("userCount") == expected:
                     return
             await asyncio.sleep(1.0)
-        raise TimeoutError(
-            f"Store user count did not reach {expected} before/after rewind: {last}"
-        )
+        raise TimeoutError(f"Store user count did not reach {expected} before/after rewind: {last}")
 
     async def _wait_not_streaming(chat: McpChatSession, *, timeout_sec: float) -> None:
         deadline = time.monotonic() + timeout_sec
@@ -284,9 +278,7 @@ async def test_rewind_conversation_via_webui(
             await asyncio.sleep(1.0)
         raise TimeoutError(f"Chat still streaming before rewind: {last}")
 
-    async def _wait_js(
-        chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str
-    ) -> dict[str, object]:
+    async def _wait_js(chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
@@ -298,9 +290,7 @@ async def test_rewind_conversation_via_webui(
             await asyncio.sleep(1.0)
         raise AssertionError(f"{error_label}: {last}")
 
-    async def _wait_dialog(
-        chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str
-    ) -> dict[str, object]:
+    async def _wait_dialog(chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str) -> dict[str, object]:
         """Poll for a dialog and keep a trace of every observed state, so a
         'dialog never opened' failure is distinguishable from a render race."""
         deadline = time.monotonic() + timeout_sec
@@ -380,22 +370,14 @@ async def test_rewind_conversation_via_webui(
 
         send = await chat.send_message(TURN_A, TURN_A)
         _touch_rewind_progress("rewind_post_send_turn_a")
-        chat_id_hint = str(
-            send.get("started", {}).get("chatId")
-            or send.get("submit", {}).get("chatId")
-            or ""
-        ).strip()
+        chat_id_hint = str(send.get("started", {}).get("chatId") or send.get("submit", {}).get("chatId") or "").strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
-        started = await chat.wait_stream_started(
-            TURN_A, timeout_sec=120.0, chat_id_hint=chat_id_hint
-        )
+        started = await chat.wait_stream_started(TURN_A, timeout_sec=120.0, chat_id_hint=chat_id_hint)
         chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         if not chat_id:
-            after_start = await chat.main_state(
-                TURN_A, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            after_start = await chat.main_state(TURN_A, intent=EvaluateIntent.BRIDGE_POLL)
             chat_id = (
                 chat_id_from_path(str(after_start.get("path") or ""))
                 or str(after_start.get("bridgeChatId") or "").strip()
@@ -419,12 +401,8 @@ async def test_rewind_conversation_via_webui(
         await _clear_composer(chat, timeout_sec=30.0)
 
         _touch_rewind_progress("rewind_open_dialog")
-        opened = await chat.evaluate(
-            _OPEN_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
-        assert (
-            isinstance(opened, dict) and opened.get("ok") is True
-        ), f"Open rewind failed: {opened}"
+        opened = await chat.evaluate(_OPEN_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(opened, dict) and opened.get("ok") is True, f"Open rewind failed: {opened}"
         print(f"REWIND_DIAG open_rewind={opened}")
 
         # Diagnostic: compare frontend message ids (from DOM) with backend DB ids.
@@ -434,9 +412,7 @@ async def test_rewind_conversation_via_webui(
                 from cdp_chat.support import fetch_chat_messages
 
                 back_msgs = fetch_chat_messages(chat_id, api_url=api_base)
-                back_ids = [
-                    str(m.get("messageId") or m.get("id") or "")[:14] for m in back_msgs
-                ]
+                back_ids = [str(m.get("messageId") or m.get("id") or "")[:14] for m in back_msgs]
                 print(f"REWIND_DIAG dom={dom_ids} backend={back_ids}")
             except Exception as exc:  # pragma: no cover - diagnostic only
                 print(f"REWIND_DIAG backend fetch failed: {exc}")
@@ -449,19 +425,11 @@ async def test_rewind_conversation_via_webui(
         )
         assert dialog.get("hasScopeBoth") is True, f"Unexpected scope options: {dialog}"
 
-        scoped = await chat.evaluate(
-            _SELECT_SCOPE_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
-        assert (
-            isinstance(scoped, dict) and scoped.get("ok") is True
-        ), f"Scope select failed: {scoped}"
+        scoped = await chat.evaluate(_SELECT_SCOPE_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(scoped, dict) and scoped.get("ok") is True, f"Scope select failed: {scoped}"
 
-        confirmed = await chat.evaluate(
-            _CONFIRM_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
-        assert (
-            isinstance(confirmed, dict) and confirmed.get("ok") is True
-        ), f"Confirm failed: {confirmed}"
+        confirmed = await chat.evaluate(_CONFIRM_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(confirmed, dict) and confirmed.get("ok") is True, f"Confirm failed: {confirmed}"
 
         _touch_rewind_progress("rewind_post_confirm")
         # Poll after confirm until the rewind resolves. The dialog stays open
@@ -474,9 +442,7 @@ async def test_rewind_conversation_via_webui(
         seen_toasts: list[list[str]] = []
         diag: dict[str, object] = {}
         while time.monotonic() < confirm_deadline:
-            diag = await chat.evaluate(
-                _FINAL_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            diag = await chat.evaluate(_FINAL_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL)
             if not isinstance(diag, dict):
                 break
             seen_toasts.append([str(x) for x in (diag.get("toasts") or [])])
@@ -508,9 +474,7 @@ async def test_rewind_conversation_via_webui(
 
     with open_mcp_page(BASE_URL, timeout_ms=90_000) as (client, page):
         chat = McpChatSession(client, page)
-        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(
-            shpoib_parallel_shell_timeout_sec(240.0)
-        )
+        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(shpoib_parallel_shell_timeout_sec(240.0))
         await chat.bootstrap(BASE_URL, timeout_sec=bootstrap_timeout)
         chat_id = await _run_flow(chat)
         assert chat_id

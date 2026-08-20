@@ -100,9 +100,7 @@ def test_dynamic_workflow_e2e(client: TestClient):
     check_e2e_errors(collected_data)
 
     phase_events = [
-        phase
-        for event in collected_data
-        if (phase := _phase_payload(event)) is not None and phase.get("phase") == "plan_confirm"
+        phase for event in collected_data if (phase := _phase_payload(event)) is not None and phase.get("phase") == "plan_confirm"
     ]
     if phase_events:
         waiting = [p for p in phase_events if p.get("status") == "waiting"]

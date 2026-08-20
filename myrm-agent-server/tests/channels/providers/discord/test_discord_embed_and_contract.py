@@ -554,7 +554,9 @@ class TestDiscordSendMedia:
         from app.channels.providers.discord.helpers import build_discord_files
         from app.channels.types.messages import MediaAttachment, MediaType
 
-        files = build_discord_files((MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", filename="img.png"),))
+        files = build_discord_files(
+            (MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", filename="img.png"),)
+        )
         assert files == []
 
     @pytest.mark.asyncio
@@ -564,7 +566,9 @@ class TestDiscordSendMedia:
         from app.channels.types.messages import MediaAttachment, MediaType
 
         with pytest.raises(FileNotFoundError):
-            build_discord_files((MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/file.txt", filename="file.txt"),))
+            build_discord_files(
+                (MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/file.txt", filename="file.txt"),)
+            )
 
     @pytest.mark.asyncio
     async def test_make_discord_file_no_source(self) -> None:

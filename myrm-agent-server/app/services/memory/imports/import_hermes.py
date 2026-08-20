@@ -218,9 +218,7 @@ def _parse_memory_md(content: str) -> list[dict[str, object]]:
                     "confidence": 0.75,
                     "tags": ["hermes_memory"] + ([current_section.lower().replace(" ", "_")] if current_section else []),
                     "created_at": iso_or_now(None),
-                    "metadata": build_metadata(
-                        "hermes", {"file": "MEMORY.md", "section": current_section}, ("file", "section")
-                    ),
+                    "metadata": build_metadata("hermes", {"file": "MEMORY.md", "section": current_section}, ("file", "section")),
                 }
             )
 

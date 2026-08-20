@@ -41,9 +41,7 @@ async def seed_prior_chat_fixture() -> dict[str, str]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for prior_chat E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for prior_chat E2E seed")
 
     agent = agents[0]
     prior_chat_id = f"e2eprior{uuid4().hex[:8]}"

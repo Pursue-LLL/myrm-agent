@@ -40,9 +40,7 @@ def base_request() -> dict[str, object]:
     }
 
 
-async def _fake_resolve(
-    selection: ModelSelection, providers: dict[str, object] | None
-) -> ModelConfig:
+async def _fake_resolve(selection: ModelSelection, providers: dict[str, object] | None) -> ModelConfig:
     return ModelConfig(model="gpt-4o-mini", api_key=_DUMMY_KEY)
 
 
@@ -59,9 +57,7 @@ class TestSmartRoutingJudgeCreation:
     """converter correctly creates the judge LLM and passes it to route_task."""
 
     @pytest.mark.asyncio
-    async def test_judge_llm_created_and_passed_to_route_task(
-        self, base_request: dict[str, object]
-    ) -> None:
+    async def test_judge_llm_created_and_passed_to_route_task(self, base_request: dict[str, object]) -> None:
         request = AgentRequest(**base_request)
         fake_judge = AsyncMock()
         mock_route = AsyncMock(return_value=_fake_route_result())
@@ -104,9 +100,7 @@ class TestSmartRoutingJudgeCreation:
         assert mock_route.call_args.kwargs["judge_llm"] is fake_judge
 
     @pytest.mark.asyncio
-    async def test_no_lite_model_selection_skips_judge(
-        self, base_request: dict[str, object]
-    ) -> None:
+    async def test_no_lite_model_selection_skips_judge(self, base_request: dict[str, object]) -> None:
         del base_request["lite_model_selection"]
         request = AgentRequest(**base_request)
         mock_route = AsyncMock(return_value=_fake_route_result())

@@ -87,9 +87,7 @@ def dry_run_mem0(payload: dict[str, object]) -> MemoryImportDryRunResult:
             "importance": float_between(meta_dict.get("importance"), 0.5),
             "created_at": iso_or_now(raw_item.get("created_at")),
             "updated_at": iso_or_now(raw_item.get("updated_at")),
-            "metadata": build_metadata(
-                "mem0", raw_item, ("id", "hash", "user_id", "agent_id")
-            ),
+            "metadata": build_metadata("mem0", raw_item, ("id", "hash", "user_id", "agent_id")),
         }
 
         tags = meta_dict.get("tags")

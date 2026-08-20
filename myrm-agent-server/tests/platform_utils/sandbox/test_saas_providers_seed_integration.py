@@ -38,9 +38,7 @@ async def sandbox_db(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
     async def _clear_providers() -> None:
         session_factory = get_session_factory()
         async with session_factory() as session:
-            await session.execute(
-                delete(UserConfig).where(UserConfig.config_key == "providers")
-            )
+            await session.execute(delete(UserConfig).where(UserConfig.config_key == "providers"))
             await session.commit()
 
     await _clear_providers()
@@ -68,20 +66,12 @@ class TestSeedIntegration:
         primary = default_cfg["baseModel"]["primary"]
         assert primary == {"providerId": _PLATFORM_PROVIDER_ID, "model": "anthropic/claude-sonnet-4"}
 
-    async def test_seed_skips_when_user_providers_already_configured(
-        self, sandbox_db: None
-    ) -> None:
+    async def test_seed_skips_when_user_providers_already_configured(self, sandbox_db: None) -> None:
         """已有用户 provider：seed 不覆盖真实已落库的配置。"""
         service = ConfigService()
         user_value: dict[str, object] = {
-            "providers": [
-                {"id": "anthropic", "providerType": "anthropic", "isEnabled": True}
-            ],
-            "defaultModelConfig": {
-                "baseModel": {
-                    "primary": {"providerId": "anthropic", "model": "claude-opus"}
-                }
-            },
+            "providers": [{"id": "anthropic", "providerType": "anthropic", "isEnabled": True}],
+            "defaultModelConfig": {"baseModel": {"primary": {"providerId": "anthropic", "model": "claude-opus"}}},
         }
         await service.set("providers", user_value, "test-device")
 

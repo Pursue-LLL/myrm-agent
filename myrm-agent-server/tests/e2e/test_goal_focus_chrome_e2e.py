@@ -91,9 +91,7 @@ async def test_chrome_ui_goal_mode_stream(
 
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or ""
         ).strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
@@ -148,10 +146,6 @@ async def test_chrome_ui_goal_mode_stream(
         timeout_sec=goal_timeout_sec,
         api_url=api_base,
     )
-    assert goal is not None, (
-        f"Goal status missing for chat {chat_id} on {api_base} after {goal_timeout_sec:.0f}s"
-    )
+    assert goal is not None, f"Goal status missing for chat {chat_id} on {api_base} after {goal_timeout_sec:.0f}s"
     assert goal.get("objective"), f"Goal objective empty: {goal}"
-    assert goal.get("status") in GOAL_PERSISTED_STATUSES, (
-        f"Unexpected goal status: {goal.get('status')}"
-    )
+    assert goal.get("status") in GOAL_PERSISTED_STATUSES, f"Unexpected goal status: {goal.get('status')}"

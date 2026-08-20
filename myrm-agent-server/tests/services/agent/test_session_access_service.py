@@ -112,9 +112,7 @@ async def test_directory_grant_blocked_in_sandbox_mode(tmp_path) -> None:
     assert get_session_access_roots() == ()
 
 
-def test_cloud_deployment_rejects_host_path_outside_volume(
-    monkeypatch, tmp_path
-) -> None:
+def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         "app.services.agent.session_access_service._is_cloud_volume_deployment",
         lambda: True,
@@ -302,9 +300,7 @@ async def test_revoke_chat_session_access_root_persists(
 
 
 @pytest.mark.asyncio
-async def test_grant_chat_session_access_root_direct(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:
+async def test_grant_chat_session_access_root_direct(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     workspace = tmp_path / "ws"
     workspace.mkdir()
     target = tmp_path / "drag-drop-folder"

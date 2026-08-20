@@ -84,9 +84,7 @@ async def _finalize(
 async def test_deep_link_success_suppresses_oversized_note() -> None:
     acc = StreamAccumulator()
     acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
-    acc.shareable_artifacts.append(
-        ShareableArtifact("art-1", "report.pdf", "application/pdf")
-    )
+    acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
     button = MagicMock()
     persist_mock, reply = await _finalize(acc, ((button,), frozenset({"report.pdf"})))
     persisted = persist_mock.call_args.args[1]
@@ -107,9 +105,7 @@ async def test_deep_link_success_drops_duplicate_attachment() -> None:
             mime_type="application/pdf",
         )
     )
-    acc.shareable_artifacts.append(
-        ShareableArtifact("art-1", "report.pdf", "application/pdf")
-    )
+    acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
     button = MagicMock()
     _persist_mock, reply = await _finalize(acc, ((button,), frozenset({"report.pdf"})))
     assert reply.media == ()
@@ -128,9 +124,7 @@ async def test_deep_link_failure_keeps_attachment() -> None:
             mime_type="application/pdf",
         )
     )
-    acc.shareable_artifacts.append(
-        ShareableArtifact("art-1", "report.pdf", "application/pdf")
-    )
+    acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
     assert len(reply.media) == 1
     assert reply.media[0].filename == "report.pdf"
@@ -141,9 +135,7 @@ async def test_deep_link_failure_keeps_attachment() -> None:
 async def test_deep_link_failure_keeps_oversized_note() -> None:
     acc = StreamAccumulator()
     acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
-    acc.shareable_artifacts.append(
-        ShareableArtifact("art-1", "report.pdf", "application/pdf")
-    )
+    acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
     persist_mock, reply = await _finalize(acc, ((), frozenset()))
     persisted = persist_mock.call_args.args[1]
     assert "8.0 MB" in persisted
@@ -289,9 +281,7 @@ async def test_no_auto_title_for_existing_chat() -> None:
 async def test_session_auto_reset_metadata() -> None:
     acc = StreamAccumulator()
     acc.chunks.append("Continuing after reset.")
-    _persist_mock, reply = await _finalize(
-        acc, ((), frozenset()), session_was_auto_reset=True
-    )
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()), session_was_auto_reset=True)
     assert reply.metadata is not None
     assert "session_auto_reset" in reply.metadata
 

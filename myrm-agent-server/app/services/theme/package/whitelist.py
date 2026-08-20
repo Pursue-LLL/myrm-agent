@@ -17,23 +17,23 @@ from __future__ import annotations
 import re
 
 _PACKAGE_ENTRY_RE = re.compile(
-    r'^(?:recipe\.json|README\.md|LICENSE|'
-    r'(?:hero|poster|preview|background|wallpaper|motion-poster|motion)'
-    r'\.(?:png|jpe?g|webp|mp4))$',
+    r"^(?:recipe\.json|README\.md|LICENSE|"
+    r"(?:hero|poster|preview|background|wallpaper|motion-poster|motion)"
+    r"\.(?:png|jpe?g|webp|mp4))$",
     re.IGNORECASE,
 )
 
-_IMAGE_SUFFIXES = ('.png', '.jpg', '.jpeg', '.webp')
-_MOTION_SUFFIXES = ('.mp4',)
+_IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
+_MOTION_SUFFIXES = (".mp4",)
 
 
 def is_unsafe_entry_path(name: str) -> bool:
-    normalized = name.replace('\\', '/').strip()
+    normalized = name.replace("\\", "/").strip()
     if not normalized or normalized != name.strip():
         return True
-    if '/' in normalized or '..' in normalized.split('/'):
+    if "/" in normalized or ".." in normalized.split("/"):
         return True
-    return normalized.startswith('~')
+    return normalized.startswith("~")
 
 
 def is_allowed_package_entry(name: str) -> bool:
@@ -52,7 +52,7 @@ def is_motion_entry(name: str) -> bool:
 
 
 def is_valid_mp4(content: bytes) -> bool:
-    return len(content) >= 12 and content[4:8] == b'ftyp'
+    return len(content) >= 12 and content[4:8] == b"ftyp"
 
 
 def is_animated_png(content: bytes) -> bool:
@@ -61,11 +61,11 @@ def is_animated_png(content: bytes) -> bool:
         return False
     offset = 8
     while offset + 8 <= len(content):
-        length = int.from_bytes(content[offset : offset + 4], 'big')
+        length = int.from_bytes(content[offset : offset + 4], "big")
         chunk_type = content[offset + 4 : offset + 8]
-        if chunk_type == b'acTL':
+        if chunk_type == b"acTL":
             return True
-        if chunk_type in (b'IDAT', b'IEND'):
+        if chunk_type in (b"IDAT", b"IEND"):
             return False
         if length < 4:
             break
@@ -76,17 +76,17 @@ def is_animated_png(content: bytes) -> bool:
 def is_animated_webp(content: bytes) -> bool:
     if len(content) < 21:
         return False
-    if content[0:4] != b'RIFF' or content[8:12] != b'WEBP':
+    if content[0:4] != b"RIFF" or content[8:12] != b"WEBP":
         return False
-    if content[12:16] == b'VP8X' and (content[20] & 0x02) != 0:
+    if content[12:16] == b"VP8X" and (content[20] & 0x02) != 0:
         return True
-    return b'ANIM' in content
+    return b"ANIM" in content
 
 
 def is_animated_image(filename: str, content: bytes) -> bool:
     lower = filename.lower()
-    if lower.endswith('.png'):
+    if lower.endswith(".png"):
         return is_animated_png(content)
-    if lower.endswith('.webp'):
+    if lower.endswith(".webp"):
         return is_animated_webp(content)
     return False

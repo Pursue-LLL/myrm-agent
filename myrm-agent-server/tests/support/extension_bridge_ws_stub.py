@@ -128,9 +128,7 @@ def wait_extension_handshake_ready(
         ):
             return status
         time.sleep(0.2)
-    raise TimeoutError(
-        "Extension bridge did not reach connected+handshake_ready with four capabilities"
-    )
+    raise TimeoutError("Extension bridge did not reach connected+handshake_ready with four capabilities")
 
 
 @contextmanager

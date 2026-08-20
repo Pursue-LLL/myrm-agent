@@ -131,9 +131,7 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
             _store_preset_probe("accept_edits", preset_agent_id),
             timeout_sec=90.0,
         )
-        assert init_state.get("ready") is True, json.dumps(
-            init_state, ensure_ascii=False
-        )
+        assert init_state.get("ready") is True, json.dumps(init_state, ensure_ascii=False)
 
         trigger_state = wait_for_state(
             client,
@@ -141,9 +139,7 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
             _TRIGGER_READY_JS,
             timeout_sec=30.0,
         )
-        assert trigger_state.get("ready") is True, json.dumps(
-            trigger_state, ensure_ascii=False
-        )
+        assert trigger_state.get("ready") is True, json.dumps(trigger_state, ensure_ascii=False)
 
         # --- Scenario 2: UI switch to explore via dropdown ---
         clicked = client.evaluate(
@@ -162,18 +158,14 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
 })()""",
             timeout_sec=15.0,
         )
-        assert option_state.get("ready") is True, json.dumps(
-            option_state, ensure_ascii=False
-        )
+        assert option_state.get("ready") is True, json.dumps(option_state, ensure_ascii=False)
 
         clicked_option = client.evaluate(
             page,
             _CLICK_EXPLORE_OPTION_JS,
             timeout_sec=15.0,
         )
-        assert isinstance(clicked_option, dict) and clicked_option.get("ok") is True, (
-            clicked_option
-        )
+        assert isinstance(clicked_option, dict) and clicked_option.get("ok") is True, clicked_option
 
         switch_state = wait_for_state(
             client,
@@ -181,9 +173,7 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
             _store_preset_probe("explore"),
             timeout_sec=30.0,
         )
-        assert switch_state.get("ready") is True, json.dumps(
-            switch_state, ensure_ascii=False
-        )
+        assert switch_state.get("ready") is True, json.dumps(switch_state, ensure_ascii=False)
 
     # --- Scenario 3: fail-closed fallback to hitl on an agent without default ---
     warm_ui_route(plain_path)
@@ -194,6 +184,4 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
             _store_preset_probe("hitl", plain_agent_id),
             timeout_sec=90.0,
         )
-        assert fallback_state.get("ready") is True, json.dumps(
-            fallback_state, ensure_ascii=False
-        )
+        assert fallback_state.get("ready") is True, json.dumps(fallback_state, ensure_ascii=False)

@@ -87,9 +87,7 @@ class HermesCronMigrationJobSpec:
             schedule_kind=schedule_kind,
             schedule_expr=str(raw["schedule_expr"]) if isinstance(raw.get("schedule_expr"), str) else None,
             schedule_tz=str(raw["schedule_tz"]) if isinstance(raw.get("schedule_tz"), str) else None,
-            schedule_interval_ms=(
-                int(raw["schedule_interval_ms"]) if isinstance(raw.get("schedule_interval_ms"), int) else None
-            ),
+            schedule_interval_ms=(int(raw["schedule_interval_ms"]) if isinstance(raw.get("schedule_interval_ms"), int) else None),
             schedule_run_at=str(raw["schedule_run_at"]) if isinstance(raw.get("schedule_run_at"), str) else None,
             prompt=str(raw["prompt"]) if isinstance(raw.get("prompt"), str) else None,
             max_fires=max_fires,

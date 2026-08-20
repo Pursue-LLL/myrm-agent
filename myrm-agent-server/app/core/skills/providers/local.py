@@ -128,9 +128,7 @@ def _load_skill_from_dir(
     if stats_file.exists():
         try:
             stats_data = json.loads(stats_file.read_text(encoding="utf-8"))
-            object.__setattr__(
-                meta, "usage_stats", SkillUsageStats.from_dict(stats_data)
-            )
+            object.__setattr__(meta, "usage_stats", SkillUsageStats.from_dict(stats_data))
         except Exception as e:
             logger.debug("Failed to load .stats.json for '%s': %s", skill_dir.name, e)
 
@@ -277,16 +275,10 @@ class LocalSkillsProvider:
         self._collect_files(skill_dir, skill_dir, files)
         return files
 
-    def _collect_files(
-        self, base_dir: Path, current_dir: Path, files: dict[str, bytes]
-    ) -> None:
+    def _collect_files(self, base_dir: Path, current_dir: Path, files: dict[str, bytes]) -> None:
         try:
             for item in current_dir.iterdir():
-                if (
-                    item.name.startswith(".")
-                    or item.name == "__pycache__"
-                    or item.name.startswith("_")
-                ):
+                if item.name.startswith(".") or item.name == "__pycache__" or item.name.startswith("_"):
                     continue
 
                 if item.is_file():
@@ -312,15 +304,11 @@ def scan_workspace_skills(workspace_root: str, max_depth: int = 3) -> list[Skill
         scan_workspace_skills as _fw_scan,
     )
 
-    metadatas = _fw_scan(
-        workspace_root, max_depth=max_depth, trust=SkillTrust.INSTALLED
-    )
+    metadatas = _fw_scan(workspace_root, max_depth=max_depth, trust=SkillTrust.INSTALLED)
 
     skills: list[Skill] = []
     for meta in metadatas:
-        path_hash = hashlib.sha256(
-            (meta.storage_path or "").encode("utf-8")
-        ).hexdigest()[:16]
+        path_hash = hashlib.sha256((meta.storage_path or "").encode("utf-8")).hexdigest()[:16]
         skill_id = f"workspace::{path_hash}"
 
         skill_dir = Path(meta.storage_path or "")

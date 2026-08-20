@@ -42,11 +42,7 @@ class MemoryBriefStatusTelemetryDispatcher:
         self._client: httpx.AsyncClient | None = None
         self._queued_stream_count = 0
         self._queued_persist_count = 0
-        dropped_state_path = (
-            Path(config.dropped_state_path).expanduser().resolve()
-            if config.dropped_state_path
-            else None
-        )
+        dropped_state_path = Path(config.dropped_state_path).expanduser().resolve() if config.dropped_state_path else None
         self._dropped_store = MemoryBriefStatusDroppedStore(dropped_state_path)
         self._queue_depth_metric = (
             _metrics.MEMORY_STATUS_QUEUE_DEPTH.labels(telemetry_subject=config.telemetry_subject)
@@ -85,9 +81,7 @@ class MemoryBriefStatusTelemetryDispatcher:
                 await self._flush_batch([])
             except Exception:
                 if _metrics.MEMORY_STATUS_FLUSH_EXCEPTIONS is not None:
-                    _metrics.MEMORY_STATUS_FLUSH_EXCEPTIONS.labels(
-                        telemetry_subject=self._config.telemetry_subject
-                    ).inc()
+                    _metrics.MEMORY_STATUS_FLUSH_EXCEPTIONS.labels(telemetry_subject=self._config.telemetry_subject).inc()
                 logger.warning(
                     "Memory brief status telemetry shutdown flush crashed unexpectedly",
                     exc_info=True,
@@ -226,9 +220,7 @@ class MemoryBriefStatusTelemetryDispatcher:
                     await self._flush_batch(batch)
                 except Exception:
                     if _metrics.MEMORY_STATUS_FLUSH_EXCEPTIONS is not None:
-                        _metrics.MEMORY_STATUS_FLUSH_EXCEPTIONS.labels(
-                            telemetry_subject=self._config.telemetry_subject
-                        ).inc()
+                        _metrics.MEMORY_STATUS_FLUSH_EXCEPTIONS.labels(telemetry_subject=self._config.telemetry_subject).inc()
                     logger.warning(
                         "Memory brief status telemetry flush loop crashed on unexpected error; dropping batch_size=%d",
                         len(batch),

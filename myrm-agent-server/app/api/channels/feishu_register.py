@@ -327,9 +327,7 @@ async def _provision_feishu_instance(
             try:
                 await channel_gateway.remove_channel(registered_name)
             except Exception:
-                logger.warning(
-                    "Failed to roll back channel %s after provisioning failure", registered_name, exc_info=True
-                )
+                logger.warning("Failed to roll back channel %s after provisioning failure", registered_name, exc_info=True)
         raise
 
     logger.info("Feishu QR registration provisioned instance %s", registered_name)

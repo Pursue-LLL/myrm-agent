@@ -48,16 +48,11 @@ _SKIP_ERROR_KEYWORDS: Final[tuple[str, ...]] = (
 
 _FOCUS_FILE_PATH: Final[str] = "myrm-agent-server/app/main.py"
 
-_FOCUS_INITIAL_QUERY: Final[str] = (
-    "请用约150字解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。"
-)
+_FOCUS_INITIAL_QUERY: Final[str] = "请用约150字解释 Python asyncio.Event：两个使用场景 + 与 Lock 的一个区别。"
 
-_FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = (
-    "继续。用一句话对比 asyncio.Event 与 threading.Event。",
-)
+_FOCUS_FOLLOWUPS: Final[tuple[str, ...]] = ("继续。用一句话对比 asyncio.Event 与 threading.Event。",)
 
-_FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = (
-    """
+_FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = """
 请依次执行以下 bash 命令（每次只执行一条命令，禁止在同一行使用分号或 && 连接）：
 1. echo "hello world"
 2. ls {missing_path}
@@ -65,23 +60,17 @@ _FAILURE_INITIAL_QUERY_TEMPLATE: Final[str] = (
 
 逐个执行，报告每个命令的执行结果，如果失败请说明原因。
 """.strip()
-)
 
-_FAILURE_FOLLOWUP_TEMPLATE: Final[str] = (
-    "继续。回顾刚才的命令执行：哪个命令失败了？失败的路径是 {missing_path}，为什么失败？"
-)
+_FAILURE_FOLLOWUP_TEMPLATE: Final[str] = "继续。回顾刚才的命令执行：哪个命令失败了？失败的路径是 {missing_path}，为什么失败？"
 
 
 @pytest.fixture(autouse=True)
 def shrink_model_context_window(mock_load_user_configs) -> None:
     configs = mock_load_user_configs.return_value
-    configs.model_cfg = configs.model_cfg.model_copy(
-        update={"max_context_tokens": _TEST_MAX_CONTEXT_TOKENS}
-    )
+    configs.model_cfg = configs.model_cfg.model_copy(update={"max_context_tokens": _TEST_MAX_CONTEXT_TOKENS})
 
-def _build_payload(
-    query: str, chat_id: str, *, action_mode: str = "agent"
-) -> dict[str, object]:
+
+def _build_payload(query: str, chat_id: str, *, action_mode: str = "agent") -> dict[str, object]:
     return {
         "query": query,
         "chatId": chat_id,
@@ -101,20 +90,13 @@ def _collect_stream_events(
     message_chunks: list[str],
     error_events: list[dict[str, object]],
 ) -> None:
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=payload, timeout=240.0
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=240.0) as response:
         if response.status_code != 200:
             response.read()
             response_text = response.text
-            if any(
-                keyword.lower() in response_text.lower()
-                for keyword in _SKIP_ERROR_KEYWORDS
-            ):
+            if any(keyword.lower() in response_text.lower() for keyword in _SKIP_ERROR_KEYWORDS):
                 pytest.skip(f"External environment error: {response_text[:200]}")
-            pytest.fail(
-                f"Agent request failed with status {response.status_code}: {response_text[:500]}"
-            )
+            pytest.fail(f"Agent request failed with status {response.status_code}: {response_text[:500]}")
 
         assert response.headers["content-type"].startswith("text/event-stream")
 
@@ -166,8 +148,7 @@ def _stream_agent_turn(
 
     for _ in range(10):
         approval_required = any(
-            event.get("type") in ("approval_required", "tool_approval_request")
-            for event in reversed(collected_events)
+            event.get("type") in ("approval_required", "tool_approval_request") for event in reversed(collected_events)
         )
         if not approval_required:
             break
@@ -183,9 +164,7 @@ def _stream_agent_turn(
 
     if error_events:
         error_text = json.dumps(error_events[0], ensure_ascii=False)
-        if any(
-            keyword.lower() in error_text.lower() for keyword in _SKIP_ERROR_KEYWORDS
-        ):
+        if any(keyword.lower() in error_text.lower() for keyword in _SKIP_ERROR_KEYWORDS):
             pytest.skip(f"External environment error: {error_text[:200]}")
         pytest.fail(f"Agent execution error: {error_text[:500]}")
 
@@ -208,9 +187,7 @@ def test_real_context_compression_preserves_focus_chain(client: TestClient) -> N
     final_answer = ""
 
     for query in (_FOCUS_INITIAL_QUERY, *_FOCUS_FOLLOWUPS):
-        final_answer, events = _stream_agent_turn(
-            client, query=query, chat_id=chat_id, action_mode="agent"
-        )
+        final_answer, events = _stream_agent_turn(client, query=query, chat_id=chat_id, action_mode="agent")
         all_events.extend(events)
 
     assert len(all_events) > 0, "Expected events from multi-turn conversation"
@@ -222,10 +199,7 @@ def test_real_context_compression_preserves_focus_chain(client: TestClient) -> N
         or "event" in normalized_answer
         or focus_hint in normalized_answer
         or "main.py" in normalized_answer
-    ), (
-        f"Final answer should reference asyncio.Event or focus file from earlier turns. "
-        f"Got: {final_answer[:300]}"
-    )
+    ), f"Final answer should reference asyncio.Event or focus file from earlier turns. Got: {final_answer[:300]}"
 
 
 def test_real_context_compression_preserves_failed_tool_chain(
@@ -235,9 +209,7 @@ def test_real_context_compression_preserves_failed_tool_chain(
     chat_id = f"context-failure-{uuid.uuid4().hex}"
     # Workspace-relative path: absolute paths outside sandbox are security-blocked, not "missing file".
     missing_path = f"./definitely_missing_context_path_{uuid.uuid4().hex}"
-    failure_initial_query = _FAILURE_INITIAL_QUERY_TEMPLATE.format(
-        missing_path=missing_path
-    )
+    failure_initial_query = _FAILURE_INITIAL_QUERY_TEMPLATE.format(missing_path=missing_path)
     failure_followup = _FAILURE_FOLLOWUP_TEMPLATE.format(missing_path=missing_path)
 
     all_events: list[dict[str, object]] = []
@@ -247,9 +219,7 @@ def test_real_context_compression_preserves_failed_tool_chain(
         final_answer, events = _stream_agent_turn(client, query=query, chat_id=chat_id)
         all_events.extend(events)
 
-    assert (
-        _task_step_count(all_events) > 0
-    ), "Expected real tool/task activity in failure-chain scenario"
+    assert _task_step_count(all_events) > 0, "Expected real tool/task activity in failure-chain scenario"
 
     normalized_answer = final_answer.lower()
     missing_basename = missing_path.removeprefix("./").lower()
@@ -278,9 +248,7 @@ def _read_compacted_summary(chat_id: str) -> str | None:
         return None
     conn = sqlite3.connect(db_path)
     try:
-        row = conn.execute(
-            "SELECT compacted_summary FROM chats WHERE id = ?", (chat_id,)
-        ).fetchone()
+        row = conn.execute("SELECT compacted_summary FROM chats WHERE id = ?", (chat_id,)).fetchone()
     finally:
         conn.close()
     return row[0] if row else None
@@ -295,9 +263,7 @@ def _wait_for_compaction(chat_id: str, *, timeout: float = 45.0) -> str:
         if summary:
             return summary
         time.sleep(0.5)
-    raise AssertionError(
-        f"compaction summary was never persisted for chat {chat_id} within {timeout}s"
-    )
+    raise AssertionError(f"compaction summary was never persisted for chat {chat_id} within {timeout}s")
 
 
 _STRUCTURED_SUMMARY_FIELDS: Final[tuple[str, ...]] = (
@@ -334,30 +300,24 @@ def _assert_summary_roundtrip_preserves_fields(summary_json: str) -> None:
     for field in _STRUCTURED_SUMMARY_FIELDS:
         if field in original:
             assert getattr(parsed, field) == original[field], (
-                f"field '{field}' mutated across the DB boundary: "
-                f"{original[field]!r} != {getattr(parsed, field)!r}"
+                f"field '{field}' mutated across the DB boundary: {original[field]!r} != {getattr(parsed, field)!r}"
             )
 
     reserialized = json.loads(parsed.to_json())
     assert set(reserialized) == set(original), (
-        f"roundtrip key set mismatch: lost={set(original) - set(reserialized)} "
-        f"extra={set(reserialized) - set(original)}"
+        f"roundtrip key set mismatch: lost={set(original) - set(reserialized)} extra={set(reserialized) - set(original)}"
     )
 
 
 @pytest.mark.timeout(300)
-def test_online_compaction_persists_full_structured_summary(
-    client: TestClient, mock_load_user_configs
-) -> None:
+def test_online_compaction_persists_full_structured_summary(client: TestClient, mock_load_user_configs) -> None:
     """Real streaming compaction must persist a full structured summary to DB.
 
     Uses a low max_context_tokens so the pipeline is forced to summarize
     synchronously during the streaming turns (O-3 full-field persistence).
     """
     configs = mock_load_user_configs.return_value
-    configs.model_cfg = configs.model_cfg.model_copy(
-        update={"max_context_tokens": 6000}
-    )
+    configs.model_cfg = configs.model_cfg.model_copy(update={"max_context_tokens": 6000})
 
     chat_id = f"context-persist-{uuid.uuid4().hex}"
     queries = (
@@ -383,9 +343,7 @@ def test_online_compaction_persists_full_structured_summary(
 
 
 @pytest.mark.timeout(300)
-def test_compact_chat_incremental_preserves_existing_summary(
-    client: TestClient, mock_load_user_configs
-) -> None:
+def test_compact_chat_incremental_preserves_existing_summary(client: TestClient, mock_load_user_configs) -> None:
     """``compact_chat`` must reload and reuse a persisted summary (O-2 boundary).
 
     Builds a real conversation via the agent API, then runs the real compaction
@@ -412,9 +370,7 @@ def test_compact_chat_incremental_preserves_existing_summary(
         db_path = os.environ["TEST_AGENT_DB_PATH"]
         engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
         try:
-            session_cls = sessionmaker(
-                engine, class_=AsyncSession, expire_on_commit=False
-            )
+            session_cls = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             async with session_cls() as db:
                 return await compact_chat(db, chat_id, for_idle_stale=True)
         finally:

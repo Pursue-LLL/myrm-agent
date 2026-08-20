@@ -252,7 +252,6 @@ class TestGCWorkspaces:
             assert freed == 0
             assert Path(outside_dir).exists()
 
-
     @pytest.mark.asyncio
     async def test_already_deleted_workspace(self) -> None:
         """workspace_path points to non-existent dir → NULLed, deleted=0."""

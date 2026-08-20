@@ -99,12 +99,8 @@ def _mock_svc(store: MagicMock) -> MagicMock:
 def _patches():
     """Patch the three lazy imports used inside ``_list_agent_tasks``."""
     with (
-        patch(
-            "app.api.background_tasks.router.get_background_task_handler"
-        ) as mock_get_handler,
-        patch(
-            "app.services.kanban.KanbanService.get_instance"
-        ) as mock_get_svc,
+        patch("app.api.background_tasks.router.get_background_task_handler") as mock_get_handler,
+        patch("app.services.kanban.KanbanService.get_instance") as mock_get_svc,
     ):
         yield mock_get_handler, mock_get_svc
 

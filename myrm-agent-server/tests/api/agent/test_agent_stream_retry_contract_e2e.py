@@ -132,17 +132,15 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
                 new=AsyncMock(),
             ),
             patch(
-                    "app.services.agent.execution_cache.prewarm.coordinator.get_turn_prewarm_coordinator",
-                    return_value=mock_coordinator,
-                ),
+                "app.services.agent.execution_cache.prewarm.coordinator.get_turn_prewarm_coordinator",
+                return_value=mock_coordinator,
+            ),
         ):
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app),
                 base_url="http://testserver",
             ) as client:
-                first_task = asyncio.create_task(
-                    _collect_agent_stream_events(client, payload)
-                )
+                first_task = asyncio.create_task(_collect_agent_stream_events(client, payload))
 
                 try:
                     await asyncio.wait_for(session_registered.wait(), timeout=30.0)
@@ -151,9 +149,7 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
                         first_task.cancel()
                     with pytest.raises(asyncio.CancelledError):
                         await first_task
-                    pytest.fail(
-                        "First agent-stream never registered an active chat session"
-                    )
+                    pytest.fail("First agent-stream never registered an active chat session")
 
                 persist_deadline = asyncio.get_running_loop().time() + 30.0
                 while asyncio.get_running_loop().time() < persist_deadline:
@@ -168,9 +164,9 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
                 retry_events = await _collect_agent_stream_events(client, payload)
 
                 user_messages = await _list_user_messages(chat_id)
-                assert (
-                    len(user_messages) == 1
-                ), f"expected one persisted user turn, found {len(user_messages)} for chat_id={chat_id}"
+                assert len(user_messages) == 1, (
+                    f"expected one persisted user turn, found {len(user_messages)} for chat_id={chat_id}"
+                )
                 assert user_messages[0].id == message_id
                 assert user_messages[0].content == query_text
 
@@ -179,14 +175,10 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
                     (event for event in retry_events if event.get("type") == "error"),
                     None,
                 )
-                assert (
-                    retry_error is not None
-                ), f"Expected busy error event, got: {retry_events}"
+                assert retry_error is not None, f"Expected busy error event, got: {retry_events}"
                 assert retry_error.get("error_type") == "AgentBusyError"
                 assert retry_error.get("status_code") == 409
-                assert retry_error.get("data") == (
-                    "Agent is busy processing another request for this session."
-                )
+                assert retry_error.get("data") == ("Agent is busy processing another request for this session.")
 
                 release_first_stream.set()
                 first_events = await asyncio.wait_for(first_task, timeout=30.0)

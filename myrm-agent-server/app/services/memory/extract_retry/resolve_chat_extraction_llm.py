@@ -36,15 +36,8 @@ async def _resolve_main_model_cfg(
     from app.core.channel_bridge.model_resolver import resolve_model_config
 
     model_cfg = resolve_model_config(providers_dict)
-    if (
-        configs
-        and hasattr(configs, "model_cfg")
-        and configs.model_cfg
-        and configs.model_cfg.max_context_tokens is not None
-    ):
-        model_cfg = model_cfg.model_copy(
-            update={"max_context_tokens": configs.model_cfg.max_context_tokens}
-        )
+    if configs and hasattr(configs, "model_cfg") and configs.model_cfg and configs.model_cfg.max_context_tokens is not None:
+        model_cfg = model_cfg.model_copy(update={"max_context_tokens": configs.model_cfg.max_context_tokens})
 
     if not agent_id:
         return model_cfg
@@ -124,9 +117,7 @@ async def _resolve_lite_model_cfg(
     try:
         return await _resolve_model_config(lite_selection, providers_dict)
     except ValueError:
-        logger.warning(
-            "Failed to resolve lite model for chat extraction, proceeding without it"
-        )
+        logger.warning("Failed to resolve lite model for chat extraction, proceeding without it")
         return None
 
 
@@ -166,7 +157,5 @@ async def resolve_chat_extraction_llm(
         None,
         None,
     )
-    lite_llm, _effective_lite_cfg = await apply_lite_context_downgrade(
-        llm, lite_llm, model_cfg, lite_model_cfg
-    )
+    lite_llm, _effective_lite_cfg = await apply_lite_context_downgrade(llm, lite_llm, model_cfg, lite_model_cfg)
     return llm, lite_llm

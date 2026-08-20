@@ -105,4 +105,5 @@ async def clear_all_allowlist_entries(
 
     return success_response(data={"count": count})
 
+
 router.include_router(allowlist_test_fixtures_router)

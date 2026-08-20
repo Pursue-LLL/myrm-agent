@@ -24,10 +24,6 @@ def build_provider_zip(files: dict[str, PublishFile]) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         for path, publish_file in files.items():
-            content = (
-                base64.b64decode(publish_file.content)
-                if publish_file.encoding == "base64"
-                else publish_file.content
-            )
+            content = base64.b64decode(publish_file.content) if publish_file.encoding == "base64" else publish_file.content
             archive.writestr(path, content)
     return buffer.getvalue()

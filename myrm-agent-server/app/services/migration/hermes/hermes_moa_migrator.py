@@ -235,9 +235,7 @@ def _coerce_float(value: object, default: float) -> float:
     return default
 
 
-def _resolve_reasoning_effort(
-    preset: dict[str, Any], refs_raw: list[object]
-) -> str | None:
+def _resolve_reasoning_effort(preset: dict[str, Any], refs_raw: list[object]) -> str | None:
     for item in refs_raw:
         if isinstance(item, dict):
             effort = item.get("reasoning_effort")
@@ -293,9 +291,7 @@ def _collect_hermes_preset_blocks(
                 existing_refs = blocks[myrm_id].get("reference_model_selections")
                 new_refs = block.get("reference_model_selections")
                 if isinstance(existing_refs, list) and isinstance(new_refs, list):
-                    blocks[myrm_id]["reference_model_selections"] = (
-                        existing_refs + new_refs
-                    )
+                    blocks[myrm_id]["reference_model_selections"] = existing_refs + new_refs
             else:
                 blocks[myrm_id] = block
         return blocks
@@ -335,9 +331,7 @@ def build_moa_overlay_from_hermes_config(
         "reference_model_selections": list(default_refs),
         "fanout": fanout,
         "min_successful": 1,
-        "reference_temperature": _coerce_float(
-            preset.get("reference_temperature"), 0.6
-        ),
+        "reference_temperature": _coerce_float(preset.get("reference_temperature"), 0.6),
         "timeout_per_model": _coerce_float(
             preset.get("reference_timeout", moa_raw.get("reference_timeout")),
             120.0,
@@ -466,13 +460,9 @@ async def migrate_hermes_moa_overlay(
             if not isinstance(preset_refs, list):
                 filtered_presets[str(preset_id)] = block
                 continue
-            filtered_preset_refs, preset_skipped = (
-                await _filter_valid_reference_selections(preset_refs)
-            )
+            filtered_preset_refs, preset_skipped = await _filter_valid_reference_selections(preset_refs)
             already_skipped = set(result.skipped_refs)
-            result.skipped_refs.extend(
-                s for s in preset_skipped if s not in already_skipped
-            )
+            result.skipped_refs.extend(s for s in preset_skipped if s not in already_skipped)
             if filtered_preset_refs:
                 filtered_presets[str(preset_id)] = {
                     **block,
@@ -488,9 +478,7 @@ async def migrate_hermes_moa_overlay(
         result.skipped_reason = "agent_not_found"
         return result
 
-    existing_params: dict[str, object] = (
-        dict(agent.engine_params) if isinstance(agent.engine_params, dict) else {}
-    )
+    existing_params: dict[str, object] = dict(agent.engine_params) if isinstance(agent.engine_params, dict) else {}
     if agent_has_moa_overlay_refs(existing_params):
         result.skipped_reason = "already_configured"
         result.configured = True

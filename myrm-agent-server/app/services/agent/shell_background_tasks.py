@@ -171,9 +171,7 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
             if record.job_id in merged:
                 live = merged[record.job_id]
                 if live.vault_log_ref is None and record.vault_log_ref:
-                    merged[record.job_id] = live.model_copy(
-                        update={"vault_log_ref": record.vault_log_ref}
-                    )
+                    merged[record.job_id] = live.model_copy(update={"vault_log_ref": record.vault_log_ref})
                 continue
             merged[record.job_id] = _row_from_store_record(record)
 

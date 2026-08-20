@@ -140,9 +140,7 @@ class TestILinkRateLimitRetryChain:
         """First call rate-limited, second succeeds → no exception."""
         ch = _make_ilink_channel()
         ch._client._http = AsyncMock()
-        ch._client._http.post = AsyncMock(
-            side_effect=[_ilink_rate_limit_response(), _ilink_success_response()]
-        )
+        ch._client._http.post = AsyncMock(side_effect=[_ilink_rate_limit_response(), _ilink_success_response()])
 
         msg = OutboundMessage(channel="wechat", recipient_id="user1", content="hi", user_id="u1")
         fast_retry = RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.05, jitter=0.0)
@@ -292,9 +290,7 @@ class TestOfficialRateLimitRetryChain:
         """First call rate-limited, second succeeds → no exception from send()."""
         ch = _make_official_channel()
         ch._http = AsyncMock()
-        ch._http.post = AsyncMock(
-            side_effect=[_official_rate_limit_response(45011), _official_success_response()]
-        )
+        ch._http.post = AsyncMock(side_effect=[_official_rate_limit_response(45011), _official_success_response()])
         ch.retry_config = RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.05, jitter=0.0)
 
         msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
@@ -308,14 +304,10 @@ class TestOfficialRateLimitRetryChain:
         for errcode in (45011, 45015, 45047):
             ch = _make_official_channel()
             ch._http = AsyncMock()
-            ch._http.post = AsyncMock(
-                side_effect=[_official_rate_limit_response(errcode), _official_success_response()]
-            )
+            ch._http.post = AsyncMock(side_effect=[_official_rate_limit_response(errcode), _official_success_response()])
             ch.retry_config = RetryConfig(max_retries=3, base_delay=0.01, max_delay=0.05, jitter=0.0)
 
-            msg = OutboundMessage(
-                channel="wechat_official", recipient_id="user1", content="hello", user_id="u1"
-            )
+            msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
             await ch.send(msg)
             assert ch._http.post.call_count == 2, f"errcode={errcode} should trigger exactly 1 retry"
 

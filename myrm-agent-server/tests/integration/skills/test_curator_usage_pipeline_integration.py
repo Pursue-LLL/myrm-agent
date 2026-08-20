@@ -33,9 +33,7 @@ def curator_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     data_dir.mkdir()
 
     monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
-    monkeypatch.setattr(
-        curator_service, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)]
-    )
+    monkeypatch.setattr(curator_service, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
     monkeypatch.setattr(curator_service, "_get_data_dir", lambda: data_dir)
 
     curator_service._stats_collector = None
@@ -50,9 +48,7 @@ def curator_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     set_stats_collector(None)
 
 
-def _write_skill(
-    skills_root: Path, name: str, *, stats: dict[str, object] | None = None
-) -> Path:
+def _write_skill(skills_root: Path, name: str, *, stats: dict[str, object] | None = None) -> Path:
     skill_dir = skills_root / name
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(
@@ -90,9 +86,7 @@ async def test_curator_sweep_marks_inactive_skill_stale(
         update_curator_config,
     )
 
-    update_curator_config(
-        {"stale_after_days": 30, "grace_period_days": 0, "enabled": True}
-    )
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
     collector = get_stats_collector()
     assert get_injected_stats_collector() is collector
 
@@ -124,17 +118,13 @@ async def test_never_used_young_skill_not_stale(curator_workspace: Path) -> None
 
     from app.core.skills.curator.service import run_curator_sweep, update_curator_config
 
-    update_curator_config(
-        {"stale_after_days": 30, "grace_period_days": 0, "enabled": True}
-    )
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
     result = await run_curator_sweep(force=True, trigger="manual")
 
     stats_file = curator_workspace / "young_never_used" / ".stats.json"
     persisted = json.loads(stats_file.read_text())
     assert persisted["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
-    assert result.stale_count == 0 or "young_never_used" not in {
-        t.skill_name for t in result.transitions
-    }
+    assert result.stale_count == 0 or "young_never_used" not in {t.skill_name for t in result.transitions}
 
 
 @pytest.mark.integration
@@ -207,9 +197,7 @@ async def test_usage_recorder_to_curator_via_api_client(
         update_curator_config,
     )
 
-    update_curator_config(
-        {"stale_after_days": 30, "grace_period_days": 0, "enabled": True}
-    )
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
     collector = get_stats_collector()
     reset_turn_usage_dedupe()
     record_skill_selection(

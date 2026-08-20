@@ -9,6 +9,8 @@ from app.api.memory.utils import get_crud_memory_manager
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")
+
+
 @pytest.fixture
 def client():
     return TestClient(app)

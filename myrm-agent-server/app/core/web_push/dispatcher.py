@@ -80,9 +80,7 @@ class WebPushDispatcher:
 
     async def start(self) -> None:
         self._queue = self._bus.subscribe()
-        self._task = asyncio.create_task(
-            self._dispatch_loop(), name="web-push-dispatcher"
-        )
+        self._task = asyncio.create_task(self._dispatch_loop(), name="web-push-dispatcher")
         logger.info("WebPushDispatcher started")
 
     async def stop(self) -> None:

@@ -8,6 +8,8 @@ from app.core.channel_bridge import get_channel_gateway
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="channels_local")
+
+
 @pytest.fixture
 def mock_gateway():
     gateway = AsyncMock()

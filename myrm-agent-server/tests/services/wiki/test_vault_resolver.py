@@ -33,9 +33,7 @@ class TestResolveWikiVaultPath:
         harness = tmp_path / "harness"
         with patch("app.config.settings.settings") as mock_settings:
             mock_settings.database.harness_dir = str(harness)
-            assert resolve_shared_wiki_vault_path("team-alpha") == (
-                harness / "wiki" / "shared" / "team-alpha"
-            ).resolve()
+            assert resolve_shared_wiki_vault_path("team-alpha") == (harness / "wiki" / "shared" / "team-alpha").resolve()
 
     def test_sanitize_scope_id(self) -> None:
         assert sanitize_wiki_scope_id(None) == "default"
@@ -109,7 +107,6 @@ class TestLegacyMigration:
 
         assert result.files_copied == 0
         assert (canonical / "note.md").read_text(encoding="utf-8") == "canonical"
-
 
     def test_moves_flat_root_layout_to_default_agent(self, tmp_path: Path) -> None:
         harness = tmp_path / "harness"

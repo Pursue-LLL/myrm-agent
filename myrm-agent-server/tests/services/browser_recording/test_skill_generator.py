@@ -69,9 +69,7 @@ class TestGenerateSkillFromSession:
 
     def test_custom_description(self) -> None:
         session = _make_session([_make_step(1)])
-        _, content, _ = generate_skill_from_session(
-            session, "my-skill", description="Custom desc"
-        )
+        _, content, _ = generate_skill_from_session(session, "my-skill", description="Custom desc")
         assert "Custom desc" in content
 
     def test_credential_detection(self) -> None:
@@ -101,9 +99,7 @@ class TestGenerateSkillFromSession:
     def test_click_on_sensitive_field_is_not_credential(self) -> None:
         session = _make_session(
             [
-                _make_step(
-                    1, ActionType.CLICK, is_password=True, element_text="Password"
-                ),
+                _make_step(1, ActionType.CLICK, is_password=True, element_text="Password"),
                 _make_step(
                     2,
                     ActionType.FILL,
@@ -279,16 +275,13 @@ class TestGenerateSkillFromSession:
                 ),
             ]
         )
-        _, content, _ = generate_skill_from_session(
-            session, "login-skill", description="Automate login"
-        )
+        _, content, _ = generate_skill_from_session(session, "login-skill", description="Automate login")
 
         fm = parse_skill_frontmatter(content, "login-skill")
         assert fm.name == "login-skill"
         assert fm.description == "Automate login"
         assert fm.allowed_tools == (
-            "browser_navigate_tool browser_interact_tool browser_snapshot_tool "
-            "browser_extract_tool browser_manage_tool"
+            "browser_navigate_tool browser_interact_tool browser_snapshot_tool browser_extract_tool browser_manage_tool"
         )
 
     def test_frontmatter_description_tolerates_newlines(self) -> None:
@@ -387,12 +380,8 @@ class TestGenerateSkillDescription:
 
 class TestDefaultSkillDescription:
     def test_with_steps_uses_first_url(self) -> None:
-        session = _make_session(
-            [_make_step(1, ActionType.NAVIGATE, value="https://example.com/login")]
-        )
-        assert default_skill_description(session) == (
-            "Browser automation skill recorded from https://example.com"
-        )
+        session = _make_session([_make_step(1, ActionType.NAVIGATE, value="https://example.com/login")])
+        assert default_skill_description(session) == ("Browser automation skill recorded from https://example.com")
 
     def test_empty_session(self) -> None:
         session = _make_session()

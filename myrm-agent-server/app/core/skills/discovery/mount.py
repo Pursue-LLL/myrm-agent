@@ -101,9 +101,7 @@ async def maybe_mount_after_install(
     try:
         await _ensure_skill_enabled(catalog_skill_id)
     except Exception as exc:
-        logger.warning(
-            "Failed to enable skill %s after install: %s", catalog_skill_id, exc
-        )
+        logger.warning("Failed to enable skill %s after install: %s", catalog_skill_id, exc)
         return SkillMountResult(
             mounted=False,
             agent_id=context_agent_id,

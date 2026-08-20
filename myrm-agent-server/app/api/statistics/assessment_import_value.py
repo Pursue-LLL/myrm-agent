@@ -135,9 +135,7 @@ async def get_assessment_import_value_summary(
         )
         board_rows = (await db.execute(board_stmt)).all()
         board_project_map = {
-            str(board_id): str(board_project_id)
-            for board_id, board_project_id in board_rows
-            if board_id and board_project_id
+            str(board_id): str(board_project_id) for board_id, board_project_id in board_rows if board_id and board_project_id
         }
         board_ids = list(board_project_map.keys())
 
@@ -171,9 +169,7 @@ async def get_assessment_import_value_summary(
                     continue
                 if str(status) == "completed":
                     if target_import_id is not None:
-                        completed_tasks_by_import_id[target_import_id] = (
-                            completed_tasks_by_import_id.get(target_import_id, 0) + 1
-                        )
+                        completed_tasks_by_import_id[target_import_id] = completed_tasks_by_import_id.get(target_import_id, 0) + 1
                     else:
                         completed_tasks_by_key[key] = completed_tasks_by_key.get(key, 0) + 1
                 if milestone_id is not None:
@@ -192,14 +188,10 @@ async def get_assessment_import_value_summary(
         )
         if all_milestone_ids:
             milestone_rows = (
-                await db.execute(
-                    select(Milestone.id, Milestone.status).where(Milestone.id.in_(all_milestone_ids))
-                )
+                await db.execute(select(Milestone.id, Milestone.status).where(Milestone.id.in_(all_milestone_ids)))
             ).all()
             milestone_status_by_id = {
-                str(milestone_id): str(status)
-                for milestone_id, status in milestone_rows
-                if milestone_id is not None
+                str(milestone_id): str(status) for milestone_id, status in milestone_rows if milestone_id is not None
             }
 
         imports_total = len(ledgers)

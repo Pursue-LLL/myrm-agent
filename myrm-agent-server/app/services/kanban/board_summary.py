@@ -47,9 +47,7 @@ async def build_board_summary(
     if board is None:
         return None
 
-    status_counts, by_agent, oldest_age, stale_running = await gather_summary(
-        store, board_id
-    )
+    status_counts, by_agent, oldest_age, stale_running = await gather_summary(store, board_id)
 
     return BoardSummaryData(
         board=board,

@@ -88,9 +88,7 @@ async def _get_current_branch(base_dir: str) -> str | None:
     return None
 
 
-async def create_sandbox_worktree(
-    base_dir: str, chat_id: str
-) -> str | WorktreeCreateError:
+async def create_sandbox_worktree(base_dir: str, chat_id: str) -> str | WorktreeCreateError:
     """Create an isolated git worktree for a chat sandbox session.
 
     Returns the absolute path to the worktree on success,
@@ -117,9 +115,7 @@ async def create_sandbox_worktree(
     )
 
 
-async def cleanup_sandbox_worktree(
-    base_dir: str, chat_id: str, *, force: bool = False
-) -> bool:
+async def cleanup_sandbox_worktree(base_dir: str, chat_id: str, *, force: bool = False) -> bool:
     """Remove the sandbox worktree and its branch.
 
     Default safe mode checks for uncommitted changes first and keeps the
@@ -160,9 +156,7 @@ async def merge_sandbox_to_parent(base_dir: str, chat_id: str) -> tuple[bool, st
         return await _merge_sandbox_to_parent_locked(base_dir, chat_id)
 
 
-async def _merge_sandbox_to_parent_locked(
-    base_dir: str, chat_id: str
-) -> tuple[bool, str]:
+async def _merge_sandbox_to_parent_locked(base_dir: str, chat_id: str) -> tuple[bool, str]:
     branch_name = _sandbox_branch_name(chat_id)
 
     parent_branch = await _get_current_branch(base_dir)
@@ -176,16 +170,13 @@ async def _merge_sandbox_to_parent_locked(
             # drop the uncommitted edits when cleanup runs, so preserve the
             # worktree and let the user handle it instead.
             logger.warning(
-                "Cannot commit dirty sandbox worktree %s for chat %s; "
-                "merge skipped, worktree preserved",
+                "Cannot commit dirty sandbox worktree %s for chat %s; merge skipped, worktree preserved",
                 worktree_path,
                 chat_id[:8],
             )
             return False, "Sandbox has uncommitted changes that could not be committed"
 
-    success, conflicts, stderr = await _merge_branch_into_current(
-        base_dir, branch_name, f"Merge sandbox session {chat_id[:8]}"
-    )
+    success, conflicts, stderr = await _merge_branch_into_current(base_dir, branch_name, f"Merge sandbox session {chat_id[:8]}")
     if success:
         await cleanup_sandbox_worktree(base_dir, chat_id, force=True)
         return True, f"Successfully merged sandbox to {parent_branch}"

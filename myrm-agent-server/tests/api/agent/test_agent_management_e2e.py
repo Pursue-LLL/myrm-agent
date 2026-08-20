@@ -12,9 +12,7 @@ from app.core.security.master_key import MasterKeyProvider
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -123,9 +121,7 @@ async def test_agent_max_iterations_crud(async_client: AsyncClient, test_user_id
     assert detail["max_iterations"] == 200
 
     # Update max_iterations
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"max_iterations": 50}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"max_iterations": 50})
     assert response.status_code == 200
     updated = response.json()["data"]
     assert updated["max_iterations"] == 50
@@ -147,9 +143,7 @@ async def test_agent_max_iterations_crud(async_client: AsyncClient, test_user_id
 
 
 @pytest.mark.asyncio
-async def test_agent_runtime_contract_crud(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_runtime_contract_crud(async_client: AsyncClient, test_user_id: str):
     """Test workspace_policy, memory_policy, subagent_ids, and security overrides persistence."""
 
     create_payload = {
@@ -205,12 +199,8 @@ async def test_agent_runtime_contract_crud(
     response = await async_client.put(f"/api/agents/{agent_id}", json=blocklist_update)
     assert response.status_code == 200
     blocklist_updated = response.json()["data"]
-    assert blocklist_updated["security_overrides"]["networkBlocklist"] == [
-        "blocked.example"
-    ]
-    assert blocklist_updated["security_overrides"]["networkAllowlist"] == [
-        "example.com"
-    ]
+    assert blocklist_updated["security_overrides"]["networkBlocklist"] == ["blocked.example"]
+    assert blocklist_updated["security_overrides"]["networkAllowlist"] == ["example.com"]
 
     response = await async_client.get(f"/api/agents/{agent_id}")
     assert response.status_code == 200
@@ -224,9 +214,7 @@ async def test_agent_runtime_contract_crud(
 
 
 @pytest.mark.asyncio
-async def test_agent_command_bindings_crud(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_command_bindings_crud(async_client: AsyncClient, test_user_id: str):
     """Test command_bindings full CRUD lifecycle: create, read, update, clear."""
 
     bindings_payload = [
@@ -260,14 +248,10 @@ async def test_agent_command_bindings_crud(
     assert len(created["command_bindings"]) == 2
     names = {b["command_name"] for b in created["command_bindings"]}
     assert names == {"daily-report", "search-kb"}
-    dr_binding = next(
-        b for b in created["command_bindings"] if b["command_name"] == "daily-report"
-    )
+    dr_binding = next(b for b in created["command_bindings"] if b["command_name"] == "daily-report")
     assert dr_binding["skill_ids"] == ["report_generator"]
     assert dr_binding["aliases"] == ["dr"]
-    skb_binding = next(
-        b for b in created["command_bindings"] if b["command_name"] == "search-kb"
-    )
+    skb_binding = next(b for b in created["command_bindings"] if b["command_name"] == "search-kb")
     assert skb_binding["skill_ids"] == ["kb_search", "summarizer"]
     assert skb_binding["instruction"] == "Search then summarize results"
 
@@ -305,9 +289,7 @@ async def test_agent_command_bindings_crud(
 
 
 @pytest.mark.asyncio
-async def test_agent_command_bindings_legacy_skill_id(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_command_bindings_legacy_skill_id(async_client: AsyncClient, test_user_id: str):
     """Legacy ``skill_id`` format should be auto-migrated to ``skill_ids``."""
 
     legacy_payload = [
@@ -338,9 +320,7 @@ async def test_agent_command_bindings_legacy_skill_id(
 
 
 @pytest.mark.asyncio
-async def test_agent_command_bindings_empty_list(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_command_bindings_empty_list(async_client: AsyncClient, test_user_id: str):
     """Creating an agent with empty command_bindings should succeed."""
 
     response = await async_client.post(
@@ -359,9 +339,7 @@ async def test_agent_command_bindings_empty_list(
 
 
 @pytest.mark.asyncio
-async def test_agent_command_bindings_single_skill_no_instruction(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_command_bindings_single_skill_no_instruction(async_client: AsyncClient, test_user_id: str):
     """Single skill binding without instruction — instruction should default to empty."""
 
     response = await async_client.post(
@@ -384,14 +362,10 @@ async def test_agent_command_bindings_single_skill_no_instruction(
 
 
 @pytest.mark.asyncio
-async def test_agent_secret_routes_require_unlocked_vault(
-    async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-):
+async def test_agent_secret_routes_require_unlocked_vault(async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
     """Secret routes should fail closed without blocking ordinary agent CRUD startup."""
 
-    create_response = await async_client.post(
-        "/api/agents", json={"name": "Vault Locked Agent"}
-    )
+    create_response = await async_client.post("/api/agents", json={"name": "Vault Locked Agent"})
     assert create_response.status_code == 200
     agent_id = create_response.json()["data"]["id"]
 
@@ -412,9 +386,7 @@ async def test_agent_secret_routes_require_unlocked_vault(
     assert create_response.status_code == 423
     assert create_response.json()["detail"] == locked_detail
 
-    delete_response = await async_client.delete(
-        f"/api/agents/{agent_id}/secrets/api_key"
-    )
+    delete_response = await async_client.delete(f"/api/agents/{agent_id}/secrets/api_key")
     assert delete_response.status_code == 423
     assert delete_response.json()["detail"] == locked_detail
 
@@ -498,9 +470,7 @@ async def test_agent_model_kwargs_crud(async_client: AsyncClient, test_user_id: 
 
 
 @pytest.mark.asyncio
-async def test_agent_fallback_model_selection_crud(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_fallback_model_selection_crud(async_client: AsyncClient, test_user_id: str):
     """Test fallback and safetyFallback model selection full CRUD lifecycle.
 
     Verifies the complete chain: create with fallback fields → read back →
@@ -592,9 +562,7 @@ async def test_agent_fallback_model_selection_crud(
 
 
 @pytest.mark.asyncio
-async def test_agent_fallback_model_in_list(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_fallback_model_in_list(async_client: AsyncClient, test_user_id: str):
     """Test that fallback model fields are returned in agent list API."""
 
     create_payload = {
@@ -650,9 +618,7 @@ async def test_agent_model_kwargs_in_list(async_client: AsyncClient, test_user_i
 
 
 @pytest.mark.asyncio
-async def test_agent_suggestion_prompts_crud(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_suggestion_prompts_crud(async_client: AsyncClient, test_user_id: str):
     """Test suggestion_prompts full CRUD lifecycle."""
 
     prompts = ["分析本月销售趋势", "用SQL查询用户留存率", "总结会议要点"]
@@ -677,9 +643,7 @@ async def test_agent_suggestion_prompts_crud(
 
     # Update suggestion_prompts
     new_prompts = ["帮我写一封邮件", "解释量子计算"]
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"suggestion_prompts": new_prompts}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"suggestion_prompts": new_prompts})
     assert response.status_code == 200
     updated = response.json()["data"]
     assert updated["suggestion_prompts"] == new_prompts
@@ -690,9 +654,7 @@ async def test_agent_suggestion_prompts_crud(
     assert response.json()["data"]["suggestion_prompts"] == new_prompts
 
     # Clear suggestion_prompts (set to null)
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"suggestion_prompts": None}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"suggestion_prompts": None})
     assert response.status_code == 200
     cleared = response.json()["data"]
     assert cleared["suggestion_prompts"] is None
@@ -707,9 +669,7 @@ async def test_agent_suggestion_prompts_crud(
 
 
 @pytest.mark.asyncio
-async def test_agent_suggestion_prompts_default_null(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_suggestion_prompts_default_null(async_client: AsyncClient, test_user_id: str):
     """Test that agents created without suggestion_prompts default to null."""
 
     create_payload = {
@@ -727,9 +687,7 @@ async def test_agent_suggestion_prompts_default_null(
 
 
 @pytest.mark.asyncio
-async def test_agent_default_security_preset_crud(
-    async_client: AsyncClient, test_user_id: str
-):
+async def test_agent_default_security_preset_crud(async_client: AsyncClient, test_user_id: str):
     """Test default_security_preset full CRUD lifecycle (create → read → update → clear)."""
 
     # Create with default_security_preset
@@ -751,9 +709,7 @@ async def test_agent_default_security_preset_crud(
     assert detail["default_security_preset"] == "accept_edits"
 
     # Update to another preset
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"default_security_preset": "explore"}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"default_security_preset": "explore"})
     assert response.status_code == 200
     updated = response.json()["data"]
     assert updated["default_security_preset"] == "explore"
@@ -764,9 +720,7 @@ async def test_agent_default_security_preset_crud(
     assert response.json()["data"]["default_security_preset"] == "explore"
 
     # Clear to null
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"default_security_preset": None}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"default_security_preset": None})
     assert response.status_code == 200
     cleared = response.json()["data"]
     assert cleared["default_security_preset"] is None
@@ -777,18 +731,14 @@ async def test_agent_default_security_preset_crud(
     assert response.json()["data"]["default_security_preset"] is None
 
     # Agents created without the field default to null
-    response = await async_client.post(
-        "/api/agents", json={"name": "No Default Preset Agent"}
-    )
+    response = await async_client.post("/api/agents", json={"name": "No Default Preset Agent"})
     assert response.status_code == 200
     no_preset = response.json()["data"]
     assert no_preset["default_security_preset"] is None
     await async_client.delete(f"/api/agents/{no_preset['id']}")
 
     # Invalid preset value should be rejected
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"default_security_preset": "not_a_preset"}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"default_security_preset": "not_a_preset"})
     assert response.status_code == 422
 
     # Cleanup

@@ -34,9 +34,7 @@ from .case_types import (
     SkillGrowthFormMetadataRead,
 )
 
-_GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(
-    status.value for status in SkillGrowthCaseStatus
-)
+_GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in SkillGrowthCaseStatus)
 
 SKILL_GROWTH_CASE_ACTION_TYPES: tuple[str, ...] = (
     "skill_draft",
@@ -118,9 +116,7 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         or _text(payload.get("content"))
         or draft_name
     )
-    proposed_content = _text(payload.get("patch_content")) or _text(
-        payload.get("content")
-    )
+    proposed_content = _text(payload.get("patch_content")) or _text(payload.get("content"))
     return SkillGrowthCaseDetailRead(
         id=f"draft:{record.id}",
         source=SkillGrowthCaseSource.DRAFT,
@@ -227,9 +223,7 @@ def _evolution_case(record: EvolutionReviewRecord) -> SkillGrowthCaseDetailRead:
 async def _count_approval_cases() -> int:
     async with get_session() as db:
         result = await db.execute(
-            select(func.count())
-            .select_from(ApprovalRecord)
-            .where(ApprovalRecord.action_type.in_(SKILL_GROWTH_CASE_ACTION_TYPES))
+            select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.action_type.in_(SKILL_GROWTH_CASE_ACTION_TYPES))
         )
         return int(result.scalar_one())
 
@@ -357,10 +351,7 @@ async def get_skill_growth_case_detail(
         record_id = case_id.removeprefix("draft:")
         async with get_session() as db:
             record = await db.get(ApprovalRecord, record_id)
-            if (
-                record is None
-                or record.action_type not in SKILL_GROWTH_CASE_ACTION_TYPES
-            ):
+            if record is None or record.action_type not in SKILL_GROWTH_CASE_ACTION_TYPES:
                 return None
             return _approval_case_detail(record)
 

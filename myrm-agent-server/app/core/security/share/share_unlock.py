@@ -68,9 +68,7 @@ def build_unlock_credential(
     return credential
 
 
-def parse_unlock_credential(
-    value: str, *, salt: str
-) -> dict[str, object] | None:
+def parse_unlock_credential(value: str, *, salt: str) -> dict[str, object] | None:
     """Recover the raw signed payload from an unlock credential, or ``None``."""
     return parse_share_token(value, salt=salt)
 

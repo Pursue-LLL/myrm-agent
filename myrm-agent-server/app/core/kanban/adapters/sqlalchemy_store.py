@@ -188,10 +188,7 @@ class SqlAlchemyKanbanStore:
             if agent_id is not None:
                 stmt = stmt.where(KanbanTaskModel.agent_id == agent_id)
             if source_chat_id is not None:
-                stmt = stmt.where(
-                    KanbanTaskModel.metadata_json[KANBAN_SOURCE_CHAT_METADATA_KEY].as_string()
-                    == source_chat_id
-                )
+                stmt = stmt.where(KanbanTaskModel.metadata_json[KANBAN_SOURCE_CHAT_METADATA_KEY].as_string() == source_chat_id)
             stmt = stmt.order_by(KanbanTaskModel.created_at)
             stmt = stmt.offset(offset)
             if limit is not None:

@@ -106,9 +106,7 @@ def test_topic_binding_e2e(client):
 
     # 3. Set global default agent
     global_payload = {"agentId": agent_id}
-    response = client.post(
-        f"/api/v1/channels/manage/{channel_name}/default-agent", json=global_payload
-    )
+    response = client.post(f"/api/v1/channels/manage/{channel_name}/default-agent", json=global_payload)
     assert response.status_code == 200, response.text
 
     # 4. Verify global default agent

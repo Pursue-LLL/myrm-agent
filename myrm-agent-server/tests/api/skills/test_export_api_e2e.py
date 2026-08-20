@@ -58,10 +58,11 @@ async def test_api_export_skill_as_agent_plugin_and_raw(
     # Sync prebuilt seeds
     await prebuilt_sync.sync_prebuilt_seeds(storage)
 
-    with patch("app.core.skills.packaging.skills_service", svc), \
-         patch("app.core.skills.store.service.skills_service", svc), \
-         patch("app.api.skills.packaging.skill_packaging_service._skills_svc", svc):
-
+    with (
+        patch("app.core.skills.packaging.skills_service", svc),
+        patch("app.core.skills.store.service.skills_service", svc),
+        patch("app.api.skills.packaging.skill_packaging_service._skills_svc", svc),
+    ):
         client = TestClient(app)
 
         # 1. 默认或显式 export_format = "agent_plugin"
@@ -147,11 +148,12 @@ sk-proj-1234567890abcdef1234567890abcdef12345678
         environment=EnvironmentFingerprint(),
     )
 
-    with patch("app.core.skills.packaging.skills_service", svc), \
-         patch("app.core.skills.store.service.skills_service", svc), \
-         patch("app.api.skills.packaging.skill_packaging_service._skills_svc", svc), \
-         patch("app.core.skills.packaging._load_evolution_record", return_value=record):
-
+    with (
+        patch("app.core.skills.packaging.skills_service", svc),
+        patch("app.core.skills.store.service.skills_service", svc),
+        patch("app.api.skills.packaging.skill_packaging_service._skills_svc", svc),
+        patch("app.core.skills.packaging._load_evolution_record", return_value=record),
+    ):
         client = TestClient(app)
 
         # 1. Preview checks

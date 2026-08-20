@@ -327,11 +327,7 @@ class ExtensionCdpRelayBridge:
             if not found:
                 self._respond_error(client, req_id, session_id, f"No target with given id found: {target_id}", -32602)
                 return
-            resolved_target = (
-                found.attached.target_id
-                if found.attached
-                else str(target_id)
-            )
+            resolved_target = found.attached.target_id if found.attached else str(target_id)
             self._respond_ok(
                 client,
                 req_id,
@@ -340,11 +336,7 @@ class ExtensionCdpRelayBridge:
             )
             return
         if method == "Target.getTargets":
-            infos = [
-                self._target_info(tab.info, tab.attached.target_id)
-                for tab in self._tabs.values()
-                if tab.attached
-            ]
+            infos = [self._target_info(tab.info, tab.attached.target_id) for tab in self._tabs.values() if tab.attached]
             self._respond_ok(client, req_id, session_id, {"targetInfos": infos})
             return
         if method == "Target.attachToBrowserTarget":
@@ -394,18 +386,14 @@ class ExtensionCdpRelayBridge:
             url = params.get("url")
             target_url = url if isinstance(url, str) and url else "about:blank"
             background = params.get("background") is True
-            created = await self._call_extension_cmd(
-                {"type": "createTab", "url": target_url, "background": background}
-            )
+            created = await self._call_extension_cmd({"type": "createTab", "url": target_url, "background": background})
             tab_id_raw = created.get("tabId") if isinstance(created, dict) else None
             if not isinstance(tab_id_raw, int):
                 self._respond_error(client, req_id, session_id, "extension did not return tabId", -32000)
                 return
             tab_id = tab_id_raw
             if tab_id not in self._tabs:
-                self._tabs[tab_id] = _TabState(
-                    info=RelayTabInfo(tab_id=tab_id, url=target_url, title="", active=not background)
-                )
+                self._tabs[tab_id] = _TabState(info=RelayTabInfo(tab_id=tab_id, url=target_url, title="", active=not background))
             attached = await self._ensure_tab_attached(tab_id)
             self._announce_attached(client, tab_id, attached)
             self._respond_ok(client, req_id, session_id, {"targetId": attached.target_id})

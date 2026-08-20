@@ -70,9 +70,7 @@ async def test_sandbox_recreate_returns_409_when_shell_jobs_running(
         patch("app.api.system.router.get_deployment_capabilities", return_value=caps),
         patch("app.api.system.router.get_settings", return_value=settings),
     ):
-        async with AsyncClient(
-            transport=transport, base_url="http://testserver"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.post("/api/v1/system/sandbox/recreate")
 
     assert resp.status_code == 409
@@ -101,9 +99,7 @@ async def test_sandbox_recreate_allowed_when_no_shell_jobs(tmp_path: Path) -> No
         patch("app.api.system.router.get_settings", return_value=settings),
         patch("app.api.system.router.httpx.AsyncClient", return_value=mock_client),
     ):
-        async with AsyncClient(
-            transport=transport, base_url="http://testserver"
-        ) as client:
+        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.post("/api/v1/system/sandbox/recreate")
 
     assert resp.status_code == 200

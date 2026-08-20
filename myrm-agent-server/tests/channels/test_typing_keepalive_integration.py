@@ -152,9 +152,7 @@ class TestKeepaliveIntegration:
         fx_tg, ch_tg = self._build_fx_with_real_caps(0.03)
         bus = MagicMock()
         ch_dc = MagicMock()
-        ch_dc.capabilities = ChannelCapabilities(
-            typing_indicator=True, typing_keepalive_interval=0.05
-        )
+        ch_dc.capabilities = ChannelCapabilities(typing_indicator=True, typing_keepalive_interval=0.05)
         ch_dc.start_typing = AsyncMock()
         ch_dc.stop_typing = AsyncMock()
         bus.get_channel.return_value = ch_dc

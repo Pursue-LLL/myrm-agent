@@ -131,10 +131,14 @@ async def test_chat_channel_delivery_through_real_channel_gateway() -> None:
 
     async with get_session() as session:
         rows = (
-            await session.execute(
-                select(Message).where(Message.chat_id == recipient_id),
+            (
+                await session.execute(
+                    select(Message).where(Message.chat_id == recipient_id),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].content == "chat gateway hello"
         assert rows[0].sent_at is not None
@@ -150,9 +154,7 @@ def test_profile_resolver_filtering_then_factory() -> None:
         "not-a-dict",
     ]
     notify_targets: tuple[dict[str, str], ...] = tuple(
-        entry
-        for entry in raw_notify
-        if isinstance(entry, dict) and "channel" in entry and "recipient_id" in entry
+        entry for entry in raw_notify if isinstance(entry, dict) and "channel" in entry and "recipient_id" in entry
     )
     assert notify_targets == ({"channel": "telegram", "recipient_id": "123"},)
 
@@ -264,12 +266,14 @@ async def test_attachment_delivered_through_real_channel_gateway() -> None:
                 channel=channel,
                 allowed_roots=(str(Path(tmp_file).parent),),
             )
-            result = await tool.ainvoke({
-                "channel": "telegram",
-                "target": "",
-                "body": "Report ready",
-                "attachments": [tmp_file],
-            })
+            result = await tool.ainvoke(
+                {
+                    "channel": "telegram",
+                    "target": "",
+                    "body": "Report ready",
+                    "attachments": [tmp_file],
+                }
+            )
             assert "success" in result.lower()
             assert "1 attachment" in result.lower()
             assert len(channel.sent) == 1
@@ -290,12 +294,14 @@ async def test_url_attachment_delivered_through_gateway() -> None:
     channel = RecordingChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel)
-        result = await tool.ainvoke({
-            "channel": "",
-            "target": "",
-            "body": "See image",
-            "attachments": ["https://example.com/chart.png"],
-        })
+        result = await tool.ainvoke(
+            {
+                "channel": "",
+                "target": "",
+                "body": "See image",
+                "attachments": ["https://example.com/chart.png"],
+            }
+        )
         assert "success" in result.lower()
         assert len(channel.sent) == 1
         msg = channel.sent[0]
@@ -310,12 +316,14 @@ async def test_attachment_only_no_body_through_gateway() -> None:
     channel = RecordingChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel)
-        result = await tool.ainvoke({
-            "channel": "",
-            "target": "",
-            "body": "",
-            "attachments": ["https://example.com/report.pdf"],
-        })
+        result = await tool.ainvoke(
+            {
+                "channel": "",
+                "target": "",
+                "body": "",
+                "attachments": ["https://example.com/report.pdf"],
+            }
+        )
         assert "success" in result.lower()
         assert len(channel.sent) == 1
         msg = channel.sent[0]
@@ -341,15 +349,17 @@ async def test_multiple_attachments_through_gateway() -> None:
                 channel=channel,
                 allowed_roots=(str(Path(tmp_file).parent),),
             )
-            result = await tool.ainvoke({
-                "channel": "",
-                "target": "",
-                "body": "Multiple files",
-                "attachments": [
-                    tmp_file,
-                    "https://cdn.example.com/photo.jpg",
-                ],
-            })
+            result = await tool.ainvoke(
+                {
+                    "channel": "",
+                    "target": "",
+                    "body": "Multiple files",
+                    "attachments": [
+                        tmp_file,
+                        "https://cdn.example.com/photo.jpg",
+                    ],
+                }
+            )
             assert "success" in result.lower()
             assert "2 attachment" in result.lower()
             assert len(channel.sent) == 1
@@ -371,11 +381,13 @@ async def test_attachment_file_not_found_blocks_gateway_send(tmp_path: Path) -> 
     missing = str(tmp_path / "missing-report.pdf")
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel, allowed_roots=(str(tmp_path),))
-        result = await tool.ainvoke({
-            "channel": "",
-            "target": "",
-            "body": "Report",
-            "attachments": [missing],
-        })
+        result = await tool.ainvoke(
+            {
+                "channel": "",
+                "target": "",
+                "body": "Report",
+                "attachments": [missing],
+            }
+        )
         assert "file not found" in result.lower()
         assert len(channel.sent) == 0

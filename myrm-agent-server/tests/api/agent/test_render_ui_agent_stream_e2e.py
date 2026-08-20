@@ -14,19 +14,11 @@ from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
 
 
 def _render_ui_tasks_steps(events: list[dict[str, object]]) -> list[dict[str, object]]:
-    return [
-        event
-        for event in events
-        if event.get("type") == "tasks_steps" and event.get("tool_name") == "render_ui_tool"
-    ]
+    return [event for event in events if event.get("type") == "tasks_steps" and event.get("tool_name") == "render_ui_tool"]
 
 
 def _ui_artifact_events(events: list[dict[str, object]]) -> list[dict[str, object]]:
-    return [
-        event
-        for event in events
-        if event.get("type") == "ui_update" and event.get("subtype") == "ui_artifact"
-    ]
+    return [event for event in events if event.get("type") == "ui_update" and event.get("subtype") == "ui_artifact"]
 
 
 @pytest.mark.e2e

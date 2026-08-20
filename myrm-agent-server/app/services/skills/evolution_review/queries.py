@@ -68,9 +68,7 @@ async def create_evolution_review_record(
     approval_status: str = "PENDING",
 ) -> EvolutionReviewRecord:
     if evolved_content and len(evolved_content) > MAX_SKILL_CONTENT_CHARS:
-        raise EvolutionApplyError(
-            f"Evolved content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS})."
-        )
+        raise EvolutionApplyError(f"Evolved content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS}).")
 
     payload = EvolutionApprovalPayload(
         skill_id=proposal_skill_id,
@@ -86,8 +84,7 @@ async def create_evolution_review_record(
         trajectory=trajectory,
         growth_status=growth_status,
         reason_code=reason_code or "manual_review",
-        remediation=remediation
-        or "Review the diff and approve or reject the proposal.",
+        remediation=remediation or "Review the diff and approve or reject the proposal.",
         runtime_failure=runtime_failure,
         eval_cases=eval_cases or [],
     )
@@ -116,19 +113,13 @@ async def create_evolution_review_record(
                 "apply_status": payload.apply_status.value,
                 "reason_code": payload.reason_code,
                 "remediation": payload.remediation,
-                "runtime_failure": (
-                    runtime_failure.model_dump(mode="json")
-                    if runtime_failure is not None
-                    else None
-                ),
+                "runtime_failure": (runtime_failure.model_dump(mode="json") if runtime_failure is not None else None),
             },
         )
     )
     review_record = approval_to_evolution_review_record(record)
     if review_record is None:
-        raise RuntimeError(
-            f"Failed to normalize evolution approval record: {record.id}"
-        )
+        raise RuntimeError(f"Failed to normalize evolution approval record: {record.id}")
     return review_record
 
 

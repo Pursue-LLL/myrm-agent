@@ -17,10 +17,7 @@ from tests.api.agent.utils import get_model_selection
 
 
 def test_raw_webui_learn_triggers_force_skill_manage_gate() -> None:
-    raw = (
-        "/learn https://docs.example.com/webhooks "
-        "focus on signature verification only"
-    )
+    raw = "/learn https://docs.example.com/webhooks focus on signature verification only"
     rewritten = rewrite_learn_query_if_needed(raw)
     assert _is_learn_skill_authoring_query(rewritten) is True
     assert isinstance(rewritten, str)

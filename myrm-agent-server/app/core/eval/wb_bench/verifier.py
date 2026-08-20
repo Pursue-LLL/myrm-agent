@@ -128,8 +128,7 @@ def _office_run_assertion(
     if command is None:
         return None
     env_parts = ["PYTHONPATH={workspace}"] + [
-        f"{key}={_rewrite_harbor_paths(value, tests_dir)}"
-        for key, value in _iter_verifier_env(verifier)
+        f"{key}={_rewrite_harbor_paths(value, tests_dir)}" for key, value in _iter_verifier_env(verifier)
     ]
     return SandboxAssertion(
         type="test_suite",
@@ -167,11 +166,7 @@ def _direct_scorer_assertion(
     ``score.json``/``reward.json`` candidates in the workspace.
     """
     scorer = next(
-        (
-            tests_dir / name
-            for name in _DIRECT_SCORER_NAMES
-            if (tests_dir / name).is_file()
-        ),
+        (tests_dir / name for name in _DIRECT_SCORER_NAMES if (tests_dir / name).is_file()),
         None,
     )
     if scorer is None:
@@ -214,10 +209,7 @@ def _test_suite_assertion_for(task_dir: Path) -> SandboxAssertion | None:
             return None
         return SandboxAssertion(
             type="test_suite",
-            target=(
-                f"WORKSPACE={{workspace}} LOG_DIR={{workspace}}/.wb_bench/logs "
-                f"python3 {verifier_py}"
-            ),
+            target=(f"WORKSPACE={{workspace}} LOG_DIR={{workspace}}/.wb_bench/logs python3 {verifier_py}"),
             result_file="{workspace}/.wb_bench/logs/reward.txt",
             timeout=timeout,
             readonly_paths=(str(tests_dir),),

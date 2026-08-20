@@ -231,11 +231,7 @@ async def get_hardware_recommendations() -> JSONResponse:
             score = int(ratio * 50)
             fit_level = "poor"
 
-        est_tok_per_sec = (
-            _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor, active_params_b)
-            if params_b > 0
-            else None
-        )
+        est_tok_per_sec = _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor, active_params_b) if params_b > 0 else None
 
         recommendations.append(
             {

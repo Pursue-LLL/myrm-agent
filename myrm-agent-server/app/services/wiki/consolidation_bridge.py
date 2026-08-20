@@ -74,12 +74,7 @@ async def archive_consolidation_insights_to_wiki(
     content = "\n".join(body_lines) + "\n"
 
     frontmatter = (
-        f"---\n"
-        f"source: consolidation\n"
-        f"bridge_source: consolidation_digest\n"
-        f"agent_id: \"{agent_id or ''}\"\n"
-        f"date: \"{date}\"\n"
-        f"---\n\n"
+        f'---\nsource: consolidation\nbridge_source: consolidation_digest\nagent_id: "{agent_id or ""}"\ndate: "{date}"\n---\n\n'
     )
 
     result = await publish_raw(

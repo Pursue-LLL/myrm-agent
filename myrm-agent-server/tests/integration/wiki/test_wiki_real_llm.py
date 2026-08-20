@@ -188,9 +188,7 @@ async def test_first_compile_preserves_raw_provenance_with_real_llm(
     from myrm_agent_harness.toolkits.wiki.core.types import ConceptInfo
 
     config = WikiConfig(parallel_compilation=False, auto_archive_enabled=False)
-    compile_config = WikiCompileConfig(
-        min_concept_mentions=1, require_approval=False
-    )
+    compile_config = WikiCompileConfig(min_concept_mentions=1, require_approval=False)
     compiler = WikiCompiler(llm, wiki_structure, config, compile_config)
 
     raw_name = f"turn_chat-e2e-provenance_{uuid.uuid4().hex[:6]}.md"
@@ -216,8 +214,6 @@ async def test_first_compile_preserves_raw_provenance_with_real_llm(
 
     concept_path = wiki_structure.get_concept_file_path("ContinuousIntegrationE2E")
     assert concept_path.exists(), "concept article must be published to disk"
-    metadata, _ = load_frontmatter_metadata(
-        concept_path.read_text(encoding="utf-8")
-    )
+    metadata, _ = load_frontmatter_metadata(concept_path.read_text(encoding="utf-8"))
     assert metadata.get("source_chat") == "chat-e2e-provenance"
     assert metadata.get("source_message") == "msg-e2e-provenance"

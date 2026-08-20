@@ -95,9 +95,7 @@ async def test_claim_due_skips_running_rows(
     await queue.enqueue("chat-1", reset_failed=False)
     await queue.enqueue("chat-2", reset_failed=False)
 
-    claimed = await queue.claim_due(
-        datetime.now(UTC), excluding=frozenset({"chat-1"})
-    )
+    claimed = await queue.claim_due(datetime.now(UTC), excluding=frozenset({"chat-1"}))
 
     assert [chat_id for chat_id, _ in claimed] == ["chat-2"]
 
@@ -124,9 +122,7 @@ async def test_mark_failure_exhausts_after_max_attempts(
 ) -> None:
     await queue.enqueue("chat-1", reset_failed=False)
 
-    exhausted = await queue.mark_failure(
-        "chat-1", attempt=queue.MAX_ATTEMPTS, error="permanent"
-    )
+    exhausted = await queue.mark_failure("chat-1", attempt=queue.MAX_ATTEMPTS, error="permanent")
 
     assert exhausted is True
     row = await fetch_retry_row("chat-1")
@@ -136,9 +132,7 @@ async def test_mark_failure_exhausts_after_max_attempts(
 
 @pytest.mark.asyncio
 async def test_mark_failure_for_missing_row_is_exhausted() -> None:
-    exhausted = await queue.mark_failure(
-        "chat-ghost", attempt=1, error="boom"
-    )
+    exhausted = await queue.mark_failure("chat-ghost", attempt=1, error="boom")
     assert exhausted is True
 
 
@@ -147,9 +141,7 @@ async def test_concurrent_enqueue_same_chat_is_race_safe(
     fetch_retry_row: Callable[[str], Awaitable[MemoryExtractRetryModel | None]],
 ) -> None:
     """Concurrent enqueues of a brand-new chat must never raise (primary-key race)."""
-    results = await asyncio.gather(
-        *(queue.enqueue("chat-race", reset_failed=False) for _ in range(8))
-    )
+    results = await asyncio.gather(*(queue.enqueue("chat-race", reset_failed=False) for _ in range(8)))
 
     assert all(result in ("queued", "already_queued") for result in results)
     assert "queued" in results

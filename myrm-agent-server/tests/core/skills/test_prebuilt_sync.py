@@ -171,8 +171,7 @@ def test_prebuilt_allowed_tools_match_tool_registry() -> None:
                 violations.append(f"{skill_id}: {tool_name}")
     assert not violations, (
         "Prebuilt SKILL.md allowed-tools must use registered tool names "
-        "(see tool_layers.py + _tool_layer_bootstrap.py):\n"
-        + "\n".join(f"  - {item}" for item in violations)
+        "(see tool_layers.py + _tool_layer_bootstrap.py):\n" + "\n".join(f"  - {item}" for item in violations)
     )
 
 
@@ -305,9 +304,7 @@ async def test_sync_copies_skill_bundle_scripts(storage: LocalStorageBackend) ->
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
     assert "google-workspace" in result.skill_ids
 
-    script_storage_path = get_skill_file_path(
-        SkillType.PREBUILT, "google-workspace", "scripts/google_api.py"
-    )
+    script_storage_path = get_skill_file_path(SkillType.PREBUILT, "google-workspace", "scripts/google_api.py")
     stored = await storage.read_text(script_storage_path)
 
     seed_script = (
@@ -391,10 +388,7 @@ async def test_sync_skips_non_skill_dirs(
 ) -> None:
     """Directories without SKILL.md or starting with _ are skipped."""
     seeds_dir = Path(prebuilt_sync.__file__).resolve().parents[3] / "assets" / "prebuilt_skills"
-    non_skill_dirs = [
-        d for d in seeds_dir.iterdir()
-        if d.is_dir() and not (d / "SKILL.md").exists()
-    ]
+    non_skill_dirs = [d for d in seeds_dir.iterdir() if d.is_dir() and not (d / "SKILL.md").exists()]
     dot_dirs = [d for d in seeds_dir.iterdir() if d.name.startswith(("_", "."))]
 
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
@@ -411,9 +405,7 @@ async def test_sync_copies_references_directory(storage: LocalStorageBackend) ->
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
     assert "unreal-mcp" in result.skill_ids
 
-    ref_path = get_skill_file_path(
-        SkillType.PREBUILT, "unreal-mcp", "references/tool-surface.md"
-    )
+    ref_path = get_skill_file_path(SkillType.PREBUILT, "unreal-mcp", "references/tool-surface.md")
     stored = await storage.read_text(ref_path)
     assert "ProgrammaticToolset" in stored or "toolset" in stored.lower()
 
@@ -426,9 +418,7 @@ async def test_sync_copies_blender_references(storage: LocalStorageBackend) -> N
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
     assert "blender-mcp" in result.skill_ids
 
-    ref_path = get_skill_file_path(
-        SkillType.PREBUILT, "blender-mcp", "references/bpy-patterns.md"
-    )
+    ref_path = get_skill_file_path(SkillType.PREBUILT, "blender-mcp", "references/bpy-patterns.md")
     stored = await storage.read_text(ref_path)
     assert "bpy" in stored
 

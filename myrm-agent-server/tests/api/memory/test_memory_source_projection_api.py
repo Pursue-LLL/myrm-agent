@@ -87,10 +87,12 @@ class TestListApiSourceProjection:
     def test_list_mixed_types_source_projection(self, client: TestClient) -> None:
         sem = SemanticMemory(content="semantic", source_chat_id="c1", source_message_id="m1")
         epi = EpisodicMemory(content="episodic", event_type="action", source_chat_id="c2")
-        mock = _make_mock_manager({
-            MemoryType.SEMANTIC: [sem],
-            MemoryType.EPISODIC: [epi],
-        })
+        mock = _make_mock_manager(
+            {
+                MemoryType.SEMANTIC: [sem],
+                MemoryType.EPISODIC: [epi],
+            }
+        )
         app.dependency_overrides[get_crud_memory_manager] = lambda: mock
         try:
             resp = client.get("/api/v1/memory/")

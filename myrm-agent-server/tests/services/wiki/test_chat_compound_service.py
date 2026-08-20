@@ -222,9 +222,7 @@ async def test_stage_chat_compound_from_message_rejects_inactive_assistant(
 ) -> None:
     chat_id, assistant_id = seeded_compound_chat
     await db_session.execute(
-        update(Message)
-        .where(Message.chat_id == chat_id, Message.id == assistant_id)
-        .values(is_active=False)
+        update(Message).where(Message.chat_id == chat_id, Message.id == assistant_id).values(is_active=False)
     )
     await db_session.commit()
 
@@ -244,9 +242,7 @@ async def test_stage_chat_compound_from_message_rejects_incognito_chat(
     wiki_archiver: MemoryToWikiArchiver,
 ) -> None:
     chat_id = "compound-chat-incognito"
-    db_session.add(
-        Chat(id=chat_id, title="Incognito Chat", source="web", is_incognito=True)
-    )
+    db_session.add(Chat(id=chat_id, title="Incognito Chat", source="web", is_incognito=True))
     await db_session.flush()
     base = datetime(2026, 8, 1, 12, 0, 0)
     await ChatRepository.add_messages(

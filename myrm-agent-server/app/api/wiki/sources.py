@@ -60,9 +60,7 @@ async def _wiki_source_sync_status(
     state: WikiSourceSyncState,
 ) -> WikiSourceSyncStatusResponse:
     google_connected = await is_oauth_issuer_connected(db, GOOGLE_WORKSPACE_ISSUER)
-    google_drive_authorized = (
-        await google_workspace_drive_read_enabled(db) if google_connected else False
-    )
+    google_drive_authorized = await google_workspace_drive_read_enabled(db) if google_connected else False
     feishu_connected = await is_feishu_wiki_sync_available()
     return WikiSourceSyncStatusResponse(
         config=config,
@@ -89,9 +87,7 @@ class WikiSourceSyncConfigUpdate(BaseModel):
 @router.get("/config", response_model=WikiSourceSyncStatusResponse)
 async def get_wiki_source_sync_config(
     db: AsyncSession = Depends(get_db),
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki source config to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki source config to use")] = None,
 ) -> WikiSourceSyncStatusResponse:
     config = await load_wiki_source_sync_config(db, agent_id=agent_id)
     state = await load_wiki_source_sync_state(db, agent_id=agent_id)
@@ -102,9 +98,7 @@ async def get_wiki_source_sync_config(
 async def update_wiki_source_sync_config(
     body: WikiSourceSyncConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki source config to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki source config to use")] = None,
 ) -> WikiSourceSyncStatusResponse:
     current = await load_wiki_source_sync_config(db, agent_id=agent_id)
     updates = body.model_dump(exclude_unset=True)
@@ -117,9 +111,7 @@ async def update_wiki_source_sync_config(
 @router.post("/sync", response_model=WikiSourceSyncRunSummary)
 async def trigger_wiki_source_sync(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
     db: AsyncSession = Depends(get_db),
 ) -> WikiSourceSyncRunSummary:
     config = await load_wiki_source_sync_config(db, agent_id=agent_id)

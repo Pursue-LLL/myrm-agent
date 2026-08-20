@@ -29,11 +29,24 @@ from app.database.models.artifact import Artifact, ArtifactVersion
 
 logger = logging.getLogger(__name__)
 
-_WALK_SKIP_DIRS: frozenset[str] = frozenset({
-    ".git", "node_modules", "__pycache__", ".venv", "venv",
-    ".pytest_cache", ".mypy_cache", ".ruff_cache",
-    "dist", "build", ".next", ".nuxt", "target", "out",
-})
+_WALK_SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        ".git",
+        "node_modules",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".next",
+        ".nuxt",
+        "target",
+        "out",
+    }
+)
 
 
 def resolve_sandbox_file_path(

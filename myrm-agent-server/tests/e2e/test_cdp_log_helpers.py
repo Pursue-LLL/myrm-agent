@@ -21,8 +21,7 @@ from cdp_chat.support import (  # noqa: E402
 def test_count_turn_prewarm_in_log(monkeypatch, tmp_path: Path) -> None:
     log_path = tmp_path / "backend.log"
     log_path.write_text(
-        "noise\nTurn prewarm requested: chat_id=c1 agent_id=default\n"
-        "Turn prewarm requested: chat_id=c2 agent_id=default\n",
+        "noise\nTurn prewarm requested: chat_id=c1 agent_id=default\nTurn prewarm requested: chat_id=c2 agent_id=default\n",
         encoding="utf-8",
     )
     monkeypatch.setenv("MYRM_BACKEND_LOG", str(log_path))
@@ -61,9 +60,7 @@ def _write_isolated_registry(isolated_root: Path, *, backend_port: int, state_di
             }
         },
     }
-    (isolated_root / "registry.json").write_text(
-        json.dumps(registry), encoding="utf-8"
-    )
+    (isolated_root / "registry.json").write_text(json.dumps(registry), encoding="utf-8")
 
 
 def test_backend_log_override_wins_over_private_port(monkeypatch, tmp_path: Path) -> None:
@@ -80,15 +77,11 @@ def test_backend_log_shared_port_uses_dev_state_dir(monkeypatch, tmp_path: Path)
     assert backend_log_path() == tmp_path / "backend.log"
 
 
-def test_backend_log_private_port_resolves_registry_log(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_backend_log_private_port_resolves_registry_log(monkeypatch, tmp_path: Path) -> None:
     isolated_root = tmp_path / "isolated"
     runtime_dir = isolated_root / "runtimes" / "rt-live" / "state"
     runtime_dir.mkdir(parents=True)
-    (runtime_dir / "backend.log").write_text(
-        "execution_cache_created scope=x\n", encoding="utf-8"
-    )
+    (runtime_dir / "backend.log").write_text("execution_cache_created scope=x\n", encoding="utf-8")
     _write_isolated_registry(isolated_root, backend_port=18081, state_dir=runtime_dir)
     monkeypatch.setenv("MYRM_ISOLATED_ROOT", str(isolated_root))
     monkeypatch.delenv("MYRM_DEV_STATE_DIR", raising=False)
@@ -96,9 +89,7 @@ def test_backend_log_private_port_resolves_registry_log(
     assert resolved == runtime_dir / "backend.log"
 
 
-def test_backend_log_private_port_missing_registry_falls_back(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_backend_log_private_port_missing_registry_falls_back(monkeypatch, tmp_path: Path) -> None:
     isolated_root = tmp_path / "isolated-empty"
     isolated_root.mkdir(parents=True)
     monkeypatch.setenv("MYRM_ISOLATED_ROOT", str(isolated_root))
@@ -107,16 +98,12 @@ def test_backend_log_private_port_missing_registry_falls_back(
     assert resolved == tmp_path / "backend.log"
 
 
-def test_count_execution_cache_in_log_private_api_url(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_count_execution_cache_in_log_private_api_url(monkeypatch, tmp_path: Path) -> None:
     isolated_root = tmp_path / "isolated"
     runtime_dir = isolated_root / "runtimes" / "rt-live" / "state"
     runtime_dir.mkdir(parents=True)
     (runtime_dir / "backend.log").write_text(
-        "Turn prewarm requested: chat_id=c1\n"
-        "execution_cache_created scope=x\n"
-        "execution_cache_reuse scope=x\n",
+        "Turn prewarm requested: chat_id=c1\nexecution_cache_created scope=x\nexecution_cache_reuse scope=x\n",
         encoding="utf-8",
     )
     _write_isolated_registry(isolated_root, backend_port=18081, state_dir=runtime_dir)

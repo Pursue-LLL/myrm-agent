@@ -41,11 +41,7 @@ class MemoryGuardianGuardTelemetryDispatcher:
         self._config = config
         self._queue: deque[MemoryGuardianGuardTelemetryEvent] = deque()
         self._overflow_aggregates: dict[MemoryGuardianGuardTelemetryEvent, int] = {}
-        pending_state_path = (
-            Path(config.pending_state_path).expanduser().resolve()
-            if config.pending_state_path
-            else None
-        )
+        pending_state_path = Path(config.pending_state_path).expanduser().resolve() if config.pending_state_path else None
         self._pending_store = MemoryGuardianGuardPendingStore(pending_state_path)
         self._pending_envelopes = deque(self._pending_store.load())
         self._pending_event = asyncio.Event()

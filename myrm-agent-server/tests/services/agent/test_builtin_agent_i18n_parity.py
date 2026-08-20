@@ -8,12 +8,7 @@ from pathlib import Path
 from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
 
 _FRONTEND_I18N_DATA = (
-    Path(__file__).resolve().parents[4]
-    / "myrm-agent-frontend"
-    / "src"
-    / "components"
-    / "agent"
-    / "builtin-agent-i18n-data.ts"
+    Path(__file__).resolve().parents[4] / "myrm-agent-frontend" / "src" / "components" / "agent" / "builtin-agent-i18n-data.ts"
 )
 
 _BUILTIN_I18N_KEY_PATTERN = re.compile(r"'(builtin-[^']+)':\s*\{")

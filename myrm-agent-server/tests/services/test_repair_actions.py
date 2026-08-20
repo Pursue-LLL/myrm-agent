@@ -32,12 +32,8 @@ def _suppress_sqlite_backup_action():
         yield
 
 
-def _report(
-    name: str, status: str, message: str = "test", detail: str | None = None
-) -> HealthReport:
-    return HealthReport(
-        component_name=name, status=status, message=message, detail=detail
-    )
+def _report(name: str, status: str, message: str = "test", detail: str | None = None) -> HealthReport:
+    return HealthReport(component_name=name, status=status, message=message, detail=detail)
 
 
 @pytest.mark.asyncio
@@ -91,9 +87,7 @@ async def test_build_vectordb_warn() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_fail_from_server_reports() -> None:
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "fail", "message": "500 failed msgs"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail", "message": "500 failed msgs"}]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -101,13 +95,9 @@ async def test_build_dlq_fail_from_server_reports() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_pass_ignored() -> None:
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "pass", "message": "0 failed"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "pass", "message": "0 failed"}]
     actions = await build_repair_actions([], server_reports)
-    dlq_actions = [
-        a for a in actions if a.action_id == RepairActionId.REVIEW_CHANNEL_DLQ
-    ]
+    dlq_actions = [a for a in actions if a.action_id == RepairActionId.REVIEW_CHANNEL_DLQ]
     assert len(dlq_actions) == 0
 
 
@@ -118,9 +108,7 @@ async def test_build_deduplication() -> None:
         _report("WorkspaceStorage", "warn", "Also warn"),
     ]
     actions = await build_repair_actions(reports, [])
-    ws_actions = [
-        a for a in actions if a.action_id == RepairActionId.REVIEW_WORKSPACE_STORAGE
-    ]
+    ws_actions = [a for a in actions if a.action_id == RepairActionId.REVIEW_WORKSPACE_STORAGE]
     assert len(ws_actions) == 1
 
 
@@ -185,9 +173,7 @@ async def test_build_agent_engine_fail() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_warn_triggers_action() -> None:
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "warn", "message": "DLQ growing"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "warn", "message": "DLQ growing"}]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -202,9 +188,7 @@ async def test_build_combined_harness_and_server() -> None:
         _report("Network", "fail", "DNS fail"),
         _report("Database", "warn", "WAL large"),
     ]
-    server: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "fail", "message": "500 failed"}
-    ]
+    server: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail", "message": "500 failed"}]
     actions = await build_repair_actions(harness, server)
     action_ids = {a.action_id for a in actions}
     assert RepairActionId.REVIEW_RUNTIME_DEPENDENCY in action_ids
@@ -420,9 +404,7 @@ async def test_dedup_different_components_same_action_id() -> None:
         _report("VectorDB", "warn", "Qdrant slow"),
     ]
     actions = await build_repair_actions(reports, [])
-    runtime_actions = [
-        a for a in actions if a.action_id == RepairActionId.REVIEW_RUNTIME_DEPENDENCY
-    ]
+    runtime_actions = [a for a in actions if a.action_id == RepairActionId.REVIEW_RUNTIME_DEPENDENCY]
     components = {a.component for a in runtime_actions}
     assert "Network" in components
     assert "VectorDB" in components
@@ -443,9 +425,7 @@ async def test_build_includes_browser_orphan_action_when_orphans_exist() -> None
     ):
         actions = await build_repair_actions([], [])
 
-    browser_actions = [
-        a for a in actions if a.action_id == RepairActionId.CLEANUP_BROWSER_ORPHANS
-    ]
+    browser_actions = [a for a in actions if a.action_id == RepairActionId.CLEANUP_BROWSER_ORPHANS]
     assert len(browser_actions) == 1
     assert browser_actions[0].executable is True
     assert browser_actions[0].component == "BrowserRuntime"
@@ -487,9 +467,7 @@ async def test_execute_cleanup_browser_multiple_pids() -> None:
 @pytest.mark.asyncio
 async def test_build_dlq_missing_message_field() -> None:
     """DLQ report without 'message' key should use fallback."""
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "fail"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail"}]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -599,9 +577,7 @@ async def test_execute_sqlite_backup_real(tmp_path) -> None:
     conn.close()
 
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
-    with patch(
-        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
-    ):
+    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
         result = await execute_repair_action(
             RepairActionId.SQLITE_BACKUP_NOW,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -646,9 +622,7 @@ async def test_execute_sqlite_restore_dry_run(tmp_path) -> None:
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
     mgr.create_backup()
 
-    with patch(
-        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
-    ):
+    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=True, confirm=False),
@@ -672,9 +646,7 @@ async def test_execute_sqlite_restore_requires_confirm(tmp_path) -> None:
     conn.close()
 
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
-    with patch(
-        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
-    ):
+    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=False, confirm=False),
@@ -701,9 +673,7 @@ async def test_execute_sqlite_restore_confirmed(tmp_path) -> None:
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
     mgr.create_backup()
 
-    with patch(
-        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
-    ):
+    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -731,9 +701,7 @@ async def test_execute_sqlite_restore_failure_no_backups(tmp_path) -> None:
     conn.close()
 
     mgr = SQLiteBackupManager(db, db.parent / "sqlite_backups")
-    with patch(
-        "app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr
-    ):
+    with patch("app.services.repair.actions._get_sqlite_backup_manager", return_value=mgr):
         result = await execute_repair_action(
             RepairActionId.SQLITE_RESTORE_LATEST,
             RepairActionExecuteRequest(dry_run=False, confirm=True),

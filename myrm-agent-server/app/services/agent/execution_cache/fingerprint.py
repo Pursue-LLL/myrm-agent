@@ -164,9 +164,7 @@ def _serialize_mcp_configs(agent_wrapper: GeneralAgent) -> list[dict[str, object
         if isinstance(cfg, BaseModel):
             dumped = cfg.model_dump(mode="json")
             if isinstance(dumped, dict):
-                configs.append(
-                    {str(k): _stable_json(v) for k, v in sorted(dumped.items())}
-                )
+                configs.append({str(k): _stable_json(v) for k, v in sorted(dumped.items())})
     configs.sort(key=lambda item: str(item.get("name", "")))
     return configs
 
@@ -185,21 +183,13 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "model_cfg": _model_sig(agent_wrapper.model_cfg),
         "fallback_model_cfg": _model_sig(agent_wrapper.fallback_model_cfg),
         "lite_model_cfg": _model_sig(agent_wrapper.lite_model_cfg),
-        "safety_fallback_model_cfg": _model_sig(
-            agent_wrapper.safety_fallback_model_cfg
-        ),
+        "safety_fallback_model_cfg": _model_sig(agent_wrapper.safety_fallback_model_cfg),
         "fallback_lite_model_cfg": _model_sig(agent_wrapper.fallback_lite_model_cfg),
         "light_model_cfg": _model_sig(agent_wrapper.light_model_cfg),
         "reasoning_model_cfg": _model_sig(agent_wrapper.reasoning_model_cfg),
-        "vision_fallback_model_cfg": _model_sig(
-            agent_wrapper.vision_fallback_model_cfg
-        ),
-        "vision_fallback_model_cfgs": _model_list_sig(
-            agent_wrapper.vision_fallback_model_cfgs
-        ),
-        "video_fallback_model_cfgs": _model_list_sig(
-            agent_wrapper.video_fallback_model_cfgs
-        ),
+        "vision_fallback_model_cfg": _model_sig(agent_wrapper.vision_fallback_model_cfg),
+        "vision_fallback_model_cfgs": _model_list_sig(agent_wrapper.vision_fallback_model_cfgs),
+        "video_fallback_model_cfgs": _model_list_sig(agent_wrapper.video_fallback_model_cfgs),
         "prompt_mode": agent_wrapper.prompt_mode,
         "engine_params": _stable_json(agent_wrapper.engine_params),
         "skill_config_version": get_skill_config_version(),
@@ -251,12 +241,8 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "fetch_raw_webpage": agent_wrapper.fetch_raw_webpage,
         "auto_restore_domains": _stable_json(agent_wrapper.auto_restore_domains),
         "search_service_cfg": _credential_free_json(agent_wrapper.search_service_cfg),
-        "image_generation_params": _credential_free_json(
-            agent_wrapper.image_generation_params
-        ),
-        "video_generation_params": _credential_free_json(
-            agent_wrapper.video_generation_params
-        ),
+        "image_generation_params": _credential_free_json(agent_wrapper.image_generation_params),
+        "video_generation_params": _credential_free_json(agent_wrapper.video_generation_params),
         "tts_params": _credential_free_json(agent_wrapper.tts_params),
         # Security policy must bust POOLED cache when YOLO/HITL or permissions change.
         "security_config_raw": _stable_json(agent_wrapper.security_config_raw),
@@ -271,9 +257,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "org_model_policy_revision": get_org_model_policy_revision(),
     }
 
-    encoded = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    )
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
 
 

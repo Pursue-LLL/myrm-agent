@@ -76,9 +76,7 @@ async def _init_integration_memory() -> None:
 
         vector_store = await create_default_vector_store()
         if vector_store is None:
-            logger.info(
-                "[Startup] No vector store, skipping IntegrationMemoryService init"
-            )
+            logger.info("[Startup] No vector store, skipping IntegrationMemoryService init")
             return
 
         try:
@@ -90,9 +88,7 @@ async def _init_integration_memory() -> None:
             )
             return
 
-        facade = ContextBundleFacade.from_state_dir(
-            settings.database.state_dir, ensure_layout=False
-        )
+        facade = ContextBundleFacade.from_state_dir(settings.database.state_dir, ensure_layout=False)
         memory_path = facade.memory_path()
 
         graph_db_path = memory_path / "integration_graph.db"
@@ -110,9 +106,7 @@ async def _init_integration_memory() -> None:
 
         await start_integration_sync_daemon()
     except Exception as exc:
-        logger.warning(
-            "[Startup] IntegrationMemoryService init failed (non-critical): %s", exc
-        )
+        logger.warning("[Startup] IntegrationMemoryService init failed (non-critical): %s", exc)
 
 
 async def _start_rate_limiter_cleanup() -> None:
@@ -159,13 +153,9 @@ async def _recover_incomplete_memory_import_rollbacks() -> None:
     )
     factory = get_session_factory()
     async with factory() as session:
-        recovered = await MemoryImportSessionService(
-            session
-        ).recover_incomplete_rollbacks(manager)
+        recovered = await MemoryImportSessionService(session).recover_incomplete_rollbacks(manager)
     if recovered:
-        logger.info(
-            "[Startup] Recovered %d incomplete memory import rollbacks", recovered
-        )
+        logger.info("[Startup] Recovered %d incomplete memory import rollbacks", recovered)
 
 
 def _ensure_context_bundle_layout() -> None:
@@ -198,9 +188,7 @@ async def _warmup_desktop_gate() -> None:
         await asyncio.to_thread(list_trusted_desktop_apps, workspace_root=None)
         logger.info("[Startup] Desktop control gate warmed up")
     except Exception as exc:
-        logger.warning(
-            "[Startup] Desktop gate warmup failed (non-critical): %s", exc
-        )
+        logger.warning("[Startup] Desktop gate warmup failed (non-critical): %s", exc)
 
 
 async def run_async_warmup() -> None:
@@ -267,9 +255,7 @@ async def run_async_warmup() -> None:
     )
 
     set_global_wakeup_handler(ServerWakeupHandler())
-    logger.info(
-        "[Startup] ServerWakeupHandler registered for async subagent completions"
-    )
+    logger.info("[Startup] ServerWakeupHandler registered for async subagent completions")
 
     from myrm_agent_harness.api.hooks import set_global_background_job_finish_handler
 
@@ -282,9 +268,7 @@ async def run_async_warmup() -> None:
 
     init_background_job_store()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
-    logger.info(
-        "[Startup] ServerBackgroundJobFinishHandler registered for background bash jobs"
-    )
+    logger.info("[Startup] ServerBackgroundJobFinishHandler registered for background bash jobs")
 
     try:
         from app.services.agent.goals.goal_wait_orphan_recovery import (
@@ -293,16 +277,12 @@ async def run_async_warmup() -> None:
 
         await release_orphaned_wait_goals()
     except Exception as exc:
-        logger.error(
-            "[Startup] Orphaned WAIT goal recovery failed: %s", exc, exc_info=True
-        )
+        logger.error("[Startup] Orphaned WAIT goal recovery failed: %s", exc, exc_info=True)
 
     try:
         await warmup_global_browser_pool()
     except Exception as exc:
-        logger.error(
-            "[Startup] Browser pool initialization failed: %s", exc, exc_info=True
-        )
+        logger.error("[Startup] Browser pool initialization failed: %s", exc, exc_info=True)
 
     # Thread cleanup always runs (zombie detection + old record deletion)
     warmup_tasks.append(cleanup_browser_threads())
@@ -310,9 +290,7 @@ async def run_async_warmup() -> None:
     if settings.browser_auto_warmup:
         warmup_tasks.append(warmup_browser_sessions())
     else:
-        logger.debug(
-            "[Startup] Browser session warmup skipped (browser_auto_warmup=False)"
-        )
+        logger.debug("[Startup] Browser session warmup skipped (browser_auto_warmup=False)")
 
     try:
         from app.core.media.batch.orchestrator import batch_orchestrator
@@ -362,9 +340,7 @@ async def run_async_warmup() -> None:
             try:
                 store = await create_default_vector_store()
                 if store is None:
-                    logger.info(
-                        "[Startup] No vector store configured, skipping vector store warmup"
-                    )
+                    logger.info("[Startup] No vector store configured, skipping vector store warmup")
                     return
 
                 warmer = VectorStoreWarmer(store)
@@ -392,16 +368,10 @@ async def run_async_warmup() -> None:
                                 bf_err,
                             )
 
-                kb_collections = [
-                    (coll, 1536)
-                    for coll in all_collections
-                    if isinstance(coll, str) and coll.startswith("kb_")
-                ]
+                kb_collections = [(coll, 1536) for coll in all_collections if isinstance(coll, str) and coll.startswith("kb_")]
 
                 if kb_collections:
-                    metrics_list = await warmer.warmup_batch_with_verification(
-                        kb_collections
-                    )
+                    metrics_list = await warmer.warmup_batch_with_verification(kb_collections)
                     for m in metrics_list:
                         if m.success:
                             if m.speedup_ratio and m.verify_duration_ms:
@@ -416,13 +386,9 @@ async def run_async_warmup() -> None:
                                     f"[Startup] Warmed up collection '{m.collection_name}' in {m.warmup_duration_ms:.2f}ms"
                                 )
                         else:
-                            logger.warning(
-                                f"[Startup] Failed to warm up collection '{m.collection_name}': {m.error}"
-                            )
+                            logger.warning(f"[Startup] Failed to warm up collection '{m.collection_name}': {m.error}")
                 else:
-                    logger.info(
-                        "[Startup] No vector store collections found, skipping warmup"
-                    )
+                    logger.info("[Startup] No vector store collections found, skipping warmup")
             except Exception as e:
                 logger.warning(f"[Startup] Vector store warmup failed: {e}")
 

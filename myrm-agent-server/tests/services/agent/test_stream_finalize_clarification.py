@@ -61,14 +61,17 @@ async def test_mark_pending_clarification_answered_patches_latest_assistant() ->
         ),
     ]
 
-    with patch(
-        "app.services.chat.chat_service.ChatService.get_all_messages",
-        new_callable=AsyncMock,
-        return_value=messages,
-    ), patch(
-        "app.services.chat.chat_service.ChatService.update_message_extra_data",
-        new_callable=AsyncMock,
-    ) as mock_update:
+    with (
+        patch(
+            "app.services.chat.chat_service.ChatService.get_all_messages",
+            new_callable=AsyncMock,
+            return_value=messages,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.update_message_extra_data",
+            new_callable=AsyncMock,
+        ) as mock_update,
+    ):
         await _mark_pending_clarification_answered("chat-clarify")
 
     mock_update.assert_awaited_once()
@@ -90,14 +93,17 @@ async def test_mark_pending_clarification_answered_noop_when_already_answered() 
         ),
     ]
 
-    with patch(
-        "app.services.chat.chat_service.ChatService.get_all_messages",
-        new_callable=AsyncMock,
-        return_value=messages,
-    ), patch(
-        "app.services.chat.chat_service.ChatService.update_message_extra_data",
-        new_callable=AsyncMock,
-    ) as mock_update:
+    with (
+        patch(
+            "app.services.chat.chat_service.ChatService.get_all_messages",
+            new_callable=AsyncMock,
+            return_value=messages,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.update_message_extra_data",
+            new_callable=AsyncMock,
+        ) as mock_update,
+    ):
         await _mark_pending_clarification_answered("chat-clarify")
 
     mock_update.assert_not_awaited()
@@ -133,22 +139,12 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
     clarification.pending = False
 
     with (
-        patch(
-            "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-        ),
-        patch(
-            "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-        ),
-        patch(
-            "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
-        ),
-        patch(
-            "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
-        ),
+        patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+        patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
+        patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
+        patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch(
-            "myrm_agent_harness.agent.security.user_credentials_ctx"
-        ) as mock_ctx,
+        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
         patch(
             "app.services.agent.stream_session.stream_finalize._mark_pending_clarification_answered",
             new_callable=AsyncMock,
@@ -196,22 +192,12 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
     clarification.pending = False
 
     with (
-        patch(
-            "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-        ),
-        patch(
-            "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-        ),
-        patch(
-            "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
-        ),
-        patch(
-            "app.services.agent.stream_session.stream_finalize.SteeringRegistry"
-        ),
+        patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+        patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
+        patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
+        patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch(
-            "myrm_agent_harness.agent.security.user_credentials_ctx"
-        ) as mock_ctx,
+        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
         patch(
             "app.services.agent.stream_session.stream_finalize._mark_pending_clarification_answered",
             new_callable=AsyncMock,

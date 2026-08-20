@@ -76,12 +76,8 @@ class RepairAction(BaseModel):
 class RepairActionExecuteRequest(BaseModel):
     """Execution request for a white-listed repair action."""
 
-    dry_run: bool = Field(
-        default=True, description="Preview the action without changing runtime state."
-    )
-    confirm: bool = Field(
-        default=False, description="Required for state-changing execution."
-    )
+    dry_run: bool = Field(default=True, description="Preview the action without changing runtime state.")
+    confirm: bool = Field(default=False, description="Required for state-changing execution.")
 
 
 class RepairActionExecuteResult(BaseModel):
@@ -286,9 +282,7 @@ def _sqlite_backup_action() -> RepairAction | None:
     )
 
 
-async def execute_repair_action(
-    action_id: RepairActionId, request: RepairActionExecuteRequest
-) -> RepairActionExecuteResult:
+async def execute_repair_action(action_id: RepairActionId, request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
     """Execute a white-listed repair action."""
 
     if action_id == RepairActionId.SQLITE_BACKUP_NOW:
@@ -312,9 +306,7 @@ async def execute_repair_action(
     )
 
     orphans = await asyncio.to_thread(find_orphan_automation_processes)
-    orphan_pids: list[int] = [
-        int(orphan["pid"]) for orphan in orphans if "pid" in orphan
-    ]
+    orphan_pids: list[int] = [int(orphan["pid"]) for orphan in orphans if "pid" in orphan]
     if not orphan_pids:
         return RepairActionExecuteResult(
             action_id=action_id,
@@ -342,11 +334,7 @@ async def execute_repair_action(
         status="dry_run" if request.dry_run else "completed",
         changed=not request.dry_run and killed > 0,
         dry_run=request.dry_run,
-        message=str(
-            result.get(
-                "message", f"Processed {len(orphan_pids)} orphan browser process(es)."
-            )
-        ),
+        message=str(result.get("message", f"Processed {len(orphan_pids)} orphan browser process(es).")),
         details={
             "orphan_pids": orphan_pids,
             "killed": killed,

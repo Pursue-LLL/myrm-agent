@@ -163,7 +163,6 @@ class TestBuildGoalTerminalCallback:
             # Should not raise
             await callback(goal, messages, _make_summary())
 
-
     @pytest.mark.asyncio
     async def test_callback_deep_scan_passes_llm_func_to_persist(self):
         """deep_scan=True must pass the shared LLM func to persist for PII pseudonymization."""

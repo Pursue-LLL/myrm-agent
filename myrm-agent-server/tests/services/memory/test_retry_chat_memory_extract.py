@@ -100,9 +100,7 @@ async def test_schedule_retry_enqueues_and_returns_scheduled(
         messages=messages,
     )
     enqueue_mock = AsyncMock(return_value="queued")
-    monkeypatch.setattr(
-        "app.services.memory.extract_retry.extract_retry_queue.enqueue", enqueue_mock
-    )
+    monkeypatch.setattr("app.services.memory.extract_retry.extract_retry_queue.enqueue", enqueue_mock)
 
     status = await schedule_retry_chat_memory_extract("chat-1")
 
@@ -124,9 +122,7 @@ async def test_schedule_retry_maps_already_queued_to_in_flight(
         messages=messages,
     )
     enqueue_mock = AsyncMock(return_value="already_queued")
-    monkeypatch.setattr(
-        "app.services.memory.extract_retry.extract_retry_queue.enqueue", enqueue_mock
-    )
+    monkeypatch.setattr("app.services.memory.extract_retry.extract_retry_queue.enqueue", enqueue_mock)
 
     status = await schedule_retry_chat_memory_extract("chat-1")
 

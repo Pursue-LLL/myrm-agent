@@ -62,9 +62,7 @@ class TestResolveFound:
     """resolve() returns a fully-populated ResolvedAgentProfile when agent exists."""
 
     @pytest.mark.asyncio
-    async def test_resolve_returns_complete_profile(
-        self, resolver: AgentProfileResolver
-    ):
+    async def test_resolve_returns_complete_profile(self, resolver: AgentProfileResolver):
         fake = _make_fake_agent()
 
         with patch.object(
@@ -108,9 +106,7 @@ class TestResolveNotFound:
     """resolve() returns None when agent does not exist."""
 
     @pytest.mark.asyncio
-    async def test_resolve_returns_none_for_missing_agent(
-        self, resolver: AgentProfileResolver
-    ):
+    async def test_resolve_returns_none_for_missing_agent(self, resolver: AgentProfileResolver):
         with patch.object(
             AgentProfileResolver,
             "_load_from_db",
@@ -233,9 +229,7 @@ class TestInvalidate:
             assert mock_load.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_invalidate_preserves_other_agents(
-        self, resolver: AgentProfileResolver
-    ):
+    async def test_invalidate_preserves_other_agents(self, resolver: AgentProfileResolver):
         profile_a = ResolvedAgentProfile(
             agent_id="agent-a",
             system_prompt="a",
@@ -288,9 +282,7 @@ class TestEdgeCases:
     """Edge-case scenarios for resolve()."""
 
     @pytest.mark.asyncio
-    async def test_resolve_empty_agent_id_returns_none(
-        self, resolver: AgentProfileResolver
-    ):
+    async def test_resolve_empty_agent_id_returns_none(self, resolver: AgentProfileResolver):
         with patch.object(
             AgentProfileResolver,
             "_load_from_db",
@@ -377,9 +369,7 @@ class TestFalsyEdgeCases:
         assert result.enabled_builtin_tools == ()
 
     @pytest.mark.asyncio
-    async def test_none_builtin_tools_gets_defaults(
-        self, resolver: AgentProfileResolver
-    ):
+    async def test_none_builtin_tools_gets_defaults(self, resolver: AgentProfileResolver):
         """When metadata has no enabled_builtin_tools key, defaults should apply."""
         profile = ResolvedAgentProfile(
             agent_id="agent-default-tools",
@@ -483,9 +473,7 @@ class TestSessionPolicyField:
         assert result.session_policy["idle_minutes"] == 30
 
     @pytest.mark.asyncio
-    async def test_session_policy_none_when_not_set(
-        self, resolver: AgentProfileResolver
-    ):
+    async def test_session_policy_none_when_not_set(self, resolver: AgentProfileResolver):
         profile = ResolvedAgentProfile(
             agent_id="agent-no-sp",
             system_prompt="test",
@@ -557,9 +545,7 @@ class TestCoerceToolSelections:
         assert coerce_tool_selections([]) == {}
 
     def test_valid_dict(self):
-        result = coerce_tool_selections(
-            {"server1": ["read", "write"], "server2": ["delete"]}
-        )
+        result = coerce_tool_selections({"server1": ["read", "write"], "server2": ["delete"]})
         assert result == {"server1": ("read", "write"), "server2": ("delete",)}
 
     def test_empty_tool_list_skipped(self):
@@ -614,9 +600,7 @@ class TestMcpToolSelectionsField:
         assert result.mcp_tool_selections["github"] == ("read_file", "search_code")
 
     @pytest.mark.asyncio
-    async def test_mcp_tool_selections_default_empty(
-        self, resolver: AgentProfileResolver
-    ):
+    async def test_mcp_tool_selections_default_empty(self, resolver: AgentProfileResolver):
         profile = ResolvedAgentProfile(
             agent_id="agent-no-mts",
             system_prompt="test",
@@ -688,9 +672,7 @@ class TestNotifyTargetsFiltering:
             profile = await AgentProfileResolver._load_from_db("agent-notify")
 
         assert profile is not None
-        assert profile.notify_targets == (
-            {"channel": "telegram", "recipient_id": "123", "label": "TG"},
-        )
+        assert profile.notify_targets == ({"channel": "telegram", "recipient_id": "123", "label": "TG"},)
 
 
 class TestDefaultEnabledBuiltinTools:
@@ -788,11 +770,7 @@ class TestResolveBuiltinToolFlags:
     def test_empty_list_disables_all(self):
         flags = resolve_builtin_tool_flags([])
         assert flags["file_access_mode"].value == "none"
-        assert all(
-            value is False
-            for key, value in flags.items()
-            if key != "file_access_mode"
-        )
+        assert all(value is False for key, value in flags.items() if key != "file_access_mode")
 
     def test_accepts_tuple_input(self):
         flags = resolve_builtin_tool_flags(("browser",))

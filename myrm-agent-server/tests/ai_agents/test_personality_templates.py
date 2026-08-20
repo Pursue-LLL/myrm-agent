@@ -115,9 +115,7 @@ class TestConcisePromptQuality:
         """concise 的 prompt 应包含安全降级规则"""
         template = get_personality_template("concise")
         suffix = template.system_prompt_suffix
-        assert "EXCEPTION" in suffix or "security" in suffix.lower(), (
-            "Missing safety exception rule"
-        )
+        assert "EXCEPTION" in suffix or "security" in suffix.lower(), "Missing safety exception rule"
 
     def test_concise_has_drop_list(self) -> None:
         """concise 的 prompt 应明确列出要删除的内容"""
@@ -141,9 +139,9 @@ class TestWenyanTemplate:
     def test_wenyan_prompt_is_chinese(self) -> None:
         """wenyan 的 prompt 应该是中文"""
         template = PERSONALITY_TEMPLATES["wenyan"]
-        assert any(
-            "\u4e00" <= ch <= "\u9fff" for ch in template.system_prompt_suffix
-        ), "wenyan prompt should contain Chinese characters"
+        assert any("\u4e00" <= ch <= "\u9fff" for ch in template.system_prompt_suffix), (
+            "wenyan prompt should contain Chinese characters"
+        )
 
 
 class TestPromptInjectionLogic:

@@ -98,9 +98,7 @@ def test_run_agent_stream_facade_signature_matches_orchestrator():
 
 
 @pytest.mark.asyncio
-async def test_run_agent_stream_hygiene_block(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_run_agent_stream_hygiene_block(mock_request, mock_http_request, monkeypatch):
     """Test that gateway blocks massive text payloads."""
     # Create a payload of 360,001 characters
     massive_text = "A" * 360001

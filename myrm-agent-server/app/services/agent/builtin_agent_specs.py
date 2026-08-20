@@ -45,4 +45,3 @@ __all__ = [
     "_TOOL_RESEARCH",
     "_TOOL_VIDEO_STUDIO",
 ]
-

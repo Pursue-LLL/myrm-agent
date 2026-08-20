@@ -38,9 +38,7 @@ from app.services.chat.sandbox_worktree import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_sandbox_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = (
-    weakref.WeakValueDictionary()
-)
+_sandbox_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 
 
 def _get_sandbox_lock(chat_id: str) -> asyncio.Lock:
@@ -92,16 +90,12 @@ async def enable_sandbox(chat_id: str):
     async with _get_sandbox_lock(chat_id):
         effective_dir, existing_sandbox_base = await _resolve_chat_base_dir(chat_id)
         if not effective_dir:
-            raise HTTPException(
-                status_code=400, detail="Chat has no associated workspace directory"
-            )
+            raise HTTPException(status_code=400, detail="Chat has no associated workspace directory")
 
         base_dir = existing_sandbox_base or effective_dir
 
         if not await is_git_repository(base_dir):
-            raise HTTPException(
-                status_code=400, detail="Workspace is not a git repository"
-            )
+            raise HTTPException(status_code=400, detail="Workspace is not a git repository")
 
         result = await create_sandbox_worktree(base_dir, chat_id)
         if not isinstance(result, str):
@@ -140,9 +134,7 @@ async def disable_sandbox(chat_id: str):
         # worktree holds uncommitted edits.
         success = await cleanup_sandbox_worktree(sandbox_base, chat_id, force=True)
         if not success:
-            raise HTTPException(
-                status_code=500, detail="Failed to cleanup sandbox worktree"
-            )
+            raise HTTPException(status_code=500, detail="Failed to cleanup sandbox worktree")
 
         await ChatService.update_chat_fields(
             chat_id,
@@ -174,9 +166,7 @@ async def merge_sandbox(chat_id: str):
                 },
             )
 
-        return success_response(
-            SandboxMergeResponse(success=success, message=message).model_dump()
-        )
+        return success_response(SandboxMergeResponse(success=success, message=message).model_dump())
 
 
 @router.get("/{chat_id}/sandbox/status")

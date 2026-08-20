@@ -112,9 +112,7 @@ def _memory_doctor_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
         yield client, page
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:

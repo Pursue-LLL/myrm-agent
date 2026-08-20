@@ -81,9 +81,7 @@ async def test_publishes_awaiting_approval_when_approval_event_yielded() -> None
         events = [event async for event in ai_agent_service_stream(_minimal_params())]
 
     assert len(events) >= 1
-    mock_multiplexer.publish_session_status.assert_called_with(
-        "chat-attention-test", "awaiting_approval", "general"
-    )
+    mock_multiplexer.publish_session_status.assert_called_with("chat-attention-test", "awaiting_approval", "general")
 
 
 @pytest.mark.asyncio
@@ -168,9 +166,7 @@ async def test_publishes_awaiting_approval_for_clarification_event() -> None:
         events = [event async for event in ai_agent_service_stream(_minimal_params())]
 
     assert len(events) >= 1
-    mock_multiplexer.publish_session_status.assert_called_with(
-        "chat-attention-test", "awaiting_approval", "general"
-    )
+    mock_multiplexer.publish_session_status.assert_called_with("chat-attention-test", "awaiting_approval", "general")
 
 
 @pytest.mark.asyncio

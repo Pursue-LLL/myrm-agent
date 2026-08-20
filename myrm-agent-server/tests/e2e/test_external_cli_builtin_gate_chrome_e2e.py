@@ -92,11 +92,7 @@ def _create_editable_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -134,29 +130,19 @@ def test_external_cli_builtin_card_enabled_in_local_chrome_ui() -> None:
             )
             opened = client.evaluate(page, _OPEN_BUILTIN_DIALOG_JS, timeout_sec=15.0)
             assert isinstance(opened, dict)
-            assert (
-                opened.get("clicked") is True
-            ), f"Built-in Tools card not found: {opened}"
+            assert opened.get("clicked") is True, f"Built-in Tools card not found: {opened}"
 
             wait_for_state(client, page, _BUILTIN_DIALOG_READY_JS, timeout_sec=30.0)
 
-            local_state = client.evaluate(
-                page, _EXTERNAL_CLI_LOCAL_ASSERT_JS, timeout_sec=10.0
-            )
+            local_state = client.evaluate(page, _EXTERNAL_CLI_LOCAL_ASSERT_JS, timeout_sec=10.0)
             assert isinstance(local_state, dict)
-            assert (
-                local_state.get("ok") is True
-            ), f"external_cli should be enabled in local UI: {local_state}"
+            assert local_state.get("ok") is True, f"external_cli should be enabled in local UI: {local_state}"
 
             toggled = client.evaluate(page, _TOGGLE_EXTERNAL_CLI_JS, timeout_sec=10.0)
             assert isinstance(toggled, dict)
-            assert (
-                toggled.get("toggled") is True
-            ), f"Failed to toggle external_cli: {toggled}"
+            assert toggled.get("toggled") is True, f"Failed to toggle external_cli: {toggled}"
 
-            hint = wait_for_state(
-                client, page, _EXTERNAL_CLI_SETUP_HINT_JS, timeout_sec=30.0
-            )
+            hint = wait_for_state(client, page, _EXTERNAL_CLI_SETUP_HINT_JS, timeout_sec=30.0)
             assert hint.get("ready") is True, f"Missing externalCli setup hint: {hint}"
     finally:
         _delete_agent(api_url, agent_id)

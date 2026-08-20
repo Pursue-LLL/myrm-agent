@@ -137,9 +137,7 @@ async def test_agent_stream_queue_timeout_renders_structured_concurrency_error(
             patch(
                 "app.services.agent.streaming.AgentFactory.create_general_agent",
                 return_value=MagicMock(
-                    process_stream=MagicMock(
-                        side_effect=AsyncMock(return_value=iter([]))
-                    ),
+                    process_stream=MagicMock(side_effect=AsyncMock(return_value=iter([]))),
                     release_pooled_session=AsyncMock(),
                     agent=None,
                 ),
@@ -171,9 +169,7 @@ async def test_agent_stream_queue_timeout_renders_structured_concurrency_error(
                     (event for event in waiter_events if event.get("type") == "error"),
                     None,
                 )
-                assert error_event is not None, (
-                    f"Expected concurrency error event, got: {waiter_events}"
-                )
+                assert error_event is not None, f"Expected concurrency error event, got: {waiter_events}"
                 assert error_event.get("error_kind") == "concurrency_limit"
                 assert error_event.get("messageId") == waiter_message
                 diagnostic = error_event.get("diagnostic_result")
@@ -185,9 +181,9 @@ async def test_agent_stream_queue_timeout_renders_structured_concurrency_error(
 
                 holder_release.set()
                 holder_events = await asyncio.wait_for(holder_task, timeout=10.0)
-                assert any(
-                    event.get("type") == "message" for event in holder_events
-                ), "Holder stream should still complete after slot release"
+                assert any(event.get("type") == "message" for event in holder_events), (
+                    "Holder stream should still complete after slot release"
+                )
     finally:
         holder_release.set()
         gateway._active_sessions = original_sessions

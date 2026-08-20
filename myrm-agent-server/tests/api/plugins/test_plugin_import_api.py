@@ -85,9 +85,7 @@ def test_preview_returns_component_preview(client: TestClient, tmp_path: Path) -
     ):
         response = client.post(
             "/api/v1/plugins/import/preview",
-            files={
-                "file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")
-            },
+            files={"file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")},
         )
 
     assert response.status_code == 200
@@ -141,9 +139,7 @@ def test_preview_rejects_oversized_zip(client: TestClient) -> None:
     assert response.status_code == 400
 
 
-def test_preview_security_error_returns_structured_detail(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_preview_security_error_returns_structured_detail(client: TestClient, tmp_path: Path) -> None:
     """Archive security violations map to a 400 with a structured detail.
 
     The ``{message, error_code}`` detail is the contract the frontend uses to
@@ -165,9 +161,7 @@ def test_preview_security_error_returns_structured_detail(
     assert detail["message"]
 
 
-def test_preview_returns_500_when_session_persist_fails(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_preview_returns_500_when_session_persist_fails(client: TestClient, tmp_path: Path) -> None:
     with (
         patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
@@ -184,17 +178,13 @@ def test_preview_returns_500_when_session_persist_fails(
     ):
         response = client.post(
             "/api/v1/plugins/import/preview",
-            files={
-                "file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")
-            },
+            files={"file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")},
         )
 
     assert response.status_code == 500
 
 
-def test_preview_flags_dangerous_skill(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_preview_flags_dangerous_skill(client: TestClient, tmp_path: Path) -> None:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(
@@ -240,9 +230,7 @@ def test_preview_flags_dangerous_skill(
     assert body["skills"][0]["oversized_content"] is False
 
 
-def test_preview_surfaces_oversized_skill_flag(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_preview_surfaces_oversized_skill_flag(client: TestClient, tmp_path: Path) -> None:
     """oversized_content must reach the HTTP contract, not vanish in the model."""
     from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 
@@ -261,8 +249,7 @@ def test_preview_surfaces_oversized_skill_flag(
         )
         zf.writestr(
             "huge-plugin/skills/huge/SKILL.md",
-            "---\nname: huge\ndescription: Too big\n---\n"
-            + "x" * (SkillStore.MAX_SKILL_CONTENT_CHARS + 1024),
+            "---\nname: huge\ndescription: Too big\n---\n" + "x" * (SkillStore.MAX_SKILL_CONTENT_CHARS + 1024),
         )
     with (
         patch(
@@ -288,9 +275,7 @@ def test_preview_surfaces_oversized_skill_flag(
     assert body["skills"][0]["oversized_content"] is True
 
 
-def test_preview_surfaces_name_conflict_flag(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_preview_surfaces_name_conflict_flag(client: TestClient, tmp_path: Path) -> None:
     """conflict must reach the HTTP contract, not vanish in the response model."""
     with (
         patch(
@@ -308,9 +293,7 @@ def test_preview_surfaces_name_conflict_flag(
     ):
         response = client.post(
             "/api/v1/plugins/import/preview",
-            files={
-                "file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")
-            },
+            files={"file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")},
         )
 
     assert response.status_code == 200
@@ -396,9 +379,7 @@ def test_confirm_rejects_stale_session(client: TestClient, tmp_path: Path) -> No
     assert response.status_code == 400
 
 
-def test_confirm_returns_500_on_service_failure(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_confirm_returns_500_on_service_failure(client: TestClient, tmp_path: Path) -> None:
     with (
         patch(
             "app.api.plugins.import_.get_evolution_skill_store_db_path",
@@ -463,9 +444,7 @@ def test_preview_confirm_roundtrip(client: TestClient, tmp_path: Path) -> None:
     ):
         preview_response = client.post(
             "/api/v1/plugins/import/preview",
-            files={
-                "file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")
-            },
+            files={"file": ("demo-plugin.zip", _plugin_zip_bytes(), "application/zip")},
         )
 
         assert preview_response.status_code == 200

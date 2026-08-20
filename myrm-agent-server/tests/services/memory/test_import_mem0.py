@@ -99,9 +99,7 @@ class TestMem0Mapping:
         assert second["importance"] == 0.3
 
     def test_missing_importance_falls_back_to_default(self) -> None:
-        payload = _mem0_payload(
-            memories=[{"memory": "no importance", "metadata": {"tags": []}}]
-        )
+        payload = _mem0_payload(memories=[{"memory": "no importance", "metadata": {"tags": []}}])
         result = dry_run_mem0(payload)
         assert result.normalized_data["semantic"][0]["importance"] == 0.5
         # Missing timestamps fall back to a stable non-empty value.
@@ -154,7 +152,4 @@ class TestMem0Roundtrip:
         assert result.summary.source == "mem0"
         assert result.summary.status == "ready"
         assert len(result.normalized_data["semantic"]) == 2
-        assert all(
-            mapping.target_bucket == "semantic" and mapping.status == "mapped"
-            for mapping in result.mappings
-        )
+        assert all(mapping.target_bucket == "semantic" and mapping.status == "mapped" for mapping in result.mappings)

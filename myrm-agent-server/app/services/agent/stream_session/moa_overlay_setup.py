@@ -161,15 +161,9 @@ async def build_moa_overlay_middleware(
     )
 
     fanout_raw = _cfg_str(overlay_cfg, "fanout", "user_turn")
-    fanout = (
-        fanout_raw
-        if fanout_raw in ("user_turn", "per_iteration", "every_n")
-        else "user_turn"
-    )
+    fanout = fanout_raw if fanout_raw in ("user_turn", "per_iteration", "every_n") else "user_turn"
     privacy_raw = _cfg_str(overlay_cfg, "privacy_filter", "off")
-    privacy: PrivacyFilterMode = (
-        privacy_raw if privacy_raw in ("off", "display", "full") else "off"
-    )
+    privacy: PrivacyFilterMode = privacy_raw if privacy_raw in ("off", "display", "full") else "off"
 
     config = MoAOverlayConfig(
         fanout=fanout,  # type: ignore[arg-type]
@@ -180,9 +174,7 @@ async def build_moa_overlay_middleware(
         timeout_total=_cfg_float(overlay_cfg, "timeout_total", 300.0),
         max_retries_per_model=_cfg_int(overlay_cfg, "max_retries_per_model", 2),
         reference_max_tokens=_cfg_int_or_none(overlay_cfg, "reference_max_tokens"),
-        reference_reasoning_effort=_cfg_str_or_none(
-            overlay_cfg, "reference_reasoning_effort"
-        ),
+        reference_reasoning_effort=_cfg_str_or_none(overlay_cfg, "reference_reasoning_effort"),
         privacy_filter=privacy,
     )
 

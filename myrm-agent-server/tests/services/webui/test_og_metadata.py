@@ -9,14 +9,14 @@ class TestParseOgTags:
     """Unit tests for OG tag parsing from HTML."""
 
     def test_basic_og_tags(self) -> None:
-        html = '''
+        html = """
         <html><head>
         <meta property="og:title" content="Test Title" />
         <meta property="og:description" content="Test Description" />
         <meta property="og:image" content="https://example.com/img.jpg" />
         <meta property="og:site_name" content="Example" />
         </head></html>
-        '''
+        """
         result = _parse_og_tags(html, "https://example.com")
         assert result["title"] == "Test Title"
         assert result["description"] == "Test Description"
@@ -24,17 +24,17 @@ class TestParseOgTags:
         assert result["site_name"] == "Example"
 
     def test_fallback_to_title_tag(self) -> None:
-        html = '<html><head><title>Fallback Title</title></head></html>'
+        html = "<html><head><title>Fallback Title</title></head></html>"
         result = _parse_og_tags(html, "https://example.com")
         assert result["title"] == "Fallback Title"
 
     def test_og_title_takes_precedence(self) -> None:
-        html = '''
+        html = """
         <html><head>
         <title>HTML Title</title>
         <meta property="og:title" content="OG Title" />
         </head></html>
-        '''
+        """
         result = _parse_og_tags(html, "https://example.com")
         assert result["title"] == "OG Title"
 

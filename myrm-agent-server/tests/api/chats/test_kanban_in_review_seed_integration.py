@@ -57,9 +57,7 @@ def _seed_visible_agent() -> None:
     async def _seed() -> None:
         session_factory = get_session_factory()
         async with session_factory() as db:
-            existing = await db.scalar(
-                select(Agent.id).where(Agent.id == "builtin-general")
-            )
+            existing = await db.scalar(select(Agent.id).where(Agent.id == "builtin-general"))
             if existing is not None:
                 return
             db.add(
@@ -75,19 +73,13 @@ def _seed_visible_agent() -> None:
 
 
 class TestKanbanInReviewSeedIntegration:
-    def test_seed_creates_in_review_task_counted_by_badges(
-        self, client: TestClient
-    ) -> None:
-        baseline = client.get("/api/v1/statistics/badges").json()["data"][
-            "pendingApprovals"
-        ]
+    def test_seed_creates_in_review_task_counted_by_badges(self, client: TestClient) -> None:
+        baseline = client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
 
         # The badge mixes goal-approval and kanban counts; assert on the kanban
         # increment directly so parallel suites' residual rows never skew it.
         async def _read_kanban_review_count() -> int:
-            return await KanbanService.get_instance().count_tasks_by_status(
-                TaskStatus.IN_REVIEW
-            )
+            return await KanbanService.get_instance().count_tasks_by_status(TaskStatus.IN_REVIEW)
 
         before_kanban = asyncio.run(_read_kanban_review_count())
 
@@ -109,54 +101,34 @@ class TestKanbanInReviewSeedIntegration:
             assert task.board_id == board_id
             assert task.status == TaskStatus.IN_REVIEW
             assert task.require_approval is True
-            assert (
-                await kanban.count_tasks_by_status(TaskStatus.IN_REVIEW)
-                == before_kanban + 1
-            )
+            assert await kanban.count_tasks_by_status(TaskStatus.IN_REVIEW) == before_kanban + 1
 
         asyncio.run(_assert_task_and_badges())
 
-        after = client.get("/api/v1/statistics/badges").json()["data"][
-            "pendingApprovals"
-        ]
+        after = client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
         assert after == baseline + 1
 
     def test_seed_survives_approve_transition(self, client: TestClient) -> None:
-        baseline = client.get("/api/v1/statistics/badges").json()["data"][
-            "pendingApprovals"
-        ]
+        baseline = client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
         with patch("app.api.chats.test_fixtures._kanban.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
         task_id = str(seed_resp.json()["task_id"])
 
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == baseline + 1
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == baseline + 1
 
-        approve_resp = client.post(
-            f"/api/v1/kanban/tasks/{task_id}/approve", json={"approver": None}
-        )
+        approve_resp = client.post(f"/api/v1/kanban/tasks/{task_id}/approve", json={"approver": None})
         assert approve_resp.status_code == 200
         assert approve_resp.json()["status"] == "completed"
 
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == baseline
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == baseline
 
     def test_seed_survives_reject_transition(self, client: TestClient) -> None:
-        baseline = client.get("/api/v1/statistics/badges").json()["data"][
-            "pendingApprovals"
-        ]
+        baseline = client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
         with patch("app.api.chats.test_fixtures._kanban.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-kanban-in-review-fixture")
         task_id = str(seed_resp.json()["task_id"])
 
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == baseline + 1
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == baseline + 1
 
         reject_resp = client.post(
             f"/api/v1/kanban/tasks/{task_id}/reject",
@@ -165,7 +137,4 @@ class TestKanbanInReviewSeedIntegration:
         assert reject_resp.status_code == 200
         assert reject_resp.json()["status"] == "ready"
 
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == baseline
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == baseline

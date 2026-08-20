@@ -25,13 +25,17 @@ async def get_publication(
     hosting_target_id: str,
 ) -> ArtifactPublication | None:
     return (
-        await db.execute(
-            select(ArtifactPublication).where(
-                ArtifactPublication.artifact_id == artifact_id,
-                ArtifactPublication.hosting_target_id == hosting_target_id,
+        (
+            await db.execute(
+                select(ArtifactPublication).where(
+                    ArtifactPublication.artifact_id == artifact_id,
+                    ArtifactPublication.hosting_target_id == hosting_target_id,
+                )
             )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
 
 
 async def list_publications(db: AsyncSession, artifact_id: str) -> list[ArtifactPublication]:
@@ -42,7 +46,9 @@ async def list_publications(db: AsyncSession, artifact_id: str) -> list[Artifact
                 .where(ArtifactPublication.artifact_id == artifact_id)
                 .order_by(ArtifactPublication.updated_at.desc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
 
 
@@ -59,7 +65,9 @@ async def list_publications_for_artifacts(
                 .where(ArtifactPublication.artifact_id.in_(artifact_ids))
                 .order_by(ArtifactPublication.updated_at.desc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     grouped: dict[str, list[ArtifactPublication]] = {artifact_id: [] for artifact_id in artifact_ids}
     for row in rows:

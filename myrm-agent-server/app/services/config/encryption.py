@@ -123,9 +123,7 @@ class ConfigEncryptionService:
         """
         return (self._is_sandbox or self._is_local) and is_sensitive_config(config_key)
 
-    def encrypt_if_needed(
-        self, key: str, value: dict[str, object]
-    ) -> tuple[dict[str, object] | str, bool]:
+    def encrypt_if_needed(self, key: str, value: dict[str, object]) -> tuple[dict[str, object] | str, bool]:
         """Conditionally encrypt based on policy.
 
         Args:

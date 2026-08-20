@@ -76,9 +76,7 @@ def _create_background_agent(client: httpx.Client, api_base: str) -> str:
             "yolo_mode_enabled_at": time.time(),
         },
     }
-    resp = guarded_httpx_request(
-        client, "POST", f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0
-    )
+    resp = guarded_httpx_request(client, "POST", f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0)
     resp.raise_for_status()
     body = resp.json()
     agent_id = body.get("data", {}).get("id") or body.get("id")
@@ -91,13 +89,9 @@ def _create_background_agent(client: httpx.Client, api_base: str) -> str:
     probe_resp.raise_for_status()
     probe = probe_resp.json()
     if probe.get("yolo") is not True:
-        raise AssertionError(
-            f"hitl-probe expected yolo=true after agent create: {probe}"
-        )
+        raise AssertionError(f"hitl-probe expected yolo=true after agent create: {probe}")
     if probe.get("yolo_active") is not True:
-        raise AssertionError(
-            f"hitl-probe expected yolo_active=true after agent create: {probe}"
-        )
+        raise AssertionError(f"hitl-probe expected yolo_active=true after agent create: {probe}")
     return agent_id
 
 
@@ -200,9 +194,7 @@ def _cancel_running_shells_for_chat_best_effort(api_base: str, chat_id: str) -> 
         pass
 
 
-def _stream_background_spawn(
-    client: httpx.Client, api_base: str, agent_id: str, chat_id: str
-) -> None:
+def _stream_background_spawn(client: httpx.Client, api_base: str, agent_id: str, chat_id: str) -> None:
     request_data: dict[str, object] = {
         "messageId": f"bg-shell-{uuid.uuid4().hex[:10]}",
         "chatId": chat_id,
@@ -294,8 +286,7 @@ def _stream_background_spawn(
             if assistant_text.strip():
                 detail = f"{detail}; assistant={assistant_text.strip()!r}"
             raise AssertionError(
-                f"agent-stream did not invoke {_BASH_TOOL_NAME}; "
-                f"tools={tool_names or ['<none>']}; detail={detail}",
+                f"agent-stream did not invoke {_BASH_TOOL_NAME}; tools={tool_names or ['<none>']}; detail={detail}",
             )
 
     last_bash_error: AssertionError | None = None
@@ -321,9 +312,7 @@ def _stream_background_spawn(
                 continue
 
     try:
-        _wait_for_running_shell(
-            api_base, chat_id, timeout_sec=_POST_STREAM_RUNNING_PROBE_SEC
-        )
+        _wait_for_running_shell(api_base, chat_id, timeout_sec=_POST_STREAM_RUNNING_PROBE_SEC)
         return
     except AssertionError as exc:
         if last_bash_error is not None:
@@ -333,9 +322,7 @@ def _stream_background_spawn(
         ) from exc
 
 
-def _wait_for_running_shell(
-    api_base: str, chat_id: str, timeout_sec: float = 180.0
-) -> str:
+def _wait_for_running_shell(api_base: str, chat_id: str, timeout_sec: float = 180.0) -> str:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         payload = http_json("GET", f"{api_base}/api/v1/background-tasks")
@@ -353,20 +340,14 @@ def _wait_for_running_shell(
             if task_id is not None:
                 return task_id
         time.sleep(1.0)
-    raise AssertionError(
-        f"No running shell task for chat_id={chat_id} within {timeout_sec}s"
-    )
+    raise AssertionError(f"No running shell task for chat_id={chat_id} within {timeout_sec}s")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.timeout(600)
 def test_live_agent_background_shell_spawn_via_agent_stream() -> None:
     if not wait_e2e_provider_ready():
-        pytest.fail(
-            "Provider config not ready — configure default model in WebUI E2E profile"
-        )
+        pytest.fail("Provider config not ready — configure default model in WebUI E2E profile")
 
     api_base = get_e2e_api_url()
     last_error = ""

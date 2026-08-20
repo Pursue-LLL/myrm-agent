@@ -52,9 +52,7 @@ def _stream_collect(
     request_data: dict[str, object],
     collected: list[dict[str, object]],
 ) -> None:
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_data, timeout=180.0
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=180.0) as response:
         assert response.status_code == 200, response.text
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
@@ -76,20 +74,14 @@ def _stream_with_auto_approve(
     collected: list[dict[str, object]] = []
     _stream_collect(client, request_data, collected)
     for _ in range(10):
-        approval_required = any(
-            d.get("type") in ("approval_required", "tool_approval_request")
-            for d in reversed(collected)
-        )
+        approval_required = any(d.get("type") in ("approval_required", "tool_approval_request") for d in reversed(collected))
         if not approval_required:
             break
         resume_request = dict(request_data)
         resume_request["resumeValue"] = build_approval_resume_value()
         before = len(collected)
         _stream_collect(client, resume_request, collected)
-        raced_busy = any(
-            d.get("type") == "error" and "busy" in str(d.get("data", "")).lower()
-            for d in collected[before:]
-        )
+        raced_busy = any(d.get("type") == "error" and "busy" in str(d.get("data", "")).lower() for d in collected[before:])
         if raced_busy:
             # Resume raced the previous agent turn's async teardown while the
             # session lock was still held; retry after it releases instead of
@@ -110,9 +102,7 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
     # conftest 的测试 app 未挂载 subagents router，此处补挂载以查询子代理列表。
     from app.api.agents import subagents
 
-    client.app.include_router(
-        subagents.router, prefix="/api/v1/chats", tags=["subagents"]
-    )
+    client.app.include_router(subagents.router, prefix="/api/v1/chats", tags=["subagents"])
 
     chat_id = str(uuid.uuid4())
     request_payload: dict[str, object] = {
@@ -126,14 +116,9 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
 
     # 完整消费父流（模拟真实用户等待完整回复并批准 HITL），父 run 正常结束时 cleanup_run 执行。
     collected = _stream_with_auto_approve(client, request_payload)
-    completion_blocked = any(
-        d.get("type") in ("approval_required", "tool_approval_request")
-        for d in collected[-20:]
-    )
+    completion_blocked = any(d.get("type") in ("approval_required", "tool_approval_request") for d in collected[-20:])
     if completion_blocked:
-        pytest.fail(
-            f"Agent stream still pending HITL after auto-approve: {collected[-5:]!r}"
-        )
+        pytest.fail(f"Agent stream still pending HITL after auto-approve: {collected[-5:]!r}")
 
     # 父流结束后立即查询子代理列表：bash_worker 必须仍存活（running 或 completed）。
     # wait=false 语义是「不被 cleanup_run 取消」——completed 也是存活证据；绝对不允许 failed/cancelled。
@@ -146,18 +131,13 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
         last_payload = payload
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
-            alive_rows = [
-                row
-                for row in data
-                if isinstance(row, dict) and row.get("status") in ("running", "completed")
-            ]
+            alive_rows = [row for row in data if isinstance(row, dict) and row.get("status") in ("running", "completed")]
             if alive_rows:
                 break
         time.sleep(2.0)
 
     assert alive_rows, (
-        "后台子代理在父 agent-stream 结束后被取消（cleanup_run 误 cancel wait=false 子代理）。"
-        f"subagents={last_payload!r}"
+        f"后台子代理在父 agent-stream 结束后被取消（cleanup_run 误 cancel wait=false 子代理）。subagents={last_payload!r}"
     )
 
     # 清理：取消所有后台子代理，避免残留进程。
@@ -170,14 +150,10 @@ def test_background_subagent_survives_parent_stream_end(client: TestClient) -> N
 def _mount_subagents_router(client: TestClient) -> None:
     from app.api.agents import subagents
 
-    client.app.include_router(
-        subagents.router, prefix="/api/v1/chats", tags=["subagents"]
-    )
+    client.app.include_router(subagents.router, prefix="/api/v1/chats", tags=["subagents"])
 
 
-def _run_background_delegate(
-    client: TestClient, chat_id: str, sleep_sec: int, timeout_sec: int
-) -> list[dict[str, object]]:
+def _run_background_delegate(client: TestClient, chat_id: str, sleep_sec: int, timeout_sec: int) -> list[dict[str, object]]:
     request_payload: dict[str, object] = {
         "query": _delegate_query(sleep_sec, timeout_sec),
         "chatId": chat_id,
@@ -189,20 +165,14 @@ def _run_background_delegate(
     return _stream_with_auto_approve(client, request_payload)
 
 
-def _wait_running_subagents(
-    client: TestClient, chat_id: str, timeout_sec: float = 60.0
-) -> list[dict[str, object]]:
+def _wait_running_subagents(client: TestClient, chat_id: str, timeout_sec: float = 60.0) -> list[dict[str, object]]:
     deadline = time.monotonic() + timeout_sec
     running_rows: list[dict[str, object]] = []
     while time.monotonic() < deadline:
         payload = client.get(f"/api/v1/chats/{chat_id}/subagents").json()
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
-            running_rows = [
-                row
-                for row in data
-                if isinstance(row, dict) and row.get("status") == "running"
-            ]
+            running_rows = [row for row in data if isinstance(row, dict) and row.get("status") == "running"]
             if running_rows:
                 return running_rows
         time.sleep(2.0)
@@ -227,9 +197,7 @@ def test_background_subagent_cancelled_by_cancel_all_after_parent_stream_end(
     _run_background_delegate(client, chat_id, sleep_sec=120, timeout_sec=180)
 
     running_rows = _wait_running_subagents(client, chat_id)
-    assert (
-        running_rows
-    ), "父流结束后台子代理未 running（cleanup_run 误取消或 cancel-all 前置断言失败）。"
+    assert running_rows, "父流结束后台子代理未 running（cleanup_run 误取消或 cancel-all 前置断言失败）。"
     task_id = str(running_rows[0].get("task_id") or "")
     assert task_id
 
@@ -249,11 +217,7 @@ def test_background_subagent_cancelled_by_cancel_all_after_parent_stream_end(
         data = list_payload.get("data") if isinstance(list_payload, dict) else None
         if isinstance(data, list):
             row = next(
-                (
-                    r
-                    for r in data
-                    if isinstance(r, dict) and r.get("task_id") == task_id
-                ),
+                (r for r in data if isinstance(r, dict) and r.get("task_id") == task_id),
                 None,
             )
             if row is None:
@@ -264,9 +228,7 @@ def test_background_subagent_cancelled_by_cancel_all_after_parent_stream_end(
                 break
         time.sleep(2.0)
 
-    assert (
-        terminal_seen
-    ), f"cancel-all 后后台子代理 {task_id} 未进入终态/消失: {last_payload!r}"
+    assert terminal_seen, f"cancel-all 后后台子代理 {task_id} 未进入终态/消失: {last_payload!r}"
 
 
 @pytest.mark.e2e
@@ -292,18 +254,13 @@ def test_background_subagent_completed_observable_after_parent_stream_end(
         last_payload = payload
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
-            alive_rows = [
-                row
-                for row in data
-                if isinstance(row, dict) and row.get("status") in ("running", "completed")
-            ]
+            alive_rows = [row for row in data if isinstance(row, dict) and row.get("status") in ("running", "completed")]
             if alive_rows:
                 task_id = str(alive_rows[0].get("task_id") or "")
         if not task_id:
             time.sleep(2.0)
     assert task_id, (
-        "后台子代理在父 agent-stream 结束后既非 running 也非 completed"
-        f"（cleanup_run 误取消 wait=false 子代理）: {last_payload!r}"
+        f"后台子代理在父 agent-stream 结束后既非 running 也非 completed（cleanup_run 误取消 wait=false 子代理）: {last_payload!r}"
     )
 
     deadline = time.monotonic() + 90.0
@@ -315,11 +272,7 @@ def test_background_subagent_completed_observable_after_parent_stream_end(
         data = payload.get("data") if isinstance(payload, dict) else None
         if isinstance(data, list):
             row = next(
-                (
-                    r
-                    for r in data
-                    if isinstance(r, dict) and r.get("task_id") == task_id
-                ),
+                (r for r in data if isinstance(r, dict) and r.get("task_id") == task_id),
                 None,
             )
             if row and row.get("status") == "completed":
@@ -327,6 +280,4 @@ def test_background_subagent_completed_observable_after_parent_stream_end(
                 break
         time.sleep(2.0)
 
-    assert (
-        completed_seen
-    ), f"后台子代理 {task_id} 完成后未在 REST 列表观测到 completed: {last_payload!r}"
+    assert completed_seen, f"后台子代理 {task_id} 完成后未在 REST 列表观测到 completed: {last_payload!r}"

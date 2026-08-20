@@ -31,7 +31,8 @@ def _apply_message_end_event(acc: StreamAccumulator, event: dict[str, object]) -
 
 
 def _build_cost_metadata(
-    acc: StreamAccumulator, enable_cost_estimation: bool,
+    acc: StreamAccumulator,
+    enable_cost_estimation: bool,
 ) -> dict[str, object] | None:
     """Simulate cost_metadata injection from executor."""
     if acc.cost_usd > 0 and enable_cost_estimation:
@@ -48,50 +49,65 @@ class TestTokenUsageEventProcessing:
 
     def test_single_token_usage_event(self) -> None:
         acc = StreamAccumulator()
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {
-                "model_name": "claude-sonnet-4-20250514",
-                "cost_usd": 0.003142,
-                "usage": {"total_tokens": 1500, "input_tokens": 1000, "output_tokens": 500},
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {
+                    "model_name": "claude-sonnet-4-20250514",
+                    "cost_usd": 0.003142,
+                    "usage": {"total_tokens": 1500, "input_tokens": 1000, "output_tokens": 500},
+                },
             },
-        })
+        )
         assert acc.cost_usd == pytest.approx(0.003142)
         assert acc.model_name == "claude-sonnet-4-20250514"
         assert acc.total_tokens == 1500
 
     def test_multiple_token_usage_events_accumulate(self) -> None:
         acc = StreamAccumulator()
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {
-                "model_name": "gpt-4o",
-                "cost_usd": 0.001,
-                "usage": {"total_tokens": 800},
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {
+                    "model_name": "gpt-4o",
+                    "cost_usd": 0.001,
+                    "usage": {"total_tokens": 800},
+                },
             },
-        })
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {
-                "model_name": "gpt-4o",
-                "cost_usd": 0.002,
-                "usage": {"total_tokens": 1200},
+        )
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {
+                    "model_name": "gpt-4o",
+                    "cost_usd": 0.002,
+                    "usage": {"total_tokens": 1200},
+                },
             },
-        })
+        )
         assert acc.cost_usd == pytest.approx(0.003)
         assert acc.total_tokens == 2000
         assert acc.model_name == "gpt-4o"
 
     def test_model_name_uses_latest(self) -> None:
         acc = StreamAccumulator()
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {"model_name": "gpt-4o-mini", "cost_usd": 0.0001, "usage": {"total_tokens": 100}},
-        })
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {"model_name": "gpt-4o", "cost_usd": 0.002, "usage": {"total_tokens": 900}},
-        })
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {"model_name": "gpt-4o-mini", "cost_usd": 0.0001, "usage": {"total_tokens": 100}},
+            },
+        )
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {"model_name": "gpt-4o", "cost_usd": 0.002, "usage": {"total_tokens": 900}},
+            },
+        )
         assert acc.model_name == "gpt-4o"
 
     def test_missing_data_field_is_safe(self) -> None:
@@ -108,29 +124,38 @@ class TestTokenUsageEventProcessing:
 
     def test_zero_cost_not_accumulated(self) -> None:
         acc = StreamAccumulator()
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {"cost_usd": 0, "model_name": "test", "usage": {"total_tokens": 0}},
-        })
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {"cost_usd": 0, "model_name": "test", "usage": {"total_tokens": 0}},
+            },
+        )
         assert acc.cost_usd == 0.0
         assert acc.total_tokens == 0
 
     def test_negative_tokens_ignored(self) -> None:
         acc = StreamAccumulator()
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {"cost_usd": 0.001, "usage": {"total_tokens": -5}},
-        })
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {"cost_usd": 0.001, "usage": {"total_tokens": -5}},
+            },
+        )
         assert acc.cost_usd == pytest.approx(0.001)
         assert acc.total_tokens == 0
 
     def test_empty_model_name_not_overwritten(self) -> None:
         acc = StreamAccumulator()
         acc.model_name = "existing-model"
-        _apply_token_usage_event(acc, {
-            "type": "token_usage",
-            "data": {"model_name": "", "cost_usd": 0.001, "usage": {"total_tokens": 100}},
-        })
+        _apply_token_usage_event(
+            acc,
+            {
+                "type": "token_usage",
+                "data": {"model_name": "", "cost_usd": 0.001, "usage": {"total_tokens": 100}},
+            },
+        )
         assert acc.model_name == "existing-model"
 
 
@@ -209,8 +234,14 @@ class TestCostMetadataInjection:
         """Full pipeline: token_usage events → accumulator → cost_metadata."""
         acc = StreamAccumulator()
         events = [
-            {"type": "token_usage", "data": {"model_name": "claude-sonnet-4-20250514", "cost_usd": 0.001, "usage": {"total_tokens": 500}}},
-            {"type": "token_usage", "data": {"model_name": "claude-sonnet-4-20250514", "cost_usd": 0.002, "usage": {"total_tokens": 1000}}},
+            {
+                "type": "token_usage",
+                "data": {"model_name": "claude-sonnet-4-20250514", "cost_usd": 0.001, "usage": {"total_tokens": 500}},
+            },
+            {
+                "type": "token_usage",
+                "data": {"model_name": "claude-sonnet-4-20250514", "cost_usd": 0.002, "usage": {"total_tokens": 1000}},
+            },
         ]
         for ev in events:
             _apply_token_usage_event(acc, ev)

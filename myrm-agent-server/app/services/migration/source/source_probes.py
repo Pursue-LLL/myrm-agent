@@ -52,9 +52,7 @@ def discover_hermes(explicit_home: Path | None) -> ExternalSource | None:
     for filename, kind in _HERMES_FILES.items():
         path = root / filename
         if path.is_file():
-            source.files.append(
-                DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size)
-            )
+            source.files.append(DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size))
             if kind == "env":
                 source.has_api_keys = _detect_api_keys_in_env(path)
 
@@ -63,9 +61,7 @@ def discover_hermes(explicit_home: Path | None) -> ExternalSource | None:
         for filename, kind in _HERMES_MEMORY_FILES.items():
             path = memories_dir / filename
             if path.is_file():
-                source.files.append(
-                    DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size)
-                )
+                source.files.append(DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size))
                 if kind == "memory":
                     source.memory_count_estimate = _count_md_bullets(path)
 
@@ -76,9 +72,7 @@ def discover_hermes(explicit_home: Path | None) -> ExternalSource | None:
     from ..hermes.hermes_cron_converter import discover_hermes_cron_job_files
 
     for cron_path, _profile in discover_hermes_cron_job_files(root):
-        source.files.append(
-            DiscoveredFile(path=str(cron_path), kind="cron_jobs", size_bytes=cron_path.stat().st_size)
-        )
+        source.files.append(DiscoveredFile(path=str(cron_path), kind="cron_jobs", size_bytes=cron_path.stat().st_size))
 
     source.confidence = _hermes_confidence(source)
     return source if source.confidence != "low" else None
@@ -95,9 +89,7 @@ def discover_claude(explicit_home: Path | None) -> ExternalSource | None:
     for filename, kind in _CLAUDE_HOME_FILES.items():
         path = root / filename
         if path.is_file():
-            source.files.append(
-                DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size)
-            )
+            source.files.append(DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size))
             if kind == "memory":
                 source.memory_count_estimate = _count_md_bullets(path)
 
@@ -157,9 +149,7 @@ def discover_codex(explicit_home: Path | None) -> ExternalSource | None:
     for candidate in ("instructions.md", "config.json", "settings.json"):
         path = root / candidate
         if path.is_file():
-            source.files.append(
-                DiscoveredFile(path=str(path), kind=candidate.split(".")[0], size_bytes=path.stat().st_size)
-            )
+            source.files.append(DiscoveredFile(path=str(path), kind=candidate.split(".")[0], size_bytes=path.stat().st_size))
 
     source.confidence = "high" if len(source.files) >= 2 else "medium" if source.files else "low"
     return source if source.confidence != "low" else None
@@ -176,15 +166,11 @@ def discover_pi(explicit_home: Path | None) -> ExternalSource | None:
     for filename, kind in (("AGENTS.md", "agents"), ("settings.json", "settings")):
         path = agent_dir / filename
         if path.is_file():
-            source.files.append(
-                DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size)
-            )
+            source.files.append(DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size))
 
     auth_path = agent_dir / "auth.json"
     if auth_path.is_file():
-        source.files.append(
-            DiscoveredFile(path=str(auth_path), kind="auth", size_bytes=auth_path.stat().st_size)
-        )
+        source.files.append(DiscoveredFile(path=str(auth_path), kind="auth", size_bytes=auth_path.stat().st_size))
         source.has_api_keys = True
 
     sessions_dir = agent_dir / "sessions"
@@ -195,10 +181,7 @@ def discover_pi(explicit_home: Path | None) -> ExternalSource | None:
 
     skills_dir = agent_dir / "skills"
     if skills_dir.is_dir():
-        source.skill_count = sum(
-            1 for entry in skills_dir.iterdir()
-            if entry.is_dir() and (entry / "SKILL.md").is_file()
-        )
+        source.skill_count = sum(1 for entry in skills_dir.iterdir() if entry.is_dir() and (entry / "SKILL.md").is_file())
 
     source.confidence = _pi_confidence(source)
     return source if source.confidence != "low" else None

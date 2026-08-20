@@ -37,25 +37,15 @@ def client() -> Iterator[TestClient]:
 
 
 @pytest.fixture(autouse=True)
-def _streak_sqlite(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[Path]:
+def _streak_sqlite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Real SQLite DB with a chats table, registered as the global streak store."""
     import sqlite3
 
     db_file = tmp_path / "preflight_streak.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(db_file)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(db_file))
     with sqlite3.connect(db_file) as conn:
-        conn.execute(
-            "CREATE TABLE chats ("
-            "id TEXT PRIMARY KEY, "
-            "compression_ineffective_streak INTEGER NOT NULL DEFAULT 0)"
-        )
-        conn.execute(
-            "INSERT INTO chats (id, compression_ineffective_streak) VALUES ('chat-1', 0)"
-        )
+        conn.execute("CREATE TABLE chats (id TEXT PRIMARY KEY, compression_ineffective_streak INTEGER NOT NULL DEFAULT 0)")
+        conn.execute("INSERT INTO chats (id, compression_ineffective_streak) VALUES ('chat-1', 0)")
         conn.commit()
 
     register_chat_compression_streak_store()
@@ -67,9 +57,7 @@ def _streak_sqlite(
     register_compression_streak_store(None)
 
 
-def _preflight_item(
-    client: TestClient, *, estimated_tokens: int, chat_id: str | None = None
-) -> dict:
+def _preflight_item(client: TestClient, *, estimated_tokens: int, chat_id: str | None = None) -> dict:
     body: dict[str, object] = {
         "estimated_tokens": estimated_tokens,
         "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
@@ -85,9 +73,7 @@ def _preflight_item(
 
 
 @pytest.mark.integration
-def test_preflight_reads_real_db_streak_and_suppresses_warning(
-    client: TestClient, _streak_sqlite: Path
-) -> None:
+def test_preflight_reads_real_db_streak_and_suppresses_warning(client: TestClient, _streak_sqlite: Path) -> None:
     """Real streak=2 in SQLite suppresses the compression warning below the safety net."""
     store = ChatCompressionStreakStore()
     store.set_streak("chat-1", 2)
@@ -98,9 +84,7 @@ def test_preflight_reads_real_db_streak_and_suppresses_warning(
 
 
 @pytest.mark.integration
-def test_preflight_reads_real_db_streak_but_safety_net_warns(
-    client: TestClient, _streak_sqlite: Path
-) -> None:
+def test_preflight_reads_real_db_streak_but_safety_net_warns(client: TestClient, _streak_sqlite: Path) -> None:
     """streak=2 but tokens >= 90% window: safety net forces the warning."""
     store = ChatCompressionStreakStore()
     store.set_streak("chat-1", 2)
@@ -111,9 +95,7 @@ def test_preflight_reads_real_db_streak_but_safety_net_warns(
 
 
 @pytest.mark.integration
-def test_preflight_without_chat_id_ignores_db_streak(
-    client: TestClient, _streak_sqlite: Path
-) -> None:
+def test_preflight_without_chat_id_ignores_db_streak(client: TestClient, _streak_sqlite: Path) -> None:
     """Absent chat_id skips streak lookup entirely, warning stays on."""
     store = ChatCompressionStreakStore()
     store.set_streak("chat-1", 2)
@@ -123,9 +105,7 @@ def test_preflight_without_chat_id_ignores_db_streak(
 
 
 @pytest.mark.integration
-def test_record_effectiveness_persists_streak_visible_to_preflight(
-    client: TestClient, _streak_sqlite: Path
-) -> None:
+def test_record_effectiveness_persists_streak_visible_to_preflight(client: TestClient, _streak_sqlite: Path) -> None:
     """Compression effectiveness recording flows into the preflight decision."""
     from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
         record_compression_effectiveness,

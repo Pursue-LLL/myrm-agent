@@ -40,11 +40,7 @@ def _build_summary_text(*, result: WikiMaintainRunResult) -> str:
             return "[SILENT]"
         return f"Wiki maintain skipped: {result.skipped_reason}"
 
-    changed = (
-        result.issues_fixed > 0
-        or result.connections_discovered > 0
-        or result.raw_security_removed > 0
-    )
+    changed = result.issues_fixed > 0 or result.connections_discovered > 0 or result.raw_security_removed > 0
     if not changed:
         return "[SILENT]"
 
@@ -75,9 +71,7 @@ async def run_wiki_maintain_job(
             summary_text="[SILENT]",
         )
         async with get_session() as db:
-            await save_wiki_maintain_state(
-                db, state_from_run_result(skipped), agent_id=agent_id
-            )
+            await save_wiki_maintain_state(db, state_from_run_result(skipped), agent_id=agent_id)
         return skipped
 
     from app.services.wiki.asset_index_service import run_wiki_asset_index
@@ -94,9 +88,7 @@ async def run_wiki_maintain_job(
             summary_text="[SILENT]",
         )
         async with get_session() as db:
-            await save_wiki_maintain_state(
-                db, state_from_run_result(skipped), agent_id=agent_id
-            )
+            await save_wiki_maintain_state(db, state_from_run_result(skipped), agent_id=agent_id)
         return skipped
 
     try:
@@ -148,9 +140,7 @@ async def run_wiki_maintain_job(
         )
         result.summary_text = _build_summary_text(result=result)
         async with get_session() as db:
-            await save_wiki_maintain_state(
-                db, state_from_run_result(result), agent_id=agent_id
-            )
+            await save_wiki_maintain_state(db, state_from_run_result(result), agent_id=agent_id)
         return result
     except Exception as exc:
         logger.error("Wiki maintain job failed for agent %s: %s", agent_id, exc)
@@ -161,7 +151,5 @@ async def run_wiki_maintain_job(
             summary_text=f"Wiki maintain failed: {exc}",
         )
         async with get_session() as db:
-            await save_wiki_maintain_state(
-                db, state_from_run_result(failed), agent_id=agent_id
-            )
+            await save_wiki_maintain_state(db, state_from_run_result(failed), agent_id=agent_id)
         raise

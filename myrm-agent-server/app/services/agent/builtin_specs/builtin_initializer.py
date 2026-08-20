@@ -118,8 +118,9 @@ async def initialize_builtin_agents() -> None:
                 created_count += 1
             else:
                 agent = existing_map[spec.id]
-                changed = _sync_existing_agent(agent, spec, expected_avatar, resolved_prompt,
-                                               default_skills, default_skill_configs)
+                changed = _sync_existing_agent(
+                    agent, spec, expected_avatar, resolved_prompt, default_skills, default_skill_configs
+                )
                 if changed:
                     updated_count += 1
 

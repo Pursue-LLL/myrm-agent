@@ -46,9 +46,7 @@ def mock_archiver() -> MagicMock:
     return archiver
 
 
-def test_maintain_default_structural_mode(
-    client: TestClient, mock_archiver: MagicMock
-) -> None:
+def test_maintain_default_structural_mode(client: TestClient, mock_archiver: MagicMock) -> None:
     from app.api.wiki.router import _get_wiki_archiver
 
     success = WikiMaintainRunResult(
@@ -114,9 +112,7 @@ def test_maintain_full_mode_query(client: TestClient, mock_archiver: MagicMock) 
         client.app.dependency_overrides.pop(_get_wiki_archiver, None)
 
 
-def test_maintain_compile_busy_returns_409(
-    client: TestClient, mock_archiver: MagicMock
-) -> None:
+def test_maintain_compile_busy_returns_409(client: TestClient, mock_archiver: MagicMock) -> None:
     from app.api.wiki.router import _get_wiki_archiver
 
     skipped = WikiMaintainRunResult(

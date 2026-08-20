@@ -37,9 +37,7 @@ class TestPendingApprovalsFullChain:
         before_fleet = client.get("/api/v1/agents/fleet-overview").json()["data"]["kpi"]["pendingApprovals"]
 
         svc = KanbanService.get_instance()
-        board = await svc.store.save_board(
-            KanbanBoard(board_id=str(uuid4()), name="Full Chain Board")
-        )
+        board = await svc.store.save_board(KanbanBoard(board_id=str(uuid4()), name="Full Chain Board"))
         await svc.store.save_task(
             KanbanTask(
                 task_id=str(uuid4()),
@@ -64,9 +62,7 @@ class TestPendingApprovalsFullChain:
         before = client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
 
         svc = KanbanService.get_instance()
-        board = await svc.store.save_board(
-            KanbanBoard(board_id=str(uuid4()), name="Approve Chain Board")
-        )
+        board = await svc.store.save_board(KanbanBoard(board_id=str(uuid4()), name="Approve Chain Board"))
         task = await svc.store.save_task(
             KanbanTask(
                 task_id=str(uuid4()),
@@ -76,17 +72,11 @@ class TestPendingApprovalsFullChain:
                 status=TaskStatus.IN_REVIEW,
             )
         )
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == before + 1
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == before + 1
 
         await svc.approve_task(task.task_id, approver="test-operator")
 
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == before
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == before
 
     @pytest.mark.asyncio
     async def test_badge_and_kpi_decrease_after_real_reject(self) -> None:
@@ -96,9 +86,7 @@ class TestPendingApprovalsFullChain:
         before_kpi = client.get("/api/v1/agents/fleet-overview").json()["data"]["kpi"]["pendingApprovals"]
 
         svc = KanbanService.get_instance()
-        board = await svc.store.save_board(
-            KanbanBoard(board_id=str(uuid4()), name="Reject Chain Board")
-        )
+        board = await svc.store.save_board(KanbanBoard(board_id=str(uuid4()), name="Reject Chain Board"))
         task = await svc.store.save_task(
             KanbanTask(
                 task_id=str(uuid4()),
@@ -108,21 +96,12 @@ class TestPendingApprovalsFullChain:
                 status=TaskStatus.IN_REVIEW,
             )
         )
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == before_badges + 1
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == before_badges + 1
 
         await svc.reject_task(task.task_id, reason="needs rework", approver="test-operator")
 
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == before_badges
-        )
-        assert (
-            client.get("/api/v1/agents/fleet-overview").json()["data"]["kpi"]["pendingApprovals"]
-            == before_kpi
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == before_badges
+        assert client.get("/api/v1/agents/fleet-overview").json()["data"]["kpi"]["pendingApprovals"] == before_kpi
 
     @pytest.mark.asyncio
     async def test_badges_combine_goal_and_kanban(self) -> None:
@@ -145,9 +124,7 @@ class TestPendingApprovalsFullChain:
             await db.commit()
 
         svc = KanbanService.get_instance()
-        board = await svc.store.save_board(
-            KanbanBoard(board_id=str(uuid4()), name="Combined Board")
-        )
+        board = await svc.store.save_board(KanbanBoard(board_id=str(uuid4()), name="Combined Board"))
         await svc.store.save_task(
             KanbanTask(
                 task_id=str(uuid4()),
@@ -158,7 +135,4 @@ class TestPendingApprovalsFullChain:
             )
         )
 
-        assert (
-            client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"]
-            == before + 2
-        )
+        assert client.get("/api/v1/statistics/badges").json()["data"]["pendingApprovals"] == before + 2

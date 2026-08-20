@@ -110,9 +110,5 @@ def test_live_mcp_config_put_get_roundtrip() -> None:
                 if isinstance(value, dict):
                     raw = value.get("mcpConfigs")
                     if isinstance(raw, list):
-                        configs = [
-                            item
-                            for item in raw
-                            if isinstance(item, dict) and item.get("name") != _PROBE_NAME
-                        ]
+                        configs = [item for item in raw if isinstance(item, dict) and item.get("name") != _PROBE_NAME]
                 _put_mcp_configs(configs)

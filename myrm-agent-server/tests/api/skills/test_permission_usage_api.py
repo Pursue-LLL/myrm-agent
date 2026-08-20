@@ -94,10 +94,7 @@ async def test_usage_groups_by_permission_and_counts(usage_app: FastAPI) -> None
 
 async def test_usage_caps_recent_operations_at_ten(usage_app: FastAPI) -> None:
     # 模拟 DB 按 used_at DESC 返回：最新在前（cmd 11 最新）
-    logs = [
-        _make_log("shell_exec", f"cmd {i}", True, used_at_delta=timedelta(hours=12 - i))
-        for i in range(11, -1, -1)
-    ]
+    logs = [_make_log("shell_exec", f"cmd {i}", True, used_at_delta=timedelta(hours=12 - i)) for i in range(11, -1, -1)]
     usage_app.dependency_overrides[get_db_session] = _override_db_session(logs)
     transport = ASGITransport(app=usage_app)
     with patch(

@@ -92,12 +92,7 @@ class ChannelAgentExecutor:
         # crosses into the harness approval subsystem.
         set_approval_user_id(user_id or msg.user_id or msg.sender_id)
 
-        if (
-            not is_resume
-            and topic_context
-            and topic_context.agent_id
-            and msg.content
-        ):
+        if not is_resume and topic_context and topic_context.agent_id and msg.content:
             faq_reply = await self._try_faq_intercept(
                 agent_id=topic_context.agent_id,
                 user_query=msg.content,
@@ -253,7 +248,9 @@ class ChannelAgentExecutor:
                 return None
 
             result, corpus_id, top_score = await interceptor.try_match(
-                agent_id, user_query, channel=channel,
+                agent_id,
+                user_query,
+                channel=channel,
             )
 
             from app.services.faq.tracker import FaqHitTracker

@@ -24,6 +24,7 @@ def _fresh_session(session_id: str = "test-1") -> CaptureSession:
 class TestSessionManager:
     def setup_method(self) -> None:
         from app.services.browser_recording import session_manager
+
         session_manager._sessions.clear()
 
     def test_register_and_get(self) -> None:
@@ -58,14 +59,16 @@ class TestSessionManager:
 
     def test_export_includes_steps(self) -> None:
         session = _fresh_session("export-1")
-        session.add_step(ActionStep(
-            seq=1,
-            action=ActionType.CLICK,
-            selector="#btn",
-            url="https://example.com",
-            element_text="Button",
-            element_role="button",
-        ))
+        session.add_step(
+            ActionStep(
+                seq=1,
+                action=ActionType.CLICK,
+                selector="#btn",
+                url="https://example.com",
+                element_text="Button",
+                element_role="button",
+            )
+        )
         register_session(session)
 
         export = get_session_export("export-1")

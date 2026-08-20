@@ -35,13 +35,7 @@ from pathlib import Path
 
 import pytest
 
-_LOCALES_DIR = (
-    Path(__file__).resolve().parents[3]
-    / "app"
-    / "channels"
-    / "i18n"
-    / "locales"
-)
+_LOCALES_DIR = Path(__file__).resolve().parents[3] / "app" / "channels" / "i18n" / "locales"
 
 _APP_DIR = Path(__file__).resolve().parents[3] / "app"
 
@@ -109,12 +103,7 @@ def _illegal_references(body: str) -> list[str]:
     return [
         ref
         for ref in (match.group(0).strip() for match in _ILLEGAL_RE.finditer(body))
-        if not (
-            _VAR_RE.fullmatch(ref)
-            or _FUNC_RE.fullmatch(ref)
-            or _TERM_RE.fullmatch(ref)
-            or _LITERAL_RE.fullmatch(ref)
-        )
+        if not (_VAR_RE.fullmatch(ref) or _FUNC_RE.fullmatch(ref) or _TERM_RE.fullmatch(ref) or _LITERAL_RE.fullmatch(ref))
     ]
 
 
@@ -122,9 +111,7 @@ def _illegal_references(body: str) -> list[str]:
 def test_ftl_locales_share_identical_key_sets() -> None:
     """Every channel locale must expose the exact same message keys."""
     locales = _locale_names()
-    assert _REFERENCE_LOCALE in locales, (
-        f"Reference locale {_REFERENCE_LOCALE}.ftl missing under {_LOCALES_DIR}"
-    )
+    assert _REFERENCE_LOCALE in locales, f"Reference locale {_REFERENCE_LOCALE}.ftl missing under {_LOCALES_DIR}"
     key_sets = {locale: frozenset(_message_bodies(locale)) for locale in locales}
     reference_keys = key_sets[_REFERENCE_LOCALE]
 
@@ -148,9 +135,7 @@ def test_ftl_locales_share_identical_placeholders() -> None:
     neither case raises, so only this parity guard catches it.
     """
     locales = _locale_names()
-    assert _REFERENCE_LOCALE in locales, (
-        f"Reference locale {_REFERENCE_LOCALE}.ftl missing under {_LOCALES_DIR}"
-    )
+    assert _REFERENCE_LOCALE in locales, f"Reference locale {_REFERENCE_LOCALE}.ftl missing under {_LOCALES_DIR}"
     bodies_by_locale = {locale: _message_bodies(locale) for locale in locales}
     reference = bodies_by_locale[_REFERENCE_LOCALE]
 
@@ -179,17 +164,13 @@ def test_ftl_locales_have_only_legal_references() -> None:
             assert not illegal, (
                 f"[{locale}] `{key}` contains invalid Fluent references: {illegal}. "
                 f"Use `{{ $var }}`, a function like `{{NUMBER($var)}}`, a `-`-prefixed "
-                f"term, or a string literal like `{{ \"**\" }}`."
+                f'term, or a string literal like `{{ "**" }}`.'
             )
 
 
 def _source_files() -> list[Path]:
     """Every `.py` file under ``app/`` except generated/packaging paths."""
-    return [
-        p
-        for p in _APP_DIR.rglob("*.py")
-        if "__pycache__" not in p.parts
-    ]
+    return [p for p in _APP_DIR.rglob("*.py") if "__pycache__" not in p.parts]
 
 
 def _referenced_keys() -> frozenset[str]:
@@ -225,9 +206,7 @@ def test_ftl_locales_have_no_orphaned_keys() -> None:
     keys = frozenset(_message_bodies(_REFERENCE_LOCALE))
     referenced = _referenced_keys()
 
-    dynamic = {
-        f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS
-    } | {
+    dynamic = {f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS} | {
         f"cat_{cmd.category.replace(' ', '_')}" for cmd in SYSTEM_COMMANDS
     }
 
@@ -238,13 +217,9 @@ def test_ftl_locales_have_no_orphaned_keys() -> None:
         f"delete them from every locale file."
     )
 
-    missing_cmd = sorted(
-        f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS if f"cmd_{cmd.name}" not in keys
-    )
+    missing_cmd = sorted(f"cmd_{cmd.name}" for cmd in SYSTEM_COMMANDS if f"cmd_{cmd.name}" not in keys)
     missing_cat = sorted(
-        f"cat_{cmd.category.replace(' ', '_')}"
-        for cmd in SYSTEM_COMMANDS
-        if f"cat_{cmd.category.replace(' ', '_')}" not in keys
+        f"cat_{cmd.category.replace(' ', '_')}" for cmd in SYSTEM_COMMANDS if f"cat_{cmd.category.replace(' ', '_')}" not in keys
     )
     assert not missing_cmd and not missing_cat, (
         f"Registered slash commands missing translations: "
@@ -358,5 +333,5 @@ def test_ftl_messages_never_render_bare_keys() -> None:
             assert rendered != key and rendered != "", (
                 f"[{locale}] `{key}` rendered to {rendered!r} with args "
                 f"{args}. Multiline patterns whose first line starts with `*` "
-                f"or `[` fail to parse; escape them as `{{ \"**\" }}`/`{{ \"[\" }}`."
+                f'or `[` fail to parse; escape them as `{{ "**" }}`/`{{ "[" }}`.'
             )

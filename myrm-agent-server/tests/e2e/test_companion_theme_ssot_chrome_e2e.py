@@ -75,9 +75,7 @@ def _wait_profile_snippet(profile_id: str, *, primary: str | None = None) -> str
 }})()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_appearance_preset_updates_workspace_primary_token() -> None:
@@ -132,9 +130,7 @@ def test_appearance_preset_updates_workspace_primary_token() -> None:
             assert isinstance(before, dict), before
             before_primary = str(before.get("primary") or "").lower()
 
-            click_state = client.evaluate(
-                page, _click_preset_snippet(_ROSE_LABELS), timeout_sec=30.0
-            )
+            click_state = client.evaluate(page, _click_preset_snippet(_ROSE_LABELS), timeout_sec=30.0)
             assert isinstance(click_state, dict), click_state
             assert click_state.get("ok") is True, click_state
 

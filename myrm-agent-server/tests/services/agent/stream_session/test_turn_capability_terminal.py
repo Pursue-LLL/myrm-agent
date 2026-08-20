@@ -25,36 +25,17 @@ def test_has_turn_capability_terminal_context_requires_structured_payload() -> N
     without_context = AgentRequest(message_id="msg-2", chat_id="chat-2")
 
     assert turn_capability_terminal.has_turn_capability_terminal_context(with_context)
-    assert not turn_capability_terminal.has_turn_capability_terminal_context(
-        without_context
-    )
+    assert not turn_capability_terminal.has_turn_capability_terminal_context(without_context)
 
 
 def test_classify_turn_capability_failure_reason_maps_core_cases() -> None:
+    assert turn_capability_terminal.classify_turn_capability_failure_reason(RuntimeError("network timeout")) == "network_error"
     assert (
-        turn_capability_terminal.classify_turn_capability_failure_reason(
-            RuntimeError("network timeout")
-        )
-        == "network_error"
-    )
-    assert (
-        turn_capability_terminal.classify_turn_capability_failure_reason(
-            ValueError("archive restore invalid arg")
-        )
+        turn_capability_terminal.classify_turn_capability_failure_reason(ValueError("archive restore invalid arg"))
         == "archive_restore_invalid"
     )
-    assert (
-        turn_capability_terminal.classify_turn_capability_failure_reason(
-            RuntimeError("HTTP status 503")
-        )
-        == "server_error"
-    )
-    assert (
-        turn_capability_terminal.classify_turn_capability_failure_reason(
-            asyncio.CancelledError()
-        )
-        == "abort"
-    )
+    assert turn_capability_terminal.classify_turn_capability_failure_reason(RuntimeError("HTTP status 503")) == "server_error"
+    assert turn_capability_terminal.classify_turn_capability_failure_reason(asyncio.CancelledError()) == "abort"
 
 
 @pytest.mark.asyncio
@@ -74,9 +55,7 @@ async def test_record_turn_capability_send_completed_serializes_effective_counts
         _fake_write,
     )
 
-    recorded = await turn_capability_terminal.record_turn_capability_send_completed(
-        request
-    )
+    recorded = await turn_capability_terminal.record_turn_capability_send_completed(request)
 
     assert recorded
     assert captured == {

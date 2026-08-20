@@ -60,9 +60,7 @@ async def test_list_merges_agent_and_shell() -> None:
             "app.api.background_tasks.router._list_agent_tasks",
             new_callable=AsyncMock,
         ) as mock_list_agent,
-        patch(
-            "app.api.background_tasks.router.list_shell_background_tasks"
-        ) as mock_list_shell,
+        patch("app.api.background_tasks.router.list_shell_background_tasks") as mock_list_shell,
         patch(
             "app.api.background_tasks.router.shell_registry_is_ephemeral",
             return_value=True,

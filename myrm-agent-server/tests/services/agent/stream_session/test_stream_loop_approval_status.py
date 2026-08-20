@@ -211,8 +211,10 @@ class TestApprovalStatusBroadcast:
                 pass
 
         assert published == [
-            "awaiting_approval", "generating",
-            "awaiting_approval", "generating",
+            "awaiting_approval",
+            "generating",
+            "awaiting_approval",
+            "generating",
         ]
 
     @pytest.mark.asyncio

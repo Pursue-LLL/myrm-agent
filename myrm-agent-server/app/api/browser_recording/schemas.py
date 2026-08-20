@@ -51,9 +51,7 @@ class GenerateSkillRequest(BaseModel):
     """Request to generate a Browser Skill from recorded steps."""
 
     session_id: str = Field(description="Recording session ID")
-    skill_name: str = Field(
-        description="Name for the generated skill", pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*$"
-    )
+    skill_name: str = Field(description="Name for the generated skill", pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*$")
     description: str = Field(default="", description="Optional description override")
 
 
@@ -65,6 +63,4 @@ class GenerateSkillResponse(BaseModel):
     description: str
     step_count: int
     credential_placeholders: list[str] = Field(default_factory=list)
-    skill_content: str = Field(
-        default="", description="Generated SKILL.md content for preview"
-    )
+    skill_content: str = Field(default="", description="Generated SKILL.md content for preview")

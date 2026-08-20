@@ -215,14 +215,16 @@ class TestFleetOverviewAPI:
         now = datetime.now(UTC)
         last_month = now.replace(day=1) - timedelta(days=1)
 
-        db_session.add(Chat(
-            id=str(uuid.uuid4()),
-            agent_id=AGENT_A,
-            total_tokens=9999,
-            total_usd=0.1,
-            total_calls=1,
-            created_at=last_month,
-        ))
+        db_session.add(
+            Chat(
+                id=str(uuid.uuid4()),
+                agent_id=AGENT_A,
+                total_tokens=9999,
+                total_usd=0.1,
+                total_calls=1,
+                created_at=last_month,
+            )
+        )
         await _seed_chats(db_session, AGENT_A, count=1, tokens=100)
 
         resp = client.get("/api/v1/agents/fleet-overview")
@@ -234,15 +236,17 @@ class TestFleetOverviewAPI:
     async def test_soft_deleted_chats_excluded(self, client: TestClient, db_session: AsyncSession) -> None:
         """Chats with deleted_at set must not appear in fleet stats."""
         now = datetime.now(UTC)
-        db_session.add(Chat(
-            id=str(uuid.uuid4()),
-            agent_id=AGENT_A,
-            total_tokens=5000,
-            total_usd=0.05,
-            total_calls=1,
-            created_at=now - timedelta(hours=2),
-            deleted_at=now - timedelta(hours=1),
-        ))
+        db_session.add(
+            Chat(
+                id=str(uuid.uuid4()),
+                agent_id=AGENT_A,
+                total_tokens=5000,
+                total_usd=0.05,
+                total_calls=1,
+                created_at=now - timedelta(hours=2),
+                deleted_at=now - timedelta(hours=1),
+            )
+        )
         await db_session.commit()
 
         resp = client.get("/api/v1/agents/fleet-overview")
@@ -292,9 +296,7 @@ class TestFleetOverviewAPI:
         async def _fake_review_by_agent(self) -> dict[str | None, int]:
             return {AGENT_A: 2, AGENT_B: 1}
 
-        monkeypatch.setattr(
-            KanbanService, "count_review_tasks_by_agent", _fake_review_by_agent
-        )
+        monkeypatch.setattr(KanbanService, "count_review_tasks_by_agent", _fake_review_by_agent)
 
         resp = client.get("/api/v1/agents/fleet-overview")
         assert resp.status_code == 200

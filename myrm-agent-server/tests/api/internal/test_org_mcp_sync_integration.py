@@ -55,15 +55,9 @@ def _cleanup_org_mcp_config() -> None:
 
     async def _remove() -> None:
         async with session_factory() as session:
-            row = (
-                await session.execute(
-                    select(UserConfig).where(UserConfig.config_key == "orgMcpServers")
-                )
-            ).scalar_one_or_none()
+            row = (await session.execute(select(UserConfig).where(UserConfig.config_key == "orgMcpServers"))).scalar_one_or_none()
             if row:
-                await session.execute(
-                    delete(UserConfig).where(UserConfig.config_key == "orgMcpServers")
-                )
+                await session.execute(delete(UserConfig).where(UserConfig.config_key == "orgMcpServers"))
                 await session.commit()
         invalidate_user_configs_cache()
 
@@ -164,9 +158,7 @@ async def test_org_mcp_sync_config_api_can_read_org_mcp() -> None:
         sync_app = build_minimal_app(register_handlers=False)
         sync_app.include_router(org_mcp_sync_router)
         sync_transport = httpx.ASGITransport(app=sync_app)
-        async with httpx.AsyncClient(
-            transport=sync_transport, base_url="http://test"
-        ) as sync_client:
+        async with httpx.AsyncClient(transport=sync_transport, base_url="http://test") as sync_client:
             resp = await sync_client.post(
                 "/api/admin/org-mcp-sync",
                 json={

@@ -28,9 +28,7 @@ from app.core.utils.git_worktree import _remove_worktree, _worktree_is_dirty
 logger = logging.getLogger(__name__)
 
 
-async def cleanup_worktree(
-    store: KanbanStore, task: KanbanTask, *, force: bool = False
-) -> bool:
+async def cleanup_worktree(store: KanbanStore, task: KanbanTask, *, force: bool = False) -> bool:
     """Remove a task's worktree, preserving any uncommitted agent edits.
 
     ``force=True`` (used after a successful merge) deletes unconditionally —
@@ -65,6 +63,4 @@ async def cleanup_worktree(
         )
         return False
 
-    return await _remove_worktree(
-        base_dir, path, context=f"kanban task {task.task_id[:8]}"
-    )
+    return await _remove_worktree(base_dir, path, context=f"kanban task {task.task_id[:8]}")

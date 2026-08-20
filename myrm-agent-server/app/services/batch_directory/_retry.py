@@ -40,9 +40,7 @@ if TYPE_CHECKING:
     from app.services.batch_directory.service import BatchDirectoryService
 
 
-async def retry_failed(
-    service: BatchDirectoryService, project_id: str
-) -> dict[str, object] | None:
+async def retry_failed(service: BatchDirectoryService, project_id: str) -> dict[str, object] | None:
     """Re-run every directory whose current task ended in failed/archived
     state, or completed without producing the required artifacts.
 
@@ -79,9 +77,7 @@ async def retry_failed(
     return base
 
 
-async def retry_task(
-    service: BatchDirectoryService, project_id: str, task_id: str
-) -> dict[str, object] | None:
+async def retry_task(service: BatchDirectoryService, project_id: str, task_id: str) -> dict[str, object] | None:
     """Re-run a single directory by fanning out a fresh task for it.
 
     Only the current (latest) task of a directory can be retried, and only
@@ -97,15 +93,11 @@ async def retry_task(
     latest = _latest_tasks_per_directory(tasks)
     target = next((t for t in latest if t.id == task_id), None)
     if target is None or not target.workspace_path:
-        raise ValueError(
-            f"Task {task_id} is not the current task of batch project {project_id}"
-        )
+        raise ValueError(f"Task {task_id} is not the current task of batch project {project_id}")
     if not _is_retryable_task(target):
         raise ValueError("Only failed or artifact-missing tasks can be retried")
 
-    created, errors = await _fan_out(
-        service, project_id, settings, [str(target.workspace_path)], tasks
-    )
+    created, errors = await _fan_out(service, project_id, settings, [str(target.workspace_path)], tasks)
     # 条件更新：并发取消优先，不把 cancelled 覆盖回 running。
     await _reopen_running(project_id, expected_status=settings.status)
     base = await service.get_project(project_id)
@@ -116,9 +108,7 @@ async def retry_task(
     return base
 
 
-async def rerun_project(
-    service: BatchDirectoryService, project_id: str
-) -> dict[str, object] | None:
+async def rerun_project(service: BatchDirectoryService, project_id: str) -> dict[str, object] | None:
     """Re-run every target directory (full rerun): fresh tasks are fanned out
     for all directories and the project reopens to ``running`` regardless of
     prior outcomes.
@@ -135,17 +125,11 @@ async def rerun_project(
     if not settings.directories:
         raise ValueError("Batch project has no target directories to rerun")
     if settings.status == "paused":
-        raise ValueError(
-            f"Batch project {project_id} is paused; resume it before rerunning"
-        )
+        raise ValueError(f"Batch project {project_id} is paused; resume it before rerunning")
     if settings.status not in _PROJECT_TERMINAL_STATUSES:
-        raise ValueError(
-            "Batch project is still running; wait for it to finish before rerunning"
-        )
+        raise ValueError("Batch project is still running; wait for it to finish before rerunning")
 
-    created, errors = await _fan_out(
-        service, project_id, settings, settings.directories, tasks
-    )
+    created, errors = await _fan_out(service, project_id, settings, settings.directories, tasks)
     # 条件更新：并发取消优先，不把 cancelled 覆盖回 running。
     await _reopen_running(project_id, expected_status=settings.status)
     base = await service.get_project(project_id)
@@ -194,11 +178,7 @@ def _next_attempt(tasks: list[KanbanTaskModel]) -> int:
 def _retryable_directories(tasks: list[KanbanTaskModel]) -> list[str]:
     """Workspace paths of directories whose current task can be retried."""
     latest = _latest_tasks_per_directory(tasks)
-    return [
-        str(t.workspace_path)
-        for t in latest
-        if t.workspace_path and _is_retryable_task(t)
-    ]
+    return [str(t.workspace_path) for t in latest if t.workspace_path and _is_retryable_task(t)]
 
 
 def _is_retryable_task(t: KanbanTaskModel) -> bool:
@@ -206,7 +186,4 @@ def _is_retryable_task(t: KanbanTaskModel) -> bool:
     archived, or completed without producing the required artifacts."""
     if t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value):
         return True
-    return (
-        t.status == TaskStatus.COMPLETED.value
-        and _artifact_status_for_task(t) == "missing"
-    )
+    return t.status == TaskStatus.COMPLETED.value and _artifact_status_for_task(t) == "missing"

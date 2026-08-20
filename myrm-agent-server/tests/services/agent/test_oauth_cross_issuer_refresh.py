@@ -55,9 +55,7 @@ def _decrypt_blob(row: UserConfig) -> dict[str, object]:
 @pytest.fixture
 async def setup_two_issuer_credentials():
     async with get_session() as db:
-        await db.execute(
-            delete(UserConfig).where(UserConfig.config_key == "oauthCredentials")
-        )
+        await db.execute(delete(UserConfig).where(UserConfig.config_key == "oauthCredentials"))
         await db.commit()
 
         service = get_encryption_service()
@@ -87,9 +85,7 @@ async def setup_two_issuer_credentials():
     _refresh_locks.clear()
     yield
     async with get_session() as db:
-        await db.execute(
-            delete(UserConfig).where(UserConfig.config_key == "oauthCredentials")
-        )
+        await db.execute(delete(UserConfig).where(UserConfig.config_key == "oauthCredentials"))
         await db.commit()
     _refresh_locks.clear()
 
@@ -135,17 +131,7 @@ async def test_concurrent_cross_issuer_refresh_preserves_both(
     assert cred_b.token == f"fresh_{ISSUER_B}"
 
     async with get_session() as db:
-        row = (
-            (
-                await db.execute(
-                    select(UserConfig).where(
-                        UserConfig.config_key == "oauthCredentials"
-                    )
-                )
-            )
-            .scalars()
-            .first()
-        )
+        row = (await db.execute(select(UserConfig).where(UserConfig.config_key == "oauthCredentials"))).scalars().first()
         assert row is not None
 
         val = _decrypt_blob(row)
@@ -184,17 +170,7 @@ async def test_refresh_does_not_resurrect_disconnected_issuer(
     assert cred.token == f"fresh_{ISSUER_A}"
 
     async with get_session() as db:
-        row = (
-            (
-                await db.execute(
-                    select(UserConfig).where(
-                        UserConfig.config_key == "oauthCredentials"
-                    )
-                )
-            )
-            .scalars()
-            .first()
-        )
+        row = (await db.execute(select(UserConfig).where(UserConfig.config_key == "oauthCredentials"))).scalars().first()
         assert row is not None
 
         val = _decrypt_blob(row)

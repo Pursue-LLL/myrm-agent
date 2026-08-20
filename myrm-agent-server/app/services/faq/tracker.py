@@ -62,9 +62,7 @@ class FaqHitTracker:
         """Return {total, hits, misses} counts for the corpus."""
 
         async def _query(session: AsyncSession) -> dict[str, int]:
-            total_q = await session.execute(
-                select(func.count()).where(FaqHitLog.corpus_id == corpus_id)
-            )
+            total_q = await session.execute(select(func.count()).where(FaqHitLog.corpus_id == corpus_id))
             total = total_q.scalar() or 0
 
             hits_q = await session.execute(
@@ -99,7 +97,4 @@ class FaqHitTracker:
                 .order_by(FaqHitLog.created_at.desc())
                 .limit(limit)
             )
-            return [
-                {"query": row.user_query, "top_score": row.top_score, "time": row.created_at.isoformat()}
-                for row in result
-            ]
+            return [{"query": row.user_query, "top_score": row.top_score, "time": row.created_at.isoformat()} for row in result]

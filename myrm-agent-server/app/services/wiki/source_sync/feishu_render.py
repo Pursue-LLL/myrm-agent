@@ -119,11 +119,7 @@ def feishu_docx_blocks_to_markdown(payload: dict[str, object]) -> str | None:
 
         if block_type == _BLOCK_ORDERED:
             block_id = block.get("block_id")
-            serial = (
-                ordered_serial.get(block_id)
-                if isinstance(block_id, str) and block_id in ordered_serial
-                else None
-            )
+            serial = ordered_serial.get(block_id) if isinstance(block_id, str) and block_id in ordered_serial else None
             if serial is None:
                 if not prev_was_ordered:
                     fallback_serial = 0
@@ -229,9 +225,7 @@ def _is_list_block(block: dict[str, object]) -> bool:
     return isinstance(block_type, int) and block_type in _LIST_BLOCK_TYPES
 
 
-def _assign_ordered_serials(
-    blocks: list[dict[str, object]], by_id: dict[str, dict[str, object]]
-) -> dict[str, int]:
+def _assign_ordered_serials(blocks: list[dict[str, object]], by_id: dict[str, dict[str, object]]) -> dict[str, int]:
     """Assign sequential numbers to ordered blocks within each list group.
 
     A list group is the set of consecutive ordered siblings under the same
@@ -243,9 +237,7 @@ def _assign_ordered_serials(
     by_parent: dict[str, list[dict[str, object]]] = {}
     for block in blocks:
         parent_id = block.get("parent_id")
-        key = (
-            str(parent_id) if isinstance(parent_id, str) and parent_id else _ROOT_PARENT
-        )
+        key = str(parent_id) if isinstance(parent_id, str) and parent_id else _ROOT_PARENT
         by_parent.setdefault(key, []).append(block)
 
     for key, siblings in by_parent.items():
@@ -254,11 +246,7 @@ def _assign_ordered_serials(
             parent = by_id.get(key)
             children = parent.get("children") if parent else None
             if isinstance(children, list):
-                child_map = {
-                    b.get("block_id"): b
-                    for b in siblings
-                    if isinstance(b.get("block_id"), str)
-                }
+                child_map = {b.get("block_id"): b for b in siblings if isinstance(b.get("block_id"), str)}
                 order = [child_map[c] for c in children if c in child_map]
         if not order:
             order = siblings
@@ -299,9 +287,7 @@ def _render_code_block(block: dict[str, object]) -> str:
         return ""
     lang = section.get("language", "")
     language = str(lang).strip() if isinstance(lang, str) else ""
-    code = "".join(
-        _plain_text(element) for element in _as_elements(section.get("elements"))
-    )
+    code = "".join(_plain_text(element) for element in _as_elements(section.get("elements")))
     # A fence must be longer than any backtick run inside the code, else the
     # code block terminates early (e.g. embedded markdown documents).
     max_run = max((len(m) for m in re.findall(r"`+", code)), default=0)

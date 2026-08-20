@@ -212,28 +212,47 @@ class TestMilestoneCRUD:
     async def test_batch_progress_returns_all_active_milestones(self, async_client: httpx.AsyncClient) -> None:
         project = await _create_project(async_client, "Batch Progress Test")
         ms1_resp = await async_client.post(
-            f"{PREFIX}/{project['id']}/milestones", json={"title": "Phase 1"},
+            f"{PREFIX}/{project['id']}/milestones",
+            json={"title": "Phase 1"},
         )
         ms1 = ms1_resp.json()["data"]["milestone"]
         ms2_resp = await async_client.post(
-            f"{PREFIX}/{project['id']}/milestones", json={"title": "Phase 2"},
+            f"{PREFIX}/{project['id']}/milestones",
+            json={"title": "Phase 2"},
         )
         ms2 = ms2_resp.json()["data"]["milestone"]
 
         board_id = f"batch_board_{uuid4().hex[:8]}"
         async with get_session() as db:
-            db.add(KanbanBoardModel(
-                id=board_id, name="B1", description="",
-                project_id=project["id"], milestone_id=ms1["id"],
-            ))
-            db.add(KanbanTaskModel(
-                id=f"bt1_{uuid4().hex[:8]}", board_id=board_id,
-                title="Done", description="", status="completed", priority="normal",
-            ))
-            db.add(KanbanTaskModel(
-                id=f"bt2_{uuid4().hex[:8]}", board_id=board_id,
-                title="Pending", description="", status="ready", priority="normal",
-            ))
+            db.add(
+                KanbanBoardModel(
+                    id=board_id,
+                    name="B1",
+                    description="",
+                    project_id=project["id"],
+                    milestone_id=ms1["id"],
+                )
+            )
+            db.add(
+                KanbanTaskModel(
+                    id=f"bt1_{uuid4().hex[:8]}",
+                    board_id=board_id,
+                    title="Done",
+                    description="",
+                    status="completed",
+                    priority="normal",
+                )
+            )
+            db.add(
+                KanbanTaskModel(
+                    id=f"bt2_{uuid4().hex[:8]}",
+                    board_id=board_id,
+                    title="Pending",
+                    description="",
+                    status="ready",
+                    priority="normal",
+                )
+            )
             await db.commit()
 
         resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/batch-progress")
@@ -255,11 +274,13 @@ class TestMilestoneCRUD:
     async def test_batch_progress_excludes_completed_milestones(self, async_client: httpx.AsyncClient) -> None:
         project = await _create_project(async_client, "Batch Exclude Completed")
         ms_resp = await async_client.post(
-            f"{PREFIX}/{project['id']}/milestones", json={"title": "Will Complete"},
+            f"{PREFIX}/{project['id']}/milestones",
+            json={"title": "Will Complete"},
         )
         ms = ms_resp.json()["data"]["milestone"]
         await async_client.put(
-            f"{PREFIX}/{project['id']}/milestones/{ms['id']}", json={"status": "completed"},
+            f"{PREFIX}/{project['id']}/milestones/{ms['id']}",
+            json={"status": "completed"},
         )
 
         resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/batch-progress")
@@ -278,32 +299,61 @@ class TestMilestoneCRUD:
     async def test_batch_progress_multiple_boards_per_milestone(self, async_client: httpx.AsyncClient) -> None:
         project = await _create_project(async_client, "Multi Board Test")
         ms_resp = await async_client.post(
-            f"{PREFIX}/{project['id']}/milestones", json={"title": "Multi Board"},
+            f"{PREFIX}/{project['id']}/milestones",
+            json={"title": "Multi Board"},
         )
         ms = ms_resp.json()["data"]["milestone"]
 
         uid = uuid4().hex[:6]
         async with get_session() as db:
-            db.add(KanbanBoardModel(
-                id=f"mb1_{uid}", name="Board A", description="",
-                project_id=project["id"], milestone_id=ms["id"],
-            ))
-            db.add(KanbanBoardModel(
-                id=f"mb2_{uid}", name="Board B", description="",
-                project_id=project["id"], milestone_id=ms["id"],
-            ))
-            db.add(KanbanTaskModel(
-                id=f"mt1_{uid}", board_id=f"mb1_{uid}",
-                title="A-done", description="", status="completed", priority="normal",
-            ))
-            db.add(KanbanTaskModel(
-                id=f"mt2_{uid}", board_id=f"mb2_{uid}",
-                title="B-done", description="", status="completed", priority="normal",
-            ))
-            db.add(KanbanTaskModel(
-                id=f"mt3_{uid}", board_id=f"mb2_{uid}",
-                title="B-pending", description="", status="ready", priority="normal",
-            ))
+            db.add(
+                KanbanBoardModel(
+                    id=f"mb1_{uid}",
+                    name="Board A",
+                    description="",
+                    project_id=project["id"],
+                    milestone_id=ms["id"],
+                )
+            )
+            db.add(
+                KanbanBoardModel(
+                    id=f"mb2_{uid}",
+                    name="Board B",
+                    description="",
+                    project_id=project["id"],
+                    milestone_id=ms["id"],
+                )
+            )
+            db.add(
+                KanbanTaskModel(
+                    id=f"mt1_{uid}",
+                    board_id=f"mb1_{uid}",
+                    title="A-done",
+                    description="",
+                    status="completed",
+                    priority="normal",
+                )
+            )
+            db.add(
+                KanbanTaskModel(
+                    id=f"mt2_{uid}",
+                    board_id=f"mb2_{uid}",
+                    title="B-done",
+                    description="",
+                    status="completed",
+                    priority="normal",
+                )
+            )
+            db.add(
+                KanbanTaskModel(
+                    id=f"mt3_{uid}",
+                    board_id=f"mb2_{uid}",
+                    title="B-pending",
+                    description="",
+                    status="ready",
+                    priority="normal",
+                )
+            )
             await db.commit()
 
         resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/batch-progress")
@@ -371,9 +421,7 @@ Phase two execution scope.
         assert len(imported) == 2
 
         for row in imported:
-            progress_resp = await async_client.get(
-                f"{PREFIX}/{project['id']}/milestones/{row['milestone_id']}/progress"
-            )
+            progress_resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones/{row['milestone_id']}/progress")
             assert progress_resp.status_code == 200
             progress = progress_resp.json()["data"]["progress"]
             assert progress["totalTasks"] == row["task_count"]
@@ -429,9 +477,7 @@ Phase two execution scope.
         )
         assert duplicate_resp.status_code == 409
         assert "already imported" in duplicate_resp.text.lower()
-        assert _error_issues_by_field(duplicate_resp, "import_reason") == [
-            "artifact_version_already_imported"
-        ]
+        assert _error_issues_by_field(duplicate_resp, "import_reason") == ["artifact_version_already_imported"]
 
         milestones_resp = await async_client.get(f"{PREFIX}/{project['id']}/milestones")
         assert milestones_resp.status_code == 200

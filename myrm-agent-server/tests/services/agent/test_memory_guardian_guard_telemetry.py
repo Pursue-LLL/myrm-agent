@@ -243,9 +243,7 @@ async def test_flush_failure_preserves_aggregates_for_retry() -> None:
     )
     dispatcher = MemoryGuardianGuardTelemetryDispatcher(config)
     dispatcher._client = MagicMock()
-    dispatcher._client.post = AsyncMock(
-        side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")]
-    )
+    dispatcher._client.post = AsyncMock(side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")])
 
     event = MemoryGuardianGuardTelemetryEvent(
         reason="budget_guard_unavailable",
@@ -283,9 +281,7 @@ async def test_shutdown_does_not_loop_forever_when_final_flush_fails() -> None:
     )
     dispatcher = MemoryGuardianGuardTelemetryDispatcher(config)
     dispatcher._client = MagicMock()
-    dispatcher._client.post = AsyncMock(
-        side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")]
-    )
+    dispatcher._client.post = AsyncMock(side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")])
     event = MemoryGuardianGuardTelemetryEvent(
         reason="budget_guard_unavailable",
         guard="budget",
@@ -342,9 +338,7 @@ async def test_flush_failure_persists_pending_envelopes(tmp_path: Path) -> None:
     )
     dispatcher = MemoryGuardianGuardTelemetryDispatcher(config)
     dispatcher._client = MagicMock()
-    dispatcher._client.post = AsyncMock(
-        side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")]
-    )
+    dispatcher._client.post = AsyncMock(side_effect=[httpx.ConnectError("offline"), httpx.ConnectError("offline")])
 
     event = MemoryGuardianGuardTelemetryEvent(
         reason="budget_guard_unavailable",
@@ -393,4 +387,3 @@ async def test_recovered_pending_envelopes_are_replayed(tmp_path: Path) -> None:
     payload = MemoryGuardianGuardBatchPayload.model_validate(dispatcher._client.post.await_args.kwargs["json"])
     assert payload.events[0].envelope_id == "mgg-recovered-1"
     assert payload.events[0].aggregates[0].count == 2
-

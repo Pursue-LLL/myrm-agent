@@ -70,11 +70,7 @@ class WebPushService:
 
         async with get_session() as session:
             existing = (
-                await session.execute(
-                    select(WebPushSubscription).where(
-                        WebPushSubscription.endpoint_hash == endpoint_hash
-                    )
-                )
+                await session.execute(select(WebPushSubscription).where(WebPushSubscription.endpoint_hash == endpoint_hash))
             ).scalar_one_or_none()
 
             if existing:
@@ -114,11 +110,7 @@ class WebPushService:
         endpoint_hash = self._hash_endpoint(endpoint)
 
         async with get_session() as session:
-            result = await session.execute(
-                delete(WebPushSubscription).where(
-                    WebPushSubscription.endpoint_hash == endpoint_hash
-                )
-            )
+            result = await session.execute(delete(WebPushSubscription).where(WebPushSubscription.endpoint_hash == endpoint_hash))
             await session.commit()
 
         deleted = result.rowcount > 0
@@ -223,11 +215,7 @@ class WebPushService:
 
         try:
             async with get_session() as session:
-                await session.execute(
-                    delete(WebPushSubscription).where(
-                        WebPushSubscription.endpoint_hash == endpoint_hash
-                    )
-                )
+                await session.execute(delete(WebPushSubscription).where(WebPushSubscription.endpoint_hash == endpoint_hash))
                 await session.commit()
         except Exception as exc:
             logger.warning("Failed to remove subscription %s: %s", endpoint_hash, exc)

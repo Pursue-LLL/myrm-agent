@@ -27,9 +27,7 @@ from app.services.copilot.run_digest_store import RunDigestStore
 
 router = APIRouter()
 
-_ASSISTANT_MARKDOWN = (
-    "Co-Pilot E2E fixture — tool stderr: connection refused on port 8080."
-)
+_ASSISTANT_MARKDOWN = "Co-Pilot E2E fixture — tool stderr: connection refused on port 8080."
 
 
 @router.post("/test/seed-copilot-fixture", include_in_schema=False)

@@ -117,12 +117,7 @@ async def _install_response_with_adoption(
 ) -> SkillInstallResponse:
     allowlist_appended = False
     allowlist_append_error = ""
-    if (
-        mount_result is not None
-        and mount_result.mounted
-        and mount_result.mount_skill_id
-        and mount_result.agent_id
-    ):
+    if mount_result is not None and mount_result.mounted and mount_result.mount_skill_id and mount_result.agent_id:
         adoption = await complete_discovery_adoption(
             mount_result.agent_id,
             mount_result.mount_skill_id,
@@ -172,9 +167,7 @@ async def search_skills(
         description="Search keywords (empty returns no results; user must enter a query)",
     ),
     limit: int = Query(30, ge=1, le=50, description="Max results"),
-    package_type: str = Query(
-        "all", description="Filter by package type: all | skill | agent_plugin"
-    ),
+    package_type: str = Query("all", description="Filter by package type: all | skill | agent_plugin"),
 ) -> SkillSearchResponse:
     """Search skills from external sources.
 
@@ -184,9 +177,7 @@ async def search_skills(
     await market_service.ensure_clawhub_registry()
     enriched = await market_service.search(q, limit)
     if package_type and package_type != "all":
-        enriched = [
-            e for e in enriched if getattr(e.result, "package_type", "skill") == package_type
-        ]
+        enriched = [e for e in enriched if getattr(e.result, "package_type", "skill") == package_type]
     installed_ids = await market_service.get_installed_local_ids_by_name()
     return SkillSearchResponse(
         results=[
@@ -227,9 +218,7 @@ async def preview_skill(
     Downloads the skill content and runs a security scan without installing.
     """
     try:
-        preview = await _discovery_framework(market_service).preview(
-            request.skill_id, request.source
-        )
+        preview = await _discovery_framework(market_service).preview(request.skill_id, request.source)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -265,9 +254,7 @@ async def install_skill(
     result = await market_service.install(request.skill_id, request.source)
     mount_result = None
     if result.success:
-        _audit_skill_action(
-            "install", result.skill_id or request.skill_id, source=request.source
-        )
+        _audit_skill_action("install", result.skill_id or request.skill_id, source=request.source)
         mount_result = await maybe_mount_after_install(
             result,
             agent_id=request.agent_id,
@@ -276,9 +263,7 @@ async def install_skill(
     return await _install_response_with_adoption(result, mount_result=mount_result)
 
 
-@router.get(
-    "/detail/{source}/{skill_id:path}", response_model=SkillSearchResultResponse | None
-)
+@router.get("/detail/{source}/{skill_id:path}", response_model=SkillSearchResultResponse | None)
 async def get_skill_detail(
     source: str,
     skill_id: str,
@@ -357,9 +342,7 @@ async def update_skill(
 
     mount_result = None
     if result.success:
-        _audit_skill_action(
-            "update", result.skill_id or request.skill_id, source=request.source
-        )
+        _audit_skill_action("update", result.skill_id or request.skill_id, source=request.source)
         mount_result = await maybe_mount_after_install(
             result,
             agent_id=None,
@@ -400,14 +383,13 @@ async def uninstall_skill(
         _audit_skill_action("uninstall", request.skill_id)
         try:
             from app.core.skills.config_version import bump_skill_config_version
+            from app.core.skills.discovery.adopt import remove_skill_from_all_agents
             from app.core.skills.store.service import skills_service
             from app.services.event.app_event_bus import (
                 AppEvent,
                 AppEventType,
                 get_event_bus,
             )
-
-            from app.core.skills.discovery.adopt import remove_skill_from_all_agents
 
             await skills_service.user_config.disable_local_skill(request.skill_id)
             cleaned_agents_count = await remove_skill_from_all_agents(request.skill_id)
@@ -472,9 +454,7 @@ async def install_skill_from_url(
     result = await market_service.install_from_url(request.url)
     mount_result = None
     if result.success:
-        _audit_skill_action(
-            "install_from_url", result.skill_id or request.url, source="github"
-        )
+        _audit_skill_action("install_from_url", result.skill_id or request.url, source="github")
         mount_result = await maybe_mount_after_install(
             result,
             agent_id=request.agent_id,
@@ -521,17 +501,13 @@ async def add_custom_source(
     )
 
     if request.source_type != "well-known":
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported source type: {request.source_type}"
-        )
+        raise HTTPException(status_code=400, detail=f"Unsupported source type: {request.source_type}")
 
     source = WellKnownSkillSource(request.url)
     reachable, skill_count = await source.probe()
 
     if not reachable:
-        raise HTTPException(
-            status_code=422, detail=f"Cannot reach source: {request.url}"
-        )
+        raise HTTPException(status_code=422, detail=f"Cannot reach source: {request.url}")
 
     try:
         _add_source(request.url, request.source_type, request.label or request.url)
@@ -540,9 +516,7 @@ async def add_custom_source(
 
     market_service._base.register_source(source)
 
-    return CustomSourceProbeResponse(
-        reachable=True, skill_count=skill_count, url=request.url
-    )
+    return CustomSourceProbeResponse(reachable=True, skill_count=skill_count, url=request.url)
 
 
 @router.delete("/sources")
@@ -612,4 +586,3 @@ async def sync_skill_pool(
         synced_agents=synced,
         failed_agents=failed,
     )
-

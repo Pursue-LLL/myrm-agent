@@ -81,9 +81,7 @@ _HOOK_RESYNC_JS = """(() => {
 
 def _probe_revert_changes_js(*, expect_empty: bool) -> str:
     ok_check = (
-        "res.ok && body === '[]'"
-        if expect_empty
-        else "res.ok && body.startsWith('[') && body.includes('revert_e2e_fixture.txt')"
+        "res.ok && body === '[]'" if expect_empty else "res.ok && body.startsWith('[') && body.includes('revert_e2e_fixture.txt')"
     )
     return f"""(() => {{
   return (async () => {{
@@ -138,9 +136,7 @@ def _http_json_with_retry(
         except (RuntimeError, urllib.error.URLError, TimeoutError, OSError) as exc:
             last_error = str(exc)
             time.sleep(0.5)
-    raise AssertionError(
-        f"HTTP {method} {url} failed after {timeout_sec}s: {last_error}"
-    )
+    raise AssertionError(f"HTTP {method} {url} failed after {timeout_sec}s: {last_error}")
 
 
 def _ensure_revert_changes_ready(
@@ -166,10 +162,7 @@ def _ensure_revert_changes_ready(
         except (RuntimeError, urllib.error.URLError, TimeoutError, OSError) as exc:
             last_error = str(exc)
         time.sleep(0.3)
-    raise AssertionError(
-        f"revert/changes not ready chat={chat_id} message={message_id} "
-        f"min_changes={min_changes}: {last_error}"
-    )
+    raise AssertionError(f"revert/changes not ready chat={chat_id} message={message_id} min_changes={min_changes}: {last_error}")
 
 
 def _wait_revert_changes_cleared(
@@ -191,15 +184,11 @@ def _wait_revert_changes_cleared(
         if last == []:
             return
         time.sleep(0.5)
-    raise AssertionError(
-        f"revert/changes still present chat={chat_id} message={message_id}: {last!r}"
-    )
+    raise AssertionError(f"revert/changes still present chat={chat_id} message={message_id}: {last!r}")
 
 
 def _seed_revert_fixture(api_url: str, *, variant: str = "modify") -> dict[str, object]:
-    seeded = http_json(
-        "POST", f"{api_url}/api/v1/chats/test/seed-revert-fixture?variant={variant}"
-    )
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-revert-fixture?variant={variant}")
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     message_id = str(seeded.get("message_id") or "")
@@ -245,9 +234,7 @@ def test_revert_files_undo_diff_confirm_flow() -> None:
         dismiss_blocking_modals(client, page)
 
         fetch_probe = client.evaluate(page, _PROBE_REVERT_FETCH_JS, timeout_sec=30.0)
-        assert (
-            isinstance(fetch_probe, dict) and fetch_probe.get("ok") is True
-        ), json.dumps(
+        assert isinstance(fetch_probe, dict) and fetch_probe.get("ok") is True, json.dumps(
             fetch_probe,
             ensure_ascii=False,
         )
@@ -255,18 +242,14 @@ def test_revert_files_undo_diff_confirm_flow() -> None:
         button = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0)
         assert button.get("ready") is True, json.dumps(button, ensure_ascii=False)
 
-        popover = client.evaluate(
-            page, _CLICK_UNDO_AND_WAIT_POPOVER_JS, timeout_sec=70.0
-        )
+        popover = client.evaluate(page, _CLICK_UNDO_AND_WAIT_POPOVER_JS, timeout_sec=70.0)
         assert isinstance(popover, dict) and popover.get("ready") is True, json.dumps(
             popover,
             ensure_ascii=False,
         )
 
         confirmed = client.evaluate(page, _CLICK_CONFIRM_JS, timeout_sec=10.0)
-        assert (
-            isinstance(confirmed, dict) and confirmed.get("clicked") is True
-        ), confirmed
+        assert isinstance(confirmed, dict) and confirmed.get("clicked") is True, confirmed
 
         success = wait_for_state(client, page, _SUCCESS_STATE_JS, timeout_sec=60.0)
         assert success.get("ready") is True, json.dumps(success, ensure_ascii=False)
@@ -383,25 +366,15 @@ def test_revert_files_large_skip_shows_non_revertible_toast() -> None:
             }})()""",
             timeout_sec=90.0,
         )
-        assert message_ready.get("ready") is True, json.dumps(
-            message_ready, ensure_ascii=False
-        )
+        assert message_ready.get("ready") is True, json.dumps(message_ready, ensure_ascii=False)
 
         dismiss_blocking_modals(client, page)
 
-        undo_ready = wait_for_state(
-            client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0
-        )
-        assert undo_ready.get("ready") is True, json.dumps(
-            undo_ready, ensure_ascii=False
-        )
+        undo_ready = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0)
+        assert undo_ready.get("ready") is True, json.dumps(undo_ready, ensure_ascii=False)
 
-        toast_state = client.evaluate(
-            page, _CLICK_UNDO_AND_WAIT_NON_REVERTIBLE_TOAST_JS, timeout_sec=60.0
-        )
-        assert (
-            isinstance(toast_state, dict) and toast_state.get("ready") is True
-        ), json.dumps(
+        toast_state = client.evaluate(page, _CLICK_UNDO_AND_WAIT_NON_REVERTIBLE_TOAST_JS, timeout_sec=60.0)
+        assert isinstance(toast_state, dict) and toast_state.get("ready") is True, json.dumps(
             toast_state,
             ensure_ascii=False,
         )
@@ -434,35 +407,21 @@ def test_revert_files_empty_changes_shows_toast_not_popover() -> None:
             }})()""",
             timeout_sec=90.0,
         )
-        assert message_ready.get("ready") is True, json.dumps(
-            message_ready, ensure_ascii=False
-        )
+        assert message_ready.get("ready") is True, json.dumps(message_ready, ensure_ascii=False)
 
         dismiss_blocking_modals(client, page)
 
-        empty_probe = client.evaluate(
-            page, _PROBE_REVERT_EMPTY_FETCH_JS, timeout_sec=30.0
-        )
-        assert (
-            isinstance(empty_probe, dict) and empty_probe.get("ok") is True
-        ), json.dumps(
+        empty_probe = client.evaluate(page, _PROBE_REVERT_EMPTY_FETCH_JS, timeout_sec=30.0)
+        assert isinstance(empty_probe, dict) and empty_probe.get("ok") is True, json.dumps(
             empty_probe,
             ensure_ascii=False,
         )
 
-        undo_ready = wait_for_state(
-            client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0
-        )
-        assert undo_ready.get("ready") is True, json.dumps(
-            undo_ready, ensure_ascii=False
-        )
+        undo_ready = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=30.0)
+        assert undo_ready.get("ready") is True, json.dumps(undo_ready, ensure_ascii=False)
 
-        toast_state = client.evaluate(
-            page, _CLICK_UNDO_AND_WAIT_EMPTY_TOAST_JS, timeout_sec=60.0
-        )
-        assert (
-            isinstance(toast_state, dict) and toast_state.get("ready") is True
-        ), json.dumps(
+        toast_state = client.evaluate(page, _CLICK_UNDO_AND_WAIT_EMPTY_TOAST_JS, timeout_sec=60.0)
+        assert isinstance(toast_state, dict) and toast_state.get("ready") is True, json.dumps(
             toast_state,
             ensure_ascii=False,
         )
@@ -521,9 +480,7 @@ def test_revert_files_undo_works_after_page_reload() -> None:
         dismiss_blocking_modals(client, page)
 
         fetch_probe = client.evaluate(page, _PROBE_REVERT_FETCH_JS, timeout_sec=30.0)
-        assert (
-            isinstance(fetch_probe, dict) and fetch_probe.get("ok") is True
-        ), json.dumps(
+        assert isinstance(fetch_probe, dict) and fetch_probe.get("ok") is True, json.dumps(
             fetch_probe,
             ensure_ascii=False,
         )
@@ -531,18 +488,14 @@ def test_revert_files_undo_works_after_page_reload() -> None:
         button = wait_for_state(client, page, _UNDO_BUTTON_READY_JS, timeout_sec=45.0)
         assert button.get("ready") is True, json.dumps(button, ensure_ascii=False)
 
-        popover = client.evaluate(
-            page, _CLICK_UNDO_AND_WAIT_POPOVER_JS, timeout_sec=70.0
-        )
+        popover = client.evaluate(page, _CLICK_UNDO_AND_WAIT_POPOVER_JS, timeout_sec=70.0)
         assert isinstance(popover, dict) and popover.get("ready") is True, json.dumps(
             popover,
             ensure_ascii=False,
         )
 
         confirmed = client.evaluate(page, _CLICK_CONFIRM_JS, timeout_sec=10.0)
-        assert (
-            isinstance(confirmed, dict) and confirmed.get("clicked") is True
-        ), confirmed
+        assert isinstance(confirmed, dict) and confirmed.get("clicked") is True, confirmed
 
         success = wait_for_state(client, page, _SUCCESS_STATE_JS, timeout_sec=60.0)
         assert success.get("ready") is True, json.dumps(success, ensure_ascii=False)
@@ -585,8 +538,7 @@ def _ensure_session_revert_ready(
             last_error = str(exc)
         time.sleep(0.3)
     raise AssertionError(
-        f"session revert/changes not ready chat={chat_id} "
-        f"min_revertible_files={min_revertible_files}: {last_error}"
+        f"session revert/changes not ready chat={chat_id} min_revertible_files={min_revertible_files}: {last_error}"
     )
 
 
@@ -602,14 +554,10 @@ def _wait_session_revert_cleared(
         last = http_json("GET", f"{api_url}/api/v1/files/revert/changes/{chat_id}")
         if last == {}:
             return
-        if isinstance(last, dict) and all(
-            isinstance(changes, list) and len(changes) == 0 for changes in last.values()
-        ):
+        if isinstance(last, dict) and all(isinstance(changes, list) and len(changes) == 0 for changes in last.values()):
             return
         time.sleep(0.5)
-    raise AssertionError(
-        f"session revert/changes still present chat={chat_id}: {last!r}"
-    )
+    raise AssertionError(f"session revert/changes still present chat={chat_id}: {last!r}")
 
 
 _SESSION_REVERT_BUTTON_READY_JS = """(() => {
@@ -685,9 +633,7 @@ def test_revert_session_button_restores_all_session_files() -> None:
 
         dismiss_blocking_modals(client, page)
 
-        button = wait_for_state(
-            client, page, _SESSION_REVERT_BUTTON_READY_JS, timeout_sec=30.0
-        )
+        button = wait_for_state(client, page, _SESSION_REVERT_BUTTON_READY_JS, timeout_sec=30.0)
         assert button.get("ready") is True, json.dumps(button, ensure_ascii=False)
 
         flow = client.evaluate(page, _CLICK_SESSION_REVERT_FLOW_JS, timeout_sec=70.0)

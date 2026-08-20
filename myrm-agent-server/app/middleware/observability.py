@@ -75,9 +75,7 @@ def _extract_session_id(path: str) -> str:
 class TracingMiddleware(BaseHTTPMiddleware):
     """Injects trace_id and session_id into TracingContext per request."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         trace_id = _parse_inbound_trace_id(request) or TracingContext.generate_trace_id()
         session_id = _extract_session_id(request.url.path)
 

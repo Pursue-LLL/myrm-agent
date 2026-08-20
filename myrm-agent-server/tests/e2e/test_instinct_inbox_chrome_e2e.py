@@ -41,9 +41,7 @@ _INBOX_STATE = """(() => {
 @pytest.mark.timeout(600)
 def test_instinct_inbox_renders_and_rejects_seeded_drafts() -> None:
     api_url = get_e2e_api_url()
-    seed_url = f"{api_url}/api/v1/skills/drafts/test/seed-mock?" + urllib.parse.urlencode(
-        {"agent_id": "builtin-general"}
-    )
+    seed_url = f"{api_url}/api/v1/skills/drafts/test/seed-mock?" + urllib.parse.urlencode({"agent_id": "builtin-general"})
     seeded = http_json("POST", seed_url)
     assert isinstance(seeded, dict)
     created_ids = seeded.get("created_ids")

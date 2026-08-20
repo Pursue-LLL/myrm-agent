@@ -147,9 +147,7 @@ class WikiIngestEventBus:
         self._subscribers.setdefault(scope_key, set()).add(queue)
         return queue
 
-    def unsubscribe(
-        self, scope_key: ScopeKey, queue: asyncio.Queue[dict[str, object]]
-    ) -> None:
+    def unsubscribe(self, scope_key: ScopeKey, queue: asyncio.Queue[dict[str, object]]) -> None:
         scope_subscribers = self._subscribers.get(scope_key)
         if not scope_subscribers:
             return
@@ -167,10 +165,7 @@ class WikiIngestEventBus:
     ) -> dict[str, object]:
         tree_fingerprint = build_wiki_tree_fingerprint(archiver)
         previous_tree_fingerprint = self._last_tree_fingerprint.get(scope_key)
-        tree_sync_required = (
-            previous_tree_fingerprint is not None
-            and tree_fingerprint != previous_tree_fingerprint
-        )
+        tree_sync_required = previous_tree_fingerprint is not None and tree_fingerprint != previous_tree_fingerprint
         self._last_tree_fingerprint[scope_key] = tree_fingerprint
         if tree_sync_required:
             from app.services.wiki.structural_stats_cache import (
@@ -233,9 +228,7 @@ class WikiIngestEventBus:
             state.archiver = archiver
             state.agent_id = agent_id
             state.poll_stop = asyncio.Event()
-            state.poll_task = asyncio.create_task(
-                self._scope_poll_loop(scope_key, state)
-            )
+            state.poll_task = asyncio.create_task(self._scope_poll_loop(scope_key, state))
 
     async def _release_scope_poll(self, scope_key: ScopeKey) -> None:
         state = self._scope_polls.get(scope_key)
@@ -251,18 +244,14 @@ class WikiIngestEventBus:
                 await state.poll_task
         self._scope_polls.pop(scope_key, None)
 
-    async def _scope_poll_loop(
-        self, scope_key: ScopeKey, state: _ScopePollState
-    ) -> None:
+    async def _scope_poll_loop(self, scope_key: ScopeKey, state: _ScopePollState) -> None:
         while not state.poll_stop.is_set():
             archiver = state.archiver
             if archiver is not None:
                 snapshot = self.prepare_snapshot(scope_key, archiver, state.agent_id)
                 await self.emit(scope_key, snapshot)
             try:
-                await asyncio.wait_for(
-                    state.poll_stop.wait(), timeout=self._poll_interval_seconds
-                )
+                await asyncio.wait_for(state.poll_stop.wait(), timeout=self._poll_interval_seconds)
             except TimeoutError:
                 continue
 

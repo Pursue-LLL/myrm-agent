@@ -72,9 +72,7 @@ async def seed_evicted_live_terminal_fixture(
 
     normalized = variant.strip().lower()
     if normalized not in {"full", "expired", "bash_failure"}:
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported evicted fixture variant: {variant}"
-        )
+        raise HTTPException(status_code=400, detail=f"Unsupported evicted fixture variant: {variant}")
 
     from myrm_agent_harness.api.hooks import build_evicted_basename
 
@@ -94,18 +92,10 @@ async def seed_evicted_live_terminal_fixture(
     if normalized == "bash_failure":
         stdout_filename = build_evicted_basename("output")
         stderr_filename = build_evicted_basename("output")
-        stdout_content = "".join(
-            f"MYRM_E2E_FAIL_STDOUT_LINE_{index}\n"
-            for index in range(_E2E_BASH_FAIL_STDOUT_LINES)
-        )
-        stderr_content = "".join(
-            f"MYRM_E2E_FAIL_STDERR_LINE_{index}\n"
-            for index in range(_E2E_BASH_FAIL_STDERR_LINES)
-        )
+        stdout_content = "".join(f"MYRM_E2E_FAIL_STDOUT_LINE_{index}\n" for index in range(_E2E_BASH_FAIL_STDOUT_LINES))
+        stderr_content = "".join(f"MYRM_E2E_FAIL_STDERR_LINE_{index}\n" for index in range(_E2E_BASH_FAIL_STDERR_LINES))
 
-        workspace_dir = await resolve_default_chat_workspace_dir(
-            chat_id, persist_workspace=True
-        )
+        workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
         if not workspace_dir:
             raise HTTPException(
                 status_code=500,
@@ -116,21 +106,13 @@ async def seed_evicted_live_terminal_fixture(
         for root in write_roots:
             evicted_dir = root / ".context" / chat_id / "evicted"
             evicted_dir.mkdir(parents=True, exist_ok=True)
-            (evicted_dir / stdout_filename).write_text(
-                stdout_content, encoding="utf-8"
-            )
-            (evicted_dir / stderr_filename).write_text(
-                stderr_content, encoding="utf-8"
-            )
+            (evicted_dir / stdout_filename).write_text(stdout_content, encoding="utf-8")
+            (evicted_dir / stderr_filename).write_text(stderr_content, encoding="utf-8")
     else:
         filename = build_evicted_basename("web_fetch", ext="md")
-        content = "".join(
-            f"MYRM_E2E_UECD_SPILL_LINE_{index}\n" for index in range(_UECD_E2E_LINE_COUNT)
-        )
+        content = "".join(f"MYRM_E2E_UECD_SPILL_LINE_{index}\n" for index in range(_UECD_E2E_LINE_COUNT))
 
-        workspace_dir = await resolve_default_chat_workspace_dir(
-            chat_id, persist_workspace=True
-        )
+        workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
         if not workspace_dir:
             raise HTTPException(
                 status_code=500,
@@ -164,10 +146,7 @@ async def seed_evicted_live_terminal_fixture(
         assert stdout_filename is not None and stderr_filename is not None
         stdout_preview = (
             "[LARGE OUTPUT TRUNCATED (150 lines, ~500 tokens)]\n\n"
-            + "".join(
-                f"MYRM_E2E_FAIL_STDOUT_LINE_{index}\n"
-                for index in range(min(40, _E2E_BASH_FAIL_STDOUT_LINES))
-            )
+            + "".join(f"MYRM_E2E_FAIL_STDOUT_LINE_{index}\n" for index in range(min(40, _E2E_BASH_FAIL_STDOUT_LINES)))
             + "\n\n[Truncated: showing head/tail preview only]"
         )
         extra_data: dict[str, object] = {
@@ -181,19 +160,13 @@ async def seed_evicted_live_terminal_fixture(
                     "evicted_stored_chars": 150 * len("MYRM_E2E_FAIL_STDOUT_LINE_99\n"),
                     "evicted_total_lines": _E2E_BASH_FAIL_STDOUT_LINES,
                     "evicted_stderr_file_ref": stderr_filename,
-                    "evicted_stderr_stored_chars": (
-                        120 * len("MYRM_E2E_FAIL_STDERR_LINE_99\n")
-                    ),
+                    "evicted_stderr_stored_chars": (120 * len("MYRM_E2E_FAIL_STDERR_LINE_99\n")),
                     "evicted_stderr_total_lines": _E2E_BASH_FAIL_STDERR_LINES,
                 }
             ]
         }
-        marker_stdout = (
-            f"MYRM_E2E_FAIL_STDOUT_LINE_{_E2E_BASH_FAIL_STDOUT_MARKER}"
-        )
-        marker_stderr = (
-            f"MYRM_E2E_FAIL_STDERR_LINE_{_E2E_BASH_FAIL_STDERR_MARKER}"
-        )
+        marker_stdout = f"MYRM_E2E_FAIL_STDOUT_LINE_{_E2E_BASH_FAIL_STDOUT_MARKER}"
+        marker_stderr = f"MYRM_E2E_FAIL_STDERR_LINE_{_E2E_BASH_FAIL_STDERR_MARKER}"
     else:
         preview_stdout = (
             "[LARGE OUTPUT TRUNCATED (120 lines, ~500 tokens)]\n\n"

@@ -124,8 +124,7 @@ class TestEngineLimitE2E:
 
             limit_reached_event = _extract_engine_limit_event(collected_data)
             assert limit_reached_event is not None, (
-                "ENGINE_LIMIT_REACHED event should be emitted; "
-                f"got event types: {[d.get('type') for d in collected_data]}"
+                f"ENGINE_LIMIT_REACHED event should be emitted; got event types: {[d.get('type') for d in collected_data]}"
             )
             assert limit_reached_event["data"]["limit_type"] == "max_tool_calls"
 

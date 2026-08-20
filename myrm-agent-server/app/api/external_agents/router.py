@@ -33,12 +33,8 @@ router = APIRouter()
 
 
 class ExternalAgentLoginRequest(BaseModel):
-    command: str = Field(
-        ..., min_length=1, description="Executable command or path of the CLI"
-    )
-    backend: str | None = Field(
-        default=None, description="Backend key; inferred from command if omitted"
-    )
+    command: str = Field(..., min_length=1, description="Executable command or path of the CLI")
+    backend: str | None = Field(default=None, description="Backend key; inferred from command if omitted")
     session_id: str = Field(..., alias="sessionId", min_length=1, max_length=128)
     timeout_seconds: int = Field(default=300, alias="timeoutSeconds", ge=30, le=1800)
 
@@ -47,9 +43,7 @@ class ExternalAgentLoginRequest(BaseModel):
 
 
 class ExternalAgentFeedRequest(BaseModel):
-    text: str = Field(
-        ..., description="Line fed to the login process stdin (e.g. a pasted auth code)"
-    )
+    text: str = Field(..., description="Line fed to the login process stdin (e.g. a pasted auth code)")
 
 
 class ExternalAgentImportRequest(BaseModel):
@@ -92,9 +86,7 @@ async def external_agent_auth_status() -> dict[str, object]:
     from myrm_agent_harness.toolkits.acp.core.backend_detector import BackendDetector
 
     detector = BackendDetector()
-    detected = {
-        b.name: b for b in await detector.detect(include_version=True, refresh=True)
-    }
+    detected = {b.name: b for b in await detector.detect(include_version=True, refresh=True)}
     store = CredentialStore()
 
     backends: list[dict[str, object]] = []
@@ -169,9 +161,7 @@ async def external_agent_auth_login(
             detail=f"Unknown external agent backend: {body.backend or body.command}",
         )
 
-    session = CliLoginSession(
-        body.command, profile, timeout_seconds=body.timeout_seconds
-    )
+    session = CliLoginSession(body.command, profile, timeout_seconds=body.timeout_seconds)
     _login_registry.add(body.session_id, session)
 
     async def event_stream() -> AsyncIterator[str]:
@@ -186,9 +176,7 @@ async def external_agent_auth_login(
                 if event.code:
                     payload["code"] = event.code
                 yield f"data: {json.dumps(payload)}\n\n"
-        except (
-            Exception
-        ) as exc:  # pragma: no cover - defensive: never leak a raw 500 into the stream
+        except Exception as exc:  # pragma: no cover - defensive: never leak a raw 500 into the stream
             logger.warning(
                 "external_agent_login_stream_error backend=%s error=%s",
                 profile.backend,
@@ -207,9 +195,7 @@ async def external_agent_auth_login(
 
 
 @router.post("/auth/login/{session_id}/feed")
-async def external_agent_auth_feed(
-    session_id: str, body: ExternalAgentFeedRequest
-) -> dict[str, bool]:
+async def external_agent_auth_feed(session_id: str, body: ExternalAgentFeedRequest) -> dict[str, bool]:
     """Forward a user-supplied line (e.g. a pasted auth code) to a live login session."""
     from myrm_agent_harness.toolkits.acp.auth import CliLoginSession
 
@@ -229,9 +215,7 @@ async def external_agent_auth_import(
 
     store = CredentialStore()
     try:
-        state = store.import_credential(
-            body.backend, body.content, filename=body.filename
-        )
+        state = store.import_credential(body.backend, body.content, filename=body.filename)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {

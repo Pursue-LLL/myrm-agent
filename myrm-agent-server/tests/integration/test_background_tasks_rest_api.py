@@ -118,9 +118,7 @@ async def test_rest_list_and_get_shell_task(tmp_path: Path) -> None:
         list_payload = list_resp.json()
         assert list_payload.get("registry_ephemeral") is False
         tasks = list_payload["tasks"]
-        shell_rows = [
-            t for t in tasks if t.get("kind") == "shell" and t.get("pid") == pid
-        ]
+        shell_rows = [t for t in tasks if t.get("kind") == "shell" and t.get("pid") == pid]
         assert len(shell_rows) == 1
         row = shell_rows[0]
         assert row["task_id"] == f"shell:{row['job_id']}"
@@ -147,9 +145,7 @@ async def test_rest_cancel_shell_task(tmp_path: Path) -> None:
 
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        cancel_resp = await client.post(
-            f"/api/v1/background-tasks/shell:{job_id}/cancel"
-        )
+        cancel_resp = await client.post(f"/api/v1/background-tasks/shell:{job_id}/cancel")
         assert cancel_resp.status_code == 200
         assert cancel_resp.json()["task_id"] == f"shell:{job_id}"
 
@@ -161,11 +157,7 @@ async def test_rest_cancel_shell_task(tmp_path: Path) -> None:
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         list_resp = await client.get("/api/v1/background-tasks")
-        shell_rows = [
-            t
-            for t in list_resp.json()["tasks"]
-            if t.get("kind") == "shell" and t.get("pid") == pid
-        ]
+        shell_rows = [t for t in list_resp.json()["tasks"] if t.get("kind") == "shell" and t.get("pid") == pid]
         assert shell_rows
         assert shell_rows[0]["status"] == "cancelled"
 
@@ -187,12 +179,8 @@ async def test_rest_shell_steer_rejected() -> None:
 async def test_rest_invalid_shell_id_returns_404() -> None:
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
-        assert (
-            await client.get("/api/v1/background-tasks/shell:not-a-pid")
-        ).status_code == 404
-        assert (
-            await client.get("/api/v1/background-tasks/shell:99999999")
-        ).status_code == 404
+        assert (await client.get("/api/v1/background-tasks/shell:not-a-pid")).status_code == 404
+        assert (await client.get("/api/v1/background-tasks/shell:99999999")).status_code == 404
 
 
 @pytest.mark.integration
@@ -231,9 +219,7 @@ def _stdin_echo_cmd() -> str:
     )
 
 
-async def _wait_stdout_tail_contains(
-    pid: int, needle: str, *, timeout_sec: float = 10.0
-) -> None:
+async def _wait_stdout_tail_contains(pid: int, needle: str, *, timeout_sec: float = 10.0) -> None:
     import time as time_mod
 
     deadline = time_mod.monotonic() + timeout_sec
@@ -247,10 +233,7 @@ async def _wait_stdout_tail_contains(
     final_info = get_background_registry().get(pid)
     final_tail = final_info.last_stdout_tail if final_info else None
     final_status = final_info.status if final_info else "entry_gone"
-    raise AssertionError(
-        f"stdout tail never contained {needle!r} for pid={pid}; "
-        f"status={final_status}; tail={final_tail!r}"
-    )
+    raise AssertionError(f"stdout tail never contained {needle!r} for pid={pid}; status={final_status}; tail={final_tail!r}")
 
 
 @pytest.mark.integration
@@ -281,11 +264,7 @@ async def test_rest_shell_stdin_write_echo(tmp_path: Path) -> None:
     transport = ASGITransport(app=_build_rest_app())
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         list_resp = await client.get("/api/v1/background-tasks")
-        shell_rows = [
-            t
-            for t in list_resp.json()["tasks"]
-            if t.get("kind") == "shell" and t.get("pid") == pid
-        ]
+        shell_rows = [t for t in list_resp.json()["tasks"] if t.get("kind") == "shell" and t.get("pid") == pid]
         assert shell_rows
         preview = shell_rows[0].get("result_preview") or ""
         assert "MYRM_STDIN_ECHO:hello" in preview

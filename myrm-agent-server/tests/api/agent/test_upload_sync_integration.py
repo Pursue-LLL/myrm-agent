@@ -82,7 +82,9 @@ class TestUploadSyncIntegration:
 
         svc = _make_service(storage_root)
         content = b"x" * (_SYNC_THRESHOLD_BYTES + 100)
-        uploaded = await svc.upload_file("dataset.xlsx", content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        uploaded = await svc.upload_file(
+            "dataset.xlsx", content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
         from unittest.mock import patch
 
@@ -111,9 +113,7 @@ class TestUploadSyncIntegration:
         from unittest.mock import patch
 
         with patch("app.core.storage.files_service", svc):
-            synced = await sync_uploaded_files_to_workspace(
-                [small.id, big1.id, big2.id], workspace_dir
-            )
+            synced = await sync_uploaded_files_to_workspace([small.id, big1.id, big2.id], workspace_dir)
 
         assert len(synced) == 2
         names = {s[0] for s in synced}

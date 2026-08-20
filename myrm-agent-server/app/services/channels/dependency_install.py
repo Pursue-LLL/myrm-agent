@@ -127,9 +127,7 @@ def install_channel_dependencies(channel_name: str, issues: list[ChannelIssue]) 
 
 def ensure_channel_dependencies_ready(channel_name: str, issues: list[ChannelIssue]) -> tuple[bool, str]:
     """Ensure optional deps are present before enabling a channel (no-op if already satisfied)."""
-    blocking = any(
-        issue.kind == IssueKind.DEPENDENCY and issue.severity == IssueSeverity.ERROR for issue in issues
-    )
+    blocking = any(issue.kind == IssueKind.DEPENDENCY and issue.severity == IssueSeverity.ERROR for issue in issues)
     if not blocking:
         return True, ""
     features = _resolve_lazy_features(channel_name, issues)

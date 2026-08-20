@@ -132,9 +132,7 @@ def test_assert_chrome_attach_health_raises_when_probe_fails(
             {"returncode": 1, "stderr": "mux not ready", "stdout": ""},
         )(),
     )
-    with pytest.raises(
-        RuntimeError, match="CHROME_E2E_ATTACH_NOT_READY: mux not ready"
-    ):
+    with pytest.raises(RuntimeError, match="CHROME_E2E_ATTACH_NOT_READY: mux not ready"):
         assert_chrome_attach_health()
 
 
@@ -153,9 +151,7 @@ def test_reap_chrome_e2e_session_hygiene_is_heartbeat_only(
     )
     monkeypatch.setattr(
         "tests.support.e2e_runtime_guard.subprocess.run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("subprocess.run must not be called")
-        ),
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("subprocess.run must not be called")),
     )
     reap_chrome_e2e_session_hygiene()
     assert heartbeat_calls == 1
@@ -205,9 +201,7 @@ def _write_state(
                         "lane": lane,
                         "runtimeId": runtime_id,
                         "status": "active",
-                        "expiresAt": (
-                            datetime.now(UTC) + timedelta(minutes=5)
-                        ).isoformat(),
+                        "expiresAt": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
                     }
                 ],
                 "resources": [],
@@ -320,9 +314,7 @@ def test_private_backend_reads_shared_wave_state(
                         "lane": "LIVE_AGENT",
                         "runtimeId": "runtime-1",
                         "status": "active",
-                        "expiresAt": (
-                            datetime.now(UTC) + timedelta(minutes=5)
-                        ).isoformat(),
+                        "expiresAt": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
                     }
                 ],
                 "resources": [],
@@ -427,9 +419,7 @@ def test_formal_chrome_e2e_auto_heals_stale_lease_on_runtime_drift(
     )
     monkeypatch.setattr(
         "tests.support.e2e_runtime_guard.subprocess.run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("P0-A: subprocess.run must not be called for wave reap")
-        ),
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("P0-A: subprocess.run must not be called for wave reap")),
     )
     monkeypatch.setattr(
         "tests.support.e2e_runtime_guard._shared_hot_stack_runtime_id",
@@ -470,9 +460,7 @@ def test_snapshot_live_e2e_processes_reads_session_registry(
     stream_lock = tmp_path / "myrm-live-agent-stream.lock"
     desktop_lock = tmp_path / "myrm-desktop-approval-e2e.lock"
     write_holder = tmp_path / "myrm-live-agent-stream.lock.holder"
-    write_holder.write_text(
-        f"{os.getpid()}:tests/e2e/holder.py::test_holder\n", encoding="utf-8"
-    )
+    write_holder.write_text(f"{os.getpid()}:tests/e2e/holder.py::test_holder\n", encoding="utf-8")
 
     session_dir = tmp_path / "myrm-e2e-session"
     session_dir.mkdir()

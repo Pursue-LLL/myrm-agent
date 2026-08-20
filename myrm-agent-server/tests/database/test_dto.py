@@ -125,15 +125,11 @@ class TestCommandBindingConfig:
         assert cfg.instruction == ""
 
     def test_legacy_skill_id_migrated(self) -> None:
-        cfg = CommandBindingConfig.model_validate(
-            {"command_name": "report", "skill_id": "daily_report_skill"}
-        )
+        cfg = CommandBindingConfig.model_validate({"command_name": "report", "skill_id": "daily_report_skill"})
         assert cfg.skill_ids == ["daily_report_skill"]
 
     def test_legacy_empty_skill_id(self) -> None:
-        cfg = CommandBindingConfig.model_validate(
-            {"command_name": "noop", "skill_id": ""}
-        )
+        cfg = CommandBindingConfig.model_validate({"command_name": "noop", "skill_id": ""})
         assert cfg.skill_ids == []
 
     def test_skill_ids_takes_precedence_over_skill_id(self) -> None:
@@ -175,15 +171,11 @@ class TestCommandBindingConfig:
         assert restored.instruction == cfg.instruction
 
     def test_legacy_skill_id_ignored_when_skill_ids_present(self) -> None:
-        cfg = CommandBindingConfig.model_validate(
-            {"command_name": "x", "skill_id": "old", "skill_ids": ["a", "b"]}
-        )
+        cfg = CommandBindingConfig.model_validate({"command_name": "x", "skill_id": "old", "skill_ids": ["a", "b"]})
         assert cfg.skill_ids == ["a", "b"]
 
     def test_legacy_none_skill_id(self) -> None:
-        cfg = CommandBindingConfig.model_validate(
-            {"command_name": "x", "skill_id": None}
-        )
+        cfg = CommandBindingConfig.model_validate({"command_name": "x", "skill_id": None})
         assert cfg.skill_ids == []
 
     def test_command_name_max_length(self) -> None:

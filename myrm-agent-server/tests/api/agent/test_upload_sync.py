@@ -121,7 +121,6 @@ class TestSyncUploadedFilesToWorkspace:
         assert os.path.isfile(os.path.join(workspace, "_uploaded", "report.csv"))
         assert os.path.isfile(os.path.join(workspace, rel_path))
 
-
     @pytest.mark.asyncio
     async def test_respects_budget_limit(self):
         """Files that would exceed 50 MB budget should be skipped."""
@@ -163,9 +162,7 @@ class TestSyncUploadedFilesToWorkspace:
         mock_svc.get_file_content_by_path = mock_get_content
         workspace = tempfile.mkdtemp()
         with patch("app.core.storage.files_service", mock_svc):
-            result = await sync_uploaded_files_to_workspace(
-                ["file_fit", "file_over"], workspace
-            )
+            result = await sync_uploaded_files_to_workspace(["file_fit", "file_over"], workspace)
 
         assert len(result) == 1
         assert result[0][0] == "fit.bin"

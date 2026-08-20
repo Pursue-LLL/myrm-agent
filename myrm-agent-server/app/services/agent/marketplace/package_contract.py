@@ -116,9 +116,7 @@ class MarketplacePackageTrust(BaseModel):
             )
         )
         if any_present and not all_present:
-            raise ValueError(
-                "trust.transport_signer/transport_algorithm/transport_signature must be provided together"
-            )
+            raise ValueError("trust.transport_signer/transport_algorithm/transport_signature must be provided together")
         return self
 
 
@@ -208,9 +206,7 @@ class MarketplaceAgentProfileContract(BaseModel):
 
     @field_validator("mcp_tool_selections")
     @classmethod
-    def validate_mcp_tool_selections(
-        cls, value: dict[str, list[str]] | None
-    ) -> dict[str, list[str]] | None:
+    def validate_mcp_tool_selections(cls, value: dict[str, list[str]] | None) -> dict[str, list[str]] | None:
         if value is None:
             return None
         normalized: dict[str, list[str]] = {}
@@ -306,9 +302,7 @@ class MarketplaceBundledSkillContract(BaseModel):
                 raise ValueError(f"resources['{raw_path}'] content must be a string")
             normalized_path = _validate_resource_path(raw_path)
             if normalized_path in normalized:
-                raise ValueError(
-                    f"resources contains duplicate normalized path '{normalized_path}'"
-                )
+                raise ValueError(f"resources contains duplicate normalized path '{normalized_path}'")
             normalized[normalized_path] = content
         return normalized
 
@@ -342,18 +336,10 @@ class MarketplacePackageContract(BaseModel):
 
     @model_validator(mode="after")
     def validate_uniqueness(self) -> "MarketplacePackageContract":
-        self._validate_unique(
-            [skill.id for skill in self.bundled_skills], "bundled_skills.id"
-        )
-        self._validate_unique(
-            [skill.name for skill in self.bundled_skills], "bundled_skills.name"
-        )
-        self._validate_unique(
-            [sub.original_id for sub in self.bundled_subagents], "bundled_subagents.original_id"
-        )
-        self._validate_unique(
-            [mcp.original_id for mcp in self.bundled_mcp_configs], "bundled_mcp_configs.original_id"
-        )
+        self._validate_unique([skill.id for skill in self.bundled_skills], "bundled_skills.id")
+        self._validate_unique([skill.name for skill in self.bundled_skills], "bundled_skills.name")
+        self._validate_unique([sub.original_id for sub in self.bundled_subagents], "bundled_subagents.original_id")
+        self._validate_unique([mcp.original_id for mcp in self.bundled_mcp_configs], "bundled_mcp_configs.original_id")
         return self
 
     @staticmethod
@@ -393,9 +379,7 @@ def compute_marketplace_transport_signature(
     algorithm: str = MARKETPLACE_TRANSPORT_ALGORITHM,
 ) -> str:
     """Compute transport-level signature over payload digest."""
-    normalized_secret = _strip_and_require(
-        transport_secret, "transport_secret"
-    )
+    normalized_secret = _strip_and_require(transport_secret, "transport_secret")
     signing_message = f"{signer}:{algorithm}:{payload_sha256}"
     return hmac.new(
         normalized_secret.encode("utf-8"),
@@ -449,9 +433,7 @@ def apply_marketplace_transport_signature(
 ) -> dict[str, object]:
     """Attach transport-level signature to a validated package."""
     normalized_signer = _strip_or_none(signer, "trust.transport_signer")
-    normalized_algorithm = _strip_or_none(
-        algorithm, "trust.transport_algorithm"
-    )
+    normalized_algorithm = _strip_or_none(algorithm, "trust.transport_algorithm")
     if normalized_signer is None or normalized_algorithm is None:
         raise ValueError("transport signer and algorithm are required")
 
@@ -489,27 +471,17 @@ def validate_marketplace_package(
         or validated.trust.transport_signature is not None
     )
     if require_transport_signature and not has_transport_signature:
-        raise ValueError(
-            "Marketplace package transport trust check failed (missing transport signature)"
-        )
+        raise ValueError("Marketplace package transport trust check failed (missing transport signature)")
 
     if has_transport_signature:
         if transport_secret is None or not transport_secret.strip():
-            raise ValueError(
-                "Marketplace package transport trust check failed (transport secret is not configured)"
-            )
+            raise ValueError("Marketplace package transport trust check failed (transport secret is not configured)")
         if validated.trust.transport_signer != MARKETPLACE_TRANSPORT_SIGNER:
-            raise ValueError(
-                "Marketplace package transport trust check failed (unexpected transport signer)"
-            )
+            raise ValueError("Marketplace package transport trust check failed (unexpected transport signer)")
         if validated.trust.transport_algorithm != MARKETPLACE_TRANSPORT_ALGORITHM:
-            raise ValueError(
-                "Marketplace package transport trust check failed (unexpected transport algorithm)"
-            )
+            raise ValueError("Marketplace package transport trust check failed (unexpected transport algorithm)")
         if validated.trust.transport_signature is None:
-            raise ValueError(
-                "Marketplace package transport trust check failed (missing transport signature digest)"
-            )
+            raise ValueError("Marketplace package transport trust check failed (missing transport signature digest)")
         expected_transport_signature = compute_marketplace_transport_signature(
             payload_sha256=validated.trust.payload_sha256,
             transport_secret=transport_secret,
@@ -520,9 +492,7 @@ def validate_marketplace_package(
             expected_transport_signature,
             validated.trust.transport_signature,
         ):
-            raise ValueError(
-                "Marketplace package transport trust check failed (signature mismatch)"
-            )
+            raise ValueError("Marketplace package transport trust check failed (signature mismatch)")
 
     return validated
 

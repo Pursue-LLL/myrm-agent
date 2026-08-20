@@ -12,12 +12,7 @@ from app.channels.providers.telegram.inbound import TelegramInboundMixin
 from app.channels.providers.telegram.topics import TelegramTopicsMixin
 
 _TELEGRAM_INBOUND_PATH = (
-    Path(__file__).resolve().parent.parent.parent
-    / "app"
-    / "channels"
-    / "providers"
-    / "telegram"
-    / "inbound.py"
+    Path(__file__).resolve().parent.parent.parent / "app" / "channels" / "providers" / "telegram" / "inbound.py"
 )
 
 

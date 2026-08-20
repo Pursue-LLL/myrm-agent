@@ -93,11 +93,7 @@ def _create_editable_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -113,9 +109,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_planning_builtin_card_visible_and_togglable_in_chrome_ui() -> None:
@@ -149,31 +143,19 @@ def test_planning_builtin_card_visible_and_togglable_in_chrome_ui() -> None:
             )
             opened = client.evaluate(page, _OPEN_BUILTIN_DIALOG_JS, timeout_sec=15.0)
             assert isinstance(opened, dict)
-            assert (
-                opened.get("clicked") is True
-            ), f"Built-in Tools card not found: {opened}"
+            assert opened.get("clicked") is True, f"Built-in Tools card not found: {opened}"
 
             wait_for_state(client, page, _PLANNING_DIALOG_READY_JS, timeout_sec=30.0)
 
-            card_state = client.evaluate(
-                page, _PLANNING_CARD_ASSERT_JS, timeout_sec=10.0
-            )
+            card_state = client.evaluate(page, _PLANNING_CARD_ASSERT_JS, timeout_sec=10.0)
             assert isinstance(card_state, dict)
-            assert (
-                card_state.get("ok") is True
-            ), f"planning card should be visible and enabled: {card_state}"
+            assert card_state.get("ok") is True, f"planning card should be visible and enabled: {card_state}"
 
             toggled = client.evaluate(page, _TOGGLE_PLANNING_JS, timeout_sec=10.0)
             assert isinstance(toggled, dict)
-            assert (
-                toggled.get("toggled") is True
-            ), f"Failed to toggle planning: {toggled}"
+            assert toggled.get("toggled") is True, f"Failed to toggle planning: {toggled}"
 
-            enabled = wait_for_state(
-                client, page, _PLANNING_ENABLED_ASSERT_JS, timeout_sec=15.0
-            )
-            assert (
-                enabled.get("ready") is True
-            ), f"planning should be enabled after toggle: {enabled}"
+            enabled = wait_for_state(client, page, _PLANNING_ENABLED_ASSERT_JS, timeout_sec=15.0)
+            assert enabled.get("ready") is True, f"planning should be enabled after toggle: {enabled}"
     finally:
         _delete_agent(api_url, agent_id)

@@ -108,11 +108,7 @@ async def list_browser_orphans() -> dict[str, object]:
     return {
         "count": len(orphans),
         "orphans": orphans,
-        "message": (
-            f"Found {len(orphans)} orphan automation process(es)"
-            if orphans
-            else "No orphan processes found"
-        ),
+        "message": (f"Found {len(orphans)} orphan automation process(es)" if orphans else "No orphan processes found"),
     }
 
 
@@ -158,9 +154,7 @@ async def cleanup_browser_orphans(
             "failed": result.get("failed", []),
         }
     except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail="Failed to process orphans"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to process orphans") from exc
 
 
 @router.post("/browser/test-cloud-connection")

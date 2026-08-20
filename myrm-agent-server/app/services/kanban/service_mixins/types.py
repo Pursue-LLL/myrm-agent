@@ -85,9 +85,7 @@ STATUS_TO_EVENT_KIND: dict[TaskStatus, TaskEventKind] = {
     TaskStatus.FAILED: TaskEventKind.FAILED,
 }
 
-SYNTHETIC_RUN_TARGETS: frozenset[TaskStatus] = frozenset(
-    {TaskStatus.COMPLETED, TaskStatus.BLOCKED, TaskStatus.FAILED}
-)
+SYNTHETIC_RUN_TARGETS: frozenset[TaskStatus] = frozenset({TaskStatus.COMPLETED, TaskStatus.BLOCKED, TaskStatus.FAILED})
 
 TARGET_TO_RUN_OUTCOME: dict[TaskStatus, TaskRunOutcome] = {
     TaskStatus.COMPLETED: TaskRunOutcome.COMPLETED,

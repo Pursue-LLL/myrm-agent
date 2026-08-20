@@ -13,10 +13,7 @@ from app.core.agent.tool_description_locale import (
 
 
 def test_resolve_tool_description_locale_prefers_agent_locale() -> None:
-    assert (
-        resolve_tool_description_locale(agent_locale="zh-CN", channel="web_chat")
-        == "zh-CN"
-    )
+    assert resolve_tool_description_locale(agent_locale="zh-CN", channel="web_chat") == "zh-CN"
 
 
 def test_resolve_tool_description_locale_channel_default_for_im() -> None:

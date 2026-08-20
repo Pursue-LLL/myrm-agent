@@ -77,13 +77,7 @@ def build_compression_intent(
     user_goal_hint = _build_goal_hint(current_query_text, recent_human_texts)
     pinned_files = _load_pinned_files(chat_id)
 
-    if (
-        not focus_files
-        and not focus_modules
-        and not failed_tool_call_ids
-        and not user_goal_hint
-        and not pinned_files
-    ):
+    if not focus_files and not focus_modules and not failed_tool_call_ids and not user_goal_hint and not pinned_files:
         return None
 
     payload: dict[str, object] = {

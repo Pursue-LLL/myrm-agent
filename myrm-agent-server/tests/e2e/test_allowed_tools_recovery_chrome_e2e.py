@@ -9,9 +9,7 @@ import time
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -190,9 +188,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             message_ready_js,
             timeout_sec=90.0,
         )
-        assert message_ready.get("ready") is True, json.dumps(
-            message_ready, ensure_ascii=False
-        )
+        assert message_ready.get("ready") is True, json.dumps(message_ready, ensure_ascii=False)
 
         step_state = wait_for_state(
             client,
@@ -200,9 +196,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             _RECOVERY_STEP_JS,
             timeout_sec=30.0,
         )
-        assert step_state.get("ready") is True, json.dumps(
-            step_state, ensure_ascii=False
-        )
+        assert step_state.get("ready") is True, json.dumps(step_state, ensure_ascii=False)
 
         trust_state = wait_for_state(
             client,
@@ -210,9 +204,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             _TRUST_CATEGORY_JS,
             timeout_sec=30.0,
         )
-        assert trust_state.get("ready") is True, json.dumps(
-            trust_state, ensure_ascii=False
-        )
+        assert trust_state.get("ready") is True, json.dumps(trust_state, ensure_ascii=False)
 
         expanded = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)
         assert isinstance(expanded, dict) and expanded.get("ok") is True, expanded
@@ -223,9 +215,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             _TRUST_BADGE_JS,
             timeout_sec=30.0,
         )
-        assert badge_state.get("ready") is True, json.dumps(
-            badge_state, ensure_ascii=False
-        )
+        assert badge_state.get("ready") is True, json.dumps(badge_state, ensure_ascii=False)
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")

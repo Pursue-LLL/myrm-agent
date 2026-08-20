@@ -58,10 +58,7 @@ class TestParseLlmJsonObject:
 
     def test_multiple_fences_picks_last_parseable_dict(self) -> None:
         """推理模型先给格式示例块、再给真实结果块时应取真实结果（最后者）。"""
-        raw = (
-            '```json\n{"score": 0.5, "reasoning": "example"}\n```\n'
-            '```json\n{"score": 0.95, "reasoning": "real verdict"}\n```'
-        )
+        raw = '```json\n{"score": 0.5, "reasoning": "example"}\n```\n```json\n{"score": 0.95, "reasoning": "real verdict"}\n```'
         parsed = parse_llm_json_object(raw)
         assert parsed is not None
         assert parsed["score"] == pytest.approx(0.95)
@@ -81,20 +78,14 @@ class TestParseLlmJsonObject:
 
     def test_fence_then_bare_object_picks_last(self) -> None:
         """fence 块在前、裸对象在后（真实判定）时应取裸对象。"""
-        raw = (
-            '```json\n{"score": 0.4, "reasoning": "example"}\n```\n'
-            'real verdict: {"score": 0.93, "reasoning": "bare object"}'
-        )
+        raw = '```json\n{"score": 0.4, "reasoning": "example"}\n```\nreal verdict: {"score": 0.93, "reasoning": "bare object"}'
         parsed = parse_llm_json_object(raw)
         assert parsed is not None
         assert parsed["score"] == pytest.approx(0.93)
 
     def test_object_inside_fence_after_bare_example(self) -> None:
         """裸示例对象在前、fence 真实块在后时应取 fence 真实块。"""
-        raw = (
-            'example {"score": 0.2, "reasoning": "demo"} then\n'
-            '```json\n{"score": 0.99, "reasoning": "fenced verdict"}\n```'
-        )
+        raw = 'example {"score": 0.2, "reasoning": "demo"} then\n```json\n{"score": 0.99, "reasoning": "fenced verdict"}\n```'
         parsed = parse_llm_json_object(raw)
         assert parsed is not None
         assert parsed["score"] == pytest.approx(0.99)
@@ -137,8 +128,7 @@ class TestParseLlmJsonList:
     def test_multiple_arrays_picks_last(self) -> None:
         """推理模型先给格式示例数组、再给真实结果数组时应取真实结果（最后者）。"""
         raw = (
-            '```json\n["example one", "example two"]\n```\n'
-            'final questions:\n```json\n["real one", "real two", "real three"]\n```'
+            '```json\n["example one", "example two"]\n```\nfinal questions:\n```json\n["real one", "real two", "real three"]\n```'
         )
         parsed = parse_llm_json_list(raw)
         assert parsed == ["real one", "real two", "real three"]
@@ -180,10 +170,7 @@ class TestParseJudgeJson:
 
     def test_example_fence_before_real_verdict(self) -> None:
         """示例块在前、真实判定在后的双代码块场景必须取真实判定。"""
-        raw = (
-            '```json\n{"done": true, "reason": "format example"}\n```\n'
-            '```json\n{"done": false, "reason": "real verdict"}\n```'
-        )
+        raw = '```json\n{"done": true, "reason": "format example"}\n```\n```json\n{"done": false, "reason": "real verdict"}\n```'
         parsed = parse_judge_json(raw)
         assert parsed is not None
         assert parsed["done"] is False
@@ -198,10 +185,7 @@ class TestParseJudgeJson:
 
     def test_multiple_done_objects_last_wins(self) -> None:
         """多个含 done 的对象取最后一个（LLM 自我修正/最终判定在末尾）。"""
-        raw = (
-            '{"done": false, "reason": "first pass"} then '
-            '{"done": true, "reason": "after self-correction"}'
-        )
+        raw = '{"done": false, "reason": "first pass"} then {"done": true, "reason": "after self-correction"}'
         parsed = parse_judge_json(raw)
         assert parsed is not None
         assert parsed["done"] is True
@@ -214,10 +198,7 @@ class TestParseJudgeJson:
 
     def test_bare_example_then_fenced_verdict(self) -> None:
         """裸示例对象在前、fence 真实块在后时应取 fence 真实块。"""
-        raw = (
-            'example {"done": true} but the real answer is\n'
-            '```json\n{"done": false, "reason": "fenced real"}\n```'
-        )
+        raw = 'example {"done": true} but the real answer is\n```json\n{"done": false, "reason": "fenced real"}\n```'
         parsed = parse_judge_json(raw)
         assert parsed is not None
         assert parsed["done"] is False

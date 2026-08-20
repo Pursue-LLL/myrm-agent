@@ -130,7 +130,10 @@ class TestAbortSessionTask:
         )
 
         h._fx.cleanup_placeholder.assert_awaited_once_with(
-            "telegram", "user1", "ph-1", "Stopped.",
+            "telegram",
+            "user1",
+            "ph-1",
+            "Stopped.",
         )
 
     @pytest.mark.asyncio

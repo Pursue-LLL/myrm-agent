@@ -240,7 +240,7 @@ def _content_disposition(disposition: str, filename: str) -> str:
         ascii_name = "file"
     safe = ascii_name.replace("\\", "\\\\").replace('"', '\\"')
     encoded = quote(cleaned.encode("utf-8"))
-    return f'{disposition}; filename="{safe}"; filename*=UTF-8\'\'{encoded}'
+    return f"{disposition}; filename=\"{safe}\"; filename*=UTF-8''{encoded}"
 
 
 def _scan_tree(

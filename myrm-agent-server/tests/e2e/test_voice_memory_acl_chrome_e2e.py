@@ -46,9 +46,7 @@ def _ensure_voice_feature_enabled() -> None:
     )
 
 
-def _wait_personal_settings(
-    *, enable_memory: bool, conversation_search: bool
-) -> dict[str, object]:
+def _wait_personal_settings(*, enable_memory: bool, conversation_search: bool) -> dict[str, object]:
     deadline = time.monotonic() + 30.0
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -73,9 +71,7 @@ def _wait_personal_settings(
     )
 
 
-def _toggle_conversation_search(
-    client, page, *, target_checked: bool
-) -> dict[str, object]:
+def _toggle_conversation_search(client, page, *, target_checked: bool) -> dict[str, object]:
     deadline = time.monotonic() + 30.0
     last: dict[str, object] = {}
     script = conversation_search_toggle_js(target_checked=target_checked)
@@ -102,7 +98,9 @@ def voice_feature_enabled() -> None:
     _ensure_voice_feature_enabled()
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD", private_reason="global_write_non_namespace")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD", private_reason="global_write_non_namespace"
+)
 @pytest.mark.timeout(240)
 def test_voice_memory_settings_ui_enables_conversation_search_in_api() -> None:
     warm_ui_route("/settings/memory")
@@ -117,14 +115,14 @@ def test_voice_memory_settings_ui_enables_conversation_search_in_api() -> None:
         toggled = _toggle_conversation_search(client, page, target_checked=True)
         assert toggled.get("ok") is True, toggled
 
-        settings = _wait_personal_settings(
-            enable_memory=True, conversation_search=True
-        )
+        settings = _wait_personal_settings(enable_memory=True, conversation_search=True)
         assert settings.get("enableMemory") is True
         assert settings.get("memoryEnableConversationSearch") is True
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD", private_reason="global_write_non_namespace")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE", access_scope="GLOBAL_WRITE", workload="STANDARD", private_reason="global_write_non_namespace"
+)
 @pytest.mark.timeout(240)
 def test_voice_memory_settings_ui_disables_conversation_search_in_api() -> None:
     warm_ui_route("/settings/memory")
@@ -142,8 +140,6 @@ def test_voice_memory_settings_ui_disables_conversation_search_in_api() -> None:
         toggled_off = _toggle_conversation_search(client, page, target_checked=False)
         assert toggled_off.get("ok") is True, toggled_off
 
-        settings = _wait_personal_settings(
-            enable_memory=True, conversation_search=False
-        )
+        settings = _wait_personal_settings(enable_memory=True, conversation_search=False)
         assert settings.get("enableMemory") is True
         assert settings.get("memoryEnableConversationSearch") is False

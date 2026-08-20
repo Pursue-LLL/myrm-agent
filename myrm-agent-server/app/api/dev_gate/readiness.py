@@ -37,9 +37,7 @@ async def dev_gate_readiness(request: Request) -> dict[str, object]:
     health_info = await system_info()
 
     provider = config_readiness.get("provider")
-    provider_ready = (
-        isinstance(provider, dict) and provider.get("is_ready") is True
-    )
+    provider_ready = isinstance(provider, dict) and provider.get("is_ready") is True
 
     edge_tts_available = _check_edge_tts_installed()
     degraded = config_readiness.get("degraded") is True

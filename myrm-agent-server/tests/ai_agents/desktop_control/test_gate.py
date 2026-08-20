@@ -222,13 +222,15 @@ def test_resolve_invalid_scope_falls_back_to_once(tmp_path: Path) -> None:
 
     async def _run() -> None:
         with patch("app.ai_agents.desktop_control.gate.get_tool_progress_sink", return_value=sink):
-            task = asyncio.create_task(gate(
-                reason="test",
-                operation="click",
-                estimated_duration_seconds=1.0,
-                app_name="Finder",
-                timeout_seconds=2.0,
-            ))
+            task = asyncio.create_task(
+                gate(
+                    reason="test",
+                    operation="click",
+                    estimated_duration_seconds=1.0,
+                    app_name="Finder",
+                    timeout_seconds=2.0,
+                )
+            )
             for _ in range(100):
                 if sink.emit.await_args_list:
                     break

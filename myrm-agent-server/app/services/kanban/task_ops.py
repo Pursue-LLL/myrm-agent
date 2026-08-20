@@ -76,9 +76,7 @@ async def add_task(
         else:
             resolved_status = initial_status
     else:
-        raise ValueError(
-            f"initial_status must be one of TRIAGE/BACKLOG/READY/BLOCKED, got {initial_status}"
-        )
+        raise ValueError(f"initial_status must be one of TRIAGE/BACKLOG/READY/BLOCKED, got {initial_status}")
 
     metadata: dict[str, object] = {}
     if completion_criteria:
@@ -120,9 +118,7 @@ async def add_task(
         for pid in depends_on:
             parent = await store.get_task(pid)
             if parent is None:
-                logger.warning(
-                    "Skipped dependency %s -> %s (parent not found)", pid, saved.task_id
-                )
+                logger.warning("Skipped dependency %s -> %s (parent not found)", pid, saved.task_id)
                 continue
             valid_deps.append(pid)
         for pid in valid_deps:

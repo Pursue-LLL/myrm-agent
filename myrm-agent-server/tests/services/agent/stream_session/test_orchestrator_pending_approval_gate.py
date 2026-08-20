@@ -60,9 +60,7 @@ def _patch_gateway_prereqs(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_gate_rejects_new_run_when_approvals_pending(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_gate_rejects_new_run_when_approvals_pending(mock_request, mock_http_request, monkeypatch):
     """A new non-resume run is rejected with AgentBusy SSE while HITL approvals are pending.
 
     The pending-approval gate must fire before the session reservation is
@@ -73,9 +71,7 @@ async def test_gate_rejects_new_run_when_approvals_pending(
         "app.services.agent.stream_session.orchestrator._count_pending_approvals",
         AsyncMock(return_value=2),
     )
-    try_reserve_called = MagicMock(
-        side_effect=AssertionError("try_reserve must not be called")
-    )
+    try_reserve_called = MagicMock(side_effect=AssertionError("try_reserve must not be called"))
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.ChatSessionReservation",
         lambda: MagicMock(try_reserve=try_reserve_called),
@@ -89,9 +85,7 @@ async def test_gate_rejects_new_run_when_approvals_pending(
 
 
 @pytest.mark.asyncio
-async def test_gate_allows_new_run_when_no_pending_approvals(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_gate_allows_new_run_when_no_pending_approvals(mock_request, mock_http_request, monkeypatch):
     """With zero pending approvals the gate passes through to session reservation.
 
     try_reserve returning AgentBusyError stands in for a later concurrency
@@ -119,9 +113,7 @@ async def test_gate_allows_new_run_when_no_pending_approvals(
 
 
 @pytest.mark.asyncio
-async def test_gate_skips_pending_check_for_resume(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_gate_skips_pending_check_for_resume(mock_request, mock_http_request, monkeypatch):
     """Resume requests bypass the pending-approval gate so approvals can be handled."""
     _patch_gateway_prereqs(monkeypatch)
     mock_request.resume_value = {"action": "completed"}
@@ -153,9 +145,7 @@ async def test_gate_allows_run_when_approval_store_unavailable(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_gate_skips_query_without_chat_id(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_gate_skips_query_without_chat_id(mock_request, mock_http_request, monkeypatch):
     """New runs without a chat_id never hit the approval store."""
     _patch_gateway_prereqs(monkeypatch)
     mock_request.chat_id = None

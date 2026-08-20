@@ -30,8 +30,7 @@ _FORBIDDEN_LEGACY_FLAT_FILES = (
 @pytest.mark.architecture
 def test_conversation_recall_subpackage_layout() -> None:
     assert _CONVERSATION_RECALL_PACKAGE.is_dir(), (
-        f"Missing {_CONVERSATION_RECALL_PACKAGE}. "
-        "See app/database/repositories/conversation_recall/_ARCH.md."
+        f"Missing {_CONVERSATION_RECALL_PACKAGE}. See app/database/repositories/conversation_recall/_ARCH.md."
     )
     for filename in _REQUIRED_MODULE_FILES:
         path = _CONVERSATION_RECALL_PACKAGE / filename

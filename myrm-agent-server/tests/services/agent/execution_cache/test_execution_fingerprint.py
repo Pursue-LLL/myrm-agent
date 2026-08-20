@@ -16,9 +16,7 @@ from app.services.agent.moa_preset_resolver import (
 
 def test_execution_fingerprint_changes_when_skill_version_bumps() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     with patch(
@@ -36,9 +34,7 @@ def test_execution_fingerprint_changes_when_skill_version_bumps() -> None:
 
 def test_execution_fingerprint_changes_when_security_config_changes() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     wrapper.security_config_raw = {"yoloModeEnabled": True}
@@ -66,9 +62,7 @@ def _moa_profile_engine_params() -> dict[str, object]:
 def test_execution_fingerprint_changes_when_moa_preset_activated() -> None:
     """POOLED cache must rebuild when chat picker toggles MoA preset on/off."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
         engine_params=apply_moa_preset_activation(_moa_profile_engine_params(), None),
     )
@@ -84,9 +78,7 @@ def test_execution_fingerprint_changes_when_moa_preset_activated() -> None:
 def test_execution_fingerprint_changes_when_moa_preset_strength_changes() -> None:
     """Preset param overrides (review vs default) must bust execution pool fingerprint."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
         engine_params=apply_moa_preset_activation(
             _moa_profile_engine_params(),
@@ -104,9 +96,7 @@ def test_execution_fingerprint_changes_when_moa_preset_strength_changes() -> Non
 
 def test_execution_fingerprint_changes_when_org_model_policy_revision_bumps() -> None:
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     with patch(
@@ -125,9 +115,7 @@ def test_execution_fingerprint_changes_when_org_model_policy_revision_bumps() ->
 def test_execution_fingerprint_changes_when_auto_extraction_toggles() -> None:
     """POOLED cache must rebuild when the user toggles auto memory extraction."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     enabled_fp = compute_execution_fingerprint(wrapper)
@@ -139,9 +127,7 @@ def test_execution_fingerprint_changes_when_auto_extraction_toggles() -> None:
 def test_execution_fingerprint_changes_when_extraction_preset_changes() -> None:
     """POOLED cache must rebuild when the memory extraction preset is reconfigured."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     default_fp = compute_execution_fingerprint(wrapper)
@@ -154,9 +140,7 @@ def test_execution_fingerprint_changes_when_code_execution_network_toggles() -> 
     """Sandbox network policy is solidified into the executor at build time,
     so the user's privacy setting must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     off_fp = compute_execution_fingerprint(wrapper)
@@ -169,9 +153,7 @@ def test_execution_fingerprint_changes_when_decay_profile_changes() -> None:
     """Memory decay half-life is solidified into the context pipeline middleware,
     so a profile change must rebuild the pooled unit."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     default_fp = compute_execution_fingerprint(wrapper)
@@ -184,9 +166,7 @@ def test_execution_fingerprint_changes_when_embedding_config_changes() -> None:
     """Embedding backend is solidified into similarity checks and memory retrieval,
     so swapping the embedding model must rebuild the pooled unit."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -202,9 +182,7 @@ def test_execution_fingerprint_changes_when_notify_targets_change() -> None:
     """Channel notification tools are loaded from notify_targets at build time,
     so target changes must rebuild the pooled unit."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     empty_fp = compute_execution_fingerprint(wrapper)
@@ -217,9 +195,7 @@ def test_execution_fingerprint_changes_when_kanban_tool_mode_changes() -> None:
     """Kanban tool assembly follows kanban_tool_mode at build time,
     so the tool mode must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     orchestrator_fp = compute_execution_fingerprint(wrapper)
@@ -286,9 +262,7 @@ def test_execution_fingerprint_changes_when_jit_subagents_change() -> None:
     """JIT subagent wiring is solidified into delegate tool assembly,
     so ephemeral subagent changes must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
@@ -301,9 +275,7 @@ def test_execution_fingerprint_changes_when_force_delegate_changes() -> None:
     """Forced delegation target is solidified into sub-agent wiring,
     so a delegate override must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
@@ -316,15 +288,11 @@ def test_execution_fingerprint_changes_when_reasoning_model_changes() -> None:
     """Reasoning LLM is wired into the harness spec at build time (factory:113-124),
     so a reasoning-model selection change must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.reasoning_model_cfg = ModelConfig(
-        model="qwen3-thinking", api_key="k", base_url="http://x"
-    )
+    wrapper.reasoning_model_cfg = ModelConfig(model="qwen3-thinking", api_key="k", base_url="http://x")
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
 
@@ -334,9 +302,7 @@ def test_execution_fingerprint_changes_when_privacy_routing_changes() -> None:
     so routing rule changes must bust the POOLED cache while localApiKey rotation
     (build_privacy_routing_config local LLM credential) must not."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
@@ -370,15 +336,11 @@ def test_execution_fingerprint_changes_when_safety_fallback_model_changes() -> N
     """Safety fallback LLM is built at build time (llm_factory:117-123),
     so enabling a safety fallback model must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.safety_fallback_model_cfg = ModelConfig(
-        model="safety-guard", api_key="k", base_url="http://x"
-    )
+    wrapper.safety_fallback_model_cfg = ModelConfig(model="safety-guard", api_key="k", base_url="http://x")
     guarded_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != guarded_fp
 
@@ -387,15 +349,11 @@ def test_execution_fingerprint_changes_when_light_model_changes() -> None:
     """Light model is solidified into the harness spec (factory:759),
     so the light-model selection must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.light_model_cfg = ModelConfig(
-        model="light-model", api_key="k", base_url="http://x"
-    )
+    wrapper.light_model_cfg = ModelConfig(model="light-model", api_key="k", base_url="http://x")
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
 
@@ -404,15 +362,11 @@ def test_execution_fingerprint_changes_when_fallback_lite_model_changes() -> Non
     """Lite managed fallback is applied at build time (factory:106-109),
     so the lite fallback model must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.fallback_lite_model_cfg = ModelConfig(
-        model="lite-fallback", api_key="k", base_url="http://x"
-    )
+    wrapper.fallback_lite_model_cfg = ModelConfig(model="lite-fallback", api_key="k", base_url="http://x")
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
 
@@ -421,15 +375,11 @@ def test_execution_fingerprint_changes_when_vision_fallback_model_changes() -> N
     """Vision fallback model is solidified into vision tools (tool_setup:1245-1252),
     so the vision fallback selection must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.vision_fallback_model_cfg = ModelConfig(
-        model="vision-fallback", api_key="k", base_url="http://x"
-    )
+    wrapper.vision_fallback_model_cfg = ModelConfig(model="vision-fallback", api_key="k", base_url="http://x")
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
 
@@ -438,15 +388,11 @@ def test_execution_fingerprint_changes_when_vision_fallback_models_change() -> N
     """Vision fallback model list is solidified into vision tools,
     so the list contents must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.vision_fallback_model_cfgs = [
-        ModelConfig(model="vision-a", api_key="k", base_url="http://x")
-    ]
+    wrapper.vision_fallback_model_cfgs = [ModelConfig(model="vision-a", api_key="k", base_url="http://x")]
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
 
@@ -455,15 +401,11 @@ def test_execution_fingerprint_changes_when_video_fallback_models_change() -> No
     """Video fallback model list is solidified into the harness context (agent:420-425),
     so the list contents must bust the POOLED cache."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.video_fallback_model_cfgs = [
-        ModelConfig(model="video-a", api_key="k", base_url="http://x")
-    ]
+    wrapper.video_fallback_model_cfgs = [ModelConfig(model="video-a", api_key="k", base_url="http://x")]
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
 
@@ -475,9 +417,7 @@ def test_execution_fingerprint_changes_when_model_internal_params_change() -> No
     from myrm_agent_harness.agent.config.llm import CustomModelDef
 
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     base_fp = compute_execution_fingerprint(wrapper)
@@ -497,15 +437,11 @@ def test_execution_fingerprint_stable_when_api_key_rotates() -> None:
     """Credential rotation must NOT bust the POOLED cache — keys do not change
     build semantics and must never enter the fingerprint hash."""
     wrapper = GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
     before_fp = compute_execution_fingerprint(wrapper)
-    wrapper.model_cfg = ModelConfig(
-        model="test-model", api_key="rotated-key", base_url="http://test"
-    )
+    wrapper.model_cfg = ModelConfig(model="test-model", api_key="rotated-key", base_url="http://test")
     after_fp = compute_execution_fingerprint(wrapper)
     assert before_fp == after_fp
 
@@ -513,9 +449,7 @@ def test_execution_fingerprint_stable_when_api_key_rotates() -> None:
 def _base_wrapper() -> GeneralAgent:
     """Minimal wrapper with a stable model for fingerprint diffing."""
     return GeneralAgent(
-        model_cfg=ModelConfig(
-            model="test-model", api_key="test-key", base_url="http://test"
-        ),
+        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
         mcp_config=None,
     )
 
@@ -550,9 +484,7 @@ def test_execution_fingerprint_changes_when_reranker_config_changes() -> None:
     wrapper.reranker_config = RerankerConfig(model="cohere/rerank-v3.5", api_key="k")
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
-    wrapper.reranker_config = RerankerConfig(
-        model="cohere/rerank-v3.5", api_key="rotated"
-    )
+    wrapper.reranker_config = RerankerConfig(model="cohere/rerank-v3.5", api_key="rotated")
     rotated_fp = compute_execution_fingerprint(wrapper)
     assert configured_fp == rotated_fp
 
@@ -636,19 +568,13 @@ def test_execution_fingerprint_changes_when_search_service_cfg_changes() -> None
 
     wrapper = _base_wrapper()
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.search_service_cfg = SearchServiceConfig(
-        search_service="searxng", api_key="k", api_base="http://searx"
-    )
+    wrapper.search_service_cfg = SearchServiceConfig(search_service="searxng", api_key="k", api_base="http://searx")
     configured_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != configured_fp
-    wrapper.search_service_cfg = SearchServiceConfig(
-        search_service="searxng", api_key="rotated", api_base="http://searx"
-    )
+    wrapper.search_service_cfg = SearchServiceConfig(search_service="searxng", api_key="rotated", api_base="http://searx")
     rotated_fp = compute_execution_fingerprint(wrapper)
     assert configured_fp == rotated_fp
-    wrapper.search_service_cfg = SearchServiceConfig(
-        search_service="tavily", api_key="k", api_base="http://tavily"
-    )
+    wrapper.search_service_cfg = SearchServiceConfig(search_service="tavily", api_key="k", api_base="http://tavily")
     swapped_fp = compute_execution_fingerprint(wrapper)
     assert configured_fp != swapped_fp
 
@@ -661,19 +587,13 @@ def test_execution_fingerprint_changes_when_image_generation_params_change() -> 
 
     wrapper = _base_wrapper()
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.image_generation_params = ImageGenerationParams(
-        model="dall-e-3", api_key="k"
-    )
+    wrapper.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key="k")
     enabled_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != enabled_fp
-    wrapper.image_generation_params = ImageGenerationParams(
-        model="dall-e-3", api_key="rotated"
-    )
+    wrapper.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key="rotated")
     rotated_fp = compute_execution_fingerprint(wrapper)
     assert enabled_fp == rotated_fp
-    wrapper.image_generation_params = ImageGenerationParams(
-        model="gpt-image-1", api_key="k"
-    )
+    wrapper.image_generation_params = ImageGenerationParams(model="gpt-image-1", api_key="k")
     changed_fp = compute_execution_fingerprint(wrapper)
     assert enabled_fp != changed_fp
 
@@ -685,14 +605,10 @@ def test_execution_fingerprint_changes_when_video_generation_params_change() -> 
 
     wrapper = _base_wrapper()
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.video_generation_params = VideoGenerationParams(
-        provider="openai", model="sora", api_key="k"
-    )
+    wrapper.video_generation_params = VideoGenerationParams(provider="openai", model="sora", api_key="k")
     enabled_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != enabled_fp
-    wrapper.video_generation_params = VideoGenerationParams(
-        provider="openai", model="veo-3", api_key="k"
-    )
+    wrapper.video_generation_params = VideoGenerationParams(provider="openai", model="veo-3", api_key="k")
     changed_fp = compute_execution_fingerprint(wrapper)
     assert enabled_fp != changed_fp
 
@@ -704,14 +620,10 @@ def test_execution_fingerprint_changes_when_tts_params_change() -> None:
 
     wrapper = _base_wrapper()
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.tts_params = TTSParams(
-        provider="openai", model="tts-1", voice="alloy", api_key="k"
-    )
+    wrapper.tts_params = TTSParams(provider="openai", model="tts-1", voice="alloy", api_key="k")
     enabled_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != enabled_fp
-    wrapper.tts_params = TTSParams(
-        provider="openai", model="tts-1", voice="onyx", api_key="k"
-    )
+    wrapper.tts_params = TTSParams(provider="openai", model="tts-1", voice="onyx", api_key="k")
     changed_fp = compute_execution_fingerprint(wrapper)
     assert enabled_fp != changed_fp
 

@@ -234,7 +234,7 @@ async def _load_artifact_content(
 
     latest = _latest_version(artifact)
     vault_uri = latest.vault_uri
-    object_id = vault_uri[len("vault://"):] if vault_uri.startswith("vault://") else vault_uri
+    object_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
     object_path = ArtifactVault(get_workspace_root()).get_object_path(object_id)
     if not object_path.exists():
         raise FileNotFoundError("Artifact content not found on disk")

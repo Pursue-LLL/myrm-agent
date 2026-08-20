@@ -106,9 +106,7 @@ async def test_derive_skill_blocked_by_lock() -> None:
 
             assert store.is_evolution_locked("test-lock-skill") is True
 
-            proposal = await engine.derive_skill_simple(
-                "test-lock-skill", user_feedback="Make it better"
-            )
+            proposal = await engine.derive_skill_simple("test-lock-skill", user_feedback="Make it better")
             assert proposal is None
         finally:
             store.close()

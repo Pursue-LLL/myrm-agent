@@ -45,11 +45,7 @@ def _iter_task_dirs(source_root: Path) -> list[Path]:
     tasks_root = source_root / "tasks"
     if not tasks_root.is_dir():
         return []
-    return sorted(
-        child
-        for child in tasks_root.iterdir()
-        if child.is_dir() and (child / "task.toml").exists()
-    )
+    return sorted(child for child in tasks_root.iterdir() if child.is_dir() and (child / "task.toml").exists())
 
 
 def _read_instruction(task_dir: Path) -> str:

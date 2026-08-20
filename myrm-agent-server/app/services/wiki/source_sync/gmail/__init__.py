@@ -69,9 +69,7 @@ async def sync_gmail_label_to_wiki(
         result.errors.append(f"Gmail label not found: {label_name}")
         return result
 
-    message_ids = await _list_message_ids(
-        token, label_id=label_id, max_results=max_items
-    )
+    message_ids = await _list_message_ids(token, label_id=label_id, max_results=max_items)
     month = datetime.now(UTC).strftime("%Y-%m")
 
     for message_id in message_ids:
@@ -136,9 +134,7 @@ async def _resolve_label_id(token: str, label_name: str) -> str | None:
     return None
 
 
-async def _list_message_ids(
-    token: str, *, label_id: str, max_results: int
-) -> list[str]:
+async def _list_message_ids(token: str, *, label_id: str, max_results: int) -> list[str]:
     params = {"labelIds": label_id, "maxResults": str(max_results)}
     async with httpx.AsyncClient(timeout=20.0) as client:
         resp = await client.get(
@@ -160,9 +156,7 @@ async def _list_message_ids(
     return ids
 
 
-async def _fetch_message_markdown(
-    token: str, message_id: str
-) -> tuple[str, str, str] | None:
+async def _fetch_message_markdown(token: str, message_id: str) -> tuple[str, str, str] | None:
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(
             f"{_GMAIL_API}/messages/{message_id}",
@@ -218,9 +212,7 @@ def _extract_bodies(payload: dict[str, Any]) -> tuple[str, str]:
     return "\n\n".join(plain_parts), "\n\n".join(html_parts)
 
 
-def _walk_parts(
-    part: dict[str, Any], plain_parts: list[str], html_parts: list[str]
-) -> None:
+def _walk_parts(part: dict[str, Any], plain_parts: list[str], html_parts: list[str]) -> None:
     mime = str(part.get("mimeType", ""))
     body = part.get("body")
     data_b64 = body.get("data") if isinstance(body, dict) else None

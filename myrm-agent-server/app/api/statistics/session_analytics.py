@@ -44,22 +44,16 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def _build_llm_duration_breakdown(
-    backend: FileEventLogBackend, session_id: str
-) -> list[dict[str, object]]:
+async def _build_llm_duration_breakdown(backend: FileEventLogBackend, session_id: str) -> list[dict[str, object]]:
     """Aggregate LLM call durations from persisted ``token_usage`` events.
 
     Buckets calls by model name and sums only events carrying a concrete
     ``duration_ms`` so legacy or failed calls never distort the breakdown.
     """
     try:
-        events = await backend.get_events(
-            session_id, EventFilter(event_types=frozenset({"token_usage"}))
-        )
+        events = await backend.get_events(session_id, EventFilter(event_types=frozenset({"token_usage"})))
     except Exception:
-        logger.debug(
-            "Failed to read token_usage events for LLM breakdown", exc_info=True
-        )
+        logger.debug("Failed to read token_usage events for LLM breakdown", exc_info=True)
         return []
 
     totals: dict[str, list[int | float]] = {}
@@ -123,12 +117,8 @@ async def get_session_analytics(
         async def get_message_stats() -> dict[str, object]:
             msg_stmt = select(
                 func.count(Message.id).label("total_messages"),
-                func.sum(case((Message.role == "user", 1), else_=0)).label(
-                    "user_messages"
-                ),
-                func.sum(case((Message.role == "assistant", 1), else_=0)).label(
-                    "assistant_messages"
-                ),
+                func.sum(case((Message.role == "user", 1), else_=0)).label("user_messages"),
+                func.sum(case((Message.role == "assistant", 1), else_=0)).label("assistant_messages"),
             ).where(Message.chat_id == session_id)
             msg_result = await db.execute(msg_stmt)
             row = msg_result.one()
@@ -152,9 +142,7 @@ async def get_session_analytics(
             }
 
         async def get_event_log_data() -> dict[str, object]:
-            event_log_file = (
-                Path(settings.database.event_log_dir) / f"{session_id}.jsonl"
-            )
+            event_log_file = Path(settings.database.event_log_dir) / f"{session_id}.jsonl"
             if not event_log_file.exists():
                 return {
                     "duration_ms": 0,
@@ -165,13 +153,9 @@ async def get_session_analytics(
 
             from myrm_agent_harness.agent.event_log import EventLogger
 
-            backend = FileEventLogBackend(
-                log_dir=Path(settings.database.event_log_dir), session_id=session_id
-            )
+            backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
             event_logger = EventLogger(backend=backend, session_id=session_id)
-            summary = await event_logger.get_session_summary(
-                events_limit=150, timeline_limit=100
-            )
+            summary = await event_logger.get_session_summary(events_limit=150, timeline_limit=100)
 
             tool_breakdown = [
                 {
@@ -213,9 +197,7 @@ async def get_session_analytics(
 
         raw_task_metrics = event_log_data["task_metrics"]
         task_metrics_for_health: dict[str, object] = (
-            {str(k): v for k, v in raw_task_metrics.items()}
-            if isinstance(raw_task_metrics, dict)
-            else {}
+            {str(k): v for k, v in raw_task_metrics.items()} if isinstance(raw_task_metrics, dict) else {}
         )
 
         result = {
@@ -259,9 +241,7 @@ def _dominant_model_name(message_stats: dict[str, object]) -> str | None:
             continue
         calls = _non_negative_int(raw_bucket.get("calls"))
         tokens = _non_negative_int(raw_bucket.get("inputTokens"))
-        if calls > selected_calls or (
-            calls == selected_calls and tokens > selected_tokens
-        ):
+        if calls > selected_calls or (calls == selected_calls and tokens > selected_tokens):
             selected_model = model_name
             selected_calls = calls
             selected_tokens = tokens

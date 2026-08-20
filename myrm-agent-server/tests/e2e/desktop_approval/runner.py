@@ -90,10 +90,7 @@ async def run_desktop_approval_chrome_e2e(
             try:
                 return await asyncio.wait_for(awaitable, timeout=timeout_sec)
             except asyncio.TimeoutError as exc:
-                raise TimeoutError(
-                    "retry reset evaluate wall-timeout "
-                    f"step={label} timeout={timeout_sec:.0f}s"
-                ) from exc
+                raise TimeoutError(f"retry reset evaluate wall-timeout step={label} timeout={timeout_sec:.0f}s") from exc
 
         last_error: dict[str, object] | None = None
         attempts = max_send_attempts(scope)
@@ -131,9 +128,7 @@ async def run_desktop_approval_chrome_e2e(
                     body_remaining = remaining_wall_sec()
                 except ImportError:
                     body_remaining = float("inf")
-                retry_body_reserve = signoff_parallel_desktop_mux_step_timeout_sec(
-                    180.0
-                )
+                retry_body_reserve = signoff_parallel_desktop_mux_step_timeout_sec(180.0)
                 if body_remaining < retry_body_reserve:
                     progress(
                         "R255 skip internal retry — body budget remaining "
@@ -145,9 +140,7 @@ async def run_desktop_approval_chrome_e2e(
                         _signoff_mux_recover_lightweight,
                     )
 
-                    progress(
-                        "R288 signoff skip recover_mux_transport on allow-once retry"
-                    )
+                    progress("R288 signoff skip recover_mux_transport on allow-once retry")
                     await _signoff_mux_recover_lightweight(
                         chat,
                         reason="signoff desktop allow-once internal retry",
@@ -160,9 +153,7 @@ async def run_desktop_approval_chrome_e2e(
                     )
                 try:
                     progress("retry reset: lightweight chat reset (no page reopen)")
-                    mux_step_timeout = signoff_parallel_desktop_mux_step_timeout_sec(
-                        75.0
-                    )
+                    mux_step_timeout = signoff_parallel_desktop_mux_step_timeout_sec(75.0)
                     await asyncio.sleep(1.0)
                     progress("new chat + ensure surface")
                     chat._reset_shell_session_clock()
@@ -193,9 +184,7 @@ async def run_desktop_approval_chrome_e2e(
                     )
                 except (RuntimeError, TimeoutError, OSError) as reset_exc:
                     if is_retriable_page_transport(reset_exc):
-                        progress(
-                            f"page transport error during retry reset: {reset_exc}"
-                        )
+                        progress(f"page transport error during retry reset: {reset_exc}")
                         raise reset_exc from exc
                     if should_abort_desktop_e2e_retries(reset_exc):
                         pytest.fail(
@@ -205,8 +194,7 @@ async def run_desktop_approval_chrome_e2e(
                 await asyncio.sleep(2.0)
 
         pytest.fail(
-            f"Desktop approval Chrome E2E ({label}) failed after {attempts} attempts "
-            f"(api={get_e2e_api_url()}): {last_error}"
+            f"Desktop approval Chrome E2E ({label}) failed after {attempts} attempts (api={get_e2e_api_url()}): {last_error}"
         )
 
     async def _open_chat_page() -> OpenMcpPageSession:
@@ -245,18 +233,14 @@ async def run_desktop_approval_chrome_e2e(
         except (RuntimeError, TimeoutError, OSError) as exc:
             if not is_retriable_page_transport(exc):
                 raise
-            progress(
-                f"attach heal + mux recover + reopen after page transport error: {exc}"
-            )
+            progress(f"attach heal + mux recover + reopen after page transport error: {exc}")
             await heal_chrome_attach_before_reopen()
             if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
                 from tests.e2e.desktop_approval.turn_flow import (
                     _signoff_mux_recover_lightweight,
                 )
 
-                progress(
-                    "R288 signoff skip recover_mux_transport on page transport heal"
-                )
+                progress("R288 signoff skip recover_mux_transport on page transport heal")
                 await _signoff_mux_recover_lightweight(
                     chat,
                     reason="signoff desktop page transport heal reopen",

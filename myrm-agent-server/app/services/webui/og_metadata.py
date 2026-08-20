@@ -31,11 +31,11 @@ _MAX_BODY_BYTES = 64 * 1024
 _USER_AGENT = "MyrmagentBot/1.0 (+https://myrmagent.com)"
 
 _OG_RE = re.compile(
-    r'<meta\s+(?:[^>]*?\s)?'
+    r"<meta\s+(?:[^>]*?\s)?"
     r'(?:property|name)\s*=\s*["\']?(og:[^"\'>\s]+)["\']?\s+'
     r'content\s*=\s*["\']([^"\']*)["\']'
-    r'|'
-    r'<meta\s+(?:[^>]*?\s)?'
+    r"|"
+    r"<meta\s+(?:[^>]*?\s)?"
     r'content\s*=\s*["\']([^"\']*)["\']?\s+'
     r'(?:property|name)\s*=\s*["\']?(og:[^"\'>\s]+)["\']?',
     re.IGNORECASE,

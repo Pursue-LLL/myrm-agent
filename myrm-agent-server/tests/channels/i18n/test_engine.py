@@ -139,9 +139,7 @@ def test_module_level_add_locale_root() -> None:
         i18n.engine._engine._json_catalogs.clear()
 
 
-def test_json_bad_format_string_falls_back_to_raw(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_json_bad_format_string_falls_back_to_raw(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """A JSON value with an illegal format spec is returned raw with a warning."""
     locales_dir = tmp_path / "badfmt"
     locales_dir.mkdir()

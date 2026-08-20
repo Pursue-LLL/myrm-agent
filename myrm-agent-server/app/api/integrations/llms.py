@@ -72,13 +72,7 @@ def _build_models_candidates(base_url: str) -> list[str]:
         if parts:
             parent1 = "/" + "/".join(parts[:-1]) if len(parts) > 1 else ""
             parent2 = "/" + "/".join(parts[:-2]) if len(parts) > 2 else ""
-            candidates.append(
-                urlunparse(
-                    parsed._replace(
-                        path=(parent1 + "/models") if parent1 else "/models"
-                    )
-                )
-            )
+            candidates.append(urlunparse(parsed._replace(path=(parent1 + "/models") if parent1 else "/models")))
             if parent2:
                 candidates.append(urlunparse(parsed._replace(path=f"{parent2}/models")))
 
@@ -87,9 +81,7 @@ def _build_models_candidates(base_url: str) -> list[str]:
         candidates.append(urlunparse(parsed._replace(path="/api/v1/models")))
         candidates.append(urlunparse(parsed._replace(path="/api/models")))
 
-    candidates.append(
-        urlunparse(parsed._replace(path=f"{path}/models" if path else "/models"))
-    )
+    candidates.append(urlunparse(parsed._replace(path=f"{path}/models" if path else "/models")))
     deduped = list(dict.fromkeys(candidates))
     return [url.rstrip("/") for url in deduped]
 
@@ -98,24 +90,12 @@ def _extract_model_ids(payload: object) -> list[str]:
     if isinstance(payload, dict):
         raw_data = payload.get("data")
         if isinstance(raw_data, list):
-            return [
-                str(item.get("id"))
-                for item in raw_data
-                if isinstance(item, dict) and item.get("id")
-            ]
+            return [str(item.get("id")) for item in raw_data if isinstance(item, dict) and item.get("id")]
         raw_models = payload.get("models")
         if isinstance(raw_models, list):
-            return [
-                str(item.get("id"))
-                for item in raw_models
-                if isinstance(item, dict) and item.get("id")
-            ]
+            return [str(item.get("id")) for item in raw_models if isinstance(item, dict) and item.get("id")]
     if isinstance(payload, list):
-        return [
-            str(item.get("id"))
-            for item in payload
-            if isinstance(item, dict) and item.get("id")
-        ]
+        return [str(item.get("id")) for item in payload if isinstance(item, dict) and item.get("id")]
     return []
 
 
@@ -137,43 +117,29 @@ def _apply_local_no_auth_marker_transport_overrides(
     api_key: object,
 ) -> dict[str, object]:
     """Normalize model_kwargs and suppress synthetic local marker auth headers."""
-    model_kwargs: dict[str, object] = (
-        dict(model_kwargs_raw) if isinstance(model_kwargs_raw, dict) else {}
-    )
+    model_kwargs: dict[str, object] = dict(model_kwargs_raw) if isinstance(model_kwargs_raw, dict) else {}
     if api_key != _LOCAL_NO_AUTH_KEY_MARKER:
         return model_kwargs
 
     raw_extra_headers = model_kwargs.get("extra_headers")
-    extra_headers = (
-        dict(raw_extra_headers) if isinstance(raw_extra_headers, dict) else {}
-    )
+    extra_headers = dict(raw_extra_headers) if isinstance(raw_extra_headers, dict) else {}
     extra_headers["Authorization"] = ""
     model_kwargs["extra_headers"] = extra_headers
     return model_kwargs
 
 
 class ModelDiscoveryRequest(BaseModel):
-    api_url: str = Field(
-        ..., min_length=1, description="OpenAI-compatible API base URL or endpoint URL"
-    )
-    api_key: str | None = Field(
-        default=None, description="Optional API key (required for non-local endpoints)"
-    )
+    api_url: str = Field(..., min_length=1, description="OpenAI-compatible API base URL or endpoint URL")
+    api_key: str | None = Field(default=None, description="Optional API key (required for non-local endpoints)")
 
 
 class ModelDiscoveryResult(BaseModel):
     success: bool = Field(..., description="Whether model discovery succeeded")
     normalized_api_url: str = Field(..., description="Normalized API base URL")
-    models_url: str | None = Field(
-        default=None, description="Resolved models endpoint URL"
-    )
+    models_url: str | None = Field(default=None, description="Resolved models endpoint URL")
     models: list[str] = Field(default_factory=list, description="Discovered model IDs")
-    no_auth_local: bool = Field(
-        default=False, description="Whether no-auth local policy was used"
-    )
-    error: str | None = Field(
-        default=None, description="Error message when discovery fails"
-    )
+    no_auth_local: bool = Field(default=False, description="Whether no-auth local policy was used")
+    error: str | None = Field(default=None, description="Error message when discovery fails")
 
 
 @router.post("/discover-models", response_model=StandardSuccessResponse)
@@ -223,9 +189,7 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
     allow_loopback_host = bool(parsed.hostname and is_loopback and is_local_mode())
     allowed_hosts = [parsed.hostname] if allow_loopback_host else None
 
-    async with create_httpx_client(
-        timeout=_MODELS_DISCOVERY_TIMEOUT_S, follow_redirects=False
-    ) as client:
+    async with create_httpx_client(timeout=_MODELS_DISCOVERY_TIMEOUT_S, follow_redirects=False) as client:
         for models_url in candidates:
             response: httpx.Response | None = None
             try:
@@ -338,9 +302,7 @@ class ReachabilityResult(BaseModel):
     """Model reachability check result."""
 
     reachable: bool = Field(..., description="Whether the model endpoint is reachable")
-    latency_ms: int | None = Field(
-        default=None, description="Round-trip latency in milliseconds"
-    )
+    latency_ms: int | None = Field(default=None, description="Round-trip latency in milliseconds")
     error: str | None = Field(default=None, description="Error message if unreachable")
     cached: bool = Field(default=False, description="Whether result came from cache")
 
@@ -439,23 +401,13 @@ class ModelCapabilities(BaseModel):
     """模型能力信息"""
 
     supports_vision: bool = Field(default=False, description="是否支持视觉/图像输入")
-    supports_function_calling: bool = Field(
-        default=False, description="是否支持函数调用"
-    )
+    supports_function_calling: bool = Field(default=False, description="是否支持函数调用")
     supports_reasoning: bool = Field(default=False, description="是否支持推理")
     supports_web_search: bool = Field(default=False, description="是否支持网页搜索")
-    supports_prompt_caching: bool = Field(
-        default=False, description="是否支持提示词缓存"
-    )
-    input_cost_per_token: float | None = Field(
-        default=None, description="每个输入 token 的成本（美元）"
-    )
-    output_cost_per_token: float | None = Field(
-        default=None, description="每个输出 token 的成本（美元）"
-    )
-    max_tokens: int | None = Field(
-        default=None, description="最大 token 数（输入+输出）"
-    )
+    supports_prompt_caching: bool = Field(default=False, description="是否支持提示词缓存")
+    input_cost_per_token: float | None = Field(default=None, description="每个输入 token 的成本（美元）")
+    output_cost_per_token: float | None = Field(default=None, description="每个输出 token 的成本（美元）")
+    max_tokens: int | None = Field(default=None, description="最大 token 数（输入+输出）")
     max_input_tokens: int | None = Field(default=None, description="最大输入 token 数")
     max_output_tokens: int | None = Field(default=None, description="最大输出 token 数")
 
@@ -464,9 +416,7 @@ class ModelCandidate(BaseModel):
     """候选模型信息"""
 
     provider: str = Field(..., description="提供商名称（如 openrouter, zai）")
-    model_key: str = Field(
-        ..., description="完整的模型键名（如 openrouter/zai/glm-4.5v）"
-    )
+    model_key: str = Field(..., description="完整的模型键名（如 openrouter/zai/glm-4.5v）")
     capabilities: ModelCapabilities = Field(..., description="模型能力信息")
 
 
@@ -474,12 +424,8 @@ class ModelInfoResponse(BaseModel):
     """模型信息响应"""
 
     found: bool = Field(..., description="是否精确匹配找到模型")
-    capabilities: ModelCapabilities | None = Field(
-        default=None, description="精确匹配时的模型能力"
-    )
-    candidates: list[ModelCandidate] | None = Field(
-        default=None, description="模糊匹配时的候选模型列表"
-    )
+    capabilities: ModelCapabilities | None = Field(default=None, description="精确匹配时的模型能力")
+    candidates: list[ModelCandidate] | None = Field(default=None, description="模糊匹配时的候选模型列表")
 
 
 class ModelInfoRequest(BaseModel):
@@ -539,9 +485,7 @@ class ModelSwitchPreflightResult(BaseModel):
     model: str = Field(..., description="目标模型名")
     found: bool = Field(default=False, description="是否成功解析目标窗口")
     new_window: int | None = Field(default=None, description="目标模型上下文窗口")
-    compress_threshold: int | None = Field(
-        default=None, description="切换后压缩触发阈值"
-    )
+    compress_threshold: int | None = Field(default=None, description="切换后压缩触发阈值")
     will_compress: bool = Field(default=False, description="切换后下一条消息将触发压缩")
 
 
@@ -603,12 +547,8 @@ class SpeedTestItemResult(BaseModel):
     model: str = Field(..., description="Model name (LiteLLM format)")
     ttft_ms: int | None = Field(default=None, description="Time to first token in ms")
     throughput_tps: float | None = Field(default=None, description="Tokens per second")
-    total_ms: int | None = Field(
-        default=None, description="Total generation time in ms"
-    )
-    total_tokens: int | None = Field(
-        default=None, description="Total output tokens generated"
-    )
+    total_ms: int | None = Field(default=None, description="Total generation time in ms")
+    total_tokens: int | None = Field(default=None, description="Total output tokens generated")
     status: Literal["ok", "error"] = Field(..., description="Test outcome")
     error: str | None = Field(default=None, description="Error message if failed")
 
@@ -645,21 +585,15 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
             token_count = 0
             start = time.monotonic()
 
-            async def _stream_and_measure(
-                stream_llm: BaseChatModel, stream_msg: HumanMessage
-            ) -> None:
+            async def _stream_and_measure(stream_llm: BaseChatModel, stream_msg: HumanMessage) -> None:
                 nonlocal first_token_time, token_count
-                async for chunk in stream_llm.astream(
-                    [stream_msg], config={"tags": ["speed_test"]}
-                ):
+                async for chunk in stream_llm.astream([stream_msg], config={"tags": ["speed_test"]}):
                     if chunk.content:
                         if first_token_time is None:
                             first_token_time = time.monotonic()
                         token_count += 1
 
-            await asyncio.wait_for(
-                _stream_and_measure(llm, message), timeout=_SPEED_TEST_TIMEOUT_S
-            )
+            await asyncio.wait_for(_stream_and_measure(llm, message), timeout=_SPEED_TEST_TIMEOUT_S)
             total_elapsed = time.monotonic() - start
 
             if first_token_time is None:
@@ -675,9 +609,7 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
             ttft_ms = int((first_token_time - start) * 1000)
             total_ms = int(total_elapsed * 1000)
             generation_time = total_elapsed - (first_token_time - start)
-            tps = (
-                round(token_count / generation_time, 1) if generation_time > 0 else 0.0
-            )
+            tps = round(token_count / generation_time, 1) if generation_time > 0 else 0.0
 
             results.append(
                 SpeedTestItemResult(
@@ -736,9 +668,7 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
 
     candidates = _search_models_by_name(model_name)
 
-    logger.debug(
-        f"Model info not found for {request.model}, found {len(candidates)} candidates"
-    )
+    logger.debug(f"Model info not found for {request.model}, found {len(candidates)} candidates")
 
     response = ModelInfoResponse(found=False, candidates=candidates)
     return success_response(data=response.model_dump())
@@ -828,11 +758,7 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
     from myrm_agent_harness.core.config.model_tier import ModelTier, infer_model_tier
 
     ineffective_streak = (
-        await asyncio.to_thread(
-            get_compression_streak_store().get_streak, request.chat_id
-        )
-        if request.chat_id
-        else 0
+        await asyncio.to_thread(get_compression_streak_store().get_streak, request.chat_id) if request.chat_id else 0
     )
     results: list[dict[str, object]] = []
     for item in request.models:
@@ -864,13 +790,10 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
                 estimated_remaining_turns=DEFAULT_ESTIMATED_REMAINING_TURNS,
             )
 
-        anti_thrash_blocked = (
-            ineffective_streak >= ANTI_THRASHING_STREAK_LIMIT
-            and request.estimated_tokens < int(window * SAFETY_NET_RATIO)
+        anti_thrash_blocked = ineffective_streak >= ANTI_THRASHING_STREAK_LIMIT and request.estimated_tokens < int(
+            window * SAFETY_NET_RATIO
         )
-        will_compress = (
-            not anti_thrash_blocked and request.estimated_tokens >= threshold
-        )
+        will_compress = not anti_thrash_blocked and request.estimated_tokens >= threshold
 
         results.append(
             ModelSwitchPreflightResult(

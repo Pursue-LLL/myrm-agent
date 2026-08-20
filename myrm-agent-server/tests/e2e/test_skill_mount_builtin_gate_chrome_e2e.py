@@ -91,11 +91,7 @@ def _create_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -111,9 +107,7 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> None:
@@ -147,31 +141,19 @@ def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> No
             )
             opened = client.evaluate(page, _OPEN_BUILTIN_DIALOG_JS, timeout_sec=15.0)
             assert isinstance(opened, dict)
-            assert (
-                opened.get("clicked") is True
-            ), f"Built-in Tools card not found: {opened}"
+            assert opened.get("clicked") is True, f"Built-in Tools card not found: {opened}"
 
             wait_for_state(client, page, _SKILL_MOUNT_DIALOG_READY_JS, timeout_sec=30.0)
 
-            default_off = client.evaluate(
-                page, _SKILL_MARKET_DEFAULT_OFF_JS, timeout_sec=10.0
-            )
+            default_off = client.evaluate(page, _SKILL_MARKET_DEFAULT_OFF_JS, timeout_sec=10.0)
             assert isinstance(default_off, dict)
-            assert (
-                default_off.get("ok") is True
-            ), f"skill_market should default OFF for v1-min: {default_off}"
+            assert default_off.get("ok") is True, f"skill_market should default OFF for v1-min: {default_off}"
 
             toggled = client.evaluate(page, _TOGGLE_SKILL_MARKET_JS, timeout_sec=10.0)
             assert isinstance(toggled, dict)
-            assert (
-                toggled.get("toggled") is True
-            ), f"Failed to toggle skill_market: {toggled}"
+            assert toggled.get("toggled") is True, f"Failed to toggle skill_market: {toggled}"
 
-            enabled = wait_for_state(
-                client, page, _SKILL_MARKET_ENABLED_JS, timeout_sec=15.0
-            )
-            assert (
-                enabled.get("ready") is True
-            ), f"skill_market should be enabled after toggle: {enabled}"
+            enabled = wait_for_state(client, page, _SKILL_MARKET_ENABLED_JS, timeout_sec=15.0)
+            assert enabled.get("ready") is True, f"skill_market should be enabled after toggle: {enabled}"
     finally:
         _delete_agent(api_url, agent_id)

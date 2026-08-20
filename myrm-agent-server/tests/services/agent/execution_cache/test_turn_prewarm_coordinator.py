@@ -76,19 +76,24 @@ async def test_join_for_turn_uses_brief_cache_when_ready() -> None:
     wrapper = MagicMock()
     wrapper.agent_id = "default"
 
-    with patch(
-        "app.services.agent.execution_cache.prewarm.coordinator.AgentFactory.create_general_agent",
-        return_value=wrapper,
-    ), patch(
-        "app.services.agent.execution_cache.prewarm.coordinator.compute_execution_fingerprint",
-        return_value=fingerprint,
-    ), patch(
-        "app.services.agent.execution_cache.prewarm.coordinator.build_execution_scope_key",
-        return_value=scope_key,
-    ), patch.object(
-        coordinator,
-        "_should_warm_agent",
-        return_value=False,
+    with (
+        patch(
+            "app.services.agent.execution_cache.prewarm.coordinator.AgentFactory.create_general_agent",
+            return_value=wrapper,
+        ),
+        patch(
+            "app.services.agent.execution_cache.prewarm.coordinator.compute_execution_fingerprint",
+            return_value=fingerprint,
+        ),
+        patch(
+            "app.services.agent.execution_cache.prewarm.coordinator.build_execution_scope_key",
+            return_value=scope_key,
+        ),
+        patch.object(
+            coordinator,
+            "_should_warm_agent",
+            return_value=False,
+        ),
     ):
         result = await coordinator.join_for_turn(params)
 

@@ -415,7 +415,11 @@ async def test_personality_metadata_overrides_agent_config(mock_agent_factory, m
 
     params = mock_agent_factory.create_general_agent.call_args[0][0]
     assert "**Communication Style**:" in params.user_instructions
-    assert "concise" in params.user_instructions.lower() or "brief" in params.user_instructions.lower() or "terse" in params.user_instructions.lower()
+    assert (
+        "concise" in params.user_instructions.lower()
+        or "brief" in params.user_instructions.lower()
+        or "terse" in params.user_instructions.lower()
+    )
     assert "academic" not in params.user_instructions.lower()
 
 

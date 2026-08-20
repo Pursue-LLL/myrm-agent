@@ -287,5 +287,6 @@ async def disconnect_google_workspace_oauth(db: AsyncSession = Depends(get_db)) 
     logger.info("Google Workspace OAuth disconnected")
     return success_response(data={"issuer": GOOGLE_WORKSPACE_ISSUER, "connected": False})
 
+
 # Backward-compatible alias for tests patching skill enablement.
 _maybe_enable_google_workspace_skill = flow.maybe_enable_google_workspace_skill

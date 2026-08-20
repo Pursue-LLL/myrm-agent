@@ -78,11 +78,7 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
         if file_size == 0:
             continue
         fname = str(filename)
-        mime = (
-            str(content_type)
-            if content_type
-            else (mimetypes.guess_type(fname)[0] or "application/octet-stream")
-        )
+        mime = str(content_type) if content_type else (mimetypes.guess_type(fname)[0] or "application/octet-stream")
 
         if file_size > MAX_CHANNEL_ATTACHMENT_BYTES:
             # Oversized: compress raster images into attachments; shareable
@@ -95,10 +91,7 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
                 )
                 if compressed is not None:
                     acc.pending_tmp_paths.append(str(compressed))
-                    out_mime = (
-                        mimetypes.guess_type(str(compressed))[0]
-                        or "application/octet-stream"
-                    )
+                    out_mime = mimetypes.guess_type(str(compressed))[0] or "application/octet-stream"
                     acc.file_attachments.append(
                         MediaAttachment(
                             media_type=MediaType.IMAGE,
@@ -107,16 +100,10 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
                             mime_type=out_mime,
                         )
                     )
-                    acc.compressed_deliverables.append(
-                        (fname, format_human_size(file_size))
-                    )
+                    acc.compressed_deliverables.append((fname, format_human_size(file_size)))
                     continue
             atype = str(artifact_type) if artifact_type else None
-            if (
-                isinstance(artifact_id, str)
-                and artifact_id
-                and is_shareable_artifact(fname, atype)
-            ):
+            if isinstance(artifact_id, str) and artifact_id and is_shareable_artifact(fname, atype):
                 acc.shareable_artifacts.append(
                     ShareableArtifact(artifact_id, fname, atype or ""),
                 )
@@ -248,7 +235,5 @@ async def fetch_artifact_versions(artifact_ids: list[str]) -> dict[str, str]:
                     version_map[artifact.id] = latest.id
             return version_map
     except Exception:
-        logger.warning(
-            "Failed to fetch artifact versions for deep links", exc_info=True
-        )
+        logger.warning("Failed to fetch artifact versions for deep links", exc_info=True)
         return {}

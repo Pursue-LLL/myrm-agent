@@ -13,6 +13,8 @@ from app.database.models.chat import Chat
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="statistics")
+
+
 @pytest.fixture
 async def setup_test_chat_usage():
     """Setup some dummy usage data in the Chat table for testing."""

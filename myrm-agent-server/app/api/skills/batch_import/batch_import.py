@@ -77,9 +77,7 @@ async def preview_batch_import(
         detail = _resolve_batch_import_error_message(e, violation=violation)
         payload = _build_batch_import_error_detail(detail, violation=violation)
         if violation is not None:
-            logger.warning(
-                "Batch import blocked by archive security policy: %s", detail
-            )
+            logger.warning("Batch import blocked by archive security policy: %s", detail)
         else:
             logger.error(f"Failed to parse ZIP: {e}")
         raise HTTPException(
@@ -88,9 +86,7 @@ async def preview_batch_import(
         ) from e
 
     if not imported_skills:
-        return ImportPreviewResponse(
-            session_id="", items=[], total_found=0, total_conflicts=0
-        )
+        return ImportPreviewResponse(session_id="", items=[], total_found=0, total_conflicts=0)
 
     store = _get_skill_store()
 
@@ -129,9 +125,7 @@ async def preview_batch_import(
         security_issues = None
 
         # 前置安全扫描
-        val_result = validator.validate_skill(
-            f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}"
-        )
+        val_result = validator.validate_skill(f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}")
         if not val_result.passed:
             security_issues = "; ".join(val_result.issues)
 
@@ -181,18 +175,12 @@ async def confirm_batch_import(
         imported_skills = staging_manager.load_session(request.session_id)
     except Exception as e:
         violation = classify_archive_security_issue(e)
-        detail = (
-            _resolve_batch_import_error_message(e, violation=violation)
-            if violation is not None
-            else str(e)
-        )
+        detail = _resolve_batch_import_error_message(e, violation=violation) if violation is not None else str(e)
         if not detail.strip():
             detail = "导入会话无效或已过期。"
         payload = _build_batch_import_error_detail(detail, violation=violation)
         if violation is not None:
-            logger.warning(
-                "Batch import confirm blocked by archive security policy: %s", detail
-            )
+            logger.warning("Batch import confirm blocked by archive security policy: %s", detail)
         else:
             logger.error("Batch import confirm failed to load session: %s", e)
         raise HTTPException(status_code=400, detail=payload) from e
@@ -213,14 +201,12 @@ async def confirm_batch_import(
         validator = SkillSecurityValidator(config=SecurityConfig())
 
     try:
-        imported_count, skipped_count, restored_eval_cases = (
-            await execute_batch_import_confirm(
-                request,
-                store=store,
-                staging_manager=staging_manager,
-                validator=validator,
-                imported_skills=imported_skills,
-            )
+        imported_count, skipped_count, restored_eval_cases = await execute_batch_import_confirm(
+            request,
+            store=store,
+            staging_manager=staging_manager,
+            validator=validator,
+            imported_skills=imported_skills,
         )
     finally:
         # 无论成功失败，都清理暂存区，保证磁盘 0 冗余

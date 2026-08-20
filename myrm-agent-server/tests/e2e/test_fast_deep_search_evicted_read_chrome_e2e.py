@@ -286,9 +286,7 @@ def _try_fetch_shared_config(config_key: str) -> dict[str, object] | None:
     return value if isinstance(value, dict) else None
 
 
-def _fetch_config_resilient(
-    config_key: str, api_url: str, *, attempts: int = 5
-) -> dict[str, object]:
+def _fetch_config_resilient(config_key: str, api_url: str, *, attempts: int = 5) -> dict[str, object]:
     last_exc: BaseException | None = None
     for attempt in range(attempts):
         try:
@@ -307,9 +305,7 @@ def _fetch_config_resilient(
 def _minimal_e2e_search_services() -> dict[str, object]:
     """Minimal searchServices for SHPOIB when shared :8080 has no configs."""
     search_service = resolve_test_env("SEARCH_SERVICE", "tavily") or "tavily"
-    api_key = resolve_test_env("TAVILY_API_KEY") or resolve_test_env(
-        "SEARCH_API_KEY", ""
-    )
+    api_key = resolve_test_env("TAVILY_API_KEY") or resolve_test_env("SEARCH_API_KEY", "")
     item: dict[str, object] = {
         "id": f"e2e-search-{uuid.uuid4().hex[:8]}",
         "name": "E2E Search",
@@ -328,9 +324,7 @@ def _minimal_e2e_search_services() -> dict[str, object]:
     return {"searchServiceConfigs": [item]}
 
 
-def _wait_search_services_persisted(
-    api_base: str, *, timeout_sec: float = 15.0
-) -> list[dict[str, object]]:
+def _wait_search_services_persisted(api_base: str, *, timeout_sec: float = 15.0) -> list[dict[str, object]]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -339,9 +333,7 @@ def _wait_search_services_persisted(
         if configs:
             return configs
         time.sleep(0.5)
-    pytest.fail(
-        f"searchServices not persisted on {api_base} after seed; last={json.dumps(last, ensure_ascii=False)}"
-    )
+    pytest.fail(f"searchServices not persisted on {api_base} after seed; last={json.dumps(last, ensure_ascii=False)}")
 
 
 def _ensure_private_search_configured(api_base: str) -> None:
@@ -353,9 +345,7 @@ def _ensure_private_search_configured(api_base: str) -> None:
     if shared and _search_configs_from_value(shared):
         put_config_value("searchServices", shared, api_url=api_base)
     else:
-        put_config_value(
-            "searchServices", _minimal_e2e_search_services(), api_url=api_base
-        )
+        put_config_value("searchServices", _minimal_e2e_search_services(), api_url=api_base)
     _wait_search_services_persisted(api_base)
 
 
@@ -370,25 +360,13 @@ def _ensure_private_providers_configured(api_base: str) -> None:
         else None
     )
     merged = dict(shared)
-    if (
-        isinstance(lite_primary, dict)
-        and lite_primary.get("providerId")
-        and lite_primary.get("model")
-    ):
+    if isinstance(lite_primary, dict) and lite_primary.get("providerId") and lite_primary.get("model"):
         dmc = dict(merged.get("defaultModelConfig") or {})
         dmc["fastModeModel"] = {
             "primary": lite_primary,
             "fallback": None,
-            "temperature": (
-                dmc.get("baseModel", {}).get("temperature", 0.7)
-                if isinstance(dmc.get("baseModel"), dict)
-                else 0.7
-            ),
-            "modelKwargs": (
-                dmc.get("baseModel", {}).get("modelKwargs", {})
-                if isinstance(dmc.get("baseModel"), dict)
-                else {}
-            ),
+            "temperature": (dmc.get("baseModel", {}).get("temperature", 0.7) if isinstance(dmc.get("baseModel"), dict) else 0.7),
+            "modelKwargs": (dmc.get("baseModel", {}).get("modelKwargs", {}) if isinstance(dmc.get("baseModel"), dict) else {}),
         }
         merged["defaultModelConfig"] = dmc
     put_config_value("providers", merged, api_url=api_base)
@@ -414,15 +392,8 @@ def _expected_fast_e2e_model(api_base: str) -> dict[str, str]:
             primary = lite.get("primary")
             if isinstance(primary, dict):
                 fast_primary = primary
-    if (
-        not isinstance(fast_primary, dict)
-        or not fast_primary.get("providerId")
-        or not fast_primary.get("model")
-    ):
-        pytest.fail(
-            "fast/lite model primary not configured on "
-            f"{api_base}: {json.dumps(dmc, ensure_ascii=False)}"
-        )
+    if not isinstance(fast_primary, dict) or not fast_primary.get("providerId") or not fast_primary.get("model"):
+        pytest.fail(f"fast/lite model primary not configured on {api_base}: {json.dumps(dmc, ensure_ascii=False)}")
     return {
         "providerId": str(fast_primary["providerId"]),
         "model": str(fast_primary["model"]),
@@ -461,17 +432,11 @@ def _api_deep_search_progress(chat_id: str, api_base: str) -> dict[str, object]:
             "userCount": user_count,
             "source": "api",
         }
-    meta = (
-        assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
-    )
-    steps = (
-        meta.get("progressSteps") if isinstance(meta.get("progressSteps"), list) else []
-    )
+    meta = assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
+    steps = meta.get("progressSteps") if isinstance(meta.get("progressSteps"), list) else []
     tool_names = [str(s.get("tool_name") or "") for s in steps if isinstance(s, dict)]
     evicted_refs = [
-        str(s.get("evicted_file_ref"))
-        for s in steps
-        if isinstance(s, dict) and isinstance(s.get("evicted_file_ref"), str)
+        str(s.get("evicted_file_ref")) for s in steps if isinstance(s, dict) and isinstance(s.get("evicted_file_ref"), str)
     ]
     content = str(assistant.get("content") or "")
     completion = str(meta.get("completionStatus") or "")
@@ -672,11 +637,7 @@ async def _restore_fast_search_bridge_light(
             _fast_search_attach_js(normalized_chat_id),
             intent=EvaluateIntent.ROUTE_ATTACH,
         )
-        attach = (
-            attach_raw
-            if isinstance(attach_raw, dict)
-            else {"ok": False, "err": attach_raw}
-        )
+        attach = attach_raw if isinstance(attach_raw, dict) else {"ok": False, "err": attach_raw}
         if attach.get("ok") is not True:
             touch_wall_progress(current_node="fast_search_bridge_nav_retry")
             ui_base = base_url.rstrip("/")
@@ -694,18 +655,12 @@ async def _restore_fast_search_bridge_light(
                 _fast_search_attach_js(normalized_chat_id),
                 intent=EvaluateIntent.ROUTE_ATTACH,
             )
-            attach = (
-                attach_raw
-                if isinstance(attach_raw, dict)
-                else {"ok": False, "err": attach_raw}
-            )
+            attach = attach_raw if isinstance(attach_raw, dict) else {"ok": False, "err": attach_raw}
     search_raw = await chat.evaluate(
         _SYNC_PRIVATE_SEARCH_JS,
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
-    search = (
-        search_raw if isinstance(search_raw, dict) else {"ok": False, "err": search_raw}
-    )
+    search = search_raw if isinstance(search_raw, dict) else {"ok": False, "err": search_raw}
     bridge_ok = attach.get("ok") is True or not normalized_chat_id
     return {
         "ok": bridge_ok and search.get("ok") is True,
@@ -742,9 +697,7 @@ async def _heal_fast_search_bridge_after_mux_loss(
     if restored.get("ok") is not True:
         touch_wall_progress(current_node="fast_search_bridge_attach_retry")
         await asyncio.sleep(2.0)
-        restored = await _restore_fast_search_bridge_light(
-            chat, BASE_URL, chat_id=chat_id
-        )
+        restored = await _restore_fast_search_bridge_light(chat, BASE_URL, chat_id=chat_id)
         if restored.get("ok") is not True:
             return {
                 "ok": False,
@@ -756,9 +709,7 @@ async def _heal_fast_search_bridge_after_mux_loss(
     raw_prep = await chat.evaluate(prep_js, intent=EvaluateIntent.AGENT_SUBMIT)
     if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
         return raw_prep
-    return (
-        raw_prep if isinstance(raw_prep, dict) else {"ok": False, "err": "prep-failed"}
-    )
+    return raw_prep if isinstance(raw_prep, dict) else {"ok": False, "err": "prep-failed"}
 
 
 def _kickoff_debug_user_hint(kickoff: dict[str, object]) -> int:
@@ -832,9 +783,7 @@ async def _kickoff_fast_search_with_retries(
                     await _soft_reset_fast_search_turn(chat, BASE_URL, light=True)
                     _ensure_private_search_configured(api_base)
                     _ensure_private_providers_configured(api_base)
-                    raw_prep = await chat.evaluate(
-                        prep_js, intent=EvaluateIntent.AGENT_SUBMIT
-                    )
+                    raw_prep = await chat.evaluate(prep_js, intent=EvaluateIntent.AGENT_SUBMIT)
                     if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
                         prep = raw_prep
                 await asyncio.sleep(2.0 * (kickoff_attempt + 1))
@@ -845,20 +794,11 @@ async def _kickoff_fast_search_with_retries(
             if isinstance(kickoff_prep, dict) and kickoff_prep.get("ok") is True:
                 prep = kickoff_prep
             return prep, kickoff
-        transient_kickoff = (
-            isinstance(kickoff, dict)
-            and str(kickoff.get("err") or "") in _TRANSIENT_KICKOFF_ERRORS
-        )
+        transient_kickoff = isinstance(kickoff, dict) and str(kickoff.get("err") or "") in _TRANSIENT_KICKOFF_ERRORS
         if kickoff_attempt + 1 < max_attempts and transient_kickoff:
             touch_wall_progress(current_node="fast_search_kickoff_soft_retry")
-            bridge_err = (
-                str(kickoff.get("err") or "") if isinstance(kickoff, dict) else ""
-            )
-            partial_chat_id = (
-                str(kickoff.get("chatId") or "").strip()
-                if isinstance(kickoff, dict)
-                else ""
-            )
+            bridge_err = str(kickoff.get("err") or "") if isinstance(kickoff, dict) else ""
+            partial_chat_id = str(kickoff.get("chatId") or "").strip() if isinstance(kickoff, dict) else ""
             effective_chat_id = chat_id.strip() or partial_chat_id
             if effective_chat_id and bridge_err in (
                 "no-sendChatMessage",
@@ -882,18 +822,14 @@ async def _kickoff_fast_search_with_retries(
                     )
                     _ensure_private_search_configured(api_base)
                     _ensure_private_providers_configured(api_base)
-                    raw_prep = await chat.evaluate(
-                        prep_js, intent=EvaluateIntent.AGENT_SUBMIT
-                    )
+                    raw_prep = await chat.evaluate(prep_js, intent=EvaluateIntent.AGENT_SUBMIT)
                     if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
                         prep = raw_prep
             else:
                 await _soft_reset_fast_search_turn(chat, BASE_URL, light=True)
                 _ensure_private_search_configured(api_base)
                 _ensure_private_providers_configured(api_base)
-                raw_prep = await chat.evaluate(
-                    prep_js, intent=EvaluateIntent.AGENT_SUBMIT
-                )
+                raw_prep = await chat.evaluate(prep_js, intent=EvaluateIntent.AGENT_SUBMIT)
                 if isinstance(raw_prep, dict) and raw_prep.get("ok") is True:
                     prep = raw_prep
             await asyncio.sleep(2.0 * (kickoff_attempt + 1))
@@ -941,9 +877,7 @@ async def _recover_stalled_fast_search_turn(
     stream_request_message_id: str = "",
 ) -> tuple[dict[str, object], dict[str, object]]:
     """Resume same message_id stream before creating a duplicate user turn."""
-    message_id = await _resolve_stream_request_message_id(
-        chat, cached=stream_request_message_id
-    )
+    message_id = await _resolve_stream_request_message_id(chat, cached=stream_request_message_id)
     if message_id:
         touch_wall_progress(current_node=f"fast_{search_depth}_stream_retry")
         retry_js = f"""(async () => {{
@@ -959,15 +893,11 @@ async def _recover_stalled_fast_search_turn(
           );
         }})()"""
         try:
-            retry = await chat.evaluate(
-                retry_js, intent=EvaluateIntent.AGENT_SUBMIT
-            )
+            retry = await chat.evaluate(retry_js, intent=EvaluateIntent.AGENT_SUBMIT)
         except RuntimeError as exc:
             if "MUX" not in str(exc) and "orphan" not in str(exc).lower():
                 raise
-            touch_wall_progress(
-                current_node=f"fast_{search_depth}_stream_retry_mux_heal"
-            )
+            touch_wall_progress(current_node=f"fast_{search_depth}_stream_retry_mux_heal")
             prep = await _heal_fast_search_bridge_after_mux_loss(
                 chat,
                 api_base=api_base,
@@ -975,28 +905,20 @@ async def _recover_stalled_fast_search_turn(
                 prep_js=prep_js,
             )
             retry = {"ok": False, "err": "mux-evaluate-orphan"}
-        if (
-            isinstance(retry, dict)
-            and retry.get("ok") is True
-            and retry.get("busy") is not True
-        ):
+        if isinstance(retry, dict) and retry.get("ok") is True and retry.get("busy") is not True:
             return prep, {
                 "ok": True,
                 "chatId": chat_id,
                 "mode": "stream-retry",
                 "retry": retry,
             }
-        bridge_retry_err = (
-            str(retry.get("err") or "") if isinstance(retry, dict) else ""
-        )
+        bridge_retry_err = str(retry.get("err") or "") if isinstance(retry, dict) else ""
         if bridge_retry_err in (
             "no-bridge",
             "no-retryStreamWithSameMessageId",
             "mux-evaluate-orphan",
         ):
-            touch_wall_progress(
-                current_node=f"fast_{search_depth}_stream_retry_bridge_heal"
-            )
+            touch_wall_progress(current_node=f"fast_{search_depth}_stream_retry_bridge_heal")
             prep = await _heal_fast_search_bridge_after_mux_loss(
                 chat,
                 api_base=api_base,
@@ -1026,9 +948,7 @@ async def _resume_orphaned_stream_after_web_fetch(
     stream_request_message_id: str = "",
 ) -> tuple[dict[str, object], dict[str, object] | None]:
     """Resume same message_id after web_fetch when UI tools exist but assistant never persisted."""
-    message_id = await _resolve_stream_request_message_id(
-        chat, cached=stream_request_message_id
-    )
+    message_id = await _resolve_stream_request_message_id(chat, cached=stream_request_message_id)
     if not message_id:
         return prep, None
     touch_wall_progress(current_node=f"fast_{search_depth}_web_fetch_stream_resume")
@@ -1048,14 +968,8 @@ async def _resume_orphaned_stream_after_web_fetch(
         retry = await chat.evaluate(retry_js, intent=EvaluateIntent.AGENT_SUBMIT)
     except (RuntimeError, TimeoutError, asyncio.TimeoutError) as exc:
         exc_msg = str(exc)
-        if (
-            "MUX" in exc_msg
-            or "orphan" in exc_msg.lower()
-            or isinstance(exc, (TimeoutError, asyncio.TimeoutError))
-        ):
-            touch_wall_progress(
-                current_node=f"fast_{search_depth}_web_fetch_stream_resume_mux_heal"
-            )
+        if "MUX" in exc_msg or "orphan" in exc_msg.lower() or isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+            touch_wall_progress(current_node=f"fast_{search_depth}_web_fetch_stream_resume_mux_heal")
             prep = await _heal_fast_search_bridge_after_mux_loss(
                 chat,
                 api_base=api_base,
@@ -1064,11 +978,7 @@ async def _resume_orphaned_stream_after_web_fetch(
             )
             return prep, {"ok": False, "err": "mux-evaluate-orphan"}
         raise
-    if (
-        isinstance(retry, dict)
-        and retry.get("ok") is True
-        and retry.get("busy") is not True
-    ):
+    if isinstance(retry, dict) and retry.get("ok") is True and retry.get("busy") is not True:
         return prep, {
             "ok": True,
             "chatId": chat_id,
@@ -1139,9 +1049,7 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
     bootstrap_timeout = shpoib_parallel_shell_timeout_sec(240.0)
     bridge_timeout = signoff_parallel_force_chat_timeout_sec(90.0)
     stop = asyncio.Event()
-    heartbeat = asyncio.create_task(
-        _progress_heartbeat(stop=stop, current_node="fast_search_hydrate")
-    )
+    heartbeat = asyncio.create_task(_progress_heartbeat(stop=stop, current_node="fast_search_hydrate"))
     try:
         await _wait_mux_before_blocking_cdp(current_node="fast_search_hydrate")
         for attempt in range(3):
@@ -1158,17 +1066,12 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
                         _IN_PAGE_RESET_CHAT_JS,
                         intent=EvaluateIntent.SYNC_PROBE,
                     )
-                    if (
-                        not isinstance(reset_raw, dict)
-                        or reset_raw.get("ok") is not True
-                    ):
+                    if not isinstance(reset_raw, dict) or reset_raw.get("ok") is not True:
                         raise RuntimeError(f"in-page reset failed: {reset_raw!r}")
                     await asyncio.sleep(0.5)
                     await chat.ensure_e2e_api_base_binding()
                     await chat.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)
-                await _wait_mux_before_blocking_cdp(
-                    current_node="fast_search_hydrate_eval"
-                )
+                await _wait_mux_before_blocking_cdp(current_node="fast_search_hydrate_eval")
                 touch_wall_progress(current_node="fast_search_hydrate_eval")
                 print(
                     "E2E_FAST_SEARCH_HYDRATE: phase=provider_gate",
@@ -1178,9 +1081,7 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
 
                 def _provider_gate_sync() -> None:
                     if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=90.0):
-                        raise RuntimeError(
-                            f"SHPOIB provider not ready before hydrate on {api_base}"
-                        )
+                        raise RuntimeError(f"SHPOIB provider not ready before hydrate on {api_base}")
                     _ensure_private_search_configured(api_base)
                     _ensure_private_providers_configured(api_base)
 
@@ -1210,9 +1111,7 @@ async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> Non
                         await asyncio.to_thread(client.recover_mux_transport)
                 except RuntimeError:
                     pass
-                await _wait_mux_before_blocking_cdp(
-                    current_node="fast_search_hydrate_retry"
-                )
+                await _wait_mux_before_blocking_cdp(current_node="fast_search_hydrate_retry")
                 await asyncio.sleep(3.0 * (attempt + 1))
     finally:
         stop.set()
@@ -1273,13 +1172,8 @@ async def _run_fast_evicted_read_live_e2e_once(
     async def _run_flow(chat: McpChatSession) -> None:
         model_used = "unknown"
         await _hydrate_fast_search_chat_after_page_open(chat)
-        if not await asyncio.to_thread(
-            wait_e2e_provider_ready, api_url=api_base, timeout_sec=90.0
-        ):
-            pytest.fail(
-                f"SHPOIB provider not ready after bootstrap on {api_base} "
-                "(mux heal race — do not stop other pytest)"
-            )
+        if not await asyncio.to_thread(wait_e2e_provider_ready, api_url=api_base, timeout_sec=90.0):
+            pytest.fail(f"SHPOIB provider not ready after bootstrap on {api_base} (mux heal race — do not stop other pytest)")
 
         await asyncio.to_thread(_ensure_private_search_configured, api_base)
         await asyncio.to_thread(_ensure_private_providers_configured, api_base)
@@ -1297,16 +1191,12 @@ async def _run_fast_evicted_read_live_e2e_once(
             _evaluate_js_sync(chat, prep_js, timeout_sec=20.0),
             timeout=25.0,
         )
-        prep = (
-            raw_prep if isinstance(raw_prep, dict) else {"ok": False, "err": raw_prep}
-        )
+        prep = raw_prep if isinstance(raw_prep, dict) else {"ok": False, "err": raw_prep}
         assert prep.get("ok") is True, prep
         assert prep.get("actionMode") == "fast", prep
         assert prep.get("searchDepth") == search_depth, prep
         injected_api = str(prep.get("apiBase") or "")
-        assert (
-            expected_api_origin in injected_api
-        ), f"UI must stream to SHPOIB private API {api_base}, got {injected_api!r}"
+        assert expected_api_origin in injected_api, f"UI must stream to SHPOIB private API {api_base}, got {injected_api!r}"
         prep_model = str(prep.get("model") or "")
         prep_provider = str(prep.get("providerId") or "")
         model_used = prep_model or prep_provider or "unknown"
@@ -1315,8 +1205,7 @@ async def _run_fast_evicted_read_live_e2e_once(
             f"got model={prep_model!r} provider={prep_provider!r}; prep={prep}"
         )
         assert prep_provider == expected_fast["providerId"], (
-            f"Fast E2E provider mismatch: expected {expected_fast['providerId']!r}, "
-            f"got {prep_provider!r}; prep={prep}"
+            f"Fast E2E provider mismatch: expected {expected_fast['providerId']!r}, got {prep_provider!r}; prep={prep}"
         )
 
         await _wait_mux_before_blocking_cdp(current_node="fast_search_workspace")
@@ -1324,11 +1213,8 @@ async def _run_fast_evicted_read_live_e2e_once(
             _evaluate_js_sync(chat, WAIT_WORKSPACE_STREAM_JS, timeout_sec=45.0),
             timeout=50.0,
         )
-        assert (
-            isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
-        ), (
-            f"workspace multiplex stream not ready before fast {search_depth} send: "
-            f"{workspace_ready!r}; api={api_base}"
+        assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, (
+            f"workspace multiplex stream not ready before fast {search_depth} send: {workspace_ready!r}; api={api_base}"
         )
         await _assert_e2e_api_binding(chat, api_base)
 
@@ -1362,17 +1248,13 @@ async def _run_fast_evicted_read_live_e2e_once(
             intent=EvaluateIntent.SYNC_PROBE,
         )
         assert isinstance(post_send_mode, dict), post_send_mode
-        assert (
-            post_send_mode.get("actionMode") == "fast"
-        ), f"send must preserve fast mode, got {post_send_mode!r}"
+        assert post_send_mode.get("actionMode") == "fast", f"send must preserve fast mode, got {post_send_mode!r}"
         assert post_send_mode.get("searchDepth") == search_depth, post_send_mode
         chat_id = str(kickoff.get("chatId") or "").strip()
         assert chat_id, kickoff
         e2e_resource_ledger.register("chat", chat_id)
 
-        kickoff_verify_deadline = time.monotonic() + _kickoff_api_verify_budget_sec(
-            kickoff
-        )
+        kickoff_verify_deadline = time.monotonic() + _kickoff_api_verify_budget_sec(kickoff)
         kickoff_user_count = 0
         while time.monotonic() < kickoff_verify_deadline:
             touch_wall_progress(current_node=f"fast_{search_depth}_kickoff_api_verify")
@@ -1403,23 +1285,17 @@ async def _run_fast_evicted_read_live_e2e_once(
         stall_first_sec = float(poll_profile["stall_first_sec"])
         stall_long_sec = float(poll_profile["stall_long_sec"])
         no_web_fetch_fail_sec = float(poll_profile["no_web_fetch_fail_sec"])
-        stall_recovery_poll_extension_sec = float(
-            poll_profile["stall_recovery_poll_extension_sec"]
-        )
+        stall_recovery_poll_extension_sec = float(poll_profile["stall_recovery_poll_extension_sec"])
         web_fetch_resume_count = 0
         max_web_fetch_resume = 3
         web_fetch_seen_at: float | None = None
         turn_started = time.monotonic()
-        stream_request_message_id = await _resolve_stream_request_message_id(
-            chat, cached=stream_request_message_id
-        )
+        stream_request_message_id = await _resolve_stream_request_message_id(chat, cached=stream_request_message_id)
         while time.monotonic() < deadline:
             heartbeat_once()
             assert_phase_budget(f"fast_{search_depth}_search_poll")
             touch_wall_progress(current_node=f"fast_{search_depth}_search_poll")
-            ui_last, api_last = await _poll_fast_search_progress(
-                chat, chat_id, api_base
-            )
+            ui_last, api_last = await _poll_fast_search_progress(chat, chat_id, api_base)
             if ui_last.get("ready") is True or api_last.get("ready") is True:
                 last = _merge_fast_search_progress(ui_last, api_last)
                 break
@@ -1437,9 +1313,7 @@ async def _run_fast_evicted_read_live_e2e_once(
                     flush=True,
                 )
             if ui_last.get("isStreaming") is True and not stream_request_message_id:
-                stream_request_message_id = await _resolve_stream_request_message_id(
-                    chat
-                )
+                stream_request_message_id = await _resolve_stream_request_message_id(chat)
             api_err = str(api_last.get("err") or "")
             elapsed_turn = time.monotonic() - turn_started
             tool_names = last.get("toolNames")
@@ -1449,12 +1323,8 @@ async def _run_fast_evicted_read_live_e2e_once(
             user_count = int(api_last.get("userCount") or 0)
             ui_streaming = ui_last.get("isStreaming") is True
             kickoff_ok = isinstance(kickoff, dict) and kickoff.get("ok") is True
-            empty_kickoff_api = (
-                kickoff_ok and api_err == "no-messages" and user_count < 1
-            )
-            api_stalled = (
-                api_err in ("no-assistant", "no-messages", "api-io") and user_count >= 1
-            ) or empty_kickoff_api
+            empty_kickoff_api = kickoff_ok and api_err == "no-messages" and user_count < 1
+            api_stalled = (api_err in ("no-assistant", "no-messages", "api-io") and user_count >= 1) or empty_kickoff_api
             web_fetch_orphan = (
                 web_fetch_resume_count < max_web_fetch_resume
                 and last.get("hasWebFetch") is True
@@ -1476,12 +1346,8 @@ async def _run_fast_evicted_read_live_e2e_once(
                     flush=True,
                 )
                 web_fetch_resume_count += 1
-                touch_wall_progress(
-                    current_node=f"fast_{search_depth}_web_fetch_stream_resume"
-                )
-                stream_request_message_id = await _resolve_stream_request_message_id(
-                    chat, cached=stream_request_message_id
-                )
+                touch_wall_progress(current_node=f"fast_{search_depth}_web_fetch_stream_resume")
+                stream_request_message_id = await _resolve_stream_request_message_id(chat, cached=stream_request_message_id)
                 prep, resume = await _resume_orphaned_stream_after_web_fetch(
                     chat,
                     chat_id=chat_id,
@@ -1493,11 +1359,7 @@ async def _run_fast_evicted_read_live_e2e_once(
                     stream_request_message_id=stream_request_message_id,
                 )
                 if isinstance(resume, dict) and resume.get("ok") is True:
-                    stream_request_message_id = (
-                        await _resolve_stream_request_message_id(
-                            chat, cached=stream_request_message_id
-                        )
-                    )
+                    stream_request_message_id = await _resolve_stream_request_message_id(chat, cached=stream_request_message_id)
                     web_fetch_seen_at = time.monotonic()
                     deadline = max(
                         deadline,
@@ -1508,14 +1370,8 @@ async def _run_fast_evicted_read_live_e2e_once(
                 stall_retry_count < max_stall_retries
                 and no_tool_progress
                 and (
-                    (
-                        elapsed_turn >= stall_first_sec
-                        and api_stalled
-                        and user_count >= 1
-                    )
-                    or (
-                        elapsed_turn >= stall_long_sec and (ui_streaming or api_stalled)
-                    )
+                    (elapsed_turn >= stall_first_sec and api_stalled and user_count >= 1)
+                    or (elapsed_turn >= stall_long_sec and (ui_streaming or api_stalled))
                     or (empty_kickoff_api and elapsed_turn >= 15.0)
                 )
             )
@@ -1530,9 +1386,7 @@ async def _run_fast_evicted_read_live_e2e_once(
                 )
                 stall_retry_count += 1
                 touch_wall_progress(current_node=f"fast_{search_depth}_stall_recovery")
-                stream_request_message_id = await _resolve_stream_request_message_id(
-                    chat, cached=stream_request_message_id
-                )
+                stream_request_message_id = await _resolve_stream_request_message_id(chat, cached=stream_request_message_id)
                 try:
                     prep, kickoff = await _recover_stalled_fast_search_turn(
                         chat,
@@ -1546,12 +1400,8 @@ async def _run_fast_evicted_read_live_e2e_once(
                         stream_request_message_id=stream_request_message_id,
                     )
                 except (TimeoutError, asyncio.TimeoutError) as exc:
-                    raise RuntimeError(
-                        f"MUX cold attach stall recovery kickoff timeout: {exc}"
-                    ) from exc
-                stream_request_message_id = await _resolve_stream_request_message_id(
-                    chat, cached=stream_request_message_id
-                )
+                    raise RuntimeError(f"MUX cold attach stall recovery kickoff timeout: {exc}") from exc
+                stream_request_message_id = await _resolve_stream_request_message_id(chat, cached=stream_request_message_id)
                 new_chat_id = str(kickoff.get("chatId") or chat_id).strip()
                 assert new_chat_id, kickoff
                 chat_id = new_chat_id
@@ -1561,11 +1411,7 @@ async def _run_fast_evicted_read_live_e2e_once(
                     time.monotonic() + stall_recovery_poll_extension_sec,
                 )
                 continue
-            if (
-                elapsed_turn >= no_web_fetch_fail_sec
-                and no_tool_progress
-                and stall_retry_count >= max_stall_retries
-            ):
+            if elapsed_turn >= no_web_fetch_fail_sec and no_tool_progress and stall_retry_count >= max_stall_retries:
                 pytest.fail(
                     f"Fast {search_depth} search stalled without web_fetch after {elapsed_turn:.0f}s; "
                     f"model={model_used}; stall_retries={stall_retry_count}; "
@@ -1580,18 +1426,14 @@ async def _run_fast_evicted_read_live_e2e_once(
                     and elapsed_turn < float(poll_profile["poll_budget_max_sec"])
                 )
                 if wall_grace:
-                    touch_wall_progress(
-                        current_node=f"fast_{search_depth}_wall_grace_poll"
-                    )
+                    touch_wall_progress(current_node=f"fast_{search_depth}_wall_grace_poll")
                     heartbeat_once()
                     await asyncio.sleep(2.0)
                     continue
                 break
             for _ in range(2):
                 heartbeat_once()
-                touch_wall_progress(
-                    current_node=f"fast_{search_depth}_search_poll_wait"
-                )
+                touch_wall_progress(current_node=f"fast_{search_depth}_search_poll_wait")
                 await asyncio.sleep(1.0)
 
         assert last.get("ready") is True, (
@@ -1619,19 +1461,9 @@ async def _run_fast_evicted_read_live_e2e_once(
                 None,
             )
             assert assistant is not None
-            meta = (
-                assistant.get("metadata")
-                if isinstance(assistant.get("metadata"), dict)
-                else {}
-            )
-            steps = (
-                meta.get("progressSteps")
-                if isinstance(meta.get("progressSteps"), list)
-                else []
-            )
-            api_tools = {
-                str(s.get("tool_name") or "") for s in steps if isinstance(s, dict)
-            }
+            meta = assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
+            steps = meta.get("progressSteps") if isinstance(meta.get("progressSteps"), list) else []
+            api_tools = {str(s.get("tool_name") or "") for s in steps if isinstance(s, dict)}
             assert "web_fetch_tool" in api_tools, api_tools
             if any(isinstance(s, dict) and s.get("evicted_file_ref") for s in steps):
                 assert "file_read_tool" in api_tools, api_tools
@@ -1661,21 +1493,13 @@ async def _run_fast_evicted_read_live_e2e(
     """Shared LIVE Chrome flow for fast + normal/deep search_depth."""
     api_base = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_base):
-        pytest.fail(
-            "Provider not ready — run ./myrm ready --chrome; WebUI must have search + LLM configured"
-        )
+        pytest.fail("Provider not ready — run ./myrm ready --chrome; WebUI must have search + LLM configured")
     _ensure_private_search_configured(api_base)
     _ensure_private_providers_configured(api_base)
     private_search = fetch_config_value("searchServices", api_url=api_base)
-    search_configs = (
-        private_search.get("searchServiceConfigs")
-        if isinstance(private_search, dict)
-        else None
-    )
+    search_configs = private_search.get("searchServiceConfigs") if isinstance(private_search, dict) else None
     if not isinstance(search_configs, list) or not search_configs:
-        pytest.fail(
-            f"SHPOIB searchServices empty after ensure — fast+{search_depth} prep requires search config"
-        )
+        pytest.fail(f"SHPOIB searchServices empty after ensure — fast+{search_depth} prep requires search config")
     last_error: BaseException | None = None
     for attempt in range(1, _MAX_TRANSPORT_ATTEMPTS + 1):
         try:
@@ -1695,9 +1519,7 @@ async def _run_fast_evicted_read_live_e2e(
         raise last_error
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -1713,9 +1535,7 @@ async def test_fast_deep_search_web_fetch_spill_uses_file_read_in_real_ui(
     )
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.e2e_search_policy("hydrate_private")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

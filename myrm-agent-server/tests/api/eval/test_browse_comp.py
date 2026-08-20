@@ -44,6 +44,7 @@ def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
         for row in rows:
             writer.writerow(row)
 
+
 def test_decrypt_roundtrip() -> None:
     """_decrypt inverts the official canary XOR encryption."""
     canary = "example canary value"

@@ -34,8 +34,7 @@ _COVER_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00
 
 _VARIANT_HTML: dict[str, str] = {
     "compliance_block": (
-        "<html><body><p>集赞 20 个送礼品，分享到朋友圈解锁全文。</p>"
-        '<img src="cover.png" alt="cover"></body></html>'
+        '<html><body><p>集赞 20 个送礼品，分享到朋友圈解锁全文。</p><img src="cover.png" alt="cover"></body></html>'
     ),
     "digest_ssot": (
         "<html><body><p>正常教程正文足够长通过合规扫描与摘要提取。</p>"

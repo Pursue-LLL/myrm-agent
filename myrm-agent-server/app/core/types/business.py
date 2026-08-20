@@ -185,8 +185,7 @@ class MCPServerConfig(BaseModel):
         ge=5.0,
         le=3600.0,
         description=(
-            "Optional remote MCP keepalive interval in seconds. "
-            "Applies to SSE/streamable_http only; None uses framework default."
+            "Optional remote MCP keepalive interval in seconds. Applies to SSE/streamable_http only; None uses framework default."
         ),
     )
     ssl_verify: bool | str | None = Field(
@@ -248,10 +247,7 @@ class MCPServerConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_transport(self) -> Self:
         if self.type not in ("stdio", "sse", "streamable_http"):
-            raise ValueError(
-                f"MCPConfig '{self.name}': unsupported type='{self.type}' "
-                "(expected stdio | sse | streamable_http)"
-            )
+            raise ValueError(f"MCPConfig '{self.name}': unsupported type='{self.type}' (expected stdio | sse | streamable_http)")
         if self.type in ("sse", "streamable_http") and not self.url:
             raise ValueError(f"MCPConfig '{self.name}': type='{self.type}' requires 'url'")
         if self.type == "stdio" and not self.command:

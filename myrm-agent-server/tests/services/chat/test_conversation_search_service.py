@@ -26,14 +26,10 @@ from app.services.chat.conversation_search_service import ConversationSearchServ
 
 class TestConversationSearchService:
     @pytest.mark.asyncio
-    async def test_search_returns_conversation_summary_and_snippet(
-        self, fts_db: AsyncSession
-    ):
+    async def test_search_returns_conversation_summary_and_snippet(self, fts_db: AsyncSession):
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
-            text(
-                "UPDATE chats SET compacted_summary = :summary, agent_id = :agent_id WHERE id = :chat_id"
-            ),
+            text("UPDATE chats SET compacted_summary = :summary, agent_id = :agent_id WHERE id = :chat_id"),
             {
                 "summary": "Deployment summary: use Docker Compose locally before Kubernetes.",
                 "agent_id": "agent-a",
@@ -44,9 +40,7 @@ class TestConversationSearchService:
         await fts_db.commit()
 
         response = await ConversationSearchService.search(
-            ConversationSearchRequest(
-                query="docker", limit=3, current_conversation_id=None
-            ),
+            ConversationSearchRequest(query="docker", limit=3, current_conversation_id=None),
             agent_id="agent-a",
             memory_manager=None,
         )
@@ -54,22 +48,15 @@ class TestConversationSearchService:
         assert response.mode == "search"
         assert len(response.hits) == 1
         assert response.hits[0].conversation_id == chat_id
-        assert (
-            response.hits[0].summary
-            == "Deployment summary: use Docker Compose locally before Kubernetes."
-        )
+        assert response.hits[0].summary == "Deployment summary: use Docker Compose locally before Kubernetes."
         assert "<mark>" in response.hits[0].snippet
 
     @pytest.mark.asyncio
-    async def test_search_returns_matching_segment_message_id(
-        self, fts_db: AsyncSession
-    ):
+    async def test_search_returns_matching_segment_message_id(self, fts_db: AsyncSession):
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
-            ConversationSearchRequest(
-                query="Kubernetes", limit=3, current_conversation_id=None
-            ),
+            ConversationSearchRequest(query="Kubernetes", limit=3, current_conversation_id=None),
             agent_id=None,
             memory_manager=None,
         )
@@ -97,9 +84,7 @@ class TestConversationSearchService:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
-            ConversationSearchRequest(
-                query="docker", limit=3, current_conversation_id=chat_id
-            ),
+            ConversationSearchRequest(query="docker", limit=3, current_conversation_id=chat_id),
             agent_id=None,
             memory_manager=None,
         )
@@ -163,9 +148,7 @@ class TestConversationSearchService:
             ConversationSearchRequest(query="docker", limit=3, scope="all")
 
     @pytest.mark.asyncio
-    async def test_search_can_match_precomputed_summary_only(
-        self, fts_db: AsyncSession
-    ):
+    async def test_search_can_match_precomputed_summary_only(self, fts_db: AsyncSession):
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
             text("UPDATE chats SET compacted_summary = :summary WHERE id = :chat_id"),
@@ -184,20 +167,13 @@ class TestConversationSearchService:
         )
 
         assert [hit.conversation_id for hit in response.hits] == [chat_id]
-        assert (
-            response.hits[0].summary
-            == "Strategic recall keyword: bluegreenphoenix cutover plan."
-        )
+        assert response.hits[0].summary == "Strategic recall keyword: bluegreenphoenix cutover plan."
         assert "<mark>" in response.hits[0].snippet
 
     @pytest.mark.asyncio
-    async def test_search_uses_or_fallback_for_broad_natural_language_query(
-        self, fts_db: AsyncSession
-    ):
+    async def test_search_uses_or_fallback_for_broad_natural_language_query(self, fts_db: AsyncSession):
         chat_id = "chat-bluegreen"
-        fts_db.add(
-            Chat(id=chat_id, title="Bluegreen release notes", action_mode="agent")
-        )
+        fts_db.add(Chat(id=chat_id, title="Bluegreen release notes", action_mode="agent"))
         fts_db.add(
             Message(
                 id="msg-bluegreen",
@@ -222,9 +198,7 @@ class TestConversationSearchService:
         assert "Bluegreen" in response.hits[0].snippet
 
     @pytest.mark.asyncio
-    async def test_semantic_hit_is_hydrated_from_recall_index(
-        self, fts_db: AsyncSession
-    ):
+    async def test_semantic_hit_is_hydrated_from_recall_index(self, fts_db: AsyncSession):
         chat_id = await seed_chat_and_messages(fts_db)
         manager = FakeConversationMemoryManager(
             [
@@ -255,9 +229,7 @@ class TestConversationSearchService:
         assert "Docker Compose" in response.hits[0].source_ref.snippet
 
     @pytest.mark.asyncio
-    async def test_semantic_search_respects_excluded_conversation(
-        self, fts_db: AsyncSession
-    ):
+    async def test_semantic_search_respects_excluded_conversation(self, fts_db: AsyncSession):
         chat_id = await seed_chat_and_messages(fts_db)
         await ConversationRecallRepository.set_excluded(fts_db, chat_id, True)
         await fts_db.commit()
@@ -311,9 +283,7 @@ class TestConversationSearchService:
         )
 
         response = await ConversationSearchService.search(
-            ConversationSearchRequest(
-                query="semantic-only", limit=3, scope="current_agent"
-            ),
+            ConversationSearchRequest(query="semantic-only", limit=3, scope="current_agent"),
             agent_id="agent-b",
             memory_manager=manager,
         )
@@ -416,28 +386,16 @@ class TestConversationSearchService:
         assert response.hits == []
 
     @pytest.mark.asyncio
-    async def test_excluded_conversation_can_be_listed_and_restored(
-        self, fts_db: AsyncSession
-    ):
+    async def test_excluded_conversation_can_be_listed_and_restored(self, fts_db: AsyncSession):
         chat_id = await seed_chat_and_messages(fts_db)
-        assert (
-            await ConversationRecallIndexService.set_chat_excluded(chat_id, True)
-            is True
-        )
+        assert await ConversationRecallIndexService.set_chat_excluded(chat_id, True) is True
 
-        excluded_rows, total = await ConversationRecallIndexService.list_documents(
-            excluded=True, page=1, page_size=10
-        )
+        excluded_rows, total = await ConversationRecallIndexService.list_documents(excluded=True, page=1, page_size=10)
         assert total == 1
         assert [row.chat_id for row in excluded_rows] == [chat_id]
 
-        assert (
-            await ConversationRecallIndexService.set_chat_excluded(chat_id, False)
-            is True
-        )
-        excluded_rows, total = await ConversationRecallIndexService.list_documents(
-            excluded=True, page=1, page_size=10
-        )
+        assert await ConversationRecallIndexService.set_chat_excluded(chat_id, False) is True
+        excluded_rows, total = await ConversationRecallIndexService.list_documents(excluded=True, page=1, page_size=10)
         assert total == 0
         assert excluded_rows == []
 

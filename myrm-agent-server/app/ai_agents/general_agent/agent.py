@@ -302,10 +302,7 @@ class GeneralAgent(ToolSetupMixin):
         """Resolve shared read-only wiki vaults bound to this agent."""
         from app.services.wiki.vault import resolve_shared_wiki_vault_paths
 
-        return [
-            str(path)
-            for path in resolve_shared_wiki_vault_paths(self.memory_shared_context_ids)
-        ]
+        return [str(path) for path in resolve_shared_wiki_vault_paths(self.memory_shared_context_ids)]
 
     def _build_wiki_search_fn(
         self,
@@ -341,17 +338,13 @@ class GeneralAgent(ToolSetupMixin):
 
         return _wiki_bm25_search
 
-    def _resolve_context_binding(
-        self, effective_chat_id: str
-    ) -> ResolvedContextBinding | None:
+    def _resolve_context_binding(self, effective_chat_id: str) -> ResolvedContextBinding | None:
         """Resolve the unified context binding contract for the current agent run."""
 
         if not self.enable_memory or self.incognito_mode:
             return None
 
-        task_root = (
-            self.declared_allowed_roots[0] if self.declared_allowed_roots else None
-        )
+        task_root = self.declared_allowed_roots[0] if self.declared_allowed_roots else None
         return resolve_context_binding(
             namespaces=None,
             agent_id=self.agent_id or "default",
@@ -367,9 +360,7 @@ class GeneralAgent(ToolSetupMixin):
         self,
         *,
         query: object,
-        chat_history: (
-            list[list[str]] | list[list[str | object]] | Sequence[BaseMessage] | None
-        ),
+        chat_history: (list[list[str]] | list[list[str | object]] | Sequence[BaseMessage] | None),
         effective_chat_id: str,
     ) -> dict[str, object]:
         """Build server-layer runtime context passed into the harness."""
@@ -407,16 +398,11 @@ class GeneralAgent(ToolSetupMixin):
         if self.model_cfg.max_context_tokens:
             context["max_context_tokens"] = self.model_cfg.max_context_tokens
 
-        if (
-            self.engine_params
-            and self.engine_params.get("compress_start_ratio") is not None
-        ):
+        if self.engine_params and self.engine_params.get("compress_start_ratio") is not None:
             context["compress_start_ratio"] = self.engine_params["compress_start_ratio"]
 
         context["supports_vision"] = self.model_cfg.supports_vision
-        context["supports_video"] = bool(
-            getattr(self.model_cfg, "supports_video", False)
-        )
+        context["supports_video"] = bool(getattr(self.model_cfg, "supports_video", False))
         if self.vision_fallback_model_cfgs:
             context["vision_fallback_model_cfgs"] = self.vision_fallback_model_cfgs
         if self.vision_fallback_model_cfg:
@@ -457,9 +443,7 @@ class GeneralAgent(ToolSetupMixin):
                 SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY,
             )
 
-            context[SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY] = list(
-                self.session_loaded_skill_names
-            )
+            context[SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY] = list(self.session_loaded_skill_names)
 
         return context
 
@@ -517,13 +501,9 @@ class GeneralAgent(ToolSetupMixin):
                     cleanup_session_context_files,
                 )
 
-                await cleanup_session_context_files(
-                    self._current_chat_id, self._executor
-                )
+                await cleanup_session_context_files(self._current_chat_id, self._executor)
             except Exception as e:
-                logger.warning(
-                    f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}"
-                )
+                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
 
     async def close(self) -> None:
         """Close Agent and release resources."""
@@ -560,13 +540,9 @@ class GeneralAgent(ToolSetupMixin):
                     cleanup_session_context_files,
                 )
 
-                await cleanup_session_context_files(
-                    self._current_chat_id, self._executor
-                )
+                await cleanup_session_context_files(self._current_chat_id, self._executor)
             except Exception as e:
-                logger.warning(
-                    f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}"
-                )
+                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
 
         if self.agent is not None:
             try:

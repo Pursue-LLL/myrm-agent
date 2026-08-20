@@ -19,9 +19,7 @@ if TYPE_CHECKING:
     from app.services.connect.profiles import ConnectionProfile
 
 
-def build_config_json(
-    profile: "ConnectionProfile", mcp_url: str, token: str
-) -> dict[str, object]:
+def build_config_json(profile: "ConnectionProfile", mcp_url: str, token: str) -> dict[str, object]:
     """Build the MCP config snippet for the external agent's config file.
 
     For TOML-based agents (Codex), returns a dict representation that

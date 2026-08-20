@@ -166,9 +166,7 @@ class TestCleanupExpiredApprovals:
 class TestSendOutboundDraftPayload:
     @pytest.mark.asyncio
     async def test_empty_content_skipped(self) -> None:
-        sent = await send_outbound_draft_payload(
-            {"draft_content": "  "}, "agent-1", "rec-1"
-        )
+        sent = await send_outbound_draft_payload({"draft_content": "  "}, "agent-1", "rec-1")
         assert sent is False
 
     @pytest.mark.asyncio
@@ -202,9 +200,7 @@ class TestSendOutboundDraftPayload:
             sent = await send_outbound_draft_payload(
                 {
                     "draft_content": "hello",
-                    "draft_media": [
-                        {"url": "https://x/b.bin", "type": "not-a-real-type"}
-                    ],
+                    "draft_media": [{"url": "https://x/b.bin", "type": "not-a-real-type"}],
                 },
                 "agent-1",
                 "rec-3",
@@ -246,9 +242,7 @@ class TestResolveBrowserTakeover:
             action_type="browser_takeover",
             thread_id=None,
         )
-        count = await ApprovalRegistry.resolve_pending_browser_takeover_for_chat(
-            "chat-1", decision="approve"
-        )
+        count = await ApprovalRegistry.resolve_pending_browser_takeover_for_chat("chat-1", decision="approve")
         assert count == 1
 
     @pytest.mark.asyncio
@@ -258,9 +252,7 @@ class TestResolveBrowserTakeover:
             action_type="browser_takeover",
             thread_id=None,
         )
-        count = await ApprovalRegistry.resolve_pending_browser_takeover_for_chat(
-            "chat-1", decision="deny"
-        )
+        count = await ApprovalRegistry.resolve_pending_browser_takeover_for_chat("chat-1", decision="deny")
         assert count == 1
 
 
@@ -289,9 +281,7 @@ class TestListPendingGrowth:
 
     @pytest.mark.asyncio
     async def test_excludes_non_pending_and_resolved(self) -> None:
-        await _seed(
-            "lg-resolved", action_type="skill_draft", thread_id=None, status="APPROVED"
-        )
+        await _seed("lg-resolved", action_type="skill_draft", thread_id=None, status="APPROVED")
 
         growth = await ApprovalRegistry.list_pending_growth(limit=50)
         ids = {rec.id for rec in growth}

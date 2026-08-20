@@ -120,11 +120,15 @@ class TestPollChangeDetection:
             change_detection=True,
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("cd-test", trigger, on_event)
             await asyncio.sleep(2.5)
@@ -145,11 +149,15 @@ class TestPollChangeDetection:
             change_detection=True,
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("cd-same", trigger, on_event)
             await asyncio.sleep(2.5)
@@ -170,11 +178,15 @@ class TestPollChangeDetection:
             change_detection=False,
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("no-cd", trigger, on_event)
             await asyncio.sleep(2.5)
@@ -202,11 +214,15 @@ class TestPollJsonPath:
             json_path="$.data.val",
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("jp-test", trigger, on_event)
             await asyncio.sleep(1.5)
@@ -298,11 +314,15 @@ class TestPollEdgeCases:
             change_detection=False,
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("clamp-test", trigger, on_event)
             await asyncio.sleep(1.5)
@@ -324,11 +344,15 @@ class TestPollEdgeCases:
             json_path="$.nonexistent.key",
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("jp-missing", trigger, on_event)
             await asyncio.sleep(1.5)
@@ -364,11 +388,15 @@ class TestPollEdgeCases:
             change_detection=False,
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("cb-err", trigger, flaky_callback)
             await asyncio.sleep(2.5)
@@ -394,11 +422,15 @@ class TestPollEdgeCases:
             json_path="$.data",
         )
 
-        with patch(
-            "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), patch(
-            "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS", 1,
+        with (
+            patch(
+                "app.core.cron.adapters.poll_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            patch(
+                "app.core.cron.adapters.poll_listener._MIN_INTERVAL_SECONDS",
+                1,
+            ),
         ):
             await mgr.start_poll("cd-jp", trigger, on_event)
             await asyncio.sleep(3.5)

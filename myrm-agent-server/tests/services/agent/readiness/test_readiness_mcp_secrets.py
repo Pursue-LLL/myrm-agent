@@ -133,9 +133,7 @@ async def test_disabled_server_skipped_in_secret_check(_vault: AsyncMock) -> Non
             },
         ]
     )
-    items = await _check_mcp(
-        _profile(mcp_ids=("enabled-mcp", "disabled-mcp")), mcp_dict
-    )
+    items = await _check_mcp(_profile(mcp_ids=("enabled-mcp", "disabled-mcp")), mcp_dict)
     reasons = " ".join(item.reason for item in items)
     assert "ONLY_DISABLED_NEEDS" not in reasons
 
@@ -200,9 +198,7 @@ async def test_org_mcp_bound_no_missing_warning(_vault: AsyncMock) -> None:
             }
         ]
     )
-    assert await _check_mcp(
-        _profile(mcp_ids=("org-crm",)), None, org_mcp_dict
-    ) == []
+    assert await _check_mcp(_profile(mcp_ids=("org-crm",)), None, org_mcp_dict) == []
 
 
 @pytest.mark.asyncio
@@ -220,9 +216,7 @@ async def test_org_mcp_missing_secret_warns(_vault: AsyncMock) -> None:
             }
         ]
     )
-    items = await _check_mcp(
-        _profile(mcp_ids=("org-crm",)), None, org_mcp_dict
-    )
+    items = await _check_mcp(_profile(mcp_ids=("org-crm",)), None, org_mcp_dict)
     assert len(items) == 1
     item = items[0]
     assert item.dimension == "mcp"

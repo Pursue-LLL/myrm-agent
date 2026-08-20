@@ -50,9 +50,7 @@ async def test_agent_audit_empty_when_log_dir_missing(audit_app: FastAPI) -> Non
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_returns_events_within_window(
-    audit_app: FastAPI, event_log_dir: Path
-) -> None:
+async def test_agent_audit_returns_events_within_window(audit_app: FastAPI, event_log_dir: Path) -> None:
     """Events inside the time window are returned; older ones are filtered out."""
     mock_event = type(
         "MockEvent",
@@ -62,9 +60,7 @@ async def test_agent_audit_returns_events_within_window(
             "timestamp": 1_700_000_000.0,
             "event_type": "tool_start",
             "session_id": "sess-1",
-            "data": type(
-                "MockPayload", (), {"model_dump": lambda self: {"tool_name": "bash"}}
-            )(),
+            "data": type("MockPayload", (), {"model_dump": lambda self: {"tool_name": "bash"}})(),
         },
     )
     mock_backend = AsyncMock()
@@ -99,9 +95,7 @@ async def test_agent_audit_returns_events_within_window(
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_filters_by_session_id(
-    audit_app: FastAPI, event_log_dir: Path
-) -> None:
+async def test_agent_audit_filters_by_session_id(audit_app: FastAPI, event_log_dir: Path) -> None:
     """A single-session query passes the session id through to the backend."""
     mock_backend = AsyncMock()
     mock_backend.get_events.return_value = []
@@ -146,9 +140,7 @@ async def test_agent_audit_rejects_invalid_hours(audit_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_merges_and_sorts_desc(
-    audit_app: FastAPI, event_log_dir: Path
-) -> None:
+async def test_agent_audit_merges_and_sorts_desc(audit_app: FastAPI, event_log_dir: Path) -> None:
     """Events from multiple sessions are merged and sorted newest-first."""
     mock_backend = AsyncMock()
     mock_backend.get_all_session_ids.return_value = ["sess-1", "sess-2"]
@@ -204,9 +196,7 @@ async def test_agent_audit_merges_and_sorts_desc(
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_truncates_to_limit(
-    audit_app: FastAPI, event_log_dir: Path
-) -> None:
+async def test_agent_audit_truncates_to_limit(audit_app: FastAPI, event_log_dir: Path) -> None:
     """Returned events are capped while total reflects the full match count."""
     mock_backend = AsyncMock()
     mock_backend.get_all_session_ids.return_value = ["sess-1"]
@@ -247,14 +237,10 @@ async def test_agent_audit_truncates_to_limit(
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_counts_security_deny_decisions(
-    audit_app: FastAPI, event_log_dir: Path
-) -> None:
+async def test_agent_audit_counts_security_deny_decisions(audit_app: FastAPI, event_log_dir: Path) -> None:
     """security_deny_total counts BLOCK/DENY/REDACT/LEAK decisions, not ALLOW."""
 
-    def make_event(
-        seq: int, ts: float, event_type: str, payload: dict[str, object]
-    ) -> object:
+    def make_event(seq: int, ts: float, event_type: str, payload: dict[str, object]) -> object:
         return type(
             "E",
             (),
@@ -312,9 +298,7 @@ async def test_agent_audit_counts_security_deny_decisions(
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_real_jsonl_full_pipeline(
-    audit_app: FastAPI, event_log_dir: Path
-) -> None:
+async def test_agent_audit_real_jsonl_full_pipeline(audit_app: FastAPI, event_log_dir: Path) -> None:
     """真实 event-log 全链路：真实 JSONL 写入 → 真实 harness FileEventLogBackend → deny 计数。
 
     关键路径禁 mock：仅 patch 配置指向临时日志目录；事件经 harness 真实序列化落盘。
@@ -358,15 +342,11 @@ async def test_agent_audit_real_jsonl_full_pipeline(
             ensure_ascii=False,
         ),
     ]
-    (event_log_dir / "sess-a.jsonl").write_text(
-        "\n".join(lines[:2]) + "\n", encoding="utf-8"
-    )
+    (event_log_dir / "sess-a.jsonl").write_text("\n".join(lines[:2]) + "\n", encoding="utf-8")
     # 第二个会话单独一个文件，验证 get_all_session_ids 扫描到两个会话。
     (event_log_dir / "sess-b.jsonl").write_text(lines[2] + "\n", encoding="utf-8")
 
-    with patch.object(
-        agent_audit_module.settings.database, "event_log_dir", str(event_log_dir)
-    ):
+    with patch.object(agent_audit_module.settings.database, "event_log_dir", str(event_log_dir)):
         transport = ASGITransport(app=audit_app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get("/api/admin/agent-audit/events?hours=24&limit=50")
@@ -375,9 +355,7 @@ async def test_agent_audit_real_jsonl_full_pipeline(
     data = resp.json()
     # 3 条真实事件（跨 2 会话），按 ts 倒序
     assert data["total"] == 3
-    assert [e["ts"] for e in data["events"]] == sorted(
-        [e["ts"] for e in data["events"]], reverse=True
-    )
+    assert [e["ts"] for e in data["events"]] == sorted([e["ts"] for e in data["events"]], reverse=True)
     assert data["tool_call_total"] == 1
     # 2 条 security_audit 会话事件，其中 deny 决策 2 个（DENY/PII_REDACTED）
     assert data["security_event_total"] == 2
@@ -390,9 +368,7 @@ async def test_agent_audit_real_jsonl_full_pipeline(
 
 
 @pytest.mark.asyncio
-async def test_agent_audit_real_jsonl_hours_window_filters_old_events(
-    audit_app: FastAPI, event_log_dir: Path
-) -> None:
+async def test_agent_audit_real_jsonl_hours_window_filters_old_events(audit_app: FastAPI, event_log_dir: Path) -> None:
     """真实 JSONL：不超过 hours 时间窗的事件被过滤，计数基于窗口内数据。"""
     now = time.time()
     # 两天前的事件（超过 24h 窗口）
@@ -408,9 +384,7 @@ async def test_agent_audit_real_jsonl_hours_window_filters_old_events(
     )
     (event_log_dir / "sess-old.jsonl").write_text(stale + "\n", encoding="utf-8")
 
-    with patch.object(
-        agent_audit_module.settings.database, "event_log_dir", str(event_log_dir)
-    ):
+    with patch.object(agent_audit_module.settings.database, "event_log_dir", str(event_log_dir)):
         transport = ASGITransport(app=audit_app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get("/api/admin/agent-audit/events?hours=24")

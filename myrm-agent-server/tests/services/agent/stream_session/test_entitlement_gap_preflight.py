@@ -72,9 +72,7 @@ def test_build_entitlement_gap_sse_event_none_when_group_enabled_on_web_chat() -
     event = build_entitlement_gap_sse_event(
         message_id="msg-2",
         user_text="帮我填表",
-        active_tool_groups=derive_active_tool_groups_from_params(
-            _params(enable_render_ui=True)
-        ),
+        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
         chat_id="chat-2",
         channel_name="web_chat",
         client_surface="web",
@@ -86,9 +84,7 @@ def test_build_entitlement_gap_sse_event_surface_unavailable_on_im_channel() -> 
     event = build_entitlement_gap_sse_event(
         message_id="msg-im-1",
         user_text="帮我填表准备 staging 部署配置",
-        active_tool_groups=derive_active_tool_groups_from_params(
-            _params(enable_render_ui=True)
-        ),
+        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
         chat_id="chat-im-1",
         channel_name="telegram",
         client_surface=None,
@@ -228,15 +224,9 @@ def test_resolve_web_search_config_gap_display_message_localized() -> None:
         resolve_web_search_config_gap_display_message,
     )
 
-    en = resolve_web_search_config_gap_display_message(
-        reason="not_configured", locale="en"
-    )
-    zh = resolve_web_search_config_gap_display_message(
-        reason="not_configured", locale="zh"
-    )
-    unreachable = resolve_web_search_config_gap_display_message(
-        reason="unreachable", locale="en"
-    )
+    en = resolve_web_search_config_gap_display_message(reason="not_configured", locale="en")
+    zh = resolve_web_search_config_gap_display_message(reason="not_configured", locale="zh")
+    unreachable = resolve_web_search_config_gap_display_message(reason="unreachable", locale="en")
 
     assert "search API" in en
     assert "搜索" in zh

@@ -9,22 +9,13 @@ import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _MYRM_AGENT_ROOT = _SERVER_ROOT.parent
-_FRONTEND_I18N_DATA = (
-    _MYRM_AGENT_ROOT
-    / "myrm-agent-frontend"
-    / "src"
-    / "components"
-    / "agent"
-    / "builtin-agent-i18n-data.ts"
-)
+_FRONTEND_I18N_DATA = _MYRM_AGENT_ROOT / "myrm-agent-frontend" / "src" / "components" / "agent" / "builtin-agent-i18n-data.ts"
 
 _I18N_KEY_PATTERN = re.compile(r"'((?:builtin-)[^']+)':\s*\{")
 
 
 def _parse_frontend_builtin_i18n_keys() -> set[str]:
-    assert _FRONTEND_I18N_DATA.is_file(), (
-        f"Missing frontend i18n data file: {_FRONTEND_I18N_DATA}"
-    )
+    assert _FRONTEND_I18N_DATA.is_file(), f"Missing frontend i18n data file: {_FRONTEND_I18N_DATA}"
     text = _FRONTEND_I18N_DATA.read_text(encoding="utf-8")
     return set(_I18N_KEY_PATTERN.findall(text))
 

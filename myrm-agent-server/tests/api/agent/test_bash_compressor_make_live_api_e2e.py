@@ -191,18 +191,14 @@ def test_bash_compressor_builtin_make_live_api() -> None:
             "memoryRequireConfirmation": False,
             "enableMemoryAutoExtraction": False,
         }
-        stdout_text, message_text, resume_payload, errors = _stream_once(
-            client, request_data, backend_url
-        )
+        stdout_text, message_text, resume_payload, errors = _stream_once(client, request_data, backend_url)
         if resume_payload is not None:
             resume_request = {
                 **request_data,
                 "messageId": f"live-make-resume-{uuid.uuid4().hex[:10]}",
                 "resumeValue": resume_payload,
             }
-            stdout_resume, message_resume, _, resume_errors = _stream_once(
-                client, resume_request, backend_url
-            )
+            stdout_resume, message_resume, _, resume_errors = _stream_once(client, resume_request, backend_url)
             errors.extend(resume_errors)
             stdout_text = f"{stdout_text}{stdout_resume}"
             message_text = f"{message_text}{message_resume}"
@@ -220,9 +216,7 @@ def test_bash_compressor_builtin_make_live_api() -> None:
                 # 回退到 workspace 本地 make 验证（同样覆盖真实压缩链路）。
                 pass
         try:
-            ws_dir = _wait_makefile(
-                chat_id, started_at, workspaces_root, timeout_s=60.0
-            )
+            ws_dir = _wait_makefile(chat_id, started_at, workspaces_root, timeout_s=60.0)
         except TimeoutError:
             pytest.skip(
                 "Agent did not produce make output or Makefile in workspace; "

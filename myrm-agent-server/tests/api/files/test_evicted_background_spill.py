@@ -13,9 +13,7 @@ from httpx import ASGITransport, AsyncClient
 def _evicted_api_prefer_env_workspace(monkeypatch: pytest.MonkeyPatch) -> None:
     """Skip DB chat workspace resolution; force MYRM_WORKSPACE_ROOT fallback."""
 
-    async def _skip_chat_workspace(
-        _chat_id: str, *, persist_workspace: bool = False
-    ) -> None:
+    async def _skip_chat_workspace(_chat_id: str, *, persist_workspace: bool = False) -> None:
         return None
 
     monkeypatch.setattr(

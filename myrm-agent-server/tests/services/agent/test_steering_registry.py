@@ -156,6 +156,7 @@ class TestSteeringRegistry:
 
         # Fast-forward time by 15 seconds (TTL is 10s)
         import time
+
         orig_time = time.time
         monkeypatch.setattr(time, "time", lambda: orig_time() + 15.0)
 

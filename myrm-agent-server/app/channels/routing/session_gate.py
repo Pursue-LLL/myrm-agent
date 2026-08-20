@@ -235,9 +235,7 @@ class SessionGate:
         finally:
             self._drain_pending(key)
 
-    def _emit_busy_ack(
-        self, key: str, msg: InboundMessage, position: int, max_pending: int
-    ) -> None:
+    def _emit_busy_ack(self, key: str, msg: InboundMessage, position: int, max_pending: int) -> None:
         """Fire the busy-ack callback with debounce (30s per session key)."""
         if self._on_busy_ack is None:
             return
@@ -247,9 +245,7 @@ class SessionGate:
         self._last_ack_time[key] = now
         asyncio.ensure_future(self._safe_busy_ack(msg, position, max_pending))
 
-    async def _safe_busy_ack(
-        self, msg: InboundMessage, position: int, max_pending: int
-    ) -> None:
+    async def _safe_busy_ack(self, msg: InboundMessage, position: int, max_pending: int) -> None:
         try:
             await self._on_busy_ack(msg, position, max_pending)  # type: ignore[misc]
         except Exception:

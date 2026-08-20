@@ -156,9 +156,7 @@ async def test_force_push_preserves_skill_bindings(
 
     assert fake_repo.updated is not None
     assert "skills" not in fake_repo.updated
-    assert fake_repo.updated["skill_configs"] == {
-        "publisher-skill-id": {"enabled": True}
-    }
+    assert fake_repo.updated["skill_configs"] == {"publisher-skill-id": {"enabled": True}}
     assert fake_repo.committed
 
 
@@ -532,9 +530,7 @@ class TestExtractModelUpdate:
     def test_uses_model_selection(self) -> None:
         from app.api.internal.import_agent_profile import _extract_model_update
 
-        model, selection = _extract_model_update(
-            {"model_selection": {"providerId": "openai", "model": "gpt-4.1"}}
-        )
+        model, selection = _extract_model_update({"model_selection": {"providerId": "openai", "model": "gpt-4.1"}})
         assert model == "gpt-4.1"
         assert selection == {"providerId": "openai", "model": "gpt-4.1"}
 
@@ -604,16 +600,12 @@ class TestResolveForcePushAgentId:
         fake_uow.__aenter__ = AsyncMock(return_value=fake_uow)
         fake_uow.__aexit__ = AsyncMock(return_value=None)
         fake_uow.agent_repo = repo
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow
-        )
+        monkeypatch.setattr("app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow)
 
         assert await _resolve_force_push_agent_id("entry-1") == "p1"
 
     @pytest.mark.asyncio
-    async def test_returns_none_without_match(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_returns_none_without_match(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.api.internal.import_agent_profile import _resolve_force_push_agent_id
 
         repo = MagicMock()
@@ -622,16 +614,12 @@ class TestResolveForcePushAgentId:
         fake_uow.__aenter__ = AsyncMock(return_value=fake_uow)
         fake_uow.__aexit__ = AsyncMock(return_value=None)
         fake_uow.agent_repo = repo
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow
-        )
+        monkeypatch.setattr("app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow)
 
         assert await _resolve_force_push_agent_id("entry-1") is None
 
     @pytest.mark.asyncio
-    async def test_skips_profiles_without_dict_metadata(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_skips_profiles_without_dict_metadata(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Profiles whose metadata is not a dict are skipped, not fatal."""
         from app.api.internal.import_agent_profile import _resolve_force_push_agent_id
 
@@ -646,16 +634,12 @@ class TestResolveForcePushAgentId:
         fake_uow.__aenter__ = AsyncMock(return_value=fake_uow)
         fake_uow.__aexit__ = AsyncMock(return_value=None)
         fake_uow.agent_repo = repo
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow
-        )
+        monkeypatch.setattr("app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow)
 
         assert await _resolve_force_push_agent_id("entry-1") == "p1"
 
     @pytest.mark.asyncio
-    async def test_skips_profiles_without_dict_engine_params(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_skips_profiles_without_dict_engine_params(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Profiles whose engine_params is not a dict are skipped, not fatal."""
         from app.api.internal.import_agent_profile import _resolve_force_push_agent_id
 
@@ -670,16 +654,12 @@ class TestResolveForcePushAgentId:
         fake_uow.__aenter__ = AsyncMock(return_value=fake_uow)
         fake_uow.__aexit__ = AsyncMock(return_value=None)
         fake_uow.agent_repo = repo
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow
-        )
+        monkeypatch.setattr("app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow)
 
         assert await _resolve_force_push_agent_id("entry-1") == "p1"
 
     @pytest.mark.asyncio
-    async def test_ambiguous_match_raises_409(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_ambiguous_match_raises_409(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from fastapi import HTTPException
 
         from app.api.internal.import_agent_profile import _resolve_force_push_agent_id
@@ -701,9 +681,7 @@ class TestResolveForcePushAgentId:
         fake_uow.__aenter__ = AsyncMock(return_value=fake_uow)
         fake_uow.__aexit__ = AsyncMock(return_value=None)
         fake_uow.agent_repo = repo
-        monkeypatch.setattr(
-            "app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow
-        )
+        monkeypatch.setattr("app.api.internal.import_agent_profile.UnitOfWork", lambda: fake_uow)
 
         with pytest.raises(HTTPException) as exc_info:
             await _resolve_force_push_agent_id("entry-1")

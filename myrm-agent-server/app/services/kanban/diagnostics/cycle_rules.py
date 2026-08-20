@@ -49,11 +49,7 @@ class BlockUnblockCyclingRule:
             return []
         severity = _escalate_severity(cycles, self._threshold)
         reason_snippet = task.blocked_reason[:100] if task.blocked_reason else ""
-        title = (
-            f"Block→unblock cycled {cycles}x: {reason_snippet}"
-            if reason_snippet
-            else f"Block→unblock cycled {cycles}x"
-        )
+        title = f"Block→unblock cycled {cycles}x: {reason_snippet}" if reason_snippet else f"Block→unblock cycled {cycles}x"
         return [
             TaskDiagnostic(
                 rule_id=self.rule_id,

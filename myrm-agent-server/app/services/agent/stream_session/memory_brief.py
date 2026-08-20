@@ -185,4 +185,3 @@ async def build_memory_brief_snapshot(
         "learned_ctx": learned_payload,
     }
     return preview, snapshot
-

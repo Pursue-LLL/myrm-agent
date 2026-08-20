@@ -321,9 +321,7 @@ def _diagnostic_history_item(event: MemoryOperationEventModel) -> MemoryCommandD
             latency_p50_ms=float(metadata.get("benchmark_latency_p50_ms") or 0.0),
             latency_p95_ms=float(metadata.get("benchmark_latency_p95_ms") or 0.0),
             top_k=int(metadata.get("benchmark_top_k") or 5),
-            categories={str(k): str(v) for k, v in categories_raw.items()}
-            if isinstance(categories_raw, dict)
-            else {},
+            categories={str(k): str(v) for k, v in categories_raw.items()} if isinstance(categories_raw, dict) else {},
         )
     embedding_model = metadata.get("benchmark_embedding_model")
     return MemoryCommandDiagnosticHistoryItem(

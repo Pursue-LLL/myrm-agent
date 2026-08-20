@@ -64,15 +64,7 @@ class TestParseVcard:
         assert result == {}
 
     def test_multiple_phones_and_emails(self) -> None:
-        vcard = (
-            "BEGIN:VCARD\n"
-            "FN:Multi\n"
-            "TEL:111\n"
-            "TEL:222\n"
-            "EMAIL:a@b.com\n"
-            "EMAIL:c@d.com\n"
-            "END:VCARD\n"
-        )
+        vcard = "BEGIN:VCARD\nFN:Multi\nTEL:111\nTEL:222\nEMAIL:a@b.com\nEMAIL:c@d.com\nEND:VCARD\n"
         result = _parse_vcard(vcard)
         assert result["phones"] == ["111", "222"]
         assert result["emails"] == ["a@b.com", "c@d.com"]
@@ -116,12 +108,7 @@ class TestParseVcard:
     def test_apple_item_prefix(self) -> None:
         """Apple vCards use item1.TEL, item2.EMAIL style prefixes."""
         vcard = (
-            "BEGIN:VCARD\n"
-            "FN:Apple User\n"
-            "item1.TEL:+1-555-0100\n"
-            "item2.EMAIL:apple@icloud.com\n"
-            "item1.X-ABLabel:mobile\n"
-            "END:VCARD\n"
+            "BEGIN:VCARD\nFN:Apple User\nitem1.TEL:+1-555-0100\nitem2.EMAIL:apple@icloud.com\nitem1.X-ABLabel:mobile\nEND:VCARD\n"
         )
         result = _parse_vcard(vcard)
         assert result["name"] == "Apple User"
@@ -249,10 +236,12 @@ class TestHasContactAttachment:
         assert has_contact_attachment(msg) is True
 
     def test_mixed_media_detects_contact(self) -> None:
-        msg = _make_msg(media=[
-            MediaAttachment(media_type=MediaType.IMAGE, url="http://x.com/a.png"),
-            MediaAttachment(media_type=MediaType.CONTACT, path="/tmp/a.vcf"),
-        ])
+        msg = _make_msg(
+            media=[
+                MediaAttachment(media_type=MediaType.IMAGE, url="http://x.com/a.png"),
+                MediaAttachment(media_type=MediaType.CONTACT, path="/tmp/a.vcf"),
+            ]
+        )
         assert has_contact_attachment(msg) is True
 
 

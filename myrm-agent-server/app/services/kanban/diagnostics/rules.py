@@ -254,9 +254,7 @@ class DeadDependencyRule:
         if context is None or not context.parent_task_ids:
             return []
 
-        all_parents_dead = all(
-            context.parent_statuses.get(pid) in ("failed", "archived") for pid in context.parent_task_ids
-        )
+        all_parents_dead = all(context.parent_statuses.get(pid) in ("failed", "archived") for pid in context.parent_task_ids)
         if not all_parents_dead:
             return []
 
@@ -266,10 +264,7 @@ class DeadDependencyRule:
                 rule_id=self.rule_id,
                 severity=TaskDiagnosticSeverity.ERROR,
                 title=f"All {n} parent{'s' if n > 1 else ''} dead",
-                detail=(
-                    f"All {n} parent tasks are in failed/archived status. "
-                    f"This task will never be promoted to READY."
-                ),
+                detail=(f"All {n} parent tasks are in failed/archived status. This task will never be promoted to READY."),
                 actions=(
                     DiagnosticAction(
                         kind="archive",

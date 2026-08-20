@@ -15,6 +15,7 @@ app.include_router(hardware_router, prefix="/api/v1/integrations/hardware")
 
 # --- _estimate_tok_per_sec unit tests ---
 
+
 def test_estimate_tok_per_sec_apple_m2_pro_8b():
     # M2 Pro: 200 GBps, Q4_K_M 8B, apple vendor_factor=0.82, efficiency=0.55
     # raw = 200e9 / (8e9 * 0.5625) = 44.44
@@ -117,6 +118,7 @@ def test_estimate_tok_per_sec_negative_params_returns_none():
 
 # --- API integration tests ---
 
+
 @pytest.mark.asyncio
 async def test_hardware_recommendations_sandbox_mode():
     """Test that recommendations return hardware_detected=False in SANDBOX mode"""
@@ -127,6 +129,7 @@ async def test_hardware_recommendations_sandbox_mode():
             data = response.json()
             assert data["code"] == 0
             assert data["data"]["hardware_detected"] is False
+
 
 @pytest.mark.asyncio
 async def test_hardware_recommendations_local_mode():
@@ -145,10 +148,10 @@ async def test_hardware_recommendations_local_mode():
             mock_profile_obj.gpu_vendor = "apple"
             mock_profile_obj.memory_bandwidth_gbps = 400.0  # M1 Max bandwidth
             mock_profile.return_value = mock_profile_obj
-            
+
             with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, ["qwen2.5:0.5b"])
-                
+
                 with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
@@ -166,9 +169,9 @@ async def test_hardware_recommendations_local_mode():
                             "req_vram_gb": 40.0,
                             "params_b": 70.0,
                             "disk_size_gb": 39.0,
-                        }
+                        },
                     ]
-                
+
                     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                         response = await ac.get("/api/v1/integrations/hardware/recommendations")
                         assert response.status_code == 200
@@ -180,10 +183,10 @@ async def test_hardware_recommendations_local_mode():
                         assert data["data"]["free_disk_gb"] == 100.0
                         assert data["data"]["is_unified_memory"] is True
                         assert data["data"]["ollama_running"] is True
-                        
+
                         recs = data["data"]["recommendations"]
                         assert len(recs) == 2
-                        
+
                         # Qwen 2.5 0.5B should be perfect fit (32-4 = 28GB available > 1.5GB)
                         assert recs[0]["model_id"] == "ollama/qwen2.5:0.5b"
                         assert recs[0]["fit_level"] == "perfect"
@@ -200,6 +203,7 @@ async def test_hardware_recommendations_local_mode():
                         # 70B model on M1 Max -> slower but still estimated
                         assert recs[1]["est_tok_per_sec"] is not None
                         assert recs[1]["est_tok_per_sec"] >= 1
+
 
 @pytest.mark.asyncio
 async def test_hardware_recommendations_no_bandwidth():
@@ -253,6 +257,7 @@ async def test_ollama_delete_sandbox_mode():
             response = await ac.request("DELETE", "/api/v1/integrations/hardware/ollama/models", json={"model_name": "test"})
             assert response.status_code == 403
 
+
 @pytest.mark.asyncio
 async def test_ollama_delete_local_mode_success():
     """Test successful DELETE /hardware/ollama/models in local mode"""
@@ -261,13 +266,16 @@ async def test_ollama_delete_local_mode_success():
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_request.return_value = mock_response
-            
+
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                response = await ac.request("DELETE", "/api/v1/integrations/hardware/ollama/models", json={"model_name": "test:latest"})
+                response = await ac.request(
+                    "DELETE", "/api/v1/integrations/hardware/ollama/models", json={"model_name": "test:latest"}
+                )
                 assert response.status_code == 200
                 # When mocking httpx.AsyncClient.request, it intercepts the request to our own FastAPI app too!
                 # We need to only mock the request to localhost:11434
                 pass
+
 
 @pytest.mark.asyncio
 async def test_ollama_delete_local_mode_success_proper_mock():
@@ -275,23 +283,26 @@ async def test_ollama_delete_local_mode_success_proper_mock():
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
         # Instead of mocking httpx.AsyncClient.request globally which breaks the test client,
         # we mock it only for the specific call inside our route handler
-        
+
         original_request = httpx.AsyncClient.request
-        
+
         async def mock_request_func(self, method, url, **kwargs):
             if "localhost:11434" in str(url):
                 mock_resp = MagicMock()
                 mock_resp.status_code = 200
                 return mock_resp
             return await original_request(self, method, url, **kwargs)
-            
+
         with patch("app.api.integrations.hardware.httpx.AsyncClient.request", new=mock_request_func):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                response = await ac.request("DELETE", "/api/v1/integrations/hardware/ollama/models", json={"model_name": "test:latest"})
+                response = await ac.request(
+                    "DELETE", "/api/v1/integrations/hardware/ollama/models", json={"model_name": "test:latest"}
+                )
                 assert response.status_code == 200
                 data = response.json()
                 assert data["code"] == 0
                 assert data["data"]["success"] is True
+
 
 @pytest.mark.asyncio
 async def test_hardware_recommendations_sorting_most_capable_first():
@@ -354,8 +365,7 @@ async def test_hardware_recommendations_sorting_most_capable_first():
                         assert recs[0]["fit_level"] == "perfect"
                         assert recs[1]["fit_level"] == "perfect"
                         assert recs[0]["model_id"] == "ollama/qwen3:8b", (
-                            "Most capable (8B) model must be ranked #1 within same fit_level, "
-                            "not the smallest (0.5B) model."
+                            "Most capable (8B) model must be ranked #1 within same fit_level, not the smallest (0.5B) model."
                         )
                         assert recs[1]["model_id"] == "ollama/qwen2.5:0.5b"
 

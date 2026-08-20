@@ -31,7 +31,6 @@ def test_app_python_dirs_have_init_py() -> None:
         init_path = package_dir / "__init__.py"
         if not init_path.is_file():
             missing.append(str(package_dir.relative_to(_APP_ROOT)))
-    assert not missing, (
-        "Python package directories under app/ must include __init__.py:\n"
-        + "\n".join(f"  - {rel}" for rel in missing)
+    assert not missing, "Python package directories under app/ must include __init__.py:\n" + "\n".join(
+        f"  - {rel}" for rel in missing
     )

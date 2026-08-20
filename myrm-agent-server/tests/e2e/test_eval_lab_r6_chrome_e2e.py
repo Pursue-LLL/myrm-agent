@@ -270,17 +270,11 @@ def test_eval_lab_r6_history_and_detail_chrome_e2e() -> None:
                     f"Table should have >=7 columns (with Profile+Model), got {table_state.get('headerCount')}: {headers}"
                 )
 
-                assert table_state.get("profileColIdx", -1) >= 0, (
-                    f"Profile column should exist in headers: {headers}"
-                )
-                assert table_state.get("modelColIdx", -1) >= 0, (
-                    f"Model column should exist in headers: {headers}"
-                )
+                assert table_state.get("profileColIdx", -1) >= 0, f"Profile column should exist in headers: {headers}"
+                assert table_state.get("modelColIdx", -1) >= 0, f"Model column should exist in headers: {headers}"
 
                 # T6: Responsive - scroll container exists
-                assert table_state.get("hasScrollContainer") is True, (
-                    "Table should be wrapped in overflow-x-auto container"
-                )
+                assert table_state.get("hasScrollContainer") is True, "Table should be wrapped in overflow-x-auto container"
 
                 # T3: Old reports graceful degradation
                 if table_state.get("rowCount", 0) > 0:
@@ -289,13 +283,14 @@ def test_eval_lab_r6_history_and_detail_chrome_e2e() -> None:
                     )
 
                     profile_text = table_state.get("profileCellText", "")
-                    assert profile_text is not None, (
-                        "Profile cell should have content (even '-' for old reports)"
-                    )
+                    assert profile_text is not None, "Profile cell should have content (even '-' for old reports)"
 
                     # T4: Click row to load detail
                     report_state = wait_for_state(
-                        client, page, _CLICK_ROW_AND_CHECK_REPORT_JS, timeout_sec=30.0,
+                        client,
+                        page,
+                        _CLICK_ROW_AND_CHECK_REPORT_JS,
+                        timeout_sec=30.0,
                     )
 
                     if report_state.get("clicked"):
@@ -305,12 +300,8 @@ def test_eval_lab_r6_history_and_detail_chrome_e2e() -> None:
 
                         # T5: Environment snapshot fields
                         if report_state.get("hasEnvironment"):
-                            assert report_state.get("hasProfile") is True, (
-                                "Report environment should show Profile field"
-                            )
-                            assert report_state.get("hasBenchmark") is True, (
-                                "Report environment should show Benchmark field"
-                            )
+                            assert report_state.get("hasProfile") is True, "Report environment should show Profile field"
+                            assert report_state.get("hasBenchmark") is True, "Report environment should show Benchmark field"
                             assert report_state.get("hasBudgetBadge") is True, (
                                 f"Report should render the budget badge (88 calls / 99 iterations): {report_state}"
                             )

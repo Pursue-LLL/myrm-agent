@@ -17,9 +17,7 @@ from app.services.wiki.ingest_events import (
 )
 
 
-def _snapshot(
-    *, pending: int = 0, processing: int = 0, failed: int = 0
-) -> dict[str, object]:
+def _snapshot(*, pending: int = 0, processing: int = 0, failed: int = 0) -> dict[str, object]:
     return {
         "agent_id": None,
         "stats": {

@@ -333,13 +333,15 @@ class TestCostFooter:
         assert "~$" not in result[0]
 
     def test_cost_footer_with_full_metadata(self) -> None:
-        msg = _msg(metadata={
-            "cost_metadata": {
-                "cost_usd": 0.0035,
-                "model_name": "claude-sonnet-4-20250514",
-                "total_tokens": 2500,
-            },
-        })
+        msg = _msg(
+            metadata={
+                "cost_metadata": {
+                    "cost_usd": 0.0035,
+                    "model_name": "claude-sonnet-4-20250514",
+                    "total_tokens": 2500,
+                },
+            }
+        )
         result = render(msg, _style(use_emoji=True))
         full = "".join(result)
         assert "💰" in full
@@ -348,9 +350,11 @@ class TestCostFooter:
         assert "~$0.0035" in full
 
     def test_cost_footer_no_emoji(self) -> None:
-        msg = _msg(metadata={
-            "cost_metadata": {"cost_usd": 0.001, "model_name": "gpt-4o", "total_tokens": 500},
-        })
+        msg = _msg(
+            metadata={
+                "cost_metadata": {"cost_usd": 0.001, "model_name": "gpt-4o", "total_tokens": 500},
+            }
+        )
         result = render(msg, _style(use_emoji=False))
         full = "".join(result)
         assert "💰" not in full
@@ -371,9 +375,11 @@ class TestCostFooter:
         assert "tokens" not in full
 
     def test_cost_footer_small_token_count(self) -> None:
-        msg = _msg(metadata={
-            "cost_metadata": {"cost_usd": 0.0001, "model_name": "m", "total_tokens": 50},
-        })
+        msg = _msg(
+            metadata={
+                "cost_metadata": {"cost_usd": 0.0001, "model_name": "m", "total_tokens": 50},
+            }
+        )
         result = render(msg, _style(use_emoji=False))
         full = "".join(result)
         assert "50 tokens" in full

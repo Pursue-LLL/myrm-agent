@@ -62,9 +62,7 @@ def _authorized_example_tab(active: bool = True) -> ExtensionTab:
 async def test_get_status_paused_tab_still_visible_in_ui() -> None:
     bridge = ExtensionBridgeService()
     bridge._tabs = [_authorized_example_tab()]
-    await bridge.set_access_policy(
-        authorized_domains=["example.com"], paused_tab_ids=[1]
-    )
+    await bridge.set_access_policy(authorized_domains=["example.com"], paused_tab_ids=[1])
     status = await bridge.get_status()
     assert [t.tab_id for t in status.available_tabs] == [1]
 
@@ -81,9 +79,7 @@ async def test_relay_cdp_ready_connected_binds_transport() -> None:
     bridge._connected = True
     bridge._ws = MagicMock()
     await bridge.set_authorized_domains(["example.com"])
-    with patch(
-        "app.services.extension.bridge.get_cdp_relay_manager"
-    ) as mock_manager:
+    with patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager:
         mock_relay = AsyncMock()
         mock_relay.relay_cdp_ready.return_value = True
         mock_manager.return_value = mock_relay
@@ -149,9 +145,7 @@ async def test_connect_to_domain_empty_domain_raises() -> None:
 @pytest.mark.asyncio
 async def test_connect_to_domain_allow_all_disallows_target() -> None:
     bridge = ExtensionBridgeService()
-    await bridge.set_access_policy(
-        allow_all_eligible_tabs=True, authorized_domains=["example.com"]
-    )
+    await bridge.set_access_policy(allow_all_eligible_tabs=True, authorized_domains=["example.com"])
     # ":" yields an https URL with no hostname, which is never an eligible target.
     with pytest.raises(ExtensionBridgeNotAvailable, match="not an eligible"):
         await bridge.connect_to_domain(":")
@@ -284,9 +278,7 @@ async def test_receive_loop_dispatch_messages() -> None:
             ),
         ]
     )
-    with patch(
-        "app.services.extension.bridge.get_cdp_relay_manager"
-    ) as mock_manager:
+    with patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager:
         mock_relay = AsyncMock()
         mock_manager.return_value = mock_relay
         await bridge._receive_loop()
@@ -493,9 +485,7 @@ async def test_notify_clip_agent_config_send_failure_swallowed() -> None:
 async def test_resolve_cdp_endpoint_returns_cached() -> None:
     bridge = ExtensionBridgeService()
     bridge._cdp_endpoint = "http://127.0.0.1:9222"
-    with patch(
-        "myrm_agent_harness.toolkits.browser.pool.chrome_discovery.discover_chrome_cdp_endpoint"
-    ) as mock_discover:
+    with patch("myrm_agent_harness.toolkits.browser.pool.chrome_discovery.discover_chrome_cdp_endpoint") as mock_discover:
         assert bridge._resolve_cdp_endpoint() == "http://127.0.0.1:9222"
         mock_discover.assert_not_called()
 
@@ -536,9 +526,7 @@ async def test_import_fallback_definitions_when_harness_missing() -> None:
     )
     env = dict(os.environ)
     server_root = Path(__file__).resolve().parents[3]
-    env["PYTHONPATH"] = os.pathsep.join(
-        [str(server_root), *filter(None, env.get("PYTHONPATH", "").split(os.pathsep))]
-    )
+    env["PYTHONPATH"] = os.pathsep.join([str(server_root), *filter(None, env.get("PYTHONPATH", "").split(os.pathsep))])
     result = subprocess.run(
         [sys.executable, "-c", script],
         capture_output=True,

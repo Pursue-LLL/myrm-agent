@@ -44,9 +44,7 @@ async def test_async_checker_logs_with_correct_argument_order() -> None:
                 "app.services.skills.permission_service.check_permission_for_tool_call",
                 return_value=(True, ""),
             ),
-            patch(
-                "app.services.skills.permission_service.log_permission_usage"
-            ) as mock_log,
+            patch("app.services.skills.permission_service.log_permission_usage") as mock_log,
         ):
             checker = await create_async_permission_checker()
             allowed, reason = await checker("demo-skill", "file_write", "/tmp/x.txt")
@@ -76,9 +74,7 @@ async def test_async_checker_falls_back_to_default_session() -> None:
             "app.services.skills.permission_service.check_permission_for_tool_call",
             return_value=(False, "denied by policy"),
         ),
-        patch(
-            "app.services.skills.permission_service.log_permission_usage"
-        ) as mock_log,
+        patch("app.services.skills.permission_service.log_permission_usage") as mock_log,
     ):
         checker = await create_async_permission_checker()
         allowed, reason = await checker("demo-skill", "shell_exec", "rm -rf /")
@@ -119,9 +115,7 @@ async def test_async_checker_returns_validation_result() -> None:
 async def test_async_checker_reads_through_per_session_cache() -> None:
     """The async checker must load grants via the cached loader, not the DB each call."""
     with (
-        patch(
-            "app.services.skills.permission_service.load_granted_permissions_cached"
-        ) as mock_load,
+        patch("app.services.skills.permission_service.load_granted_permissions_cached") as mock_load,
         patch(
             "app.services.skills.permission_service.check_permission_for_tool_call",
             return_value=(True, ""),
@@ -159,9 +153,7 @@ def test_sync_checker_works_outside_event_loop() -> None:
             "app.services.skills.permission_service.check_permission_for_tool_call",
             return_value=(False, "denied by policy"),
         ),
-        patch(
-            "app.services.skills.permission_service.log_permission_usage"
-        ) as mock_log,
+        patch("app.services.skills.permission_service.log_permission_usage") as mock_log,
     ):
         checker = create_permission_checker()
         allowed, reason = checker("demo-skill", "shell_exec", "rm -rf /")
@@ -214,23 +206,17 @@ async def test_cached_loader_populates_on_miss(mock_load: AsyncMock) -> None:
 
     assert first == second == {SkillPermission.SHELL_EXEC}
     mock_load.assert_awaited_once_with("skill-1")
-    assert permission_service._permission_cache["skill-1"] == {
-        SkillPermission.SHELL_EXEC
-    }
+    assert permission_service._permission_cache["skill-1"] == {SkillPermission.SHELL_EXEC}
 
 
 def test_clear_permission_cache_all() -> None:
-    permission_service._permission_cache.update(
-        {"a": set(), "b": {SkillPermission.FILE_READ}}
-    )
+    permission_service._permission_cache.update({"a": set(), "b": {SkillPermission.FILE_READ}})
     permission_service.clear_permission_cache()
     assert permission_service._permission_cache == {}
 
 
 def test_clear_permission_cache_specific_skill() -> None:
-    permission_service._permission_cache.update(
-        {"a": set(), "b": {SkillPermission.FILE_READ}}
-    )
+    permission_service._permission_cache.update({"a": set(), "b": {SkillPermission.FILE_READ}})
     permission_service.clear_permission_cache("a")
     assert list(permission_service._permission_cache) == ["b"]
 

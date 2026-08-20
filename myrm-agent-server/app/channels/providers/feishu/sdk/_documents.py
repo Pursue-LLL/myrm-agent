@@ -124,9 +124,7 @@ class FeishuDocumentsMixin:
                 )
                 await asyncio.sleep(retry_delay)
 
-        logger.warning(
-            "Feishu batch_query_comment failed after %d attempts", max_retries
-        )
+        logger.warning("Feishu batch_query_comment failed after %d attempts", max_retries)
         return {}
 
     async def list_comments(
@@ -255,9 +253,7 @@ class FeishuDocumentsMixin:
         body = self._safe_json(resp, "reply_to_comment")
         code = int(body.get("code", -1))
         if code != 0:
-            logger.warning(
-                "Feishu reply_to_comment failed: code=%s msg=%s", code, body.get("msg")
-            )
+            logger.warning("Feishu reply_to_comment failed: code=%s msg=%s", code, body.get("msg"))
         return code == 0, code
 
     async def add_whole_comment(
@@ -404,9 +400,7 @@ class FeishuDocumentsMixin:
 
     # ── Bitable ──────────────────────────────────────────────────
 
-    async def get_bitable_records(
-        self, app_token: str, table_id: str
-    ) -> dict[str, object]:
+    async def get_bitable_records(self, app_token: str, table_id: str) -> dict[str, object]:
         """Fetch records from a Feishu Bitable."""
         token = await self.ensure_token()
         http = self._get_http()
@@ -416,9 +410,7 @@ class FeishuDocumentsMixin:
         )
         return self._safe_json(resp, "get_bitable_records")
 
-    async def add_bitable_records(
-        self, app_token: str, table_id: str, records: list[dict[str, object]]
-    ) -> bool:
+    async def add_bitable_records(self, app_token: str, table_id: str, records: list[dict[str, object]]) -> bool:
         """Batch create records in a Feishu Bitable."""
         token = await self.ensure_token()
         http = self._get_http()
@@ -486,9 +478,7 @@ class FeishuDocumentsMixin:
             if body.get("code", -1) != 0:
                 if not all_items:
                     return body
-                logger.warning(
-                    "Feishu get_docx_blocks page failed: %s", body.get("msg")
-                )
+                logger.warning("Feishu get_docx_blocks page failed: %s", body.get("msg"))
                 break
             data = body.get("data", {})
             if not isinstance(data, dict):
@@ -531,9 +521,7 @@ class FeishuDocumentsMixin:
             )
             body = self._safe_json(resp, "list_drive_folder_files")
             if body.get("code", -1) != 0:
-                logger.warning(
-                    "Feishu list_drive_folder_files failed: %s", body.get("msg")
-                )
+                logger.warning("Feishu list_drive_folder_files failed: %s", body.get("msg"))
                 break
             data = body.get("data", {})
             if not isinstance(data, dict):
@@ -557,17 +545,13 @@ class FeishuDocumentsMixin:
                         break
             if not data.get("has_more"):
                 break
-            page_token = str(
-                data.get("next_page_token", "") or data.get("page_token", "")
-            )
+            page_token = str(data.get("next_page_token", "") or data.get("page_token", ""))
             if not page_token:
                 break
 
         return all_items[:max_items]
 
-    async def append_docx_blocks(
-        self, document_id: str, block_id: str, children: list[dict[str, object]]
-    ) -> bool:
+    async def append_docx_blocks(self, document_id: str, block_id: str, children: list[dict[str, object]]) -> bool:
         """Append blocks as children of a specific block in a Feishu Docx document."""
         token = await self.ensure_token()
         http = self._get_http()

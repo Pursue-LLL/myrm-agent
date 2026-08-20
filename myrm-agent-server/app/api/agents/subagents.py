@@ -228,4 +228,3 @@ async def cancel_subagent(
         return error_response(message=f"Failed to cancel subagent {task_id}", status_code=400)
 
     return success_response(data={"cancelled": True, "task_id": task_id})
-

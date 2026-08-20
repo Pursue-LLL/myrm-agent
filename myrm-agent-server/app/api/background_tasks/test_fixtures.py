@@ -98,9 +98,7 @@ async def _spawn_shell_fixture(
     }
     bash_tool = create_bash_code_execute_tool()
     with (
-        patch(
-            "myrm_agent_harness.utils.event_utils.dispatch_custom_event", AsyncMock()
-        ),
+        patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", AsyncMock()),
         patch(
             "myrm_agent_harness.agent.skills.mcp.notify_registry.session_scope",
             return_value=AsyncMock(
@@ -209,9 +207,7 @@ def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
     )
 
     filename = f"output_{uuid.uuid4().hex[:8]}.txt"
-    content = "".join(
-        f"MYRM_E2E_VAULT_LINE_{index}\n" for index in range(_VAULT_SPILL_LINE_COUNT)
-    )
+    content = "".join(f"MYRM_E2E_VAULT_LINE_{index}\n" for index in range(_VAULT_SPILL_LINE_COUNT))
 
     write_roots = [workspace]
     server_root = _resolve_evicted_workspace_root(workspace)
@@ -285,9 +281,7 @@ async def seed_shell_fixture(
 
     chat_id = f"e2e-shell-{uuid.uuid4().hex[:10]}"
     settings = get_settings()
-    workspace = (
-        Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
-    )
+    workspace = Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
     if mode in {"success", "completed_with_vault"}:
         await _ensure_e2e_chat(chat_id, workspace_dir=str(workspace))
 
@@ -312,9 +306,7 @@ async def seed_shell_fixture(
     else:
         command = f'{sys.executable} -c "import sys; sys.exit(42)"'
 
-    pid = await _spawn_shell_fixture(
-        workspace=workspace, chat_id=chat_id, command=command
-    )
+    pid = await _spawn_shell_fixture(workspace=workspace, chat_id=chat_id, command=command)
     if mode == "running_stdin_waiting":
         _backdate_registry_last_output(pid, INPUT_WAIT_IDLE_SECONDS + 5.0)
 
@@ -327,9 +319,7 @@ async def seed_shell_fixture(
     if mode == "completed_with_vault":
         vault_log_ref = await _wait_vault_log_ref(pid, timeout_sec=2.0)
         if not vault_log_ref:
-            vault_log_ref = _write_vault_log_fixture(
-                chat_id=chat_id, pid=pid, workspace=workspace
-            )
+            vault_log_ref = _write_vault_log_fixture(chat_id=chat_id, pid=pid, workspace=workspace)
 
     info = get_background_registry().get(pid)
     job_id = info.job_id if info is not None else str(pid)

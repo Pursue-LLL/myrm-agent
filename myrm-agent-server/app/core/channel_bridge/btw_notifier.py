@@ -119,9 +119,7 @@ class BtwTaskNotifier:
                         locale=locale,
                     )
             except Exception:
-                logger.debug(
-                    "Failed to resolve web handoff for btw notification, skipping"
-                )
+                logger.debug("Failed to resolve web handoff for btw notification, skipping")
 
         msg = OutboundMessage(
             channel=channel_name,
@@ -134,9 +132,7 @@ class BtwTaskNotifier:
 
         channel = channel_gateway.bus.channels.get(channel_name)
         if not channel:
-            logger.debug(
-                "BtwTaskNotifier: channel '%s' not registered, skipping", channel_name
-            )
+            logger.debug("BtwTaskNotifier: channel '%s' not registered, skipping", channel_name)
             return
         if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
             logger.debug(
@@ -174,9 +170,7 @@ class BtwTaskNotifier:
         data: dict[str, object],
     ) -> tuple[str, str, str | None, str] | None:
         """Resolve IM channel delivery target from source_chat_id when channel metadata is absent."""
-        source_chat_id = str(
-            data.get("source_chat_id", "") or data.get("chat_id", "")
-        ).strip()
+        source_chat_id = str(data.get("source_chat_id", "") or data.get("chat_id", "")).strip()
         if not source_chat_id:
             return None
 
@@ -207,9 +201,7 @@ class BtwTaskNotifier:
             return None
 
 
-def _format_notification(
-    status: str, title: str, result: str, locale: str = "en"
-) -> str:
+def _format_notification(status: str, title: str, result: str, locale: str = "en") -> str:
     preview = title[:80] if title else "background task"
     summary = result[:300] if result else ""
 

@@ -209,9 +209,7 @@ async def test_build_wiki_health_report_includes_provenance_gap(tmp_path) -> Non
     assert any(issue.issue_type == "provenance_gap" for issue in scan_issues)
 
     report = await build_wiki_health_report(linter=linter, structure=structure)
-    provenance_issues = [
-        item for item in report.issues if item.issue_type == "provenance_gap"
-    ]
+    provenance_issues = [item for item in report.issues if item.issue_type == "provenance_gap"]
     assert provenance_issues
     assert report.open_actions_count >= 1
     assert provenance_issues[0].action_kind == "navigate"

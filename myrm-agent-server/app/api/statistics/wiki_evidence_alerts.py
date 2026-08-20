@@ -60,9 +60,7 @@ def _mark_alert_emitted(alert_key: str, now_ts: float) -> None:
     _last_alert_emitted_at_by_key[alert_key] = now_ts
 
 
-async def _collect_governance_alert_candidates(
-    db: AsyncSession, now: datetime
-) -> list[dict[str, object]]:
+async def _collect_governance_alert_candidates(db: AsyncSession, now: datetime) -> list[dict[str, object]]:
     start_dt = now - timedelta(days=_ALERT_WINDOW_DAYS)
     base_filters = (WikiEvidenceMetricEvent.created_at >= start_dt,)
 

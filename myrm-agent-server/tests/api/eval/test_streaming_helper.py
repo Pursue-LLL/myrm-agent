@@ -14,9 +14,7 @@ import pytest
 from app.api.eval.streaming import stream_status_events
 
 
-async def _collect_frames(
-    statuses: list[dict[str, object]], poll_interval: float = 0.01
-) -> list[str]:
+async def _collect_frames(statuses: list[dict[str, object]], poll_interval: float = 0.01) -> list[str]:
     it: Iterator[dict[str, object]] = iter(statuses)
     generator = stream_status_events(lambda: next(it), poll_interval=poll_interval)
     return [frame async for frame in generator]

@@ -42,10 +42,7 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
                 "Erstelle ein kompaktes Morgen-Briefing: wichtige Schlagzeilen, "
                 "Wetterausblick und wichtige Erinnerungen für heute. Kurz und umsetzbar."
             ),
-            "ko": (
-                "간결한 모닝 브리핑을 제공하세요: 주요 뉴스 헤드라인, 날씨 전망, "
-                "오늘의 중요 알림. 짧고 실행 가능하게."
-            ),
+            "ko": ("간결한 모닝 브리핑을 제공하세요: 주요 뉴스 헤드라인, 날씨 전망, 오늘의 중요 알림. 짧고 실행 가능하게."),
         },
     },
     "weekly_review": {
@@ -60,18 +57,14 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             "ko": "주말 성과 요약 및 다음 주 계획",
         },
         "prompt_template": {
-            "ja": (
-                "包括的な週次レビューを実施：今週の主要な成果、直面した障害や課題、"
-                "来週の優先事項の提案。カテゴリ別に整理。"
-            ),
+            "ja": ("包括的な週次レビューを実施：今週の主要な成果、直面した障害や課題、来週の優先事項の提案。カテゴリ別に整理。"),
             "de": (
                 "Führe einen umfassenden Wochenrückblick durch: wichtige Erfolge, "
                 "Blocker oder Herausforderungen, Prioritäten für die kommende Woche. "
                 "Nach Kategorien ordnen."
             ),
             "ko": (
-                "포괄적인 주간 리뷰를 진행하세요: 주요 성과, 직면한 장애물이나 과제, "
-                "다음 주 우선순위 제안. 카테고리별로 정리."
+                "포괄적인 주간 리뷰를 진행하세요: 주요 성과, 직면한 장애물이나 과제, 다음 주 우선순위 제안. 카테고리별로 정리."
             ),
         },
     },
@@ -158,8 +151,7 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
         },
         "prompt_template": {
             "ja": (
-                "システムの健康状態を確認し、CPU・メモリ・ディスクと異常サービスを報告。"
-                "注意が必要な問題のみ——正常なら簡潔に。"
+                "システムの健康状態を確認し、CPU・メモリ・ディスクと異常サービスを報告。注意が必要な問題のみ——正常なら簡潔に。"
             ),
             "de": (
                 "Prüfe den aktuellen Systemzustand. Melde CPU-, Speicher- und "
@@ -167,8 +159,7 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
                 "Bei normalem Zustand kurz halten."
             ),
             "ko": (
-                "현재 시스템 상태를 확인하세요. CPU, 메모리, 디스크 사용량과 "
-                "비정상 서비스를 보고하세요. 정상이면 간단히 요약."
+                "현재 시스템 상태를 확인하세요. CPU, 메모리, 디스크 사용량과 비정상 서비스를 보고하세요. 정상이면 간단히 요약."
             ),
         },
     },
@@ -239,17 +230,13 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             "ko": "매일 큐레이션된 학습 주제 제공",
         },
         "prompt_template": {
-            "ja": (
-                "{subject} について有益な内容を2–3段落で教え、実践例を含めてください。"
-                "分かりやすく、かつ浅薄でない説明に。"
-            ),
+            "ja": ("{subject} について有益な内容を2–3段落で教え、実践例を含めてください。分かりやすく、かつ浅薄でない説明に。"),
             "de": (
                 "Bringe etwas Nützliches über: {subject}. Ein Konzept in 2–3 Absätzen "
                 "mit praktischem Beispiel. Zugänglich, aber nicht oberflächlich."
             ),
             "ko": (
-                "{subject}에 대해 유익한 내용을 2–3문단으로 설명하고 실용 예시를 포함하세요. "
-                "이해하기 쉽지만 피상적이지 않게."
+                "{subject}에 대해 유익한 내용을 2–3문단으로 설명하고 실용 예시를 포함하세요. 이해하기 쉽지만 피상적이지 않게."
             ),
         },
     },
@@ -358,8 +345,7 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
         },
         "prompt_template": {
             "ja": (
-                "後で読むパイプラインを実行：未処理項目を取得し Wiki に取り込み、"
-                "処理済みタグを付与。既処理はスキップ。最大10件。"
+                "後で読むパイプラインを実行：未処理項目を取得し Wiki に取り込み、処理済みタグを付与。既処理はスキップ。最大10件。"
             ),
             "de": (
                 "Führe die Später-lesen-Pipeline aus: unverarbeitete Einträge holen, "
@@ -414,18 +400,12 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             "ko": "깨진 링크, stale raw, vault 위생을 위한 정기 구조 lint 및 자동 복구",
         },
         "prompt_template": {
-            "ja": (
-                "Wiki メンテ job（router モード）。サーバー生成の要約をそのまま配信。"
-                "変更がなければ [SILENT] のみ。"
-            ),
+            "ja": ("Wiki メンテ job（router モード）。サーバー生成の要約をそのまま配信。変更がなければ [SILENT] のみ。"),
             "de": (
                 "Wiki-Wartungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
                 "Bei keiner Änderung nur [SILENT]."
             ),
-            "ko": (
-                "위키 유지보수 작업(router 모드). 서버 요약을 그대로 전달. "
-                "변경 없으면 [SILENT]만 반환."
-            ),
+            "ko": ("위키 유지보수 작업(router 모드). 서버 요약을 그대로 전달. 변경 없으면 [SILENT]만 반환."),
         },
     },
     "wiki_corpus_dedup": {
@@ -449,8 +429,7 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
                 "Bei keinen Duplikatgruppen nur [SILENT]."
             ),
             "ko": (
-                "위키 코퍼스 중복 제거 작업(router 모드). 서버 요약을 그대로 전달. "
-                "검토 대상 중복 그룹 없으면 [SILENT]만 반환."
+                "위키 코퍼스 중복 제거 작업(router 모드). 서버 요약을 그대로 전달. 검토 대상 중복 그룹 없으면 [SILENT]만 반환."
             ),
         },
     },

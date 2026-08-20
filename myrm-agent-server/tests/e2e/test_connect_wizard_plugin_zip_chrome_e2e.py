@@ -122,9 +122,7 @@ def _connect_wizard_open() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
         yield client, page
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_connect_wizard_plugin_bundle_zip_download_chrome_e2e() -> None:

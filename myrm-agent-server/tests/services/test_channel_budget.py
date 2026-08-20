@@ -64,20 +64,24 @@ class TestChannelBudgetRegistry:
 
     def test_record_cost_triggers_warning(self) -> None:
         reg = self._make_registry()
-        reg.configure(ChannelBudgetPolicy(
-            channel_key="ch:w",
-            daily_limit_usd=1.0,
-            warning_threshold=0.5,
-        ))
+        reg.configure(
+            ChannelBudgetPolicy(
+                channel_key="ch:w",
+                daily_limit_usd=1.0,
+                warning_threshold=0.5,
+            )
+        )
         status = reg.record_cost("ch:w", 0.6)
         assert status == BudgetStatus.WARNING
 
     def test_record_cost_triggers_exceeded(self) -> None:
         reg = self._make_registry()
-        reg.configure(ChannelBudgetPolicy(
-            channel_key="ch:e",
-            daily_limit_usd=1.0,
-        ))
+        reg.configure(
+            ChannelBudgetPolicy(
+                channel_key="ch:e",
+                daily_limit_usd=1.0,
+            )
+        )
         reg.record_cost("ch:e", 0.5)
         status = reg.record_cost("ch:e", 0.6)
         assert status == BudgetStatus.EXCEEDED
@@ -101,11 +105,13 @@ class TestChannelBudgetRegistry:
 
     def test_get_status_enabled(self) -> None:
         reg = self._make_registry()
-        reg.configure(ChannelBudgetPolicy(
-            channel_key="ch:s",
-            daily_limit_usd=2.0,
-            label="Test",
-        ))
+        reg.configure(
+            ChannelBudgetPolicy(
+                channel_key="ch:s",
+                daily_limit_usd=2.0,
+                label="Test",
+            )
+        )
         st = reg.get_status("ch:s")
         assert st is not None
         assert st["channel_key"] == "ch:s"
@@ -117,11 +123,13 @@ class TestChannelBudgetRegistry:
 
     def test_get_status_disabled(self) -> None:
         reg = self._make_registry()
-        reg.configure(ChannelBudgetPolicy(
-            channel_key="ch:d",
-            enabled=False,
-            label="Off",
-        ))
+        reg.configure(
+            ChannelBudgetPolicy(
+                channel_key="ch:d",
+                enabled=False,
+                label="Off",
+            )
+        )
         st = reg.get_status("ch:d")
         assert st is not None
         assert st["enabled"] is False

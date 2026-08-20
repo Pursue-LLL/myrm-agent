@@ -388,9 +388,7 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
                 break
             if attempt < 2:
                 reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
-        assert ready.get("ready") is True, json.dumps(
-            ready, indent=2, ensure_ascii=False
-        )
+        assert ready.get("ready") is True, json.dumps(ready, indent=2, ensure_ascii=False)
         if ready.get("hasLibraryRoot") is not True:
             reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
             dom_ready = wait_for_state(
@@ -401,9 +399,7 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
                 page_url=page_url,
                 blank_heal_mode="direct",
             )
-            assert dom_ready.get("hasLibraryRoot") is True, json.dumps(
-                dom_ready, indent=2, ensure_ascii=False
-            )
+            assert dom_ready.get("hasLibraryRoot") is True, json.dumps(dom_ready, indent=2, ensure_ascii=False)
 
         export_click = client.evaluate(page, _CLICK_EXPORT_JS, timeout_sec=15.0)
         assert isinstance(export_click, dict)
@@ -424,13 +420,11 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
 
         # Diagnostics are used only on failure (the helper raises); the success
         # return value is intentionally ignored here.
-        _wait_absent_with_diagnostics(
-            client, page, page_url=page_url, api_base=api_base
-        )
+        _wait_absent_with_diagnostics(client, page, page_url=page_url, api_base=api_base)
 
         imported = client.evaluate(
             page,
-            f"({ _IMPORT_BUNDLE_JS })({json.dumps(bundle_json)})",
+            f"({_IMPORT_BUNDLE_JS})({json.dumps(bundle_json)})",
             timeout_sec=60.0,
         )
         assert isinstance(imported, dict), imported
@@ -444,9 +438,7 @@ def _run_export_import_roundtrip(*, api_base: str) -> None:
             page_url=page_url,
             blank_heal_mode="direct",
         )
-        assert restored.get("ready") is True, json.dumps(
-            restored, indent=2, ensure_ascii=False
-        )
+        assert restored.get("ready") is True, json.dumps(restored, indent=2, ensure_ascii=False)
 
 
 def _run_with_transport_retry(*, api_base: str) -> None:
@@ -464,9 +456,7 @@ def _run_with_transport_retry(*, api_base: str) -> None:
         raise last_error
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_workflow_template_export_import_roundtrip_chrome_e2e(

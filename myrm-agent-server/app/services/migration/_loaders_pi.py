@@ -29,16 +29,18 @@ logger = logging.getLogger(__name__)
 
 _SUPPORTED_SESSION_VERSIONS = frozenset({3})
 
-_PI_AUTH_KEY_PROVIDERS = frozenset({
-    "anthropic",
-    "openai",
-    "google",
-    "groq",
-    "xai",
-    "mistral",
-    "deepseek",
-    "openrouter",
-})
+_PI_AUTH_KEY_PROVIDERS = frozenset(
+    {
+        "anthropic",
+        "openai",
+        "google",
+        "groq",
+        "xai",
+        "mistral",
+        "deepseek",
+        "openrouter",
+    }
+)
 
 
 def load_pi(root: Path, file_paths: list[str]) -> dict[str, object]:
@@ -144,9 +146,7 @@ def _parse_pi_session_file(jsonl_path: Path) -> dict[str, object] | None:
         msg_content = msg.get("content", "")
         if isinstance(msg_content, list):
             text_parts = [
-                str(block.get("text", ""))
-                for block in msg_content
-                if isinstance(block, dict) and block.get("type") == "text"
+                str(block.get("text", "")) for block in msg_content if isinstance(block, dict) and block.get("type") == "text"
             ]
             msg_content = "\n".join(text_parts)
         if not isinstance(msg_content, str):

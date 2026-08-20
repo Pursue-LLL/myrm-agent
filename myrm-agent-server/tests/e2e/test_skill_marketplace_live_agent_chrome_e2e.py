@@ -71,16 +71,10 @@ def _create_marketplace_agent(client: httpx.Client, api_url: str) -> str:
         "skill_ids": [],
         "enabled_builtin_tools": ["web_search", "memory", "skill_market"],
     }
-    resp = guarded_httpx_request(
-        client, "POST", f"{api_url}/api/v1/user-agents", json=payload, timeout=60.0
-    )
+    resp = guarded_httpx_request(client, "POST", f"{api_url}/api/v1/user-agents", json=payload, timeout=60.0)
     resp.raise_for_status()
     body = resp.json()
-    agent_id = (
-        body.get("data", {}).get("id")
-        if isinstance(body.get("data"), dict)
-        else body.get("id")
-    )
+    agent_id = body.get("data", {}).get("id") if isinstance(body.get("data"), dict) else body.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -172,9 +166,7 @@ def _stream_marketplace_search(
         "query": _USER_QUERY,
         "actionMode": "agent",
         "agentId": agent_id,
-        "agentConfig": {
-            "enabledBuiltinTools": ["web_search", "memory", "skill_market"]
-        },
+        "agentConfig": {"enabledBuiltinTools": ["web_search", "memory", "skill_market"]},
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
@@ -223,9 +215,7 @@ def _stream_marketplace_search(
     return tool_names, errors
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

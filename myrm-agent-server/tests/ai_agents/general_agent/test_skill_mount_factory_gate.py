@@ -7,24 +7,12 @@ from pathlib import Path
 
 
 def _factory_source() -> str:
-    factory_path = (
-        Path(__file__).resolve().parents[3]
-        / "app"
-        / "ai_agents"
-        / "general_agent"
-        / "factory.py"
-    )
+    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
     return factory_path.read_text(encoding="utf-8")
 
 
 def _tool_setup_source() -> str:
-    tool_setup_path = (
-        Path(__file__).resolve().parents[3]
-        / "app"
-        / "ai_agents"
-        / "general_agent"
-        / "tool_setup.py"
-    )
+    tool_setup_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "tool_setup.py"
     return tool_setup_path.read_text(encoding="utf-8")
 
 
@@ -46,10 +34,7 @@ def test_build_general_agent_mounts_skill_manage_via_tool_setup() -> None:
         node
         for node in ast.walk(tree)
         if isinstance(node, ast.Assign)
-        and any(
-            isinstance(target, ast.Name) and target.id == "mount_skill_manage"
-            for target in node.targets
-        )
+        and any(isinstance(target, ast.Name) and target.id == "mount_skill_manage" for target in node.targets)
     )
     mount_expr = ast.unparse(mount_manage_assign.value)
     assert "enable_skill_manage" in mount_expr
@@ -67,10 +52,7 @@ def test_build_general_agent_defaults_skill_mount_flags_off() -> None:
         node
         for node in ast.walk(tree)
         if isinstance(node, ast.Assign)
-        and any(
-            isinstance(target, ast.Name) and target.id == "mount_skill_market"
-            for target in node.targets
-        )
+        and any(isinstance(target, ast.Name) and target.id == "mount_skill_market" for target in node.targets)
     )
     mount_expr = ast.unparse(mount_market_assign.value)
     assert "enable_skill_market" in mount_expr

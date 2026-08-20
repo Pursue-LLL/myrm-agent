@@ -115,10 +115,7 @@ def _build_package(
             {
                 "id": _PUBLISHER_SKILL_ID,
                 "name": "pub-skill",
-                "content": (
-                    "---\nname: pub-skill\ndescription: test skill\n---\n"
-                    "# Pub Skill\n\nDo things."
-                ),
+                "content": ("---\nname: pub-skill\ndescription: test skill\n---\n# Pub Skill\n\nDo things."),
                 "description": "test skill",
                 "resources": {"scripts/run.py": "print('hi')"},
             },
@@ -150,9 +147,7 @@ def _import_app() -> FastAPI:
 
 
 @pytest.mark.asyncio
-async def test_import_agent_package_full_chain(
-    agent_db, skill_store: SkillCreationService
-) -> None:
+async def test_import_agent_package_full_chain(agent_db, skill_store: SkillCreationService) -> None:
     """Real import: contract gate, skill write, subagent create, ID remap, binding."""
     package = _build_package()
 
@@ -201,9 +196,7 @@ async def test_import_agent_package_full_chain(
 
 
 @pytest.mark.asyncio
-async def test_import_agent_package_rolls_back_atomically(
-    agent_db, skill_store: SkillCreationService
-) -> None:
+async def test_import_agent_package_rolls_back_atomically(agent_db, skill_store: SkillCreationService) -> None:
     """A failing subagent profile must roll back agent + skills atomically."""
     package = build_marketplace_package(
         agent_profile={
@@ -218,10 +211,7 @@ async def test_import_agent_package_rolls_back_atomically(
             {
                 "id": _PUBLISHER_SKILL_ID,
                 "name": "rollback-skill",
-                "content": (
-                    "---\nname: rollback-skill\ndescription: test\n---\n"
-                    "# Rollback Skill"
-                ),
+                "content": ("---\nname: rollback-skill\ndescription: test\n---\n# Rollback Skill"),
                 "description": "test",
                 "resources": {},
             },
@@ -245,10 +235,7 @@ async def test_import_agent_package_rolls_back_atomically(
             {
                 "id": _PUBLISHER_SKILL_ID,
                 "name": "rollback-skill-2",
-                "content": (
-                    "---\nname: rollback-skill-2\ndescription: test\n---\n"
-                    "# Rollback Skill 2"
-                ),
+                "content": ("---\nname: rollback-skill-2\ndescription: test\n---\n# Rollback Skill 2"),
                 "description": "test",
                 "resources": {},
             },
@@ -296,9 +283,7 @@ async def test_import_endpoint_installs_through_http(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """POST import-agent-profile (force=False) installs against a real DB."""
-    monkeypatch.setattr(
-        "app.core.skills.creation.service.skill_creation_service", skill_store
-    )
+    monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
     transport = ASGITransport(app=_import_app())
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -342,9 +327,7 @@ async def test_force_push_preserves_skill_bindings_with_real_db(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Force-push keeps local skill bindings and applies config updates."""
-    monkeypatch.setattr(
-        "app.core.skills.creation.service.skill_creation_service", skill_store
-    )
+    monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
     transport = ASGITransport(app=_import_app())
     bus = get_event_bus()
     queue = bus.subscribe()
@@ -433,13 +416,7 @@ async def test_force_push_preserves_skill_bindings_with_real_db(
         # Pre-force-push snapshot persisted in the real DB.
         async with agent_db() as session:
             snapshots = (
-                (
-                    await session.execute(
-                        select(AgentProfileSnapshot).where(
-                            AgentProfileSnapshot.agent_id == agent_id
-                        )
-                    )
-                )
+                (await session.execute(select(AgentProfileSnapshot).where(AgentProfileSnapshot.agent_id == agent_id)))
                 .scalars()
                 .all()
             )
@@ -450,10 +427,7 @@ async def test_force_push_preserves_skill_bindings_with_real_db(
         events: list[object] = []
         while not queue.empty():
             events.append(queue.get_nowait())
-        assert any(
-            getattr(e, "event_type", None) == AppEventType.AGENT_CONFIG_UPDATED
-            for e in events
-        )
+        assert any(getattr(e, "event_type", None) == AppEventType.AGENT_CONFIG_UPDATED for e in events)
     finally:
         bus.unsubscribe(queue)
 
@@ -465,9 +439,7 @@ async def test_force_push_unresolved_binding_fails_closed_real_db(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Force-push with an unknown marketplace entry returns 404 before any write."""
-    monkeypatch.setattr(
-        "app.core.skills.creation.service.skill_creation_service", skill_store
-    )
+    monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
     transport = ASGITransport(app=_import_app())
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -599,9 +571,7 @@ async def test_allow_discovery_update_flow_real_db(agent_db) -> None:
 
 
 @pytest.mark.asyncio
-async def test_imported_agent_joins_dynamic_roster(
-    agent_db, skill_store: SkillCreationService
-) -> None:
+async def test_imported_agent_joins_dynamic_roster(agent_db, skill_store: SkillCreationService) -> None:
     """A marketplace-imported agent is discoverable by default in the roster."""
     agent_id = await import_agent_package(
         skill_store,
@@ -623,9 +593,7 @@ async def test_rollback_restores_pre_force_push_config_real_db(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Force-push then rollback restores the pre-push configuration."""
-    monkeypatch.setattr(
-        "app.core.skills.creation.service.skill_creation_service", skill_store
-    )
+    monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
     transport = ASGITransport(app=_import_app())
 
     # 1) Install v1.
@@ -702,9 +670,7 @@ async def test_force_push_via_target_agent_id_real_db(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Force-push can target an explicit agent_id without an entry binding."""
-    monkeypatch.setattr(
-        "app.core.skills.creation.service.skill_creation_service", skill_store
-    )
+    monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
     transport = ASGITransport(app=_import_app())
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -752,9 +718,7 @@ async def test_force_push_via_target_agent_id_real_db(
 
 
 @pytest.mark.asyncio
-async def test_force_push_unknown_target_agent_returns_404(
-    agent_db, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_force_push_unknown_target_agent_returns_404(agent_db, monkeypatch: pytest.MonkeyPatch) -> None:
     """Force-push with a non-existent target_agent_id fails closed."""
     transport = ASGITransport(app=_import_app())
 
@@ -793,9 +757,7 @@ async def test_sandbox_rejects_bundled_skills_real_db(
     _reset_capabilities_cache_for_testing()
 
     try:
-        monkeypatch.setattr(
-            "app.core.skills.creation.service.skill_creation_service", skill_store
-        )
+        monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
         transport = ASGITransport(app=_import_app())
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.post(
@@ -828,9 +790,7 @@ async def test_cp_token_rejected_when_configured(
 ) -> None:
     """When a CP token is configured, missing/mismatched headers are rejected."""
     monkeypatch.setenv("CONTROL_PLANE_TELEMETRY_TOKEN", "cp-secret")
-    monkeypatch.setattr(
-        "app.core.skills.creation.service.skill_creation_service", skill_store
-    )
+    monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
     transport = ASGITransport(app=_import_app())
 
     # Missing header -> 403.

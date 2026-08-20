@@ -395,9 +395,7 @@ async def test_save_channel_credentials_encrypts_instance_key() -> None:
 
     config_key = channel_credentials_key(channel_name)
     async with get_session() as session:
-        row = (
-            await session.execute(select(UserConfig).where(UserConfig.config_key == config_key))
-        ).scalar_one_or_none()
+        row = (await session.execute(select(UserConfig).where(UserConfig.config_key == config_key))).scalar_one_or_none()
     assert row is not None
     assert row.is_encrypted is True
     assert "_cipher" in row.config_value

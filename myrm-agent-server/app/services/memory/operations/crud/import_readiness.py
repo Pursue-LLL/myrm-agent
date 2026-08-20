@@ -32,18 +32,10 @@ class ReadinessIssueAction:
 
 _READINESS_ISSUE_ACTIONS: dict[str, ReadinessIssueAction] = {
     "providers_not_configured": ReadinessIssueAction(settings_path="/settings/models"),
-    "post_import_diagnostics_critical": ReadinessIssueAction(
-        settings_path="/settings/memory"
-    ),
-    "post_import_diagnostics_warning": ReadinessIssueAction(
-        settings_path="/settings/memory"
-    ),
-    "mcp_servers_imported_disabled": ReadinessIssueAction(
-        settings_path="/settings/mcp"
-    ),
-    "workspace_rules_skipped": ReadinessIssueAction(
-        settings_path="/settings/memory?sub=migration"
-    ),
+    "post_import_diagnostics_critical": ReadinessIssueAction(settings_path="/settings/memory"),
+    "post_import_diagnostics_warning": ReadinessIssueAction(settings_path="/settings/memory"),
+    "mcp_servers_imported_disabled": ReadinessIssueAction(settings_path="/settings/mcp"),
+    "workspace_rules_skipped": ReadinessIssueAction(settings_path="/settings/memory?sub=migration"),
     "voice_feature_disabled": ReadinessIssueAction(settings_path="/settings/voice"),
     "moa_overlay_setup_hint": ReadinessIssueAction(settings_path="/settings/agents"),
 }

@@ -36,8 +36,14 @@ class TestListMemoriesPaginatedSingleType:
         manager.list_memories.return_value = []
 
         result = await list_memories_paginated(
-            type="semantic", search=None, tag=None, sort_by="created_at",
-            sort_order="desc", page=3, page_size=10, manager=manager,
+            type="semantic",
+            search=None,
+            tag=None,
+            sort_by="created_at",
+            sort_order="desc",
+            page=3,
+            page_size=10,
+            manager=manager,
         )
 
         manager.list_memories.assert_called_once()
@@ -54,8 +60,14 @@ class TestListMemoriesPaginatedSingleType:
         manager.count_memories.return_value = 0
 
         await list_memories_paginated(
-            type="semantic", search=None, tag="python", sort_by="importance",
-            sort_order="asc", page=1, page_size=20, manager=manager,
+            type="semantic",
+            search=None,
+            tag="python",
+            sort_by="importance",
+            sort_order="asc",
+            page=1,
+            page_size=20,
+            manager=manager,
         )
 
         call_kwargs = manager.list_memories.call_args[1]
@@ -72,8 +84,14 @@ class TestListMemoriesPaginatedMultiType:
         manager.list_memories.return_value = []
 
         await list_memories_paginated(
-            type=None, search=None, tag=None, sort_by="created_at",
-            sort_order="desc", page=2, page_size=5, manager=manager,
+            type=None,
+            search=None,
+            tag=None,
+            sort_by="created_at",
+            sort_order="desc",
+            page=2,
+            page_size=5,
+            manager=manager,
         )
 
         for call in manager.list_memories.call_args_list:
@@ -88,8 +106,14 @@ class TestListMemoriesPaginatedSearch:
         manager.search.return_value = []
 
         await list_memories_paginated(
-            type=None, search="hello world", tag=None, sort_by="created_at",
-            sort_order="desc", page=1, page_size=20, manager=manager,
+            type=None,
+            search="hello world",
+            tag=None,
+            sort_by="created_at",
+            sort_order="desc",
+            page=1,
+            page_size=20,
+            manager=manager,
         )
 
         manager.search.assert_called_once()

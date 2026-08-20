@@ -17,6 +17,8 @@ from app.services.migration.source.source_discovery import DiscoveryResult
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("memory", "migration_discovery")
+
+
 @pytest.fixture()
 def client() -> TestClient:
     with patch(

@@ -87,9 +87,7 @@ def _is_channel_webhook_path(path: str) -> bool:
     # Shared-context binding target: …/bindings/targets/channel/{targetId}.
     if "/bindings/targets/channel/" in lowered:
         return False
-    if _CHANNEL_PROVIDER_WEBHOOK_RE.match(
-        path
-    ) or _CHANNEL_PROVIDER_WEBHOOK_V1_RE.match(path):
+    if _CHANNEL_PROVIDER_WEBHOOK_RE.match(path) or _CHANNEL_PROVIDER_WEBHOOK_V1_RE.match(path):
         return True
     return lowered.startswith("/api/v1/channels/") and "/ingress" in lowered
 
@@ -152,9 +150,7 @@ def _is_nextjs_local_dev_proxy(headers: Mapping[str, str]) -> bool:
             else:
                 external_tunnel_marker = True
         elif lower_key == "x-forwarded-for":
-            first_hop = _normalize_client_ip(
-                value.split(",")[0].strip().strip("[]").split(":")[0]
-            )
+            first_hop = _normalize_client_ip(value.split(",")[0].strip().strip("[]").split(":")[0])
             if first_hop in {"127.0.0.1", "localhost", "::1"}:
                 forwarded_host_local = True
         elif lower_key in {"cf-connecting-ip", "cf-ray", "cf-visitor"}:

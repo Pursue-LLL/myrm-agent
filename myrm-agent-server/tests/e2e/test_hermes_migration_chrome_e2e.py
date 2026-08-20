@@ -123,15 +123,10 @@ def _discover_has_hermes() -> bool:
     sources = payload.get("sources")
     if not isinstance(sources, list):
         return False
-    return any(
-        isinstance(item, dict) and item.get("competitor") == "hermes"
-        for item in sources
-    )
+    return any(isinstance(item, dict) and item.get("competitor") == "hermes" for item in sources)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
@@ -148,9 +143,7 @@ def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
             _SCAN_READY_JS,
             timeout_sec=90.0,
         )
-        assert (
-            scan_ready.get("ready") is True
-        ), f"Hermes scan step did not become ready: {scan_ready!r}"
+        assert scan_ready.get("ready") is True, f"Hermes scan step did not become ready: {scan_ready!r}"
 
         client.evaluate(page, _FETCH_HOOK_JS, timeout_sec=10.0)
         clicked = wait_for_state(
@@ -159,9 +152,7 @@ def test_hermes_migration_wizard_dry_run_uses_builtin_economy() -> None:
             _CLICK_HERMES_PREVIEW_JS,
             timeout_sec=60.0,
         )
-        assert (
-            clicked.get("clicked") is True
-        ), f"Hermes preview button not clicked: {clicked!r}"
+        assert clicked.get("clicked") is True, f"Hermes preview button not clicked: {clicked!r}"
 
         deadline = time.monotonic() + 120.0
         final: dict[str, object] = {}

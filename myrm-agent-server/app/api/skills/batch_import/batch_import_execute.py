@@ -89,13 +89,9 @@ async def execute_batch_import_confirm(
                 detail=_build_batch_import_error_detail("非法的 virtual_id"),
             ) from e
 
-        val_result = validator.validate_skill(
-            f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}"
-        )
+        val_result = validator.validate_skill(f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}")
         if not val_result.passed:
-            logger.warning(
-                f"Skill {item.name} failed security scan during confirm: {val_result.issues}"
-            )
+            logger.warning(f"Skill {item.name} failed security scan during confirm: {val_result.issues}")
             # 立即清理暂存区并阻断
             staging_manager.cleanup_session(request.session_id)
             raise HTTPException(
@@ -224,12 +220,8 @@ async def execute_batch_import_confirm(
                     new_metadata["name"] = name
                     new_metadata["description"] = item.description
                     # 生成合法 frontmatter
-                    fm_yaml = yaml.safe_dump(
-                        new_metadata, allow_unicode=True, sort_keys=False
-                    ).strip()
-                    file_content = f"---\n{fm_yaml}\n---\n{skill.content}".encode(
-                        "utf-8"
-                    )
+                    fm_yaml = yaml.safe_dump(new_metadata, allow_unicode=True, sort_keys=False).strip()
+                    file_content = f"---\n{fm_yaml}\n---\n{skill.content}".encode("utf-8")
 
                 with open(target_path, "wb") as f:
                     f.write(file_content)

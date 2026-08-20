@@ -234,14 +234,16 @@ async def get_daily_wrap(
         cached = await db.execute(select(DailyWrapCache).where(DailyWrapCache.date == date))
         row = cached.scalar_one_or_none()
         if row:
-            return success_response(data={
-                "date": date,
-                "summary": row.summary,
-                "keywords": json.loads(row.keywords),
-                "suggestions": json.loads(row.suggestions),
-                "generated_at": row.generated_at.isoformat() if row.generated_at else None,
-                "cached": True,
-            })
+            return success_response(
+                data={
+                    "date": date,
+                    "summary": row.summary,
+                    "keywords": json.loads(row.keywords),
+                    "suggestions": json.loads(row.suggestions),
+                    "generated_at": row.generated_at.isoformat() if row.generated_at else None,
+                    "cached": True,
+                }
+            )
 
         data = await _fetch_and_generate(db, date)
         data["cached"] = False

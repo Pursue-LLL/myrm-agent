@@ -111,7 +111,9 @@ class FaqInterceptor:
         if score_gap < corpus.min_score_gap:
             logger.debug(
                 "FAQ score gap too small: top=%.3f, gap=%.3f, min_gap=%.3f",
-                top.score, score_gap, corpus.min_score_gap,
+                top.score,
+                score_gap,
+                corpus.min_score_gap,
             )
             return None, corpus.id, top.score
 
@@ -120,25 +122,25 @@ class FaqInterceptor:
         if entry is None:
             return None, corpus.id, top.score
 
-        return FaqMatchResult(
-            entry_id=entry.id,
-            corpus_id=corpus.id,
-            question=entry.question,
-            answer=entry.answer,
-            score=top.score,
-            score_gap=score_gap,
-        ), corpus.id, top.score
+        return (
+            FaqMatchResult(
+                entry_id=entry.id,
+                corpus_id=corpus.id,
+                question=entry.question,
+                answer=entry.answer,
+                score=top.score,
+                score_gap=score_gap,
+            ),
+            corpus.id,
+            top.score,
+        )
 
     async def _load_corpus(self, agent_id: str) -> FaqCorpus | None:
         async with get_session() as session:
-            result = await session.execute(
-                select(FaqCorpus).where(FaqCorpus.agent_id == agent_id)
-            )
+            result = await session.execute(select(FaqCorpus).where(FaqCorpus.agent_id == agent_id))
             return result.scalar_one_or_none()
 
     async def _load_entry(self, entry_id: str) -> FaqEntry | None:
         async with get_session() as session:
-            result = await session.execute(
-                select(FaqEntry).where(FaqEntry.id == entry_id)
-            )
+            result = await session.execute(select(FaqEntry).where(FaqEntry.id == entry_id))
             return result.scalar_one_or_none()

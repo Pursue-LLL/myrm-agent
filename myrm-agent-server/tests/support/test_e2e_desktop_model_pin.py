@@ -49,9 +49,7 @@ def test_ui_selection_matches_expected_basic_model() -> None:
 
 def test_transient_provider_pin_error_detection() -> None:
     assert (
-        _is_transient_provider_pin_error(
-            "Chrome MCP evaluate_script failed: Error: e2e-send-not-ready-after-provider-init"
-        )
+        _is_transient_provider_pin_error("Chrome MCP evaluate_script failed: Error: e2e-send-not-ready-after-provider-init")
         is True
     )
     assert _is_transient_provider_pin_error("transport closed while tools/call") is True
@@ -139,9 +137,7 @@ async def test_pin_for_send_escalates_bridge_missing_as_transport_error(
             {},
         ]
     )
-    with pytest.raises(
-        RuntimeError, match="Dev E2E chat bridge not available on WebUI"
-    ):
+    with pytest.raises(RuntimeError, match="Dev E2E chat bridge not available on WebUI"):
         await ensure_desktop_basic_model_pinned_for_send(
             chat,
             max_attempts=2,

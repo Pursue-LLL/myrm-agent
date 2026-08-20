@@ -36,9 +36,7 @@ async def test_sync_rss_publishes_atom_entry() -> None:
     </feed>
     """
     structure = MagicMock()
-    publish = AsyncMock(
-        return_value=MagicMock(written=True, skipped=False, conflict_skipped=False, security_blocked=False)
-    )
+    publish = AsyncMock(return_value=MagicMock(written=True, skipped=False, conflict_skipped=False, security_blocked=False))
     with patch("app.services.wiki.source_sync.rss.httpx.AsyncClient") as client_cls:
         client = AsyncMock()
         response = MagicMock()

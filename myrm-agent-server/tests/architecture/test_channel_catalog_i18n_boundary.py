@@ -21,19 +21,9 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 
-_SERVER_LOCALES_DIR = (
-    _REPO_ROOT / "myrm-agent" / "myrm-agent-server" / "app" / "channels" / "i18n" / "locales"
-)
+_SERVER_LOCALES_DIR = _REPO_ROOT / "myrm-agent" / "myrm-agent-server" / "app" / "channels" / "i18n" / "locales"
 _HARNESS_LOCALES_DIR = (
-    _REPO_ROOT
-    / "myrm-agent-harness"
-    / "src"
-    / "myrm_agent_harness"
-    / "agent"
-    / "errors"
-    / "diagnostics"
-    / "i18n"
-    / "locales"
+    _REPO_ROOT / "myrm-agent-harness" / "src" / "myrm_agent_harness" / "agent" / "errors" / "diagnostics" / "i18n" / "locales"
 )
 
 # Every key in the server JSON catalog must be listed here. Channel messages
@@ -99,8 +89,7 @@ def test_server_json_locales_share_identical_key_sets() -> None:
         missing = reference_keys - keys
         extra = keys - reference_keys
         assert not missing and not extra, (
-            f"Key mismatch between {reference} and {name}: "
-            f"missing={sorted(missing)}, extra={sorted(extra)}"
+            f"Key mismatch between {reference} and {name}: missing={sorted(missing)}, extra={sorted(extra)}"
         )
 
 

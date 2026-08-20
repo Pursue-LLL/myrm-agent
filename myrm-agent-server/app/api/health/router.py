@@ -300,13 +300,9 @@ async def system_doctor() -> dict[str, object]:
     repair_actions = await build_repair_actions(harness_reports, server_reports)
 
     harness_payload: list[object] = [
-        redact_health_report(present_health_report(report)).model_dump()
-        for report in harness_reports
+        redact_health_report(present_health_report(report)).model_dump() for report in harness_reports
     ]
-    server_payload: list[object] = [
-        redact_health_report(present_health_report(report)).model_dump()
-        for report in server_reports
-    ]
+    server_payload: list[object] = [redact_health_report(present_health_report(report)).model_dump() for report in server_reports]
     return {
         "server": server_payload,
         "harness": harness_payload,
@@ -314,9 +310,7 @@ async def system_doctor() -> dict[str, object]:
     }
 
 
-@router.post(
-    "/repair-actions/{action_id}/execute", response_model=RepairActionExecuteResult
-)
+@router.post("/repair-actions/{action_id}/execute", response_model=RepairActionExecuteResult)
 async def execute_health_repair_action(
     action_id: RepairActionId,
     request: RepairActionExecuteRequest,
@@ -371,12 +365,8 @@ async def reset_database() -> dict[str, str]:
 
 @router.get("/resources")
 async def resource_health_check(
-    auto_recover: bool = Query(
-        False, description="Automatically recover unhealthy resources"
-    ),
-    force_recovery: bool = Query(
-        False, description="Allow dangerous recovery actions (SQLite WAL deletion)"
-    ),
+    auto_recover: bool = Query(False, description="Automatically recover unhealthy resources"),
+    force_recovery: bool = Query(False, description="Allow dangerous recovery actions (SQLite WAL deletion)"),
 ) -> dict[str, object]:
     """Resource-level health check (Qdrant, SQLite, Browser).
 
@@ -406,11 +396,7 @@ async def resource_health_check(
                 "status": check_result.status.value if check_result else "unknown",
                 "message": check_result.message if check_result else "No check result",
                 "details": check_result.details if check_result else None,
-                "checked_at": (
-                    check_result.checked_at.isoformat()
-                    if check_result and check_result.checked_at
-                    else None
-                ),
+                "checked_at": (check_result.checked_at.isoformat() if check_result and check_result.checked_at else None),
             }
 
             if recovery_result:
@@ -419,11 +405,7 @@ async def resource_health_check(
                     "message": recovery_result.message,
                     "actions_taken": recovery_result.actions_taken,
                     "details": recovery_result.details,
-                    "recovered_at": (
-                        recovery_result.recovered_at.isoformat()
-                        if recovery_result.recovered_at
-                        else None
-                    ),
+                    "recovered_at": (recovery_result.recovered_at.isoformat() if recovery_result.recovered_at else None),
                 }
 
             formatted_results.append(item)
@@ -437,6 +419,4 @@ async def resource_health_check(
 
     except Exception as exc:
         logger.error("Resource health check failed: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Resource health check failed"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Resource health check failed") from exc

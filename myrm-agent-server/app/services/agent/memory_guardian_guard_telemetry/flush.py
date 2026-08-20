@@ -95,9 +95,7 @@ def pending_event_count(
     pending_envelopes: deque[MemoryGuardianGuardTelemetryEnvelope],
     overflow_aggregates: dict[MemoryGuardianGuardTelemetryEvent, int],
 ) -> int:
-    envelope_pending = sum(
-        aggregate.count for envelope in pending_envelopes for aggregate in envelope.aggregates
-    )
+    envelope_pending = sum(aggregate.count for envelope in pending_envelopes for aggregate in envelope.aggregates)
     aggregate_pending = sum(overflow_aggregates.values())
     return envelope_pending + aggregate_pending
 

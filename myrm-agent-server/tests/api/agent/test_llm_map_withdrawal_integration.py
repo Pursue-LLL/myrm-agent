@@ -64,13 +64,7 @@ class TestLlmMapWithdrawalTemplatesIntegration:
 
 class TestLlmMapWithdrawalProductSurfaceIntegration:
     def test_general_agent_factory_has_no_enable_llm_map_wiring(self) -> None:
-        factory_path = (
-            Path(__file__).resolve().parents[3]
-            / "app"
-            / "ai_agents"
-            / "general_agent"
-            / "factory.py"
-        )
+        factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
         text = factory_path.read_text(encoding="utf-8")
         assert "enable_llm_map" not in text
 

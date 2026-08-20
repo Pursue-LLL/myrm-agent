@@ -48,7 +48,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-
 class TeamMemberBrief(BaseModel):
     role: str
     name: str
@@ -63,8 +62,6 @@ class TemplateListItem(BaseModel):
     agent_type: str = "individual"
     members: list[TeamMemberBrief] | None = None
     use_cases: list[str] | None = None
-
-
 
 
 @router.get("/templates", response_model=StandardSuccessResponse)
@@ -168,9 +165,7 @@ async def _ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str
         raise HTTPException(status_code=status, detail=str(e)) from e
 
 
-async def _instantiate_individual_template(
-    data: dict[str, Any], template_id: str, request: Request
-) -> JSONResponse:
+async def _instantiate_individual_template(data: dict[str, Any], template_id: str, request: Request) -> JSONResponse:
     """Create a single individual agent from template data."""
     prebuilt_skill_ids = data.pop("prebuilt_skill_ids", [])
     await _ensure_skills_enabled(prebuilt_skill_ids, template_id)
@@ -205,9 +200,7 @@ async def _instantiate_individual_template(
     return success_response(data=_to_agent_response(agent).model_dump())
 
 
-async def _instantiate_team_template(
-    data: dict[str, Any], template_id: str, request: Request
-) -> JSONResponse:
+async def _instantiate_team_template(data: dict[str, Any], template_id: str, request: Request) -> JSONResponse:
     """Atomically create a team: all members first, then leader with subagent_ids.
 
     On failure at any step, rolls back all previously created agents.
@@ -311,8 +304,11 @@ def _build_leader_agent_data(
 
     # Carry over optional fields from leader config
     for field in (
-        "mcp_ids", "mcp_tool_selections", "enabled_builtin_tools",
-        "skill_ids", "suggestion_prompts",
+        "mcp_ids",
+        "mcp_tool_selections",
+        "enabled_builtin_tools",
+        "skill_ids",
+        "suggestion_prompts",
     ):
         if field in data:
             leader_payload[field] = data[field]

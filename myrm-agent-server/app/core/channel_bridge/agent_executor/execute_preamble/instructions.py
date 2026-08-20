@@ -45,9 +45,7 @@ async def enrich_channel_user_instructions(
         if not caps.file_upload:
             warnings.append("- DO NOT attempt to generate or send any files or documents (like CSV, PDF, etc.).")
         if not caps.markdown:
-            warnings.append(
-                "- DO NOT use Markdown formatting (like bold, italics, links, or code blocks). Use plain text only."
-            )
+            warnings.append("- DO NOT use Markdown formatting (like bold, italics, links, or code blocks). Use plain text only.")
 
         if warnings:
             warning_str = (
@@ -81,11 +79,7 @@ async def enrich_channel_user_instructions(
     personality_style_key = str(raw_ps)
     instructions = apply_profile_output_suffixes(
         instructions,
-        personality_style=(
-            personality_style_key
-            if personality_style_key != DEFAULT_PERSONALITY_STYLE
-            else None
-        ),
+        personality_style=(personality_style_key if personality_style_key != DEFAULT_PERSONALITY_STYLE else None),
         engine_params=resolved_profile.engine_params if resolved_profile else None,
         agent_id=resolved_agent_id,
     )

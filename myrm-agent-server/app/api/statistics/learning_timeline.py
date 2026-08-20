@@ -20,7 +20,6 @@ import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -198,11 +197,7 @@ async def get_learning_timeline(
                 if cursor_dt and evt_created >= cursor_dt:
                     continue
 
-                kind = (
-                    TimelineNodeKind.SKILL_DRAFT
-                    if evt.source.value == "draft"
-                    else TimelineNodeKind.SKILL_EVOLUTION
-                )
+                kind = TimelineNodeKind.SKILL_DRAFT if evt.source.value == "draft" else TimelineNodeKind.SKILL_EVOLUTION
                 if allowed_kinds and kind.value not in allowed_kinds:
                     continue
 

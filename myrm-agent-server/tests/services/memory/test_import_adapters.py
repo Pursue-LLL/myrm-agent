@@ -89,10 +89,7 @@ class TestNativeJsonDryRun:
         assert len(result.normalized_data["semantic"]) == 2
 
     def test_all_supported_buckets(self) -> None:
-        payload = {
-            bucket: [{"content": f"{bucket} item"}]
-            for bucket in SUPPORTED_NATIVE_BUCKETS
-        }
+        payload = {bucket: [{"content": f"{bucket} item"}] for bucket in SUPPORTED_NATIVE_BUCKETS}
         result = build_memory_import_dry_run(payload, source="native_json")
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == len(SUPPORTED_NATIVE_BUCKETS)
@@ -346,9 +343,7 @@ class TestAdapterRegistryConsistency:
         statuses = memory_import_adapter_status()
         ready = [s for s, st in statuses.items() if st == "ready"]
         for adapter in ready:
-            assert (
-                adapter in sources
-            ), f"Ready adapter '{adapter}' missing from supported sources"
+            assert adapter in sources, f"Ready adapter '{adapter}' missing from supported sources"
 
     def test_ready_registry_matches_expected_sources(self) -> None:
         """Registry 'ready' set must exactly match the adapters implemented today.

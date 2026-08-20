@@ -29,23 +29,15 @@ _SANDBOX_ID_ENV = "SANDBOX_ID"
 SAAS_CP_CHANNELS = frozenset({"feishu", "slack", "discord", "telegram"})
 
 
-def should_route_via_control_plane(
-    channel: str, metadata: dict[str, object] | None
-) -> bool:
+def should_route_via_control_plane(channel: str, metadata: dict[str, object] | None) -> bool:
     """Return True when outbound must go through CP egress (SaaS + CP ingress)."""
     if not get_deployment_capabilities().is_sandbox_instance:
         return False
     if channel not in SAAS_CP_CHANNELS:
         return False
-    if (
-        isinstance(metadata, dict)
-        and metadata.get("trusted_inbound") == "control_plane"
-    ):
+    if isinstance(metadata, dict) and metadata.get("trusted_inbound") == "control_plane":
         return True
-    return (
-        get_deployment_capabilities().is_sandbox_instance
-        and channel in SAAS_CP_CHANNELS
-    )
+    return get_deployment_capabilities().is_sandbox_instance and channel in SAAS_CP_CHANNELS
 
 
 async def send_via_control_plane(
@@ -82,9 +74,7 @@ async def send_via_control_plane(
     }
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{cp_url}{_CP_EGRESS_PATH}", json=payload, headers=headers
-            )
+            resp = await client.post(f"{cp_url}{_CP_EGRESS_PATH}", json=payload, headers=headers)
         if resp.status_code >= 400:
             logger.error("CP egress failed: %s %s", resp.status_code, resp.text[:200])
             return None

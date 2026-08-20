@@ -47,9 +47,7 @@ def test_invalid_personality_preserves_locale() -> None:
     result = apply_profile_output_suffixes(
         "Base",
         personality_style="nonexistent-style",
-        engine_params={
-            "response_locale_policy": {"locale": "ko", "formality": "casual"}
-        },
+        engine_params={"response_locale_policy": {"locale": "ko", "formality": "casual"}},
         agent_id="agent-1",
     )
     assert result is not None

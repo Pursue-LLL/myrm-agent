@@ -7,9 +7,7 @@ import sys
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -46,9 +44,7 @@ _PITFALL_PANEL_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

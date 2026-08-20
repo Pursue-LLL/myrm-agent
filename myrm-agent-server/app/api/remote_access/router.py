@@ -136,11 +136,7 @@ async def issue_pairing_token(body: PairingTokenRequest, request: Request) -> di
         if not body.chat_id:
             raise HTTPException(status_code=400, detail="chat_id required to open a session")
         gateway = get_agent_gateway()
-        active_chat_ids = {
-            str(session.get("chatId"))
-            for session in gateway.get_active_sessions()
-            if session.get("chatId")
-        }
+        active_chat_ids = {str(session.get("chatId")) for session in gateway.get_active_sessions() if session.get("chatId")}
         if body.chat_id not in active_chat_ids:
             raise HTTPException(status_code=404, detail="No active session for this chat")
         token = create_pairing_token(chat_id=body.chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
@@ -216,15 +212,9 @@ async def mobile_spawn_options(
     from app.services.project.project_service import ProjectService
 
     agents_raw, _ = await AgentService.get_agent_list(page=1, page_size=100)
-    agents = [
-        {"id": a.id, "name": a.display_name or a.id, "avatar": a.avatar}
-        for a in agents_raw
-    ]
+    agents = [{"id": a.id, "name": a.display_name or a.id, "avatar": a.avatar} for a in agents_raw]
     projects = await ProjectService.list_projects()
-    project_items = [
-        {"id": p["id"], "name": p["name"], "color": p.get("color")}
-        for p in projects
-    ]
+    project_items = [{"id": p["id"], "name": p["name"], "color": p.get("color")} for p in projects]
     default_agent_id = agents[0]["id"] if agents else None
 
     return e2ee_success_response(

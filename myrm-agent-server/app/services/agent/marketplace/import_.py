@@ -112,10 +112,7 @@ async def import_agent_package(
     except Exception as exc:
         rollback_errors = await _rollback_created_entities(skill_svc, state)
         if rollback_errors:
-            raise RuntimeError(
-                "Marketplace import failed and rollback was incomplete: "
-                + "; ".join(rollback_errors)
-            ) from exc
+            raise RuntimeError("Marketplace import failed and rollback was incomplete: " + "; ".join(rollback_errors)) from exc
         raise
 
     logger.info(
@@ -147,10 +144,7 @@ async def _install_skills(
             skill_def.description,
         )
         if _result_success(result) is not True:
-            raise ValueError(
-                f"Marketplace import rejected: failed to save skill '{skill_def.name}': "
-                f"{_result_error(result)}"
-            )
+            raise ValueError(f"Marketplace import rejected: failed to save skill '{skill_def.name}': {_result_error(result)}")
 
         was_updated = _result_bool(result, "was_updated")
         if was_updated is None:
@@ -159,15 +153,11 @@ async def _install_skills(
                 f"for '{skill_def.name}', cannot guarantee atomic rollback safety"
             )
         if was_updated is True:
-            raise ValueError(
-                f"Marketplace import rejected: skill '{skill_def.name}' already exists locally"
-            )
+            raise ValueError(f"Marketplace import rejected: skill '{skill_def.name}' already exists locally")
 
         new_skill_id = _result_str(result, "skill_id")
         if not new_skill_id:
-            raise RuntimeError(
-                f"Marketplace import failed: skill '{skill_def.name}' returned empty skill_id"
-            )
+            raise RuntimeError(f"Marketplace import failed: skill '{skill_def.name}' returned empty skill_id")
         id_map[skill_def.id] = new_skill_id
         state.created_skill_names.append(skill_def.name)
 
@@ -253,12 +243,8 @@ def _remap_ids(
     remapped["skill_ids"] = [skill_id_map.get(sid, sid) for sid in old_skill_ids]
 
     old_subagent_ids_obj = remapped.get("subagent_ids")
-    old_subagent_ids = (
-        old_subagent_ids_obj if isinstance(old_subagent_ids_obj, list) else []
-    )
-    remapped["subagent_ids"] = [
-        subagent_id_map.get(sid, sid) for sid in old_subagent_ids
-    ]
+    old_subagent_ids = old_subagent_ids_obj if isinstance(old_subagent_ids_obj, list) else []
+    remapped["subagent_ids"] = [subagent_id_map.get(sid, sid) for sid in old_subagent_ids]
 
     return remapped
 
@@ -327,11 +313,7 @@ def _agent_create_payload_from_profile(
     is_subagent: bool,
 ) -> dict[str, object]:
     display_name = profile.get("display_name")
-    resolved_name = (
-        display_name
-        if isinstance(display_name, str) and display_name.strip()
-        else fallback_name
-    )
+    resolved_name = display_name if isinstance(display_name, str) and display_name.strip() else fallback_name
     payload: dict[str, object] = {
         "name": resolved_name,
         "description": profile.get("description") or "",
@@ -416,9 +398,7 @@ def _with_subagent_origin_key(
     engine_params: object,
     origin_key: str,
 ) -> dict[str, object]:
-    merged: dict[str, object] = (
-        dict(engine_params) if isinstance(engine_params, dict) else {}
-    )
+    merged: dict[str, object] = dict(engine_params) if isinstance(engine_params, dict) else {}
     merged[_SUBAGENT_ORIGIN_ENGINE_PARAM_KEY] = origin_key
     return merged
 
@@ -428,9 +408,7 @@ def _normalize_marketplace_entry_id(entry_id: str | None) -> str | None:
         return None
     normalized = entry_id.strip()
     if not normalized:
-        raise ValueError(
-            "marketplace_entry_id must be a non-empty string when provided"
-        )
+        raise ValueError("marketplace_entry_id must be a non-empty string when provided")
     return normalized
 
 
@@ -442,9 +420,7 @@ def _with_marketplace_entry_id(
         if isinstance(engine_params, dict):
             return dict(engine_params)
         return None
-    merged: dict[str, object] = (
-        dict(engine_params) if isinstance(engine_params, dict) else {}
-    )
+    merged: dict[str, object] = dict(engine_params) if isinstance(engine_params, dict) else {}
     merged[_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY] = marketplace_entry_id
     return merged
 
@@ -514,10 +490,7 @@ def _preflight_skill_name_conflicts(
             conflicts.append(skill.name)
     if conflicts:
         conflict_text = ", ".join(sorted(conflicts))
-        raise ValueError(
-            "Marketplace import rejected: bundled skills already exist locally: "
-            f"{conflict_text}"
-        )
+        raise ValueError(f"Marketplace import rejected: bundled skills already exist locally: {conflict_text}")
 
 
 async def _rollback_created_entities(
@@ -548,9 +521,7 @@ async def _rollback_created_entities(
         try:
             result = await skill_svc.delete_skill(skill_name)
             if _result_success(result) is not True:
-                errors.append(
-                    f"delete skill {skill_name} failed: {_result_error(result) or 'unknown error'}"
-                )
+                errors.append(f"delete skill {skill_name} failed: {_result_error(result) or 'unknown error'}")
         except Exception as exc:  # pragma: no cover - defensive logging path
             errors.append(f"delete skill {skill_name} raised: {exc}")
 

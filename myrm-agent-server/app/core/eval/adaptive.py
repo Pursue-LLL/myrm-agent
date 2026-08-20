@@ -37,9 +37,7 @@ def mark_chat_activity() -> None:
 class AdaptiveEvalManager:
     """Adaptive concurrency manager that yields when chat activity is detected."""
 
-    def __init__(
-        self, max_concurrency: int = 3, idle_wait_seconds: float = 3.0
-    ) -> None:
+    def __init__(self, max_concurrency: int = 3, idle_wait_seconds: float = 3.0) -> None:
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._idle_wait_seconds = idle_wait_seconds
 
@@ -50,14 +48,10 @@ class AdaptiveEvalManager:
         # If foreground chat activity was detected recently, wait longer to yield resources
         global _last_chat_activity_time
         while time.time() - _last_chat_activity_time < self._idle_wait_seconds:
-            logger.debug(
-                "Foreground chat activity detected. Suspending eval task briefly..."
-            )
+            logger.debug("Foreground chat activity detected. Suspending eval task briefly...")
             await asyncio.sleep(1.0)
 
         await self._semaphore.acquire()
 
-    async def __aexit__(
-        self, exc_type: object, exc_val: object, exc_tb: object
-    ) -> None:
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         self._semaphore.release()

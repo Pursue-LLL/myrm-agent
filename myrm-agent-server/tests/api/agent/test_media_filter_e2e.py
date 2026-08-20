@@ -171,9 +171,7 @@ def test_boundary_oversized_image_agent_stream_succeeds(client: TestClient) -> N
             {"type": "text", "text": "E2E boundary image: reply one word only."},
             {
                 "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{_make_boundary_jpeg_b64()}"
-                },
+                "image_url": {"url": f"data:image/jpeg;base64,{_make_boundary_jpeg_b64()}"},
             },
         ],
         selection,
@@ -181,6 +179,4 @@ def test_boundary_oversized_image_agent_stream_succeeds(client: TestClient) -> N
     _skip_on_flaky(collected)
     blob = json.dumps(collected)
     assert "IMAGE_TOO_LARGE" not in blob, f"Provider rejected oversized image: {blob[:500]}"
-    assert any(d.get("type") == "message" for d in collected), (
-        f"No assistant message received — status events: {status_events}"
-    )
+    assert any(d.get("type") == "message" for d in collected), f"No assistant message received — status events: {status_events}"

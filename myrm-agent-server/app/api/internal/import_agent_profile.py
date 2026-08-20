@@ -129,10 +129,7 @@ async def import_agent_profile_endpoint(
                 if normalized_entry_id is None:
                     raise HTTPException(
                         status_code=400,
-                        detail=(
-                            "Force-push import requires marketplace_entry_id binding "
-                            "or explicit target_agent_id"
-                        ),
+                        detail=("Force-push import requires marketplace_entry_id binding or explicit target_agent_id"),
                     )
                 target_id = await _resolve_force_push_agent_id(normalized_entry_id)
             if not target_id:
@@ -275,37 +272,19 @@ async def _force_update_agent(
         updates["skill_configs"] = profile_data["skill_configs"]
     if "memory_policy" in profile_data and profile_data["memory_policy"] is not None:
         raw_memory_policy = profile_data["memory_policy"]
-        updates["memory_policy"] = (
-            memory_policy_from_dict(raw_memory_policy)
-            if isinstance(raw_memory_policy, dict)
-            else None
-        )
-    if (
-        "command_bindings" in profile_data
-        and profile_data["command_bindings"] is not None
-    ):
+        updates["memory_policy"] = memory_policy_from_dict(raw_memory_policy) if isinstance(raw_memory_policy, dict) else None
+    if "command_bindings" in profile_data and profile_data["command_bindings"] is not None:
         updates["command_bindings"] = profile_data["command_bindings"]
-    if (
-        "workspace_policy" in profile_data
-        and profile_data["workspace_policy"] is not None
-    ):
+    if "workspace_policy" in profile_data and profile_data["workspace_policy"] is not None:
         updates["workspace_policy"] = profile_data["workspace_policy"]
-    if (
-        "cron_post_run_verify" in profile_data
-        and profile_data["cron_post_run_verify"] is not None
-    ):
+    if "cron_post_run_verify" in profile_data and profile_data["cron_post_run_verify"] is not None:
         updates["cron_post_run_verify"] = bool(profile_data["cron_post_run_verify"])
-    if (
-        "enabled_builtin_tools" in profile_data
-        and profile_data["enabled_builtin_tools"] is not None
-    ):
+    if "enabled_builtin_tools" in profile_data and profile_data["enabled_builtin_tools"] is not None:
         from app.services.agent.builtin_specs.builtin_tool_ids import (
             normalize_enabled_builtin_tools,
         )
 
-        updates["tools_allowed"] = normalize_enabled_builtin_tools(
-            profile_data["enabled_builtin_tools"]
-        )
+        updates["tools_allowed"] = normalize_enabled_builtin_tools(profile_data["enabled_builtin_tools"])
 
     metadata_keys = (
         "mcp_ids",
@@ -365,8 +344,6 @@ def _with_marketplace_entry_binding(
     engine_params: object,
     marketplace_entry_id: str,
 ) -> dict[str, object]:
-    merged: dict[str, object] = (
-        dict(engine_params) if isinstance(engine_params, dict) else {}
-    )
+    merged: dict[str, object] = dict(engine_params) if isinstance(engine_params, dict) else {}
     merged[_MARKETPLACE_ENTRY_ENGINE_PARAM_KEY] = marketplace_entry_id
     return merged

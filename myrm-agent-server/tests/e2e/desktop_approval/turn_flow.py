@@ -93,9 +93,7 @@ def _signoff_mux_attach_restart(reason: str) -> None:
     force_mux_attach_restart_scoped(reason=reason)
 
 
-async def _signoff_mux_recover_lightweight(
-    chat: McpChatSession, *, reason: str
-) -> None:
+async def _signoff_mux_recover_lightweight(chat: McpChatSession, *, reason: str) -> None:
     """R288: signoff must not call recover_mux_transport (eats session recovery budget)."""
     progress(f"R288 signoff lightweight mux recover: {reason}")
     await asyncio.to_thread(_signoff_mux_attach_restart, reason)
@@ -106,9 +104,7 @@ async def _signoff_mux_recover_lightweight(
     )
 
 
-async def _await_with_wall_timeout(
-    awaitable: Awaitable[_T], *, timeout_sec: float, label: str
-) -> _T:
+async def _await_with_wall_timeout(awaitable: Awaitable[_T], *, timeout_sec: float, label: str) -> _T:
     try:
         return await asyncio.wait_for(awaitable, timeout=timeout_sec)
     except asyncio.TimeoutError as exc:
@@ -177,12 +173,8 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
     probe = await _probe_chat_route(chat, target)
     if probe.get("onTarget"):
         return
-    navigate_timeout = signoff_parallel_force_chat_timeout_sec(
-        _CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC
-    )
-    route_timeout = signoff_parallel_force_chat_timeout_sec(
-        _CHAT_ROUTE_BRIDGE_TIMEOUT_SEC
-    )
+    navigate_timeout = signoff_parallel_force_chat_timeout_sec(_CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC)
+    route_timeout = signoff_parallel_force_chat_timeout_sec(_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC)
     progress(f"restore chat route chat_id={chat_id}")
     await _await_with_wall_timeout(
         asyncio.to_thread(
@@ -207,10 +199,7 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
     post_probe = await _probe_chat_route(chat, target)
     if post_probe.get("onTarget"):
         return
-    progress(
-        "chat route mismatch after surface restore; force chat route once more "
-        f"chat_id={chat_id}"
-    )
+    progress(f"chat route mismatch after surface restore; force chat route once more chat_id={chat_id}")
     await _await_with_wall_timeout(
         asyncio.to_thread(
             chat._client.navigate,
@@ -228,10 +217,7 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
     )
     final_probe = await _probe_chat_route(chat, target)
     if not final_probe.get("onTarget"):
-        raise RuntimeError(
-            "restore chat route failed to reach target "
-            f"chat_id={chat_id} href={final_probe.get('href')!r}"
-        )
+        raise RuntimeError(f"restore chat route failed to reach target chat_id={chat_id} href={final_probe.get('href')!r}")
 
 
 async def resolve_chat_id(chat: McpChatSession, state: dict[str, object]) -> str | None:
@@ -290,23 +276,11 @@ def _seeded_kickoff_activity_probe(
         api_url=api_url,
         timeout_sec=15.0,
     )
-    user_count = sum(
-        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
-    )
-    assistant_msgs = [
-        msg
-        for msg in messages
-        if isinstance(msg, dict) and msg.get("role") == "assistant"
-    ]
+    user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
+    assistant_msgs = [msg for msg in messages if isinstance(msg, dict) and msg.get("role") == "assistant"]
     last_assistant = assistant_msgs[-1] if assistant_msgs else None
-    assistant_tail = (
-        str(last_assistant.get("content") or "")[:80] if last_assistant else ""
-    )
-    active = (
-        user_count > baseline_user_count
-        or bool(assistant_msgs)
-        or bool(assistant_tail.strip())
-    )
+    assistant_tail = str(last_assistant.get("content") or "")[:80] if last_assistant else ""
+    active = user_count > baseline_user_count or bool(assistant_msgs) or bool(assistant_tail.strip())
     return {
         "userCount": user_count,
         "baselineUserCount": baseline_user_count,
@@ -378,9 +352,7 @@ async def _try_signoff_api_kickoff(
     normalized = chat_id.strip()
     if not normalized:
         return False, {"events": [], "error": {"error_type": "MissingChatId"}}
-    kickoff_timeout = signoff_parallel_desktop_turn_done_timeout_sec(
-        kickoff_timeout_base
-    )
+    kickoff_timeout = signoff_parallel_desktop_turn_done_timeout_sec(kickoff_timeout_base)
     api_timeout = min(60.0, max(30.0, kickoff_timeout / 5.0))
     kickoff_thread_budget = min(45.0, api_timeout + 10.0)
     progress(f"{label} — API kickoff before bridge/CDP (mux-bypass)")
@@ -395,10 +367,7 @@ async def _try_signoff_api_kickoff(
             timeout=kickoff_thread_budget,
         )
     except (asyncio.TimeoutError, TimeoutError):
-        progress(
-            f"{label} API kickoff thread budget exceeded "
-            f"({kickoff_thread_budget:.0f}s) — bridge fallback"
-        )
+        progress(f"{label} API kickoff thread budget exceeded ({kickoff_thread_budget:.0f}s) — bridge fallback")
         return False, {
             "events": [],
             "error": {"error_type": "KickoffThreadTimeout"},
@@ -436,18 +405,13 @@ async def _wait_seeded_resend_turn_kickoff(
                     api_url=get_e2e_api_url(),
                 )
                 if activity.get("active"):
-                    progress(
-                        f"seeded resend kickoff: API activity={activity} poll=#{poll}"
-                    )
+                    progress(f"seeded resend kickoff: API activity={activity} poll=#{poll}")
                     return True
             except urllib.error.HTTPError:
                 pass
             except (TimeoutError, OSError) as exc:
                 if poll == 1 or poll % 5 == 0:
-                    progress(
-                        f"seeded resend kickoff API probe skipped "
-                        f"(non-fatal): {exc} poll=#{poll}"
-                    )
+                    progress(f"seeded resend kickoff API probe skipped (non-fatal): {exc} poll=#{poll}")
         try:
             probe = await chat.evaluate(
                 "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
@@ -512,9 +476,7 @@ async def wait_stream_done_with_marker(
             )
         except (TimeoutError, RuntimeError, OSError) as exc:
             if poll == 1 or poll % 5 == 0:
-                progress(
-                    f"poll DONE marker #{poll} evaluate skipped (non-fatal): {exc}"
-                )
+                progress(f"poll DONE marker #{poll} evaluate skipped (non-fatal): {exc}")
             await asyncio.sleep(2.0)
             continue
         if isinstance(probe, dict):
@@ -538,10 +500,7 @@ async def wait_stream_done_with_marker(
                     api_has_done = False
                 except (TimeoutError, OSError) as exc:
                     if poll == 1 or poll % 5 == 0:
-                        progress(
-                            f"poll DONE marker #{poll} API probe skipped "
-                            f"(non-fatal): {exc}"
-                        )
+                        progress(f"poll DONE marker #{poll} API probe skipped (non-fatal): {exc}")
                     api_has_done = False
                 else:
                     if api_has_done:
@@ -551,12 +510,7 @@ async def wait_stream_done_with_marker(
                             "matched": True,
                             "mode": "api-done",
                         }
-            if (
-                chat_id
-                and int(probe.get("userCount") or 0) >= 1
-                and not probe.get("isStreaming")
-                and probe.get("matched")
-            ):
+            if chat_id and int(probe.get("userCount") or 0) >= 1 and not probe.get("isStreaming") and probe.get("matched"):
                 return {**probe, "chatId": chat_id}
             if (
                 not nudged_done
@@ -570,15 +524,12 @@ async def wait_stream_done_with_marker(
                 nudge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
                 try:
                     await asyncio.wait_for(
-                        chat.send_message(
-                            "Reply with only DONE.", "Reply with only DONE."
-                        ),
+                        chat.send_message("Reply with only DONE.", "Reply with only DONE."),
                         timeout=nudge_timeout,
                     )
                 except (TimeoutError, asyncio.TimeoutError) as exc:
                     progress(
-                        f"R254 nudge send_message timeout after {nudge_timeout:.0f}s "
-                        f"— continue DONE poll (non-fatal): {exc}"
+                        f"R254 nudge send_message timeout after {nudge_timeout:.0f}s — continue DONE poll (non-fatal): {exc}"
                     )
                 heartbeat_once()
                 continue
@@ -608,9 +559,7 @@ async def wait_for_trusted_app_display_name(
         if apps and poll % 5 == 0:
             progress(f"trust API poll waiting for {display_name!r}: {apps}")
         await asyncio.sleep(1.0)
-    raise AssertionError(
-        f"Trusted app {display_name!r} not found via API within {timeout_sec}s: {apps}"
-    )
+    raise AssertionError(f"Trusted app {display_name!r} not found via API within {timeout_sec}s: {apps}")
 
 
 async def verify_settings_revoke_trusted_app(
@@ -646,11 +595,7 @@ async def verify_settings_revoke_trusted_app(
             }})()""",
             intent=EvaluateIntent.BRIDGE_POLL,
         )
-        if (
-            isinstance(probe, dict)
-            and probe.get("hasDisplayName")
-            and probe.get("revokeReady")
-        ):
+        if isinstance(probe, dict) and probe.get("hasDisplayName") and probe.get("revokeReady"):
             break
         await asyncio.sleep(1.0)
     else:
@@ -665,9 +610,7 @@ async def verify_settings_revoke_trusted_app(
         }})()""",
         intent=EvaluateIntent.SYNC_PROBE,
     )
-    assert (
-        isinstance(click, dict) and click.get("ok") is True
-    ), f"Settings revoke click failed: {click}"
+    assert isinstance(click, dict) and click.get("ok") is True, f"Settings revoke click failed: {click}"
 
     empty_deadline = asyncio.get_event_loop().time() + 60.0
     while asyncio.get_event_loop().time() < empty_deadline:
@@ -695,10 +638,7 @@ async def complete_turn_after_approval(
         # R287: api/bridge kickoff already started agent turn — use R244-scale API
         # poll; avoid CDP route restore that burns body budget under parallel mux.
         api_budget = min(420.0, max(120.0, turn_done_timeout * 0.75))
-        progress(
-            f"R287 mux-bypass API DONE budget={api_budget:.0f}s "
-            f"(turn_done_timeout={turn_done_timeout:.0f}s)"
-        )
+        progress(f"R287 mux-bypass API DONE budget={api_budget:.0f}s (turn_done_timeout={turn_done_timeout:.0f}s)")
         api_done = await asyncio.to_thread(
             wait_chat_messages_done,
             chat_id_hint,
@@ -709,15 +649,11 @@ async def complete_turn_after_approval(
             on_tick=_api_done_wait_tick,
         )
         if api_done:
-            progress(
-                f"approval verified via {kickoff_label} DONE chat_id={chat_id_hint}"
-            )
+            progress(f"approval verified via {kickoff_label} DONE chat_id={chat_id_hint}")
             assert chat_user_message_count(chat_id_hint) >= 1, chat_id_hint
             progress(f"done chat_id={chat_id_hint}")
             return chat_id_hint
-        progress(
-            f"R287 {kickoff_label} DONE miss — CDP turn wait without route restore"
-        )
+        progress(f"R287 {kickoff_label} DONE miss — CDP turn wait without route restore")
         skip_chat_route_restore = True
     if chat_id_hint and not skip_chat_route_restore:
         await _ensure_chat_route(chat, chat_id_hint)
@@ -735,10 +671,7 @@ async def complete_turn_after_approval(
         and int(after_turn.get("userCount") or 0) <= 0
         and not str(after_turn.get("lastAssistantSample") or "").strip()
     ):
-        progress(
-            "post-approval DONE wait got empty turn snapshot; "
-            "recover chat route and re-probe once"
-        )
+        progress("post-approval DONE wait got empty turn snapshot; recover chat route and re-probe once")
         await _ensure_chat_route(chat, chat_id_hint)
         recovered_turn = await wait_stream_done_with_marker(
             chat,
@@ -759,9 +692,7 @@ async def complete_turn_after_approval(
                     api_url=get_e2e_api_url(),
                 )
             except urllib.error.HTTPError as exc:
-                progress(
-                    f"post-approval API DONE probe HTTP {exc.code} chat_id={chat_id_probe}"
-                )
+                progress(f"post-approval API DONE probe HTTP {exc.code} chat_id={chat_id_probe}")
                 api_done = False
             except (TimeoutError, OSError) as exc:
                 progress(f"post-approval API DONE probe skipped (non-fatal): {exc}")
@@ -777,9 +708,7 @@ async def complete_turn_after_approval(
 
     if str(after_turn.get("path", "")).startswith("/settings"):
         pytest.fail(f"Send redirected to settings: {after_turn}")
-    assert (
-        after_turn.get("matched") is True
-    ), f"Turn did not complete with DONE after approval: {after_turn}"
+    assert after_turn.get("matched") is True, f"Turn did not complete with DONE after approval: {after_turn}"
 
     chat_id = await resolve_chat_id(chat, after_turn)
     assert chat_id, f"Expected chat id after approval turn: {after_turn}"
@@ -827,9 +756,7 @@ async def ensure_desktop_inspector_panel_open(
         })()""",
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
-    assert (
-        isinstance(result, dict) and result.get("ok") is True
-    ), f"openDesktopInspectorPanel failed: {result}"
+    assert isinstance(result, dict) and result.get("ok") is True, f"openDesktopInspectorPanel failed: {result}"
 
 
 async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
@@ -856,9 +783,7 @@ async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
         }})()""",
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
-    assert (
-        isinstance(result, dict) and result.get("ok") is True
-    ), f"syncDesktopControlApproval failed: {result}"
+    assert isinstance(result, dict) and result.get("ok") is True, f"syncDesktopControlApproval failed: {result}"
 
 
 async def _ensure_wide_viewport_for_banner(chat: McpChatSession) -> None:
@@ -942,9 +867,7 @@ async def wait_for_approval_banner_clickable(
                 and not stream_abort_attempted
                 and poll >= 8
             ):
-                progress(
-                    "approval pending while stream active — abort stream for banner"
-                )
+                progress("approval pending while stream active — abort stream for banner")
                 await _abort_stream_for_approval_banner(chat)
                 stream_abort_attempted = True
             if not scope_visible:
@@ -970,9 +893,7 @@ async def wait_for_approval_banner_clickable(
                         scope=scope,
                     )
                 else:
-                    resolved = await asyncio.to_thread(
-                        resolve_pending_desktop_approval_for_test, scope=scope
-                    )
+                    resolved = await asyncio.to_thread(resolve_pending_desktop_approval_for_test, scope=scope)
                 if resolved:
                     progress(
                         "approval fallback resolved via API "
@@ -988,24 +909,18 @@ async def wait_for_approval_banner_clickable(
                 )
             if scope_visible:
                 click = await _try_scope_click()
-                assert (
-                    click.get("ok") is True
-                ), f"Approval click failed after banner visible: {click}"
+                assert click.get("ok") is True, f"Approval click failed after banner visible: {click}"
                 return
             if probe.get("err") == "model-completed-without-desktop-tools":
                 raise AssertionError(f"Model finished without desktop tools: {probe}")
         if server_pending <= 0:
             if interact_seen_hint:
                 if poll == 1 or poll % 8 == 0:
-                    progress(
-                        "interact_tool observed; waiting pending approval registration "
-                        f"poll=#{poll}"
-                    )
+                    progress(f"interact_tool observed; waiting pending approval registration poll=#{poll}")
                 await asyncio.sleep(0.25)
                 continue
             raise AssertionError(
-                "Desktop approval gate expired before approval click succeeded "
-                f"(scope={scope}, last_probe={approval})"
+                f"Desktop approval gate expired before approval click succeeded (scope={scope}, last_probe={approval})"
             )
         if not activated and poll >= 8:
             progress("activate chrome to surface approval banner")
@@ -1027,15 +942,9 @@ def _approval_attempt_wall_clock_start() -> float:
 
 async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
     """Navigate off about:blank and wait for hydrated shell before chat automation."""
-    navigate_timeout = signoff_parallel_force_chat_timeout_sec(
-        _FORCE_CHAT_NAVIGATE_TIMEOUT_SEC
-    )
-    shell_ready_timeout = signoff_parallel_force_chat_timeout_sec(
-        _FORCE_CHAT_SHELL_READY_TIMEOUT_SEC
-    )
-    bridge_timeout = signoff_parallel_force_chat_timeout_sec(
-        _FORCE_CHAT_BRIDGE_TIMEOUT_SEC
-    )
+    navigate_timeout = signoff_parallel_force_chat_timeout_sec(_FORCE_CHAT_NAVIGATE_TIMEOUT_SEC)
+    shell_ready_timeout = signoff_parallel_force_chat_timeout_sec(_FORCE_CHAT_SHELL_READY_TIMEOUT_SEC)
+    bridge_timeout = signoff_parallel_force_chat_timeout_sec(_FORCE_CHAT_BRIDGE_TIMEOUT_SEC)
     attempts = 3
     for attempt in range(1, attempts + 1):
         heartbeat_once()
@@ -1051,9 +960,7 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
                 label="force chat shell navigate",
             )
             await _await_with_wall_timeout(
-                chat.wait_shell_ready(
-                    timeout_sec=shell_ready_timeout, require_bridge=True
-                ),
+                chat.wait_shell_ready(timeout_sec=shell_ready_timeout, require_bridge=True),
                 timeout_sec=shell_ready_timeout,
                 label="force chat shell ready",
             )
@@ -1076,9 +983,7 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
                 try:
                     await asyncio.to_thread(chat._client.reset_after_orphan)
                 except (RuntimeError, TimeoutError, OSError) as recover_exc:
-                    progress(
-                        f"force chat shell recover skipped (non-fatal): {recover_exc}"
-                    )
+                    progress(f"force chat shell recover skipped (non-fatal): {recover_exc}")
                 await _await_with_wall_timeout(
                     chat.ensure_e2e_api_base_binding(),
                     timeout_sec=20.0,
@@ -1091,9 +996,7 @@ async def _ensure_signoff_chat_surface_after_open(chat: McpChatSession) -> None:
     """R287: open_mcp_page already sealed chat route — skip expensive force_chat_shell."""
     bridge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(60.0)
     shell_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
-    progress(
-        "R287 signoff skip force_chat_shell — lightweight shell+bridge after open_mcp_page"
-    )
+    progress("R287 signoff skip force_chat_shell — lightweight shell+bridge after open_mcp_page")
     attempts = 2
     for attempt in range(1, attempts + 1):
         try:
@@ -1134,9 +1037,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
     # R78: new_chat leaves Chrome frontmost; seed TextEdit AX before strict probe.
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        await asyncio.to_thread(
-            preflight_textedit_foreground, attempts=8, fail_hard=False
-        )
+        await asyncio.to_thread(preflight_textedit_foreground, attempts=8, fail_hard=False)
     await ensure_textedit_fixture_ready(attempts=8 if signoff_mode else 5)
 
     progress("enable computer_use")
@@ -1158,18 +1059,10 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         })()""",
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
-    assert (
-        isinstance(tools_locked, dict) and tools_locked.get("ok") is True
-    ), f"computer_use lock failed: {tools_locked}"
+    assert isinstance(tools_locked, dict) and tools_locked.get("ok") is True, f"computer_use lock failed: {tools_locked}"
     locked_tools_raw = tools_locked.get("tools")
-    locked_tools = (
-        [str(item) for item in locked_tools_raw if isinstance(item, str)]
-        if isinstance(locked_tools_raw, list)
-        else []
-    )
-    assert "computer_use" in locked_tools, (
-        "computer_use missing after tool lock: " f"{tools_locked}"
-    )
+    locked_tools = [str(item) for item in locked_tools_raw if isinstance(item, str)] if isinstance(locked_tools_raw, list) else []
+    assert "computer_use" in locked_tools, f"computer_use missing after tool lock: {tools_locked}"
     progress(f"builtin tools locked for desktop approval: {locked_tools}")
 
     progress("pin BASIC_MODEL from .env.test before agent send")
@@ -1181,17 +1074,10 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             intent=EvaluateIntent.SYNC_PROBE,
         )
     progress(f"provider debug before send: {provider_debug}")
-    if isinstance(provider_debug, dict) and not ui_provider_debug_matches_expected(
-        provider_debug
-    ):
+    if isinstance(provider_debug, dict) and not ui_provider_debug_matches_expected(provider_debug):
         expected = expected_desktop_e2e_model()
-        pytest.fail(
-            "Desktop E2E send blocked: UI model is not pinned BASIC_MODEL "
-            f"expected={expected} ui={provider_debug}"
-        )
-    if isinstance(provider_debug, dict) and not provider_debug.get(
-        "enabledProviderIds"
-    ):
+        pytest.fail(f"Desktop E2E send blocked: UI model is not pinned BASIC_MODEL expected={expected} ui={provider_debug}")
+    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
         progress("provider not ready — sync model selection via E2E bridge")
         sync_result = await chat.evaluate(
             """(() => {
@@ -1209,15 +1095,10 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         progress(f"provider debug after sync: {sync_result}")
         if isinstance(sync_result, dict):
             provider_debug = sync_result
-    if isinstance(provider_debug, dict) and not provider_debug.get(
-        "enabledProviderIds"
-    ):
+    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
         if not wait_e2e_provider_ready():
             readiness = fetch_provider_readiness_snapshot()
-            pytest.fail(
-                "Provider store empty after E2E bridge sync — "
-                f"readiness={readiness} ui={provider_debug}"
-            )
+            pytest.fail(f"Provider store empty after E2E bridge sync — readiness={readiness} ui={provider_debug}")
         resync = await chat.evaluate(
             """(() => {
               const bridge = window.__MYRM_E2E_CHAT__;
@@ -1232,14 +1113,11 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         progress(f"provider debug after API-ready resync: {resync}")
         if isinstance(resync, dict):
             provider_debug = resync
-    if isinstance(provider_debug, dict) and not provider_debug.get(
-        "enabledProviderIds"
-    ):
+    if isinstance(provider_debug, dict) and not provider_debug.get("enabledProviderIds"):
         pytest.fail(f"Provider still not enabled for send: {provider_debug}")
     if isinstance(provider_debug, dict):
         assert ui_provider_debug_matches_expected(provider_debug), (
-            "Provider model drifted after sync before desktop send: "
-            f"expected={expected_desktop_e2e_model()} ui={provider_debug}"
+            f"Provider model drifted after sync before desktop send: expected={expected_desktop_e2e_model()} ui={provider_debug}"
         )
     chat_id = ""
     if isinstance(provider_debug, dict):
@@ -1255,10 +1133,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             label="R286 signoff initial send",
         )
     if initial_api_kickoff:
-        progress(
-            "R286 initial send skipped CDP nativeClick — API kickoff active "
-            f"chat_id={chat_id[:8]}..."
-        )
+        progress(f"R286 initial send skipped CDP nativeClick — API kickoff active chat_id={chat_id[:8]}...")
         send_result = {
             "started": {"chatId": chat_id},
             "submit": {"chatId": chat_id},
@@ -1294,9 +1169,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
         textedit_foreground=True,
         wall_started_at=activity_wall_started_at,
     )
-    progress(
-        f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}"
-    )
+    progress(f"post-wait lastTool={last_tool} server_pending={server_pending} ui_pending={ui_pending}")
 
     progress("wait approval banner (fast path before gate timeout)")
     await wait_for_approval_banner_clickable(
@@ -1312,10 +1185,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
     seeded_api_kickoff = False
     bridge_kickoff_used = False
     if pending_source == "seeded-fallback" and not last_tool.startswith("desktop_"):
-        progress(
-            "seeded pending fallback approval — resend agent prompt "
-            "after approval click (no prior agent turn)"
-        )
+        progress("seeded pending fallback approval — resend agent prompt after approval click (no prior agent turn)")
         kickoff_timeout = signoff_parallel_desktop_turn_done_timeout_sec(120.0)
         kickoff_ok = False
         seeded_api_kickoff = False
@@ -1335,9 +1205,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             except (asyncio.TimeoutError, TimeoutError, urllib.error.HTTPError):
                 baseline_user = 1
                 baseline_r241_fastpath = True
-                progress(
-                    "seeded resend baseline userCount timeout — assume baseline=1 (R241)"
-                )
+                progress("seeded resend baseline userCount timeout — assume baseline=1 (R241)")
             try:
                 ui_snap = await asyncio.wait_for(
                     chat.evaluate(
@@ -1350,17 +1218,12 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                     baseline_ui_user = int(ui_snap.get("userCount") or 0)
             except (asyncio.TimeoutError, TimeoutError, RuntimeError, OSError):
                 baseline_ui_user = baseline_user
-                progress(
-                    "seeded resend baseline UI snapshot timeout — "
-                    f"use baseline_ui={baseline_ui_user} (R241)"
-                )
+                progress(f"seeded resend baseline UI snapshot timeout — use baseline_ui={baseline_ui_user} (R241)")
             if baseline_r241_fastpath:
                 # R245: API baseline=1 but UI snapshot may still read userCount=0;
                 # align UI baseline so bridge resend cannot false-positive on userCount=1.
                 baseline_ui_user = max(baseline_ui_user, baseline_user)
-                progress(
-                    f"R245 align UI baseline={baseline_ui_user} after R241 fastpath"
-                )
+                progress(f"R245 align UI baseline={baseline_ui_user} after R241 fastpath")
         if chat_id and not baseline_r241_fastpath:
             progress("seeded resend — API agent-stream kickoff (R232 mux-bypass)")
             api_timeout = min(45.0, max(20.0, kickoff_timeout / 4.0))
@@ -1377,8 +1240,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 )
             except (asyncio.TimeoutError, TimeoutError):
                 progress(
-                    "seeded resend API kickoff thread budget exceeded "
-                    f"(R240 {kickoff_thread_budget:.0f}s) — bridge fallback"
+                    f"seeded resend API kickoff thread budget exceeded (R240 {kickoff_thread_budget:.0f}s) — bridge fallback"
                 )
                 kickoff_result = {
                     "events": [],
@@ -1387,10 +1249,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             if _agent_stream_kickoff_started(kickoff_result):
                 events = kickoff_result.get("events")
                 event_count = len(events) if isinstance(events, list) else 0
-                progress(
-                    f"seeded resend kickoff: API stream events={event_count} "
-                    f"(R237 immediate)"
-                )
+                progress(f"seeded resend kickoff: API stream events={event_count} (R237 immediate)")
                 kickoff_ok = True
                 seeded_api_kickoff = True
             if not kickoff_ok:
@@ -1421,14 +1280,9 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
             if kickoff_ok:
                 seeded_api_kickoff = True
         if not kickoff_ok:
-            progress(
-                "seeded resend API kickoff miss — bridge E2E_PROMPT resend "
-                "(R239 mux-bypass before CDP nativeClick)"
-            )
+            progress("seeded resend API kickoff miss — bridge E2E_PROMPT resend (R239 mux-bypass before CDP nativeClick)")
             await asyncio.to_thread(activate_chrome)
-            await chat.ensure_react_e2e_bridge(
-                timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0)
-            )
+            await chat.ensure_react_e2e_bridge(timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0))
             bridge_send_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
             try:
                 await asyncio.wait_for(
@@ -1436,14 +1290,9 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                     timeout=bridge_send_timeout,
                 )
             except (TimeoutError, asyncio.TimeoutError) as exc:
-                progress(
-                    f"R257 bridge send_message timeout after {bridge_send_timeout:.0f}s "
-                    f"— CDP fallback next: {exc}"
-                )
+                progress(f"R257 bridge send_message timeout after {bridge_send_timeout:.0f}s — CDP fallback next: {exc}")
             else:
-                progress(
-                    "R253 bridge send_message complete — verify API kickoff (R257)"
-                )
+                progress("R253 bridge send_message complete — verify API kickoff (R257)")
                 bridge_kickoff_used = True
                 if chat_id:
                     verify_budget = min(
@@ -1462,9 +1311,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 else:
                     kickoff_ok = True
         if not kickoff_ok:
-            progress(
-                "seeded resend bridge miss — CDP fast_desktop_agent_submit fallback"
-            )
+            progress("seeded resend bridge miss — CDP fast_desktop_agent_submit fallback")
             await asyncio.to_thread(activate_chrome)
             cdp_transport_failed = False
             run_r262_chain = False
@@ -1480,10 +1327,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 )
             except (RuntimeError, TimeoutError, OSError) as exc:
                 if is_retriable_page_transport(exc):
-                    progress(
-                        "R264 CDP resend transport fail — "
-                        f"R262 API kickoff bypass: {exc}"
-                    )
+                    progress(f"R264 CDP resend transport fail — R262 API kickoff bypass: {exc}")
                     cdp_transport_failed = True
                     run_r262_chain = True
                 else:
@@ -1512,37 +1356,23 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                     chat_id,
                     timeout_sec=verify_budget,
                 ):
-                    progress(
-                        "R260 CDP submit verified — trust nativeClick kickoff "
-                        "(skip activity wait)"
-                    )
+                    progress("R260 CDP submit verified — trust nativeClick kickoff (skip activity wait)")
                     kickoff_ok = True
                     bridge_kickoff_used = True
                     seeded_api_kickoff = True
                 elif chat_id:
                     run_r262_chain = True
                 else:
-                    progress(
-                        "R251 CDP resend submit ok — no chat_id, trust nativeClick"
-                    )
+                    progress("R251 CDP resend submit ok — no chat_id, trust nativeClick")
                     kickoff_ok = True
                     bridge_kickoff_used = True
             if run_r262_chain and chat_id:
                 if cdp_transport_failed:
                     progress("R264 CDP transport fail — R262→R261→activity wait chain")
-                    progress(
-                        "R262 API agent-stream kickoff after R264 transport fail "
-                        "(R241 bypass)"
-                    )
+                    progress("R262 API agent-stream kickoff after R264 transport fail (R241 bypass)")
                 else:
-                    progress(
-                        "R260 CDP submit API kickoff miss — "
-                        "R262→R261→activity wait chain"
-                    )
-                    progress(
-                        "R262 API agent-stream kickoff after R260 CDP miss "
-                        "(R241 bypass)"
-                    )
+                    progress("R260 CDP submit API kickoff miss — R262→R261→activity wait chain")
+                    progress("R262 API agent-stream kickoff after R260 CDP miss (R241 bypass)")
                 api_timeout = min(60.0, max(30.0, kickoff_timeout / 6.0))
                 kickoff_thread_budget = min(50.0, api_timeout + 15.0)
                 try:
@@ -1556,10 +1386,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                         timeout=kickoff_thread_budget,
                     )
                 except (asyncio.TimeoutError, TimeoutError):
-                    progress(
-                        f"R262 API kickoff thread budget exceeded "
-                        f"({kickoff_thread_budget:.0f}s)"
-                    )
+                    progress(f"R262 API kickoff thread budget exceeded ({kickoff_thread_budget:.0f}s)")
                     kickoff_result = {
                         "events": [],
                         "error": {"error_type": "KickoffThreadTimeout"},
@@ -1567,10 +1394,7 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                 if _agent_stream_kickoff_started(kickoff_result):
                     events = kickoff_result.get("events")
                     event_count = len(events) if isinstance(events, list) else 0
-                    progress(
-                        f"R262 API stream kickoff started events={event_count} "
-                        "after R260 miss"
-                    )
+                    progress(f"R262 API stream kickoff started events={event_count} after R260 miss")
                     kickoff_ok = True
                     seeded_api_kickoff = True
                     bridge_kickoff_used = False
@@ -1589,31 +1413,19 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                         bridge_kickoff_used = False
                 parallel_load_now = _signoff_desktop_soak_parallel_load()
                 if not kickoff_ok and parallel_load_now >= 3:
-                    progress(
-                        f"R261 parallel load={parallel_load_now} — "
-                        "bridge resend after R260 CDP miss"
-                    )
+                    progress(f"R261 parallel load={parallel_load_now} — bridge resend after R260 CDP miss")
                     await asyncio.to_thread(activate_chrome)
-                    await chat.ensure_react_e2e_bridge(
-                        timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0)
-                    )
-                    bridge_send_timeout = signoff_parallel_desktop_mux_step_timeout_sec(
-                        90.0
-                    )
+                    await chat.ensure_react_e2e_bridge(timeout_sec=signoff_parallel_desktop_mux_step_timeout_sec(90.0))
+                    bridge_send_timeout = signoff_parallel_desktop_mux_step_timeout_sec(90.0)
                     try:
                         await asyncio.wait_for(
                             chat.send_message(E2E_PROMPT, E2E_PROMPT),
                             timeout=bridge_send_timeout,
                         )
                     except (TimeoutError, asyncio.TimeoutError) as exc:
-                        progress(
-                            f"R261 bridge send_message timeout — "
-                            f"activity wait next: {exc}"
-                        )
+                        progress(f"R261 bridge send_message timeout — activity wait next: {exc}")
                     else:
-                        progress(
-                            "R261 bridge send_message complete — verify API kickoff"
-                        )
+                        progress("R261 bridge send_message complete — verify API kickoff")
                         verify_budget = min(
                             60.0,
                             signoff_parallel_desktop_mux_step_timeout_sec(60.0),
@@ -1657,13 +1469,8 @@ async def run_approval_attempt(chat: McpChatSession, *, scope: str = "once") -> 
                     baseline_ui_user_count=baseline_ui_user,
                 )
         if not kickoff_ok:
-            raise RuntimeError(
-                "seeded-fallback post-approval resend did not start agent turn "
-                f"within {kickoff_timeout:.0f}s"
-            )
-        progress(
-            f"seeded resend kickoff complete api_primary_done={seeded_api_kickoff}"
-        )
+            raise RuntimeError(f"seeded-fallback post-approval resend did not start agent turn within {kickoff_timeout:.0f}s")
+        progress(f"seeded resend kickoff complete api_primary_done={seeded_api_kickoff}")
 
     chat_id_hint = chat_id.strip() if chat_id else None
     if not chat_id_hint and not seeded_api_kickoff:

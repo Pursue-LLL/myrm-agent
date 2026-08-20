@@ -279,9 +279,7 @@ class AgentRequest(BaseModel):
     quote: str | None = None
 
     mention_references: list[MentionReferenceRequest] | None = None
-    mentioned_agent_ids: list[str] | None = Field(
-        default=None, description="Explicitly @ mentioned agent IDs"
-    )
+    mentioned_agent_ids: list[str] | None = Field(default=None, description="Explicitly @ mentioned agent IDs")
     uploaded_file_ids: list[str] | None = Field(
         default=None,
         description="IDs of files attached to this message (from drag-and-drop upload). "

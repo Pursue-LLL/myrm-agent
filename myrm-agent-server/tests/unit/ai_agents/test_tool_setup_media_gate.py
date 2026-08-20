@@ -208,12 +208,15 @@ def test_image_tools_load_failure_is_swallowed() -> None:
     mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key="img-key")
     tools: list[object] = []
 
-    with patch(
-        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
-        return_value=None,
-    ), patch(
-        "myrm_agent_harness.toolkits.llms.image.ImageGenerationTools",
-        side_effect=RuntimeError("engine init failed"),
+    with (
+        patch(
+            "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.llms.image.ImageGenerationTools",
+            side_effect=RuntimeError("engine init failed"),
+        ),
     ):
         mixin._setup_image_generation_tools(tools)
 
@@ -226,12 +229,15 @@ def test_video_tools_load_failure_is_swallowed() -> None:
     mixin.video_generation_params = VideoGenerationParams(api_key="video-key")
     tools: list[object] = []
 
-    with patch(
-        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
-        return_value=None,
-    ), patch(
-        "myrm_agent_harness.toolkits.llms.video.VideoGenerationTools",
-        side_effect=RuntimeError("engine init failed"),
+    with (
+        patch(
+            "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+            return_value=None,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.llms.video.VideoGenerationTools",
+            side_effect=RuntimeError("engine init failed"),
+        ),
     ):
         mixin._setup_video_generation_tools(tools)
 
@@ -244,12 +250,15 @@ def test_tts_tools_load_failure_is_swallowed() -> None:
     mixin.tts_params = TTSParams(api_key="tts-key")
     tools: list[object] = []
 
-    with patch(
-        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
-        return_value=None,
-    ), patch(
-        "app.ai_agents.media_tools.tts_agent_tool.create_tts_tool",
-        side_effect=RuntimeError("tts init failed"),
+    with (
+        patch(
+            "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+            return_value=None,
+        ),
+        patch(
+            "app.ai_agents.media_tools.tts_agent_tool.create_tts_tool",
+            side_effect=RuntimeError("tts init failed"),
+        ),
     ):
         mixin._setup_tts_tools(tools)
 

@@ -67,9 +67,7 @@ def _get_response_validator() -> MCPResponseValidator:
     """
     global _mcp_response_validator
     if _mcp_response_validator is None:
-        _mcp_response_validator = MCPResponseValidator(
-            max_response_size=settings.mcp.max_response_size
-        )
+        _mcp_response_validator = MCPResponseValidator(max_response_size=settings.mcp.max_response_size)
     return _mcp_response_validator
 
 
@@ -121,18 +119,10 @@ class MCPVerifyData(BaseModel):
 
     tools_count: int = Field(..., description="可用工具数量")
     service_name: str = Field(..., description="服务名称")
-    instructions: str | None = Field(
-        default=None, description="MCP服务的instructions，无则为空"
-    )
-    tools: list[MCPToolDetail] = Field(
-        default_factory=list, description="工具明细列表(名称/描述/风险注解)"
-    )
-    config_scan: MCPScanData | None = Field(
-        default=None, description="静态配置扫描摘要"
-    )
-    runtime_scan: MCPScanData | None = Field(
-        default=None, description="运行时表面扫描摘要"
-    )
+    instructions: str | None = Field(default=None, description="MCP服务的instructions，无则为空")
+    tools: list[MCPToolDetail] = Field(default_factory=list, description="工具明细列表(名称/描述/风险注解)")
+    config_scan: MCPScanData | None = Field(default=None, description="静态配置扫描摘要")
+    runtime_scan: MCPScanData | None = Field(default=None, description="运行时表面扫描摘要")
 
     class Config:
         alias_generator = to_camel
@@ -145,11 +135,7 @@ def _scan_result_to_data(
     allow_save: bool,
     requires_acknowledgement: bool,
 ) -> MCPScanData:
-    max_sev = (
-        result.max_severity.value
-        if isinstance(result, MCPConfigScanResult) and result.max_severity
-        else None
-    )
+    max_sev = result.max_severity.value if isinstance(result, MCPConfigScanResult) and result.max_severity else None
     if isinstance(result, MCPRuntimeScanResult) and result.findings:
         max_sev = max((f.severity.value for f in result.findings), default=None)
     return MCPScanData(
@@ -186,9 +172,7 @@ def _runtime_scan_to_data(result: MCPRuntimeScanResult) -> MCPScanData:
     )
 
 
-async def _get_server_instructions(
-    server_name: str, mcp_config: list[MCPServerConfig]
-) -> str | None:
+async def _get_server_instructions(server_name: str, mcp_config: list[MCPServerConfig]) -> str | None:
     """获取 MCP 服务器的 instructions。
 
     ``mcp.ClientSession`` 在 ``initialize()`` 时完成握手并返回 ``InitializeResult``，
@@ -220,9 +204,7 @@ async def _get_server_instructions(
                 if isinstance(raw_instr, str):
                     return raw_instr
                 server_info = init_result.serverInfo
-                alt = (
-                    getattr(server_info, "instructions", None) if server_info else None
-                )
+                alt = getattr(server_info, "instructions", None) if server_info else None
                 return alt if isinstance(alt, str) else None
     except Exception as e:
         logger.warning(f"Failed to get instructions from {server_name}: {e}")
@@ -292,22 +274,16 @@ class MCPScanBatchData(BaseModel):
 
 @router.post("/scan", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.mcp_verify)
-async def scan_mcp_config_endpoint(
-    mcp_server_config: MCPServerConfig, request: Request
-) -> JSONResponse:
+async def scan_mcp_config_endpoint(mcp_server_config: MCPServerConfig, request: Request) -> JSONResponse:
     """Static pre-flight scan for MCP configuration (no network connection)."""
     _ = request
     scan_result = await resolve_mcp_config_scan(mcp_server_config)
-    return success_response(
-        data=_config_scan_to_data(scan_result).model_dump(by_alias=True)
-    )
+    return success_response(data=_config_scan_to_data(scan_result).model_dump(by_alias=True))
 
 
 @router.post("/scan-batch", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.mcp_verify)
-async def scan_mcp_config_batch_endpoint(
-    body: MCPScanBatchBody, request: Request
-) -> JSONResponse:
+async def scan_mcp_config_batch_endpoint(body: MCPScanBatchBody, request: Request) -> JSONResponse:
     """Batch static pre-flight scan for multiple MCP configurations."""
     _ = request
     results: list[MCPScanData] = []
@@ -351,9 +327,7 @@ async def verify_mcp_service(
                 f"🚫 STDIO mode blocked: {mcp_server_config.name}",
                 extra={"ip": request.client.host if request.client else "unknown"},
             )
-            raise validation_error(
-                "STDIO mode is not allowed in current deployment environment, please use SSE or HTTP mode"
-            )
+            raise validation_error("STDIO mode is not allowed in current deployment environment, please use SSE or HTTP mode")
 
         # 2. SSRF 防护：验证 URL 安全性（SSE/HTTP 模式）
         if mcp_server_config.url and settings.mcp.enable_ssrf_protection:
@@ -410,16 +384,12 @@ async def verify_mcp_service(
             instructions_result = await instructions_task
             results = (tools_result, instructions_result)
         else:
-            results = await asyncio.gather(
-                tools_task, instructions_task, return_exceptions=True
-            )
+            results = await asyncio.gather(tools_task, instructions_task, return_exceptions=True)
         tools_result, instructions_result = results[0], results[1]
 
         # 处理工具获取结果
         if isinstance(tools_result, BaseException):
-            logger.error(
-                f"Failed to get tools from MCP service: {mcp_server_config.name}: {tools_result}"
-            )
+            logger.error(f"Failed to get tools from MCP service: {mcp_server_config.name}: {tools_result}")
             raise tools_result
         tools_count = len(tools_result) if tools_result else 0
 
@@ -433,16 +403,12 @@ async def verify_mcp_service(
                     f"🚨 Response validation failed: {mcp_server_config.name}",
                     extra={"reason": e.reason},
                 )
-                raise validation_error(
-                    f"Response validation failed: {e.reason}. The MCP server returned too much data."
-                ) from e
+                raise validation_error(f"Response validation failed: {e.reason}. The MCP server returned too much data.") from e
 
         # 处理 instructions 获取结果（失败时返回 None，不影响整体验证）
         instructions_value: str | None = None
         if isinstance(instructions_result, BaseException):
-            logger.warning(
-                f"Failed to get instructions from {mcp_server_config.name}: {instructions_result}"
-            )
+            logger.warning(f"Failed to get instructions from {mcp_server_config.name}: {instructions_result}")
         elif isinstance(instructions_result, str):
             instructions_value = instructions_result
 
@@ -450,9 +416,7 @@ async def verify_mcp_service(
             if get_deployment_capabilities().validates_mcp_response_size:
                 response_validator = _get_response_validator()
                 try:
-                    response_validator.validate_instructions_response(
-                        instructions_value
-                    )
+                    response_validator.validate_instructions_response(instructions_value)
                 except MCPResponseError as e:
                     logger.error(
                         f"🚨 Instructions validation failed: {mcp_server_config.name}",
@@ -705,9 +669,7 @@ async def registry_search(
         raise external_service_error("MCP Registry", f"Search failed: {e}") from e
 
 
-@router.get(
-    "/registry/detail/{qualified_name:path}", response_model=StandardSuccessResponse
-)
+@router.get("/registry/detail/{qualified_name:path}", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.mcp_verify)
 async def registry_detail(
     request: Request,
@@ -740,9 +702,7 @@ async def registry_detail(
         return success_response(data=data.model_dump(by_alias=True))
     except Exception as e:
         logger.error("MCP registry detail failed for %s: %s", qualified_name, e)
-        raise external_service_error(
-            "MCP Registry", f"Detail lookup failed: {e}"
-        ) from e
+        raise external_service_error("MCP Registry", f"Detail lookup failed: {e}") from e
 
 
 # =============================================================================
@@ -754,9 +714,7 @@ class MCPProbeBody(BaseModel):
     """Request body for probing an MCP endpoint reachability."""
 
     url: str = Field(..., description="URL to probe (e.g. http://127.0.0.1:8000/mcp)")
-    timeout: float = Field(
-        default=5.0, ge=1.0, le=15.0, description="Probe timeout in seconds"
-    )
+    timeout: float = Field(default=5.0, ge=1.0, le=15.0, description="Probe timeout in seconds")
 
     class Config:
         alias_generator = to_camel
@@ -770,12 +728,8 @@ class MCPProbeData(BaseModel):
         ...,
         description="reachable | unreachable | cloud_not_supported",
     )
-    latency_ms: float | None = Field(
-        default=None, description="Round-trip time if reachable"
-    )
-    error: str | None = Field(
-        default=None, description="Human-readable error if unreachable"
-    )
+    latency_ms: float | None = Field(default=None, description="Round-trip time if reachable")
+    error: str | None = Field(default=None, description="Human-readable error if unreachable")
     reason_code: (
         Literal[
             "reachable",
@@ -874,11 +828,7 @@ def _is_network_unreachable_connect_error(exc: Exception) -> bool:
     lowered = " | ".join(str(part).lower() for part in chain if str(part))
     if any(marker in lowered for marker in _CONNECT_UNREACHABLE_MARKERS):
         return True
-    errnos = {
-        int(item.errno)
-        for item in chain
-        if isinstance(item, OSError) and isinstance(getattr(item, "errno", None), int)
-    }
+    errnos = {int(item.errno) for item in chain if isinstance(item, OSError) and isinstance(getattr(item, "errno", None), int)}
     return any(code in _CONNECT_UNREACHABLE_ERRNOS for code in errnos)
 
 
@@ -915,15 +865,11 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
     if ":" in safe_probe_host and not safe_probe_host.startswith("["):
         safe_probe_host = f"[{safe_probe_host}]"
     safe_probe_port = f":{parsed.port}" if parsed.port is not None else ""
-    safe_probe_target = (
-        f"{parsed.scheme}://{safe_probe_host}{safe_probe_port}{parsed.path}"
-    )
+    safe_probe_target = f"{parsed.scheme}://{safe_probe_host}{safe_probe_port}{parsed.path}"
     if hostname not in ("127.0.0.1", "localhost", "::1", "0.0.0.0"):
         from app.core.utils.errors import validation_error
 
-        raise validation_error(
-            "Probe is restricted to localhost addresses only (127.0.0.1, localhost, ::1)"
-        )
+        raise validation_error("Probe is restricted to localhost addresses only (127.0.0.1, localhost, ::1)")
 
     try:
         start = time.monotonic()
@@ -974,9 +920,7 @@ async def probe_mcp_endpoint(body: MCPProbeBody, request: Request) -> JSONRespon
         )
         return success_response(data=data.model_dump(by_alias=True))
     except Exception:
-        logger.exception(
-            "Unexpected MCP probe failure for target=%s", safe_probe_target
-        )
+        logger.exception("Unexpected MCP probe failure for target=%s", safe_probe_target)
         data = MCPProbeData(
             status="unreachable",
             error="Connectivity check failed unexpectedly — verify editor MCP settings and retry",

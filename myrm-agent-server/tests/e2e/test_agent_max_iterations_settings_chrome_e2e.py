@@ -140,6 +140,7 @@ def _set_max_iterations_js(expected_value: int) -> str:
       }}, 300));
     }})()"""
 
+
 # Clicks the Save button on the agent preview card (text matches any locale).
 # Scoped to the active agents section and only visible buttons so hidden
 # sibling sections (SettingsLayout keeps visited tabs mounted with `hidden`)
@@ -232,9 +233,7 @@ def _fetch_max_iterations(api_url: str, agent_id: str) -> int | None:
     return (resp.get("data") or {}).get("max_iterations")
 
 
-def _wait_max_iterations(
-    api_url: str, agent_id: str, expected: int | None, *, timeout_sec: float = 30.0, diag: str = ""
-) -> None:
+def _wait_max_iterations(api_url: str, agent_id: str, expected: int | None, *, timeout_sec: float = 30.0, diag: str = "") -> None:
     deadline = time.monotonic() + timeout_sec
     last: int | None = None
     while time.monotonic() < deadline:
@@ -242,10 +241,7 @@ def _wait_max_iterations(
         if last == expected:
             return
         time.sleep(1.0)
-    raise AssertionError(
-        f"max_iterations did not persist: expected={expected} last={last}\n"
-        f"diag: {diag}"
-    )
+    raise AssertionError(f"max_iterations did not persist: expected={expected} last={last}\ndiag: {diag}")
 
 
 @pytest.mark.chrome_e2e(
@@ -264,9 +260,7 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
     name = f"lim-e2e-{uuid.uuid4().hex[:8]}"
     agent_id = _create_agent(api_url, name=name)
     try:
-        assert _fetch_max_iterations(api_url, agent_id) is None, (
-            "fresh agent must start with default max_iterations"
-        )
+        assert _fetch_max_iterations(api_url, agent_id) is None, "fresh agent must start with default max_iterations"
 
         warm_ui_route("/settings")
         edit_url = f"{get_e2e_ui_url().rstrip('/')}{_EDIT_URL}{agent_id}"
@@ -284,21 +278,16 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
                 _CAPABILITIES_INPUT_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             )
-            assert probe.get("ready") is True, json.dumps(
-                probe, indent=2, ensure_ascii=False
-            )
+            assert probe.get("ready") is True, json.dumps(probe, indent=2, ensure_ascii=False)
             assert probe.get("min") == "5", f"input min mismatch: {probe}"
             assert probe.get("max") == "500", f"input max mismatch: {probe}"
 
             # T3: edit value via native setter, then save.
-            set_res = client.evaluate(
-                page, _set_max_iterations_js(50), timeout_sec=15.0
-            )
+            set_res = client.evaluate(page, _set_max_iterations_js(50), timeout_sec=15.0)
             assert isinstance(set_res, dict) and set_res.get("ok") is True, set_res
             assert str(set_res.get("value")) == "50", set_res
             assert set_res.get("saveDisabled") is False, (
-                "React state must update so the agent Save button unlocks "
-                f"(saveDisabled={set_res.get('saveDisabled')})"
+                f"React state must update so the agent Save button unlocks (saveDisabled={set_res.get('saveDisabled')})"
             )
 
             client.evaluate(page, _INSTALL_FETCH_TAP_JS, timeout_sec=15.0)
@@ -316,14 +305,15 @@ def test_agent_max_iterations_edit_persists_via_ui() -> None:
                 _SAVE_COMPLETE_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(30.0),
             )
-            assert saved.get("ready") is True, json.dumps(
-                saved, indent=2, ensure_ascii=False
-            )
+            assert saved.get("ready") is True, json.dumps(saved, indent=2, ensure_ascii=False)
             diag = client.evaluate(page, _DIAG_DUMP_JS, timeout_sec=15.0)
 
         # Persistence truth: the value must reach the backend.
         _wait_max_iterations(
-            api_url, agent_id, expected=50, timeout_sec=30.0,
+            api_url,
+            agent_id,
+            expected=50,
+            timeout_sec=30.0,
             diag=json.dumps(diag, ensure_ascii=False),
         )
     finally:
@@ -381,9 +371,7 @@ def test_agent_max_iterations_clear_resets_to_default_via_ui() -> None:
     try:
         # Seed a concrete value through the backend so the reset has something
         # to clear (the fresh-agent default is already NULL).
-        seed = http_json(
-            "PUT", f"{api_url}/api/v1/user-agents/{agent_id}", {"max_iterations": 50}
-        )
+        seed = http_json("PUT", f"{api_url}/api/v1/user-agents/{agent_id}", {"max_iterations": 50})
         assert (seed.get("data") or {}).get("max_iterations") == 50, seed
         assert _fetch_max_iterations(api_url, agent_id) == 50
 
@@ -403,20 +391,15 @@ def test_agent_max_iterations_clear_resets_to_default_via_ui() -> None:
                 _CAPABILITIES_INPUT_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             )
-            assert probe.get("ready") is True, json.dumps(
-                probe, indent=2, ensure_ascii=False
-            )
-            assert probe.get("value") == "50", (
-                f"editor must render seeded max_iterations, got {probe.get('value')}"
-            )
+            assert probe.get("ready") is True, json.dumps(probe, indent=2, ensure_ascii=False)
+            assert probe.get("value") == "50", f"editor must render seeded max_iterations, got {probe.get('value')}"
 
             # Clear the input -> React maps '' to null -> Save unlocks.
             clear_res = client.evaluate(page, _clear_max_iterations_js(), timeout_sec=15.0)
             assert isinstance(clear_res, dict) and clear_res.get("ok") is True, clear_res
             assert str(clear_res.get("value")) == "", clear_res
             assert clear_res.get("saveDisabled") is False, (
-                "clearing the field must mark the agent dirty so Save unlocks "
-                f"(saveDisabled={clear_res.get('saveDisabled')})"
+                f"clearing the field must mark the agent dirty so Save unlocks (saveDisabled={clear_res.get('saveDisabled')})"
             )
 
             client.evaluate(page, _INSTALL_FETCH_TAP_JS, timeout_sec=15.0)
@@ -434,14 +417,15 @@ def test_agent_max_iterations_clear_resets_to_default_via_ui() -> None:
                 _SAVE_COMPLETE_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(30.0),
             )
-            assert saved.get("ready") is True, json.dumps(
-                saved, indent=2, ensure_ascii=False
-            )
+            assert saved.get("ready") is True, json.dumps(saved, indent=2, ensure_ascii=False)
             diag = client.evaluate(page, _DIAG_DUMP_JS, timeout_sec=15.0)
 
         # The explicit null must reach the backend and reset to default.
         _wait_max_iterations(
-            api_url, agent_id, expected=None, timeout_sec=30.0,
+            api_url,
+            agent_id,
+            expected=None,
+            timeout_sec=30.0,
             diag=json.dumps(diag, ensure_ascii=False),
         )
     finally:

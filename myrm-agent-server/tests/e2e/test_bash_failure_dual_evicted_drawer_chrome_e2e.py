@@ -107,9 +107,7 @@ def _seed_fixture(api_base: str) -> dict[str, object]:
     return seeded
 
 
-def _wait_fixture_assistant_via_api(
-    api_base: str, chat_id: str, *, timeout_sec: float = 60.0
-) -> None:
+def _wait_fixture_assistant_via_api(api_base: str, chat_id: str, *, timeout_sec: float = 60.0) -> None:
     deadline = time.monotonic() + timeout_sec
     last_count = 0
     while time.monotonic() < deadline:
@@ -124,33 +122,25 @@ def _wait_fixture_assistant_via_api(
                         (
                             item
                             for item in messages
-                            if item.get("role") == "assistant"
-                            and _FIXTURE_ANSWER in str(item.get("content") or "")
+                            if item.get("role") == "assistant" and _FIXTURE_ANSWER in str(item.get("content") or "")
                         ),
                         None,
                     )
                     if assistant is not None:
-                        meta = (
-                            assistant.get("metadata")
-                            if isinstance(assistant.get("metadata"), dict)
-                            else {}
-                        )
+                        meta = assistant.get("metadata") if isinstance(assistant.get("metadata"), dict) else {}
                         steps = meta.get("progressSteps")
                         if (
                             isinstance(steps, list)
                             and steps
                             and any(
-                                isinstance(step, dict)
-                                and step.get("evicted_file_ref")
-                                and step.get("evicted_stderr_file_ref")
+                                isinstance(step, dict) and step.get("evicted_file_ref") and step.get("evicted_stderr_file_ref")
                                 for step in steps
                             )
                         ):
                             return
         time.sleep(0.5)
     raise AssertionError(
-        f"Fixture assistant not ready via API for chat {chat_id} after {timeout_sec:.0f}s "
-        f"(last_message_count={last_count})"
+        f"Fixture assistant not ready via API for chat {chat_id} after {timeout_sec:.0f}s (last_message_count={last_count})"
     )
 
 
@@ -172,9 +162,7 @@ def _assert_drawer_reads(
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
@@ -198,9 +186,7 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
         page,
     ):
         dismiss_blocking_modals(client, page)
-        ensure_chat_route(
-            client, page, target_url=f"{ui_url}/{chat_id}", timeout_ms=_PAGE_TIMEOUT_MS
-        )
+        ensure_chat_route(client, page, target_url=f"{ui_url}/{chat_id}", timeout_ms=_PAGE_TIMEOUT_MS)
         try:
             loaded = wait_for_state(
                 client,
@@ -235,24 +221,16 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
             raise
         assert loaded.get("ready") is True, json.dumps(loaded, ensure_ascii=False)
 
-        dom_ready = wait_for_state(
-            client, page, _WAIT_PROGRESS_UI_DOM_JS, timeout_sec=90.0
-        )
+        dom_ready = wait_for_state(client, page, _WAIT_PROGRESS_UI_DOM_JS, timeout_sec=90.0)
         assert dom_ready.get("ready") is True, json.dumps(dom_ready, ensure_ascii=False)
 
-        expanded = wait_for_state(
-            client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0
-        )
+        expanded = wait_for_state(client, page, _EXPAND_PROGRESS_PANEL_JS, timeout_sec=30.0)
         assert expanded.get("ready") is True, json.dumps(expanded, ensure_ascii=False)
 
         terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
         assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
-        clear_result = client.evaluate(
-            page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0
-        )
-        assert (
-            isinstance(clear_result, dict) and clear_result.get("ready") is True
-        ), clear_result
+        clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
+        assert isinstance(clear_result, dict) and clear_result.get("ready") is True, clear_result
 
         clicked = wait_for_state(client, page, CLICK_STDOUT_JS, timeout_sec=60.0)
         assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
@@ -264,9 +242,5 @@ def test_failed_bash_dual_evicted_drawers_read_stdout_and_stderr() -> None:
         assert gone.get("ready") is True, json.dumps(gone, ensure_ascii=False)
 
         stderr_clicked = wait_for_state(client, page, CLICK_STDERR_JS, timeout_sec=60.0)
-        assert stderr_clicked.get("clicked") is True, json.dumps(
-            stderr_clicked, ensure_ascii=False
-        )
-        _assert_drawer_reads(
-            client, page, marker_stderr, view_full_testid=VIEW_FULL_STDERR_TESTID
-        )
+        assert stderr_clicked.get("clicked") is True, json.dumps(stderr_clicked, ensure_ascii=False)
+        _assert_drawer_reads(client, page, marker_stderr, view_full_testid=VIEW_FULL_STDERR_TESTID)

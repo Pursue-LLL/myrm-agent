@@ -45,9 +45,7 @@ class TestEmitBtwDone:
         bus = _make_event_bus()
         queue = bus.subscribe()
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", _btw_task())
 
         event = queue.get_nowait()
@@ -67,9 +65,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(result="", error="timeout")
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_failed", task)
 
         event = queue.get_nowait()
@@ -82,9 +78,7 @@ class TestEmitBtwDone:
         bus = _make_event_bus()
         queue = bus.subscribe()
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_started", _btw_task())
 
         assert queue.empty()
@@ -94,13 +88,9 @@ class TestEmitBtwDone:
 
         bus = _make_event_bus()
         queue = bus.subscribe()
-        task = _btw_task(
-            metadata={"background_source": "kanban", "channel": "x", "chat_id": "y"}
-        )
+        task = _btw_task(metadata={"background_source": "kanban", "channel": "x", "chat_id": "y"})
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -112,9 +102,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(metadata={"background_source": "btw", "chat_id": "y"})
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -132,9 +120,7 @@ class TestEmitBtwDone:
             }
         )
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -147,9 +133,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(metadata={"background_source": "btw", "channel": "slack"})
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -162,9 +146,7 @@ class TestEmitBtwDone:
         task = _btw_task()
         task.metadata = None
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -176,9 +158,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(result=None, error="crash")
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -191,9 +171,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(result=None, error=None)
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -212,9 +190,7 @@ class TestEmitBtwDone:
             }
         )
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -233,9 +209,7 @@ class TestEmitBtwDone:
             }
         )
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -252,9 +226,7 @@ class TestEmitSourceChatDone:
         queue = bus.subscribe()
         task = _btw_task(metadata={"source_chat_id": "chat-abc-1"})
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             emit_source_chat_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -277,9 +249,7 @@ class TestEmitSourceChatDone:
             }
         )
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             emit_source_chat_done("task_completed", task)
 
         assert queue.empty()
@@ -291,9 +261,7 @@ class TestEmitSourceChatDone:
         queue = bus.subscribe()
         task = _btw_task(metadata={})
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             emit_source_chat_done("task_completed", task)
 
         assert queue.empty()
@@ -319,9 +287,7 @@ class TestEmitSourceChatDone:
             metadata={"source_chat_id": "chat-abc-1"},
         )
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             emit_source_chat_done("task_blocked", task)
 
         event = queue.get_nowait()
@@ -351,9 +317,7 @@ class TestEmitSourceChatDone:
             metadata={"source_chat_id": "chat-abc-1"},
         )
 
-        with patch(
-            "app.services.kanban.event_publisher.get_event_bus", return_value=bus
-        ):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             emit_source_chat_done("task_blocked", task)
 
         assert queue.empty()
@@ -403,12 +367,8 @@ class TestBtwTaskNotifier:
                 "app.core.channel_bridge.btw_notifier.channel_t",
                 return_value="Test notification",
             ),
-            patch(
-                "app.channels.reliability.retry.send_with_retry", mock_send_with_retry
-            ),
-            patch(
-                "app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m
-            ),
+            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
+            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(
@@ -471,12 +431,8 @@ class TestBtwTaskNotifier:
                 "app.core.channel_bridge.btw_notifier.channel_t",
                 return_value="Test notification",
             ),
-            patch(
-                "app.channels.reliability.retry.send_with_retry", mock_send_with_retry
-            ),
-            patch(
-                "app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m
-            ),
+            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
+            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
             patch(
                 "app.services.chat.chat_service.ChatService.get_channel_chat_by_key",
@@ -603,12 +559,8 @@ class TestBtwTaskNotifier:
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
-            patch(
-                "app.channels.reliability.retry.send_with_retry", mock_send_with_retry
-            ),
-            patch(
-                "app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m
-            ),
+            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
+            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(
@@ -645,12 +597,8 @@ class TestBtwTaskNotifier:
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
-            patch(
-                "app.channels.reliability.retry.send_with_retry", mock_send_with_retry
-            ),
-            patch(
-                "app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m
-            ),
+            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
+            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(
@@ -713,12 +661,8 @@ class TestBtwTaskNotifier:
 
         with (
             patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="msg"),
-            patch(
-                "app.channels.reliability.retry.send_with_retry", mock_send_with_retry
-            ),
-            patch(
-                "app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m
-            ),
+            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
+            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(
@@ -742,9 +686,7 @@ class TestFormatNotification:
     """Unit tests for _format_notification."""
 
     def test_completed_format(self) -> None:
-        with patch(
-            "app.core.channel_bridge.btw_notifier.channel_t", return_value="  ok  "
-        ):
+        with patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="  ok  "):
             from app.core.channel_bridge.btw_notifier import _format_notification
 
             result = _format_notification("completed", "my task", "result text", "en")
@@ -756,9 +698,7 @@ class TestFormatNotification:
             from app.core.channel_bridge.btw_notifier import _format_notification
 
             _format_notification("failed", "my task", "error", "zh-CN")
-            mock_t.assert_called_with(
-                "zh-CN", "background_failed", title="my task", result="error"
-            )
+            mock_t.assert_called_with("zh-CN", "background_failed", title="my task", result="error")
 
     def test_blocked_format(self) -> None:
         with patch("app.core.channel_bridge.btw_notifier.channel_t") as mock_t:
@@ -766,9 +706,7 @@ class TestFormatNotification:
             from app.core.channel_bridge.btw_notifier import _format_notification
 
             _format_notification("blocked", "my task", "needs review", "en")
-            mock_t.assert_called_with(
-                "en", "background_blocked", title="my task", result="needs review"
-            )
+            mock_t.assert_called_with("en", "background_blocked", title="my task", result="needs review")
 
     def test_title_truncation(self) -> None:
         with patch("app.core.channel_bridge.btw_notifier.channel_t") as mock_t:

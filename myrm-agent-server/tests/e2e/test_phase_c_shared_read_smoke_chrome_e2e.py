@@ -27,9 +27,7 @@ _HOME_SHELL_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_phase_c_shared_read_home_shell_smoke() -> None:

@@ -30,11 +30,7 @@ def _serialize_history_record(
     record: EvolutionReviewRecord,
     quality_delta: dict[str, float | None] | None = None,
 ) -> dict[str, object]:
-    status = (
-        "rolled_back"
-        if record.apply_status.value == "ROLLED_BACK"
-        else record.status.value.lower()
-    )
+    status = "rolled_back" if record.apply_status.value == "ROLLED_BACK" else record.status.value.lower()
     result: dict[str, object] = {
         "id": record.id,
         "skill_id": record.skill_id,
@@ -67,8 +63,7 @@ async def _build_quality_delta_map(record_ids: list[str]) -> dict[str, dict[str,
     delta_map: dict[str, dict[str, float | None]] = {}
     async with get_session() as db:
         result = await db.execute(
-            select(ExperienceLedgerEvent.entity_id, ExperienceLedgerEvent.metrics_snapshot)
-            .where(
+            select(ExperienceLedgerEvent.entity_id, ExperienceLedgerEvent.metrics_snapshot).where(
                 ExperienceLedgerEvent.event_type == ExperienceEventType.EVOLUTION_APPROVED.value,
                 ExperienceLedgerEvent.entity_id.in_(record_ids),
             )

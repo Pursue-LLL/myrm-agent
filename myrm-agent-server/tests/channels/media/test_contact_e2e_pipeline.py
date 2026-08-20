@@ -91,10 +91,12 @@ class TestContactPipelineE2E:
         vcf2 = tmp_path / "carol.vcf"
         vcf2.write_text("BEGIN:VCARD\nFN:Carol\nEMAIL:carol@x.com\nEND:VCARD\n")
 
-        msg = _make_msg(media=[
-            MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf1)),
-            MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf2)),
-        ])
+        msg = _make_msg(
+            media=[
+                MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf1)),
+                MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf2)),
+            ]
+        )
 
         enriched = await enrich_contact_inbound(msg)
         cards = enriched.metadata["contact_cards"]

@@ -1,4 +1,5 @@
 """Temp debug: inspect DB tables present when running alongside workspace_rules."""
+
 import os
 
 import pytest

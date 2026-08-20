@@ -58,10 +58,7 @@ def _hide_known_focus_stealers() -> None:
 
 
 def _textedit_ax_degraded_snapshot() -> tuple[bool, str, int]:
-    if (
-        _textedit_ax_degraded_scope_key
-        and _textedit_ax_degraded_scope_key != _runtime_scope_key()
-    ):
+    if _textedit_ax_degraded_scope_key and _textedit_ax_degraded_scope_key != _runtime_scope_key():
         _clear_textedit_ax_degraded()
         return False, "", 0
     remaining = int(max(0.0, _textedit_ax_degraded_until_monotonic - time.monotonic()))
@@ -71,9 +68,7 @@ def _textedit_ax_degraded_snapshot() -> tuple[bool, str, int]:
 def _mark_textedit_ax_degraded(detail: str) -> None:
     global _textedit_ax_degraded_until_monotonic
     global _textedit_ax_degraded_detail, _textedit_ax_degraded_scope_key
-    _textedit_ax_degraded_until_monotonic = (
-        time.monotonic() + _TEXTEDIT_AX_DEGRADED_TTL_SEC
-    )
+    _textedit_ax_degraded_until_monotonic = time.monotonic() + _TEXTEDIT_AX_DEGRADED_TTL_SEC
     _textedit_ax_degraded_detail = detail.strip() or "unknown"
     _textedit_ax_degraded_scope_key = _runtime_scope_key()
 
@@ -172,14 +167,10 @@ def _probe_textedit_ax_ready() -> tuple[bool, str]:
             continue
         ref_count = sum(1 for value in refs.values() if isinstance(value, ElementRef))
         if ref_count <= 0:
-            diagnostics.append(
-                f"{scope}: empty refs app={meta.app_name!r} window={meta.window_title!r}"
-            )
+            diagnostics.append(f"{scope}: empty refs app={meta.app_name!r} window={meta.window_title!r}")
             continue
         if scope == "target" and str(meta.app_name or "").strip() != "TextEdit":
-            diagnostics.append(
-                f"{scope}: unexpected app {meta.app_name!r} with refs={ref_count}"
-            )
+            diagnostics.append(f"{scope}: unexpected app {meta.app_name!r} with refs={ref_count}")
             continue
         return (
             True,
@@ -220,10 +211,7 @@ def prepare_textedit_fixture() -> None:
         _force_kill_textedit_process(include_sigkill=True)
         return
     if seed_proc.returncode != 0:
-        progress(
-            "textedit prepare returned non-zero; force-kill fallback "
-            f"code={seed_proc.returncode}"
-        )
+        progress(f"textedit prepare returned non-zero; force-kill fallback code={seed_proc.returncode}")
         _force_kill_textedit_process(include_sigkill=True)
         return
 
@@ -249,10 +237,7 @@ def restart_textedit_fixture_process() -> None:
         progress(f"textedit quit timed out after {quit_timeout}s; force-kill fallback")
         _force_kill_textedit_process(include_sigkill=True)
     elif quit_proc.returncode != 0:
-        progress(
-            "textedit quit returned non-zero; force-kill fallback "
-            f"code={quit_proc.returncode}"
-        )
+        progress(f"textedit quit returned non-zero; force-kill fallback code={quit_proc.returncode}")
         _force_kill_textedit_process(include_sigkill=False)
     time.sleep(0.6)
     prepare_textedit_fixture()
@@ -366,10 +351,7 @@ def preflight_textedit_foreground(
         if is_frontmost:
             progress(f"textedit foreground preflight ok (attempt {attempt}/{attempts})")
             return True
-        progress(
-            f"textedit foreground preflight retry {attempt}/{attempts} "
-            f"(frontmost={is_frontmost})"
-        )
+        progress(f"textedit foreground preflight retry {attempt}/{attempts} (frontmost={is_frontmost})")
     if not fail_hard:
         return False
     _pytest_fail(
@@ -392,10 +374,7 @@ def ensure_textedit_ax_ready(*, attempts: int = 3) -> bool:
             _clear_textedit_ax_degraded()
             progress(f"textedit AX probe ready ({detail})")
             return True
-        progress(
-            f"textedit AX probe not ready ({attempt}/{attempts}) "
-            f"foreground_ok={foreground_ok} detail={detail}"
-        )
+        progress(f"textedit AX probe not ready ({attempt}/{attempts}) foreground_ok={foreground_ok} detail={detail}")
         if attempt < attempts:
             restart_textedit_fixture_process()
             time.sleep(1.0)
@@ -413,9 +392,7 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
         await asyncio.to_thread(prepare_textedit_fixture)
         marker_ready = await asyncio.to_thread(textedit_fixture_ready)
         if marker_ready:
-            degraded, degraded_detail, degraded_remaining = (
-                _textedit_ax_degraded_snapshot()
-            )
+            degraded, degraded_detail, degraded_remaining = _textedit_ax_degraded_snapshot()
             if degraded:
                 if _strict_fallback_mode_enabled():
                     _pytest_fail(
@@ -441,17 +418,11 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
             _mark_textedit_ax_degraded(last_detail)
             # AX can be transiently unavailable on some hosts. Continue with
             # vision/snapshot fallback path instead of hard-failing bootstrap.
-            progress(
-                "textedit marker ready but AX refs unavailable; "
-                "continue with vision fallback"
-            )
+            progress("textedit marker ready but AX refs unavailable; continue with vision fallback")
             return
         else:
             last_detail = "marker-missing"
-        progress(
-            f"textedit fixture not ready yet ({attempt}/{attempts}) "
-            f"reason={last_detail}"
-        )
+        progress(f"textedit fixture not ready yet ({attempt}/{attempts}) reason={last_detail}")
         if attempt < attempts:
             if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and attempt <= 4:
                 await asyncio.to_thread(activate_textedit_foreground)
@@ -460,6 +431,5 @@ async def ensure_textedit_fixture_ready(*, attempts: int = 5) -> None:
                 await asyncio.to_thread(restart_textedit_fixture_process)
                 await asyncio.sleep(0.6)
     _pytest_fail(
-        "TextEdit fixture not AX-ready after retries "
-        f"(last_reason={last_detail}) — verify Accessibility permission and retry"
+        f"TextEdit fixture not AX-ready after retries (last_reason={last_detail}) — verify Accessibility permission and retry"
     )

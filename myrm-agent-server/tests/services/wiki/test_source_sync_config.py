@@ -32,9 +32,7 @@ async def test_load_parses_scoped_config() -> None:
     row = MagicMock()
     row.config_value = {
         "agents": {
-            "agent-a": WikiSourceSyncConfig(
-                gmail_enabled=True, rss_feeds=["https://a.test/feed"]
-            ).model_dump(),
+            "agent-a": WikiSourceSyncConfig(gmail_enabled=True, rss_feeds=["https://a.test/feed"]).model_dump(),
         }
     }
     db = AsyncMock()

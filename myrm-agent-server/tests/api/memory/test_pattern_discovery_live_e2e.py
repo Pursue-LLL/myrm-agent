@@ -40,16 +40,12 @@ def _make_mature_manager() -> AsyncMock:
 
     memories = [
         SemanticMemory(
-            content=(
-                "user consistently starts the workday with a review of the PR queue "
-                "and schedules deep work before noon"
-            ),
+            content=("user consistently starts the workday with a review of the PR queue and schedules deep work before noon"),
             tags=["habit", "routine"],
         ),
         SemanticMemory(
             content=(
-                "user prefers TypeScript for new services and has abandoned Python "
-                "for backend work over the last several weeks"
+                "user prefers TypeScript for new services and has abandoned Python for backend work over the last several weeks"
             ),
             tags=["preference", "stack"],
         ),
@@ -58,9 +54,7 @@ def _make_mature_manager() -> AsyncMock:
             tags=["unresolved"],
         ),
         SemanticMemory(
-            content=(
-                "user asks for a short summary every time a long thread grows beyond 20 messages"
-            ),
+            content=("user asks for a short summary every time a long thread grows beyond 20 messages"),
             tags=["communication"],
         ),
     ]
@@ -75,13 +69,9 @@ def _make_mature_manager() -> AsyncMock:
     for i, mem in enumerate(memories):
         mem.created_at = datetime.now(UTC) - timedelta(days=i)
 
-    manager.count_memories = AsyncMock(
-        side_effect=lambda mt: 60 if str(mt) == "semantic" else 0
-    )
+    manager.count_memories = AsyncMock(side_effect=lambda mt: 60 if str(mt) == "semantic" else 0)
     manager.list_memories = AsyncMock(return_value=memories)
-    manager.get_profile_attribute = AsyncMock(
-        side_effect=lambda key: "5" if "consolidation" in key else None
-    )
+    manager.get_profile_attribute = AsyncMock(side_effect=lambda key: "5" if "consolidation" in key else None)
     manager.set_profile_attribute = AsyncMock()
     manager.search = AsyncMock(
         return_value=[
@@ -133,9 +123,7 @@ async def test_pattern_discovery_with_real_llm_produces_patterns() -> None:
 
     assert report.skipped is False, report.skip_reason
     assert report.memory_count >= 50
-    assert (
-        len(report.patterns) > 0
-    ), "real LLM should surface at least one behavioral pattern"
+    assert len(report.patterns) > 0, "real LLM should surface at least one behavioral pattern"
     first = report.patterns[0]
     assert first.title.strip()
     assert first.description.strip()

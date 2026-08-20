@@ -19,6 +19,7 @@ from app.services.agent.stream_session.workflow_escalation import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _make_session(
     query: str = "",
     routing_tier: str | None = "reasoning",
@@ -81,18 +82,11 @@ class TestShouldSuggestWorkflow:
         assert should_suggest_workflow(query, routing_tier="reasoning") is False
 
     def test_detects_step_keywords(self):
-        query = (
-            "第一步收集数据，第二步分析趋势，第三步生成报告，"
-            "然后分别对比各个竞品的优劣势，给出推荐"
-        )
+        query = "第一步收集数据，第二步分析趋势，第三步生成报告，然后分别对比各个竞品的优劣势，给出推荐"
         assert should_suggest_workflow(query, routing_tier="reasoning") is True
 
     def test_detects_parallel_keywords(self):
-        query = (
-            "调研 5 家竞品，分别分析各家的优劣势，"
-            "每家写一份对比报告，最终给出推荐方案和总结，"
-            "要求全面且深入"
-        )
+        query = "调研 5 家竞品，分别分析各家的优劣势，每家写一份对比报告，最终给出推荐方案和总结，要求全面且深入"
         assert should_suggest_workflow(query, routing_tier="reasoning") is True
 
     def test_multimodal_content_extraction(self):
@@ -229,15 +223,18 @@ class TestExtractText:
 
     def test_empty_list_returns_empty(self):
         from app.services.agent.stream_session.workflow_escalation import _extract_text
+
         assert _extract_text([]) == ""
 
     def test_dict_without_text_key_ignored(self):
         from app.services.agent.stream_session.workflow_escalation import _extract_text
+
         content = [{"type": "image_url", "url": "http://example.com"}]
         assert _extract_text(content) == ""
 
     def test_multiple_text_blocks_joined(self):
         from app.services.agent.stream_session.workflow_escalation import _extract_text
+
         content = [
             {"type": "text", "text": "Part A"},
             {"type": "text", "text": "Part B"},
@@ -246,4 +243,5 @@ class TestExtractText:
 
     def test_string_passthrough(self):
         from app.services.agent.stream_session.workflow_escalation import _extract_text
+
         assert _extract_text("hello world") == "hello world"

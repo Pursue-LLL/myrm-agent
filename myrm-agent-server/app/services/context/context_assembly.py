@@ -69,11 +69,7 @@ class ContextAssemblyService:
         facade = ContextAssemblyService.build_facade(ensure_layout=False)
         binding: ResolvedContextBinding | None = None
         if enable_memory:
-            task_root = (
-                agent.declared_allowed_roots[0]
-                if agent.declared_allowed_roots
-                else None
-            )
+            task_root = agent.declared_allowed_roots[0] if agent.declared_allowed_roots else None
             binding = resolve_context_binding(
                 namespaces=None,
                 agent_id=agent.agent_id or "default",

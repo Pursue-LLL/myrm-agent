@@ -75,9 +75,7 @@ async def test_cloudflare_publish_creates_project_and_deploys() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request.method + " " + request.url.path)
         if request.method == "POST" and request.url.path.endswith("/pages/projects"):
-            return httpx.Response(
-                200, json={"result": {"name": "demo-site"}}, request=request
-            )
+            return httpx.Response(200, json={"result": {"name": "demo-site"}}, request=request)
         if request.method == "POST" and "/deployments" in request.url.path:
             return httpx.Response(
                 200,
@@ -171,9 +169,7 @@ async def test_cloudflare_publish_non_json_deploy_response() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST" and "/deployments" in request.url.path:
-            return httpx.Response(
-                200, text="<html>Gateway error page</html>", request=request
-            )
+            return httpx.Response(200, text="<html>Gateway error page</html>", request=request)
         return httpx.Response(404, request=request)
 
     transport = httpx.MockTransport(handler)

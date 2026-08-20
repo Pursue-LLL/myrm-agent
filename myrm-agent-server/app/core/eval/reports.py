@@ -76,9 +76,7 @@ def get_all_report_summaries(
                     data = json.loads(first_line)
                     if data.get("type") == "summary":
                         filename = report_path.name
-                        ts_str = filename.replace("eval_report_", "").replace(
-                            ".jsonl", ""
-                        )
+                        ts_str = filename.replace("eval_report_", "").replace(".jsonl", "")
                         try:
                             data["timestamp"] = int(ts_str)
                         except ValueError:

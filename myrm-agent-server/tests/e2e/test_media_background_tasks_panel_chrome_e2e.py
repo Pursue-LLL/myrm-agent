@@ -134,9 +134,7 @@ def _background_tasks_panel(
 
 
 def _expand_recent_section(client: ChromeMcpClient, page: McpPage) -> None:
-    toggle_visible = wait_for_state(
-        client, page, _MEDIA_RECENT_TOGGLE_JS, timeout_sec=45.0
-    )
+    toggle_visible = wait_for_state(client, page, _MEDIA_RECENT_TOGGLE_JS, timeout_sec=45.0)
     assert toggle_visible.get("ready") is True, toggle_visible
     clicked = client.evaluate(page, _CLICK_MEDIA_RECENT_TOGGLE_JS, timeout_sec=10.0)
     assert clicked.get("clicked") is True, clicked
@@ -187,9 +185,7 @@ def test_media_background_tasks_panel_navigate_to_chat_from_terminal() -> None:
         navigated = client.evaluate(page, navigate_expression, timeout_sec=10.0)
         assert navigated.get("clicked") is True, navigated
 
-        route_expression = _CHAT_ROUTE_READY_JS.replace(
-            "__CHAT_ID_JSON__", json.dumps(chat_id)
-        )
+        route_expression = _CHAT_ROUTE_READY_JS.replace("__CHAT_ID_JSON__", json.dumps(chat_id))
         route = wait_for_state(client, page, route_expression, timeout_sec=30.0)
         assert route.get("ready") is True, route
 

@@ -591,9 +591,7 @@ def test_stream_collector_persists_tool_stdout_chunks_on_progress_step() -> None
     assert steps[-1].get("stdout") == "line-1\nline-2\n"
 
 
-def test_stream_collector_persists_guardrail_blocked_error_category_on_tasks_steps() -> (
-    None
-):
+def test_stream_collector_persists_guardrail_blocked_error_category_on_tasks_steps() -> None:
     """Regression: bash myrm_tools preflight must keep error_category for ProgressSteps Badge."""
     collector = StreamContentCollector()
     collector.feed_event(

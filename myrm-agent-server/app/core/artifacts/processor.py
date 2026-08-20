@@ -125,11 +125,7 @@ class BaseArtifactProcessor(ABC):
                     download_url=self._build_artifact_url(result.file_id, inline=False, content_type=content_type),
                     language=infer_language(filename),
                     created_at=datetime.now(UTC).isoformat(),
-                    file_path=(
-                        result.resolved_path
-                        if result.resolved_path is not None
-                        else self._resolve_file_path(file_path)
-                    ),
+                    file_path=(result.resolved_path if result.resolved_path is not None else self._resolve_file_path(file_path)),
                     short_file_id=str(short_file_id) if isinstance(short_file_id, str) and short_file_id else None,
                 )
                 artifacts.append(artifact)

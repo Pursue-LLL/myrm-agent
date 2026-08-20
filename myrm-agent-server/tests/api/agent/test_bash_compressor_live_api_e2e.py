@@ -145,12 +145,8 @@ def _stream_collect(client: httpx.Client, agent_id: str, backend_url: str) -> st
         "enableMemoryAutoExtraction": False,
     }
     workspaces_root = resolve_backend_workspaces_root(backend_url)
-    stdout_text, message_text, resume_payload, errors = _stream_once(
-        client, request_data, backend_url
-    )
-    stdout_text = apply_workspace_compression(
-        chat_id, stdout_text, workspaces_root=workspaces_root
-    )
+    stdout_text, message_text, resume_payload, errors = _stream_once(client, request_data, backend_url)
+    stdout_text = apply_workspace_compression(chat_id, stdout_text, workspaces_root=workspaces_root)
     combined = f"{stdout_text}\n{message_text}"
     if resume_payload is None:
         if not combined.strip() and errors:
@@ -161,13 +157,9 @@ def _stream_collect(client: httpx.Client, agent_id: str, backend_url: str) -> st
         "messageId": f"live-bce-resume-{uuid.uuid4().hex[:10]}",
         "resumeValue": resume_payload,
     }
-    resumed_stdout, resumed_msg, _, resume_errors = _stream_once(
-        client, resume_request, backend_url
-    )
+    resumed_stdout, resumed_msg, _, resume_errors = _stream_once(client, resume_request, backend_url)
     errors.extend(resume_errors)
-    resumed_stdout = apply_workspace_compression(
-        chat_id, resumed_stdout, workspaces_root=workspaces_root
-    )
+    resumed_stdout = apply_workspace_compression(chat_id, resumed_stdout, workspaces_root=workspaces_root)
     merged_stdout = f"{stdout_text}{resumed_stdout}"
     merged_all = f"{merged_stdout}\n{message_text}{resumed_msg}"
     if not merged_all.strip() and errors:

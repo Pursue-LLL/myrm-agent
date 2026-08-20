@@ -83,8 +83,4 @@ def test_promtool_rules_check_passes_when_promtool_available() -> None:
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, (
-        "promtool check rules failed:\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"promtool check rules failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"

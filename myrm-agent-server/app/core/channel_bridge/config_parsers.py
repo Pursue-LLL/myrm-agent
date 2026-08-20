@@ -168,22 +168,14 @@ def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig
 
     stt_enabled = bool(voice_dict.get("sttEnabled", False))
     tts_mode_raw = str(voice_dict.get("ttsMode", "off")).lower()
-    tts_mode = (
-        TTSMode(tts_mode_raw)
-        if tts_mode_raw in ("off", "always", "inbound")
-        else TTSMode.OFF
-    )
+    tts_mode = TTSMode(tts_mode_raw) if tts_mode_raw in ("off", "always", "inbound") else TTSMode.OFF
 
     return VoiceConfig(
         stt_enabled=stt_enabled,
         stt_provider=str(voice_dict.get("sttProvider", "openai")),
         stt_api_key=str(voice_dict.get("sttApiKey", "")),
         stt_model=str(voice_dict.get("sttModel", "whisper-1")),
-        stt_language=(
-            voice_dict.get("sttLanguage")
-            if isinstance(voice_dict.get("sttLanguage"), str)
-            else None
-        ),
+        stt_language=(voice_dict.get("sttLanguage") if isinstance(voice_dict.get("sttLanguage"), str) else None),
         stt_local_model=str(voice_dict.get("sttLocalModel", "base")),
         stt_local_device=str(voice_dict.get("sttLocalDevice", "auto")),
         stt_local_compute_type=str(voice_dict.get("sttLocalComputeType", "auto")),
@@ -197,9 +189,7 @@ def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig
         tts_pitch=float(voice_dict.get("ttsPitch", 0.0)),
         tts_max_length=_int_setting(voice_dict.get("ttsMaxLength", 4000), 4000),
         tts_summary_enabled=bool(voice_dict.get("ttsSummaryEnabled", True)),
-        tts_summary_threshold=_int_setting(
-            voice_dict.get("ttsSummaryThreshold", 1500), 1500
-        ),
+        tts_summary_threshold=_int_setting(voice_dict.get("ttsSummaryThreshold", 1500), 1500),
         tts_summary_model=str(voice_dict.get("ttsSummaryModel", "")),
     )
 
@@ -263,11 +253,7 @@ def extract_lite_model_config(
         return None
 
     provider = next(
-        (
-            p
-            for p in providers
-            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
-        ),
+        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
         None,
     )
     if not provider:
@@ -341,11 +327,7 @@ def _resolve_vision_fallback_primary_config(
         return None
 
     provider = next(
-        (
-            p
-            for p in providers
-            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
-        ),
+        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
         None,
     )
     if not provider:
@@ -404,11 +386,7 @@ def _resolve_base_primary_model_config(
         return None
 
     provider = next(
-        (
-            p
-            for p in providers
-            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
-        ),
+        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
         None,
     )
     if not provider:
@@ -575,11 +553,7 @@ def _resolve_video_fallback_primary_config(
         return None
 
     provider = next(
-        (
-            p
-            for p in providers
-            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
-        ),
+        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
         None,
     )
     if not provider:
@@ -706,12 +680,8 @@ def extract_fallback_model_configs(
     if not isinstance(providers, list):
         return None, None
 
-    base_fallbacks = extract_slot_fallback_chain(
-        default_model_cfg.get("baseModel"), providers_dict
-    )
-    lite_fallbacks = extract_slot_fallback_chain(
-        default_model_cfg.get("liteModel"), providers_dict
-    )
+    base_fallbacks = extract_slot_fallback_chain(default_model_cfg.get("baseModel"), providers_dict)
+    lite_fallbacks = extract_slot_fallback_chain(default_model_cfg.get("liteModel"), providers_dict)
 
     base_fallback = base_fallbacks[0] if base_fallbacks else None
     lite_fallback = lite_fallbacks[0] if lite_fallbacks else None
@@ -748,9 +718,7 @@ def extract_session_policy(
     return SessionPolicy(
         mode=mode,
         daily_reset_hour=int(daily_hour) if isinstance(daily_hour, (int, float)) else 4,
-        idle_minutes=(
-            int(idle_minutes) if isinstance(idle_minutes, (int, float)) else 120
-        ),
+        idle_minutes=(int(idle_minutes) if isinstance(idle_minutes, (int, float)) else 120),
         notify_on_reset=bool(notify_raw) if notify_raw is not None else True,
     )
 
@@ -821,17 +789,13 @@ async def _ping_searxng(cfg: "SearchServiceConfig") -> bool:
             resp = await client.get(url)
             if resp.status_code < 500:
                 return True
-            logger.warning(
-                "Search service check: SearXNG returned %d at %s", resp.status_code, url
-            )
+            logger.warning("Search service check: SearXNG returned %d at %s", resp.status_code, url)
             return False
     except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
         logger.warning("Search service check: SearXNG unreachable at %s (%s)", url, exc)
         return False
     except Exception as exc:
-        logger.warning(
-            "Search service check: SearXNG unexpected error at %s (%s)", url, exc
-        )
+        logger.warning("Search service check: SearXNG unexpected error at %s (%s)", url, exc)
         return False
 
 
@@ -898,11 +862,7 @@ def extract_search_provider_chain(
                 search_service=slug,
                 api_key=str(row["api_key"]) if row.get("api_key") else None,
                 api_base=str(row["api_base"]) if row.get("api_base") else None,
-                extra_params=(
-                    row.get("extra_params")
-                    if isinstance(row.get("extra_params"), dict)
-                    else None
-                ),
+                extra_params=(row.get("extra_params") if isinstance(row.get("extra_params"), dict) else None),
             )
         )
     return chain
@@ -916,9 +876,7 @@ def extract_active_search_config(
 
     chain = extract_search_provider_chain(search_services_dict)
     if not chain:
-        logger.warning(
-            "config_parsers: no enabled search provider chain in WebUI Settings"
-        )
+        logger.warning("config_parsers: no enabled search provider chain in WebUI Settings")
         return None
 
     head = chain[0]
@@ -965,11 +923,7 @@ def extract_slot_fallback_chain(
             continue
 
         provider = next(
-            (
-                p
-                for p in providers
-                if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
-            ),
+            (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
             None,
         )
         if not provider:
@@ -1017,11 +971,7 @@ def _resolve_slot_fallback(
         return None
 
     provider = next(
-        (
-            p
-            for p in providers
-            if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")
-        ),
+        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
         None,
     )
     if not provider:
@@ -1042,9 +992,7 @@ def _build_embedding_config(
     cls: type["EmbeddingConfig"],
 ) -> "EmbeddingConfig | None":
     """Build EmbeddingConfig from retrieval dict."""
-    params = _parse_retrieval_params(
-        retrieval_dict, "embeddingConfig", "embeddingApplied"
-    )
+    params = _parse_retrieval_params(retrieval_dict, "embeddingConfig", "embeddingApplied")
     if not params:
         return None
     return cls(model=params[0], api_key=params[1], api_base=params[2])
@@ -1055,9 +1003,7 @@ def _build_reranker_config(
     cls: type["RerankerConfig"],
 ) -> "RerankerConfig | None":
     """Build RerankerConfig from retrieval dict."""
-    params = _parse_retrieval_params(
-        retrieval_dict, "rerankerConfig", "rerankerApplied"
-    )
+    params = _parse_retrieval_params(retrieval_dict, "rerankerConfig", "rerankerApplied")
     if not params:
         return None
     return cls(model=params[0], api_key=params[1], api_base=params[2])
@@ -1107,9 +1053,7 @@ def _extract_active_key(provider: dict[str, object]) -> str | None:
     keys = provider.get("keys")
     if isinstance(keys, list) and len(keys) > 0:
         # Find active key or first key
-        active_key = next(
-            (k for k in keys if isinstance(k, dict) and k.get("isActive")), keys[0]
-        )
+        active_key = next((k for k in keys if isinstance(k, dict) and k.get("isActive")), keys[0])
         if isinstance(active_key, dict):
             key_val = active_key.get("key")
             if isinstance(key_val, str) and key_val:

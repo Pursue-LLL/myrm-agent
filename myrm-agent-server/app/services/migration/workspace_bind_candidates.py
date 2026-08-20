@@ -100,19 +100,13 @@ def _candidates_from_codex_payload(
     raw_hints = loaded_payload.get("obsidian_vault_hints")
     hint_paths: list[str] = []
     if isinstance(raw_hints, list):
-        hint_paths = [
-            str(item).strip()
-            for item in raw_hints
-            if isinstance(item, str) and str(item).strip()
-        ]
+        hint_paths = [str(item).strip() for item in raw_hints if isinstance(item, str) and str(item).strip()]
 
     seen: set[str] = set()
     candidates: list[WorkspaceBindCandidate] = []
     for raw_path in hint_paths:
         try:
-            normalized = normalize_project_workspace_path(
-                str(Path(raw_path).expanduser())
-            )
+            normalized = normalize_project_workspace_path(str(Path(raw_path).expanduser()))
         except WorkspacePathValidationError:
             continue
         if not normalized or normalized in seen:
@@ -206,9 +200,5 @@ def _fingerprint_directory(directory: Path) -> _DirectoryFingerprint:
                             markdown_file_count=md_count,
                         )
     except OSError:
-        return _DirectoryFingerprint(
-            has_obsidian_config=has_obsidian, markdown_file_count=md_count
-        )
-    return _DirectoryFingerprint(
-        has_obsidian_config=has_obsidian, markdown_file_count=md_count
-    )
+        return _DirectoryFingerprint(has_obsidian_config=has_obsidian, markdown_file_count=md_count)
+    return _DirectoryFingerprint(has_obsidian_config=has_obsidian, markdown_file_count=md_count)

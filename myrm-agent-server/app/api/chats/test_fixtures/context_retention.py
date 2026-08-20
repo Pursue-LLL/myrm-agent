@@ -35,27 +35,17 @@ from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
 
-_SUMMARY_TEXT = (
-    "E2E context retention summary fixture — user asked about auth module refactor."
-)
+_SUMMARY_TEXT = "E2E context retention summary fixture — user asked about auth module refactor."
 _PIN_FILE = "src/context/retention.py"
 _BRANCH_LABEL = "Before compaction E2E"
 
 
 def _write_seed_snapshot(chat_id: str) -> str:
     rel_path = f".context/{chat_id}/snapshots/e2e-pre-compact.jsonl"
-    abs_path = (
-        Path(execution_paths.PERSISTENT_ROOT)
-        / ".context"
-        / chat_id
-        / "snapshots"
-        / "e2e-pre-compact.jsonl"
-    )
+    abs_path = Path(execution_paths.PERSISTENT_ROOT) / ".context" / chat_id / "snapshots" / "e2e-pre-compact.jsonl"
     abs_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
-        json.dumps(
-            {"_meta": True, "message_count": 2, "chat_id": chat_id}, ensure_ascii=False
-        ),
+        json.dumps({"_meta": True, "message_count": 2, "chat_id": chat_id}, ensure_ascii=False),
         json.dumps(
             {"type": "human", "content": "Context retention E2E fixture question"},
             ensure_ascii=False,
@@ -99,17 +89,13 @@ async def seed_context_retention_fixture() -> dict[str, str | list[str]]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for context retention E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for context retention E2E seed")
 
     agent = agents[0]
     agent_id = agent.id
 
     chat_id = f"e2econtextret{uuid4().hex[:8]}"
-    seed_workspace = str(
-        Path(execution_paths.PERSISTENT_ROOT) / "e2e-context-retention"
-    )
+    seed_workspace = str(Path(execution_paths.PERSISTENT_ROOT) / "e2e-context-retention")
     await ChatService.create_or_update_chat(
         ChatCreate(
             chat_id=chat_id,

@@ -15,10 +15,7 @@ from app.services.files.content_extraction import (
     extract_document_from_bytes,
 )
 
-_MIN_PNG = (
-    b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk"
-    b"+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-)
+_MIN_PNG = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
 
 class TestValidateExtension:
@@ -89,9 +86,7 @@ class TestParseDocument:
         try:
             with open(tmp, "rb") as handle:
                 content = handle.read()
-            result = await extract_document_from_bytes(
-                content, filename="pictured.docx"
-            )
+            result = await extract_document_from_bytes(content, filename="pictured.docx")
             assert result.format == "docx"
             assert result.images, "docx embedded image should be extracted"
             assert result.images[0].mime_type in {"image/png", "image/jpeg"}

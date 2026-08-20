@@ -47,9 +47,7 @@ async def resolve_artifact_deploy_files(
         raise ValueError("NO_VERSIONS")
 
     if version_id is not None:
-        target_version = next(
-            (v for v in artifact.versions if v.id == version_id), None
-        )
+        target_version = next((v for v in artifact.versions if v.id == version_id), None)
         if target_version is None:
             raise LookupError(f"Artifact version {version_id} not found")
     else:

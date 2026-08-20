@@ -36,24 +36,16 @@ class DatabaseSecretBackend:
     async def get_secret(self, agent_id: str, key: str) -> str | None:
         """Get a specific secret for an agent."""
         async with get_session() as db:
-            result = await db.execute(
-                select(AgentSecret).where(
-                    AgentSecret.agent_id == agent_id, AgentSecret.secret_key == key
-                )
-            )
+            result = await db.execute(select(AgentSecret).where(AgentSecret.agent_id == agent_id, AgentSecret.secret_key == key))
             secret = result.scalar_one_or_none()
 
             if not secret:
                 return None
 
             try:
-                return str(
-                    ConfigCrypto.decrypt_value(secret.secret_value, self._key)["value"]
-                )
+                return str(ConfigCrypto.decrypt_value(secret.secret_value, self._key)["value"])
             except Exception as e:
-                logger.error(
-                    f"Failed to decrypt secret '{key}' for agent {agent_id}: {e}"
-                )
+                logger.error(f"Failed to decrypt secret '{key}' for agent {agent_id}: {e}")
                 return None
 
     async def list_secret_keys(self, agent_id: str) -> list[str]:
@@ -64,37 +56,27 @@ class DatabaseSecretBackend:
         ciphertext, so a corrupt value cannot raise.
         """
         async with get_session() as db:
-            result = await db.execute(
-                select(AgentSecret.secret_key).where(AgentSecret.agent_id == agent_id)
-            )
+            result = await db.execute(select(AgentSecret.secret_key).where(AgentSecret.agent_id == agent_id))
             return [str(row) for row in result.scalars().all()]
 
     async def get_all_secrets(self, agent_id: str) -> dict[str, str]:
         """Get all secrets for an agent."""
         async with get_session() as db:
-            result = await db.execute(
-                select(AgentSecret).where(AgentSecret.agent_id == agent_id)
-            )
+            result = await db.execute(select(AgentSecret).where(AgentSecret.agent_id == agent_id))
             secrets = result.scalars().all()
 
             decrypted_secrets = {}
             for secret in secrets:
                 try:
                     decrypted_secrets[secret.secret_key] = str(
-                        ConfigCrypto.decrypt_value(secret.secret_value, self._key)[
-                            "value"
-                        ]
+                        ConfigCrypto.decrypt_value(secret.secret_value, self._key)["value"]
                     )
                 except Exception as e:
-                    logger.error(
-                        f"Failed to decrypt secret '{secret.secret_key}' for agent {agent_id}: {e}"
-                    )
+                    logger.error(f"Failed to decrypt secret '{secret.secret_key}' for agent {agent_id}: {e}")
 
             return decrypted_secrets
 
-    async def save_secret(
-        self, agent_id: str, key: str, value: str, description: str | None = None
-    ) -> None:
+    async def save_secret(self, agent_id: str, key: str, value: str, description: str | None = None) -> None:
         """Save a secret for an agent."""
         try:
             encrypted_value = ConfigCrypto.encrypt_value({"value": value}, self._key)
@@ -103,11 +85,7 @@ class DatabaseSecretBackend:
             raise
 
         async with get_session() as db:
-            result = await db.execute(
-                select(AgentSecret).where(
-                    AgentSecret.agent_id == agent_id, AgentSecret.secret_key == key
-                )
-            )
+            result = await db.execute(select(AgentSecret).where(AgentSecret.agent_id == agent_id, AgentSecret.secret_key == key))
             secret = result.scalar_one_or_none()
 
             if secret:
@@ -131,11 +109,7 @@ class DatabaseSecretBackend:
     async def delete_secret(self, agent_id: str, key: str) -> bool:
         """Delete a specific secret for an agent."""
         async with get_session() as db:
-            result = await db.execute(
-                select(AgentSecret).where(
-                    AgentSecret.agent_id == agent_id, AgentSecret.secret_key == key
-                )
-            )
+            result = await db.execute(select(AgentSecret).where(AgentSecret.agent_id == agent_id, AgentSecret.secret_key == key))
             secret = result.scalar_one_or_none()
 
             if secret:
@@ -147,9 +121,7 @@ class DatabaseSecretBackend:
     async def delete_all_secrets(self, agent_id: str) -> bool:
         """Delete all secrets for an agent."""
         async with get_session() as db:
-            result = await db.execute(
-                select(AgentSecret).where(AgentSecret.agent_id == agent_id)
-            )
+            result = await db.execute(select(AgentSecret).where(AgentSecret.agent_id == agent_id))
             secrets = result.scalars().all()
 
             if secrets:

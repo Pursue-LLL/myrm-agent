@@ -53,9 +53,7 @@ def client() -> TestClient:
         yield c
 
 
-def _create_board(
-    client: TestClient, name: str = "Pipeline Test Board"
-) -> dict[str, object]:
+def _create_board(client: TestClient, name: str = "Pipeline Test Board") -> dict[str, object]:
     resp = client.post("/api/v1/kanban/boards", json={"name": name})
     assert resp.status_code == 201
     return resp.json()
@@ -84,9 +82,7 @@ class TestListPipelines:
     def test_template_fields(self, client: TestClient) -> None:
         resp = client.get("/api/v1/kanban/pipelines")
         data = resp.json()
-        video = next(
-            i for i in data["items"] if i["skill_id"] == "video-production-pipeline"
-        )
+        video = next(i for i in data["items"] if i["skill_id"] == "video-production-pipeline")
         assert video["category"] == "pipeline"
         assert video["task_count"] == 5
         assert len(video["roles"]) == 5
@@ -168,9 +164,7 @@ class TestInstantiatePipeline:
         assert len(data["task_ids"]) == 5
         assert len(data["edges"]) == 4  # T0→T2, T1→T3, T2→T3, T3→T4
 
-    def test_creates_task_graph_with_variant(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_creates_task_graph_with_variant(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.kanban.pipeline import (
             PipelineSpec,
             TaskGraphVariant,
@@ -224,9 +218,7 @@ class TestInstantiatePipeline:
         assert len(data["task_ids"]) == 2
         assert len(data["edges"]) == 1
 
-    def test_instantiate_invalid_variant_id_returns_400(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_instantiate_invalid_variant_id_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.kanban.pipeline import (
             PipelineSpec,
             TaskGraphVariant,
@@ -272,9 +264,7 @@ class TestInstantiatePipeline:
         assert resp.status_code == 400
         assert "Invalid variant_id: invalid-id" in resp.json()["detail"]
 
-    def test_instantiate_empty_graph_returns_400(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_instantiate_empty_graph_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.kanban.pipeline import PipelineSpec
 
         def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
@@ -345,9 +335,7 @@ class TestInstantiatePipeline:
         edges = edges_resp.json()["items"]
         assert len(edges) >= 3
 
-    def test_code_review_pipeline_verifier_task_contract(
-        self, client: TestClient
-    ) -> None:
+    def test_code_review_pipeline_verifier_task_contract(self, client: TestClient) -> None:
         """verifier 任务描述必须携带 Needs user decision 契约（弱模型不越权修复）。"""
         board = _create_board(client)
         board_id = board["board_id"]
@@ -442,9 +430,7 @@ class TestInstantiatePipeline:
         assert any("Twitter" in t for t in titles)
         assert any("LinkedIn" in t for t in titles)
 
-    def test_content_distribution_wechat_injects_formatter_skill(
-        self, client: TestClient
-    ) -> None:
+    def test_content_distribution_wechat_injects_formatter_skill(self, client: TestClient) -> None:
         board = _create_board(client)
         board_id = board["board_id"]
 

@@ -131,7 +131,7 @@ async def test_ensure_timezone_initialized_upgrades_server_fallback_with_client_
     session = _FakeSession(row)
     monkeypatch.setattr(
         "app.services.memory.ledger.guardian_policy.get_session_factory",
-        lambda: (lambda: _FakeSessionContext(session)),
+        lambda: lambda: _FakeSessionContext(session),
     )
 
     updated = await ensure_memory_guardian_timezone_initialized(480, source="client_header")
@@ -155,7 +155,7 @@ async def test_ensure_timezone_initialized_does_not_override_manual_policy(
     session = _FakeSession(row)
     monkeypatch.setattr(
         "app.services.memory.ledger.guardian_policy.get_session_factory",
-        lambda: (lambda: _FakeSessionContext(session)),
+        lambda: lambda: _FakeSessionContext(session),
     )
 
     result = await ensure_memory_guardian_timezone_initialized(480, source="client_header")

@@ -143,9 +143,7 @@ def _ensure_worktree_excluded(base_dir: str, dir_name: str) -> None:
             f.write(f"{prefix}{line}\n")
     except Exception as exc:
         # Exclude failure only pollutes git status; never blocks worktree use.
-        logger.debug(
-            "Failed to exclude %s/ in %s: %s", dir_name, base_dir, exc
-        )
+        logger.debug("Failed to exclude %s/ in %s: %s", dir_name, base_dir, exc)
 
 
 async def _git_worktree_add(
@@ -206,14 +204,10 @@ async def _git_worktree_add(
         return worktree_path
     except Exception as exc:
         logger.warning("Failed to create %s worktree: %s", context, exc)
-        return WorktreeCreateError(
-            reason=WorktreeErrorReason.ERROR, message=str(exc)[:300]
-        )
+        return WorktreeCreateError(reason=WorktreeErrorReason.ERROR, message=str(exc)[:300])
 
 
-async def _auto_commit_dirty_worktree(
-    worktree_path: str, *, commit_message: str = "Auto-commit before merge"
-) -> bool:
+async def _auto_commit_dirty_worktree(worktree_path: str, *, commit_message: str = "Auto-commit before merge") -> bool:
     """Commit uncommitted changes in a worktree before merging it back.
 
     Returns True when the worktree is clean (nothing to commit) or the
@@ -279,9 +273,7 @@ async def _auto_commit_dirty_worktree(
         return False
 
 
-async def _merge_branch_into_current(
-    base_dir: str, branch: str, merge_message: str
-) -> tuple[bool, list[str], str]:
+async def _merge_branch_into_current(base_dir: str, branch: str, merge_message: str) -> tuple[bool, list[str], str]:
     """Merge ``branch`` into the checked-out branch with identity fallback.
 
     Returns (success, conflict_files, stderr).  On failure the merge is rolled

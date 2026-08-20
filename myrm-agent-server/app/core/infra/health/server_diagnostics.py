@@ -71,19 +71,23 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
     async def check_health(self) -> HealthReport:
         try:
             import os
+
             from app.services.agent.execution_cache import get_execution_cache
 
             rss_mb: float | None = None
             try:
                 import psutil
+
                 process = psutil.Process(os.getpid())
                 rss_mb = round(process.memory_info().rss / (1024 * 1024), 1)
             except Exception:
                 try:
                     import resource
+
                     # ru_maxrss is in KB on Linux, bytes on macOS
                     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                     import sys
+
                     scale = 1024.0 * 1024.0 if sys.platform == "darwin" else 1024.0
                     rss_mb = round(usage / scale, 1)
                 except Exception:

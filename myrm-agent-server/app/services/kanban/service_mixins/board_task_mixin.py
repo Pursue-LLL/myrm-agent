@@ -107,9 +107,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         migrated: bool = False,
         board_id: str | None = None,
     ) -> int:
-        return await run_update_branch_metadata(
-            self._store, new_branch, old_branch, migrated, board_id
-        )
+        return await run_update_branch_metadata(self._store, new_branch, old_branch, migrated, board_id)
 
     async def update_board(
         self,

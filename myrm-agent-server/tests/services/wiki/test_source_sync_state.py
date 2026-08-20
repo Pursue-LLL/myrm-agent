@@ -25,9 +25,7 @@ def test_state_from_run_summary_maps_counts() -> None:
     summary = WikiSourceSyncRunSummary(
         results=[
             WikiSourceSyncResult(source="gmail", published=2, skipped=1, failed=0),
-            WikiSourceSyncResult(
-                source="rss", published=0, skipped=3, failed=1, errors=["timeout"]
-            ),
+            WikiSourceSyncResult(source="rss", published=0, skipped=3, failed=1, errors=["timeout"]),
         ],
         total_published=2,
         total_skipped=4,
@@ -127,9 +125,7 @@ async def test_runner_invokes_gdrive_when_enabled() -> None:
         session_ctx.return_value.__aenter__ = AsyncMock(return_value=db)
         session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        summary = await run_wiki_source_sync(
-            llm=None, agent_id="agent-99", config=config
-        )
+        summary = await run_wiki_source_sync(llm=None, agent_id="agent-99", config=config)
 
     sync_gdrive.assert_awaited_once()
     assert sync_gdrive.await_args.kwargs["folder_id"] == "folder-abc"

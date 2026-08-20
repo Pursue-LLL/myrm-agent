@@ -50,9 +50,7 @@ def _mock_bridge() -> MagicMock:
 
 @pytest.mark.asyncio
 async def test_get_extension_access_policy_returns_policy() -> None:
-    with patch(
-        "app.api.extension.router.get_extension_bridge", return_value=_mock_bridge()
-    ) as mock_factory:
+    with patch("app.api.extension.router.get_extension_bridge", return_value=_mock_bridge()) as mock_factory:
         response = await get_extension_access_policy()
         mock_factory.assert_called_once()
     assert response.allow_all_eligible_tabs is False
@@ -69,9 +67,7 @@ async def test_update_extension_access_policy_returns_updated() -> None:
         domains=["github.com"],
         paused_tab_ids=[1],
     )
-    with patch(
-        "app.api.extension.router.get_extension_bridge", return_value=_mock_bridge()
-    ):
+    with patch("app.api.extension.router.get_extension_bridge", return_value=_mock_bridge()):
         response = await update_extension_access_policy(body)
     assert response.allow_all_eligible_tabs is True
     assert response.authorized_domains == ["github.com"]
@@ -81,19 +77,13 @@ async def test_update_extension_access_policy_returns_updated() -> None:
 def test_build_extension_ws_url_https() -> None:
     request = _request()
     request.base_url = "https://example.com/"
-    assert (
-        _build_extension_ws_url(request)
-        == "wss://example.com/api/v1/ws/extension"
-    )
+    assert _build_extension_ws_url(request) == "wss://example.com/api/v1/ws/extension"
 
 
 def test_build_extension_ws_url_http() -> None:
     request = _request()
     request.base_url = "http://127.0.0.1:8080/"
-    assert (
-        _build_extension_ws_url(request)
-        == "ws://127.0.0.1:8080/api/v1/ws/extension"
-    )
+    assert _build_extension_ws_url(request) == "ws://127.0.0.1:8080/api/v1/ws/extension"
 
 
 def test_pairing_client_key_prefers_forwarded() -> None:
@@ -110,9 +100,7 @@ def test_pairing_client_key_unknown() -> None:
 
 
 def test_consume_pairing_or_404_valid_and_invalid() -> None:
-    code, _ = create_pairing_ticket(
-        ws_url="ws://127.0.0.1:8080/api/v1/ws/extension", auth_token="secret"
-    )
+    code, _ = create_pairing_ticket(ws_url="ws://127.0.0.1:8080/api/v1/ws/extension", auth_token="secret")
     consumed = _consume_pairing_or_404(code)
     assert consumed.auth_token == "secret"
     assert consumed.http_base == "http://127.0.0.1:8080"
@@ -125,9 +113,7 @@ def test_consume_pairing_or_404_valid_and_invalid() -> None:
 @pytest.mark.asyncio
 async def test_create_extension_pairing_builds_urls() -> None:
     with (
-        patch(
-            "app.config.settings.settings.extension_auth_token"
-        ) as mock_token,
+        patch("app.config.settings.settings.extension_auth_token") as mock_token,
         patch(
             "app.services.extension.pairing.create_pairing_ticket",
             return_value=("ABC123", 300),
@@ -162,9 +148,7 @@ async def test_consume_pairing_post_rate_limited() -> None:
 async def test_consume_pairing_post_success() -> None:
     from app.api.extension.router import PairingConsumeRequest
 
-    code, _ = create_pairing_ticket(
-        ws_url="ws://127.0.0.1:8080/api/v1/ws/extension", auth_token="secret"
-    )
+    code, _ = create_pairing_ticket(ws_url="ws://127.0.0.1:8080/api/v1/ws/extension", auth_token="secret")
     body = PairingConsumeRequest(code=code)
     with patch(
         "app.services.extension.pairing.check_pairing_rate_limit",

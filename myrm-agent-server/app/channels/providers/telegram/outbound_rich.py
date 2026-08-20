@@ -90,7 +90,10 @@ class TelegramRichOutboundMixin:
             for part in split_markdown_rich(remaining_chunk):
                 try:
                     result = await self._client.send_rich_message(
-                        chat_id, part, message_thread_id=thread_id, **notify_kwargs,
+                        chat_id,
+                        part,
+                        message_thread_id=thread_id,
+                        **notify_kwargs,
                     )
                     mid = result.get("message_id")
                     if mid is not None:

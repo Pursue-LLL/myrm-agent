@@ -71,12 +71,8 @@ def test_research_studio_full_chrome_e2e() -> None:
         state = wait_for_state(client, page, _LAYOUT_PROBE_JS, timeout_sec=45.0)
 
         # T5: Metadata title
-        assert "Research" in str(state.get("title", "")), (
-            f"Page title should contain 'Research': {state.get('title')}"
-        )
-        assert state.get("url", "").endswith("/research"), (
-            f"URL should end with /research: {state.get('url')}"
-        )
+        assert "Research" in str(state.get("title", "")), f"Page title should contain 'Research': {state.get('title')}"
+        assert state.get("url", "").endswith("/research"), f"URL should end with /research: {state.get('url')}"
 
         # T1: Three-column layout renders
         assert isinstance(state.get("bodyLength"), int) and state["bodyLength"] > 50, (

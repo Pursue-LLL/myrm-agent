@@ -265,9 +265,7 @@ def _reset_access_policy(api_url: str) -> None:
     )
 
 
-def _wait_stub_tabs_visible(
-    api_url: str, *, timeout_sec: float = 20.0
-) -> dict[str, object]:
+def _wait_stub_tabs_visible(api_url: str, *, timeout_sec: float = 20.0) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         status = http_json("GET", f"{api_url}/api/v1/extension/status")
@@ -279,9 +277,7 @@ def _wait_stub_tabs_visible(
     raise TimeoutError("Extension stub tabs not visible in /extension/status")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
@@ -336,9 +332,7 @@ def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
         assert "浏览器扩展桥接" in heading or "Browser Extension" in heading, state
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None:
@@ -359,9 +353,7 @@ def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None
             "detach_debugger",
         }
 
-        with open_settings_subroute(
-            f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000
-        ) as (client, page):
+        with open_settings_subroute(f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000) as (client, page):
             bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
             dismiss_blocking_modals(client, page)
             wait_for_settings_layout(
@@ -387,9 +379,7 @@ def test_extension_bridge_settings_relay_contract_connected_in_real_ui() -> None
             assert "已就绪" in relay_line or "Ready" in relay_line, state
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_access_policy_add_domain_in_real_ui() -> None:
@@ -401,9 +391,7 @@ def test_extension_bridge_access_policy_add_domain_in_real_ui() -> None:
     _reset_access_policy(api_url)
 
     with hold_extension_bridge_session(api_url):
-        with open_settings_subroute(
-            f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000
-        ) as (client, page):
+        with open_settings_subroute(f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000) as (client, page):
             bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
             dismiss_blocking_modals(client, page)
             wait_for_settings_layout(
@@ -425,9 +413,7 @@ def test_extension_bridge_access_policy_add_domain_in_real_ui() -> None:
             assert invalid_state.get("invalidHelp") is True, invalid_state
 
             add_result = client.evaluate(page, _ADD_EXAMPLE_DOMAIN_JS, timeout_sec=30.0)
-            assert (
-                isinstance(add_result, dict) and add_result.get("ok") is True
-            ), add_result
+            assert isinstance(add_result, dict) and add_result.get("ok") is True, add_result
 
             valid_state = wait_for_state(
                 client,
@@ -451,9 +437,7 @@ def test_extension_bridge_access_policy_add_domain_in_real_ui() -> None:
     _reset_access_policy(api_url)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_access_policy_allow_all_toggle_in_real_ui() -> None:
@@ -465,9 +449,7 @@ def test_extension_bridge_access_policy_allow_all_toggle_in_real_ui() -> None:
     _reset_access_policy(api_url)
 
     with hold_extension_bridge_session(api_url):
-        with open_settings_subroute(
-            f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000
-        ) as (client, page):
+        with open_settings_subroute(f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000) as (client, page):
             bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
             dismiss_blocking_modals(client, page)
             wait_for_settings_layout(
@@ -508,9 +490,7 @@ def test_extension_bridge_access_policy_allow_all_toggle_in_real_ui() -> None:
     _reset_access_policy(api_url)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_access_policy_remove_domain_in_real_ui() -> None:
@@ -530,9 +510,7 @@ def test_extension_bridge_access_policy_remove_domain_in_real_ui() -> None:
     )
 
     with hold_extension_bridge_session(api_url):
-        with open_settings_subroute(
-            f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000
-        ) as (client, page):
+        with open_settings_subroute(f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000) as (client, page):
             bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
             dismiss_blocking_modals(client, page)
             wait_for_settings_layout(
@@ -572,9 +550,7 @@ def test_extension_bridge_access_policy_remove_domain_in_real_ui() -> None:
     _reset_access_policy(api_url)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_pause_tab_in_real_ui() -> None:
@@ -596,9 +572,7 @@ def test_extension_bridge_pause_tab_in_real_ui() -> None:
     with hold_extension_bridge_session(api_url):
         _wait_stub_tabs_visible(api_url)
 
-        with open_settings_subroute(
-            f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000
-        ) as (client, page):
+        with open_settings_subroute(f"{ui_url.rstrip('/')}/settings/extensionBridge", timeout_ms=90_000) as (client, page):
             bridge_url = f"{ui_url.rstrip('/')}/settings/extensionBridge"
             dismiss_blocking_modals(client, page)
             wait_for_settings_layout(

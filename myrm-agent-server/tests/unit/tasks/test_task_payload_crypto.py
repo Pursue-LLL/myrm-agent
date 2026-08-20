@@ -398,4 +398,3 @@ def test_open_without_key_preserves_nested_ciphertext_and_strips_plaintext(
     assert isinstance(fallback_gateway, dict)
     assert AUTH_TOKEN_FIELD not in fallback_gateway
     assert fallback_gateway[AUTH_TOKEN_ENC_FIELD] == "cipher-token"
-

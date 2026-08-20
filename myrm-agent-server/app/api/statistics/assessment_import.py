@@ -86,7 +86,6 @@ class AssessmentImportSummaryResponse(BaseModel):
     failure_reason_breakdown: dict[str, int]
 
 
-
 def _safe_rate(numerator: int, denominator: int) -> float:
     if denominator <= 0:
         return 0.0
@@ -112,7 +111,6 @@ def _normalize_failure_reason(
 def _validate_metric_fields(payload: AssessmentImportEventRequest) -> None:
     if payload.event_type != "dropped_report" and payload.count != 1:
         raise validation_error("count must be 1 except for dropped_report")
-
 
 
 async def _maybe_prune_old_events(db: AsyncSession) -> int:
@@ -281,5 +279,3 @@ async def get_assessment_import_summary(
             raise
         logger.exception("Assessment import summary failed")
         raise internal_error(operation="Get assessment import summary", exception=exc) from exc
-
-

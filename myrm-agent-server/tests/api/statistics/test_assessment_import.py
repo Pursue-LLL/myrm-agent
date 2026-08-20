@@ -150,9 +150,7 @@ async def test_assessment_import_value_summary_supports_project_scope() -> None:
         await db.commit()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        scoped_response = await ac.get(
-            f"/api/v1/statistics/assessment-import/value-summary?days=30&project_id={proj_value}"
-        )
+        scoped_response = await ac.get(f"/api/v1/statistics/assessment-import/value-summary?days=30&project_id={proj_value}")
         assert scoped_response.status_code == 200
         scoped_data = scoped_response.json()["data"]
         assert scoped_data["project_id"] == proj_value

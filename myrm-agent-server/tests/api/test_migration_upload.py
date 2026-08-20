@@ -91,11 +91,13 @@ async def test_upload_empty_zip_returns_empty_sources(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_upload_hermes_data_detected(client: AsyncClient):
-    payload = _make_zip({
-        ".hermes/config.yaml": "model: gpt-4",
-        ".hermes/SOUL.md": "You are helpful.",
-        ".hermes/memories/MEMORY.md": "- Likes Python\n- Works at Acme",
-    })
+    payload = _make_zip(
+        {
+            ".hermes/config.yaml": "model: gpt-4",
+            ".hermes/SOUL.md": "You are helpful.",
+            ".hermes/memories/MEMORY.md": "- Likes Python\n- Works at Acme",
+        }
+    )
     resp = await client.post(
         "/api/v1/migration/upload",
         files={"file": ("hermes.zip", payload, "application/zip")},
@@ -116,10 +118,12 @@ async def test_upload_hermes_data_detected(client: AsyncClient):
 async def test_upload_openclaw_data_detected(client: AsyncClient):
     import json
 
-    payload = _make_zip({
-        ".openclaw/memory.json": json.dumps([{"content": "Prefers concise answers"}]),
-        ".openclaw/sessions.json": json.dumps([{"title": "Test", "summary": "A test session"}]),
-    })
+    payload = _make_zip(
+        {
+            ".openclaw/memory.json": json.dumps([{"content": "Prefers concise answers"}]),
+            ".openclaw/sessions.json": json.dumps([{"title": "Test", "summary": "A test session"}]),
+        }
+    )
     resp = await client.post(
         "/api/v1/migration/upload",
         files={"file": ("openclaw.zip", payload, "application/zip")},

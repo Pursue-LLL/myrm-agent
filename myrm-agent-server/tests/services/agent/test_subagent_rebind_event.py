@@ -26,6 +26,7 @@ def _rebind_publish_calls(mock_bus: MagicMock) -> list[object]:
         if call.args[0].event_type == AppEventType.SUBAGENT_REBIND_REQUIRED
     ]
 
+
 @pytest_asyncio.fixture
 async def agent_db():
     engine = create_async_engine(

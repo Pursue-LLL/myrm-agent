@@ -145,9 +145,7 @@ async def test_serial_tasks_do_not_lose_commits(git_repo: Path) -> None:
     assert isinstance(wt_b, str)
 
     # Task A's commit must still exist on its unique branch (branch preserved).
-    tip = _run_git(
-        git_repo, "rev-parse", "--verify", "--quiet", "main-ta"
-    ).stdout.strip()
+    tip = _run_git(git_repo, "rev-parse", "--verify", "--quiet", "main-ta").stdout.strip()
     assert tip == commit_a
 
 
@@ -200,16 +198,11 @@ async def test_merge_conflict_preserves_worktree(git_repo: Path) -> None:
     # The failed merge was rolled back: no MERGE_HEAD lingers, so the repo is
     # not stuck in a mid-merge state that would block later merges.
     assert _run_git(git_repo, "rev-parse", "-q", "--verify", "MERGE_HEAD").returncode != 0
-    assert (
-        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
-    )
+    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
 
     # Worktree still exists with the task's commit preserved.
     assert Path(wt).exists()
-    assert (
-        _run_git(Path(wt), "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-        == "main-td"
-    )
+    assert _run_git(Path(wt), "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main-td"
 
 
 @pytest.mark.asyncio
@@ -231,9 +224,7 @@ async def test_cleanup_removes_worktree_keeps_branch(git_repo: Path) -> None:
 
     assert not Path(wt).exists()
     # Branch still present with the commit.
-    branch = _run_git(
-        git_repo, "rev-parse", "--verify", "--quiet", "main-te"
-    ).stdout.strip()
+    branch = _run_git(git_repo, "rev-parse", "--verify", "--quiet", "main-te").stdout.strip()
     assert branch != ""
 
 
@@ -268,17 +259,12 @@ async def test_merge_lands_on_explicit_target_branch(git_repo: Path) -> None:
     (Path(wt) / "feat.txt").write_text("task-g\n", encoding="utf-8")
     task_commit = _commit_in(Path(wt), "task-g feature commit")
 
-    assert (
-        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
-    )
+    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
     merged, _ = await merge_task_worktree(store, task)
     assert merged is True
 
     # base_dir switched to feature-x to perform the merge.
-    assert (
-        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-        == "feature-x"
-    )
+    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "feature-x"
 
     # The merge's second parent is the task commit, so feature-x history
     # contains it, and main is untouched.
@@ -311,9 +297,7 @@ async def test_merge_auto_commit_failure_preserves_worktree(git_repo: Path) -> N
     (Path(wt) / "precious.txt").write_text("AGENT_UNCOMMITTED_DATA\n", encoding="utf-8")
 
     # A pre-commit hook that rejects every commit.
-    common_dir = _run_git(
-        git_repo, "rev-parse", "--path-format=absolute", "--git-common-dir"
-    ).stdout.strip()
+    common_dir = _run_git(git_repo, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()
     hooks = Path(common_dir) / "hooks"
     hooks.mkdir(exist_ok=True)
     hook = hooks / "pre-commit"
@@ -325,11 +309,7 @@ async def test_merge_auto_commit_failure_preserves_worktree(git_repo: Path) -> N
         assert merged is False
         # Worktree and the uncommitted file survive.
         assert Path(wt).exists()
-        assert (
-            (Path(wt) / "precious.txt")
-            .read_text(encoding="utf-8")
-            .startswith("AGENT_UNCOMMITTED_DATA")
-        )
+        assert (Path(wt) / "precious.txt").read_text(encoding="utf-8").startswith("AGENT_UNCOMMITTED_DATA")
     finally:
         hook.unlink(missing_ok=True)
 
@@ -352,9 +332,7 @@ async def test_merge_rejects_unusable_target_branch(git_repo: Path) -> None:
     assert merged is False
     # Worktree preserved; base_dir still on main.
     assert Path(wt).exists()
-    assert (
-        _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
-    )
+    assert _run_git(git_repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
 
 
 @pytest.mark.asyncio

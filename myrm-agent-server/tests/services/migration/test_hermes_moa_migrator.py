@@ -68,9 +68,7 @@ class TestResolveHermesMoaPreset:
                 },
                 "live": {
                     "enabled": True,
-                    "reference_models": [
-                        {"provider": "anthropic", "model": "claude-3-5-sonnet"}
-                    ],
+                    "reference_models": [{"provider": "anthropic", "model": "claude-3-5-sonnet"}],
                 },
             },
         }
@@ -162,9 +160,7 @@ class TestAgentHasMoaOverlayRefs:
     def test_detects_existing_refs(self) -> None:
         params: dict[str, object] = {
             "moa_overlay": {
-                "reference_model_selections": [
-                    {"providerId": "openai", "model": "gpt-4o"}
-                ],
+                "reference_model_selections": [{"providerId": "openai", "model": "gpt-4o"}],
             },
         }
         assert agent_has_moa_overlay_refs(params) is True
@@ -185,12 +181,8 @@ class TestMigrateHermesMoaOverlay:
         mock_agent = MagicMock()
         mock_agent.engine_params = {}
         with (
-            patch(
-                f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock
-            ) as get_agent,
-            patch(
-                f"{MODULE}.AgentService.update_agent", new_callable=AsyncMock
-            ) as update_agent,
+            patch(f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock) as get_agent,
+            patch(f"{MODULE}.AgentService.update_agent", new_callable=AsyncMock) as update_agent,
             patch(
                 f"{MODULE}.ProfileSnapshotService.save_profile_snapshot",
                 new_callable=AsyncMock,
@@ -225,14 +217,10 @@ class TestMigrateHermesMoaOverlay:
         mock_agent = MagicMock()
         mock_agent.engine_params = {
             "moa_overlay": {
-                "reference_model_selections": [
-                    {"providerId": "anthropic", "model": "claude"}
-                ],
+                "reference_model_selections": [{"providerId": "anthropic", "model": "claude"}],
             },
         }
-        with patch(
-            f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock
-        ) as get_agent:
+        with patch(f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock) as get_agent:
             get_agent.return_value = mock_agent
             result = await migrate_hermes_moa_overlay(hermes_config, "agent-123")
 
@@ -273,18 +261,12 @@ class TestProviderValidation:
 
         mock_configs = MagicMock()
         mock_configs.providers_dict = {
-            "providers": [
-                {"id": "openai", "isEnabled": True, "apiKeys": [{"key": "sk-test"}]}
-            ],
+            "providers": [{"id": "openai", "isEnabled": True, "apiKeys": [{"key": "sk-test"}]}],
         }
 
         with (
-            patch(
-                f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock
-            ) as get_agent,
-            patch(
-                f"{MODULE}.AgentService.update_agent", new_callable=AsyncMock
-            ) as update_agent,
+            patch(f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock) as get_agent,
+            patch(f"{MODULE}.AgentService.update_agent", new_callable=AsyncMock) as update_agent,
             patch(
                 f"{MODULE}.ProfileSnapshotService.save_profile_snapshot",
                 new_callable=AsyncMock,
@@ -334,12 +316,8 @@ class TestProviderValidation:
         mock_configs.providers_dict = {"providers": []}
 
         with (
-            patch(
-                f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock
-            ) as get_agent,
-            patch(
-                f"{MODULE}.AgentService.update_agent", new_callable=AsyncMock
-            ) as update_agent,
+            patch(f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock) as get_agent,
+            patch(f"{MODULE}.AgentService.update_agent", new_callable=AsyncMock) as update_agent,
             patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 new_callable=AsyncMock,
@@ -368,9 +346,7 @@ class TestApplyModelMigrationIntegration:
         )
 
         moa_block: dict[str, Any] = {
-            "reference_models": [
-                {"provider": "openai", "model": "gpt-4o-mini", "enabled": True}
-            ],
+            "reference_models": [{"provider": "openai", "model": "gpt-4o-mini", "enabled": True}],
         }
         with patch(
             "app.services.migration.hermes.hermes_moa_migrator.migrate_hermes_moa_overlay",

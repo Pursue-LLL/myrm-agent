@@ -11,9 +11,7 @@ from app.core.utils.git_worktree import WorktreeCreateError, WorktreeErrorReason
 from app.services.kanban.task_runner.worktree import resolve_workspace, worktree_dir
 
 
-async def _seed_task(
-    store: InMemoryKanbanStore, *, task_id: str, base: str, branch: str | None
-) -> KanbanTask:
+async def _seed_task(store: InMemoryKanbanStore, *, task_id: str, base: str, branch: str | None) -> KanbanTask:
     await store.save_board(KanbanBoard(board_id="b1", name="Board"))
     task = KanbanTask(
         task_id=task_id,
@@ -26,11 +24,7 @@ async def _seed_task(
 
 
 async def _branch_events(store: InMemoryKanbanStore, task_id: str) -> list:
-    return [
-        e
-        for e in await store.list_events(task_id)
-        if e.kind == TaskEventKind.BRANCH_SWITCHED
-    ]
+    return [e for e in await store.list_events(task_id) if e.kind == TaskEventKind.BRANCH_SWITCHED]
 
 
 @pytest.mark.asyncio

@@ -74,9 +74,7 @@ class TestModelSwitchPreflight:
             "/api/v1/integrations/llm/model-switch-preflight",
             json={
                 "estimated_tokens": 9000,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -96,9 +94,7 @@ class TestModelSwitchPreflight:
             "/api/v1/integrations/llm/model-switch-preflight",
             json={
                 "estimated_tokens": 1000,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -112,9 +108,7 @@ class TestModelSwitchPreflight:
             json={
                 "estimated_tokens": 24000,
                 "compress_start_ratio": 0.6,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 32000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 32000}],
             },
         )
         assert response.status_code == 200
@@ -190,9 +184,7 @@ class TestModelSwitchPreflight:
         # 100000 -> STRONG threshold 50000 -> no compress
         assert by_model["custom/b"]["will_compress"] is False
 
-    def test_out_of_range_compress_start_ratio_is_clamped(
-        self, client: TestClient
-    ) -> None:
+    def test_out_of_range_compress_start_ratio_is_clamped(self, client: TestClient) -> None:
         """Out-of-range ratio is clamped by harness ContextConfig instead of rejected.
 
         Mirrors runtime behavior: ContextConfig._effective_ratio clamps to [0.20, 0.85].
@@ -202,9 +194,7 @@ class TestModelSwitchPreflight:
             json={
                 "estimated_tokens": 10000,
                 "compress_start_ratio": 1.5,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -220,9 +210,7 @@ class TestModelSwitchPreflight:
             json={
                 "estimated_tokens": 10000,
                 "compress_start_ratio": 0.1,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -241,9 +229,7 @@ class TestModelSwitchPreflight:
             json={
                 "estimated_tokens": 9000,
                 "prompt_mode": "lean",
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -259,9 +245,7 @@ class TestModelSwitchPreflight:
             json={
                 "estimated_tokens": 7000,
                 "prompt_mode": "lean",
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -276,9 +260,7 @@ class TestModelSwitchPreflight:
             json={
                 "estimated_tokens": 9000,
                 "prompt_mode": "full",
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -286,18 +268,14 @@ class TestModelSwitchPreflight:
         expected = int(16000 * (0.30 + (0.95 - 0.30) / 3.0))
         assert item["compress_threshold"] == expected
 
-    def test_turn_count_low_session_keeps_static_threshold(
-        self, client: TestClient
-    ) -> None:
+    def test_turn_count_low_session_keeps_static_threshold(self, client: TestClient) -> None:
         """Fewer than 5 turns keeps the static threshold (dynamic only kicks in later)."""
         response = client.post(
             "/api/v1/integrations/llm/model-switch-preflight",
             json={
                 "estimated_tokens": 6000,
                 "turn_count": 3,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -307,18 +285,14 @@ class TestModelSwitchPreflight:
         assert item["compress_threshold"] == expected
         assert item["will_compress"] is False
 
-    def test_turn_count_long_tight_session_lowers_threshold(
-        self, client: TestClient
-    ) -> None:
+    def test_turn_count_long_tight_session_lowers_threshold(self, client: TestClient) -> None:
         """Long tight sessions lower the dynamic threshold -> previously-missed compression now warned."""
         response = client.post(
             "/api/v1/integrations/llm/model-switch-preflight",
             json={
                 "estimated_tokens": 8000,
                 "turn_count": 10,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -333,9 +307,7 @@ class TestModelSwitchPreflight:
             "/api/v1/integrations/llm/model-switch-preflight",
             json={
                 "estimated_tokens": 6000,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -364,15 +336,11 @@ class TestPreflightAntiThrashStreak:
             json={
                 "estimated_tokens": estimated_tokens,
                 "chat_id": chat_id,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         ).json()["data"]["results"][0]
 
-    def test_streak_below_limit_keeps_normal_judgment(
-        self, client: TestClient, streak_store: _FakeStreakStore
-    ) -> None:
+    def test_streak_below_limit_keeps_normal_judgment(self, client: TestClient, streak_store: _FakeStreakStore) -> None:
         """streak=1 (< limit 2) does not suppress the warning."""
         streak_store.set_streak("chat-a", 1)
         item = self._post(client, estimated_tokens=9000, chat_id="chat-a")
@@ -388,9 +356,7 @@ class TestPreflightAntiThrashStreak:
         # 9000 < 16000*0.9=14400 and streak>=2 -> anti-thrash blocks -> no warning
         assert item["will_compress"] is False
 
-    def test_streak_at_limit_above_safety_net_still_warns(
-        self, client: TestClient, streak_store: _FakeStreakStore
-    ) -> None:
+    def test_streak_at_limit_above_safety_net_still_warns(self, client: TestClient, streak_store: _FakeStreakStore) -> None:
         """streak>=2 but tokens>=90% window: runtime force-compresses (OOM guard), warning stays."""
         streak_store.set_streak("chat-a", 2)
         item = self._post(client, estimated_tokens=15000, chat_id="chat-a")
@@ -403,9 +369,7 @@ class TestPreflightAntiThrashStreak:
             "/api/v1/integrations/llm/model-switch-preflight",
             json={
                 "estimated_tokens": 9000,
-                "models": [
-                    {"model": "custom/mystery-model", "max_input_tokens": 16000}
-                ],
+                "models": [{"model": "custom/mystery-model", "max_input_tokens": 16000}],
             },
         )
         assert response.status_code == 200
@@ -451,9 +415,7 @@ class TestPreflightWindowResolution:
         assert item["new_window"] is None
         assert item["will_compress"] is False
 
-    def test_backend_resolves_window_from_litellm_info(
-        self, client: TestClient
-    ) -> None:
+    def test_backend_resolves_window_from_litellm_info(self, client: TestClient) -> None:
         """Backend resolves max_input_tokens from LiteLLM model info when not provided."""
         with patch(
             "app.api.integrations.llms._try_get_model_info_exact",

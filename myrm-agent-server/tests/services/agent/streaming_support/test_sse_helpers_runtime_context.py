@@ -19,9 +19,7 @@ from app.services.agent.streaming_support import sse_helpers
 def _capture_stream_calls() -> list[dict[str, object]]:
     calls: list[dict[str, object]] = []
 
-    async def capturing_stream(
-        *_args: object, **_kwargs: object
-    ) -> AsyncGenerator[dict[str, object], None]:
+    async def capturing_stream(*_args: object, **_kwargs: object) -> AsyncGenerator[dict[str, object], None]:
         calls.append(_kwargs)
         if False:
             yield {}

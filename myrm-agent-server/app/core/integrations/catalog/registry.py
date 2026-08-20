@@ -74,19 +74,9 @@ class CatalogRegistry:
         if mcp_cfg is None or mcp_cfg.deployment_scope is not None:
             return entry
 
-        default_scope = (
-            DeploymentScope.LOCAL_TAURI_ONLY
-            if entry.id in _LOCAL_TAURI_ONLY_ENTRY_IDS
-            else DeploymentScope.ALL_MODES
-        )
+        default_scope = DeploymentScope.LOCAL_TAURI_ONLY if entry.id in _LOCAL_TAURI_ONLY_ENTRY_IDS else DeploymentScope.ALL_MODES
 
-        return entry.model_copy(
-            update={
-                "mcp_config": mcp_cfg.model_copy(
-                    update={"deployment_scope": default_scope}
-                )
-            }
-        )
+        return entry.model_copy(update={"mcp_config": mcp_cfg.model_copy(update={"deployment_scope": default_scope})})
 
     def list_all(self) -> list[CatalogEntry]:
         """Return all catalog entries."""

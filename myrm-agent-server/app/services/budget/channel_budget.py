@@ -116,7 +116,10 @@ class ChannelBudgetRegistry:
             return guard.record_cost(cost)
 
     def _build_status_dict(
-        self, key: str, policy: ChannelBudgetPolicy, guard: DailyBudgetGuard | None,
+        self,
+        key: str,
+        policy: ChannelBudgetPolicy,
+        guard: DailyBudgetGuard | None,
     ) -> dict[str, object]:
         if guard is None:
             return {
@@ -153,10 +156,7 @@ class ChannelBudgetRegistry:
 
     def get_all_statuses(self) -> list[dict[str, object]]:
         with self._lock:
-            return [
-                self._build_status_dict(key, self._policies[key], self._guards.get(key))
-                for key in sorted(self._policies)
-            ]
+            return [self._build_status_dict(key, self._policies[key], self._guards.get(key)) for key in sorted(self._policies)]
 
     @property
     def policies(self) -> dict[str, ChannelBudgetPolicy]:
@@ -230,9 +230,7 @@ async def load_channel_budget_policies() -> ChannelBudgetPoliciesConfig:
     """Load all channel budget policies from DB."""
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY))
         row = result.scalar_one_or_none()
         if row is None:
             return ChannelBudgetPoliciesConfig()
@@ -247,9 +245,7 @@ async def save_channel_budget_policy(policy: ChannelBudgetPolicy) -> None:
     """Save or update a single channel budget policy."""
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY))
         row = result.scalar_one_or_none()
         now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
 
@@ -281,9 +277,7 @@ async def delete_channel_budget_policy(channel_key: str) -> bool:
     """Remove a channel budget policy."""
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY))
         row = result.scalar_one_or_none()
         if row is None:
             return False
@@ -312,9 +306,7 @@ async def initialize_channel_budgets() -> None:
             initial_cost = await _query_channel_today_cost(policy.channel_key)
             registry.configure(policy, initial_cost=initial_cost)
             if initial_cost > 0:
-                logger.info(
-                    "Channel budget recovered for %s: $%.4f", policy.channel_key, initial_cost
-                )
+                logger.info("Channel budget recovered for %s: $%.4f", policy.channel_key, initial_cost)
 
 
 def should_block_channel(channel_session_key: str) -> bool:

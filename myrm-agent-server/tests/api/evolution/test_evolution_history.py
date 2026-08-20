@@ -189,8 +189,17 @@ async def test_history_record_fields(
     item = next((i for i in data["items"] if i["id"] == approved_record.id), None)
     assert item is not None
     expected_keys = {
-        "id", "skill_id", "skill_name", "evolution_type", "reason",
-        "original_content", "evolved_content", "confidence", "test_passed",
-        "status", "created_at", "resolved_at",
+        "id",
+        "skill_id",
+        "skill_name",
+        "evolution_type",
+        "reason",
+        "original_content",
+        "evolved_content",
+        "confidence",
+        "test_passed",
+        "status",
+        "created_at",
+        "resolved_at",
     }
     assert expected_keys <= set(item.keys())

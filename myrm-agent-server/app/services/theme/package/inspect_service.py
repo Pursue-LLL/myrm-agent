@@ -78,9 +78,9 @@ class ThemePackageInspectError(ValueError):
 
 def inspect_theme_package(zip_bytes: bytes) -> ThemePackageInspectResult:
     if not zip_bytes:
-        raise ThemePackageInspectError('Empty theme package')
+        raise ThemePackageInspectError("Empty theme package")
     if len(zip_bytes) > MAX_PACKAGE_BYTES:
-        raise ThemePackageInspectError('Theme package exceeds 24MB limit')
+        raise ThemePackageInspectError("Theme package exceeds 24MB limit")
 
     package_sha256 = hashlib.sha256(zip_bytes).hexdigest()
 
@@ -97,32 +97,32 @@ def inspect_theme_package(zip_bytes: bytes) -> ThemePackageInspectResult:
         raise ThemePackageInspectError(str(error)) from error
 
     if len(extracted) > MAX_PACKAGE_FILES:
-        raise ThemePackageInspectError(f'Theme package exceeds {MAX_PACKAGE_FILES} files')
+        raise ThemePackageInspectError(f"Theme package exceeds {MAX_PACKAGE_FILES} files")
 
     files: dict[str, bytes] = {}
     for name, content in extracted.items():
         if is_unsafe_entry_path(name):
-            raise ThemePackageInspectError(f'Unsafe path in theme package: {name}')
+            raise ThemePackageInspectError(f"Unsafe path in theme package: {name}")
         if not is_allowed_package_entry(name):
-            raise ThemePackageInspectError(f'Disallowed file in theme package: {name}')
+            raise ThemePackageInspectError(f"Disallowed file in theme package: {name}")
         if is_image_entry(name) and len(content) > MAX_IMAGE_BYTES:
-            raise ThemePackageInspectError(f'Image too large: {name}')
+            raise ThemePackageInspectError(f"Image too large: {name}")
         if is_motion_entry(name) and len(content) > MAX_MOTION_BYTES:
-            raise ThemePackageInspectError(f'Video too large: {name}')
+            raise ThemePackageInspectError(f"Video too large: {name}")
         if is_image_entry(name) and is_animated_image(name, content):
-            raise ThemePackageInspectError(f'Animated image is not allowed: {name}')
+            raise ThemePackageInspectError(f"Animated image is not allowed: {name}")
         if is_motion_entry(name) and not is_valid_mp4(content):
-            raise ThemePackageInspectError(f'Invalid MP4 file: {name}')
+            raise ThemePackageInspectError(f"Invalid MP4 file: {name}")
         files[name] = content
 
     if RECIPE_JSON not in files:
-        raise ThemePackageInspectError('Theme package is missing recipe.json')
+        raise ThemePackageInspectError("Theme package is missing recipe.json")
 
     try:
-        raw_manifest = json.loads(files[RECIPE_JSON].decode('utf-8'))
+        raw_manifest = json.loads(files[RECIPE_JSON].decode("utf-8"))
         manifest = ThemePackageManifestModel.model_validate(raw_manifest)
     except (json.JSONDecodeError, ValidationError, UnicodeDecodeError) as error:
-        raise ThemePackageInspectError(f'Invalid recipe.json: {error}') from error
+        raise ThemePackageInspectError(f"Invalid recipe.json: {error}") from error
 
     warnings: list[str] = []
     can_import = True
@@ -132,24 +132,24 @@ def inspect_theme_package(zip_bytes: bytes) -> ThemePackageInspectResult:
     poster_filename = art.posterAssetRef
     preview_filename = manifest.previewFile
 
-    if art.mediaKind != 'none' and not hero_filename:
-        warnings.append('Art layer enabled but hero asset is missing')
+    if art.mediaKind != "none" and not hero_filename:
+        warnings.append("Art layer enabled but hero asset is missing")
         can_import = False
 
     if hero_filename and hero_filename not in files:
-        warnings.append(f'Hero file not found in package: {hero_filename}')
+        warnings.append(f"Hero file not found in package: {hero_filename}")
         can_import = False
 
-    if art.mediaKind == 'video':
+    if art.mediaKind == "video":
         if not poster_filename:
-            warnings.append('MP4 themes require a poster image for mobile and reduced-motion fallback')
+            warnings.append("MP4 themes require a poster image for mobile and reduced-motion fallback")
             can_import = False
         elif poster_filename not in files:
-            warnings.append(f'Poster file not found in package: {poster_filename}')
+            warnings.append(f"Poster file not found in package: {poster_filename}")
             can_import = False
 
     if preview_filename and preview_filename not in files:
-        warnings.append(f'Preview file not found in package: {preview_filename}')
+        warnings.append(f"Preview file not found in package: {preview_filename}")
 
     session = create_session(
         package_sha256=package_sha256,
@@ -161,11 +161,11 @@ def inspect_theme_package(zip_bytes: bytes) -> ThemePackageInspectResult:
         can_import=can_import,
     )
 
-    hero_thumb = _thumbnail_data_url(files.get(hero_filename or ''), hero_filename)
+    hero_thumb = _thumbnail_data_url(files.get(hero_filename or ""), hero_filename)
     if hero_thumb is None and poster_filename and poster_filename in files:
         hero_thumb = _thumbnail_data_url(files[poster_filename], poster_filename)
     preview_thumb = _thumbnail_data_url(
-        files.get(preview_filename or ''),
+        files.get(preview_filename or ""),
         preview_filename,
     )
 
@@ -175,7 +175,7 @@ def inspect_theme_package(zip_bytes: bytes) -> ThemePackageInspectResult:
         package_sha256=package_sha256,
         can_import=can_import,
         warnings=warnings,
-        signature_status='unsigned',
+        signature_status="unsigned",
         name=manifest.name,
         description=manifest.description,
         tagline=manifest.tagline,
@@ -203,7 +203,7 @@ def _thumbnail_data_url(content: bytes, filename: str | None) -> str | None:
     if not content or not filename:
         return None
     mime = _guess_mime(filename)
-    if mime not in {'image/png', 'image/jpeg', 'image/webp'}:
+    if mime not in {"image/png", "image/jpeg", "image/webp"}:
         return None
-    encoded = base64.b64encode(content).decode('ascii')
-    return f'data:{mime};base64,{encoded}'
+    encoded = base64.b64encode(content).decode("ascii")
+    return f"data:{mime};base64,{encoded}"

@@ -97,9 +97,7 @@ def _privacy_deep_scan_context(
                 store_installed = True
                 previous_pseudonymizer = install_memory_pseudonymizer(policy, store)
             else:
-                logger.warning(
-                    "PseudonymStore not installed for retry: no workspace path available"
-                )
+                logger.warning("PseudonymStore not installed for retry: no workspace path available")
         yield deep_scan
     finally:
         if store_installed:
@@ -131,11 +129,7 @@ def _find_last_turn(
 
     last_user = active[last_user_index]
     last_assistant = next(
-        (
-            message
-            for message in active[last_user_index + 1 :]
-            if message.role == "assistant"
-        ),
+        (message for message in active[last_user_index + 1 :] if message.role == "assistant"),
         None,
     )
     if last_assistant is None:
@@ -182,9 +176,7 @@ async def _run_retry_extract(
         embedding_cfg,
         approval_required=False,
         dedup_llm=extraction_llm,
-        time_decay_half_life_days=_time_decay_half_life_days(
-            binding_context.memory_decay_profile
-        ),
+        time_decay_half_life_days=_time_decay_half_life_days(binding_context.memory_decay_profile),
         on_conflict=create_conflict_callback(agent_id=binding_context.agent_id),
     )
 
@@ -213,9 +205,7 @@ async def _run_retry_extract(
         )
 
 
-async def run_retry_extract_for_chat(
-    chat_id: str, *, source: str = "manual_retry_extract"
-) -> bool:
+async def run_retry_extract_for_chat(chat_id: str, *, source: str = "manual_retry_extract") -> bool:
     """Run compressed-track extraction for a chat's latest turn.
 
     Returns True when extraction was attempted; False when there is nothing to retry

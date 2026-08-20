@@ -64,11 +64,7 @@ def fetch_retry_row(
 
     async def _fetch(chat_id: str) -> MemoryExtractRetryModel | None:
         async with test_db() as db:
-            result = await db.execute(
-                select(MemoryExtractRetryModel).where(
-                    MemoryExtractRetryModel.chat_id == chat_id
-                )
-            )
+            result = await db.execute(select(MemoryExtractRetryModel).where(MemoryExtractRetryModel.chat_id == chat_id))
             return result.scalar_one_or_none()
 
     return _fetch

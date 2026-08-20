@@ -97,9 +97,7 @@ async def mock_artifact(db_session):
     )
     db_session.add(version)
     await db_session.commit()
-    loaded = await db_session.execute(
-        select(Artifact).options(selectinload(Artifact.versions)).where(Artifact.id == artifact.id)
-    )
+    loaded = await db_session.execute(select(Artifact).options(selectinload(Artifact.versions)).where(Artifact.id == artifact.id))
     return loaded.scalar_one()
 
 
@@ -130,10 +128,10 @@ async def test_publish_artifact_success(hosting_client, mock_artifact, db_sessio
     assert data["publication"]["id"]
     assert data["publication"]["hosting_target_id"] == LEGACY_VERCEL_TARGET_ID
     pub = (
-        await db_session.execute(
-            select(ArtifactPublication).where(ArtifactPublication.artifact_id == mock_artifact.id)
-        )
-    ).scalars().first()
+        (await db_session.execute(select(ArtifactPublication).where(ArtifactPublication.artifact_id == mock_artifact.id)))
+        .scalars()
+        .first()
+    )
     assert pub is not None
     assert pub.publication_status == "READY"
 

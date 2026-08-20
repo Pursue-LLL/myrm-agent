@@ -9,9 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -109,11 +107,7 @@ def _run_compound_api_assertions(api_url: str) -> None:
     assert isinstance(edits, list)
     assert len(edits) >= pending_count_before + 1
     matched = next(
-        (
-            item
-            for item in edits
-            if isinstance(item, dict) and item.get("id") == pending_edit_id
-        ),
+        (item for item in edits if isinstance(item, dict) and item.get("id") == pending_edit_id),
         None,
     )
     assert matched is not None, pending_after
@@ -168,9 +162,7 @@ def _run_compound_approve_concept_provenance(api_url: str) -> None:
     assert concept.get("source_message") == assistant_id, concept
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -181,9 +173,7 @@ def test_wiki_compound_live_api_stages_pending() -> None:
     _run_compound_api_assertions(api_url)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -202,9 +192,7 @@ def test_wiki_compound_live_api_rejects_incognito_chat() -> None:
     assert detail.get("detail", {}).get("code") == "incognito_forbidden"
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

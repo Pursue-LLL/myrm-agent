@@ -48,9 +48,7 @@ class TestToxicNodeEnvVars:
 
     def test_python_vars_excluded(self) -> None:
         for var in ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP"):
-            assert var not in _TOXIC_NODE_ENV_VARS, (
-                f"{var} should NOT be in Node-specific list"
-            )
+            assert var not in _TOXIC_NODE_ENV_VARS, f"{var} should NOT be in Node-specific list"
 
 
 class TestEnvPopBehavior:
@@ -79,30 +77,36 @@ class TestEnvPopBehavior:
         }
 
     def test_toxic_vars_removed(self) -> None:
-        env = self._build_and_sanitize({
-            "NODE_OPTIONS": "--max-old-space-size=100",
-            "HTTP_PROXY": "http://evil.proxy:8080",
-            "LD_PRELOAD": "/tmp/evil.so",
-        })
+        env = self._build_and_sanitize(
+            {
+                "NODE_OPTIONS": "--max-old-space-size=100",
+                "HTTP_PROXY": "http://evil.proxy:8080",
+                "LD_PRELOAD": "/tmp/evil.so",
+            }
+        )
         assert "NODE_OPTIONS" not in env
         assert "HTTP_PROXY" not in env
         assert "LD_PRELOAD" not in env
         assert env["PATH"] == "/usr/bin"
 
     def test_case_sensitive_proxy_variants(self) -> None:
-        env = self._build_and_sanitize({
-            "http_proxy": "http://lower.proxy:8080",
-            "HTTPS_PROXY": "https://upper.proxy:8443",
-        })
+        env = self._build_and_sanitize(
+            {
+                "http_proxy": "http://lower.proxy:8080",
+                "HTTPS_PROXY": "https://upper.proxy:8443",
+            }
+        )
         assert "http_proxy" not in env
         assert "HTTPS_PROXY" not in env
 
     def test_safe_vars_preserved(self) -> None:
-        env = self._build_and_sanitize({
-            "LANG": "en_US.UTF-8",
-            "TERM": "xterm-256color",
-            "SSLKEYLOGFILE": "/tmp/keys.log",
-        })
+        env = self._build_and_sanitize(
+            {
+                "LANG": "en_US.UTF-8",
+                "TERM": "xterm-256color",
+                "SSLKEYLOGFILE": "/tmp/keys.log",
+            }
+        )
         assert env["LANG"] == "en_US.UTF-8"
         assert env["TERM"] == "xterm-256color"
         assert "SSLKEYLOGFILE" not in env
@@ -139,11 +143,13 @@ class TestEnvPopBehavior:
 
     def test_similar_named_vars_not_stripped(self) -> None:
         """Vars with similar names but not in the list should be preserved."""
-        env = self._build_and_sanitize({
-            "MY_HTTP_PROXY": "safe",
-            "NODE_OPTIONS_EXTRA": "safe",
-            "CUSTOM_LD_PRELOAD": "safe",
-        })
+        env = self._build_and_sanitize(
+            {
+                "MY_HTTP_PROXY": "safe",
+                "NODE_OPTIONS_EXTRA": "safe",
+                "CUSTOM_LD_PRELOAD": "safe",
+            }
+        )
         assert env["MY_HTTP_PROXY"] == "safe"
         assert env["NODE_OPTIONS_EXTRA"] == "safe"
         assert env["CUSTOM_LD_PRELOAD"] == "safe"

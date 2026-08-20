@@ -52,9 +52,7 @@ async def rewind_to_message(
         if not chat:
             raise not_found_error("Chat session")
 
-        result = await ChatService.rewind_to_message(
-            chat_id, body.message_id, revert_files=body.scope == "both"
-        )
+        result = await ChatService.rewind_to_message(chat_id, body.message_id, revert_files=body.scope == "both")
         if result.error == "SESSION_BUSY":
             raise HTTPException(
                 status_code=409,

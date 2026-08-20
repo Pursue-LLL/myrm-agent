@@ -350,13 +350,15 @@ async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[
         turn_index = by_message_id.get(str(call.message_id)) if call.message_id else None
         if turn_index is None:
             turn_index = _assistant_turn_index_at(call.start_time, message_windows)
-        details.append({
-            "turnIndex": turn_index,
-            "name": call.tool_name,
-            "argsSummary": _sanitize_args_summary(call.input_data),
-            "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
-            "success": call.success,
-        })
+        details.append(
+            {
+                "turnIndex": turn_index,
+                "name": call.tool_name,
+                "argsSummary": _sanitize_args_summary(call.input_data),
+                "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
+                "success": call.success,
+            }
+        )
     return details
 
 

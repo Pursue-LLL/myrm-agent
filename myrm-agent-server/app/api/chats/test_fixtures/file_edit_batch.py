@@ -61,18 +61,14 @@ async def seed_file_edit_batch_fixture(
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for file-edit batch E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for file-edit batch E2E seed")
 
     agent = agents[0]
     resolved_agent_id = (agent_id or "").strip() or agent.id
     chat_id = f"e2efedit{uuid4().hex[:8]}"
     message_id = str(uuid4())
 
-    workspace_dir = await resolve_default_chat_workspace_dir(
-        chat_id, persist_workspace=True
-    )
+    workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
     if not workspace_dir:
         raise HTTPException(
             status_code=500,
@@ -155,9 +151,7 @@ async def seed_file_edit_batch_workspace(chat_id: str) -> dict[str, str]:
     if not resolved_chat_id:
         raise HTTPException(status_code=400, detail="chat_id required")
 
-    workspace_dir = await resolve_default_chat_workspace_dir(
-        resolved_chat_id, persist_workspace=True
-    )
+    workspace_dir = await resolve_default_chat_workspace_dir(resolved_chat_id, persist_workspace=True)
     if not workspace_dir:
         raise HTTPException(
             status_code=500,

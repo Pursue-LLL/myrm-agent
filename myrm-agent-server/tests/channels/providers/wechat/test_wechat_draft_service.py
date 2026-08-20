@@ -64,7 +64,7 @@ def test_build_draft_content_uses_body_with_embedded_style() -> None:
     assert "<html" not in content
     assert "<head" not in content
     assert "<style>h1 { color: red; }</style>" in content
-    assert 'border-left: 4px solid #07c160' in content
+    assert "border-left: 4px solid #07c160" in content
     assert "<h2" in content
     assert _extract_digest("<h2>Title</h2><p>Hello world</p>") == "Title Hello world"
 
@@ -209,9 +209,7 @@ async def test_create_draft_auto_digest_omits_pre_code_high_risk_terms(
 ) -> None:
     html_path, _image = html_with_local_image
     html_path.write_text(
-        "<html><body><p>正常教程</p>"
-        "<pre><code>保本理财，稳赚不赔</code></pre>"
-        '<img src="cover.png" alt="cover"></body></html>',
+        '<html><body><p>正常教程</p><pre><code>保本理财，稳赚不赔</code></pre><img src="cover.png" alt="cover"></body></html>',
         encoding="utf-8",
     )
     client = AsyncMock(spec=WeChatOfficialApiClient)
@@ -234,11 +232,7 @@ async def test_create_draft_auto_digest_omits_pre_code_high_risk_terms(
 
 
 def test_extract_digest_skips_pre_code_blocks() -> None:
-    html = (
-        "<html><body><p>正常正文</p>"
-        "<pre><code>保本理财，稳赚不赔</code></pre>"
-        "</body></html>"
-    )
+    html = "<html><body><p>正常正文</p><pre><code>保本理财，稳赚不赔</code></pre></body></html>"
     assert _extract_digest(html) == "正常正文"
 
 
@@ -362,7 +356,7 @@ async def test_create_draft_uploads_remote_image_successfully(
     cover.write_bytes(b"\x89PNG\r\n\x1a\n")
     html_path = tmp_path / "remote-success.html"
     html_path.write_text(
-        '<html><body><p>Remote image article with enough visible text for digest extraction.</p>'
+        "<html><body><p>Remote image article with enough visible text for digest extraction.</p>"
         '<img src="https://cdn.example.com/photo.png" alt="remote"></body></html>',
         encoding="utf-8",
     )

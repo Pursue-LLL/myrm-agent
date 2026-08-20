@@ -35,7 +35,5 @@ class TestDeliverableDisciplineSSOT:
         assert again is KNOWLEDGE_WORK_SYSTEM_PROMPT
 
     def test_economy_spec_uses_ssot_prompt(self) -> None:
-        economy = next(
-            spec for spec in _CORE_BUILTIN_AGENTS if spec.id == "builtin-economy"
-        )
+        economy = next(spec for spec in _CORE_BUILTIN_AGENTS if spec.id == "builtin-economy")
         assert economy.system_prompt is KNOWLEDGE_WORK_SYSTEM_PROMPT

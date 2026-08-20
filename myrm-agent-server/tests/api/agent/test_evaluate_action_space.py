@@ -6,9 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -33,9 +31,7 @@ async def test_evaluate_action_space_basic(
         "enabled_builtin_tools": ["web_search"],
     }
 
-    response = await async_client.post(
-        "/api/agents/evaluate-action-space", json=payload
-    )
+    response = await async_client.post("/api/agents/evaluate-action-space", json=payload)
 
     assert response.status_code == 200
     data = response.json()
@@ -66,9 +62,7 @@ async def test_evaluate_action_space_critical(
         "enabled_builtin_tools": [],
     }
 
-    response = await async_client.post(
-        "/api/agents/evaluate-action-space", json=payload
-    )
+    response = await async_client.post("/api/agents/evaluate-action-space", json=payload)
 
     assert response.status_code == 200
     data = response.json()

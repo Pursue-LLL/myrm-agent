@@ -20,9 +20,7 @@ from tests.support.chrome_mcp_e2e import (
 
 
 def _seed_stream_retry_busy_fixture(api_url: str) -> dict[str, str]:
-    seeded = http_json(
-        "POST", f"{api_url}/api/v1/chats/test/seed-stream-retry-busy-fixture"
-    )
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-stream-retry-busy-fixture")
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     message_id = str(seeded.get("message_id") or "")
@@ -144,9 +142,7 @@ def test_stream_retry_same_message_id_is_busy_without_duplicate_user_row() -> No
                 timeout_sec=90.0,
             )
             assert isinstance(attached, dict) and attached.get("ok") is True, attached
-            snap = (
-                attached.get("snap") if isinstance(attached.get("snap"), dict) else {}
-            )
+            snap = attached.get("snap") if isinstance(attached.get("snap"), dict) else {}
             baseline_users = snap.get("userCount")
             assert isinstance(baseline_users, int) and baseline_users >= 1
 

@@ -16,9 +16,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -64,9 +62,7 @@ def _seed_compound_chat(
                     "messageId": assistant_id,
                     "chatId": chat_id,
                     "role": "assistant",
-                    "content": (
-                        "Continuous integration automates testing on every change."
-                    ),
+                    "content": ("Continuous integration automates testing on every change."),
                     "createdAt": assistant_created,
                 },
             ],
@@ -75,9 +71,7 @@ def _seed_compound_chat(
     return chat_id, user_id, assistant_id
 
 
-def _compound_post(
-    api_url: str, *, chat_id: str, message_id: str, concept_name: str
-) -> dict[str, object]:
+def _compound_post(api_url: str, *, chat_id: str, message_id: str, concept_name: str) -> dict[str, object]:
     payload = http_json(
         "POST",
         f"{api_url.rstrip('/')}/api/v1/wiki/compound",
@@ -183,9 +177,7 @@ _PROVENANCE_LINK_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -198,10 +190,7 @@ def test_wiki_concept_detail_source_jump() -> None:
     concept_name, source_chat = _seed_provenance_concept(api_url)
 
     warm_ui_route("/settings/wiki")
-    wiki_page_url = (
-        f"{ui_url.rstrip('/')}/settings/wiki"
-        f"?conceptPath={urllib.parse.quote(concept_name, safe='')}"
-    )
+    wiki_page_url = f"{ui_url.rstrip('/')}/settings/wiki?conceptPath={urllib.parse.quote(concept_name, safe='')}"
 
     with open_wiki_settings_mcp_page(
         wiki_page_url,
@@ -271,7 +260,5 @@ def test_wiki_concept_detail_source_jump() -> None:
         assert isinstance(link_state, dict), link_state
         assert link_state.get("ok") is True, link_state
         href = str(link_state.get("href") or "")
-        assert href.startswith(
-            f"/{source_chat}"
-        ), f"expected deep link under /{source_chat}, got {href!r}"
+        assert href.startswith(f"/{source_chat}"), f"expected deep link under /{source_chat}, got {href!r}"
         assert "highlight=" in href, f"expected message-level ?highlight, got {href!r}"

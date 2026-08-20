@@ -33,9 +33,7 @@ def test_resolve_mobile_remote_base_url_prefers_running_tunnel(monkeypatch: pyte
     manager._state = TunnelState.RUNNING
     manager._public_url = "https://tunnel.example.com"
     monkeypatch.setattr("app.remote_access.mobile_deep_link.get_tunnel_manager", lambda: manager)
-    assert resolve_mobile_remote_base_url(public_ingress_base_url="https://ingress.example.com") == (
-        "https://tunnel.example.com"
-    )
+    assert resolve_mobile_remote_base_url(public_ingress_base_url="https://ingress.example.com") == ("https://tunnel.example.com")
 
 
 def test_build_mobile_status_deep_link_returns_none_without_base() -> None:

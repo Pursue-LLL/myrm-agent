@@ -288,9 +288,7 @@ def test_pattern_digest_panel_real_browser_flow() -> None:
             _INJECT_FETCH_HOOK_JS.replace("__SEED_JSON__", json.dumps(_SEED_EVENTS)),
             timeout_sec=15.0,
         )
-        assert isinstance(injected, dict) and injected.get("ok") is True, json.dumps(
-            injected, ensure_ascii=False
-        )
+        assert isinstance(injected, dict) and injected.get("ok") is True, json.dumps(injected, ensure_ascii=False)
         client.evaluate(
             page,
             "window.__MYRM_PD_MOCK__.setMode('seed')",

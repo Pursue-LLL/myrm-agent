@@ -165,10 +165,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
                 body.workflow_template_id,
                 body.workflow_template_args,
             )
-        elif (
-            "workflow_template_args" in body.model_fields_set
-            and body.workflow_template_args is not None
-        ):
+        elif "workflow_template_args" in body.model_fields_set and body.workflow_template_args is not None:
             existing = await mgr.get_job(job_id, USER_ID)
             if existing and existing.workflow_template_id:
                 validate_cron_workflow_template_binding(
@@ -188,18 +185,12 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
         if body.delivery or body.failure_delivery or body.failure_alert is not None:
             existing = await mgr.get_job(job_id, USER_ID)
             delivery_secret = existing.delivery.secret if existing else None
-            failure_delivery_secret = (
-                existing.failure_delivery.secret if existing and existing.failure_delivery else None
-            )
+            failure_delivery_secret = existing.failure_delivery.secret if existing and existing.failure_delivery else None
             failure_alert_secret: str | None = None
             if existing and existing.failure_alert and not isinstance(existing.failure_alert, bool):
                 fa_delivery = existing.failure_alert.delivery
                 failure_alert_secret = fa_delivery.secret if fa_delivery else None
-            delivery_patch = (
-                _h._delivery_from_request(body.delivery, existing_secret=delivery_secret)
-                if body.delivery
-                else None
-            )
+            delivery_patch = _h._delivery_from_request(body.delivery, existing_secret=delivery_secret) if body.delivery else None
             failure_delivery_patch = (
                 _h._delivery_from_request(
                     body.failure_delivery,
@@ -264,9 +255,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             clear_acceptance_criteria=body.acceptance_criteria is None and "acceptance_criteria" in body.model_fields_set,
             workflow_template_id=body.workflow_template_id,
             workflow_template_args=body.workflow_template_args,
-            clear_workflow_template=(
-                body.workflow_template_id is None and "workflow_template_id" in body.model_fields_set
-            ),
+            clear_workflow_template=(body.workflow_template_id is None and "workflow_template_id" in body.model_fields_set),
         )
         job = await mgr.update_job(job_id, USER_ID, patch)
     except ValueError as e:

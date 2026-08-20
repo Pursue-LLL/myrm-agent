@@ -58,9 +58,7 @@ def git_repo(tmp_path: Path) -> Path:
     return repo
 
 
-async def _create_worktree_with_commit(
-    base: Path, chat_id: str, filename: str, content: str
-) -> Path:
+async def _create_worktree_with_commit(base: Path, chat_id: str, filename: str, content: str) -> Path:
     created = await create_sandbox_worktree(str(base), chat_id)
     assert isinstance(created, str), f"worktree creation failed: {created}"
     wt = Path(created)
@@ -103,10 +101,7 @@ async def test_dirty_worktree_auto_commit_preserves_edits(git_repo: Path) -> Non
     success, message = await merge_sandbox_to_parent(str(git_repo), chat_id)
     assert success is True, message
     # The edit survives on main even though the agent never committed it.
-    assert (
-        _run_git(git_repo, "show", "main:precious.txt").stdout
-        == "AGENT_UNCOMMITTED_EDIT\n"
-    )
+    assert _run_git(git_repo, "show", "main:precious.txt").stdout == "AGENT_UNCOMMITTED_EDIT\n"
     assert not wt.exists()
 
 

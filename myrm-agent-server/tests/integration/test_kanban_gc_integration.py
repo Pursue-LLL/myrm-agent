@@ -46,14 +46,20 @@ async def _insert_board(session: AsyncSession, board_id: str) -> None:
 
 
 async def _insert_task(
-    session: AsyncSession, task_id: str, board_id: str,
-    status: str = "archived", updated_at: datetime | None = None,
+    session: AsyncSession,
+    task_id: str,
+    board_id: str,
+    status: str = "archived",
+    updated_at: datetime | None = None,
     workspace_path: str | None = None,
 ) -> None:
     t = KanbanTaskModel(
-        id=task_id, board_id=board_id,
-        title=f"task-{task_id[:8]}", description="",
-        status=status, priority="normal",
+        id=task_id,
+        board_id=board_id,
+        title=f"task-{task_id[:8]}",
+        description="",
+        status=status,
+        priority="normal",
         workspace_path=workspace_path,
     )
     session.add(t)
@@ -245,7 +251,9 @@ class TestGCWorkspacesIntegration:
             async with get_session() as s:
                 await _insert_board(s, board_id)
                 await _insert_task(
-                    s, task_id, board_id,
+                    s,
+                    task_id,
+                    board_id,
                     status="archived",
                     updated_at=_old_dt(30),
                     workspace_path=str(ws_dir),
@@ -253,6 +261,7 @@ class TestGCWorkspacesIntegration:
                 await s.commit()
 
             from unittest.mock import MagicMock, patch
+
             mock_settings = MagicMock()
             mock_settings.database.harness_dir = harness_root
 
@@ -282,7 +291,9 @@ class TestGCWorkspacesIntegration:
             async with get_session() as s:
                 await _insert_board(s, board_id)
                 await _insert_task(
-                    s, task_id, board_id,
+                    s,
+                    task_id,
+                    board_id,
                     status="archived",
                     updated_at=_old_dt(30),
                     workspace_path=attacker_dir,
@@ -290,6 +301,7 @@ class TestGCWorkspacesIntegration:
                 await s.commit()
 
             from unittest.mock import MagicMock, patch
+
             mock_settings = MagicMock()
             mock_settings.database.harness_dir = harness_root
 
@@ -304,7 +316,6 @@ class TestGCWorkspacesIntegration:
             async with get_session() as s:
                 assert await _get_workspace_path(s, task_id) is None
 
-
     @pytest.mark.asyncio
     async def test_already_gone_workspace_nulled(self) -> None:
         """workspace_path in DB points to non-existent dir → path NULLed."""
@@ -316,7 +327,9 @@ class TestGCWorkspacesIntegration:
             async with get_session() as s:
                 await _insert_board(s, board_id)
                 await _insert_task(
-                    s, task_id, board_id,
+                    s,
+                    task_id,
+                    board_id,
                     status="archived",
                     updated_at=_old_dt(30),
                     workspace_path=gone_dir,
@@ -324,6 +337,7 @@ class TestGCWorkspacesIntegration:
                 await s.commit()
 
             from unittest.mock import MagicMock, patch
+
             mock_settings = MagicMock()
             mock_settings.database.harness_dir = harness_root
 
@@ -350,7 +364,9 @@ class TestGCWorkspacesIntegration:
             async with get_session() as s:
                 await _insert_board(s, board_id)
                 await _insert_task(
-                    s, task_id, board_id,
+                    s,
+                    task_id,
+                    board_id,
                     status="archived",
                     updated_at=_fresh_dt(),
                     workspace_path=str(ws_dir),
@@ -358,6 +374,7 @@ class TestGCWorkspacesIntegration:
                 await s.commit()
 
             from unittest.mock import MagicMock, patch
+
             mock_settings = MagicMock()
             mock_settings.database.harness_dir = harness_root
 
@@ -385,7 +402,9 @@ class TestGCWorkspacesIntegration:
             async with get_session() as s:
                 await _insert_board(s, board_id)
                 await _insert_task(
-                    s, task_id, board_id,
+                    s,
+                    task_id,
+                    board_id,
                     status="completed",
                     updated_at=_old_dt(60),
                     workspace_path=str(ws_dir),
@@ -393,6 +412,7 @@ class TestGCWorkspacesIntegration:
                 await s.commit()
 
             from unittest.mock import MagicMock, patch
+
             mock_settings = MagicMock()
             mock_settings.database.harness_dir = harness_root
 
@@ -407,6 +427,7 @@ class TestGCWorkspacesIntegration:
     async def test_empty_db_gc_no_error(self) -> None:
         """GC on empty (no kanban data) DB completes without error."""
         from unittest.mock import MagicMock, patch
+
         mock_settings = MagicMock()
         mock_settings.database.harness_dir = "/tmp/nonexistent_harness"
 
@@ -435,13 +456,14 @@ class TestRunGCFullIntegration:
             async with get_session() as s:
                 await _insert_board(s, board_id)
                 await _insert_task(
-                    s, t_archived, board_id,
+                    s,
+                    t_archived,
+                    board_id,
                     status="archived",
                     updated_at=_old_dt(60),
                     workspace_path=str(ws_dir),
                 )
-                await _insert_task(s, t_done, board_id, status="completed",
-                                   updated_at=_old_dt(60))
+                await _insert_task(s, t_done, board_id, status="completed", updated_at=_old_dt(60))
 
                 for _ in range(5):
                     await _insert_event(s, t_archived, _old_dt(60))
@@ -452,6 +474,7 @@ class TestRunGCFullIntegration:
                 await s.commit()
 
             from unittest.mock import MagicMock, patch
+
             mock_settings = MagicMock()
             mock_settings.database.harness_dir = harness_root
 

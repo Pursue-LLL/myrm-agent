@@ -195,14 +195,13 @@ async def put_target_credentials(
 
 
 @router.get("/{artifact_id}/publications")
-async def get_artifact_publications(artifact_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, list[dict[str, str | None]]]:
+async def get_artifact_publications(
+    artifact_id: str, db: AsyncSession = Depends(get_db)
+) -> dict[str, list[dict[str, str | None]]]:
     rows = await list_publications(db, artifact_id)
     target_names = {t.id: t.name for t in await list_hosting_targets(db)}
     return {
-        "publications": [
-            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id))
-            for row in rows
-        ]
+        "publications": [publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id)) for row in rows]
     }
 
 

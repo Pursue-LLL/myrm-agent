@@ -114,10 +114,7 @@ def _server_to_config_dict(
         # Credential material never lands as plaintext: values that are already
         # secret references stay verbatim, anything else maps to a
         # ``{{secret:KEY}}`` reference keyed by the header name.
-        cfg["headers"] = {
-            k: (v if _is_secret_reference(v) else "{{secret:" + k + "}}")
-            for k, v in server.headers.items()
-        }
+        cfg["headers"] = {k: (v if _is_secret_reference(v) else "{{secret:" + k + "}}") for k, v in server.headers.items()}
     extra_params: dict[str, object] = {}
     if plugin_name:
         extra_params["plugin_name"] = plugin_name
@@ -151,9 +148,7 @@ def _collect_required_secret_keys(configs: list[dict[str, object]]) -> list[str]
     for cfg in configs:
         required = cfg.get("required_secrets")
         if isinstance(required, list):
-            keys.extend(
-                str(key) for key in required if isinstance(key, str) and key.strip()
-            )
+            keys.extend(str(key) for key in required if isinstance(key, str) and key.strip())
         headers = cfg.get("headers")
         if isinstance(headers, dict):
             for value in headers.values():
@@ -178,9 +173,7 @@ async def _write_mcp_servers(
 
     existing = await _load_persisted_mcp_configs(config_service)
 
-    existing_names = {
-        str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)
-    }
+    existing_names = {str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)}
     new_configs: list[dict[str, object]] = []
     persisted_names: list[str] = []
     for cfg in configs:
@@ -194,9 +187,7 @@ async def _write_mcp_servers(
         persisted_names.append(name)
 
     if new_configs:
-        await config_service.set(
-            "mcpServers", {"mcpConfigs": existing}, device_id="plugin-import"
-        )
+        await config_service.set("mcpServers", {"mcpConfigs": existing}, device_id="plugin-import")
         invalidate_user_configs_cache()
     return persisted_names
 
@@ -247,11 +238,7 @@ async def _bind_agent(
     update_fields: dict[str, list[str]] = {}
     if skill_ids:
         existing_skills = metadata.get("skill_ids", [])
-        update_fields["skill_ids"] = list(
-            dict.fromkeys(
-                [*(str(s) for s in existing_skills if isinstance(s, str)), *skill_ids]
-            )
-        )
+        update_fields["skill_ids"] = list(dict.fromkeys([*(str(s) for s in existing_skills if isinstance(s, str)), *skill_ids]))
     if server_names:
         existing_servers = metadata.get("mcp_ids", [])
         update_fields["mcp_ids"] = list(
@@ -294,9 +281,7 @@ async def _remove_plugin_mcp_servers(plugin_name: str) -> int:
         remaining.append(cfg)
 
     if removed:
-        await config_service.set(
-            "mcpServers", {"mcpConfigs": remaining}, device_id="plugin-uninstall"
-        )
+        await config_service.set("mcpServers", {"mcpConfigs": remaining}, device_id="plugin-uninstall")
         invalidate_user_configs_cache()
     return removed
 
@@ -318,12 +303,8 @@ async def _unbind_plugin_from_agents(server_names: list[str]) -> int:
         for profile in profiles:
             metadata = profile.metadata or {}
             existing_servers = metadata.get("mcp_ids", [])
-            kept = [
-                str(s) for s in existing_servers if isinstance(s, str) and s not in targets
-            ]
+            kept = [str(s) for s in existing_servers if isinstance(s, str) and s not in targets]
             if len(kept) != len(existing_servers):
-                await uow.agent_repo.update_profile(
-                    profile.id, {"metadata": {**metadata, "mcp_ids": kept}}
-                )
+                await uow.agent_repo.update_profile(profile.id, {"metadata": {**metadata, "mcp_ids": kept}})
                 updated += 1
     return updated

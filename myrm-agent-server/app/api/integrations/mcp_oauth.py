@@ -68,27 +68,19 @@ async def _refresh_connection_pool_auth(server_name: str, token: MCPOAuthToken) 
             headers = {"Authorization": f"{token.token_type} {token.access_token}"}
             MCPConnectionManager._instance.refresh_server_auth(server_name, headers)
     except Exception:
-        logger.debug(
-            "Connection pool auth refresh skipped for '%s'", server_name, exc_info=True
-        )
+        logger.debug("Connection pool auth refresh skipped for '%s'", server_name, exc_info=True)
 
 
 def _evict_expired_pending() -> None:
     """Remove pending auth entries older than 10 minutes (lazy GC)."""
     now = time.time()
     if len(_pending_auth) > _MAX_PENDING:
-        expired = [
-            k
-            for k, v in _pending_auth.items()
-            if now - float(v.get("created_at", "0")) > _EXPIRY_SECONDS
-        ]
+        expired = [k for k, v in _pending_auth.items() if now - float(v.get("created_at", "0")) > _EXPIRY_SECONDS]
         for k in expired:
             del _pending_auth[k]
 
     if len(_successful_auth) > _MAX_PENDING:
-        expired_success = [
-            k for k, v in _successful_auth.items() if now - v > _EXPIRY_SECONDS
-        ]
+        expired_success = [k for k, v in _successful_auth.items() if now - v > _EXPIRY_SECONDS]
         for k in expired_success:
             del _successful_auth[k]
 

@@ -268,9 +268,7 @@ async def test_clarification_resume_callback_reschedules_nested_clarify() -> Non
             "app.services.agent.streaming_support.sse_helpers.StreamContentCollector",
             return_value=collector,
         ),
-        patch(
-            "app.services.agent.streaming_support.sse_helpers.schedule_clarification_timeout"
-        ) as mock_reschedule,
+        patch("app.services.agent.streaming_support.sse_helpers.schedule_clarification_timeout") as mock_reschedule,
     ):
         schedule_clarification_timeout("chat-3", params, timeout_seconds=99.0)
         await _invoke_captured_callback(captured)
@@ -315,9 +313,7 @@ async def test_clarification_resume_callback_schedules_nested_approval() -> None
             "app.services.agent.streaming_support.sse_helpers.StreamContentCollector",
             return_value=collector,
         ),
-        patch(
-            "app.services.agent.streaming_support.sse_helpers.schedule_approval_timeout"
-        ) as mock_approval_schedule,
+        patch("app.services.agent.streaming_support.sse_helpers.schedule_approval_timeout") as mock_approval_schedule,
     ):
         schedule_clarification_timeout("chat-4", params)
         await _invoke_captured_callback(captured)
@@ -403,9 +399,7 @@ async def test_approval_resume_callback_persists_and_reschedules() -> None:
             "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
             new_callable=AsyncMock,
         ) as mock_persist,
-        patch(
-            "app.services.agent.streaming_support.sse_helpers.schedule_approval_timeout"
-        ) as mock_reschedule,
+        patch("app.services.agent.streaming_support.sse_helpers.schedule_approval_timeout") as mock_reschedule,
     ):
         schedule_approval_timeout("chat-6", {"seconds": 30, "behavior": "deny"}, params)
         await _invoke_captured_callback(captured)
@@ -449,9 +443,7 @@ async def test_approval_resume_callback_logs_completion_without_nested_timeout()
             "app.services.agent.streaming_support.sse_helpers.StreamContentCollector",
             return_value=collector,
         ),
-        patch(
-            "app.services.agent.streaming_support.sse_helpers.schedule_approval_timeout"
-        ) as mock_reschedule,
+        patch("app.services.agent.streaming_support.sse_helpers.schedule_approval_timeout") as mock_reschedule,
     ):
         schedule_approval_timeout("chat-7", {"seconds": 30, "behavior": "deny"}, params)
         await _invoke_captured_callback(captured)

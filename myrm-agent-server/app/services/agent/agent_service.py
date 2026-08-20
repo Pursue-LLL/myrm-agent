@@ -64,9 +64,7 @@ class _AgentRepositoryPort(Protocol):
         cron_post_run_verify: bool = False,
     ) -> AgentProfile: ...
 
-    async def update_profile(
-        self, agent_id: str, updates: dict[str, object]
-    ) -> AgentProfile | None: ...
+    async def update_profile(self, agent_id: str, updates: dict[str, object]) -> AgentProfile | None: ...
 
     async def delete_profile(self, agent_id: str) -> bool: ...
 
@@ -115,9 +113,7 @@ def _invalidate_agent_profile_cache(agent_id: str) -> None:
 
         get_agent_profile_resolver().invalidate(agent_id)
     except Exception as e:
-        logger.warning(
-            "Failed to invalidate AgentProfileResolver cache for '%s': %s", agent_id, e
-        )
+        logger.warning("Failed to invalidate AgentProfileResolver cache for '%s': %s", agent_id, e)
 
 
 # 确保 harness 目录存在
@@ -175,9 +171,7 @@ class AgentService:
         return cast(_AgentRepositoryPort, uow.agent_repo)
 
     @staticmethod
-    async def get_agent_list(
-        page: int = 1, page_size: int = 20
-    ) -> tuple[list[AgentProfile], int]:
+    async def get_agent_list(page: int = 1, page_size: int = 20) -> tuple[list[AgentProfile], int]:
         """获取智能体列表（支持分页）— DB-level pagination."""
         from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS
 
@@ -187,9 +181,7 @@ class AgentService:
         async with UnitOfWork() as uow:
             repo = AgentService._ar(uow)
             total = await repo.count_profiles(exclude_ids=hidden_ids)
-            profiles = await repo.list_profiles(
-                offset=offset, limit=page_size, exclude_ids=hidden_ids
-            )
+            profiles = await repo.list_profiles(offset=offset, limit=page_size, exclude_ids=hidden_ids)
 
             return profiles, total
 
@@ -207,12 +199,7 @@ class AgentService:
             return []
         async with UnitOfWork() as uow:
             profiles = await AgentService._ar(uow).list_profiles()
-        matches = [
-            p
-            for p in profiles
-            if p.display_name
-            and _normalize_agent_name(p.display_name) == normalized_name
-        ]
+        matches = [p for p in profiles if p.display_name and _normalize_agent_name(p.display_name) == normalized_name]
         matches.sort(key=_agent_name_match_sort_key)
         return matches
 
@@ -246,12 +233,8 @@ class AgentService:
             validate_agent_skill_config_instances,
         )
 
-        await validate_agent_skill_config_instances(
-            skill_configs=agent_data.skill_configs
-        )
-        serialized_skill_configs = serialize_agent_skill_configs(
-            agent_data.skill_configs
-        )
+        await validate_agent_skill_config_instances(skill_configs=agent_data.skill_configs)
+        serialized_skill_configs = serialize_agent_skill_configs(agent_data.skill_configs)
 
         agent_id = str(uuid.uuid4())
 
@@ -273,11 +256,7 @@ class AgentService:
             "engine_params": agent_data.engine_params,
             "openapi_services": agent_data.openapi_services or [],
             "agent_type": agent_data.agent_type,
-            "session_policy": (
-                agent_data.session_policy.model_dump(mode="json")
-                if agent_data.session_policy
-                else None
-            ),
+            "session_policy": (agent_data.session_policy.model_dump(mode="json") if agent_data.session_policy else None),
             "notify_targets": agent_data.notify_targets,
             "tool_gateway_config": (
                 agent_data.tool_gateway_config.model_dump(mode="json")
@@ -295,26 +274,20 @@ class AgentService:
             display_name=agent_data.name,
             description=agent_data.description,
             avatar=agent_data.avatar_url,
-            model=(
-                agent_data.model_selection.model if agent_data.model_selection else None
-            ),
+            model=(agent_data.model_selection.model if agent_data.model_selection else None),
             max_iterations=agent_data.max_iterations,
             skills=agent_data.skill_ids,
             skill_configs=serialized_skill_configs,
             tools_allowed=agent_data.enabled_builtin_tools,
             system_prompt=agent_data.system_prompt,
             memory_policy=_memory_policy_from_request(agent_data.memory_policy),
-            command_bindings=_command_bindings_from_request(
-                agent_data.command_bindings
-            ),
+            command_bindings=_command_bindings_from_request(agent_data.command_bindings),
             metadata=metadata,
             built_in=agent_data.is_built_in,
         )
 
         if agent_data.model_selection:
-            metadata["_model_selection_full"] = agent_data.model_selection.model_dump(
-                by_alias=True, exclude_none=True
-            )
+            metadata["_model_selection_full"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
 
         async with UnitOfWork() as uow:
             created_profile = await AgentService._ar(uow).create_profile(
@@ -324,15 +297,11 @@ class AgentService:
 
         _finalize_profile_mutation(created_profile.id, "created")
 
-        logger.info(
-            f"✅ 创建智能体: {created_profile.id} (name={created_profile.display_name})"
-        )
+        logger.info(f"✅ 创建智能体: {created_profile.id} (name={created_profile.display_name})")
         return created_profile
 
     @staticmethod
-    async def update_agent(
-        agent_id: str, agent_data: AgentUpdate
-    ) -> AgentUpdateOutcome | None:
+    async def update_agent(agent_id: str, agent_data: AgentUpdate) -> AgentUpdateOutcome | None:
         """更新智能体"""
         if agent_data.enabled_builtin_tools is not None:
             from app.services.agent.external_cli_gate import (
@@ -347,12 +316,8 @@ class AgentService:
                 validate_agent_skill_config_instances,
             )
 
-            await validate_agent_skill_config_instances(
-                skill_configs=agent_data.skill_configs
-            )
-            serialized_skill_configs = serialize_agent_skill_configs(
-                agent_data.skill_configs
-            )
+            await validate_agent_skill_config_instances(skill_configs=agent_data.skill_configs)
+            serialized_skill_configs = serialize_agent_skill_configs(agent_data.skill_configs)
         else:
             serialized_skill_configs = None
 
@@ -372,9 +337,7 @@ class AgentService:
                 updates["avatar"] = agent_data.avatar_url
             if agent_data.model_selection is not None:
                 updates["model"] = agent_data.model_selection.model
-                updates["model_selection"] = agent_data.model_selection.model_dump(
-                    by_alias=True, exclude_none=True
-                )
+                updates["model_selection"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
             if agent_data.skill_ids is not None:
                 updates["skills"] = agent_data.skill_ids
             if serialized_skill_configs is not None:
@@ -384,23 +347,15 @@ class AgentService:
             if agent_data.is_built_in is not None and not existing.built_in:
                 updates["built_in"] = agent_data.is_built_in
 
-            if (
-                agent_data.system_prompt is not None
-                and agent_data.system_prompt != HIDDEN_SYSTEM_PROMPT
-            ):
+            if agent_data.system_prompt is not None and agent_data.system_prompt != HIDDEN_SYSTEM_PROMPT:
                 updates["system_prompt"] = agent_data.system_prompt
             if "max_iterations" in agent_data.model_fields_set:
                 # 显式 null 表示恢复系统默认（DB 置 NULL）；不传则保持原值。
                 # 前端清空 Max Iterations 输入框会发送 null，必须能真正重置。
                 updates["max_iterations"] = agent_data.max_iterations
             if "memory_policy" in agent_data.model_fields_set:
-                updates["memory_policy"] = _memory_policy_from_request(
-                    agent_data.memory_policy
-                )
-            if (
-                "workspace_policy" in agent_data.model_fields_set
-                and agent_data.workspace_policy is not None
-            ):
+                updates["memory_policy"] = _memory_policy_from_request(agent_data.memory_policy)
+            if "workspace_policy" in agent_data.model_fields_set and agent_data.workspace_policy is not None:
                 updates["workspace_policy"] = agent_data.workspace_policy
 
             # 更新 metadata
@@ -416,9 +371,7 @@ class AgentService:
             if agent_data.security_overrides is not None:
                 new_metadata["security_overrides"] = agent_data.security_overrides
             if "default_security_preset" in agent_data.model_fields_set:
-                new_metadata["default_security_preset"] = (
-                    agent_data.default_security_preset
-                )
+                new_metadata["default_security_preset"] = agent_data.default_security_preset
             if agent_data.prompt_mode is not None:
                 new_metadata["prompt_mode"] = agent_data.prompt_mode
             if agent_data.personality_style is not None:
@@ -427,15 +380,9 @@ class AgentService:
                 new_metadata["allow_discovery"] = agent_data.allow_discovery
             if agent_data.subagent_ids is not None:
                 existing_meta = existing.metadata or {}
-                previous_subagent_ids = list(
-                    new_metadata.get("subagent_ids")
-                    or existing_meta.get("subagent_ids")
-                    or []
-                )
+                previous_subagent_ids = list(new_metadata.get("subagent_ids") or existing_meta.get("subagent_ids") or [])
                 new_metadata["subagent_ids"] = agent_data.subagent_ids
-                subagent_binding_changed = sorted(previous_subagent_ids) != sorted(
-                    agent_data.subagent_ids
-                )
+                subagent_binding_changed = sorted(previous_subagent_ids) != sorted(agent_data.subagent_ids)
             else:
                 subagent_binding_changed = False
             if "workspace_policy" in agent_data.model_fields_set:
@@ -443,9 +390,7 @@ class AgentService:
             if "engine_params" in agent_data.model_fields_set:
                 new_metadata["engine_params"] = agent_data.engine_params
             if "auto_restore_domains" in agent_data.model_fields_set:
-                new_metadata["auto_restore_domains"] = list(
-                    agent_data.auto_restore_domains or []
-                )
+                new_metadata["auto_restore_domains"] = list(agent_data.auto_restore_domains or [])
             if "suggestion_prompts" in agent_data.model_fields_set:
                 new_metadata["suggestion_prompts"] = agent_data.suggestion_prompts
             if "openapi_services" in agent_data.model_fields_set:
@@ -454,9 +399,7 @@ class AgentService:
                 new_metadata["agent_type"] = agent_data.agent_type
             if "session_policy" in agent_data.model_fields_set:
                 new_metadata["session_policy"] = (
-                    agent_data.session_policy.model_dump(mode="json")
-                    if agent_data.session_policy
-                    else None
+                    agent_data.session_policy.model_dump(mode="json") if agent_data.session_policy else None
                 )
             if "notify_targets" in agent_data.model_fields_set:
                 new_metadata["notify_targets"] = agent_data.notify_targets
@@ -474,24 +417,17 @@ class AgentService:
                 new_metadata["session_recording"] = agent_data.session_recording
             if "busy_input_mode" in agent_data.model_fields_set:
                 new_metadata["busy_input_mode"] = agent_data.busy_input_mode
-            if (
-                "cron_post_run_verify" in agent_data.model_fields_set
-                and agent_data.cron_post_run_verify is not None
-            ):
+            if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
                 updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
 
             updates["metadata"] = new_metadata
 
             if "command_bindings" in agent_data.model_fields_set:
-                updates["command_bindings"] = _command_bindings_from_request(
-                    agent_data.command_bindings
-                )
+                updates["command_bindings"] = _command_bindings_from_request(agent_data.command_bindings)
 
             if not existing.built_in and has_mutable_diff(existing, updates):
                 try:
-                    saved_id = await ProfileSnapshotService.save_profile_snapshot(
-                        agent_id, reason="webui-update", uow=uow
-                    )
+                    saved_id = await ProfileSnapshotService.save_profile_snapshot(agent_id, reason="webui-update", uow=uow)
                     snapshot_saved = saved_id is not None
                 except Exception as e:
                     snapshot_saved = False
@@ -501,9 +437,7 @@ class AgentService:
                         e,
                     )
 
-            updated_profile = await AgentService._ar(uow).update_profile(
-                agent_id, updates
-            )
+            updated_profile = await AgentService._ar(uow).update_profile(agent_id, updates)
             if updated_profile is None:
                 return None
 
@@ -521,14 +455,10 @@ class AgentService:
                     )
                 )
             except Exception as e:
-                logger.warning(
-                    "Failed to publish subagent rebind event for %s: %s", agent_id, e
-                )
+                logger.warning("Failed to publish subagent rebind event for %s: %s", agent_id, e)
 
         logger.info("Agent updated: %s", agent_id)
-        return AgentUpdateOutcome(
-            profile=updated_profile, snapshot_saved=snapshot_saved
-        )
+        return AgentUpdateOutcome(profile=updated_profile, snapshot_saved=snapshot_saved)
 
     @staticmethod
     async def delete_agent(agent_id: str) -> bool:
@@ -554,9 +484,7 @@ class AgentService:
 
                 from app.config.settings import settings
 
-                store = SkillStore(
-                    db_path=Path(settings.database.state_dir) / "skills.db"
-                )
+                store = SkillStore(db_path=Path(settings.database.state_dir) / "skills.db")
                 deleted_count = await store.delete_skills_by_agent(agent_id)
                 if deleted_count > 0:
                     logger.info(
@@ -575,9 +503,7 @@ class AgentService:
                 manager = SqlTopicManager()
                 await manager.remove_agent_from_all_bindings(agent_id)
             except Exception as e:
-                logger.error(
-                    f"Failed to cascade delete bindings for agent {agent_id}: {e}"
-                )
+                logger.error(f"Failed to cascade delete bindings for agent {agent_id}: {e}")
 
             # 级联清理 Kanban 任务的 agent_id 引用
             try:
@@ -592,9 +518,7 @@ class AgentService:
                         agent_id,
                     )
             except Exception as e:
-                logger.error(
-                    "Failed to clear kanban agent refs for %s: %s", agent_id, e
-                )
+                logger.error("Failed to clear kanban agent refs for %s: %s", agent_id, e)
 
             # 级联清理 Cron Job 的 agent_id 引用（防止孤悬 Cron 以空配置运行）
             try:
@@ -605,9 +529,7 @@ class AgentService:
 
                 async with get_session() as session:
                     result = await session.execute(
-                        sql_update(CronJobModel)
-                        .where(CronJobModel.agent_id == agent_id)
-                        .values(agent_id=None)
+                        sql_update(CronJobModel).where(CronJobModel.agent_id == agent_id).values(agent_id=None)
                     )
                     await session.commit()
                     cron_cleared = result.rowcount or 0
@@ -637,9 +559,7 @@ class AgentService:
 
     @staticmethod
     async def rollback_profile_to_snapshot(agent_id: str, snapshot_id: str) -> bool:
-        ok = await ProfileSnapshotService.rollback_profile_to_snapshot(
-            agent_id, snapshot_id
-        )
+        ok = await ProfileSnapshotService.rollback_profile_to_snapshot(agent_id, snapshot_id)
         if ok:
             _finalize_profile_mutation(agent_id, "rollback")
         return ok

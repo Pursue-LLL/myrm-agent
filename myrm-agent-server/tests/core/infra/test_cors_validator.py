@@ -20,9 +20,7 @@ class TestParseAndValidateCorsOrigins:
         assert result == ["http://localhost:3000"]
 
     def test_multiple_origins(self) -> None:
-        result = parse_and_validate_cors_origins(
-            "http://localhost:3000,http://localhost:3001,tauri://localhost"
-        )
+        result = parse_and_validate_cors_origins("http://localhost:3000,http://localhost:3001,tauri://localhost")
         assert result == ["http://localhost:3000", "http://localhost:3001", "tauri://localhost"]
 
     def test_strips_whitespace(self) -> None:

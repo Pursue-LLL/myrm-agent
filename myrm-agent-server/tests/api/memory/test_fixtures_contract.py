@@ -20,9 +20,7 @@ def _fixture_paths() -> list[Path]:
     """All seed-fixture modules under app/api, either single-file or subpackage style."""
     api_root = _api_root()
     return sorted(
-        path
-        for path in api_root.rglob("*.py")
-        if path.name.startswith("test_fixtures") or "test_fixtures" in path.parts
+        path for path in api_root.rglob("*.py") if path.name.startswith("test_fixtures") or "test_fixtures" in path.parts
     )
 
 
@@ -34,6 +32,4 @@ def test_test_fixtures_do_not_call_fastapi_memory_depends_directly() -> None:
         for snippet in _FORBIDDEN_SNIPPETS:
             if snippet in text:
                 violations.append(f"{path.relative_to(_api_root().parent.parent)}: {snippet}")
-    assert not violations, "Forbidden FastAPI memory Depends usage in test fixtures:\n" + "\n".join(
-        violations
-    )
+    assert not violations, "Forbidden FastAPI memory Depends usage in test fixtures:\n" + "\n".join(violations)

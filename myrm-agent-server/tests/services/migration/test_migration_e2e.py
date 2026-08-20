@@ -54,22 +54,26 @@ def openclaw_e2e_root(tmp_path: Path) -> Path:
 
 
 def _make_pi_session_jsonl(session_id: str, messages: list[dict[str, str]]) -> str:
-    header = json.dumps({
-        "type": "session",
-        "version": 3,
-        "id": session_id,
-        "timestamp": "2025-07-01T12:00:00Z",
-        "cwd": "/tmp/test-project",
-    })
+    header = json.dumps(
+        {
+            "type": "session",
+            "version": 3,
+            "id": session_id,
+            "timestamp": "2025-07-01T12:00:00Z",
+            "cwd": "/tmp/test-project",
+        }
+    )
     lines = [header]
     for idx, msg in enumerate(messages):
-        entry = json.dumps({
-            "id": f"entry-{idx}",
-            "type": "message",
-            "timestamp": "2025-07-01T12:00:01Z",
-            "parentId": None,
-            "message": {"role": msg["role"], "content": msg["content"]},
-        })
+        entry = json.dumps(
+            {
+                "id": f"entry-{idx}",
+                "type": "message",
+                "timestamp": "2025-07-01T12:00:01Z",
+                "parentId": None,
+                "message": {"role": msg["role"], "content": msg["content"]},
+            }
+        )
         lines.append(entry)
     return "\n".join(lines)
 
@@ -90,17 +94,23 @@ def pi_e2e_root(tmp_path: Path) -> Path:
     sessions = root / "sessions"
     sessions.mkdir()
     (sessions / "s1.jsonl").write_text(
-        _make_pi_session_jsonl("s1", [
-            {"role": "user", "content": "Build a REST API with FastAPI"},
-            {"role": "assistant", "content": "I'll create a FastAPI app with proper routing."},
-        ]),
+        _make_pi_session_jsonl(
+            "s1",
+            [
+                {"role": "user", "content": "Build a REST API with FastAPI"},
+                {"role": "assistant", "content": "I'll create a FastAPI app with proper routing."},
+            ],
+        ),
         encoding="utf-8",
     )
     (sessions / "s2.jsonl").write_text(
-        _make_pi_session_jsonl("s2", [
-            {"role": "user", "content": "Add database migrations with Alembic"},
-            {"role": "assistant", "content": "Setting up Alembic for SQLAlchemy models."},
-        ]),
+        _make_pi_session_jsonl(
+            "s2",
+            [
+                {"role": "user", "content": "Add database migrations with Alembic"},
+                {"role": "assistant", "content": "Setting up Alembic for SQLAlchemy models."},
+            ],
+        ),
         encoding="utf-8",
     )
     skill_dir = root / "skills" / "deploy"
@@ -258,4 +268,3 @@ class TestMigrationE2E:
         )
         memory_payload = extract_memory_payload(loaded, include_episodic=False)
         assert "pi_sessions" not in memory_payload
-

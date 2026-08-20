@@ -76,9 +76,7 @@ async def flush_memory_brief_status_batch(
     for attempt in range(2):
         try:
             if _metrics.MEMORY_STATUS_FLUSH_ATTEMPTS is not None:
-                _metrics.MEMORY_STATUS_FLUSH_ATTEMPTS.labels(
-                    telemetry_subject=config.telemetry_subject
-                ).inc()
+                _metrics.MEMORY_STATUS_FLUSH_ATTEMPTS.labels(telemetry_subject=config.telemetry_subject).inc()
             response = await client.post(endpoint, json=payload, headers=headers)
             response.raise_for_status()
             dropped_store.ack(dropped_snapshot)
@@ -86,9 +84,7 @@ async def flush_memory_brief_status_batch(
         except httpx.HTTPError as exc:
             if attempt == 1:
                 if _metrics.MEMORY_STATUS_FLUSH_HTTP_ERRORS is not None:
-                    _metrics.MEMORY_STATUS_FLUSH_HTTP_ERRORS.labels(
-                        telemetry_subject=config.telemetry_subject
-                    ).inc()
+                    _metrics.MEMORY_STATUS_FLUSH_HTTP_ERRORS.labels(telemetry_subject=config.telemetry_subject).inc()
                 logger.warning(
                     "Failed to flush memory brief status telemetry to %s (status_events=%d dropped_events=%d): %s",
                     endpoint,

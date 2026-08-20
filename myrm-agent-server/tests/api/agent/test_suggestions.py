@@ -24,10 +24,7 @@ def test_unescaped_newline_in_string() -> None:
 
 def test_multiple_arrays_picks_last() -> None:
     """格式示例数组在前、真实结果在后时应取真实结果（最后者）。"""
-    raw = (
-        '```json\n["example one"]\n```\n'
-        'final:\n```json\n["real one", "real two", "real three"]\n```'
-    )
+    raw = '```json\n["example one"]\n```\nfinal:\n```json\n["real one", "real two", "real three"]\n```'
     assert _parse_suggestions(raw) == ["real one", "real two", "real three"]
 
 

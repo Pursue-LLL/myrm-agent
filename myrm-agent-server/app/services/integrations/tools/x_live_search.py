@@ -82,9 +82,7 @@ def create_x_live_search_tool() -> BaseTool:
 
         citations_text = ""
         if result.citations:
-            citations_text = "\n\nSources:\n" + "\n".join(
-                f"- [{c.title or c.url}]({c.url})" for c in result.citations
-            )
+            citations_text = "\n\nSources:\n" + "\n".join(f"- [{c.title or c.url}]({c.url})" for c in result.citations)
 
         return {
             "content": result.snippet + citations_text,

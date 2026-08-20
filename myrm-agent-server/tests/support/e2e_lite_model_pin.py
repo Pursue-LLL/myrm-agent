@@ -62,31 +62,21 @@ async def pin_lite_model_for_e2e(
         if isinstance(pinned_raw, dict) and pinned_raw.get("ok") is True:
             expected = get_lite_model_selection()
             pinned_model = pinned_raw.get("pinned")
-            assert isinstance(
-                pinned_model, dict
-            ), f"Missing pinned model payload: {pinned_raw}"
-            assert (
-                pinned_model.get("providerId") == expected["providerId"]
-            ), f"Pinned provider mismatch: {pinned_model} vs {expected}"
-            assert pinned_model.get("model") == strip_provider_prefix(
-                str(expected["model"])
-            ), f"Pinned model mismatch: {pinned_model} vs {expected}"
+            assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned_raw}"
+            assert pinned_model.get("providerId") == expected["providerId"], (
+                f"Pinned provider mismatch: {pinned_model} vs {expected}"
+            )
+            assert pinned_model.get("model") == strip_provider_prefix(str(expected["model"])), (
+                f"Pinned model mismatch: {pinned_model} vs {expected}"
+            )
             return pinned_raw
-        err = (
-            str(pinned_raw.get("err") or pinned_raw)
-            if isinstance(pinned_raw, dict)
-            else str(pinned_raw)
-        )
-        if attempt < max_attempts and (
-            "e2e-lite-model-unconfigured" in err or err == "no-bridge"
-        ):
+        err = str(pinned_raw.get("err") or pinned_raw) if isinstance(pinned_raw, dict) else str(pinned_raw)
+        if attempt < max_attempts and ("e2e-lite-model-unconfigured" in err or err == "no-bridge"):
             if err == "no-bridge":
                 await chat.ensure_react_e2e_bridge(timeout_sec=120.0)  # type: ignore[attr-defined]
             await asyncio.sleep(retry_sleep_sec)
             continue
         break
-    assert isinstance(
-        last_raw, dict
-    ), f"pinLiteModelForE2e returned non-dict: {last_raw}"
+    assert isinstance(last_raw, dict), f"pinLiteModelForE2e returned non-dict: {last_raw}"
     assert last_raw.get("ok") is True, f"Failed to pin lite model for E2E: {last_raw}"
     return last_raw

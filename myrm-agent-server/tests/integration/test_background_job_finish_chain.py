@@ -163,16 +163,10 @@ async def test_background_exit_persists_finish_message_to_chat(tmp_path: Path) -
 
     chat = await ChatService.get_chat_by_id(chat_id)
     assert chat is not None
-    bg_messages = [
-        m
-        for m in chat.messages
-        if m.extra_data and m.extra_data.get("background_job") is True
-    ]
+    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
     assert len(bg_messages) == 1
     assert (
-        str(pid) in bg_messages[0].content
-        or "completed" in bg_messages[0].content.lower()
-        or "已完成" in bg_messages[0].content
+        str(pid) in bg_messages[0].content or "completed" in bg_messages[0].content.lower() or "已完成" in bg_messages[0].content
     )
 
 
@@ -231,11 +225,7 @@ async def test_background_killed_does_not_persist_finish_message(
 
     chat = await ChatService.get_chat_by_id(chat_id)
     assert chat is not None
-    bg_messages = [
-        m
-        for m in chat.messages
-        if m.extra_data and m.extra_data.get("background_job") is True
-    ]
+    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
     assert bg_messages == []
 
 
@@ -298,11 +288,7 @@ async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -
     await asyncio.sleep(0.1)
     chat = await ChatService.get_chat_by_id(chat_id)
     assert chat is not None
-    bg_messages = [
-        m
-        for m in chat.messages
-        if m.extra_data and m.extra_data.get("background_job") is True
-    ]
+    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
     assert len(bg_messages) == 1
     assert bg_messages[0].extra_data.get("exit_code") == 2
 
@@ -360,9 +346,7 @@ async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> 
 
     assert BASH_PROCESS_TOOL_NAME in get_session_spawn_tool_names(chat_id)
 
-    killed = await get_background_registry().kill_session_jobs(
-        chat_id, grace_seconds=0.05
-    )
+    killed = await get_background_registry().kill_session_jobs(chat_id, grace_seconds=0.05)
     assert killed >= 1
     await asyncio.sleep(0.2)
 
@@ -370,9 +354,5 @@ async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> 
 
     chat = await ChatService.get_chat_by_id(chat_id)
     assert chat is not None
-    bg_messages = [
-        m
-        for m in chat.messages
-        if m.extra_data and m.extra_data.get("background_job") is True
-    ]
+    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
     assert bg_messages == []

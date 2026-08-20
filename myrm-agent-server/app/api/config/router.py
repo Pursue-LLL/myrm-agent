@@ -126,15 +126,11 @@ _ONBOARDING_DEVICE_ID = "onboarding-wizard"
 _TELEGRAM_AGENT_RESOLUTION_LOCK = asyncio.Lock()
 _TELEGRAM_AGENT_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
 _TELEGRAM_ONBOARDING_IN_PROGRESS_CODE = "TELEGRAM_ONBOARDING_IN_PROGRESS"
-_TELEGRAM_ONBOARDING_IN_PROGRESS_MESSAGE = (
-    "Telegram onboarding is already in progress. Please retry shortly."
-)
+_TELEGRAM_ONBOARDING_IN_PROGRESS_MESSAGE = "Telegram onboarding is already in progress. Please retry shortly."
 _SECOND_BRAIN_APPLY_LOCK = asyncio.Lock()
 _SECOND_BRAIN_CROSS_PROCESS_LOCK_TIMEOUT_SEC = 0.0
 _SECOND_BRAIN_ONBOARDING_IN_PROGRESS_CODE = "SECOND_BRAIN_ONBOARDING_IN_PROGRESS"
-_SECOND_BRAIN_ONBOARDING_IN_PROGRESS_MESSAGE = (
-    "Second Brain preset apply is already in progress. Please retry shortly."
-)
+_SECOND_BRAIN_ONBOARDING_IN_PROGRESS_MESSAGE = "Second Brain preset apply is already in progress. Please retry shortly."
 
 
 def _normalize_telegram_agent_name(raw: str) -> str:
@@ -203,9 +199,7 @@ def _normalize_webhook_url(raw: str | None) -> str:
 
 def _assert_webhook_url_valid(raw: str) -> None:
     if raw and not raw.startswith("https://"):
-        raise HTTPException(
-            status_code=422, detail="Telegram webhook URL must start with https://"
-        )
+        raise HTTPException(status_code=422, detail="Telegram webhook URL must start with https://")
 
 
 def _build_telegram_credentials(
@@ -243,18 +237,10 @@ def _build_channels_config_with_open_telegram_dm(
 ) -> dict[str, object]:
     cfg = deepcopy(previous) if previous is not None else {}
     channels_raw = cfg.get("channels")
-    channels_map: dict[str, object] = (
-        {str(k): v for k, v in channels_raw.items()}
-        if isinstance(channels_raw, dict)
-        else {}
-    )
+    channels_map: dict[str, object] = {str(k): v for k, v in channels_raw.items()} if isinstance(channels_raw, dict) else {}
 
     telegram_raw = channels_map.get("telegram")
-    telegram_cfg: dict[str, object] = (
-        {str(k): v for k, v in telegram_raw.items()}
-        if isinstance(telegram_raw, dict)
-        else {}
-    )
+    telegram_cfg: dict[str, object] = {str(k): v for k, v in telegram_raw.items()} if isinstance(telegram_raw, dict) else {}
     telegram_cfg["dmPolicy"] = "open"
     channels_map["telegram"] = telegram_cfg
     cfg["channels"] = channels_map
@@ -302,42 +288,29 @@ async def _resolve_or_create_telegram_agent(
     normalized_system_prompt = (request.assistant_system_prompt or "").strip()
 
     async with _TELEGRAM_AGENT_RESOLUTION_LOCK:
-        cross_process_lock = FileLock(
-            str(_telegram_agent_cross_process_lock_path(normalized_name))
-        )
+        cross_process_lock = FileLock(str(_telegram_agent_cross_process_lock_path(normalized_name)))
         _acquire_telegram_agent_cross_process_lock(cross_process_lock)
         try:
             name_matches = await AgentService.get_agents_by_name(normalized_name)
             existing_bindable = _pick_first_channel_bindable_agent(name_matches)
             if existing_bindable is not None:
                 existing_id = str(existing_bindable.id)
-                existing_name = str(
-                    getattr(existing_bindable, "display_name", "") or normalized_name
-                )
+                existing_name = str(getattr(existing_bindable, "display_name", "") or normalized_name)
                 return existing_id, existing_name, None
 
             create_name = normalized_name
             if name_matches:
                 create_name = f"{normalized_name} (General)"
-                general_name_matches = await AgentService.get_agents_by_name(
-                    create_name
-                )
-                existing_general = _pick_first_channel_bindable_agent(
-                    general_name_matches
-                )
+                general_name_matches = await AgentService.get_agents_by_name(create_name)
+                existing_general = _pick_first_channel_bindable_agent(general_name_matches)
                 if existing_general is not None:
                     existing_id = str(existing_general.id)
-                    existing_name = str(
-                        getattr(existing_general, "display_name", "") or create_name
-                    )
+                    existing_name = str(getattr(existing_general, "display_name", "") or create_name)
                     return existing_id, existing_name, None
 
-            default_description = (
-                "Personal Telegram assistant created by onboarding wizard."
-            )
+            default_description = "Personal Telegram assistant created by onboarding wizard."
             default_system_prompt = (
-                "You are a practical personal assistant running on Telegram. "
-                "Keep replies concise, actionable, and privacy-aware."
+                "You are a practical personal assistant running on Telegram. Keep replies concise, actionable, and privacy-aware."
             )
 
             created = await AgentService.create_agent(
@@ -381,9 +354,7 @@ async def _wait_for_telegram_channel_state(
     return connected, status
 
 
-async def _restore_config_snapshot(
-    config_key: str, value: dict[str, object] | None
-) -> None:
+async def _restore_config_snapshot(config_key: str, value: dict[str, object] | None) -> None:
     if value is None:
         await config_service.delete(config_key)
     else:
@@ -416,9 +387,7 @@ async def _rollback_telegram_onboarding(
         rollback_errors.append(f"channels restore failed: {exc}")
 
     try:
-        await _restore_config_snapshot(
-            "telegramCredentials", snapshot.telegram_credentials
-        )
+        await _restore_config_snapshot("telegramCredentials", snapshot.telegram_credentials)
         invalidate_user_configs_cache()
         invalidate_ingress_requirement_cache()
         await _try_hot_register_channel("telegramCredentials")
@@ -440,9 +409,7 @@ async def _rollback_telegram_onboarding(
         )
 
 
-def _validate_config_value(
-    config_key: str, value: dict[str, object], *, operation: str
-) -> dict[str, object]:
+def _validate_config_value(config_key: str, value: dict[str, object], *, operation: str) -> dict[str, object]:
     model_class = OMNI_CONFIG_MODELS.get(config_key)
     if not model_class:
         return value
@@ -463,21 +430,14 @@ def _validate_config_value(
     try:
         validated_data = model_class.model_validate(value)
     except ValidationError as exc:
-        logger.warning(
-            "Omni-Config %s validation failed for %s: %s", operation, config_key, exc
-        )
-        field_errors = [
-            {"field": ".".join(str(s) for s in err["loc"]), "message": err["msg"]}
-            for err in exc.errors()
-        ]
+        logger.warning("Omni-Config %s validation failed for %s: %s", operation, config_key, exc)
+        field_errors = [{"field": ".".join(str(s) for s in err["loc"]), "message": err["msg"]} for err in exc.errors()]
         raise HTTPException(
             status_code=422,
             detail={"message": "Configuration validation failed", "errors": field_errors},
         ) from exc
     except Exception as exc:
-        logger.warning(
-            "Omni-Config %s validation failed for %s: %s", operation, config_key, exc
-        )
+        logger.warning("Omni-Config %s validation failed for %s: %s", operation, config_key, exc)
         raise HTTPException(
             status_code=422,
             detail="Configuration validation failed",
@@ -504,9 +464,7 @@ async def get_config_schema(key: str) -> dict[str, object]:
 @router.get("", response_model=AllConfigsResponse)
 async def get_all_configs(
     sensitive: bool | None = Query(None, description="过滤敏感/非敏感配置"),
-    keys: str | None = Query(
-        None, description="按需加载，逗号分隔的配置键，如 providers,chatSettings"
-    ),
+    keys: str | None = Query(None, description="按需加载，逗号分隔的配置键，如 providers,chatSettings"),
 ) -> AllConfigsResponse:
     """获取配置
 
@@ -523,9 +481,7 @@ async def get_all_configs(
             key_list = [k.strip() for k in keys.split(",") if k.strip()]
             invalid = [k for k in key_list if k not in _VALID_CONFIG_KEYS]
             if invalid:
-                raise HTTPException(
-                    status_code=400, detail=f"Invalid config keys: {invalid}"
-                )
+                raise HTTPException(status_code=400, detail=f"Invalid config keys: {invalid}")
 
         all_configs = await config_service.get_all(keys=key_list)
 
@@ -616,9 +572,7 @@ async def get_config_readiness() -> dict[str, object]:
 
     search_checker = SearchConfigChecker()
     if user_configs.search_is_user_configured:
-        search_result = search_checker.check(
-            {"searchServiceConfigs": [{"enabled": True}]}
-        )
+        search_result = search_checker.check({"searchServiceConfigs": [{"enabled": True}]})
     else:
         search_result = search_checker.check(None)
 
@@ -715,9 +669,7 @@ async def apply_second_brain_onboarding(request: Request) -> dict[str, object]:
             raise HTTPException(status_code=500, detail=exc.message) from exc
         except Exception as exc:
             logger.exception("Failed to apply Second Brain preset")
-            raise HTTPException(
-                status_code=500, detail="Failed to apply Second Brain preset"
-            ) from exc
+            raise HTTPException(status_code=500, detail="Failed to apply Second Brain preset") from exc
         finally:
             _release_second_brain_cross_process_lock(cross_process_lock)
     return result.model_dump()
@@ -742,9 +694,7 @@ async def apply_telegram_assistant_onboarding(
     try:
         bot_username = await _verify_telegram_token(bot_token)
     except Exception as exc:
-        raise HTTPException(
-            status_code=400, detail="Telegram token verification failed"
-        ) from exc
+        raise HTTPException(status_code=400, detail="Telegram token verification failed") from exc
 
     previous_telegram, previous_channels, previous_topics = await asyncio.gather(
         config_service.get("telegramCredentials"),
@@ -752,24 +702,16 @@ async def apply_telegram_assistant_onboarding(
         config_service.get("telegramTopics"),
     )
     snapshot = _TelegramOnboardingSnapshot(
-        telegram_credentials=(
-            deepcopy(previous_telegram.value) if previous_telegram else None
-        ),
-        channels_config=(
-            deepcopy(previous_channels.value) if previous_channels else None
-        ),
+        telegram_credentials=(deepcopy(previous_telegram.value) if previous_telegram else None),
+        channels_config=(deepcopy(previous_channels.value) if previous_channels else None),
         telegram_topics=deepcopy(previous_topics.value) if previous_topics else None,
     )
 
     created_agent_id: str | None = None
     try:
-        agent_id, agent_name, created_agent_id = (
-            await _resolve_or_create_telegram_agent(body)
-        )
+        agent_id, agent_name, created_agent_id = await _resolve_or_create_telegram_agent(body)
 
-        telegram_credentials = _build_telegram_credentials(
-            snapshot.telegram_credentials, body
-        )
+        telegram_credentials = _build_telegram_credentials(snapshot.telegram_credentials, body)
         await config_service.set(
             config_key="telegramCredentials",
             value=telegram_credentials,
@@ -779,9 +721,7 @@ async def apply_telegram_assistant_onboarding(
         invalidate_ingress_requirement_cache()
         await _try_hot_register_channel("telegramCredentials")
 
-        channels_cfg = _build_channels_config_with_open_telegram_dm(
-            snapshot.channels_config
-        )
+        channels_cfg = _build_channels_config_with_open_telegram_dm(snapshot.channels_config)
         await config_service.set(
             config_key="channels",
             value=channels_cfg,
@@ -811,9 +751,7 @@ async def apply_telegram_assistant_onboarding(
     except Exception as exc:
         logger.exception("Failed to apply Telegram onboarding package")
         await _rollback_telegram_onboarding(snapshot, created_agent_id)
-        raise HTTPException(
-            status_code=500, detail="Failed to apply Telegram onboarding package"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to apply Telegram onboarding package") from exc
 
     return TelegramAssistantOnboardingResponse(
         success=True,
@@ -854,26 +792,16 @@ _TINY_VISION_HEALTH_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAD
 class VisionHealthResult(BaseModel):
     """Result of a vision fallback chain health probe."""
 
-    configured: bool = Field(
-        ..., description="Whether visionFallbackModel is configured"
-    )
-    healthy: bool = Field(
-        ..., description="Whether the vision model successfully analyzed a test image"
-    )
-    latency_ms: int | None = Field(
-        default=None, description="Vision probe latency in milliseconds"
-    )
+    configured: bool = Field(..., description="Whether visionFallbackModel is configured")
+    healthy: bool = Field(..., description="Whether the vision model successfully analyzed a test image")
+    latency_ms: int | None = Field(default=None, description="Vision probe latency in milliseconds")
     error: str | None = Field(default=None, description="Error message when unhealthy")
-    model: str | None = Field(
-        default=None, description="Configured primary LiteLLM model id"
-    )
+    model: str | None = Field(default=None, description="Configured primary LiteLLM model id")
     resolved_model: str | None = Field(
         default=None,
         description="LiteLLM model id that actually succeeded during the probe",
     )
-    base_url: str | None = Field(
-        default=None, description="Resolved API base URL when unhealthy"
-    )
+    base_url: str | None = Field(default=None, description="Resolved API base URL when unhealthy")
 
 
 @router.post("/vision-health", response_model=VisionHealthResult)
@@ -922,9 +850,7 @@ async def vision_health_check() -> VisionHealthResult:
                 latency_ms=latency_ms,
                 error=str(exc),
                 model=model_cfg.model,
-                resolved_model=(
-                    resolved_model if resolved_model != model_cfg.model else None
-                ),
+                resolved_model=(resolved_model if resolved_model != model_cfg.model else None),
                 base_url=model_cfg.base_url,
             )
         latency_ms = int((time.monotonic() - start) * 1000)
@@ -934,9 +860,7 @@ async def vision_health_check() -> VisionHealthResult:
             healthy=True,
             latency_ms=latency_ms,
             model=model_cfg.model,
-            resolved_model=(
-                resolved_model if resolved_model != model_cfg.model else None
-            ),
+            resolved_model=(resolved_model if resolved_model != model_cfg.model else None),
         )
     except Exception as exc:
         logger.warning("Vision fallback health check failed: %s", exc)
@@ -999,9 +923,7 @@ async def video_health_check() -> VideoHealthResult:
                 latency_ms=latency_ms,
                 error=str(exc),
                 model=model_cfg.model,
-                resolved_model=(
-                    resolved_model if resolved_model != model_cfg.model else None
-                ),
+                resolved_model=(resolved_model if resolved_model != model_cfg.model else None),
                 base_url=model_cfg.base_url,
             )
         latency_ms = int((time.monotonic() - start) * 1000)
@@ -1011,9 +933,7 @@ async def video_health_check() -> VideoHealthResult:
             healthy=True,
             latency_ms=latency_ms,
             model=model_cfg.model,
-            resolved_model=(
-                resolved_model if resolved_model != model_cfg.model else None
-            ),
+            resolved_model=(resolved_model if resolved_model != model_cfg.model else None),
         )
     except Exception as exc:
         logger.warning("Video fallback health check failed: %s", exc)
@@ -1054,11 +974,7 @@ async def probe_local_models_endpoint() -> dict[str, object]:
                 break
 
     searxng_hit = next(
-        (
-            s
-            for s in search_results
-            if s.get("provider") == "searxng" and s.get("available")
-        ),
+        (s for s in search_results if s.get("provider") == "searxng" and s.get("available")),
         None,
     )
 
@@ -1068,11 +984,7 @@ async def probe_local_models_endpoint() -> dict[str, object]:
         "recommended_model": recommended_model,
         "search": search_results,
         "search_has_available": searxng_hit is not None,
-        "recommended_searxng_url": (
-            str(searxng_hit.get("base_url"))
-            if searxng_hit
-            else get_default_searxng_api_base()
-        ),
+        "recommended_searxng_url": (str(searxng_hit.get("base_url")) if searxng_hit else get_default_searxng_api_base()),
     }
 
 
@@ -1113,9 +1025,7 @@ async def set_config(
     如果提供了 expectedVersion 且与服务端版本不匹配，返回 409 冲突。
     """
     try:
-        request.value = _validate_config_value(
-            config_key, request.value, operation="set"
-        )
+        request.value = _validate_config_value(config_key, request.value, operation="set")
 
         record = await config_service.set(
             config_key=config_key,
@@ -1130,9 +1040,7 @@ async def set_config(
             try:
                 from app.core.skills.gates.x_live_search_skill_enable import maybe_enable_x_live_search_skill
 
-                providers_value = (
-                    request.value if isinstance(request.value, dict) else None
-                )
+                providers_value = request.value if isinstance(request.value, dict) else None
                 await maybe_enable_x_live_search_skill(providers_value)
             except Exception as exc:
                 logger.warning("x-live-search skill auto-enable skipped: %s", exc)
@@ -1166,9 +1074,7 @@ async def set_config(
 
 
 @router.get("/{config_key}/history")
-async def get_config_history(
-    config_key: str, limit: int = Query(50, ge=1, le=100)
-) -> list[dict[str, object]]:
+async def get_config_history(config_key: str, limit: int = Query(50, ge=1, le=100)) -> list[dict[str, object]]:
     """获取配置历史记录 (Configuration Time-Machine)"""
     if config_key not in _VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {config_key}")
@@ -1177,15 +1083,11 @@ async def get_config_history(
         return await config_service.get_history(config_key, limit=limit)
     except Exception as e:
         logger.error(f"Failed to get history for config '{config_key}': {e}")
-        raise HTTPException(
-            status_code=500, detail="Failed to get config history"
-        ) from e
+        raise HTTPException(status_code=500, detail="Failed to get config history") from e
 
 
 @router.post("/{config_key}/rollback/{version}", response_model=ConfigRecord)
-async def rollback_config(
-    config_key: str, version: str, device_id: str = Query(..., description="设备ID")
-) -> ConfigRecord:
+async def rollback_config(config_key: str, version: str, device_id: str = Query(..., description="设备ID")) -> ConfigRecord:
     """回滚配置到指定版本 (Configuration Time-Machine)"""
     if config_key not in _VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {config_key}")
@@ -1209,13 +1111,9 @@ async def rollback_config(
             log = result.scalar_one_or_none()
 
             if not log:
-                raise HTTPException(
-                    status_code=404, detail=f"Audit log for version {version} not found"
-                )
+                raise HTTPException(status_code=404, detail=f"Audit log for version {version} not found")
 
-            new_value = _decrypt_audit_log_value(
-                config_key, cast(dict[str, object], log.new_value)
-            )
+            new_value = _decrypt_audit_log_value(config_key, cast(dict[str, object], log.new_value))
             if new_value is None:
                 new_value = {}
 
@@ -1241,9 +1139,7 @@ async def rollback_config(
                 providers_value = new_value if isinstance(new_value, dict) else None
                 await maybe_enable_x_live_search_skill(providers_value)
             except Exception as exc:
-                logger.warning(
-                    "x-live-search skill auto-enable skipped on rollback: %s", exc
-                )
+                logger.warning("x-live-search skill auto-enable skipped on rollback: %s", exc)
         if config_key == "searchServices":
             invalidate_search_health_cache()
 
@@ -1251,9 +1147,7 @@ async def rollback_config(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            f"Failed to rollback config '{config_key}' to version {version}: {e}"
-        )
+        logger.error(f"Failed to rollback config '{config_key}' to version {version}: {e}")
         raise HTTPException(status_code=500, detail="Failed to rollback config") from e
 
 
@@ -1265,9 +1159,7 @@ async def delete_config(
     try:
         deleted = await config_service.delete(config_key)
         if not deleted:
-            raise HTTPException(
-                status_code=404, detail=f"Config '{config_key}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Config '{config_key}' not found")
         invalidate_user_configs_cache()
         invalidate_search_health_cache()
         invalidate_ingress_requirement_cache()
@@ -1304,9 +1196,7 @@ async def sync_configs(
                     operation="sync",
                 )
             except HTTPException as exc:
-                validation_errors.append(
-                    {"key": change.key, "message": str(exc.detail)}
-                )
+                validation_errors.append({"key": change.key, "message": str(exc.detail)})
                 continue
             changes.append(change.model_copy(update={"value": validated_value}))
 
@@ -1336,15 +1226,11 @@ async def sync_configs(
                 SqlChannelPolicyProvider._invalidate_cache()
                 await refresh_reaction_policy()
             if "browserCloudProvider" in result.new_versions:
-                browser_change = next(
-                    (c for c in changes if c.key == "browserCloudProvider"), None
-                )
+                browser_change = next((c for c in changes if c.key == "browserCloudProvider"), None)
                 if browser_change:
                     await _hot_reload_cloud_browser(browser_change.value)
             if "browserProxy" in result.new_versions:
-                proxy_change = next(
-                    (c for c in changes if c.key == "browserProxy"), None
-                )
+                proxy_change = next((c for c in changes if c.key == "browserProxy"), None)
                 if proxy_change:
                     await _hot_reload_browser_proxy(proxy_change.value)
         return result
@@ -1516,9 +1402,7 @@ async def _hot_reload_cloud_browser(value: dict[str, object]) -> None:
         pool = get_configured_browser_pool()
         await pool.update_remote_endpoint(endpoint)
     except Exception:
-        logger.debug(
-            "Hot-reload cloud browser endpoint failed (non-critical)", exc_info=True
-        )
+        logger.debug("Hot-reload cloud browser endpoint failed (non-critical)", exc_info=True)
 
 
 async def _hot_reload_browser_proxy(value: dict[str, object]) -> None:

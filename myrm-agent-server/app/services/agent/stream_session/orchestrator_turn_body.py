@@ -67,9 +67,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_SEARCH_AGENT_IDS: frozenset[str] = frozenset(
-    {"builtin-fast-search", "builtin-deep-search"}
-)
+_SEARCH_AGENT_IDS: frozenset[str] = frozenset({"builtin-fast-search", "builtin-deep-search"})
 
 
 async def _fail_buffered_turn(
@@ -147,11 +145,7 @@ async def launch_early_buffered_stream(
         _background_turn(),
         name=f"agent_turn_{request.message_id or 'unknown'}",
     )
-    task.add_done_callback(
-        lambda t: (
-            t.exception() if not t.cancelled() and t.exception() is not None else None
-        )
-    )
+    task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() is not None else None)
     session_reservation.transfer_to_stream()
     if getattr(request, "multiplexed", False):
         return JSONResponse(
@@ -204,11 +198,9 @@ async def execute_agent_turn_after_reserve(
     else:
         # Mixed-generation hot reload fallback.  A fresh process always takes
         # the split path above; an old worker remains functional until it exits.
-        chat_history = (
-            await chat_history_bootstrap.persist_user_message_and_load_history(
-                request,
-                text_content=text_content,
-            )
+        chat_history = await chat_history_bootstrap.persist_user_message_and_load_history(
+            request,
+            text_content=text_content,
         )
 
     pre_reply_compact_result: CompactResult | None = None
@@ -228,10 +220,7 @@ async def execute_agent_turn_after_reserve(
         pre_reply_compact_sse_sent = bool(
             pre_reply_compact_result
             and (
-                (
-                    pre_reply_compact_result.compacted
-                    and pre_reply_compact_result.tokens_saved > 0
-                )
+                (pre_reply_compact_result.compacted and pre_reply_compact_result.tokens_saved > 0)
                 or pre_reply_compact_result.attempted
             )
         )
@@ -296,9 +285,7 @@ async def execute_agent_turn_after_reserve(
                             jit_fallback=False,
                         )
                 except Exception as exc:
-                    logger.warning(
-                        "Failed to load sandbox state for resume grant: %s", exc
-                    )
+                    logger.warning("Failed to load sandbox state for resume grant: %s", exc)
 
             from app.services.agent.session_access_service import (
                 apply_directory_resume_grant,
@@ -310,24 +297,20 @@ async def execute_agent_turn_after_reserve(
                 sandbox_active=sandbox_active,
                 workspace_dir=chat_workspace_dir,
             )
-            params, routing_tier, context_warnings, archive_restore_results = (
-                await convert_to_general_agent_params(
-                    request,
-                    chat_history,
-                    http_request=http_request,
-                )
+            params, routing_tier, context_warnings, archive_restore_results = await convert_to_general_agent_params(
+                request,
+                chat_history,
+                http_request=http_request,
             )
             params.query = Command(resume=request.resume_value)
 
             extra_context = {"hitl_session_active": True}
             logger.info("HITL session marked active for cache preservation")
         else:
-            params, routing_tier, context_warnings, archive_restore_results = (
-                await convert_to_general_agent_params(
-                    request,
-                    chat_history,
-                    http_request=http_request,
-                )
+            params, routing_tier, context_warnings, archive_restore_results = await convert_to_general_agent_params(
+                request,
+                chat_history,
+                http_request=http_request,
             )
     except ArchiveRestoreRequestError as exc:
         await record_terminal_failure("archive_restore_invalid")
@@ -342,9 +325,7 @@ async def execute_agent_turn_after_reserve(
             configs = await load_user_configs()
             providers_dict = configs.providers_dict if configs else None
             if request.light_model_selection is not None:
-                research_model_cfg = await _resolve_model_config(
-                    request.light_model_selection, providers_dict
-                )
+                research_model_cfg = await _resolve_model_config(request.light_model_selection, providers_dict)
         except Exception:
             logger.warning("Failed to resolve research model")
 
@@ -412,15 +393,9 @@ async def execute_agent_turn_after_reserve(
             active_goal = await goal_provider.get_active_goal(request.chat_id)
             if not active_goal:
                 checkpoint_mode_raw = getattr(request.goal, "checkpoint_mode", "none")
-                checkpoint_mode = (
-                    checkpoint_mode_raw
-                    if checkpoint_mode_raw in ("none", "per_todo")
-                    else "none"
-                )
+                checkpoint_mode = checkpoint_mode_raw if checkpoint_mode_raw in ("none", "per_todo") else "none"
                 goal_objective = text_content.strip() or "User requested goal"
-                resolved_ui_summary = (
-                    ui_summary.strip() if ui_summary else goal_objective[:120]
-                )
+                resolved_ui_summary = ui_summary.strip() if ui_summary else goal_objective[:120]
 
                 await goal_provider.create_goal(
                     session_id=request.chat_id,
@@ -483,9 +458,7 @@ async def execute_agent_turn_after_reserve(
         extra_context["turn_prewarm_still_warming"] = join_result.still_warming
 
     is_long_running_task = request.action_mode in ("deep_research", "agentic_search")
-    collector = StreamContentCollector(
-        sibling_group_id=request.sibling_group_id, chat_id=request.chat_id
-    )
+    collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
     if request.chat_id:
         from app.services.copilot.run_digest_store import RunDigestStore
 
@@ -512,9 +485,7 @@ async def execute_agent_turn_after_reserve(
         goal_provider=goal_provider,
         extra_context=extra_context or {},
         stream_started_at_monotonic=stream_started_at_monotonic,
-        entitlement_preflight_text=(
-            text_content if request.resume_value is None else None
-        ),
+        entitlement_preflight_text=(text_content if request.resume_value is None else None),
         pre_reply_compact_result=pre_reply_compact_result,
         pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
     )
@@ -543,11 +514,7 @@ async def write_interrupted_turn_marker(
 
     session_factory = get_session_factory()
     async with session_factory() as db:
-        await db.execute(
-            delete(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.chat_id == request.chat_id
-            )
-        )
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == request.chat_id))
         marker = InterruptedTurnMarker(
             id=str(uuid.uuid4()),
             chat_id=request.chat_id,

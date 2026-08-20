@@ -408,9 +408,7 @@ class MessageEffects:
         )
         await self._bus.publish_outbound(reply)
 
-    async def send_busy_ack(
-        self, msg: InboundMessage, position: int, max_pending: int
-    ) -> None:
+    async def send_busy_ack(self, msg: InboundMessage, position: int, max_pending: int) -> None:
         """Acknowledge a message received while the agent is busy.
 
         Args:
@@ -422,9 +420,7 @@ class MessageEffects:
         if position < 0:
             content = get_text(msg, "busy_ack_queue_full")
         else:
-            content = get_text(
-                msg, "busy_ack_queued", position=position, max_pending=max_pending
-            )
+            content = get_text(msg, "busy_ack_queued", position=position, max_pending=max_pending)
         reply = OutboundMessage(
             channel=msg.channel,
             recipient_id=recipient,
@@ -437,9 +433,7 @@ class MessageEffects:
         try:
             await self._bus.publish_outbound(reply)
         except Exception:
-            logger.debug(
-                "busy_ack send failed for %s/%s", msg.channel, recipient, exc_info=True
-            )
+            logger.debug("busy_ack send failed for %s/%s", msg.channel, recipient, exc_info=True)
 
     @staticmethod
     async def wait_for_edit_gap(last_progress_at: float, min_interval: float = 2.0) -> None:

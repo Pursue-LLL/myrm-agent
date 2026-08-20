@@ -128,9 +128,7 @@ class TestMergeUiArtifactDataInExtraData:
 
 
 class TestPatchUiArtifactDataBySurfaceId:
-    async def test_patches_host_message_for_cross_turn_update(
-        self, cross_turn_ui_chat: str
-    ) -> None:
+    async def test_patches_host_message_for_cross_turn_update(self, cross_turn_ui_chat: str) -> None:
         patched = await patch_ui_artifact_data_by_surface_id(
             cross_turn_ui_chat,
             "e2e_status_surface",
@@ -159,9 +157,7 @@ class TestPatchUiArtifactDataBySurfaceId:
 
 
 class TestPatchUiArtifactDataUpdates:
-    async def test_merges_multiple_patches_for_same_surface(
-        self, cross_turn_ui_chat: str
-    ) -> None:
+    async def test_merges_multiple_patches_for_same_surface(self, cross_turn_ui_chat: str) -> None:
         await patch_ui_artifact_data_updates(
             cross_turn_ui_chat,
             [
@@ -202,9 +198,7 @@ class TestStreamCollectorCrossTurnDataUpdate:
         ]
 
     def test_has_persistable_turn_when_only_ui_artifacts(self) -> None:
-        collector = StreamContentCollector(
-            chat_id="chat_ui_only", sibling_group_id="sib_ui"
-        )
+        collector = StreamContentCollector(chat_id="chat_ui_only", sibling_group_id="sib_ui")
         assert collector.has_content is False
         assert collector.has_persistable_turn is False
 
@@ -267,9 +261,7 @@ class TestFinalizeCrossTurnUiPatch:
             patch(
                 "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics",
             ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.CancellationRegistry"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
             patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
@@ -283,9 +275,7 @@ class TestFinalizeCrossTurnUiPatch:
             ) as mock_patch,
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(
-                session, MagicMock(), ApprovalTimeoutHolder(), ClarificationTimeoutHolder()
-            )
+            await finalize_agent_stream_session(session, MagicMock(), ApprovalTimeoutHolder(), ClarificationTimeoutHolder())
 
         mock_patch.assert_awaited_once_with(
             "chat_finalize_patch",

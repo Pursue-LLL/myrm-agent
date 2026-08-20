@@ -112,21 +112,22 @@ class TestCheckModelReachability:
             "base_url": "https://api.openai.com/v1",
             **overrides,
         }
-        return client.post(
-            "/api/v1/integrations/llm/check-reachability", json=payload
-        ).json()["data"]
+        return client.post("/api/v1/integrations/llm/check-reachability", json=payload).json()["data"]
 
     def test_reachable_probe(self, client: TestClient) -> None:
         """Healthy 1-token probe reports reachable with latency."""
         from app.api.integrations.llms import _reachability_cache
 
         _reachability_cache.clear()
-        with patch(
-            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
-            new=AsyncMock(),
-        ), patch(
-            "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-            new=AsyncMock(return_value=True),
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
+                new=AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
+                new=AsyncMock(return_value=True),
+            ),
         ):
             data = self._post(client)
         assert data["reachable"] is True
@@ -139,12 +140,15 @@ class TestCheckModelReachability:
         from app.api.integrations.llms import _reachability_cache
 
         _reachability_cache.clear()
-        with patch(
-            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
-            new=AsyncMock(),
-        ), patch(
-            "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-            new=AsyncMock(return_value=False),
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
+                new=AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
+                new=AsyncMock(return_value=False),
+            ),
         ):
             data = self._post(client)
         assert data["reachable"] is False
@@ -156,12 +160,15 @@ class TestCheckModelReachability:
         from app.api.integrations.llms import _reachability_cache
 
         _reachability_cache.clear()
-        with patch(
-            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
-            new=AsyncMock(),
-        ), patch(
-            "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-            new=AsyncMock(side_effect=ConnectionError("timeout")),
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
+                new=AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
+                new=AsyncMock(side_effect=ConnectionError("timeout")),
+            ),
         ):
             data = self._post(client)
         assert data["reachable"] is False
@@ -173,12 +180,15 @@ class TestCheckModelReachability:
         from app.api.integrations.llms import _reachability_cache
 
         _reachability_cache.clear()
-        with patch(
-            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
-            new=AsyncMock(),
-        ), patch(
-            "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-            new=AsyncMock(return_value=True),
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
+                new=AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
+                new=AsyncMock(return_value=True),
+            ),
         ):
             first = self._post(client)
             second = self._post(client)
@@ -246,12 +256,15 @@ class TestModelInfoEndpoints:
             model_key="openai/gpt-4o-mini",
             capabilities=ModelCapabilities(supports_vision=False),
         )
-        with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
-            return_value=None,
-        ), patch(
-            "app.api.integrations.llms._search_models_by_name",
-            return_value=[candidate],
+        with (
+            patch(
+                "app.api.integrations.llms._try_get_model_info_exact",
+                return_value=None,
+            ),
+            patch(
+                "app.api.integrations.llms._search_models_by_name",
+                return_value=[candidate],
+            ),
         ):
             response = client.post(
                 "/api/v1/integrations/llm/model-info",

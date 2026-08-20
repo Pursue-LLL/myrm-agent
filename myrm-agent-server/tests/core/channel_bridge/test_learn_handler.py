@@ -156,10 +156,7 @@ class TestBuildLearnPrompt:
         assert "hub/router/meta skills" in prompt
 
     def test_url_with_trailing_requirements_preserved(self) -> None:
-        user_input = (
-            "https://docs.stripe.com/webhooks "
-            "focus on signature verification only — skip Connect events"
-        )
+        user_input = "https://docs.stripe.com/webhooks focus on signature verification only — skip Connect events"
         prompt = _build_learn_prompt(user_input)
         assert user_input in prompt
         assert "SOURCES" in prompt
@@ -187,8 +184,13 @@ class TestBuildLearnPrompt:
     def test_all_authoring_sections_present(self) -> None:
         prompt = _build_learn_prompt("anything")
         for section in [
-            "## When to Use", "## Prerequisites", "## How to Run",
-            "## Quick Reference", "## Procedure", "## Pitfalls", "## Verification",
+            "## When to Use",
+            "## Prerequisites",
+            "## How to Run",
+            "## Quick Reference",
+            "## Procedure",
+            "## Pitfalls",
+            "## Verification",
         ]:
             assert section in prompt, f"Missing: {section}"
 
@@ -201,9 +203,7 @@ class TestBuildLearnPrompt:
 
 class TestParseLearnSlashArgs:
     def test_raw_learn_with_args(self) -> None:
-        assert parse_learn_slash_args("/learn https://example.com notes") == (
-            "https://example.com notes"
-        )
+        assert parse_learn_slash_args("/learn https://example.com notes") == ("https://example.com notes")
 
     def test_raw_learn_without_args(self) -> None:
         assert parse_learn_slash_args("/learn") == ""
@@ -284,8 +284,11 @@ class TestChannelLearnCommandHandler:
     @pytest.mark.asyncio
     async def test_preserves_message_metadata(self, handler: ChannelLearnCommandHandler) -> None:
         msg = InboundMessage(
-            channel="telegram", sender_id="u42", content="/learn",
-            chat_id="chat_99", thread_id="thread_1",
+            channel="telegram",
+            sender_id="u42",
+            content="/learn",
+            chat_id="chat_99",
+            thread_id="thread_1",
         )
         result = await handler(msg, "https://example.com")
         assert result is not None
@@ -338,10 +341,19 @@ class TestChannelLearnCommandHandler:
     @pytest.mark.asyncio
     async def test_exhaustive_input_types_never_none(self, handler: ChannelLearnCommandHandler) -> None:
         inputs = [
-            "", "   ", "\t", "\n",
-            "https://a.com", "http://b.com/path?q=1",
-            "./file", "~/file", "/abs/path", "../rel",
-            "free text", "部署流程", "a" * 5000,
+            "",
+            "   ",
+            "\t",
+            "\n",
+            "https://a.com",
+            "http://b.com/path?q=1",
+            "./file",
+            "~/file",
+            "/abs/path",
+            "../rel",
+            "free text",
+            "部署流程",
+            "a" * 5000,
         ]
         for args in inputs:
             result = await handler(_make_msg(), args)

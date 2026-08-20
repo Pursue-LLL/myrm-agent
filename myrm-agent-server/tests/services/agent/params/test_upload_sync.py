@@ -113,9 +113,7 @@ class TestInjectUploadedFilesIntoQuery:
             ("notes.txt", "_uploaded/notes.txt"),
             ("manual.pdf", "_uploaded/manual.pdf"),
         ]
-        result = inject_uploaded_files_into_query(
-            "Review these", synced, workspace_dir=str(tmp_path)
-        )
+        result = inject_uploaded_files_into_query("Review these", synced, workspace_dir=str(tmp_path))
 
         assert "<uploaded_files_in_workspace>" in result
         assert "<large_documents_for_knowledge_base>" in result

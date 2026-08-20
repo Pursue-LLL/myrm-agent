@@ -114,9 +114,7 @@ class MemoryGuardianGuardTelemetryConfig:
             telemetry.flush_interval_seconds if telemetry.flush_interval_seconds > 0 else _DEFAULT_FLUSH_INTERVAL_SECONDS
         )
         queue_size = telemetry.queue_size if telemetry.queue_size > 0 else _DEFAULT_QUEUE_SIZE
-        pending_state_path = str(
-            Path(settings.database.state_dir).expanduser().resolve() / _PENDING_STATE_FILENAME
-        )
+        pending_state_path = str(Path(settings.database.state_dir).expanduser().resolve() / _PENDING_STATE_FILENAME)
 
         return cls(
             control_plane_url=control_plane_url.rstrip("/"),

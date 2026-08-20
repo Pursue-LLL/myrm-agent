@@ -66,9 +66,7 @@ def normalize_cron_tools_allowed(tools: Sequence[str] | None) -> tuple[str, ...]
         if legacy:
             parts.append(f"legacy IDs are no longer accepted: {sorted(set(legacy))}")
         if invalid:
-            parts.append(
-                f"unknown IDs: {sorted(set(invalid))}; valid: {sorted(BUILTIN_TOOL_ID_SET)}"
-            )
+            parts.append(f"unknown IDs: {sorted(set(invalid))}; valid: {sorted(BUILTIN_TOOL_ID_SET)}")
         raise InvalidBuiltinToolIdsError("; ".join(parts))
 
     return tuple(normalized) if normalized else None

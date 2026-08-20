@@ -122,9 +122,7 @@ class MemoryBriefStatusDroppedStore:
             max(_DROPPED_STATE_PERSIST_MAX_PENDING_UPDATES - 1, 0),
         )
         self._last_persist_monotonic = now
-        self._next_retry_monotonic = now + _compute_failure_backoff_seconds(
-            self._persist_failure_count
-        )
+        self._next_retry_monotonic = now + _compute_failure_backoff_seconds(self._persist_failure_count)
 
     def load(self) -> dict[tuple[str, str], int]:
         path = self._path
@@ -208,12 +206,7 @@ class MemoryBriefStatusDroppedStore:
             if not state:
                 self._clear_unlocked(path)
                 return True
-            payload = {
-                "dropped_aggregates": [
-                    row.model_dump()
-                    for row in serialize_dropped_aggregates(state)
-                ]
-            }
+            payload = {"dropped_aggregates": [row.model_dump() for row in serialize_dropped_aggregates(state)]}
             serialized = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
             if len(serialized.encode("utf-8")) > _DROPPED_STATE_MAX_BYTES:
                 logger.warning(
@@ -293,7 +286,7 @@ def _compute_failure_backoff_seconds(failure_count: int) -> float:
     if failure_count <= 0:
         return 0.0
     exponent = min(failure_count - 1, 8)
-    candidate = _DROPPED_STATE_PERSIST_FAILURE_BASE_BACKOFF_SECONDS * (2 ** exponent)
+    candidate = _DROPPED_STATE_PERSIST_FAILURE_BASE_BACKOFF_SECONDS * (2**exponent)
     return min(candidate, _DROPPED_STATE_PERSIST_FAILURE_MAX_BACKOFF_SECONDS)
 
 

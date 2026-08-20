@@ -117,47 +117,27 @@ def fetch_first_desktop_dref_from_local_capture() -> str | None:
         try:
             meta, refs = capture_snapshot(backend, scope, app_name)
         except OSError as exc:
-            progress(
-                "local AX capture failed " f"scope={scope} app={app_name!r}: {exc}"
-            )
+            progress(f"local AX capture failed scope={scope} app={app_name!r}: {exc}")
             continue
         except Exception as exc:
-            progress(
-                "local AX capture failed "
-                f"scope={scope} app={app_name!r}: {type(exc).__name__}: {exc}"
-            )
+            progress(f"local AX capture failed scope={scope} app={app_name!r}: {type(exc).__name__}: {exc}")
             continue
 
-        element_refs = {
-            key: value for key, value in refs.items() if isinstance(value, ElementRef)
-        }
+        element_refs = {key: value for key, value in refs.items() if isinstance(value, ElementRef)}
         if not element_refs:
-            progress(
-                "local AX capture refs empty "
-                f"scope={scope} app={meta.app_name!r} window={meta.window_title!r}"
-            )
+            progress(f"local AX capture refs empty scope={scope} app={meta.app_name!r} window={meta.window_title!r}")
             continue
 
         for ref_key, ref in element_refs.items():
             role = str(getattr(ref, "role", "") or "").lower()
             normalized = str(ref_key).strip().lstrip("@")
-            if (
-                role in preferred_roles
-                and normalized.startswith("d")
-                and len(normalized) > 1
-            ):
-                progress(
-                    "dref from local AX capture "
-                    f"scope={scope} role={role!r}: {normalized!r} app={meta.app_name!r}"
-                )
+            if role in preferred_roles and normalized.startswith("d") and len(normalized) > 1:
+                progress(f"dref from local AX capture scope={scope} role={role!r}: {normalized!r} app={meta.app_name!r}")
                 return normalized
         for ref_key in sorted(element_refs):
             normalized = str(ref_key).strip().lstrip("@")
             if normalized.startswith("d") and len(normalized) > 1:
-                progress(
-                    "dref from local AX capture fallback "
-                    f"scope={scope}: {normalized!r}"
-                )
+                progress(f"dref from local AX capture fallback scope={scope}: {normalized!r}")
                 return normalized
     return None
 
@@ -165,9 +145,7 @@ def fetch_first_desktop_dref_from_local_capture() -> str | None:
 def fetch_first_desktop_dref_from_snapshot_api(*, chat_id: str = "") -> str | None:
     """Read first @dref from desktop snapshot API (registry → live → foreground_e2e)."""
     base = get_e2e_api_url()
-    chat_q = (
-        f"&chat_id={urllib.parse.quote(chat_id.strip())}" if chat_id.strip() else ""
-    )
+    chat_q = f"&chat_id={urllib.parse.quote(chat_id.strip())}" if chat_id.strip() else ""
     sources = ("registry", "live", "foreground_e2e")
     for source in sources:
         query = f"source={source}"
@@ -183,26 +161,17 @@ def fetch_first_desktop_dref_from_snapshot_api(*, chat_id: str = "") -> str | No
                     body = exc.read().decode("utf-8")
                     parsed = json.loads(body)
                     if isinstance(parsed, dict):
-                        detail = (
-                            f"{parsed.get('error', exc.code)}: "
-                            f"{parsed.get('message', body)}"
-                        )
+                        detail = f"{parsed.get('error', exc.code)}: {parsed.get('message', body)}"
                 except OSError:
                     detail = f"HTTP {exc.code}"
             progress(f"snapshot API fetch failed source={source}: {detail}")
             continue
         if not isinstance(payload, dict):
-            progress(
-                f"snapshot API unexpected payload type source={source}: "
-                f"{type(payload).__name__}"
-            )
+            progress(f"snapshot API unexpected payload type source={source}: {type(payload).__name__}")
             continue
         error = payload.get("error")
         if error:
-            progress(
-                f"snapshot API error source={source}: {error} — "
-                f"{payload.get('message', '')}"
-            )
+            progress(f"snapshot API error source={source}: {error} — {payload.get('message', '')}")
             continue
         dref = _dref_from_snapshot_payload(payload)
         if dref:
@@ -255,9 +224,7 @@ def fetch_desktop_tool_progress_from_api(
     )
     if not messages:
         return None
-    user_count = sum(
-        1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
-    )
+    user_count = sum(1 for msg in messages if isinstance(msg, dict) and msg.get("role") == "user")
     last_assistant: dict[str, object] | None = None
     for msg in messages:
         if isinstance(msg, dict) and msg.get("role") == "assistant":
@@ -277,12 +244,7 @@ def fetch_desktop_tool_progress_from_api(
     meta = metadata if isinstance(metadata, dict) else {}
     steps_raw = meta.get("progressSteps")
     steps = steps_raw if isinstance(steps_raw, list) else []
-    desktop_steps = [
-        step
-        for step in steps
-        if isinstance(step, dict)
-        and str(step.get("tool_name") or "").startswith("desktop_")
-    ]
+    desktop_steps = [step for step in steps if isinstance(step, dict) and str(step.get("tool_name") or "").startswith("desktop_")]
     completion_status = str(meta.get("completionStatus") or "")
     assistant_sample = str(last_assistant.get("content") or "")[:200]
     is_complete = completion_status in {"complete", "error", "cancelled"}
@@ -291,9 +253,7 @@ def fetch_desktop_tool_progress_from_api(
         "isStreaming": user_count > 0 and not is_complete,
         "pending": False,
         "stepCount": len(desktop_steps),
-        "lastTool": (
-            str(desktop_steps[-1].get("tool_name") or "") if desktop_steps else ""
-        ),
+        "lastTool": (str(desktop_steps[-1].get("tool_name") or "") if desktop_steps else ""),
         "assistantSample": assistant_sample,
         "completionStatus": completion_status,
         "source": "api",
@@ -307,9 +267,7 @@ def server_pending_approval_count(
 ) -> int:
     url = f"{get_e2e_api_url()}/webui/desktop/approval/pending"
     try:
-        payload = _e2e_api_get_json(
-            url, timeout_sec=timeout_sec, max_attempts=max_attempts
-        )
+        payload = _e2e_api_get_json(url, timeout_sec=timeout_sec, max_attempts=max_attempts)
     except OSError:
         return -1
     if not isinstance(payload, dict):
@@ -412,21 +370,12 @@ def resolve_desktop_approval_request_for_test(
         ) as response:
             body = json.loads(response.read().decode("utf-8"))
     except OSError as exc:
-        progress(
-            "desktop approval resolve fallback failed "
-            f"request_id={normalized_request_id}: {exc}"
-        )
+        progress(f"desktop approval resolve fallback failed request_id={normalized_request_id}: {exc}")
         return False
     if not isinstance(body, dict) or body.get("ok") is not True:
-        progress(
-            "desktop approval resolve fallback unexpected response "
-            f"request_id={normalized_request_id}: {body!r}"
-        )
+        progress(f"desktop approval resolve fallback unexpected response request_id={normalized_request_id}: {body!r}")
         return False
-    progress(
-        "desktop approval resolve fallback ok "
-        f"request_id={normalized_request_id} scope={scope}"
-    )
+    progress(f"desktop approval resolve fallback ok request_id={normalized_request_id} scope={scope}")
     return True
 
 
@@ -455,9 +404,7 @@ def list_trusted_apps_via_api() -> list[dict[str, object]]:
 def clear_persisted_desktop_approvals() -> None:
     data_dir = os.environ.get("MYRM_DATA_DIR", "").strip()
     if data_dir:
-        approval_path = (
-            Path(data_dir) / ".agent" / "desktop_control" / "approved_apps.json"
-        )
+        approval_path = Path(data_dir) / ".agent" / "desktop_control" / "approved_apps.json"
         if approval_path.is_file():
             approval_path.unlink(missing_ok=True)
     reset_url = f"{get_e2e_api_url()}/webui/desktop/approval/reset-runtime"

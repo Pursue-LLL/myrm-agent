@@ -5,9 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-_LOCAL_HARNESS_SRC = (
-    Path(__file__).resolve().parents[4] / "myrm-agent-harness" / "src"
-)
+_LOCAL_HARNESS_SRC = Path(__file__).resolve().parents[4] / "myrm-agent-harness" / "src"
 
 
 def ensure_local_harness_on_path() -> None:

@@ -6,24 +6,9 @@ from pathlib import Path
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 MONOREPO_ROOT = SERVER_ROOT.parents[1]
-HARNESS_ROUTING = (
-    MONOREPO_ROOT
-    / "myrm-agent-harness"
-    / "src"
-    / "myrm_agent_harness"
-    / "toolkits"
-    / "llms"
-    / "routing"
-)
+HARNESS_ROUTING = MONOREPO_ROOT / "myrm-agent-harness" / "src" / "myrm_agent_harness" / "toolkits" / "llms" / "routing"
 FRONTEND_INTEGRATION = (
-    MONOREPO_ROOT
-    / "myrm-agent"
-    / "myrm-agent-frontend"
-    / "src"
-    / "components"
-    / "features"
-    / "settings"
-    / "sections"
+    MONOREPO_ROOT / "myrm-agent" / "myrm-agent-frontend" / "src" / "components" / "features" / "settings" / "sections"
 )
 
 OPENAI_COMPAT_ALLOWED = frozenset(

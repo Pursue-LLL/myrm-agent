@@ -201,7 +201,5 @@ def test_memory_command_center_vector_persistence_row_chrome_e2e() -> None:
         doctor = wait_for_state(client, page, _VECTOR_INDEX_DOCTOR_READY_JS, timeout_sec=90.0)
         assert doctor.get("ready") is True, doctor
 
-        panel = wait_for_state(
-            client, page, _VECTOR_PERSISTENCE_READY_JS, timeout_sec=90.0
-        )
+        panel = wait_for_state(client, page, _VECTOR_PERSISTENCE_READY_JS, timeout_sec=90.0)
         assert panel.get("ready") is True, panel

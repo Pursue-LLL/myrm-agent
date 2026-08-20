@@ -31,6 +31,7 @@ def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
     ):
         yield
 
+
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字
 _ENV_SKIP_KEYWORDS = (
     "Authentication",

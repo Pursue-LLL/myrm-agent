@@ -82,9 +82,7 @@ def derive_active_tool_groups(
         ("memory", agent.enable_memory and not agent.incognito_mode),
         (
             "conversation_history",
-            agent.enable_memory
-            and not agent.incognito_mode
-            and agent.enable_conversation_search,
+            agent.enable_memory and not agent.incognito_mode and agent.enable_conversation_search,
         ),
         ("kanban", agent.enable_kanban),
         ("wiki", agent.enable_wiki),
@@ -111,16 +109,12 @@ def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
         enable_computer_use=bool(getattr(params, "enable_computer_use", False)),
         enable_memory=bool(getattr(params, "enable_memory", True)),
         incognito_mode=bool(getattr(params, "incognito_mode", False)),
-        enable_conversation_search=bool(
-            getattr(params, "enable_conversation_search", False)
-        ),
+        enable_conversation_search=bool(getattr(params, "enable_conversation_search", False)),
         enable_kanban=bool(getattr(params, "enable_kanban", False)),
         enable_wiki=bool(getattr(params, "enable_wiki", False)),
         enable_answer_tool=bool(getattr(params, "enable_answer_tool", False)),
         enable_render_ui=bool(getattr(params, "enable_render_ui", False)),
-        enable_structured_clarify=bool(
-            getattr(params, "enable_structured_clarify", False)
-        ),
+        enable_structured_clarify=bool(getattr(params, "enable_structured_clarify", False)),
         enable_external_cli=bool(getattr(params, "enable_external_cli", False)),
         enable_cron_eager=bool(getattr(params, "enable_cron_eager", False)),
         image_generation_params=getattr(params, "image_generation", None),

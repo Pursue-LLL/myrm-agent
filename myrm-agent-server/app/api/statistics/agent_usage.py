@@ -57,9 +57,7 @@ async def get_usage_by_agent(
 
         agents_stmt = select(Agent.id, Agent.name, Agent.avatar).where(Agent.id.in_(agent_ids))
         agents_result = await db.execute(agents_stmt)
-        agent_map: dict[str, tuple[str, str | None]] = {
-            row.id: (row.name, row.avatar) for row in agents_result.all()
-        }
+        agent_map: dict[str, tuple[str, str | None]] = {row.id: (row.name, row.avatar) for row in agents_result.all()}
 
         start_dt = datetime.now(timezone.utc) - timedelta(days=days)
         daily_stmt = (
@@ -96,24 +94,28 @@ async def get_usage_by_agent(
                 day_data = agent_daily.get(day_str, {"tokens": 0, "usd": 0.0})
                 sparkline.append({"date": day_str, **day_data})
 
-            agents_data.append({
-                "agentId": agent_id,
-                "name": name,
-                "avatar": avatar,
-                "totalTokens": tokens,
-                "totalUsd": round(usd, 6),
-                "totalCalls": row.calls or 0,
-                "sessions": row.sessions or 0,
-                "percentTokens": round(percent_tokens, 1),
-                "percentUsd": round(percent_usd, 1),
-                "sparkline": sparkline,
-            })
+            agents_data.append(
+                {
+                    "agentId": agent_id,
+                    "name": name,
+                    "avatar": avatar,
+                    "totalTokens": tokens,
+                    "totalUsd": round(usd, 6),
+                    "totalCalls": row.calls or 0,
+                    "sessions": row.sessions or 0,
+                    "percentTokens": round(percent_tokens, 1),
+                    "percentUsd": round(percent_usd, 1),
+                    "sparkline": sparkline,
+                }
+            )
 
-        return success_response(data={
-            "agents": agents_data,
-            "total_agents": len(agents_data),
-            "grand_total_tokens": grand_total_tokens,
-            "grand_total_usd": round(grand_total_usd, 6),
-        })
+        return success_response(
+            data={
+                "agents": agents_data,
+                "total_agents": len(agents_data),
+                "grand_total_tokens": grand_total_tokens,
+                "grand_total_usd": round(grand_total_usd, 6),
+            }
+        )
     except Exception as e:
         raise internal_error(operation="Get per-agent usage analytics", exception=e) from e

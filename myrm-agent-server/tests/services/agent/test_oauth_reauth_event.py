@@ -84,6 +84,7 @@ def test_publish_failure_is_graceful() -> None:
 # Integration: refresh_oauth_token failure paths → _emit_reauth_if_needed
 # ---------------------------------------------------------------------------
 
+
 class _FakeAsyncCtx:
     """Minimal async context manager that wraps a session mock."""
 
@@ -140,12 +141,14 @@ async def test_refresh_missing_refresh_token_emits_reauth() -> None:
 async def test_refresh_4xx_response_emits_reauth() -> None:
     """When OAuth provider returns 4xx, should emit OAUTH_REAUTH_REQUIRED."""
     _reset_dedup()
-    mock_get_session = _build_session_with_cred({
-        "token": "old",
-        "refresh_token": "rt_123",
-        "token_url": "https://example.com/token",
-        "expires_at": time.time() - 100,
-    })
+    mock_get_session = _build_session_with_cred(
+        {
+            "token": "old",
+            "refresh_token": "rt_123",
+            "token_url": "https://example.com/token",
+            "expires_at": time.time() - 100,
+        }
+    )
 
     mock_resp = MagicMock()
     mock_resp.status_code = 401
@@ -173,12 +176,14 @@ async def test_refresh_4xx_response_emits_reauth() -> None:
 async def test_refresh_5xx_response_does_not_emit_reauth() -> None:
     """When OAuth provider returns 5xx (server error), should NOT emit reauth."""
     _reset_dedup()
-    mock_get_session = _build_session_with_cred({
-        "token": "old",
-        "refresh_token": "rt_123",
-        "token_url": "https://example.com/token",
-        "expires_at": time.time() - 100,
-    })
+    mock_get_session = _build_session_with_cred(
+        {
+            "token": "old",
+            "refresh_token": "rt_123",
+            "token_url": "https://example.com/token",
+            "expires_at": time.time() - 100,
+        }
+    )
 
     mock_resp = MagicMock()
     mock_resp.status_code = 503
@@ -203,12 +208,14 @@ async def test_refresh_5xx_response_does_not_emit_reauth() -> None:
 async def test_refresh_network_exception_does_not_emit_reauth() -> None:
     """When network fails entirely, should NOT emit reauth (transient error)."""
     _reset_dedup()
-    mock_get_session = _build_session_with_cred({
-        "token": "old",
-        "refresh_token": "rt_123",
-        "token_url": "https://example.com/token",
-        "expires_at": time.time() - 100,
-    })
+    mock_get_session = _build_session_with_cred(
+        {
+            "token": "old",
+            "refresh_token": "rt_123",
+            "token_url": "https://example.com/token",
+            "expires_at": time.time() - 100,
+        }
+    )
 
     import httpx
 

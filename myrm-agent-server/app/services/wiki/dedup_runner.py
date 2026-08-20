@@ -89,13 +89,9 @@ def _run_scan_sync(*, agent_id: str | None, incremental: bool) -> ScanResult:
 async def _execute_background_scan(*, agent_id: str | None, incremental: bool) -> None:
     scope_key = _scan_scope_key(agent_id)
     try:
-        await asyncio.to_thread(
-            _run_scan_sync, agent_id=agent_id, incremental=incremental
-        )
+        await asyncio.to_thread(_run_scan_sync, agent_id=agent_id, incremental=incremental)
     except Exception as exc:
-        logger.error(
-            "Background wiki dedup scan failed for scope %s: %s", scope_key, exc
-        )
+        logger.error("Background wiki dedup scan failed for scope %s: %s", scope_key, exc)
         try:
             from app.services.wiki.vault import get_wiki_archiver
 
@@ -104,9 +100,7 @@ async def _execute_background_scan(*, agent_id: str | None, incremental: bool) -
                 ScanProgress(phase="failed", message="Dedup scan failed"),
             )
         except Exception as store_exc:
-            logger.warning(
-                "Failed to persist dedup scan failure progress: %s", store_exc
-            )
+            logger.warning("Failed to persist dedup scan failure progress: %s", store_exc)
     finally:
         async with _scan_lock:
             _running_scans.discard(scope_key)
@@ -136,16 +130,12 @@ async def schedule_wiki_dedup_scan(
                 skipped_reason=_SCAN_BUSY_REASON,
             )
         _running_scans.add(scope_key)
-        asyncio.create_task(
-            _execute_background_scan(agent_id=agent_id, incremental=incremental)
-        )
+        asyncio.create_task(_execute_background_scan(agent_id=agent_id, incremental=incremental))
 
     return WikiDedupScanScheduleResult(accepted=True)
 
 
-async def run_wiki_dedup_scan_job(
-    *, agent_id: str | None = None, incremental: bool = True
-) -> WikiDedupRunResult:
+async def run_wiki_dedup_scan_job(*, agent_id: str | None = None, incremental: bool = True) -> WikiDedupRunResult:
     from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
@@ -156,9 +146,7 @@ async def run_wiki_dedup_scan_job(
             summary_text="[SILENT]",
         )
 
-    scan_result = await asyncio.to_thread(
-        _run_scan_sync, agent_id=agent_id, incremental=incremental
-    )
+    scan_result = await asyncio.to_thread(_run_scan_sync, agent_id=agent_id, incremental=incremental)
     if scan_result.open_groups <= 0:
         summary = "[SILENT]"
     else:
@@ -203,9 +191,7 @@ def get_wiki_dedup_stats(*, agent_id: str | None = None):
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)
     eligibility = CorpusEligibilityFilter(archiver._structure)
-    return eligibility.store.build_stats(
-        eligible_raw_count=eligibility.count_eligible_raw_files()
-    )
+    return eligibility.store.build_stats(eligible_raw_count=eligibility.count_eligible_raw_files())
 
 
 def list_wiki_dedup_groups(*, agent_id: str | None = None):
@@ -257,9 +243,7 @@ def wiki_dedup_checklist_ready(*, agent_id: str | None = None) -> bool:
     return not wiki_dedup_blocks_compile(agent_id=agent_id)
 
 
-def get_wiki_dedup_vault_hygiene(
-    *, agent_id: str | None = None
-) -> VaultHygieneSnapshot:
+def get_wiki_dedup_vault_hygiene(*, agent_id: str | None = None) -> VaultHygieneSnapshot:
     from app.services.wiki.vault import get_wiki_archiver
 
     archiver = get_wiki_archiver(None, agent_id=agent_id)

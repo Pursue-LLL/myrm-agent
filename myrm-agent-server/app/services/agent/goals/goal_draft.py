@@ -60,8 +60,7 @@ async def draft_goal_spec(
 
     locale_hint = f"User locale: {locale}. " if locale else ""
     user_prompt = (
-        f"{locale_hint}Objective:\n{objective_clean}\n\n"
-        "Produce constraints and acceptance_criteria suitable for this goal."
+        f"{locale_hint}Objective:\n{objective_clean}\n\nProduce constraints and acceptance_criteria suitable for this goal."
     )
 
     response = await llm.ainvoke(
@@ -123,9 +122,7 @@ def _normalize_draft(data: dict[str, object], objective: str) -> dict[str, objec
             elif criterion_type == "semantic":
                 criteria_text = str(item.get("criteria", "")).strip()
                 if criteria_text:
-                    acceptance_criteria.append(
-                        {"type": "semantic", "criteria": criteria_text}
-                    )
+                    acceptance_criteria.append({"type": "semantic", "criteria": criteria_text})
 
     return {
         "ui_summary": ui_summary[:120],

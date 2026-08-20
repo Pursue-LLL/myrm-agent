@@ -21,15 +21,19 @@ def _make_app() -> Starlette:
     """Minimal Starlette app with TracingMiddleware for testing."""
 
     async def echo_trace(request: Request) -> JSONResponse:
-        return JSONResponse({
-            "trace_id": TracingContext.get_trace_id(),
-            "session_id": TracingContext.get_session_id(),
-        })
+        return JSONResponse(
+            {
+                "trace_id": TracingContext.get_trace_id(),
+                "session_id": TracingContext.get_session_id(),
+            }
+        )
 
-    app = Starlette(routes=[
-        Route("/api/sessions/{sid}/messages", echo_trace),
-        Route("/api/health", echo_trace),
-    ])
+    app = Starlette(
+        routes=[
+            Route("/api/sessions/{sid}/messages", echo_trace),
+            Route("/api/health", echo_trace),
+        ]
+    )
     app.add_middleware(TracingMiddleware)
     return app
 
@@ -59,9 +63,7 @@ class TestExtractSessionId:
 class TestTracingMiddleware:
     async def test_response_has_trace_id_header(self) -> None:
         app = _make_app()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get("/api/health")
 
         assert resp.status_code == 200
@@ -71,9 +73,7 @@ class TestTracingMiddleware:
 
     async def test_trace_id_propagated_to_handler(self) -> None:
         app = _make_app()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get("/api/health")
 
         data = resp.json()
@@ -82,9 +82,7 @@ class TestTracingMiddleware:
 
     async def test_session_id_extracted_from_path(self) -> None:
         app = _make_app()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get("/api/sessions/my-sess-42/messages")
 
         data = resp.json()
@@ -93,9 +91,7 @@ class TestTracingMiddleware:
     async def test_unique_trace_ids_per_request(self) -> None:
         app = _make_app()
         ids: list[str] = []
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             for _ in range(5):
                 resp = await client.get("/api/health")
                 ids.append(resp.headers["x-trace-id"])
@@ -104,9 +100,7 @@ class TestTracingMiddleware:
 
     async def test_context_reset_after_request(self) -> None:
         app = _make_app()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             await client.get("/api/health")
 
         assert TracingContext.get_trace_id() == "-"
@@ -119,9 +113,7 @@ class TestTracingMiddleware:
         app = Starlette(routes=[Route("/api/data", handle_post, methods=["POST"])])
         app.add_middleware(TracingMiddleware)
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post("/api/data", json={"x": 1})
 
         assert resp.status_code == 201
@@ -149,12 +141,8 @@ class TestTracingMiddleware:
         """When X-Trace-Id is a valid hex string, it should be adopted."""
         app = _make_app()
         inbound_id = "a1b2c3d4e5f67890abcdef1234567890"
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            resp = await client.get(
-                "/api/health", headers={"X-Trace-Id": inbound_id}
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/health", headers={"X-Trace-Id": inbound_id})
 
         assert resp.status_code == 200
         assert resp.headers["x-trace-id"] == inbound_id
@@ -165,12 +153,8 @@ class TestTracingMiddleware:
         app = _make_app()
         w3c_trace_id = "0af7651916cd43dd8448eb211c80319c"
         traceparent = f"00-{w3c_trace_id}-b7ad6b7169203331-01"
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            resp = await client.get(
-                "/api/health", headers={"traceparent": traceparent}
-            )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/health", headers={"traceparent": traceparent})
 
         assert resp.status_code == 200
         assert resp.headers["x-trace-id"] == w3c_trace_id
@@ -179,9 +163,7 @@ class TestTracingMiddleware:
     async def test_invalid_trace_id_falls_back_to_generated(self) -> None:
         """Non-hex or injection-attempt trace-id should be rejected."""
         app = _make_app()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get(
                 "/api/health",
                 headers={"X-Trace-Id": "'; DROP TABLE logs; --"},
@@ -195,9 +177,7 @@ class TestTracingMiddleware:
     async def test_no_trace_header_generates_new(self) -> None:
         """Without any trace header, a fresh 32-char hex id is generated."""
         app = _make_app()
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get("/api/health")
 
         trace = resp.headers["x-trace-id"]
@@ -209,9 +189,7 @@ class TestTracingMiddleware:
         app = _make_app()
         custom_id = "ff00ff00ff00ff00ff00ff00ff00ff00"
         traceparent = "00-0000000000000000aaaaaaaaaaaaaaaa-b7ad6b7169203331-01"
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.get(
                 "/api/health",
                 headers={
@@ -241,9 +219,7 @@ class TestParseInboundTraceId:
         assert _parse_inbound_trace_id(req) == "abcdef1234567890"
 
     def test_valid_traceparent(self) -> None:
-        req = self._make_request(
-            {"traceparent": "00-abcdef1234567890abcdef1234567890-0102030405060708-01"}
-        )
+        req = self._make_request({"traceparent": "00-abcdef1234567890abcdef1234567890-0102030405060708-01"})
         assert _parse_inbound_trace_id(req) == "abcdef1234567890abcdef1234567890"
 
     def test_empty_headers(self) -> None:
@@ -283,9 +259,7 @@ class TestParseInboundTraceId:
         assert _parse_inbound_trace_id(req) is None
 
     def test_traceparent_non_hex_trace_id_rejected(self) -> None:
-        req = self._make_request(
-            {"traceparent": "00-not_hex_at_all!!!!!!!!!!!!!!!!!-0102030405060708-01"}
-        )
+        req = self._make_request({"traceparent": "00-not_hex_at_all!!!!!!!!!!!!!!!!!-0102030405060708-01"})
         assert _parse_inbound_trace_id(req) is None
 
     def test_64_char_hex_accepted(self) -> None:

@@ -91,9 +91,7 @@ class WebuiVoiceWorkNotifier:
         if str(data.get("background_source", "")) != BACKGROUND_SOURCE_VOICE:
             return
 
-        source_chat_id = str(
-            data.get("source_chat_id", "") or data.get("chat_id", "")
-        ).strip()
+        source_chat_id = str(data.get("source_chat_id", "") or data.get("chat_id", "")).strip()
         if not source_chat_id:
             return
 

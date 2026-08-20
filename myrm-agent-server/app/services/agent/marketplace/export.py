@@ -33,10 +33,17 @@ from app.services.agent.profile.profile_snapshot_service import mutable_snapshot
 
 logger = logging.getLogger(__name__)
 
-_SENSITIVE_FIELDS = frozenset({
-    "api_key", "auth_token", "secret", "password", "token",
-    "credentials", "private_key",
-})
+_SENSITIVE_FIELDS = frozenset(
+    {
+        "api_key",
+        "auth_token",
+        "secret",
+        "password",
+        "token",
+        "credentials",
+        "private_key",
+    }
+)
 
 
 def _strip_sensitive(data: dict) -> dict:
@@ -48,10 +55,7 @@ def _strip_sensitive(data: dict) -> dict:
         if isinstance(value, dict):
             cleaned[key] = _strip_sensitive(value)
         elif isinstance(value, list):
-            cleaned[key] = [
-                _strip_sensitive(item) if isinstance(item, dict) else item
-                for item in value
-            ]
+            cleaned[key] = [_strip_sensitive(item) if isinstance(item, dict) else item for item in value]
         else:
             cleaned[key] = value
     return cleaned
@@ -171,9 +175,11 @@ async def _bundle_subagents(uow: UnitOfWork, profile: AgentProfile) -> list[dict
             continue
         sub_snapshot = mutable_snapshot_data(sub_profile)
         sub_snapshot = _strip_sensitive(sub_snapshot)
-        bundled.append({
-            "original_id": sub_profile.id,
-            "profile": sub_snapshot,
-        })
+        bundled.append(
+            {
+                "original_id": sub_profile.id,
+                "profile": sub_snapshot,
+            }
+        )
 
     return bundled

@@ -29,15 +29,36 @@ from app.services.memory.imports.import_adapter_utils import (
 )
 
 _PROFILE_TYPES = frozenset({"person", "company", "deal", "yc", "civic"})
-_EPISODIC_TYPES = frozenset({
-    "meeting", "email", "slack", "calendar-event", "conversation",
-    "event", "diary",
-})
-_SEMANTIC_TYPES = frozenset({
-    "concept", "source", "media", "writing", "analysis", "guide",
-    "hardware", "architecture", "project", "note", "code", "image",
-    "synthesis", "atom", "extract_receipt",
-})
+_EPISODIC_TYPES = frozenset(
+    {
+        "meeting",
+        "email",
+        "slack",
+        "calendar-event",
+        "conversation",
+        "event",
+        "diary",
+    }
+)
+_SEMANTIC_TYPES = frozenset(
+    {
+        "concept",
+        "source",
+        "media",
+        "writing",
+        "analysis",
+        "guide",
+        "hardware",
+        "architecture",
+        "project",
+        "note",
+        "code",
+        "image",
+        "synthesis",
+        "atom",
+        "extract_receipt",
+    }
+)
 
 
 def _classify_page_type(page_type: str) -> str:
@@ -67,12 +88,14 @@ def dry_run_gbrain(payload: dict[str, object]) -> MemoryImportDryRunResult:
             source="gbrain",
             version="1",
             normalized={},
-            mappings=[MemoryImportMappingItem(
-                source_bucket="gbrain_pages",
-                status="unsupported",
-                item_count=0,
-                reason="No gbrain pages found in payload.",
-            )],
+            mappings=[
+                MemoryImportMappingItem(
+                    source_bucket="gbrain_pages",
+                    status="unsupported",
+                    item_count=0,
+                    reason="No gbrain pages found in payload.",
+                )
+            ],
             mapped_items=0,
             unmapped_items=0,
             warnings=["gbrain_no_pages"],
@@ -112,11 +135,15 @@ def dry_run_gbrain(payload: dict[str, object]) -> MemoryImportDryRunResult:
             "confidence": 0.8,
             "tags": ["gbrain", f"gbrain_{page_type}"] + tags,
             "created_at": iso_or_now(None),
-            "metadata": build_metadata("gbrain", {
-                "type": page_type,
-                "title": title,
-                "slug": str(page.get("slug", "")),
-            }, ("type", "title", "slug")),
+            "metadata": build_metadata(
+                "gbrain",
+                {
+                    "type": page_type,
+                    "title": title,
+                    "slug": str(page.get("slug", "")),
+                },
+                ("type", "title", "slug"),
+            ),
         }
 
         normalized.setdefault(bucket, []).append(item)
@@ -125,13 +152,15 @@ def dry_run_gbrain(payload: dict[str, object]) -> MemoryImportDryRunResult:
 
     for page_type, count in sorted(type_counts.items()):
         bucket = _classify_page_type(page_type)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket=f"gbrain/{page_type}",
-            target_bucket=bucket,
-            status="mapped",
-            item_count=count,
-            imported_count=count,
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket=f"gbrain/{page_type}",
+                target_bucket=bucket,
+                status="mapped",
+                item_count=count,
+                imported_count=count,
+            )
+        )
 
     return build_result(
         source="gbrain",

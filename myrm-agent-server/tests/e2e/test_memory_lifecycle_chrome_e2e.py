@@ -12,9 +12,7 @@ from pathlib import Path
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -148,9 +146,7 @@ def _await_attach_memory_chat(
                 timeout_sec=min(75.0, _attach_eval_timeout_sec(), remaining),
             )
         except RuntimeError as exc:
-            if "CDP request timeout" not in str(exc) and "Runtime.evaluate" not in str(
-                exc
-            ):
+            if "CDP request timeout" not in str(exc) and "Runtime.evaluate" not in str(exc):
                 raise
             last = {"err": str(exc)}
             time.sleep(2.0)
@@ -193,9 +189,7 @@ def _ensure_react_bridge_on_home(
         timeout_sec=_bridge_ready_timeout_sec(),
         page_url=home_url,
     )
-    assert bridge_ready.get("ready") is True, json.dumps(
-        bridge_ready, ensure_ascii=False
-    )
+    assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
     return bridge_ready
 
 
@@ -433,24 +427,16 @@ def _wait_orchestrator_lease_ready(*, timeout_sec: float = 120.0) -> None:
                 wave_open = isinstance(wave, dict) and wave.get("status") == "open"
                 active = payload.get("activeLeases")
                 lease_active = isinstance(active, list) and any(
-                    isinstance(item, dict)
-                    and item.get("leaseId") == lease_id
-                    and item.get("status") == "active"
+                    isinstance(item, dict) and item.get("leaseId") == lease_id and item.get("status") == "active"
                     for item in active
                 )
                 if wave_open and lease_active:
                     return
-                last_detail = (
-                    f"wave_open={wave_open} lease_active={lease_active} "
-                    f"lease={lease_id[:8]}"
-                )
+                last_detail = f"wave_open={wave_open} lease_active={lease_active} lease={lease_id[:8]}"
         except (OSError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
             last_detail = str(exc)
         time.sleep(2.0)
-    raise RuntimeError(
-        "E2E_ORCHESTRATOR_LEASE_DENIED: orchestrator lease not ready after "
-        f"{timeout_sec}s ({last_detail})"
-    )
+    raise RuntimeError(f"E2E_ORCHESTRATOR_LEASE_DENIED: orchestrator lease not ready after {timeout_sec}s ({last_detail})")
 
 
 def _force_mux_heal_before_retry() -> None:
@@ -519,26 +505,17 @@ def _ensure_seeded_chat_ready(
                     messages = data["messages"]
                 elif isinstance(payload.get("messages"), list):
                     messages = payload["messages"]
-            has_assistant = any(
-                isinstance(msg, dict) and msg.get("role") == "assistant"
-                for msg in messages
-            )
+            has_assistant = any(isinstance(msg, dict) and msg.get("role") == "assistant" for msg in messages)
             if len(messages) >= 2 and has_assistant:
                 return
-            last_error = (
-                f"messages not ready; count={len(messages)} assistant={has_assistant}"
-            )
+            last_error = f"messages not ready; count={len(messages)} assistant={has_assistant}"
         except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
             last_error = str(exc)
         time.sleep(0.3)
-    raise AssertionError(
-        f"Memory lifecycle seed chat not readable on {api_url}: {last_error}"
-    )
+    raise AssertionError(f"Memory lifecycle seed chat not readable on {api_url}: {last_error}")
 
 
-def _run_lifecycle_assertions(
-    api_url: str, ui_url: str, *, warm_route: bool = True
-) -> None:
+def _run_lifecycle_assertions(api_url: str, ui_url: str, *, warm_route: bool = True) -> None:
     seeded = _seed_memory_lifecycle_fixture(api_url)
     chat_id = seeded["chat_id"]
     chat_url = f"{ui_url.rstrip('/')}/{chat_id}"
@@ -573,13 +550,8 @@ def _run_lifecycle_assertions(
         dismiss_blocking_modals(client, page, recover_url=chat_url)
         _poke_chat_route_render(client, page, chat_id)
 
-        chat_ui_probe = _probe_chat_ui_state(
-            client, page, timeout_sec=min(45.0, ui_wait_sec * 0.5)
-        )
-        if (
-            chat_ui_probe.get("ready") is not True
-            and chat_ui_probe.get("hasMessageListSkeleton") is True
-        ):
+        chat_ui_probe = _probe_chat_ui_state(client, page, timeout_sec=min(45.0, ui_wait_sec * 0.5))
+        if chat_ui_probe.get("ready") is not True and chat_ui_probe.get("hasMessageListSkeleton") is True:
             reload_mcp_page(client, page, target_url=chat_url, timeout_ms=120_000)
             dismiss_blocking_modals(client, page, recover_url=chat_url)
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
@@ -635,9 +607,7 @@ def _run_lifecycle_assertions(
             timeout_sec=ui_wait_sec,
             page_url=chat_url,
         )
-        assert chat_ui_probe.get("ready") is True, json.dumps(
-            chat_ui_probe, ensure_ascii=False
-        )
+        assert chat_ui_probe.get("ready") is True, json.dumps(chat_ui_probe, ensure_ascii=False)
 
         client.evaluate(page, _SCROLL_MESSAGES_INTO_VIEW_JS, timeout_sec=15.0)
         _poke_chat_route_render(client, page, chat_id)
@@ -650,9 +620,7 @@ def _run_lifecycle_assertions(
             timeout_sec=_chat_ui_wait_timeout_sec(90.0),
             page_url=chat_url,
         )
-        assert state.get("ready") is True, json.dumps(
-            state, indent=2, ensure_ascii=False
-        )
+        assert state.get("ready") is True, json.dumps(state, indent=2, ensure_ascii=False)
         assert state.get("hasTimeline") is True
         assert state.get("hasRetry") is True
 
@@ -678,9 +646,7 @@ def _run_with_transport_retry(
         raise last_error
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_memory_lifecycle_timeline_and_retry() -> None:

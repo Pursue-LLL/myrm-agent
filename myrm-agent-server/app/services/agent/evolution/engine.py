@@ -55,9 +55,7 @@ async def _run_evolution_task(
                 messages = await ChatService.get_all_messages(chat_id)
 
                 if len(messages) < 4:
-                    logger.debug(
-                        f"Chat {chat_id} too short for skill evolution ({len(messages)} messages)"
-                    )
+                    logger.debug(f"Chat {chat_id} too short for skill evolution ({len(messages)} messages)")
                     return
 
                 conversation_text = ""
@@ -66,9 +64,7 @@ async def _run_evolution_task(
                     conversation_text += f"[{role}]: {msg.content}\n\n"
 
         # Initialize the LLM (using the same model config as the main agent, or a dedicated reasoning model)
-        llm = await llm_manager.get_llm_from_config(
-            model_cfg, streaming=False, api_keys=getattr(model_cfg, "api_keys", None)
-        )
+        llm = await llm_manager.get_llm_from_config(model_cfg, streaming=False, api_keys=getattr(model_cfg, "api_keys", None))
 
         # We delegate the actual extraction and validation to the Harness engine
         import platform
@@ -108,9 +104,7 @@ async def _run_evolution_task(
             store.close()
 
         if not proposal:
-            logger.debug(
-                f"No reusable skill detected or skill rejected by SandboxValidator for chat {chat_id}"
-            )
+            logger.debug(f"No reusable skill detected or skill rejected by SandboxValidator for chat {chat_id}")
             return
 
         skill_name = proposal.skill_id
@@ -126,14 +120,10 @@ async def _run_evolution_task(
         # Broadcast to the user that a new skill draft is ready for review
         await broadcast_proposal(proposal.to_dict())
 
-        logger.info(
-            f"✨ Successfully generated new skill proposal: '{skill_name}' (chat: {chat_id})"
-        )
+        logger.info(f"✨ Successfully generated new skill proposal: '{skill_name}' (chat: {chat_id})")
 
     except Exception as e:
-        logger.error(
-            f"Background skill evolution failed for chat {chat_id}: {e}", exc_info=True
-        )
+        logger.error(f"Background skill evolution failed for chat {chat_id}: {e}", exc_info=True)
 
 
 def trigger_skill_evolution(
@@ -154,22 +144,17 @@ def trigger_skill_evolution(
         agent_id: Originating agent profile ID for proposal attribution.
     """
     if _RUNNING_EVOLUTION_TASKS.get(chat_id) is not None:
-        logger.debug(
-            f"Skill evolution already in flight for chat {chat_id}; skipping duplicate trigger"
-        )
+        logger.debug(f"Skill evolution already in flight for chat {chat_id}; skipping duplicate trigger")
         return
 
     if not conversation_text and tool_steps_count < _MIN_TOOL_STEPS_FOR_CAPTURE:
         logger.debug(
-            f"Chat {chat_id} turn too shallow for skill capture "
-            f"(tool_steps={tool_steps_count} < {_MIN_TOOL_STEPS_FOR_CAPTURE})"
+            f"Chat {chat_id} turn too shallow for skill capture (tool_steps={tool_steps_count} < {_MIN_TOOL_STEPS_FOR_CAPTURE})"
         )
         return
 
     task = asyncio.create_task(
-        _run_evolution_task(
-            chat_id, model_cfg, conversation_text=conversation_text, agent_id=agent_id
-        ),
+        _run_evolution_task(chat_id, model_cfg, conversation_text=conversation_text, agent_id=agent_id),
         name=f"skill_evolution_{chat_id}",
     )
     _RUNNING_EVOLUTION_TASKS[chat_id] = task

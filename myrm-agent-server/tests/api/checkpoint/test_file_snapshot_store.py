@@ -142,4 +142,3 @@ async def test_create_file_snapshot_propagates_store_error(
         )
 
     assert response.status_code == 500
-

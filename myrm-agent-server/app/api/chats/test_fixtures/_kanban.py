@@ -48,9 +48,7 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for kanban closure E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for kanban closure E2E seed")
 
     agent = agents[0]
     agent_id = agent.id
@@ -61,9 +59,7 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
     task_title = f"Closure task {marker}"
 
     kanban = KanbanService.get_instance()
-    board = await kanban.create_board(
-        board_name, description="Kanban Chat↔Board closure Chrome E2E"
-    )
+    board = await kanban.create_board(board_name, description="Kanban Chat↔Board closure Chrome E2E")
     task = await kanban.add_task(
         board.board_id,
         task_title,
@@ -109,9 +105,7 @@ async def seed_kanban_closure_fixture() -> dict[str, str]:
         extra_data=kanban_card_extra,
     )
 
-    board_deep_link_path = (
-        f"/settings/kanban?source_chat={chat_id}&board_id={board.board_id}"
-    )
+    board_deep_link_path = f"/settings/kanban?source_chat={chat_id}&board_id={board.board_id}"
 
     return {
         "chat_id": chat_id,
@@ -142,9 +136,7 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for kanban in-review E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for kanban in-review E2E seed")
     agent = next(
         (a for a in agents if a.id == "builtin-general"),
         agents[0],
@@ -152,9 +144,7 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
     agent_id = agent.id
 
     kanban = KanbanService.get_instance()
-    board = await kanban.create_board(
-        board_name, description="Kanban IN_REVIEW Fleet KPI Chrome E2E"
-    )
+    board = await kanban.create_board(board_name, description="Kanban IN_REVIEW Fleet KPI Chrome E2E")
     task = await kanban.add_task(
         board.board_id,
         task_title,
@@ -162,9 +152,7 @@ async def seed_kanban_in_review_fixture() -> dict[str, str]:
         require_approval=True,
         agent_id=agent_id,
     )
-    moved = await kanban.store.transition_task_status(
-        task.task_id, TaskStatus.READY, TaskStatus.IN_REVIEW
-    )
+    moved = await kanban.store.transition_task_status(task.task_id, TaskStatus.READY, TaskStatus.IN_REVIEW)
     if moved is None:
         raise HTTPException(
             status_code=500,

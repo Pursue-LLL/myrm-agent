@@ -174,8 +174,7 @@ async def warmup_browser_sessions() -> None:
         warmup_candidates = [
             record
             for record in active_threads
-            if record.last_active_at >= stale_threshold
-            and (datetime.now() - record.last_active_at).total_seconds() < 86400
+            if record.last_active_at >= stale_threshold and (datetime.now() - record.last_active_at).total_seconds() < 86400
         ]
 
         if not warmup_candidates:

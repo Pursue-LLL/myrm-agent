@@ -181,9 +181,7 @@ async def test_cancel_shell_background_task_returns_false_when_unknown() -> None
 @pytest.mark.asyncio
 async def test_write_shell_background_stdin_forwards_to_registry() -> None:
     fake_registry = MagicMock()
-    fake_registry.write_stdin = AsyncMock(
-        return_value={"ok": True, "pid": 55, "bytes_written": 2}
-    )
+    fake_registry.write_stdin = AsyncMock(return_value={"ok": True, "pid": 55, "bytes_written": 2})
 
     with patch(
         "myrm_agent_harness.api.hooks.get_background_registry",
@@ -203,9 +201,7 @@ async def test_write_shell_background_stdin_forwards_to_registry() -> None:
 @pytest.mark.asyncio
 async def test_write_shell_background_stdin_close_forwards_to_registry() -> None:
     fake_registry = MagicMock()
-    fake_registry.write_stdin = AsyncMock(
-        return_value={"ok": True, "pid": 56, "bytes_written": 0, "closed": True}
-    )
+    fake_registry.write_stdin = AsyncMock(return_value={"ok": True, "pid": 56, "bytes_written": 0, "closed": True})
 
     with patch(
         "myrm_agent_harness.api.hooks.get_background_registry",

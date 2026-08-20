@@ -121,9 +121,7 @@ class TestGetDesktopPermissions:
         mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_harness_exception_returns_500(
-        self, client: httpx.AsyncClient
-    ) -> None:
+    async def test_harness_exception_returns_500(self, client: httpx.AsyncClient) -> None:
         with patch(
             "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
             side_effect=RuntimeError("harness import failed"),
@@ -136,13 +134,9 @@ class TestGetDesktopPermissions:
         assert data["message"] == "Desktop permissions check failed"
 
     @pytest.mark.asyncio
-    async def test_check_permissions_raises_returns_500(
-        self, client: httpx.AsyncClient
-    ) -> None:
+    async def test_check_permissions_raises_returns_500(self, client: httpx.AsyncClient) -> None:
         mock_session = AsyncMock()
-        mock_session.check_permissions = AsyncMock(
-            side_effect=OSError("AX probe crash")
-        )
+        mock_session.check_permissions = AsyncMock(side_effect=OSError("AX probe crash"))
         mock_session.close = AsyncMock()
 
         with patch(

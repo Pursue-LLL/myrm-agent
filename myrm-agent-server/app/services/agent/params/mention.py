@@ -84,9 +84,7 @@ _CODEBASE_SCAN_MAX_FILES = 10_000
 _URL_FETCH_TIMEOUT = 30
 
 
-def _read_file_lines(
-    file_path: str, start_line: int | None, end_line: int | None
-) -> str:
+def _read_file_lines(file_path: str, start_line: int | None, end_line: int | None) -> str:
     """Read specific lines from a file.
 
     Args:
@@ -119,9 +117,7 @@ def _text_reference_to_structured(ref: str) -> MentionReferenceRequest:
         return MentionReferenceRequest(type="codebase", label="@codebase")
     if ref.startswith("@folder:"):
         path = ref.removeprefix("@folder:")
-        return MentionReferenceRequest(
-            type="workspace_folder", path=path or ".", label=ref
-        )
+        return MentionReferenceRequest(type="workspace_folder", path=path or ".", label=ref)
     if ref.startswith("@url:"):
         url = ref.removeprefix("@url:")
         return MentionReferenceRequest(type="url", url=url, label=ref)
@@ -149,9 +145,7 @@ async def _build_mentioned_file_context(
     max_context_tokens: int | None = None,
 ) -> tuple[str, list[str], int]:
     structured = [_text_reference_to_structured(ref) for ref in mentioned_files]
-    return await _build_mention_reference_context(
-        structured, workspace_dir, max_context_tokens
-    )
+    return await _build_mention_reference_context(structured, workspace_dir, max_context_tokens)
 
 
 def _get_git_staged_diff(workspace_dir: str) -> str:
@@ -170,9 +164,7 @@ def _get_git_staged_diff(workspace_dir: str) -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-        logger.debug(
-            "git diff --cached returned %d: %s", result.returncode, result.stderr
-        )
+        logger.debug("git diff --cached returned %d: %s", result.returncode, result.stderr)
     except subprocess.TimeoutExpired:
         logger.warning("git diff --cached timeout (30s) in %s", workspace_dir)
     except FileNotFoundError:
@@ -284,9 +276,7 @@ async def _build_mention_reference_context(
                         )
                     )
             else:
-                parts.append(
-                    '<mentioned_file path="@staged" type="git-diff">No staged changes</mentioned_file>'
-                )
+                parts.append('<mentioned_file path="@staged" type="git-diff">No staged changes</mentioned_file>')
             continue
 
         if ref.type == "git_diff":
@@ -314,9 +304,7 @@ async def _build_mention_reference_context(
                             )
                         )
                 else:
-                    parts.append(
-                        '<mentioned_file path="@diff" type="git-diff">No unstaged changes</mentioned_file>'
-                    )
+                    parts.append('<mentioned_file path="@diff" type="git-diff">No unstaged changes</mentioned_file>')
             except Exception as e:
                 logger.debug("Failed to get git diff: %s", e)
                 parts.append('<mentioned_file path="@diff" error="git diff failed"/>')
@@ -382,9 +370,7 @@ async def _build_mention_reference_context(
             try:
                 abs_path = safe_join_path(workspace_real, rel_path)
             except ValueError:
-                parts.append(
-                    _xml_error(ref.label or rel_path, "path outside workspace")
-                )
+                parts.append(_xml_error(ref.label or rel_path, "path outside workspace"))
                 continue
             display_path = ref.label or rel_path
             part, consumed_bytes = _workspace_file_part(
@@ -405,9 +391,7 @@ async def _build_mention_reference_context(
             continue
 
         if ref.type == "codebase":
-            codebase_part, codebase_bytes = await _codebase_overview_part(
-                workspace_real, total_bytes
-            )
+            codebase_part, codebase_bytes = await _codebase_overview_part(workspace_real, total_bytes)
             parts.append(codebase_part)
             total_bytes += codebase_bytes
             continue
@@ -417,9 +401,7 @@ async def _build_mention_reference_context(
             if not concept_name:
                 parts.append(_xml_error("@wiki", "missing concept_name"))
                 continue
-            part, consumed_bytes = await _wiki_concept_part(
-                concept_name, total_bytes, agent_id
-            )
+            part, consumed_bytes = await _wiki_concept_part(concept_name, total_bytes, agent_id)
             parts.append(part)
             total_bytes += consumed_bytes
             continue
@@ -430,9 +412,7 @@ async def _build_mention_reference_context(
             if not file_id:
                 parts.append(_xml_error(display, "missing file_id or path"))
                 continue
-            part, consumed_bytes = await _wiki_raw_file_part(
-                file_id, display, total_bytes, agent_id
-            )
+            part, consumed_bytes = await _wiki_raw_file_part(file_id, display, total_bytes, agent_id)
             parts.append(part)
             total_bytes += consumed_bytes
             continue
@@ -454,9 +434,7 @@ async def _build_mention_reference_context(
         return "", [], 0
 
     # Calculate total tokens
-    final_content = (
-        "\n\n<mentioned_files>\n" + "\n".join(parts) + "\n</mentioned_files>"
-    )
+    final_content = "\n\n<mentioned_files>\n" + "\n".join(parts) + "\n</mentioned_files>"
     total_tokens = get_token_count(final_content)
 
     # Check budget limits
@@ -465,9 +443,7 @@ async def _build_mention_reference_context(
             f"Context size {total_tokens} tokens exceeds 50% limit ({hard_limit} tokens), some references may have been truncated"
         )
     elif total_tokens > soft_limit:
-        warnings.append(
-            f"Warning: Context size {total_tokens} tokens exceeds 25% soft limit ({soft_limit} tokens)"
-        )
+        warnings.append(f"Warning: Context size {total_tokens} tokens exceeds 25% soft limit ({soft_limit} tokens)")
 
     return final_content, warnings, total_tokens
 
@@ -508,9 +484,7 @@ def _workspace_file_part(
     if ext in _DOCUMENT_EXTENSIONS:
         if start_line is not None:
             return (
-                _xml_error(
-                    display_path, "line range not supported for Office documents"
-                ),
+                _xml_error(display_path, "line range not supported for Office documents"),
                 0,
             )
         content = _parse_document(abs_path, ext)
@@ -535,9 +509,7 @@ def _workspace_file_part(
 
     content_bytes = len(content.encode("utf-8"))
     if _can_inline(content_bytes, current_total_bytes):
-        line_range = (
-            f" lines {start_line}-{end_line or start_line}" if start_line else ""
-        )
+        line_range = f" lines {start_line}-{end_line or start_line}" if start_line else ""
         return _xml_part(display_path, f"text{line_range}", content), content_bytes
     return (
         _xml_metadata(
@@ -549,9 +521,7 @@ def _workspace_file_part(
     )
 
 
-async def _stored_file_part(
-    ref: MentionReferenceRequest, current_total_bytes: int
-) -> tuple[str, int]:
+async def _stored_file_part(ref: MentionReferenceRequest, current_total_bytes: int) -> tuple[str, int]:
     from app.core.storage import files_service
 
     if not ref.file_id:
@@ -596,9 +566,7 @@ async def _stored_file_part(
         text = content.decode("utf-8", errors="replace")
     except Exception:
         return (
-            _xml_metadata(
-                display_path, "binary", f"Binary file ({_format_size(file.size)})"
-            ),
+            _xml_metadata(display_path, "binary", f"Binary file ({_format_size(file.size)})"),
             0,
         )
 
@@ -665,11 +633,7 @@ def _build_codebase_overview(workspace_path: Path) -> str:
     truncated = False
 
     for _dirpath, dirnames, filenames in os.walk(workspace_path):
-        dirnames[:] = [
-            name
-            for name in dirnames
-            if name not in _CODEBASE_SCAN_EXCLUDED_DIRS and not name.startswith(".")
-        ]
+        dirnames[:] = [name for name in dirnames if name not in _CODEBASE_SCAN_EXCLUDED_DIRS and not name.startswith(".")]
         for filename in filenames:
             if filename.startswith("."):
                 continue
@@ -687,19 +651,14 @@ def _build_codebase_overview(workspace_path: Path) -> str:
         overview_parts.append(f"(scan capped at {_CODEBASE_SCAN_MAX_FILES} files)")
     if ext_counts:
         ext_summary = ", ".join(
-            f"{ext}: {count}"
-            for ext, count in sorted(
-                ext_counts.items(), key=lambda item: (-item[1], item[0])
-            )[:10]
+            f"{ext}: {count}" for ext, count in sorted(ext_counts.items(), key=lambda item: (-item[1], item[0]))[:10]
         )
         overview_parts.append(f"Extensions: {ext_summary}")
     overview_parts.append("Use grep_tool / glob_tool for code exploration.")
     return "\n".join(overview_parts)
 
 
-async def _codebase_overview_part(
-    workspace_dir: str, current_total_bytes: int
-) -> tuple[str, int]:
+async def _codebase_overview_part(workspace_dir: str, current_total_bytes: int) -> tuple[str, int]:
     """Build a lightweight codebase overview for @codebase mention."""
     workspace_path = Path(workspace_dir)
     if not workspace_path.is_dir():
@@ -713,9 +672,7 @@ async def _codebase_overview_part(
     if _can_inline(overview_bytes, current_total_bytes):
         return _xml_part("@codebase", "codebase-overview", overview), overview_bytes
     return (
-        _xml_metadata(
-            "@codebase", "codebase-overview", overview.split("\n", maxsplit=1)[0]
-        ),
+        _xml_metadata("@codebase", "codebase-overview", overview.split("\n", maxsplit=1)[0]),
         0,
     )
 
@@ -729,10 +686,7 @@ def _format_size(size_bytes: int) -> str:
 
 
 def _can_inline(content_bytes: int, current_total_bytes: int) -> bool:
-    return (
-        content_bytes <= _MENTION_MAX_INLINE_BYTES
-        and current_total_bytes + content_bytes <= _MENTION_MAX_TOTAL_BYTES
-    )
+    return content_bytes <= _MENTION_MAX_INLINE_BYTES and current_total_bytes + content_bytes <= _MENTION_MAX_TOTAL_BYTES
 
 
 def _xml_part(path: str, part_type: str, content: str) -> str:
@@ -849,9 +803,7 @@ async def _prior_chat_part(
     if _can_inline(content_bytes, current_total_bytes):
         return _xml_part(display, "prior-chat", content), content_bytes
     return (
-        _xml_metadata(
-            display, "prior-chat", f"Context too large ({_format_size(content_bytes)})"
-        ),
+        _xml_metadata(display, "prior-chat", f"Context too large ({_format_size(content_bytes)})"),
         0,
     )
 

@@ -60,25 +60,17 @@ class TestBuildBundle:
         assert manifest["homepage"]
         assert "memory" in manifest["keywords"]
 
-    def test_plugin_json_validates_against_official_schema(
-        self, plugin_schema: dict[str, object]
-    ) -> None:
+    def test_plugin_json_validates_against_official_schema(self, plugin_schema: dict[str, object]) -> None:
         bundle = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default")
         jsonschema.validate(json.loads(bundle.files["plugin.json"]), plugin_schema)
 
-    def test_mcp_json_validates_against_official_schema(
-        self, mcp_schema: dict[str, object]
-    ) -> None:
+    def test_mcp_json_validates_against_official_schema(self, mcp_schema: dict[str, object]) -> None:
         for embed in (True, False):
-            bundle = build_agent_plugin_bundle(
-                "http://x/mcp", "tok", agent_id="default", embed_token=embed
-            )
+            bundle = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default", embed_token=embed)
             jsonschema.validate(json.loads(bundle.files["mcp.json"]), mcp_schema)
 
     def test_mcp_json_embedded_token(self) -> None:
-        bundle = build_agent_plugin_bundle(
-            "http://x/mcp", "tok123", agent_id="default", embed_token=True
-        )
+        bundle = build_agent_plugin_bundle("http://x/mcp", "tok123", agent_id="default", embed_token=True)
         mcp = json.loads(bundle.files["mcp.json"])
         server = mcp["mcpServers"]["myrm-memory"]
         assert server["type"] == "streamable-http"
@@ -86,9 +78,7 @@ class TestBuildBundle:
         assert server["headers"]["Authorization"] == "Bearer tok123"
 
     def test_mcp_json_env_token_mode(self) -> None:
-        bundle = build_agent_plugin_bundle(
-            "http://x/mcp", "tok123", agent_id="default", embed_token=False
-        )
+        bundle = build_agent_plugin_bundle("http://x/mcp", "tok123", agent_id="default", embed_token=False)
         mcp = json.loads(bundle.files["mcp.json"])
         auth = mcp["mcpServers"]["myrm-memory"]["headers"]["Authorization"]
         assert auth == f"Bearer ${{{TOKEN_ENV_VAR}}}"
@@ -109,16 +99,12 @@ class TestBuildBundle:
         assert "Never store passwords, API keys, or other secrets" in skill
 
     def test_env_mode_instructions_mention_var(self) -> None:
-        bundle = build_agent_plugin_bundle(
-            "http://x/mcp", "tok", agent_id="default", embed_token=False
-        )
+        bundle = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default", embed_token=False)
         assert TOKEN_ENV_VAR in bundle.instructions
 
     def test_instructions_prescribe_file_layout(self) -> None:
         for embed in (True, False):
-            bundle = build_agent_plugin_bundle(
-                "http://x/mcp", "tok", agent_id="default", embed_token=embed
-            )
+            bundle = build_agent_plugin_bundle("http://x/mcp", "tok", agent_id="default", embed_token=embed)
             assert "skills/myrm-memory/" in bundle.instructions
             assert "plugin.json" in bundle.instructions
             assert "mcp.json" in bundle.instructions

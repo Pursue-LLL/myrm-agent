@@ -59,11 +59,7 @@ async def get_public_ingress_base_url() -> str:
 
     cp_env = settings.cp_public_ingress_url or ""
     now = time.monotonic()
-    if (
-        _cached_url is not None
-        and _cached_cp_env == cp_env
-        and (now - _cached_at) < _CACHE_TTL_SECONDS
-    ):
+    if _cached_url is not None and _cached_cp_env == cp_env and (now - _cached_at) < _CACHE_TTL_SECONDS:
         return _cached_url
 
     url = cp_env

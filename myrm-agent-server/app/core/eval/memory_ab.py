@@ -279,9 +279,7 @@ async def run_memory_ab_background(
                 1
                 for turn in getattr(arm_result, "turn_results", ()) or ()
                 for tool in getattr(turn.response, "tools_called", ()) or ()
-                if str(tool.get("name") if isinstance(tool, dict) else tool).startswith(
-                    "memory_"
-                )
+                if str(tool.get("name") if isinstance(tool, dict) else tool).startswith("memory_")
             )
             per_profile = report_data.get("per_profile")
             if not isinstance(per_profile, dict):

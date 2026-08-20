@@ -238,21 +238,25 @@ class XSearchProvider:
                 if not url or url in seen_urls:
                     continue
                 seen_urls.add(url)
-                merged.append(Citation(
-                    url=url,
-                    title=c.get("title", ""),
-                    start_index=c.get("start_index"),
-                    end_index=c.get("end_index"),
-                ))
+                merged.append(
+                    Citation(
+                        url=url,
+                        title=c.get("title", ""),
+                        start_index=c.get("start_index"),
+                        end_index=c.get("end_index"),
+                    )
+                )
             for tc in top_level_citations:
                 url = tc.get("url", "") if isinstance(tc, dict) else str(tc)
                 if not url or url in seen_urls:
                     continue
                 seen_urls.add(url)
-                merged.append(Citation(
-                    url=url,
-                    title=tc.get("title", "") if isinstance(tc, dict) else "",
-                ))
+                merged.append(
+                    Citation(
+                        url=url,
+                        title=tc.get("title", "") if isinstance(tc, dict) else "",
+                    )
+                )
 
             has_filters = bool(allowed or excluded or from_date.strip() or to_date.strip())
             is_degraded = has_filters and not merged

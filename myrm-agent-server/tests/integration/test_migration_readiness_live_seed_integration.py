@@ -24,10 +24,7 @@ def _live_api_reachable(api_base: str) -> bool:
 
 
 def _post_seed_loopback(api_base: str, *, variant: str) -> dict[str, object]:
-    url = (
-        f"{api_base.rstrip('/')}/api/v1/memory/test/seed-migration-readiness-fixture"
-        f"?variant={variant}"
-    )
+    url = f"{api_base.rstrip('/')}/api/v1/memory/test/seed-migration-readiness-fixture?variant={variant}"
     if not url.startswith("http://127.0.0.1:"):
         raise ValueError(f"Live integration only permits loopback API URLs: {url}")
     resp: httpx.Response | None = None
@@ -48,8 +45,7 @@ def _post_seed_loopback(api_base: str, *, variant: str) -> dict[str, object]:
     assert resp is not None
     if resp.status_code == 404:
         pytest.skip(
-            "Live server missing seed route — stack pinned by wave; "
-            "new pytest SHPOIB pool picks up latest code automatically"
+            "Live server missing seed route — stack pinned by wave; new pytest SHPOIB pool picks up latest code automatically"
         )
     if resp.status_code != 200:
         raise RuntimeError(f"HTTP POST {url} returned {resp.status_code}: {resp.text[:500]!r}")

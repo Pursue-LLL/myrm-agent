@@ -440,4 +440,3 @@ async def test_live_close_external_agent_pool_on_chat_delete() -> None:
 
     assert chat_id not in registry._entries  # type: ignore[attr-defined]
     raw_pool.close_all.assert_awaited_once()
-

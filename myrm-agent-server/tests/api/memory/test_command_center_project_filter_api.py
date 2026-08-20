@@ -92,14 +92,17 @@ def client() -> TestClient:
 def test_command_center_without_project_id(client: TestClient) -> None:
     """GET /command-center without project_id uses global scope."""
     snapshot = _build_empty_snapshot()
-    with patch.object(
-        command_center_operation.MemoryCommandCenterService,
-        "__init__",
-        return_value=None,
-    ) as mock_init, patch.object(
-        command_center_operation.MemoryCommandCenterService,
-        "build_snapshot",
-        new=AsyncMock(return_value=snapshot),
+    with (
+        patch.object(
+            command_center_operation.MemoryCommandCenterService,
+            "__init__",
+            return_value=None,
+        ) as mock_init,
+        patch.object(
+            command_center_operation.MemoryCommandCenterService,
+            "build_snapshot",
+            new=AsyncMock(return_value=snapshot),
+        ),
     ):
         response = client.get("/api/v1/memory/command-center")
 
@@ -112,14 +115,17 @@ def test_command_center_without_project_id(client: TestClient) -> None:
 def test_command_center_with_project_id(client: TestClient) -> None:
     """GET /command-center?project_id=xxx passes project_id to service."""
     snapshot = _build_empty_snapshot()
-    with patch.object(
-        command_center_operation.MemoryCommandCenterService,
-        "__init__",
-        return_value=None,
-    ) as mock_init, patch.object(
-        command_center_operation.MemoryCommandCenterService,
-        "build_snapshot",
-        new=AsyncMock(return_value=snapshot),
+    with (
+        patch.object(
+            command_center_operation.MemoryCommandCenterService,
+            "__init__",
+            return_value=None,
+        ) as mock_init,
+        patch.object(
+            command_center_operation.MemoryCommandCenterService,
+            "build_snapshot",
+            new=AsyncMock(return_value=snapshot),
+        ),
     ):
         response = client.get("/api/v1/memory/command-center?project_id=proj-abc-123")
 
@@ -132,14 +138,17 @@ def test_command_center_with_project_id(client: TestClient) -> None:
 def test_command_center_empty_project_id_normalized_to_none(client: TestClient) -> None:
     """GET /command-center?project_id= normalizes empty string to None (global scope)."""
     snapshot = _build_empty_snapshot()
-    with patch.object(
-        command_center_operation.MemoryCommandCenterService,
-        "__init__",
-        return_value=None,
-    ) as mock_init, patch.object(
-        command_center_operation.MemoryCommandCenterService,
-        "build_snapshot",
-        new=AsyncMock(return_value=snapshot),
+    with (
+        patch.object(
+            command_center_operation.MemoryCommandCenterService,
+            "__init__",
+            return_value=None,
+        ) as mock_init,
+        patch.object(
+            command_center_operation.MemoryCommandCenterService,
+            "build_snapshot",
+            new=AsyncMock(return_value=snapshot),
+        ),
     ):
         response = client.get("/api/v1/memory/command-center?project_id=")
 

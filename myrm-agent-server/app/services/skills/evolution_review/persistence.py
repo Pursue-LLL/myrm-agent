@@ -93,11 +93,7 @@ async def list_approval_review_records(
 
 async def count_approval_review_records(*, pending_only: bool = False) -> int:
     async with get_session() as db:
-        stmt = (
-            select(func.count())
-            .select_from(ApprovalRecord)
-            .where(ApprovalRecord.action_type == EVOLUTION_ACTION_TYPE)
-        )
+        stmt = select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.action_type == EVOLUTION_ACTION_TYPE)
         if pending_only:
             stmt = stmt.where(_pending_growth_status_clause())
         result = await db.execute(stmt)

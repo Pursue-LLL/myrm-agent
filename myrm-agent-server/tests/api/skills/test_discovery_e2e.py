@@ -43,9 +43,7 @@ class TestSkillDiscoveryE2E:
         """A nonexistent repo should return 200 with an empty or fallback list, not crash."""
         response = client.post(
             "/api/v1/skills/discovery/analyze-url",
-            json={
-                "url": "https://github.com/nonexistent-owner-xyz/nonexistent-repo-abc"
-            },
+            json={"url": "https://github.com/nonexistent-owner-xyz/nonexistent-repo-abc"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -84,9 +82,7 @@ class TestSkillDiscoveryE2E:
         data = response.json()
         assert isinstance(data["urls"], list)
 
-    def test_search_and_install_agent_plugin_discovery_e2e(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_search_and_install_agent_plugin_discovery_e2e(self, client: TestClient, monkeypatch: pytest.MonkeyPatch):
         """E2E test verifying Agent Plugin discovery search and installation response schemas."""
         from unittest.mock import AsyncMock
 
@@ -135,15 +131,11 @@ class TestSkillDiscoveryE2E:
         assert "review" in item["keywords"]
 
         # 2. Test search with package_type filter
-        res_filtered = client.get(
-            "/api/v1/skills/discovery/search?q=code-review&package_type=skill"
-        )
+        res_filtered = client.get("/api/v1/skills/discovery/search?q=code-review&package_type=skill")
         assert res_filtered.status_code == 200
         assert res_filtered.json()["total"] == 0
 
-        res_plugin_filtered = client.get(
-            "/api/v1/skills/discovery/search?q=code-review&package_type=agent_plugin"
-        )
+        res_plugin_filtered = client.get("/api/v1/skills/discovery/search?q=code-review&package_type=agent_plugin")
         assert res_plugin_filtered.status_code == 200
         assert res_plugin_filtered.json()["total"] == 1
 
@@ -176,11 +168,10 @@ class TestSkillDiscoveryE2E:
         assert install_data["installed_skills"] == ["code-review", "git-lint"]
         assert install_data["declared_mcp_servers"] == ["sqlite-srv"]
 
-    def test_uninstall_broadcasts_skill_pool_updated(
-        self, client: TestClient, monkeypatch
-    ):
+    def test_uninstall_broadcasts_skill_pool_updated(self, client: TestClient, monkeypatch):
         """Test uninstalling a skill broadcasts SKILL_POOL_UPDATED event."""
         from unittest.mock import AsyncMock, MagicMock
+
         from myrm_agent_harness.backends.skills.market_protocols import (
             SkillInstallResult,
         )
@@ -201,9 +192,7 @@ class TestSkillDiscoveryE2E:
         )
 
         mock_bus = MagicMock()
-        monkeypatch.setattr(
-            "app.services.event.app_event_bus.get_event_bus", lambda: mock_bus
-        )
+        monkeypatch.setattr("app.services.event.app_event_bus.get_event_bus", lambda: mock_bus)
 
         res = client.post(
             "/api/v1/skills/discovery/uninstall",

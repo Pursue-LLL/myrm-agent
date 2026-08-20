@@ -77,9 +77,7 @@ def test_bind_topic(client, mock_topic_manager):
     # Setup mock
     instance = mock_topic_manager.return_value
 
-    instance.bind_topic = AsyncMock(
-        return_value=TopicContext(topic_id="topic1", agent_id="agent2")
-    )
+    instance.bind_topic = AsyncMock(return_value=TopicContext(topic_id="topic1", agent_id="agent2"))
     with patch(
         "app.services.agent.agent_service.AgentService.get_agent_by_id",
         new_callable=AsyncMock,
@@ -106,9 +104,7 @@ def test_set_default_agent(client, mock_topic_manager):
     # Setup mock
     instance = mock_topic_manager.return_value
 
-    instance.bind_topic = AsyncMock(
-        return_value=TopicContext(topic_id="__global__", agent_id="global_agent2")
-    )
+    instance.bind_topic = AsyncMock(return_value=TopicContext(topic_id="__global__", agent_id="global_agent2"))
     with patch(
         "app.services.agent.agent_service.AgentService.get_agent_by_id",
         new_callable=AsyncMock,
@@ -134,9 +130,7 @@ def test_set_default_agent_rejects_search_agent(client, mock_topic_manager):
     from app.core.channel_bridge.topic_config import SEARCH_AGENT_CHANNEL_BIND_MSG
 
     instance = mock_topic_manager.return_value
-    instance.bind_topic = AsyncMock(
-        side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG)
-    )
+    instance.bind_topic = AsyncMock(side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG))
 
     with patch(
         "app.services.agent.agent_service.AgentService.get_agent_by_id",

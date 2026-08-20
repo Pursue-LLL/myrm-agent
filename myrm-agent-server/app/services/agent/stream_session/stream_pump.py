@@ -60,9 +60,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                 "messageId": session.params.message_id,
                 "step_key": "waiting_for_turn",
                 "status": "waiting",
-                "data": {
-                    "message": "Waiting for other agents in the project to finish..."
-                },
+                "data": {"message": "Waiting for other agents in the project to finish..."},
             }
         ).to_sse_chunk()
         await buffer.append(waiting_msg)
@@ -130,10 +128,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                         session_factory = get_session_factory()
                         async with session_factory() as db:
                             await db.execute(
-                                delete(OfflineDurableTask).where(
-                                    OfflineDurableTask.chat_id
-                                    == session.request.chat_id
-                                )
+                                delete(OfflineDurableTask).where(OfflineDurableTask.chat_id == session.request.chat_id)
                             )
                             await db.commit()
                             logger.info(
@@ -199,9 +194,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
             _delayed_remove(),
             name=f"buffer_cleanup_{session.params.message_id}",
         )
-        task.add_done_callback(
-            lambda t: t.exception() if not t.cancelled() and t.exception() else None
-        )
+        task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
 
 async def launch_buffered_stream(
@@ -213,9 +206,7 @@ async def launch_buffered_stream(
     if getattr(session.request, "multiplexed", False):
         from fastapi.responses import JSONResponse
 
-        return JSONResponse(
-            content={"status": "accepted", "message_id": session.params.message_id}
-        )
+        return JSONResponse(content={"status": "accepted", "message_id": session.params.message_id})
 
     return StreamingResponse(
         content=buffer.subscribe(),

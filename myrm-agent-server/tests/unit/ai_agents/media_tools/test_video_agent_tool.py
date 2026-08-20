@@ -117,12 +117,15 @@ async def test_video_tool_generate_enqueues_when_async_config() -> None:
     async_config = MagicMock()
     mock_store = MagicMock()
 
-    with patch(
-        "app.lifecycle.task_worker.get_task_store",
-        return_value=mock_store,
-    ), patch(
-        "app.ai_agents.media_tools.video_agent_tool.AsyncVideoGenerationTools",
-    ) as async_cls:
+    with (
+        patch(
+            "app.lifecycle.task_worker.get_task_store",
+            return_value=mock_store,
+        ),
+        patch(
+            "app.ai_agents.media_tools.video_agent_tool.AsyncVideoGenerationTools",
+        ) as async_cls,
+    ):
         async_engine = MagicMock()
         async_engine.generate_video = AsyncMock(
             return_value='{"task_id":"vid-abc","task_type":"video_generate","status":"pending"}'

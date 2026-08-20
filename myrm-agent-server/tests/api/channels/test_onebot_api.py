@@ -19,6 +19,7 @@ def client():
     """Create a test client for the API with auth bypass."""
     try:
         from tests.support.minimal_app import build_minimal_app
+
         app = build_minimal_app(preset="channels_local")
         original_lifespan = app.router.lifespan_context
         app.router.lifespan_context = _noop_lifespan

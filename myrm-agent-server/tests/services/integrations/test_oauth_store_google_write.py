@@ -21,10 +21,7 @@ def test_write_enabled_requires_both_scopes() -> None:
 
 
 def test_write_disabled_when_readonly_only() -> None:
-    scope = (
-        "openid https://www.googleapis.com/auth/calendar.readonly "
-        "https://www.googleapis.com/auth/gmail.readonly"
-    )
+    scope = "openid https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly"
     assert google_workspace_write_enabled(scope) is False
 
 
@@ -34,11 +31,7 @@ def test_write_disabled_for_invalid_scope() -> None:
 
 
 def test_drive_read_enabled_when_scope_present() -> None:
-    scope = (
-        "openid email profile "
-        "https://www.googleapis.com/auth/gmail.readonly "
-        "https://www.googleapis.com/auth/drive.readonly"
-    )
+    scope = "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.readonly"
     assert google_drive_read_enabled(scope) is True
 
 

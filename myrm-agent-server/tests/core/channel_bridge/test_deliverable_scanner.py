@@ -31,11 +31,9 @@ def test_collect_attachments_and_strip_text(tmp_path: Path) -> None:
     report = tmp_path / "output.csv"
     report.write_text("a,b\n1,2")
     text = "Done. Delivered workspace/output.csv for review."
-    stripped, attachments, oversized, compressed, tmp_paths = (
-        collect_deliverable_paths_from_text(
-            text,
-            workspace_root=str(tmp_path),
-        )
+    stripped, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+        text,
+        workspace_root=str(tmp_path),
     )
     assert len(attachments) == 1
     assert attachments[0].filename == "output.csv"
@@ -64,24 +62,18 @@ def test_skips_missing_files(tmp_path: Path) -> None:
     assert attachments == []
 
 
-def test_oversized_image_compressed_into_attachment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_oversized_image_compressed_into_attachment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from PIL import Image
 
     from app.core.channel_bridge.agent_executor.deliverable import scanner
 
-    monkeypatch.setattr(
-        scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000
-    )
+    monkeypatch.setattr(scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000)
     img = tmp_path / "big_chart.png"
     Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="PNG")
 
-    stripped, attachments, oversized, compressed, tmp_paths = (
-        collect_deliverable_paths_from_text(
-            "Chart: workspace/big_chart.png",
-            workspace_root=str(tmp_path),
-        )
+    stripped, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+        "Chart: workspace/big_chart.png",
+        workspace_root=str(tmp_path),
     )
     assert oversized == []
     assert len(compressed) == 1
@@ -98,17 +90,13 @@ def test_oversized_image_compressed_into_attachment(
         Path(p).unlink(missing_ok=True)
 
 
-def test_oversized_webp_compressed_filename_aligned(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_oversized_webp_compressed_filename_aligned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """WEBP sources re-encode as JPEG; the attachment filename and mime must follow."""
     from PIL import Image
 
     from app.core.channel_bridge.agent_executor.deliverable import scanner
 
-    monkeypatch.setattr(
-        scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000
-    )
+    monkeypatch.setattr(scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 50_000)
     img = tmp_path / "hero.webp"
     Image.effect_noise((400, 400), 90).convert("RGB").save(img, format="WEBP")
 
@@ -125,20 +113,16 @@ def test_oversized_webp_compressed_filename_aligned(
         Path(p).unlink(missing_ok=True)
 
 
-def test_oversized_non_image_reported_as_note(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_oversized_non_image_reported_as_note(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.core.channel_bridge.agent_executor.deliverable import scanner
 
     monkeypatch.setattr(scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 100)
     doc = tmp_path / "report.pdf"
     doc.write_bytes(b"%PDF-1.4" + b"x" * 500)
 
-    stripped, attachments, oversized, compressed, tmp_paths = (
-        collect_deliverable_paths_from_text(
-            "See workspace/report.pdf",
-            workspace_root=str(tmp_path),
-        )
+    stripped, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+        "See workspace/report.pdf",
+        workspace_root=str(tmp_path),
     )
     assert attachments == []
     assert compressed == []
@@ -147,20 +131,16 @@ def test_oversized_non_image_reported_as_note(
     assert "workspace/report.pdf" not in stripped
 
 
-def test_oversized_uncompressible_image_reported_as_note(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_oversized_uncompressible_image_reported_as_note(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.core.channel_bridge.agent_executor.deliverable import scanner
 
     monkeypatch.setattr(scanner, "MAX_CHANNEL_ATTACHMENT_BYTES", 100)
     img = tmp_path / "photo.gif"
     img.write_bytes(b"GIF89a" + b"x" * 500)
 
-    _, attachments, oversized, compressed, tmp_paths = (
-        collect_deliverable_paths_from_text(
-            "Photo: workspace/photo.gif",
-            workspace_root=str(tmp_path),
-        )
+    _, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+        "Photo: workspace/photo.gif",
+        workspace_root=str(tmp_path),
     )
     assert attachments == []
     assert compressed == []
@@ -194,11 +174,9 @@ def test_resolve_plain_relative_path(tmp_path: Path) -> None:
 def test_collect_skips_empty_file(tmp_path: Path) -> None:
     empty = tmp_path / "empty.csv"
     empty.write_bytes(b"")
-    text, attachments, oversized, compressed, tmp_paths = (
-        collect_deliverable_paths_from_text(
-            "Here: workspace/empty.csv",
-            workspace_root=str(tmp_path),
-        )
+    text, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+        "Here: workspace/empty.csv",
+        workspace_root=str(tmp_path),
     )
     assert attachments == []
     assert oversized == []
@@ -211,23 +189,19 @@ def test_collect_deduplicates_against_existing_filenames(tmp_path: Path) -> None
     """A filename already attached by another source is dropped (token removed)."""
     dup = tmp_path / "report.pdf"
     dup.write_bytes(b"%PDF-1.4")
-    text, attachments, _oversized, _compressed, _tmp = (
-        collect_deliverable_paths_from_text(
-            "See workspace/report.pdf",
-            workspace_root=str(tmp_path),
-            existing_filenames={"report.pdf"},
-        )
+    text, attachments, _oversized, _compressed, _tmp = collect_deliverable_paths_from_text(
+        "See workspace/report.pdf",
+        workspace_root=str(tmp_path),
+        existing_filenames={"report.pdf"},
     )
     assert attachments == []
     assert "workspace/report.pdf" not in text
 
 
 def test_collect_returns_input_when_no_tokens(tmp_path: Path) -> None:
-    text, attachments, oversized, compressed, tmp_paths = (
-        collect_deliverable_paths_from_text(
-            "No files here.",
-            workspace_root=str(tmp_path),
-        )
+    text, attachments, oversized, compressed, tmp_paths = collect_deliverable_paths_from_text(
+        "No files here.",
+        workspace_root=str(tmp_path),
     )
     assert text == "No files here."
     assert attachments == []
@@ -238,9 +212,7 @@ def test_collect_returns_input_when_no_tokens(tmp_path: Path) -> None:
 
 def test_extract_deduplicates_and_normalizes_tokens(tmp_path: Path) -> None:
     """Duplicate tokens collapse; trailing punctuation is stripped."""
-    tokens = extract_deliverable_path_tokens(
-        "See workspace/a.md and workspace/a.md and workspace/b.pdf."
-    )
+    tokens = extract_deliverable_path_tokens("See workspace/a.md and workspace/a.md and workspace/b.pdf.")
     assert tokens == ["workspace/a.md", "workspace/b.pdf"]
 
 
@@ -255,9 +227,7 @@ async def test_resolve_chat_workspace_root_db_hit() -> None:
     )
 
     mock_db = AsyncMock()
-    mock_db.execute.return_value = SimpleNamespace(
-        scalar_one_or_none=lambda: " /tmp/ws "
-    )
+    mock_db.execute.return_value = SimpleNamespace(scalar_one_or_none=lambda: " /tmp/ws ")
     mock_session_cm = AsyncMock()
     mock_session_cm.__aenter__.return_value = mock_db
 
@@ -283,9 +253,7 @@ async def test_resolve_chat_workspace_root_empty_or_error() -> None:
 
     for value in (None, "   "):
         mock_db = AsyncMock()
-        mock_db.execute.return_value = SimpleNamespace(
-            scalar_one_or_none=lambda v=value: v
-        )
+        mock_db.execute.return_value = SimpleNamespace(scalar_one_or_none=lambda v=value: v)
         mock_session_cm = AsyncMock()
         mock_session_cm.__aenter__.return_value = mock_db
         with patch(

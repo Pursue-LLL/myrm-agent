@@ -96,9 +96,7 @@ async def test_render_ui_inline_card_renders_in_real_chat(
 
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or ""
         ).strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
@@ -122,9 +120,7 @@ async def test_render_ui_inline_card_renders_in_real_chat(
         except (TimeoutError, OSError) as exc:
             # DOM inline UI is the primary assertion; API poll is best-effort under shared stack load.
             if ui_state.get("ready") is not True:
-                raise AssertionError(
-                    f"API message check failed and inline UI not ready: {exc}"
-                ) from exc
+                raise AssertionError(f"API message check failed and inline UI not ready: {exc}") from exc
         e2e_resource_ledger.register("chat", chat_id)
         return chat_id
 

@@ -338,10 +338,14 @@ async def test_save_post_import_readiness_persists_session_and_provenance_metada
     assert post_import_readiness.get("issues") == readiness_issues
 
     provenance = (
-        await db_session.execute(
-            select(MemoryMigrationProvenanceModel).order_by(MemoryMigrationProvenanceModel.started_at.desc())
+        (
+            await db_session.execute(
+                select(MemoryMigrationProvenanceModel).order_by(MemoryMigrationProvenanceModel.started_at.desc())
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     assert provenance is not None
     assert isinstance(provenance.metadata_json, dict)
     assert provenance.metadata_json.get("readiness_status") == "warning"
@@ -429,10 +433,14 @@ async def test_save_post_import_first_turn_outcome_persists_once(
     assert first_turn.get("message_id") == "msg-1"
 
     provenance = (
-        await db_session.execute(
-            select(MemoryMigrationProvenanceModel).order_by(MemoryMigrationProvenanceModel.started_at.desc())
+        (
+            await db_session.execute(
+                select(MemoryMigrationProvenanceModel).order_by(MemoryMigrationProvenanceModel.started_at.desc())
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     assert provenance is not None
     assert isinstance(provenance.metadata_json, dict)
     assert provenance.metadata_json.get("first_turn_outcome") == "success"

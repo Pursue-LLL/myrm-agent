@@ -66,8 +66,7 @@ RequestedImportSource = Literal[
 ]
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
-    source_id: import_source
-    for source_id, import_source in migration_source_import_map().items()
+    source_id: import_source for source_id, import_source in migration_source_import_map().items()
 }
 
 _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
@@ -295,16 +294,18 @@ def _dry_run_pi(payload: dict[str, object]) -> MemoryImportDryRunResult:
                 (str(m.get("content", ""))[:200] for m in messages if isinstance(m, dict) and m.get("role") == "user"),
                 "",
             )
-            episodic_items.append({
-                "content": first_user_msg or f"Session {session.get('id', 'unknown')}",
-                "type": "episodic",
-                "category": "pi_session",
-                "metadata": {
-                    "session_id": str(session.get("id", "")),
-                    "timestamp": str(session.get("timestamp", "")),
-                    "message_count": session.get("message_count", 0),
-                },
-            })
+            episodic_items.append(
+                {
+                    "content": first_user_msg or f"Session {session.get('id', 'unknown')}",
+                    "type": "episodic",
+                    "category": "pi_session",
+                    "metadata": {
+                        "session_id": str(session.get("id", "")),
+                        "timestamp": str(session.get("timestamp", "")),
+                        "message_count": session.get("message_count", 0),
+                    },
+                }
+            )
         if episodic_items:
             normalized["episodic"] = episodic_items
             mapped_items = len(episodic_items)

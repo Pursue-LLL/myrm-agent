@@ -47,6 +47,7 @@ def _touch_render_ui_progress(node: str) -> None:
     touch_wall_progress(current_node=node)
     heartbeat_once()
 
+
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
 E2E_PROMPT_RENDER = (
@@ -203,9 +204,7 @@ async def _wait_db_ui_status(
         except (OSError, TimeoutError, urllib.error.URLError):
             wait_e2e_backend_ready(timeout_sec=15.0, api_url=api_base)
         await asyncio.sleep(1.0)
-    raise AssertionError(
-        f"DB uiArtifacts status did not reach {expected!r} within {timeout_sec}s (last={last!r})"
-    )
+    raise AssertionError(f"DB uiArtifacts status did not reach {expected!r} within {timeout_sec}s (last={last!r})")
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
@@ -225,11 +224,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
     api_base = get_e2e_api_url()
 
     def _ui_sample_blocked(sample: str) -> bool:
-        return (
-            "配置检查仍在同步" in sample
-            or "无法连接到服务器" in sample
-            or "Unable to connect" in sample
-        )
+        return "配置检查仍在同步" in sample or "无法连接到服务器" in sample or "Unable to connect" in sample
 
     async def _apply_e2e_runtime_bootstrap(chat: McpChatSession) -> None:
         bootstrap_js = e2e_runtime_bootstrap_apply_js()
@@ -255,9 +250,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             """(() => ({ path: location.pathname }))()""",
             intent=EvaluateIntent.SYNC_PROBE,
         )
-        on_chat = isinstance(path_probe, dict) and str(
-            path_probe.get("path") or ""
-        ).startswith("/c-")
+        on_chat = isinstance(path_probe, dict) and str(path_probe.get("path") or "").startswith("/c-")
         if on_chat or not chat_id:
             await chat.cdp("Page.reload")
         else:
@@ -265,9 +258,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await chat.wait_shell_ready(timeout_sec=30.0, require_bridge=True)
         await _apply_e2e_runtime_bootstrap(chat)
         if reenable_tools_js:
-            await chat.evaluate(
-                reenable_tools_js, intent=EvaluateIntent.SYNC_PROBE
-            )
+            await chat.evaluate(reenable_tools_js, intent=EvaluateIntent.SYNC_PROBE)
 
     async def _wait_js(
         chat: McpChatSession,
@@ -313,9 +304,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             ):
                 heal_attempts += 1
                 await _focus_chat(chat, chat_id)
-                await chat.evaluate(
-                    _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
-                )
+                await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
                 await asyncio.sleep(1.0)
                 continue
             await asyncio.sleep(1.0)
@@ -333,11 +322,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
                 }))()""",
                 intent=EvaluateIntent.SYNC_PROBE,
             )
-            if (
-                isinstance(probe, dict)
-                and str(probe.get("path") or "") == expected_path
-                and probe.get("hasInput") is True
-            ):
+            if isinstance(probe, dict) and str(probe.get("path") or "") == expected_path and probe.get("hasInput") is True:
                 return
             await asyncio.sleep(1.0)
         raise AssertionError(f"Could not focus chat {chat_id}: {probe}")
@@ -352,40 +337,28 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         # structured UI tool.
         await pin_lite_model_for_e2e(chat)
 
-        enabled = await chat.evaluate(
-            _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        enabled = await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
         assert isinstance(enabled, dict)
-        assert (
-            enabled.get("ok") is True
-        ), f"Failed to enable render_ui in chat session: {enabled}"
+        assert enabled.get("ok") is True, f"Failed to enable render_ui in chat session: {enabled}"
 
         render_send = await chat.send_message(E2E_PROMPT_RENDER, E2E_PROMPT_RENDER)
         _touch_render_ui_progress("render_ui_post_send_turn")
         chat_id_hint = str(
-            render_send.get("started", {}).get("chatId")
-            or render_send.get("submit", {}).get("chatId")
-            or ""
+            render_send.get("started", {}).get("chatId") or render_send.get("submit", {}).get("chatId") or ""
         ).strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
-        started = await chat.wait_stream_started(
-            E2E_PROMPT_RENDER, timeout_sec=120.0, chat_id_hint=chat_id_hint
-        )
+        started = await chat.wait_stream_started(E2E_PROMPT_RENDER, timeout_sec=120.0, chat_id_hint=chat_id_hint)
         chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         if not chat_id:
-            after_start = await chat.main_state(
-                E2E_PROMPT_RENDER, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            after_start = await chat.main_state(E2E_PROMPT_RENDER, intent=EvaluateIntent.BRIDGE_POLL)
             chat_id = (
                 chat_id_from_path(str(after_start.get("path") or ""))
                 or str(after_start.get("bridgeChatId") or "").strip()
                 or None
             )
-        assert (
-            chat_id
-        ), f"Expected chat id after stream start: started={started}; send={render_send}"
+        assert chat_id, f"Expected chat id after stream start: started={started}; send={render_send}"
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
         binding_probe = await chat.evaluate(
             E2E_API_BINDING_PROBE_JS,
@@ -393,22 +366,16 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
         require_e2e_api_binding_probe(binding_probe, api_base)
         await chat._attach_chat_session(chat_id)
-        kickoff_deadline = time.monotonic() + signoff_parallel_force_chat_timeout_sec(
-            45.0
-        )
+        kickoff_deadline = time.monotonic() + signoff_parallel_force_chat_timeout_sec(45.0)
         while time.monotonic() < kickoff_deadline:
             _touch_render_ui_progress("render_ui_kickoff_gate")
             if chat_user_message_count(chat_id, api_url=api_base) >= 1:
                 break
             await asyncio.sleep(1.0)
         else:
-            raise AssertionError(
-                f"R212 kickoff gate: chat {chat_id!r} has no user messages on {api_base}"
-            )
+            raise AssertionError(f"R212 kickoff gate: chat {chat_id!r} has no user messages on {api_base}")
         await _apply_e2e_runtime_bootstrap(chat)
-        await chat.evaluate(
-            _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
         await _focus_chat(chat, chat_id)
         # Stay on the post-send page (inline_card SSOT); attachToChat binds stream without hard reload.
         await _wait_js(
@@ -428,9 +395,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
                 timeout_sec=_db_ui_status_wait_sec(120.0),
             )
         except AssertionError as exc:
-            recheck = await chat.evaluate(
-                _INITIAL_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            recheck = await chat.evaluate(_INITIAL_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             if not isinstance(recheck, dict) or recheck.get("ready") is not True:
                 raise exc
             turn1_db_status = "E2E_UPDATE_INITIAL"
@@ -455,9 +420,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await _wait_not_streaming(timeout_sec=90.0)
         await chat.wait_input_empty(chat_id_hint=chat_id)
 
-        await chat.evaluate(
-            _ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        await chat.evaluate(_ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
 
         await chat.send_message(
             E2E_PROMPT_UPDATE,
@@ -466,13 +429,9 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             base_url=BASE_URL,
         )
         _touch_render_ui_progress("render_ui_post_update_send_turn")
-        await chat.evaluate(
-            _ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        await chat.evaluate(_ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
 
-        async def _wait_api_user_messages(
-            min_count: int, *, timeout_sec: float
-        ) -> None:
+        async def _wait_api_user_messages(min_count: int, *, timeout_sec: float) -> None:
             deadline = time.monotonic() + timeout_sec
             last = 0
             while time.monotonic() < deadline:
@@ -484,9 +443,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
                 except (OSError, TimeoutError, urllib.error.URLError):
                     wait_e2e_backend_ready(timeout_sec=15.0, api_url=api_base)
                 await asyncio.sleep(1.0)
-            raise AssertionError(
-                f"Backend did not persist turn2 user message within {timeout_sec}s (last={last})"
-            )
+            raise AssertionError(f"Backend did not persist turn2 user message within {timeout_sec}s (last={last})")
 
         await _wait_api_user_messages(2, timeout_sec=90.0)
         ui_state = await _wait_js(
@@ -506,9 +463,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
                 timeout_sec=_db_ui_status_wait_sec(120.0),
             )
         except AssertionError as exc:
-            recheck = await chat.evaluate(
-                _UPDATE_DATA_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            recheck = await chat.evaluate(_UPDATE_DATA_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             if not isinstance(recheck, dict) or recheck.get("ready") is not True:
                 raise exc
 
@@ -532,23 +487,19 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         )
 
         try:
-            assert (
-                chat_user_message_count(chat_id, api_url=api_base) >= 2
-            ), f"Expected two user messages for chat {chat_id}: ui={ui_state}"
+            assert chat_user_message_count(chat_id, api_url=api_base) >= 2, (
+                f"Expected two user messages for chat {chat_id}: ui={ui_state}"
+            )
         except (TimeoutError, OSError, AssertionError) as exc:
             if ui_state.get("ready") is not True:
-                raise AssertionError(
-                    f"API message check failed and inline UI not ready: {exc}"
-                ) from exc
+                raise AssertionError(f"API message check failed and inline UI not ready: {exc}") from exc
 
         e2e_resource_ledger.register("chat", chat_id)
         return chat_id
 
     with open_mcp_page(BASE_URL, timeout_ms=90_000) as (client, page):
         chat = McpChatSession(client, page)
-        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(
-            shpoib_parallel_shell_timeout_sec(240.0)
-        )
+        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(shpoib_parallel_shell_timeout_sec(240.0))
         await chat.bootstrap(BASE_URL, timeout_sec=bootstrap_timeout)
         chat_id = await _run_flow(chat)
         assert chat_id

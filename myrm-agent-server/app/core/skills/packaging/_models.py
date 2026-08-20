@@ -24,12 +24,8 @@ class PackageResult:
     zip_content: bytes | None
     filename: str | None
     error: str | None = None
-    redactions: dict[str, list[Redaction]] | None = (
-        None  # filename -> list of redactions
-    )
-    is_safe: bool = (
-        True  # True if no redactions were needed or if they were applied and user confirmed
-    )
+    redactions: dict[str, list[Redaction]] | None = None  # filename -> list of redactions
+    is_safe: bool = True  # True if no redactions were needed or if they were applied and user confirmed
     eval_cases_count: int = 0  # 包内 evals.json 回归门禁用例数
 
 

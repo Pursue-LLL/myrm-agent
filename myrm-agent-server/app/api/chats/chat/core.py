@@ -39,9 +39,7 @@ router = APIRouter()
 async def get_chats(
     page: int = Query(1, ge=1, description="页码，从1开始"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量，1-100"),
-    source: str | None = Query(
-        None, description="按来源渠道过滤 (web/telegram/feishu 等)"
-    ),
+    source: str | None = Query(None, description="按来源渠道过滤 (web/telegram/feishu 等)"),
     project_id: str | None = Query(None, description="按项目过滤"),
     unassigned: bool = Query(False, description="仅显示未归属项目的会话"),
     keyword: str | None = Query(None, description="按标题或首条消息模糊搜索"),
@@ -87,9 +85,7 @@ async def get_chats(
             has_prev=page > 1,
         )
 
-        paginated_data = PaginatedResponse[ChatListItem](
-            items=chat_items, pagination=pagination_meta
-        )
+        paginated_data = PaginatedResponse[ChatListItem](items=chat_items, pagination=pagination_meta)
 
         return success_response(data=paginated_data.model_dump())
     except Exception as e:
@@ -101,9 +97,7 @@ async def search_citable_conversations(
     q: str = Query(..., min_length=1, max_length=200, description="Search query"),
     limit: int = Query(20, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
-    exclude_chat_id: str | None = Query(
-        None, description="Exclude current chat from results"
-    ),
+    exclude_chat_id: str | None = Query(None, description="Exclude current chat from results"),
 ) -> JSONResponse:
     """Search conversation recall index for GUI @chat: citation (SSOT with inject path)."""
     try:
@@ -115,16 +109,12 @@ async def search_citable_conversations(
         )
         return success_response(data={"items": items, "total": total})
     except Exception as e:
-        raise internal_error(
-            operation="Search citable conversations", exception=e
-        ) from e
+        raise internal_error(operation="Search citable conversations", exception=e) from e
 
 
 @router.get("/recall/entries", response_model=StandardSuccessResponse)
 async def list_conversation_recall_entries(
-    excluded: bool | None = Query(
-        None, description="Filter by Conversation Recall exclusion state"
-    ),
+    excluded: bool | None = Query(None, description="Filter by Conversation Recall exclusion state"),
     page: int = Query(1, ge=1, description="页码，从1开始"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量，1-100"),
 ) -> JSONResponse:
@@ -143,9 +133,7 @@ async def list_conversation_recall_entries(
                 "source": row.source,
                 "snippet": row.snippet,
                 "summary": row.summary,
-                "last_message_at": (
-                    row.last_message_at.isoformat() if row.last_message_at else None
-                ),
+                "last_message_at": (row.last_message_at.isoformat() if row.last_message_at else None),
                 "created_at": row.created_at.isoformat() if row.created_at else None,
                 "updated_at": row.updated_at.isoformat() if row.updated_at else None,
                 "is_excluded": row.is_excluded,
@@ -161,13 +149,9 @@ async def list_conversation_recall_entries(
             has_next=page < total_pages,
             has_prev=page > 1,
         )
-        return success_response(
-            data={"items": items, "pagination": pagination.model_dump()}
-        )
+        return success_response(data={"items": items, "pagination": pagination.model_dump()})
     except Exception as e:
-        raise internal_error(
-            operation="List conversation recall entries", exception=e
-        ) from e
+        raise internal_error(operation="List conversation recall entries", exception=e) from e
 
 
 @router.get("/{chat_id}", response_model=StandardSuccessResponse)
@@ -304,9 +288,7 @@ async def pin_chat(
     """Pin a chat to the sidebar top (max 9)."""
     try:
         result = await ChatService.pin_chat(chat_id)
-        return success_response(
-            data={"isPinned": result.is_pinned, "pinOrder": result.pin_order}
-        )
+        return success_response(data={"isPinned": result.is_pinned, "pinOrder": result.pin_order})
     except ValueError as e:
         raise validation_error(str(e)) from e
     except LookupError as e:
@@ -335,9 +317,7 @@ async def reorder_pinned_chats(
 ) -> JSONResponse:
     """Batch reorder pinned chats (after drag-and-drop)."""
     try:
-        await ChatService.reorder_pinned_chats(
-            [(item.id, item.pin_order) for item in body.items]
-        )
+        await ChatService.reorder_pinned_chats([(item.id, item.pin_order) for item in body.items])
         return success_response()
     except ValueError as e:
         raise validation_error(str(e)) from e
@@ -348,9 +328,7 @@ async def reorder_pinned_chats(
 class UpdateWorkspaceDirRequest(BaseModel):
     """Request to set or clear per-chat working directory."""
 
-    workspace_dir: str | None = Field(
-        None, description="Absolute path or null to clear", max_length=1024
-    )
+    workspace_dir: str | None = Field(None, description="Absolute path or null to clear", max_length=1024)
 
 
 class RecallExclusionRequest(BaseModel):
@@ -379,9 +357,7 @@ async def update_chat_workspace_dir(
 
             project = await ProjectService.get_project(chat.project_id)
             if project and project.workspace_path:
-                raise conflict_error(
-                    "Chat workspace is managed by the bound project; update the project workspace instead"
-                )
+                raise conflict_error("Chat workspace is managed by the bound project; update the project workspace instead")
 
         workspace_dir = body.workspace_dir
         if workspace_dir is not None:
@@ -395,13 +371,9 @@ async def update_chat_workspace_dir(
 
                 resolved = os.path.realpath(os.path.expanduser(workspace_dir))
                 if is_dangerous_path(resolved):
-                    raise validation_error(
-                        f"Path is not allowed as workspace: {workspace_dir}"
-                    )
+                    raise validation_error(f"Path is not allowed as workspace: {workspace_dir}")
                 if not os.path.isdir(resolved):
-                    raise validation_error(
-                        f"Path does not exist or is not a directory: {workspace_dir}"
-                    )
+                    raise validation_error(f"Path does not exist or is not a directory: {workspace_dir}")
                 workspace_dir = resolved
 
         await ChatService.update_chat_fields(chat_id, {"workspace_dir": workspace_dir})
@@ -409,9 +381,7 @@ async def update_chat_workspace_dir(
     except HTTPException:
         raise
     except Exception as e:
-        raise internal_error(
-            operation="Update chat workspace directory", exception=e
-        ) from e
+        raise internal_error(operation="Update chat workspace directory", exception=e) from e
 
 
 @router.patch("/{chat_id}/recall-exclusion", response_model=StandardSuccessResponse)
@@ -424,9 +394,7 @@ async def update_chat_recall_exclusion(
         chat = await ChatService.get_chat_metadata(chat_id)
         if not chat:
             raise not_found_error("Chat session")
-        updated = await ConversationRecallIndexService.set_chat_excluded(
-            chat_id, body.excluded
-        )
+        updated = await ConversationRecallIndexService.set_chat_excluded(chat_id, body.excluded)
         if not updated:
             raise not_found_error("Chat session")
 
@@ -440,14 +408,8 @@ async def update_chat_recall_exclusion(
             MemoryOperationLedgerService,
         )
 
-        kind = (
-            MemoryOperationKind.FORGET if body.excluded else MemoryOperationKind.WRITE
-        )
-        summary = (
-            "Conversation excluded from recall."
-            if body.excluded
-            else "Conversation restored to recall."
-        )
+        kind = MemoryOperationKind.FORGET if body.excluded else MemoryOperationKind.WRITE
+        summary = "Conversation excluded from recall." if body.excluded else "Conversation restored to recall."
         async with get_session() as db:
             await MemoryOperationLedgerService(db).record_event(
                 kind=kind,
@@ -464,9 +426,7 @@ async def update_chat_recall_exclusion(
     except HTTPException:
         raise
     except Exception as e:
-        raise internal_error(
-            operation="Update chat recall exclusion", exception=e
-        ) from e
+        raise internal_error(operation="Update chat recall exclusion", exception=e) from e
 
 
 @router.get("/{chat_id}/fission", response_model=StandardSuccessResponse)
@@ -500,17 +460,13 @@ async def get_fission_topology(
 class UpdateSessionSkillsRequest(BaseModel):
     """Set or clear session-level skill override."""
 
-    skill_names: list[str] | None = Field(
-        None, description="Skill name subset (null to clear override)"
-    )
+    skill_names: list[str] | None = Field(None, description="Skill name subset (null to clear override)")
 
 
 class UpdateActiveMoaPresetRequest(BaseModel):
     """Set or clear session-level MoA preset selection."""
 
-    active_moa_preset_id: str | None = Field(
-        None, description="MoA preset id (default/review/fast) or null to deactivate"
-    )
+    active_moa_preset_id: str | None = Field(None, description="MoA preset id (default/review/fast) or null to deactivate")
 
 
 @router.patch("/{chat_id}/active-moa-preset", response_model=StandardSuccessResponse)
@@ -532,9 +488,7 @@ async def update_active_moa_preset(
         if preset_id is not None and preset_id not in VALID_MOA_PRESET_IDS:
             raise validation_error(f"Invalid MoA preset id: {preset_id}")
 
-        await ChatService.update_chat_fields(
-            chat_id, {"active_moa_preset_id": preset_id}
-        )
+        await ChatService.update_chat_fields(chat_id, {"active_moa_preset_id": preset_id})
         return success_response(data={"active_moa_preset_id": preset_id})
     except HTTPException:
         raise
@@ -555,15 +509,11 @@ async def update_session_skills(
 
         skill_names = body.skill_names
         if skill_names is not None:
-            skill_names = [
-                name.strip() for name in skill_names if name and name.strip()
-            ]
+            skill_names = [name.strip() for name in skill_names if name and name.strip()]
             if not skill_names:
                 skill_names = None
 
-        await ChatService.update_chat_fields(
-            chat_id, {"session_loaded_skill_names": skill_names}
-        )
+        await ChatService.update_chat_fields(chat_id, {"session_loaded_skill_names": skill_names})
         return success_response(data={"session_loaded_skill_names": skill_names})
     except HTTPException:
         raise
@@ -631,9 +581,7 @@ async def grant_session_access_root_endpoint(
             label=body.label.strip() if body.label else "",
             workspace_dir=workspace_dir,
         )
-        return success_response(
-            data={"session_access_roots": access_roots_to_json(updated)}
-        )
+        return success_response(data={"session_access_roots": access_roots_to_json(updated)})
     except HTTPException:
         raise
     except Exception as e:
@@ -670,9 +618,7 @@ async def revoke_session_access_root(
             body.path.strip(),
             workspace_dir=workspace_dir,
         )
-        return success_response(
-            data={"session_access_roots": access_roots_to_json(updated)}
-        )
+        return success_response(data={"session_access_roots": access_roots_to_json(updated)})
     except HTTPException:
         raise
     except Exception as e:

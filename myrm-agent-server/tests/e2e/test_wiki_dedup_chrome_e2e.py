@@ -12,9 +12,7 @@ from collections.abc import Callable
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -178,9 +176,7 @@ def _verify_open_exact_groups_via_api(api_url: str) -> None:
     open_exact = [
         group
         for group in groups
-        if isinstance(group, dict)
-        and group.get("status") in {"open", "deferred"}
-        and group.get("tier") == "exact"
+        if isinstance(group, dict) and group.get("status") in {"open", "deferred"} and group.get("tier") == "exact"
     ]
     assert open_exact, groups
 
@@ -257,9 +253,7 @@ def _run_duplicate_review_assertions(
             page_url=wiki_page_url,
             timeout_sec=_WIKI_SHELL_WAIT_SEC,
         )
-        assert wiki_shell.get("ready") is True, json.dumps(
-            wiki_shell, indent=2, ensure_ascii=False
-        )
+        assert wiki_shell.get("ready") is True, json.dumps(wiki_shell, indent=2, ensure_ascii=False)
 
         tab_state = client.evaluate(page, _ACTIVATE_DEDUP_TAB_JS, timeout_sec=15.0)
         assert isinstance(tab_state, dict) and tab_state.get("ok") is True, tab_state
@@ -287,9 +281,7 @@ def _run_with_transport_retry(
         raise last_error
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

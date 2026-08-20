@@ -253,17 +253,13 @@ def _fetch_trace(api_url: str, chat_id: str) -> dict[str, object]:
     return data
 
 
-async def _run_session(
-    chat: McpChatSession, ledger: E2EResourceLedger
-) -> tuple[str, str, dict[str, object]]:
+async def _run_session(chat: McpChatSession, ledger: E2EResourceLedger) -> tuple[str, str, dict[str, object]]:
     await chat.dismiss_modals()
     path_probe = await chat.evaluate(
         "(() => location.pathname)()",
         intent=EvaluateIntent.SYNC_PROBE,
     )
-    if isinstance(path_probe, str) and (
-        path_probe.startswith("/settings") or path_probe.startswith("/login")
-    ):
+    if isinstance(path_probe, str) and (path_probe.startswith("/settings") or path_probe.startswith("/login")):
         await chat.cdp("Page.navigate", {"url": f"{BASE_URL}/"})
         await asyncio.sleep(3.0)
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
@@ -279,9 +275,7 @@ async def _run_session(
             await chat.ensure_chat_surface(BASE_URL)
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or ""
         ).strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
@@ -302,27 +296,15 @@ async def _run_session(
         last_trace = trace
         tool_calls = trace.get("tool_calls")
         if isinstance(tool_calls, list) and tool_calls:
-            lineaged = [
-                tc
-                for tc in tool_calls
-                if isinstance(tc, dict) and tc.get("tool_call_id")
-            ]
+            lineaged = [tc for tc in tool_calls if isinstance(tc, dict) and tc.get("tool_call_id")]
             if lineaged:
                 ledger.register("chat", chat_id)
-                tool_names = [
-                    tc.get("tool_name") for tc in tool_calls if isinstance(tc, dict)
-                ]
+                tool_names = [tc.get("tool_name") for tc in tool_calls if isinstance(tc, dict)]
                 for tc in tool_calls:
                     if isinstance(tc, dict):
                         labels = tc.get("security_labels")
-                        assert labels is None or isinstance(
-                            labels, list
-                        ), f"security_labels must be a list when present: {tc}"
-                with_message_id = [
-                    tc.get("tool_name")
-                    for tc in tool_calls
-                    if isinstance(tc, dict) and tc.get("message_id")
-                ]
+                        assert labels is None or isinstance(labels, list), f"security_labels must be a list when present: {tc}"
+                with_message_id = [tc.get("tool_name") for tc in tool_calls if isinstance(tc, dict) and tc.get("message_id")]
                 return (
                     chat_id,
                     api_url,
@@ -334,8 +316,7 @@ async def _run_session(
                 )
 
     raise AssertionError(
-        f"No lineaged tool call after {MAX_TURNS} real turns: "
-        f"{json.dumps(last_trace, ensure_ascii=False)[:600]}"
+        f"No lineaged tool call after {MAX_TURNS} real turns: {json.dumps(last_trace, ensure_ascii=False)[:600]}"
     )
 
 
@@ -360,14 +341,10 @@ async def test_chrome_ui_lineage_trace_replay(
     try:
         page: McpPage | None = None
         try:
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
         except TimeoutError:
             await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
         assert page is not None, "new_page returned no page"
         chat = McpChatSession(client, page)
         await chat.bootstrap(BASE_URL, timeout_sec=120.0)
@@ -383,14 +360,10 @@ async def test_chrome_ui_lineage_trace_replay(
     try:
         page2: McpPage | None = None
         try:
-            page2 = await asyncio.to_thread(
-                client2.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page2 = await asyncio.to_thread(client2.new_page, BASE_URL, timeout_ms=120_000)
         except TimeoutError:
             await asyncio.sleep(2.0)
-            page2 = await asyncio.to_thread(
-                client2.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page2 = await asyncio.to_thread(client2.new_page, BASE_URL, timeout_ms=120_000)
         assert page2 is not None, "new_page returned no page (second session)"
         chat2 = McpChatSession(client2, page2)
         await chat2.bootstrap(BASE_URL, timeout_sec=120.0)
@@ -409,21 +382,13 @@ async def test_chrome_ui_lineage_trace_replay(
             _trace_dialog_probe_js(lineage["tool_names"]),
             timeout_sec=90.0,
         )
-        assert trace_probe.get("ready") is True, json.dumps(
-            trace_probe, ensure_ascii=False
-        )
-        assert trace_probe.get("toolRows", 0) >= 1, json.dumps(
-            trace_probe, ensure_ascii=False
-        )
-        assert trace_probe.get("hasEnterReplay") is True, json.dumps(
-            trace_probe, ensure_ascii=False
-        )
+        assert trace_probe.get("ready") is True, json.dumps(trace_probe, ensure_ascii=False)
+        assert trace_probe.get("toolRows", 0) >= 1, json.dumps(trace_probe, ensure_ascii=False)
+        assert trace_probe.get("hasEnterReplay") is True, json.dumps(trace_probe, ensure_ascii=False)
 
         # T4: enter replay, scrub to the end and expect the tool chip in the mind view.
         replay_click = await _wait_ui_state(chat2, _ENTER_REPLAY_JS, timeout_sec=60.0)
-        assert replay_click.get("ready") is True, json.dumps(
-            replay_click, ensure_ascii=False
-        )
+        assert replay_click.get("ready") is True, json.dumps(replay_click, ensure_ascii=False)
         replay_probe = await _wait_ui_state(
             chat2,
             _REPLAY_END_STATE_JS,
@@ -433,9 +398,7 @@ async def test_chrome_ui_lineage_trace_replay(
             f"replay_click={json.dumps(replay_click, ensure_ascii=False)} "
             f"replay_probe={json.dumps(replay_probe, ensure_ascii=False)}"
         )
-        assert replay_probe.get("toolChips", 0) >= 1, json.dumps(
-            replay_probe, ensure_ascii=False
-        )
+        assert replay_probe.get("toolChips", 0) >= 1, json.dumps(replay_probe, ensure_ascii=False)
     finally:
         await asyncio.to_thread(client2.close)
 
@@ -462,6 +425,4 @@ async def _wait_ui_state(
             return result
         last = result if isinstance(result, dict) else {"raw": str(result)[:200]}
         await asyncio.sleep(1.0)
-    raise AssertionError(
-        f"UI state not ready within {timeout_sec}s: {json.dumps(last, ensure_ascii=False)}"
-    )
+    raise AssertionError(f"UI state not ready within {timeout_sec}s: {json.dumps(last, ensure_ascii=False)}")

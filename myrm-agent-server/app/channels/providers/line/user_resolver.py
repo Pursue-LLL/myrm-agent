@@ -141,9 +141,7 @@ class LINEUserResolver:
             await self._cache.set(cache_key, name)
             return name
         except Exception as exc:
-            logger.debug(
-                "Failed to resolve LINE user %s in scope %s: %s", user_id, scope, exc
-            )
+            logger.debug("Failed to resolve LINE user %s in scope %s: %s", user_id, scope, exc)
             self._api_failure_counter.add(1)
             await self._cache.set(cache_key, None)
             return None

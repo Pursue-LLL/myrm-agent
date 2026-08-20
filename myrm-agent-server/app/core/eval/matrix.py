@@ -139,9 +139,7 @@ async def _run_matrix_eval(
 
     executors: dict[str, AgentExecutor] = {}
     for pid in profile_ids:
-        executors[pid] = LocalEvalExecutor(
-            profile_id=pid, benchmark_mode=benchmark_mode
-        )
+        executors[pid] = LocalEvalExecutor(profile_id=pid, benchmark_mode=benchmark_mode)
 
     def _on_profile_start(profile_id: str, idx: int, total: int) -> None:
         eval_state.matrix_state["current_profile"] = profile_id
@@ -246,9 +244,7 @@ def get_latest_matrix_report() -> dict[str, object] | None:
 
 def get_matrix_report(timestamp: int) -> dict[str, object] | None:
     """Get a specific matrix/layered report by its run timestamp."""
-    report_path = (
-        eval_state.DEFAULT_MATRIX_REPORTS_DIR / f"matrix_report_{timestamp}.json"
-    )
+    report_path = eval_state.DEFAULT_MATRIX_REPORTS_DIR / f"matrix_report_{timestamp}.json"
     if not report_path.exists():
         return None
     try:

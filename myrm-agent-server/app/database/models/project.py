@@ -23,9 +23,7 @@ class Project(Base):
     color: Mapped[str] = mapped_column(String(20), nullable=False, default="#7cb9ff")
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     workspace_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    default_agent_id: Mapped[str | None] = mapped_column(
-        String(255), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
-    )
+    default_agent_id: Mapped[str | None] = mapped_column(String(255), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True)
     goal_summary: Mapped[str] = mapped_column(Text, default="", nullable=False, server_default="")
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

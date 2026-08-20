@@ -86,6 +86,7 @@ def _trace(stage: str, detail: str = "", *fmt_args: object) -> None:
     except OSError:  # pragma: no cover - diagnostic only
         pass
 
+
 _LIVE_USER_PROMPT = (
     f"Use file_write_tool to create a new workspace file named {_CREATED_FILENAME} "
     "whose content is exactly:\n"
@@ -139,11 +140,7 @@ def _create_revert_live_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -171,9 +168,7 @@ def _file_edit_invoked_in_messages(chat_id: str, *, api_url: str) -> tuple[bool,
         if not isinstance(msg, dict):
             continue
         metadata = msg.get("metadata")
-        raw_steps = msg.get("progressSteps") or (
-            metadata.get("progressSteps") if isinstance(metadata, dict) else None
-        )
+        raw_steps = msg.get("progressSteps") or (metadata.get("progressSteps") if isinstance(metadata, dict) else None)
         for step in raw_steps or []:
             if not isinstance(step, dict):
                 continue
@@ -194,15 +189,12 @@ _CREATED_CONTENT = "CREATED_E2E_CONTENT_LINE_ONE\nCREATED_E2E_CONTENT_LINE_TWO\n
 def _assert_created(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
     # 忽略首尾空白差异：真实 LLM 创建文件时末尾换行非确定性，核心内容必须一致
-    assert content.strip() == _CREATED_CONTENT.strip(), (
-        f"file created by agent turn differs from expected: {content!r}"
-    )
+    assert content.strip() == _CREATED_CONTENT.strip(), f"file created by agent turn differs from expected: {content!r}"
 
 
 def _assert_deleted(file_path: Path) -> None:
     assert not file_path.exists(), (
-        f"created file not removed by revert: {file_path} "
-        f"content={file_path.read_text(encoding='utf-8')!r}"
+        f"created file not removed by revert: {file_path} content={file_path.read_text(encoding='utf-8')!r}"
     )
 
 
@@ -340,8 +332,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live revert E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome"
+            "Provider config not ready for live revert E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
         )
 
     api_base = get_e2e_api_url()
@@ -355,9 +346,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return
@@ -366,18 +355,14 @@ async def test_revert_files_live_agent_after_reload_restores_file(
 
     async def _pin_lite_model(chat: McpChatSession) -> dict[str, object]:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-        pinned = await chat.evaluate(
-            _PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         assert isinstance(pinned, dict)
         assert pinned.get("ok") is True, f"Failed to pin lite model: {pinned}"
         expected_lite = get_lite_model_selection()
         pinned_model = pinned.get("pinned")
         assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned}"
         assert pinned_model.get("providerId") == expected_lite["providerId"]
-        assert pinned_model.get("model") == _strip_provider_prefix(
-            str(expected_lite["model"])
-        )
+        assert pinned_model.get("model") == _strip_provider_prefix(str(expected_lite["model"]))
         return pinned_model
 
     async def _wait_live_turn_done(
@@ -410,9 +395,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
 
         while time.monotonic() < deadline:
             heartbeat_once()
-            invoked, assistant = _file_edit_invoked_in_messages(
-                chat_id, api_url=api_base
-            )
+            invoked, assistant = _file_edit_invoked_in_messages(chat_id, api_url=api_base)
             last_api = (assistant, invoked)
             if invoked:
                 # 一旦检测到真实工具调用，重置「无工具调用」计时
@@ -453,19 +436,12 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                     file_path.exists(),
                     str(ui.get("sample") or "")[:120],
                 )
-            if (
-                ui.get("hasDone") is True
-                and ui.get("isStreaming") is False
-                and int(ui.get("userCount") or 0) >= 1
-            ):
+            if ui.get("hasDone") is True and ui.get("isStreaming") is False and int(ui.get("userCount") or 0) >= 1:
                 return _finalize("ui", str(ui.get("sample") or ""))
 
             # 回合结束判定：streaming 停止 + 用户消息已发。以「文件真实创建」为
             # 成功硬证据（此时 SnapshotObserver 快照必已记录）；invoked 仅用于诊断。
-            if (
-                ui.get("isStreaming") is False
-                and int(ui.get("userCount") or 0) >= 1
-            ):
+            if ui.get("isStreaming") is False and int(ui.get("userCount") or 0) >= 1:
                 if file_path.exists():
                     if not seen_turn_end:
                         seen_turn_end = True
@@ -487,9 +463,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _HYDRATE_WITH_REQUEST_ID_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_HYDRATE_WITH_REQUEST_ID_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
@@ -509,9 +483,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         await chat.ensure_chat_surface(BASE_URL)
         _trace("chat_surface")
 
-        ensured = await chat.evaluate(
-            _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
-        )
+        ensured = await chat.evaluate(_ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH)
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
@@ -527,35 +499,23 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         sent_marker["sent"] = True
         _trace("send_done", str(send_result.get("submit", {}).get("chatId") or ""))
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or chat_id
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or chat_id
         ).strip()
 
         heartbeat_once()
-        started = await chat.wait_stream_started(
-            _LIVE_USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
-        )
-        resolved_chat_id = (
-            chat_id_hint or str(started.get("chatId") or "").strip() or None
-        )
+        started = await chat.wait_stream_started(_LIVE_USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None)
+        resolved_chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         if not resolved_chat_id:
-            after_start = await chat.main_state(
-                _LIVE_USER_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            after_start = await chat.main_state(_LIVE_USER_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
             resolved_chat_id = (
                 chat_id_from_path(str(after_start.get("path") or ""))
                 or str(after_start.get("bridgeChatId") or "").strip()
                 or None
             )
-        assert resolved_chat_id, (
-            f"Expected chat id after stream start: started={started}; send={send_result}"
-        )
+        assert resolved_chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
 
         await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=90.0)
-        result = await _wait_live_turn_done(
-            chat, resolved_chat_id, file_path=file_path, timeout_sec=180.0
-        )
+        result = await _wait_live_turn_done(chat, resolved_chat_id, file_path=file_path, timeout_sec=180.0)
         _trace("turn_done", json.dumps(result, ensure_ascii=False, default=str)[:300])
         assert result.get("invoked") is True, result
 
@@ -567,10 +527,7 @@ async def test_revert_files_live_agent_after_reload_restores_file(
             "exists": snap_dir.is_dir(),
         }
         if snap_dir.is_dir():
-            early["sessions"] = {
-                p.name: sorted(x.name for x in p.iterdir())
-                for p in sorted(snap_dir.iterdir())
-            }
+            early["sessions"] = {p.name: sorted(x.name for x in p.iterdir()) for p in sorted(snap_dir.iterdir())}
         _trace("snapshot_early", json.dumps(early, ensure_ascii=False)[:800])
 
         # --- 核心链路：刷新页面 → hydrate → requestMessageId 恢复 ---
@@ -582,14 +539,10 @@ async def test_revert_files_live_agent_after_reload_restores_file(
         hydrated = await _wait_hydrate_request_id(chat, timeout_sec=60.0)
         _trace("hydrated", json.dumps(hydrated, ensure_ascii=False)[:300])
         assert hydrated.get("ready") is True, hydrated
-        assert hydrated.get("isRPrefix") is True, (
-            f"requestMessageId must be an r- prefixed request id after reload: {hydrated}"
-        )
+        assert hydrated.get("isRPrefix") is True, f"requestMessageId must be an r- prefixed request id after reload: {hydrated}"
 
         # probe 与 RevertFiles 组件同一解析逻辑（requestMessageId || messageId）
-        probe = await chat.evaluate(
-            _PROBE_REVERT_CHANGES_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        probe = await chat.evaluate(_PROBE_REVERT_CHANGES_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         _trace("probed", json.dumps(probe, ensure_ascii=False, default=str)[:300])
         if not (isinstance(probe, dict) and probe.get("ok") is True):
             snap_dir = file_path.parent / ".myrm" / "snapshots"
@@ -602,56 +555,32 @@ async def test_revert_files_live_agent_after_reload_restores_file(
                 diag["session_dirs"] = sorted(p.name for p in snap_dir.iterdir())
                 for sd in sorted(snap_dir.iterdir()):
                     if sd.is_dir():
-                        diag[f"session:{sd.name}"] = sorted(
-                            p.name for p in sd.iterdir()
-                        )
+                        diag[f"session:{sd.name}"] = sorted(p.name for p in sd.iterdir())
             _trace("probe_diag", json.dumps(diag, ensure_ascii=False)[:1200])
-            raise AssertionError(
-                f"probe returned no revertable changes; diag={json.dumps(diag, ensure_ascii=False)}"
-            )
-        assert isinstance(probe, dict) and probe.get("ok") is True, json.dumps(
-            probe, ensure_ascii=False
-        )
+            raise AssertionError(f"probe returned no revertable changes; diag={json.dumps(diag, ensure_ascii=False)}")
+        assert isinstance(probe, dict) and probe.get("ok") is True, json.dumps(probe, ensure_ascii=False)
 
         # --- 真实 UI 回退操作 ---
-        button = await chat.evaluate(
-            _REVERT_BUTTON_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-        )
+        button = await chat.evaluate(_REVERT_BUTTON_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
         _trace("revert_btn", json.dumps(button, ensure_ascii=False)[:200])
         assert isinstance(button, dict) and button.get("ready") is True, button
 
-        popover = await chat.evaluate(
-            _CLICK_REVERT_AND_WAIT_POPOVER_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        popover = await chat.evaluate(_CLICK_REVERT_AND_WAIT_POPOVER_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         _trace("popover", json.dumps(popover, ensure_ascii=False)[:200])
-        assert isinstance(popover, dict) and popover.get("ready") is True, json.dumps(
-            popover, ensure_ascii=False
-        )
+        assert isinstance(popover, dict) and popover.get("ready") is True, json.dumps(popover, ensure_ascii=False)
 
-        confirmed = await chat.evaluate(
-            _CLICK_CONFIRM_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        confirmed = await chat.evaluate(_CLICK_CONFIRM_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         _trace("confirm_clicked", str(confirmed.get("clicked")))
-        assert (
-            isinstance(confirmed, dict) and confirmed.get("clicked") is True
-        ), confirmed
+        assert isinstance(confirmed, dict) and confirmed.get("clicked") is True, confirmed
 
-        success = await chat.evaluate(
-            _SUCCESS_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL
-        )
+        success = await chat.evaluate(_SUCCESS_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL)
         # resync 事件可能已触发（hook 是 once）；轮询兜底
         deadline = time.monotonic() + 30.0
-        while time.monotonic() < deadline and not (
-            isinstance(success, dict) and success.get("ready") is True
-        ):
+        while time.monotonic() < deadline and not (isinstance(success, dict) and success.get("ready") is True):
             await asyncio.sleep(1.0)
-            success = await chat.evaluate(
-                _SUCCESS_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            success = await chat.evaluate(_SUCCESS_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL)
         _trace("success_seen", str(success.get("ready")))
-        assert isinstance(success, dict) and success.get("ready") is True, json.dumps(
-            success, ensure_ascii=False
-        )
+        assert isinstance(success, dict) and success.get("ready") is True, json.dumps(success, ensure_ascii=False)
 
         _assert_deleted(file_path)
         _trace("restore_ok")

@@ -25,9 +25,7 @@ def _lite_selection() -> dict[str, object]:
     return {"providerId": "openai", "model": "gpt-4o-mini"}
 
 
-async def _fake_resolve(
-    selection: ModelSelection, providers: dict[str, object] | None
-) -> ModelConfig:
+async def _fake_resolve(selection: ModelSelection, providers: dict[str, object] | None) -> ModelConfig:
     return ModelConfig(model="gpt-4o-mini", api_key=_DUMMY_KEY)
 
 

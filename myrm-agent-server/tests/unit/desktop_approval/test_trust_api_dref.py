@@ -56,8 +56,6 @@ def test_extract_dref_from_top_level_progress_steps() -> None:
 def test_extract_dref_returns_none_when_missing() -> None:
     assert extract_first_desktop_dref_from_messages([]) is None
     assert (
-        extract_first_desktop_dref_from_messages(
-            [{"role": "assistant", "metadata": {"progressSteps": [{"stdout": "no refs"}]}}]
-        )
+        extract_first_desktop_dref_from_messages([{"role": "assistant", "metadata": {"progressSteps": [{"stdout": "no refs"}]}}])
         is None
     )

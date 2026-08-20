@@ -35,6 +35,7 @@ class TestGetUsageByAgent:
         response = await get_usage_by_agent(days=7, db=mock_db)
         data = response.body
         import json
+
         parsed = json.loads(data)
         assert parsed["data"]["agents"] == []
         assert parsed["data"]["total_agents"] == 0
@@ -63,6 +64,7 @@ class TestGetUsageByAgent:
 
         response = await get_usage_by_agent(days=7, db=mock_db)
         import json
+
         parsed = json.loads(response.body)
         data = parsed["data"]
 
@@ -104,6 +106,7 @@ class TestGetUsageByAgent:
 
         response = await get_usage_by_agent(days=7, db=mock_db)
         import json
+
         parsed = json.loads(response.body)
         agents = parsed["data"]["agents"]
 
@@ -135,6 +138,7 @@ class TestGetUsageByAgent:
 
         response = await get_usage_by_agent(days=7, db=mock_db)
         import json
+
         parsed = json.loads(response.body)
         agents = parsed["data"]["agents"]
 
@@ -162,6 +166,7 @@ class TestGetUsageByAgent:
 
         response = await get_usage_by_agent(days=7, db=mock_db)
         import json
+
         parsed = json.loads(response.body)
         agent = parsed["data"]["agents"][0]
 
@@ -189,6 +194,7 @@ class TestGetUsageByAgent:
 
         response = await get_usage_by_agent(days=7, db=mock_db)
         import json
+
         parsed = json.loads(response.body)
         agent = parsed["data"]["agents"][0]
 
@@ -218,6 +224,7 @@ class TestGetUsageByAgent:
 
         response = await get_usage_by_agent(days=14, db=mock_db)
         import json
+
         parsed = json.loads(response.body)
         sparkline = parsed["data"]["agents"][0]["sparkline"]
 
@@ -246,6 +253,7 @@ class TestGetUsageByAgent:
 
         response = await get_usage_by_agent(days=7, db=mock_db)
         import json
+
         parsed = json.loads(response.body)
         data = parsed["data"]
 

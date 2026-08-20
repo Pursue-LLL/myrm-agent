@@ -155,11 +155,7 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     )
 
     openai_base = _extract_openai_base_url(providers)
-    sessions_url = (
-        f"{openai_base}/realtime/sessions"
-        if openai_base
-        else _OPENAI_REALTIME_SESSIONS_URL
-    )
+    sessions_url = f"{openai_base}/realtime/sessions" if openai_base else _OPENAI_REALTIME_SESSIONS_URL
 
     session_payload: dict[str, Any] = {
         "model": model,
@@ -206,16 +202,10 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     client_secret = data.get("client_secret", {})
 
     return RealtimeTokenResponse(
-        client_secret=(
-            client_secret.get("value", "")
-            if isinstance(client_secret, dict)
-            else str(client_secret)
-        ),
+        client_secret=(client_secret.get("value", "") if isinstance(client_secret, dict) else str(client_secret)),
         model=model,
         voice=voice,
-        expires_at=(
-            client_secret.get("expires_at") if isinstance(client_secret, dict) else None
-        ),
+        expires_at=(client_secret.get("expires_at") if isinstance(client_secret, dict) else None),
         instructions=instructions,
         tools=tools,
     )
@@ -255,15 +245,9 @@ async def execute_realtime_tool(
         agent_id = req.agent_id or "builtin-general"
         resolver = get_agent_profile_resolver()
         profile = await resolver.resolve(agent_id)
-        enabled_builtin_tools = (
-            list(profile.enabled_builtin_tools)
-            if profile
-            else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
-        )
+        enabled_builtin_tools = list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
         memory_settings = configs.personal_settings_dict or {}
-        memory_context = voice_memory_context_from(
-            memory_settings, enabled_builtin_tools
-        )
+        memory_context = voice_memory_context_from(memory_settings, enabled_builtin_tools)
 
         lite_query = (
             f"Execute tool '{req.tool_name}' with arguments: "
@@ -286,9 +270,7 @@ async def execute_realtime_tool(
         _ensure_model_rebuild_for_tool_exec()
 
         agent_security_raw = (
-            {str(k): v for k, v in profile.security_overrides.items()}
-            if profile and profile.security_overrides
-            else None
+            {str(k): v for k, v in profile.security_overrides.items()} if profile and profile.security_overrides else None
         )
 
         params = GeneralAgentParams(
@@ -306,9 +288,7 @@ async def execute_realtime_tool(
             enable_wiki=memory_context.enable_wiki,
             enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
-            enable_memory_auto_extraction=bool(
-                memory_settings.get("enableMemoryAutoExtraction", True)
-            ),
+            enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
             agent_security_raw=agent_security_raw,
             locale=resolve_agent_params_locale(
                 personal_settings=memory_settings,
@@ -321,9 +301,7 @@ async def execute_realtime_tool(
             resolve_stream_execution_mode,
         )
 
-        extra_context = await build_agent_runtime_context(
-            execution_mode=resolve_stream_execution_mode()
-        )
+        extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
         result_parts: list[str] = []
         async for event in ai_agent_service_stream(params, extra_context=extra_context):
             if event.get("type") == "message":
@@ -368,9 +346,7 @@ async def persist_realtime_transcript(
         return {"ok": True}
     except Exception as exc:
         logger.warning("Transcript persistence failed: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Transcript persistence failed"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Transcript persistence failed") from exc
 
 
 def _find_openai_provider(providers: dict[str, object]) -> dict[str, object] | None:
@@ -383,10 +359,7 @@ def _find_openai_provider(providers: dict[str, object]) -> dict[str, object] | N
     if not isinstance(provider_list, list):
         return None
     for provider in provider_list:
-        if (
-            isinstance(provider, dict)
-            and "openai" in str(provider.get("id", "")).lower()
-        ):
+        if isinstance(provider, dict) and "openai" in str(provider.get("id", "")).lower():
             return provider
     return None
 

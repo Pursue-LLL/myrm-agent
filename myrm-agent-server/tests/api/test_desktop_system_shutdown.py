@@ -11,18 +11,15 @@ from tests.support.minimal_app import build_minimal_app
 @pytest.mark.asyncio
 async def test_desktop_shutdown_and_drain_api_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     """Validate POST /api/v1/system/shutdown & drain contracts used by Desktop."""
+
     # Mock graceful_shutdown_task so test runner process is not terminated
     async def noop_shutdown_task() -> None:
         pass
 
-    monkeypatch.setattr(
-        "app.api.system.shutdown.graceful_shutdown_task", noop_shutdown_task
-    )
+    monkeypatch.setattr("app.api.system.shutdown.graceful_shutdown_task", noop_shutdown_task)
 
     app = build_minimal_app(preset="system")
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test/api/v1"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test/api/v1") as client:
         # 1. Test POST /api/v1/system/shutdown endpoint contract
         res = await client.post("/system/shutdown")
         assert res.status_code == 200
@@ -50,9 +47,7 @@ async def test_desktop_shutdown_and_drain_api_contract(monkeypatch: pytest.Monke
 async def test_desktop_drain_idempotent_cycle(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test full drain lifecycle: drain -> poll active count -> cancel drain."""
     app = build_minimal_app(preset="system")
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test/api/v1"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test/api/v1") as client:
         # Drain when already drained or fresh
         r1 = await client.post("/system/drain")
         assert r1.status_code == 200
@@ -68,4 +63,3 @@ async def test_desktop_drain_idempotent_cycle(monkeypatch: pytest.MonkeyPatch) -
         assert r3.status_code == 200
         assert r3.json()["draining"] is False
         assert r3.json()["was_draining"] is False
-

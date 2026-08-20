@@ -111,11 +111,7 @@ def _parse_issue_event(
         body=str(issue.get("body", "") or ""),
         url=str(issue.get("html_url", "")),
         number=int(issue["number"]) if "number" in issue else None,
-        labels=tuple(
-            str(lbl.get("name", ""))
-            for lbl in issue.get("labels", [])
-            if isinstance(lbl, dict)
-        ),
+        labels=tuple(str(lbl.get("name", "")) for lbl in issue.get("labels", []) if isinstance(lbl, dict)),
     )
 
 
@@ -137,11 +133,7 @@ def _parse_pr_event(
         body=str(pr.get("body", "") or ""),
         url=str(pr.get("html_url", "")),
         number=int(pr["number"]) if "number" in pr else None,
-        labels=tuple(
-            str(lbl.get("name", ""))
-            for lbl in pr.get("labels", [])
-            if isinstance(lbl, dict)
-        ),
+        labels=tuple(str(lbl.get("name", "")) for lbl in pr.get("labels", []) if isinstance(lbl, dict)),
         ref=str(pr.get("head", {}).get("ref", "")),
     )
 
@@ -177,11 +169,7 @@ def _parse_push_event(
     if not isinstance(commits, list):
         return None
     ref = str(payload.get("ref", ""))
-    commit_msgs = [
-        str(c.get("message", "")).split("\n")[0]
-        for c in commits[:10]
-        if isinstance(c, dict)
-    ]
+    commit_msgs = [str(c.get("message", "")).split("\n")[0] for c in commits[:10] if isinstance(c, dict)]
     body = "\n".join(f"- {msg}" for msg in commit_msgs) if commit_msgs else ""
     return GitHubEventContext(
         event_type="push",

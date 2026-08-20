@@ -17,9 +17,7 @@ _FORBIDDEN_STREAM_MARKERS: tuple[str, ...] = (
 )
 
 
-def _collect_agent_stream(
-    client: TestClient, payload: dict[str, object]
-) -> list[dict[str, object]]:
+def _collect_agent_stream(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
     collected: list[dict[str, object]] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as response:
         assert response.status_code == 200, response.text
@@ -43,9 +41,7 @@ def _assert_no_allowed_tools_gateway_error(events: list[dict[str, object]]) -> N
             continue
         error_msg = str(event.get("error", "") or event.get("data", "")).lower()
         for marker in _FORBIDDEN_STREAM_MARKERS:
-            assert (
-                marker not in error_msg
-            ), f"agent-stream error must not be allowed_tools gateway rejection: {error_msg[:200]!r}"
+            assert marker not in error_msg, f"agent-stream error must not be allowed_tools gateway rejection: {error_msg[:200]!r}"
 
 
 @pytest.mark.e2e

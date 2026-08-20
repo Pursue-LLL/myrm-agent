@@ -69,10 +69,7 @@ def _legacy_install_roots(local_skill_paths: list[str]) -> list[Path]:
 
 
 def _has_legacy_local_ids(skill_ids: list[str]) -> bool:
-    return any(
-        sid.startswith("local::") and not is_canonical_local_skill_id(sid)
-        for sid in skill_ids
-    )
+    return any(sid.startswith("local::") and not is_canonical_local_skill_id(sid) for sid in skill_ids)
 
 
 async def migrate_legacy_local_skill_ids() -> list[str]:
@@ -104,11 +101,7 @@ async def resolve_runtime_skill_ids(profile_skill_ids: list[str] | None) -> list
     """Return explicit Agent allowlist, or all user-enabled skills when empty."""
     config = await skills_service.user_config.get_config()
     install_roots = _legacy_install_roots(config.local_skill_paths)
-    explicit = [
-        normalize_local_skill_id(sid.strip(), install_roots)
-        for sid in (profile_skill_ids or [])
-        if sid.strip()
-    ]
+    explicit = [normalize_local_skill_id(sid.strip(), install_roots) for sid in (profile_skill_ids or []) if sid.strip()]
     if explicit:
         return explicit
 
@@ -125,4 +118,3 @@ async def resolve_runtime_skill_ids(profile_skill_ids: list[str] | None) -> list
         seen.add(skill_id)
         resolved.append(skill_id)
     return resolved
-

@@ -34,9 +34,7 @@ from app.core.eval.executor import LocalEvalExecutor
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_LAYERS_MEMORY_DIR = (
-    eval_state.DEFAULT_MATRIX_REPORTS_DIR.parent / "eval_layers_memory"
-)
+DEFAULT_LAYERS_MEMORY_DIR = eval_state.DEFAULT_MATRIX_REPORTS_DIR.parent / "eval_layers_memory"
 
 
 @dataclass(frozen=True)
@@ -80,9 +78,7 @@ class LayerSpec:
 DEFAULT_LAYER_SPECS: tuple[LayerSpec, ...] = (
     LayerSpec("bare", benchmark_mode=True, skills_enabled=False, memory_enabled=False),
     LayerSpec("core", benchmark_mode=False, skills_enabled=False, memory_enabled=False),
-    LayerSpec(
-        "skills", benchmark_mode=False, skills_enabled=True, memory_enabled=False
-    ),
+    LayerSpec("skills", benchmark_mode=False, skills_enabled=True, memory_enabled=False),
     LayerSpec("memory", benchmark_mode=False, skills_enabled=True, memory_enabled=True),
 )
 
@@ -293,9 +289,7 @@ async def _run_layer_eval(
     # tool calls / iterations each case was allowed (measurement-decay guard).
     report_data["max_tool_calls"] = max_tool_calls
     report_data["max_iterations"] = max_iterations
-    report_data["decontam_active"] = bool(
-        blocked_hostnames or blocked_terms
-    )
+    report_data["decontam_active"] = bool(blocked_hostnames or blocked_terms)
     # A user abort mid-run leaves partial results: mark the report so it is
     # never mistaken for a complete run in the Eval Lab history.
     report_data["aborted"] = bool(eval_state.matrix_state.get("abort_requested"))
@@ -314,9 +308,7 @@ async def _run_layer_eval(
             1
             for turn in getattr(layer_result, "turn_results", ()) or ()
             for tool in getattr(turn.response, "tools_called", ()) or ()
-            if str(tool.get("name") if isinstance(tool, dict) else tool).startswith(
-                "memory_"
-            )
+            if str(tool.get("name") if isinstance(tool, dict) else tool).startswith("memory_")
         )
         per_profile = report_data.get("per_profile")
         if not isinstance(per_profile, dict):

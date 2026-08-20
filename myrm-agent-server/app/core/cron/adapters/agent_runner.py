@@ -60,9 +60,7 @@ def _heartbeat_follow_up_delivered(job_output: str | None) -> bool:
     return bool(text) and not text.startswith("[SILENT]")
 
 
-async def _finalize_heartbeat_follow_up_delivery(
-    job: CronJob, result: JobResult
-) -> None:
+async def _finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult) -> None:
     """Confirm or reset follow-up delivery state after a heartbeat agent run."""
     if job.name != HEARTBEAT_JOB_NAME:
         return
@@ -73,9 +71,7 @@ async def _finalize_heartbeat_follow_up_delivery(
     )
 
     if result.success and not result.skipped:
-        await confirm_follow_up_delivery(
-            delivered=_heartbeat_follow_up_delivered(result.output)
-        )
+        await confirm_follow_up_delivery(delivered=_heartbeat_follow_up_delivered(result.output))
         return
     reset_follow_up_delivery()
 
@@ -146,9 +142,7 @@ def _normalize_stop_reason_payload(
     }
     detail_obj = payload.get("detail")
     if isinstance(detail_obj, dict):
-        normalized["detail"] = {
-            str(k): v for k, v in detail_obj.items() if isinstance(k, str)
-        }
+        normalized["detail"] = {str(k): v for k, v in detail_obj.items() if isinstance(k, str)}
     return normalized
 
 
@@ -178,9 +172,7 @@ def _derive_stop_reason_from_event(
             limit = detail.get("limit")
             nodes = detail.get("nodes_completed")
             if limit is not None and nodes is not None:
-                message = (
-                    f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
-                )
+                message = f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
             elif limit is not None:
                 message = f"Iteration limit reached ({limit} iterations)"
         payload: dict[str, object] = {
@@ -214,9 +206,7 @@ def _derive_stop_reason_from_event(
         payload_3: dict[str, object] = {
             "code": "agent_cancelled",
             "category": "cancelled",
-            "message": (
-                "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
-            ),
+            "message": ("Cancelled by user" if reason == "user_cancelled" else "Run cancelled"),
         }
         if detail is not None:
             payload_3["detail"] = detail
@@ -294,9 +284,7 @@ def _resolve_cron_enable_memory(
     """
     from app.core.memory.proactive.settings import resolve_memory_enabled
 
-    return "memory" in enabled_builtin_tools and resolve_memory_enabled(
-        memory_settings
-    )
+    return "memory" in enabled_builtin_tools and resolve_memory_enabled(memory_settings)
 
 
 async def _resolve_cron_enable_web_search(
@@ -364,9 +352,7 @@ async def _build_daily_context(job: CronJob) -> str:
     if not fragments:
         return ""
 
-    logger.debug(
-        "Daily context for job %s: %d fragments injected", job.id, len(fragments)
-    )
+    logger.debug("Daily context for job %s: %d fragments injected", job.id, len(fragments))
     return "<daily_context>\n" + "\n---\n".join(fragments) + "\n</daily_context>"
 
 
@@ -378,9 +364,7 @@ class AgentJobRunner:
     transforming blind self-checks into intelligence-driven actions.
     """
 
-    def __init__(
-        self, *, situation_builder: SituationReportBuilder | None = None
-    ) -> None:
+    def __init__(self, *, situation_builder: SituationReportBuilder | None = None) -> None:
         self._situation_builder = situation_builder
 
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
@@ -398,9 +382,7 @@ class AgentJobRunner:
 
         return last_result
 
-    async def _inject_situation_report(
-        self, job: CronJob, prompt: str
-    ) -> tuple[str, bool]:
+    async def _inject_situation_report(self, job: CronJob, prompt: str) -> tuple[str, bool]:
         """Build and prepend a situation report for heartbeat jobs.
 
         Returns ``(effective_prompt, has_actionable_content)`` so the caller
@@ -433,17 +415,13 @@ class AgentJobRunner:
                     True,
                 )
         except Exception:
-            logger.warning(
-                "Situation report build failed for job %s", job.id, exc_info=True
-            )
+            logger.warning("Situation report build failed for job %s", job.id, exc_info=True)
             reset_follow_up_delivery()
             return prompt, True
         reset_follow_up_delivery()
         return prompt, False
 
-    async def _try_enqueue_if_goal_active(
-        self, job: CronJob, *, context: str = ""
-    ) -> bool:
+    async def _try_enqueue_if_goal_active(self, job: CronJob, *, context: str = "") -> bool:
         """If an active goal exists on this chat, enqueue the cron task as a queued goal.
 
         Returns True if the job was enqueued (caller should skip direct execution).
@@ -489,9 +467,7 @@ class AgentJobRunner:
         from app.services.budget.enforcer import should_block_execution
 
         if await should_block_execution():
-            return JobResult(
-                success=False, error="daily budget exceeded (block policy)"
-            )
+            return JobResult(success=False, error="daily budget exceeded (block policy)")
 
         if job.chat_id:
             queued = await self._try_enqueue_if_goal_active(job, context=context)
@@ -516,13 +492,9 @@ class AgentJobRunner:
             )
 
         if self._situation_builder and job.name == HEARTBEAT_JOB_NAME:
-            effective_prompt, has_content = await self._inject_situation_report(
-                job, effective_prompt
-            )
+            effective_prompt, has_content = await self._inject_situation_report(job, effective_prompt)
             if not has_content:
-                logger.info(
-                    "Heartbeat job %s: all sections empty, skipping LLM call", job.id
-                )
+                logger.info("Heartbeat job %s: all sections empty, skipping LLM call", job.id)
                 return JobResult(success=True, skipped=True, skip_reason="no-content")
 
         if job.session_target == SessionTarget.DAILY:
@@ -550,12 +522,8 @@ class AgentJobRunner:
 
             user_cfgs = await load_user_configs()
 
-            embedding_cfg, reranker_cfg = extract_retrieval_models(
-                user_cfgs.retrieval_dict
-            )
-            fallback_model_cfg, fallback_lite_model_cfg = (
-                extract_fallback_model_configs(user_cfgs.providers_dict)
-            )
+            embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
+            fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(user_cfgs.providers_dict)
 
             from myrm_agent_harness.toolkits.retriever.embedding.factory import (
                 EmbeddingConfig,
@@ -601,9 +569,7 @@ class AgentJobRunner:
                     if resolved.system_prompt:
                         user_instructions = resolved.system_prompt
                     agent_skill_ids = list(resolved.skill_ids)
-                    agent_subagent_ids = (
-                        list(resolved.subagent_ids) if resolved.subagent_ids else None
-                    )
+                    agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
                     agent_security_raw = resolved.security_overrides
                     agent_max_iterations = resolved.max_iterations
                     agent_memory_policy = resolved.memory_policy
@@ -612,13 +578,9 @@ class AgentJobRunner:
                     enabled_builtin_tools = list(resolved.enabled_builtin_tools)
                     auto_restore_domains = list(resolved.auto_restore_domains)
                     raw_decay = resolved.memory_decay_profile
-                    memory_decay_profile = (
-                        raw_decay if isinstance(raw_decay, str) else None
-                    )
+                    memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
                     raw_preset = resolved.memory_extraction_preset
-                    memory_extraction_preset = (
-                        raw_preset if isinstance(raw_preset, str) else None
-                    )
+                    memory_extraction_preset = raw_preset if isinstance(raw_preset, str) else None
                     cron_post_run_verify = resolved.cron_post_run_verify
 
                     if resolved.agent_type == "team":
@@ -631,11 +593,7 @@ class AgentJobRunner:
                             leader_id=job.agent_id,
                             dynamic_discovery=True,
                         )
-                        user_instructions = (
-                            f"{user_instructions}\n\n{leader_protocol}"
-                            if user_instructions
-                            else leader_protocol
-                        )
+                        user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
                     from app.services.agent.params.profile_output_suffixes import (
                         apply_profile_output_suffixes,
@@ -674,11 +632,9 @@ class AgentJobRunner:
             )
             model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
             model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
-            vision_fallback_model_cfg, vision_fallback_model_cfgs = (
-                resolve_vision_fallback_chain_for_agent(
-                    user_cfgs.providers_dict,
-                    main_model_cfg=model_cfg if model_cfg.supports_vision else None,
-                )
+            vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+                user_cfgs.providers_dict,
+                main_model_cfg=model_cfg if model_cfg.supports_vision else None,
             )
 
             memory_shared_context_ids: list[str] = []
@@ -735,9 +691,7 @@ class AgentJobRunner:
                 declared_capabilities=job.required_capabilities,
                 declared_allowed_roots=job.allowed_roots,
                 **cron_tool_flags,
-                enable_memory=_resolve_cron_enable_memory(
-                    enabled_builtin_tools, memory_settings
-                ),
+                enable_memory=_resolve_cron_enable_memory(enabled_builtin_tools, memory_settings),
                 enable_web_search=await _resolve_cron_enable_web_search(
                     enabled_builtin_tools=enabled_builtin_tools,
                     job=job,
@@ -756,9 +710,7 @@ class AgentJobRunner:
                 memory_extraction_preset=memory_extraction_preset,
                 engine_params=agent_engine_params,
                 memory_shared_context_ids=memory_shared_context_ids,
-                enable_conversation_search=resolve_conversation_search_enabled(
-                    memory_settings
-                ),
+                enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
                 locale=resolve_agent_params_locale(
                     personal_settings=memory_settings,
                     channel="cron",
@@ -810,8 +762,7 @@ class AgentJobRunner:
                         )
                         if template_error:
                             logger.warning(
-                                "Cron agent job %s blocked by workflow template "
-                                "execution guard: %s",
+                                "Cron agent job %s blocked by workflow template execution guard: %s",
                                 job.id,
                                 template_error,
                             )
@@ -826,16 +777,12 @@ class AgentJobRunner:
                             unattended=True,
                         )
                         result = await asyncio.wait_for(
-                            _consume_dynamic_workflow_stream(
-                                dw_stream, job, model_name
-                            ),
+                            _consume_dynamic_workflow_stream(dw_stream, job, model_name),
                             timeout=timeout,
                         )
                     else:
                         result = await asyncio.wait_for(
-                            _consume_stream(
-                                agent, job, effective_prompt, runtime_context
-                            ),
+                            _consume_stream(agent, job, effective_prompt, runtime_context),
                             timeout=timeout,
                         )
                     if cron_post_run_verify:
@@ -960,13 +907,9 @@ class _StreamAccumulator:
             self.stop_reason = normalized
             return
         current_code = self.stop_reason.get("code")
-        current_priority = (
-            _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
-        )
+        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
         next_code = normalized.get("code")
-        next_priority = (
-            _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
-        )
+        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
         if next_priority >= current_priority:
             self.stop_reason = normalized
 
@@ -1041,9 +984,7 @@ async def _consume_stream(
                     "tool_name": event.get("tool_name"),
                     "items": event.get("data"),
                     "count": event.get("count"),
-                    "error": (
-                        event.get("error") if event.get("status") == "error" else None
-                    ),
+                    "error": (event.get("error") if event.get("status") == "error" else None),
                 }
             )
         elif event_type == "sources" and isinstance(event.get("data"), list):

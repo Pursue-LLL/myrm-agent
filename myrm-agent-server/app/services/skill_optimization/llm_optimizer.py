@@ -55,9 +55,7 @@ class LLMOptimizer:
                 if attempt == max_retries - 1:
                     raise
                 wait_time = retry_delay * (2**attempt)
-                logger.warning(
-                    f"LLM call failed (attempt {attempt + 1}/{max_retries}), retry in {wait_time}s: {e}"
-                )
+                logger.warning(f"LLM call failed (attempt {attempt + 1}/{max_retries}), retry in {wait_time}s: {e}")
                 await asyncio.sleep(wait_time)
 
         raise RuntimeError("LLM optimization failed after all retries")

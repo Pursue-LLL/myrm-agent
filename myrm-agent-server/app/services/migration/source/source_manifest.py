@@ -151,16 +151,10 @@ def migration_source_display_name(source_id: str) -> str:
 def migration_source_local_scan_ids() -> frozenset[str]:
     """Return source ids discovered by local filesystem scan."""
 
-    return frozenset(
-        entry.id
-        for entry in _MIGRATION_SOURCE_MANIFEST
-        if "local_scan" in entry.discover_modes
-    )
+    return frozenset(entry.id for entry in _MIGRATION_SOURCE_MANIFEST if "local_scan" in entry.discover_modes)
 
 
 def migration_source_deep_link_ids() -> frozenset[str]:
     """Return source ids that should be preserved in `?source=` deep links."""
 
-    return frozenset(
-        entry.id for entry in _MIGRATION_SOURCE_MANIFEST if entry.deep_link_enabled
-    )
+    return frozenset(entry.id for entry in _MIGRATION_SOURCE_MANIFEST if entry.deep_link_enabled)

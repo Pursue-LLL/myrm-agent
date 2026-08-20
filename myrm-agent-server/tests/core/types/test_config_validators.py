@@ -60,9 +60,7 @@ class TestModelConfigValidators:
             ModelConfig(model="gpt-4", api_key="   ")
 
     def test_camel_case_base_url_normalized(self) -> None:
-        c = ModelConfig.model_validate(
-            {"model": "m", "apiKey": "k", "baseUrl": "https://api.example.com/v1/"}
-        )
+        c = ModelConfig.model_validate({"model": "m", "apiKey": "k", "baseUrl": "https://api.example.com/v1/"})
         assert c.base_url == "https://api.example.com/v1"
 
 

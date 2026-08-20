@@ -148,9 +148,7 @@ def test_collect_single_file_too_large(tmp_path: Path) -> None:
         collect_publish_files(big)
 
 
-def test_collect_total_payload_too_large(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_collect_total_payload_too_large(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.services.hosting.packager.MAX_TOTAL_BYTES", 100)
     dir_path = tmp_path / "bundle"
     dir_path.mkdir()
@@ -200,8 +198,8 @@ def test_collect_blocks_path_traversal_reference(tmp_path: Path) -> None:
 def test_collect_discovers_css_imports_and_inline_urls(tmp_path: Path) -> None:
     html = (
         '<html><head><style>@import url("theme.css");'
-        "body{background:url(\"bg.png\")}</style></head>"
-        '<body><div style="background-image:url(\'inline.png\')"></div></body></html>'
+        'body{background:url("bg.png")}</style></head>'
+        "<body><div style=\"background-image:url('inline.png')\"></div></body></html>"
     )
     files = _discovery_files(
         tmp_path,
@@ -223,14 +221,9 @@ def test_collect_discovers_css_imports_and_inline_urls(tmp_path: Path) -> None:
 def test_collect_discovers_js_esm_and_dynamic_imports(tmp_path: Path) -> None:
     files = _discovery_files(
         tmp_path,
-        '<script type="module" src="main.js"></script>'
-        '<script src="main.js"></script>',
+        '<script type="module" src="main.js"></script><script src="main.js"></script>',
         {
-            "main.js": (
-                'import helper from "./helper.js";\n'
-                'import("./chunk.js");\n'
-                'export {x} from "./reexport.js";'
-            ),
+            "main.js": ('import helper from "./helper.js";\nimport("./chunk.js");\nexport {x} from "./reexport.js";'),
             "helper.js": "export{}",
             "chunk.js": "console.log(1)",
             "reexport.js": "export{}",
@@ -252,8 +245,7 @@ def test_collect_non_utf8_html_falls_back_to_base64(tmp_path: Path) -> None:
 def test_collect_blocks_excluded_file_and_node_modules_ref(tmp_path: Path) -> None:
     files = _discovery_files(
         tmp_path,
-        '<script src="node_modules/pkg/x.js"></script>'
-        '<link rel="stylesheet" href="package-lock.json">',
+        '<script src="node_modules/pkg/x.js"></script><link rel="stylesheet" href="package-lock.json">',
         {
             "node_modules/pkg/x.js": "bad()",
             "package-lock.json": "{}",
@@ -275,9 +267,7 @@ def test_collect_skips_directory_referenced_like_html(tmp_path: Path) -> None:
 
 
 def test_collect_tolerates_unreadable_scannable_file(tmp_path: Path) -> None:
-    files = _discovery_files(
-        tmp_path, '<script src="bad.js"></script>', {"bad.js": b"\xff\xfe\x00"}
-    )
+    files = _discovery_files(tmp_path, '<script src="bad.js"></script>', {"bad.js": b"\xff\xfe\x00"})
     assert "bad.js" in files
 
 
@@ -315,9 +305,7 @@ def test_merge_assets_falls_back_to_index_candidate(tmp_path: Path) -> None:
     vault_obj.write_text("<h1>vault</h1>", encoding="utf-8")
     asset_root = tmp_path / "sandbox"
     asset_root.mkdir()
-    (asset_root / "index.html").write_text(
-        '<link rel="stylesheet" href="style.css">', encoding="utf-8"
-    )
+    (asset_root / "index.html").write_text('<link rel="stylesheet" href="style.css">', encoding="utf-8")
     (asset_root / "style.css").write_text("body{}", encoding="utf-8")
 
     files = collect_publish_files(vault_obj, asset_root=asset_root, entry_name_hint="missing.html")
@@ -401,7 +389,5 @@ def test_merge_disk_assets_none_hint(tmp_path: Path) -> None:
     from app.services.hosting.packager import _merge_disk_assets
 
     files = {}
-    merged, _ = _merge_disk_assets(
-        files, 0, allowed_root=tmp_path.resolve(), entry_hint=None
-    )
+    merged, _ = _merge_disk_assets(files, 0, allowed_root=tmp_path.resolve(), entry_hint=None)
     assert merged == files

@@ -125,9 +125,7 @@ def _mirror_shared_providers_to_private(api_url: str) -> None:
         (
             p
             for p in providers
-            if isinstance(p, dict)
-            and str(p.get("id")) == "minimax"
-            and bool(p.get("isEnabled") or p.get("enabled"))
+            if isinstance(p, dict) and str(p.get("id")) == "minimax" and bool(p.get("isEnabled") or p.get("enabled"))
         ),
         None,
     )
@@ -135,9 +133,7 @@ def _mirror_shared_providers_to_private(api_url: str) -> None:
         pytest.fail("shared providers have no enabled minimax provider")
     if not any(
         isinstance(k, dict) and k.get("isActive") and k.get("key")
-        for k in (
-            minimax.get("apiKeys") if isinstance(minimax.get("apiKeys"), list) else []
-        )
+        for k in (minimax.get("apiKeys") if isinstance(minimax.get("apiKeys"), list) else [])
     ):
         pytest.fail("shared minimax provider has no active API key")
 
@@ -165,11 +161,7 @@ def _mirror_shared_providers_to_private(api_url: str) -> None:
         saved_dmc = value.get("defaultModelConfig")
         if isinstance(saved_dmc, dict) and isinstance(saved_dmc.get("baseModel"), dict):
             primary = saved_dmc["baseModel"].get("primary")
-            if (
-                isinstance(primary, dict)
-                and primary.get("providerId") == "minimax"
-                and primary.get("model") == "MiniMax-M3"
-            ):
+            if isinstance(primary, dict) and primary.get("providerId") == "minimax" and primary.get("model") == "MiniMax-M3":
                 return
         time.sleep(0.5)
     pytest.fail("minimax base model not persisted on PRIVATE backend")
@@ -184,24 +176,18 @@ def _set_yolo(api_url: str, enabled: bool) -> None:
     put_config_value("securityConfig", value, api_url=api_url)
     deadline = time.monotonic() + 20.0
     while time.monotonic() < deadline:
-        current = bool(
-            _fetch_config_resilient("securityConfig", api_url).get("yoloModeEnabled")
-        )
+        current = bool(_fetch_config_resilient("securityConfig", api_url).get("yoloModeEnabled"))
         if current == enabled:
             return
         time.sleep(0.5)
     pytest.fail(f"yoloModeEnabled did not settle to {enabled} on PRIVATE backend")
 
 
-def _wait_yolo_state(
-    api_url: str, expected: bool, *, timeout_sec: float = 45.0
-) -> bool:
+def _wait_yolo_state(api_url: str, expected: bool, *, timeout_sec: float = 45.0) -> bool:
     deadline = time.monotonic() + timeout_sec
     last = not expected
     while time.monotonic() < deadline:
-        last = bool(
-            _fetch_config_resilient("securityConfig", api_url).get("yoloModeEnabled")
-        )
+        last = bool(_fetch_config_resilient("securityConfig", api_url).get("yoloModeEnabled"))
         if last == expected:
             return last
         time.sleep(0.75)
@@ -281,17 +267,9 @@ def _wait_assistant_reply(
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
-        last_messages = [
-            m
-            for m in messages
-            if isinstance(m, dict) and m.get("role") in ("user", "assistant")
-        ]
+        last_messages = [m for m in messages if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
         assistant = next(
-            (
-                m
-                for m in reversed(last_messages)
-                if isinstance(m, dict) and m.get("role") == "assistant"
-            ),
+            (m for m in reversed(last_messages) if isinstance(m, dict) and m.get("role") == "assistant"),
             None,
         )
         if isinstance(assistant, dict):
@@ -337,9 +315,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("accept_edits", preset_agent_id),
             timeout_sec=90.0,
         )
-        assert init_state.get("ready") is True, json.dumps(
-            init_state, ensure_ascii=False
-        )
+        assert init_state.get("ready") is True, json.dumps(init_state, ensure_ascii=False)
 
         attached = client.evaluate(page, _attach_js(preset_chat_id), timeout_sec=30.0)
         assert isinstance(attached, dict) and attached.get("ok") is True, attached
@@ -351,9 +327,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
         )
         assert isinstance(send, dict), send
         assert send.get("ok") is True, json.dumps(send, ensure_ascii=False)
-        assert send.get("chatId") in (preset_chat_id, None), json.dumps(
-            send, ensure_ascii=False
-        )
+        assert send.get("chatId") in (preset_chat_id, None), json.dumps(send, ensure_ascii=False)
 
         reply = _wait_assistant_reply(preset_chat_id, api_url, timeout_sec=120.0)
         assert str(reply.get("role")) == "assistant"
@@ -364,9 +338,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("accept_edits", preset_agent_id),
             timeout_sec=30.0,
         )
-        assert after_turn.get("ready") is True, json.dumps(
-            after_turn, ensure_ascii=False
-        )
+        assert after_turn.get("ready") is True, json.dumps(after_turn, ensure_ascii=False)
 
     # --- Scenario 2: agent switch resets preset (no leak across agents) ---
     warm_ui_route(plain_path)
@@ -377,9 +349,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("hitl", plain_agent_id),
             timeout_sec=90.0,
         )
-        assert switch_state.get("ready") is True, json.dumps(
-            switch_state, ensure_ascii=False
-        )
+        assert switch_state.get("ready") is True, json.dumps(switch_state, ensure_ascii=False)
 
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
@@ -389,9 +359,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("accept_edits", preset_agent_id),
             timeout_sec=90.0,
         )
-        assert back_state.get("ready") is True, json.dumps(
-            back_state, ensure_ascii=False
-        )
+        assert back_state.get("ready") is True, json.dumps(back_state, ensure_ascii=False)
 
     # --- Scenario 3: binding a non-HITL preset agent auto-disables YOLO ---
     _set_yolo(api_url, True)
@@ -405,14 +373,10 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("accept_edits", preset_agent_id),
             timeout_sec=90.0,
         )
-        assert yolo_init_state.get("ready") is True, json.dumps(
-            yolo_init_state, ensure_ascii=False
-        )
+        assert yolo_init_state.get("ready") is True, json.dumps(yolo_init_state, ensure_ascii=False)
 
     yolo_off = _wait_yolo_state(api_url, False, timeout_sec=45.0)
-    assert (
-        yolo_off is False
-    ), "YOLO must be auto-disabled after binding accept_edits agent"
+    assert yolo_off is False, "YOLO must be auto-disabled after binding accept_edits agent"
 
     # --- Scenario 4: explore default preset hydrates to explore (third tier) ---
     explore_path = seeded["explore_ui_path"]
@@ -425,9 +389,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("explore", explore_agent_id),
             timeout_sec=90.0,
         )
-        assert explore_state.get("ready") is True, json.dumps(
-            explore_state, ensure_ascii=False
-        )
+        assert explore_state.get("ready") is True, json.dumps(explore_state, ensure_ascii=False)
 
     # --- Scenario 5: HITL preset coexists with YOLO (only non-HITL disarms) ---
     _set_yolo(api_url, True)
@@ -441,9 +403,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("hitl", plain_agent_id),
             timeout_sec=90.0,
         )
-        assert hitl_state.get("ready") is True, json.dumps(
-            hitl_state, ensure_ascii=False
-        )
+        assert hitl_state.get("ready") is True, json.dumps(hitl_state, ensure_ascii=False)
 
     yolo_still_on = _wait_yolo_state(api_url, True, timeout_sec=20.0)
     assert yolo_still_on is True, "YOLO must stay enabled with a hitl default agent"
@@ -458,9 +418,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("hitl", plain_agent_id),
             timeout_sec=90.0,
         )
-        assert hitl_ready.get("ready") is True, json.dumps(
-            hitl_ready, ensure_ascii=False
-        )
+        assert hitl_ready.get("ready") is True, json.dumps(hitl_ready, ensure_ascii=False)
 
         yolo_synced = _wait_yolo_state(api_url, True, timeout_sec=30.0)
         assert yolo_synced is True, "YOLO should still be on before the selector pick"
@@ -477,9 +435,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
 })()""",
             timeout_sec=15.0,
         )
-        assert option_ready.get("ready") is True, json.dumps(
-            option_ready, ensure_ascii=False
-        )
+        assert option_ready.get("ready") is True, json.dumps(option_ready, ensure_ascii=False)
 
         picked = client.evaluate(
             page,
@@ -494,14 +450,10 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             _store_preset_probe("accept_edits", plain_agent_id),
             timeout_sec=30.0,
         )
-        assert after_pick.get("ready") is True, json.dumps(
-            after_pick, ensure_ascii=False
-        )
+        assert after_pick.get("ready") is True, json.dumps(after_pick, ensure_ascii=False)
 
     yolo_disarmed = _wait_yolo_state(api_url, False, timeout_sec=45.0)
-    assert (
-        yolo_disarmed is False
-    ), "YOLO must be disabled after selector picks accept_edits"
+    assert yolo_disarmed is False, "YOLO must be disabled after selector picks accept_edits"
 
     # Sanity: the live turn really persisted both a user and an assistant message.
     users = chat_user_message_count(preset_chat_id, api_url=api_url)

@@ -179,9 +179,7 @@ async def create_artifact_share_preview(
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except FileNotFoundError as exc:
-        raise HTTPException(
-            status_code=404, detail="Artifact content not found"
-        ) from exc
+        raise HTTPException(status_code=404, detail="Artifact content not found") from exc
 
     try:
         await register_share(
@@ -196,9 +194,7 @@ async def create_artifact_share_preview(
         )
     except Exception as exc:
         logger.error("Failed to register share link: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Failed to register share link"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to register share link") from exc
 
     share_path = _share_path(token)
     base = await resolve_share_url_base()

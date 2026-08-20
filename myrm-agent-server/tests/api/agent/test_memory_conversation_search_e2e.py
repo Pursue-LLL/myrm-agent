@@ -10,9 +10,7 @@ from fastapi.testclient import TestClient
 from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
-def _collect_agent_stream(
-    client: TestClient, payload: dict[str, object]
-) -> list[dict[str, object]]:
+def _collect_agent_stream(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
     collected: list[dict[str, object]] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as response:
         assert response.status_code == 200, response.text
@@ -130,9 +128,7 @@ def test_agent_stream_opt_in_enables_sessions_corpus_on_memory_search(
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
     blob = _stream_blob(events)
-    assert (
-        "memory_search_tool" in blob
-    ), "opt-in must bind memory_search_tool in Turn1 tools"
+    assert "memory_search_tool" in blob, "opt-in must bind memory_search_tool in Turn1 tools"
     assert "corpus=sessions" in blob or "sessions" in blob
     assert "conversation_search_tool" not in blob
 
@@ -246,8 +242,7 @@ def test_agent_stream_conversation_search_passphrase_recovery(
 
     turn2 = {
         "query": (
-            "What was the exact passphrase I gave in this chat? "
-            "Use conversation_search_tool if needed to search for PELICAN."
+            "What was the exact passphrase I gave in this chat? Use conversation_search_tool if needed to search for PELICAN."
         ),
         "message_id": "test-opt-in-conv-2",
         "chat_id": chat_id,

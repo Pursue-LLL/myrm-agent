@@ -158,11 +158,7 @@ def _seed_vision_provider(api_url: str) -> dict[str, object]:
     current = fetch_config_value("providers", api_url=api_url)
     providers = current.get("providers")
     provider_list = upsert_provider(
-        (
-            [p for p in providers if isinstance(p, dict)]
-            if isinstance(providers, list)
-            else []
-        ),
+        ([p for p in providers if isinstance(p, dict)] if isinstance(providers, list) else []),
         provider_id=basic_id,
         model_id=basic_model,
         api_url=cfg["basic_base_url"],
@@ -268,9 +264,7 @@ async def _await_assistant_reply(
                 ensure_ascii=False,
                 default=str,
             )[:1600]
-            raise AssertionError(
-                f"Assistant turn did not settle: ui={last_ui} messages={dump}"
-            )
+            raise AssertionError(f"Assistant turn did not settle: ui={last_ui} messages={dump}")
         await asyncio.sleep(2.0)
 
 
@@ -317,16 +311,10 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
         if __import__("time").monotonic() >= upload_deadline:
             break
         await asyncio.sleep(1.0)
-    assert (
-        thumbnail_probe.get("ready") is True
-    ), f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
+    assert thumbnail_probe.get("ready") is True, f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
 
     send_result = await chat.send_message(_PROMPT, _PROMPT)
-    chat_id = str(
-        send_result.get("started", {}).get("chatId")
-        or send_result.get("submit", {}).get("chatId")
-        or ""
-    ).strip()
+    chat_id = str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
     assert chat_id, f"image turn did not start: {send_result}"
 
     reply = await _await_assistant_reply(
@@ -346,16 +334,10 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
         if not isinstance(msg, dict) or str(msg.get("role") or "") != "user":
             continue
         blob = json.dumps(msg, ensure_ascii=False, default=str)
-        if (
-            _IMAGE_FILENAME in blob
-            or '"image_url"' in blob
-            or "/api/v1/files/storage/files/" in blob
-        ):
+        if _IMAGE_FILENAME in blob or '"image_url"' in blob or "/api/v1/files/storage/files/" in blob:
             persisted_hit = True
             break
-    assert (
-        persisted_hit
-    ), f"user message persisted without staged image file_id: chat_id={chat_id}"
+    assert persisted_hit, f"user message persisted without staged image file_id: chat_id={chat_id}"
     return chat_id
 
 
@@ -374,9 +356,7 @@ async def test_image_upload_stream_assistant_replies(
 ) -> None:
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
-        pytest.fail(
-            "Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
-        )
+        pytest.fail("Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome")
 
     backup = fetch_config_value("providers", api_url=api_url)
     try:

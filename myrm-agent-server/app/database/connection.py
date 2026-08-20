@@ -101,11 +101,12 @@ async def init_database() -> None:
         raise
 
     # Fail-closed Schema Gate: Verify database version satisfies runtime expectations
-    from app.database.migrations import MIGRATION_STATEMENTS
     from myrm_agent_harness.utils.db.sqlite import (
         StorageCapabilities,
         validate_schema_gate_async,
     )
+
+    from app.database.migrations import MIGRATION_STATEMENTS
 
     if MIGRATION_STATEMENTS:
         latest_expected_version = len(MIGRATION_STATEMENTS)

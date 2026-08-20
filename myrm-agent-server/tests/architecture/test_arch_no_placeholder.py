@@ -47,7 +47,4 @@ def test_arch_md_has_no_lazy_placeholders(arch_path: Path) -> None:
                 (idx for idx, line in enumerate(text.splitlines(), start=1) if phrase in line),
                 None,
             )
-            pytest.fail(
-                f"{rel}:{line_no}: _ARCH.md contains banned placeholder {phrase!r}. "
-                "Replace with concrete职责 / I/O/P."
-            )
+            pytest.fail(f"{rel}:{line_no}: _ARCH.md contains banned placeholder {phrase!r}. Replace with concrete职责 / I/O/P.")

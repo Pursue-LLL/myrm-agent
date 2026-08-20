@@ -65,9 +65,7 @@ def apply_clawhub_registry_url(url: str | None) -> str:
 
         market_service.refresh_clawhub_source()
     except Exception as exc:
-        logger.warning(
-            "Failed to refresh ClawHub source after registry update: %s", exc
-        )
+        logger.warning("Failed to refresh ClawHub source after registry update: %s", exc)
 
     logger.info("ClawHub registry mirror set to %s", effective)
     return effective

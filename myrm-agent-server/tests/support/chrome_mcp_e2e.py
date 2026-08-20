@@ -92,9 +92,7 @@ _ENSURE_DESKTOP_VIEWPORT_JS = """(() => {
 })()"""
 
 
-def ensure_desktop_viewport(
-    client: ChromeMcpClient, page: McpPage
-) -> dict[str, object]:
+def ensure_desktop_viewport(client: ChromeMcpClient, page: McpPage) -> dict[str, object]:
     raw = client.evaluate(page, _ENSURE_DESKTOP_VIEWPORT_JS, timeout_sec=5.0)
     return raw if isinstance(raw, dict) else {"value": raw}
 
@@ -116,9 +114,7 @@ def dismiss_blocking_modals(
 ) -> None:
     """Dismiss onboarding/migration overlays that block E2E clicks (SSOT: cdp_chat.support)."""
     page_url = getattr(page, "url", None)
-    target_url = recover_url or (
-        page_url if isinstance(page_url, str) and page_url.strip() else None
-    )
+    target_url = recover_url or (page_url if isinstance(page_url, str) and page_url.strip() else None)
     if not target_url:
         target_url = f"{get_e2e_ui_url().rstrip('/')}/"
     last: dict[str, object] = {}
@@ -129,14 +125,8 @@ def dismiss_blocking_modals(
         href = str(last.get("href", ""))
         if last.get("ready") is True and "chrome-error://" not in href:
             break
-        if (
-            attempt >= max_attempts - 1
-            or not isinstance(target_url, str)
-            or not target_url.strip()
-        ):
-            raise AssertionError(
-                f"Page not on localhost after chrome-error recovery: {last}"
-            )
+        if attempt >= max_attempts - 1 or not isinstance(target_url, str) or not target_url.strip():
+            raise AssertionError(f"Page not on localhost after chrome-error recovery: {last}")
         if "chrome-error://" in href:
             _trigger_attach_frontend_heal_once()
             try:
@@ -212,9 +202,7 @@ def prepare_e2e_ui_session(api_url: str) -> None:
         raise last_error
 
 
-def guarded_httpx_request(
-    client: object, method: str, url: str, **kwargs: object
-) -> object:
+def guarded_httpx_request(client: object, method: str, url: str, **kwargs: object) -> object:
     """Effect-guarded httpx request for formal chrome_e2e live agent paths."""
     from e2e_core.effect_guard import guarded_httpx_request as _guard
 
@@ -241,9 +229,7 @@ def get_first_enabled_model(api_url: str | None = None) -> str:
         if not (provider.get("isEnabled") or provider.get("enabled")):
             continue
         keys = provider.get("apiKeys")
-        has_key = isinstance(keys, list) and any(
-            isinstance(k, dict) and k.get("isActive") for k in keys
-        )
+        has_key = isinstance(keys, list) and any(isinstance(k, dict) and k.get("isActive") for k in keys)
         if not has_key:
             continue
         provider_id = str(provider.get("id", ""))
@@ -272,9 +258,7 @@ def http_json(
         allowed_bases.append(shared_hot)
     allowed = tuple(allowed_bases)
     if not url.startswith(allowed):
-        raise ValueError(
-            f"Chrome E2E HTTP helper only permits loopback app URLs: {url}"
-        )
+        raise ValueError(f"Chrome E2E HTTP helper only permits loopback app URLs: {url}")
     data = json.dumps(body).encode("utf-8") if body is not None else None
     request = urllib.request.Request(  # noqa: S310 - validated loopback
         url, data=data, method=method
@@ -360,11 +344,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
                 pass
     except ImportError:
         pass
-    base_wait = (
-        timeout_sec
-        if timeout_sec is not None
-        else float(os.environ.get("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "180"))
-    )
+    base_wait = timeout_sec if timeout_sec is not None else float(os.environ.get("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "180"))
     wait_sec = _warm_ui_parallel_wait_sec(base_wait)
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         wait_sec = min(wait_sec, 120.0)
@@ -456,9 +436,7 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
             if _attempt_warm_get():
                 return
             time.sleep(poll_sec)
-        warm_error = RuntimeError(
-            f"warm_ui_route GET {url} failed after {wait_sec:.0f}s: {last_error!r}"
-        )
+        warm_error = RuntimeError(f"warm_ui_route GET {url} failed after {wait_sec:.0f}s: {last_error!r}")
         if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
             print(
                 f"E2E_WARM_UI_SOFT_SKIP: signoff defers compile to Chrome bootstrap — {warm_error}",
@@ -528,9 +506,7 @@ def _reapply_shpoib_runtime_after_reload(
         remaining = max(0.0, deadline - time.monotonic())
         if remaining <= 0:
             break
-        if not wait_e2e_provider_ready(
-            api_url=api_base, timeout_sec=min(30.0, max(5.0, remaining))
-        ):
+        if not wait_e2e_provider_ready(api_url=api_base, timeout_sec=min(30.0, max(5.0, remaining))):
             time.sleep(2.0)
             continue
         nav_timeout_ms = min(int(remaining * 1000), 120_000)
@@ -548,9 +524,7 @@ def _reapply_shpoib_runtime_after_reload(
                 f"""(() => ({{
                   ready: window.location.href.startsWith({location_prefix}),
                 }}))()""",
-                timeout_sec=min(
-                    _shpoib_rebind_location_wait_cap(), max(5.0, remaining)
-                ),
+                timeout_sec=min(_shpoib_rebind_location_wait_cap(), max(5.0, remaining)),
             )
         observed = client.evaluate(
             page,
@@ -558,24 +532,14 @@ def _reapply_shpoib_runtime_after_reload(
             timeout_sec=min(60.0, max(5.0, remaining)),
         )
         if isinstance(observed, dict) and observed.get("ok") is True:
-            rebind_timeout = float(
-                os.environ.get("MYRM_SHPOIB_REBIND_TIMEOUT_SEC", str(timeout_sec))
-            )
-            _wait_for_shpoib_runtime_ready(
-                client, page, timeout_sec=min(rebind_timeout, remaining)
-            )
+            rebind_timeout = float(os.environ.get("MYRM_SHPOIB_REBIND_TIMEOUT_SEC", str(timeout_sec)))
+            _wait_for_shpoib_runtime_ready(client, page, timeout_sec=min(rebind_timeout, remaining))
             return
         last_observed = observed if isinstance(observed, dict) else {"value": observed}
-        error_text = (
-            str(last_observed.get("error", last_observed))
-            if isinstance(last_observed, dict)
-            else str(last_observed)
-        )
+        error_text = str(last_observed.get("error", last_observed)) if isinstance(last_observed, dict) else str(last_observed)
         transient = "failed to fetch" in error_text.lower()
         if transient and attempt + 1 < max_attempts:
-            wait_e2e_provider_ready(
-                api_url=api_base, timeout_sec=min(30.0, max(5.0, remaining))
-            )
+            wait_e2e_provider_ready(api_url=api_base, timeout_sec=min(30.0, max(5.0, remaining)))
             time.sleep(2.0 * (attempt + 1))
             continue
         if not transient:
@@ -659,15 +623,10 @@ def reload_mcp_page(
     else:
         client.reload(page, timeout_ms=timeout_ms)
     # Isolated stacks use Next.js rewrites — skip expensive SHPOIB rebind (TAB-6b).
-    if (
-        e2e_runtime_binding() is not None
-        and os.environ.get("MYRM_E2E_ISOLATED", "").strip() != "1"
-    ):
+    if e2e_runtime_binding() is not None and os.environ.get("MYRM_E2E_ISOLATED", "").strip() != "1":
         resolved_url = _normalize_rebind_target_url(target_url)
         if resolved_url is None:
-            resolved_url = _resolve_page_target_url(
-                client, page, timeout_sec=min(30.0, timeout_ms / 1000)
-            )
+            resolved_url = _resolve_page_target_url(client, page, timeout_sec=min(30.0, timeout_ms / 1000))
         _reapply_shpoib_runtime_after_reload(client, page, target_url=resolved_url)
 
 
@@ -946,11 +905,7 @@ def wait_for_agent_settings_editor(
             )
             if editor_ready.get("ready") is True:
                 return editor_ready
-            if (
-                editor_ready.get("apiBase") is None
-                and e2e_runtime_binding() is not None
-                and attempt < 2
-            ):
+            if editor_ready.get("apiBase") is None and e2e_runtime_binding() is not None and attempt < 2:
                 reload_mcp_page(client, page, target_url=page_url, timeout_ms=120_000)
                 dismiss_blocking_modals(client, page, recover_url=page_url)
                 continue
@@ -992,9 +947,7 @@ def wait_for_wiki_settings_shell(
                 page_url=page_url,
                 blank_heal_mode=heal_mode,
             )
-            if wiki_ready.get("ready") is True and (
-                not require_shell or wiki_ready.get("hasShell") is True
-            ):
+            if wiki_ready.get("ready") is True and (not require_shell or wiki_ready.get("hasShell") is True):
                 return wiki_ready
         except AssertionError:
             if attempt >= attempts - 1:
@@ -1076,9 +1029,7 @@ def wait_for_settings_layout(
             _heal_settings_deferred_loading(client, page, page_url=page_url)
     err_text = str(layout_ready.get("err", ""))
     if "chrome-error" in err_text:
-        raise RuntimeError(
-            f"chrome-error: Settings layout did not become ready: {layout_ready}"
-        )
+        raise RuntimeError(f"chrome-error: Settings layout did not become ready: {layout_ready}")
     raise AssertionError(f"Settings layout did not become ready: {layout_ready}")
 
 
@@ -1087,11 +1038,7 @@ def _settings_http_warm_skippable(route_path: str) -> bool:
     hot = os.environ.get("MYRM_E2E_BOOTSTRAP_HOT_PATH", "").strip()
     if hot not in {"reused", "fast_create", "transaction"}:
         return False
-    shell_route = (
-        "/settings"
-        if route_path.startswith("/settings/") and route_path != "/settings"
-        else route_path
-    )
+    shell_route = "/settings" if route_path.startswith("/settings/") and route_path != "/settings" else route_path
     try:
         from e2e_core.warm_shell_registry import platform_shell_fresh
 
@@ -1127,9 +1074,7 @@ def _orchestrator_atomic_route_available() -> bool:
             BrowserOrchestratorClient,
         )
 
-        _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE = (
-            BrowserOrchestratorClient().supports_open_app_route()
-        )
+        _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE = BrowserOrchestratorClient().supports_open_app_route()
     except (ImportError, OSError, RuntimeError, TimeoutError):
         _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE = False
     return _ORCHESTRATOR_ATOMIC_ROUTE_AVAILABLE
@@ -1153,9 +1098,7 @@ def open_settings_subroute(
     ui_base = get_e2e_ui_url().rstrip("/")
     route_path = _settings_route_path(subroute_path)
     if not route_path.startswith("/settings"):
-        raise ValueError(
-            f"open_settings_subroute expects a /settings path, got: {subroute_path!r}"
-        )
+        raise ValueError(f"open_settings_subroute expects a /settings path, got: {subroute_path!r}")
     shell_url = f"{ui_base}/settings"
     path_only = route_path
     query = ""
@@ -1177,15 +1120,10 @@ def open_settings_subroute(
         try:
             from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
-            skip_parallel_http_warm = (
-                skip_parallel_http_warm or parallel_shared_ui_hydrate_queue_enabled()
-            )
+            skip_parallel_http_warm = skip_parallel_http_warm or parallel_shared_ui_hydrate_queue_enabled()
         except ImportError:
             pass
-        if (
-            not _settings_http_warm_skippable("/settings")
-            and not skip_parallel_http_warm
-        ):
+        if not _settings_http_warm_skippable("/settings") and not skip_parallel_http_warm:
             warm_ui_route(
                 "/settings",
                 timeout_sec=_warm_ui_parallel_wait_sec(20.0),
@@ -1199,10 +1137,7 @@ def open_settings_subroute(
     # atomically via open_app_route (NAV-2/NAV-3) — zero test-layer navigate,
     # zero reload + second-hydrate storm (§19.11.11.2 dead paths deleted).
     touch_wall_progress(current_node="open_settings_subroute_page_open")
-    atomic_available = (
-        os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1"
-        and _orchestrator_atomic_route_available()
-    )
+    atomic_available = os.environ.get("MYRM_BROWSER_ORCHESTRATOR", "").strip() == "1" and _orchestrator_atomic_route_available()
     if atomic_available:
         from browser_orchestrator.e2e import open_app_route_page
 
@@ -1211,11 +1146,7 @@ def open_settings_subroute(
             request_timeout_sec=request_timeout_sec,
             hydrate_timeout_sec=max(
                 45.0,
-                (
-                    _warm_ui_parallel_wait_sec(layout_timeout_sec)
-                    if _parallel_chrome_e2e_active()
-                    else layout_timeout_sec
-                ),
+                (_warm_ui_parallel_wait_sec(layout_timeout_sec) if _parallel_chrome_e2e_active() else layout_timeout_sec),
             ),
             binding_expression=_SETTINGS_DISMISSAL_BINDING_JS,
         ) as (client, page):
@@ -1226,11 +1157,7 @@ def open_settings_subroute(
             _ensure_e2e_private_api_live(
                 client,
                 page,
-                timeout_sec=(
-                    _warm_ui_parallel_wait_sec(90.0)
-                    if _parallel_chrome_e2e_active()
-                    else 45.0
-                ),
+                timeout_sec=(_warm_ui_parallel_wait_sec(90.0) if _parallel_chrome_e2e_active() else 45.0),
             )
             try:
                 dismiss_blocking_modals(client, page, recover_url=target_url)
@@ -1256,11 +1183,7 @@ def open_settings_subroute(
         _ensure_e2e_private_api_live(
             client,
             page,
-            timeout_sec=(
-                _warm_ui_parallel_wait_sec(90.0)
-                if _parallel_chrome_e2e_active()
-                else 45.0
-            ),
+            timeout_sec=(_warm_ui_parallel_wait_sec(90.0) if _parallel_chrome_e2e_active() else 45.0),
         )
         reload_mcp_page(
             client,
@@ -1335,8 +1258,7 @@ def _emit_transport_progress(*, current_node: str, node_started: float) -> None:
 
     elapsed = time.monotonic() - node_started
     print(
-        f"{E2E_TRANSPORT_PROGRESS_TOKEN}: node={current_node} "
-        f"node_elapsed={int(elapsed)}s (do not stop other pytest)",
+        f"{E2E_TRANSPORT_PROGRESS_TOKEN}: node={current_node} node_elapsed={int(elapsed)}s (do not stop other pytest)",
         file=sys.stderr,
         flush=True,
     )
@@ -1422,9 +1344,7 @@ def _blocking_progress_loop(
             touch_wall_progress(current_node=current_node)
             now = time.monotonic()
             if now - last_transport_emit >= _TRANSPORT_PROGRESS_INTERVAL_SEC:
-                _emit_transport_progress(
-                    current_node=current_node, node_started=node_started
-                )
+                _emit_transport_progress(current_node=current_node, node_started=node_started)
                 last_transport_emit = now
 
     worker = threading.Thread(target=_loop, name="open-mcp-page-progress", daemon=True)
@@ -1550,11 +1470,7 @@ def _wait_for_app_layout_open(
                 ensure_desktop_viewport(client, page)
                 dismiss_blocking_modals(client, page)
             client.set_tool_wall_deadline(None)
-        attempt_timeout = (
-            layout_timeout
-            if signoff or attempt == 0
-            else min(120.0, layout_timeout * 0.5)
-        )
+        attempt_timeout = layout_timeout if signoff or attempt == 0 else min(120.0, layout_timeout * 0.5)
         try:
             wait_for_state(
                 client,
@@ -1574,9 +1490,7 @@ def _wait_for_app_layout_open(
                 raise
 
     detail = last_exc.args[0] if last_exc is not None else "unknown"
-    raise AssertionError(
-        f"Page shell did not hydrate after {heal_passes} reload-heal attempt(s): {detail}"
-    ) from last_exc
+    raise AssertionError(f"Page shell did not hydrate after {heal_passes} reload-heal attempt(s): {detail}") from last_exc
 
 
 def _shpoib_rebind_location_wait_cap() -> float:
@@ -1593,11 +1507,7 @@ def _shared_read_parallel_open_page_retry_allowed() -> bool:
 
 def _open_page_parallel_retry_allowed() -> bool:
     """Signoff, dev PRIVATE SHPOIB bootstrap, and SHARED READ share mux-heal retry under parallel peers."""
-    return (
-        is_e2e_signoff_runtime()
-        or _dev_private_shpoib_bootstrap_phase()
-        or _shared_read_parallel_open_page_retry_allowed()
-    )
+    return is_e2e_signoff_runtime() or _dev_private_shpoib_bootstrap_phase() or _shared_read_parallel_open_page_retry_allowed()
 
 
 def _open_page_attempt_count() -> int:
@@ -1902,9 +1812,7 @@ def _signoff_mux_drain_budget_sec() -> float:
     return budget
 
 
-def _wait_cold_shim_peer_pressure_drain(
-    *, budget_sec: float, current_node: str
-) -> None:
+def _wait_cold_shim_peer_pressure_drain(*, budget_sec: float, current_node: str) -> None:
     """Wait until mux peer load drops below cold-shim defer threshold (R231)."""
     try:
         from mux.transport_supervisor import (
@@ -1924,9 +1832,7 @@ def _wait_cold_shim_peer_pressure_drain(
         if remaining <= 0:
             break
         print(
-            f"E2E_COLD_SHIM_PEER_WAIT: peers={peers} "
-            f"threshold={defer_threshold} "
-            f"remaining={remaining:.0f}s node={current_node}",
+            f"E2E_COLD_SHIM_PEER_WAIT: peers={peers} threshold={defer_threshold} remaining={remaining:.0f}s node={current_node}",
             file=sys.stderr,
             flush=True,
         )
@@ -1954,9 +1860,7 @@ def _signoff_wait_mux_before_new_page(*, budget_sec: float | None = None) -> Non
     """Signoff pre-new_page mux gate — operation-credit transport SSOT (P0-B)."""
     from browser_orchestrator import wait_for_operation_credit
 
-    wait_budget = float(
-        budget_sec if budget_sec is not None else _signoff_mux_drain_budget_sec()
-    )
+    wait_budget = float(budget_sec if budget_sec is not None else _signoff_mux_drain_budget_sec())
     gate_started = time.monotonic()
     credit_budget = min(wait_budget, _mux_transport_wait_budget_sec())
     wait_for_operation_credit(
@@ -2025,14 +1929,11 @@ def _signoff_threaded_new_page(
             )
         else:
             print(
-                f"{E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN}: "
-                f"join={join_timeout_sec:.0f}s url={url}",
+                f"{E2E_SIGNOFF_NEW_PAGE_JOIN_EXCEEDED_TOKEN}: join={join_timeout_sec:.0f}s url={url}",
                 file=sys.stderr,
                 flush=True,
             )
-        raise TimeoutError(
-            f"Chrome MCP new_page thread join timed out after {elapsed:.0f}s"
-        )
+        raise TimeoutError(f"Chrome MCP new_page thread join timed out after {elapsed:.0f}s")
     if not outcome:
         raise RuntimeError("Chrome MCP new_page worker exited without result")
     result = outcome[0]
@@ -2103,9 +2004,7 @@ def _require_e2e_cdp_ready(*, budget_sec: float | None = None) -> None:
     import os
 
     port = int(os.environ.get("MYRM_CHROME_E2E_PORT", "9333"))
-    wait_budget = (
-        budget_sec if budget_sec is not None else _open_page_cdp_probe_budget_sec()
-    )
+    wait_budget = budget_sec if budget_sec is not None else _open_page_cdp_probe_budget_sec()
     deadline = time.monotonic() + wait_budget
 
     while time.monotonic() < deadline:
@@ -2222,9 +2121,7 @@ def _refresh_signoff_open_nav_tool_wall(
         nav_floor = max(nav_floor, 90.0 + peers * 12.0)
     if attempt_remaining < 30.0 and bootstrap_remaining < 30.0:
         # R265: mux queue consumed attempt wall — grant fresh nav slice from SSOT.
-        budget = max(
-            nav_floor, float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.55
-        )
+        budget = max(nav_floor, float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.55)
     else:
         budget = max(nav_floor, min(bootstrap_remaining, budgets.wall_budget_sec))
     client.set_tool_wall_deadline(now + budget)
@@ -2496,9 +2393,7 @@ def _restore_e2e_window_via_cdp(page: object) -> bool:
         return False
     port = os.environ.get("MYRM_CHROME_E2E_PORT", "9333")
     try:
-        with urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/json/version", timeout=5
-        ) as resp:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=5) as resp:
             browser_ws = str(json.load(resp)["webSocketDebuggerUrl"])
     except (OSError, TimeoutError, ValueError, KeyError):
         return False
@@ -2552,16 +2447,10 @@ def _restore_e2e_window_via_cdp(page: object) -> bool:
     # ordering. Page.bringToFront/Target.activateTarget are forbidden because the
     # E2E Chrome process shares the user's Chrome app bundle and steals focus.
     try:
-        with urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/json/list", timeout=5
-        ) as resp:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=5) as resp:
             targets = json.load(resp)
         target_ws = next(
-            (
-                t.get("webSocketDebuggerUrl")
-                for t in targets
-                if t.get("id") == target_id
-            ),
+            (t.get("webSocketDebuggerUrl") for t in targets if t.get("id") == target_id),
             None,
         )
         if not target_ws:
@@ -2685,9 +2574,7 @@ def _ensure_react_e2e_bridge_timeout_sec(requested: float) -> float:
             from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
             if parallel_shared_ui_hydrate_queue_enabled():
-                return _resolve_bridge_ready_timeout_sec(
-                    _parallel_bridge_ready_cap_sec()
-                )
+                return _resolve_bridge_ready_timeout_sec(_parallel_bridge_ready_cap_sec())
         except ImportError:
             pass
         return 120.0
@@ -2797,13 +2684,10 @@ def wait_for_react_e2e_bridge(
         ):
             return {**last, "ready": True, "softReady": True}
         if (
-            last.get("hasSkeleton") is True
-            or (last.get("hasAppLayout") is True and last.get("hasAttach") is not True)
+            last.get("hasSkeleton") is True or (last.get("hasAppLayout") is True and last.get("hasAttach") is not True)
         ) and polls in {6, 18, 36, 54}:
             _trigger_attach_frontend_heal_once()
-            _trigger_attach_client_warmup_once(
-                page_url=target_url if isinstance(target_url, str) else None
-            )
+            _trigger_attach_client_warmup_once(page_url=target_url if isinstance(target_url, str) else None)
             try:
                 dismiss_blocking_modals(client, page)
             except AssertionError:
@@ -2822,11 +2706,7 @@ def wait_for_react_e2e_bridge(
                 )
                 time.sleep(2.0)
                 continue
-        should_home_heal = (
-            last.get("hasInput") is not True
-            and polls in {8, 24, 48, 72}
-            and isinstance(target_url, str)
-        )
+        should_home_heal = last.get("hasInput") is not True and polls in {8, 24, 48, 72} and isinstance(target_url, str)
         if should_home_heal and reload_passes < max_reload_passes:
             reload_passes += 1
             client.navigate(page, ui_home)
@@ -2836,14 +2716,8 @@ def wait_for_react_e2e_bridge(
             time.sleep(2.0)
             dismiss_blocking_modals(client, page)
             continue
-        should_reload = last.get("fallback") is True or (
-            polls in {20, 40, 60, 80} and last.get("hasAttach") is not True
-        )
-        if (
-            should_reload
-            and reload_passes < max_reload_passes
-            and isinstance(target_url, str)
-        ):
+        should_reload = last.get("fallback") is True or (polls in {20, 40, 60, 80} and last.get("hasAttach") is not True)
+        if should_reload and reload_passes < max_reload_passes and isinstance(target_url, str):
             reload_passes += 1
             reload_mcp_page(
                 client,
@@ -2922,12 +2796,7 @@ def wait_for_state(
     settings_route = bool(page_url and "/settings" in page_url)
     if settings_route:
         blank_heal_mode = "direct"
-    elif (
-        not pin_direct_blank_heal
-        and _parallel_chrome_e2e_active()
-        and blank_heal_mode == "direct"
-        and not settings_route
-    ):
+    elif not pin_direct_blank_heal and _parallel_chrome_e2e_active() and blank_heal_mode == "direct" and not settings_route:
         blank_heal_mode = "chat_bridge"
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
@@ -2938,11 +2807,7 @@ def wait_for_state(
     max_reload_passes = (
         3
         if pin_direct_blank_heal
-        else (
-            1
-            if settings_route and parallel_active
-            else (3 if settings_route else (1 if parallel_active else 3))
-        )
+        else (1 if settings_route and parallel_active else (3 if settings_route else (1 if parallel_active else 3)))
     )
     transport_streak = 0
     dom_hidden = False
@@ -3020,9 +2885,7 @@ def wait_for_state(
             reload_passes += 1
             dom_hidden = False
             touch_wall_progress(current_node="wait_for_state_overlay_heal")
-            _trigger_attach_client_warmup_once(
-                page_url=page_url if isinstance(page_url, str) else None
-            )
+            _trigger_attach_client_warmup_once(page_url=page_url if isinstance(page_url, str) else None)
             reload_mcp_page(
                 client,
                 page,
@@ -3032,36 +2895,19 @@ def wait_for_state(
             )
             dismiss_blocking_modals(client, page, recover_url=page_url)
             continue
-        if (
-            page_url
-            and reload_passes < max_reload_passes
-            and body_probe == 0
-            and not dom_hidden
-            and polls in {2, 5, 10, 20, 40}
-        ):
+        if page_url and reload_passes < max_reload_passes and body_probe == 0 and not dom_hidden and polls in {2, 5, 10, 20, 40}:
             reload_passes += 1
             dom_hidden = False
             touch_wall_progress(current_node="wait_for_state_empty_body_heal")
-            _trigger_attach_client_warmup_once(
-                page_url=page_url if isinstance(page_url, str) else None
-            )
+            _trigger_attach_client_warmup_once(page_url=page_url if isinstance(page_url, str) else None)
             if settings_route:
                 _heal_settings_deferred_loading(client, page, page_url=page_url)
             else:
-                reload_mcp_page(
-                    client, page, target_url=page_url, timeout_ms=reload_timeout_ms
-                )
+                reload_mcp_page(client, page, target_url=page_url, timeout_ms=reload_timeout_ms)
                 dismiss_blocking_modals(client, page, recover_url=page_url)
             continue
-        if (
-            blank_heal_mode == "direct"
-            and polls in {4, 12, 24}
-            and last.get("hasAppLayout") is not True
-            and body_probe < 80
-        ):
-            _trigger_attach_client_warmup_once(
-                page_url=page_url if isinstance(page_url, str) else None
-            )
+        if blank_heal_mode == "direct" and polls in {4, 12, 24} and last.get("hasAppLayout") is not True and body_probe < 80:
+            _trigger_attach_client_warmup_once(page_url=page_url if isinstance(page_url, str) else None)
         if (
             page_url
             and reload_passes < max_reload_passes
@@ -3073,12 +2919,8 @@ def wait_for_state(
             reload_passes += 1
             dom_hidden = False
             touch_wall_progress(current_node="wait_for_state_deferred_heal")
-            _trigger_attach_client_warmup_once(
-                page_url=page_url if isinstance(page_url, str) else None
-            )
-            reload_mcp_page(
-                client, page, target_url=page_url, timeout_ms=reload_timeout_ms
-            )
+            _trigger_attach_client_warmup_once(page_url=page_url if isinstance(page_url, str) else None)
+            reload_mcp_page(client, page, target_url=page_url, timeout_ms=reload_timeout_ms)
             dismiss_blocking_modals(client, page, recover_url=page_url)
             continue
         if (
@@ -3113,9 +2955,7 @@ def wait_for_state(
                     client.navigate(page, page_url, timeout_ms=90_000)
                     dismiss_blocking_modals(client, page)
             except (RuntimeError, TimeoutError, OSError, AssertionError):
-                reload_mcp_page(
-                    client, page, target_url=page_url, timeout_ms=reload_timeout_ms
-                )
+                reload_mcp_page(client, page, target_url=page_url, timeout_ms=reload_timeout_ms)
                 dismiss_blocking_modals(client, page, recover_url=page_url)
             continue
         time.sleep(0.25)
@@ -3168,10 +3008,7 @@ def ensure_chat_route(
             except (RuntimeError, TimeoutError, OSError):
                 hydrated = None
             if isinstance(hydrated, dict) and (
-                (
-                    hydrated.get("hasInput") is True
-                    and hydrated.get("errorOverlay") is not True
-                )
+                (hydrated.get("hasInput") is True and hydrated.get("errorOverlay") is not True)
                 or int(hydrated.get("msgs") or 0) > 0
             ):
                 return
@@ -3220,9 +3057,7 @@ def ensure_chat_route(
         page_url=target_url,
     )
     assert route.get("ready") is True, json.dumps(route, ensure_ascii=False)
-    assert str(route.get("href") or "").startswith(
-        get_e2e_ui_url().rstrip("/")
-    ), json.dumps(route, ensure_ascii=False)
+    assert str(route.get("href") or "").startswith(get_e2e_ui_url().rstrip("/")), json.dumps(route, ensure_ascii=False)
 
 
 _WORKFLOW_PLAN_CARD_JS = """(() => {
@@ -3338,9 +3173,7 @@ def _plan_confirm_state_from_messages(
 def _dw_unattended_enabled(api_base: str) -> bool:
     """True when YOLO or plan_confirm disabled — DW skips plan_confirm HITL."""
     try:
-        payload = http_json(
-            "GET", f"{api_base.rstrip('/')}/api/v1/config/securityConfig"
-        )
+        payload = http_json("GET", f"{api_base.rstrip('/')}/api/v1/config/securityConfig")
     except (RuntimeError, OSError, ValueError):
         return False
     raw = payload.get("value") if isinstance(payload, dict) else payload
@@ -3348,9 +3181,7 @@ def _dw_unattended_enabled(api_base: str) -> bool:
         return False
     yolo_enabled = bool(raw.get("yoloModeEnabled") or raw.get("yolo_mode_enabled"))
     plan_confirm_enabled = bool(
-        raw.get("planConfirmEnabled")
-        if raw.get("planConfirmEnabled") is not None
-        else raw.get("plan_confirm_enabled", True)
+        raw.get("planConfirmEnabled") if raw.get("planConfirmEnabled") is not None else raw.get("plan_confirm_enabled", True)
     )
     return yolo_enabled or not plan_confirm_enabled
 
@@ -3389,19 +3220,14 @@ def _wait_for_yolo_dw_plan_skip(
         sample = str(stream_probe.get("sample") or "")
         completion_status = str(stream_probe.get("completionStatus") or "")
         user_count = int(stream_probe.get("userCount") or 0)
-        if user_count >= 1 and (
-            completion_status in terminal_statuses or len(sample.strip()) >= 15
-        ):
+        if user_count >= 1 and (completion_status in terminal_statuses or len(sample.strip()) >= 15):
             return {
                 "ready": True,
                 "confirmedVia": "yolo_skip",
                 "streamProbe": stream_probe,
             }
         time.sleep(0.25)
-    raise AssertionError(
-        f"YOLO DW stream did not start within {timeout_sec}s "
-        f"for chat {normalized_chat_id}: {last}"
-    )
+    raise AssertionError(f"YOLO DW stream did not start within {timeout_sec}s for chat {normalized_chat_id}: {last}")
 
 
 def _try_confirm_workflow_plan_via_api(
@@ -3484,11 +3310,7 @@ def _api_stream_probe_from_messages(
     message_id_raw = last_assistant.get("messageId") or last_assistant.get("id")
     message_id = message_id_raw if isinstance(message_id_raw, str) else None
     is_streaming = user_count > 0 and not is_complete
-    ready = (
-        user_count >= 1
-        and not is_streaming
-        and (is_complete or len(sample.strip()) >= 10)
-    )
+    ready = user_count >= 1 and not is_streaming and (is_complete or len(sample.strip()) >= 10)
     return {
         "ready": ready,
         "userCount": user_count,
@@ -3532,27 +3354,15 @@ def wait_for_dw_stream_done_via_api(
         last = _api_stream_probe_from_messages(messages)
         sample = str(last.get("sample") or "")
         completion_status = str(last.get("completionStatus") or "")
-        if (
-            "orchestration was not approved" in sample.lower()
-            or completion_status == "cancelled"
-        ):
-            raise AssertionError(
-                "Dynamic Workflow stream failed — orchestration not approved: "
-                f"{last}"
-            )
+        if "orchestration was not approved" in sample.lower() or completion_status == "cancelled":
+            raise AssertionError(f"Dynamic Workflow stream failed — orchestration not approved: {last}")
         terminal_statuses = {"complete", "success", "error", "budget_blocked"}
-        if (
-            completion_status in terminal_statuses
-            and len(sample.strip()) >= min_assistant_chars
-        ):
+        if completion_status in terminal_statuses and len(sample.strip()) >= min_assistant_chars:
             return {**last, "chatId": normalized_chat_id, "source": "api"}
         if last.get("ready") is True and len(sample.strip()) >= min_assistant_chars:
             return {**last, "chatId": normalized_chat_id, "source": "api"}
         time.sleep(2.0)
-    raise AssertionError(
-        f"DW stream did not complete within {timeout_sec}s via API "
-        f"for chat {normalized_chat_id}: {last}"
-    )
+    raise AssertionError(f"DW stream did not complete within {timeout_sec}s via API for chat {normalized_chat_id}: {last}")
 
 
 _WAIT_CHAT_SEND_IDLE_JS = """(() => ({
@@ -3582,9 +3392,7 @@ def wait_for_chat_send_idle(
         if isinstance(raw, dict) and raw.get("isStreaming") is not True:
             return
         time.sleep(1.0)
-    raise AssertionError(
-        f"Chat send path still busy after {timeout_sec}s (submitWorkflowTemplateRun loading gate)"
-    )
+    raise AssertionError(f"Chat send path still busy after {timeout_sec}s (submitWorkflowTemplateRun loading gate)")
 
 
 def wait_for_workflow_plan_card(
@@ -3598,11 +3406,7 @@ def wait_for_workflow_plan_card(
     api_base: str | None = None,
 ) -> dict[str, object]:
     """Wait for Dynamic Workflow plan_confirm HITL card (spawn_count >= 1 path)."""
-    resolved_timeout = (
-        timeout_sec
-        if timeout_sec is not None
-        else (480.0 if _parallel_chrome_e2e_active() else 420.0)
-    )
+    resolved_timeout = timeout_sec if timeout_sec is not None else (480.0 if _parallel_chrome_e2e_active() else 420.0)
     resolved_url = page_url or get_e2e_ui_url()
     resolved_api_base = (api_base or get_e2e_api_url()).rstrip("/")
     normalized_chat_id = chat_id.strip() if isinstance(chat_id, str) else ""
@@ -3617,11 +3421,7 @@ def wait_for_workflow_plan_card(
     blank_bridge_attempts = 0
     last_touch = 0.0
     last_api_confirm_at = 0.0
-    cached_stream_id = (
-        stream_message_id.strip()
-        if isinstance(stream_message_id, str) and stream_message_id.strip()
-        else None
-    )
+    cached_stream_id = stream_message_id.strip() if isinstance(stream_message_id, str) and stream_message_id.strip() else None
 
     while time.monotonic() < deadline:
         now = time.monotonic()
@@ -3655,9 +3455,7 @@ def wait_for_workflow_plan_card(
                             resolved_api_base,
                             cached_stream_id,
                         ):
-                            touch_wall_progress(
-                                current_node="workflow_plan_api_confirm"
-                            )
+                            touch_wall_progress(current_node="workflow_plan_api_confirm")
                             return {
                                 **last,
                                 "ready": True,
@@ -3694,14 +3492,10 @@ def wait_for_workflow_plan_card(
 
         sample = str(last.get("lastAssistantSample") or "")
         if "orchestration was not approved" in sample.lower():
-            raise AssertionError(
-                f"Dynamic Workflow plan_confirm timed out before approval on {resolved_url}: {last}"
-            )
+            raise AssertionError(f"Dynamic Workflow plan_confirm timed out before approval on {resolved_url}: {last}")
 
         body_len = int(last.get("bodyLength") or 0)
-        stream_active = (
-            last.get("isStreaming") is True or last.get("hasPlanningText") is True
-        )
+        stream_active = last.get("isStreaming") is True or last.get("hasPlanningText") is True
         # Never full-reload during plan wait — reload wipes kickoff stream state.
         if body_len == 0 and not stream_active and blank_bridge_attempts < 4:
             blank_bridge_attempts += 1

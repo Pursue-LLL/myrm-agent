@@ -143,9 +143,7 @@ _GALLERY_CONFIRM_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode='SHARED', access_scope='READ', workload='STANDARD'
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_theme_marketplace_gallery_free_install_smoke() -> None:
@@ -163,10 +161,10 @@ def test_theme_marketplace_gallery_free_install_smoke() -> None:
         pytest.skip("No published free official theme listing in CP catalog")
 
     prepare_e2e_ui_session(get_e2e_api_url())
-    warm_ui_route('/settings/theme-studio')
+    warm_ui_route("/settings/theme-studio")
 
     with open_settings_subroute(
-        '/settings/theme-studio',
+        "/settings/theme-studio",
         timeout_ms=90_000,
     ) as (client, page):
         dismiss_blocking_modals(client, page)
@@ -176,8 +174,8 @@ def test_theme_marketplace_gallery_free_install_smoke() -> None:
             _GALLERY_PAGE_STATE,
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
         )
-        assert page_state.get('ready') is True, page_state
-        assert page_state.get('hasStudio') is True, page_state
+        assert page_state.get("ready") is True, page_state
+        assert page_state.get("hasStudio") is True, page_state
 
         client.evaluate(
             page,
@@ -186,24 +184,24 @@ def test_theme_marketplace_gallery_free_install_smoke() -> None:
         )
 
         install_config = {
-            'cpBase': cp_base_url(),
-            'listingId': listing_id,
-            'cpToken': cp_token,
+            "cpBase": cp_base_url(),
+            "listingId": listing_id,
+            "cpToken": cp_token,
         }
         install_state = client.evaluate(
             page,
-            f'({_GALLERY_INSTALL_JS})({json.dumps(install_config)})',
+            f"({_GALLERY_INSTALL_JS})({json.dumps(install_config)})",
             timeout_sec=120.0,
         )
         assert isinstance(install_state, dict), install_state
-        assert install_state.get('ok') is True, install_state
-        assert install_state.get('step') == 'install', install_state
-        assert install_state.get('profileName') == 'Official Default', install_state
+        assert install_state.get("ok") is True, install_state
+        assert install_state.get("step") == "install", install_state
+        assert install_state.get("profileName") == "Official Default", install_state
 
-        if page_state.get('hasGallery') is True:
+        if page_state.get("hasGallery") is True:
             ui_preview = client.evaluate(page, _GALLERY_UI_CLICK_JS, timeout_sec=30.0)
             assert isinstance(ui_preview, dict), ui_preview
-            if ui_preview.get('clickedPreview') is True:
+            if ui_preview.get("clickedPreview") is True:
                 confirm_state = wait_for_state(
                     client,
                     page,
@@ -218,10 +216,10 @@ def test_theme_marketplace_gallery_free_install_smoke() -> None:
                     })()""",
                     timeout_sec=_warm_ui_parallel_wait_sec(60.0),
                 )
-                assert confirm_state.get('ready') is True, confirm_state
+                assert confirm_state.get("ready") is True, confirm_state
                 ui_confirm = client.evaluate(page, _GALLERY_CONFIRM_JS, timeout_sec=30.0)
                 assert isinstance(ui_confirm, dict), ui_confirm
-                assert ui_confirm.get('clickedConfirm') is True, ui_confirm
+                assert ui_confirm.get("clickedConfirm") is True, ui_confirm
 
 
 _PURCHASE_RETURN_STATE = """(() => {
@@ -241,9 +239,7 @@ _PURCHASE_RETURN_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode='SHARED', access_scope='READ', workload='STANDARD'
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_theme_purchased_return_auto_install_smoke() -> None:
@@ -263,10 +259,10 @@ def test_theme_purchased_return_auto_install_smoke() -> None:
     acquire_theme_listing_for_e2e(listing_id=listing_id, auth_token=cp_token)
 
     prepare_e2e_ui_session(get_e2e_api_url())
-    warm_ui_route('/settings/theme-studio')
+    warm_ui_route("/settings/theme-studio")
 
     with open_settings_subroute(
-        '/settings/theme-studio',
+        "/settings/theme-studio",
         timeout_ms=90_000,
     ) as (client, page):
         dismiss_blocking_modals(client, page)
@@ -288,4 +284,4 @@ def test_theme_purchased_return_auto_install_smoke() -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
         )
         assert isinstance(final_state, dict), final_state
-        assert final_state.get('installed') is True, final_state
+        assert final_state.get("installed") is True, final_state

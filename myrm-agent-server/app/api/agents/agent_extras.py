@@ -101,9 +101,7 @@ async def create_agent_secret(
             raise not_found_error("Agent")
 
         secret_manager = _get_secret_backend()
-        await secret_manager.save_secret(
-            agent_id, secret_data.key_name, secret_data.secret_value
-        )
+        await secret_manager.save_secret(agent_id, secret_data.key_name, secret_data.secret_value)
         return success_response(data={"key_name": secret_data.key_name})
     except HTTPException:
         raise
@@ -148,23 +146,16 @@ async def get_agent_statistics(
 
         from app.database.models import Chat, Message
 
-        sessions_result = await db.execute(
-            select(func.count(Chat.id)).where(Chat.agent_id == agent_id)
-        )
+        sessions_result = await db.execute(select(func.count(Chat.id)).where(Chat.agent_id == agent_id))
         total_sessions = sessions_result.scalar_one()
 
         messages_result = await db.execute(
-            select(func.count(Message.id))
-            .join(Chat, Message.chat_id == Chat.id)
-            .where(Chat.agent_id == agent_id)
+            select(func.count(Message.id)).join(Chat, Message.chat_id == Chat.id).where(Chat.agent_id == agent_id)
         )
         total_messages = messages_result.scalar_one()
 
         last_chat_result = await db.execute(
-            select(Chat.updated_at)
-            .where(Chat.agent_id == agent_id)
-            .order_by(desc(Chat.updated_at))
-            .limit(1)
+            select(Chat.updated_at).where(Chat.agent_id == agent_id).order_by(desc(Chat.updated_at)).limit(1)
         )
         last_used_at = last_chat_result.scalar_one_or_none()
 
@@ -211,9 +202,7 @@ async def _build_catalog_preview(
         try:
             name = normalize_skill_name(skill.name)
         except ValueError:
-            logger.warning(
-                "Skipping skill with invalid name for catalog preview: %s", skill.name
-            )
+            logger.warning("Skipping skill with invalid name for catalog preview: %s", skill.name)
             continue
         metadata_list.append(
             SkillMetadata(
@@ -260,9 +249,7 @@ async def evaluate_action_space(
             is_core = req.skill_configs.get(skill_id, {}).get("is_core", True)
             skill = await skills_service.get_skill_by_id(skill_id)
             if skill:
-                cost = ActionSpaceProfiler.BASE_TOOL_COST + (
-                    len(skill.description or "") // 50
-                )
+                cost = ActionSpaceProfiler.BASE_TOOL_COST + (len(skill.description or "") // 50)
                 if not is_core:
                     cost = int(cost * 0.5)
                 total_score += cost

@@ -60,9 +60,7 @@ async def generate_cancellable_stream(
             providers_dict=configs.providers_dict if configs else None,
         )
     except Exception as e:
-        logger.warning(
-            "Failed to resolve user configs/credentials in web stream: %s", e
-        )
+        logger.warning("Failed to resolve user configs/credentials in web stream: %s", e)
 
     token_ctx = user_credentials_ctx.set(credentials_list)
     approval = ApprovalTimeoutHolder()
@@ -72,9 +70,7 @@ async def generate_cancellable_stream(
 
     _custom_def = getattr(session.params.model_cfg, "custom_model_def", None)
     _max_ctx = getattr(session.params.model_cfg, "max_context_tokens", None)
-    _model_tier = infer_model_tier(
-        session.params.model_cfg.model, _custom_def, _max_ctx
-    )
+    _model_tier = infer_model_tier(session.params.model_cfg.model, _custom_def, _max_ctx)
 
     if session.routing_tier:
         routing_data: dict[str, object] = {"tier": session.routing_tier}
@@ -128,13 +124,9 @@ async def generate_cancellable_stream(
 
         search_gap_event = build_web_search_config_gap_sse_event(
             message_id=session.params.message_id or "",
-            web_search_profile_enabled=bool(
-                getattr(session.params, "web_search_profile_enabled", False)
-            ),
+            web_search_profile_enabled=bool(getattr(session.params, "web_search_profile_enabled", False)),
             enable_web_search=bool(session.params.enable_web_search),
-            search_is_user_configured=bool(
-                getattr(session.params, "search_is_user_configured", False)
-            ),
+            search_is_user_configured=bool(getattr(session.params, "search_is_user_configured", False)),
             chat_id=session.request.chat_id,
             locale=getattr(session.params, "locale", None),
         )
@@ -210,12 +202,10 @@ async def generate_cancellable_stream(
         }
         try:
             has_images = any(
-                isinstance(item, dict) and item.get("type") in ("image_url", "image")
-                for item in session.params.query
+                isinstance(item, dict) and item.get("type") in ("image_url", "image") for item in session.params.query
             )
             has_videos = any(
-                isinstance(item, dict) and item.get("type") == "video_url"
-                for item in session.params.query
+                isinstance(item, dict) and item.get("type") == "video_url" for item in session.params.query
             ) and not getattr(session.params.model_cfg, "supports_video", False)
             from app.core.channel_bridge.config_parsers import (
                 extract_video_fallback_model_configs,
@@ -223,9 +213,7 @@ async def generate_cancellable_stream(
 
             video_fallback_cfgs = session.params.video_fallback_model_cfgs
             if not video_fallback_cfgs and configs and configs.providers_dict:
-                video_fallback_cfgs = extract_video_fallback_model_configs(
-                    configs.providers_dict
-                )
+                video_fallback_cfgs = extract_video_fallback_model_configs(configs.providers_dict)
 
             if has_images:
                 image_status: dict[str, object] = {
@@ -243,12 +231,8 @@ async def generate_cancellable_stream(
                     "step_key": "analyzing_video",
                 }
                 if video_fallback_cfgs:
-                    use_native = any(
-                        getattr(cfg, "supports_video", False) for cfg in video_fallback_cfgs
-                    )
-                    video_status["data"] = {
-                        "vision_backend": "native_video" if use_native else "frame"
-                    }
+                    use_native = any(getattr(cfg, "supports_video", False) for cfg in video_fallback_cfgs)
+                    video_status["data"] = {"vision_backend": "native_video" if use_native else "frame"}
                 yield SSEEnvelope.from_any(video_status).to_sse_chunk()
 
             processed_query = await _process_human_content(

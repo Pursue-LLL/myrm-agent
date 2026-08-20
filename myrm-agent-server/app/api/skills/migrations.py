@@ -70,9 +70,7 @@ async def _apply_skill_migration(skills_raw: list[object]) -> dict[str, int]:
             stats_json = _build_stats_json(usage_stats)
             if stats_json:
                 stats_file = skill_dir / ".stats.json"
-                stats_file.write_text(
-                    json.dumps(stats_json, indent=2), encoding="utf-8"
-                )
+                stats_file.write_text(json.dumps(stats_json, indent=2), encoding="utf-8")
                 usage_preserved += 1
 
     result: dict[str, int] = {
@@ -186,9 +184,7 @@ def _build_summary(
     item_counts: dict[str, int],
     description: str | None,
 ) -> str:
-    breakdown = ", ".join(
-        f"{memory_type}:{count}" for memory_type, count in sorted(item_counts.items())
-    )
+    breakdown = ", ".join(f"{memory_type}:{count}" for memory_type, count in sorted(item_counts.items()))
     base = f"Pending migration from {source} ({total_items} items"
     if breakdown:
         base = f"{base}; {breakdown}"
@@ -278,21 +274,15 @@ async def approve_pending_migration_record(
         if record.migration_type == "memory_import":
             data = payload.get("data")
             if not isinstance(data, dict):
-                raise HTTPException(
-                    status_code=400, detail="Pending migration payload is invalid"
-                )
+                raise HTTPException(status_code=400, detail="Pending migration payload is invalid")
             if manager is None:
                 raise HTTPException(
                     status_code=503,
                     detail="Memory system unavailable for memory import approval",
                 )
             raw_skip_duplicates = payload.get("skip_duplicates", True)
-            skip_duplicates = (
-                raw_skip_duplicates if isinstance(raw_skip_duplicates, bool) else True
-            )
-            counts = await manager.import_memories(
-                data, skip_duplicates=skip_duplicates
-            )
+            skip_duplicates = raw_skip_duplicates if isinstance(raw_skip_duplicates, bool) else True
+            counts = await manager.import_memories(data, skip_duplicates=skip_duplicates)
         elif record.migration_type == "skill_import":
             # Applying a skill migration writes directly to the local skill
             # directory (~/.myrm/skills), which the agent cannot load in sandbox
@@ -306,9 +296,7 @@ async def approve_pending_migration_record(
 
             skills_raw = payload.get("skills")
             if not isinstance(skills_raw, list):
-                raise HTTPException(
-                    status_code=400, detail="Pending skill migration payload is invalid"
-                )
+                raise HTTPException(status_code=400, detail="Pending skill migration payload is invalid")
             counts = await _apply_skill_migration(skills_raw)
             target_agent_id = payload.get("target_agent_id")
             if isinstance(target_agent_id, str) and target_agent_id.strip():
@@ -321,9 +309,7 @@ async def approve_pending_migration_record(
                     for item in skills_raw
                     if isinstance(item, dict) and str(item.get("name", "")).strip()
                 ]
-                bound = await bind_local_skill_names_to_agent(
-                    target_agent_id.strip(), skill_names
-                )
+                bound = await bind_local_skill_names_to_agent(target_agent_id.strip(), skill_names)
                 counts = {**counts, "skills_bound_to_agent": bound}
         else:
             raise HTTPException(

@@ -113,9 +113,7 @@ class FeishuChannel(BaseChannel):
         use_lark=credential_field("useLark", "FEISHU_USE_LARK", "false"),
         render_mode=credential_field("renderMode", "FEISHU_RENDER_MODE", "auto"),
         transport=credential_field("transport", "FEISHU_TRANSPORT", "websocket"),
-        verification_token=credential_field(
-            "verificationToken", "FEISHU_VERIFICATION_TOKEN"
-        ),
+        verification_token=credential_field("verificationToken", "FEISHU_VERIFICATION_TOKEN"),
         bot_policy=credential_field("botPolicy", "FEISHU_BOT_POLICY", "deny"),
     )
     capabilities = ChannelCapabilities(
@@ -260,9 +258,7 @@ class FeishuChannel(BaseChannel):
         last_msg_id: str | None = None
 
         for attachment in msg.media:
-            mid = await self._send_media(
-                chat_id, receive_type, attachment, msg.reply_to_id
-            )
+            mid = await self._send_media(chat_id, receive_type, attachment, msg.reply_to_id)
             if mid:
                 last_msg_id = mid
 
@@ -280,9 +276,7 @@ class FeishuChannel(BaseChannel):
 
         return last_msg_id
 
-    async def _send_comment_reply(
-        self, recipient_id: str, msg: OutboundMessage
-    ) -> str | None:
+    async def _send_comment_reply(self, recipient_id: str, msg: OutboundMessage) -> str | None:
         """Route outbound message to Feishu document comment API."""
         from .comment_handler import (
             _NO_REPLY_SENTINEL,
@@ -292,9 +286,7 @@ class FeishuChannel(BaseChannel):
 
         route = parse_comment_recipient(recipient_id)
         if not route:
-            logger.warning(
-                "FeishuChannel: malformed comment recipient_id: %s", recipient_id
-            )
+            logger.warning("FeishuChannel: malformed comment recipient_id: %s", recipient_id)
             return None
 
         content = (msg.content or "").strip()
@@ -306,9 +298,7 @@ class FeishuChannel(BaseChannel):
         if ok:
             logger.info("FeishuChannel: comment reply delivered to %s", recipient_id)
         else:
-            logger.error(
-                "FeishuChannel: comment reply delivery failed for %s", recipient_id
-            )
+            logger.error("FeishuChannel: comment reply delivery failed for %s", recipient_id)
         return recipient_id if ok else None
 
     async def send_placeholder(
@@ -403,9 +393,7 @@ class FeishuChannel(BaseChannel):
                     trace_id=trace_id,
                 )
 
-    def verify_webhook(
-        self, body: bytes, timestamp: str, nonce: str, signature: str
-    ) -> bool:
+    def verify_webhook(self, body: bytes, timestamp: str, nonce: str, signature: str) -> bool:
         """Verify webhook signature: sha256(timestamp + nonce + encrypt_key + body)."""
         if not self._encrypt_key:
             return True
@@ -413,9 +401,7 @@ class FeishuChannel(BaseChannel):
         expected = hashlib.sha256(prefix + body).hexdigest()
         return hmac.compare_digest(expected, signature)
 
-    async def handle_webhook_event(
-        self, event_data: dict[str, object]
-    ) -> dict[str, object] | None:
+    async def handle_webhook_event(self, event_data: dict[str, object]) -> dict[str, object] | None:
         """Process a Feishu event callback (URL verify / message / card action / comment)."""
         try:
             payload = FeishuWebhookPayload.model_validate(event_data)
@@ -429,9 +415,7 @@ class FeishuChannel(BaseChannel):
         event_type = payload.header.event_type
 
         if event_type == "im.message.receive_v1":
-            parsed = parse_inbound_event(
-                event_data, bot_open_id=self._client.bot_open_id
-            )
+            parsed = parse_inbound_event(event_data, bot_open_id=self._client.bot_open_id)
             if parsed and parsed.sender_id != self._client.bot_open_id:
                 reply_to = await self._fetch_reply_context(parsed.parent_id)
                 content = parsed.content
@@ -638,9 +622,7 @@ class FeishuChannel(BaseChannel):
         if self._render_mode == "raw":
             return "text", json.dumps({"text": content}, ensure_ascii=False)
         if self._render_mode == "card" or self._should_use_card(content, msg):
-            return "interactive", json.dumps(
-                self._build_outbound_card(msg), ensure_ascii=False
-            )
+            return "interactive", json.dumps(self._build_outbound_card(msg), ensure_ascii=False)
         if has_rich_text(content):
             return "post", json.dumps(build_post_content(content), ensure_ascii=False)
         return "text", json.dumps({"text": content}, ensure_ascii=False)
@@ -730,9 +712,7 @@ class FeishuChannel(BaseChannel):
             except OSError as exc:
                 logger.debug("Failed to read local file %s: %s", attachment.path, exc)
                 return None
-        return (
-            await self._client.download_url(attachment.url) if attachment.url else None
-        )
+        return await self._client.download_url(attachment.url) if attachment.url else None
 
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
         if not message_id:
@@ -778,11 +758,7 @@ class FeishuChannel(BaseChannel):
                 media_list.append(MediaAttachment(media_type=MediaType.VIDEO))
 
             sender_info = msg_obj.get("sender", {})
-            sender_id = (
-                sender_info.get("sender_id", {}).get("open_id")
-                if isinstance(sender_info, dict)
-                else None
-            )
+            sender_id = sender_info.get("sender_id", {}).get("open_id") if isinstance(sender_info, dict) else None
 
             timestamp = None
             create_time = msg_obj.get("create_time")
@@ -994,9 +970,7 @@ class FeishuChannel(BaseChannel):
                 class _InternalErrorResponse:
                     status_code = 500
                     headers = {}
-                    body = json.dumps({"ok": False, "error": "Internal error"}).encode(
-                        "utf-8"
-                    )
+                    body = json.dumps({"ok": False, "error": "Internal error"}).encode("utf-8")
 
                 return _InternalErrorResponse()
 

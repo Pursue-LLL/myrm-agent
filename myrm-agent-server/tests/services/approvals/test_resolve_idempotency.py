@@ -57,6 +57,7 @@ def _create_tables():
 
     asyncio.get_event_loop_policy().new_event_loop().run_until_complete(_setup())
     yield
+
     async def _teardown():
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -162,9 +163,7 @@ class TestResolveApprovalIdempotency:
         from app.services.approvals.registry import ApprovalRegistry
 
         record_id = await _seed_record("PENDING")
-        result = await ApprovalRegistry.resolve_approval(
-            record_id, "approve", edited_payload={"cmd": "echo hi"}
-        )
+        result = await ApprovalRegistry.resolve_approval(record_id, "approve", edited_payload={"cmd": "echo hi"})
 
         assert result is not None
         assert result.payload["cmd"] == "echo hi"

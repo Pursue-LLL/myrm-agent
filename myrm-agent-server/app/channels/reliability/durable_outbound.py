@@ -169,11 +169,7 @@ class DurableOutboundGate:
         if not self.is_enabled():
             return 0
 
-        pending = [
-            item
-            for item in await load_pending_deliveries(base_dir=self._base_dir)
-            if item.id not in self._inflight_ids
-        ]
+        pending = [item for item in await load_pending_deliveries(base_dir=self._base_dir) if item.id not in self._inflight_ids]
         if not pending:
             return 0
 
@@ -192,9 +188,7 @@ class DurableOutboundGate:
             recovered += 1
 
         if recovered:
-            logger.info(
-                "Recovered %d durable outbound deliveries after restart", recovered
-            )
+            logger.info("Recovered %d durable outbound deliveries after restart", recovered)
         return recovered
 
     def _delivery_to_outbound(self, delivery: QueuedDelivery) -> OutboundMessage:

@@ -82,12 +82,8 @@ async def sync_gdrive_folder_to_wiki(
         mime_type = str(item.get("mimeType", ""))
         modified = str(item.get("modifiedTime", ""))[:10]
         try:
-            safe_name = sanitize_path_segment(
-                name.rsplit(".", 1)[0] if "." in name else name
-            )
-            relative_path = (
-                f"gdrive/{month}/{safe_name}-{sanitize_path_segment(file_id)}.md"
-            )
+            safe_name = sanitize_path_segment(name.rsplit(".", 1)[0] if "." in name else name)
+            relative_path = f"gdrive/{month}/{safe_name}-{sanitize_path_segment(file_id)}.md"
             body = await _download_as_markdown(
                 token,
                 file_id=file_id,
@@ -130,9 +126,7 @@ async def sync_gdrive_folder_to_wiki(
     return result
 
 
-async def _list_files(
-    token: str, *, folder_id: str, max_results: int
-) -> list[dict[str, Any]]:
+async def _list_files(token: str, *, folder_id: str, max_results: int) -> list[dict[str, Any]]:
     parent = folder_id if folder_id != "root" else "root"
     query = f"'{parent}' in parents and trashed=false"
     params = {

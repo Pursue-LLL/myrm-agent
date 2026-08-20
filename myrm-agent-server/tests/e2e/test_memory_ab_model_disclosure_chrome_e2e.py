@@ -344,9 +344,7 @@ def _configure_eval_stack(
     return merged
 
 
-def _wait_memory_ab_finished(
-    api_base: str, *, budget_sec: float = 480.0
-) -> dict[str, object]:
+def _wait_memory_ab_finished(api_base: str, *, budget_sec: float = 480.0) -> dict[str, object]:
     deadline = time.monotonic() + budget_sec
     status_data: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -356,9 +354,7 @@ def _wait_memory_ab_finished(
         if not status_data.get("is_running", True):
             return status_data
         time.sleep(3)
-    raise AssertionError(
-        f"Memory A/B run did not finish in {budget_sec:.0f}s: {status_data}"
-    )
+    raise AssertionError(f"Memory A/B run did not finish in {budget_sec:.0f}s: {status_data}")
 
 
 # ---------------------------------------------------------------------------
@@ -418,29 +414,21 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
             # T2: Real user flow — sample 1 task, open the Memory A/B confirmation
             # dialog from the card and confirm the run. The click + dialog wait is
             # atomic so the run state can never interleave with other probes.
-            click_res = client.evaluate(
-                page, _CLICK_MEMORY_AB_ATOMIC_JS, timeout_sec=25.0
+            click_res = client.evaluate(page, _CLICK_MEMORY_AB_ATOMIC_JS, timeout_sec=25.0)
+            assert isinstance(click_res, dict) and click_res.get("ready") is True, (
+                f"dialog did not open: {json.dumps(click_res, ensure_ascii=False, default=str)}"
             )
-            assert (
-                isinstance(click_res, dict) and click_res.get("ready") is True
-            ), f"dialog did not open: {json.dumps(click_res, ensure_ascii=False, default=str)}"
-            dialog = wait_for_state(
-                client, page, _MEMORY_AB_DIALOG_JS, timeout_sec=15.0
-            )
+            dialog = wait_for_state(client, page, _MEMORY_AB_DIALOG_JS, timeout_sec=15.0)
             assert dialog.get("ready") is True, dialog
-            started = wait_for_state(
-                client, page, _CLICK_START_EVAL_JS, timeout_sec=15.0
-            )
-            assert (
-                started.get("ready") is True and started.get("clicked") is True
-            ), started
+            started = wait_for_state(client, page, _CLICK_START_EVAL_JS, timeout_sec=15.0)
+            assert started.get("ready") is True and started.get("clicked") is True, started
 
             # Confirm the run was really dispatched by the UI before waiting.
             time.sleep(2.0)
             early_status = http_json("GET", f"{api_base}/api/v1/eval/memory-ab/status")
-            assert (
-                early_status.get("is_running") is True
-            ), f"run not started by UI: {json.dumps(early_status, ensure_ascii=False, default=str)}"
+            assert early_status.get("is_running") is True, (
+                f"run not started by UI: {json.dumps(early_status, ensure_ascii=False, default=str)}"
+            )
 
             # T3: Wait for the real dual-arm run to complete (download + workspaces
             # + embedding probe + both agent arms with the real LLM)
@@ -470,9 +458,7 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
             # disclosed label is the litellm-normalized form (openai/agnes-2.5-flash).
             expected_model = load_test_secrets().basic_model
             model_name = expected_model.rsplit("/", 1)[-1]
-            assert (
-                f"/{model_name}" in row_text
-            ), f"agent_model disclosure missing; expected *{model_name} in row: {row_text}"
+            assert f"/{model_name}" in row_text, f"agent_model disclosure missing; expected *{model_name} in row: {row_text}"
             # WBBench is task-native, so the judge label is 'none' -> '-' in the table.
             assert " | " in row_text
     finally:

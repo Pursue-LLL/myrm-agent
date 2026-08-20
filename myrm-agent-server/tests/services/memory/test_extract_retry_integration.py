@@ -88,9 +88,7 @@ async def test_restart_reclaims_inflight_task(
     await queue.enqueue("chat-1", reset_failed=False)
 
     crashed_worker = ExtractRetryWorker()
-    claimed = await queue.claim_due(
-        datetime.now(UTC), excluding=frozenset(crashed_worker._running)
-    )
+    claimed = await queue.claim_due(datetime.now(UTC), excluding=frozenset(crashed_worker._running))
     assert [chat_id for chat_id, _ in claimed] == ["chat-1"]
     # Crash: no delete, no mark_failure — the row remains pending with attempt bumped.
 
@@ -324,22 +322,24 @@ async def test_attempts_exhausted_marks_failed_and_records_ledger(
     assert row.last_error == "RuntimeError: provider down"
 
     # Failed rows are never reclaimed.
-    claimed = await queue.claim_due(
-        datetime.now(UTC) + timedelta(days=1), excluding=frozenset()
-    )
+    claimed = await queue.claim_due(datetime.now(UTC) + timedelta(days=1), excluding=frozenset())
     assert claimed == []
 
     # A terminal ERROR event was recorded in the operation ledger.
     async with test_db() as db:
         events = (
-            await db.execute(
-                select(MemoryOperationEventModel).where(
-                    MemoryOperationEventModel.target_id == "chat-exhaust",
-                    MemoryOperationEventModel.kind == "extract",
-                    MemoryOperationEventModel.status == "error",
+            (
+                await db.execute(
+                    select(MemoryOperationEventModel).where(
+                        MemoryOperationEventModel.target_id == "chat-exhaust",
+                        MemoryOperationEventModel.kind == "extract",
+                        MemoryOperationEventModel.status == "error",
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
     assert len(events) == 1
     assert events[0].source == "memory_extract_retry_worker"
 
@@ -375,9 +375,7 @@ async def _insert_chat(factory: SessionFactory, chat_id: str) -> None:
         await db.commit()
 
 
-async def _insert_message(
-    factory: SessionFactory, chat_id: str, message_id: str, role: str, content: str
-) -> None:
+async def _insert_message(factory: SessionFactory, chat_id: str, message_id: str, role: str, content: str) -> None:
     from app.database.models.chat import Message
 
     async with factory() as db:

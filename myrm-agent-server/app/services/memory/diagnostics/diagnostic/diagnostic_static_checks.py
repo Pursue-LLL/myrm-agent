@@ -188,11 +188,7 @@ def probe_orphan_collections(orphan_count: int, old_models: list[str]) -> Memory
             else "No orphan collections detected."
         ),
         impact="Memories in orphan collections are invisible to recall until re-embedded with the current model.",
-        next_action=(
-            "Reindex orphan memories to restore recall coverage."
-            if has_orphans
-            else "No action required."
-        ),
+        next_action=("Reindex orphan memories to restore recall coverage." if has_orphans else "No action required."),
         repair_actions=["reindex_memories"] if has_orphans else [],
     )
 

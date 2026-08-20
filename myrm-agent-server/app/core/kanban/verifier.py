@@ -189,11 +189,7 @@ class KanbanCompletionVerifier:
                 return VerificationResult(passed=False, reason=reason)
 
             lower = raw.lower()
-            is_pass = (
-                lower.startswith("pass")
-                or '"done": true' in lower
-                or '"done":true' in lower
-            )
+            is_pass = lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower
             if is_pass:
                 return VerificationResult(passed=True, reason=raw)
             return VerificationResult(passed=False, reason=raw)

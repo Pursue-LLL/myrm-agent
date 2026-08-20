@@ -135,11 +135,14 @@ class TestCostMetadataRenderIntegration:
         assert note_content == "2025-06-30 10:00 UTC"
         assert "$" not in note_content
 
-    @pytest.mark.parametrize("cost_usd,expected_fragment", [
-        (0.0001, "~$0.0001"),
-        (0.1234, "~$0.1234"),
-        (1.5, "~$1.5000"),
-    ])
+    @pytest.mark.parametrize(
+        "cost_usd,expected_fragment",
+        [
+            (0.0001, "~$0.0001"),
+            (0.1234, "~$0.1234"),
+            (1.5, "~$1.5000"),
+        ],
+    )
     def test_cost_precision_formatting(self, cost_usd: float, expected_fragment: str) -> None:
         """Verify cost is always formatted to 4 decimal places."""
         msg = _make_outbound_with_cost(cost_usd=cost_usd, total_tokens=100)

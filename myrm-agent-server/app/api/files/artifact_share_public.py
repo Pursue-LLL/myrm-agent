@@ -73,9 +73,7 @@ logger = logging.getLogger(__name__)
 
 public_router = APIRouter()
 
-_HTML_MEDIA_TYPES = frozenset(
-    {"text/html", "text/html; charset=utf-8", "application/xhtml+xml"}
-)
+_HTML_MEDIA_TYPES = frozenset({"text/html", "text/html; charset=utf-8", "application/xhtml+xml"})
 
 _SHARE_SECURITY_HEADERS: dict[str, str] = {
     "Content-Security-Policy": (
@@ -110,9 +108,7 @@ _UNLOCK_COOKIE_PATH = "/api/v1/public/artifact-share"
 
 
 def _file_response(path: str, media_type: str, filename: str) -> FileResponse:
-    headers = dict(
-        _SHARE_RESPONSE_HEADERS if media_type in _HTML_MEDIA_TYPES else SHARE_PRIVACY_HEADERS
-    )
+    headers = dict(_SHARE_RESPONSE_HEADERS if media_type in _HTML_MEDIA_TYPES else SHARE_PRIVACY_HEADERS)
     return FileResponse(
         path=path,
         headers=headers,
@@ -130,11 +126,7 @@ def _unlock_claims_from_cookie(value: str) -> ArtifactShareClaims | None:
     artifact_id = parsed.get("aid")
     version_id = parsed.get("vid")
     exp = parsed.get("exp")
-    if (
-        not isinstance(artifact_id, str)
-        or not isinstance(version_id, str)
-        or not isinstance(exp, int)
-    ):
+    if not isinstance(artifact_id, str) or not isinstance(version_id, str) or not isinstance(exp, int):
         return None
     artifact_type_raw = parsed.get("typ")
     artifact_type = artifact_type_raw if isinstance(artifact_type_raw, str) else None
@@ -205,9 +197,7 @@ async def _serve_share_bundle(
             )
         except Exception as exc:
             logger.error("Share bundle materialize failed: %s", exc)
-            raise HTTPException(
-                status_code=500, detail="Failed to load shared artifact"
-            ) from exc
+            raise HTTPException(status_code=500, detail="Failed to load shared artifact") from exc
         resolved = resolve_share_bundle_file(claims, relative_path)
 
     if resolved is None:
@@ -352,15 +342,11 @@ async def get_public_artifact_share_index(
         return result
     if request.method == "POST":
         response = RedirectResponse(url=str(request.url.path), status_code=303)
-        if _attach_unlock_cookie(
-            response, result, token, password, secure=request.url.scheme == "https"
-        ):
+        if _attach_unlock_cookie(response, result, token, password, secure=request.url.scheme == "https"):
             return response
         return await _serve_share_bundle(result, db, workspace_root, None, request)
     response = await _serve_share_bundle(result, db, workspace_root, None, request)
-    _attach_unlock_cookie(
-        response, result, token, password, secure=request.url.scheme == "https"
-    )
+    _attach_unlock_cookie(response, result, token, password, secure=request.url.scheme == "https")
     return response
 
 
@@ -383,9 +369,7 @@ async def get_public_artifact_share_asset(
         return result
     if request.method == "POST":
         response = RedirectResponse(url=str(request.url.path), status_code=303)
-        if _attach_unlock_cookie(
-            response, result, token, password, secure=request.url.scheme == "https"
-        ):
+        if _attach_unlock_cookie(response, result, token, password, secure=request.url.scheme == "https"):
             return response
         return await _serve_share_bundle(result, db, workspace_root, asset_path, request)
     return await _serve_share_bundle(result, db, workspace_root, asset_path, request)

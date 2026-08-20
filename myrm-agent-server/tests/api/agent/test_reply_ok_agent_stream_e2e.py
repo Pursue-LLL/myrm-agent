@@ -112,7 +112,5 @@ def test_live_agent_stream_reply_ok_sse() -> None:
     events = _collect_agent_stream(payload)
     check_e2e_errors(events)
     final_text = _message_text(events)
-    assert final_text.strip(), (
-        f"Expected assistant text in SSE stream; event_types={sorted({e.get('type') for e in events})}"
-    )
+    assert final_text.strip(), f"Expected assistant text in SSE stream; event_types={sorted({e.get('type') for e in events})}"
     assert _OK_PATTERN.search(final_text), f"Expected OK in assistant reply; got={final_text[:200]!r}"

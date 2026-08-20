@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 class HttpWebhookProvider:
     provider_type = "http_webhook"
 
-    async def test_connection(
-        self, target: HostingTarget, credentials: dict[str, object]
-    ) -> tuple[bool, str]:
+    async def test_connection(self, target: HostingTarget, credentials: dict[str, object]) -> tuple[bool, str]:
         webhook_url = target.config.get("webhook_url")
         if not webhook_url:
             return False, "webhook_url is required in target config."
@@ -71,11 +69,7 @@ class HttpWebhookProvider:
         headers: dict[str, str] = {}
         auth_header = credentials.get("auth_header")
         auth_value = credentials.get("auth_value")
-        if (
-            isinstance(auth_header, str)
-            and isinstance(auth_value, str)
-            and auth_header.strip()
-        ):
+        if isinstance(auth_header, str) and isinstance(auth_value, str) and auth_header.strip():
             headers[auth_header.strip()] = auth_value
         data = {
             "artifact_id": artifact_id,
@@ -104,9 +98,7 @@ class HttpWebhookProvider:
         try:
             payload = response.json()
             if isinstance(payload, dict):
-                publication_id = str(
-                    payload.get("publication_id") or payload.get("deployment_id") or ""
-                )
+                publication_id = str(payload.get("publication_id") or payload.get("deployment_id") or "")
                 url = str(payload.get("url") or payload.get("publication_url") or "")
         except json.JSONDecodeError:
             url = response.text.strip()[:512] if response.text else ""

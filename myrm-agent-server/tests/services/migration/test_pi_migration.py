@@ -24,22 +24,26 @@ def _local(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _make_pi_session_jsonl(session_id: str, messages: list[dict[str, str]]) -> str:
-    header = json.dumps({
-        "type": "session",
-        "version": 3,
-        "id": session_id,
-        "timestamp": "2025-07-01T12:00:00Z",
-        "cwd": "/tmp/test-project",
-    })
+    header = json.dumps(
+        {
+            "type": "session",
+            "version": 3,
+            "id": session_id,
+            "timestamp": "2025-07-01T12:00:00Z",
+            "cwd": "/tmp/test-project",
+        }
+    )
     lines = [header]
     for idx, msg in enumerate(messages):
-        entry = json.dumps({
-            "id": f"entry-{idx}",
-            "type": "message",
-            "timestamp": "2025-07-01T12:00:01Z",
-            "parentId": None,
-            "message": {"role": msg["role"], "content": msg["content"]},
-        })
+        entry = json.dumps(
+            {
+                "id": f"entry-{idx}",
+                "type": "message",
+                "timestamp": "2025-07-01T12:00:01Z",
+                "parentId": None,
+                "message": {"role": msg["role"], "content": msg["content"]},
+            }
+        )
         lines.append(entry)
     return "\n".join(lines)
 
@@ -62,10 +66,13 @@ class TestDiscoverPi:
         (agent_dir / "AGENTS.md").write_text("Assistant persona", encoding="utf-8")
         sessions_dir = agent_dir / "sessions"
         sessions_dir.mkdir()
-        session_content = _make_pi_session_jsonl("sess-1", [
-            {"role": "user", "content": "Hello"},
-            {"role": "assistant", "content": "Hi there!"},
-        ])
+        session_content = _make_pi_session_jsonl(
+            "sess-1",
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there!"},
+            ],
+        )
         (sessions_dir / "sess-1.jsonl").write_text(session_content, encoding="utf-8")
 
         result = discover_pi(tmp_path)
@@ -142,10 +149,13 @@ class TestLoadPi:
         agent_dir = tmp_path / ".pi" / "agent"
         sessions_dir = agent_dir / "sessions"
         sessions_dir.mkdir(parents=True)
-        session_content = _make_pi_session_jsonl("test-session", [
-            {"role": "user", "content": "Build a web server"},
-            {"role": "assistant", "content": "I'll create an Express.js server."},
-        ])
+        session_content = _make_pi_session_jsonl(
+            "test-session",
+            [
+                {"role": "user", "content": "Build a web server"},
+                {"role": "assistant", "content": "I'll create an Express.js server."},
+            ],
+        )
         (sessions_dir / "test-session.jsonl").write_text(session_content, encoding="utf-8")
 
         loaded = load_source_payload({"competitor": "pi", "root": str(agent_dir), "files": []})
@@ -172,7 +182,9 @@ class TestLoadPi:
         agent_dir = tmp_path / ".pi" / "agent"
         sessions_dir = agent_dir / "sessions"
         sessions_dir.mkdir(parents=True)
-        header = json.dumps({"type": "session", "version": 99, "id": "future", "timestamp": "2026-01-01T00:00:00Z", "cwd": "/tmp"})
+        header = json.dumps(
+            {"type": "session", "version": 99, "id": "future", "timestamp": "2026-01-01T00:00:00Z", "cwd": "/tmp"}
+        )
         entry = json.dumps({"id": "e1", "type": "message", "message": {"role": "user", "content": "hi"}})
         (sessions_dir / "future.jsonl").write_text(f"{header}\n{entry}", encoding="utf-8")
 
@@ -265,17 +277,19 @@ class TestPiSessionEdgeCases:
         sessions_dir = agent_dir / "sessions"
         sessions_dir.mkdir(parents=True)
         header = json.dumps({"type": "session", "version": 3, "id": "s4", "timestamp": "2025-01-01", "cwd": "/tmp"})
-        list_msg = json.dumps({
-            "type": "message",
-            "message": {
-                "role": "assistant",
-                "content": [
-                    {"type": "text", "text": "Part 1"},
-                    {"type": "text", "text": "Part 2"},
-                    {"type": "tool_use", "name": "bash"},
-                ],
-            },
-        })
+        list_msg = json.dumps(
+            {
+                "type": "message",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "Part 1"},
+                        {"type": "text", "text": "Part 2"},
+                        {"type": "tool_use", "name": "bash"},
+                    ],
+                },
+            }
+        )
         (sessions_dir / "list.jsonl").write_text(f"{header}\n{list_msg}", encoding="utf-8")
 
         loaded = load_source_payload({"competitor": "pi", "root": str(agent_dir), "files": []})
@@ -337,10 +351,13 @@ class TestPiInstructionPlan:
         (agent_dir / "AGENTS.md").write_text("Assistant", encoding="utf-8")
         sessions_dir = agent_dir / "sessions"
         sessions_dir.mkdir()
-        session_content = _make_pi_session_jsonl("s1", [
-            {"role": "user", "content": "test"},
-            {"role": "assistant", "content": "ok"},
-        ])
+        session_content = _make_pi_session_jsonl(
+            "s1",
+            [
+                {"role": "user", "content": "test"},
+                {"role": "assistant", "content": "ok"},
+            ],
+        )
         (sessions_dir / "s1.jsonl").write_text(session_content, encoding="utf-8")
 
         loaded = load_source_payload({"competitor": "pi", "root": str(agent_dir), "files": []})
@@ -354,10 +371,13 @@ class TestPiInstructionPlan:
         agent_dir.mkdir(parents=True)
         sessions_dir = agent_dir / "sessions"
         sessions_dir.mkdir()
-        session_content = _make_pi_session_jsonl("s1", [
-            {"role": "user", "content": "test"},
-            {"role": "assistant", "content": "ok"},
-        ])
+        session_content = _make_pi_session_jsonl(
+            "s1",
+            [
+                {"role": "user", "content": "test"},
+                {"role": "assistant", "content": "ok"},
+            ],
+        )
         (sessions_dir / "s1.jsonl").write_text(session_content, encoding="utf-8")
 
         loaded = load_source_payload({"competitor": "pi", "root": str(agent_dir), "files": []})

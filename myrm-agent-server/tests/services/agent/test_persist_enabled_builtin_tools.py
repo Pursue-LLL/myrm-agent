@@ -64,9 +64,7 @@ async def test_repo_create_profile_persists_canonical_tools(agent_db) -> None:
         profile = AgentProfile(
             id="agent-persist-create",
             display_name="Persist Create",
-            metadata={
-                "enabled_builtin_tools": ["file_ops", "code_execute", "web_search"]
-            },
+            metadata={"enabled_builtin_tools": ["file_ops", "code_execute", "web_search"]},
         )
         created = await AgentRepository.create_profile(session, profile)
         await session.commit()
@@ -77,9 +75,7 @@ async def test_repo_create_profile_persists_canonical_tools(agent_db) -> None:
 
 @pytest.mark.asyncio
 async def test_repo_update_tools_allowed_rejects_legacy(agent_db) -> None:
-    created = await AgentService.create_agent(
-        AgentCreate(name="Repo Tools Allowed", description="test")
-    )
+    created = await AgentService.create_agent(AgentCreate(name="Repo Tools Allowed", description="test"))
     agent_id = created.id
     session_factory = agent_db
     async with session_factory() as session:
@@ -93,9 +89,7 @@ async def test_repo_update_tools_allowed_rejects_legacy(agent_db) -> None:
 
 @pytest.mark.asyncio
 async def test_repo_update_tools_allowed_persists_canonical(agent_db) -> None:
-    created = await AgentService.create_agent(
-        AgentCreate(name="Repo Tools Canonical", description="test")
-    )
+    created = await AgentService.create_agent(AgentCreate(name="Repo Tools Canonical", description="test"))
     agent_id = created.id
     session_factory = agent_db
     async with session_factory() as session:
@@ -114,9 +108,7 @@ async def test_repo_update_tools_allowed_persists_canonical(agent_db) -> None:
 async def test_repo_update_metadata_rejects_legacy_enabled_builtin_tools(
     agent_db,
 ) -> None:
-    created = await AgentService.create_agent(
-        AgentCreate(name="Repo Metadata Legacy", description="test")
-    )
+    created = await AgentService.create_agent(AgentCreate(name="Repo Metadata Legacy", description="test"))
     agent_id = created.id
     session_factory = agent_db
     async with session_factory() as session:

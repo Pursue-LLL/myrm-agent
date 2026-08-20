@@ -24,9 +24,7 @@ def _reset_snapshot_store() -> None:
 
 class TestResolveSnapshotSearchRoots:
     @pytest.mark.asyncio
-    async def test_includes_workspace_env_and_deduplicates(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_includes_workspace_env_and_deduplicates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.files.revert_hydrate import _resolve_snapshot_search_roots
 
         root = tmp_path.resolve()
@@ -37,23 +35,24 @@ class TestResolveSnapshotSearchRoots:
         fake_chat = MagicMock()
         fake_chat.workspace_dir = str(root)
 
-        with patch(
-            "app.services.chat.chat_service.ChatService.get_chat_by_id",
-            new_callable=AsyncMock,
-            return_value=fake_chat,
-        ), patch(
-            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
-            new_callable=AsyncMock,
-            return_value=str(root),
+        with (
+            patch(
+                "app.services.chat.chat_service.ChatService.get_chat_by_id",
+                new_callable=AsyncMock,
+                return_value=fake_chat,
+            ),
+            patch(
+                "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
+                new_callable=AsyncMock,
+                return_value=str(root),
+            ),
         ):
             roots = await _resolve_snapshot_search_roots(session_id)
 
         assert roots == [root]
 
     @pytest.mark.asyncio
-    async def test_includes_distinct_chat_and_harness_roots(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_includes_distinct_chat_and_harness_roots(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.files.revert_hydrate import _resolve_snapshot_search_roots
 
         monkeypatch.delenv("WORKSPACE_ROOT", raising=False)
@@ -67,14 +66,17 @@ class TestResolveSnapshotSearchRoots:
         fake_chat = MagicMock()
         fake_chat.workspace_dir = str(chat_root)
 
-        with patch(
-            "app.services.chat.chat_service.ChatService.get_chat_by_id",
-            new_callable=AsyncMock,
-            return_value=fake_chat,
-        ), patch(
-            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
-            new_callable=AsyncMock,
-            return_value=None,
+        with (
+            patch(
+                "app.services.chat.chat_service.ChatService.get_chat_by_id",
+                new_callable=AsyncMock,
+                return_value=fake_chat,
+            ),
+            patch(
+                "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             roots = await _resolve_snapshot_search_roots(session_id)
 
@@ -87,61 +89,67 @@ class TestResolveSnapshotSearchRoots:
         harness_root = tmp_path.resolve()
         WorkspacePathResolver._cached_workspace_root = harness_root
 
-        with patch(
-            "app.services.chat.chat_service.ChatService.get_chat_by_id",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("db down"),
-        ), patch(
-            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
-            new_callable=AsyncMock,
-            return_value=None,
+        with (
+            patch(
+                "app.services.chat.chat_service.ChatService.get_chat_by_id",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("db down"),
+            ),
+            patch(
+                "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             roots = await _resolve_snapshot_search_roots("chat_x")
 
         assert roots == [harness_root]
 
     @pytest.mark.asyncio
-    async def test_swallows_harness_root_resolution_errors(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_swallows_harness_root_resolution_errors(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.files.revert_hydrate import _resolve_snapshot_search_roots
 
         monkeypatch.delenv("WORKSPACE_ROOT", raising=False)
 
-        with patch(
-            "myrm_agent_harness.toolkits.code_execution.utils.workspace_path.WorkspacePathResolver.resolve_workspace_root",
-            side_effect=RuntimeError("no root"),
-        ), patch(
-            "app.services.chat.chat_service.ChatService.get_chat_by_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
-            new_callable=AsyncMock,
-            return_value=None,
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.code_execution.utils.workspace_path.WorkspacePathResolver.resolve_workspace_root",
+                side_effect=RuntimeError("no root"),
+            ),
+            patch(
+                "app.services.chat.chat_service.ChatService.get_chat_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             roots = await _resolve_snapshot_search_roots("chat_x")
 
         assert roots == []
 
     @pytest.mark.asyncio
-    async def test_swallows_default_workspace_resolution_errors(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_swallows_default_workspace_resolution_errors(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.files.revert_hydrate import _resolve_snapshot_search_roots
 
         monkeypatch.delenv("WORKSPACE_ROOT", raising=False)
         harness_root = tmp_path.resolve()
         WorkspacePathResolver._cached_workspace_root = harness_root
 
-        with patch(
-            "app.services.chat.chat_service.ChatService.get_chat_by_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("workspace svc down"),
+        with (
+            patch(
+                "app.services.chat.chat_service.ChatService.get_chat_by_id",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "app.services.agent.params.workspace_resolve.resolve_default_chat_workspace_dir",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("workspace svc down"),
+            ),
         ):
             roots = await _resolve_snapshot_search_roots("chat_x")
 

@@ -118,9 +118,7 @@ def test_eval_api_e2e() -> None:
             assert response.json()["content"] == cases_content
 
             workspace_root = Path(".myrm/eval_workspaces")
-            before_workspaces = (
-                set(workspace_root.iterdir()) if workspace_root.exists() else set()
-            )
+            before_workspaces = set(workspace_root.iterdir()) if workspace_root.exists() else set()
             with (
                 patch(
                     "app.core.eval.executor.load_user_configs",

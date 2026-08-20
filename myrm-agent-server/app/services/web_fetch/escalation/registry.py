@@ -110,15 +110,11 @@ async def build_escalation_providers(session_id: str) -> list[FetchEscalationPro
 
     providers: list[FetchEscalationProvider] = []
     jina = JinaEscalationProvider(api_key=cfg.jina_api_key)
-    providers.append(
-        SessionCappedEscalationProvider(jina, session_id=session_id, session_cap=cfg.session_cap)
-    )
+    providers.append(SessionCappedEscalationProvider(jina, session_id=session_id, session_cap=cfg.session_cap))
 
     firecrawl_key = resolve_firecrawl_api_key(cfg, search_services)
     firecrawl_api_base = (cfg.firecrawl.api_base or "").strip() or None
     firecrawl = FirecrawlEscalationProvider(api_key=firecrawl_key, api_base=firecrawl_api_base)
-    providers.append(
-        SessionCappedEscalationProvider(firecrawl, session_id=session_id, session_cap=cfg.session_cap)
-    )
+    providers.append(SessionCappedEscalationProvider(firecrawl, session_id=session_id, session_cap=cfg.session_cap))
 
     return providers

@@ -46,15 +46,10 @@ async def get_channel_credentials(
     if record is None:
         return {}
 
-    credentials = {
-        str(k): (str(v).lower() if isinstance(v, bool) else v)
-        for k, v in record.value.items()
-    }
+    credentials = {str(k): (str(v).lower() if isinstance(v, bool) else v) for k, v in record.value.items()}
 
     for key, value in credentials.items():
-        if isinstance(value, str) and any(
-            sensitive in key.lower() for sensitive in ["token", "password", "secret", "key"]
-        ):
+        if isinstance(value, str) and any(sensitive in key.lower() for sensitive in ["token", "password", "secret", "key"]):
             if len(value) > 4:
                 credentials[key] = "•" * (len(value) - 4) + value[-4:]
             else:

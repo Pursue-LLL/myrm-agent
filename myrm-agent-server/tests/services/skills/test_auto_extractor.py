@@ -12,9 +12,7 @@ from app.services.skills.auto_extractor import (
 
 @pytest.fixture
 def mock_skill_creation_service():
-    with patch(
-        "app.services.skills.auto_extractor.skill_creation_service"
-    ) as mock_service:
+    with patch("app.services.skills.auto_extractor.skill_creation_service") as mock_service:
         # Mock save_skill to return a success result
         mock_result = MagicMock()
         mock_result.success = True
@@ -33,9 +31,7 @@ def mock_skill_creation_service():
 
 @pytest.fixture
 def mock_publish_event():
-    with patch(
-        "app.services.skills.auto_extractor.publish_skill_evolved_event"
-    ) as mock_pub:
+    with patch("app.services.skills.auto_extractor.publish_skill_evolved_event") as mock_pub:
         yield mock_pub
 
 
@@ -78,9 +74,7 @@ async def test_auto_extract_new_skill(mock_skill_creation_service, mock_publish_
 
 
 @pytest.mark.asyncio
-async def test_auto_patch_existing_skill(
-    mock_skill_creation_service, mock_publish_event, mock_apply_patch
-):
+async def test_auto_patch_existing_skill(mock_skill_creation_service, mock_publish_event, mock_apply_patch):
     result = {
         "user_id": "test_user_2",
         "has_value": True,
@@ -121,9 +115,7 @@ async def test_publish_evolution_event(mock_get_bus):
 
 
 @pytest.mark.asyncio
-async def test_auto_extract_persists_eval_cases(
-    mock_skill_creation_service, mock_publish_event
-):
+async def test_auto_extract_persists_eval_cases(mock_skill_creation_service, mock_publish_event):
     """Review eval_cases must be written into the evolution SkillStore for new skills."""
     eval_cases = [
         {
@@ -151,9 +143,7 @@ async def test_auto_extract_persists_eval_cases(
         "app.core.skills.store.evolution_store.get_evolution_skill_store",
         return_value=mock_store,
     ):
-        materialization = await auto_extract_or_patch_skill(
-            result, eval_cases=eval_cases
-        )
+        materialization = await auto_extract_or_patch_skill(result, eval_cases=eval_cases)
 
     assert materialization.success
     mock_store.save_skill.assert_awaited_once()

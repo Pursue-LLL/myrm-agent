@@ -35,9 +35,7 @@ _CHECKLIST_RE = re.compile(r"^\s*(?:[-*]|\.{0,3}\d+[.)])\s*\[([ xX])\]\s*(.+)$")
 
 # Markdown section headings (bold ``**Title**`` or ATX ``# Title``), optionally
 # followed by inline text on the same line (``**Goal** — one sentence``).
-_HEADING_RE = re.compile(
-    r"^\s*(?:\*{1,3}\s*[^*]+\*{1,3}|#{1,6}\s+.+)\s*(?:[—-]?\s*.*)?$"
-)
+_HEADING_RE = re.compile(r"^\s*(?:\*{1,3}\s*[^*]+\*{1,3}|#{1,6}\s+.+)\s*(?:[—-]?\s*.*)?$")
 
 # Acceptance-criteria heading, EN/ZH. Anchored case-insensitively so LLMs
 # writing ``**acceptance criteria**`` / ``**验收条件**`` / ``**验收标准**``

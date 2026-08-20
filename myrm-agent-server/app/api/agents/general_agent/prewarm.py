@@ -67,9 +67,7 @@ async def prewarm_chat_turn(
         params,
         action_mode=body.action_mode,
     )
-    logger.warning(
-        "Turn prewarm requested: chat_id=%s agent_id=%s", chat_id, body.agent_id
-    )
+    logger.warning("Turn prewarm requested: chat_id=%s agent_id=%s", chat_id, body.agent_id)
     return success_response(data={"started": True, "chat_id": chat_id})
 
 

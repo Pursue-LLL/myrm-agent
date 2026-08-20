@@ -69,11 +69,7 @@ def check_pairing_rate_limit(client_key: str) -> bool:
     attempts.append(now)
     _pairing_attempts[client_key] = attempts
     if len(_pairing_attempts) > 256:
-        stale_keys = [
-            key
-            for key, values in _pairing_attempts.items()
-            if not values or values[-1] < window_start
-        ]
+        stale_keys = [key for key, values in _pairing_attempts.items() if not values or values[-1] < window_start]
         for key in stale_keys:
             del _pairing_attempts[key]
     return True

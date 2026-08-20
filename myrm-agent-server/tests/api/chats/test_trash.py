@@ -17,6 +17,8 @@ from httpx import ASGITransport
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
+
+
 @pytest.fixture
 async def async_client() -> httpx.AsyncClient:
     async with httpx.AsyncClient(
@@ -348,9 +350,7 @@ async def test_concurrent_cascade_deletes(async_client: httpx.AsyncClient) -> No
         await _soft_delete_chat(cid)
         await _insert_pending_records(cid, count=2)
 
-    results = await asyncio.gather(
-        *[async_client.delete(f"/api/v1/chats/trash/{cid}") for cid in chat_ids]
-    )
+    results = await asyncio.gather(*[async_client.delete(f"/api/v1/chats/trash/{cid}") for cid in chat_ids])
     for r in results:
         assert r.status_code == 200
 

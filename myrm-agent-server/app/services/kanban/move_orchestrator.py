@@ -168,16 +168,9 @@ async def move_task(
     if task is None:
         return None
     if task.is_terminal and target_status != TaskStatus.ARCHIVED:
-        raise ValueError(
-            f"Cannot move terminal task (status={task.status}) to {target_status}"
-        )
-    if (
-        task.status == TaskStatus.TRIAGE
-        and target_status not in _TRIAGE_ALLOWED_TARGETS
-    ):
-        raise ValueError(
-            f"TRIAGE task can only move to BACKLOG/READY/ARCHIVED, got {target_status}"
-        )
+        raise ValueError(f"Cannot move terminal task (status={task.status}) to {target_status}")
+    if task.status == TaskStatus.TRIAGE and target_status not in _TRIAGE_ALLOWED_TARGETS:
+        raise ValueError(f"TRIAGE task can only move to BACKLOG/READY/ARCHIVED, got {target_status}")
     if target_status == TaskStatus.IN_REVIEW:
         raise ValueError(
             "IN_REVIEW is entered by the dispatcher when a require_approval task "
@@ -185,8 +178,7 @@ async def move_task(
         )
     if task.status == TaskStatus.IN_REVIEW:
         raise ValueError(
-            "IN_REVIEW tasks must be resolved via the approve/reject endpoints; "
-            "manual moves out of review are not allowed"
+            "IN_REVIEW tasks must be resolved via the approve/reject endpoints; manual moves out of review are not allowed"
         )
     old_status = task.status
     task.status = target_status
@@ -255,9 +247,7 @@ async def move_task(
                 )
                 break
 
-    needs_synthetic = (
-        old_status != TaskStatus.RUNNING and target_status in SYNTHETIC_RUN_TARGETS
-    )
+    needs_synthetic = old_status != TaskStatus.RUNNING and target_status in SYNTHETIC_RUN_TARGETS
     if needs_synthetic:
         synthetic_run_id = await synthesize_run(
             store,
@@ -348,9 +338,7 @@ async def reclaim_task(
     if task is None:
         return None
     if task.status != TaskStatus.RUNNING:
-        raise ValueError(
-            f"Cannot reclaim task in status '{task.status.value}'; only RUNNING tasks can be reclaimed"
-        )
+        raise ValueError(f"Cannot reclaim task in status '{task.status.value}'; only RUNNING tasks can be reclaimed")
 
     dispatcher = dispatchers.get(task.board_id)
     if dispatcher:

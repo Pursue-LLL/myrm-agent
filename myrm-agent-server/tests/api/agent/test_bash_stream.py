@@ -32,19 +32,14 @@ def _stream_with_auto_approve(
     _stream_once(request_data)
 
     for _ in range(10):
-        approval_required = any(
-            d.get("type") in ("approval_required", "tool_approval_request") for d in reversed(collected)
-        )
+        approval_required = any(d.get("type") in ("approval_required", "tool_approval_request") for d in reversed(collected))
         if not approval_required:
             break
         resume_request = dict(request_data)
         resume_request["resumeValue"] = build_approval_resume_value()
         before = len(collected)
         _stream_once(resume_request)
-        raced_busy = any(
-            d.get("type") == "error" and "busy" in str(d.get("data", "")).lower()
-            for d in collected[before:]
-        )
+        raced_busy = any(d.get("type") == "error" and "busy" in str(d.get("data", "")).lower() for d in collected[before:])
         if raced_busy:
             # The resume raced the previous agent turn's async teardown and the
             # session lock was still held; retry the resume after the turn
@@ -178,18 +173,9 @@ async def test_bash_failure_partial_stdout_reaches_agent_stream(
         if any(kw in error_msg for kw in flaky_signals):
             pytest.skip(f"Environment/upstream flaky: {error_msg[:240]}")
         event_types = [d.get("type") for d in collected]
-        tool_msgs = [
-            str(d)[:300]
-            for d in collected
-            if d.get("type") in ("message", "tool_result", "tasks_steps")
-        ]
-        pytest.fail(
-            f"Agent execution error: {error_msg}\n"
-            f"EVENT_TYPES={event_types}\nTOOL_MSGS={tool_msgs[:6]}"
-        )
+        tool_msgs = [str(d)[:300] for d in collected if d.get("type") in ("message", "tool_result", "tasks_steps")]
+        pytest.fail(f"Agent execution error: {error_msg}\nEVENT_TYPES={event_types}\nTOOL_MSGS={tool_msgs[:6]}")
     pytest.fail("marker not found in stream")
 
     stream_blob = json.dumps(collected, default=str)
-    assert marker in stream_blob, (
-        "partial stdout of a failed bash command must reach the agent stream"
-    )
+    assert marker in stream_blob, "partial stdout of a failed bash command must reach the agent stream"

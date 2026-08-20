@@ -43,9 +43,7 @@ async def load_compactable_messages(db: AsyncSession, chat: Chat) -> list[Messag
     """Load messages that should be included in compaction (incremental-aware)."""
     query = select(Message).where(Message.chat_id == chat.id)
     if chat.compacted_before_id:
-        anchor = await db.execute(
-            select(Message.created_at).where(Message.id == chat.compacted_before_id)
-        )
+        anchor = await db.execute(select(Message.created_at).where(Message.id == chat.compacted_before_id))
         anchor_ts = anchor.scalar_one_or_none()
         if anchor_ts:
             query = query.where(Message.created_at > anchor_ts)
@@ -94,11 +92,7 @@ async def backup_context(chat: Chat, messages: list[Message]) -> str | None:
 
         lines: list[str] = []
         if chat.compacted_summary:
-            lines.append(
-                json.dumps(
-                    {"type": "previous_summary", "content": chat.compacted_summary}
-                )
-            )
+            lines.append(json.dumps({"type": "previous_summary", "content": chat.compacted_summary}))
         for msg in messages:
             lines.append(
                 json.dumps(
@@ -106,9 +100,7 @@ async def backup_context(chat: Chat, messages: list[Message]) -> str | None:
                         "id": msg.id,
                         "role": msg.role,
                         "content": msg.content,
-                        "created_at": (
-                            msg.created_at.isoformat() if msg.created_at else None
-                        ),
+                        "created_at": (msg.created_at.isoformat() if msg.created_at else None),
                     }
                 )
             )

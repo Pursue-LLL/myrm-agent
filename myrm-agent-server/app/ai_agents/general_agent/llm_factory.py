@@ -68,9 +68,7 @@ async def create_agent_llms(
     # 1. 创建主模型
     try:
         main_api_keys = getattr(model_cfg, "api_keys", None)
-        raw_main_llm = await llm_manager.get_llm_from_config(
-            model_cfg, api_keys=main_api_keys
-        )
+        raw_main_llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=main_api_keys)
         pool_info = f" (pool={len(main_api_keys)} keys)" if main_api_keys else ""
         logger.info("Main model: %s%s", model_cfg.model, pool_info)
     except Exception as e:
@@ -104,23 +102,17 @@ async def create_agent_llms(
             lite_cfg_with_low_effort,
             api_keys=main_api_keys,
         )
-        logger.info(
-            "Lite model: %s (dedicated instance, reasoning_effort=low)", model_cfg.model
-        )
+        logger.info("Lite model: %s (dedicated instance, reasoning_effort=low)", model_cfg.model)
 
     # 3. 创建安全审核拦截降级模型
     safety_fallback_llm = None
     if safety_fallback_model_cfg is not None:
         try:
             safety_api_keys = getattr(safety_fallback_model_cfg, "api_keys", None)
-            safety_fallback_llm = await llm_manager.get_llm_from_config(
-                safety_fallback_model_cfg, api_keys=safety_api_keys
-            )
+            safety_fallback_llm = await llm_manager.get_llm_from_config(safety_fallback_model_cfg, api_keys=safety_api_keys)
             logger.info("Safety Fallback model: %s", safety_fallback_model_cfg.model)
         except Exception as e:
-            logger.warning(
-                f"Failed to create safety fallback LLM: {e}, proceeding without safety failover"
-            )
+            logger.warning(f"Failed to create safety fallback LLM: {e}, proceeding without safety failover")
 
     # 4. 创建备用主模型并集成 ModelFallbackManager
     effective_fallbacks: list[ModelConfig] = []
@@ -138,9 +130,7 @@ async def create_agent_llms(
         for fb_cfg in effective_fallbacks:
             try:
                 fb_api_keys = getattr(fb_cfg, "api_keys", None)
-                fb_llm = await llm_manager.get_llm_from_config(
-                    fb_cfg, api_keys=fb_api_keys
-                )
+                fb_llm = await llm_manager.get_llm_from_config(fb_cfg, api_keys=fb_api_keys)
                 raw_fallback_llms.append(fb_llm)
                 fallback_models_for_manager.append(
                     FallbackModel(
@@ -150,9 +140,7 @@ async def create_agent_llms(
                 )
                 logger.info("Fallback candidate model: %s", fb_cfg.model)
             except Exception as e:
-                logger.warning(
-                    f"Failed to create fallback candidate LLM '{fb_cfg.model}': {e}, skipping node"
-                )
+                logger.warning(f"Failed to create fallback candidate LLM '{fb_cfg.model}': {e}, skipping node")
 
         if fallback_models_for_manager:
             first_fallback_llm = raw_fallback_llms[0]
@@ -187,9 +175,7 @@ async def apply_lite_managed_fallback(
 
     try:
         fallback_api_keys = getattr(fallback_lite_model_cfg, "api_keys", None)
-        raw_lite_fallback = await llm_manager.get_llm_from_config(
-            fallback_lite_model_cfg, api_keys=fallback_api_keys
-        )
+        raw_lite_fallback = await llm_manager.get_llm_from_config(fallback_lite_model_cfg, api_keys=fallback_api_keys)
         managed_lite = ManagedLLM(
             main_llm=lite_llm,
             fallback_llm=raw_lite_fallback,
@@ -236,15 +222,12 @@ async def apply_lite_context_downgrade(
         return lite_llm, effective_cfg
 
     logger.warning(
-        "Context capacity mismatch: main model %s (%s tokens) vs lite (%s tokens). "
-        "Degrading lite LLM to main model.",
+        "Context capacity mismatch: main model %s (%s tokens) vs lite (%s tokens). Degrading lite LLM to main model.",
         model_cfg.model,
         main_limit,
         lite_limit,
     )
     main_api_keys = getattr(model_cfg, "api_keys", None)
     degraded_cfg = _inject_low_reasoning_effort(model_cfg)
-    degraded_llm = await llm_manager.get_llm_from_config(
-        degraded_cfg, api_keys=main_api_keys
-    )
+    degraded_llm = await llm_manager.get_llm_from_config(degraded_cfg, api_keys=main_api_keys)
     return degraded_llm, degraded_cfg

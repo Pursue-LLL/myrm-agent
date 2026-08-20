@@ -29,10 +29,7 @@ async def test_build_moa_overlay_middleware_disabled() -> None:
 @pytest.mark.asyncio
 async def test_resolve_moa_overlay_skip_reason_disabled() -> None:
     assert await resolve_moa_overlay_skip_reason(None) is None
-    assert (
-        await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": False}})
-        is None
-    )
+    assert await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": False}}) is None
 
 
 @pytest.mark.asyncio
@@ -42,9 +39,7 @@ async def test_resolve_moa_overlay_skip_reason_no_reference_configs() -> None:
         new_callable=AsyncMock,
         return_value=({"enabled": True}, []),
     ):
-        reason = await resolve_moa_overlay_skip_reason(
-            {"moa_overlay": {"enabled": True}}
-        )
+        reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
     assert reason == MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS
 
 
@@ -61,9 +56,7 @@ async def test_resolve_moa_overlay_skip_reason_no_reference_llms() -> None:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            reason = await resolve_moa_overlay_skip_reason(
-                {"moa_overlay": {"enabled": True}}
-            )
+            reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
     assert reason == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
 
 
@@ -81,9 +74,7 @@ async def test_resolve_moa_overlay_skip_reason_none_when_ready() -> None:
             new_callable=AsyncMock,
             return_value=[mock_llm],
         ):
-            reason = await resolve_moa_overlay_skip_reason(
-                {"moa_overlay": {"enabled": True}}
-            )
+            reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
     assert reason is None
 
 
@@ -119,9 +110,7 @@ async def test_build_moa_overlay_middleware_skips_failed_llm_creation() -> None:
             new_callable=AsyncMock,
             side_effect=RuntimeError("bad key"),
         ):
-            result = await build_moa_overlay_middleware(
-                {"moa_overlay": {"enabled": True}}
-            )
+            result = await build_moa_overlay_middleware({"moa_overlay": {"enabled": True}})
     assert result is None
 
 

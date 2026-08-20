@@ -128,9 +128,7 @@ async def test_reassurance_sends_first_then_edits(mock_bus):
     msg = _make_msg()
     state = _stale_state()
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2):
         await handler._reassurance_loop(msg, "chat-1", state)
 
     mock_bus.send_tracked.assert_called_once()
@@ -160,9 +158,7 @@ async def test_reassurance_sends_once_when_channel_cannot_edit(mock_bus):
     msg = _make_msg()
     state = _stale_state()
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2):
         await handler._reassurance_loop(msg, "chat-1", state)
 
     mock_bus.send_tracked.assert_called_once()
@@ -181,9 +177,7 @@ async def test_reassurance_fallback_on_edit_failure(mock_bus):
     msg = _make_msg()
     state = _stale_state()
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2):
         await handler._reassurance_loop(msg, "chat-1", state)
 
     assert mock_bus.send_tracked.call_count == 2
@@ -200,9 +194,7 @@ async def test_reassurance_uses_normal_priority(mock_bus):
     msg = _make_msg()
     state = _stale_state()
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 1
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 1):
         await handler._reassurance_loop(msg, "chat-1", state)
 
     sent_msg: OutboundMessage = mock_bus.send_tracked.call_args[0][0]
@@ -223,9 +215,7 @@ async def test_reassurance_skips_when_activity_recent(mock_bus):
         "current_stage": "",
     }
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 1
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 1):
         task = asyncio.create_task(handler._reassurance_loop(msg, "chat-1", state))
         await _real_sleep(_SHORT + 0.1)
         task.cancel()
@@ -249,9 +239,7 @@ async def test_reassurance_send_tracked_returns_none(mock_bus):
     msg = _make_msg()
     state = _stale_state()
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2):
         await handler._reassurance_loop(msg, "chat-1", state)
 
     assert mock_bus.send_tracked.call_count == 2
@@ -263,17 +251,13 @@ async def test_reassurance_exception_does_not_crash_loop(mock_bus):
     """Exception in send_tracked does not crash the loop; next iteration retries."""
     channel_obj = _FakeChannel(capabilities=ChannelCapabilities(edit=False))
     mock_bus.get_channel = MagicMock(return_value=channel_obj)
-    mock_bus.send_tracked = AsyncMock(
-        side_effect=[RuntimeError("network"), "msg-ok"]
-    )
+    mock_bus.send_tracked = AsyncMock(side_effect=[RuntimeError("network"), "msg-ok"])
 
     handler = DummyRouter(mock_bus)
     msg = _make_msg()
     state = _stale_state()
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2):
         await handler._reassurance_loop(msg, "chat-1", state)
 
     assert mock_bus.send_tracked.call_count == 2
@@ -289,9 +273,7 @@ async def test_reassurance_no_channel_sends_once(mock_bus):
     msg = _make_msg()
     state = _stale_state()
 
-    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(
-        f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2
-    ):
+    with patch(f"{_STREAM_MOD}._SILENCE_REASSURANCE_THRESHOLD", _SHORT), patch(f"{_STREAM_MOD}._MAX_REASSURANCE_COUNT", 2):
         await handler._reassurance_loop(msg, "chat-1", state)
 
     mock_bus.send_tracked.assert_called_once()

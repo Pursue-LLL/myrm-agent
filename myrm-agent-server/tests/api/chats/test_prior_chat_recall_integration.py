@@ -52,15 +52,9 @@ class TestPriorChatRecallIntegration:
 
     def test_recall_search_returns_seeded_prior_chat(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(
-            _seed_visible_agent(
-                agent_id, display_name="Prior Chat Recall Integration Agent"
-            )
-        )
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Prior Chat Recall Integration Agent"))
 
-        with patch(
-            "app.api.chats.test_fixtures.prior_chat.is_local_mode", return_value=True
-        ):
+        with patch("app.api.chats.test_fixtures.prior_chat.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-prior-chat-fixture")
 
         assert seed_resp.status_code == 200
@@ -80,21 +74,13 @@ class TestPriorChatRecallIntegration:
         assert payload["total"] >= 1
         assert any(item["chat_id"] == prior_chat_id for item in items)
 
-    def test_prior_chat_inject_resolves_seeded_recall_document(
-        self, client: TestClient
-    ) -> None:
+    def test_prior_chat_inject_resolves_seeded_recall_document(self, client: TestClient) -> None:
         from app.services.agent.params.mention import _build_mention_reference_context
 
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(
-            _seed_visible_agent(
-                agent_id, display_name="Prior Chat Inject Integration Agent"
-            )
-        )
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Prior Chat Inject Integration Agent"))
 
-        with patch(
-            "app.api.chats.test_fixtures.prior_chat.is_local_mode", return_value=True
-        ):
+        with patch("app.api.chats.test_fixtures.prior_chat.is_local_mode", return_value=True):
             seed_resp = client.post("/api/v1/chats/test/seed-prior-chat-fixture")
 
         assert seed_resp.status_code == 200

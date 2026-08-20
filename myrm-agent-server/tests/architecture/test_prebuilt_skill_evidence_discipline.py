@@ -12,13 +12,7 @@ from pathlib import Path
 
 import pytest
 
-_SKILL_MD = (
-    Path(__file__).resolve().parents[2]
-    / "assets"
-    / "prebuilt_skills"
-    / "evidence-discipline"
-    / "SKILL.md"
-)
+_SKILL_MD = Path(__file__).resolve().parents[2] / "assets" / "prebuilt_skills" / "evidence-discipline" / "SKILL.md"
 
 # Contract guarantees the skill must always document. Kept as standalone
 # substrings so wording edits fail loudly instead of silently dropping a clause.

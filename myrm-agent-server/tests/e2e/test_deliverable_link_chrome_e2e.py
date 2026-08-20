@@ -96,9 +96,7 @@ _PORTAL_OPEN_JS = """(() => {
 
 
 def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
-    seeded = http_json(
-        "POST", f"{api_url}/api/v1/chats/test/seed-deliverable-link-fixture"
-    )
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-deliverable-link-fixture")
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     deliverable_path = str(seeded.get("deliverable_path") or "")
@@ -107,9 +105,7 @@ def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_deliverable_workspace_link_opens_portal() -> None:

@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-_SCRIPT = (
-    Path(__file__).resolve().parent.parent.parent / "scripts" / "sync_arch_file_tables.py"
-)
+_SCRIPT = Path(__file__).resolve().parent.parent.parent / "scripts" / "sync_arch_file_tables.py"
 _spec = importlib.util.spec_from_file_location("sync_arch_file_tables", _SCRIPT)
 assert _spec and _spec.loader
 _mod = importlib.util.module_from_spec(_spec)

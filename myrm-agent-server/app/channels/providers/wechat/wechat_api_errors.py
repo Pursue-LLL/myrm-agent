@@ -14,10 +14,7 @@ Business-layer WeChat API onboarding hints consumed by WeChatOfficialApiClient a
 from __future__ import annotations
 
 _ERCODE_HINTS_ZH: dict[int, str] = {
-    40164: (
-        "服务器公网 IP 不在公众号后台白名单。"
-        "请到「设置与开发 → 安全中心 → IP 白名单」添加本机公网 IP 后重试。"
-    ),
+    40164: ("服务器公网 IP 不在公众号后台白名单。请到「设置与开发 → 安全中心 → IP 白名单」添加本机公网 IP 后重试。"),
     48001: "接口未授权：该能力通常仅认证服务号可用。",
     40001: "access_token 无效或已过期：请核对 AppID/AppSecret，或稍后重试。",
     42001: "access_token 无效或已过期：请核对 AppID/AppSecret，或稍后重试。",

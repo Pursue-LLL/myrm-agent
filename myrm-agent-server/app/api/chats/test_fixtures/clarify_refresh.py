@@ -26,9 +26,7 @@ from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
 
-_CLARIFY_REFRESH_VARIANTS = frozenset(
-    {"pending", "answered", "regenerate_sibling", "structured_form"}
-)
+_CLARIFY_REFRESH_VARIANTS = frozenset({"pending", "answered", "regenerate_sibling", "structured_form"})
 
 _STRUCTURED_CLARIFY_FORM: dict[str, object] = {
     "title": "E2E Structured Clarify",
@@ -85,9 +83,7 @@ async def seed_clarify_refresh_fixture(variant: str = "pending") -> dict[str, st
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for clarify refresh E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for clarify refresh E2E seed")
 
     agent = agents[0]
     agent_id = agent.id

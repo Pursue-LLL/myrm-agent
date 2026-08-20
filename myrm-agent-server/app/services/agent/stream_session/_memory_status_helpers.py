@@ -211,4 +211,3 @@ def observe_memory_brief_status_payload(*, phase: str, payload: dict[str, object
             brief_source=brief_source_label,
             reason=injection_reason if injection_reason != _METRIC_NONE else _METRIC_UNKNOWN,
         ).inc()
-

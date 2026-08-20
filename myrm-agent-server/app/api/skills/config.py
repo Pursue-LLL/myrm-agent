@@ -36,10 +36,7 @@ router = APIRouter()
 
 
 def _user_skill_config_response(config: UserSkillConfig) -> UserSkillConfigResponse:
-    presets = [
-        RegistryPresetResponse(id=item.id, url=item.url)
-        for item in get_registry_presets()
-    ]
+    presets = [RegistryPresetResponse(id=item.id, url=item.url) for item in get_registry_presets()]
     return UserSkillConfigResponse(
         enabled_prebuilt_ids=config.enabled_prebuilt_ids,
         disabled_prebuilt_ids=config.disabled_prebuilt_ids,
@@ -72,9 +69,7 @@ async def update_user_skill_config(
     if request.clawhub_registry_url is not None:
         from app.core.skills.marketplace.clawhub_registry import normalize_clawhub_registry_url
 
-        kwargs["clawhub_registry_url"] = normalize_clawhub_registry_url(
-            request.clawhub_registry_url
-        )
+        kwargs["clawhub_registry_url"] = normalize_clawhub_registry_url(request.clawhub_registry_url)
 
     config = await skills_service.user_config.update_config(**kwargs)
 
@@ -88,9 +83,7 @@ async def update_user_skill_config(
             integration = get_global_evolution_integration()
             if integration:
                 integration.evolution_strategy = request.evolution_strategy
-                logger.info(
-                    "Evolution strategy hot-updated to '%s'", request.evolution_strategy
-                )
+                logger.info("Evolution strategy hot-updated to '%s'", request.evolution_strategy)
         except Exception as e:
             logger.warning("Failed to hot-update evolution strategy: %s", e)
 
@@ -122,11 +115,7 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
 
     skill_content = await skills_service.get_skill_file(skill_id, "SKILL.md")
     if skill_content:
-        content_str = (
-            skill_content.decode("utf-8")
-            if isinstance(skill_content, bytes)
-            else skill_content
-        )
+        content_str = skill_content.decode("utf-8") if isinstance(skill_content, bytes) else skill_content
 
         scan_cache = get_scan_cache()
         scan_result = scan_cache.get(content_str)
@@ -146,14 +135,8 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
                 )
                 for f in scan_result.findings
             ]
-            if (
-                scan_result.max_severity
-                and scan_result.max_severity >= ScanSeverity.CRITICAL
-                and not force
-            ):
-                _audit_skill_action(
-                    "enable_blocked", skill_id, scan_findings=len(scan_responses)
-                )
+            if scan_result.max_severity and scan_result.max_severity >= ScanSeverity.CRITICAL and not force:
+                _audit_skill_action("enable_blocked", skill_id, scan_findings=len(scan_responses))
                 return EnableSkillResponse(
                     skill_id=skill_id,
                     enabled=False,
@@ -196,9 +179,7 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
     if skill_id.startswith("local::"):
         if skill_id not in config.enabled_local_skill_ids:
             config.enabled_local_skill_ids.append(skill_id)
-            await skills_service.user_config.update_config(
-                enabled_local_skill_ids=config.enabled_local_skill_ids
-            )
+            await skills_service.user_config.update_config(enabled_local_skill_ids=config.enabled_local_skill_ids)
     else:
         await skills_service.user_config.enable_prebuilt_skill(skill_id)
 
@@ -228,8 +209,7 @@ async def disable_skill(skill_id: str, force: bool = False) -> EnableSkillRespon
             detail={
                 "code": "DEPENDENTS_EXIST",
                 "message": (
-                    f"Skill is referenced by {len(dependents)} other skill(s). "
-                    "Review them before disabling, or force-disable."
+                    f"Skill is referenced by {len(dependents)} other skill(s). Review them before disabling, or force-disable."
                 ),
                 "impacted_dependents": dependents,
             },
@@ -240,9 +220,7 @@ async def disable_skill(skill_id: str, force: bool = False) -> EnableSkillRespon
     if skill_id.startswith("local::"):
         if skill_id in config.enabled_local_skill_ids:
             config.enabled_local_skill_ids.remove(skill_id)
-            await skills_service.user_config.update_config(
-                enabled_local_skill_ids=config.enabled_local_skill_ids
-            )
+            await skills_service.user_config.update_config(enabled_local_skill_ids=config.enabled_local_skill_ids)
     else:
         await skills_service.user_config.disable_prebuilt_skill(skill_id)
 
@@ -274,9 +252,7 @@ async def untrust_skill(skill_id: str) -> dict[str, str]:
 
 
 @router.post("/{skill_id}/evolution-lock")
-async def toggle_evolution_lock(
-    skill_id: str, locked: bool = True
-) -> dict[str, str | bool]:
+async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str, str | bool]:
     """Lock or unlock a skill's auto-evolution.
 
     Locked skills are protected from being modified by the Agent's
@@ -297,9 +273,7 @@ async def toggle_evolution_lock(
 
         evolution = get_global_evolution_integration()
         if not evolution or not evolution.store:
-            raise HTTPException(
-                status_code=503, detail="Evolution system not initialized"
-            )
+            raise HTTPException(status_code=503, detail="Evolution system not initialized")
 
         await evolution.store.set_evolution_lock(skill_id, locked=locked)
 
@@ -316,9 +290,7 @@ async def toggle_evolution_lock(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail="Failed to update evolution lock"
-        ) from e
+        raise HTTPException(status_code=500, detail="Failed to update evolution lock") from e
 
     action = "evolution_lock" if locked else "evolution_unlock"
     _audit_skill_action(action, skill_id)

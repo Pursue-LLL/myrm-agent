@@ -58,12 +58,8 @@ async def test_analyze_url_success(mock_analyze_github_url):
         mock_client.return_value.__aenter__.return_value = mock_instance
         mock_instance.get = AsyncMock(
             side_effect=[
-                _make_response(
-                    200, "---\nname: skill1\ndescription: The first skill\n---\n"
-                ),
-                _make_response(
-                    200, "---\nname: skill2\ndescription: The second skill\n---\n"
-                ),
+                _make_response(200, "---\nname: skill1\ndescription: The first skill\n---\n"),
+                _make_response(200, "---\nname: skill2\ndescription: The second skill\n---\n"),
             ]
         )
         results = await service.analyze_url(url)
@@ -136,9 +132,7 @@ async def test_uninstall_success_purges_permission_data() -> None:
     result = MagicMock(success=True)
     with (
         patch.object(service, "_base") as mock_base,
-        patch.object(
-            service, "_auto_disable_local_skill", new_callable=AsyncMock
-        ) as mock_disable,
+        patch.object(service, "_auto_disable_local_skill", new_callable=AsyncMock) as mock_disable,
         patch(
             "app.core.skills.marketplace.market_service.purge_skill_permissions",
             new_callable=AsyncMock,
@@ -159,9 +153,7 @@ async def test_uninstall_failure_skips_purge() -> None:
     result = MagicMock(success=False)
     with (
         patch.object(service, "_base") as mock_base,
-        patch.object(
-            service, "_auto_disable_local_skill", new_callable=AsyncMock
-        ) as mock_disable,
+        patch.object(service, "_auto_disable_local_skill", new_callable=AsyncMock) as mock_disable,
         patch(
             "app.core.skills.marketplace.market_service.purge_skill_permissions",
             new_callable=AsyncMock,
@@ -395,9 +387,7 @@ def test_register_custom_sources_invalid_entry_warns() -> None:
             side_effect=ValueError("bad url"),
         ) as mock_wellknown,
     ):
-        mock_load.return_value = SimpleNamespace(
-            sources=[SimpleNamespace(source_type="well-known", url="http://bad")]
-        )
+        mock_load.return_value = SimpleNamespace(sources=[SimpleNamespace(source_type="well-known", url="http://bad")])
         with patch.object(service, "_base") as mock_base:
             service._register_custom_sources()
 
@@ -412,9 +402,7 @@ async def test_uninstall_purge_failure_keeps_result() -> None:
     result = MagicMock(success=True)
     with (
         patch.object(service, "_base") as mock_base,
-        patch.object(
-            service, "_auto_disable_local_skill", new_callable=AsyncMock
-        ),
+        patch.object(service, "_auto_disable_local_skill", new_callable=AsyncMock),
         patch(
             "app.core.skills.marketplace.market_service.purge_skill_permissions",
             new_callable=AsyncMock,
@@ -558,4 +546,3 @@ async def test_market_service_agent_plugin_search_and_install() -> None:
         install_res = await service.install("plugin::doc-tools", "github")
         assert install_res.success is True
         assert install_res.installed_skills == ["doc-gen", "doc-lint"]
-

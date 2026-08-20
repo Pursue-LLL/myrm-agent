@@ -135,15 +135,11 @@ async def _build_skill_scans(skill_ids: list[str]) -> list[SkillScanInput]:
     return scans
 
 
-async def _build_subagent_inputs(
-    subagent_ids: list[str], db: AsyncSession
-) -> list[SubagentInput]:
+async def _build_subagent_inputs(subagent_ids: list[str], db: AsyncSession) -> list[SubagentInput]:
     """Build sub-agent inputs for recursive risk assessment."""
     if not subagent_ids:
         return []
-    result = await db.execute(
-        select(Agent).where(Agent.id.in_(subagent_ids))
-    )
+    result = await db.execute(select(Agent).where(Agent.id.in_(subagent_ids)))
     inputs: list[SubagentInput] = []
     for sub in result.scalars():
         inputs.append(
@@ -158,13 +154,9 @@ async def _build_subagent_inputs(
     return inputs
 
 
-async def _build_cron_inputs(
-    agent_id: str, enabled_tools: list[str], db: AsyncSession
-) -> list[CronJobInput]:
+async def _build_cron_inputs(agent_id: str, enabled_tools: list[str], db: AsyncSession) -> list[CronJobInput]:
     """Build cron job inputs for unattended execution risk assessment."""
-    result = await db.execute(
-        select(CronJobModel).where(CronJobModel.agent_id == agent_id)
-    )
+    result = await db.execute(select(CronJobModel).where(CronJobModel.agent_id == agent_id))
     jobs: list[CronJobInput] = []
     for job in result.scalars():
         schedule_dict = job.schedule or {}
@@ -184,12 +176,8 @@ async def _build_cron_inputs(
 def _build_security_policy(overrides: dict[str, object]) -> SecurityPolicyInput:
     """Build security policy input from Agent's security overrides."""
     path_policy = overrides.get("pathPolicy")
-    has_path = bool(
-        isinstance(path_policy, dict) and path_policy.get("allowedRoots")
-    )
-    has_network = bool(
-        overrides.get("networkAllowlist") or overrides.get("networkBlocklist")
-    )
+    has_path = bool(isinstance(path_policy, dict) and path_policy.get("allowedRoots"))
+    has_network = bool(overrides.get("networkAllowlist") or overrides.get("networkBlocklist"))
     has_caps = bool(overrides.get("capabilities"))
     timeout = overrides.get("approvalTimeoutSeconds")
     domain_hitl = bool(overrides.get("domainHitlEnabled"))

@@ -98,9 +98,7 @@ async def _count_active_messages(chat_id: str) -> int:
 
     factory = get_session_factory()
     async with factory() as db:
-        result = await db.execute(
-            select(func.count()).where(Message.chat_id == chat_id, Message.is_active.is_(True))
-        )
+        result = await db.execute(select(func.count()).where(Message.chat_id == chat_id, Message.is_active.is_(True)))
         return result.scalar_one()
 
 

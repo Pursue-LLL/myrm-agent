@@ -13,9 +13,7 @@ import uuid
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -67,9 +65,7 @@ def _multipart_clip_post(
     return payload
 
 
-def _poll_clip_job(
-    api_url: str, job_id: str, *, timeout_sec: float = 30.0
-) -> dict[str, object]:
+def _poll_clip_job(api_url: str, job_id: str, *, timeout_sec: float = 30.0) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -128,11 +124,7 @@ def _create_clip_e2e_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url.rstrip('/')}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -210,9 +202,7 @@ def _run_clip_conflict_assertions(api_url: str) -> None:
     assert repeat.get("written") is False, repeat
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

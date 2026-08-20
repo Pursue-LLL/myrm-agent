@@ -131,9 +131,7 @@ def drawer_expired_js() -> str:
 }})()"""
 
 
-def evicted_request_probe_js(
-    *, expected_offset: int = 0, expected_limit: int = 500
-) -> str:
+def evicted_request_probe_js(*, expected_offset: int = 0, expected_limit: int = 500) -> str:
     """Probe evicted API pagination params via a fetch monkey-patch.
 
     Resource-timing probes miss requests served from cache and can be dropped

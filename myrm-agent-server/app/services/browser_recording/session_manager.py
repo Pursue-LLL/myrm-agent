@@ -44,11 +44,7 @@ _SESSION_TTL_SECONDS = 1800  # 30 minutes
 def _prune_stale_sessions() -> None:
     """Remove stopped sessions older than TTL to prevent memory leaks."""
     now = time.time()
-    stale = [
-        sid
-        for sid, s in _sessions.items()
-        if s.status == "stopped" and (now - s.start_time) > _SESSION_TTL_SECONDS
-    ]
+    stale = [sid for sid, s in _sessions.items() if s.status == "stopped" and (now - s.start_time) > _SESSION_TTL_SECONDS]
     for sid in stale:
         _sessions.pop(sid, None)
         logger.debug(f"Auto-pruned stale session: {sid}")

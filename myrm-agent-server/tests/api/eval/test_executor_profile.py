@@ -51,9 +51,8 @@ async def test_server_eval_executor_skill_ids_override(tmp_path):
     agent_types_mod.RerankerConfig = RerankerConfig
     GeneralAgentParams.model_rebuild()
 
-    with patch(
-        "app.core.eval.executor.AgentFactory.create_general_agent"
-    ) as mock_agent_factory:
+    with patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_agent_factory:
+
         async def mock_ainvoke(*args, **kwargs):
             yield {"agent": {"messages": [{"content": "Hi"}]}}
 
@@ -68,33 +67,21 @@ async def test_server_eval_executor_skill_ids_override(tmp_path):
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test", apiKey="test"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test", apiKey="test")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_configs.return_value = mock_cfg
 
-            with patch(
-                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver"
-            ) as mock_resolver_getter:
-                mock_resolver_getter.return_value = MockProfileResolver(
-                    MockResolvedProfile()
-                )
+            with patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver") as mock_resolver_getter:
+                mock_resolver_getter.return_value = MockProfileResolver(MockResolvedProfile())
 
                 # [] disables profile skills for the "core" layer.
-                executor = LocalEvalExecutor(
-                    profile_id="mock_id", skill_ids_override=[]
-                )
+                executor = LocalEvalExecutor(profile_id="mock_id", skill_ids_override=[])
                 await executor.execute("Hi")
                 params = mock_agent_factory.call_args[0][0]
                 assert params.agent_skill_ids == []
 
                 # An explicit list pins an exact skill set.
-                executor = LocalEvalExecutor(
-                    profile_id="mock_id", skill_ids_override=["skillX"]
-                )
+                executor = LocalEvalExecutor(profile_id="mock_id", skill_ids_override=["skillX"])
                 await executor.execute("Hi")
                 params = mock_agent_factory.call_args[0][0]
                 assert params.agent_skill_ids == ["skillX"]
@@ -120,9 +107,7 @@ async def test_server_eval_executor_skill_ids_override(tmp_path):
     executor = LocalEvalExecutor(profile_id="mock_id")
     assert executor.profile_id == "mock_id"
 
-    with patch(
-        "app.core.eval.executor.AgentFactory.create_general_agent"
-    ) as mock_agent_factory:
+    with patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_agent_factory:
         # Mock the async generator for the agent's ainvoke
         async def mock_ainvoke(*args, **kwargs):
             yield {"agent": {"messages": [{"content": "Hello eval"}]}}
@@ -138,20 +123,12 @@ async def test_server_eval_executor_skill_ids_override(tmp_path):
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test", apiKey="test"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test", apiKey="test")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_configs.return_value = mock_cfg
 
-            with patch(
-                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver"
-            ) as mock_resolver_getter:
-                mock_resolver_getter.return_value = MockProfileResolver(
-                    MockResolvedProfile()
-                )
+            with patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver") as mock_resolver_getter:
+                mock_resolver_getter.return_value = MockProfileResolver(MockResolvedProfile())
 
                 # Execute with a fake message
                 response = await executor.execute("Hello")
@@ -236,12 +213,8 @@ class TestExecutorSessionAndWorkspace:
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test", apiKey="test"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test", apiKey="test")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_configs.return_value = mock_cfg
             with patch(
                 "app.services.agent.resolve_enable_web_fetch.resolve_enable_web_fetch",
@@ -267,9 +240,7 @@ class TestExecutorSessionAndWorkspace:
         agent_types_mod.RerankerConfig = RerankerConfig
         GeneralAgentParams.model_rebuild()
 
-        executor = LocalEvalExecutor(
-            workspace_seed_map={"Hello": str(tmp_path / "nope")}
-        )
+        executor = LocalEvalExecutor(workspace_seed_map={"Hello": str(tmp_path / "nope")})
 
         async def mock_ainvoke(*args, **kwargs):
             yield {"type": "message", "data": "Hello"}
@@ -290,12 +261,8 @@ class TestExecutorSessionAndWorkspace:
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test", apiKey="test"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test", apiKey="test")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_configs.return_value = mock_cfg
             with patch(
                 "app.services.agent.resolve_enable_web_fetch.resolve_enable_web_fetch",
@@ -334,9 +301,7 @@ class TestExecutorEventParsing:
             yield {"type": "tasks_steps"}
             yield {
                 "type": "token_usage",
-                "data": {
-                    "usage": {"prompt_tokens": 10, "completion_tokens": 5}
-                },
+                "data": {"usage": {"prompt_tokens": 10, "completion_tokens": 5}},
             }
             yield {"type": "token_usage", "data": "not-a-dict"}
             yield {"type": "message", "data": "second"}
@@ -356,12 +321,8 @@ class TestExecutorEventParsing:
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test", apiKey="test"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test", apiKey="test")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_configs.return_value = mock_cfg
             with patch(
                 "app.services.agent.resolve_enable_web_fetch.resolve_enable_web_fetch",

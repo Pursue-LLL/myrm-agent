@@ -25,7 +25,7 @@ def build_disconnect_checker(session: AgentStreamSession) -> Callable[[], Awaita
         # If multiplexed, we don't rely on the HTTP request connection state
         if getattr(session.request, "multiplexed", False):
             return False
-            
+
         disconnected = await session.http_request.is_disconnected()
         has_active_subscribers = session.collector.has_subscribers
 

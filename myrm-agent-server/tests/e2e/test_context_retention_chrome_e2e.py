@@ -10,9 +10,7 @@ from collections.abc import Callable
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -255,9 +253,7 @@ def _await_attach_chat(
                 timeout_sec=min(45.0, _attach_eval_timeout_sec(), remaining),
             )
         except RuntimeError as exc:
-            if "CDP request timeout" not in str(exc) and "Runtime.evaluate" not in str(
-                exc
-            ):
+            if "CDP request timeout" not in str(exc) and "Runtime.evaluate" not in str(exc):
                 raise
             last = {"err": str(exc)}
             time.sleep(2.0)
@@ -485,15 +481,11 @@ def _ensure_react_bridge_on_home(
         timeout_sec=min(90.0, _bridge_ready_timeout_sec()),
         page_url=home_url,
     )
-    assert bridge_ready.get("ready") is True, json.dumps(
-        bridge_ready, ensure_ascii=False
-    )
+    assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
     return bridge_ready
 
 
-def _run_retention_assertions(
-    api_url: str, ui_url: str, *, warm_route: bool = True
-) -> None:
+def _run_retention_assertions(api_url: str, ui_url: str, *, warm_route: bool = True) -> None:
     seeded = _seed_fixture(api_url)
     chat_id = str(seeded["chat_id"])
     chat_url = f"{ui_url.rstrip('/')}/{chat_id}"
@@ -524,10 +516,7 @@ def _run_retention_assertions(
             _CHAT_UI_READY_JS,
             timeout_sec=30.0,
         )
-        if (
-            chat_ui_probe.get("ready") is not True
-            and chat_ui_probe.get("hasMessageListSkeleton") is True
-        ):
+        if chat_ui_probe.get("ready") is not True and chat_ui_probe.get("hasMessageListSkeleton") is True:
             reload_mcp_page(client, page, target_url=chat_url, timeout_ms=60_000)
             dismiss_blocking_modals(client, page)
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
@@ -579,9 +568,7 @@ def _run_retention_assertions(
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
 
         fork_clicked = client.evaluate(page, _FORK_BOOKMARK_CLICK_JS, timeout_sec=45.0)
-        assert (
-            isinstance(fork_clicked, dict) and fork_clicked.get("ok") is True
-        ), fork_clicked
+        assert isinstance(fork_clicked, dict) and fork_clicked.get("ok") is True, fork_clicked
 
         fork_state = wait_for_state(
             client,
@@ -613,9 +600,7 @@ def _run_with_transport_retry(
         raise last_error
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

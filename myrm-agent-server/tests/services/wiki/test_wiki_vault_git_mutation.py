@@ -61,16 +61,22 @@ def test_apply_endpoint_triggers_vault_mutation_hook() -> None:
         message="ok",
         content_hash="abc",
     )
-    with patch(
-        "app.api.wiki.router._after_wiki_vault_mutation",
-        new_callable=AsyncMock,
-    ) as mutation_mock, patch(
-        "myrm_agent_harness.toolkits.wiki.pipeline.apply.apply_wiki_mutation",
-        new_callable=AsyncMock,
-        return_value=apply_result,
-    ), patch(
-        "app.middleware.auth.resolve_identity",
-        return_value=MagicMock(user_id="local", auth_source="loopback", loopback=True, client_ip="127.0.0.1", private_net=False),
+    with (
+        patch(
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
+        ) as mutation_mock,
+        patch(
+            "myrm_agent_harness.toolkits.wiki.pipeline.apply.apply_wiki_mutation",
+            new_callable=AsyncMock,
+            return_value=apply_result,
+        ),
+        patch(
+            "app.middleware.auth.resolve_identity",
+            return_value=MagicMock(
+                user_id="local", auth_source="loopback", loopback=True, client_ip="127.0.0.1", private_net=False
+            ),
+        ),
     ):
         response = client.post(
             "/api/v1/wiki/apply",

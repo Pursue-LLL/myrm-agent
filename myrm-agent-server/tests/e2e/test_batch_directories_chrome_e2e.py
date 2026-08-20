@@ -103,9 +103,7 @@ def _cleanup_temp_dirs() -> None:
         _CREATED_DIRS.discard(path)
 
 
-def _wait_terminal(
-    api_url: str, project_id: str, *, timeout_sec: float = 90.0
-) -> dict[str, object]:
+def _wait_terminal(api_url: str, project_id: str, *, timeout_sec: float = 90.0) -> dict[str, object]:
     """Poll the project until it reaches a terminal status."""
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
@@ -118,9 +116,7 @@ def _wait_terminal(
     raise AssertionError(f"Batch project {project_id} did not reach terminal state")
 
 
-def _delete_project(
-    api_url: str, project_id: str, *, timeout_sec: float = 120.0
-) -> None:
+def _delete_project(api_url: str, project_id: str, *, timeout_sec: float = 120.0) -> None:
     """Cancel any running tasks, wait for terminal state, then delete.
 
     ``delete_project`` refuses while a task is still non-terminal, so teardown
@@ -142,14 +138,10 @@ def _delete_project(
             if "still has running tasks" not in str(exc):
                 raise
             time.sleep(2.0)
-    raise AssertionError(
-        f"Batch project {project_id} tasks did not settle before delete"
-    )
+    raise AssertionError(f"Batch project {project_id} tasks did not settle before delete")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_batch_directory_detail_page_renders_project() -> None:
@@ -191,9 +183,7 @@ def test_batch_directory_detail_page_renders_project() -> None:
         _delete_project(api_url, project_id)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(420)
 def test_batch_directory_terminal_state_renders_duration() -> None:
@@ -244,9 +234,7 @@ def test_batch_directory_terminal_state_renders_duration() -> None:
         _delete_project(api_url, project_id)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_batch_directory_list_page_shows_created_project() -> None:

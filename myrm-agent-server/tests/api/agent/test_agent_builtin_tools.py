@@ -17,6 +17,7 @@ def _e2e_request(method: str, url: str, **kwargs: object) -> httpx.Response:
     with httpx.Client(trust_env=False, timeout=_E2E_TIMEOUT) as client:
         return client.request(method, url, **kwargs)
 
+
 _skip_e2e = pytest.mark.skipif(
     not os.getenv("RUN_E2E_TESTS"),
     reason="Set RUN_E2E_TESTS=1 to run end-to-end tests against live server",
@@ -135,9 +136,7 @@ class TestAgentBuiltinToolsCRUD:
         assert resp.status_code == 200
         agent = resp.json()["data"]
         agent_id = agent["id"]
-        assert normalize_enabled_builtin_tools(agent["enabled_builtin_tools"]) == list(
-            DEFAULT_ENABLED_BUILTIN_TOOLS
-        )
+        assert normalize_enabled_builtin_tools(agent["enabled_builtin_tools"]) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
         _e2e_request(
             "DELETE",
@@ -222,9 +221,7 @@ class TestAgentBuiltinToolsCRUD:
         detail = resp.json()["detail"]
         assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
 
-    def test_update_agent_rejects_legacy_builtin_tool_id(
-        self, auth_headers: dict[str, str], created_agent_id: str
-    ) -> None:
+    def test_update_agent_rejects_legacy_builtin_tool_id(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
         """Legacy task_tracking must be rejected on PUT with 422."""
         resp = _e2e_request(
             "PUT",
@@ -236,9 +233,7 @@ class TestAgentBuiltinToolsCRUD:
         detail = resp.json()["detail"]
         assert any("task_tracking" in str(item.get("msg", "")) for item in detail)
 
-    def test_update_agent_rejects_legacy_web_crawl(
-        self, auth_headers: dict[str, str], created_agent_id: str
-    ) -> None:
+    def test_update_agent_rejects_legacy_web_crawl(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
         """Removed web_crawl must be rejected on PUT with 422."""
         resp = _e2e_request(
             "PUT",
@@ -250,9 +245,7 @@ class TestAgentBuiltinToolsCRUD:
         detail = resp.json()["detail"]
         assert any("web_crawl" in str(item.get("msg", "")) for item in detail)
 
-    def test_update_agent_rejects_unknown_builtin_tool_id(
-        self, auth_headers: dict[str, str], created_agent_id: str
-    ) -> None:
+    def test_update_agent_rejects_unknown_builtin_tool_id(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
         """Unknown tool IDs must be rejected on PUT with 422."""
         resp = _e2e_request(
             "PUT",
@@ -270,9 +263,7 @@ class TestAgentBuiltinToolsCRUD:
         from app.services.agent.builtin_specs.builtin_tool_ids import normalize_enabled_builtin_tools
         from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS
 
-        visible_specs = [
-            spec for spec in _BUILTIN_AGENTS if spec.id not in HIDDEN_BUILTIN_AGENT_IDS
-        ]
+        visible_specs = [spec for spec in _BUILTIN_AGENTS if spec.id not in HIDDEN_BUILTIN_AGENT_IDS]
 
         resp = _e2e_request(
             "GET",
@@ -281,16 +272,10 @@ class TestAgentBuiltinToolsCRUD:
         )
         assert resp.status_code == 200
         items = resp.json()["data"]["items"]
-        api_by_id = {
-            item["id"]: item["enabled_builtin_tools"]
-            for item in items
-            if item.get("is_built_in")
-        }
+        api_by_id = {item["id"]: item["enabled_builtin_tools"] for item in items if item.get("is_built_in")}
         assert len(api_by_id) == len(visible_specs)
         for spec in visible_specs:
-            assert normalize_enabled_builtin_tools(api_by_id[spec.id]) == list(
-                spec.enabled_builtin_tools or ()
-            )
+            assert normalize_enabled_builtin_tools(api_by_id[spec.id]) == list(spec.enabled_builtin_tools or ())
 
         for hidden_id in HIDDEN_BUILTIN_AGENT_IDS:
             hidden_resp = _e2e_request(
@@ -301,9 +286,7 @@ class TestAgentBuiltinToolsCRUD:
             assert hidden_resp.status_code == 200
             hidden_spec = next(spec for spec in _BUILTIN_AGENTS if spec.id == hidden_id)
             hidden_tools = hidden_resp.json()["data"]["enabled_builtin_tools"]
-            assert normalize_enabled_builtin_tools(hidden_tools) == list(
-                hidden_spec.enabled_builtin_tools or ()
-            )
+            assert normalize_enabled_builtin_tools(hidden_tools) == list(hidden_spec.enabled_builtin_tools or ())
 
 
 class TestAgentConfigRequestBuiltinTools:

@@ -27,9 +27,7 @@ _FORBIDDEN_LEGACY_FLAT_FILES = (
 
 @pytest.mark.architecture
 def test_marketplace_subpackage_layout() -> None:
-    assert _MARKETPLACE_PACKAGE.is_dir(), (
-        f"Missing {_MARKETPLACE_PACKAGE}. See app/services/agent/marketplace/_ARCH.md."
-    )
+    assert _MARKETPLACE_PACKAGE.is_dir(), f"Missing {_MARKETPLACE_PACKAGE}. See app/services/agent/marketplace/_ARCH.md."
     for filename in _REQUIRED_MODULE_FILES:
         path = _MARKETPLACE_PACKAGE / filename
         assert path.is_file(), f"Missing required marketplace module file: {path}"
@@ -40,6 +38,5 @@ def test_marketplace_subpackage_layout() -> None:
 def test_marketplace_legacy_flat_files_removed(legacy_filename: str) -> None:
     legacy_path = _AGENT_SERVICES_ROOT / legacy_filename
     assert not legacy_path.exists(), (
-        f"Legacy flat marketplace file must not reappear: {legacy_path}. "
-        "Use app/services/agent/marketplace/ instead."
+        f"Legacy flat marketplace file must not reappear: {legacy_path}. Use app/services/agent/marketplace/ instead."
     )

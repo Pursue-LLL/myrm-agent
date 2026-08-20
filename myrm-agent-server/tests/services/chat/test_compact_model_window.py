@@ -19,9 +19,7 @@ async def test_get_llm_for_user_returns_real_window():
     """_get_llm_for_user returns the model's actual max_context_tokens."""
     from app.core.types import ModelConfig
 
-    mock_model_cfg = ModelConfig(
-        model="openai/gpt-4o", api_key="test-key", max_context_tokens=32000
-    )
+    mock_model_cfg = ModelConfig(model="openai/gpt-4o", api_key="test-key", max_context_tokens=32000)
 
     mock_configs = MagicMock()
     mock_configs.model_cfg = mock_model_cfg
@@ -127,9 +125,7 @@ async def test_guarded_compact_summarize_passes_config():
 
     captured_config: list[ContextConfig | None] = []
 
-    async def fake_generate(
-        messages, llm, chat_id, existing_summary=None, focus_topic="", progress_tracker=None, config=None
-    ):
+    async def fake_generate(messages, llm, chat_id, existing_summary=None, focus_topic="", progress_tracker=None, config=None):
         captured_config.append(config)
         return messages, StructuredSummary(
             user_goal="test",
@@ -165,9 +161,7 @@ async def test_get_llm_for_user_large_window_200k():
     """_get_llm_for_user correctly returns large windows like Gemini 1M or Claude 200k."""
     from app.core.types import ModelConfig
 
-    mock_model_cfg = ModelConfig(
-        model="openai/gpt-4o", api_key="test-key", max_context_tokens=200000
-    )
+    mock_model_cfg = ModelConfig(model="openai/gpt-4o", api_key="test-key", max_context_tokens=200000)
 
     mock_configs = MagicMock()
     mock_configs.model_cfg = mock_model_cfg
@@ -198,9 +192,7 @@ async def test_get_llm_for_user_zero_treated_as_falsy():
     """max_context_tokens=0 is treated as falsy and falls back to 128000."""
     from app.core.types import ModelConfig
 
-    mock_model_cfg = ModelConfig(
-        model="openai/gpt-4o", api_key="test-key", max_context_tokens=0
-    )
+    mock_model_cfg = ModelConfig(model="openai/gpt-4o", api_key="test-key", max_context_tokens=0)
 
     mock_configs = MagicMock()
     mock_configs.model_cfg = mock_model_cfg
@@ -236,9 +228,7 @@ async def test_guarded_compact_summarize_default_128k():
 
     captured_config: list[ContextConfig | None] = []
 
-    async def fake_generate(
-        messages, llm, chat_id, existing_summary=None, focus_topic="", progress_tracker=None, config=None
-    ):
+    async def fake_generate(messages, llm, chat_id, existing_summary=None, focus_topic="", progress_tracker=None, config=None):
         captured_config.append(config)
         return messages, StructuredSummary(
             user_goal="test",

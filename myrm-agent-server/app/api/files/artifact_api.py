@@ -78,7 +78,7 @@ def _probe_assessment_import_candidate(
         }
 
     vault_uri = latest_version.vault_uri
-    object_id = vault_uri[len("vault://"):] if vault_uri.startswith("vault://") else vault_uri
+    object_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
     object_path = vault.get_object_path(object_id)
     if not object_path.exists():
         return {
@@ -152,8 +152,7 @@ def _artifact_summary(
         "created_at": artifact.created_at.isoformat(),
         "updated_at": artifact.updated_at.isoformat(),
         "publications": [
-            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id))
-            for row in publications
+            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id)) for row in publications
         ],
     }
     latest = _latest_version(artifact)
@@ -202,7 +201,9 @@ async def list_artifacts(
                 already_imported_version_ids = {row[0] for row in ledger_result.all()}
         assessment_import_candidate_map = {
             artifact.id: _probe_assessment_import_candidate(
-                artifact, vault=candidate_vault, already_imported_version_ids=already_imported_version_ids,
+                artifact,
+                vault=candidate_vault,
+                already_imported_version_ids=already_imported_version_ids,
             )
             for artifact in artifacts
         }
@@ -272,8 +273,7 @@ async def get_artifact_versions(
         "name": artifact.name,
         "latest_version_id": latest_version_id,
         "publications": [
-            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id))
-            for row in publications
+            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id)) for row in publications
         ],
         "versions": [
             {

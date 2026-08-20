@@ -78,4 +78,3 @@ async def test_migrates_legacy_name_based_local_ids(tmp_path: Path) -> None:
     save_mock.assert_awaited_once()
     saved = save_mock.await_args.args[0]
     assert saved.enabled_local_skill_ids == [expected_id]
-

@@ -91,20 +91,15 @@ def _write_fake_subset(
                 )
             elif verifier_family == "pytest_injected":
                 (tests_dir / "verifier.toml").write_text(
-                    'family = "pytest_injected"\n'
-                    "[run]\n"
-                    'command = "python -m pytest --junitxml=/logs/verifier/results.xml"\n'
+                    'family = "pytest_injected"\n[run]\ncommand = "python -m pytest --junitxml=/logs/verifier/results.xml"\n'
                 )
                 injected = tests_dir / "injected" / "tests"
                 injected.mkdir(parents=True)
                 (injected / "test_app.py").write_text("def test_ok(): assert True\n")
             elif verifier_family == "repo_understanding":
-                (tests_dir / "verifier.toml").write_text(
-                    'family = "repo_understanding"\n'
-                )
+                (tests_dir / "verifier.toml").write_text('family = "repo_understanding"\n')
                 (tests_dir / "scorer.py").write_text(
-                    "import json\n"
-                    "json.dump({'reward': 1.0}, open('.wb_bench/reward.json', 'w'))\n"
+                    "import json\njson.dump({'reward': 1.0}, open('.wb_bench/reward.json', 'w'))\n"
                 )
             else:
                 raise AssertionError(f"unknown verifier_family={verifier_family}")
@@ -112,9 +107,7 @@ def _write_fake_subset(
             tests_dir = task_dir / "tests"
             (tests_dir / "grading").mkdir(parents=True)
             (tests_dir / "gold").mkdir(parents=True)
-            (tests_dir / "grading" / "test_verify.py").write_text(
-                "def test_grading(): assert True\n"
-            )
+            (tests_dir / "grading" / "test_verify.py").write_text("def test_grading(): assert True\n")
             (tests_dir / "gold" / "gold_answer.json").write_text("{}")
             (tests_dir / "verifier.toml").write_text(
                 'schema_version = "workbuddy.office.verifier.v1"\n'
@@ -178,9 +171,7 @@ def test_download_extracts_atomically(tmp_path: Path) -> None:
         headers: dict[str, str] = {}
 
         def __init__(self) -> None:
-            self._chunks = [
-                archive_bytes[i : i + 1024] for i in range(0, len(archive_bytes), 1024)
-            ]
+            self._chunks = [archive_bytes[i : i + 1024] for i in range(0, len(archive_bytes), 1024)]
 
         def raise_for_status(self) -> None:
             return None
@@ -225,9 +216,7 @@ def test_download_extracts_atomically(tmp_path: Path) -> None:
         patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
         patch("app.core.eval.wb_bench.download.httpx.AsyncClient", _FakeAsyncClient),
     ):
-        mock_client.return_value.__enter__.return_value.get.return_value.text = (
-            f"{expected_sha}  {subset.archive}\n"
-        )
+        mock_client.return_value.__enter__.return_value.get.return_value.text = f"{expected_sha}  {subset.archive}\n"
         root = _run(wb.ensure_wb_bench_source("code"))
 
     assert (root / "tasks").is_dir()
@@ -287,9 +276,7 @@ def test_download_checksum_mismatch_rejected(tmp_path: Path) -> None:
         patch("app.core.eval.wb_bench.download.httpx.AsyncClient", _FakeAsyncClient),
     ):
         # Wrong checksum in the manifest → every attempt fails verification.
-        mock_client.return_value.__enter__.return_value.get.return_value.text = (
-            f"{'0' * 64}  {subset.archive}\n"
-        )
+        mock_client.return_value.__enter__.return_value.get.return_value.text = f"{'0' * 64}  {subset.archive}\n"
         with pytest.raises(ValueError, match="Failed to download"):
             _run(wb.ensure_wb_bench_source("web"))
 
@@ -319,9 +306,7 @@ def test_download_retries_transient_checksum_mismatch(tmp_path: Path) -> None:
         def aiter_bytes(self, chunk_size: int):  # type: ignore[no-untyped-def]
             attempts["n"] += 1
             # First response is corrupt; the retried response matches the hash.
-            payload = (
-                archive_bytes if attempts["n"] > 1 else b"corrupt-" + archive_bytes
-            )
+            payload = archive_bytes if attempts["n"] > 1 else b"corrupt-" + archive_bytes
             return _AsyncIter([payload])
 
     class _AsyncIter:
@@ -353,9 +338,7 @@ def test_download_retries_transient_checksum_mismatch(tmp_path: Path) -> None:
         patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
         patch("app.core.eval.wb_bench.download.httpx.AsyncClient", _FakeAsyncClient),
     ):
-        mock_client.return_value.__enter__.return_value.get.return_value.text = (
-            f"{expected_sha}  {subset.archive}\n"
-        )
+        mock_client.return_value.__enter__.return_value.get.return_value.text = f"{expected_sha}  {subset.archive}\n"
         root = _run(wb.ensure_wb_bench_source("web"))
 
     assert (root / "tasks").is_dir()
@@ -377,9 +360,7 @@ def test_fetch_expected_sha256_tolerates_single_space(tmp_path: Path) -> None:
     subset = wb._SUBSET_BY_ID["web"]
     expected_sha = "a" * 64
     with patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client:
-        mock_client.return_value.__enter__.return_value.get.return_value.text = (
-            f"{expected_sha} {subset.archive}\n"
-        )
+        mock_client.return_value.__enter__.return_value.get.return_value.text = f"{expected_sha} {subset.archive}\n"
         assert wb._fetch_expected_sha256(subset) == expected_sha
 
 
@@ -388,9 +369,7 @@ def test_ensure_installed_is_idempotent(tmp_path: Path) -> None:
     _write_fake_subset(wb.SOURCES_DIR, "office", ["t1"])
     subset = wb._SUBSET_BY_ID["office"]
     wb.ARCHIVES_DIR.mkdir(parents=True, exist_ok=True)
-    (wb.ARCHIVES_DIR / subset.archive).write_bytes(
-        _tar_gz_bytes("wb-bench-office-v1.0")
-    )
+    (wb.ARCHIVES_DIR / subset.archive).write_bytes(_tar_gz_bytes("wb-bench-office-v1.0"))
 
     with patch.object(wb, "_download_archive") as mock_download:
         root = _run(wb.ensure_wb_bench_source("office"))
@@ -404,9 +383,7 @@ def test_build_aborts_during_workspace_preparation(tmp_path: Path) -> None:
     _write_fake_subset(wb.SOURCES_DIR, "office", ["t1", "t2"])
     subset = wb._SUBSET_BY_ID["office"]
     wb.ARCHIVES_DIR.mkdir(parents=True, exist_ok=True)
-    (wb.ARCHIVES_DIR / subset.archive).write_bytes(
-        _tar_gz_bytes("wb-bench-office-v1.0")
-    )
+    (wb.ARCHIVES_DIR / subset.archive).write_bytes(_tar_gz_bytes("wb-bench-office-v1.0"))
 
     prep_calls = {"n": 0}
     orig_prep = wbw._prepare_workspace
@@ -422,9 +399,7 @@ def test_build_aborts_during_workspace_preparation(tmp_path: Path) -> None:
         patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
         patch.object(wbw, "_prepare_workspace", side_effect=_counting_prep),
     ):
-        mock_client.return_value.__enter__.return_value.get.side_effect = OSError(
-            "offline"
-        )
+        mock_client.return_value.__enter__.return_value.get.side_effect = OSError("offline")
         with pytest.raises(wb.DownloadAbortedError, match="aborted"):
             wbw.build_wb_bench_cases("office", should_abort=_flaky_abort)
 
@@ -455,9 +430,7 @@ def test_safe_extract_blocks_traversal(tmp_path: Path) -> None:
 
 
 def test_build_cases_maps_tasks_and_seeds_workspaces(tmp_path: Path) -> None:
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "sec", ["t1", "t2"], verifier_family="script_verifier"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "sec", ["t1", "t2"], verifier_family="script_verifier")
     subset = wb._SUBSET_BY_ID["sec"]
 
     cases: list[wbw.MultiTurnEvalCase] = []
@@ -579,9 +552,7 @@ def test_scoring_mode_recorded_in_metadata(tmp_path: Path) -> None:
 
 def test_code_and_web_assertion_injection(tmp_path: Path) -> None:
     """Code tasks carry a pytest-injected rule assertion; Web tasks stay assertion-free."""
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected")
     subset = wb._SUBSET_BY_ID["code"]
     task_dir = next(source_root.glob("tasks/*"))
 
@@ -601,18 +572,14 @@ def test_code_and_web_assertion_injection(tmp_path: Path) -> None:
     assert assertion[0].result_file == "{workspace}/.wb_bench/results.xml"
     assert assertion[0].readonly_paths == (str(task_dir / "tests"),)
 
-    web_case = wbw._case_for_task(
-        task_dir, wb._SUBSET_BY_ID["web"], workspace_dir=workspace
-    )
+    web_case = wbw._case_for_task(task_dir, wb._SUBSET_BY_ID["web"], workspace_dir=workspace)
     assert web_case.turns[0].sandbox_assertions == []
     assert web_case.metadata["wb_bench_scoring"] == "composite"
 
 
 def test_repo_understanding_assertion_injection(tmp_path: Path) -> None:
     """repo_understanding tasks wire scorer.py against the seeded repo."""
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "code", ["t1"], verifier_family="repo_understanding"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="repo_understanding")
     subset = wb._SUBSET_BY_ID["code"]
     task_dir = next(source_root.glob("tasks/*"))
 
@@ -629,9 +596,7 @@ def test_repo_understanding_assertion_injection(tmp_path: Path) -> None:
 
 def test_pytest_injected_command_rewrites_harbor_log_path(tmp_path: Path) -> None:
     """Harbor log dirs in the declared pytest command map to the live workspace."""
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected")
     task_dir = next(source_root.glob("tasks/*"))
     subset = wb._SUBSET_BY_ID["code"]
 
@@ -648,9 +613,7 @@ def test_pytest_injected_keeps_declared_command_variants(tmp_path: Path) -> None
     interpreter and pytest) and ``bash -lc 'cd tests && python3 runtests.py ...'``
     (a non-pytest runner). Both must survive command building verbatim.
     """
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "code", ["t1", "t2"], verifier_family="pytest_injected"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1", "t2"], verifier_family="pytest_injected")
     (source_root / "tasks" / "t1" / "tests" / "verifier.toml").write_text(
         'family = "pytest_injected"\n'
         "[run]\n"
@@ -692,9 +655,7 @@ def test_office_verifier_injects_pytest_grading(tmp_path: Path) -> None:
     (pytest against /tests/grading) plus ``[env]`` paths. The generated command
     rewrites Harbor mounts to the read-only source cache and the live workspace.
     """
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "office", ["t1"], office_grading=True
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "office", ["t1"], office_grading=True)
     subset = wb._SUBSET_BY_ID["office"]
     task_dir = next(source_root.glob("tasks/*"))
 
@@ -719,9 +680,7 @@ def test_office_verifier_injects_pytest_grading(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_office_verifier_grading_full_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_office_verifier_grading_full_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An Office grading run passes end to end through the real executor."""
     import sys
 
@@ -751,9 +710,7 @@ async def test_office_verifier_grading_full_path(
     config.local.shared_venv_path = sys.prefix
     executor = LocalExecutor(config)
 
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "office", ["t1"], office_grading=True
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "office", ["t1"], office_grading=True)
     subset = wb._SUBSET_BY_ID["office"]
     task_dir = next(source_root.glob("tasks/*"))
     workspace = wbw._prepare_workspace(task_dir, subset)
@@ -764,9 +721,7 @@ async def test_office_verifier_grading_full_path(
 
     executor.bind_workspace(str(workspace))
     scores: dict[str, float] = {}
-    passed, details = await evaluate_sandbox_assertions(
-        assertion, executor, scores_out=scores
-    )
+    passed, details = await evaluate_sandbox_assertions(assertion, executor, scores_out=scores)
     assert passed is True, details
     assert scores["pass_rate"] == 1.0
     assert (workspace / ".wb_bench" / "results.xml").exists()
@@ -774,9 +729,7 @@ async def test_office_verifier_grading_full_path(
 
 def test_sec_direct_scorer_injects_reward_assertion(tmp_path: Path) -> None:
     """Security tasks scored by tests/scoring.py get a reward.json assertion."""
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "sec", ["t1"], direct_scorer="scoring.py"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "sec", ["t1"], direct_scorer="scoring.py")
     subset = wb._SUBSET_BY_ID["sec"]
     task_dir = next(source_root.glob("tasks/*"))
 
@@ -794,9 +747,7 @@ def test_sec_direct_scorer_injects_reward_assertion(tmp_path: Path) -> None:
 
 def test_sec_test_outputs_alt_scorer(tmp_path: Path) -> None:
     """tests/test_outputs.py is recognized as the Security direct scorer."""
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "sec", ["t1"], direct_scorer="test_outputs.py"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "sec", ["t1"], direct_scorer="test_outputs.py")
     task_dir = next(source_root.glob("tasks/*"))
     subset = wb._SUBSET_BY_ID["sec"]
 
@@ -808,9 +759,7 @@ def test_sec_test_outputs_alt_scorer(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_sec_direct_scorer_full_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_sec_direct_scorer_full_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A Security scorer writing reward.json grades end to end."""
     import sys
 
@@ -840,9 +789,7 @@ async def test_sec_direct_scorer_full_path(
     config.local.shared_venv_path = sys.prefix
     executor = LocalExecutor(config)
 
-    source_root = _write_fake_subset(
-        wb.SOURCES_DIR, "sec", ["t1"], direct_scorer="scoring.py"
-    )
+    source_root = _write_fake_subset(wb.SOURCES_DIR, "sec", ["t1"], direct_scorer="scoring.py")
     subset = wb._SUBSET_BY_ID["sec"]
     task_dir = next(source_root.glob("tasks/*"))
     workspace = wbw._prepare_workspace(task_dir, subset)
@@ -853,9 +800,7 @@ async def test_sec_direct_scorer_full_path(
 
     executor.bind_workspace(str(workspace))
     scores: dict[str, float] = {}
-    passed, details = await evaluate_sandbox_assertions(
-        assertion, executor, scores_out=scores
-    )
+    passed, details = await evaluate_sandbox_assertions(assertion, executor, scores_out=scores)
     assert passed is True, details
     assert scores["pass_rate"] == 1.0
     assert (workspace / "reward.json").exists()
@@ -913,9 +858,7 @@ class TestVerifierTomlGradingE2E:
         """A passing verifier yields reward 1.0 through the real executor."""
         from myrm_agent_harness.eval.assertions import evaluate_sandbox_assertions
 
-        source_root = _write_fake_subset(
-            wb.SOURCES_DIR, "code", ["t1"], verifier_family="script_verifier"
-        )
+        source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="script_verifier")
         subset = wb._SUBSET_BY_ID["code"]
         task_dir = next(source_root.glob("tasks/*"))
         workspace = wbw._prepare_workspace(task_dir, subset)
@@ -928,9 +871,7 @@ class TestVerifierTomlGradingE2E:
         # bare numeric reward.txt into the workspace via the LOG_DIR contract.
         self.executor.bind_workspace(str(workspace))
         scores: dict[str, float] = {}
-        passed, details = await evaluate_sandbox_assertions(
-            assertion, self.executor, scores_out=scores
-        )
+        passed, details = await evaluate_sandbox_assertions(assertion, self.executor, scores_out=scores)
         assert passed is True, details
         assert scores["pass_rate"] == 1.0
         assert (workspace / ".wb_bench" / "logs" / "reward.txt").exists()
@@ -938,15 +879,11 @@ class TestVerifierTomlGradingE2E:
         assert not (workspace / "gold.patch").exists()
 
     @pytest.mark.asyncio
-    async def test_verifier_absent_agent_failure_low_reward(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_verifier_absent_agent_failure_low_reward(self, tmp_path: Path) -> None:
         """A verifier grading a broken workspace yields a sub-1.0 reward."""
         from myrm_agent_harness.eval.assertions import evaluate_sandbox_assertions
 
-        source_root = _write_fake_subset(
-            wb.SOURCES_DIR, "code", ["t1"], verifier_family="script_verifier"
-        )
+        source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="script_verifier")
         task_dir = next(source_root.glob("tasks/*"))
         subset = wb._SUBSET_BY_ID["code"]
         workspace = wbw._prepare_workspace(task_dir, subset)
@@ -957,9 +894,7 @@ class TestVerifierTomlGradingE2E:
 
         self.executor.bind_workspace(str(workspace))
         scores: dict[str, float] = {}
-        passed, details = await evaluate_sandbox_assertions(
-            case.turns[0].sandbox_assertions, self.executor, scores_out=scores
-        )
+        passed, details = await evaluate_sandbox_assertions(case.turns[0].sandbox_assertions, self.executor, scores_out=scores)
         assert passed is False
         assert scores["pass_rate"] < 1.0
         assert "Sandbox assertion failed" in details
@@ -969,9 +904,7 @@ class TestVerifierTomlGradingE2E:
         """pytest_injected: injected tests run and JUnit XML drives the verdict."""
         from myrm_agent_harness.eval.assertions import evaluate_sandbox_assertions
 
-        source_root = _write_fake_subset(
-            wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected"
-        )
+        source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected")
         subset = wb._SUBSET_BY_ID["code"]
         task_dir = next(source_root.glob("tasks/*"))
         workspace = wbw._prepare_workspace(task_dir, subset)
@@ -985,9 +918,7 @@ class TestVerifierTomlGradingE2E:
         # report into {workspace}/.wb_bench/results.xml.
         self.executor.bind_workspace(str(workspace))
         scores: dict[str, float] = {}
-        passed, details = await evaluate_sandbox_assertions(
-            assertion, self.executor, scores_out=scores
-        )
+        passed, details = await evaluate_sandbox_assertions(assertion, self.executor, scores_out=scores)
         assert passed is True, details
         assert scores["pass_rate"] == 1.0
         assert (workspace / ".wb_bench" / "results.xml").exists()
@@ -995,26 +926,16 @@ class TestVerifierTomlGradingE2E:
         assert not (workspace / "gold.patch").exists()
 
     @pytest.mark.asyncio
-    async def test_pytest_injected_failing_test_low_reward(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_pytest_injected_failing_test_low_reward(self, tmp_path: Path) -> None:
         """A failing injected test yields a sub-1.0 reward via JUnit parsing."""
         from myrm_agent_harness.eval.assertions import evaluate_sandbox_assertions
 
-        source_root = _write_fake_subset(
-            wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected"
-        )
+        source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="pytest_injected")
         # The injected test now asserts against a graded artifact that the agent
         # workspace does not provide → the grading run reports a failure.
-        (
-            source_root
-            / "tasks"
-            / "t1"
-            / "tests"
-            / "injected"
-            / "tests"
-            / "test_app.py"
-        ).write_text("def test_ok(): assert False\n")
+        (source_root / "tasks" / "t1" / "tests" / "injected" / "tests" / "test_app.py").write_text(
+            "def test_ok(): assert False\n"
+        )
         subset = wb._SUBSET_BY_ID["code"]
         task_dir = next(source_root.glob("tasks/*"))
         workspace = wbw._prepare_workspace(task_dir, subset)
@@ -1023,9 +944,7 @@ class TestVerifierTomlGradingE2E:
 
         self.executor.bind_workspace(str(workspace))
         scores: dict[str, float] = {}
-        passed, details = await evaluate_sandbox_assertions(
-            case.turns[0].sandbox_assertions, self.executor, scores_out=scores
-        )
+        passed, details = await evaluate_sandbox_assertions(case.turns[0].sandbox_assertions, self.executor, scores_out=scores)
         assert passed is False
         assert scores["pass_rate"] == 0.0
         assert "Sandbox assertion failed" in details
@@ -1035,9 +954,7 @@ class TestVerifierTomlGradingE2E:
         """repo_understanding: scorer.py grades the repo and writes reward.json."""
         from myrm_agent_harness.eval.assertions import evaluate_sandbox_assertions
 
-        source_root = _write_fake_subset(
-            wb.SOURCES_DIR, "code", ["t1"], verifier_family="repo_understanding"
-        )
+        source_root = _write_fake_subset(wb.SOURCES_DIR, "code", ["t1"], verifier_family="repo_understanding")
         subset = wb._SUBSET_BY_ID["code"]
         task_dir = next(source_root.glob("tasks/*"))
         workspace = wbw._prepare_workspace(task_dir, subset)
@@ -1050,9 +967,7 @@ class TestVerifierTomlGradingE2E:
         # and writes the numeric reward into {workspace}/.wb_bench/reward.json.
         self.executor.bind_workspace(str(workspace))
         scores: dict[str, float] = {}
-        passed, details = await evaluate_sandbox_assertions(
-            assertion, self.executor, scores_out=scores
-        )
+        passed, details = await evaluate_sandbox_assertions(assertion, self.executor, scores_out=scores)
         assert passed is True, details
         assert scores["pass_rate"] == 1.0
         assert (workspace / ".wb_bench" / "reward.json").exists()
@@ -1118,43 +1033,31 @@ def test_build_cases_unknown_subset_raises() -> None:
         wbw.build_wb_bench_cases("nonexistent")
 
 
-def test_build_cases_no_tasks_raises(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_build_cases_no_tasks_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An installed subset with no runnable tasks raises a clear error."""
 
     async def _fake_ensure(*args: object, **kwargs: object) -> Path:
         return tmp_path
 
-    monkeypatch.setattr(
-        "app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure
-    )
+    monkeypatch.setattr("app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure)
     monkeypatch.setattr(wbw, "_iter_task_dirs", lambda source_root: [])
     with pytest.raises(ValueError, match="No runnable tasks"):
         wbw.build_wb_bench_cases("code")
 
 
-def test_build_cases_full_success_path_seeds_and_logs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_build_cases_full_success_path_seeds_and_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Full build path maps tasks, seeds workspaces and logs the summary."""
-    source_root = _write_fake_subset(
-        tmp_path, "code", ["t1"], verifier_family="script_verifier"
-    )
+    source_root = _write_fake_subset(tmp_path, "code", ["t1"], verifier_family="script_verifier")
 
     async def _fake_ensure(*args: object, **kwargs: object) -> Path:
         return source_root
 
-    monkeypatch.setattr(
-        "app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure
-    )
+    monkeypatch.setattr("app.core.eval.wb_bench.download.ensure_wb_bench_source", _fake_ensure)
     cases, seed_map = wbw.build_wb_bench_cases("code")
     assert len(cases) == 1
     assert len(seed_map) == 1
     assert cases[0].metadata["wb_bench_task_id"] == "t1"
-    assert next(iter(seed_map.values())) == str(
-        wbw.WORKSPACES_DIR / "code" / "t1" / "workspace"
-    )
+    assert next(iter(seed_map.values())) == str(wbw.WORKSPACES_DIR / "code" / "t1" / "workspace")
 
 
 def test_full_build_requires_real_subset(tmp_path: Path) -> None:
@@ -1163,9 +1066,7 @@ def test_full_build_requires_real_subset(tmp_path: Path) -> None:
         patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
         patch("app.core.eval.wb_bench.download.httpx.AsyncClient") as mock_async,
     ):
-        mock_client.return_value.__enter__.return_value.get.side_effect = OSError(
-            "offline"
-        )
+        mock_client.return_value.__enter__.return_value.get.side_effect = OSError("offline")
         mock_async.side_effect = OSError("offline")
         with pytest.raises((OSError, ValueError)):
             wbw.build_wb_bench_cases("code")

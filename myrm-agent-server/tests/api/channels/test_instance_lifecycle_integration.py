@@ -36,19 +36,11 @@ async def _clear_instance_state() -> None:
     from sqlalchemy import delete, select
 
     async with get_session() as session:
-        rows = (
-            await session.execute(
-                select(UserConfig).where(UserConfig.config_key == _INSTANCES_CONFIG_KEY)
-            )
-        ).scalars().all()
+        rows = (await session.execute(select(UserConfig).where(UserConfig.config_key == _INSTANCES_CONFIG_KEY))).scalars().all()
         for row in rows:
             await session.delete(row)
-        await session.execute(
-            delete(UserConfig).where(UserConfig.config_key.like("webhook_%Credentials"))
-        )
-        await session.execute(
-            delete(UserConfig).where(UserConfig.config_key.like("wechat_%Credentials"))
-        )
+        await session.execute(delete(UserConfig).where(UserConfig.config_key.like("webhook_%Credentials")))
+        await session.execute(delete(UserConfig).where(UserConfig.config_key.like("wechat_%Credentials")))
         await session.commit()
 
 
@@ -77,9 +69,7 @@ async def client(gateway: ChannelGateway, monkeypatch: pytest.MonkeyPatch) -> ht
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_create_webhook_instance_then_delete(
-    client: httpx.AsyncClient, gateway: ChannelGateway
-) -> None:
+async def test_create_webhook_instance_then_delete(client: httpx.AsyncClient, gateway: ChannelGateway) -> None:
     """Create a webhook instance via the API, verify it is live in the real
     gateway bus, then delete it and verify full cleanup."""
     await _clear_instance_state()
@@ -115,9 +105,7 @@ async def test_create_webhook_instance_then_delete(
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_create_wechat_instance_then_delete(
-    client: httpx.AsyncClient, gateway: ChannelGateway
-) -> None:
+async def test_create_wechat_instance_then_delete(client: httpx.AsyncClient, gateway: ChannelGateway) -> None:
     """Create a WeChat (iLink) instance via the API, then delete it — the same
     channel type the delete-confirmation E2E exercises."""
     await _clear_instance_state()

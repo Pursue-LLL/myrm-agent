@@ -59,9 +59,7 @@ def _dynamic_workflow_unattended(params: object) -> bool:
     if not isinstance(raw, dict):
         return False
     yolo_enabled = bool(raw.get("yolo_mode_enabled") or raw.get("yoloModeEnabled"))
-    plan_confirm_enabled = bool(
-        raw.get("plan_confirm_enabled") or raw.get("planConfirmEnabled")
-    )
+    plan_confirm_enabled = bool(raw.get("plan_confirm_enabled") or raw.get("planConfirmEnabled"))
     return yolo_enabled or not plan_confirm_enabled
 
 
@@ -154,11 +152,7 @@ def _inject_message_end_memory_insights(
         snapshot_id = preview.get("snapshot_id")
         if isinstance(snapshot_id, str) and snapshot_id.strip():
             chunk["memory_brief_snapshot_id"] = snapshot_id.strip()
-    brief_status = (
-        session.extra_context.get("memory_brief_status")
-        if isinstance(session.extra_context, dict)
-        else None
-    )
+    brief_status = session.extra_context.get("memory_brief_status") if isinstance(session.extra_context, dict) else None
 
     budget = None
     injection = None
@@ -267,16 +261,18 @@ async def iter_agent_stream_chunks(
             and should_suggest_workflow_for_session(session)
         ):
             logger.info(f"💡 Workflow suggestion emitted for message_id={session.params.message_id}")
-            yield SSEEnvelope.from_any({
-                "type": "status",
-                "messageId": session.params.message_id,
-                "step_key": "workflow_suggestion",
-                "data": {
-                    "phase": "workflow_suggestion",
-                    "status": "suggested",
-                    "routing_tier": session.routing_tier,
-                },
-            }).to_sse_chunk()
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "status",
+                    "messageId": session.params.message_id,
+                    "step_key": "workflow_suggestion",
+                    "data": {
+                        "phase": "workflow_suggestion",
+                        "status": "suggested",
+                        "routing_tier": session.routing_tier,
+                    },
+                }
+            ).to_sse_chunk()
 
         stream = ai_agent_service_stream(
             params=session.params,
@@ -532,17 +528,13 @@ async def iter_agent_stream_chunks(
             if session.request.chat_id:
                 from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
 
-                WorkspaceMultiplexer.get().publish_session_status(
-                    session.request.chat_id, "awaiting_approval"
-                )
+                WorkspaceMultiplexer.get().publish_session_status(session.request.chat_id, "awaiting_approval")
 
         intercepted_data = extract_approval_intercepted(sse_chunk)
         if intercepted_data and session.request.chat_id:
             from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
 
-            WorkspaceMultiplexer.get().publish_session_status(
-                session.request.chat_id, "generating"
-            )
+            WorkspaceMultiplexer.get().publish_session_status(session.request.chat_id, "generating")
 
             decision = intercepted_data.decision
             if decision in ("approve", "reject", "approve_always", "feedback"):

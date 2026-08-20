@@ -130,9 +130,7 @@ class KanbanReadMixin(KanbanServiceCore):
                         by_agent[agent_id] = by_agent.get(agent_id, 0) + in_review
             return by_agent
         except OperationalError:
-            logger.warning(
-                "Kanban schema unavailable; treating review counts as empty"
-            )
+            logger.warning("Kanban schema unavailable; treating review counts as empty")
             return {}
 
     async def get_task(self, task_id: str) -> KanbanTask | None:

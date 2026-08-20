@@ -185,9 +185,7 @@ class TestBuildMCPElicitationHandler:
             "app.services.approvals.registry.ApprovalRegistry.create_approval",
             create_mock,
         ):
-            handler = build_mcp_elicitation_handler(
-                agent_id="agent-42", chat_id="chat-7", thread_id="thread-3"
-            )
+            handler = build_mcp_elicitation_handler(agent_id="agent-42", chat_id="chat-7", thread_id="thread-3")
 
             async def _resolve() -> None:
                 await asyncio.sleep(0.05)

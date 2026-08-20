@@ -125,9 +125,7 @@ def _create_foreground_bash_agent(client: httpx.Client, api_base: str) -> str:
             "yolo_mode_enabled_at": time.time(),
         },
     }
-    resp = guarded_httpx_request(
-        client, "POST", f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0
-    )
+    resp = guarded_httpx_request(client, "POST", f"{api_base}/api/v1/user-agents", json=payload, timeout=60.0)
     resp.raise_for_status()
     body = resp.json()
     agent_id = body.get("data", {}).get("id") or body.get("id")
@@ -254,15 +252,10 @@ def _bash_spill_diagnostics(messages: list[dict[str, object]]) -> str:
                     if not isinstance(item, dict):
                         continue
                     command = command or str(item.get("code") or item.get("text") or "")
-                    stdout = stdout or str(
-                        item.get("stdout") or item.get("output") or ""
-                    )
+                    stdout = stdout or str(item.get("stdout") or item.get("output") or "")
                     status = status or str(item.get("status") or "")
             content = str(msg.get("content") or "")
-            truncated = (
-                "LARGE OUTPUT TRUNCATED" in stdout
-                or "LARGE OUTPUT TRUNCATED" in content
-            )
+            truncated = "LARGE OUTPUT TRUNCATED" in stdout or "LARGE OUTPUT TRUNCATED" in content
             return (
                 f"command={command!r} status={status!r} truncated_preview={truncated} "
                 f"stdout_sample={stdout[:200]!r} content_sample={content[:200]!r}"
@@ -270,9 +263,7 @@ def _bash_spill_diagnostics(messages: list[dict[str, object]]) -> str:
     return "no bash progress step in persisted messages"
 
 
-def _stream_foreground_bash_spill(
-    client: httpx.Client, api_base: str, agent_id: str, chat_id: str
-) -> str:
+def _stream_foreground_bash_spill(client: httpx.Client, api_base: str, agent_id: str, chat_id: str) -> str:
     request_data: dict[str, object] = {
         "messageId": f"bash-fg-evict-{uuid.uuid4().hex[:10]}",
         "chatId": chat_id,
@@ -332,15 +323,11 @@ def _stream_foreground_bash_spill(
                 "approval",
                 "approval_required",
             ):
-                raise AssertionError(
-                    "YOLO agent emitted HITL interrupt during bash foreground spill E2E"
-                )
+                raise AssertionError("YOLO agent emitted HITL interrupt during bash foreground spill E2E")
 
     if _BASH_TOOL not in tool_names:
         detail = errors[0][:300] if errors else "no tool events"
-        raise AssertionError(
-            f"agent-stream did not invoke {_BASH_TOOL}; tools={tool_names}; detail={detail}"
-        )
+        raise AssertionError(f"agent-stream did not invoke {_BASH_TOOL}; tools={tool_names}; detail={detail}")
     if not evicted_refs:
         for _ in range(5):
             messages = fetch_chat_messages(chat_id, api_url=api_base)
@@ -352,8 +339,7 @@ def _stream_foreground_bash_spill(
     if not evicted_refs:
         diag = _bash_spill_diagnostics(fetch_chat_messages(chat_id, api_url=api_base))
         raise AssertionError(
-            f"agent-stream invoked {_BASH_TOOL} but emitted no tool_evicted_ref; "
-            f"large-output eviction did not trigger ({diag})"
+            f"agent-stream invoked {_BASH_TOOL} but emitted no tool_evicted_ref; large-output eviction did not trigger ({diag})"
         )
     return evicted_refs[0]
 
@@ -373,9 +359,7 @@ def _verify_evicted_file(api_base: str, chat_id: str, filename: str) -> None:
     assert _MARKER in content, content[:400]
 
 
-def _wait_evicted_progress_via_api(
-    api_base: str, chat_id: str, *, timeout_sec: float = 90.0
-) -> str:
+def _wait_evicted_progress_via_api(api_base: str, chat_id: str, *, timeout_sec: float = 90.0) -> str:
     deadline = time.monotonic() + timeout_sec
     last_count = 0
     while time.monotonic() < deadline:
@@ -427,9 +411,7 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
     terminal = wait_for_state(client, page, _TERMINAL_PREVIEW_JS, timeout_sec=60.0)
     assert terminal.get("ready") is True, json.dumps(terminal, ensure_ascii=False)
     clear_result = client.evaluate(page, _CLEAR_RESOURCE_TIMINGS_JS, timeout_sec=5.0)
-    assert (
-        isinstance(clear_result, dict) and clear_result.get("ready") is True
-    ), clear_result
+    assert isinstance(clear_result, dict) and clear_result.get("ready") is True, clear_result
 
     client.evaluate(
         page,
@@ -466,9 +448,7 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
 })()""",
             timeout_sec=10.0,
         )
-        raise AssertionError(
-            f"View Full Output button missing; ui_diag={json.dumps(diag, ensure_ascii=False)}"
-        )
+        raise AssertionError(f"View Full Output button missing; ui_diag={json.dumps(diag, ensure_ascii=False)}")
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
 
     mounted = wait_for_state(client, page, _DRAWER_MOUNT_WAIT_JS, timeout_sec=90.0)
@@ -480,16 +460,10 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
         evicted_request_probe_js(expected_offset=0, expected_limit=500),
         timeout_sec=30.0,
     )
-    assert request_probe.get("hit") is True, json.dumps(
-        request_probe, ensure_ascii=False
-    )
-    assert request_probe.get("hasLimitZero") is False, json.dumps(
-        request_probe, ensure_ascii=False
-    )
+    assert request_probe.get("hit") is True, json.dumps(request_probe, ensure_ascii=False)
+    assert request_probe.get("hasLimitZero") is False, json.dumps(request_probe, ensure_ascii=False)
 
-    drawer = wait_for_state(
-        client, page, drawer_ready_js(marker_line), timeout_sec=90.0
-    )
+    drawer = wait_for_state(client, page, drawer_ready_js(marker_line), timeout_sec=90.0)
     assert drawer.get("ready") is True, json.dumps(drawer, ensure_ascii=False)
 
 
@@ -503,9 +477,7 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
 def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
     """Live LLM: API stream spill SSOT + Chrome Drawer on same chat."""
     if not wait_e2e_provider_ready():
-        pytest.fail(
-            "Provider config not ready — configure default model in WebUI E2E profile"
-        )
+        pytest.fail("Provider config not ready — configure default model in WebUI E2E profile")
 
     api_base = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
@@ -532,9 +504,7 @@ def test_live_agent_bash_foreground_spill_evicted_api_and_drawer() -> None:
                     timeout=30.0,
                 )
                 reset_resp.raise_for_status()
-                evicted_ref = _stream_foreground_bash_spill(
-                    client, api_base, agent_id, chat_id
-                )
+                evicted_ref = _stream_foreground_bash_spill(client, api_base, agent_id, chat_id)
             break
         except (AssertionError, httpx.HTTPError, httpx.TransportError) as exc:
             last_error = str(exc)

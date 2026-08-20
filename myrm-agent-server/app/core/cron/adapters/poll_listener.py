@@ -70,8 +70,7 @@ class PollListenerManager:
 
         if len(self._tasks) >= self._max_polls:
             raise ValueError(
-                f"Max concurrent polls reached ({self._max_polls}). "
-                "Stop an existing poll before starting a new one."
+                f"Max concurrent polls reached ({self._max_polls}). Stop an existing poll before starting a new one."
             )
 
         interval = max(trigger.interval_seconds, _MIN_INTERVAL_SECONDS)

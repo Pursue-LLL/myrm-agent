@@ -35,9 +35,7 @@ from app.database.models.kanban import KanbanTaskModel
 logger = logging.getLogger(__name__)
 
 # 任务终态：completed/failed/archived 视为不再由 dispatcher 调度
-_TERMINAL_STATUSES = frozenset(
-    {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED}
-)
+_TERMINAL_STATUSES = frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED})
 # 批量项目终态：到达后不再接受调度、可安全删除
 _PROJECT_TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 # 批次暂停冻结标记（写入任务的 blocked_reason，恢复时据此筛选）
@@ -52,8 +50,7 @@ def _failed_directory_paths(tasks: list[KanbanTaskModel]) -> list[str]:
     return [
         str(t.workspace_path)
         for t in tasks
-        if t.workspace_path
-        and t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value)
+        if t.workspace_path and t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value)
     ]
 
 
@@ -104,11 +101,7 @@ def _artifact_status_for_task(t: KanbanTaskModel) -> str:
     patterns = list((t.metadata_json or {}).get("artifact_patterns") or [])
     if not patterns:
         return "not_specified"
-    return (
-        "verified"
-        if _verify_artifact_patterns(t.workspace_path, patterns)
-        else "missing"
-    )
+    return "verified" if _verify_artifact_patterns(t.workspace_path, patterns) else "missing"
 
 
 def _validate_artifact_patterns(patterns: list[str] | None) -> list[str]:
@@ -128,9 +121,7 @@ def _validate_artifact_patterns(patterns: list[str] | None) -> list[str]:
         if Path(pattern).is_absolute():
             raise ValueError(f"Artifact pattern must be relative: {pattern}")
         if any(part == ".." for part in Path(pattern).parts):
-            raise ValueError(
-                f"Artifact pattern must stay inside the workspace: {pattern}"
-            )
+            raise ValueError(f"Artifact pattern must stay inside the workspace: {pattern}")
         cleaned.append(pattern)
     return cleaned
 
@@ -175,9 +166,7 @@ def _project_to_dict(p: BatchDirectoryProjectModel) -> dict[str, object]:
         "require_approval": p.require_approval,
         "notify_enabled": p.notify_enabled,
         "directories": list(p.directories_json) if p.directories_json else [],
-        "artifact_patterns": (
-            list(p.artifact_patterns_json) if p.artifact_patterns_json else []
-        ),
+        "artifact_patterns": (list(p.artifact_patterns_json) if p.artifact_patterns_json else []),
         "total_tasks": p.total_tasks,
         "completed_tasks": p.completed_tasks,
         "failed_tasks": p.failed_tasks,
@@ -214,10 +203,7 @@ async def fetch_project_task_models(project_id: str) -> list[KanbanTaskModel]:
     async with get_session() as session:
         stmt = (
             select(KanbanTaskModel)
-            .where(
-                KanbanTaskModel.metadata_json["batch_project_id"].as_string()
-                == project_id
-            )
+            .where(KanbanTaskModel.metadata_json["batch_project_id"].as_string() == project_id)
             .order_by(KanbanTaskModel.created_at)
         )
         result = await session.execute(stmt)
@@ -228,17 +214,11 @@ def _aggregate_statuses(tasks: list[KanbanTaskModel]) -> tuple[int, int, int]:
     """Return (total, completed, failed) counts from the given tasks."""
     total = len(tasks)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED.value)
-    failed = sum(
-        1
-        for t in tasks
-        if t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value)
-    )
+    failed = sum(1 for t in tasks if t.status in (TaskStatus.FAILED.value, TaskStatus.ARCHIVED.value))
     return total, completed, failed
 
 
-async def _reopen_running(
-    project_id: str, *, expected_status: str | None = None
-) -> None:
+async def _reopen_running(project_id: str, *, expected_status: str | None = None) -> None:
     """Reopen a project to ``running`` and refresh aggregation counters.
 
     Shared by retry/rerun/resume entry points: after tasks are fanned out or
@@ -308,9 +288,7 @@ def _format_batch_summary(
         lines = [f"{completed} completed, {failed} failed of {total} directories."]
         if failed_directories:
             lines.append("Failed directories:")
-            lines.extend(
-                f"- {d}" for d in failed_directories[:_MAX_FAILED_DIRECTORIES_IN_SUMMARY]
-            )
+            lines.extend(f"- {d}" for d in failed_directories[:_MAX_FAILED_DIRECTORIES_IN_SUMMARY])
             hidden = len(failed_directories) - _MAX_FAILED_DIRECTORIES_IN_SUMMARY
             if hidden > 0:
                 lines.append(f"... and {hidden} more")
@@ -336,14 +314,8 @@ async def _send_completion_notification(
         project_name = model.name if model is not None else project_id
         agent_id = model.agent_id if model is not None else None
         duration_seconds: int | None = None
-        if (
-            model is not None
-            and model.started_at is not None
-            and model.finished_at is not None
-        ):
-            duration_seconds = max(
-                0, int((model.finished_at - model.started_at).total_seconds())
-            )
+        if model is not None and model.started_at is not None and model.finished_at is not None:
+            duration_seconds = max(0, int((model.finished_at - model.started_at).total_seconds()))
 
     from app.services.infra.system_notification import SystemNotificationService
 
@@ -457,11 +429,7 @@ async def _send_channel_notification(
         duration_seconds=duration_seconds,
     )
     base_url = settings.app_base_url.strip().rstrip("/")
-    details_url = (
-        f"{base_url}/batch-directories/{project_id}"
-        if base_url
-        else f"/batch-directories/{project_id}"
-    )
+    details_url = f"{base_url}/batch-directories/{project_id}" if base_url else f"/batch-directories/{project_id}"
     body = f"{title}\n{summary}\nDetails: {details_url}"
 
     for target in sender.list_available_targets():

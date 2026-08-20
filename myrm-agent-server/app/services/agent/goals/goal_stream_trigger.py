@@ -49,13 +49,9 @@ async def _resolve_user_locale() -> str:
         if not raw_locale and ps:
             raw_locale = ps.get("language")
         locale_str = str(raw_locale) if raw_locale else None
-        return resolve_locale(
-            metadata_locale=locale_str, platform_locale=None, channel=None
-        )
+        return resolve_locale(metadata_locale=locale_str, platform_locale=None, channel=None)
     except Exception:
-        logger.debug(
-            "Failed to load user locale for goal stream failure", exc_info=True
-        )
+        logger.debug("Failed to load user locale for goal stream failure", exc_info=True)
         return normalize_locale(None)
 
 
@@ -174,11 +170,7 @@ async def _resolve_goal_stream_agent_context(
             leader_id=agent_id,
             dynamic_discovery=True,
         )
-        user_instructions = (
-            f"{user_instructions}\n\n{leader_protocol}"
-            if user_instructions
-            else leader_protocol
-        )
+        user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
     user_instructions = apply_profile_output_suffixes(
         user_instructions,
@@ -233,14 +225,10 @@ async def trigger_goal_stream(
     model_cfg = resolve_model_config(user_cfgs.providers_dict)
     model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
     model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
-    fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
-        user_cfgs.providers_dict
-    )
-    vision_fallback_model_cfg, vision_fallback_model_cfgs = (
-        resolve_vision_fallback_chain_for_agent(
-            user_cfgs.providers_dict,
-            main_model_cfg=model_cfg if model_cfg.supports_vision else None,
-        )
+    fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(user_cfgs.providers_dict)
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+        user_cfgs.providers_dict,
+        main_model_cfg=model_cfg if model_cfg.supports_vision else None,
     )
     embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
 
@@ -273,9 +261,7 @@ async def trigger_goal_stream(
 
     agent_ctx = await _resolve_goal_stream_agent_context(session_id)
 
-    enabled_builtin_tools: list[str] = list(
-        agent_ctx.enabled_builtin_tools or DEFAULT_ENABLED_BUILTIN_TOOLS
-    )
+    enabled_builtin_tools: list[str] = list(agent_ctx.enabled_builtin_tools or DEFAULT_ENABLED_BUILTIN_TOOLS)
     tool_flags = resolve_agent_mount(
         ExecutionSurface.WEB_CHAT,
         resolve_builtin_tool_flags(enabled_builtin_tools),
@@ -300,8 +286,7 @@ async def trigger_goal_stream(
         agent_security_raw=agent_ctx.agent_security_raw,
         unattended_mode=True,
         enable_memory=resolve_memory_enabled(memory_settings),
-        enable_web_search=user_cfgs.search_is_user_configured
-        and await verify_search_service_available(user_cfgs.search_cfg),
+        enable_web_search=user_cfgs.search_is_user_configured and await verify_search_service_available(user_cfgs.search_cfg),
         enable_web_fetch=resolve_enable_web_fetch(agent_ctx.agent_security_raw),
         web_search_profile_enabled="web_search" in enabled_builtin_tools,
         search_is_user_configured=user_cfgs.search_is_user_configured,

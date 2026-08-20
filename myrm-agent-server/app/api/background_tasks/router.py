@@ -191,16 +191,12 @@ async def get_background_task(task_id: str) -> BackgroundTaskResponse:
             raise HTTPException(status_code=404, detail="Invalid shell task id")
         row = find_shell_background_task(suffix)
         if row is None:
-            raise HTTPException(
-                status_code=404, detail="Shell background task not found"
-            )
+            raise HTTPException(status_code=404, detail="Shell background task not found")
         return _shell_row_to_response(row)
 
     handler = get_background_task_handler()
     if not handler:
-        raise HTTPException(
-            status_code=404, detail="Background task handler not initialized"
-        )
+        raise HTTPException(status_code=404, detail="Background task handler not initialized")
 
     from app.services.kanban import KanbanService
 
@@ -237,21 +233,15 @@ async def cancel_background_task(task_id: str) -> dict[str, str]:
             raise HTTPException(status_code=400, detail="Invalid shell task id")
         row = find_shell_background_task(suffix)
         if row is None or row.pid is None:
-            raise HTTPException(
-                status_code=400, detail="Shell task is not cancellable or not found"
-            )
+            raise HTTPException(status_code=400, detail="Shell task is not cancellable or not found")
         success = await cancel_shell_background_task(row.pid)
         if not success:
-            raise HTTPException(
-                status_code=400, detail="Shell task is not cancellable or not found"
-            )
+            raise HTTPException(status_code=400, detail="Shell task is not cancellable or not found")
         return {"message": "Shell background task cancelled", "task_id": task_id}
 
     handler = get_background_task_handler()
     if not handler:
-        raise HTTPException(
-            status_code=404, detail="Background task handler not initialized"
-        )
+        raise HTTPException(status_code=404, detail="Background task handler not initialized")
 
     from app.channels.types import InboundMessage
 
@@ -264,17 +254,13 @@ async def cancel_background_task(task_id: str) -> dict[str, str]:
     )
     success = await handler.cancel_background(synthetic_msg, task_id)
     if not success:
-        raise HTTPException(
-            status_code=400, detail="Task is not cancellable or not found"
-        )
+        raise HTTPException(status_code=400, detail="Task is not cancellable or not found")
 
     return {"message": "Background task cancelled", "task_id": task_id}
 
 
 @router.post("/{task_id}/stdin")
-async def shell_background_stdin(
-    task_id: str, body: ShellStdinRequest
-) -> dict[str, object]:
+async def shell_background_stdin(task_id: str, body: ShellStdinRequest) -> dict[str, object]:
     """Write to a running shell background task stdin (GUI manual input)."""
     if not task_id.startswith("shell:"):
         raise HTTPException(status_code=400, detail="Not a shell background task")
@@ -293,9 +279,7 @@ async def shell_background_stdin(
         close=body.close,
     )
     if not result.get("ok"):
-        raise HTTPException(
-            status_code=400, detail=str(result.get("error", "stdin_failed"))
-        )
+        raise HTTPException(status_code=400, detail=str(result.get("error", "stdin_failed")))
     return {"message": "Shell stdin written", "task_id": task_id, "result": result}
 
 
@@ -303,15 +287,11 @@ async def shell_background_stdin(
 async def steer_background_task(task_id: str, body: SteerRequest) -> dict[str, str]:
     """Inject a steering instruction into a running background task."""
     if task_id.startswith("shell:"):
-        raise HTTPException(
-            status_code=400, detail="Shell tasks do not support steering"
-        )
+        raise HTTPException(status_code=400, detail="Shell tasks do not support steering")
 
     handler = get_background_task_handler()
     if not handler:
-        raise HTTPException(
-            status_code=404, detail="Background task handler not initialized"
-        )
+        raise HTTPException(status_code=404, detail="Background task handler not initialized")
 
     from app.channels.types import InboundMessage
 

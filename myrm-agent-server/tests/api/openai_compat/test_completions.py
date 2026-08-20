@@ -13,6 +13,8 @@ from httpx import ASGITransport, AsyncClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="openai_compat_only", openai_compat=True)
+
+
 @pytest.fixture
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -291,9 +293,7 @@ async def test_completions_unauthorized(client: AsyncClient):
     ],
 )
 @pytest.mark.asyncio
-async def test_completions_rejects_unsafe_chat_id_non_streaming(
-    client: AsyncClient, api_key: str, unsafe_chat_id: str
-):
+async def test_completions_rejects_unsafe_chat_id_non_streaming(client: AsyncClient, api_key: str, unsafe_chat_id: str):
     """Path-traversal chat_ids must fail fast with 400 before any agent work."""
     resp = await client.post(
         "/v1/chat/completions",
@@ -311,9 +311,7 @@ async def test_completions_rejects_unsafe_chat_id_non_streaming(
 
 
 @pytest.mark.asyncio
-async def test_completions_rejects_unsafe_chat_id_streaming(
-    client: AsyncClient, api_key: str
-):
+async def test_completions_rejects_unsafe_chat_id_streaming(client: AsyncClient, api_key: str):
     """Streaming must also reject unsafe chat_ids with 400 before opening SSE."""
     resp = await client.post(
         "/v1/chat/completions",
@@ -360,9 +358,7 @@ async def test_completions_accepts_safe_custom_chat_id(client: AsyncClient, api_
 
 
 @pytest.mark.asyncio
-async def test_completions_empty_chat_id_falls_back_to_default(
-    client: AsyncClient, api_key: str
-):
+async def test_completions_empty_chat_id_falls_back_to_default(client: AsyncClient, api_key: str):
     """Empty chat_id is falsy and must fall back to a generated session, not 400."""
     with (
         patch(

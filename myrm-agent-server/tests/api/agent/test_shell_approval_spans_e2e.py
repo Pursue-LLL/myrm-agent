@@ -74,42 +74,25 @@ class TestShellApprovalSpansE2E:
                 pytest.skip(f"Flaky upstream error: {err_text[:200]}")
             pytest.fail(f"Agent stream error: {err_text[:500]}")
 
-        approval_events = [
-            d
-            for d in collected
-            if d.get("type") in ("tool_approval_request", "approval_required")
-        ]
+        approval_events = [d for d in collected if d.get("type") in ("tool_approval_request", "approval_required")]
         if not approval_events:
-            bash_started = any(
-                d.get("type") == "tool_start" and "bash" in str(d.get("tool_name", ""))
-                for d in collected
-            )
+            bash_started = any(d.get("type") == "tool_start" and "bash" in str(d.get("tool_name", "")) for d in collected)
             if not bash_started:
                 pytest.skip("LLM did not invoke bash_code_execute_tool in this run")
-            pytest.fail(
-                "bash was invoked but no approval event; "
-                f"event types: {[d.get('type') for d in collected[-15:]]}"
-            )
+            pytest.fail(f"bash was invoked but no approval event; event types: {[d.get('type') for d in collected[-15:]]}")
 
         payload = approval_events[0].get("data") or {}
         action_requests = payload.get("actionRequests", [])
         assert isinstance(action_requests, list) and action_requests, "Missing actionRequests"
 
         shell_action = next(
-            (
-                req
-                for req in action_requests
-                if isinstance(req, dict)
-                and "bash" in str(req.get("action", "")).lower()
-            ),
+            (req for req in action_requests if isinstance(req, dict) and "bash" in str(req.get("action", "")).lower()),
             action_requests[0],
         )
         spans = shell_action.get("command_spans")
         risks = shell_action.get("command_span_risks")
         assert isinstance(spans, list) and len(spans) >= 2, f"Expected pipeline spans, got: {spans}"
-        assert isinstance(risks, list) and len(risks) == len(spans), (
-            f"Risk count mismatch: {len(risks)} vs {len(spans)}"
-        )
+        assert isinstance(risks, list) and len(risks) == len(spans), f"Risk count mismatch: {len(risks)} vs {len(spans)}"
         assert any(r == "unknown" for r in risks), f"Expected unknown segment risk, got: {risks}"
 
         extensions = payload.get("extensions") if isinstance(payload.get("extensions"), dict) else {}

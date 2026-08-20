@@ -438,10 +438,7 @@ class MemoryCommandCenterInsights:
         session_metrics = await MemoryImportSessionService(self._db).session_metrics()
         coverage = raw_coverage if raw_coverage in {"not_tracked", "partial", "complete"} else "not_tracked"
         source_manifest_payload = migration_source_manifest_payload()
-        source_manifest = [
-            MemoryCommandMigrationSourceManifestItem.model_validate(item)
-            for item in source_manifest_payload
-        ]
+        source_manifest = [MemoryCommandMigrationSourceManifestItem.model_validate(item) for item in source_manifest_payload]
         source_manifest_authoritative = migration_source_manifest_authoritative_for_ids(
             item["id"] for item in source_manifest_payload
         )
@@ -462,14 +459,10 @@ class MemoryCommandCenterInsights:
             last_import_diagnostic_status=raw_diagnostic_status if isinstance(raw_diagnostic_status, str) else None,
             last_import_diagnostic_run_id=raw_diagnostic_run_id if isinstance(raw_diagnostic_run_id, str) else None,
             last_import_readiness_status=(
-                raw_readiness_status
-                if raw_readiness_status in {"ready", "warning", "critical"}
-                else None
+                raw_readiness_status if raw_readiness_status in {"ready", "warning", "critical"} else None
             ),
             last_import_first_turn_outcome=(
-                raw_first_turn_outcome
-                if raw_first_turn_outcome in {"success", "failed", "no_output"}
-                else None
+                raw_first_turn_outcome if raw_first_turn_outcome in {"success", "failed", "no_output"} else None
             ),
             cleanup_pending_sessions=session_metrics.get(DRY_RUN_STATUS_PENDING, 0),
             cleanup_confirmed_sessions=session_metrics.get(DRY_RUN_STATUS_CONFIRMED, 0),

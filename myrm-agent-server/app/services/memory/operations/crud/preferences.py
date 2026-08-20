@@ -68,8 +68,7 @@ async def get_taste_summary(
             active_facets = [
                 f
                 for f in all_facets
-                if f.lifecycle in (PreferenceLifecycle.ACTIVE, PreferenceLifecycle.PROVISIONAL)
-                and not f.user_forgotten
+                if f.lifecycle in (PreferenceLifecycle.ACTIVE, PreferenceLifecycle.PROVISIONAL) and not f.user_forgotten
             ]
             memory_count = len(active_facets)
 

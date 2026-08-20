@@ -51,9 +51,7 @@ class BatchWriteRequest(BaseModel):
 @router.get("/{namespace}/all")
 async def get_all(namespace: str, session: AsyncSession = Depends(get_db)):
     """Retrieve all key-value pairs for hydration."""
-    stmt = select(WidgetKVEntry.key, WidgetKVEntry.value).where(
-        WidgetKVEntry.namespace == namespace
-    )
+    stmt = select(WidgetKVEntry.key, WidgetKVEntry.value).where(WidgetKVEntry.namespace == namespace)
     result = await session.execute(stmt)
     rows = result.all()
     return success_response({row.key: row.value for row in rows})
@@ -86,9 +84,7 @@ async def batch_write(namespace: str, body: BatchWriteRequest, session: AsyncSes
                 detail=f"Value for key '{entry.key}' exceeds {MAX_VALUE_SIZE_BYTES} bytes",
             )
 
-    existing_count_stmt = select(WidgetKVEntry.key).where(
-        WidgetKVEntry.namespace == namespace
-    )
+    existing_count_stmt = select(WidgetKVEntry.key).where(WidgetKVEntry.namespace == namespace)
     existing_result = await session.execute(existing_count_stmt)
     existing_keys = {row[0] for row in existing_result.all()}
 

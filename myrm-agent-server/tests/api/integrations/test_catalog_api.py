@@ -17,6 +17,8 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     """TestClient with auth bypassed via loopback IP mock."""

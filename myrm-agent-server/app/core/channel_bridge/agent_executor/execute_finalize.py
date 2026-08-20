@@ -86,9 +86,7 @@ async def finalize_channel_stream_reply(
         )
 
     oversized_raw = list(dict.fromkeys(scanned_oversized + acc.oversized_deliverables))
-    compressed_raw = list(
-        dict.fromkeys(scanned_compressed + acc.compressed_deliverables)
-    )
+    compressed_raw = list(dict.fromkeys(scanned_compressed + acc.compressed_deliverables))
 
     media_list: list[MediaAttachment] = []
     tmp_paths: list[str] = list(acc.pending_tmp_paths)
@@ -137,9 +135,7 @@ async def finalize_channel_stream_reply(
     # Deep-linked artifacts get buttons, so their duplicate attachment and
     # fallback note are suppressed.
     media_list = [m for m in media_list if m.filename not in linked_filenames]
-    oversized_notes = [
-        (fname, size) for fname, size in oversized_raw if fname not in linked_filenames
-    ]
+    oversized_notes = [(fname, size) for fname, size in oversized_raw if fname not in linked_filenames]
     compressed_notes = compressed_raw
 
     if not content.strip() and not oversized_notes and not compressed_notes:
@@ -154,28 +150,16 @@ async def finalize_channel_stream_reply(
             )
             content = f"[Error] {acc.error_message}"
         else:
-            logger.warning(
-                "ChannelAgentExecutor: empty LLM response for %s", msg.sender_id
-            )
+            logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
             content = "[No response generated]"
 
     if oversized_notes or compressed_notes:
         locale = resolve_message_locale(msg)
         note_lines = [
-            str(
-                channel_t(
-                    locale, "deliverable_oversized_note", filename=fname, size=size
-                )
-            )
-            for fname, size in oversized_notes
+            str(channel_t(locale, "deliverable_oversized_note", filename=fname, size=size)) for fname, size in oversized_notes
         ]
         note_lines.extend(
-            str(
-                channel_t(
-                    locale, "deliverable_compressed_note", filename=fname, size=size
-                )
-            )
-            for fname, size in compressed_notes
+            str(channel_t(locale, "deliverable_compressed_note", filename=fname, size=size)) for fname, size in compressed_notes
         )
         if content.strip():
             content = f"{content.strip()}\n\n" + "\n".join(note_lines)

@@ -87,12 +87,14 @@ class TestExtractGoogleApiKey:
         assert _extract_google_api_key(_providers(keys=(("  AIza-spaced  ", True),))) == "AIza-spaced"
 
 
-_BACKGROUND_TOOL_NAMES = frozenset({
-    "run_background_task",
-    "get_background_tasks_status",
-    "cancel_background_task",
-    "steer_background_task",
-})
+_BACKGROUND_TOOL_NAMES = frozenset(
+    {
+        "run_background_task",
+        "get_background_tasks_status",
+        "cancel_background_task",
+        "steer_background_task",
+    }
+)
 
 
 class TestBuildGeminiTools:

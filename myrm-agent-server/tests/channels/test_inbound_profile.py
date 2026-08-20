@@ -8,9 +8,7 @@ from app.channels.providers.registry import get_channel_class
 # Derived once at collection time from the SSOT so a newly added channel is
 # automatically covered instead of requiring a manual parameter sync.
 _CONFIGURED_FIELD_PARAMS: tuple[tuple[str, str], ...] = tuple(
-    (name, spec.configured_field)
-    for name, spec in CHANNEL_INBOUND_SPECS.items()
-    if spec.configured_field is not None
+    (name, spec.configured_field) for name, spec in CHANNEL_INBOUND_SPECS.items() if spec.configured_field is not None
 )
 
 

@@ -109,4 +109,3 @@ async def test_collect_disabled_skill_roots_skips_empty_storage_path() -> None:
         roots = await collect_disabled_skill_roots()
 
     assert roots == []
-

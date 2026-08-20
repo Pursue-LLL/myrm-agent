@@ -63,7 +63,7 @@ class TestParseFrontmatter:
         assert meta["created"] == "2024-01-15"
 
     def test_quoted_values(self) -> None:
-        content = '---\ntitle: "My Note"\nauthor: \'John\'\n---\n# Hello\n'
+        content = "---\ntitle: \"My Note\"\nauthor: 'John'\n---\n# Hello\n"
         meta, _ = parse_frontmatter(content)
         assert meta["title"] == "My Note"
         assert meta["author"] == "John"
@@ -399,9 +399,7 @@ class TestAdaptFullPipeline:
         )
         (vault / "daily" / "2024-01-01.md").write_text("# Daily\nNo frontmatter")
         (vault / "attachments" / "img.png").write_bytes(b"\x89PNG")
-        (vault / "note_with_img.md").write_text(
-            "---\ntags: [photo]\n---\nSee ![[img.png]] here"
-        )
+        (vault / "note_with_img.md").write_text("---\ntags: [photo]\n---\nSee ![[img.png]] here")
         (vault / "skip.canvas").write_text("{}")
 
         raw = tmp_path / "raw"

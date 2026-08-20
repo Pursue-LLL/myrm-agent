@@ -35,16 +35,12 @@ if TYPE_CHECKING:
 
 class _NotifyInput(BaseModel):
     channel: str = Field(
-        description=(
-            "Target channel name (e.g. 'telegram', 'slack'). "
-            "If only one target is configured, this can be omitted."
-        ),
+        description=("Target channel name (e.g. 'telegram', 'slack'). If only one target is configured, this can be omitted."),
         default="",
     )
     target: str = Field(
         description=(
-            "Optional recipient ID within the channel. "
-            "When omitted, uses the default/only configured target for that channel."
+            "Optional recipient ID within the channel. When omitted, uses the default/only configured target for that channel."
         ),
         default="",
     )

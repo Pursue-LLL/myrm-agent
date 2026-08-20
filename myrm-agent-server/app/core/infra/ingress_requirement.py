@@ -77,11 +77,7 @@ async def _evaluate_ingress_requirement() -> IngressRequirementSnapshot:
     ingress_url = await get_public_ingress_base_url()
     has_ingress = bool(ingress_url.strip())
 
-    config_keys = {
-        spec.config_key
-        for spec in CHANNEL_INBOUND_SPECS.values()
-        if spec.config_key
-    }
+    config_keys = {spec.config_key for spec in CHANNEL_INBOUND_SPECS.values() if spec.config_key}
     loaded = await asyncio.gather(*(_load_channel_credential(key) for key in config_keys))
     creds_by_key = dict(zip(config_keys, loaded, strict=True))
 

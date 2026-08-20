@@ -28,9 +28,7 @@ class TestStripSensitiveAuth:
         assert auth["api_key_header"] == "X-Key"
 
     def test_strips_bearer_token(self) -> None:
-        data: dict = {
-            "openapi_services": [{"auth": {"type": "bearer", "bearer_token": "xoxb-secret"}}]
-        }
+        data: dict = {"openapi_services": [{"auth": {"type": "bearer", "bearer_token": "xoxb-secret"}}]}
         _strip_sensitive_auth(data)
         assert "bearer_token" not in data["openapi_services"][0]["auth"]
         assert data["openapi_services"][0]["auth"]["type"] == "bearer"
@@ -121,9 +119,7 @@ class TestStripSensitiveAuth:
         original = {
             "name": "My Agent",
             "system_prompt": "Hello",
-            "openapi_services": [
-                {"name": "API", "spec_url": "https://x.com", "auth": {"type": "api_key", "api_key": "S"}}
-            ],
+            "openapi_services": [{"name": "API", "spec_url": "https://x.com", "auth": {"type": "api_key", "api_key": "S"}}],
             "tool_gateway_config": {"use_gateway": True, "gateway_url": "https://gw.com", "auth_token": "tok"},
         }
         data = copy.deepcopy(original)

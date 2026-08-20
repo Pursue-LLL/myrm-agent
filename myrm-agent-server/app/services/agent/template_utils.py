@@ -61,9 +61,7 @@ def resolve_i18n(value: Any, accept_language: str | None) -> str:
     return next(iter(value.values()), "")
 
 
-async def ensure_skills_enabled(
-    prebuilt_skill_ids: list[str], template_id: str
-) -> None:
+async def ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str) -> None:
     """Pre-flight check and enable all required skills.
 
     Raises SkillEnablementError if a skill is missing or cannot be enabled.

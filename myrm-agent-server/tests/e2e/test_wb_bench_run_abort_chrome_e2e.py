@@ -85,9 +85,7 @@ _RUN_CLEARED_JS = f"""(() => {{
 }})()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -103,9 +101,7 @@ def test_wb_bench_run_starts_and_can_abort_chrome_e2e() -> None:
     ):
         restore_eval_lab_route(client, page, f"{ui_url}{EVAL_LAB_PATH}")
         dismiss_blocking_modals(client, page)
-        sources_ready = wait_for_state(
-            client, page, SOURCES_READY_JS, timeout_sec=120.0
-        )
+        sources_ready = wait_for_state(client, page, SOURCES_READY_JS, timeout_sec=120.0)
         assert sources_ready.get("ready") is True, sources_ready
 
         clicked = client.evaluate(page, click_subset_run_js("WBBench Office"))

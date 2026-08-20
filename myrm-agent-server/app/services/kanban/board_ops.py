@@ -52,9 +52,7 @@ async def _resolve_board_scope(
             if milestone is None:
                 raise ValueError(f"Milestone {resolved_milestone_id} not found")
             if resolved_project_id is not None and milestone.project_id != resolved_project_id:
-                raise ValueError(
-                    f"Milestone {resolved_milestone_id} does not belong to project {resolved_project_id}"
-                )
+                raise ValueError(f"Milestone {resolved_milestone_id} does not belong to project {resolved_project_id}")
             resolved_project_id = milestone.project_id
 
         if resolved_project_id is not None:
@@ -110,9 +108,7 @@ async def update_active_tasks_branch_metadata(
     migrated: bool = False,
     board_id: str | None = None,
 ) -> int:
-    updated_tasks = await store.update_active_tasks_branch_metadata(
-        new_branch, old_branch, migrated, board_id
-    )
+    updated_tasks = await store.update_active_tasks_branch_metadata(new_branch, old_branch, migrated, board_id)
     for task in updated_tasks:
         publish_kanban_event(task.board_id, task.task_id, "updated", title=task.title)
     return len(updated_tasks)

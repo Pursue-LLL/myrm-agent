@@ -85,9 +85,7 @@ async def _persist_review_eval_cases(
         record.eval_cases = eval_cases
         await store.save_skill(record)
     except Exception as exc:
-        logger.warning(
-            "Failed to persist eval_cases for skill '%s': %s", skill_name, exc
-        )
+        logger.warning("Failed to persist eval_cases for skill '%s': %s", skill_name, exc)
 
 
 def _build_skill_markdown(
@@ -134,9 +132,7 @@ async def auto_extract_or_patch_skill(
         trigger_condition = str(result.get("trigger_condition") or "")
         skill_steps = str(result.get("skill_steps") or "")
 
-        content = _build_skill_markdown(
-            skill_name, description, trigger_condition, skill_steps
-        )
+        content = _build_skill_markdown(skill_name, description, trigger_condition, skill_steps)
         save_result = await skill_creation_service.save_skill(
             name=skill_name,
             content=content,
@@ -149,9 +145,7 @@ async def auto_extract_or_patch_skill(
                 str(skill_creation_service.base_path / skill_name / "SKILL.md"),
                 eval_cases or [],
             )
-            logger.warning(
-                "🚀 Auto-Extractor: Successfully extracted NEW skill '%s'", skill_name
-            )
+            logger.warning("🚀 Auto-Extractor: Successfully extracted NEW skill '%s'", skill_name)
             publish_skill_evolved_event(
                 skill_name=skill_name,
                 evolution_type="new",
@@ -180,9 +174,7 @@ async def auto_extract_or_patch_skill(
     elif result_type == "skill_patch":
         patch_content = str(result.get("patch_content") or "")
         if not patch_content:
-            logger.warning(
-                "Auto-extractor: patch_content missing for skill %s", skill_name
-            )
+            logger.warning("Auto-extractor: patch_content missing for skill %s", skill_name)
             return SkillMaterializationResult(
                 success=False,
                 evolution_type="patch",

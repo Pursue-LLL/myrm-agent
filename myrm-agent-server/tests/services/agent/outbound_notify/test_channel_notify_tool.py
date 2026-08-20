@@ -37,9 +37,7 @@ class FakeSender:
 @pytest.fixture
 def single_target_config() -> NotifyToolConfig:
     return NotifyToolConfig(
-        allowed_targets=(
-            NotifyTarget(channel="telegram", recipient_id="chat_123", label="My TG"),
-        ),
+        allowed_targets=(NotifyTarget(channel="telegram", recipient_id="chat_123", label="My TG"),),
         rate_limit_per_session=3,
         max_body_length=100,
     )
@@ -138,12 +136,14 @@ async def test_attachment_with_local_file(single_target_config: NotifyToolConfig
     )
 
     try:
-        result = await tool.ainvoke({
-            "channel": "",
-            "target": "",
-            "body": "Report attached",
-            "attachments": [tmp_file],
-        })
+        result = await tool.ainvoke(
+            {
+                "channel": "",
+                "target": "",
+                "body": "Report attached",
+                "attachments": [tmp_file],
+            }
+        )
         assert "success" in result.lower()
         assert "1 attachment" in result.lower()
         assert len(sender.calls) == 1
@@ -159,12 +159,14 @@ async def test_attachment_with_local_file(single_target_config: NotifyToolConfig
 async def test_attachment_with_url(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({
-        "channel": "",
-        "target": "",
-        "body": "Check this image",
-        "attachments": ["https://example.com/photo.png"],
-    })
+    result = await tool.ainvoke(
+        {
+            "channel": "",
+            "target": "",
+            "body": "Check this image",
+            "attachments": ["https://example.com/photo.png"],
+        }
+    )
     assert "success" in result.lower()
     assert "1 attachment" in result.lower()
     assert len(sender.calls) == 1
@@ -178,12 +180,16 @@ async def test_attachment_with_url(single_target_config: NotifyToolConfig) -> No
 async def test_url_with_query_params_resolves_correct_type(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({
-        "channel": "",
-        "target": "",
-        "body": "AI generated chart",
-        "attachments": ["https://oaidalleapiprodscus.blob.core.windows.net/chart.png?se=2024-01-01&sp=r&sv=2023-11-03&sig=xxx"],
-    })
+    result = await tool.ainvoke(
+        {
+            "channel": "",
+            "target": "",
+            "body": "AI generated chart",
+            "attachments": [
+                "https://oaidalleapiprodscus.blob.core.windows.net/chart.png?se=2024-01-01&sp=r&sv=2023-11-03&sig=xxx"
+            ],
+        }
+    )
     assert "success" in result.lower()
     assert len(sender.calls) == 1
     _, _, media = sender.calls[0]
@@ -197,12 +203,14 @@ async def test_attachment_file_not_found(single_target_config: NotifyToolConfig,
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config, allowed_roots=(str(tmp_path),))
     missing = str(tmp_path / "missing-report.pdf")
-    result = await tool.ainvoke({
-        "channel": "",
-        "target": "",
-        "body": "Report",
-        "attachments": [missing],
-    })
+    result = await tool.ainvoke(
+        {
+            "channel": "",
+            "target": "",
+            "body": "Report",
+            "attachments": [missing],
+        }
+    )
     assert "file not found" in result.lower()
     assert len(sender.calls) == 0
 
@@ -222,12 +230,14 @@ async def test_attachment_rejects_path_outside_workspace(
         outside_path = outside.name
 
     try:
-        result = await tool.ainvoke({
-            "channel": "",
-            "target": "",
-            "body": "Report",
-            "attachments": [outside_path],
-        })
+        result = await tool.ainvoke(
+            {
+                "channel": "",
+                "target": "",
+                "body": "Report",
+                "attachments": [outside_path],
+            }
+        )
         assert "not allowed" in result.lower()
         assert len(sender.calls) == 0
     finally:
@@ -253,12 +263,14 @@ async def test_no_body_with_attachment_only(single_target_config: NotifyToolConf
     )
 
     try:
-        result = await tool.ainvoke({
-            "channel": "",
-            "target": "",
-            "body": "",
-            "attachments": [tmp_file],
-        })
+        result = await tool.ainvoke(
+            {
+                "channel": "",
+                "target": "",
+                "body": "",
+                "attachments": [tmp_file],
+            }
+        )
         assert "success" in result.lower()
     finally:
         os.unlink(tmp_file)
@@ -292,12 +304,14 @@ async def test_multiple_attachments(single_target_config: NotifyToolConfig) -> N
     )
 
     try:
-        result = await tool.ainvoke({
-            "channel": "",
-            "target": "",
-            "body": "Multiple files",
-            "attachments": [tmp_file, "https://example.com/logo.jpg"],
-        })
+        result = await tool.ainvoke(
+            {
+                "channel": "",
+                "target": "",
+                "body": "Multiple files",
+                "attachments": [tmp_file, "https://example.com/logo.jpg"],
+            }
+        )
         assert "success" in result.lower()
         assert "2 attachment" in result.lower()
         assert len(sender.calls) == 1
@@ -314,12 +328,14 @@ async def test_multiple_attachments(single_target_config: NotifyToolConfig) -> N
 async def test_empty_attachment_entry_skipped(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({
-        "channel": "",
-        "target": "",
-        "body": "test",
-        "attachments": ["  ", "", "https://example.com/file.png"],
-    })
+    result = await tool.ainvoke(
+        {
+            "channel": "",
+            "target": "",
+            "body": "test",
+            "attachments": ["  ", "", "https://example.com/file.png"],
+        }
+    )
     assert "success" in result.lower()
     assert "1 attachment" in result.lower()
     assert len(sender.calls) == 1

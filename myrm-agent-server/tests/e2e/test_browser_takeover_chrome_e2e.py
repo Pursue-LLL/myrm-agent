@@ -158,18 +158,14 @@ def test_extension_takeover_banner_shows_actions_and_dismisses_on_done() -> None
     with open_mcp_page(ui_url) as (client, page):
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
 
-        triggered = client.evaluate(
-            page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0
-        )
+        triggered = client.evaluate(page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0)
         assert isinstance(triggered, dict)
         assert triggered.get("pending") is True
         assert triggered.get("uiMode") == "extension"
 
         banner = wait_for_state(client, page, _BANNER_ASSERT_JS, timeout_sec=30.0)
         assert banner.get("hasAlert") is True, f"Missing takeover alert: {banner}"
-        assert (
-            banner.get("hasExtensionTitle") is True
-        ), f"Missing extension title: {banner}"
+        assert banner.get("hasExtensionTitle") is True, f"Missing extension title: {banner}"
         assert banner.get("hasReason") is True, f"Missing reason text: {banner}"
         assert banner.get("hasUrl") is True, f"Missing URL line: {banner}"
         assert banner.get("hasDone") is True, f"Missing Done button: {banner}"
@@ -202,9 +198,7 @@ def test_extension_takeover_skip_dismisses_banner() -> None:
     with open_mcp_page(ui_url) as (client, page):
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
 
-        triggered = client.evaluate(
-            page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0
-        )
+        triggered = client.evaluate(page, _TRIGGER_EXTENSION_TAKEOVER_JS, timeout_sec=10.0)
         assert isinstance(triggered, dict)
         assert triggered.get("pending") is True
         assert triggered.get("uiMode") == "extension"
@@ -246,12 +240,8 @@ def test_extension_takeover_captcha_auto_hides_done_skip() -> None:
 
         banner = wait_for_state(client, page, _CAPTCHA_AUTO_ASSERT_JS, timeout_sec=15.0)
         assert banner.get("hasAlert") is True, f"Missing takeover alert: {banner}"
-        assert (
-            banner.get("hasCaptchaText") is True
-        ), f"Missing captcha auto copy: {banner}"
-        assert (
-            banner.get("buttonCount") == 0
-        ), f"Expected no action buttons during auto-detect: {banner}"
+        assert banner.get("hasCaptchaText") is True, f"Missing captcha auto copy: {banner}"
+        assert banner.get("buttonCount") == 0, f"Expected no action buttons during auto-detect: {banner}"
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")

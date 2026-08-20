@@ -46,9 +46,7 @@ def _noop_wake(board_id: str) -> None:
     pass
 
 
-def _noop_publish(
-    board_id: str, task_id: str, action: str, *, title: str = "", status: str = ""
-) -> None:
+def _noop_publish(board_id: str, task_id: str, action: str, *, title: str = "", status: str = "") -> None:
     pass
 
 
@@ -213,9 +211,7 @@ class TestRunApplySpec:
 
     @pytest.mark.asyncio
     async def test_race_lost_when_not_triage(self) -> None:
-        task = KanbanTask(
-            task_id="t1", board_id="b1", title="x", status=TaskStatus.READY
-        )
+        task = KanbanTask(task_id="t1", board_id="b1", title="x", status=TaskStatus.READY)
         store = _mock_store(task)
         outcome = await run_apply_spec(
             "t1",
@@ -314,9 +310,7 @@ class TestRunSpecifyAllTriage:
             call_log.append(tid)
             if tid == "t1":
                 return SpecifyOutcome(task_id=tid, ok=False, reason="llm_error:Timeout")
-            return SpecifyOutcome(
-                task_id=tid, ok=True, reason="specified", new_body="body"
-            )
+            return SpecifyOutcome(task_id=tid, ok=True, reason="specified", new_body="body")
 
         result = await run_specify_all_triage(
             "b1",
@@ -340,11 +334,7 @@ class TestSpecPersistsCompletionCriteria:
         task = _triage_task()
         store = _mock_store(task)
         body = (
-            "**Goal**\n"
-            "Deliver report.\n\n"
-            "**Acceptance criteria**\n"
-            "- [ ] Cover at least 5 competitors\n"
-            "- [ ] Link data sources\n"
+            "**Goal**\nDeliver report.\n\n**Acceptance criteria**\n- [ ] Cover at least 5 competitors\n- [ ] Link data sources\n"
         )
         outcome = await run_apply_spec(
             "t1",

@@ -37,9 +37,7 @@ async def _seed_visible_agent(agent_id: str, *, display_name: str) -> None:
 
 @pytest.mark.integration
 class TestWorkspaceMergeSeedIntegration:
-    def test_batch_merge_fail_variant_persists_merge_failures(
-        self, client: TestClient
-    ) -> None:
+    def test_batch_merge_fail_variant_persists_merge_failures(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
         asyncio.run(_seed_visible_agent(agent_id, display_name="Merge Seed Agent"))
 
@@ -47,9 +45,7 @@ class TestWorkspaceMergeSeedIntegration:
             "app.api.chats.test_fixtures.workspace_merge.is_local_mode",
             return_value=True,
         ):
-            resp = client.post(
-                "/api/v1/chats/test/seed-workspace-merge-fixture?variant=batch_merge_fail"
-            )
+            resp = client.post("/api/v1/chats/test/seed-workspace-merge-fixture?variant=batch_merge_fail")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         chat_id = str(body["chat_id"])
@@ -60,11 +56,7 @@ class TestWorkspaceMergeSeedIntegration:
         payload = messages_resp.json()["data"]
         messages = payload["messages"]
         assistant = next(
-            (
-                msg
-                for msg in messages
-                if isinstance(msg, dict) and msg.get("role") == "assistant"
-            ),
+            (msg for msg in messages if isinstance(msg, dict) and msg.get("role") == "assistant"),
             None,
         )
         assert assistant is not None

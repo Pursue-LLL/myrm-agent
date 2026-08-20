@@ -76,9 +76,10 @@ class TestProvisionRollback:
 
         value = {"appId": "cli_rollback", "appSecret": "sec_rollback", "useLark": False}
 
-        with patch("app.services.config.service.ConfigService") as mock_config_cls, patch(
-            "app.core.channel_bridge.channel_gateway"
-        ) as mock_gateway:
+        with (
+            patch("app.services.config.service.ConfigService") as mock_config_cls,
+            patch("app.core.channel_bridge.channel_gateway") as mock_gateway,
+        ):
             mock_config_cls.return_value.set = AsyncMock()
             mock_config_cls.return_value.delete = AsyncMock()
 
@@ -108,9 +109,10 @@ class TestProvisionRollback:
 
         value = {"appId": "cli_persist", "appSecret": "sec_persist", "useLark": False}
 
-        with patch("app.services.config.service.ConfigService") as mock_config_cls, patch(
-            "app.core.channel_bridge.channel_gateway"
-        ) as mock_gateway:
+        with (
+            patch("app.services.config.service.ConfigService") as mock_config_cls,
+            patch("app.core.channel_bridge.channel_gateway") as mock_gateway,
+        ):
             mock_config_cls.return_value.set = AsyncMock()
             mock_config_cls.return_value.delete = AsyncMock()
 
@@ -120,17 +122,21 @@ class TestProvisionRollback:
             mock_gateway.add_channel = AsyncMock(return_value="feishu_persist")
             mock_gateway.remove_channel = AsyncMock(return_value=True)
 
-            with patch(
-                "app.core.channel_bridge.channel_factory.create_channel_instance",
-                new_callable=AsyncMock,
-                return_value=mock_channel,
-            ), patch(
-                "app.core.channel_bridge.channel_factory.load_persisted_instances",
-                new_callable=AsyncMock,
-                side_effect=RuntimeError("db unavailable"),
-            ), patch(
-                "app.core.channel_bridge.channel_factory.save_persisted_instances",
-                new_callable=AsyncMock,
+            with (
+                patch(
+                    "app.core.channel_bridge.channel_factory.create_channel_instance",
+                    new_callable=AsyncMock,
+                    return_value=mock_channel,
+                ),
+                patch(
+                    "app.core.channel_bridge.channel_factory.load_persisted_instances",
+                    new_callable=AsyncMock,
+                    side_effect=RuntimeError("db unavailable"),
+                ),
+                patch(
+                    "app.core.channel_bridge.channel_factory.save_persisted_instances",
+                    new_callable=AsyncMock,
+                ),
             ):
                 with pytest.raises(RuntimeError, match="db unavailable"):
                     await _provision_feishu_instance(value, "Persist App")
@@ -146,9 +152,10 @@ class TestProvisionRollback:
 
         value = {"appId": "cli_bool", "appSecret": "sec_bool", "useLark": False}
 
-        with patch("app.services.config.service.ConfigService") as mock_config_cls, patch(
-            "app.core.channel_bridge.channel_gateway"
-        ) as mock_gateway:
+        with (
+            patch("app.services.config.service.ConfigService") as mock_config_cls,
+            patch("app.core.channel_bridge.channel_gateway") as mock_gateway,
+        ):
             mock_config_cls.return_value.set = AsyncMock()
 
             mock_channel = AsyncMock()
@@ -156,20 +163,25 @@ class TestProvisionRollback:
             mock_channel.instance_id = "inst_bool_1"
             mock_gateway.add_channel = AsyncMock(return_value="feishu_booltest")
 
-            with patch(
-                "app.core.channel_bridge.channel_factory.create_channel_instance",
-                new_callable=AsyncMock,
-                return_value=mock_channel,
-            ) as mock_factory, patch(
-                "app.core.channel_bridge.channel_factory.load_persisted_instances",
-                new_callable=AsyncMock,
-                return_value=[],
-            ), patch(
-                "app.core.channel_bridge.channel_factory.save_persisted_instances",
-                new_callable=AsyncMock,
-            ), patch(
-                "app.core.channel_bridge.channel_factory.generate_instance_id",
-                return_value="inst_bool_1",
+            with (
+                patch(
+                    "app.core.channel_bridge.channel_factory.create_channel_instance",
+                    new_callable=AsyncMock,
+                    return_value=mock_channel,
+                ) as mock_factory,
+                patch(
+                    "app.core.channel_bridge.channel_factory.load_persisted_instances",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ),
+                patch(
+                    "app.core.channel_bridge.channel_factory.save_persisted_instances",
+                    new_callable=AsyncMock,
+                ),
+                patch(
+                    "app.core.channel_bridge.channel_factory.generate_instance_id",
+                    return_value="inst_bool_1",
+                ),
             ):
                 result = await _provision_feishu_instance(value, "Bool App")
 

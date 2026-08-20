@@ -32,7 +32,7 @@ def _create_agent(client: TestClient, *, name: str, max_iterations: int | None) 
         payload["max_iterations"] = max_iterations
     resp = client.post("/api/agents", json=payload)
     assert resp.status_code == 200, resp.text
-    data = (resp.json().get("data") or {})
+    data = resp.json().get("data") or {}
     agent_id = data.get("id") or data.get("agent_id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
@@ -66,7 +66,7 @@ def test_create_agent_accepts_max_iterations_at_max(client: TestClient) -> None:
     name = f"clamp-max-{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/agents", json={"name": name, "max_iterations": 500})
     assert resp.status_code == 200, resp.text
-    data = (resp.json().get("data") or {})
+    data = resp.json().get("data") or {}
     assert data.get("max_iterations") == 500
     agent_id = data.get("id") or data.get("agent_id")
     assert isinstance(agent_id, str) and agent_id
@@ -90,9 +90,7 @@ def test_max_iterations_caps_recursion_budget_live(
         "yoloModeEnabledAt": time.time(),
     }
 
-    agent_id = _create_agent(
-        client, name=f"lim-{uuid.uuid4().hex[:8]}", max_iterations=5
-    )
+    agent_id = _create_agent(client, name=f"lim-{uuid.uuid4().hex[:8]}", max_iterations=5)
     chat_id = f"test_lim_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/chats/", json={"chat_id": chat_id})
     assert resp.status_code == 200
@@ -117,9 +115,7 @@ def test_max_iterations_caps_recursion_budget_live(
         "expected iteration_limit_reached for max_iterations=5; event types="
         f"{sorted({e.get('type') for e in events if isinstance(e.get('type'), str)})}"
     )
-    assert not _error_events(events), (
-        f"unexpected error events: {_error_events(events)[:2]}"
-    )
+    assert not _error_events(events), f"unexpected error events: {_error_events(events)[:2]}"
 
 
 @pytest.mark.e2e
@@ -140,9 +136,7 @@ def test_default_max_iterations_completes_normally(
         "yoloModeEnabledAt": time.time(),
     }
 
-    agent_id = _create_agent(
-        client, name=f"def-{uuid.uuid4().hex[:8]}", max_iterations=None
-    )
+    agent_id = _create_agent(client, name=f"def-{uuid.uuid4().hex[:8]}", max_iterations=None)
     chat_id = f"test_def_{uuid.uuid4().hex[:8]}"
     resp = client.post("/api/v1/chats/", json={"chat_id": chat_id})
     assert resp.status_code == 200
@@ -158,25 +152,16 @@ def test_default_max_iterations_completes_normally(
     }
     events = _collect_agent_stream(client, payload, stream_timeout=240.0)
 
-    assert not _limit_events(events), (
-        "default max_iterations must not hit the iteration limit on a simple turn"
-    )
-    assert not _error_events(events), (
-        f"unexpected error events: {_error_events(events)[:2]}"
-    )
+    assert not _limit_events(events), "default max_iterations must not hit the iteration limit on a simple turn"
+    assert not _error_events(events), f"unexpected error events: {_error_events(events)[:2]}"
     got_reply = any(
-        isinstance(e.get("type"), str)
-        and e["type"] == "message"
-        and isinstance(e.get("data"), str)
-        and e["data"].strip()
+        isinstance(e.get("type"), str) and e["type"] == "message" and isinstance(e.get("data"), str) and e["data"].strip()
         for e in events
     )
     assert got_reply, "expected a message event with content for a simple turn"
 
 
-def _put_max_iterations(
-    client: TestClient, value: int | str | None
-):
+def _put_max_iterations(client: TestClient, value: int | str | None):
     """Create a fresh agent then PUT a max_iterations value onto it."""
     agent_id = _create_agent(client, name=f"put-{uuid.uuid4().hex[:8]}", max_iterations=None)
     payload: dict[str, object] = {"max_iterations": value}
@@ -219,10 +204,8 @@ def test_update_agent_explicit_null_resets_to_default(client: TestClient) -> Non
     agent_id = _create_agent(client, name=f"reset-{uuid.uuid4().hex[:8]}", max_iterations=50)
     resp = client.put(f"/api/agents/{agent_id}", json={"max_iterations": None})
     assert resp.status_code == 200, resp.text
-    data = (resp.json().get("data") or {})
-    assert data.get("max_iterations") is None, (
-        f"explicit null must reset to default, got {data.get('max_iterations')}"
-    )
+    data = resp.json().get("data") or {}
+    assert data.get("max_iterations") is None, f"explicit null must reset to default, got {data.get('max_iterations')}"
 
 
 @pytest.mark.integration
@@ -232,10 +215,8 @@ def test_update_agent_omitted_field_keeps_existing(client: TestClient) -> None:
     agent_id = _create_agent(client, name=f"keep-{uuid.uuid4().hex[:8]}", max_iterations=50)
     resp = client.put(f"/api/agents/{agent_id}", json={"description": "only desc"})
     assert resp.status_code == 200, resp.text
-    data = (resp.json().get("data") or {})
-    assert data.get("max_iterations") == 50, (
-        f"omitted max_iterations must be preserved, got {data.get('max_iterations')}"
-    )
+    data = resp.json().get("data") or {}
+    assert data.get("max_iterations") == 50, f"omitted max_iterations must be preserved, got {data.get('max_iterations')}"
 
 
 @pytest.mark.integration
@@ -249,7 +230,5 @@ def test_create_agent_ignores_unknown_camelcase_field(client: TestClient) -> Non
         json={"name": "camel-case-guard", "maxIterations": 50},
     )
     assert resp.status_code == 200, resp.text
-    data = (resp.json().get("data") or {})
-    assert data.get("max_iterations") is None, (
-        f"camelCase maxIterations must be ignored, got {data.get('max_iterations')}"
-    )
+    data = resp.json().get("data") or {}
+    assert data.get("max_iterations") is None, f"camelCase maxIterations must be ignored, got {data.get('max_iterations')}"

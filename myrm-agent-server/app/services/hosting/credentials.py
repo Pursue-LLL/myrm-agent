@@ -68,9 +68,7 @@ def token_from_credentials(credentials: dict[str, object]) -> str | None:
 
 
 async def load_credentials_row(db: AsyncSession, target_id: str) -> UserConfig | None:
-    return (
-        await db.execute(select(UserConfig).where(UserConfig.config_key == _credential_key(target_id)))
-    ).scalars().first()
+    return (await db.execute(select(UserConfig).where(UserConfig.config_key == _credential_key(target_id)))).scalars().first()
 
 
 async def load_target_credentials(db: AsyncSession, target_id: str) -> dict[str, object]:
@@ -113,9 +111,7 @@ async def save_target_credentials(
 
 
 async def load_legacy_vercel_token(db: AsyncSession) -> str | None:
-    row = (
-        await db.execute(select(UserConfig).where(UserConfig.config_key == VERCEL_CREDENTIALS_KEY))
-    ).scalars().first()
+    row = (await db.execute(select(UserConfig).where(UserConfig.config_key == VERCEL_CREDENTIALS_KEY))).scalars().first()
     if not row:
         return None
     credentials = decrypt_credentials(row.config_value, row.is_encrypted)

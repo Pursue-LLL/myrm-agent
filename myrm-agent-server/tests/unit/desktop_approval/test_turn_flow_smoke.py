@@ -32,9 +32,7 @@ class _ForceShellChat:
             return
         return
 
-    async def wait_shell_ready(
-        self, *, timeout_sec: float, require_bridge: bool
-    ) -> None:
+    async def wait_shell_ready(self, *, timeout_sec: float, require_bridge: bool) -> None:
         _ = timeout_sec
         _ = require_bridge
 
@@ -85,9 +83,7 @@ class _SignoffForceShellChat(_ForceShellChat):
         super().__init__()
         self.shell_calls = 0
 
-    async def wait_shell_ready(
-        self, *, timeout_sec: float, require_bridge: bool
-    ) -> None:
+    async def wait_shell_ready(self, *, timeout_sec: float, require_bridge: bool) -> None:
         _ = timeout_sec
         _ = require_bridge
         self.shell_calls += 1
@@ -188,9 +184,7 @@ async def test_complete_turn_after_approval_recovers_on_empty_snapshot(
     monkeypatch.setattr(turn_flow, "wait_stream_done_with_marker", _wait_done)
     monkeypatch.setattr(turn_flow, "_ensure_chat_route", _ensure_route)
     monkeypatch.setattr(turn_flow, "resolve_chat_id", _resolve_chat_id)
-    monkeypatch.setattr(
-        turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1
-    )
+    monkeypatch.setattr(turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1)
     chat = object()
     chat_id = await complete_turn_after_approval(  # type: ignore[arg-type]
         chat,
@@ -255,9 +249,7 @@ async def test_complete_turn_after_approval_api_primary_skips_cdp_route(
 
     monkeypatch.setattr(turn_flow, "_ensure_chat_route", _ensure_route)
     monkeypatch.setattr(turn_flow, "wait_chat_messages_done", _wait_api_done)
-    monkeypatch.setattr(
-        turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1
-    )
+    monkeypatch.setattr(turn_flow, "chat_user_message_count", lambda *_args, **_kwargs: 1)
     chat = object()
     chat_id = await complete_turn_after_approval(  # type: ignore[arg-type]
         chat,
@@ -275,9 +267,7 @@ async def test_seeded_kickoff_activity_probe_requires_beyond_baseline(
 ) -> None:
     messages = [{"role": "user", "content": "hello"}]
 
-    def _fetch(
-        _chat_id: str, *, api_url: str | None = None, **kwargs: object
-    ) -> list[dict[str, object]]:
+    def _fetch(_chat_id: str, *, api_url: str | None = None, **kwargs: object) -> list[dict[str, object]]:
         _ = api_url
         _ = kwargs
         return list(messages)
@@ -308,9 +298,7 @@ async def test_wait_seeded_resend_turn_kickoff_no_false_positive_on_stale_user_c
     )
 
     class _Chat:
-        async def evaluate(
-            self, *_args: object, **_kwargs: object
-        ) -> dict[str, object]:
+        async def evaluate(self, *_args: object, **_kwargs: object) -> dict[str, object]:
             return {"userCount": 1, "isStreaming": False}
 
         async def send_message(self, *_args: object, **_kwargs: object) -> None:
@@ -334,9 +322,7 @@ async def test_ensure_signoff_chat_surface_skips_force_chat_shell(
     calls: list[str] = []
 
     class _Chat:
-        async def wait_shell_ready(
-            self, *, timeout_sec: float, require_bridge: bool
-        ) -> None:
+        async def wait_shell_ready(self, *, timeout_sec: float, require_bridge: bool) -> None:
             _ = timeout_sec
             _ = require_bridge
             calls.append("wait_shell_ready")
@@ -397,9 +383,7 @@ async def test_wait_seeded_resend_turn_kickoff_r245_effective_ui_baseline(
     )
 
     class _Chat:
-        async def evaluate(
-            self, *_args: object, **_kwargs: object
-        ) -> dict[str, object]:
+        async def evaluate(self, *_args: object, **_kwargs: object) -> dict[str, object]:
             return {"userCount": 1, "isStreaming": False}
 
         async def send_message(self, *_args: object, **_kwargs: object) -> None:

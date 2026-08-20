@@ -476,12 +476,8 @@ async def test_emit_subagent_tree_hydrates_teammate_messages():
             "app.services.chat.chat_service.ChatService.ensure_default_workspace_dir",
             new_callable=AsyncMock,
         ) as mock_ws,
-        patch(
-            "myrm_agent_harness.agent.coordination.mailbox.list_teammate_history"
-        ) as mock_history,
-        patch(
-            "myrm_agent_harness.agent.coordination.mailbox.group_history_by_task"
-        ) as mock_group,
+        patch("myrm_agent_harness.agent.coordination.mailbox.list_teammate_history") as mock_history,
+        patch("myrm_agent_harness.agent.coordination.mailbox.group_history_by_task") as mock_group,
         patch(
             "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
             new_callable=AsyncMock,

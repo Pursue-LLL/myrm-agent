@@ -20,9 +20,7 @@ logger = logging.getLogger(__name__)
 class NetlifyHostingProvider:
     provider_type = "netlify"
 
-    async def test_connection(
-        self, target: HostingTarget, credentials: dict[str, object]
-    ) -> tuple[bool, str]:
+    async def test_connection(self, target: HostingTarget, credentials: dict[str, object]) -> tuple[bool, str]:
         token = credentials.get("access_token")
         if not isinstance(token, str) or not token.strip():
             return False, "Netlify access token is required."

@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="workspace")
+
+
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)

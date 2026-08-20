@@ -28,12 +28,8 @@ from app.api.voice.realtime import (
 from app.api.voice.tool_catalog import build_realtime_tools
 from app.api.voice.voice_memory_context import VoiceMemoryContext
 
-_ALL_MEMORY = VoiceMemoryContext(
-    enable_memory=True, enable_conversation_search=True, enable_wiki=True
-)
-_MEMORY_ONLY = VoiceMemoryContext(
-    enable_memory=True, enable_conversation_search=False, enable_wiki=False
-)
+_ALL_MEMORY = VoiceMemoryContext(enable_memory=True, enable_conversation_search=True, enable_wiki=True)
+_MEMORY_ONLY = VoiceMemoryContext(enable_memory=True, enable_conversation_search=False, enable_wiki=False)
 
 # ── shared fixtures ───────────────────────────────────────────────────
 
@@ -50,10 +46,7 @@ def _providers(
             {
                 "id": provider_id,
                 "apiUrl": api_url,
-                "apiKeys": [
-                    {"id": f"k{i}", "key": k, "isActive": active, "remark": ""}
-                    for i, (k, active) in enumerate(keys)
-                ],
+                "apiKeys": [{"id": f"k{i}", "key": k, "isActive": active, "remark": ""} for i, (k, active) in enumerate(keys)],
                 "enabledModels": [],
             }
         ],
@@ -69,9 +62,7 @@ class TestFindOpenaiProvider:
         assert _find_openai_provider(_providers(provider_id="openai")) is not None
 
     def test_finds_by_openai_variant(self) -> None:
-        assert (
-            _find_openai_provider(_providers(provider_id="openai-custom")) is not None
-        )
+        assert _find_openai_provider(_providers(provider_id="openai-custom")) is not None
 
     def test_returns_none_for_other_provider(self) -> None:
         assert _find_openai_provider(_providers(provider_id="anthropic")) is None
@@ -96,24 +87,17 @@ class TestFindOpenaiProvider:
 
 class TestExtractOpenaiApiKey:
     def test_finds_active_key(self) -> None:
-        assert (
-            _extract_openai_api_key(_providers(keys=(("sk-test-123", True),)))
-            == "sk-test-123"
-        )
+        assert _extract_openai_api_key(_providers(keys=(("sk-test-123", True),))) == "sk-test-123"
 
     def test_prefers_active_over_inactive(self) -> None:
         providers = _providers(keys=(("sk-off", False), ("sk-on", True)))
         assert _extract_openai_api_key(providers) == "sk-on"
 
     def test_falls_back_to_inactive_when_none_active(self) -> None:
-        assert (
-            _extract_openai_api_key(_providers(keys=(("sk-only", False),))) == "sk-only"
-        )
+        assert _extract_openai_api_key(_providers(keys=(("sk-only", False),))) == "sk-only"
 
     def test_matches_openai_in_id(self) -> None:
-        assert (
-            _extract_openai_api_key(_providers(provider_id="openai-main")) == "sk-test"
-        )
+        assert _extract_openai_api_key(_providers(provider_id="openai-main")) == "sk-test"
 
     def test_returns_none_when_no_openai_provider(self) -> None:
         assert _extract_openai_api_key(_providers(provider_id="anthropic")) is None
@@ -135,15 +119,10 @@ class TestExtractOpenaiApiKey:
 
 class TestExtractOpenaiBaseUrl:
     def test_extracts_api_url(self) -> None:
-        assert _extract_openai_base_url(
-            _providers(api_url="https://proxy.example.com/v1/")
-        ) == ("https://proxy.example.com/v1")
+        assert _extract_openai_base_url(_providers(api_url="https://proxy.example.com/v1/")) == ("https://proxy.example.com/v1")
 
     def test_strips_trailing_slash(self) -> None:
-        assert (
-            _extract_openai_base_url(_providers(api_url="https://api.example.com/"))
-            == "https://api.example.com"
-        )
+        assert _extract_openai_base_url(_providers(api_url="https://api.example.com/")) == "https://api.example.com"
 
     def test_returns_none_for_empty_url(self) -> None:
         assert _extract_openai_base_url(_providers(api_url="  ")) is None
@@ -208,9 +187,7 @@ class TestBuildRealtimeTools:
         assert "all" in corpus_enum
 
     def test_skips_memory_tool_when_memory_disabled(self) -> None:
-        disabled = VoiceMemoryContext(
-            enable_memory=False, enable_conversation_search=False, enable_wiki=False
-        )
+        disabled = VoiceMemoryContext(enable_memory=False, enable_conversation_search=False, enable_wiki=False)
         tools = build_realtime_tools(("memory", "web_search"), disabled)
         names = [t.name for t in tools]
         assert "memory_search_tool" not in names
@@ -229,9 +206,7 @@ class TestBuildRealtimeTools:
 
     def test_render_ui_not_exposed_even_when_profile_enabled(self) -> None:
         """Voice Realtime has no inline A2UI surface — catalog omits render_ui (see gemini_live)."""
-        tools = build_realtime_tools(
-            ("web_search", "render_ui", "kanban"), _MEMORY_ONLY
-        )
+        tools = build_realtime_tools(("web_search", "render_ui", "kanban"), _MEMORY_ONLY)
         names = [t.name for t in tools]
         assert "render_ui" not in names
         assert "web_search" in names
@@ -268,9 +243,7 @@ async def test_create_realtime_token_success() -> None:
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "client_secret": {"value": "ek-test-secret", "expires_at": 1717000000}
-    }
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-test-secret", "expires_at": 1717000000}}
 
     mock_client = AsyncMock()
     mock_client.post = AsyncMock(return_value=mock_resp)
@@ -288,9 +261,7 @@ async def test_create_realtime_token_success() -> None:
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
-        result = await create_realtime_token(
-            RealtimeTokenRequest(agent_id="test-agent")
-        )
+        result = await create_realtime_token(RealtimeTokenRequest(agent_id="test-agent"))
 
     assert result.client_secret == "ek-test-secret"
     assert result.model == "gpt-realtime-2"
@@ -300,14 +271,8 @@ async def test_create_realtime_token_success() -> None:
     assert len(result.tools) >= 1
     assert any(t.name == "run_background_task" for t in result.tools)
     # The sessions URL is built from the configured apiUrl (which carries /v1) — never a second /v1.
-    assert (
-        mock_client.post.await_args.args[0]
-        == "https://api.openai.com/v1/realtime/sessions"
-    )
-    assert (
-        mock_client.post.await_args.kwargs["headers"]["Authorization"]
-        == "Bearer sk-test"
-    )
+    assert mock_client.post.await_args.args[0] == "https://api.openai.com/v1/realtime/sessions"
+    assert mock_client.post.await_args.kwargs["headers"]["Authorization"] == "Bearer sk-test"
     posted_payload = mock_client.post.await_args.kwargs["json"]
     assert "tools" in posted_payload
 
@@ -327,9 +292,7 @@ async def test_create_realtime_token_no_profile_returns_default_tools() -> None:
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "client_secret": {"value": "ek-secret", "expires_at": None}
-    }
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-secret", "expires_at": None}}
 
     mock_client = AsyncMock()
     mock_client.post = AsyncMock(return_value=mock_resp)
@@ -375,9 +338,7 @@ async def test_create_realtime_token_voice_from_config() -> None:
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "client_secret": {"value": "ek-s", "expires_at": None}
-    }
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-s", "expires_at": None}}
 
     mock_client = AsyncMock()
     mock_client.post = AsyncMock(return_value=mock_resp)
@@ -420,9 +381,7 @@ async def test_create_realtime_token_invalid_voice_uses_default() -> None:
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "client_secret": {"value": "ek-s", "expires_at": None}
-    }
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-s", "expires_at": None}}
 
     mock_client = AsyncMock()
     mock_client.post = AsyncMock(return_value=mock_resp)
@@ -466,9 +425,7 @@ async def test_create_realtime_token_tools_payload_format() -> None:
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "client_secret": {"value": "ek-s", "expires_at": None}
-    }
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-s", "expires_at": None}}
 
     mock_client = AsyncMock()
     mock_client.post = AsyncMock(return_value=mock_resp)
@@ -805,9 +762,7 @@ async def test_execute_tool_failure() -> None:
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(side_effect=RuntimeError("Config error")),
     ):
-        result = await execute_realtime_tool(
-            RealtimeToolExecRequest(tool_name="failing_tool", arguments={})
-        )
+        result = await execute_realtime_tool(RealtimeToolExecRequest(tool_name="failing_tool", arguments={}))
 
     assert result.error is not None
     assert result.error == "Tool execution failed"

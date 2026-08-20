@@ -309,13 +309,9 @@ class TestSuiteProgressCallback:
                 "app.core.eval.service._build_eval_manifest",
                 new=AsyncMock(return_value=MagicMock(to_dict=lambda: {"x": 1})),
             ),
-            patch(
-                "app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()
-            ),
+            patch("app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()),
             patch("app.core.eval.service.EvalRunner") as mock_runner_cls,
-            patch(
-                "app.core.eval.service.JsonlReporter", FakeJsonlReporter
-            ),
+            patch("app.core.eval.service.JsonlReporter", FakeJsonlReporter),
             patch(
                 "myrm_agent_harness.eval.load_multi_turn_cases",
                 return_value=[],
@@ -334,6 +330,7 @@ class TestLatestReportReplace:
     @pytest.mark.asyncio
     async def test_suite_replaces_existing_latest(self, tmp_path: Path) -> None:
         """A previous latest.jsonl is removed before the new report is copied."""
+
         class FakeResult:
             total_cases = 1
             pass_count = 1
@@ -359,13 +356,9 @@ class TestLatestReportReplace:
                 "app.core.eval.service._build_eval_manifest",
                 new=AsyncMock(return_value=MagicMock(to_dict=lambda: {"x": 1})),
             ),
-            patch(
-                "app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()
-            ),
+            patch("app.core.eval.executor.LocalEvalExecutor", return_value=MagicMock()),
             patch("app.core.eval.service.EvalRunner") as mock_runner_cls,
-            patch(
-                "app.core.eval.service.JsonlReporter", FakeJsonlReporter
-            ),
+            patch("app.core.eval.service.JsonlReporter", FakeJsonlReporter),
             patch(
                 "myrm_agent_harness.eval.load_multi_turn_cases",
                 return_value=[],

@@ -92,7 +92,7 @@ class ThemePackageInstallData(BaseModel):
 
 def _trust_tier_from_listing_origin(origin: str) -> str:
     normalized = origin.strip().lower()
-    return 'verified' if normalized == 'official' else 'community'
+    return "verified" if normalized == "official" else "community"
 
 
 class ThemePackageExportRequest(BaseModel):
@@ -103,11 +103,11 @@ class ThemePackageExportRequest(BaseModel):
         populate_by_name = True
 
 
-@router.post('/packages/inspect', response_model=StandardSuccessResponse)
+@router.post("/packages/inspect", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.file_upload)
 async def inspect_package(
     request: Request,
-    file: UploadFile = File(..., description='.myrmtheme ZIP package'),
+    file: UploadFile = File(..., description=".myrmtheme ZIP package"),
 ) -> JSONResponse:
     content = await file.read()
     try:
@@ -135,11 +135,11 @@ async def inspect_package(
         hero_thumbnail_base64=result.hero_thumbnail_base64,
         preview_thumbnail_base64=result.preview_thumbnail_base64,
     )
-    logger.info('Theme package inspected: session=%s can_import=%s', result.session_id, result.can_import)
-    return success_response({'inspect': payload.model_dump(by_alias=True)})
+    logger.info("Theme package inspected: session=%s can_import=%s", result.session_id, result.can_import)
+    return success_response({"inspect": payload.model_dump(by_alias=True)})
 
 
-@router.post('/packages/install', response_model=StandardSuccessResponse)
+@router.post("/packages/install", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.file_upload)
 async def install_package(
     request: Request,
@@ -155,11 +155,11 @@ async def install_package(
         raise validation_error(str(error)) from error
 
     payload = ThemePackageInstallData(profile=profile, set_active=set_active)
-    logger.info('Theme package installed: profile_id=%s', profile.id)
-    return success_response({'install': payload.model_dump(by_alias=True)})
+    logger.info("Theme package installed: profile_id=%s", profile.id)
+    return success_response({"install": payload.model_dump(by_alias=True)})
 
 
-@router.post('/packages/export')
+@router.post("/packages/export")
 @limiter.limit(settings.rate_limit.file_upload)
 async def export_package(
     request: Request,
@@ -170,12 +170,12 @@ async def export_package(
     except ThemePackageExportError as error:
         raise validation_error(str(error)) from error
 
-    filename = f'{body.profile.id or "theme"}.myrmtheme'.replace('/', '-')
-    headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
-    return Response(content=zip_bytes, media_type='application/zip', headers=headers)
+    filename = f"{body.profile.id or 'theme'}.myrmtheme".replace("/", "-")
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return Response(content=zip_bytes, media_type="application/zip", headers=headers)
 
 
-@router.post('/packages/install-from-marketplace', response_model=StandardSuccessResponse)
+@router.post("/packages/install-from-marketplace", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.file_upload)
 async def install_from_marketplace(
     request: Request,
@@ -183,10 +183,10 @@ async def install_from_marketplace(
     package_sha256: Annotated[str, Form()],
     transport_signature: Annotated[str, Form()],
     expires_at: Annotated[float, Form()],
-    listing_origin: Annotated[str, Form()] = 'community',
+    listing_origin: Annotated[str, Form()] = "community",
     set_active: Annotated[bool, Form()] = True,
-    existing_profile_ids: Annotated[str, Form()] = '[]',
-    file: UploadFile = File(..., description='.myrmtheme ZIP from marketplace'),
+    existing_profile_ids: Annotated[str, Form()] = "[]",
+    file: UploadFile = File(..., description=".myrmtheme ZIP from marketplace"),
 ) -> JSONResponse:
     import json
 
@@ -195,7 +195,7 @@ async def install_from_marketplace(
         parsed_ids = json.loads(existing_profile_ids)
         id_set = {str(item) for item in parsed_ids} if isinstance(parsed_ids, list) else set()
     except json.JSONDecodeError as error:
-        raise validation_error('existing_profile_ids must be a JSON array') from error
+        raise validation_error("existing_profile_ids must be a JSON array") from error
 
     try:
         profile, set_active_result, _signature_status = await install_theme_package_from_marketplace(
@@ -215,5 +215,5 @@ async def install_from_marketplace(
         set_active=set_active_result,
         trust_tier=_trust_tier_from_listing_origin(listing_origin),
     )
-    logger.info('Theme marketplace package installed: listing=%s profile_id=%s', listing_id, profile.id)
-    return success_response({'install': payload.model_dump(by_alias=True)})
+    logger.info("Theme marketplace package installed: listing=%s profile_id=%s", listing_id, profile.id)
+    return success_response({"install": payload.model_dump(by_alias=True)})

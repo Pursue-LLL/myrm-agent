@@ -130,9 +130,7 @@ def test_background_tasks_panel_shows_failed_shell_job_from_seed() -> None:
     assert row.get("error_category") == "nonzero_exit"
 
     with _background_tasks_panel(api_base) as (client, page):
-        failed_row = wait_for_state(
-            client, page, _FAILED_SHELL_ROW_JS, timeout_sec=30.0
-        )
+        failed_row = wait_for_state(client, page, _FAILED_SHELL_ROW_JS, timeout_sec=30.0)
         assert failed_row.get("hasExitCode") is True, failed_row
         assert failed_row.get("hasErrorCategory") is True, failed_row
         assert failed_row.get("hasFailedStatus") is True, failed_row
@@ -231,9 +229,7 @@ def _wait_api_task_status(
         if last_status == expected_status:
             return
         time.sleep(0.5)
-    raise AssertionError(
-        f"API status expected {expected_status!r} for {task_id}; last={last_status!r}"
-    )
+    raise AssertionError(f"API status expected {expected_status!r} for {task_id}; last={last_status!r}")
 
 
 def _wait_list_includes_vault_ref(
@@ -254,9 +250,7 @@ def _wait_list_includes_vault_ref(
             if row.get("task_id") == task_id and row.get("vault_log_ref"):
                 return
         time.sleep(0.5)
-    raise AssertionError(
-        f"List API never exposed vault_log_ref for {task_id} within {timeout_sec}s"
-    )
+    raise AssertionError(f"List API never exposed vault_log_ref for {task_id} within {timeout_sec}s")
 
 
 def _wait_api_list_waiting_for_input(
@@ -285,8 +279,7 @@ def _wait_api_list_waiting_for_input(
                 return
         time.sleep(0.5)
     raise AssertionError(
-        f"List API never exposed waiting_for_input=true for {task_id} within {timeout_sec}s; "
-        f"last={last_flags!r}"
+        f"List API never exposed waiting_for_input=true for {task_id} within {timeout_sec}s; last={last_flags!r}"
     )
 
 
@@ -325,13 +318,9 @@ def _wait_browser_running_task_row(
     timeout_sec: float | None = None,
 ) -> None:
     _ = task_id
-    resolved_timeout = (
-        _panel_shell_row_timeout_sec() if timeout_sec is None else timeout_sec
-    )
+    resolved_timeout = _panel_shell_row_timeout_sec() if timeout_sec is None else timeout_sec
     client.evaluate(page, _REFRESH_PANEL_JS, timeout_sec=10.0)
-    cancel_ready = wait_for_state(
-        client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=resolved_timeout
-    )
+    cancel_ready = wait_for_state(client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=resolved_timeout)
     assert cancel_ready.get("ready") is True, cancel_ready
 
 
@@ -384,9 +373,7 @@ def test_background_tasks_panel_cancel_running_shell_via_ui() -> None:
     _wait_api_task_status(api_base, task_id, "running")
 
     with _background_tasks_panel(api_base) as (client, page):
-        running_cancel = wait_for_state(
-            client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=60.0
-        )
+        running_cancel = wait_for_state(client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=60.0)
         assert running_cancel.get("ready") is True, running_cancel
 
         cancelled = client.evaluate(page, _CANCEL_RUNNING_JS, timeout_sec=10.0)
@@ -536,9 +523,7 @@ def test_background_tasks_panel_vault_log_drawer_from_seed() -> None:
         assert opened.get("clicked") is True, opened
         panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=60.0)
         assert panel.get("ready") is True, panel
-        vault_expression = _VAULT_LOG_BUTTON_JS.replace(
-            "__TASK_ID__", json.dumps(task_id)
-        )
+        vault_expression = _VAULT_LOG_BUTTON_JS.replace("__TASK_ID__", json.dumps(task_id))
         clicked = wait_for_state(client, page, vault_expression, timeout_sec=90.0)
         assert clicked.get("clicked") is True, clicked
 
@@ -597,9 +582,7 @@ def _wait_api_result_preview_contains(
         if needle in last_preview:
             return
         time.sleep(0.5)
-    raise AssertionError(
-        f"result_preview never contained {needle!r} for {task_id}; last={last_preview!r}"
-    )
+    raise AssertionError(f"result_preview never contained {needle!r} for {task_id}; last={last_preview!r}")
 
 
 def _wait_api_stdin_closed(
@@ -638,20 +621,14 @@ def test_background_tasks_panel_shell_stdin_via_ui() -> None:
 
     with _background_tasks_panel(api_base) as (client, page):
         progress_timeout = _panel_shell_row_timeout_sec()
-        _wait_browser_running_task_row(
-            client, page, task_id, timeout_sec=progress_timeout
-        )
-        toggle_visible = wait_for_state(
-            client, page, _SHELL_INPUT_TOGGLE_VISIBLE_JS, timeout_sec=progress_timeout
-        )
+        _wait_browser_running_task_row(client, page, task_id, timeout_sec=progress_timeout)
+        toggle_visible = wait_for_state(client, page, _SHELL_INPUT_TOGGLE_VISIBLE_JS, timeout_sec=progress_timeout)
         assert toggle_visible.get("ready") is True, toggle_visible
 
         clicked = client.evaluate(page, _SHELL_INPUT_CLICK_TOGGLE_JS, timeout_sec=10.0)
         assert clicked.get("clicked") is True, clicked
 
-        input_visible = wait_for_state(
-            client, page, _SHELL_INPUT_VISIBLE_JS, timeout_sec=15.0
-        )
+        input_visible = wait_for_state(client, page, _SHELL_INPUT_VISIBLE_JS, timeout_sec=15.0)
         assert input_visible.get("ready") is True, input_visible
 
         focus = client.evaluate(page, _SHELL_INPUT_FOCUS_JS, timeout_sec=10.0)
@@ -663,18 +640,14 @@ def test_background_tasks_panel_shell_stdin_via_ui() -> None:
         )
         assert typed.get("typed") is True, typed
 
-        send_ready = wait_for_state(
-            client, page, _SHELL_INPUT_SEND_READY_JS, timeout_sec=15.0
-        )
+        send_ready = wait_for_state(client, page, _SHELL_INPUT_SEND_READY_JS, timeout_sec=15.0)
         assert send_ready.get("ready") is True, send_ready
 
         sent = client.evaluate(page, _SHELL_INPUT_CLICK_SEND_JS, timeout_sec=10.0)
         assert sent.get("clicked") is True, sent
 
         # Keep the tab alive until stdin POST completes; closing the page aborts fetch.
-        _wait_api_result_preview_contains(
-            api_base, task_id, "MYRM_STDIN_ECHO:hello", timeout_sec=45.0
-        )
+        _wait_api_result_preview_contains(api_base, task_id, "MYRM_STDIN_ECHO:hello", timeout_sec=45.0)
 
         http_json("POST", f"{api_base}/api/v1/background-tasks/{task_id}/cancel")
 
@@ -696,9 +669,7 @@ def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
     with _background_tasks_panel(api_base) as (client, page):
         client.evaluate(page, _REFRESH_PANEL_JS, timeout_sec=10.0)
 
-        running_row = wait_for_state(
-            client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=60.0
-        )
+        running_row = wait_for_state(client, page, _PANEL_RUNNING_SHELL_CANCEL_JS, timeout_sec=60.0)
         assert running_row.get("ready") is True, running_row
 
         badge = wait_for_state(client, page, _WAITING_BADGE_JS, timeout_sec=60.0)
@@ -707,9 +678,7 @@ def test_background_tasks_panel_shell_waiting_badge_and_close_stdin() -> None:
         clicked = client.evaluate(page, _SHELL_INPUT_CLICK_TOGGLE_JS, timeout_sec=10.0)
         assert clicked.get("clicked") is True, clicked
 
-        close_visible = wait_for_state(
-            client, page, _SHELL_INPUT_CLOSE_VISIBLE_JS, timeout_sec=30.0
-        )
+        close_visible = wait_for_state(client, page, _SHELL_INPUT_CLOSE_VISIBLE_JS, timeout_sec=30.0)
         assert close_visible.get("ready") is True, close_visible
 
         closed = client.evaluate(page, _SHELL_INPUT_CLICK_CLOSE_JS, timeout_sec=10.0)

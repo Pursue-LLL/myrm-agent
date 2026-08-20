@@ -72,12 +72,8 @@ class SecurityPolicyExtension(AgentExtension):
         privacy_policy = (
             PrivacyPolicy(
                 enabled=self.privacy_enabled,
-                s2_action=coerce_pii_action(
-                    self.privacy_s2_action, PIIAction.REDACT
-                ),
-                s3_action=coerce_pii_action(
-                    self.privacy_s3_action, PIIAction.REDACT
-                ),
+                s2_action=coerce_pii_action(self.privacy_s2_action, PIIAction.REDACT),
+                s3_action=coerce_pii_action(self.privacy_s3_action, PIIAction.REDACT),
                 custom_keywords_s2=self.privacy_custom_keywords_s2,
                 custom_keywords_s3=self.privacy_custom_keywords_s3,
                 custom_patterns_s2=self.privacy_custom_patterns_s2,

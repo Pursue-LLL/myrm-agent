@@ -56,10 +56,7 @@ def _log_worker() -> None:
                     item = _log_queue.get(timeout=1.0)
                     batch.append(item)
 
-                    if (
-                        len(batch) >= batch_size
-                        or (time.time() - last_flush) >= flush_interval
-                    ):
+                    if len(batch) >= batch_size or (time.time() - last_flush) >= flush_interval:
                         _flush_batch(batch)
                         batch.clear()
                         last_flush = time.time()
@@ -159,9 +156,7 @@ def start_permission_logger() -> None:
         allowed: bool,
         deny_reason: str,
     ) -> None:
-        permission_usage_callback(
-            user_id, skill_id, permission, operation, allowed, deny_reason
-        )
+        permission_usage_callback(user_id, skill_id, permission, operation, allowed, deny_reason)
 
     set_permission_usage_callback(callback_wrapper)
     logger.info("Permission logger started")

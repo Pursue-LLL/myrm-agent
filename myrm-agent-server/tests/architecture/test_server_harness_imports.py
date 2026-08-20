@@ -47,8 +47,7 @@ def test_no_server_harness_private_module_imports() -> None:
     private = sorted(path for path in current if "._" in path)
     assert not private, (
         "Private harness module imports detected in myrm-agent-server. "
-        "Use myrm_agent_harness.api.hooks or myrm_agent_harness.api.skills:\n"
-        + "\n".join(private)
+        "Use myrm_agent_harness.api.hooks or myrm_agent_harness.api.skills:\n" + "\n".join(private)
     )
 
 

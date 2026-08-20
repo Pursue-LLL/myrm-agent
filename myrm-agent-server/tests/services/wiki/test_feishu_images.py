@@ -20,9 +20,7 @@ async def _fake_client(images: dict[str, bytes | None]) -> Any:
 
 
 @pytest.mark.asyncio
-async def test_localize_images_success_and_failure_degrade(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_localize_images_success_and_failure_degrade(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress import asset_store
 
     png = b"\x89PNG\r\n\x1a\nfake"
@@ -35,9 +33,7 @@ async def test_localize_images_success_and_failure_degrade(
     markdown = "![image](feishu-image:tok_ok) and ![image](feishu-image:tok_fail)"
     client = await _fake_client({"tok_ok": png, "tok_fail": None})
 
-    rewritten = await _localize_feishu_images(
-        markdown, client, structure=structure, raw_relative="feishu/2026-08/x.md"
-    )
+    rewritten = await _localize_feishu_images(markdown, client, structure=structure, raw_relative="feishu/2026-08/x.md")
     assert "abc123.png" in rewritten
     assert "![image]" in rewritten
     assert "feishu-image:" not in rewritten

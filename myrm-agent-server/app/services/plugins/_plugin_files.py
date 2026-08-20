@@ -130,9 +130,7 @@ def persist_plugin_files(
     for rel_path, content in files.items():
         target = _contained_path(root_dir, rel_path)
         if target is None:
-            logger.warning(
-                "Skipping unsafe plugin file path '%s' during persistence", rel_path
-            )
+            logger.warning("Skipping unsafe plugin file path '%s' during persistence", rel_path)
             continue
         try:
             target.parent.mkdir(parents=True, exist_ok=True)

@@ -79,8 +79,7 @@ action="write_file"), referenced from SKILL.md by relative path — not inlined.
 LEARN_PROMPT_PREFIX = "[/learn]"
 _LEARN_SLASH_COMMAND = "learn"
 _DEFAULT_LEARN_ARGS = (
-    "the workflow we just went through in this conversation — "
-    "review the steps taken and distill them into a reusable skill"
+    "the workflow we just went through in this conversation — review the steps taken and distill them into a reusable skill"
 )
 
 
@@ -160,9 +159,7 @@ def apply_learn_skill_manage_permission_overlay(
     merged = dict(security_config) if security_config else {}
     raw_permissions = merged.get("permissions")
     permissions: dict[str, object] = (
-        {str(key): value for key, value in raw_permissions.items()}
-        if isinstance(raw_permissions, dict)
-        else {}
+        {str(key): value for key, value in raw_permissions.items()} if isinstance(raw_permissions, dict) else {}
     )
     permissions["skill_manage"] = "ask"
     merged["permissions"] = permissions
@@ -209,8 +206,8 @@ def _build_learn_prompt(user_args: str) -> str:
         "[/learn] The user wants you to learn a reusable skill from the "
         "source(s) described below, and save it.\n\n"
         f"WHAT TO LEARN FROM:\n{args}\n\n"
-        "The request may mix SOURCES (paths, URLs, pasted notes, \"what we just "
-        "did\") and REQUIREMENTS (focus, scope, naming). Treat every part as "
+        'The request may mix SOURCES (paths, URLs, pasted notes, "what we just '
+        'did") and REQUIREMENTS (focus, scope, naming). Treat every part as '
         "load-bearing — prose after a URL or path is authoring guidance, not "
         "incidental. Never gather the first source and ignore the rest.\n\n"
         f"INPUT TYPE: {input_type}\n"

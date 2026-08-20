@@ -44,8 +44,7 @@ def _collect_sse_events_via_requests(query: str) -> list[dict]:
         resp.raise_for_status()
     except requests.ConnectionError:
         pytest.skip(
-            "Live server is not running; start the backend on :8080 "
-            "or run from tests/api/agent/ with the ASGI client fixture"
+            "Live server is not running; start the backend on :8080 or run from tests/api/agent/ with the ASGI client fixture"
         )
 
     events: list[dict] = []
@@ -87,42 +86,30 @@ def test_live_message_end_sse_chain() -> None:
             or "requires full session context" in error_data
         ):
             pytest.skip(
-                "Live server lacks search service / full session context "
-                "(requires SEARCH_SERVICE + LLM provider on :8080)"
+                "Live server lacks search service / full session context (requires SEARCH_SERVICE + LLM provider on :8080)"
             )
 
     message_ends = [e for e in events if e.get("type") == "message_end"]
-    assert (
-        message_ends
-    ), f"No message_end event found. Events: {[e.get('type') for e in events]}"
+    assert message_ends, f"No message_end event found. Events: {[e.get('type') for e in events]}"
     end = message_ends[-1]
 
-    assert (
-        end.get("completion_status") == "complete"
-    ), f"Unexpected status: {end.get('completion_status')}"
+    assert end.get("completion_status") == "complete", f"Unexpected status: {end.get('completion_status')}"
 
     token_usages = [e for e in events if e.get("type") == "token_usage"]
     has_cost = any(
-        isinstance(e.get("data", {}).get("cost_usd"), (int, float))
-        and e["data"]["cost_usd"] > 0
+        isinstance(e.get("data", {}).get("cost_usd"), (int, float)) and e["data"]["cost_usd"] > 0
         for e in token_usages
         if isinstance(e.get("data"), dict)
     )
 
     if has_cost:
-        assert (
-            "cost_usd" in end
-        ), f"cost_usd missing despite token_usage reporting cost. Keys: {list(end.keys())}"
+        assert "cost_usd" in end, f"cost_usd missing despite token_usage reporting cost. Keys: {list(end.keys())}"
         assert isinstance(end["cost_usd"], (int, float))
         assert end["cost_usd"] > 0
 
-    assert (
-        "wu_consumed" not in end
-    ), "wu_consumed should NOT be injected in tauri mode (only in sandbox)"
+    assert "wu_consumed" not in end, "wu_consumed should NOT be injected in tauri mode (only in sandbox)"
 
-    assert (
-        "usage" in end or "token_economics" in end
-    ), f"Neither 'usage' nor 'token_economics' in MESSAGE_END: {list(end.keys())}"
+    assert "usage" in end or "token_economics" in end, f"Neither 'usage' nor 'token_economics' in MESSAGE_END: {list(end.keys())}"
 
 
 @pytest.mark.e2e
@@ -143,14 +130,11 @@ def test_live_message_end_has_usage_field() -> None:
             or "requires full session context" in error_data
         ):
             pytest.skip(
-                "Live server lacks search service / full session context "
-                "(requires SEARCH_SERVICE + LLM provider on :8080)"
+                "Live server lacks search service / full session context (requires SEARCH_SERVICE + LLM provider on :8080)"
             )
 
     message_ends = [e for e in events if e.get("type") == "message_end"]
     assert message_ends, "No message_end found"
     end = message_ends[-1]
 
-    assert (
-        "usage" in end or "token_economics" in end
-    ), f"Neither 'usage' nor 'token_economics' in MESSAGE_END: {list(end.keys())}"
+    assert "usage" in end or "token_economics" in end, f"Neither 'usage' nor 'token_economics' in MESSAGE_END: {list(end.keys())}"

@@ -58,9 +58,7 @@ async def install_theme_package_from_marketplace(
         raise ThemeMarketplaceInstallError("Theme package hash mismatch")
 
     if not inspect_result.can_import:
-        raise ThemeMarketplaceInstallError(
-            "Theme package cannot be imported due to validation warnings"
-        )
+        raise ThemeMarketplaceInstallError("Theme package cannot be imported due to validation warnings")
 
     try:
         profile, applied = await install_theme_package(

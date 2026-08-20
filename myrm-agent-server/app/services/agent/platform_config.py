@@ -159,8 +159,7 @@ async def verify_platform_embedding_ready() -> object:
         raise ConfigIncompleteError(
             user_friendly_message={
                 "en": (
-                    "Embedding model is configured but unreachable. Check the "
-                    "model name and API key in Settings > Retrieval."
+                    "Embedding model is configured but unreachable. Check the model name and API key in Settings > Retrieval."
                 ),
                 "zh": "Embedding 模型已配置但无法访问，请在设置 > 检索中检查模型名称与 API Key。",
             },

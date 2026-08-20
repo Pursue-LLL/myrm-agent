@@ -86,11 +86,9 @@ async def test_chrome_ui_same_chat_two_ok_messages(
         await chat.click_new_chat()
         log_offset = snapshot_backend_log_offset(api_url=get_e2e_api_url())
         first_send = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-        first_chat_id = str(
-            first_send.get("started", {}).get("chatId")
-            or first_send.get("submit", {}).get("chatId")
-            or ""
-        ).strip() or None
+        first_chat_id = (
+            str(first_send.get("started", {}).get("chatId") or first_send.get("submit", {}).get("chatId") or "").strip() or None
+        )
         after_first = await chat.wait_turn_done(
             E2E_PROMPT,
             chat_id_hint=first_chat_id,
@@ -106,9 +104,7 @@ async def test_chrome_ui_same_chat_two_ok_messages(
 
         await chat.wait_input_empty(chat_id_hint=chat_id)
         heartbeat_once()
-        await chat.send_message(
-            E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=_base_url()
-        )
+        await chat.send_message(E2E_PROMPT, E2E_PROMPT, chat_id_hint=chat_id, base_url=_base_url())
         after_second = await chat.wait_turn_done(
             E2E_PROMPT,
             chat_id_hint=chat_id,
@@ -116,12 +112,9 @@ async def test_chrome_ui_same_chat_two_ok_messages(
             timeout_sec=TURN_WAIT_SEC,
         )
         chat_id_second = await _resolve_chat_id(chat, after_second)
-        assert (
-            chat_id_second == chat_id
-        ), f"Second turn changed chat id: {chat_id} -> {chat_id_second}"
+        assert chat_id_second == chat_id, f"Second turn changed chat id: {chat_id} -> {chat_id_second}"
         assert chat_user_message_count(chat_id) >= 2, (
-            f"Expected two user messages in chat {chat_id}: "
-            f"{after_first} -> {after_second}"
+            f"Expected two user messages in chat {chat_id}: {after_first} -> {after_second}"
         )
         return log_offset, chat_id
 
@@ -153,19 +146,9 @@ async def test_chrome_ui_same_chat_two_ok_messages(
     assert receipt.get("assistant_snippet"), f"LLMReceipt missing assistant_snippet: {receipt}"
     assert receipt.get("api_port"), f"LLMReceipt missing api_port: {receipt}"
 
-    prewarm_requests = count_turn_prewarm_in_log(
-        since_offset=log_offset, api_url=get_e2e_api_url()
-    )
-    assert (
-        prewarm_requests >= 1
-    ), f"expected Turn prewarm requested >=1 in backend log (got {prewarm_requests})"
+    prewarm_requests = count_turn_prewarm_in_log(since_offset=log_offset, api_url=get_e2e_api_url())
+    assert prewarm_requests >= 1, f"expected Turn prewarm requested >=1 in backend log (got {prewarm_requests})"
 
-    created, reused = count_execution_cache_in_log(
-        since_offset=log_offset, api_url=get_e2e_api_url()
-    )
-    assert (
-        created >= 1
-    ), f"expected execution_cache_created >=1 in backend log (got {created})"
-    assert (
-        reused >= 1
-    ), f"expected execution_cache_reuse >=1 in backend log (got {reused})"
+    created, reused = count_execution_cache_in_log(since_offset=log_offset, api_url=get_e2e_api_url())
+    assert created >= 1, f"expected execution_cache_created >=1 in backend log (got {created})"
+    assert reused >= 1, f"expected execution_cache_reuse >=1 in backend log (got {reused})"

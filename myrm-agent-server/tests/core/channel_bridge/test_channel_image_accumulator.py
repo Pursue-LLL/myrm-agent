@@ -110,6 +110,7 @@ class TestMediaAttachmentConstruction:
         assert attachment.mime_type == "image/png"
 
         import os
+
         os.unlink(tmp.name)
 
     def test_url_image_creates_url_attachment(self) -> None:

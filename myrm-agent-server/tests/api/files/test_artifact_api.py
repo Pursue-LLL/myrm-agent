@@ -177,9 +177,7 @@ async def test_list_artifacts_returns_assessment_import_candidate_probe(
     await db_session.commit()
 
     with patch("app.api.files.artifact_api.get_workspace_root", return_value=tmp_path):
-        response = client.get(
-            "/api/v1/files/artifacts?project_id=proj-probe&assessment_import_candidate=true"
-        )
+        response = client.get("/api/v1/files/artifacts?project_id=proj-probe&assessment_import_candidate=true")
 
     assert response.status_code == 200
     data = response.json()
@@ -237,9 +235,7 @@ async def test_probe_returns_already_imported_when_ledger_entry_exists(
     await db_session.commit()
 
     with patch("app.api.files.artifact_api.get_workspace_root", return_value=tmp_path):
-        response = client.get(
-            "/api/v1/files/artifacts?project_id=proj-ledger&assessment_import_candidate=true"
-        )
+        response = client.get("/api/v1/files/artifacts?project_id=proj-ledger&assessment_import_candidate=true")
 
     assert response.status_code == 200
     data = response.json()

@@ -17,10 +17,7 @@ class TestResolvePushUrl:
                 "severity": "high",
             },
         )
-        assert (
-            resolve_push_url(event)
-            == "/a1b2c3d4-e5f6-7890-abcd-ef1234567890?approval=ap-deep-link-1"
-        )
+        assert resolve_push_url(event) == "/a1b2c3d4-e5f6-7890-abcd-ef1234567890?approval=ap-deep-link-1"
 
     def test_approval_required_without_approval_id_uses_chat_path_only(self) -> None:
         event = AppEvent(
@@ -68,10 +65,7 @@ class TestResolvePushUrl:
                 "chat_id": "source-chat-1",
             },
         )
-        assert (
-            resolve_push_url(event)
-            == "/settings/kanban?board_id=board-kpi-1&status=in_review"
-        )
+        assert resolve_push_url(event) == "/settings/kanban?board_id=board-kpi-1&status=in_review"
 
     def test_background_task_done_pending_review_without_board_falls_back_to_chat(
         self,

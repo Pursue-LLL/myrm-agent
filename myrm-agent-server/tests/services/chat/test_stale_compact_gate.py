@@ -20,9 +20,7 @@ from app.services.chat.stale_compact_gate import (
 def test_parse_idle_compact_after_seconds_defaults_to_zero() -> None:
     assert parse_idle_compact_after_seconds(None) == 0
     assert parse_idle_compact_after_seconds({}) == 0
-    assert (
-        parse_idle_compact_after_seconds({"idle_compact_after_seconds": 1800}) == 1800
-    )
+    assert parse_idle_compact_after_seconds({"idle_compact_after_seconds": 1800}) == 1800
     assert parse_idle_compact_after_seconds({"idle_compact_after_seconds": -5}) == 0
     assert parse_idle_compact_after_seconds({"idle_compact_after_seconds": "bad"}) == 0
 
@@ -103,9 +101,7 @@ async def test_gate_compacts_when_idle_threshold_and_tokens_above_floor() -> Non
     assert result.compacted is True
     assert result.tokens_saved == 1200
     assert result.attempted is True
-    mock_compact.assert_awaited_once_with(
-        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=50_000
-    )
+    mock_compact.assert_awaited_once_with(db, "chat-1", for_idle_stale=True, request_tokens_for_guard=50_000)
 
 
 @pytest.mark.asyncio
@@ -225,9 +221,7 @@ async def test_gate_compacts_when_eight_messages_above_floor() -> None:
 
     assert result.compacted is True
     assert result.message_count == 8
-    mock_compact.assert_awaited_once_with(
-        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000
-    )
+    mock_compact.assert_awaited_once_with(db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000)
 
 
 @pytest.mark.asyncio
@@ -413,9 +407,7 @@ async def test_gate_skips_when_compaction_failure_cooldown_active() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead() -> (
-    None
-):
+async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead() -> None:
     """Summary+overhead can exceed floor while compactable tail is empty."""
     db = AsyncMock()
     db.execute = AsyncMock(
@@ -424,9 +416,7 @@ async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead(
             _scalar_result(datetime.now(UTC) - timedelta(hours=2)),
         ]
     )
-    compact_result = CompactResult(
-        compacted=False, message_count=0, reason="no_compactable_messages"
-    )
+    compact_result = CompactResult(compacted=False, message_count=0, reason="no_compactable_messages")
 
     with (
         patch(
@@ -456,9 +446,7 @@ async def test_gate_skips_when_no_compactable_messages_despite_summary_overhead(
     assert result.compacted is False
     assert result.reason == "no_compactable_messages"
     assert result.attempted is True
-    mock_compact.assert_awaited_once_with(
-        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000
-    )
+    mock_compact.assert_awaited_once_with(db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000)
 
 
 def _scalar_result(value: object) -> object:

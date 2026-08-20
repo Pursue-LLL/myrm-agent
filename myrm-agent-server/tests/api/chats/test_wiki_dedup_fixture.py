@@ -61,9 +61,7 @@ def test_seed_wiki_dedup_fixture_dismiss_then_resurface_on_new_member(
 
     groups_before = client.get("/api/v1/wiki/dedup/groups")
     assert groups_before.status_code == 200
-    target_group = next(
-        group for group in groups_before.json() if group["group_id"] == group_id
-    )
+    target_group = next(group for group in groups_before.json() if group["group_id"] == group_id)
     member_paths = target_group["members"]
     assert len(member_paths) >= 2
 
@@ -75,11 +73,7 @@ def test_seed_wiki_dedup_fixture_dismiss_then_resurface_on_new_member(
 
     groups_after_dismiss = client.get("/api/v1/wiki/dedup/groups")
     assert groups_after_dismiss.status_code == 200
-    open_or_deferred = [
-        group
-        for group in groups_after_dismiss.json()
-        if group["status"] in {"open", "deferred"}
-    ]
+    open_or_deferred = [group for group in groups_after_dismiss.json() if group["status"] in {"open", "deferred"}]
     assert open_or_deferred == []
 
     from app.services.wiki.vault import get_wiki_archiver
@@ -101,9 +95,5 @@ def test_seed_wiki_dedup_fixture_dismiss_then_resurface_on_new_member(
     scanner.scan(incremental=False)
     open_groups = scanner.store.list_groups(status=GroupStatus.OPEN)
     assert len(open_groups) >= 1
-    resurfaced = next(
-        group
-        for group in open_groups
-        if any(member.relative_path == new_rel for member in group.members)
-    )
+    resurfaced = next(group for group in open_groups if any(member.relative_path == new_rel for member in group.members))
     assert len(resurfaced.members) >= len(member_paths) + 1

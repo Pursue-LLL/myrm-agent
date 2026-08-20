@@ -83,8 +83,7 @@ def test_md_to_wechat_html_syntax_highlights_python(tmp_path: Path) -> None:
 def test_md_to_wechat_html_block_elements_have_inline_styles(tmp_path: Path) -> None:
     source = tmp_path / "blocks.md"
     source.write_text(
-        "## Section Title\n\nParagraph text.\n\n> A quote\n\n"
-        "| Name | Value |\n| --- | --- |\n| foo | 1 |\n",
+        "## Section Title\n\nParagraph text.\n\n> A quote\n\n| Name | Value |\n| --- | --- |\n| foo | 1 |\n",
         encoding="utf-8",
     )
     output = tmp_path / "blocks.wechat.html"

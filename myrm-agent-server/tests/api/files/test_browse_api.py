@@ -15,6 +15,8 @@ from httpx import ASGITransport, AsyncClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="files")
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -461,7 +463,7 @@ async def test_browse_content_disposition_sanitizes_header(client: AsyncClient, 
     assert "\r" not in disposition
     assert "\n" not in disposition
     assert "%0D%0A" not in disposition
-    assert "we\\\"ird" in disposition
+    assert 'we\\"ird' in disposition
 
 
 @pytest.mark.anyio

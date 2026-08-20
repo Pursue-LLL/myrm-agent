@@ -9,9 +9,7 @@ import pytest
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
 from app.services.chat.compact_service import CompactResult
 
-_PUMP_STREAM_PATH = (
-    "app.services.agent.stream_session.stream_pump.generate_cancellable_stream"
-)
+_PUMP_STREAM_PATH = "app.services.agent.stream_session.stream_pump.generate_cancellable_stream"
 _MUX_PATH = "app.services.agent.streaming_support.multiplexer.WorkspaceMultiplexer"
 
 
@@ -59,9 +57,7 @@ async def test_pump_emits_context_compaction_when_pre_reply_compact_succeeded() 
 @pytest.mark.asyncio
 async def test_pump_skips_context_compaction_when_pre_reply_compact_skipped() -> None:
     session = MagicMock()
-    session.pre_reply_compact_result = CompactResult(
-        compacted=False, reason="idle_compact_disabled"
-    )
+    session.pre_reply_compact_result = CompactResult(compacted=False, reason="idle_compact_disabled")
     session.pre_reply_compact_sse_sent = False
     session.params.message_id = "msg-2"
     session.params.project_id = None

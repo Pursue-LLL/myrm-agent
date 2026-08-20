@@ -287,9 +287,7 @@ class WeComAiBotChannel(BaseChannel):
                     await self._send_proactive_msg(chat_id, chunk)
         elif self._ws:
             # Active stream; morph first chunk in place, send remaining chunks proactively
-            await self._send_respond_msg(
-                state.req_id, first_chunk, finish=True, stream_id=message_id
-            )
+            await self._send_respond_msg(state.req_id, first_chunk, finish=True, stream_id=message_id)
             for chunk in overflow_chunks:
                 if chunk:
                     await self._send_proactive_msg(chat_id, chunk)

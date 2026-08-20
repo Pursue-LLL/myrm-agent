@@ -89,19 +89,12 @@ async def enforce_org_model_policy(agent_wrapper: GeneralAgent) -> None:
         raise OrgModelPolicyViolation(
             "",
             [],
-            reason=(
-                "Organization model policy could not be verified. "
-                "Please try again later or contact your administrator."
-            ),
+            reason=("Organization model policy could not be verified. Please try again later or contact your administrator."),
         ) from exc
 
     if record is None:
         return
-    patterns: list[str] = (
-        record.value.get("allowed_patterns", [])
-        if isinstance(record.value, dict)
-        else []
-    )
+    patterns: list[str] = record.value.get("allowed_patterns", []) if isinstance(record.value, dict) else []
     if not patterns:
         return
 
@@ -124,9 +117,7 @@ async def enforce_org_model_policy(agent_wrapper: GeneralAgent) -> None:
     )
 
     for model_name in model_names:
-        if not any(
-            fnmatch(model_name, normalize_org_model_policy_pattern(p)) for p in patterns
-        ):
+        if not any(fnmatch(model_name, normalize_org_model_policy_pattern(p)) for p in patterns):
             logger.warning(
                 "Org model policy violation: model '%s' not in allowed patterns %s",
                 model_name,

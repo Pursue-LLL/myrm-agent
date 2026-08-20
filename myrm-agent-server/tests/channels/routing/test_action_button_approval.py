@@ -69,12 +69,15 @@ def _patch_db():
 @pytest.fixture(autouse=True)
 def _patch_events():
     mock_bus = MagicMock()
-    with patch(
-        "app.services.approvals.registry.get_event_bus",
-        return_value=mock_bus,
-    ), patch(
-        "app.services.event.app_event_bus.get_event_bus",
-        return_value=mock_bus,
+    with (
+        patch(
+            "app.services.approvals.registry.get_event_bus",
+            return_value=mock_bus,
+        ),
+        patch(
+            "app.services.event.app_event_bus.get_event_bus",
+            return_value=mock_bus,
+        ),
     ):
         yield mock_bus
 
@@ -149,17 +152,19 @@ async def _seed(record_id: str = "appr-001", status: str = "PENDING") -> str:
         if existing:
             await db.delete(existing)
             await db.commit()
-        db.add(ApprovalRecord(
-            id=record_id,
-            agent_id="agent-1",
-            chat_id="chat-1",
-            thread_id="thread-1",
-            action_type="shell_command",
-            reason="test",
-            severity="warning",
-            payload={"cmd": "ls"},
-            status=status,
-        ))
+        db.add(
+            ApprovalRecord(
+                id=record_id,
+                agent_id="agent-1",
+                chat_id="chat-1",
+                thread_id="thread-1",
+                action_type="shell_command",
+                reason="test",
+                severity="warning",
+                payload={"cmd": "ls"},
+                status=status,
+            )
+        )
         await db.commit()
     return record_id
 

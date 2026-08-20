@@ -82,7 +82,11 @@ async def import_archive(request: Request, body: ImportArchiveRequest) -> Import
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            "tar", "-xzf", str(archive), "-C", str(PERSISTENT_DIR),
+            "tar",
+            "-xzf",
+            str(archive),
+            "-C",
+            str(PERSISTENT_DIR),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

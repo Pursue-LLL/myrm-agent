@@ -235,9 +235,5 @@ async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> N
 
     async with factory() as db:
         child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
-        assert child.workspace_dir == "/project", (
-            "Child should use original repo root, not parent's sandbox worktree"
-        )
-        assert child.sandbox_base_dir is None, (
-            "Child should have no active sandbox"
-        )
+        assert child.workspace_dir == "/project", "Child should use original repo root, not parent's sandbox worktree"
+        assert child.sandbox_base_dir is None, "Child should have no active sandbox"

@@ -21,9 +21,7 @@ _B_LINK_PREVIEW = 48
 _B_AGENDA_ITEM_TITLE = 46
 
 
-def _block(
-    block_type: int, field: str, content: str, block_id: str, parent: str = ""
-) -> dict[str, object]:
+def _block(block_type: int, field: str, content: str, block_id: str, parent: str = "") -> dict[str, object]:
     return {
         "block_id": block_id,
         "block_type": block_type,
@@ -287,9 +285,7 @@ def test_inline_styles_link_and_code_use_official_api_structure() -> None:
                         {
                             "text_run": {
                                 "content": "link text",
-                                "text_element_style": {
-                                    "link": {"url": "https%3A%2F%2Fexample.com%2Fpath"}
-                                },
+                                "text_element_style": {"link": {"url": "https%3A%2F%2Fexample.com%2Fpath"}},
                             }
                         },
                     ]
@@ -311,9 +307,7 @@ def test_agenda_item_title_renders_text() -> None:
                 "block_id": "ag1",
                 "block_type": _B_AGENDA_ITEM_TITLE,
                 "parent_id": "",
-                "agenda_item_title": {
-                    "elements": [{"text_run": {"content": "Agenda first item"}}]
-                },
+                "agenda_item_title": {"elements": [{"text_run": {"content": "Agenda first item"}}]},
             },
         ]
     )

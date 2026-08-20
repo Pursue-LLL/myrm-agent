@@ -90,9 +90,7 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
 
     session = get_session(req.session_id)
     if not session:
-        raise HTTPException(
-            status_code=404, detail=f"Session not found: {req.session_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Session not found: {req.session_id}")
 
     if session.status != "stopped":
         raise HTTPException(
@@ -111,9 +109,7 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
             generate_skill_description,
         )
 
-        generated = await generate_skill_description(
-            await get_optional_llm_for_user(), session
-        )
+        generated = await generate_skill_description(await get_optional_llm_for_user(), session)
         description = generated or default_skill_description(session)
 
     _, content, credential_placeholders = generate_skill_from_session(
@@ -136,9 +132,7 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
             req.session_id,
             save_result.error,
         )
-        raise HTTPException(
-            status_code=500, detail=save_result.error or "Failed to save skill"
-        )
+        raise HTTPException(status_code=500, detail=save_result.error or "Failed to save skill")
 
     # The recording session is no longer needed once the skill is saved;
     # drop it eagerly instead of waiting for the 30-minute TTL prune.
@@ -225,9 +219,7 @@ async def recording_websocket(ws: WebSocket) -> None:
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
-                await ws.send_text(
-                    json.dumps({"type": "error", "message": "Invalid JSON"})
-                )
+                await ws.send_text(json.dumps({"type": "error", "message": "Invalid JSON"}))
                 continue
 
             msg_type = msg.get("type", "")
@@ -243,9 +235,7 @@ async def recording_websocket(ws: WebSocket) -> None:
                     capture_engine = ActionCaptureEngine(page, capture_screenshots=True)
                     forwarder = _WsStepForwarder(ws)
                     capture_engine.add_callback(forwarder)
-                    current_session = await capture_engine.start(
-                        start_url=msg.get("url", "")
-                    )
+                    current_session = await capture_engine.start(start_url=msg.get("url", ""))
                 else:
                     session_id = uuid.uuid4().hex[:12]
                     current_session = CaptureSession(
@@ -265,9 +255,7 @@ async def recording_websocket(ws: WebSocket) -> None:
                     )
                 )
                 if mode == "manual":
-                    logger.info(
-                        "Recording started in manual mode (no active browser page)"
-                    )
+                    logger.info("Recording started in manual mode (no active browser page)")
 
             elif msg_type == "stop":
                 if capture_engine:
@@ -354,9 +342,7 @@ async def recording_websocket(ws: WebSocket) -> None:
                     continue
                 seq = msg.get("seq")
                 if seq is not None:
-                    current_session.steps = [
-                        s for s in current_session.steps if s.seq != seq
-                    ]
+                    current_session.steps = [s for s in current_session.steps if s.seq != seq]
                     await ws.send_text(
                         json.dumps(
                             {

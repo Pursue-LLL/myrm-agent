@@ -10,9 +10,7 @@ from collections.abc import Callable
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -131,9 +129,7 @@ def _ensure_shpoib_api_binding(
                     timeout_sec=15.0,
                 )
         time.sleep(0.5)
-    raise AssertionError(
-        f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}"
-    )
+    raise AssertionError(f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}")
 
 
 def _attach_chat_probe(chat_id: str) -> str:
@@ -434,9 +430,7 @@ def _seed_workspace_merge_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-def _ensure_merge_metadata_ready(
-    api_url: str, chat_id: str, *, timeout_sec: float = 45.0
-) -> None:
+def _ensure_merge_metadata_ready(api_url: str, chat_id: str, *, timeout_sec: float = 45.0) -> None:
     """Poll API before Chrome — attach stack may restart backend briefly under parallel mux."""
     deadline = time.monotonic() + timeout_sec
     last_error = "timeout"
@@ -454,11 +448,7 @@ def _ensure_merge_metadata_ready(
                 elif isinstance(payload.get("messages"), list):
                     messages = payload["messages"]
             assistant = next(
-                (
-                    msg
-                    for msg in messages
-                    if isinstance(msg, dict) and msg.get("role") == "assistant"
-                ),
+                (msg for msg in messages if isinstance(msg, dict) and msg.get("role") == "assistant"),
                 None,
             )
             if isinstance(assistant, dict):
@@ -473,9 +463,7 @@ def _ensure_merge_metadata_ready(
         except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
             last_error = str(exc)
         time.sleep(0.3)
-    raise AssertionError(
-        f"workspace merge metadata not ready chat={chat_id}: {last_error}"
-    )
+    raise AssertionError(f"workspace merge metadata not ready chat={chat_id}: {last_error}")
 
 
 def _warm_chat_routes(chat_id: str) -> None:
@@ -483,9 +471,7 @@ def _warm_chat_routes(chat_id: str) -> None:
     warm_ui_route(f"/{chat_id}")
 
 
-def _run_panel_assertions(
-    api_url: str, ui_url: str, *, warm_route: bool = True
-) -> None:
+def _run_panel_assertions(api_url: str, ui_url: str, *, warm_route: bool = True) -> None:
     seeded = _seed_workspace_merge_fixture(api_url)
     chat_id = str(seeded["chat_id"])
     _ensure_merge_metadata_ready(api_url, chat_id)
@@ -506,9 +492,7 @@ def _run_panel_assertions(
         )
 
 
-def _run_reload_assertions(
-    api_url: str, ui_url: str, *, warm_route: bool = True
-) -> None:
+def _run_reload_assertions(api_url: str, ui_url: str, *, warm_route: bool = True) -> None:
     seeded = _seed_workspace_merge_fixture(api_url)
     chat_id = str(seeded["chat_id"])
     _ensure_merge_metadata_ready(api_url, chat_id)
@@ -567,8 +551,8 @@ def _api_url_for_seed() -> str:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-, private_reason="exclusive_backend")
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD", private_reason="exclusive_backend"
+)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -580,8 +564,8 @@ def test_workspace_merge_shows_warning_panel() -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-, private_reason="exclusive_backend")
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD", private_reason="exclusive_backend"
+)
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

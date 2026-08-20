@@ -95,29 +95,21 @@ class TestResolveAgentMount:
 
 class TestApplyPtcMetaMount:
     def test_ptc_forces_file_and_shell_when_shell_already_on(self) -> None:
-        file_mode, shell = apply_ptc_meta_mount(
-            FileAccessMode.NONE, True, has_mcp=True
-        )
+        file_mode, shell = apply_ptc_meta_mount(FileAccessMode.NONE, True, has_mcp=True)
         assert file_mode == FileAccessMode.FULL
         assert shell is True
 
     def test_ptc_respects_explicit_shell_off(self) -> None:
-        file_mode, shell = apply_ptc_meta_mount(
-            FileAccessMode.FULL, False, has_mcp=True
-        )
+        file_mode, shell = apply_ptc_meta_mount(FileAccessMode.FULL, False, has_mcp=True)
         assert file_mode == FileAccessMode.FULL
         assert shell is False
 
     def test_no_mcp_is_noop(self) -> None:
-        file_mode, shell = apply_ptc_meta_mount(
-            FileAccessMode.FULL, True, has_mcp=False
-        )
+        file_mode, shell = apply_ptc_meta_mount(FileAccessMode.FULL, True, has_mcp=False)
         assert file_mode == FileAccessMode.FULL
         assert shell is True
 
     def test_ptc_noop_when_file_and_shell_already_on(self) -> None:
-        file_mode, shell = apply_ptc_meta_mount(
-            FileAccessMode.FULL, True, has_mcp=True
-        )
+        file_mode, shell = apply_ptc_meta_mount(FileAccessMode.FULL, True, has_mcp=True)
         assert file_mode == FileAccessMode.FULL
         assert shell is True

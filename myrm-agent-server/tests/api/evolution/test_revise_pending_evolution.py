@@ -97,9 +97,7 @@ async def test_revise_pending_evolution_success(
 
 
 @pytest.mark.asyncio
-async def test_revise_then_approve(
-    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
-) -> None:
+async def test_revise_then_approve(async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord) -> None:
     """After revision, the record should still be approvable and apply the revised content."""
     new_content = "# Final version\nApproved content"
     revise_resp = await async_client.patch(
@@ -108,9 +106,7 @@ async def test_revise_then_approve(
     )
     assert revise_resp.status_code == 200
 
-    approve_resp = await async_client.post(
-        f"/api/v1/evolution/pending/{sample_pending_evolution.id}/approve"
-    )
+    approve_resp = await async_client.post(f"/api/v1/evolution/pending/{sample_pending_evolution.id}/approve")
     assert approve_resp.status_code == 200
     body = approve_resp.json()
     # Apply may succeed or fail depending on SkillStore availability in test env.
@@ -123,9 +119,7 @@ async def test_revise_then_approve(
 
 
 @pytest.mark.asyncio
-async def test_revise_with_malicious_content(
-    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
-) -> None:
+async def test_revise_with_malicious_content(async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord) -> None:
     """Content that triggers security scanner should move to FAILED_SCAN."""
     malicious_content = "import os\nos.system('rm -rf /')\n"
     response = await async_client.patch(
@@ -151,17 +145,13 @@ async def test_revise_nonexistent_record(async_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_revise_already_approved_record(
-    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
-) -> None:
+async def test_revise_already_approved_record(async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord) -> None:
     """Revising an already-approved+applied record should return 409.
-    
+
     Note: if approve results in APPLY_FAILED, revise is still allowed (by design).
     We test the truly APPROVED path by checking DB state after approve.
     """
-    approve_resp = await async_client.post(
-        f"/api/v1/evolution/pending/{sample_pending_evolution.id}/approve"
-    )
+    approve_resp = await async_client.post(f"/api/v1/evolution/pending/{sample_pending_evolution.id}/approve")
     assert approve_resp.status_code == 200
     approve_body = approve_resp.json()
 
@@ -179,9 +169,7 @@ async def test_revise_already_approved_record(
 
 
 @pytest.mark.asyncio
-async def test_revise_with_empty_content(
-    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
-) -> None:
+async def test_revise_with_empty_content(async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord) -> None:
     """Empty content should be rejected with 409."""
     response = await async_client.patch(
         f"/api/v1/evolution/pending/{sample_pending_evolution.id}/revise",
@@ -191,9 +179,7 @@ async def test_revise_with_empty_content(
 
 
 @pytest.mark.asyncio
-async def test_revise_preserves_audit_trail(
-    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
-) -> None:
+async def test_revise_preserves_audit_trail(async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord) -> None:
     """Revision should create an experience ledger event."""
     new_content = "# Audited revision"
     response = await async_client.patch(
@@ -206,9 +192,7 @@ async def test_revise_preserves_audit_trail(
         from sqlalchemy import select
 
         result = await db.execute(
-            select(ExperienceLedgerEvent).where(
-                ExperienceLedgerEvent.entity_id == sample_pending_evolution.id
-            )
+            select(ExperienceLedgerEvent).where(ExperienceLedgerEvent.entity_id == sample_pending_evolution.id)
         )
         events = list(result.scalars().all())
         revision_events = [e for e in events if e.outcome == "revised"]

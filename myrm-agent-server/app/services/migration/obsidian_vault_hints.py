@@ -66,9 +66,7 @@ def collect_codex_obsidian_vault_hints(
     return _dedupe_existing_directories(candidates)
 
 
-def _walk_settings_for_vault_paths(
-    value: object, found: list[str], *, depth: int
-) -> None:
+def _walk_settings_for_vault_paths(value: object, found: list[str], *, depth: int) -> None:
     if depth > 4:
         return
     if isinstance(value, dict):

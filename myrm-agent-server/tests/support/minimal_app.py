@@ -50,49 +50,27 @@ def _mount(api: APIRouter, spec: _RouterMount) -> None:
 
 # Keys mirror app.api.router mounts; each import is lazy (only requested routers load).
 _ROUTER_MOUNTS: dict[str, _RouterMount] = {
-    "workspace": _RouterMount(
-        "app.api.workspace.router", prefix="/workspace", tags=("workspace",)
-    ),
+    "workspace": _RouterMount("app.api.workspace.router", prefix="/workspace", tags=("workspace",)),
     "notifications": _RouterMount("app.api.notifications.router"),
-    "agents_general": _RouterMount(
-        "app.api.agents.general_agent", prefix="/agents", tags=("agents",)
-    ),
-    "agents_templates": _RouterMount(
-        "app.api.agents.templates", prefix="/agents", tags=("agents",)
-    ),
-    "agents_subagents": _RouterMount(
-        "app.api.agents.subagents", prefix="/chats", tags=("subagents",)
-    ),
-    "user_agents": _RouterMount(
-        "app.api.agents.agent", prefix="/user-agents", tags=("user-agents",)
-    ),
-    "generate_prompt": _RouterMount(
-        "app.api.agents.generate_prompt", prefix="/user-agents", tags=("user-agents",)
-    ),
-    "ai_build": _RouterMount(
-        "app.api.agents.ai_build", prefix="/user-agents", tags=("user-agents",)
-    ),
-    "agent_history": _RouterMount(
-        "app.api.agents.agent_history", prefix="/user-agents", tags=("user-agents",)
-    ),
+    "agents_general": _RouterMount("app.api.agents.general_agent", prefix="/agents", tags=("agents",)),
+    "agents_templates": _RouterMount("app.api.agents.templates", prefix="/agents", tags=("agents",)),
+    "agents_subagents": _RouterMount("app.api.agents.subagents", prefix="/chats", tags=("subagents",)),
+    "user_agents": _RouterMount("app.api.agents.agent", prefix="/user-agents", tags=("user-agents",)),
+    "generate_prompt": _RouterMount("app.api.agents.generate_prompt", prefix="/user-agents", tags=("user-agents",)),
+    "ai_build": _RouterMount("app.api.agents.ai_build", prefix="/user-agents", tags=("user-agents",)),
+    "agent_history": _RouterMount("app.api.agents.agent_history", prefix="/user-agents", tags=("user-agents",)),
     "openapi_services": _RouterMount(
         "app.api.agents.openapi_services",
         attr="router",
         prefix="/agents",
         tags=("agents",),
     ),
-    "fleet_overview": _RouterMount(
-        "app.api.agents.fleet_overview", prefix="/agents", tags=("agents",)
-    ),
+    "fleet_overview": _RouterMount("app.api.agents.fleet_overview", prefix="/agents", tags=("agents",)),
     "goals": _RouterMount("app.api.goals.router"),
-    "external_agents": _RouterMount(
-        "app.api.external_agents", prefix="/external-agents", tags=("external-agents",)
-    ),
+    "external_agents": _RouterMount("app.api.external_agents", prefix="/external-agents", tags=("external-agents",)),
     "approvals": _RouterMount("app.api.approvals"),
     "chats": _RouterMount("app.api.chats", prefix="/chats", tags=("chats",)),
-    "projects": _RouterMount(
-        "app.api.projects", prefix="/projects", tags=("projects",)
-    ),
+    "projects": _RouterMount("app.api.projects", prefix="/projects", tags=("projects",)),
     "files": _RouterMount("app.api.files.router", prefix="/files", tags=("files",)),
     "artifact_share_public": _RouterMount(
         "app.api.files.artifact_share_api",
@@ -100,22 +78,14 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
         prefix="/public/artifact-share",
         tags=("public-artifact-share",),
     ),
-    "vault_proxy": _RouterMount(
-        "app.api.files.vault_proxy", prefix="/files", tags=("files",)
-    ),
+    "vault_proxy": _RouterMount("app.api.files.vault_proxy", prefix="/files", tags=("files",)),
     "skills": _RouterMount("app.api.skills", prefix="/skills", tags=("skills",)),
     "skill_growth": _RouterMount("app.api.skills.growth", tags=("skill-growth",)),
     "skill_quality": _RouterMount("app.api.skills.quality", tags=("skill-quality",)),
     "evolution": _RouterMount("app.api.skills.evolution", tags=("evolution",)),
-    "evolution_ws": _RouterMount(
-        "app.api.skills.ws_evolution", prefix="/ws", tags=("evolution",)
-    ),
-    "experience_ledger": _RouterMount(
-        "app.api.skills.experience_ledger", tags=("experience-ledger",)
-    ),
-    "migration_discovery": _RouterMount(
-        "app.api.migration.discovery", tags=("migration",)
-    ),
+    "evolution_ws": _RouterMount("app.api.skills.ws_evolution", prefix="/ws", tags=("evolution",)),
+    "experience_ledger": _RouterMount("app.api.skills.experience_ledger", tags=("experience-ledger",)),
+    "migration_discovery": _RouterMount("app.api.migration.discovery", tags=("migration",)),
     "migration_upload": _RouterMount("app.api.migration.upload", tags=("migration",)),
     "migrations": _RouterMount("app.api.skills.migrations", tags=("migrations",)),
     "memory": _RouterMount("app.api.memory.router", prefix="/memory", tags=("memory",)),
@@ -124,34 +94,20 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "extension": _RouterMount("app.api.extension.router", tags=("extension",)),
     "cron": _RouterMount("app.api.cron.routes", prefix="/cron", tags=("cron",)),
     "eval": _RouterMount("app.api.eval.router", tags=("eval",)),
-    "integrations": _RouterMount(
-        "app.api.integrations", prefix="/integrations", tags=("integrations",)
-    ),
+    "integrations": _RouterMount("app.api.integrations", prefix="/integrations", tags=("integrations",)),
     "connect": _RouterMount("app.api.connect.router", tags=("connect",)),
     "config": _RouterMount("app.api.config.router", prefix="/config", tags=("config",)),
-    "artifact_mappings": _RouterMount(
-        "app.api.config.artifact_mappings", prefix="/config", tags=("config",)
-    ),
-    "allowlist": _RouterMount(
-        "app.api.security.allowlist", prefix="/security/allowlist", tags=("security",)
-    ),
+    "artifact_mappings": _RouterMount("app.api.config.artifact_mappings", prefix="/config", tags=("config",)),
+    "allowlist": _RouterMount("app.api.security.allowlist", prefix="/security/allowlist", tags=("security",)),
     "security_estop": _RouterMount("app.api.security.estop", tags=("security",)),
     "security_dashboard": _RouterMount("app.api.security.router", tags=("security",)),
     "security_generate": _RouterMount("app.api.security.generate", tags=("security",)),
     "security_profiles": _RouterMount("app.api.security.profiles", tags=("security",)),
-    "security_managed_policy": _RouterMount(
-        "app.api.security.managed_policy", tags=("security",)
-    ),
-    "vault": _RouterMount(
-        "app.api.security.vault", prefix="/security", tags=("security",)
-    ),
-    "vault_credentials": _RouterMount(
-        "app.api.security.vault_credentials", prefix="/security", tags=("security",)
-    ),
+    "security_managed_policy": _RouterMount("app.api.security.managed_policy", tags=("security",)),
+    "vault": _RouterMount("app.api.security.vault", prefix="/security", tags=("security",)),
+    "vault_credentials": _RouterMount("app.api.security.vault_credentials", prefix="/security", tags=("security",)),
     "health": _RouterMount("app.api.health.router", prefix="/health", tags=("health",)),
-    "diagnostic": _RouterMount(
-        "app.api.health.diagnostic", prefix="/diagnostic", tags=("diagnostic",)
-    ),
+    "diagnostic": _RouterMount("app.api.health.diagnostic", prefix="/diagnostic", tags=("diagnostic",)),
     "checkpoint": _RouterMount("app.api.checkpoint", tags=("checkpoint",)),
     "statistics": _RouterMount(
         "app.api.statistics",
@@ -161,38 +117,26 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
         tags=("statistics",),
     ),
     "system": _RouterMount("app.api.system.router", prefix="/system", tags=("system",)),
-    "system_shutdown": _RouterMount(
-        "app.api.system.shutdown", prefix="/system", tags=("system",)
-    ),
-    "features": _RouterMount(
-        "app.api.features.router", prefix="/features", tags=("features",)
-    ),
+    "system_shutdown": _RouterMount("app.api.system.shutdown", prefix="/system", tags=("system",)),
+    "features": _RouterMount("app.api.features.router", prefix="/features", tags=("features",)),
     "tts": _RouterMount("app.api.tts.router", prefix="/tts", tags=("tts",)),
     "stt": _RouterMount("app.api.stt.router", prefix="/stt", tags=("stt",)),
     "voice": _RouterMount("app.api.voice.realtime", prefix="/voice", tags=("voice",)),
-    "companion": _RouterMount(
-        "app.api.companion.router", prefix="/companion", tags=("companion",)
-    ),
+    "companion": _RouterMount("app.api.companion.router", prefix="/companion", tags=("companion",)),
     "companion_doctor": _RouterMount(
         "app.api.companion.doctor_router",
         prefix="/companion",
         tags=("companion",),
     ),
     "client_logs": _RouterMount("app.api.client_logs", tags=("logs",)),
-    "channels_login": _RouterMount(
-        "app.api.channels.login", prefix="/channels", tags=("channels",)
-    ),
-    "channels_manage": _RouterMount(
-        "app.api.channels.router", prefix="/channels/manage", tags=("channels",)
-    ),
+    "channels_login": _RouterMount("app.api.channels.login", prefix="/channels", tags=("channels",)),
+    "channels_manage": _RouterMount("app.api.channels.router", prefix="/channels/manage", tags=("channels",)),
     "channels_test": _RouterMount(
         "app.api.channels.test_connections",
         prefix="/channels/manage",
         tags=("channels",),
     ),
-    "channels_wechat": _RouterMount(
-        "app.api.channels.wechat", prefix="/channels/manage", tags=("channels",)
-    ),
+    "channels_wechat": _RouterMount("app.api.channels.wechat", prefix="/channels/manage", tags=("channels",)),
     "channels_wechat_official": _RouterMount(
         "app.api.channels.wechat_official",
         prefix="/channels/manage",
@@ -203,31 +147,19 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
         prefix="/channels/manage",
         tags=("channels",),
     ),
-    "channels_instances": _RouterMount(
-        "app.api.channels.instances", prefix="/channels/manage", tags=("channels",)
-    ),
-    "channels_topics": _RouterMount(
-        "app.api.channels.topics", prefix="/channels/manage", tags=("channels",)
-    ),
+    "channels_instances": _RouterMount("app.api.channels.instances", prefix="/channels/manage", tags=("channels",)),
+    "channels_topics": _RouterMount("app.api.channels.topics", prefix="/channels/manage", tags=("channels",)),
     "channels_routes": _RouterMount(
         "app.api.channels.routes_management",
         prefix="/channels/routes",
         tags=("channels",),
     ),
-    "channels_dlq": _RouterMount(
-        "app.api.channels.dlq", prefix="/channels/dlq", tags=("channels",)
-    ),
+    "channels_dlq": _RouterMount("app.api.channels.dlq", prefix="/channels/dlq", tags=("channels",)),
     "api_keys": _RouterMount("app.api.api_keys", attr="router"),
-    "media": _RouterMount(
-        "app.api.media", attr="media_router", prefix="/media", tags=("media",)
-    ),
-    "budget": _RouterMount(
-        "app.api.budget", attr="budget_router", prefix="/budget", tags=("budget",)
-    ),
+    "media": _RouterMount("app.api.media", attr="media_router", prefix="/media", tags=("media",)),
+    "budget": _RouterMount("app.api.budget", attr="budget_router", prefix="/budget", tags=("budget",)),
     "widget_storage": _RouterMount("app.api.widget_storage", tags=("widget-storage",)),
-    "remote_access": _RouterMount(
-        "app.api.remote_access.router", prefix="/remote-access", tags=("remote-access",)
-    ),
+    "remote_access": _RouterMount("app.api.remote_access.router", prefix="/remote-access", tags=("remote-access",)),
     "browser_domain_skills": _RouterMount(
         "app.api.browser_domain_skills",
         prefix="/browser",

@@ -148,10 +148,7 @@ async def _record_turn_capability_failed_once(
     session: AgentStreamSession,
     reason: TurnCapabilityFailureReason,
 ) -> None:
-    if (
-        session.turn_capability_terminal_recorded
-        or not has_turn_capability_terminal_context(session.request)
-    ):
+    if session.turn_capability_terminal_recorded or not has_turn_capability_terminal_context(session.request):
         return
     recorded = await record_turn_capability_send_failed(
         session.request,
@@ -164,10 +161,7 @@ async def _record_turn_capability_failed_once(
 async def _record_turn_capability_completed_once(
     session: AgentStreamSession,
 ) -> None:
-    if (
-        session.turn_capability_terminal_recorded
-        or not has_turn_capability_terminal_context(session.request)
-    ):
+    if session.turn_capability_terminal_recorded or not has_turn_capability_terminal_context(session.request):
         return
     recorded = await record_turn_capability_send_completed(session.request)
     if recorded:
@@ -188,18 +182,11 @@ def _queue_timeout_error_data(
     holders = exc.active_sessions
     holder_summary = ""
     if holders:
-        names = [
-            f"{h.get('chatId', h.get('agentType', 'session'))} ({h.get('agentType', 'agent')})"
-            for h in holders[:3]
-        ]
+        names = [f"{h.get('chatId', h.get('agentType', 'session'))} ({h.get('agentType', 'agent')})" for h in holders[:3]]
         if len(holders) > 3:
             extra = len(holders) - 3
             names.append(f"等 {extra} 个会话" if lang == "zh" else f"+{extra} more")
-        holder_summary = (
-            f" 当前占用：{'、'.join(names)}。"
-            if lang == "zh"
-            else f" Held by: {', '.join(names)}."
-        )
+        holder_summary = f" 当前占用：{'、'.join(names)}。" if lang == "zh" else f" Held by: {', '.join(names)}."
 
     if exc.reason == "memory_pressure":
         user_message = (
@@ -344,9 +331,7 @@ async def yield_stream_exception_chunks(
                     get_background_registry,
                 )
 
-                killed = await get_background_registry().kill_session_jobs(
-                    session.request.chat_id
-                )
+                killed = await get_background_registry().kill_session_jobs(session.request.chat_id)
                 if killed:
                     logger.info(
                         "CancelledError path killed %d background job(s) for chat_id=%s",
@@ -364,9 +349,7 @@ async def yield_stream_exception_chunks(
             classify_turn_capability_failure_reason(exc),
         )
     elif type(exc).__name__ == "AgentBusyError":
-        logger.warning(
-            "Agent is busy (AgentBusyError): message_id=%s", session.params.message_id
-        )
+        logger.warning("Agent is busy (AgentBusyError): message_id=%s", session.params.message_id)
         busy_event = {
             "type": "error",
             "error_type": "AgentBusyError",
@@ -408,11 +391,7 @@ async def yield_stream_exception_chunks(
 
         diagnostic_result = exc.diagnostic_result or {}
         recovery_actions = generate_recovery_actions(exc.error_code, lang)
-        error_type = (
-            exc.error_code.name
-            if hasattr(exc.error_code, "name")
-            else str(exc.error_code)
-        )
+        error_type = exc.error_code.name if hasattr(exc.error_code, "name") else str(exc.error_code)
         error_data = {
             "type": "error",
             "data": diagnostic_result.get("user_message", str(exc)),
@@ -468,20 +447,12 @@ async def finalize_agent_stream_session(
         if session.stream_ttft_ms is not None and session.stream_ttft_ms >= 0:
             extra_data["streamTtftMs"] = session.stream_ttft_ms
         merge_memory_citation_fallback(extra_data)
-        preview = (
-            session.extra_context.get("memory_brief_preview")
-            if isinstance(session.extra_context, dict)
-            else None
-        )
+        preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
         if isinstance(preview, dict):
             snapshot_id = preview.get("snapshot_id")
             if isinstance(snapshot_id, str) and snapshot_id.strip():
                 extra_data["memoryBriefSnapshotId"] = snapshot_id.strip()
-        brief_status = (
-            session.extra_context.get("memory_brief_status")
-            if isinstance(session.extra_context, dict)
-            else None
-        )
+        brief_status = session.extra_context.get("memory_brief_status") if isinstance(session.extra_context, dict) else None
         # Parse and strip citations
         citations = list(dict.fromkeys(re.findall(r"<cite:([^>]+)>", content)))
         if citations:
@@ -543,16 +514,11 @@ async def finalize_agent_stream_session(
 
     if session.request.chat_id:
         extra = session.collector.extra_data
-        collector_clarification = (
-            extra.get("clarification") if isinstance(extra, dict) else None
-        )
+        collector_clarification = extra.get("clarification") if isinstance(extra, dict) else None
         collector_clarification_answered = (
-            isinstance(collector_clarification, dict)
-            and collector_clarification.get("answered") is True
+            isinstance(collector_clarification, dict) and collector_clarification.get("answered") is True
         )
-        resume_completed = (
-            session.request.resume_value is not None and not clarification.pending
-        )
+        resume_completed = session.request.resume_value is not None and not clarification.pending
         if resume_completed or collector_clarification_answered:
             await _mark_pending_clarification_answered(session.request.chat_id)
             await _mark_pending_directory_request_answered(session.request.chat_id)
@@ -560,12 +526,7 @@ async def finalize_agent_stream_session(
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
     directory_sched_needed = _directory_timeout_needed(session, clarification)
 
-    if (
-        approval.value
-        and session.request.chat_id
-        and not clarification_sched_needed
-        and not directory_sched_needed
-    ):
+    if approval.value and session.request.chat_id and not clarification_sched_needed and not directory_sched_needed:
         schedule_approval_timeout(
             chat_id=session.request.chat_id,
             timeout_info=approval.value,
@@ -647,9 +608,7 @@ async def finalize_agent_stream_session(
 
             evo_integration = get_global_evolution_integration()
             if evo_integration and session.request.chat_id:
-                remaining = evo_integration._slice_cursors.pop(
-                    session.request.chat_id, None
-                )
+                remaining = evo_integration._slice_cursors.pop(session.request.chat_id, None)
                 if remaining:
                     _count, ids = remaining
                     if ids and evo_integration.queue:
@@ -721,9 +680,5 @@ async def _clear_interrupted_turn_marker(chat_id: str) -> None:
 
     factory = get_session_factory()
     async with factory() as db:
-        await db.execute(
-            delete(InterruptedTurnMarker).where(
-                InterruptedTurnMarker.chat_id == chat_id
-            )
-        )
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id))
         await db.commit()

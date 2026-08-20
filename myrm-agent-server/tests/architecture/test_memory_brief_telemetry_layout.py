@@ -32,9 +32,7 @@ _FORBIDDEN_LEGACY_FLAT_FILES = (
 
 @pytest.mark.architecture
 def test_memory_brief_telemetry_subpackage_layout() -> None:
-    assert _TELEMETRY_PACKAGE.is_dir(), (
-        f"Missing {_TELEMETRY_PACKAGE}. See app/services/agent/memory_brief_telemetry/_ARCH.md."
-    )
+    assert _TELEMETRY_PACKAGE.is_dir(), f"Missing {_TELEMETRY_PACKAGE}. See app/services/agent/memory_brief_telemetry/_ARCH.md."
     for filename in _REQUIRED_MODULE_FILES:
         path = _TELEMETRY_PACKAGE / filename
         assert path.is_file(), f"Missing required telemetry module file: {path}"
@@ -45,6 +43,5 @@ def test_memory_brief_telemetry_subpackage_layout() -> None:
 def test_memory_brief_telemetry_legacy_flat_files_removed(legacy_filename: str) -> None:
     legacy_path = _AGENT_SERVICES_ROOT / legacy_filename
     assert not legacy_path.exists(), (
-        f"Legacy flat telemetry file must not reappear: {legacy_path}. "
-        "Use app/services/agent/memory_brief_telemetry/ instead."
+        f"Legacy flat telemetry file must not reappear: {legacy_path}. Use app/services/agent/memory_brief_telemetry/ instead."
     )

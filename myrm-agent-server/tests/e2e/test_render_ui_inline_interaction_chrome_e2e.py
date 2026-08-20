@@ -103,9 +103,7 @@ _UI_ACTION_FEEDBACK_READY_JS = """(() => {
 
 def _user_messages(chat_id: str, *, api_url: str) -> list[dict[str, object]]:
     messages = fetch_chat_messages(chat_id, api_url=api_url)
-    return [
-        msg for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"
-    ]
+    return [msg for msg in messages if isinstance(msg, dict) and msg.get("role") == "user"]
 
 
 def _last_user_message_has_ui_action(chat_id: str, *, api_url: str) -> bool:
@@ -141,9 +139,7 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _INLINE_UI_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_INLINE_UI_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
@@ -152,54 +148,40 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
             await asyncio.sleep(1.0)
         raise AssertionError(f"Inline A2UI confirm button did not render: {last}")
 
-    async def _wait_ui_action_feedback(
-        chat: McpChatSession, *, timeout_sec: float = 90.0
-    ) -> dict[str, object]:
+    async def _wait_ui_action_feedback(chat: McpChatSession, *, timeout_sec: float = 90.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _UI_ACTION_FEEDBACK_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_UI_ACTION_FEEDBACK_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.75)
-        raise AssertionError(
-            f"UI action feedback not visible after button click: {last}"
-        )
+        raise AssertionError(f"UI action feedback not visible after button click: {last}")
 
     async def _run_flow(chat: McpChatSession) -> str:
         await chat.dismiss_modals()
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
 
-        enabled = await chat.evaluate(
-            _ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        enabled = await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
         assert isinstance(enabled, dict)
-        assert (
-            enabled.get("ok") is True
-        ), f"Failed to enable render_ui in chat session: {enabled}"
+        assert enabled.get("ok") is True, f"Failed to enable render_ui in chat session: {enabled}"
 
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         submit_block = send_result.get("submit")
-        assert isinstance(submit_block, dict) or isinstance(
-            send_result.get("started"), dict
-        ), f"Unexpected send_result shape: {send_result}"
+        assert isinstance(submit_block, dict) or isinstance(send_result.get("started"), dict), (
+            f"Unexpected send_result shape: {send_result}"
+        )
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or ""
         ).strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
 
         heartbeat_once()
-        started = await chat.wait_stream_started(
-            E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint
-        )
+        started = await chat.wait_stream_started(E2E_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint)
         chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         if not chat_id:
             after_start = await chat.main_state(E2E_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
@@ -208,26 +190,18 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
                 or str(after_start.get("bridgeChatId") or "").strip()
                 or None
             )
-        assert (
-            chat_id
-        ), f"Expected chat id after stream start: started={started}; send={send_result}"
+        assert chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
         await chat.navigate_to_chat(chat_id, BASE_URL, timeout_sec=90.0)
         await chat.ensure_chat_surface(BASE_URL)
 
         await _wait_inline_button(chat, chat_id, timeout_sec=300.0)
 
         baseline_user_count = chat_user_message_count(chat_id, api_url=api_base)
-        assert (
-            baseline_user_count >= 1
-        ), f"Expected initial user message for chat {chat_id}"
+        assert baseline_user_count >= 1, f"Expected initial user message for chat {chat_id}"
 
-        clicked = await chat.evaluate(
-            _CLICK_CONFIRM_BUTTON_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        clicked = await chat.evaluate(_CLICK_CONFIRM_BUTTON_JS, intent=EvaluateIntent.SYNC_PROBE)
         assert isinstance(clicked, dict)
-        assert (
-            clicked.get("clicked") is True
-        ), f"Failed to click inline confirm button: {clicked}"
+        assert clicked.get("clicked") is True, f"Failed to click inline confirm button: {clicked}"
 
         feedback = await _wait_ui_action_feedback(chat, timeout_sec=90.0)
 
@@ -235,13 +209,8 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
         ui_action_persisted = False
         while time.monotonic() < deadline:
             heartbeat_once()
-            if (
-                chat_user_message_count(chat_id, api_url=api_base)
-                >= baseline_user_count + 1
-            ):
-                ui_action_persisted = _last_user_message_has_ui_action(
-                    chat_id, api_url=api_base
-                )
+            if chat_user_message_count(chat_id, api_url=api_base) >= baseline_user_count + 1:
+                ui_action_persisted = _last_user_message_has_ui_action(chat_id, api_url=api_base)
                 if ui_action_persisted:
                     break
             await asyncio.sleep(0.75)
@@ -259,14 +228,10 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
     try:
         page: McpPage | None = None
         try:
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
         except TimeoutError:
             await asyncio.sleep(2.0)
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
         if page is None:
             raise RuntimeError("new_page returned no page")
         chat = McpChatSession(client, page)

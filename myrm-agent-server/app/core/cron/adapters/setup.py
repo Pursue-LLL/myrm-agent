@@ -125,5 +125,3 @@ def _build_runners() -> dict[JobType, JobRunner]:
     if is_local_mode():
         runners[JobType.SHELL] = ShellJobRunner()
     return runners
-
-

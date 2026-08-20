@@ -69,14 +69,8 @@ def resolve_builtin_tool_flags(
     deploy_supports_external_cli = is_external_cli_deploy_supported()
     return BuiltinToolFlags(
         enable_browser="browser" in effective_tools,
-        enable_computer_use=(
-            "computer_use" in effective_tools and deploy_supports_computer_use
-        ),
-        file_access_mode=(
-            FileAccessMode.FULL
-            if "file_ops" in effective_tools
-            else FileAccessMode.NONE
-        ),
+        enable_computer_use=("computer_use" in effective_tools and deploy_supports_computer_use),
+        file_access_mode=(FileAccessMode.FULL if "file_ops" in effective_tools else FileAccessMode.NONE),
         enable_shell_tools="code_execute" in effective_tools,
         enable_wiki="wiki" in effective_tools,
         enable_kanban="kanban" in effective_tools,
@@ -85,9 +79,7 @@ def resolve_builtin_tool_flags(
         enable_render_ui="render_ui" in effective_tools,
         enable_planning="planning" in effective_tools,
         enable_structured_clarify="structured_clarify" in effective_tools,
-        enable_external_cli=(
-            "external_cli" in effective_tools and deploy_supports_external_cli
-        ),
+        enable_external_cli=("external_cli" in effective_tools and deploy_supports_external_cli),
         enable_skill_market="skill_market" in effective_tools,
         enable_skill_manage="skill_manage" in effective_tools,
     )

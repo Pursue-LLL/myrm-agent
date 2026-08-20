@@ -22,9 +22,7 @@ def recording_client() -> TestClient:
     return TestClient(app)
 
 
-def test_generate_skill_blocked_in_sandbox(
-    recording_client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_generate_skill_blocked_in_sandbox(recording_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Generate-skill must fail closed with 403 in sandbox before any session lookup."""
     from app.config.deploy_mode import get_deploy_mode
     from app.platform_utils.deployment_capabilities import (
@@ -49,9 +47,7 @@ def test_generate_skill_blocked_in_sandbox(
     _reset_capabilities_cache_for_testing()
 
 
-def test_generate_skill_missing_session_in_local(
-    recording_client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_generate_skill_missing_session_in_local(recording_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Local mode passes the gate and continues to session validation (404 here)."""
     from app.config.deploy_mode import get_deploy_mode
     from app.platform_utils.deployment_capabilities import (

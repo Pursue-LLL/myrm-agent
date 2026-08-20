@@ -50,9 +50,7 @@ _CRON_PROMPT = (
 )
 
 
-def _cron_api(
-    client: httpx.Client, api_base: str, method: str, path: str, **kwargs: object
-) -> dict[str, object]:
+def _cron_api(client: httpx.Client, api_base: str, method: str, path: str, **kwargs: object) -> dict[str, object]:
     import sys
     from pathlib import Path
 
@@ -66,9 +64,7 @@ def _cron_api(
     response.raise_for_status()
     body = response.json()
     if not isinstance(body, dict):
-        raise AssertionError(
-            f"Expected JSON object from cron API, got {type(body).__name__}"
-        )
+        raise AssertionError(f"Expected JSON object from cron API, got {type(body).__name__}")
     return body
 
 
@@ -124,9 +120,7 @@ def _wait_scheduler_ready(client: httpx.Client, api_base: str) -> None:
     raise AssertionError(f"Cron scheduler not ready on {api_base}: {last!r}")
 
 
-def _trigger_and_wait(
-    client: httpx.Client, api_base: str, job_id: str
-) -> dict[str, object]:
+def _trigger_and_wait(client: httpx.Client, api_base: str, job_id: str) -> dict[str, object]:
     _wait_scheduler_ready(client, api_base)
     _cron_api(client, api_base, "POST", f"/{job_id}/resume")
     triggered = _cron_api(client, api_base, "POST", f"/{job_id}/trigger")
@@ -152,10 +146,7 @@ def _trigger_and_wait(
                 if status in _TERMINAL_RUN_STATUSES:
                     return candidate
         time.sleep(_POLL_INTERVAL_SEC)
-    raise AssertionError(
-        f"Cron run did not finish within {_RUN_DEADLINE_SEC}s; "
-        f"last_run={last_run!r} job={last_job!r}"
-    )
+    raise AssertionError(f"Cron run did not finish within {_RUN_DEADLINE_SEC}s; last_run={last_run!r} job={last_job!r}")
 
 
 def _delete_job_best_effort(client: httpx.Client, api_base: str, job_id: str) -> None:
@@ -168,22 +159,16 @@ def _delete_job_best_effort(client: httpx.Client, api_base: str, job_id: str) ->
     from e2e_core.effect_guard import guarded_httpx_request
 
     try:
-        guarded_httpx_request(
-            client, "DELETE", f"{api_base}/api/v1/cron/{job_id}", timeout=30.0
-        )
+        guarded_httpx_request(client, "DELETE", f"{api_base}/api/v1/cron/{job_id}", timeout=30.0)
     except httpx.HTTPError:
         pass
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.timeout(600)
 def test_live_cron_webonly_policy_progress_steps() -> None:
     if not wait_e2e_provider_ready():
-        pytest.fail(
-            "Provider config not ready — seed default model before LIVE cron E2E"
-        )
+        pytest.fail("Provider config not ready — seed default model before LIVE cron E2E")
 
     api_base = get_e2e_api_url()
     job_id = ""
@@ -196,17 +181,13 @@ def test_live_cron_webonly_policy_progress_steps() -> None:
             output = run.get("output")
             tool_names = _tool_names_from_run(run)
 
-            assert (
-                status in _SUCCESS_RUN_STATUSES
-            ), f"Expected cron ok, got status={status!r} error={error!r} output={output!r}"
+            assert status in _SUCCESS_RUN_STATUSES, f"Expected cron ok, got status={status!r} error={error!r} output={output!r}"
             forbidden = [name for name in tool_names if name in _FORBIDDEN_TOOL_NAMES]
-            assert (
-                not forbidden
-            ), f"Forbidden tools in progressSteps: {forbidden}; all={tool_names}"
+            assert not forbidden, f"Forbidden tools in progressSteps: {forbidden}; all={tool_names}"
             output_text = output if isinstance(output, str) else ""
-            assert (
-                "WEBONLY_OK" in output_text.upper()
-            ), f"Expected WEBONLY_OK in output, got {output!r} metadata={run.get('metadata')!r}"
+            assert "WEBONLY_OK" in output_text.upper(), (
+                f"Expected WEBONLY_OK in output, got {output!r} metadata={run.get('metadata')!r}"
+            )
         finally:
             if job_id:
                 _delete_job_best_effort(client, api_base, job_id)

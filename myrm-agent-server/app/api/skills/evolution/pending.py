@@ -173,15 +173,8 @@ async def get_pending_evolutions(
     limit: int = Query(50, ge=1, le=100),
 ) -> dict[str, list[PendingEvolutionSummaryResponse]]:
     records = await list_pending_evolution_records(limit=limit)
-    dependents_map = await _load_impacted_dependents(
-        [record.skill_id for record in records]
-    )
-    return {
-        "items": [
-            _summary_from_record(record, dependents_map.get(record.skill_id))
-            for record in records
-        ]
-    }
+    dependents_map = await _load_impacted_dependents([record.skill_id for record in records])
+    return {"items": [_summary_from_record(record, dependents_map.get(record.skill_id)) for record in records]}
 
 
 @router.get("/pending/{evolution_id}")
@@ -277,9 +270,7 @@ async def revise_pending_evolution(
     to FAILED_SCAN if the revised content fails scanning).
     """
     try:
-        record = await revise_evolution_review_record(
-            evolution_id, evolved_content=request.evolved_content
-        )
+        record = await revise_evolution_review_record(evolution_id, evolved_content=request.evolved_content)
     except EvolutionApplyError as exc:
         if "not found" in str(exc).lower():
             raise HTTPException(status_code=404, detail=str(exc)) from exc

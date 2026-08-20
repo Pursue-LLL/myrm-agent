@@ -14,11 +14,7 @@ _SCRIPTS_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "scripts"
 _INSTALL_SH = _SCRIPTS_ROOT / "install.sh"
 _INSTALL_PS1 = _SCRIPTS_ROOT / "install.ps1"
 _CN_MIRRORS_SH = _SCRIPTS_ROOT / "lib" / "cn_mirrors.sh"
-_DOCKERFILE = (
-    Path(__file__).resolve().parent.parent.parent.parent
-    / "myrm-agent-server"
-    / "Dockerfile"
-)
+_DOCKERFILE = Path(__file__).resolve().parent.parent.parent.parent / "myrm-agent-server" / "Dockerfile"
 
 
 @pytest.mark.architecture
@@ -56,25 +52,13 @@ class TestCnMirrorDetection:
         assert "UV_INDEX_URL" not in content
 
     def test_cn_mirrors_force_enable(self) -> None:
-        script = (
-            f"source {_CN_MIRRORS_SH}\n"
-            "MYRM_USE_CN_MIRROR=1 MYRM_NO_CN_MIRROR=0 "
-            "detect_cn_network && echo YES || echo NO"
-        )
-        result = subprocess.run(
-            ["bash", "-c", script], capture_output=True, text=True, timeout=5
-        )
+        script = f"source {_CN_MIRRORS_SH}\nMYRM_USE_CN_MIRROR=1 MYRM_NO_CN_MIRROR=0 detect_cn_network && echo YES || echo NO"
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=5)
         assert "YES" in result.stdout
 
     def test_cn_mirrors_force_disable(self) -> None:
-        script = (
-            f"source {_CN_MIRRORS_SH}\n"
-            "MYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=1 "
-            "detect_cn_network && echo YES || echo NO"
-        )
-        result = subprocess.run(
-            ["bash", "-c", script], capture_output=True, text=True, timeout=5
-        )
+        script = f"source {_CN_MIRRORS_SH}\nMYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=1 detect_cn_network && echo YES || echo NO"
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=5)
         assert "NO" in result.stdout
 
     def test_cn_mirrors_respects_existing_index(self) -> None:
@@ -83,9 +67,7 @@ class TestCnMirrorDetection:
             'UV_DEFAULT_INDEX="https://custom" MYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=0 '
             "detect_cn_network && echo YES || echo NO"
         )
-        result = subprocess.run(
-            ["bash", "-c", script], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=5)
         assert "NO" in result.stdout
 
     def test_cn_mirrors_non_cn_timezone(self) -> None:
@@ -94,9 +76,7 @@ class TestCnMirrorDetection:
             'TZ="America/New_York" MYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=0 '
             "detect_cn_network && echo YES || echo NO"
         )
-        result = subprocess.run(
-            ["bash", "-c", script], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=5)
         assert "NO" in result.stdout
 
     def test_cn_mirrors_macos_localtime_detection(self) -> None:
@@ -109,9 +89,7 @@ class TestCnMirrorDetection:
             "MYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=0 "
             "detect_cn_network && echo YES || echo NO"
         )
-        result = subprocess.run(
-            ["bash", "-c", script], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=5)
         assert result.returncode == 0
 
     def test_install_ps1_has_cn_functions(self) -> None:

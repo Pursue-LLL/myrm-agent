@@ -60,15 +60,11 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
 
     normalized = variant.strip().lower()
     if normalized not in _VALID_VARIANTS:
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported revert fixture variant: {variant}"
-        )
+        raise HTTPException(status_code=400, detail=f"Unsupported revert fixture variant: {variant}")
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for revert E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for revert E2E seed")
 
     agent = agents[0]
     agent_id = agent.id
@@ -81,13 +77,9 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
     message_id = request_message_id
     db_message_id = str(uuid4())
 
-    workspace_dir = await resolve_default_chat_workspace_dir(
-        chat_id, persist_workspace=True
-    )
+    workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
     if not workspace_dir and normalized != "empty":
-        raise HTTPException(
-            status_code=500, detail="Failed to resolve workspace for revert E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="Failed to resolve workspace for revert E2E seed")
 
     file_path = str(Path(workspace_dir) / _REVERT_FIXTURE_FILE) if workspace_dir else ""
     message_ids: list[str] = [message_id]
@@ -161,7 +153,11 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
     now = datetime.now(UTC)
     timezone = "UTC"
     await ChatService.append_message(
-        chat_id, "user", "Revert E2E fixture question", now, timezone,
+        chat_id,
+        "user",
+        "Revert E2E fixture question",
+        now,
+        timezone,
     )
     await ChatService.append_message(
         chat_id,
@@ -174,7 +170,11 @@ async def seed_revert_fixture(variant: str = "modify") -> dict[str, str | list[s
     )
     if normalized == "session":
         await ChatService.append_message(
-            chat_id, "user", "Revert E2E fixture follow-up", now, timezone,
+            chat_id,
+            "user",
+            "Revert E2E fixture follow-up",
+            now,
+            timezone,
         )
         await ChatService.append_message(
             chat_id,

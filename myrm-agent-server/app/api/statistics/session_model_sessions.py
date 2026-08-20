@@ -29,9 +29,7 @@ router = APIRouter()
 
 @router.get("/usage/model-sessions")
 async def get_model_sessions(
-    model: str = Query(
-        ..., description="The full model identifier, e.g., 'openai/gpt-4o'"
-    ),
+    model: str = Query(..., description="The full model identifier, e.g., 'openai/gpt-4o'"),
     days: int = Query(30, ge=1, le=90, description="Lookback period in days"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
@@ -50,9 +48,7 @@ async def get_model_sessions(
             Message.created_at >= start_dt,
         ]
 
-        stmt = select(Message.chat_id, Message.extra_data, Message.created_at).where(
-            and_(*filters)
-        )
+        stmt = select(Message.chat_id, Message.extra_data, Message.created_at).where(and_(*filters))
         result = await db.execute(stmt)
         rows = result.all()
 
@@ -84,35 +80,23 @@ async def get_model_sessions(
 
             agg = session_aggregates[chat_id]
             agg["calls"] = int(agg["calls"]) + 1
-            agg["inputTokens"] = int(agg["inputTokens"]) + int(
-                model_data.get("prompt_tokens") or 0
-            )
-            agg["outputTokens"] = int(agg["outputTokens"]) + int(
-                model_data.get("completion_tokens") or 0
-            )
-            agg["cachedTokens"] = int(agg["cachedTokens"]) + int(
-                model_data.get("cached_tokens") or 0
-            )
-            agg["totalTokens"] = int(agg["totalTokens"]) + int(
-                model_data.get("total_tokens") or 0
-            )
+            agg["inputTokens"] = int(agg["inputTokens"]) + int(model_data.get("prompt_tokens") or 0)
+            agg["outputTokens"] = int(agg["outputTokens"]) + int(model_data.get("completion_tokens") or 0)
+            agg["cachedTokens"] = int(agg["cachedTokens"]) + int(model_data.get("cached_tokens") or 0)
+            agg["totalTokens"] = int(agg["totalTokens"]) + int(model_data.get("total_tokens") or 0)
 
             cost_raw = model_data.get("cost_usd")
             if isinstance(cost_raw, (int, float)):
                 agg["costUsd"] = float(agg["costUsd"]) + float(cost_raw)
 
-            if created_at and (
-                agg["last_used_at"] is None or created_at > agg["last_used_at"]
-            ):
+            if created_at and (agg["last_used_at"] is None or created_at > agg["last_used_at"]):
                 agg["last_used_at"] = created_at
 
         if not session_aggregates:
             return success_response(data=[])
 
         chat_ids = list(session_aggregates.keys())
-        chat_stmt = select(
-            Chat.id, Chat.title, Chat.action_mode, Chat.created_at
-        ).where(Chat.id.in_(chat_ids))
+        chat_stmt = select(Chat.id, Chat.title, Chat.action_mode, Chat.created_at).where(Chat.id.in_(chat_ids))
         chat_result = await db.execute(chat_stmt)
         chat_rows = chat_result.all()
 
@@ -129,18 +113,14 @@ async def get_model_sessions(
                     "chatId": chat_id,
                     "title": chat_row.title or "Untitled",
                     "actionMode": chat_row.action_mode,
-                    "createdAt": (
-                        chat_row.created_at.isoformat() if chat_row.created_at else None
-                    ),
+                    "createdAt": (chat_row.created_at.isoformat() if chat_row.created_at else None),
                     "calls": agg["calls"],
                     "inputTokens": agg["inputTokens"],
                     "outputTokens": agg["outputTokens"],
                     "cachedTokens": agg["cachedTokens"],
                     "totalTokens": agg["totalTokens"],
                     "costUsd": round(float(agg["costUsd"]), 6),
-                    "lastUsedAt": (
-                        agg["last_used_at"].isoformat() if agg["last_used_at"] else None
-                    ),
+                    "lastUsedAt": (agg["last_used_at"].isoformat() if agg["last_used_at"] else None),
                 }
             )
 
@@ -148,6 +128,4 @@ async def get_model_sessions(
 
         return success_response(data=results)
     except Exception as e:
-        raise internal_error(
-            operation="Get model-specific session statistics", exception=e
-        ) from e
+        raise internal_error(operation="Get model-specific session statistics", exception=e) from e

@@ -97,9 +97,7 @@ def load_wiki_health_snapshot(
     if not path.is_file():
         return None
     try:
-        return WikiHealthReportResponse.model_validate_json(
-            path.read_text(encoding="utf-8")
-        )
+        return WikiHealthReportResponse.model_validate_json(path.read_text(encoding="utf-8"))
     except Exception as exc:
         logger.warning("Failed to load wiki health snapshot from %s: %s", path, exc)
         return None
@@ -200,9 +198,7 @@ def report_from_lint_issues(
     """Build a health report DTO from an in-memory lint issue list."""
     capped = _cap_issues(issues)
     generated_at = datetime.now(UTC).isoformat()
-    drift_sampled = mode == "full" and any(
-        item.issue_type == "drift" for item in issues
-    )
+    drift_sampled = mode == "full" and any(item.issue_type == "drift" for item in issues)
     return WikiHealthReportResponse(
         mode=mode,
         generated_at=generated_at,

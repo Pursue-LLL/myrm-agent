@@ -192,7 +192,9 @@ class RouterStreamMixin:
                         progress_info = self._progress_estimator.estimate_progress(metrics_key, len(display_text))
                         final_display_text = display_text
                         if progress_info and progress_info.percentage < 95 and not is_thinking:
-                            remaining_str = f" (~{progress_info.remaining_seconds}s left)" if progress_info.remaining_seconds else ""
+                            remaining_str = (
+                                f" (~{progress_info.remaining_seconds}s left)" if progress_info.remaining_seconds else ""
+                            )
                             final_display_text = f"{display_text}\n\n[{progress_info.percentage}%{remaining_str}]"
                             span.set_attribute("progress.percentage", progress_info.percentage)
 
@@ -508,14 +510,20 @@ class RouterStreamMixin:
             stage_suffix = f", {stage}" if stage else ""
             elapsed_mins = int((time.monotonic() - loop_start) // 60)
             text = get_text(
-                msg, "reassurance_still_running",
-                steps=steps, stage=stage_suffix, elapsed=elapsed_mins,
+                msg,
+                "reassurance_still_running",
+                steps=steps,
+                stage=stage_suffix,
+                elapsed=elapsed_mins,
             )
 
             try:
                 if heartbeat_mid and can_edit:
                     ok = await self._bus.edit_channel_message(
-                        msg.channel, chat_id, heartbeat_mid, text,
+                        msg.channel,
+                        chat_id,
+                        heartbeat_mid,
+                        text,
                     )
                     if not ok:
                         heartbeat_mid = None
@@ -531,13 +539,19 @@ class RouterStreamMixin:
                     heartbeat_mid = await self._bus.send_tracked(reply)
                 logger.info(
                     "reassurance_sent channel=%s chat=%s count=%d steps=%d elapsed_min=%d edit=%s",
-                    msg.channel, chat_id, sent_count, steps, elapsed_mins,
+                    msg.channel,
+                    chat_id,
+                    sent_count,
+                    steps,
+                    elapsed_mins,
                     heartbeat_mid is not None and can_edit,
                 )
             except Exception:
                 logger.warning(
                     "reassurance_send_failed channel=%s chat=%s count=%d",
-                    msg.channel, chat_id, sent_count,
+                    msg.channel,
+                    chat_id,
+                    sent_count,
                     exc_info=True,
                 )
             state["last_activity"] = time.monotonic()

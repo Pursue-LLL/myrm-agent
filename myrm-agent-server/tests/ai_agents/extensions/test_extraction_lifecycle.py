@@ -182,9 +182,7 @@ async def test_manual_retry_observer_uses_custom_source_and_metadata() -> None:
 @patch("app.database.connection.get_session")
 @patch("app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService")
 @pytest.mark.asyncio
-async def test_auto_extract_error_enqueues_retry(
-    mock_ledger_cls, mock_session_factory, mock_enqueue
-) -> None:
+async def test_auto_extract_error_enqueues_retry(mock_ledger_cls, mock_session_factory, mock_enqueue) -> None:
     mock_session = MagicMock()
     mock_session.__aenter__ = AsyncMock(return_value=MagicMock())
     mock_session.__aexit__ = AsyncMock(return_value=False)
@@ -207,9 +205,7 @@ async def test_auto_extract_error_enqueues_retry(
 @patch("app.database.connection.get_session")
 @patch("app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService")
 @pytest.mark.asyncio
-async def test_manual_retry_error_does_not_enqueue_again(
-    mock_ledger_cls, mock_session_factory, mock_enqueue
-) -> None:
+async def test_manual_retry_error_does_not_enqueue_again(mock_ledger_cls, mock_session_factory, mock_enqueue) -> None:
     mock_session = MagicMock()
     mock_session.__aenter__ = AsyncMock(return_value=MagicMock())
     mock_session.__aexit__ = AsyncMock(return_value=False)

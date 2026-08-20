@@ -118,9 +118,7 @@ class TestChannelNotifyAgentStreamLive:
             delivered = [
                 msg
                 for msg in messages
-                if isinstance(msg, dict)
-                and isinstance(msg.get("content"), str)
-                and NOTIFY_BODY in msg["content"]
+                if isinstance(msg, dict) and isinstance(msg.get("content"), str) and NOTIFY_BODY in msg["content"]
             ]
             assert delivered, f"Expected delivery in {recipient_chat_id}; messages={messages}"
         finally:

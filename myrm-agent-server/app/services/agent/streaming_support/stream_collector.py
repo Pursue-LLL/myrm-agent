@@ -49,9 +49,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
 
 _SSE_DATA_PREFIX = "data: "
 _MAX_REASONING_CHARS = 24_000
-_PERSISTED_STATUS_STEP_KEYS = frozenset(
-    {"archive_restore_blocked", "archive_restore_result"}
-)
+_PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_restore_result"})
 _FAILOVER_REASON_TO_STEP_KEY: dict[str, str] = {
     "rate_limit": "model_failover_rate_limit",
     "overloaded": "model_failover_overloaded",
@@ -123,9 +121,7 @@ def _ensure_evicted_stdout_preview(step: dict[str, object]) -> None:
     stdout = step.get("stdout")
     if isinstance(stdout, str) and stdout.strip():
         return
-    step["stdout"] = (
-        "[LARGE OUTPUT TRUNCATED]\n\n(Full output evicted to workspace file)"
-    )
+    step["stdout"] = "[LARGE OUTPUT TRUNCATED]\n\n(Full output evicted to workspace file)"
 
 
 _BASH_EXECUTE_TOOL = "bash_code_execute_tool"
@@ -181,11 +177,7 @@ def _parse_evicted_ref_payload(
         if storage_truncated is True:
             payload["storage_truncated"] = True
     event_tool = event.get("tool_name")
-    if (
-        isinstance(event_tool, str)
-        and event_tool.strip()
-        and "tool_name" not in payload
-    ):
+    if isinstance(event_tool, str) and event_tool.strip() and "tool_name" not in payload:
         payload["tool_name"] = event_tool.strip()
     ref = payload.get("evicted_ref")
     return payload if isinstance(ref, str) and ref else None
@@ -212,9 +204,7 @@ def _evicted_ref_keys(payload: dict[str, object]) -> tuple[str, str, str, str]:
     )
 
 
-def _attach_evicted_to_step(
-    step: dict[str, object], payload: dict[str, object]
-) -> None:
+def _attach_evicted_to_step(step: dict[str, object], payload: dict[str, object]) -> None:
     ref = payload.get("evicted_ref")
     if not isinstance(ref, str) or not ref:
         return
@@ -229,11 +219,7 @@ def _attach_evicted_to_step(
         else:
             _ensure_evicted_stdout_preview(step)
     tool_call_id = payload.get("tool_call_id")
-    if (
-        isinstance(tool_call_id, str)
-        and tool_call_id.strip()
-        and not step.get("tool_call_id")
-    ):
+    if isinstance(tool_call_id, str) and tool_call_id.strip() and not step.get("tool_call_id"):
         step["tool_call_id"] = tool_call_id.strip()
     if not step.get("step_key"):
         step_tool = step.get("tool_name")
@@ -338,9 +324,7 @@ def _merge_tasks_step(
     return step
 
 
-def _step_accepts_pending_evicted(
-    step: dict[str, object], payload: dict[str, object]
-) -> bool:
+def _step_accepts_pending_evicted(step: dict[str, object], payload: dict[str, object]) -> bool:
     tool_call_id = payload.get("tool_call_id")
     if isinstance(tool_call_id, str) and tool_call_id.strip():
         return step.get("tool_call_id") == tool_call_id.strip()
@@ -384,9 +368,7 @@ class StreamContentCollector:
     - Event dicts (via gateway): feed_event({...})
     """
 
-    def __init__(
-        self, sibling_group_id: str | None = None, chat_id: str | None = None
-    ) -> None:
+    def __init__(self, sibling_group_id: str | None = None, chat_id: str | None = None) -> None:
         self._message_id: str | None = None
         self._content_parts: list[str] = []
         self._reasoning_parts: list[str] = []
@@ -478,9 +460,7 @@ class StreamContentCollector:
 
         async def _run_patch() -> None:
             try:
-                patched = await patch_ui_artifact_data_by_surface_id(
-                    chat_id, surface_id, updates
-                )
+                patched = await patch_ui_artifact_data_by_surface_id(chat_id, surface_id, updates)
                 if not patched:
                     logger.warning(
                         "Immediate cross-turn ui patch skipped: surface_id=%s chat_id=%s",
@@ -555,9 +535,7 @@ class StreamContentCollector:
         if not chunk.startswith(_SSE_DATA_PREFIX):
             return
         try:
-            event = string_keyed_dict(
-                json.loads(chunk[len(_SSE_DATA_PREFIX) :].rstrip())
-            )
+            event = string_keyed_dict(json.loads(chunk[len(_SSE_DATA_PREFIX) :].rstrip()))
             if event is None:
                 return
             self._process_event(event)
@@ -613,9 +591,7 @@ class StreamContentCollector:
         elif event_type == "agent_cancelled":
             detail = string_keyed_dict(data) if isinstance(data, dict) else None
             reason = detail.get("reason") if detail else None
-            message = (
-                "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
-            )
+            message = "Cancelled by user" if reason == "user_cancelled" else "Run cancelled"
             payload_3: dict[str, object] = {
                 "code": "agent_cancelled",
                 "category": "cancelled",
@@ -720,9 +696,7 @@ class StreamContentCollector:
                 for step in reversed(self._progress_steps):
                     if step.get("tool_name") == tool_name:
                         prev = step.get("stdout")
-                        step["stdout"] = (
-                            f"{prev}{data}" if isinstance(prev, str) else data
-                        )
+                        step["stdout"] = f"{prev}{data}" if isinstance(prev, str) else data
                         break
         elif event_type == "tool_evicted_ref":
             payload = _parse_evicted_ref_payload(data, event)
@@ -784,20 +758,14 @@ class StreamContentCollector:
                         if artifact.get("surface_id") == surface_id:
                             existing_data = artifact.get("data")
                             if isinstance(existing_data, dict):
-                                artifact["data"] = deep_merge_ui_data(
-                                    existing_data, updates
-                                )
+                                artifact["data"] = deep_merge_ui_data(existing_data, updates)
                             merged_locally = True
                             break
                     if not merged_locally and self._chat_id:
                         normalized_updates = string_keyed_dict(updates)
                         if normalized_updates is not None:
-                            self._cross_turn_data_updates.append(
-                                (surface_id, normalized_updates)
-                            )
-                            self._schedule_cross_turn_ui_patch(
-                                surface_id, normalized_updates
-                            )
+                            self._cross_turn_data_updates.append((surface_id, normalized_updates))
+                            self._schedule_cross_turn_ui_patch(surface_id, normalized_updates)
         elif event_type == "status":
             step_key = event.get("step_key")
             if isinstance(data, dict):
@@ -829,11 +797,7 @@ class StreamContentCollector:
                 self._discard_draft()
             if step_key == "model_failover":
                 error_kind = event.get("error_kind")
-                display_key = (
-                    f"model_failover_{error_kind}"
-                    if isinstance(error_kind, str) and error_kind
-                    else "model_failover"
-                )
+                display_key = f"model_failover_{error_kind}" if isinstance(error_kind, str) and error_kind else "model_failover"
                 fallback_model = event.get("fallback_model")
                 item_text = str(fallback_model) if fallback_model else ""
                 self._append_failover_step(display_key, item_text)
@@ -845,14 +809,10 @@ class StreamContentCollector:
                     "status": event.get("status"),
                 }
                 if isinstance(data, dict):
-                    archive_restore_block = string_keyed_dict(
-                        data.get("archive_restore_block")
-                    )
+                    archive_restore_block = string_keyed_dict(data.get("archive_restore_block"))
                     if archive_restore_block is not None:
                         step["archive_restore_block"] = archive_restore_block
-                    archive_restore_result = string_keyed_dict(
-                        data.get("archive_restore_result")
-                    )
+                    archive_restore_result = string_keyed_dict(data.get("archive_restore_result"))
                     if archive_restore_result is not None:
                         step["archive_restore_result"] = archive_restore_result
                 self._progress_steps.append(step)
@@ -937,17 +897,13 @@ class StreamContentCollector:
         self._discard_draft()
         for existing in self._progress_steps:
             key = str(existing.get("step_key", ""))
-            if not (
-                key.startswith("model_failover") or key == "safety_fallback_active"
-            ):
+            if not (key.startswith("model_failover") or key == "safety_fallback_active"):
                 continue
             if item_text:
                 existing_items = existing.get("items")
                 existing_label = (
                     str(existing_items[0].get("text", ""))
-                    if isinstance(existing_items, list)
-                    and existing_items
-                    and isinstance(existing_items[0], dict)
+                    if isinstance(existing_items, list) and existing_items and isinstance(existing_items[0], dict)
                     else ""
                 )
                 # Keep the more complete "from → to" label when already present:
@@ -975,9 +931,7 @@ class StreamContentCollector:
                 continue
             tool_hint = payload.get("tool_name")
             fallback: dict[str, object] = {
-                "tool_name": (
-                    tool_hint if isinstance(tool_hint, str) else _BASH_EXECUTE_TOOL
-                ),
+                "tool_name": (tool_hint if isinstance(tool_hint, str) else _BASH_EXECUTE_TOOL),
             }
             tool_call_id = payload.get("tool_call_id")
             if isinstance(tool_call_id, str) and tool_call_id.strip():
@@ -1069,31 +1023,21 @@ class StreamContentCollector:
             self._stop_reason = normalized
             return
         current_code = self._stop_reason.get("code")
-        current_priority = (
-            _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
-        )
+        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
         next_code = normalized.get("code")
-        next_priority = (
-            _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
-        )
+        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
         if next_priority >= current_priority:
             self._stop_reason = normalized
 
     def _extend_cited_memory_refs(self, refs: list[object]) -> None:
-        seen = {
-            str(ref.get("id"))
-            for ref in self._cited_memory_refs
-            if isinstance(ref.get("id"), str)
-        }
+        seen = {str(ref.get("id")) for ref in self._cited_memory_refs if isinstance(ref.get("id"), str)}
         for ref in refs:
             if not isinstance(ref, dict):
                 continue
             ref_id = ref.get("id")
             if not isinstance(ref_id, str) or not ref_id or ref_id in seen:
                 continue
-            normalized = {
-                str(key): value for key, value in ref.items() if isinstance(key, str)
-            }
+            normalized = {str(key): value for key, value in ref.items() if isinstance(key, str)}
             self._cited_memory_refs.append(normalized)
             seen.add(ref_id)
 
@@ -1101,13 +1045,9 @@ class StreamContentCollector:
         trace_id = trace.get("id")
         if not isinstance(trace_id, str) or not trace_id:
             return
-        if any(
-            existing.get("id") == trace_id for existing in self._memory_retrieval_traces
-        ):
+        if any(existing.get("id") == trace_id for existing in self._memory_retrieval_traces):
             return
-        normalized = {
-            str(key): value for key, value in trace.items() if isinstance(key, str)
-        }
+        normalized = {str(key): value for key, value in trace.items() if isinstance(key, str)}
         self._memory_retrieval_traces.append(normalized)
 
     def _append_reasoning(self, chunk: str) -> None:

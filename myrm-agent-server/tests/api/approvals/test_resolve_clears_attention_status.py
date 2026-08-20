@@ -35,9 +35,7 @@ async def test_resolve_approval_publishes_idle_status(app, setup_test_database) 
         ),
         patch("app.services.event.app_event_bus.get_event_bus", return_value=MagicMock()),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 f"/api/v1/approvals/{record.id}/resolve",
                 json={"decision": "approve"},
@@ -72,9 +70,7 @@ async def test_resolve_approval_no_publish_when_no_chat_id(app, setup_test_datab
         ),
         patch("app.services.event.app_event_bus.get_event_bus", return_value=MagicMock()),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 f"/api/v1/approvals/{record.id}/resolve",
                 json={"decision": "deny"},
@@ -119,9 +115,7 @@ async def test_batch_resolve_publishes_idle_for_each_chat_id(app, setup_test_dat
         ),
         patch("app.services.event.app_event_bus.get_event_bus", return_value=MagicMock()),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/approvals/batch-resolve",
                 json={"approval_ids": [record1.id, record2.id], "decision": "approve"},

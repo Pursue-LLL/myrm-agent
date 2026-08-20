@@ -283,8 +283,8 @@ async def test_whitespace_only_chunks_ignored():
     buf = _make_buffer()
 
     async def _gen():
-        yield '   \n\n'
-        yield '\n'
+        yield "   \n\n"
+        yield "\n"
         yield 'data: {"type": "message", "data": "real content"}\n\n'
 
     mock_notif = await _run_pump(session, buf, _gen())

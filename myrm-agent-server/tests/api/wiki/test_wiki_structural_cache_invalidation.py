@@ -56,12 +56,15 @@ def _bypass_auth():
 
 
 def test_repair_types_invalidates_structural_cache(client: TestClient) -> None:
-    with patch(
-        "app.api.wiki.router._after_wiki_vault_mutation",
-        new_callable=AsyncMock,
-    ) as invalidate_mock, patch(
-        "myrm_agent_harness.toolkits.wiki.core.frontmatter_contract.repair_missing_types",
-        return_value=_RepairTypesResult(),
+    with (
+        patch(
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
+        ) as invalidate_mock,
+        patch(
+            "myrm_agent_harness.toolkits.wiki.core.frontmatter_contract.repair_missing_types",
+            return_value=_RepairTypesResult(),
+        ),
     ):
         response = client.post("/api/v1/wiki/repair-types")
 
@@ -70,12 +73,15 @@ def test_repair_types_invalidates_structural_cache(client: TestClient) -> None:
 
 
 def test_repair_types_skips_invalidate_when_nothing_repaired(client: TestClient) -> None:
-    with patch(
-        "app.api.wiki.router._after_wiki_vault_mutation",
-        new_callable=AsyncMock,
-    ) as invalidate_mock, patch(
-        "myrm_agent_harness.toolkits.wiki.core.frontmatter_contract.repair_missing_types",
-        return_value=_RepairTypesResult(files_repaired=0),
+    with (
+        patch(
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
+        ) as invalidate_mock,
+        patch(
+            "myrm_agent_harness.toolkits.wiki.core.frontmatter_contract.repair_missing_types",
+            return_value=_RepairTypesResult(files_repaired=0),
+        ),
     ):
         response = client.post("/api/v1/wiki/repair-types")
 
@@ -91,13 +97,16 @@ def test_apply_invalidates_structural_cache(client: TestClient) -> None:
         message="ok",
         content_hash="abc",
     )
-    with patch(
-        "app.api.wiki.router._after_wiki_vault_mutation",
-        new_callable=AsyncMock,
-    ) as invalidate_mock, patch(
-        "myrm_agent_harness.toolkits.wiki.pipeline.apply.apply_wiki_mutation",
-        new_callable=AsyncMock,
-        return_value=apply_result,
+    with (
+        patch(
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
+        ) as invalidate_mock,
+        patch(
+            "myrm_agent_harness.toolkits.wiki.pipeline.apply.apply_wiki_mutation",
+            new_callable=AsyncMock,
+            return_value=apply_result,
+        ),
     ):
         response = client.post(
             "/api/v1/wiki/apply",
@@ -155,11 +164,14 @@ def test_pending_approve_invalidates_structural_cache() -> None:
     app.dependency_overrides[_get_wiki_archiver] = _override_archiver
     scoped_client = TestClient(app)
     try:
-        with patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
-            new_callable=AsyncMock,
-        ) as invalidate_mock, patch(
-            "app.api.wiki.router._refresh_wiki_cognitive_map",
+        with (
+            patch(
+                "app.api.wiki.router._after_wiki_vault_mutation",
+                new_callable=AsyncMock,
+            ) as invalidate_mock,
+            patch(
+                "app.api.wiki.router._refresh_wiki_cognitive_map",
+            ),
         ):
             response = scoped_client.post("/api/v1/wiki/pending/1/approve", json={})
     finally:
@@ -218,12 +230,15 @@ def test_move_invalidates_structural_cache(tmp_path) -> None:
     app.dependency_overrides[_get_wiki_archiver] = _override_archiver
     scoped_client = TestClient(app)
     try:
-        with patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
-            new_callable=AsyncMock,
-        ) as invalidate_mock, patch(
-            "myrm_agent_harness.toolkits.wiki.pipeline.publication.reindex_concepts_after_move",
-            new_callable=AsyncMock,
+        with (
+            patch(
+                "app.api.wiki.router._after_wiki_vault_mutation",
+                new_callable=AsyncMock,
+            ) as invalidate_mock,
+            patch(
+                "myrm_agent_harness.toolkits.wiki.pipeline.publication.reindex_concepts_after_move",
+                new_callable=AsyncMock,
+            ),
         ):
             response = scoped_client.put(
                 "/api/v1/wiki/tree/move",
@@ -241,15 +256,19 @@ def test_move_invalidates_structural_cache(tmp_path) -> None:
 
 
 def test_repair_publication_invalidates_structural_cache(client: TestClient) -> None:
-    with patch(
-        "app.api.wiki.router._after_wiki_vault_mutation",
-        new_callable=AsyncMock,
-    ) as invalidate_mock, patch(
-        "myrm_agent_harness.toolkits.wiki.pipeline.publication.repair_publication_status",
-        new_callable=AsyncMock,
-        return_value=_RepairPublicationResult(),
-    ), patch(
-        "app.api.wiki.router._refresh_wiki_cognitive_map",
+    with (
+        patch(
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
+        ) as invalidate_mock,
+        patch(
+            "myrm_agent_harness.toolkits.wiki.pipeline.publication.repair_publication_status",
+            new_callable=AsyncMock,
+            return_value=_RepairPublicationResult(),
+        ),
+        patch(
+            "app.api.wiki.router._refresh_wiki_cognitive_map",
+        ),
     ):
         response = client.post("/api/v1/wiki/repair-publication")
 
@@ -259,17 +278,20 @@ def test_repair_publication_invalidates_structural_cache(client: TestClient) -> 
 
 
 def test_repair_publication_skips_invalidate_when_nothing_changed(client: TestClient) -> None:
-    with patch(
-        "app.api.wiki.router._after_wiki_vault_mutation",
-        new_callable=AsyncMock,
-    ) as invalidate_mock, patch(
-        "myrm_agent_harness.toolkits.wiki.pipeline.publication.repair_publication_status",
-        new_callable=AsyncMock,
-        return_value=_RepairPublicationResult(
-            files_scanned=3,
-            files_repaired=0,
-            files_skipped=3,
-            reindexed=0,
+    with (
+        patch(
+            "app.api.wiki.router._after_wiki_vault_mutation",
+            new_callable=AsyncMock,
+        ) as invalidate_mock,
+        patch(
+            "myrm_agent_harness.toolkits.wiki.pipeline.publication.repair_publication_status",
+            new_callable=AsyncMock,
+            return_value=_RepairPublicationResult(
+                files_scanned=3,
+                files_repaired=0,
+                files_skipped=3,
+                reindexed=0,
+            ),
         ),
     ):
         response = client.post("/api/v1/wiki/repair-publication")

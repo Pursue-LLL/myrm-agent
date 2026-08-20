@@ -188,9 +188,7 @@ async def test_concurrent_turns_serialize_and_second_waits(monkeypatch):
         await _run_pump(session, buf, _tagged_stream(tag), monkeypatch, orch)
         return "".join(_appended_chunks(buf))
 
-    chunks_a, chunks_b = await asyncio.wait_for(
-        asyncio.gather(_run("a"), _run("b")), timeout=10
-    )
+    chunks_a, chunks_b = await asyncio.wait_for(asyncio.gather(_run("a"), _run("b")), timeout=10)
 
     # 串行：a 完整结束后 b 才开始
     assert order == ["a-start", "a-end", "b-start", "b-end"]
@@ -340,9 +338,9 @@ async def test_cancel_while_waiting_releases_reserved_gateway_session(monkeypatc
         token.is_cancelled = True
         await asyncio.wait_for(pump_task, timeout=3)
 
-        assert (
-            gateway.is_session_active("test-chat-123") is False
-        ), "reserved gateway session leaked — the chat would stay busy forever"
+        assert gateway.is_session_active("test-chat-123") is False, (
+            "reserved gateway session leaked — the chat would stay busy forever"
+        )
         # 持有者（另一 agent）的项目锁必须仍然持有
         assert orch.is_locked("proj-1") is True
     finally:

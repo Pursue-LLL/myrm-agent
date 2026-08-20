@@ -109,9 +109,7 @@ def test_match_domain_wildcard() -> None:
 def test_normalize_domain_patterns_dedupes_and_strips() -> None:
     from app.services.extension.access_policy import normalize_domain_patterns
 
-    assert normalize_domain_patterns([" Example.COM. ", "example.com", "", "  "]) == [
-        "example.com"
-    ]
+    assert normalize_domain_patterns([" Example.COM. ", "example.com", "", "  "]) == ["example.com"]
 
 
 def test_match_domain_empty_domain() -> None:

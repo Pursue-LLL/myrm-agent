@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="notifications")
+
+
 @pytest.fixture(scope="module")
 def test_client():
     with TestClient(app) as c:

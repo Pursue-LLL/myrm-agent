@@ -76,9 +76,7 @@ def test_planning_todo_write_persists_and_emits_tasks_steps(client: TestClient) 
     check_e2e_errors(events)
 
     todo_step_events = [
-        event
-        for event in events
-        if event.get("type") == "tasks_steps" and event.get("tool_name") == "todo_write"
+        event for event in events if event.get("type") == "tasks_steps" and event.get("tool_name") == "todo_write"
     ]
     assert todo_step_events, "Expected tasks_steps events for todo_write"
 
@@ -118,10 +116,7 @@ def test_planning_resume_loads_todo_write_without_planning_flag(client: TestClie
     resume_payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
-        "query": (
-            "Call todo_write once with merge=true to mark r1 completed. "
-            "No other tools. Reply RESUMED."
-        ),
+        "query": ("Call todo_write once with merge=true to mark r1 completed. No other tools. Reply RESUMED."),
         "modelSelection": get_lite_model_selection(),
         "actionMode": "agent",
         "agentConfig": {"enabledBuiltinTools": ["web_search", "memory"]},

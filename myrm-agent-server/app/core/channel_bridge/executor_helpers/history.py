@@ -46,9 +46,7 @@ def build_chat_history_with_metadata(
     history: list[list[str | object]] = []
     for entry in entries:
         if entry.role == "human":
-            history.append(
-                ["human", entry.content, {"ts": entry.created_at.isoformat()}]
-            )
+            history.append(["human", entry.content, {"ts": entry.created_at.isoformat()}])
         else:
             history.append(["assistant", entry.content])
     return history
@@ -89,9 +87,7 @@ async def persist_and_load_history(
                 chat.id,
                 exc,
             )
-        await ChatService.append_message(
-            chat.id, "user", content, sent_at, sent_timezone
-        )
+        await ChatService.append_message(chat.id, "user", content, sent_at, sent_timezone)
         history = await ChatService.load_channel_history(chat.id, api_key=None)
         await session.commit()
         logger.warning(
@@ -181,9 +177,7 @@ async def generate_channel_title(
                 )
 
         if title_model:
-            title = await ChatService._call_llm_for_title(
-                first_message[:200], title_model
-            )
+            title = await ChatService._call_llm_for_title(first_message[:200], title_model)
         else:
             title = ChatService._generate_fallback_title(first_message)
 

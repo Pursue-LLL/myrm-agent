@@ -54,9 +54,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # dispatcher 终态事件名（触发项目完成检测）
-_FINAL_EVENTS = frozenset(
-    {"task_completed", "task_failed", "task_blocked", "task_archived"}
-)
+_FINAL_EVENTS = frozenset({"task_completed", "task_failed", "task_blocked", "task_archived"})
 
 
 class BatchDirectoryService:
@@ -191,8 +189,7 @@ class BatchDirectoryService:
                         exc,
                     )
             raise ValueError(
-                "Failed to create batch tasks for some directories: "
-                + "; ".join(f"{d}: {e}" for d, e in errors[:3])
+                "Failed to create batch tasks for some directories: " + "; ".join(f"{d}: {e}" for d, e in errors[:3])
             )
 
         async with get_session() as session:
@@ -242,9 +239,7 @@ class BatchDirectoryService:
                     sa_update(BatchDirectoryProjectModel)
                     .where(
                         BatchDirectoryProjectModel.id == project_id,
-                        BatchDirectoryProjectModel.status.notin_(
-                            list(_PROJECT_TERMINAL_STATUSES)
-                        ),
+                        BatchDirectoryProjectModel.status.notin_(list(_PROJECT_TERMINAL_STATUSES)),
                     )
                     .values(status="cancelled", finished_at=_now())
                 )
@@ -260,9 +255,7 @@ class BatchDirectoryService:
                 if status == TaskStatus.RUNNING:
                     await self.kanban.cancel_task_execution(t.id)
                 elif status == TaskStatus.IN_REVIEW:
-                    await self.kanban.reject_task(
-                        t.id, reason="Batch project cancelled"
-                    )
+                    await self.kanban.reject_task(t.id, reason="Batch project cancelled")
                 await self.kanban.move_task(
                     t.id,
                     TaskStatus.ARCHIVED,
@@ -271,9 +264,7 @@ class BatchDirectoryService:
                 )
                 cancelled.append(t.id)
             except Exception as exc:  # noqa: BLE001 - 单任务取消失败不阻断
-                logger.warning(
-                    "Batch project %s: cancel task %s failed: %s", project_id, t.id, exc
-                )
+                logger.warning("Batch project %s: cancel task %s failed: %s", project_id, t.id, exc)
 
         base = await self.get_project(project_id)
         if base is None:
@@ -286,9 +277,7 @@ class BatchDirectoryService:
     async def retry_failed(self, project_id: str) -> dict[str, object] | None:
         return await _retry.retry_failed(self, project_id)
 
-    async def retry_task(
-        self, project_id: str, task_id: str
-    ) -> dict[str, object] | None:
+    async def retry_task(self, project_id: str, task_id: str) -> dict[str, object] | None:
         return await _retry.retry_task(self, project_id, task_id)
 
     async def rerun_project(self, project_id: str) -> dict[str, object] | None:
@@ -300,17 +289,13 @@ class BatchDirectoryService:
     async def resume_project(self, project_id: str) -> dict[str, object] | None:
         return await _lifecycle.resume_project(self, project_id)
 
-    async def approve_all_results(
-        self, project_id: str
-    ) -> dict[str, object] | None:
+    async def approve_all_results(self, project_id: str) -> dict[str, object] | None:
         return await _lifecycle.approve_all_results(self, project_id)
 
     async def delete_project(self, project_id: str) -> bool:
         tasks = await fetch_project_task_models(project_id)
         if any(t.status not in {s.value for s in _TERMINAL_STATUSES} for t in tasks):
-            raise ValueError(
-                "Batch project still has running tasks; cancel it before deleting"
-            )
+            raise ValueError("Batch project still has running tasks; cancel it before deleting")
         async with get_session() as session:
             model = await session.get(BatchDirectoryProjectModel, project_id)
             if model is None:
@@ -344,9 +329,7 @@ class BatchDirectoryService:
             return
         latest = _latest_tasks_per_directory(tasks)
 
-        pending = [
-            t for t in latest if t.status not in {s.value for s in _TERMINAL_STATUSES}
-        ]
+        pending = [t for t in latest if t.status not in {s.value for s in _TERMINAL_STATUSES}]
         if pending:
             return  # 仍有未终态任务
 
@@ -359,9 +342,7 @@ class BatchDirectoryService:
                 sa_update(BatchDirectoryProjectModel)
                 .where(
                     BatchDirectoryProjectModel.id == project_id,
-                    BatchDirectoryProjectModel.status.notin_(
-                        list(_PROJECT_TERMINAL_STATUSES)
-                    ),
+                    BatchDirectoryProjectModel.status.notin_(list(_PROJECT_TERMINAL_STATUSES)),
                 )
                 .values(
                     status=final_status,

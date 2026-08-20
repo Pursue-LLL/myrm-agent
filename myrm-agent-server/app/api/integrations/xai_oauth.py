@@ -217,16 +217,12 @@ async def get_xai_oauth_status(db: AsyncSession = Depends(get_db)) -> JSONRespon
 
     row = await load_oauth_credentials_row(db)
     if row is None:
-        return success_response(
-            data={"issuer": XAI_ISSUER, "connected": False, "scope": None, "expires_at": None}
-        )
+        return success_response(data={"issuer": XAI_ISSUER, "connected": False, "scope": None, "expires_at": None})
 
     credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
     cred_val = credentials.get(XAI_ISSUER)
     if not isinstance(cred_val, dict):
-        return success_response(
-            data={"issuer": XAI_ISSUER, "connected": False, "scope": None, "expires_at": None}
-        )
+        return success_response(data={"issuer": XAI_ISSUER, "connected": False, "scope": None, "expires_at": None})
 
     return success_response(
         data={

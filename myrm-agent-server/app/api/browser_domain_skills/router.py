@@ -37,6 +37,7 @@ router = APIRouter()
 # Schemas
 # ---------------------------------------------------------------------------
 
+
 class DomainToolResponse(BaseModel):
     name: str
     description: str
@@ -85,6 +86,7 @@ class DistillSkillRequest(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 def _get_store() -> DomainSkillStore:
     from myrm_agent_harness.toolkits.browser.domain_skills import (
         get_global_domain_skill_store,
@@ -120,10 +122,7 @@ def _manifest_to_response(
 async def list_domain_skills() -> list[DomainSkillResponse]:
     """List all loaded domain skills."""
     store = _get_store()
-    return [
-        _manifest_to_response(m, builtin=store.is_builtin(m.id))
-        for m in store.list_skills()
-    ]
+    return [_manifest_to_response(m, builtin=store.is_builtin(m.id)) for m in store.list_skills()]
 
 
 @router.get("/domain-skills/{skill_id}")

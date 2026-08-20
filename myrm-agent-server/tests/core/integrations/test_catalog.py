@@ -239,9 +239,7 @@ class TestCatalogRegistry:
         assert "待办" in entry.tags
         assert "微软" in entry.tags
         for query in ("待办", "微软待办", "微软"):
-            assert any(e.id == "microsoft-todo" for e in registry.search(query)), (
-                f"search '{query}' must return microsoft-todo"
-            )
+            assert any(e.id == "microsoft-todo" for e in registry.search(query)), f"search '{query}' must return microsoft-todo"
 
     def test_google_catalog_entries_removed(self, registry: CatalogRegistry) -> None:
         """Google abilities are covered by the google-workspace skill; catalog entries are gone."""
@@ -335,25 +333,15 @@ class TestCatalogRegistry:
         """Bearer auth entries must use credential_fields with header inject."""
         for entry in registry.list_all():
             if entry.auth.type == AuthType.BEARER:
-                assert entry.auth.credential_fields, (
-                    f"Entry {entry.id} uses bearer auth but missing credential_fields"
-                )
+                assert entry.auth.credential_fields, f"Entry {entry.id} uses bearer auth but missing credential_fields"
                 header_fields = [f for f in entry.auth.credential_fields if f.inject.value == "header"]
-                assert header_fields, (
-                    f"Entry {entry.id} uses bearer auth but no credential field has inject=header"
-                )
+                assert header_fields, f"Entry {entry.id} uses bearer auth but no credential field has inject=header"
 
     def test_streamable_http_with_headers(self, registry: CatalogRegistry) -> None:
         """Streamable HTTP entries with bearer auth must have headers in mcp_config."""
         for entry in registry.list_all():
-            if (
-                entry.auth.type == AuthType.BEARER
-                and entry.mcp_config
-                and entry.mcp_config.type == "streamable_http"
-            ):
-                assert entry.mcp_config.headers, (
-                    f"Entry {entry.id} uses streamable_http+bearer but mcp_config missing headers"
-                )
+            if entry.auth.type == AuthType.BEARER and entry.mcp_config and entry.mcp_config.type == "streamable_http":
+                assert entry.mcp_config.headers, f"Entry {entry.id} uses streamable_http+bearer but mcp_config missing headers"
 
     def test_search_chinese_service(self, registry: CatalogRegistry) -> None:
         """Searching by Chinese service names should find CN entries."""

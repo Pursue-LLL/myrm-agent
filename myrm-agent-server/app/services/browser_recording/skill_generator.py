@@ -46,14 +46,11 @@ _DESCRIPTION_MAX_CHARS = 200
 
 # Real harness-registered browser tool names (see toolkits/browser/tools/*.py).
 _ALLOWED_BROWSER_TOOLS = (
-    "browser_navigate_tool browser_interact_tool browser_snapshot_tool "
-    "browser_extract_tool browser_manage_tool"
+    "browser_navigate_tool browser_interact_tool browser_snapshot_tool browser_extract_tool browser_manage_tool"
 )
 
 
-async def generate_skill_description(
-    llm: BaseChatModel | None, session: CaptureSession
-) -> str | None:
+async def generate_skill_description(llm: BaseChatModel | None, session: CaptureSession) -> str | None:
     """Generate a semantic skill description from recorded steps via LLM.
 
     The skill description tells the agent when a skill applies, so a plain
@@ -71,9 +68,7 @@ async def generate_skill_description(
     if not session.steps or llm is None:
         return None
     credential_labels = _build_credential_labels(session)
-    step_lines = steps_to_natural_language(
-        session.steps, credential_labels=credential_labels
-    )
+    step_lines = steps_to_natural_language(session.steps, credential_labels=credential_labels)
     prompt = (
         "Write a concise one-sentence description of the browser automation "
         "skill these steps describe. Focus on what the skill does and when an "
@@ -141,12 +136,7 @@ def _yaml_single_line(value: str) -> str:
     Recording descriptions may contain newlines or quotes that would otherwise
     break the frontmatter YAML block.
     """
-    escaped = (
-        value.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\r", " ")
-        .replace("\n", " ")
-    )
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\r", " ").replace("\n", " ")
     return f'"{escaped}"'
 
 
@@ -162,16 +152,11 @@ def _build_skill_content(
     system validates on save — it must be present or `save_skill` rejects the
     file. Body sections are free-form instructions for the agent.
     """
-    nl_steps = steps_to_natural_language(
-        session.steps, credential_labels=credential_labels
-    )
+    nl_steps = steps_to_natural_language(session.steps, credential_labels=credential_labels)
 
     credential_section = ""
     if credential_labels:
-        cred_lines = [
-            f'- Step {seq}: `fill_credential "{label}"`'
-            for seq, label in credential_labels.items()
-        ]
+        cred_lines = [f'- Step {seq}: `fill_credential "{label}"`' for seq, label in credential_labels.items()]
         credential_section = f"""
 ## Credentials
 
@@ -182,11 +167,7 @@ steps provides the real value automatically:
 """
 
     frontmatter = (
-        "---\n"
-        f"name: {skill_name}\n"
-        f"description: {_yaml_single_line(description)}\n"
-        f"allowed-tools: {_ALLOWED_BROWSER_TOOLS}\n"
-        "---\n"
+        f"---\nname: {skill_name}\ndescription: {_yaml_single_line(description)}\nallowed-tools: {_ALLOWED_BROWSER_TOOLS}\n---\n"
     )
 
     return f"""{frontmatter}

@@ -13,13 +13,7 @@ _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _MYRM_AGENT_ROOT = _SERVER_ROOT.parent
 _FRONTEND_TYPES = _MYRM_AGENT_ROOT / "myrm-agent-frontend" / "src" / "store" / "chat" / "types" / "interactiveUi.ts"
 _FRONTEND_REGISTRY = (
-    _MYRM_AGENT_ROOT
-    / "myrm-agent-frontend"
-    / "src"
-    / "components"
-    / "features"
-    / "interactive-ui"
-    / "UIComponentRegistry.tsx"
+    _MYRM_AGENT_ROOT / "myrm-agent-frontend" / "src" / "components" / "features" / "interactive-ui" / "UIComponentRegistry.tsx"
 )
 
 

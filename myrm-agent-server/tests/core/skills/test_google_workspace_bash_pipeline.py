@@ -16,9 +16,7 @@ from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills import prebuilt_sync
 
-GOOGLE_CALENDAR_CMD = (
-    "python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today"
-)
+GOOGLE_CALENDAR_CMD = "python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today"
 
 
 @pytest.fixture
@@ -39,9 +37,7 @@ async def test_google_workspace_script_synced_to_storage(
 ) -> None:
     await prebuilt_sync.sync_prebuilt_seeds(storage)
 
-    script_path = get_skill_file_path(
-        SkillType.PREBUILT, "google-workspace", "scripts/google_api.py"
-    )
+    script_path = get_skill_file_path(SkillType.PREBUILT, "google-workspace", "scripts/google_api.py")
     content = await storage.read_text(script_path)
     assert "calendar-today" in content
 
@@ -56,6 +52,4 @@ def test_bash_executor_detects_google_workspace_skill_command() -> None:
     mock_executor = MagicMock()
     mock_executor.config = MagicMock()
     executor = BashExecutor(executor=mock_executor, enable_skill_execution=False)
-    assert (
-        executor._detect_skill_from_code(GOOGLE_CALENDAR_CMD) == "google-workspace"
-    )  # noqa: SLF001
+    assert executor._detect_skill_from_code(GOOGLE_CALENDAR_CMD) == "google-workspace"  # noqa: SLF001

@@ -72,18 +72,14 @@ def test_wb_bench_download_reports_progress(client: TestClient) -> None:
     ):
         source_root = tmp / "sources" / "wb-bench-web-v1.0"
         (source_root / "tasks" / "t1").mkdir(parents=True)
-        (source_root / "tasks" / "t1" / "task.toml").write_text(
-            '[verifier]\nengine = "composite"\n'
-        )
+        (source_root / "tasks" / "t1" / "task.toml").write_text('[verifier]\nengine = "composite"\n')
         if progress_callback:
             progress_callback(1024 * 1024, 2048 * 1024)
         return source_root
 
     with (
         patch.object(wb, "SOURCES_DIR", tmp / "sources"),
-        patch(
-            "app.core.eval.wb_bench.ensure_wb_bench_source", side_effect=_fake_ensure
-        ),
+        patch("app.core.eval.wb_bench.ensure_wb_bench_source", side_effect=_fake_ensure),
     ):
         res = client.post("/api/v1/eval/wb-bench/download", json={"subset_id": "web"})
         assert res.status_code == 200
@@ -123,9 +119,7 @@ async def test_wb_bench_download_abort_flow(tmp_path) -> None:
     with (
         patch.object(wb.download, "ARCHIVES_DIR", tmp_path / "archives"),
         patch.object(wb.download, "SOURCES_DIR", tmp_path / "sources"),
-        patch(
-            "app.core.eval.wb_bench.download._fetch_expected_sha256", return_value=None
-        ),
+        patch("app.core.eval.wb_bench.download._fetch_expected_sha256", return_value=None),
         patch(
             "app.core.eval.wb_bench.download._download_archive",
             side_effect=_spinning_download,
@@ -179,9 +173,7 @@ def test_wb_bench_run_requires_local_dataset(client: TestClient) -> None:
         patch("app.core.eval.wb_bench.download.httpx.Client") as mock_client,
         patch("app.core.eval.wb_bench.download.httpx.AsyncClient") as mock_async,
     ):
-        mock_client.return_value.__enter__.return_value.get.side_effect = OSError(
-            "offline"
-        )
+        mock_client.return_value.__enter__.return_value.get.side_effect = OSError("offline")
         mock_async.side_effect = OSError("offline")
 
         res = client.post("/api/v1/eval/wb-bench/run", json={"subset_id": "sec"})
@@ -212,9 +204,7 @@ def test_wb_bench_run_with_mocked_download(client: TestClient) -> None:
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for task_id in ("t1", "t2"):
             instruction = f"# {task_id}\n".encode()
-            info = tarfile.TarInfo(
-                f"wb-bench-office-v1.0/tasks/{task_id}/instruction.md"
-            )
+            info = tarfile.TarInfo(f"wb-bench-office-v1.0/tasks/{task_id}/instruction.md")
             info.size = len(instruction)
             tar.addfile(info, io.BytesIO(instruction))
             toml = b'[task]\nid = "t1"\n'
@@ -277,9 +267,7 @@ def test_wb_bench_run_with_mocked_download(client: TestClient) -> None:
         ),
         patch("app.core.eval.service.run_eval_suite") as mock_run,
     ):
-        mock_client.return_value.__enter__.return_value.get.return_value.text = (
-            f"{expected_sha}  {subset.archive}\n"
-        )
+        mock_client.return_value.__enter__.return_value.get.return_value.text = f"{expected_sha}  {subset.archive}\n"
         res = client.post("/api/v1/eval/wb-bench/run", json={"subset_id": "office"})
         assert res.status_code == 200
         assert res.json()["status"] == "started"

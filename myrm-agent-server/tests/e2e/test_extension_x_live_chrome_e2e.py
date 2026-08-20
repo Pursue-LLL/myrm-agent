@@ -102,11 +102,7 @@ async def run_extension_x_product_flow(
         await chat.evaluate(ENABLE_YOLO_JS, intent=EvaluateIntent.SYNC_PROBE)
 
         send_result = await chat.send_message(X_PROMPT, X_PROMPT)
-        chat_id = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
-        ).strip()
+        chat_id = str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
         if not chat_id:
             chat_id = str((await chat.bridge_chat_id()) or "").strip()
         log.emit(f"send_message chat_id={chat_id} mode={send_result.get('submit', {}).get('mode')}")

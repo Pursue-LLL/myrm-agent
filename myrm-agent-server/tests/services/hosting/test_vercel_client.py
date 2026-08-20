@@ -80,9 +80,7 @@ async def test_deploy_failure_with_retry(vercel_client):
     files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     # Simulate network error
-    with patch(
-        "httpx.AsyncClient.post", side_effect=httpx.RequestError("Network error")
-    ):
+    with patch("httpx.AsyncClient.post", side_effect=httpx.RequestError("Network error")):
         with pytest.raises(httpx.RequestError):
             await vercel_client.deploy("test-project", files)
 

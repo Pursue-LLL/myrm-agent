@@ -25,13 +25,8 @@ from tests.support.chrome_mcp_e2e import (
 
 
 def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> None:
-    assert (
-        _page_shell_ready_js_for_url("http://127.0.0.1:3000/") == _APP_LAYOUT_READY_JS
-    )
-    assert (
-        _page_shell_ready_js_for_url("http://127.0.0.1:3000/settings/extensionBridge")
-        == _SETTINGS_LAYOUT_READY_JS
-    )
+    assert _page_shell_ready_js_for_url("http://127.0.0.1:3000/") == _APP_LAYOUT_READY_JS
+    assert _page_shell_ready_js_for_url("http://127.0.0.1:3000/settings/extensionBridge") == _SETTINGS_LAYOUT_READY_JS
     assert "settings-layout" in _SETTINGS_LAYOUT_READY_JS
     assert "settings-deferred-loading" in _SETTINGS_LAYOUT_READY_JS
     assert "app-layout" not in _SETTINGS_LAYOUT_READY_JS
@@ -40,14 +35,10 @@ def test_page_shell_ready_js_selects_settings_layout_for_settings_routes() -> No
 def test_reapply_shpoib_bootstrap_runs_after_navigate() -> None:
     """Navigation clears window globals; bootstrap evaluate must run after target load."""
     source = Path(__file__).with_name("chrome_mcp_e2e.py").read_text(encoding="utf-8")
-    block = source.split("def _reapply_shpoib_runtime_after_reload", 1)[1].split(
-        "\ndef ", 1
-    )[0]
+    block = source.split("def _reapply_shpoib_runtime_after_reload", 1)[1].split("\ndef ", 1)[0]
     assert "MYRM_BROWSER_ORCHESTRATOR" not in block
     nav_idx = block.index("client.navigate(page, normalized_target")
-    bootstrap_eval_idx = block.index(
-        "observed = client.evaluate(\n            page,\n            bootstrap_js,"
-    )
+    bootstrap_eval_idx = block.index("observed = client.evaluate(\n            page,\n            bootstrap_js,")
     assert nav_idx < bootstrap_eval_idx
 
 
@@ -58,9 +49,7 @@ def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     assert "_require_orchestrator_for_formal_e2e" in block
     assert "open_app_route_page" in block
     assert "complete_bootstrap_phase" in block
-    assert block.index("complete_bootstrap_phase(phase_label=") < block.index(
-        "_ensure_orchestrator_shared_ui_session"
-    )
+    assert block.index("complete_bootstrap_phase(phase_label=") < block.index("_ensure_orchestrator_shared_ui_session")
     assert "BROWSER_ORCHESTRATOR_REQUIRED" in block
     assert "open_mcp_page_blocking" not in block
     assert "ChromeMcpClient(request_timeout_sec=" not in block
@@ -68,9 +57,7 @@ def test_open_mcp_page_rpc_only_orchestrator_contract() -> None:
     assert "client.reload" in reload_block
     assert "_reapply_shpoib_runtime_after_reload" in reload_block
     assert "MYRM_E2E_ISOLATED" in reload_block
-    assert reload_block.index("client.reload") < reload_block.index(
-        "_reapply_shpoib_runtime_after_reload"
-    )
+    assert reload_block.index("client.reload") < reload_block.index("_reapply_shpoib_runtime_after_reload")
 
 
 def test_e2e_nodes_cannot_start_body_before_owned_page_open() -> None:
@@ -270,11 +257,7 @@ def test_open_page_cdp_probe_budget_scales_with_mux_load(
         type(
             "MuxLoadStub",
             (),
-            {
-                "snapshot_mux_load": staticmethod(
-                    lambda: _Load(wave_leases=5, mux_contexts=2)
-                )
-            },
+            {"snapshot_mux_load": staticmethod(lambda: _Load(wave_leases=5, mux_contexts=2))},
         )(),
     )
     from tests.support.chrome_mcp_e2e import _open_page_cdp_probe_budget_sec
@@ -285,9 +268,7 @@ def test_open_page_cdp_probe_budget_scales_with_mux_load(
 def test_retryable_open_page_error_includes_connection_reset() -> None:
     from tests.support.chrome_mcp_e2e import _retryable_open_page_error
 
-    assert _retryable_open_page_error(
-        RuntimeError("Chrome MCP connection reset during tools/call; retry this call")
-    )
+    assert _retryable_open_page_error(RuntimeError("Chrome MCP connection reset during tools/call; retry this call"))
 
 
 def test_open_page_parallel_budgets_scale_with_live_peer_count(
@@ -371,9 +352,7 @@ def test_warm_ui_route_retries_until_shared_ui_recovers(
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "5")
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "0.01")
     monkeypatch.setattr(chrome_mcp_e2e, "_warm_ui_parallel_wait_sec", lambda base: base)
-    monkeypatch.setattr(
-        chrome_mcp_e2e, "heal_shared_frontend_debounced", lambda *args, **kwargs: None
-    )
+    monkeypatch.setattr(chrome_mcp_e2e, "heal_shared_frontend_debounced", lambda *args, **kwargs: None)
     attempts = {"count": 0}
 
     class _FakeResponse:
@@ -410,9 +389,7 @@ def test_warm_ui_route_uses_shared_ui_hydrate_slot_when_shpoib(
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_WAIT_SEC", "5")
     monkeypatch.setenv("MYRM_CHROME_E2E_SHARED_UI_POLL_SEC", "0.01")
     monkeypatch.setattr(chrome_mcp_e2e, "_warm_ui_parallel_wait_sec", lambda base: base)
-    monkeypatch.setattr(
-        chrome_mcp_e2e, "heal_shared_frontend_debounced", lambda *args, **kwargs: None
-    )
+    monkeypatch.setattr(chrome_mcp_e2e, "heal_shared_frontend_debounced", lambda *args, **kwargs: None)
     slot_calls = {"count": 0}
 
     class _FakeResponse:
@@ -455,13 +432,8 @@ def test_warm_ui_route_uses_shared_ui_hydrate_slot_when_shpoib(
 
 
 def test_browser_operation_credit_slot_acquires_upstream_registry() -> None:
-    source = (
-        Path(__file__).resolve().parents[3]
-        / "scripts/dev/lib/browser_orchestrator/core.py"
-    ).read_text(encoding="utf-8")
-    block = source.split("def browser_operation_credit_slot", 1)[1].split("\ndef ", 1)[
-        0
-    ]
+    source = (Path(__file__).resolve().parents[3] / "scripts/dev/lib/browser_orchestrator/core.py").read_text(encoding="utf-8")
+    block = source.split("def browser_operation_credit_slot", 1)[1].split("\ndef ", 1)[0]
     assert "upstream_cold_attach_slot" in block
 
 
@@ -498,9 +470,7 @@ def test_blocking_progress_loop_emits_transport_progress_token(
     monkeypatch.setattr(chrome_mcp_e2e, "touch_wall_progress", lambda **_: None)
     import e2e_core.stall_guard as e2e_stall_guard
 
-    monkeypatch.setattr(
-        e2e_stall_guard, "assert_transport_node_not_stuck", lambda **_: None
-    )
+    monkeypatch.setattr(e2e_stall_guard, "assert_transport_node_not_stuck", lambda **_: None)
 
     with chrome_mcp_e2e._blocking_progress_loop(current_node="open_mcp_page_blocking"):
         time.sleep(0.05)
@@ -743,9 +713,7 @@ def test_open_page_attempt_count_is_one_under_parallel_peers(
     monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: True)
     assert chrome_mcp_e2e._open_page_attempt_count() == 2
     monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
-    assert (
-        chrome_mcp_e2e._open_page_attempt_count() == chrome_mcp_e2e._OPEN_PAGE_ATTEMPTS
-    )
+    assert chrome_mcp_e2e._open_page_attempt_count() == chrome_mcp_e2e._OPEN_PAGE_ATTEMPTS
 
 
 def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
@@ -760,9 +728,7 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
     monkeypatch.setattr(
         chrome_mcp_e2e,
         "_signoff_threaded_new_page",
-        lambda client, url, *, timeout_ms, join_timeout_sec: (
-            captured.append(join_timeout_sec) or MagicMock()
-        ),
+        lambda client, url, *, timeout_ms, join_timeout_sec: captured.append(join_timeout_sec) or MagicMock(),
     )
     monkeypatch.setattr(
         "dev_gate.contract._parallel_signoff_pressure_peers",
@@ -773,9 +739,7 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
         "mux.load.snapshot_mux_load",
         lambda **kwargs: type("_Snap", (), {"mux_contexts": 0, "wave_leases": 0})(),
     )
-    monkeypatch.setattr(
-        chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None
-    )
+    monkeypatch.setattr(chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None)
     monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 0)
     client = MagicMock()
     chrome_mcp_e2e._open_page_new_page(
@@ -786,9 +750,7 @@ def test_signoff_new_page_join_timeout_uses_mux_timeout_plus_grace(
     )
     from dev_gate.contract import signoff_new_page_join_timeout_sec
 
-    assert captured == [
-        signoff_new_page_join_timeout_sec(page_timeout_ms=90_000, parallel_peers=0)
-    ]
+    assert captured == [signoff_new_page_join_timeout_sec(page_timeout_ms=90_000, parallel_peers=0)]
 
 
 def test_signoff_new_page_join_timeout_scales_under_parallel(
@@ -803,9 +765,7 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
     monkeypatch.setattr(
         chrome_mcp_e2e,
         "_signoff_threaded_new_page",
-        lambda client, url, *, timeout_ms, join_timeout_sec: (
-            captured.append(join_timeout_sec) or MagicMock()
-        ),
+        lambda client, url, *, timeout_ms, join_timeout_sec: captured.append(join_timeout_sec) or MagicMock(),
     )
     monkeypatch.setattr(
         "dev_gate.contract._parallel_signoff_pressure_peers",
@@ -816,9 +776,7 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
         "mux.load.snapshot_mux_load",
         lambda **kwargs: type("_Snap", (), {"mux_contexts": 3, "wave_leases": 3})(),
     )
-    monkeypatch.setattr(
-        chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None
-    )
+    monkeypatch.setattr(chrome_mcp_e2e, "_signoff_wait_mux_before_new_page", lambda **_: None)
     monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 3)
     client = MagicMock()
     chrome_mcp_e2e._open_page_new_page(
@@ -829,9 +787,7 @@ def test_signoff_new_page_join_timeout_scales_under_parallel(
     )
     from dev_gate.contract import signoff_new_page_join_timeout_sec
 
-    assert captured == [
-        signoff_new_page_join_timeout_sec(page_timeout_ms=90_000, parallel_peers=3)
-    ]
+    assert captured == [signoff_new_page_join_timeout_sec(page_timeout_ms=90_000, parallel_peers=3)]
 
 
 def test_signoff_mux_drain_budget_uses_bootstrap_remaining(
@@ -899,9 +855,7 @@ def test_open_page_attempt_count_allows_read_lane_parallel_retry(
     monkeypatch.delenv("MYRM_E2E_SHARED_HOT", raising=False)
     monkeypatch.setattr(chrome_mcp_e2e, "_parallel_open_page_peer_count", lambda: 4)
     monkeypatch.setattr(chrome_mcp_e2e, "is_e2e_signoff_runtime", lambda: False)
-    monkeypatch.setattr(
-        chrome_mcp_e2e, "_dev_private_shpoib_bootstrap_phase", lambda: False
-    )
+    monkeypatch.setattr(chrome_mcp_e2e, "_dev_private_shpoib_bootstrap_phase", lambda: False)
     assert _open_page_attempt_count() == 2
 
 
@@ -914,6 +868,4 @@ def test_warm_heal_guard_launch_force_before_debounced_call() -> None:
     start = text.index("def _heal_shared_frontend")
     block = text[start : start + 900]
     assert "MYRM_E2E_LAUNCH_FORCE" in block
-    assert block.index("MYRM_E2E_LAUNCH_FORCE") < block.index(
-        "heal_shared_frontend_debounced"
-    )
+    assert block.index("MYRM_E2E_LAUNCH_FORCE") < block.index("heal_shared_frontend_debounced")

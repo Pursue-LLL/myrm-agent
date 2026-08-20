@@ -28,9 +28,7 @@ class WidgetKVEntry(Base):
     """Per-widget namespace key-value entry."""
 
     __tablename__ = "widget_kv"
-    __table_args__ = (
-        Index("ix_widget_kv_chat_id", "chat_id"),
-    )
+    __table_args__ = (Index("ix_widget_kv_chat_id", "chat_id"),)
 
     namespace = Column(String(128), primary_key=True, nullable=False)
     key = Column(String(256), primary_key=True, nullable=False)

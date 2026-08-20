@@ -252,14 +252,16 @@ class RouterCommandsMemoryMixin:
         except Exception:
             logger.exception("Failed to create MemoryManager for /memory command")
             content = get_text(msg, "memory_unavailable")
-            await self._bus.publish_outbound(OutboundMessage(
-                channel=msg.channel,
-                recipient_id=chat_id,
-                content=content,
-                user_id=msg.user_id or "",
-                thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-            ))
+            await self._bus.publish_outbound(
+                OutboundMessage(
+                    channel=msg.channel,
+                    recipient_id=chat_id,
+                    content=content,
+                    user_id=msg.user_id or "",
+                    thread_id=msg.thread_id,
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                )
+            )
             return
 
         try:
@@ -307,14 +309,16 @@ class RouterCommandsMemoryMixin:
             logger.exception("Memory command failed: /memory %s", raw_args)
             content = get_text(msg, "memory_error")
 
-        await self._bus.publish_outbound(OutboundMessage(
-            channel=msg.channel,
-            recipient_id=chat_id,
-            content=content,
-            user_id=msg.user_id or "",
-            thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-        ))
+        await self._bus.publish_outbound(
+            OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content=content,
+                user_id=msg.user_id or "",
+                thread_id=msg.thread_id,
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            )
+        )
 
 
 async def _resolve_pending_id(

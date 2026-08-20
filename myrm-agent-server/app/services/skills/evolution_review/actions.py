@@ -179,9 +179,7 @@ async def revise_evolution_review_record(
         raise EvolutionApplyError("Revised content cannot be empty.")
 
     if len(evolved_content) > MAX_SKILL_CONTENT_CHARS:
-        raise EvolutionApplyError(
-            f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS})."
-        )
+        raise EvolutionApplyError(f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS}).")
 
     scan_passed = True
     try:

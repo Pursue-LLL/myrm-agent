@@ -60,8 +60,7 @@ async def fan_out_batch_tasks(
         annotations: list[str] = []
         if artifact_patterns:
             annotations.append(
-                f"Required output artifacts (glob patterns, relative to "
-                f"the workspace root): {', '.join(artifact_patterns)}"
+                f"Required output artifacts (glob patterns, relative to the workspace root): {', '.join(artifact_patterns)}"
             )
         try:
             task = await kanban.add_task(

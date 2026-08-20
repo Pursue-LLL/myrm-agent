@@ -53,7 +53,7 @@ class TestMultiplexerPublish:
 
         lines = received[0].strip().split("\n")
         data_line = next(line for line in lines if line.startswith("data: "))
-        payload = json.loads(data_line[len("data: "):])
+        payload = json.loads(data_line[len("data: ") :])
         assert payload["chat_id"] == "chat-1"
         assert payload["message_id"] == "msg-1"
         assert payload["raw_chunk"] == "data: hello"

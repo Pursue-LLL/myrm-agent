@@ -88,10 +88,7 @@ async def get_session_changes(session_id: str) -> dict[str, list[FileChangeInfo]
     """Get all file changes for a session, grouped by message_id."""
     await _hydrate_session(session_id)
     changes = await RevertService.get_session_changes(session_id)
-    return {
-        msg_id: [_to_change_info(c) for c in file_changes]
-        for msg_id, file_changes in changes.items()
-    }
+    return {msg_id: [_to_change_info(c) for c in file_changes] for msg_id, file_changes in changes.items()}
 
 
 @router.get("/changes/{session_id}/{message_id}")

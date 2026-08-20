@@ -67,9 +67,7 @@ def _make_domain() -> KanbanBoard:
 
 def _assert_settings_roundtrip(actual: BoardSettings) -> None:
     for field in fields(BoardSettings):
-        assert getattr(actual, field.name) == getattr(
-            _SETTINGS, field.name
-        ), f"BoardSettings.{field.name} was lost in mapping"
+        assert getattr(actual, field.name) == getattr(_SETTINGS, field.name), f"BoardSettings.{field.name} was lost in mapping"
 
 
 class TestBoardSettingsRoundtrip:
@@ -79,9 +77,7 @@ class TestBoardSettingsRoundtrip:
 
     def test_board_to_model_carries_all_settings_fields(self) -> None:
         model = board_to_model(_make_domain())
-        _assert_settings_roundtrip(
-            board_to_domain(model).settings
-        )
+        _assert_settings_roundtrip(board_to_domain(model).settings)
 
     def test_apply_board_to_model_carries_all_settings_fields(self) -> None:
         model = _make_model()
@@ -102,18 +98,14 @@ class TestBoardSettingsRoundtrip:
         column_names = {c.name for c in KanbanBoardModel.__table__.columns}
         missing = sorted(setting_names - column_names)
         assert not missing, (
-            "BoardSettings fields not persisted by KanbanBoardModel: "
-            f"{missing}. Add the ORM column + mapping + migration entry."
+            f"BoardSettings fields not persisted by KanbanBoardModel: {missing}. Add the ORM column + mapping + migration entry."
         )
 
     def test_migration_statement_adds_missing_column(self) -> None:
         """The append-only migration entry for legacy DBs is present and keeps default."""
         from app.database.migrations import MIGRATION_STATEMENTS
 
-        assert (
-            "ALTER TABLE kanban_boards ADD COLUMN block_recurrence_limit "
-            "INTEGER NOT NULL DEFAULT 2" in MIGRATION_STATEMENTS
-        )
+        assert "ALTER TABLE kanban_boards ADD COLUMN block_recurrence_limit INTEGER NOT NULL DEFAULT 2" in MIGRATION_STATEMENTS
 
 
 class TestLegacyBoardMigration:
@@ -129,9 +121,7 @@ class TestLegacyBoardMigration:
         from app.database.migrations import MIGRATION_STATEMENTS
 
         alter = next(
-            s
-            for s in MIGRATION_STATEMENTS
-            if s.startswith("ALTER TABLE kanban_boards ADD COLUMN block_recurrence_limit")
+            s for s in MIGRATION_STATEMENTS if s.startswith("ALTER TABLE kanban_boards ADD COLUMN block_recurrence_limit")
         )
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         try:
@@ -145,18 +135,9 @@ class TestLegacyBoardMigration:
                     )
                 )
                 await conn.execute(text(alter))
-                await conn.execute(
-                    text("INSERT INTO kanban_boards (id, name) VALUES ('b-legacy', 'Legacy')")
-                )
+                await conn.execute(text("INSERT INTO kanban_boards (id, name) VALUES ('b-legacy', 'Legacy')"))
             async with engine.connect() as conn:
-                row = (
-                    await conn.execute(
-                        text(
-                            "SELECT block_recurrence_limit FROM kanban_boards "
-                            "WHERE id = 'b-legacy'"
-                        )
-                    )
-                ).first()
+                row = (await conn.execute(text("SELECT block_recurrence_limit FROM kanban_boards WHERE id = 'b-legacy'"))).first()
                 assert row is not None
                 assert row[0] == 2
         finally:

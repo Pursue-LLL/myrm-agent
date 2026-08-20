@@ -65,9 +65,7 @@ async def clip_page_to_wiki(
     queue_compile: Annotated[str, Form()] = "false",
     asset_urls: Annotated[str, Form()] = "[]",
     asset_files: Annotated[list[UploadFile] | None, File()] = None,
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiClipAcceptResponse:
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
         ClipAssetInput,
@@ -91,9 +89,7 @@ async def clip_page_to_wiki(
         data = await upload.read()
         content_type = upload.content_type or "application/octet-stream"
         source = str(url_list[idx]) if idx < len(url_list) else upload.filename or ""
-        assets.append(
-            ClipAssetInput(source_url=source, content_type=content_type, data=data)
-        )
+        assets.append(ClipAssetInput(source_url=source, content_type=content_type, data=data))
 
     payload_bytes = clip_form_payload_bytes(
         source_url=source_url,
@@ -145,9 +141,7 @@ async def get_wiki_clip_job_status(job_id: str) -> WikiClipJobResponse:
 
 @router.get("/wikiignore", response_model=WikiIgnoreContentResponse)
 async def get_wiki_ignore_rules(
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiIgnoreContentResponse:
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress.wikiignore import (
         wikiignore_path,
@@ -164,9 +158,7 @@ async def get_wiki_ignore_rules(
 @router.put("/wikiignore", response_model=WikiIgnoreContentResponse)
 async def put_wiki_ignore_rules(
     body: WikiIgnoreUpdateRequest,
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiIgnoreContentResponse:
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress.wikiignore import (
         write_wikiignore_patterns,

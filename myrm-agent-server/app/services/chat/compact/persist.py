@@ -44,29 +44,19 @@ async def do_persist_to_db(
     effective_before_id: str | None = before_message_id or None
     if not effective_before_id:
         result = await db.execute(
-            select(Message.id)
-            .where(Message.chat_id == chat_id)
-            .order_by(desc(Message.created_at))
-            .limit(1)
+            select(Message.id).where(Message.chat_id == chat_id).order_by(desc(Message.created_at)).limit(1)
         )
         effective_before_id = result.scalar_one_or_none()
 
     if not effective_before_id:
         raise ValueError(f"Cannot resolve before_message_id for chat_id={chat_id}")
 
-    chat_result = await db.execute(
-        select(Chat.compacted_before_id).where(Chat.id == chat_id)
-    )
+    chat_result = await db.execute(select(Chat.compacted_before_id).where(Chat.id == chat_id))
     current_compacted_before_id = chat_result.scalar_one_or_none()
 
-    if (
-        current_compacted_before_id
-        and current_compacted_before_id != effective_before_id
-    ):
+    if current_compacted_before_id and current_compacted_before_id != effective_before_id:
         ts_result = await db.execute(
-            select(Message.id, Message.created_at).where(
-                Message.id.in_([current_compacted_before_id, effective_before_id])
-            )
+            select(Message.id, Message.created_at).where(Message.id.in_([current_compacted_before_id, effective_before_id]))
         )
         timestamps = {row[0]: row[1] for row in ts_result.all()}
 
@@ -74,9 +64,7 @@ async def do_persist_to_db(
         target_ts = timestamps.get(effective_before_id)
 
         if current_ts and target_ts and current_ts >= target_ts:
-            logger.warning(
-                "⚠️ [persist_compaction] DB has a newer or equal compaction boundary. Aborting overwrite."
-            )
+            logger.warning("⚠️ [persist_compaction] DB has a newer or equal compaction boundary. Aborting overwrite.")
             return effective_before_id
 
     await db.execute(
@@ -86,8 +74,7 @@ async def do_persist_to_db(
             compacted_summary=summary_text,
             compacted_before_id=effective_before_id,
             compacted_at=datetime.now(timezone.utc),
-            compacted_tokens_saved=func.coalesce(Chat.compacted_tokens_saved, 0)
-            + max(tokens_saved, 0),
+            compacted_tokens_saved=func.coalesce(Chat.compacted_tokens_saved, 0) + max(tokens_saved, 0),
             compaction_failure_cooldown_until=None,
             compaction_failure_error=None,
         )
@@ -115,9 +102,7 @@ async def persist_compaction(
 
     async with get_session() as db:
         try:
-            effective_before_id = await do_persist_to_db(
-                db, chat_id, summary_text, before_message_id, tokens_saved
-            )
+            effective_before_id = await do_persist_to_db(db, chat_id, summary_text, before_message_id, tokens_saved)
             await db.commit()
 
             logger.warning(
@@ -143,9 +128,7 @@ async def record_compaction_failure_cooldown(
     chat_id: str,
     error: str,
 ) -> None:
-    until = datetime.now(timezone.utc) + timedelta(
-        seconds=COMPACTION_FAILURE_COOLDOWN_SECONDS
-    )
+    until = datetime.now(timezone.utc) + timedelta(seconds=COMPACTION_FAILURE_COOLDOWN_SECONDS)
     await db.execute(
         update(Chat)
         .where(Chat.id == chat_id)
@@ -163,9 +146,7 @@ async def is_compaction_failure_cooldown_active(
 ) -> tuple[bool, str | None]:
     """Return whether chat is in a post-failure compaction cooldown window."""
     row = await db.execute(
-        select(
-            Chat.compaction_failure_cooldown_until, Chat.compaction_failure_error
-        ).where(Chat.id == chat_id)
+        select(Chat.compaction_failure_cooldown_until, Chat.compaction_failure_error).where(Chat.id == chat_id)
     )
     result = row.one_or_none()
     if result is None:
@@ -174,11 +155,7 @@ async def is_compaction_failure_cooldown_active(
     if cooldown_until is None:
         return False, None
     now = datetime.now(timezone.utc)
-    until = (
-        cooldown_until
-        if cooldown_until.tzinfo is not None
-        else cooldown_until.replace(tzinfo=timezone.utc)
-    )
+    until = cooldown_until if cooldown_until.tzinfo is not None else cooldown_until.replace(tzinfo=timezone.utc)
     if until <= now:
         return False, None
     return True, error

@@ -52,9 +52,7 @@ class SqliteDeliveryNotifyLedger:
             )
             """
         )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_pfn_notified_at ON permanent_failure_notifications(notified_at)"
-        )
+        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_pfn_notified_at ON permanent_failure_notifications(notified_at)")
         self._conn.commit()
 
     def _prune_older_than(self, retention_days: int) -> None:

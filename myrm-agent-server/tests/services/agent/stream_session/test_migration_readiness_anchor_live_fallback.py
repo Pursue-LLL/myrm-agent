@@ -15,9 +15,7 @@ from app.services.agent.stream_session.migration_readiness_anchor import (
 
 
 @pytest.mark.asyncio
-async def test_record_migration_first_turn_outcome_live_resolves_when_preflight_missing() -> (
-    None
-):
+async def test_record_migration_first_turn_outcome_live_resolves_when_preflight_missing() -> None:
     request = AgentRequest(
         query="hello",
         chat_id="chat-1",
@@ -39,14 +37,10 @@ async def test_record_migration_first_turn_outcome_live_resolves_when_preflight_
             "app.platform_utils.get_session_factory",
             return_value=mock_session_factory,
         ),
-        patch(
-            "app.services.agent.stream_session.migration_readiness_anchor.MemoryImportSessionService"
-        ) as mock_service_cls,
+        patch("app.services.agent.stream_session.migration_readiness_anchor.MemoryImportSessionService") as mock_service_cls,
     ):
         mock_service = mock_service_cls.return_value
-        mock_service.resolve_live_import_readiness = AsyncMock(
-            return_value=live_readiness
-        )
+        mock_service.resolve_live_import_readiness = AsyncMock(return_value=live_readiness)
         mock_service.save_post_import_first_turn_outcome = AsyncMock()
         await record_migration_first_turn_outcome(
             request=request,
@@ -55,9 +49,7 @@ async def test_record_migration_first_turn_outcome_live_resolves_when_preflight_
             live_readiness_status=None,
         )
 
-    mock_service.resolve_live_import_readiness.assert_awaited_once_with(
-        "batch-fallback"
-    )
+    mock_service.resolve_live_import_readiness.assert_awaited_once_with("batch-fallback")
     mock_service.save_post_import_first_turn_outcome.assert_awaited_once_with(
         import_batch_id="batch-fallback",
         readiness_status="ready",
@@ -69,9 +61,7 @@ async def test_record_migration_first_turn_outcome_live_resolves_when_preflight_
 
 
 @pytest.mark.asyncio
-async def test_record_migration_first_turn_outcome_skips_when_live_resolve_fails() -> (
-    None
-):
+async def test_record_migration_first_turn_outcome_skips_when_live_resolve_fails() -> None:
     request = AgentRequest(
         query="hello",
         chat_id="chat-1",
@@ -92,14 +82,10 @@ async def test_record_migration_first_turn_outcome_skips_when_live_resolve_fails
             "app.platform_utils.get_session_factory",
             return_value=mock_session_factory,
         ),
-        patch(
-            "app.services.agent.stream_session.migration_readiness_anchor.MemoryImportSessionService"
-        ) as mock_service_cls,
+        patch("app.services.agent.stream_session.migration_readiness_anchor.MemoryImportSessionService") as mock_service_cls,
     ):
         mock_service = mock_service_cls.return_value
-        mock_service.resolve_live_import_readiness = AsyncMock(
-            side_effect=RuntimeError("db down")
-        )
+        mock_service.resolve_live_import_readiness = AsyncMock(side_effect=RuntimeError("db down"))
         mock_service.save_post_import_first_turn_outcome = AsyncMock()
         await record_migration_first_turn_outcome(
             request=request,

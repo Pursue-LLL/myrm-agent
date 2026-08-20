@@ -37,9 +37,7 @@ class MemoryImportRequest(BaseModel):
     """Request to import memories from exported data."""
 
     version: int = Field(MEMORY_EXPORT_VERSION, description="Export schema version")
-    data: dict[str, list[dict[str, object]]] = Field(
-        ..., description="Exported memory data keyed by memory type"
-    )
+    data: dict[str, list[dict[str, object]]] = Field(..., description="Exported memory data keyed by memory type")
     skip_duplicates: bool = Field(True, description="Skip duplicate memories")
 
 
@@ -52,9 +50,7 @@ class MemoryArchiveExportResponse(BaseModel):
 class MemoryArchiveDryRunRequest(BaseModel):
     """Request to validate a memory archive before restore/import."""
 
-    archive: dict[str, object] = Field(
-        ..., description="Raw Myrm memory archive payload"
-    )
+    archive: dict[str, object] = Field(..., description="Raw Myrm memory archive payload")
 
 
 class MemoryArchiveDryRunResponse(BaseModel):
@@ -66,12 +62,8 @@ class MemoryArchiveDryRunResponse(BaseModel):
 class MemoryArchiveRestoreDryRunRequest(BaseModel):
     """Request to preview a Myrm archive restore."""
 
-    archive: dict[str, object] = Field(
-        ..., description="Raw Myrm memory archive payload"
-    )
-    sections: list[MemoryArchiveSectionName] | None = Field(
-        None, description="Archive sections selected for restore"
-    )
+    archive: dict[str, object] = Field(..., description="Raw Myrm memory archive payload")
+    sections: list[MemoryArchiveSectionName] | None = Field(None, description="Archive sections selected for restore")
 
 
 class MemoryArchiveRestoreDryRunResponse(BaseModel):
@@ -83,9 +75,7 @@ class MemoryArchiveRestoreDryRunResponse(BaseModel):
 class MemoryArchiveRestoreConfirmRequest(BaseModel):
     """Request to execute a reviewed archive restore."""
 
-    archive: dict[str, object] = Field(
-        ..., description="Raw Myrm memory archive payload"
-    )
+    archive: dict[str, object] = Field(..., description="Raw Myrm memory archive payload")
     payload_hash: str = Field(
         ...,
         min_length=64,
@@ -98,9 +88,7 @@ class MemoryArchiveRestoreConfirmRequest(BaseModel):
         max_length=64,
         description="Plan hash returned by restore dry-run",
     )
-    sections: list[MemoryArchiveSectionName] | None = Field(
-        None, description="Archive sections selected for restore"
-    )
+    sections: list[MemoryArchiveSectionName] | None = Field(None, description="Archive sections selected for restore")
     skip_duplicates: bool = Field(True, description="Skip duplicate native memory rows")
 
 
@@ -177,9 +165,7 @@ class MemoryImportDryRunRequest(BaseModel):
         "chatgpt",
     ] = "auto"
     payload: dict[str, object] = Field(..., description="Raw memory export payload")
-    skip_duplicates: bool = Field(
-        True, description="Preview duplicate-safe import behavior"
-    )
+    skip_duplicates: bool = Field(True, description="Preview duplicate-safe import behavior")
     migration: MemoryImportMigrationOptions | None = Field(
         None,
         description="External assistant migration binding (instruction/memory lanes)",
@@ -190,12 +176,8 @@ class TokenEconomicsComparison(BaseModel):
     """Per-turn token cost comparison between source and Myrm skill loading."""
 
     skill_count: int = Field(description="Number of skills detected in source")
-    source_tokens_per_turn: int = Field(
-        description="Estimated tokens injected per turn by source agent"
-    )
-    myrm_tokens_per_turn: int = Field(
-        description="Estimated tokens injected per turn by Myrm on-demand loading"
-    )
+    source_tokens_per_turn: int = Field(description="Estimated tokens injected per turn by source agent")
+    myrm_tokens_per_turn: int = Field(description="Estimated tokens injected per turn by Myrm on-demand loading")
     savings_percent: float = Field(description="Percentage of tokens saved (0–100)")
 
 
@@ -278,9 +260,7 @@ class MemoryImportConfirmRequest(BaseModel):
 class MemoryImportRollbackRequest(BaseModel):
     """Request to rollback a confirmed server-bound memory import."""
 
-    dry_run_id: str | None = Field(
-        None, description="Server-side dry-run review session id"
-    )
+    dry_run_id: str | None = Field(None, description="Server-side dry-run review session id")
     import_batch_id: str | None = Field(None, description="Confirmed import batch id")
     delete_imported_agent: bool = Field(
         False,

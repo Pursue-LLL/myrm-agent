@@ -52,9 +52,7 @@ async def _registry_db(tmp_path: Path):
     _engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     async with _engine.begin() as conn:
-        await conn.run_sync(
-            lambda sync_conn: ApprovalRecord.__table__.create(sync_conn)
-        )
+        await conn.run_sync(lambda sync_conn: ApprovalRecord.__table__.create(sync_conn))
     yield
     await _engine.dispose()
     _engine = None
@@ -148,9 +146,7 @@ async def _seed_pending_approval(chat_id: str) -> str:
 
 
 @pytest.mark.asyncio
-async def test_real_pending_record_blocks_new_run_before_reservation(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_real_pending_record_blocks_new_run_before_reservation(mock_request, mock_http_request, monkeypatch):
     """A real PENDING approval row drives the real count helper to reject the run.
 
     The reservation is never attempted (guard fires first), so the rejected run
@@ -158,9 +154,7 @@ async def test_real_pending_record_blocks_new_run_before_reservation(
     """
     await _seed_pending_approval(mock_request.chat_id)
     _patch_gateway_prereqs(monkeypatch)
-    try_reserve_called = MagicMock(
-        side_effect=AssertionError("try_reserve must not be called")
-    )
+    try_reserve_called = MagicMock(side_effect=AssertionError("try_reserve must not be called"))
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.ChatSessionReservation",
         lambda: MagicMock(try_reserve=try_reserve_called),
@@ -174,14 +168,10 @@ async def test_real_pending_record_blocks_new_run_before_reservation(
 
 
 @pytest.mark.asyncio
-async def test_no_pending_record_reaches_reservation(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_no_pending_record_reaches_reservation(mock_request, mock_http_request, monkeypatch):
     """Without pending rows the real count helper returns 0 and flow proceeds."""
     _patch_gateway_prereqs(monkeypatch)
-    saw_reservation = MagicMock(
-        return_value=AgentBusyError("Session reservation busy (expected)")
-    )
+    saw_reservation = MagicMock(return_value=AgentBusyError("Session reservation busy (expected)"))
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.ChatSessionReservation",
         lambda: MagicMock(try_reserve=saw_reservation, release=MagicMock()),
@@ -193,9 +183,7 @@ async def test_no_pending_record_reaches_reservation(
 
 
 @pytest.mark.asyncio
-async def test_resolved_record_does_not_block(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_resolved_record_does_not_block(mock_request, mock_http_request, monkeypatch):
     """Only live PENDING rows gate new runs; resolved/expired rows let it through."""
     record_id = f"record-{uuid4().hex[:8]}"
     async with _get_session_factory()() as db:
@@ -214,9 +202,7 @@ async def test_resolved_record_does_not_block(
         )
         await db.commit()
     _patch_gateway_prereqs(monkeypatch)
-    saw_reservation = MagicMock(
-        return_value=AgentBusyError("Session reservation busy (expected)")
-    )
+    saw_reservation = MagicMock(return_value=AgentBusyError("Session reservation busy (expected)"))
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.ChatSessionReservation",
         lambda: MagicMock(try_reserve=saw_reservation, release=MagicMock()),
@@ -228,9 +214,7 @@ async def test_resolved_record_does_not_block(
 
 
 @pytest.mark.asyncio
-async def test_background_growth_record_does_not_block(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_background_growth_record_does_not_block(mock_request, mock_http_request, monkeypatch):
     """Background growth approvals are excluded from the gate (registry semantics)."""
     record_id = f"record-{uuid4().hex[:8]}"
     from app.services.skills.growth.constants import GROWTH_ACTION_TYPES
@@ -249,9 +233,7 @@ async def test_background_growth_record_does_not_block(
         )
         await db.commit()
     _patch_gateway_prereqs(monkeypatch)
-    saw_reservation = MagicMock(
-        return_value=AgentBusyError("Session reservation busy (expected)")
-    )
+    saw_reservation = MagicMock(return_value=AgentBusyError("Session reservation busy (expected)"))
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.ChatSessionReservation",
         lambda: MagicMock(try_reserve=saw_reservation, release=MagicMock()),
@@ -263,15 +245,11 @@ async def test_background_growth_record_does_not_block(
 
 
 @pytest.mark.asyncio
-async def test_pending_in_other_chat_does_not_block_this_chat(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_pending_in_other_chat_does_not_block_this_chat(mock_request, mock_http_request, monkeypatch):
     """The gate is scoped per chat_id: pending rows in another chat never block."""
     await _seed_pending_approval("chat-other-user")
     _patch_gateway_prereqs(monkeypatch)
-    saw_reservation = MagicMock(
-        return_value=AgentBusyError("Session reservation busy (expected)")
-    )
+    saw_reservation = MagicMock(return_value=AgentBusyError("Session reservation busy (expected)"))
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.ChatSessionReservation",
         lambda: MagicMock(try_reserve=saw_reservation, release=MagicMock()),
@@ -283,9 +261,7 @@ async def test_pending_in_other_chat_does_not_block_this_chat(
 
 
 @pytest.mark.asyncio
-async def test_resume_bypasses_gate_with_real_pending(
-    mock_request, mock_http_request, monkeypatch
-):
+async def test_resume_bypasses_gate_with_real_pending(mock_request, mock_http_request, monkeypatch):
     """Resume runs are never gated, even with real pending rows in the same chat.
 
     Resume is how a user approves/continues a pending tool call; gating it would
@@ -294,9 +270,7 @@ async def test_resume_bypasses_gate_with_real_pending(
     await _seed_pending_approval(mock_request.chat_id)
     mock_request.resume_value = {"action": "approved"}
     _patch_gateway_prereqs(monkeypatch)
-    saw_reservation = MagicMock(
-        return_value=AgentBusyError("Session reservation busy (expected)")
-    )
+    saw_reservation = MagicMock(return_value=AgentBusyError("Session reservation busy (expected)"))
     monkeypatch.setattr(
         "app.services.agent.stream_session.orchestrator.ChatSessionReservation",
         lambda: MagicMock(try_reserve=saw_reservation, release=MagicMock()),

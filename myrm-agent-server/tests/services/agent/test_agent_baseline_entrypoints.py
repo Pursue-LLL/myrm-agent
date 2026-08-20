@@ -48,18 +48,12 @@ _ENTRYPOINTS: tuple[tuple[str, str, str], ...] = (
 )
 
 
-@pytest.mark.parametrize(
-    ("relative_path", "required_symbol", "required_surface"), _ENTRYPOINTS
-)
+@pytest.mark.parametrize(("relative_path", "required_symbol", "required_surface"), _ENTRYPOINTS)
 def test_agent_entrypoint_uses_mount_resolver(
     relative_path: str,
     required_symbol: str,
     required_surface: str,
 ) -> None:
     source = (_SERVER_ROOT / relative_path).read_text(encoding="utf-8")
-    assert (
-        required_symbol in source
-    ), f"{relative_path} must call {required_symbol} for non-fast agent runs"
-    assert (
-        required_surface in source
-    ), f"{relative_path} must pass {required_surface} to resolve_agent_mount"
+    assert required_symbol in source, f"{relative_path} must call {required_symbol} for non-fast agent runs"
+    assert required_surface in source, f"{relative_path} must pass {required_surface} to resolve_agent_mount"

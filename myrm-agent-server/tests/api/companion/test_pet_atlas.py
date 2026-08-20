@@ -74,9 +74,4 @@ def test_atlas_report_roundtrip(tmp_path: Path) -> None:
 
 def test_atlas_report_from_dict_bad_data() -> None:
     assert AtlasReport.from_dict({"bad": "data"}) is None
-    assert (
-        AtlasReport.from_dict(
-            {"label": "x", "formatTier": "invalid_tier", "message": "m"}
-        )
-        is None
-    )
+    assert AtlasReport.from_dict({"label": "x", "formatTier": "invalid_tier", "message": "m"}) is None

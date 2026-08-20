@@ -231,10 +231,7 @@ class TestWebPushDispatcher:
         mock_service.broadcast.assert_called_once()
         title = mock_service.broadcast.call_args.kwargs["title"]
         assert title == "Task Pending Review"
-        assert (
-            mock_service.broadcast.call_args.kwargs["url"]
-            == "/settings/kanban?board_id=b-1&status=in_review"
-        )
+        assert mock_service.broadcast.call_args.kwargs["url"] == "/settings/kanban?board_id=b-1&status=in_review"
 
     @pytest.mark.asyncio
     async def test_background_task_done_suppress_flag_skips(self) -> None:
@@ -389,9 +386,7 @@ class TestWebPushDispatcher:
         dispatcher = WebPushDispatcher(bus)
         await dispatcher.start()
 
-        with patch.object(
-            bus, "unsubscribe", side_effect=ValueError("already removed")
-        ):
+        with patch.object(bus, "unsubscribe", side_effect=ValueError("already removed")):
             await dispatcher.stop()
 
         assert dispatcher._queue is None

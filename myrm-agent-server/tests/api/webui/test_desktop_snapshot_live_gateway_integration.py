@@ -25,9 +25,7 @@ from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(webui=True)
 
-_INTERACTIVE_ROLES = frozenset(
-    {"button", "textbox", "checkbox", "link", "menuitem", "tab", "combobox"}
-)
+_INTERACTIVE_ROLES = frozenset({"button", "textbox", "checkbox", "link", "menuitem", "tab", "combobox"})
 
 
 def _activate_foreground_app() -> None:
@@ -83,11 +81,7 @@ def _preflight_ax_elements() -> int:
 
 def _gateway_with_live_session() -> tuple[AgentGateway, object]:
     session = create_desktop_session()
-    gateway = AgentGateway(
-        GatewayConfig(
-            max_global=4, max_per_user=2, queue_timeout=30.0, execution_timeout=300.0
-        )
-    )
+    gateway = AgentGateway(GatewayConfig(max_global=4, max_per_user=2, queue_timeout=30.0, execution_timeout=300.0))
 
     class _AgentWithDesktop:
         def __init__(self) -> None:
@@ -143,10 +137,7 @@ async def test_live_gateway_desktop_snapshot_api_returns_som_nth(
         body = response.json()
         message = str(body.get("message", ""))
         if "empty" in message.lower() or "permission" in message.lower():
-            pytest.fail(
-                f"Live AX capture failed: {message}. "
-                "Grant Accessibility + Screen Recording and foreground TextEdit."
-            )
+            pytest.fail(f"Live AX capture failed: {message}. Grant Accessibility + Screen Recording and foreground TextEdit.")
         pytest.fail(f"Unexpected snapshot failure: {response.text}")
 
     assert response.status_code == 200, response.text
@@ -158,19 +149,12 @@ async def test_live_gateway_desktop_snapshot_api_returns_som_nth(
     assert isinstance(refs, dict), data
     if not refs:
         pytest.fail(
-            f"Accessibility tree empty (app={data.get('app_name')!r}). "
-            "Foreground a native app with interactive controls."
+            f"Accessibility tree empty (app={data.get('app_name')!r}). Foreground a native app with interactive controls."
         )
 
-    interactive = [
-        ref
-        for ref in refs.values()
-        if isinstance(ref, dict) and ref.get("role") in _INTERACTIVE_ROLES
-    ]
+    interactive = [ref for ref in refs.values() if isinstance(ref, dict) and ref.get("role") in _INTERACTIVE_ROLES]
     if not interactive:
-        pytest.fail(
-            f"No interactive refs among {len(refs)} nodes (app={data.get('app_name')!r})"
-        )
+        pytest.fail(f"No interactive refs among {len(refs)} nodes (app={data.get('app_name')!r})")
 
     missing_nth = [ref.get("role") for ref in interactive if ref.get("nth") is None]
     assert not missing_nth, f"interactive refs missing nth: {missing_nth[:8]}"

@@ -548,7 +548,15 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
     )
     monkeypatch.setattr(
         "app.api.statistics.growth_dashboard._fetch_cost_summary",
-        AsyncMock(return_value=CostSummary(total_cost_usd=2.5, cache_savings_usd=0.8, routing_savings=0.5, routing_savings_percent=20.0, total_savings_usd=1.3)),
+        AsyncMock(
+            return_value=CostSummary(
+                total_cost_usd=2.5,
+                cache_savings_usd=0.8,
+                routing_savings=0.5,
+                routing_savings_percent=20.0,
+                total_savings_usd=1.3,
+            )
+        ),
     )
 
     mock_db = AsyncMock()

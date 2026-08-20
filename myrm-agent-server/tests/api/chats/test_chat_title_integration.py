@@ -8,9 +8,12 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
+
+
 @pytest.fixture
 def client(init_test_database) -> TestClient:
     return TestClient(app, client=("127.0.0.1", 50000))
+
 
 @pytest.fixture(autouse=True)
 def setup_test_config():
@@ -18,21 +21,18 @@ def setup_test_config():
 
     from app.database.connection import get_session_factory
     from app.database.models.config import UserConfig
-    
+
     async def _setup():
         session_factory = get_session_factory()
         async with session_factory() as session:
             await session.execute(delete(UserConfig))
-            
+
             basic_model = os.environ.get("BASIC_MODEL", "gpt-4o")
             basic_key = os.environ.get("BASIC_API_KEY", "test-key")
             basic_url = os.environ.get("BASIC_BASE_URL", "")
-            
+
             providers_dict = {
-                "defaultModelConfig": {
-                    "providerId": "test-provider",
-                    "model": basic_model
-                },
+                "defaultModelConfig": {"providerId": "test-provider", "model": basic_model},
                 "providers": [
                     {
                         "id": "test-provider",
@@ -42,34 +42,31 @@ def setup_test_config():
                         "apiKeys": [{"key": basic_key, "isActive": True}],
                         "enabledModels": [basic_model],
                     }
-                ]
+                ],
             }
-            
+
             config = UserConfig(
                 id="test-config-1",
                 config_key="providers",
                 config_value=providers_dict,
                 version="1_0",
-                last_device_id="test-device"
+                last_device_id="test-device",
             )
             session.add(config)
-            
+
             default_model_config = UserConfig(
                 id="test-config-2",
                 config_key="default_model",
-                config_value={
-                    "model": basic_model,
-                    "api_key": basic_key,
-                    "base_url": basic_url
-                },
+                config_value={"model": basic_model, "api_key": basic_key, "base_url": basic_url},
                 version="1_0",
-                last_device_id="test-device"
+                last_device_id="test-device",
             )
             session.add(default_model_config)
-            
+
             await session.commit()
-            
+
     asyncio.run(_setup())
+
 
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
@@ -92,20 +89,18 @@ class TestChatTitleIntegration:
                 "createdAt": datetime.now().isoformat(),
             }
         ]
-        
-        request_data = {
-            "messages": messages
-        }
+
+        request_data = {"messages": messages}
 
         response = client.post("/api/v1/chats/generate-title", json=request_data)
-        
+
         if response.status_code != 200:
             print(f"\nHTTP Error {response.status_code}: {response.text}")
-            
+
         assert response.status_code == 200
         data = response.json()
         assert data.get("success") is True
-        
+
         title = data.get("data", {}).get("title")
         assert title is not None
         assert isinstance(title, str)
@@ -127,17 +122,15 @@ class TestChatTitleIntegration:
                 "createdAt": datetime.now().isoformat(),
             }
         ]
-    
-        request_data = {
-            "messages": messages
-        }
-    
+
+        request_data = {"messages": messages}
+
         response = client.post("/api/v1/chats/generate-title", json=request_data)
-    
+
         assert response.status_code == 200
         data = response.json()
         assert data.get("success") is True
-        
+
         title = data.get("data", {}).get("title")
         assert title is not None
         # 应该触发空文本兜底
@@ -157,11 +150,9 @@ class TestChatTitleIntegration:
                 "createdAt": datetime.now().isoformat(),
             }
         ]
-        
-        request_data = {
-            "messages": messages
-        }
-        
+
+        request_data = {"messages": messages}
+
         response = client.post("/api/v1/chats/generate-title", json=request_data)
         assert response.status_code == 200
         title = response.json().get("data", {}).get("title")

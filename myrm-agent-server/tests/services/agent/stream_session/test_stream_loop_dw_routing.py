@@ -81,10 +81,7 @@ async def test_use_workflow_true_routes_to_dynamic_workflow_stream() -> None:
 
     dw_mock.assert_called_once()
     agent_stream_mock.assert_not_called()
-    assert any(
-        isinstance(chunk, str) and "workflow_init" in chunk
-        for chunk in chunks
-    )
+    assert any(isinstance(chunk, str) and "workflow_init" in chunk for chunk in chunks)
 
 
 @pytest.mark.asyncio

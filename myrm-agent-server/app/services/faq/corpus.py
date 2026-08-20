@@ -46,9 +46,7 @@ class FaqCorpusService:
 
     async def get_or_create_corpus(self, agent_id: str, db: AsyncSession | None = None) -> FaqCorpus:
         async def _inner(session: AsyncSession) -> FaqCorpus:
-            result = await session.execute(
-                select(FaqCorpus).where(FaqCorpus.agent_id == agent_id)
-            )
+            result = await session.execute(select(FaqCorpus).where(FaqCorpus.agent_id == agent_id))
             corpus = result.scalar_one_or_none()
             if corpus is not None:
                 return corpus
@@ -119,9 +117,7 @@ class FaqCorpusService:
 
     async def delete_entry(self, entry_id: str) -> bool:
         async with get_session() as session:
-            result = await session.execute(
-                delete(FaqEntry).where(FaqEntry.id == entry_id)
-            )
+            result = await session.execute(delete(FaqEntry).where(FaqEntry.id == entry_id))
             await session.commit()
             return result.rowcount > 0  # type: ignore[union-attr]
 
@@ -202,12 +198,14 @@ class FaqCorpusService:
         async with get_session() as session:
             corpus = await self.get_or_create_corpus(agent_id, db=session)
             for q, a, tags in valid:
-                session.add(FaqEntry(
-                    id=nanoid(size=16),
-                    corpus_id=corpus.id,
-                    question=q,
-                    answer=a,
-                    tags=tags,
-                ))
+                session.add(
+                    FaqEntry(
+                        id=nanoid(size=16),
+                        corpus_id=corpus.id,
+                        question=q,
+                        answer=a,
+                        tags=tags,
+                    )
+                )
             await session.commit()
         return len(valid)

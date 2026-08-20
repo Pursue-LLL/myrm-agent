@@ -44,17 +44,9 @@ def apply_profile_output_suffixes(
 
     if personality_style and personality_style != DEFAULT_PERSONALITY_STYLE:
         try:
-            template = get_personality_template(
-                cast(PersonalityStyleLiteral, personality_style)
-            )
-            personality_suffix = (
-                f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-            )
-            instructions = (
-                f"{instructions}{personality_suffix}"
-                if instructions
-                else personality_suffix.strip()
-            )
+            template = get_personality_template(cast(PersonalityStyleLiteral, personality_style))
+            personality_suffix = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+            instructions = f"{instructions}{personality_suffix}" if instructions else personality_suffix.strip()
         except Exception:
             logger.warning(
                 "Invalid personality style '%s' for agent '%s'",
@@ -64,10 +56,6 @@ def apply_profile_output_suffixes(
 
     locale_suffix = build_response_locale_suffix(engine_params)
     if locale_suffix:
-        instructions = (
-            f"{instructions}{locale_suffix}"
-            if instructions
-            else locale_suffix.strip()
-        )
+        instructions = f"{instructions}{locale_suffix}" if instructions else locale_suffix.strip()
 
     return instructions

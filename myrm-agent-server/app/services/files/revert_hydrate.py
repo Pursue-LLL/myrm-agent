@@ -62,9 +62,7 @@ async def _resolve_snapshot_search_roots(session_id: str) -> list[Path]:
             resolve_default_chat_workspace_dir,
         )
 
-        workspace_dir = await resolve_default_chat_workspace_dir(
-            session_id, persist_workspace=False
-        )
+        workspace_dir = await resolve_default_chat_workspace_dir(session_id, persist_workspace=False)
         if workspace_dir:
             roots.append(Path(workspace_dir))
     except Exception:
@@ -112,9 +110,7 @@ def _bind_workspace_root(workspace_root: str) -> None:
         logger.debug("Could not bind workspace root for snapshot hydration", exc_info=True)
 
 
-async def cleanup_persisted_snapshots(
-    session_id: str, message_id: str | None = None
-) -> None:
+async def cleanup_persisted_snapshots(session_id: str, message_id: str | None = None) -> None:
     """Remove on-disk snapshot files from all known workspace roots."""
     store = SnapshotStore.get()
     for root in await _resolve_snapshot_search_roots(session_id):

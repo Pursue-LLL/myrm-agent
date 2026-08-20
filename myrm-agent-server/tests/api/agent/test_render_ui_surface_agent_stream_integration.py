@@ -23,11 +23,7 @@ def _snapshot_tool_names(events: list[dict[str, object]]) -> set[str]:
     snapshot_rows = tools_snapshot.get("data")
     if not isinstance(snapshot_rows, list):
         return set()
-    return {
-        str(row.get("name"))
-        for row in snapshot_rows
-        if isinstance(row, dict) and row.get("name")
-    }
+    return {str(row.get("name")) for row in snapshot_rows if isinstance(row, dict) and row.get("name")}
 
 
 def _base_payload(*, client_surface: str | None) -> dict[str, object]:

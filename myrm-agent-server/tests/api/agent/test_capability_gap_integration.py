@@ -88,9 +88,7 @@ def _assert_discover_miss_query_disjoint_from_fixture_names() -> None:
         shared = query_tokens & doc_tokens
         if shared:
             overlaps.append((skill.name, shared))
-    assert (
-        not overlaps
-    ), f"_DISCOVER_MISS_QUERY shares BM25 tokens with fixture index docs: {overlaps}"
+    assert not overlaps, f"_DISCOVER_MISS_QUERY shares BM25 tokens with fixture index docs: {overlaps}"
 
     engine = SkillSearchEngine(_discover_gateway_skills(), enable_query_expansion=False)
     assert engine.search_bm25(_DISCOVER_MISS_QUERY) == []
@@ -106,9 +104,7 @@ def _collect_agent_stream(
     payload: dict[str, object],
     *,
     stream_timeout: float = 240.0,
-    stop_when: (
-        Callable[[dict[str, object], list[dict[str, object]]], bool] | None
-    ) = None,
+    stop_when: (Callable[[dict[str, object], list[dict[str, object]]], bool] | None) = None,
 ) -> list[dict[str, object]]:
     collected: list[dict[str, object]] = []
     with client.stream(
@@ -154,10 +150,7 @@ def _stop_on_web_search_config_gap(
     payload_data = event.get("data")
     if not isinstance(payload_data, dict):
         return False
-    return (
-        payload_data.get("tool_id") == "web_search"
-        and payload_data.get("reason") == "not_configured"
-    )
+    return payload_data.get("tool_id") == "web_search" and payload_data.get("reason") == "not_configured"
 
 
 def _stop_on_migration_readiness_gap(
@@ -201,9 +194,7 @@ def _invoked_tool_names(events: list[dict[str, object]]) -> set[str]:
     return names
 
 
-def _gap_events(
-    events: list[dict[str, object]], event_type: str
-) -> list[dict[str, object]]:
+def _gap_events(events: list[dict[str, object]], event_type: str) -> list[dict[str, object]]:
     return [event for event in events if event.get("type") == event_type]
 
 
@@ -214,9 +205,7 @@ async def test_discover_miss_returns_not_found_without_gap_block_or_sse(
 ) -> None:
     """Discover miss must not emit entitlement gap blocks or custom events."""
     registry = ToolRegistry()
-    registry.register(
-        _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
-    )
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
@@ -248,9 +237,7 @@ async def test_discover_miss_no_gap_when_render_ui_group_enabled(
 ) -> None:
     """Discover miss must stay gap-free regardless of active tool groups."""
     registry = ToolRegistry()
-    registry.register(
-        _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
-    )
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
@@ -280,9 +267,7 @@ async def test_discover_miss_no_gap_when_render_ui_group_disabled(
 ) -> None:
     """Discover no longer emits render_ui entitlement gaps on miss."""
     registry = ToolRegistry()
-    registry.register(
-        _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
-    )
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
@@ -320,9 +305,7 @@ async def test_discover_miss_no_capability_gap_for_disabled_groups(
     query: str,
 ) -> None:
     registry = ToolRegistry()
-    registry.register(
-        _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
-    )
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
@@ -352,9 +335,7 @@ async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
 ) -> None:
     """Fast-mode groups omit file_ops; grep/bash queries must not emit file_ops entitlement gap."""
     registry = ToolRegistry()
-    registry.register(
-        _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
-    )
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
@@ -371,9 +352,7 @@ async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
         _capture,
     )
 
-    result = await discover.ainvoke(
-        {"query": "grep pattern in repo files and run bash script"}
-    )
+    result = await discover.ainvoke({"query": "grep pattern in repo files and run bash script"})
     assert "No capabilities found" in result
     assert "<CapabilityGap>" not in result
     assert not any(name == "capability_gap" for name, _ in captured)
@@ -386,9 +365,7 @@ async def test_discover_miss_no_skill_gap_block_or_sse(
 ) -> None:
     """Discover miss must not emit SkillGap blocks or skill_gap SSE."""
     registry = ToolRegistry()
-    registry.register(
-        _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
-    )
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
@@ -452,8 +429,7 @@ async def test_stream_dispatcher_forwards_skill_gap_custom_event() -> None:
     gap_events = [
         event
         for event in executor._compactor.events
-        if isinstance(event, AgentStreamEvent)
-        and event.type == AgentEventType.SKILL_GAP
+        if isinstance(event, AgentStreamEvent) and event.type == AgentEventType.SKILL_GAP
     ]
     assert len(gap_events) == 1
     assert gap_events[0].data == payload
@@ -500,8 +476,7 @@ async def test_stream_dispatcher_forwards_capability_gap_custom_event() -> None:
     gap_events = [
         event
         for event in executor._compactor.events
-        if isinstance(event, AgentStreamEvent)
-        and event.type == AgentEventType.CAPABILITY_GAP
+        if isinstance(event, AgentStreamEvent) and event.type == AgentEventType.CAPABILITY_GAP
     ]
     assert len(gap_events) == 1
     assert gap_events[0].data == payload
@@ -544,15 +519,11 @@ def test_agent_stream_discover_miss_does_not_emit_capability_gap_sse(
 
     invoked = _invoked_tool_names(events)
     if "skill_search_tool" not in invoked:
-        pytest.skip(
-            "model did not invoke skill_search_tool; deterministic no-gap wiring covered elsewhere"
-        )
+        pytest.skip("model did not invoke skill_search_tool; deterministic no-gap wiring covered elsewhere")
 
     gaps = _gap_events(events, "capability_gap")
     blob = json.dumps(events, ensure_ascii=False)
-    assert (
-        not gaps and "<CapabilityGap>" not in blob
-    ), "discover miss must not emit capability_gap SSE or CapabilityGap blocks"
+    assert not gaps and "<CapabilityGap>" not in blob, "discover miss must not emit capability_gap SSE or CapabilityGap blocks"
 
 
 @pytest.mark.integration
@@ -562,9 +533,7 @@ async def test_discover_miss_no_web_search_gap_when_web_group_disabled(
 ) -> None:
     """Discover miss must not emit web_search entitlement gaps."""
     registry = ToolRegistry()
-    registry.register(
-        _DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1
-    )
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
         registry,
         skills=_discover_gateway_skills(),
@@ -680,9 +649,7 @@ def test_agent_stream_emits_web_search_config_gap_sse(
         and event["data"].get("tool_id") == "web_search"
         and event["data"].get("reason") == "not_configured"
     ]
-    assert (
-        web_gaps
-    ), "expected stream preflight capability_gap SSE for unconfigured web_search"
+    assert web_gaps, "expected stream preflight capability_gap SSE for unconfigured web_search"
     payload_data = web_gaps[0]["data"]
     assert isinstance(payload_data, dict)
     assert payload_data.get("settings_path") == "/settings/search"
@@ -882,13 +849,10 @@ def test_agent_stream_migration_readiness_gap_does_not_block_assistant(
         and event["data"].get("tool_id") == "migration_import"
         and event["data"].get("reason") == "migration_readiness_warning"
     ]
-    assert (
-        migration_gaps
-    ), "expected migration readiness capability_gap SSE before agent execution"
+    assert migration_gaps, "expected migration readiness capability_gap SSE before agent execution"
     assistant_text = _message_text_from_stream_events(events).strip()
     assert len(assistant_text) > 5, (
-        "soft gate must not block assistant output; "
-        f"event_types={sorted({e.get('type') for e in events})}"
+        f"soft gate must not block assistant output; event_types={sorted({e.get('type') for e in events})}"
     )
 
 
@@ -944,9 +908,9 @@ def test_agent_stream_default_builtin_tools_persist_togglable_only(
     )
     if tools_snapshot is None:
         invoked = _invoked_tool_names(events)
-        assert (
-            "file_read_tool" in invoked or "bash_code_execute_tool" in invoked
-        ), "baseline file/bash must be Turn1 eager when tools_snapshot absent"
+        assert "file_read_tool" in invoked or "bash_code_execute_tool" in invoked, (
+            "baseline file/bash must be Turn1 eager when tools_snapshot absent"
+        )
         return
 
     snapshot_data = tools_snapshot.get("data")
@@ -958,13 +922,9 @@ def test_agent_stream_default_builtin_tools_persist_togglable_only(
         pytest.skip("tools_snapshot missing enabled_builtin_tools")
 
     for tool_id in DEFAULT_ENABLED_BUILTIN_TOOLS:
-        assert (
-            tool_id in enabled
-        ), f"default tool {tool_id!r} missing from tools_snapshot"
+        assert tool_id in enabled, f"default tool {tool_id!r} missing from tools_snapshot"
     for tool_id in AGENT_BASELINE_BUILTIN_TOOLS:
-        assert (
-            tool_id not in enabled
-        ), f"baseline {tool_id!r} must not appear in persisted snapshot"
+        assert tool_id not in enabled, f"baseline {tool_id!r} must not appear in persisted snapshot"
 
 
 @pytest.mark.e2e
@@ -1000,19 +960,11 @@ def test_agent_stream_tools_snapshot_includes_builtin_tool_id(
     if not isinstance(snapshot_rows, list):
         pytest.skip("tools_snapshot data is not a tool list")
 
-    web_rows = [
-        row
-        for row in snapshot_rows
-        if isinstance(row, dict) and row.get("name") == "web_search_tool"
-    ]
+    web_rows = [row for row in snapshot_rows if isinstance(row, dict) and row.get("name") == "web_search_tool"]
     assert web_rows, "expected web_search_tool in Turn1 tools_snapshot"
     assert web_rows[0].get("builtin_tool_id") == "web_search"
 
-    cron_rows = [
-        row
-        for row in snapshot_rows
-        if isinstance(row, dict) and row.get("name") == "cron_manage_tool"
-    ]
+    cron_rows = [row for row in snapshot_rows if isinstance(row, dict) and row.get("name") == "cron_manage_tool"]
     if cron_rows:
         assert cron_rows[0].get("builtin_tool_id") == "cron"
 
@@ -1049,12 +1001,10 @@ def test_agent_stream_discover_miss_does_not_emit_cron_capability_gap_sse(
 
     invoked = _invoked_tool_names(events)
     if "skill_search_tool" not in invoked:
-        pytest.skip(
-            "model did not invoke skill_search_tool; deterministic no-gap wiring covered in harness unit tests"
-        )
+        pytest.skip("model did not invoke skill_search_tool; deterministic no-gap wiring covered in harness unit tests")
 
     gaps = _gap_events(events, "capability_gap")
     blob = json.dumps(events, ensure_ascii=False)
-    assert (
-        not gaps and "<CapabilityGap>" not in blob
-    ), "discover miss must not emit cron capability_gap SSE or CapabilityGap blocks"
+    assert not gaps and "<CapabilityGap>" not in blob, (
+        "discover miss must not emit cron capability_gap SSE or CapabilityGap blocks"
+    )

@@ -94,9 +94,7 @@ _DELIVERABLE_EXTENSIONS: frozenset[str] = frozenset(
 
 _FENCE_RE = re.compile(r"```[\s\S]*?```", re.MULTILINE)
 _INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
-_PATH_TOKEN_RE = re.compile(
-    r"(?P<path>(?:workspace/)?[A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z0-9]{1,12})"
-)
+_PATH_TOKEN_RE = re.compile(r"(?P<path>(?:workspace/)?[A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z0-9]{1,12})")
 
 
 def _strip_code_regions(text: str) -> str:
@@ -211,10 +209,7 @@ def collect_deliverable_paths_from_text(
                 )
                 if compressed is not None:
                     tmp_paths.append(str(compressed))
-                    mime = (
-                        mimetypes.guess_type(str(compressed))[0]
-                        or "application/octet-stream"
-                    )
+                    mime = mimetypes.guess_type(str(compressed))[0] or "application/octet-stream"
                     attachments.append(
                         MediaAttachment(
                             media_type=MediaType.IMAGE,
@@ -253,9 +248,7 @@ async def resolve_chat_workspace_root(chat_id: str) -> str | None:
         from app.database.models.chat import Chat
 
         async with get_session() as db:
-            result = await db.execute(
-                select(Chat.workspace_dir).where(Chat.id == chat_id)
-            )
+            result = await db.execute(select(Chat.workspace_dir).where(Chat.id == chat_id))
             workspace_dir = result.scalar_one_or_none()
             if isinstance(workspace_dir, str) and workspace_dir.strip():
                 return workspace_dir.strip()

@@ -128,7 +128,6 @@ class TestTruncateAfterMessage:
         assert len(remaining) == 3
         assert [m.id for m in remaining] == ["u1", "a1", "u2"]
 
-
     async def test_truncate_updates_last_message_preview(
         self, db_session: AsyncSession, seeded_chat: tuple[str, list[MessageDTO]]
     ) -> None:
@@ -155,9 +154,7 @@ class TestTruncateAfterMessage:
         assert result.success is False
         assert result.deleted_count == 0
 
-    async def test_truncate_idempotent(
-        self, db_session: AsyncSession, seeded_chat: tuple[str, list[MessageDTO]]
-    ) -> None:
+    async def test_truncate_idempotent(self, db_session: AsyncSession, seeded_chat: tuple[str, list[MessageDTO]]) -> None:
         """Truncating an already-deleted message returns failure gracefully."""
         chat_id, _ = seeded_chat
 
@@ -191,9 +188,7 @@ class TestTruncateAfterMessage:
 class TestGetMessageById:
     """Repository-level get_message_by_id tests."""
 
-    async def test_returns_message_when_found(
-        self, db_session: AsyncSession, seeded_chat: tuple[str, list[MessageDTO]]
-    ) -> None:
+    async def test_returns_message_when_found(self, db_session: AsyncSession, seeded_chat: tuple[str, list[MessageDTO]]) -> None:
         chat_id, _ = seeded_chat
 
         msg = await ChatRepository.get_message_by_id(db_session, chat_id, "u1")
@@ -202,9 +197,7 @@ class TestGetMessageById:
         assert msg.id == "u1"
         assert msg.content == "Hello"
 
-    async def test_returns_none_for_wrong_chat(
-        self, db_session: AsyncSession, seeded_chat: tuple[str, list[MessageDTO]]
-    ) -> None:
+    async def test_returns_none_for_wrong_chat(self, db_session: AsyncSession, seeded_chat: tuple[str, list[MessageDTO]]) -> None:
         msg = await ChatRepository.get_message_by_id(db_session, "wrong-chat", "u1")
 
         assert msg is None

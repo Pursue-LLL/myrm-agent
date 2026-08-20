@@ -8,10 +8,7 @@ from app.core.channel_bridge.learn_handler import (
 )
 from app.services.agent.params.converter import _apply_session_preset
 
-_LEARN_PROMPT = (
-    "[/learn] The user wants you to learn a reusable skill\n"
-    '3. Save it with the `skill_manage_tool` (action="save").'
-)
+_LEARN_PROMPT = '[/learn] The user wants you to learn a reusable skill\n3. Save it with the `skill_manage_tool` (action="save").'
 
 
 def test_learn_overlay_elevates_skill_manage_over_explore_preset() -> None:

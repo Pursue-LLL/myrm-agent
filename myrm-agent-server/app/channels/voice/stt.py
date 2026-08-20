@@ -131,9 +131,7 @@ class _LocalWhisperManager:
             try:
                 from faster_whisper import WhisperModel
             except ImportError as exc:
-                raise ImportError(
-                    f"faster-whisper is not installed. Install: {_LOCAL_STT_INSTALL_HINT}"
-                ) from exc
+                raise ImportError(f"faster-whisper is not installed. Install: {_LOCAL_STT_INSTALL_HINT}") from exc
 
             loop = asyncio.get_running_loop()
             model = await loop.run_in_executor(
@@ -470,7 +468,7 @@ async def _transcribe_xai(
     Non-OpenAI-compatible API — requires dedicated implementation.
     """
     api_key = _resolve_xai_stt_api_key(config)
-    base_url = (config.stt_base_url.rstrip("/") if config.stt_base_url else _XAI_STT_URL.rsplit("/", 1)[0])
+    base_url = config.stt_base_url.rstrip("/") if config.stt_base_url else _XAI_STT_URL.rsplit("/", 1)[0]
     url = f"{base_url}/stt"
 
     data: dict[str, str] = {}

@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="eval")
+
+
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
     with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
@@ -97,9 +99,7 @@ def test_eval_router_coverage(client: TestClient):
 
     # Edge: already_running even when benchmark_mode=true
     with patch("app.api.eval.router.get_eval_status", return_value={"is_running": True}):
-        res_busy = client.post(
-            "/api/v1/eval/run", json={"benchmark_mode": True}
-        )
+        res_busy = client.post("/api/v1/eval/run", json={"benchmark_mode": True})
         assert res_busy.json()["status"] == "already_running"
 
     # Test reports api
@@ -169,28 +169,20 @@ def test_eval_router_remaining_branches(client: TestClient):
     assert any(s.get("benchmark_id") == "browsecomp" for s in sources)
 
     # --- /benchmarks/run: already running ---
-    with patch(
-        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
-    ):
+    with patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}):
         res = client.post("/api/v1/eval/benchmarks/run", json={"benchmark_id": "browsecomp"})
         assert res.json()["status"] == "already_running"
 
     # --- /benchmarks/run: unknown benchmark ---
-    with patch(
-        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-    ):
+    with patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}):
         res = client.post("/api/v1/eval/benchmarks/run", json={"benchmark_id": "unknown_bench"})
         assert res.json()["status"] == "error"
 
     # --- /benchmarks/run: started (synchronous state init + background task) ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
-        patch(
-            "app.core.channel_bridge.config_parsers.verify_search_service_available"
-        ) as mock_verify,
+        patch("app.core.channel_bridge.config_parsers.verify_search_service_available") as mock_verify,
         patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
@@ -217,9 +209,7 @@ def test_eval_router_remaining_branches(client: TestClient):
 
     # --- /benchmarks/run: benchmark_mode web-search preflight (not configured) ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
@@ -238,13 +228,9 @@ def test_eval_router_remaining_branches(client: TestClient):
 
     # --- /benchmarks/run: benchmark_mode web-search preflight (unreachable) ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
-        patch(
-            "app.core.channel_bridge.config_parsers.verify_search_service_available"
-        ) as mock_verify,
+        patch("app.core.channel_bridge.config_parsers.verify_search_service_available") as mock_verify,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
         mock_cfg.return_value = SimpleNamespace(
@@ -263,13 +249,9 @@ def test_eval_router_remaining_branches(client: TestClient):
 
     # --- /benchmarks/run: benchmark_mode web-search preflight (healthy) ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
-        patch(
-            "app.core.channel_bridge.config_parsers.verify_search_service_available"
-        ) as mock_verify,
+        patch("app.core.channel_bridge.config_parsers.verify_search_service_available") as mock_verify,
         patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
@@ -299,9 +281,7 @@ def test_eval_router_remaining_branches(client: TestClient):
             ],
         ),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
-        patch(
-            "app.core.channel_bridge.config_parsers.verify_search_service_available"
-        ) as mock_verify,
+        patch("app.core.channel_bridge.config_parsers.verify_search_service_available") as mock_verify,
         patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
@@ -321,9 +301,7 @@ def test_eval_router_remaining_branches(client: TestClient):
 
     # --- /benchmarks/run: benchmark_mode off skips web-search preflight ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.core.channel_bridge.config_loader.load_user_configs") as mock_cfg,
         patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
@@ -344,9 +322,7 @@ def test_eval_router_remaining_branches(client: TestClient):
     # BrowseComp is graded by an LLM judge; a missing model config must fail
     # fast with explicit guidance instead of a misleading all-zero score.
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.core.eval.model_config._resolve_judge_config", return_value=(None, "none")),
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
@@ -360,9 +336,7 @@ def test_eval_router_remaining_branches(client: TestClient):
 
     # --- /benchmarks/run: limit is passed through to the background task ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.core.eval.model_config._resolve_judge_config") as mock_judge,
         patch("app.api.eval.benchmarks_router.run_benchmark_background") as mock_bg,
     ):
@@ -376,9 +350,7 @@ def test_eval_router_remaining_branches(client: TestClient):
         assert call_kwargs["limit"] == 50
 
     # --- /benchmarks/run: limit below 1 is rejected by the schema ---
-    with patch(
-        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-    ):
+    with patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}):
         res = client.post(
             "/api/v1/eval/benchmarks/run",
             json={"benchmark_id": "browsecomp", "benchmark_mode": False, "limit": 0},
@@ -386,42 +358,30 @@ def test_eval_router_remaining_branches(client: TestClient):
         assert res.status_code == 422
 
     # --- /benchmarks/download: already running ---
-    with patch(
-        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
-    ):
-        res = client.post(
-            "/api/v1/eval/benchmarks/download", json={"benchmark_id": "browsecomp"}
-        )
+    with patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}):
+        res = client.post("/api/v1/eval/benchmarks/download", json={"benchmark_id": "browsecomp"})
         assert res.json()["status"] == "already_running"
 
     # --- /benchmarks/download: started ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.api.eval.benchmarks_router.run_benchmark_download_background") as mock_dl,
     ):
-        res = client.post(
-            "/api/v1/eval/benchmarks/download", json={"benchmark_id": "browsecomp"}
-        )
+        res = client.post("/api/v1/eval/benchmarks/download", json={"benchmark_id": "browsecomp"})
         assert res.status_code == 200
         assert res.json()["status"] == "started"
         _, call_kwargs = mock_dl.call_args
         assert call_kwargs["benchmark_id"] == "browsecomp"
 
     # --- wb-bench/run: already running ---
-    with patch(
-        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
-    ):
+    with patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}):
         res = client.post("/api/v1/eval/wb-bench/run", json={"subset_id": "web"})
         assert res.json()["status"] == "already_running"
 
     # --- wb-bench/run: started (synchronous state init + background task) ---
     subset_id = next(iter(wb.WB_BENCH_SUBSETS))
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.api.eval.benchmarks_router.run_wb_bench_background") as mock_bg,
     ):
         res = client.post(
@@ -436,22 +396,16 @@ def test_eval_router_remaining_branches(client: TestClient):
         assert call_kwargs["benchmark_mode"] is True
 
     # --- wb-bench/download: already running ---
-    with patch(
-        "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}
-    ):
+    with patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": True}):
         res = client.post("/api/v1/eval/wb-bench/download", json={"subset_id": "web"})
         assert res.json()["status"] == "already_running"
 
     # --- wb-bench/download: started ---
     with (
-        patch(
-            "app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}
-        ),
+        patch("app.api.eval.benchmarks_router.get_eval_status", return_value={"is_running": False}),
         patch("app.api.eval.benchmarks_router.run_wb_bench_download_background") as mock_dl,
     ):
-        res = client.post(
-            "/api/v1/eval/wb-bench/download", json={"subset_id": subset_id}
-        )
+        res = client.post("/api/v1/eval/wb-bench/download", json={"subset_id": subset_id})
         assert res.status_code == 200
         assert res.json()["status"] == "started"
         _, call_kwargs = mock_dl.call_args

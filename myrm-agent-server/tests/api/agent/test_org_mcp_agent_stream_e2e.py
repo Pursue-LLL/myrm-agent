@@ -31,11 +31,7 @@ from tests.api.agent.utils import (
     get_search_service_config,
 )
 
-_STUB = (
-    Path(__file__).resolve().parents[2]
-    / "support"
-    / "e2e_minimal_stdio_mcp_server.py"
-)
+_STUB = Path(__file__).resolve().parents[2] / "support" / "e2e_minimal_stdio_mcp_server.py"
 
 _ORG_MCP_DICT = {
     "servers": [

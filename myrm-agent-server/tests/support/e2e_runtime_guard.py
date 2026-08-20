@@ -57,9 +57,7 @@ def reap_chrome_e2e_session_hygiene() -> None:
 
 
 @contextmanager
-def e2e_lease_heartbeat_loop(
-    *, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SEC
-) -> Iterator[None]:
+def e2e_lease_heartbeat_loop(*, interval_sec: float = _E2E_HEARTBEAT_INTERVAL_SEC) -> Iterator[None]:
     """Background heartbeat for long-running live E2E tests."""
     from e2e_session_runtime.heartbeat import (
         heartbeat_once,
@@ -116,9 +114,7 @@ def _stack_fingerprint_runtime_id() -> str:
 
 def _private_backend_runtime_pinned() -> bool:
     """SHPOIB private backend pins MYRM_E2E_STACK_FP; ignore shared-hot drift under parallel E2E."""
-    return os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1" and bool(
-        _stack_fingerprint_runtime_id()
-    )
+    return os.environ.get("MYRM_E2E_PRIVATE_BACKEND", "").strip() == "1" and bool(_stack_fingerprint_runtime_id())
 
 
 def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
@@ -137,10 +133,7 @@ def _runtime_drift_heal_allowed() -> bool:
 
 def _signoff_runtime_drift_sync_allowed() -> bool:
     """Signoff/desktop soak may sync lease runtimeId in pytest fixture setup."""
-    return (
-        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
-        or os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() == "1"
-    )
+    return os.environ.get("E2E_SIGNOFF", "").strip() == "1" or os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() == "1"
 
 
 def _sync_signoff_runtime_drift(*, lease_id: str) -> str | None:
@@ -238,9 +231,7 @@ def _assert_runtime_matches_lease_or_heal(
     current = runtime_id_reader().strip()
     if not _runtime_drift_heal_allowed():
         if not resolved or current != resolved:
-            raise RuntimeError(
-                f"RUNTIME_DRIFT: E2E lease expected={resolved or '<missing>'} current={current or '<missing>'}"
-            )
+            raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={resolved or '<missing>'} current={current or '<missing>'}")
         return resolved
     attempts = _runtime_drift_setup_attempts()
     for drift_attempt in range(attempts):
@@ -265,9 +256,7 @@ def _assert_runtime_matches_lease_or_heal(
             current = runtime_id_reader().strip()
             if current == synced:
                 return current
-    raise RuntimeError(
-        f"RUNTIME_DRIFT: E2E lease expected={resolved or '<missing>'} current={current or '<missing>'}"
-    )
+    raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={resolved or '<missing>'} current={current or '<missing>'}")
 
 
 def _runtime_id_reader() -> str:
@@ -291,9 +280,7 @@ def _runtime_id_reader() -> str:
 def _assert_isolated_stack_unchanged(*, expected: str) -> None:
     current = _stack_scoped_runtime_id().strip()
     if not expected or current != expected:
-        raise RuntimeError(
-            f"RUNTIME_DRIFT: isolated stack expected={expected or '<missing>'} current={current or '<missing>'}"
-        )
+        raise RuntimeError(f"RUNTIME_DRIFT: isolated stack expected={expected or '<missing>'} current={current or '<missing>'}")
 
 
 def _active_lease(payload: object, lease_id: str) -> _LeasePayload | None:
@@ -319,9 +306,7 @@ def _reacquire_e2e_lease_from_wave() -> bool:
     # Pytest heal must outlive wave acquire poll budget but stay bounded under parallel load.
     acquire_timeout = min(max(wait_sec + 45, 90), 240)
     env = os.environ.copy()
-    env.setdefault(
-        "MYRM_WAVE_AGENT_ID", os.environ.get("MYRM_E2E_AGENT_ID", "").strip()
-    )
+    env.setdefault("MYRM_WAVE_AGENT_ID", os.environ.get("MYRM_E2E_AGENT_ID", "").strip())
     try:
         proc = subprocess.run(
             ["bash", str(lease_script), "acquire"],
@@ -389,9 +374,7 @@ def _require_e2e_runtime_lease_once(
 ) -> E2ERuntimeLease:
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
     if not lease_id:
-        raise RuntimeError(
-            "E2E_LEASE_REQUIRED: run live tests via ./myrm test -m e2e; direct pytest/uv entry is blocked"
-        )
+        raise RuntimeError("E2E_LEASE_REQUIRED: run live tests via ./myrm test -m e2e; direct pytest/uv entry is blocked")
     state_path = _wave_state_path()
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
@@ -423,28 +406,17 @@ def _require_e2e_runtime_lease_once(
     try:
         expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
     except (AttributeError, ValueError) as exc:
-        raise RuntimeError(
-            f"E2E_LEASE_INVALID: lease {lease_id} expiry is invalid"
-        ) from exc
+        raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} expiry is invalid") from exc
     if expires <= datetime.now(UTC):
         raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} is expired")
     expected = lease.get("runtimeId", "").strip()
     wave_runtime = str(wave.get("runtimeId", "")).strip()
-    if (
-        _uses_shared_hot_runtime_probe()
-        and wave_runtime
-        and not _private_backend_runtime_pinned()
-    ):
+    if _uses_shared_hot_runtime_probe() and wave_runtime and not _private_backend_runtime_pinned():
         expected = wave_runtime
     if wave.get("runtimeId") != expected:
-        raise RuntimeError(
-            f"E2E_LEASE_INVALID: lease {lease_id} runtime does not match open wave"
-        )
+        raise RuntimeError(f"E2E_LEASE_INVALID: lease {lease_id} runtime does not match open wave")
     if _isolated_e2e_mode():
-        stack_fp = (
-            os.environ.get("MYRM_E2E_STACK_FP", "").strip()
-            or _stack_scoped_runtime_id()
-        )
+        stack_fp = os.environ.get("MYRM_E2E_STACK_FP", "").strip() or _stack_scoped_runtime_id()
         _assert_isolated_stack_unchanged(expected=stack_fp)
         return E2ERuntimeLease(
             lease_id=lease_id,
@@ -473,11 +445,7 @@ def require_e2e_runtime_lease(
         except RuntimeError as exc:
             last_error = exc
             message = str(exc)
-            retryable = (
-                "is not active" in message
-                or "is expired" in message
-                or "RUNTIME_DRIFT" in message
-            )
+            retryable = "is not active" in message or "is expired" in message or "RUNTIME_DRIFT" in message
             if not retryable or attempt >= 2:
                 raise
             _heal_stale_e2e_lease()
@@ -492,9 +460,7 @@ def assert_e2e_runtime_unchanged(
     runtime_id_reader: Callable[[], str] = _runtime_id_reader,
 ) -> None:
     if lease.isolated or _isolated_e2e_mode():
-        expected = (
-            lease.runtime_id.strip() or os.environ.get("MYRM_E2E_STACK_FP", "").strip()
-        )
+        expected = lease.runtime_id.strip() or os.environ.get("MYRM_E2E_STACK_FP", "").strip()
         _assert_isolated_stack_unchanged(expected=expected)
         return
     current = runtime_id_reader().strip()
@@ -514,21 +480,12 @@ def assert_e2e_runtime_unchanged(
                 return
             if drift_attempt + 1 < 3:
                 time.sleep(2.0)
-        raise RuntimeError(
-            f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}"
-        )
+        raise RuntimeError(f"RUNTIME_DRIFT: E2E lease expected={expected_runtime} current={current or '<missing>'}")
 
 
 def assert_chrome_attach_health() -> None:
     """Fail fast when Chrome mux/CDP attach snapshot is unsafe for live UI E2E."""
-    script = (
-        Path(__file__).resolve().parents[3]
-        / "scripts"
-        / "dev"
-        / "lib"
-        / "e2e_core"
-        / "runtime_identity.py"
-    )
+    script = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib" / "e2e_core" / "runtime_identity.py"
     ui_base = os.environ.get("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
     api_base = os.environ.get("E2E_API_BASE", "http://127.0.0.1:8080").rstrip("/")
     wait_sec = int(os.environ.get("MYRM_CHROME_E2E_ATTACH_WAIT_SEC", "180"))
@@ -539,9 +496,7 @@ def assert_chrome_attach_health() -> None:
         poll_sec = 2
 
     require_ready = (
-        "--require-signoff-stream-ready"
-        if os.environ.get("E2E_SIGNOFF", "").strip() == "1"
-        else "--require-attach-ready"
+        "--require-signoff-stream-ready" if os.environ.get("E2E_SIGNOFF", "").strip() == "1" else "--require-attach-ready"
     )
 
     cmd = [
@@ -570,9 +525,7 @@ def assert_chrome_attach_health() -> None:
         )
         if proc.returncode == 0:
             return
-        last_detail = (
-            proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
-        )
+        last_detail = proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
         if time.monotonic() >= deadline:
             break
         sleep_for = min(float(poll_sec), max(0.0, deadline - time.monotonic()))

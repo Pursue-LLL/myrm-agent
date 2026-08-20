@@ -123,20 +123,14 @@ def test_import_detects_hash_drift(client: TestClient, mock_local_skills_dir: Pa
     """A tampered ZIP (content drifted from its manifest) is reported as a mismatch."""
     skill_dir = mock_local_skills_dir / "drift-skill"
     skill_dir.mkdir(parents=True)
-    (skill_dir / "SKILL.md").write_text(
-        "---\nname: drift-skill\ndescription: test\n---\n# Original", encoding="utf-8"
-    )
+    (skill_dir / "SKILL.md").write_text("---\nname: drift-skill\ndescription: test\n---\n# Original", encoding="utf-8")
 
     zip_data = _export_zip(client)
 
     # Tamper with the packaged SKILL.md but keep the original manifest.
     with zipfile.ZipFile(io.BytesIO(zip_data), "r") as zf:
         names = zf.namelist()
-        payloads = {
-            name: zf.read(name)
-            for name in names
-            if not name.endswith(".zip")
-        }
+        payloads = {name: zf.read(name) for name in names if not name.endswith(".zip")}
     tampered = bytearray(payloads["drift-skill/SKILL.md"]) + b"\n# tampered"
     payloads["drift-skill/SKILL.md"] = bytes(tampered)
 
@@ -158,9 +152,7 @@ def test_reimport_skips_unchanged_skills(client: TestClient, mock_local_skills_d
     """Importing an identical backup reports unchanged_count instead of re-importing."""
     skill_dir = mock_local_skills_dir / "stable-skill"
     skill_dir.mkdir(parents=True)
-    (skill_dir / "SKILL.md").write_text(
-        "---\nname: stable-skill\ndescription: test\n---\n# Stable", encoding="utf-8"
-    )
+    (skill_dir / "SKILL.md").write_text("---\nname: stable-skill\ndescription: test\n---\n# Stable", encoding="utf-8")
 
     zip_data = _export_zip(client)
 
@@ -194,9 +186,7 @@ def _zip_with_traversal(payload: dict[str, bytes]) -> bytes:
         "C:\\windows\\evil.md",
     ],
 )
-def test_import_rejects_zip_slip(
-    client: TestClient, mock_local_skills_dir: Path, member_name: str
-) -> None:
+def test_import_rejects_zip_slip(client: TestClient, mock_local_skills_dir: Path, member_name: str) -> None:
     """A ZIP whose members escape the extraction dir is rejected with 400."""
     evil_zip = _zip_with_traversal({member_name: b"pwned"})
 

@@ -221,8 +221,7 @@ async def test_export_strips_gateway_auth_token(async_client: AsyncClient):
 
         gw = exported.get("tool_gateway_config")
         if gw is not None:
-            assert "auth_token" not in gw or gw["auth_token"] != "gw-secret-123", \
-                "Plaintext auth_token leaked in export"
+            assert "auth_token" not in gw or gw["auth_token"] != "gw-secret-123", "Plaintext auth_token leaked in export"
     finally:
         await async_client.delete(f"/api/agents/{agent_id}")
 
@@ -230,28 +229,37 @@ async def test_export_strips_gateway_auth_token(async_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_team_export_includes_members(async_client: AsyncClient):
     """团队 Agent 导出应递归包含所有成员配置"""
-    member1_res = await async_client.post("/api/agents", json={
-        "name": "Member Alpha",
-        "system_prompt": "I am alpha",
-        "agent_type": "individual",
-    })
+    member1_res = await async_client.post(
+        "/api/agents",
+        json={
+            "name": "Member Alpha",
+            "system_prompt": "I am alpha",
+            "agent_type": "individual",
+        },
+    )
     assert member1_res.status_code == 200
     m1_id = member1_res.json()["data"]["id"]
 
-    member2_res = await async_client.post("/api/agents", json={
-        "name": "Member Beta",
-        "system_prompt": "I am beta",
-        "agent_type": "individual",
-    })
+    member2_res = await async_client.post(
+        "/api/agents",
+        json={
+            "name": "Member Beta",
+            "system_prompt": "I am beta",
+            "agent_type": "individual",
+        },
+    )
     assert member2_res.status_code == 200
     m2_id = member2_res.json()["data"]["id"]
 
-    leader_res = await async_client.post("/api/agents", json={
-        "name": "Team Leader",
-        "system_prompt": "I lead",
-        "agent_type": "team",
-        "subagent_ids": [m1_id, m2_id],
-    })
+    leader_res = await async_client.post(
+        "/api/agents",
+        json={
+            "name": "Team Leader",
+            "system_prompt": "I lead",
+            "agent_type": "team",
+            "subagent_ids": [m1_id, m2_id],
+        },
+    )
     assert leader_res.status_code == 200
     leader_id = leader_res.json()["data"]["id"]
 

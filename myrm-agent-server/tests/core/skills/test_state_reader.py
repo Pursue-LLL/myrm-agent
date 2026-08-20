@@ -43,9 +43,7 @@ def test_injected_db_path_uses_independent_store(monkeypatch) -> None:
     record.is_active = True
     independent.get_skill.return_value = record
 
-    with patch(
-        "app.core.skills.state_reader.SkillStore", return_value=independent
-    ) as mock_cls:
+    with patch("app.core.skills.state_reader.SkillStore", return_value=independent) as mock_cls:
         reader = SQLiteSkillStateReader(db_path=db_path)
         active = reader.is_skill_active("normal-skill")
 

@@ -331,7 +331,9 @@ class TestLearnCommandEdgeCases:
         """In group context, error reply should reference the original message."""
         host_no_handler = _FakeRouterHost(learn_handler=None)
         msg = _make_msg(
-            "/learn x", is_group=True, message_id="msg_42",
+            "/learn x",
+            is_group=True,
+            message_id="msg_42",
         )
         await _dispatch_learn(host_no_handler, msg, "x")
         reply = host_no_handler.outbound_messages[0]

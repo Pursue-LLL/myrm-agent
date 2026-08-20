@@ -91,17 +91,13 @@ def worktree_dir(base_dir: str, branch: str, task_id: str) -> str:
     return os.path.join(base_dir, WORKTREE_DIR_NAME, f"{safe_name}-{task_id[:8]}")
 
 
-async def create_worktree(
-    base_dir: str, branch: str, task_id: str
-) -> str | WorktreeCreateError:
+async def create_worktree(base_dir: str, branch: str, task_id: str) -> str | WorktreeCreateError:
     """Create a per-task worktree. Returns path on success or structured error."""
     worktree_path = worktree_dir(base_dir, branch, task_id)
     unique_branch = _worktree_branch_name(branch, task_id)
 
     if Path(worktree_path).exists():
-        logger.info(
-            "Worktree already exists at %s for task %s", worktree_path, task_id[:8]
-        )
+        logger.info("Worktree already exists at %s for task %s", worktree_path, task_id[:8])
         return worktree_path
 
     return await _git_worktree_add(
@@ -186,12 +182,9 @@ async def _merge_task_worktree_locked(
     # Auto-commit uncommitted worktree changes so agent edits made with
     # file tools (not git commits) still land in the merge.  If the commit
     # fails the worktree is preserved — cleaning it up would drop those edits.
-    if not await _auto_commit_dirty_worktree(
-        path, commit_message=f"Auto-commit kanban task {task.task_id[:8]}"
-    ):
+    if not await _auto_commit_dirty_worktree(path, commit_message=f"Auto-commit kanban task {task.task_id[:8]}"):
         logger.warning(
-            "Cannot commit dirty worktree %s for task %s; merge skipped, "
-            "worktree preserved for manual handling",
+            "Cannot commit dirty worktree %s for task %s; merge skipped, worktree preserved for manual handling",
             path,
             task.task_id[:8],
         )

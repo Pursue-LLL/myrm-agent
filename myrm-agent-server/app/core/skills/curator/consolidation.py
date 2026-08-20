@@ -40,9 +40,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def _get_consolidation_deps() -> (
-    tuple[EmbeddingService, BaseChatModel, SkillWriteBackend]
-):
+async def _get_consolidation_deps() -> tuple[EmbeddingService, BaseChatModel, SkillWriteBackend]:
     """Resolve embedding_service, llm, and write_backend for consolidation.
 
     Raises HTTPException 503 if dependencies are not configured.
@@ -116,9 +114,7 @@ async def run_consolidation_preview() -> ConsolidationPlan:
         if not all_skills:
             return ConsolidationPlan()
 
-        _, plan = await curator.run_async(
-            all_skills, force=True, consolidation_dry_run=True
-        )
+        _, plan = await curator.run_async(all_skills, force=True, consolidation_dry_run=True)
         if plan is None:
             return ConsolidationPlan()
 
@@ -157,9 +153,7 @@ async def run_consolidation_execute() -> dict[str, int | str]:
                 "agent_refs_updated": 0,
             }
 
-        _, result = await curator.run_async(
-            all_skills, force=True, consolidation_dry_run=False
-        )
+        _, result = await curator.run_async(all_skills, force=True, consolidation_dry_run=False)
 
         if result is None or not isinstance(result, ConsolidationReport):
             return {
@@ -235,9 +229,7 @@ async def _rewrite_agent_skill_refs(report: ConsolidationReport) -> int:
                         new_skill_ids.append(sid)
 
                 if changed:
-                    await AgentRepository.update_profile(
-                        db, profile.agent_id, {"skills": new_skill_ids}
-                    )
+                    await AgentRepository.update_profile(db, profile.agent_id, {"skills": new_skill_ids})
                     updated_count += 1
                     logger.info(
                         "Updated agent '%s' skill refs: replaced merged skills",

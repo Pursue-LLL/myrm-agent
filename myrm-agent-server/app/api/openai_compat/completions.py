@@ -170,9 +170,7 @@ async def _stream_response(
     )
 
     params = await _build_agent_params(request)
-    extra_context = await build_agent_runtime_context(
-        execution_mode=resolve_stream_execution_mode()
-    )
+    extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     created = int(time.time())
     model_name = request.model
@@ -240,9 +238,7 @@ async def chat_completions(
     )
 
     params = await _build_agent_params(request)
-    extra_context = await build_agent_runtime_context(
-        execution_mode=resolve_stream_execution_mode()
-    )
+    extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
 
     full_content = ""
     usage_data: dict[str, object] = {}

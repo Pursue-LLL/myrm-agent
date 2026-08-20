@@ -134,18 +134,11 @@ def _seed_chat_via_api(api_url: str, chat_id: str) -> None:
 async def _assert_stream_binding(chat: McpChatSession, *, expected_api: str) -> None:
     raw = await chat.evaluate(STREAM_API_BINDING_JS, intent=EvaluateIntent.SYNC_PROBE)
     binding = raw if isinstance(raw, dict) else {}
-    if (
-        binding.get("usesRelativeProxy") is True
-        or binding.get("hasPrivateBinding") is not True
-    ):
-        raise AssertionError(
-            f"SHPOIB stream binding missing: {binding!r}; expected={expected_api!r}"
-        )
+    if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
+        raise AssertionError(f"SHPOIB stream binding missing: {binding!r}; expected={expected_api!r}")
     bound = str(binding.get("origin") or "").strip()
     if bound not in (expected_api.rstrip("/"), ""):
-        raise AssertionError(
-            f"SHPOIB stream binding mismatch: expected={expected_api!r} got={binding!r}"
-        )
+        raise AssertionError(f"SHPOIB stream binding mismatch: expected={expected_api!r} got={binding!r}")
 
 
 async def _wait_for_approval_ui(
@@ -159,9 +152,7 @@ async def _wait_for_approval_ui(
     while time.monotonic() < deadline:
         heartbeat_once()
         await chat.dismiss_modals()
-        raw = await chat.evaluate(
-            _SUBAGENT_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL
-        )
+        raw = await chat.evaluate(_SUBAGENT_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL)
         value = raw
         if isinstance(value, dict) and "ready" in value:
             last_ui = value
@@ -170,9 +161,7 @@ async def _wait_for_approval_ui(
         if last_ui.get("ready") is True:
             return last_ui
         await asyncio.sleep(1.5)
-    raise AssertionError(
-        f"Approval UI did not appear within {timeout_sec}s: {last_ui!r}"
-    )
+    raise AssertionError(f"Approval UI did not appear within {timeout_sec}s: {last_ui!r}")
 
 
 async def _apply_runtime_bootstrap(chat: McpChatSession) -> None:
@@ -199,13 +188,9 @@ async def _prepare_live_chat(
         "(() => ({ path: location.pathname }))()",
         intent=EvaluateIntent.SYNC_PROBE,
     )
-    current_path = (
-        str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
-    )
+    current_path = str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
     if current_path != f"/{chat_id}":
-        await chat.navigate_to_chat(
-            chat_id, get_e2e_ui_url().rstrip("/"), timeout_sec=90.0
-        )
+        await chat.navigate_to_chat(chat_id, get_e2e_ui_url().rstrip("/"), timeout_sec=90.0)
     ensured = await chat.evaluate(
         """(() => {
           const bridge = window.__MYRM_E2E_CHAT__;
@@ -218,9 +203,7 @@ async def _prepare_live_chat(
         raise RuntimeError(f"ensureChatSession failed: {ensured!r}")
     bound_chat_id = str(await chat.bridge_chat_id() or "").strip()
     if bound_chat_id and bound_chat_id != chat_id:
-        raise RuntimeError(
-            f"Bridge chat id mismatch: expected={chat_id!r} got={bound_chat_id!r}"
-        )
+        raise RuntimeError(f"Bridge chat id mismatch: expected={chat_id!r} got={bound_chat_id!r}")
     return chat_id
 
 
@@ -254,28 +237,17 @@ def _poll_subagent_status(
     data = rows.get("data") if isinstance(rows, dict) else None
     if not isinstance(data, list):
         return "unknown", []
-    completed = [
-        row
-        for row in data
-        if isinstance(row, dict) and row.get("status") == "completed"
-    ]
+    completed = [row for row in data if isinstance(row, dict) and row.get("status") == "completed"]
     if completed:
         return "completed", completed
-    terminal = [
-        row
-        for row in data
-        if isinstance(row, dict)
-        and row.get("status") in ("cancelled", "failed", "error")
-    ]
+    terminal = [row for row in data if isinstance(row, dict) and row.get("status") in ("cancelled", "failed", "error")]
     if terminal:
         return "terminal", terminal
     return "pending", [row for row in data if isinstance(row, dict)]
 
 
 async def _click_approve_if_visible(chat: McpChatSession) -> bool:
-    raw = await chat.evaluate(
-        _SUBAGENT_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL
-    )
+    raw = await chat.evaluate(_SUBAGENT_APPROVAL_VISIBLE_JS, intent=EvaluateIntent.BRIDGE_POLL)
     visible = raw if isinstance(raw, dict) else {}
     if visible.get("hasApprove") is not True:
         return False
@@ -305,22 +277,16 @@ async def _wait_for_subagent_completed_via_api(
         if state == "completed":
             return rows
         if state == "terminal":
-            raise AssertionError(
-                f"Subagent reached terminal state before completion: {rows!r}"
-            )
+            raise AssertionError(f"Subagent reached terminal state before completion: {rows!r}")
         now = time.monotonic()
         if now - last_recover >= 15.0:
             await _recover_hitl_in_browser(chat, chat_id)
             last_recover = now
         await asyncio.sleep(2.0)
-    raise AssertionError(
-        f"No completed subagent within {timeout_sec}s after WebUI approve: {last!r}"
-    )
+    raise AssertionError(f"No completed subagent within {timeout_sec}s after WebUI approve: {last!r}")
 
 
-async def _recover_hitl_in_browser(
-    chat: McpChatSession, chat_id: str
-) -> dict[str, object]:
+async def _recover_hitl_in_browser(chat: McpChatSession, chat_id: str) -> dict[str, object]:
     chat_id_json = json.dumps(chat_id)
     raw = await chat.evaluate(
         f"({_RECOVER_HITL_JS})({chat_id_json})",
@@ -362,18 +328,14 @@ async def _run_approval_flow(
         "(() => ({ path: location.pathname }))()",
         intent=EvaluateIntent.SYNC_PROBE,
     )
-    current_path = (
-        str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
-    )
+    current_path = str(path_probe.get("path") or "") if isinstance(path_probe, dict) else ""
     if current_path != f"/{resolved_chat_id}":
         ui_base = get_e2e_ui_url().rstrip("/")
         await chat.navigate_to_chat(resolved_chat_id, ui_base, timeout_sec=90.0)
 
     approval = await _wait_for_approval_ui(chat, api_url=api_url)
     assert approval.get("queueLen") is not None
-    assert (
-        approval.get("hasApprove") is True
-    ), f"Approval card missing Approve button: {approval}"
+    assert approval.get("hasApprove") is True, f"Approval card missing Approve button: {approval}"
 
     click = await chat.evaluate(_CLICK_APPROVE_JS, intent=EvaluateIntent.SYNC_PROBE)
     assert isinstance(click, dict) and click.get("ok") is True, click
@@ -407,9 +369,7 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     if not wait_e2e_provider_ready():
-        pytest.fail(
-            "Provider not ready — seed WebUI model via chrome-e2e-model-seed.mjs"
-        )
+        pytest.fail("Provider not ready — seed WebUI model via chrome-e2e-model-seed.mjs")
 
     api_base = get_e2e_api_url()
     seed_live_e2e_providers(api_base)
@@ -453,6 +413,6 @@ async def test_subagent_approval_flow_approve_resumes_chrome_e2e(
     rows = http_json("GET", f"{api_base}/api/v1/chats/{chat_id}/subagents")
     data = rows.get("data") if isinstance(rows, dict) else None
     assert isinstance(data, list), rows
-    assert any(
-        isinstance(row, dict) and row.get("status") == "completed" for row in data
-    ), f"No completed subagent after approval: {rows}"
+    assert any(isinstance(row, dict) and row.get("status") == "completed" for row in data), (
+        f"No completed subagent after approval: {rows}"
+    )

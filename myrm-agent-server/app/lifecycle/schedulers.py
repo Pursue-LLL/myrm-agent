@@ -151,9 +151,7 @@ async def start_context_cleanup_scheduler() -> None:
                 # Keep scheduler reference for graceful shutdown
                 global _context_cleanup_scheduler
                 _context_cleanup_scheduler = scheduler
-                logger.info(
-                    "Context cleanup scheduler started (daily at 03:00, session-aware strategy)"
-                )
+                logger.info("Context cleanup scheduler started (daily at 03:00, session-aware strategy)")
                 # Run until cancelled
                 await asyncio.Event().wait()
 
@@ -245,9 +243,7 @@ async def _approval_ttl_job() -> None:
 
         rejected_count = await ApprovalRegistry.cleanup_expired_approvals()
         if rejected_count > 0:
-            logger.info(
-                "Approval TTL cleanup: %d expired approvals rejected", rejected_count
-            )
+            logger.info("Approval TTL cleanup: %d expired approvals rejected", rejected_count)
     except Exception as exc:
         logger.warning("Approval TTL cleanup failed: %s", exc)
 
@@ -331,9 +327,7 @@ async def start_cancellation_cleanup_scheduler() -> None:
                     IntervalTrigger(minutes=10),
                     id="cancellation_token_cleanup",
                 )
-                logger.info(
-                    "CancellationToken cleanup scheduler started (every 10 min)"
-                )
+                logger.info("CancellationToken cleanup scheduler started (every 10 min)")
                 await asyncio.Event().wait()
 
         _cancellation_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
@@ -357,9 +351,7 @@ async def stop_cancellation_cleanup_scheduler() -> None:
             pass
         logger.info("[Shutdown] CancellationToken cleanup scheduler stopped")
     except Exception as exc:
-        logger.error(
-            "[Shutdown] CancellationToken cleanup scheduler stop failed: %s", exc
-        )
+        logger.error("[Shutdown] CancellationToken cleanup scheduler stop failed: %s", exc)
     finally:
         _cancellation_cleanup_scheduler_task = None
 
@@ -496,9 +488,7 @@ async def _db_maintenance_job() -> None:
 
         cutoff = dt.utcnow() - timedelta(days=30)
         async with session_factory() as session:
-            expired_ids = await ChatRepository.get_expired_trashed_chat_ids(
-                session, cutoff
-            )
+            expired_ids = await ChatRepository.get_expired_trashed_chat_ids(session, cutoff)
             if expired_ids:
                 for cid in expired_ids:
                     await ConversationRecallIndexService.delete_chat(session, cid)
@@ -572,9 +562,7 @@ async def _incognito_cleanup_job() -> None:
 
         cutoff = dt.utcnow() - timedelta(hours=1)
         async with session_factory() as session:
-            stmt = select(Chat.id).where(
-                Chat.is_incognito.is_(True), Chat.updated_at < cutoff
-            )
+            stmt = select(Chat.id).where(Chat.is_incognito.is_(True), Chat.updated_at < cutoff)
             result = await session.execute(stmt)
             expired_incognito_ids = [row[0] for row in result.fetchall()]
 
@@ -582,9 +570,7 @@ async def _incognito_cleanup_job() -> None:
                 for cid in expired_incognito_ids:
                     await ConversationRecallIndexService.delete_chat(session, cid)
 
-                await session.execute(
-                    sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids))
-                )
+                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids)))
                 await session.commit()
                 logger.info(
                     "Incognito chat auto-purge: %d expired incognito chats permanently deleted",
@@ -639,9 +625,7 @@ async def start_db_maintenance_scheduler() -> None:
                 await asyncio.Event().wait()
 
         _db_maintenance_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info(
-            "Database maintenance scheduler started (every 6h: WAL checkpoint + Qdrant optimize)"
-        )
+        logger.info("Database maintenance scheduler started (every 6h: WAL checkpoint + Qdrant optimize)")
 
     except Exception as e:
         logger.error("Failed to start DB maintenance scheduler: %s", e)
@@ -672,9 +656,7 @@ async def start_login_session_cleanup_scheduler() -> None:
                 await asyncio.Event().wait()
 
         _login_session_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info(
-            "Login session cleanup scheduler started (every 5min: remove expired sessions)"
-        )
+        logger.info("Login session cleanup scheduler started (every 5min: remove expired sessions)")
 
     except Exception as exc:
         logger.error("Failed to start login session cleanup scheduler: %s", exc)
@@ -726,9 +708,7 @@ async def start_auth_log_cleanup_scheduler() -> None:
                 await asyncio.Event().wait()
 
         _auth_log_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info(
-            "Auth log cleanup scheduler started (daily at 04:00: remove old archives)"
-        )
+        logger.info("Auth log cleanup scheduler started (daily at 04:00: remove old archives)")
 
     except Exception as exc:
         logger.error("Failed to start auth log cleanup scheduler: %s", exc)

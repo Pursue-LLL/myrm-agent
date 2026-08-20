@@ -38,9 +38,7 @@ async def _seed_visible_agent(agent_id: str, *, display_name: str) -> None:
 
 @pytest.mark.integration
 class TestDeliverableLinkSeedIntegration:
-    def test_seed_creates_workspace_file_and_deliverable_markdown(
-        self, client: TestClient, tmp_path: Path
-    ) -> None:
+    def test_seed_creates_workspace_file_and_deliverable_markdown(self, client: TestClient, tmp_path: Path) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
         asyncio.run(_seed_visible_agent(agent_id, display_name="Deliverable Seed Agent"))
 

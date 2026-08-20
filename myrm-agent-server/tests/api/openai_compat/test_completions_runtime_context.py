@@ -86,9 +86,7 @@ async def test_chat_completions_non_stream_injects_runtime_context() -> None:
             _capture_stream(calls),
         ),
     ):
-        resp = await completions.chat_completions(
-            _request(stream=False), _key_prefix="test-key"
-        )
+        resp = await completions.chat_completions(_request(stream=False), _key_prefix="test-key")
 
     assert resp.model == "gpt-4o"
     assert calls

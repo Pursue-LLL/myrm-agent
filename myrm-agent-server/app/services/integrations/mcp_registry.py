@@ -99,11 +99,7 @@ class MCPRegistryService:
         except RuntimeError:
             loop_id = None
 
-        if (
-            self._client is None
-            or self._client.is_closed
-            or self._client_loop_id != loop_id
-        ):
+        if self._client is None or self._client.is_closed or self._client_loop_id != loop_id:
             self._client = httpx.AsyncClient(timeout=HTTP_TIMEOUT)
             self._client_loop_id = loop_id
         return self._client

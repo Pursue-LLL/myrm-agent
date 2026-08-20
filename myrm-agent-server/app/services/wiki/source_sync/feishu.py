@@ -71,9 +71,7 @@ async def sync_feishu_docs_to_wiki(
                 continue
             try:
                 safe_name = sanitize_path_segment(name)
-                relative_path = (
-                    f"feishu/{month}/{safe_name}-{sanitize_path_segment(file_token)}.md"
-                )
+                relative_path = f"feishu/{month}/{safe_name}-{sanitize_path_segment(file_token)}.md"
                 body = await _fetch_doc_markdown(
                     client,
                     file_token,
@@ -139,15 +137,11 @@ async def _resolve_feishu_client() -> FeishuClient | None:
         return None
 
     app_id = str(feishu_cfg.get("app_id") or feishu_cfg.get("appId") or "").strip()
-    app_secret = str(
-        feishu_cfg.get("app_secret") or feishu_cfg.get("appSecret") or ""
-    ).strip()
+    app_secret = str(feishu_cfg.get("app_secret") or feishu_cfg.get("appSecret") or "").strip()
     if not app_id or not app_secret:
         return None
 
-    use_lark = parse_bool(
-        str(feishu_cfg.get("use_lark") or feishu_cfg.get("useLark") or "false")
-    )
+    use_lark = parse_bool(str(feishu_cfg.get("use_lark") or feishu_cfg.get("useLark") or "false"))
     return FeishuClient(app_id, app_secret, use_lark=use_lark)
 
 
@@ -162,9 +156,7 @@ async def _fetch_doc_markdown(
     markdown = feishu_docx_blocks_to_markdown(payload)
     if not markdown:
         return None
-    return await _localize_feishu_images(
-        markdown, client, structure=structure, raw_relative=raw_relative
-    )
+    return await _localize_feishu_images(markdown, client, structure=structure, raw_relative=raw_relative)
 
 
 async def _localize_feishu_images(

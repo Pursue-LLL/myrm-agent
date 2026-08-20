@@ -44,12 +44,8 @@ _CHANNEL_LEVEL_KEY = "__channel__"
 _DEFAULT_IDLE_TIMEOUT_HOURS = 24
 _ACTIVE_FLUSH_INTERVAL = 300.0
 
-SEARCH_AGENT_CHANNEL_BIND_MSG = (
-    "Search agents cannot be bound to channels; choose a General agent."
-)
-_TOPIC_WORKSPACE_MUTUAL_EXCLUSIVE_MSG = (
-    "projectId and authorizedPath are mutually exclusive for topic workspace binding."
-)
+SEARCH_AGENT_CHANNEL_BIND_MSG = "Search agents cannot be bound to channels; choose a General agent."
+_TOPIC_WORKSPACE_MUTUAL_EXCLUSIVE_MSG = "projectId and authorizedPath are mutually exclusive for topic workspace binding."
 _UNSET: object = object()
 
 
@@ -138,11 +134,7 @@ class SqlTopicManager:
         await self._touch_active(channel, chat_id, storage_key, config)
 
         raw_reply_mode = str(topic_cfg.get("replyMode", "auto"))
-        reply_mode = (
-            ReplyMode(raw_reply_mode)
-            if raw_reply_mode in ReplyMode.__members__.values()
-            else ReplyMode.AUTO
-        )
+        reply_mode = ReplyMode(raw_reply_mode) if raw_reply_mode in ReplyMode.__members__.values() else ReplyMode.AUTO
         raw_timeout_action = str(topic_cfg.get("draftTimeoutAction", "auto_reject"))
         timeout_action = (
             DraftTimeoutAction(raw_timeout_action)
@@ -154,9 +146,7 @@ class SqlTopicManager:
             topic_id=thread_id or chat_id,
             agent_id=str(topic_cfg["agentId"]) if topic_cfg.get("agentId") else None,
             project_id=str(topic_cfg["projectId"]) if topic_cfg.get("projectId") else None,
-            authorized_path=(
-                str(topic_cfg["authorizedPath"]) if topic_cfg.get("authorizedPath") else None
-            ),
+            authorized_path=(str(topic_cfg["authorizedPath"]) if topic_cfg.get("authorizedPath") else None),
             enabled=bool(topic_cfg.get("enabled", True)),
             bound_at=str(topic_cfg["boundAt"]) if topic_cfg.get("boundAt") else None,
             thread_sharing_mode=str(topic_cfg.get("threadSharingMode", "isolated")),
@@ -212,9 +202,7 @@ class SqlTopicManager:
 
         if thread_sharing_mode is not _UNSET:
             mode_value = (
-                thread_sharing_mode.value
-                if isinstance(thread_sharing_mode, ThreadSharingMode)
-                else str(thread_sharing_mode)
+                thread_sharing_mode.value if isinstance(thread_sharing_mode, ThreadSharingMode) else str(thread_sharing_mode)
             )
             topic_entry["threadSharingMode"] = mode_value
         if reply_mode is not _UNSET:
@@ -258,36 +246,18 @@ class SqlTopicManager:
                 topic_entry.pop("authorizedPath", None)
 
         if project_id is _UNSET and authorized_path is _UNSET:
-            resolved_project_id = (
-                str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
-            )
-            resolved_authorized_path = (
-                str(topic_entry["authorizedPath"])
-                if topic_entry.get("authorizedPath")
-                else None
-            )
+            resolved_project_id = str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
+            resolved_authorized_path = str(topic_entry["authorizedPath"]) if topic_entry.get("authorizedPath") else None
         elif project_id is _UNSET:
-            resolved_project_id = (
-                str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
-            )
+            resolved_project_id = str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
         elif authorized_path is _UNSET:
-            resolved_authorized_path = (
-                str(topic_entry["authorizedPath"])
-                if topic_entry.get("authorizedPath")
-                else None
-            )
+            resolved_authorized_path = str(topic_entry["authorizedPath"]) if topic_entry.get("authorizedPath") else None
 
         await self._upsert_topic(channel, chat_id, storage_key, topic_entry)
 
         raw_reply_mode = str(topic_entry.get("replyMode", ReplyMode.AUTO.value))
-        effective_reply_mode = (
-            ReplyMode(raw_reply_mode)
-            if raw_reply_mode in ReplyMode.__members__.values()
-            else ReplyMode.AUTO
-        )
-        raw_timeout_action = str(
-            topic_entry.get("draftTimeoutAction", DraftTimeoutAction.AUTO_REJECT.value)
-        )
+        effective_reply_mode = ReplyMode(raw_reply_mode) if raw_reply_mode in ReplyMode.__members__.values() else ReplyMode.AUTO
+        raw_timeout_action = str(topic_entry.get("draftTimeoutAction", DraftTimeoutAction.AUTO_REJECT.value))
         effective_timeout_action = (
             DraftTimeoutAction(raw_timeout_action)
             if raw_timeout_action in DraftTimeoutAction.__members__.values()
@@ -296,9 +266,7 @@ class SqlTopicManager:
 
         return TopicContext(
             topic_id=thread_id or chat_id,
-            agent_id=(
-                str(topic_entry["agentId"]) if topic_entry.get("agentId") else None
-            ),
+            agent_id=(str(topic_entry["agentId"]) if topic_entry.get("agentId") else None),
             project_id=resolved_project_id,
             authorized_path=resolved_authorized_path,
             enabled=True,
@@ -337,9 +305,7 @@ class SqlTopicManager:
 
         return False
 
-    async def _touch_active(
-        self, channel: str, chat_id: str, storage_key: str, config: dict[str, object]
-    ) -> None:
+    async def _touch_active(self, channel: str, chat_id: str, storage_key: str, config: dict[str, object]) -> None:
         """Update last-active timestamp in cache and persist to DB at intervals."""
         mem_key = f"{channel}:{chat_id}:{storage_key}"
         now_mono = time.monotonic()
@@ -369,9 +335,7 @@ class SqlTopicManager:
             from app.database.models import UserConfig
 
             async with get_session() as session:
-                result = await session.execute(
-                    select(UserConfig).where(UserConfig.config_key.like("%Topics"))
-                )
+                result = await session.execute(select(UserConfig).where(UserConfig.config_key.like("%Topics")))
                 rows = result.scalars().all()
 
                 changed_channels = []
@@ -386,10 +350,7 @@ class SqlTopicManager:
                             continue
 
                         for storage_key, topic_cfg in list(group_topics.items()):
-                            if (
-                                isinstance(topic_cfg, dict)
-                                and topic_cfg.get("agentId") == agent_id
-                            ):
+                            if isinstance(topic_cfg, dict) and topic_cfg.get("agentId") == agent_id:
                                 # Remove the binding completely
                                 del group_topics[storage_key]
                                 changed = True
@@ -403,11 +364,7 @@ class SqlTopicManager:
                         row.config_value = config
                         session.add(row)
                         # Extract channel name from config_key (e.g., "telegramTopics" -> "telegram")
-                        channel_name = (
-                            row.config_key[:-6]
-                            if row.config_key.endswith("Topics")
-                            else row.config_key
-                        )
+                        channel_name = row.config_key[:-6] if row.config_key.endswith("Topics") else row.config_key
                         changed_channels.append(channel_name)
 
                 if changed_channels:
@@ -421,9 +378,7 @@ class SqlTopicManager:
                         )
 
         except Exception as exc:
-            logger.warning(
-                "SqlTopicManager: failed to cascade delete agent %s: %s", agent_id, exc
-            )
+            logger.warning("SqlTopicManager: failed to cascade delete agent %s: %s", agent_id, exc)
 
     async def get_all_topics(self, channel: str) -> dict[str, object]:
         """Get all topics for a channel (used by API).
@@ -489,9 +444,7 @@ class SqlTopicManager:
             return False
         return str(meta.get("prompt_mode", "full")) == "search"
 
-    async def _sanitize_unbindable_bindings(
-        self, channel: str, config: dict[str, object]
-    ) -> bool:
+    async def _sanitize_unbindable_bindings(self, channel: str, config: dict[str, object]) -> bool:
         changed = False
         for chat_id, group_topics in list(config.items()):
             if not isinstance(group_topics, dict):
@@ -632,9 +585,7 @@ class SqlTopicManager:
 
             self._invalidate_cache(channel)
         except Exception as exc:
-            logger.warning(
-                "SqlTopicManager: failed to save %s topics: %s", channel, exc
-            )
+            logger.warning("SqlTopicManager: failed to save %s topics: %s", channel, exc)
 
     async def _load_config(self, channel: str) -> dict[str, object]:
         now = time.monotonic()
@@ -662,9 +613,7 @@ class SqlTopicManager:
             self._cache[channel] = data
             return data
         except Exception as exc:
-            logger.warning(
-                "SqlTopicManager: failed to load %s topics: %s", channel, exc
-            )
+            logger.warning("SqlTopicManager: failed to load %s topics: %s", channel, exc)
             return self._cache.get(channel, {})
 
     def _invalidate_cache(self, channel: str) -> None:

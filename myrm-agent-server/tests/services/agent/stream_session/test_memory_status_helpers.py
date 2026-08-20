@@ -15,9 +15,7 @@ def test_normalize_memory_injection_applied_with_source() -> None:
 
 
 def test_normalize_memory_injection_not_applied_with_reason() -> None:
-    payload = normalize_memory_injection(
-        {"state": "not_applied", "reason": "recall_mode_tools"}
-    )
+    payload = normalize_memory_injection({"state": "not_applied", "reason": "recall_mode_tools"})
     assert payload == {"state": "not_applied", "reason": "recall_mode_tools"}
 
 
@@ -189,4 +187,3 @@ def test_normalize_memory_injection_records_unknown_reason(monkeypatch) -> None:
 
     assert payload == {"state": "not_applied"}
     assert unknown_counter.calls == [{"field": "injection_reason", "kind": "unrecognized_reason"}]
-

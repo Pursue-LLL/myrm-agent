@@ -63,21 +63,15 @@ async def _build_eval_manifest(
                 else:
                     model_id = resolved.model
             if resolved.engine_params:
-                thinking_effort = str(
-                    resolved.engine_params.get("thinking_effort", "default")
-                )
-                max_tokens_value = resolved.engine_params.get(
-                    "max_tokens", budget_max_tokens
-                )
+                thinking_effort = str(resolved.engine_params.get("thinking_effort", "default"))
+                max_tokens_value = resolved.engine_params.get("max_tokens", budget_max_tokens)
                 if isinstance(max_tokens_value, int):
                     budget_max_tokens = max_tokens_value
                 elif isinstance(max_tokens_value, str) and max_tokens_value.isdigit():
                     budget_max_tokens = int(max_tokens_value)
             tool_policy = list(resolved.enabled_builtin_tools)
             if resolved.system_prompt:
-                prompt_fingerprint = hashlib.sha256(
-                    resolved.system_prompt.encode("utf-8")
-                ).hexdigest()
+                prompt_fingerprint = hashlib.sha256(resolved.system_prompt.encode("utf-8")).hexdigest()
 
     if model_id == "unknown":
         # Model not declared by the profile (or no profile selected): fall
@@ -97,9 +91,7 @@ async def _build_eval_manifest(
     else:
         try:
             task_set_hash = hashlib.sha256(pickle.dumps(external_cases)).hexdigest()
-        except (
-            Exception
-        ):  # noqa: BLE001 - fall back to a stable marker on any serialization edge case
+        except Exception:  # noqa: BLE001 - fall back to a stable marker on any serialization edge case
             task_set_hash = f"external-{dataset_id}"
 
     return EvalManifest(

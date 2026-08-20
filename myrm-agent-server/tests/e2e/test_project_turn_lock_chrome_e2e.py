@@ -158,9 +158,7 @@ def _dump_e2e_diag(client: object, page: object, *, label: str) -> dict[str, obj
         return {}
 
 
-def _seed_turn_lock_fixture(
-    api_url: str, *, hold_ms: int | None = None
-) -> dict[str, object]:
+def _seed_turn_lock_fixture(api_url: str, *, hold_ms: int | None = None) -> dict[str, object]:
     qs = f"?hold_ms={hold_ms}" if hold_ms is not None else ""
     seeded = http_json(
         "POST",
@@ -335,9 +333,7 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
         f"{api_url}/api/v1/projects/test/turn-lock-status?project_id={project_id}",
     )
     assert isinstance(lock_probe, dict), lock_probe
-    assert lock_probe.get("locked") is True, (
-        f"seed must hold the project lock before send; probe={lock_probe}"
-    )
+    assert lock_probe.get("locked") is True, f"seed must hold the project lock before send; probe={lock_probe}"
 
     warm_ui_route(chat_path)
     chat_url = f"{ui_url}{chat_path}"
@@ -352,9 +348,7 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
         )
         attach_js = _ATTACH_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id))
         attach_raw = client.evaluate(page, attach_js, timeout_sec=30.0)
-        attach_state = (
-            attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
-        )
+        attach_state = attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
         assert attach_state.get("ok") is True, attach_state
 
         # Lock still held (hold_ms=0, released explicitly below) → the send is
@@ -381,12 +375,7 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
             )
         assert send_result.get("ok") is True, send_result
         chat_id_resolved = (
-            str(
-                send_result.get("chatId")
-                or (send_result.get("debug") or {}).get("chatId")
-                or ""
-            ).strip()
-            or chat_id
+            str(send_result.get("chatId") or (send_result.get("debug") or {}).get("chatId") or "").strip() or chat_id
         )
 
         _dump_e2e_diag(client, page, label="post-send")
@@ -405,9 +394,7 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
         # also assert the i18n title is really rendered into the DOM after
         # expanding the progress-steps panel (true end-user visibility check).
         expand_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
-        expand_state = (
-            expand_raw if isinstance(expand_raw, dict) else json.loads(str(expand_raw))
-        )
+        expand_state = expand_raw if isinstance(expand_raw, dict) else json.loads(str(expand_raw))
         assert expand_state.get("ok") is True, expand_state
         dom_state = _wait_dom_waiting(client, page, timeout_sec=15.0)
         assert dom_state.get("ready") is True, dom_state
@@ -431,8 +418,7 @@ def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
                 break
             time.sleep(0.5)
         assert ok_state.get("ready") is True, (
-            f"Expected assistant OK after lock released; state={ok_state!r} "
-            f"chat_id={chat_id_resolved}"
+            f"Expected assistant OK after lock released; state={ok_state!r} chat_id={chat_id_resolved}"
         )
 
 
@@ -474,9 +460,7 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
         f"{api_url}/api/v1/projects/test/turn-lock-status?project_id={project_id}",
     )
     assert isinstance(lock_probe, dict), lock_probe
-    assert lock_probe.get("locked") is True, (
-        f"seed must hold the project lock before send; probe={lock_probe}"
-    )
+    assert lock_probe.get("locked") is True, f"seed must hold the project lock before send; probe={lock_probe}"
 
     warm_ui_route(chat_path)
     chat_url = f"{ui_url}{chat_path}"
@@ -493,9 +477,7 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
         )
         attach_js = _ATTACH_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id))
         attach_raw = client.evaluate(page, attach_js, timeout_sec=30.0)
-        attach_state = (
-            attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
-        )
+        attach_state = attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
         assert attach_state.get("ok") is True, attach_state
 
         # 第一次发送：锁被 seed 持有（hold_ms=0，显式释放前一直持有）→ 必然进入等待
@@ -506,9 +488,7 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
 
         # 真实用户点击停止：stopMessage 路径取消 + 同步清除 waiting 步骤
         abort_raw = client.evaluate(page, _ABORT_STREAM_JS, timeout_sec=10.0)
-        abort_state = (
-            abort_raw if isinstance(abort_raw, dict) else json.loads(str(abort_raw))
-        )
+        abort_state = abort_raw if isinstance(abort_raw, dict) else json.loads(str(abort_raw))
         assert abort_state.get("ok") is True, abort_state
 
         cleared_state = _wait_waiting_cleared(client, page, timeout_sec=20.0)
@@ -517,9 +497,7 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
         # DOM 层验证取消后的同步清除。先展开进度面板，确保 waiting 文案
         # 若残留会真实渲染进 DOM；折叠态下断言会无意义地通过。
         pre_expand_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
-        pre_expand_state = (
-            pre_expand_raw if isinstance(pre_expand_raw, dict) else json.loads(str(pre_expand_raw))
-        )
+        pre_expand_state = pre_expand_raw if isinstance(pre_expand_raw, dict) else json.loads(str(pre_expand_raw))
         assert pre_expand_state.get("ok") is True, pre_expand_state
         dom_cleared_state = _wait_dom_waiting_cleared(client, page, timeout_sec=15.0)
         assert dom_cleared_state.get("ready") is False, dom_cleared_state
@@ -549,9 +527,7 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
 
         # DOM 层验证：展开面板后 i18n 等待文案真实渲染（与第一个测试一致）。
         expand2_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
-        expand2_state = (
-            expand2_raw if isinstance(expand2_raw, dict) else json.loads(str(expand2_raw))
-        )
+        expand2_state = expand2_raw if isinstance(expand2_raw, dict) else json.loads(str(expand2_raw))
         assert expand2_state.get("ok") is True, expand2_state
         dom2_state = _wait_dom_waiting(client, page, timeout_sec=15.0)
         assert dom2_state.get("ready") is True, dom2_state
@@ -569,6 +545,5 @@ def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
                 break
             time.sleep(0.5)
         assert ok_state.get("ready") is True, (
-            f"Expected second turn assistant OK after lock release; "
-            f"state={ok_state!r} chat_id={chat_id}"
+            f"Expected second turn assistant OK after lock release; state={ok_state!r} chat_id={chat_id}"
         )

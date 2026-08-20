@@ -156,9 +156,7 @@ async def run_eval_suite_background(
     )
 
     try:
-        await run_eval_suite(
-            dataset_id, reports_dir, profile_id, benchmark_mode=benchmark_mode
-        )
+        await run_eval_suite(dataset_id, reports_dir, profile_id, benchmark_mode=benchmark_mode)
     except Exception as exc:
         logger.exception("Evaluation suite failed")
         _eval_state["error"] = str(exc)
@@ -369,9 +367,7 @@ async def run_eval_suite(
             cases_path.parent.mkdir(parents=True, exist_ok=True)
             with cases_path.open("w", encoding="utf-8") as f:
                 f.write('{"message": "Hello, world!"}\n')
-                f.write(
-                    '{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n'
-                )
+                f.write('{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n')
 
         from myrm_agent_harness.eval import load_multi_turn_cases
 
@@ -380,9 +376,7 @@ async def run_eval_suite(
         # Group cases by profile_id to maximize LLM Prompt Cache hits
         cases.sort(key=lambda c: str(c.metadata.get("profile_id", "default")))
         grouped_cases = []
-        for _, group in groupby(
-            cases, key=lambda c: str(c.metadata.get("profile_id", "default"))
-        ):
+        for _, group in groupby(cases, key=lambda c: str(c.metadata.get("profile_id", "default"))):
             grouped_cases.extend(list(group))
         cases = grouped_cases
 
@@ -480,9 +474,5 @@ async def run_eval_suite(
         "report_path": str(report_path),
         "decontam_active": bool(blocked_hostnames or blocked_terms),
         "manifest": manifest.to_dict(),
-        **(
-            {"avg_pass_rate": result.avg_pass_rate}
-            if result.avg_pass_rate is not None
-            else {}
-        ),
+        **({"avg_pass_rate": result.avg_pass_rate} if result.avg_pass_rate is not None else {}),
     }

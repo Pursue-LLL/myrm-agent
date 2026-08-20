@@ -92,9 +92,7 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
     approved_items = [item for item in items if item.get("status") == "approved"]
     if seeded_ok:
         delta_items = [item for item in approved_items if item.get("quality_delta")]
-        assert len(delta_items) > 0, (
-            "Expected at least one approved item with quality_delta after seeding"
-        )
+        assert len(delta_items) > 0, "Expected at least one approved item with quality_delta after seeding"
         sample_delta = delta_items[0]["quality_delta"]
         assert "before_score" in sample_delta, "quality_delta should contain before_score"
         assert isinstance(sample_delta["before_score"], (int, float)), "before_score should be numeric"
@@ -120,7 +118,9 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
         except AssertionError:
             # Fallback: if user not logged in (no session), panel won't render
             # Validate via snapshot that the page at least loaded correctly
-            snapshot = client.evaluate(page, """(() => {
+            snapshot = client.evaluate(
+                page,
+                """(() => {
               return {
                 url: location.href,
                 hasSkillsTab: /\\/settings\\/skills/.test(location.pathname),
@@ -128,7 +128,9 @@ def test_evolution_delta_badge_renders_in_history_panel() -> None:
                 visibleTabs: Array.from(document.querySelectorAll('[role="tab"]'))
                   .map(el => el.textContent?.trim() || ''),
               };
-            })()""", timeout_sec=5.0)
+            })()""",
+                timeout_sec=5.0,
+            )
             # If the page loaded but panel isn't visible, it's a user-session/auth issue
             # API verification (steps 1-4) already proves the backend feature works
             assert isinstance(snapshot, dict)

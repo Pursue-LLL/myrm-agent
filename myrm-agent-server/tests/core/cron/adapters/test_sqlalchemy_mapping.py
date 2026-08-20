@@ -47,9 +47,7 @@ def test_normalize_monitor_config_payload_canonicalizes_legacy_shape() -> None:
 
 
 def test_normalize_job_monitor_config_in_place_rewrites_row_payload() -> None:
-    row = SimpleNamespace(
-        monitor_config={"monitor_type": "TIMESERIES", "ttl_days": "14", "enabled": 1, "extra": "unused"}
-    )
+    row = SimpleNamespace(monitor_config={"monitor_type": "TIMESERIES", "ttl_days": "14", "enabled": 1, "extra": "unused"})
     changed = _normalize_job_monitor_config_in_place(row)
     assert changed is True
     assert row.monitor_config == {

@@ -64,9 +64,7 @@ async def test_send_via_control_plane_http_error() -> None:
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
     with (
-        patch.object(
-            cp_egress_client.settings.control_plane, "url", "https://cp.example"
-        ),
+        patch.object(cp_egress_client.settings.control_plane, "url", "https://cp.example"),
         patch.dict(
             "os.environ",
             {

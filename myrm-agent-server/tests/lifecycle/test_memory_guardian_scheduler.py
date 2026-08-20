@@ -36,9 +36,7 @@ class TestPatternDiscoveryDelegation:
     """The manual-trigger API entry must transparently forward to the trigger module."""
 
     @pytest.mark.asyncio
-    async def test_run_pattern_discovery_once_forwards_result(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_run_pattern_discovery_once_forwards_result(self, monkeypatch: pytest.MonkeyPatch) -> None:
         payload = {
             "triggered": True,
             "skipped": True,
@@ -57,13 +55,9 @@ class TestPatternDiscoveryDelegation:
         assert result == payload
 
     @pytest.mark.asyncio
-    async def test_run_pattern_discovery_once_propagates_failure(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_run_pattern_discovery_once_propagates_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         trigger = MagicMock()
-        trigger.run_pattern_discovery_once = AsyncMock(
-            side_effect=RuntimeError("boom")
-        )
+        trigger.run_pattern_discovery_once = AsyncMock(side_effect=RuntimeError("boom"))
         monkeypatch.setattr(
             "app.lifecycle.pattern_discovery_trigger.run_pattern_discovery_once",
             trigger.run_pattern_discovery_once,
@@ -119,15 +113,5 @@ class TestPatternDiscoveryDue:
     def test_due_non_default_interval(self) -> None:
         now = 1_000_000.0
         last = now - 25 * 3600
-        assert (
-            memory_guardian._pattern_discovery_due(
-                now=now, last=last, interval_hours=24
-            )
-            is True
-        )
-        assert (
-            memory_guardian._pattern_discovery_due(
-                now=now, last=last, interval_hours=26
-            )
-            is False
-        )
+        assert memory_guardian._pattern_discovery_due(now=now, last=last, interval_hours=24) is True
+        assert memory_guardian._pattern_discovery_due(now=now, last=last, interval_hours=26) is False

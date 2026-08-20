@@ -9,6 +9,7 @@ from . import rules as workspace_rules
 router = APIRouter()
 router.include_router(workspace_rules.router)
 
+
 @router.get("/stream")
 async def workspace_stream() -> StreamingResponse:
     """Subscribe to the multiplexed workspace stream."""

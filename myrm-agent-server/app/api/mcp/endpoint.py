@@ -145,9 +145,7 @@ class _MCPTokenAuthMiddleware:
         try:
             manager = await _memory_manager_for_agent(resolved.agent_id)
             ctx_token = set_request_memory_manager(manager)
-            wiki_token = set_request_wiki_boundary_enabled(
-                await _wiki_boundary_enabled_for_agent(resolved.agent_id)
-            )
+            wiki_token = set_request_wiki_boundary_enabled(await _wiki_boundary_enabled_for_agent(resolved.agent_id))
             service.mark_ready(resolved.profile_id)
             await self.app(scope, receive, send)
         except Exception:

@@ -50,11 +50,7 @@ def make_extraction_lifecycle_observer(
         if not resolved_chat_id:
             return
 
-        kind = (
-            MemoryOperationKind.WRITE
-            if phase == "write"
-            else MemoryOperationKind.EXTRACT
-        )
+        kind = MemoryOperationKind.WRITE if phase == "write" else MemoryOperationKind.EXTRACT
         meta: dict[str, JsonScalar] = {"chat_id": resolved_chat_id, "phase": phase}
         if is_retry:
             meta["is_retry"] = True
@@ -85,14 +81,8 @@ def make_extraction_lifecycle_observer(
                 phase == "extract"
                 and status == MemoryOperationStatus.SUCCESS
                 and (
-                    (
-                        isinstance(meta.get("stored_count"), int)
-                        and meta["stored_count"] > 0
-                    )
-                    or (
-                        isinstance(meta.get("verbatim_count"), int)
-                        and meta["verbatim_count"] > 0
-                    )
+                    (isinstance(meta.get("stored_count"), int) and meta["stored_count"] > 0)
+                    or (isinstance(meta.get("verbatim_count"), int) and meta["verbatim_count"] > 0)
                 )
             ):
                 count = meta.get("stored_count") or meta.get("verbatim_count")
@@ -116,12 +106,7 @@ def make_extraction_lifecycle_observer(
         except Exception as exc:
             logger.warning("Failed to record extraction lifecycle event: %s", exc)
 
-        if (
-            phase == "extract"
-            and status == MemoryOperationStatus.ERROR
-            and source == "auto_extract_memories"
-            and not is_retry
-        ):
+        if phase == "extract" and status == MemoryOperationStatus.ERROR and source == "auto_extract_memories" and not is_retry:
             try:
                 from app.services.memory.extract_retry.extract_retry_queue import enqueue
 

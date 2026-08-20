@@ -21,9 +21,7 @@ def test_is_search_agent_channel_bind_error() -> None:
 @pytest.mark.asyncio
 async def test_bind_topic_rejects_search_agent() -> None:
     manager = SqlTopicManager()
-    search_agent = MagicMock(
-        id="builtin-fast-search", metadata={"prompt_mode": "search"}
-    )
+    search_agent = MagicMock(id="builtin-fast-search", metadata={"prompt_mode": "search"})
 
     with (
         patch.object(
@@ -40,9 +38,7 @@ async def test_bind_topic_rejects_search_agent() -> None:
         patch.object(manager, "_upsert_topic", new_callable=AsyncMock) as mock_upsert,
     ):
         with pytest.raises(ValueError, match=SEARCH_AGENT_CHANNEL_BIND_MSG):
-            await manager.bind_topic(
-                "telegram", "chat-1", None, agent_id="builtin-fast-search"
-            )
+            await manager.bind_topic("telegram", "chat-1", None, agent_id="builtin-fast-search")
 
     mock_upsert.assert_not_called()
 
@@ -50,9 +46,7 @@ async def test_bind_topic_rejects_search_agent() -> None:
 @pytest.mark.asyncio
 async def test_bind_topic_rejects_deep_search_agent() -> None:
     manager = SqlTopicManager()
-    search_agent = MagicMock(
-        id="builtin-deep-search", metadata={"prompt_mode": "search"}
-    )
+    search_agent = MagicMock(id="builtin-deep-search", metadata={"prompt_mode": "search"})
 
     with (
         patch.object(
@@ -69,9 +63,7 @@ async def test_bind_topic_rejects_deep_search_agent() -> None:
         patch.object(manager, "_upsert_topic", new_callable=AsyncMock) as mock_upsert,
     ):
         with pytest.raises(ValueError, match=SEARCH_AGENT_CHANNEL_BIND_MSG):
-            await manager.bind_topic(
-                "telegram", "chat-1", None, agent_id="builtin-deep-search"
-            )
+            await manager.bind_topic("telegram", "chat-1", None, agent_id="builtin-deep-search")
 
     mock_upsert.assert_not_called()
 
@@ -114,14 +106,10 @@ async def test_resolve_topic_purges_search_agent_binding() -> None:
             },
         },
     }
-    search_agent = MagicMock(
-        id="builtin-fast-search", metadata={"prompt_mode": "search"}
-    )
+    search_agent = MagicMock(id="builtin-fast-search", metadata={"prompt_mode": "search"})
 
     with (
-        patch.object(
-            manager, "_load_config", new_callable=AsyncMock, return_value=config
-        ),
+        patch.object(manager, "_load_config", new_callable=AsyncMock, return_value=config),
         patch.object(manager, "_save_config", new_callable=AsyncMock) as mock_save,
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
@@ -155,9 +143,7 @@ async def test_get_all_topics_strips_search_bindings() -> None:
             },
         },
     }
-    search_agent = MagicMock(
-        id="builtin-deep-search", metadata={"prompt_mode": "search"}
-    )
+    search_agent = MagicMock(id="builtin-deep-search", metadata={"prompt_mode": "search"})
     general_agent = MagicMock(id="general-1", metadata={"prompt_mode": "full"})
 
     async def _get_agent(agent_id: str) -> MagicMock | None:
@@ -168,9 +154,7 @@ async def test_get_all_topics_strips_search_bindings() -> None:
         return None
 
     with (
-        patch.object(
-            manager, "_load_config", new_callable=AsyncMock, return_value=config
-        ),
+        patch.object(manager, "_load_config", new_callable=AsyncMock, return_value=config),
         patch.object(manager, "_save_config", new_callable=AsyncMock) as mock_save,
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
@@ -204,9 +188,7 @@ async def test_bind_topic_rejects_missing_agent() -> None:
         patch.object(manager, "_upsert_topic", new_callable=AsyncMock) as mock_upsert,
     ):
         with pytest.raises(ValueError, match="Agent not found: missing-agent"):
-            await manager.bind_topic(
-                "telegram", "chat-1", None, agent_id="missing-agent"
-            )
+            await manager.bind_topic("telegram", "chat-1", None, agent_id="missing-agent")
 
     mock_upsert.assert_not_called()
 
@@ -226,9 +208,7 @@ async def test_resolve_topic_purges_missing_agent_binding() -> None:
     }
 
     with (
-        patch.object(
-            manager, "_load_config", new_callable=AsyncMock, return_value=config
-        ),
+        patch.object(manager, "_load_config", new_callable=AsyncMock, return_value=config),
         patch.object(manager, "_save_config", new_callable=AsyncMock) as mock_save,
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
@@ -246,12 +226,8 @@ async def test_resolve_topic_purges_missing_agent_binding() -> None:
 def test_agent_is_search_track_metadata_edges() -> None:
     assert not SqlTopicManager._agent_is_search_track(MagicMock(metadata=None))
     assert not SqlTopicManager._agent_is_search_track(MagicMock(metadata="not-a-dict"))
-    assert not SqlTopicManager._agent_is_search_track(
-        MagicMock(metadata={"prompt_mode": "full"})
-    )
-    assert SqlTopicManager._agent_is_search_track(
-        MagicMock(metadata={"prompt_mode": "search"})
-    )
+    assert not SqlTopicManager._agent_is_search_track(MagicMock(metadata={"prompt_mode": "full"}))
+    assert SqlTopicManager._agent_is_search_track(MagicMock(metadata={"prompt_mode": "search"}))
 
 
 @pytest.mark.asyncio
@@ -295,9 +271,7 @@ async def test_resolve_topic_keeps_general_agent_binding() -> None:
     general_agent = MagicMock(id="general-1", metadata={"prompt_mode": "full"})
 
     with (
-        patch.object(
-            manager, "_load_config", new_callable=AsyncMock, return_value=config
-        ),
+        patch.object(manager, "_load_config", new_callable=AsyncMock, return_value=config),
         patch.object(manager, "_touch_active", new_callable=AsyncMock),
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",

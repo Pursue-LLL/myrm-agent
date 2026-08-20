@@ -166,6 +166,7 @@ async def test_custom_agent_factory_ensure_initialized(monkeypatch) -> None:
         "app.platform_utils.get_storage_provider",
         lambda: SimpleNamespace(),
     )
+
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
         return SimpleNamespace(
             enabled_prebuilt_ids=["alpha-skill"],
@@ -212,6 +213,7 @@ async def test_custom_agent_factory_ensure_initialized_loads_mcp_configs(monkeyp
         "app.platform_utils.get_storage_provider",
         lambda: SimpleNamespace(),
     )
+
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
         return SimpleNamespace(
             enabled_prebuilt_ids=["mcp-skill"],
@@ -223,6 +225,7 @@ async def test_custom_agent_factory_ensure_initialized_loads_mcp_configs(monkeyp
         "app.core.skills.store.user_config.UserSkillConfigManager.get_config",
         fake_get_user_skill_config,
     )
+
     async def fake_load_user_configs() -> FakeConfigs:
         return FakeConfigs()
 
@@ -948,6 +951,7 @@ async def test_custom_agent_factory_ensure_initialized_concurrent_inner_skip(mon
         "app.platform_utils.get_storage_provider",
         lambda: SimpleNamespace(),
     )
+
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
         return SimpleNamespace(
             enabled_prebuilt_ids=["concurrent-skill"],
@@ -986,6 +990,7 @@ async def test_custom_agent_factory_ensure_initialized_mcp_failure_is_non_fatal(
         "app.platform_utils.get_storage_provider",
         lambda: SimpleNamespace(),
     )
+
     async def fake_get_user_skill_config(self: object) -> SimpleNamespace:
         return SimpleNamespace(
             enabled_prebuilt_ids=["safe-default"],

@@ -31,9 +31,7 @@ _DUPLICATE_BODY = "# Wiki dedup E2E fixture\n\nShared duplicate body for Chrome 
 
 @router.post("/test/seed-wiki-dedup-fixture", include_in_schema=False)
 async def seed_wiki_dedup_fixture(
-    agent_id: str | None = Query(
-        default=None, description="Optional agent wiki vault scope"
-    ),
+    agent_id: str | None = Query(default=None, description="Optional agent wiki vault scope"),
 ) -> dict[str, object]:
     """Local dev/test only: write duplicate raw files and run dedup scan."""
     if not is_local_mode():

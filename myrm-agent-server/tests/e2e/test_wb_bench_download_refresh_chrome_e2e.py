@@ -37,9 +37,7 @@ from tests.support.wb_bench_e2e_helpers import (
 )
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -58,9 +56,7 @@ def test_wb_bench_download_refresh_and_buttons_chrome_e2e() -> None:
     ):
         restore_eval_lab_route(client, page, f"{ui_url}{EVAL_LAB_PATH}")
         dismiss_blocking_modals(client, page)
-        sources_ready = wait_for_state(
-            client, page, SOURCES_READY_JS, timeout_sec=120.0
-        )
+        sources_ready = wait_for_state(client, page, SOURCES_READY_JS, timeout_sec=120.0)
         assert sources_ready.get("ready") is True, sources_ready
 
         clicked = client.evaluate(page, click_subset_download_js("WBBench Web"))
@@ -78,9 +74,7 @@ def test_wb_bench_download_refresh_and_buttons_chrome_e2e() -> None:
         # At least the 4 cards must render their buttons; all must be disabled.
         assert all_disabled.get("ready") is True, all_disabled
 
-        downloaded = wait_for_state(
-            client, page, subset_downloaded_js("WBBench Web"), timeout_sec=300.0
-        )
+        downloaded = wait_for_state(client, page, subset_downloaded_js("WBBench Web"), timeout_sec=300.0)
         assert downloaded.get("ready") is True, downloaded
 
         # Manual refresh re-pulls the catalog; the downloaded state must persist.

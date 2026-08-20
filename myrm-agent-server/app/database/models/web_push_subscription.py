@@ -27,9 +27,5 @@ class WebPushSubscription(Base):
     auth: Mapped[str] = mapped_column(Text, nullable=False)
     user_agent: Mapped[str] = mapped_column(String(512), nullable=False, default="")
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    last_used_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

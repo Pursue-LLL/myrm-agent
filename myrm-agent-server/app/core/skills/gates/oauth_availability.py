@@ -47,9 +47,7 @@ LINEAR_PROJECT_SKILL_ID = "linear-project"
 IMAP_SMTP_EMAIL_SKILL_ID = "imap-smtp-email"
 XURL_SKILL_ID = "xurl"
 
-GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE = (
-    "Connect Google Workspace in Settings → Integrations → Credentials"
-)
+GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE = "Connect Google Workspace in Settings → Integrations → Credentials"
 X_LIVE_SEARCH_UNAVAILABLE = (
     "Add an xAI provider in Settings → Models & Providers, "
     "or connect your SuperGrok token in Settings → Integrations → Credentials"
@@ -87,10 +85,7 @@ INTEGRATION_SKILL_UNAVAILABLE_REASONS: dict[str, str] = {
 }
 
 ALL_INTEGRATION_GATED_SKILL_IDS = (
-    set(INTEGRATION_SKILL_ISSUERS)
-    | set(INTEGRATION_SKILL_ENV_VARS)
-    | set(INTEGRATION_SKILL_BINS)
-    | {X_LIVE_SEARCH_SKILL_ID}
+    set(INTEGRATION_SKILL_ISSUERS) | set(INTEGRATION_SKILL_ENV_VARS) | set(INTEGRATION_SKILL_BINS) | {X_LIVE_SEARCH_SKILL_ID}
 )
 
 
@@ -99,11 +94,7 @@ def _metadata_skill_id(meta: SkillMetadata) -> str:
 
 
 async def _issuer_connected_map(db: AsyncSession, skill_ids: set[str]) -> dict[str, bool]:
-    issuers = {
-        skill_id: issuer
-        for skill_id, issuer in INTEGRATION_SKILL_ISSUERS.items()
-        if skill_id in skill_ids
-    }
+    issuers = {skill_id: issuer for skill_id, issuer in INTEGRATION_SKILL_ISSUERS.items() if skill_id in skill_ids}
     if not issuers:
         return {}
 
@@ -197,9 +188,7 @@ async def apply_integration_oauth_to_metadata(
     db: AsyncSession,
 ) -> None:
     """Apply the same integration availability rules to Agent runtime SkillMetadata."""
-    relevant_ids = {
-        _metadata_skill_id(meta) for meta in skills if _metadata_skill_id(meta) in ALL_INTEGRATION_GATED_SKILL_IDS
-    }
+    relevant_ids = {_metadata_skill_id(meta) for meta in skills if _metadata_skill_id(meta) in ALL_INTEGRATION_GATED_SKILL_IDS}
     if not relevant_ids:
         return
 

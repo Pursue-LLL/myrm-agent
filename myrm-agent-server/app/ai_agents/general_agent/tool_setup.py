@@ -107,37 +107,26 @@ def _configured_media_api_key(api_key: str | None) -> bool:
 def _media_gateway_configured(gateway_config: dict[str, object] | None) -> bool:
     if not gateway_config:
         return False
-    use_gateway = bool(
-        gateway_config.get("use_gateway") or gateway_config.get("useGateway")
-    )
+    use_gateway = bool(gateway_config.get("use_gateway") or gateway_config.get("useGateway"))
     if not use_gateway:
         return False
     auth_token = gateway_config.get("auth_token") or gateway_config.get("authToken")
     gateway_url = gateway_config.get("gateway_url") or gateway_config.get("gatewayUrl")
-    return bool(
-        auth_token
-        and str(auth_token).strip()
-        and gateway_url
-        and str(gateway_url).strip()
-    )
+    return bool(auth_token and str(auth_token).strip() and gateway_url and str(gateway_url).strip())
 
 
 def _is_media_credential_configured(
     api_key: str | None,
     gateway_config: dict[str, object] | None,
 ) -> bool:
-    return _configured_media_api_key(api_key) or _media_gateway_configured(
-        gateway_config
-    )
+    return _configured_media_api_key(api_key) or _media_gateway_configured(gateway_config)
 
 
 def _video_generation_credential_configured(params: VideoGenerationParams) -> bool:
     if _is_media_credential_configured(params.api_key, params.gateway_config):
         return True
     return any(
-        _configured_media_api_key(
-            str(fb.get("api_key")) if fb.get("api_key") is not None else None
-        )
+        _configured_media_api_key(str(fb.get("api_key")) if fb.get("api_key") is not None else None)
         for fb in params.fallback_providers
         if isinstance(fb, dict)
     )
@@ -198,15 +187,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             tools.append(create_x_live_search_tool())
-            logger.info(
-                "Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID
-            )
+            logger.info("Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID)
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
 
-    def _setup_skill_market_tool(
-        self, tools: list[object], market_backend: object
-    ) -> None:
+    def _setup_skill_market_tool(self, tools: list[object], market_backend: object) -> None:
         """Turn1 mount skill_market_tool via server product layer (not get_meta_tools)."""
         from myrm_agent_harness.agent.meta_tools.skills.market import (
             create_skill_market_tool,
@@ -271,9 +256,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         )
 
         reranker_cfg = self.reranker_config if self.enable_advanced_retrieval else None
-        embedding_cfg = (
-            self.embedding_config if self.enable_advanced_retrieval else None
-        )
+        embedding_cfg = self.embedding_config if self.enable_advanced_retrieval else None
 
         sufficiency_cfg = None
         sufficiency_llm = None
@@ -309,14 +292,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     allow_private_networks=_is_local(),
                     sufficiency_config=sufficiency_cfg,
                     sufficiency_llm_config=sufficiency_llm,
-                    blocked_hostnames=getattr(self, "benchmark_blocked_hostnames", ())
-                    or None,
+                    blocked_hostnames=getattr(self, "benchmark_blocked_hostnames", ()) or None,
                     description_locale=tool_description_locale,
                 )
             )
-            logger.info(
-                "Loaded web_fetch_tool [Turn1 baseline, no search API required]"
-            )
+            logger.info("Loaded web_fetch_tool [Turn1 baseline, no search API required]")
 
         if self.enable_web_search and self.search_service_cfg:
             tools.append(
@@ -327,15 +307,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_llm_config=sufficiency_llm,
                     description_locale=tool_description_locale,
                     blocked_terms=getattr(self, "benchmark_blocked_terms", ()) or None,
-                    blocked_hostnames=getattr(self, "benchmark_blocked_hostnames", ())
-                    or None,
+                    blocked_hostnames=getattr(self, "benchmark_blocked_hostnames", ()) or None,
                 )
             )
 
-            logger.info(
-                f"🔍 已加载 web_search_tool "
-                f"(advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})"
-            )
+            logger.info(f"🔍 已加载 web_search_tool (advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})")
 
         self._setup_x_live_search_tool(tools)
 
@@ -354,22 +330,16 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 update_ui_data_tool,
             )
 
-            workspace_roots: tuple[str, ...] = getattr(
-                self, "declared_allowed_roots", ()
-            )
+            workspace_roots: tuple[str, ...] = getattr(self, "declared_allowed_roots", ())
             if workspace_roots:
                 try:
                     seed_reference_to_workspace(Path(workspace_roots[0]))
                 except OSError as exc:
-                    logger.warning(
-                        "Failed to seed A2UI reference to workspace: %s", exc
-                    )
+                    logger.warning("Failed to seed A2UI reference to workspace: %s", exc)
 
             tools.append(render_ui_tool)
             tools.append(update_ui_data_tool)
-            logger.info(
-                "🎨 已加载 render_ui_tool / update_ui_data_tool（交互式 UI）[Turn1]"
-            )
+            logger.info("🎨 已加载 render_ui_tool / update_ui_data_tool（交互式 UI）[Turn1]")
 
         self._setup_image_generation_tools(
             tools,
@@ -434,9 +404,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
         params = self.image_generation_params
         if not _is_media_credential_configured(params.api_key, params.gateway_config):
-            logger.debug(
-                "Image generation tool skipped: no API key or gateway configured"
-            )
+            logger.debug("Image generation tool skipped: no API key or gateway configured")
             return
 
         try:
@@ -505,9 +473,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
         params = self.video_generation_params
         if not _video_generation_credential_configured(params):
-            logger.debug(
-                "Video generation tool skipped: no API key or gateway configured"
-            )
+            logger.debug("Video generation tool skipped: no API key or gateway configured")
             return
 
         try:
@@ -568,11 +534,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _create_video_media_callback(self) -> MediaCallback | None:
         """Create a media_callback for persisting generated videos to the media library."""
         return self._create_media_persist_callback(
-            model_name=(
-                self.video_generation_params.model
-                if self.video_generation_params
-                else None
-            ),
+            model_name=(self.video_generation_params.model if self.video_generation_params else None),
             source="video_generate",
         )
 
@@ -633,9 +595,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             create_media_persist_callback,
         )
 
-        chat_id = (
-            self._current_chat_id if hasattr(self, "_current_chat_id") else self.chat_id
-        )
+        chat_id = self._current_chat_id if hasattr(self, "_current_chat_id") else self.chat_id
         return create_media_persist_callback(
             chat_id=chat_id,
             model_name=model_name,
@@ -658,9 +618,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         if resolve_channel_type(channel) == ChannelType.WEB_CHAT:
             return None
 
-        recipient = getattr(self, "memory_conversation_id", None) or getattr(
-            self, "chat_id", None
-        )
+        recipient = getattr(self, "memory_conversation_id", None) or getattr(self, "chat_id", None)
         if not recipient:
             return None
         return DeliveryConfig(channel=channel, target=str(recipient))
@@ -731,9 +689,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 chat_id=self.chat_id,
                 agent_id=self.agent_id,
                 blueprint_filler=_blueprint_filler,
-                blueprint_catalog_provider=lambda: get_blueprints_for_tool_description(
-                    agent_locale
-                ),
+                blueprint_catalog_provider=lambda: get_blueprints_for_tool_description(agent_locale),
                 delivery_resolver=resolve_cron_delivery,
                 default_delivery=self._resolve_cron_default_delivery(),
             )
@@ -768,11 +724,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             on_conflict = create_conflict_callback(agent_id=self.agent_id)
             on_consolidation_complete = None
-            if (
-                self.enable_wiki
-                and not self.incognito_mode
-                and self._lite_llm is not None
-            ):
+            if self.enable_wiki and not self.incognito_mode and self._lite_llm is not None:
                 from app.services.wiki.consolidation_bridge import (
                     make_consolidation_wiki_bridge,
                 )
@@ -808,9 +760,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             search_policy = MemorySearchPolicy(
                 allow_wiki=bool(self.enable_wiki and not self.incognito_mode),
-                allow_sessions=bool(
-                    self.enable_conversation_search and not self.incognito_mode
-                ),
+                allow_sessions=bool(self.enable_conversation_search and not self.incognito_mode),
             )
             query_wiki = None
             wiki_structure = None
@@ -819,14 +769,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 from app.services.wiki.vault import get_wiki_archiver
 
                 lite_llm = self._lite_llm
-                wiki_structure = get_wiki_archiver(
-                    lite_llm, manager, agent_id=self.agent_id
-                )._structure
+                wiki_structure = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)._structure
 
                 async def _query_wiki(question: str):
-                    archiver = get_wiki_archiver(
-                        lite_llm, manager, agent_id=self.agent_id
-                    )
+                    archiver = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)
                     return await archiver.query_wiki(question)
 
                 query_wiki = _query_wiki
@@ -921,13 +867,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 local_mode=is_local_mode(),
             )
             if merged_security.network_allowlist:
-                domain_allowlist = DomainAllowlist.from_strings(
-                    merged_security.network_allowlist
-                )
+                domain_allowlist = DomainAllowlist.from_strings(merged_security.network_allowlist)
             if merged_security.network_blocklist:
-                domain_blocklist = DomainAllowlist.from_strings(
-                    merged_security.network_blocklist
-                )
+                domain_blocklist = DomainAllowlist.from_strings(merged_security.network_blocklist)
 
             thread_id = self.approval_session_key or f"chat_{effective_chat_id}"
             self._current_thread_id = thread_id
@@ -951,9 +893,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             if recording_mode and recording_mode != "off":
                 from app.config.settings import get_settings
 
-                recordings_dir = str(
-                    Path(get_settings().database.harness_dir) / "recordings"
-                )
+                recordings_dir = str(Path(get_settings().database.harness_dir) / "recordings")
                 observability = BrowserObservability(
                     RecordingConfig(
                         enabled=True,
@@ -995,13 +935,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
                 bridge = SessionMemoryBridge(memory_manager)
                 browser_session.set_session_lifecycle_hook(bridge)
-                logger.info(
-                    "SessionMemoryBridge wired: browser sessions → memory profile"
-                )
+                logger.info("SessionMemoryBridge wired: browser sessions → memory profile")
 
-            logger.warning(
-                f"BrowserSession created: context_key={browser_context_key} (thread_id={thread_id})"
-            )
+            logger.warning(f"BrowserSession created: context_key={browser_context_key} (thread_id={thread_id})")
 
             browser_tools = create_browser_tools(browser_session)
             # Browser tools are high frequency if enabled
@@ -1058,9 +994,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             tools.append(create_artifact_publish_tool())
-            logger.info(
-                "Loaded artifact_publish tool [conditional, hosting configured]"
-            )
+            logger.info("Loaded artifact_publish tool [conditional, hosting configured]")
         except Exception as e:
             logger.debug("artifact_publish tool skipped: %s", e)
 
@@ -1081,24 +1015,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
             from app.config.deploy_mode import is_local_mode, is_sandbox
 
             constraints = _select_image_constraints(self.model_cfg.model)
-            workspace_root = (
-                self.declared_allowed_roots[0]
-                if getattr(self, "declared_allowed_roots", ())
-                else None
-            )
-            auto_grant = (
-                is_sandbox()
-                and is_computer_use_deploy_supported()
-                and not is_local_mode()
-            )
-            execution_mode = (
-                ExecutionMode.background_strict
-                if is_local_mode()
-                else ExecutionMode.background_best_effort
-            )
-            gate = DesktopControlGate(
-                workspace_root=workspace_root, auto_grant=auto_grant
-            )
+            workspace_root = self.declared_allowed_roots[0] if getattr(self, "declared_allowed_roots", ()) else None
+            auto_grant = is_sandbox() and is_computer_use_deploy_supported() and not is_local_mode()
+            execution_mode = ExecutionMode.background_strict if is_local_mode() else ExecutionMode.background_best_effort
+            gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=auto_grant)
             config_kwargs: dict[str, object] = {"execution_mode": execution_mode}
             if constraints:
                 config_kwargs["image_constraints"] = constraints

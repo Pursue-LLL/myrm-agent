@@ -217,10 +217,7 @@ def test_agent_stream_kanban_default_board_id_prefers_chat_board(
             break
 
     if "kanban_add_task" not in invoked:
-        pytest.skip(
-            "model did not invoke kanban_add_task after 2 attempts; "
-            f"invoked={sorted(invoked)}"
-        )
+        pytest.skip(f"model did not invoke kanban_add_task after 2 attempts; invoked={sorted(invoked)}")
 
     task = _find_task_by_title(client, _E2E_PREFERRED_BOARD_TITLE)
     assert task is not None, f"Expected task {_E2E_PREFERRED_BOARD_TITLE!r} in store"
@@ -281,10 +278,7 @@ def test_agent_stream_kanban_add_task_persists_model_override(
             break
 
     if "kanban_add_task" not in invoked:
-        pytest.skip(
-            "model did not invoke kanban_add_task after 2 attempts; "
-            f"invoked={sorted(invoked)}"
-        )
+        pytest.skip(f"model did not invoke kanban_add_task after 2 attempts; invoked={sorted(invoked)}")
 
     task = _find_task_by_title(client, _E2E_MODEL_OVERRIDE_TITLE)
     assert task is not None, (

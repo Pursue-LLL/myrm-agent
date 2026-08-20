@@ -49,10 +49,7 @@ def _wait_running_subagent_on_api(
             for row in data:
                 if not isinstance(row, dict):
                     continue
-                if (
-                    str(row.get("task_id") or "") == task_id
-                    and row.get("status") == "running"
-                ):
+                if str(row.get("task_id") or "") == task_id and row.get("status") == "running":
                     return
         time.sleep(2.0)
     raise AssertionError(f"Subagent {task_id} never reached running on API: {last!r}")
@@ -67,9 +64,7 @@ def _hydrate_subagent_tree(
 ) -> dict[str, object]:
     payload = http_json("GET", f"{get_e2e_api_url()}/api/v1/chats/{chat_id}/subagents")
     data = payload.get("data") if isinstance(payload, dict) else None
-    rows: list[dict[str, object]] = (
-        [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
-    )
+    rows: list[dict[str, object]] = [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
     if fallback_rows:
         fallback_ids = {str(row.get("task_id") or "") for row in fallback_rows}
         rows = [
@@ -101,9 +96,7 @@ def _hydrate_subagent_tree(
     return raw if isinstance(raw, dict) else {"value": raw}
 
 
-def _read_prepare_result(
-    process: subprocess.Popen[str], timeout_sec: float
-) -> dict[str, object]:
+def _read_prepare_result(process: subprocess.Popen[str], timeout_sec: float) -> dict[str, object]:
     if process.stdout is None:
         raise RuntimeError("Subagent prepare stdout is unavailable")
     selector = selectors.DefaultSelector()
@@ -116,9 +109,7 @@ def _read_prepare_result(
                 remainder = process.stdout.read()
                 if remainder:
                     diagnostics.extend(remainder.splitlines())
-                raise RuntimeError(
-                    f"Subagent prepare exited {process.returncode}: {diagnostics[-20:]}"
-                )
+                raise RuntimeError(f"Subagent prepare exited {process.returncode}: {diagnostics[-20:]}")
             events = selector.select(timeout=min(1.0, deadline - time.monotonic()))
             if not events:
                 continue
@@ -152,9 +143,7 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
-    fallback_rows: list[dict[str, object]] = [
-        row for row in [tree_row] if isinstance(row, dict)
-    ]
+    fallback_rows: list[dict[str, object]] = [row for row in [tree_row] if isinstance(row, dict)]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
     _wait_running_subagent_on_api(
         chat_id,
@@ -182,9 +171,7 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             }})()""",
             timeout_sec=90.0,
         )
-        assert (
-            attach_result.get("ready") is True
-        ), f"attachToChat failed: {attach_result}"
+        assert attach_result.get("ready") is True, f"attachToChat failed: {attach_result}"
         shell = wait_for_state(
             client,
             page,
@@ -229,9 +216,7 @@ def test_subagent_dashboard_lists_and_cancels_running_task(
             if trigger.get("ready") is True:
                 break
             time.sleep(1.0)
-        assert (
-            trigger.get("ready") is True
-        ), f"Subagent dashboard trigger missing: {trigger}; lastHydrate={last_hydrate}"
+        assert trigger.get("ready") is True, f"Subagent dashboard trigger missing: {trigger}; lastHydrate={last_hydrate}"
         clicked = client.evaluate(
             page,
             """(() => {
@@ -361,9 +346,7 @@ def _open_subagent_dashboard(
         if trigger.get("ready") is True:
             break
         time.sleep(1.0)
-    assert (
-        trigger.get("ready") is True
-    ), f"Subagent dashboard trigger missing: {trigger}; lastHydrate={last_hydrate}"
+    assert trigger.get("ready") is True, f"Subagent dashboard trigger missing: {trigger}; lastHydrate={last_hydrate}"
     clicked = client.evaluate(
         page,
         """(() => {
@@ -400,9 +383,7 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
-    fallback_rows: list[dict[str, object]] = [
-        row for row in [tree_row] if isinstance(row, dict)
-    ]
+    fallback_rows: list[dict[str, object]] = [row for row in [tree_row] if isinstance(row, dict)]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
     _wait_running_subagent_on_api(chat_id, task_id)
 
@@ -440,9 +421,7 @@ def test_subagent_dashboard_delegation_pause_toggle_roundtrip(
             }})()""",
             timeout_sec=60.0,
         )
-        assert (
-            pause_cycle.get("ready") is True
-        ), f"Delegation pause toggle failed: {pause_cycle}"
+        assert pause_cycle.get("ready") is True, f"Delegation pause toggle failed: {pause_cycle}"
 
 
 @pytest.mark.chrome_e2e(
@@ -559,17 +538,13 @@ def test_subagent_dashboard_shows_token_and_cost_budget_used_limit(
             })()""",
             timeout_sec=30.0,
         )
-        assert (
-            display.get("ready") is True
-        ), f"Budget used/limit not rendered: {display}"
+        assert display.get("ready") is True, f"Budget used/limit not rendered: {display}"
         token_title = str(display.get("tokenTitle") or "")
-        assert (
-            "12,345" in token_title and "/" in token_title and "100,000" in token_title
-        ), f"Token budget tooltip missing: {display}"
+        assert "12,345" in token_title and "/" in token_title and "100,000" in token_title, (
+            f"Token budget tooltip missing: {display}"
+        )
         cost_title = str(display.get("costTitle") or "")
-        assert (
-            "$0.500" in cost_title and "/" in cost_title and "$2.50" in cost_title
-        ), f"Cost budget tooltip missing: {display}"
+        assert "$0.500" in cost_title and "/" in cost_title and "$2.50" in cost_title, f"Cost budget tooltip missing: {display}"
 
 
 @pytest.mark.chrome_e2e(
@@ -588,9 +563,7 @@ def test_subagent_dashboard_canvas_topology_renders_and_locates(
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
-    fallback_rows: list[dict[str, object]] = [
-        row for row in [tree_row] if isinstance(row, dict)
-    ]
+    fallback_rows: list[dict[str, object]] = [row for row in [tree_row] if isinstance(row, dict)]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
 
     with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
@@ -625,9 +598,7 @@ def test_subagent_dashboard_canvas_topology_renders_and_locates(
             })()""",
             timeout_sec=30.0,
         )
-        assert (
-            canvas.get("ready") is True
-        ), f"Canvas topology not rendered: {canvas}"
+        assert canvas.get("ready") is True, f"Canvas topology not rendered: {canvas}"
         clicked = client.evaluate(
             page,
             """(() => {
@@ -654,9 +625,7 @@ def test_subagent_dashboard_canvas_topology_renders_and_locates(
             })()""",
             timeout_sec=30.0,
         )
-        assert (
-            located.get("ready") is True
-        ), f"Click-to-locate did not return to tree view: {located}"
+        assert located.get("ready") is True, f"Click-to-locate did not return to tree view: {located}"
 
 
 @pytest.mark.chrome_e2e(
@@ -675,9 +644,7 @@ def test_subagent_dashboard_canvas_merges_fission_topology(
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
-    fallback_rows: list[dict[str, object]] = [
-        row for row in [tree_row] if isinstance(row, dict)
-    ]
+    fallback_rows: list[dict[str, object]] = [row for row in [tree_row] if isinstance(row, dict)]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
 
     with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
@@ -735,9 +702,7 @@ def test_subagent_dashboard_canvas_merges_fission_topology(
             })()""",
             timeout_sec=30.0,
         )
-        assert (
-            merged.get("ready") is True
-        ), f"Fission topology not merged into canvas: {merged}"
+        assert merged.get("ready") is True, f"Fission topology not merged into canvas: {merged}"
         assert int(merged.get("nodeCount") or 0) >= 3, f"Expected >=3 canvas nodes: {merged}"
 
 
@@ -757,9 +722,7 @@ def test_subagent_dashboard_tree_renders_gantt_fission_and_filter(
     task_id = str(running_subagent.get("taskId") or "")
     assert chat_id and task_id
     tree_row = running_subagent.get("treeRow")
-    fallback_rows: list[dict[str, object]] = [
-        row for row in [tree_row] if isinstance(row, dict)
-    ]
+    fallback_rows: list[dict[str, object]] = [row for row in [tree_row] if isinstance(row, dict)]
     ui_url = str(running_subagent.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
 
     with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
@@ -826,13 +789,9 @@ def test_subagent_dashboard_tree_renders_gantt_fission_and_filter(
             })()""",
             timeout_sec=30.0,
         )
-        assert (
-            tree_view.get("ready") is True
-        ), f"Fission summary or gantt missing: {tree_view}"
+        assert tree_view.get("ready") is True, f"Fission summary or gantt missing: {tree_view}"
         summary_text = str(tree_view.get("summaryText") or "")
-        assert (
-            "/3" in summary_text and "1" in summary_text
-        ), f"Fission partial progress (1/3) not rendered: {tree_view}"
+        assert "/3" in summary_text and "1" in summary_text, f"Fission partial progress (1/3) not rendered: {tree_view}"
         summary_cls = client.evaluate(
             page,
             """(() => {
@@ -841,9 +800,9 @@ def test_subagent_dashboard_tree_renders_gantt_fission_and_filter(
             })()""",
             timeout_sec=5.0,
         )
-        assert (
-            isinstance(summary_cls, str) and "border-amber" in summary_cls
-        ), f"Fission failed summary should use warning style: {summary_cls}"
+        assert isinstance(summary_cls, str) and "border-amber" in summary_cls, (
+            f"Fission failed summary should use warning style: {summary_cls}"
+        )
         gantt_expanded = client.evaluate(
             page,
             """(() => {

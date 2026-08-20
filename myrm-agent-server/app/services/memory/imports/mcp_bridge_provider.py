@@ -154,9 +154,7 @@ class MCPBridgeProvider(IntegrationProvider):
 
     # ── Internal ─────────────────────────────────────────────────────
 
-    def _inject_since_cursor(
-        self, params: dict[str, object], since_cursor: str
-    ) -> None:
+    def _inject_since_cursor(self, params: dict[str, object], since_cursor: str) -> None:
         """Inject since_cursor into params if the tool schema accepts a time filter.
 
         Inspects the detected tool's input schema for common incremental-fetch
@@ -175,11 +173,7 @@ class MCPBridgeProvider(IntegrationProvider):
                 if isinstance(schema, dict):
                     schema_fields = set(schema.get("properties", {}))
                 else:
-                    schema_fields = (
-                        set(schema.model_fields)
-                        if hasattr(schema, "model_fields")
-                        else set()
-                    )
+                    schema_fields = set(schema.model_fields) if hasattr(schema, "model_fields") else set()
                     if not schema_fields:
                         schema_props = getattr(schema, "schema", lambda: {})()
                         schema_fields = set(schema_props.get("properties", {}))
@@ -209,9 +203,7 @@ class MCPBridgeProvider(IntegrationProvider):
                         )
                         return name
         except Exception as exc:
-            logger.warning(
-                "Failed to detect fetch tool for '%s': %s", self._server_name, exc
-            )
+            logger.warning("Failed to detect fetch tool for '%s': %s", self._server_name, exc)
         return ""
 
     def _parse_results(self, raw: object, max_items: int) -> list[IntegrationLeaf]:
@@ -256,27 +248,14 @@ class MCPBridgeProvider(IntegrationProvider):
         """Convert a single result item dict to an IntegrationLeaf."""
         title = str(item.get("title") or item.get("name") or item.get("subject") or "")
         content = str(
-            item.get("content")
-            or item.get("text")
-            or item.get("body")
-            or item.get("description")
-            or item.get("snippet")
-            or "",
+            item.get("content") or item.get("text") or item.get("body") or item.get("description") or item.get("snippet") or "",
         )
 
         if len(title) + len(content) < _MIN_CONTENT_LENGTH:
             return None
 
-        ext_id = str(
-            item.get("id")
-            or item.get("url")
-            or item.get("uri")
-            or item.get("external_id")
-            or ""
-        )
-        source_type = str(
-            item.get("type") or item.get("object") or item.get("kind") or "document"
-        )
+        ext_id = str(item.get("id") or item.get("url") or item.get("uri") or item.get("external_id") or "")
+        source_type = str(item.get("type") or item.get("object") or item.get("kind") or "document")
 
         safe_metadata: dict[str, str | int | float | bool] = {}
         for k, v in item.items():

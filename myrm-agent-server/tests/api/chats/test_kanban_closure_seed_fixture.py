@@ -16,9 +16,7 @@ def client() -> TestClient:
 class TestChatsKanbanClosureSeedFixture:
     """HTTP tests for local-only Kanban Chat↔Board closure Chrome E2E seed (no LLM)."""
 
-    def test_seed_kanban_closure_fixture_http_endpoint(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_kanban_closure_fixture_http_endpoint(self, client: TestClient) -> None:
         fake_agent = MagicMock()
         fake_agent.id = "agent-e2e-kanban"
         fake_board = MagicMock()
@@ -41,9 +39,7 @@ class TestChatsKanbanClosureSeedFixture:
                 "app.api.chats.test_fixtures._kanban.ChatService.append_message",
                 new_callable=AsyncMock,
             ) as append_message,
-            patch(
-                "app.api.chats.test_fixtures._kanban.KanbanService.get_instance"
-            ) as get_kanban,
+            patch("app.api.chats.test_fixtures._kanban.KanbanService.get_instance") as get_kanban,
         ):
             kanban = MagicMock()
             kanban.create_board = AsyncMock(return_value=fake_board)
@@ -60,9 +56,7 @@ class TestChatsKanbanClosureSeedFixture:
         assert body["task_id"] == "task-e2e-1"
         assert body["task_title"].startswith("Closure task ")
         assert body["ui_path"] == f"/{chat_id}"
-        assert body["board_deep_link_path"] == (
-            f"/settings/kanban?source_chat={chat_id}&board_id=board-e2e-1"
-        )
+        assert body["board_deep_link_path"] == (f"/settings/kanban?source_chat={chat_id}&board_id=board-e2e-1")
         assert append_message.await_count == 2
         assistant_call = append_message.await_args_list[1]
         extra_data = assistant_call.kwargs["extra_data"]
@@ -74,9 +68,7 @@ class TestChatsKanbanClosureSeedFixture:
             }
         ]
 
-    def test_seed_kanban_closure_fixture_hidden_outside_local_mode(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_kanban_closure_fixture_hidden_outside_local_mode(self, client: TestClient) -> None:
         with patch("app.api.chats.test_fixtures._kanban.is_local_mode", return_value=False):
             resp = client.post("/api/v1/chats/test/seed-kanban-closure-fixture")
         assert resp.status_code == 404

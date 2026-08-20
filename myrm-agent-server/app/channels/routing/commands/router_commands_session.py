@@ -34,6 +34,7 @@ from .commands import (
 
 logger = logging.getLogger("app.channels.routing.router")
 
+
 class RouterCommandsSessionMixin:
     """Mixin: /new, /compact, /retry, /undo, and topic commands."""
 

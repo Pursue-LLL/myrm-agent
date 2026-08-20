@@ -146,9 +146,7 @@ def list_wb_bench_sources() -> list[dict[str, object]]:
                 "task_count": subset.task_count,
                 "approx_size_mb": subset.approx_size_mb,
                 "is_downloaded": (local_root / "tasks").is_dir(),
-                "local_size_bytes": (
-                    archive_path.stat().st_size if archive_path.exists() else 0
-                ),
+                "local_size_bytes": (archive_path.stat().st_size if archive_path.exists() else 0),
                 "scoring": _scoring_mode_for(subset),
             }
         )
@@ -215,9 +213,7 @@ def _atomic_install(archive_path: Path, subset: WbBenchSubset) -> Path:
             # The archive may extract a single top-level directory with any name.
             candidates = [p for p in stage.iterdir() if p.is_dir()]
             if len(candidates) != 1:
-                raise ValueError(
-                    f"Unexpected archive layout for {subset.archive}: {[p.name for p in candidates]}"
-                )
+                raise ValueError(f"Unexpected archive layout for {subset.archive}: {[p.name for p in candidates]}")
             installed = candidates[0]
         if target.exists():
             shutil.rmtree(target)
@@ -265,9 +261,7 @@ async def ensure_wb_bench_source(
     expected = await asyncio.to_thread(_fetch_expected_sha256, subset)
     if should_abort and should_abort():
         raise DownloadAbortedError(f"Download of {subset.archive} aborted")
-    if archive_path.exists() and await asyncio.to_thread(
-        _verify_sha256, archive_path, expected
-    ):
+    if archive_path.exists() and await asyncio.to_thread(_verify_sha256, archive_path, expected):
         logger.info("Reusing existing archive for %s", subset_id)
     else:
         logger.info("Downloading WBBench %s (%d MB)…", subset_id, subset.approx_size_mb)
@@ -314,9 +308,7 @@ async def _download_archive(
                     with tmp.open("wb") as f:
                         async for chunk in resp.aiter_bytes(CHUNK_SIZE):
                             if should_abort and should_abort():
-                                raise DownloadAbortedError(
-                                    f"Download of {subset.archive} aborted"
-                                )
+                                raise DownloadAbortedError(f"Download of {subset.archive} aborted")
                             f.write(chunk)
                             downloaded += len(chunk)
                             if progress_callback:
@@ -344,9 +336,7 @@ async def _download_archive(
             tmp.unlink(missing_ok=True)
         if attempt < max_retries:
             await asyncio.sleep(DOWNLOAD_BACKOFF_BASE_S * (2**attempt))
-    raise ValueError(
-        f"Failed to download {subset.archive} after {max_retries + 1} attempts: {last_error}"
-    )
+    raise ValueError(f"Failed to download {subset.archive} after {max_retries + 1} attempts: {last_error}")
 
 
 # Subsets whose grading is task-native (each task ships its own verifier

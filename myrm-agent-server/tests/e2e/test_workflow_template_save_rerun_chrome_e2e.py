@@ -22,6 +22,7 @@ def _workflow_template_id() -> str:
     suffix = run_id[:12] if run_id else uuid.uuid4().hex[:12]
     return f"e2e-dw-rerun-{suffix}"
 
+
 from cdp_chat.support import (  # noqa: E402
     DISMISS_MODALS_JS,
     E2E_API_BINDING_PROBE_JS,
@@ -172,9 +173,7 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
         binding = client.evaluate(page, E2E_API_BINDING_PROBE_JS, timeout_sec=10.0)
         assert isinstance(binding, dict), binding
         bound_api = str(binding.get("apiBase") or "").rstrip("/")
-        assert bound_api == api_base, (
-            f"E2E API binding drift: bound={bound_api!r} expected={api_base!r}"
-        )
+        assert bound_api == api_base, f"E2E API binding drift: bound={bound_api!r} expected={api_base!r}"
 
         prepared = client.evaluate(page, _PREPARE_DW_TURN_JS, timeout_sec=60.0)
         assert isinstance(prepared, dict), prepared
@@ -222,13 +221,10 @@ def test_workflow_template_save_and_pinned_rerun_chrome_e2e(
         )
         save_message_id = stream_message_id or _resolve_dw_stream_message_id(client, page)
         assert save_message_id, (
-            f"Missing stream request messageId for save-from-run "
-            f"(kickoff={kickoff}, stream_done={stream_done})"
+            f"Missing stream request messageId for save-from-run (kickoff={kickoff}, stream_done={stream_done})"
         )
         sample = str(stream_done.get("sample") or "")
-        assert "myrm_tools" not in sample.lower(), (
-            f"DW run failed before script persist: {stream_done}"
-        )
+        assert "myrm_tools" not in sample.lower(), f"DW run failed before script persist: {stream_done}"
 
         saved = http_json(
             "POST",

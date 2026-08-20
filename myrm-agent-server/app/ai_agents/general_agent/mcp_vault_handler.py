@@ -76,9 +76,6 @@ def build_mcp_vault_handler(workspace_root: str) -> Callable[[str, str], str | N
         else:
             summary = head
 
-        return (
-            f"{summary}\n\n[Full result stored in vault: {pointer}]\n"
-            f'To read full content: file_read_tool(paths=["{pointer}"])'
-        )
+        return f'{summary}\n\n[Full result stored in vault: {pointer}]\nTo read full content: file_read_tool(paths=["{pointer}"])'
 
     return _handler

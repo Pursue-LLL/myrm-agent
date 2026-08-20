@@ -59,39 +59,44 @@ async def apply_acceptance_criteria_verification(
         )
     except asyncio.TimeoutError:
         logger.warning(
-            "Acceptance criteria verification timed out for job %s", job.id,
+            "Acceptance criteria verification timed out for job %s",
+            job.id,
         )
         return _with_verification_metadata(
-            result, status="error", passed=None,
+            result,
+            status="error",
+            passed=None,
             summary="Acceptance criteria verification timed out",
             success_override=False,
         )
     except Exception as exc:
         logger.warning(
-            "Acceptance criteria verification error for job %s: %s", job.id, exc,
+            "Acceptance criteria verification error for job %s: %s",
+            job.id,
+            exc,
         )
         return result
 
     if verification.passed:
         logger.info("Cron job %s passed acceptance criteria", job.id)
         return _with_verification_metadata(
-            result, status="pass", passed=True,
+            result,
+            status="pass",
+            passed=True,
             summary=f"All {len(gatekeeper.criteria)} acceptance criteria passed",
         )
 
-    failed_criteria = [
-        {"label": r.criterion_label, "reason": r.reason}
-        for r in verification.per_criterion
-        if not r.passed
-    ]
-    summary = "; ".join(
-        f"{c['label']}: {c['reason']}" for c in failed_criteria[:3]
-    )
+    failed_criteria = [{"label": r.criterion_label, "reason": r.reason} for r in verification.per_criterion if not r.passed]
+    summary = "; ".join(f"{c['label']}: {c['reason']}" for c in failed_criteria[:3])
     logger.warning(
-        "Cron job %s failed acceptance criteria: %s", job.id, failed_criteria,
+        "Cron job %s failed acceptance criteria: %s",
+        job.id,
+        failed_criteria,
     )
     return _with_verification_metadata(
-        result, status="fail", passed=False,
+        result,
+        status="fail",
+        passed=False,
         summary=f"{len(failed_criteria)} criterion(s) failed — {summary}",
         success_override=False,
     )

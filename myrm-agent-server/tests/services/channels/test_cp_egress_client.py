@@ -21,9 +21,7 @@ async def test_send_via_control_plane_returns_none_when_message_id_missing() -> 
     mock_client.__aexit__.return_value = None
 
     with (
-        patch.object(
-            cp_egress_client.settings.control_plane, "url", "https://cp.example"
-        ),
+        patch.object(cp_egress_client.settings.control_plane, "url", "https://cp.example"),
         patch.dict(
             "os.environ",
             {
@@ -58,9 +56,7 @@ async def test_send_via_control_plane_returns_message_id_on_success() -> None:
     mock_client.__aexit__.return_value = None
 
     with (
-        patch.object(
-            cp_egress_client.settings.control_plane, "url", "https://cp.example"
-        ),
+        patch.object(cp_egress_client.settings.control_plane, "url", "https://cp.example"),
         patch.dict(
             "os.environ",
             {

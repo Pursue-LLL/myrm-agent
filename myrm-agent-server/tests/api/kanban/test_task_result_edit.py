@@ -416,9 +416,7 @@ class TestRequireApprovalGuard:
             TaskStatus.ARCHIVED,
         ],
     )
-    def test_review_and_terminal_states_reject_change(
-        self, client: TestClient, status: TaskStatus
-    ) -> None:
+    def test_review_and_terminal_states_reject_change(self, client: TestClient, status: TaskStatus) -> None:
         board = _create_board(client)
         task = _create_task(client, str(board["board_id"]), "LockedToggle")
         tid = str(task["task_id"])

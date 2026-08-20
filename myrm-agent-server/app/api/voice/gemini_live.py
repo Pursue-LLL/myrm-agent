@@ -38,7 +38,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(verify_voice_enabled)])
 
-_GEMINI_LIVE_WS_BASE = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+_GEMINI_LIVE_WS_BASE = (
+    "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+)
 _DEFAULT_GEMINI_LIVE_MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 
 
@@ -160,27 +162,56 @@ _GEMINI_TOOL_CATALOG: dict[str, GeminiFunctionDeclaration] = {
     "web_search": GeminiFunctionDeclaration(
         name="web_search",
         description="Search the web for current information. Use when the user asks about recent events, facts, or anything you're unsure about.",
-        parameters={"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]},
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "Search query"}},
+            "required": ["query"],
+        },
     ),
     "file_ops": GeminiFunctionDeclaration(
         name="file_ops",
         description="Read, write, or list files in the workspace.",
-        parameters={"type": "object", "properties": {"action": {"type": "string", "description": "File operation (read, write, or list)"}, "path": {"type": "string", "description": "File path"}}, "required": ["action", "path"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "description": "File operation (read, write, or list)"},
+                "path": {"type": "string", "description": "File path"},
+            },
+            "required": ["action", "path"],
+        },
     ),
     "code_execute": GeminiFunctionDeclaration(
         name="code_execute",
         description="Execute code in a sandboxed environment and return the result.",
-        parameters={"type": "object", "properties": {"code": {"type": "string", "description": "Code to execute"}, "language": {"type": "string", "description": "Programming language"}}, "required": ["code"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "Code to execute"},
+                "language": {"type": "string", "description": "Programming language"},
+            },
+            "required": ["code"],
+        },
     ),
     "browser": GeminiFunctionDeclaration(
         name="browser",
         description="Browse a webpage and extract its content.",
-        parameters={"type": "object", "properties": {"url": {"type": "string", "description": "URL to browse"}}, "required": ["url"]},
+        parameters={
+            "type": "object",
+            "properties": {"url": {"type": "string", "description": "URL to browse"}},
+            "required": ["url"],
+        },
     ),
     "kanban": GeminiFunctionDeclaration(
         name="kanban",
         description="Manage tasks on the kanban board: create, update, or query tasks.",
-        parameters={"type": "object", "properties": {"action": {"type": "string", "description": "Kanban action (create, update, or query)"}, "description": {"type": "string", "description": "Task description or query"}}, "required": ["action", "description"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "description": "Kanban action (create, update, or query)"},
+                "description": {"type": "string", "description": "Task description or query"},
+            },
+            "required": ["action", "description"],
+        },
     ),
 }
 
@@ -188,7 +219,11 @@ _ALWAYS_AVAILABLE_TOOLS: list[GeminiFunctionDeclaration] = [
     GeminiFunctionDeclaration(
         name="run_background_task",
         description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation.",
-        parameters={"type": "object", "properties": {"task": {"type": "string", "description": "Detailed description of the task to run"}}, "required": ["task"]},
+        parameters={
+            "type": "object",
+            "properties": {"task": {"type": "string", "description": "Detailed description of the task to run"}},
+            "required": ["task"],
+        },
     ),
     GeminiFunctionDeclaration(
         name="get_background_tasks_status",
@@ -198,12 +233,23 @@ _ALWAYS_AVAILABLE_TOOLS: list[GeminiFunctionDeclaration] = [
     GeminiFunctionDeclaration(
         name="cancel_background_task",
         description="Cancel a running background task by its task_id.",
-        parameters={"type": "object", "properties": {"task_id": {"type": "string", "description": "ID of the background task to cancel"}}, "required": ["task_id"]},
+        parameters={
+            "type": "object",
+            "properties": {"task_id": {"type": "string", "description": "ID of the background task to cancel"}},
+            "required": ["task_id"],
+        },
     ),
     GeminiFunctionDeclaration(
         name="steer_background_task",
         description="Send a new instruction to redirect a running background task.",
-        parameters={"type": "object", "properties": {"task_id": {"type": "string", "description": "ID of the background task to steer"}, "instruction": {"type": "string", "description": "New instruction to apply to the task"}}, "required": ["task_id", "instruction"]},
+        parameters={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "ID of the background task to steer"},
+                "instruction": {"type": "string", "description": "New instruction to apply to the task"},
+            },
+            "required": ["task_id", "instruction"],
+        },
     ),
 ]
 

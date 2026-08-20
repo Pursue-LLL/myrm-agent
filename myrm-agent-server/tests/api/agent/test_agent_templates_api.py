@@ -101,4 +101,3 @@ def test_official_document_assistant_instantiate_missing_skill(client: TestClien
 
     assert response.status_code == 400
     assert "office-document" in response.json()["detail"]
-

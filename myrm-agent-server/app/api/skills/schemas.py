@@ -229,9 +229,7 @@ class SkillConfigVersionResponse(BaseModel):
 
 def _lookup_evolution_data(
     skill_name: str,
-) -> tuple[
-    list[dict[str, object]], list[dict[str, object]], bool, list[dict[str, object]]
-]:
+) -> tuple[list[dict[str, object]], list[dict[str, object]], bool, list[dict[str, object]]]:
     """Best-effort lookup of evolution traps, verification steps, lock status and eval cases.
 
     Returns:
@@ -277,9 +275,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             ],
         )
 
-    traps, verification_steps, store_evolution_locked, eval_cases = (
-        _lookup_evolution_data(skill.name)
-    )
+    traps, verification_steps, store_evolution_locked, eval_cases = _lookup_evolution_data(skill.name)
     evolution_locked = skill.evolution_locked or store_evolution_locked
 
     usage = SkillUsageStatsResponse()
@@ -288,11 +284,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
             call_count=int(skill.usage_stats.get("call_count", 0)),
             success_count=int(skill.usage_stats.get("success_count", 0)),
             failure_count=int(skill.usage_stats.get("failure_count", 0)),
-            last_used_at=(
-                str(skill.usage_stats["last_used_at"])
-                if skill.usage_stats.get("last_used_at")
-                else None
-            ),
+            last_used_at=(str(skill.usage_stats["last_used_at"]) if skill.usage_stats.get("last_used_at") else None),
             success_rate=float(skill.usage_stats.get("success_rate", 0.0)),
             avg_duration_ms=float(skill.usage_stats.get("avg_duration_ms", 0.0)),
             lifecycle_status=str(skill.usage_stats.get("lifecycle_status", "active")),

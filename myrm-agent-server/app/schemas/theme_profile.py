@@ -16,9 +16,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-ThemeLayoutId = Literal['full-bleed', 'nav-rail-focus', 'chat-hero', 'work-dense']
-ThemeMediaKind = Literal['none', 'image', 'video']
-ThemeFontId = Literal['inter', 'system', 'atkinson']
+ThemeLayoutId = Literal["full-bleed", "nav-rail-focus", "chat-hero", "work-dense"]
+ThemeMediaKind = Literal["none", "image", "video"]
+ThemeFontId = Literal["inter", "system", "atkinson"]
 
 
 class ThemePaletteTokensModel(BaseModel):
@@ -41,14 +41,14 @@ class ThemeArtConfigModel(BaseModel):
     assetRef: str | None = None
     posterAssetRef: str | None = None
 
-    @field_validator('assetRef', 'posterAssetRef')
+    @field_validator("assetRef", "posterAssetRef")
     @classmethod
     def validate_asset_ref(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        if value.startswith('file:'):
+        if value.startswith("file:"):
             return value
-        raise ValueError('Theme asset refs must use file: prefix')
+        raise ValueError("Theme asset refs must use file: prefix")
 
 
 class ThemeProfileRecipeModel(BaseModel):
@@ -64,11 +64,11 @@ class ThemeProfileRecipeModel(BaseModel):
     packageAuthor: str | None = Field(default=None, max_length=256)
     packagePreviewAssetRef: str | None = None
 
-    @field_validator('packagePreviewAssetRef')
+    @field_validator("packagePreviewAssetRef")
     @classmethod
     def validate_package_preview_ref(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        if value.startswith('file:'):
+        if value.startswith("file:"):
             return value
-        raise ValueError('Theme preview asset refs must use file: prefix')
+        raise ValueError("Theme preview asset refs must use file: prefix")

@@ -45,9 +45,7 @@ async def test_init_database_calls_backup_before_migrations():
     assert "migrations" in call_order, "run_migrations was not called"
     backup_idx = call_order.index("backup")
     migrations_idx = call_order.index("migrations")
-    assert backup_idx < migrations_idx, (
-        f"backup must run before migrations, got order: {call_order}"
-    )
+    assert backup_idx < migrations_idx, f"backup must run before migrations, got order: {call_order}"
 
 
 @pytest.mark.asyncio

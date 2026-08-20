@@ -40,11 +40,7 @@ router = APIRouter()
 
 def _packaged_files(skill_dir: Path) -> list[Path]:
     """List files in a skill directory that participate in backup packages."""
-    return sorted(
-        p
-        for p in skill_dir.rglob("*")
-        if p.is_file() and p.suffix in (".md", ".json", ".py", ".sh", ".txt")
-    )
+    return sorted(p for p in skill_dir.rglob("*") if p.is_file() and p.suffix in (".md", ".json", ".py", ".sh", ".txt"))
 
 
 def _skill_dir_sha256(skill_dir: Path) -> str:
@@ -230,9 +226,7 @@ async def _process_import_zip(zip_data: bytes) -> ImportSummary:
             expected_hash = manifest_hashes.get(item.name)
             if expected_hash and zip_hash != expected_hash:
                 summary.hash_mismatch_count += 1
-                logger.warning(
-                    "Manifest hash mismatch for imported skill %s (drift detected)", item.name
-                )
+                logger.warning("Manifest hash mismatch for imported skill %s (drift detected)", item.name)
 
             # 1. Security Scan before importing
             try:

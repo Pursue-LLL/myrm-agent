@@ -41,14 +41,8 @@ def _router_job(*, command: str) -> CronJob:
 
 
 def test_parse_wiki_maintain_mode() -> None:
-    assert (
-        parse_wiki_maintain_mode(f"{WIKI_MAINTAIN_COMMAND_PREFIX}:structural")
-        == MaintainMode.STRUCTURAL
-    )
-    assert (
-        parse_wiki_maintain_mode(f"{WIKI_MAINTAIN_COMMAND_PREFIX}:full")
-        == MaintainMode.FULL
-    )
+    assert parse_wiki_maintain_mode(f"{WIKI_MAINTAIN_COMMAND_PREFIX}:structural") == MaintainMode.STRUCTURAL
+    assert parse_wiki_maintain_mode(f"{WIKI_MAINTAIN_COMMAND_PREFIX}:full") == MaintainMode.FULL
     assert parse_wiki_maintain_mode(WIKI_SOURCE_SYNC_COMMAND) is None
 
 

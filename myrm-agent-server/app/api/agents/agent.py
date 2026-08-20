@@ -75,14 +75,10 @@ async def get_agents(
                 description=agent.description,
                 avatar_url=agent.avatar,
                 is_built_in=agent.built_in,
-                agent_type=_metadata_as_mapping(agent).get("agent_type", "individual")
-                or "individual",
-                prompt_mode=_metadata_as_mapping(agent).get("prompt_mode", "full")
-                or "full",
+                agent_type=_metadata_as_mapping(agent).get("agent_type", "individual") or "individual",
+                prompt_mode=_metadata_as_mapping(agent).get("prompt_mode", "full") or "full",
                 enabled_builtin_tools=_resolve_enabled_builtin_tools(agent),
-                model_selection=_build_model_selection(
-                    agent.model, _metadata_as_mapping(agent)
-                ),
+                model_selection=_build_model_selection(agent.model, _metadata_as_mapping(agent)),
                 created_at=agent.created_at,
                 updated_at=agent.updated_at,
             )
@@ -99,9 +95,7 @@ async def get_agents(
             has_prev=page > 1,
         )
 
-        paginated_data = PaginatedResponse[AgentListItem](
-            items=agent_items, pagination=pagination_meta
-        )
+        paginated_data = PaginatedResponse[AgentListItem](items=agent_items, pagination=pagination_meta)
 
         return success_response(data=paginated_data.model_dump())
     except Exception as e:
@@ -111,9 +105,7 @@ async def get_agents(
 @router.get("/{agent_id}", response_model=StandardSuccessResponse)
 async def get_agent(
     agent_id: str,
-    show_system_prompt: bool = Query(
-        False, description="Show system prompt (hidden by default for security)"
-    ),
+    show_system_prompt: bool = Query(False, description="Show system prompt (hidden by default for security)"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """获取智能体详情
@@ -128,9 +120,7 @@ async def get_agent(
 
         if show_system_prompt:
             audit_logger = logging.getLogger("audit")
-            audit_logger.info(
-                f"System prompt viewed - agent_id={agent_id}, agent_name={agent.display_name}"
-            )
+            audit_logger.info(f"System prompt viewed - agent_id={agent_id}, agent_name={agent.display_name}")
 
         return success_response(
             data=_to_agent_response(
@@ -268,18 +258,14 @@ async def rollback_agent(
                 status_code=400,
                 detail="No snapshot found for rollback or agent missing.",
             )
-        return success_response(
-            data={"message": "Agent profile rolled back successfully."}
-        )
+        return success_response(data={"message": "Agent profile rolled back successfully."})
     except HTTPException:
         raise
     except Exception as e:
         raise internal_error(operation="Rollback agent profile", exception=e) from e
 
 
-@router.post(
-    "/{agent_id}/rollback/{snapshot_id}", response_model=StandardSuccessResponse
-)
+@router.post("/{agent_id}/rollback/{snapshot_id}", response_model=StandardSuccessResponse)
 async def rollback_agent_to_snapshot(
     agent_id: str,
     snapshot_id: str,
@@ -293,15 +279,11 @@ async def rollback_agent_to_snapshot(
                 status_code=400,
                 detail="Snapshot not found or agent missing.",
             )
-        return success_response(
-            data={"message": "Agent profile rolled back successfully."}
-        )
+        return success_response(data={"message": "Agent profile rolled back successfully."})
     except HTTPException:
         raise
     except Exception as e:
-        raise internal_error(
-            operation="Rollback agent profile to snapshot", exception=e
-        ) from e
+        raise internal_error(operation="Rollback agent profile to snapshot", exception=e) from e
 
 
 @router.post("/{agent_id}/avatar", response_model=StandardSuccessResponse)
@@ -324,9 +306,7 @@ async def upload_agent_avatar(
             "image/webp",
         ]
         if file.content_type not in allowed_types:
-            raise validation_error(
-                f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}"
-            )
+            raise validation_error(f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}")
 
         content = await file.read()
         if len(content) > 5 * 1024 * 1024:
@@ -353,13 +333,9 @@ async def upload_agent_avatar(
 
         avatar_url = f"home://{avatar_filename}"
 
-        await AgentService.update_agent(
-            agent_id, AgentUpdate.model_validate({"avatar_url": avatar_url})
-        )
+        await AgentService.update_agent(agent_id, AgentUpdate.model_validate({"avatar_url": avatar_url}))
 
-        return success_response(
-            data={"avatar_url": avatar_url, "local_path": avatar_path}
-        )
+        return success_response(data={"avatar_url": avatar_url, "local_path": avatar_path})
     except HTTPException:
         raise
     except Exception as e:

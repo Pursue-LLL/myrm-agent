@@ -34,14 +34,10 @@ def test_seed_migration_readiness_fixture_mcp_warning(client: TestClient) -> Non
         patch(
             "app.api.memory.migration_readiness_seed.get_session_factory",
         ) as mock_session_factory,
-        patch(
-            "app.api.memory.migration_readiness_seed.MemoryImportSessionService"
-        ) as mock_service_cls,
+        patch("app.api.memory.migration_readiness_seed.MemoryImportSessionService") as mock_service_cls,
     ):
         mock_service = mock_service_cls.return_value
-        mock_service.create_dry_run = AsyncMock(
-            return_value=("dry-1", {}, "hash", "expires")
-        )
+        mock_service.create_dry_run = AsyncMock(return_value=("dry-1", {}, "hash", "expires"))
         confirm = MagicMock()
         confirm.import_batch_id = "memory-import-batch:e2e"
         mock_service.confirm_import = AsyncMock(return_value=confirm)

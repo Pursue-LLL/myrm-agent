@@ -11,6 +11,8 @@ from httpx import ASGITransport
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
+
+
 @pytest.fixture
 async def async_client() -> httpx.AsyncClient:
     async with httpx.AsyncClient(
@@ -103,11 +105,31 @@ async def _create_tool_events(chat_id: str) -> None:
         chat_id,
         [
             {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "query": "test"}},
-            {"ts": base_ts + 1.2, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "duration_ms": 1200}},
-            {"ts": base_ts + 2.0, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "query": "test 2"}},
-            {"ts": base_ts + 2.8, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "duration_ms": 800}},
-            {"ts": base_ts + 3.0, "type": "tool_start", "data": {"tool_name": "file_read", "tool_call_id": "call-3", "path": "/tmp/x.txt"}},
-            {"ts": base_ts + 3.05, "type": "tool_end", "data": {"tool_name": "file_read", "tool_call_id": "call-3", "duration_ms": 50}},
+            {
+                "ts": base_ts + 1.2,
+                "type": "tool_end",
+                "data": {"tool_name": "web_search", "tool_call_id": "call-1", "duration_ms": 1200},
+            },
+            {
+                "ts": base_ts + 2.0,
+                "type": "tool_start",
+                "data": {"tool_name": "web_search", "tool_call_id": "call-2", "query": "test 2"},
+            },
+            {
+                "ts": base_ts + 2.8,
+                "type": "tool_end",
+                "data": {"tool_name": "web_search", "tool_call_id": "call-2", "duration_ms": 800},
+            },
+            {
+                "ts": base_ts + 3.0,
+                "type": "tool_start",
+                "data": {"tool_name": "file_read", "tool_call_id": "call-3", "path": "/tmp/x.txt"},
+            },
+            {
+                "ts": base_ts + 3.05,
+                "type": "tool_end",
+                "data": {"tool_name": "file_read", "tool_call_id": "call-3", "duration_ms": 50},
+            },
         ],
     )
 
@@ -275,11 +297,31 @@ async def test_export_aggregates_across_multiple_turns(
         chat_id,
         [
             {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "query": "a"}},
-            {"ts": base_ts + 0.5, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-1", "duration_ms": 500}},
-            {"ts": base_ts + 1.0, "type": "tool_start", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "query": "b"}},
-            {"ts": base_ts + 1.3, "type": "tool_end", "data": {"tool_name": "web_search", "tool_call_id": "call-2", "duration_ms": 300}},
-            {"ts": base_ts + 2.0, "type": "tool_start", "data": {"tool_name": "code_exec", "tool_call_id": "call-3", "cmd": "ls"}},
-            {"ts": base_ts + 3.0, "type": "tool_end", "data": {"tool_name": "code_exec", "tool_call_id": "call-3", "duration_ms": 1000}},
+            {
+                "ts": base_ts + 0.5,
+                "type": "tool_end",
+                "data": {"tool_name": "web_search", "tool_call_id": "call-1", "duration_ms": 500},
+            },
+            {
+                "ts": base_ts + 1.0,
+                "type": "tool_start",
+                "data": {"tool_name": "web_search", "tool_call_id": "call-2", "query": "b"},
+            },
+            {
+                "ts": base_ts + 1.3,
+                "type": "tool_end",
+                "data": {"tool_name": "web_search", "tool_call_id": "call-2", "duration_ms": 300},
+            },
+            {
+                "ts": base_ts + 2.0,
+                "type": "tool_start",
+                "data": {"tool_name": "code_exec", "tool_call_id": "call-3", "cmd": "ls"},
+            },
+            {
+                "ts": base_ts + 3.0,
+                "type": "tool_end",
+                "data": {"tool_name": "code_exec", "tool_call_id": "call-3", "duration_ms": 1000},
+            },
         ],
     )
 
@@ -352,7 +394,16 @@ async def test_export_chat_includes_agent_info(
     async with session_factory() as db:
         db.add(Agent(id=agent_id, name="Code Reviewer", description="Reviews code quality", model_selection={"model": "gpt-4o"}))
         db.add(Chat(id=chat_id, agent_id=agent_id, title="Agent Chat", action_mode="fast", source="web"))
-        db.add(Message(id=f"msg-{uuid.uuid4().hex[:8]}", chat_id=chat_id, role="user", content="Hello", sent_at=datetime.now(tz=timezone.utc), sent_timezone="UTC"))
+        db.add(
+            Message(
+                id=f"msg-{uuid.uuid4().hex[:8]}",
+                chat_id=chat_id,
+                role="user",
+                content="Hello",
+                sent_at=datetime.now(tz=timezone.utc),
+                sent_timezone="UTC",
+            )
+        )
         await db.commit()
 
     res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
@@ -392,10 +443,26 @@ async def test_export_chat_includes_tool_call_details(
     _write_event_log(
         chat_id,
         [
-            {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "read_file", "tool_call_id": "call-1", "path": "/src/utils.ts"}},
-            {"ts": base_ts + 0.12, "type": "tool_end", "data": {"tool_name": "read_file", "tool_call_id": "call-1", "duration_ms": 120}},
-            {"ts": base_ts + 0.5, "type": "tool_start", "data": {"tool_name": "grep_search", "tool_call_id": "call-2", "pattern": "useEffect", "path": "src/"}},
-            {"ts": base_ts + 0.85, "type": "tool_end", "data": {"tool_name": "grep_search", "tool_call_id": "call-2", "duration_ms": 350}},
+            {
+                "ts": base_ts,
+                "type": "tool_start",
+                "data": {"tool_name": "read_file", "tool_call_id": "call-1", "path": "/src/utils.ts"},
+            },
+            {
+                "ts": base_ts + 0.12,
+                "type": "tool_end",
+                "data": {"tool_name": "read_file", "tool_call_id": "call-1", "duration_ms": 120},
+            },
+            {
+                "ts": base_ts + 0.5,
+                "type": "tool_start",
+                "data": {"tool_name": "grep_search", "tool_call_id": "call-2", "pattern": "useEffect", "path": "src/"},
+            },
+            {
+                "ts": base_ts + 0.85,
+                "type": "tool_end",
+                "data": {"tool_name": "grep_search", "tool_call_id": "call-2", "duration_ms": 350},
+            },
         ],
     )
 
@@ -428,8 +495,21 @@ async def test_export_tool_call_details_sanitizes_sensitive_args(
     _write_event_log(
         chat_id,
         [
-            {"ts": base_ts, "type": "tool_start", "data": {"tool_name": "http_request", "tool_call_id": "call-1", "api_key": "sk-1234secret", "url": "https://example.com"}},
-            {"ts": base_ts + 0.2, "type": "tool_end", "data": {"tool_name": "http_request", "tool_call_id": "call-1", "duration_ms": 200}},
+            {
+                "ts": base_ts,
+                "type": "tool_start",
+                "data": {
+                    "tool_name": "http_request",
+                    "tool_call_id": "call-1",
+                    "api_key": "sk-1234secret",
+                    "url": "https://example.com",
+                },
+            },
+            {
+                "ts": base_ts + 0.2,
+                "type": "tool_end",
+                "data": {"tool_name": "http_request", "tool_call_id": "call-1", "duration_ms": 200},
+            },
         ],
     )
 

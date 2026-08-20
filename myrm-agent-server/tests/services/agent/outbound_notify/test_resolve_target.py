@@ -64,9 +64,7 @@ class TestSingleTargetShortcut:
         assert result is not None
         assert result.recipient_id == "chat_999"
 
-    def test_single_target_with_channel_specified(
-        self, single_target: tuple[NotifyTarget, ...]
-    ) -> None:
+    def test_single_target_with_channel_specified(self, single_target: tuple[NotifyTarget, ...]) -> None:
         result = resolve_notify_target("telegram", "", single_target)
         assert result is not None
         assert result.recipient_id == "chat_999"
@@ -75,10 +73,7 @@ class TestSingleTargetShortcut:
         result = resolve_notify_target("slack", "", single_target)
         assert result is None
 
-
-    def test_single_target_wrong_target_still_resolves(
-        self, single_target: tuple[NotifyTarget, ...]
-    ) -> None:
+    def test_single_target_wrong_target_still_resolves(self, single_target: tuple[NotifyTarget, ...]) -> None:
         result = resolve_notify_target("", "wrong-id", single_target)
         assert result is not None
         assert result.recipient_id == "chat_999"

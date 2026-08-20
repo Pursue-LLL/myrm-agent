@@ -105,5 +105,3 @@ class TestInjectWuConsumed:
         chunk: dict[str, object] = {"type": "message_end"}
         _inject_wu_consumed(chunk)
         assert "wu_consumed" not in chunk
-
-

@@ -50,9 +50,7 @@ async def _run(executor: LocalEvalExecutor, events: list[dict[str, object]]):
     _prepare_model_types()
     with (
         patch("app.core.eval.executor.load_user_configs") as mock_configs,
-        patch(
-            "app.core.eval.executor.AgentFactory.create_general_agent"
-        ) as mock_factory,
+        patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_factory,
         patch(
             "app.services.agent.execution_cache.finalize_agent_session",
             new=AsyncMock(),
@@ -63,12 +61,8 @@ async def _run(executor: LocalEvalExecutor, events: list[dict[str, object]]):
         mock_cfg.mcp_dict = {}
         mock_cfg.providers_dict = {}
         mock_cfg.personal_settings_dict = {}
-        mock_cfg.model_cfg = ModelConfig(
-            provider="test", model="test-model", apiKey="key"
-        )
-        mock_cfg.search_cfg = SearchServiceConfig(
-            provider="tavily", searchService="tavily"
-        )
+        mock_cfg.model_cfg = ModelConfig(provider="test", model="test-model", apiKey="key")
+        mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
         mock_cfg.search_is_user_configured = False
         mock_configs.return_value = mock_cfg
 

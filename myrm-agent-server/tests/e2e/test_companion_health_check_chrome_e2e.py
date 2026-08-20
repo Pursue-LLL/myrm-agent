@@ -111,9 +111,7 @@ def _assert_health_check_ui(client, page) -> None:
     assert state.get("doctorExpanded") is True, state
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_companion_health_check_store_and_sprite_error_paths() -> None:

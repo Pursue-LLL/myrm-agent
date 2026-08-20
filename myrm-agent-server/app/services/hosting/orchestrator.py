@@ -113,9 +113,7 @@ async def publish_artifact_to_target(
         publication_url=result.url if result.success else existing.publication_url if existing else None,
         publication_status=result.status,
         publication_project_ref=result.project_ref or existing_project_ref,
-        publication_version_id=latest_version.id if result.success else (
-            existing.publication_version_id if existing else None
-        ),
+        publication_version_id=latest_version.id if result.success else (existing.publication_version_id if existing else None),
     )
 
     return PublicationResult(

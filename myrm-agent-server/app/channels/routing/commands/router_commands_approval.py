@@ -267,7 +267,9 @@ class RouterCommandsApprovalMixin:
             if actor and requester and actor != requester and actor not in self._approval_co_approvers:
                 logger.info(
                     "Action button approval denied: actor=%s requester=%s channel=%s",
-                    actor, requester, msg.channel,
+                    actor,
+                    requester,
+                    msg.channel,
                 )
                 return
 
@@ -285,7 +287,10 @@ class RouterCommandsApprovalMixin:
 
         logger.info(
             "Action button approval resolved: id=%s action=%s channel=%s sender=%s",
-            approval_id[:12], action_raw, msg.channel, msg.sender_id,
+            approval_id[:12],
+            action_raw,
+            msg.channel,
+            msg.sender_id,
         )
 
         # --- Edit original IM message to show result ---
@@ -295,7 +300,10 @@ class RouterCommandsApprovalMixin:
             sender_display = msg.metadata.get("username") or msg.sender_id or ""
             status_text = f"{status_icon} {action_raw.title()}d by {sender_display}"
             await self._bus.edit_channel_message(
-                msg.channel, chat_id, str(origin_message_id), status_text,
+                msg.channel,
+                chat_id,
+                str(origin_message_id),
+                status_text,
             )
 
         # --- Outbound draft: send or discard the held message ---

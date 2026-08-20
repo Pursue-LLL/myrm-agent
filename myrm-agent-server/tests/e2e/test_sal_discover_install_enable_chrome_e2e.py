@@ -178,9 +178,7 @@ def _wait_registry_url(api_url: str, expected_url: str, *, timeout_sec: float = 
         if last.get("clawhub_registry_url") == expected_url:
             return last
         time.sleep(1.0)
-    pytest.fail(
-        f"Timed out waiting for clawhub_registry_url={expected_url!r}; last={last!r}"
-    )
+    pytest.fail(f"Timed out waiting for clawhub_registry_url={expected_url!r}; last={last!r}")
 
 
 _CUSTOM_INPUT_READY_JS = """(() => {
@@ -263,9 +261,7 @@ def _assert_agent_allowlist_untouched(api_url: str) -> None:
     agent = http_json("GET", f"{api_url}/api/v1/user-agents/builtin-general")
     data = agent.get("data") if isinstance(agent.get("data"), dict) else agent
     skill_ids = data.get("skill_ids") if isinstance(data, dict) else None
-    assert (
-        skill_ids == [] or skill_ids is None
-    ), f"SAL must not write agent.skill_ids; got {skill_ids!r}"
+    assert skill_ids == [] or skill_ids is None, f"SAL must not write agent.skill_ids; got {skill_ids!r}"
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
@@ -307,9 +303,7 @@ def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> 
             install_deadline = time.monotonic() + 90.0
             toast_state: dict[str, object] = {"ready": False}
             while time.monotonic() < install_deadline:
-                raw_toast = client.evaluate(
-                    page, _INSTALL_TOAST_READY_JS, timeout_sec=15.0
-                )
+                raw_toast = client.evaluate(page, _INSTALL_TOAST_READY_JS, timeout_sec=15.0)
                 toast_state = raw_toast if isinstance(raw_toast, dict) else {"ready": False}
                 if toast_state.get("ready") is True:
                     break
@@ -350,9 +344,7 @@ def test_discover_cn_mirror_select_save_via_ui() -> None:
     """Discover settings: CN mirror select persists via API."""
     api_url = get_e2e_api_url()
 
-    probe = http_json(
-        "GET", f"{api_url}/api/v1/skills/discovery/registry-probe?mirror=cn"
-    )
+    probe = http_json("GET", f"{api_url}/api/v1/skills/discovery/registry-probe?mirror=cn")
     assert probe.get("reachable") is True, probe
 
     prior_config = http_json("GET", f"{api_url}/api/v1/skills/config")
@@ -368,9 +360,7 @@ def test_discover_cn_mirror_select_save_via_ui() -> None:
             assert isinstance(opened, dict) and opened.get("ok") is True, opened
             selected = client.evaluate(page, _SELECT_CN_MIRROR_JS, timeout_sec=15.0)
             assert isinstance(selected, dict) and selected.get("ok") is True, selected
-            mirror_toast = wait_for_state(
-                client, page, _MIRROR_SAVED_TOAST_JS, timeout_sec=60.0
-            )
+            mirror_toast = wait_for_state(client, page, _MIRROR_SAVED_TOAST_JS, timeout_sec=60.0)
             assert mirror_toast.get("ready") is True, mirror_toast
             mirror_config = http_json("GET", f"{api_url}/api/v1/skills/config")
             assert mirror_config.get("clawhub_registry_url") == "https://skill.xfyun.cn"
@@ -402,9 +392,7 @@ def test_discover_custom_mirror_url_save_via_ui() -> None:
             picked_custom = client.evaluate(page, _SELECT_CUSTOM_MIRROR_JS, timeout_sec=15.0)
             assert isinstance(picked_custom, dict) and picked_custom.get("ok") is True, picked_custom
             wait_for_state(client, page, _CUSTOM_INPUT_READY_JS, timeout_sec=30.0)
-            focused = client.evaluate(
-                page, _FOCUS_CUSTOM_MIRROR_INPUT_JS, timeout_sec=15.0
-            )
+            focused = client.evaluate(page, _FOCUS_CUSTOM_MIRROR_INPUT_JS, timeout_sec=15.0)
             assert isinstance(focused, dict) and focused.get("ok") is True, focused
             client.type_text(page, custom_url)
             save_ready = wait_for_state(
@@ -422,13 +410,9 @@ def test_discover_custom_mirror_url_save_via_ui() -> None:
                 timeout_sec=15.0,
             )
             assert save_ready.get("ready") is True, save_ready
-            clicked_save = client.evaluate(
-                page, _CLICK_CUSTOM_MIRROR_SAVE_JS, timeout_sec=15.0
-            )
+            clicked_save = client.evaluate(page, _CLICK_CUSTOM_MIRROR_SAVE_JS, timeout_sec=15.0)
             assert isinstance(clicked_save, dict) and clicked_save.get("ok") is True, clicked_save
-            custom_config = _wait_registry_url(
-                api_url, expected_custom_stored, timeout_sec=60.0
-            )
+            custom_config = _wait_registry_url(api_url, expected_custom_stored, timeout_sec=60.0)
             assert custom_config.get("clawhub_registry_url") == expected_custom_stored
     finally:
         _restore_registry_url(api_url, prior_registry_url)

@@ -54,10 +54,7 @@ def has_final_answer(collected_data: list[dict[str, object]]) -> bool:
         return True
 
     post_approval = collected_data[last_approval_idx + 1 :]
-    return any(
-        event.get("type") == "tasks_steps" and event.get("status") == "success"
-        for event in post_approval
-    )
+    return any(event.get("type") == "tasks_steps" and event.get("status") == "success" for event in post_approval)
 
 
 @dataclass

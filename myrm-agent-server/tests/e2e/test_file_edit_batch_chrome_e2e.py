@@ -97,9 +97,7 @@ _FILE_EDIT_STEP_JS = """(() => {
 })()"""
 
 
-def _seed_fixture(
-    api_url: str, *, variant: str, agent_id: str | None = None
-) -> dict[str, object]:
+def _seed_fixture(api_url: str, *, variant: str, agent_id: str | None = None) -> dict[str, object]:
     query = f"variant={variant}"
     if agent_id:
         query += f"&agent_id={agent_id}"
@@ -143,11 +141,7 @@ def _create_file_edit_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -216,8 +210,7 @@ async def test_file_edit_batch_live_agent_webui(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live file-edit E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome"
+            "Provider config not ready for live file-edit E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
         )
 
     api_base = get_e2e_api_url()
@@ -226,16 +219,12 @@ async def test_file_edit_batch_live_agent_webui(
     agent_id = _create_file_edit_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
 
-    async def _wait_agent_applied(
-        chat: McpChatSession, *, timeout_sec: float = 90.0
-    ) -> None:
+    async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0) -> None:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return
@@ -244,18 +233,14 @@ async def test_file_edit_batch_live_agent_webui(
 
     async def _pin_lite_model(chat: McpChatSession) -> dict[str, object]:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-        pinned = await chat.evaluate(
-            _PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         assert isinstance(pinned, dict)
         assert pinned.get("ok") is True, f"Failed to pin lite model: {pinned}"
         expected_lite = get_lite_model_selection()
         pinned_model = pinned.get("pinned")
         assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned}"
         assert pinned_model.get("providerId") == expected_lite["providerId"]
-        assert pinned_model.get("model") == _strip_provider_prefix(
-            str(expected_lite["model"])
-        )
+        assert pinned_model.get("model") == _strip_provider_prefix(str(expected_lite["model"]))
         return pinned_model
 
     async def _wait_turn_done(
@@ -269,9 +254,7 @@ async def test_file_edit_batch_live_agent_webui(
         last_api = ("", False)
         while time.monotonic() < deadline:
             heartbeat_once()
-            invoked, assistant = _file_edit_invoked_in_messages(
-                chat_id, api_url=api_base
-            )
+            invoked, assistant = _file_edit_invoked_in_messages(chat_id, api_url=api_base)
             last_api = (assistant, invoked)
             if invoked and "BATCH_OK" in assistant.upper():
                 try:
@@ -303,11 +286,7 @@ async def test_file_edit_batch_live_agent_webui(
                 intent=EvaluateIntent.BRIDGE_POLL,
             )
             ui = raw if isinstance(raw, dict) else {"value": raw}
-            if (
-                ui.get("hasBatchOk") is True
-                and ui.get("isStreaming") is False
-                and int(ui.get("userCount") or 0) >= 1
-            ):
+            if ui.get("hasBatchOk") is True and ui.get("isStreaming") is False and int(ui.get("userCount") or 0) >= 1:
                 try:
                     _assert_batch_file_content(file_path)
                 except AssertionError:
@@ -333,15 +312,11 @@ async def test_file_edit_batch_live_agent_webui(
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
 
-        ensured = await chat.evaluate(
-            _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
-        )
+        ensured = await chat.evaluate(_ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH)
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
-        assert (
-            chat_id
-        ), "Expected client chat id after new chat before seeding workspace file"
+        assert chat_id, "Expected client chat id after new chat before seeding workspace file"
 
         workspace_seed = _seed_workspace_file(api_base, chat_id)
         file_path = Path(str(workspace_seed["file_path"]))
@@ -349,22 +324,14 @@ async def test_file_edit_batch_live_agent_webui(
 
         send_result = await chat.send_message(_LIVE_USER_PROMPT, _LIVE_USER_PROMPT)
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or chat_id
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or chat_id
         ).strip()
 
         heartbeat_once()
-        started = await chat.wait_stream_started(
-            _LIVE_USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
-        )
-        resolved_chat_id = (
-            chat_id_hint or str(started.get("chatId") or "").strip() or None
-        )
+        started = await chat.wait_stream_started(_LIVE_USER_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None)
+        resolved_chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         if not resolved_chat_id:
-            after_start = await chat.main_state(
-                _LIVE_USER_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            after_start = await chat.main_state(_LIVE_USER_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
             resolved_chat_id = (
                 chat_id_from_path(str(after_start.get("path") or ""))
                 or str(after_start.get("bridgeChatId") or "").strip()
@@ -376,20 +343,12 @@ async def test_file_edit_batch_live_agent_webui(
         )
 
         await chat.navigate_to_chat(resolved_chat_id, BASE_URL, timeout_sec=90.0)
-        result = await _wait_turn_done(
-            chat, resolved_chat_id, file_path=file_path, timeout_sec=480.0
-        )
+        result = await _wait_turn_done(chat, resolved_chat_id, file_path=file_path, timeout_sec=480.0)
         assert result.get("model_done") is True, result
-        invoked, _assistant = _file_edit_invoked_in_messages(
-            resolved_chat_id, api_url=api_base
-        )
-        assert (
-            invoked
-        ), f"{_FILE_EDIT_TOOL} not found in persisted messages; result={result}"
+        invoked, _assistant = _file_edit_invoked_in_messages(resolved_chat_id, api_url=api_base)
+        assert invoked, f"{_FILE_EDIT_TOOL} not found in persisted messages; result={result}"
 
-        step = await chat.evaluate(
-            _FILE_EDIT_STEP_JS, intent=EvaluateIntent.BRIDGE_POLL
-        )
+        step = await chat.evaluate(_FILE_EDIT_STEP_JS, intent=EvaluateIntent.BRIDGE_POLL)
         assert isinstance(step, dict) and step.get("ready") is True, step
 
         e2e_resource_ledger.register("chat", resolved_chat_id)
@@ -406,9 +365,7 @@ async def test_file_edit_batch_live_agent_webui(
                 page: McpPage | None = None
                 for page_attempt in range(3):
                     try:
-                        page = await asyncio.to_thread(
-                            client.new_page, agent_url, timeout_ms=120_000
-                        )
+                        page = await asyncio.to_thread(client.new_page, agent_url, timeout_ms=120_000)
                         break
                     except (TimeoutError, RuntimeError) as exc:
                         if page_attempt >= 2 or "new_page" not in str(exc):

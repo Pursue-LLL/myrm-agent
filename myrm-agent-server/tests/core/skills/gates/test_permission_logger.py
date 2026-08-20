@@ -53,9 +53,7 @@ def test_start_permission_logger_creates_queue_and_registers_callback() -> None:
     """Start must build the queue and register the harness callback."""
     with (
         patch.object(pl, "Thread", MagicMock()),
-        patch(
-            "myrm_agent_harness.backends.skills.set_permission_usage_callback"
-        ) as mock_set,
+        patch("myrm_agent_harness.backends.skills.set_permission_usage_callback") as mock_set,
     ):
         pl.start_permission_logger()
 

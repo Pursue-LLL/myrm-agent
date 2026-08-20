@@ -29,9 +29,7 @@ class TestSubstituteTemplate:
     """Deterministic string template substitution."""
 
     def test_basic_substitution(self) -> None:
-        result = _substitute_template(
-            "调研：{video_type}领域素材", {"video_type": "产品宣传"}
-        )
+        result = _substitute_template("调研：{video_type}领域素材", {"video_type": "产品宣传"})
         assert result == "调研：产品宣传领域素材"
 
     def test_multiple_placeholders(self) -> None:
@@ -41,9 +39,7 @@ class TestSubstituteTemplate:
         assert result == "为AI产品撰写30s的教程脚本"
 
     def test_missing_key_preserved(self) -> None:
-        result = _substitute_template(
-            "调研：{video_type}领域{missing}", {"video_type": "教程"}
-        )
+        result = _substitute_template("调研：{video_type}领域{missing}", {"video_type": "教程"})
         assert result == "调研：教程领域{missing}"
 
     def test_empty_answers(self) -> None:
@@ -63,9 +59,7 @@ class TestMatchRoleToAgent:
     """Role-to-agent matching by skill overlap."""
 
     def test_no_agents_returns_default(self) -> None:
-        role = RoleTemplate(
-            role_id="writer", description="写作", required_skills=["creative-ideation"]
-        )
+        role = RoleTemplate(role_id="writer", description="写作", required_skills=["creative-ideation"])
         result = _match_role_to_agent(role, [], "default-agent")
         assert result == "default-agent"
 
@@ -99,9 +93,7 @@ class TestMatchRoleToAgent:
         assert result == "agent-2"
 
     def test_no_overlap_returns_default(self) -> None:
-        role = RoleTemplate(
-            role_id="reviewer", description="审核", required_skills=["code-review"]
-        )
+        role = RoleTemplate(role_id="reviewer", description="审核", required_skills=["code-review"])
         agents = [
             {"id": "agent-1", "skill_ids": ["creative-ideation"]},
         ]
@@ -332,21 +324,15 @@ class TestEdgeCases:
     """Edge cases and robustness tests."""
 
     def test_substitute_special_chars_in_answer(self) -> None:
-        result = _substitute_template(
-            "标题：{topic}", {"topic": "C++ {templates} & std::vector"}
-        )
+        result = _substitute_template("标题：{topic}", {"topic": "C++ {templates} & std::vector"})
         assert "C++ {templates} & std::vector" in result
 
     def test_substitute_curly_braces_in_template(self) -> None:
-        result = _substitute_template(
-            "代码 {{literal}} 和 {topic}", {"topic": "Python"}
-        )
+        result = _substitute_template("代码 {{literal}} 和 {topic}", {"topic": "Python"})
         assert "Python" in result
 
     def test_match_role_skills_field_alternative(self) -> None:
-        role = RoleTemplate(
-            role_id="coder", description="编码", required_skills=["code-exec"]
-        )
+        role = RoleTemplate(role_id="coder", description="编码", required_skills=["code-exec"])
         agents = [{"id": "a1", "skills": ["code-exec", "debug"]}]
         result = _match_role_to_agent(role, agents, None)
         assert result == "a1"
@@ -384,9 +370,7 @@ class TestEdgeCases:
             "description": "t",
             "category": "pipeline",
             "pipeline_spec": {
-                "discovery_questions": [
-                    {"group": "g", "group_label": "G", "questions": []}
-                ],
+                "discovery_questions": [{"group": "g", "group_label": "G", "questions": []}],
                 "role_templates": [],
                 "task_graph_seed": [
                     {
@@ -440,9 +424,7 @@ class TestEdgeCases:
         for spec in specs:
             for i, seed in enumerate(spec.task_graph_seed):
                 for p in seed.parents:
-                    assert (
-                        0 <= p < i
-                    ), f"{spec.skill_id}: task[{i}] references parent[{p}] >= self index"
+                    assert 0 <= p < i, f"{spec.skill_id}: task[{i}] references parent[{p}] >= self index"
 
 
 class TestRepeatFor:
@@ -516,9 +498,7 @@ class TestRepeatFor:
         assert spec.task_graph_seed[0].repeat_for is None
 
     def test_substitute_item_placeholder(self) -> None:
-        result = _substitute_template(
-            "Research: {_item}", {"_item": "Quantum Computing", "depth": "deep"}
-        )
+        result = _substitute_template("Research: {_item}", {"_item": "Quantum Computing", "depth": "deep"})
         assert result == "Research: Quantum Computing"
 
 
@@ -542,13 +522,9 @@ class TestFanOutTemplates:
         assert spec.task_graph_seed[0].repeat_for == "platforms"
         assert spec.task_graph_seed[1].repeat_for is None
         assert spec.task_graph_seed[1].parents == [0]
-        adapter = next(
-            role for role in spec.role_templates if role.role_id == "adapter"
-        )
+        adapter = next(role for role in spec.role_templates if role.role_id == "adapter")
         assert "wechat-article-formatter" not in adapter.required_skills
-        assert spec.task_graph_seed[0].repeat_for_item_skills.get(
-            "WeChat (微信公众号)"
-        ) == ["wechat-article-formatter"]
+        assert spec.task_graph_seed[0].repeat_for_item_skills.get("WeChat (微信公众号)") == ["wechat-article-formatter"]
 
     def test_parse_repeat_for_item_skills(self) -> None:
         frontmatter: dict[str, object] = {
@@ -573,9 +549,7 @@ class TestFanOutTemplates:
         }
         spec = _parse_pipeline_spec("repeat-skills", frontmatter)
         assert spec is not None
-        assert spec.task_graph_seed[0].repeat_for_item_skills[
-            "WeChat (微信公众号)"
-        ] == ["wechat-article-formatter"]
+        assert spec.task_graph_seed[0].repeat_for_item_skills["WeChat (微信公众号)"] == ["wechat-article-formatter"]
 
     def test_competitive_analysis_pipeline(self) -> None:
         spec = get_pipeline_skill("competitive-analysis-pipeline")
@@ -603,6 +577,4 @@ class TestFanOutTemplates:
             assert spec is not None
             for i, seed in enumerate(spec.task_graph_seed):
                 for p in seed.parents:
-                    assert (
-                        0 <= p < i
-                    ), f"{sid}: task[{i}] references parent[{p}] >= self index"
+                    assert 0 <= p < i, f"{sid}: task[{i}] references parent[{p}] >= self index"

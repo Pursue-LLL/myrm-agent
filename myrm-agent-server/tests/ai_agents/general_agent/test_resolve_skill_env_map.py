@@ -50,9 +50,7 @@ def _skill(name: str, storage_skill_id: str | None = None) -> SkillMetadata:
 @pytest.mark.asyncio
 async def test_resolve_maps_env_to_runtime_name() -> None:
     """Installed skills are kept and keyed by their runtime name."""
-    backend = _FakeSkillBackend(
-        [_skill("slack_notifier_skill", storage_skill_id="slack_skill")]
-    )
+    backend = _FakeSkillBackend([_skill("slack_notifier_skill", storage_skill_id="slack_skill")])
     env_vars: dict[str, dict[str, str]] = {
         "slack_skill": {"SLACK_TOKEN": "x"},  # configured under old storage id
     }

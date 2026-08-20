@@ -38,9 +38,7 @@ async def _seed_visible_agent(agent_id: str, *, display_name: str) -> None:
 
 
 def _seed(client: TestClient, *, variant: str = "modify") -> dict[str, object]:
-    with patch(
-        "app.api.chats.test_fixtures.revert.is_local_mode", return_value=True
-    ):
+    with patch("app.api.chats.test_fixtures.revert.is_local_mode", return_value=True):
         resp = client.post(f"/api/v1/chats/test/seed-revert-fixture?variant={variant}")
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -343,9 +341,7 @@ class TestRevertSeedIntegration:
         assert str(assistant["messageId"]).startswith("r-") is False
         assert assistant["metadata"]["request_message_id"] == request_message_id
 
-    def test_channel_revert_cleans_disk_snapshot(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_channel_revert_cleans_disk_snapshot(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
             FileSnapshot,
             SnapshotOp,
@@ -437,9 +433,7 @@ class TestRestoreInboxIntegration:
         assert revert_resp.json()["success"] is False
         assert drain_restore_notifications() is None
 
-    def test_channel_revert_messages_pushes_real_restore_inbox(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_channel_revert_messages_pushes_real_restore_inbox(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from myrm_agent_harness.agent.file_snapshot.restore_inbox import drain_restore_notifications
         from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
             FileSnapshot,
@@ -505,9 +499,7 @@ class TestRestoreInboxIntegration:
         assert str(file_path_b) in notice
         assert "2 file(s) restored" in notice
 
-    def test_channel_revert_multi_message_dedupes_inbox_paths(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_channel_revert_multi_message_dedupes_inbox_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from myrm_agent_harness.agent.file_snapshot.restore_inbox import drain_restore_notifications
         from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
             FileSnapshot,

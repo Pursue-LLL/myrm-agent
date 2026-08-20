@@ -20,9 +20,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -249,9 +247,7 @@ def _preview_contains_js(text: str) -> str:
     }})()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -264,10 +260,7 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
     concept_name = _seed_editor_concept(api_url)
 
     warm_ui_route("/settings/wiki")
-    wiki_page_url = (
-        f"{ui_url.rstrip('/')}/settings/wiki"
-        f"?conceptPath={urllib.parse.quote(concept_name, safe='')}"
-    )
+    wiki_page_url = f"{ui_url.rstrip('/')}/settings/wiki?conceptPath={urllib.parse.quote(concept_name, safe='')}"
 
     with open_wiki_settings_mcp_page(
         wiki_page_url,
@@ -281,20 +274,14 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         # the full pointer sequence under real-browser hydration).
         wait_for_state(client, page, _concepts_tab_present_js(), timeout_sec=60.0)
         clicked_tab = client.evaluate(page, _click_concepts_tab_js(), timeout_sec=15.0)
-        assert (
-            isinstance(clicked_tab, dict) and clicked_tab.get("ok") is True
-        ), clicked_tab
+        assert isinstance(clicked_tab, dict) and clicked_tab.get("ok") is True, clicked_tab
 
         # Concepts tab active + concept tree mounted.
-        concepts = wait_for_state(
-            client, page, _concepts_active_state(), timeout_sec=60.0
-        )
+        concepts = wait_for_state(client, page, _concepts_active_state(), timeout_sec=60.0)
         assert isinstance(concepts, dict) and concepts.get("ready") is True, concepts
 
         # Detail panel edit button ready (deep-link selects the concept).
-        edit_ready = wait_for_state(
-            client, page, _detail_edit_ready_js(), timeout_sec=60.0
-        )
+        edit_ready = wait_for_state(client, page, _detail_edit_ready_js(), timeout_sec=60.0)
         assert edit_ready.get("ready") is True, edit_ready
 
         clicked = client.evaluate(page, _click_edit_js(), timeout_sec=15.0)
@@ -304,9 +291,7 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         monaco = wait_for_state(client, page, _monaco_ready_js(), timeout_sec=60.0)
         assert isinstance(monaco, dict) and monaco.get("ready") is True, monaco
 
-        focused = client.evaluate(
-            page, _monaco_type_js("LIVE PREVIEW CHECK"), timeout_sec=15.0
-        )
+        focused = client.evaluate(page, _monaco_type_js("LIVE PREVIEW CHECK"), timeout_sec=15.0)
         assert isinstance(focused, dict) and focused.get("ok") is True, focused
 
         # Preview (MarkdownContent `.prose`) reflects the typed text after

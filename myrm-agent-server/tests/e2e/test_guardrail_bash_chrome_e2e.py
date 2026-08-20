@@ -302,9 +302,7 @@ def _wait_progress_ui_mounted(
         timeout_sec=min(90.0, timeout_sec),
         page_url=page_url,
     )
-    assert bridge_ready.get("ready") is True, json.dumps(
-        bridge_ready, ensure_ascii=False
-    )
+    assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
     _ensure_shpoib_api_binding(
         client,
         page,
@@ -491,9 +489,7 @@ def _navigate_attach_retry(
         timeout_sec=min(90.0, timeout_sec),
         page_url=page_url,
     )
-    assert bridge_ready.get("ready") is True, json.dumps(
-        bridge_ready, ensure_ascii=False
-    )
+    assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
     _ensure_shpoib_api_binding(
         client,
         page,
@@ -527,12 +523,7 @@ def _wait_chat_attached(
         if status.get("ok") is True:
             return status
         last = status
-        if (
-            page_url
-            and status.get("hasAssistant") is True
-            and status.get("hasChatSurface") is not True
-            and surface_retries < 2
-        ):
+        if page_url and status.get("hasAssistant") is True and status.get("hasChatSurface") is not True and surface_retries < 2:
             surface_retries += 1
             _ensure_page_on_chat(
                 client,
@@ -569,14 +560,10 @@ def _wait_chat_attached(
             answer=answer,
             timeout_sec=retry_budget,
         )
-    raise AssertionError(
-        f"Chat attach did not become ready: {json.dumps(last, ensure_ascii=False)}"
-    )
+    raise AssertionError(f"Chat attach did not become ready: {json.dumps(last, ensure_ascii=False)}")
 
 
-def _ensure_fixture_assistant_ready(
-    api_url: str, chat_id: str, *, timeout_sec: float = 45.0
-) -> None:
+def _ensure_fixture_assistant_ready(api_url: str, chat_id: str, *, timeout_sec: float = 45.0) -> None:
     """Poll API before Chrome — backend may lag seed under parallel mux."""
     deadline = time.monotonic() + timeout_sec
     last_error = "timeout"
@@ -585,11 +572,7 @@ def _ensure_fixture_assistant_ready(
             payload = http_json("GET", f"{api_url}/api/v1/chats/{chat_id}/messages")
             messages = _messages_from_payload(payload)
             assistant = next(
-                (
-                    msg
-                    for msg in messages
-                    if isinstance(msg, dict) and msg.get("role") == "assistant"
-                ),
+                (msg for msg in messages if isinstance(msg, dict) and msg.get("role") == "assistant"),
                 None,
             )
             if isinstance(assistant, dict):
@@ -649,9 +632,7 @@ def _ensure_shpoib_api_binding(
         should_inject = not actual or expected == shared_base
         if not should_inject:
             try:
-                should_inject = wait_e2e_provider_ready(
-                    api_url=expected, timeout_sec=5.0
-                )
+                should_inject = wait_e2e_provider_ready(api_url=expected, timeout_sec=5.0)
             except (OSError, TimeoutError, RuntimeError, ValueError):
                 should_inject = False
         if should_inject:
@@ -669,9 +650,7 @@ def _ensure_shpoib_api_binding(
                     timeout_sec=15.0,
                 )
         time.sleep(0.5)
-    raise AssertionError(
-        f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}"
-    )
+    raise AssertionError(f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}")
 
 
 def _assert_variant_ui(
@@ -699,13 +678,9 @@ def _assert_variant_ui(
         timeout_sec=_bridge_ready_timeout_sec(),
         page_url=page_url,
     )
-    assert bridge_ready.get("ready") is True, json.dumps(
-        bridge_ready, ensure_ascii=False
-    )
+    assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
 
-    _ensure_page_on_chat(
-        client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0
-    )
+    _ensure_page_on_chat(client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0)
 
     _ensure_shpoib_api_binding(
         client,
@@ -733,9 +708,7 @@ def _assert_variant_ui(
         _chat_surface_ready_js(),
         timeout_sec=_attach_eval_timeout_sec(),
     )
-    assert surface_state.get("ready") is True, json.dumps(
-        surface_state, ensure_ascii=False
-    )
+    assert surface_state.get("ready") is True, json.dumps(surface_state, ensure_ascii=False)
 
     message_ready = wait_for_state(
         client,  # type: ignore[arg-type]
@@ -743,9 +716,7 @@ def _assert_variant_ui(
         message_ready_js,
         timeout_sec=45.0,
     )
-    assert message_ready.get("ready") is True, json.dumps(
-        message_ready, ensure_ascii=False
-    )
+    assert message_ready.get("ready") is True, json.dumps(message_ready, ensure_ascii=False)
 
     category_state = wait_for_state(
         client,  # type: ignore[arg-type]
@@ -754,8 +725,7 @@ def _assert_variant_ui(
         timeout_sec=30.0,
     )
     assert category_state.get("ready") is True, (
-        f"variant={variant} missing guardrail_blocked step: "
-        f"{json.dumps(category_state, ensure_ascii=False)}"
+        f"variant={variant} missing guardrail_blocked step: {json.dumps(category_state, ensure_ascii=False)}"
     )
 
     _wait_progress_ui_mounted(
@@ -767,14 +737,10 @@ def _assert_variant_ui(
         timeout_sec=_progress_dom_timeout_sec(),
     )
 
-    _ensure_page_on_chat(
-        client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0
-    )
+    _ensure_page_on_chat(client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0)
     client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
 
-    _ensure_page_on_chat(
-        client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0
-    )
+    _ensure_page_on_chat(client, page, page_url=page_url, chat_id=chat_id, timeout_sec=45.0)
     badge_state = wait_for_state(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
@@ -782,14 +748,11 @@ def _assert_variant_ui(
         timeout_sec=_attach_eval_timeout_sec(),
     )
     assert badge_state.get("ready") is True, (
-        f"variant={variant} missing 安全拦截/Safety Blocked badge: "
-        f"{json.dumps(badge_state, ensure_ascii=False)}"
+        f"variant={variant} missing 安全拦截/Safety Blocked badge: {json.dumps(badge_state, ensure_ascii=False)}"
     )
 
 
-def _run_single_variant_ui_assertions(
-    api_url: str, ui_url: str, *, variant: str, warm_route: bool = True
-) -> None:
+def _run_single_variant_ui_assertions(api_url: str, ui_url: str, *, variant: str, warm_route: bool = True) -> None:
     _ensure_private_api_ready(api_url)
     seeded = _seed_fixture(api_url, variant=variant)
     chat_id = seeded["chat_id"]
@@ -807,9 +770,7 @@ def _run_single_variant_ui_assertions(
             timeout_sec=90.0,
             page_url=target_url,
         )
-        assert bridge_ready.get("ready") is True, json.dumps(
-            bridge_ready, ensure_ascii=False
-        )
+        assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
         _ensure_shpoib_api_binding(
             client,
             page,
@@ -841,9 +802,7 @@ def test_guardrail_bash_progress_step_and_safety_badge_render(variant: str) -> N
     last_error: BaseException | None = None
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
-            _run_single_variant_ui_assertions(
-                api_url, ui_url, variant=variant, warm_route=(attempt == 1)
-            )
+            _run_single_variant_ui_assertions(api_url, ui_url, variant=variant, warm_route=(attempt == 1))
             return
         except Exception as exc:
             last_error = exc

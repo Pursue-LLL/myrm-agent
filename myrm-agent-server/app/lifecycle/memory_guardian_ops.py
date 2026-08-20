@@ -118,11 +118,7 @@ async def purge_expired_archives(manager: MemoryManager) -> int:
             if not expired_ids:
                 continue
 
-            coll = (
-                manager.config.semantic_collection
-                if mem_type == MemoryType.SEMANTIC
-                else manager.config.episodic_collection
-            )
+            coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
             deleted = await manager.delete_memory(coll, expired_ids)
             total_purged += deleted
             logger.info(

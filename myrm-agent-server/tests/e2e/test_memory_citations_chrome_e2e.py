@@ -144,9 +144,7 @@ def test_memory_citations_evidence_button_opens_unified_sheet() -> None:
         assert isinstance(injected, dict), injected
         assert injected.get("ok") is True, json.dumps(injected, ensure_ascii=False)
 
-        button = wait_for_state(
-            client, page, _EVIDENCE_BUTTON_READY_JS, timeout_sec=45.0
-        )
+        button = wait_for_state(client, page, _EVIDENCE_BUTTON_READY_JS, timeout_sec=45.0)
         assert button.get("ready") is True, button
 
         opened = client.evaluate(page, _OPEN_EVIDENCE_SHEET_JS, timeout_sec=10.0)

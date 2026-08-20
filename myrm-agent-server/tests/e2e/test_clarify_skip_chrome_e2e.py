@@ -196,9 +196,7 @@ def _is_resume_progress_stall(result: dict[str, object]) -> bool:
     if final_text:
         return False
     normalized = {str(item) for item in event_types if item is not None}
-    return normalized == {"progress"} or (
-        normalized.issubset({"progress"}) and "progress" in normalized
-    )
+    return normalized == {"progress"} or (normalized.issubset({"progress"}) and "progress" in normalized)
 
 
 def _is_no_user_query_error(result: dict[str, object]) -> bool:
@@ -268,9 +266,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
         """Wait for clarify ready via API pending (SSOT) or DOM Skip button (whichever first)."""
-        wait_sec = (
-            _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
-        )
+        wait_sec = _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
         wait_sec = min(wait_sec, max(10.0, remaining_wall_sec() - 45.0))
         deadline = time.monotonic() + wait_sec
         last_dom: dict[str, object] = {}
@@ -292,22 +288,14 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                         "hasForm": True,
                     }
             try:
-                raw = await chat.evaluate(
-                    _CLARIFY_FORM_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-                )
+                raw = await chat.evaluate(_CLARIFY_FORM_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             except TimeoutError:
                 await asyncio.sleep(1.0)
                 continue
             except RuntimeError as exc:
                 message = str(exc).lower()
-                if (
-                    "transport unavailable" in message
-                    or "transport dead" in message
-                    or "transport closed" in message
-                ):
-                    raise AssertionError(
-                        f"Chrome MCP transport dead during clarify DOM wait: {exc}"
-                    ) from exc
+                if "transport unavailable" in message or "transport dead" in message or "transport closed" in message:
+                    raise AssertionError(f"Chrome MCP transport dead during clarify DOM wait: {exc}") from exc
                 if "mux_reclaim_stall" in message:
                     await asyncio.sleep(1.0)
                     continue
@@ -324,10 +312,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     "sample": str(last_dom.get("sample") or ""),
                 }
             await asyncio.sleep(1.0)
-        raise AssertionError(
-            f"Clarification not ready within {wait_sec}s "
-            f"(chat_id={normalized_chat_id!r}, dom={last_dom})"
-        )
+        raise AssertionError(f"Clarification not ready within {wait_sec}s (chat_id={normalized_chat_id!r}, dom={last_dom})")
 
     async def _wait_api_skip_done(
         *,
@@ -335,9 +320,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         api_base: str,
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
-        wait_sec = (
-            _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
-        )
+        wait_sec = _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
         wait_sec = min(wait_sec, max(10.0, remaining_wall_sec() - 45.0))
         deadline = time.monotonic() + wait_sec
         while time.monotonic() < deadline:
@@ -365,18 +348,14 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         *,
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
-        wait_sec = (
-            _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
-        )
+        wait_sec = _clarify_skip_api_wait_sec() if timeout_sec is None else float(timeout_sec)
         wait_sec = min(wait_sec, max(10.0, remaining_wall_sec() - 45.0))
         deadline = time.monotonic() + wait_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             touch_wall_progress()
             heartbeat_once()
-            raw = await chat.evaluate(
-                _UI_SKIP_DONE_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_UI_SKIP_DONE_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True and last.get("isStreaming") is not True:
                 return {
@@ -424,10 +403,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 timeout_sec=poll_budget,
             )
             if api_result.get("has_clarification") is not True:
-                raise AssertionError(
-                    "signoff API clarify fallback failed: "
-                    f"{api_result}; prior={first_exc}"
-                ) from first_exc
+                raise AssertionError(f"signoff API clarify fallback failed: {api_result}; prior={first_exc}") from first_exc
             await asyncio.sleep(2.0)
             await _release_ui_stream_for_api(chat)
             # R64: private API stream is SSOT once clarification_required is seen.
@@ -455,9 +431,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             touch_wall_progress()
             heartbeat_once()
             try:
-                raw = await chat.evaluate(
-                    _CLARIFY_FORM_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-                )
+                raw = await chat.evaluate(_CLARIFY_FORM_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             except (TimeoutError, RuntimeError):
                 await asyncio.sleep(1.0)
                 continue
@@ -472,41 +446,29 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             _RELEASE_UI_STREAM_FOR_API_JS,
             intent=EvaluateIntent.SYNC_PROBE,
         )
-        assert isinstance(
-            released, dict
-        ), f"releaseActiveStreamForApiResume: {released}"
+        assert isinstance(released, dict), f"releaseActiveStreamForApiResume: {released}"
         return released
 
     async def _enable_structured_clarify(chat: McpChatSession) -> None:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-        enabled = await chat.evaluate(
-            _ENABLE_STRUCTURED_CLARIFY_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        enabled = await chat.evaluate(_ENABLE_STRUCTURED_CLARIFY_JS, intent=EvaluateIntent.SYNC_PROBE)
         assert isinstance(enabled, dict)
-        assert (
-            enabled.get("ok") is True
-        ), f"Failed to enable structured_clarify: {enabled}"
-        pinned = await chat.evaluate(
-            _PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        assert enabled.get("ok") is True, f"Failed to enable structured_clarify: {enabled}"
+        pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         assert isinstance(pinned, dict)
-        assert (
-            pinned.get("ok") is True
-        ), f"Failed to pin lite model for clarify E2E: {pinned}"
+        assert pinned.get("ok") is True, f"Failed to pin lite model for clarify E2E: {pinned}"
         expected_lite = get_lite_model_selection()
         pinned_model = pinned.get("pinned")
         assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned}"
-        assert (
-            pinned_model.get("providerId") == expected_lite["providerId"]
-        ), f"Pinned provider mismatch: {pinned_model} vs {expected_lite}"
-        assert pinned_model.get("model") == _strip_provider_prefix(
-            str(expected_lite["model"])
-        ), f"Pinned model mismatch: {pinned_model} vs {expected_lite}"
+        assert pinned_model.get("providerId") == expected_lite["providerId"], (
+            f"Pinned provider mismatch: {pinned_model} vs {expected_lite}"
+        )
+        assert pinned_model.get("model") == _strip_provider_prefix(str(expected_lite["model"])), (
+            f"Pinned model mismatch: {pinned_model} vs {expected_lite}"
+        )
 
     async def _prepare_fresh_clarify_chat(chat: McpChatSession) -> None:
-        await chat.evaluate(
-            _DISMISS_MIGRATION_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        await chat.evaluate(_DISMISS_MIGRATION_JS, intent=EvaluateIntent.SYNC_PROBE)
         await chat.dismiss_modals()
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
@@ -521,11 +483,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     ) -> dict[str, object]:
         """Drop WebUI SSE lease (no cancel API) then POST resumeValue {} like API E2E."""
         if max_attempts is None:
-            max_attempts = (
-                _signoff_clarify_resume_max_attempts()
-                if is_e2e_signoff_runtime()
-                else 5
-            )
+            max_attempts = _signoff_clarify_resume_max_attempts() if is_e2e_signoff_runtime() else 5
         last: dict[str, object] = {"ok": False, "err": "not-attempted"}
         backoff_sec = (
             (3.0, 5.0, 8.0, 12.0, 20.0, 30.0, 45.0, 60.0)
@@ -564,10 +522,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     "error": {
                         "type": "error",
                         "error_type": "ResumeApiCallTimeout",
-                        "error": (
-                            "clarify resume to_thread timeout "
-                            f"after {call_timeout + 5.0:.0f}s"
-                        ),
+                        "error": (f"clarify resume to_thread timeout after {call_timeout + 5.0:.0f}s"),
                     },
                 }
             if _is_no_user_query_error(last):
@@ -593,10 +548,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                         "error": {
                             "type": "error",
                             "error_type": "ResumeApiCallTimeout",
-                            "error": (
-                                "clarify resume fallback to_thread timeout "
-                                f"after {call_timeout + 5.0:.0f}s"
-                            ),
+                            "error": (f"clarify resume fallback to_thread timeout after {call_timeout + 5.0:.0f}s"),
                         },
                     }
             if last.get("ok") is True:
@@ -607,10 +559,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 heartbeat_once()
                 await asyncio.sleep(pause)
                 continue
-            if (
-                _is_resume_retryable_transient_error(last)
-                and attempt + 1 < max_attempts
-            ):
+            if _is_resume_retryable_transient_error(last) and attempt + 1 < max_attempts:
                 heartbeat_once()
                 await asyncio.sleep(pause)
                 continue
@@ -630,10 +579,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     ) -> tuple[dict[str, object], dict[str, object]]:
         """Primary UI bridge skip, then DOM skip, then API resume with stall retries."""
         if remaining_wall_sec() < 120.0:
-            pytest.fail(
-                "Clarify skip budget exhausted before resume "
-                f"(remaining_wall={remaining_wall_sec():.0f}s)"
-            )
+            pytest.fail(f"Clarify skip budget exhausted before resume (remaining_wall={remaining_wall_sec():.0f}s)")
         resume_result: dict[str, object] = {"ok": False, "event_types": []}
         poll_budget = min(
             _clarify_skip_api_wait_sec(),
@@ -648,8 +594,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         ) -> tuple[dict[str, object], dict[str, object]]:
             if is_hitl_already_resolved_by_timeout(resume_result):
                 pytest.fail(
-                    "Clarify HITL already resolved by timeout before skip completed "
-                    f"(chat_id={chat_id!r}): {resume_result}"
+                    f"Clarify HITL already resolved by timeout before skip completed (chat_id={chat_id!r}): {resume_result}"
                 )
             if resume_result.get("ok") is not True:
                 try:
@@ -663,14 +608,11 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     )
                 except AssertionError:
                     pass
-            assert (
-                resume_result.get("ok") is True
-            ), f"API skip resume failed: {resume_result}; form={form_state}"
+            assert resume_result.get("ok") is True, f"API skip resume failed: {resume_result}; form={form_state}"
             after_skip: dict[str, object] = {
                 "ready": True,
                 "source": "resume_stream",
-                "doneSkipped": "DONE-SKIPPED"
-                in str(resume_result.get("final_text") or "").upper(),
+                "doneSkipped": "DONE-SKIPPED" in str(resume_result.get("final_text") or "").upper(),
                 "answered": True,
             }
             if not after_skip.get("doneSkipped"):
@@ -723,9 +665,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 skip_button_visible = True
                 form_state = {**form_state, **polled}
 
-        bridge = await chat.evaluate(
-            _SKIP_VIA_BRIDGE_JS, intent=EvaluateIntent.SYNC_PROBE
-        )
+        bridge = await chat.evaluate(_SKIP_VIA_BRIDGE_JS, intent=EvaluateIntent.SYNC_PROBE)
         if isinstance(bridge, dict) and bridge.get("ok") is True:
             try:
                 return (
@@ -746,9 +686,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     await _release_ui_stream_for_api(chat)
 
         if form_state.get("hasSkip") is True:
-            clicked = await chat.evaluate(
-                _CLICK_SKIP_JS, intent=EvaluateIntent.SYNC_PROBE
-            )
+            clicked = await chat.evaluate(_CLICK_SKIP_JS, intent=EvaluateIntent.SYNC_PROBE)
             if isinstance(clicked, dict) and clicked.get("ok") is True:
                 try:
                     return (
@@ -808,14 +746,10 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             "hasSkip": False,
         }
         for attempt in range(max_clarify_attempts):
-            if attempt > 0 and not (
-                is_e2e_signoff_runtime() and chat_id_hint
-            ):
+            if attempt > 0 and not (is_e2e_signoff_runtime() and chat_id_hint):
                 await _prepare_fresh_clarify_chat(chat)
             await chat.dismiss_modals()
-            await chat.evaluate(
-                _DISMISS_MIGRATION_JS, intent=EvaluateIntent.SYNC_PROBE
-            )
+            await chat.evaluate(_DISMISS_MIGRATION_JS, intent=EvaluateIntent.SYNC_PROBE)
             try:
                 if is_e2e_signoff_runtime():
                     prompt = E2E_PROMPT_SIGNOFF if attempt == 0 else E2E_NUDGE_PROMPT
@@ -823,34 +757,22 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     prompt = E2E_PROMPT if attempt == 0 else E2E_NUDGE_PROMPT
                 send_result = await chat.send_message(prompt, prompt)
             except (RuntimeError, TimeoutError) as exc:
-                if (
-                    is_e2e_signoff_runtime()
-                    and chat_id_hint
-                    and attempt > 0
-                ):
+                if is_e2e_signoff_runtime() and chat_id_hint and attempt > 0:
                     form_state = signoff_api_recovery_form
                     break
-                if (
-                    isinstance(exc, RuntimeError)
-                    and "timed out" not in str(exc).lower()
-                ) or attempt == max_clarify_attempts - 1:
+                if (isinstance(exc, RuntimeError) and "timed out" not in str(exc).lower()) or attempt == max_clarify_attempts - 1:
                     raise
                 await asyncio.sleep(3.0)
                 continue
             chat_id_hint = str(
-                send_result.get("started", {}).get("chatId")
-                or send_result.get("submit", {}).get("chatId")
-                or chat_id_hint
-                or ""
+                send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or chat_id_hint or ""
             ).strip()
             if not chat_id_hint:
                 chat_id_hint = str((await chat.bridge_chat_id()) or "").strip()
 
             submit_mode = str(send_result.get("submit", {}).get("mode") or "")
             if submit_mode != "sendTurnSealed":
-                raise RuntimeError(
-                    f"SendTurnContract expected sendTurnSealed, got: {send_result}"
-                )
+                raise RuntimeError(f"SendTurnContract expected sendTurnSealed, got: {send_result}")
 
             heartbeat_once()
             try:
@@ -883,17 +805,13 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             form_state=form_state,
         )
 
-        assert (
-            after_skip.get("answered") is True or after_skip.get("doneSkipped") is True
-        ), after_skip
+        assert after_skip.get("answered") is True or after_skip.get("doneSkipped") is True, after_skip
 
         after_turn = await chat.main_state(E2E_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
         chat_id = chat_id_hint or chat_id_from_path(str(after_turn.get("path") or ""))
         if not chat_id:
             chat_id = str(after_turn.get("bridgeChatId") or "").strip()
-        assert (
-            chat_id
-        ), f"Expected chat id after clarify skip: {after_turn}; after_skip={after_skip}"
+        assert chat_id, f"Expected chat id after clarify skip: {after_turn}; after_skip={after_skip}"
 
         skip_flow_ok = after_skip.get("ready") is True and (
             after_skip.get("answered") is True or after_skip.get("doneSkipped") is True
@@ -904,14 +822,12 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             e2e_resource_ledger.register("chat", chat_id)
             return chat_id
         try:
-            assert (
-                chat_user_message_count(chat_id, api_url=api_base) >= 1
-            ), f"Expected API user message for chat {chat_id}: {after_turn}"
+            assert chat_user_message_count(chat_id, api_url=api_base) >= 1, (
+                f"Expected API user message for chat {chat_id}: {after_turn}"
+            )
         except (TimeoutError, OSError) as exc:
             if not skip_flow_ok:
-                raise AssertionError(
-                    f"API message check failed and UI did not complete skip flow: {exc}"
-                ) from exc
+                raise AssertionError(f"API message check failed and UI did not complete skip flow: {exc}") from exc
         except AssertionError:
             if skip_flow_ok:
                 e2e_resource_ledger.register("chat", chat_id)
@@ -936,8 +852,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 page = None
                 if attempt >= len(new_page_timeouts):
                     raise RuntimeError(
-                        f"new_page timed out after {wall_timeout:.0f}s "
-                        f"(attempt {attempt}/{len(new_page_timeouts)})"
+                        f"new_page timed out after {wall_timeout:.0f}s (attempt {attempt}/{len(new_page_timeouts)})"
                     ) from exc
                 await asyncio.to_thread(client.abandon_inflight_requests)
                 await asyncio.sleep(1.5)
@@ -972,16 +887,11 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
             except TimeoutError:
                 if attempt >= len(bootstrap_timeouts):
                     pytest.fail(
-                        "Clarify chrome E2E bootstrap timed out in shared-hot mode: "
-                        f"timed out after {bootstrap_timeout:.0f}s"
+                        f"Clarify chrome E2E bootstrap timed out in shared-hot mode: timed out after {bootstrap_timeout:.0f}s"
                     )
             except RuntimeError as exc:
                 message = str(exc).lower()
-                retryable = (
-                    "mux_reclaim_stall" in message
-                    or "transport" in message
-                    or "target closed" in message
-                )
+                retryable = "mux_reclaim_stall" in message or "transport" in message or "target closed" in message
                 if (not retryable) or attempt >= len(bootstrap_timeouts):
                     if retryable:
                         pytest.fail(

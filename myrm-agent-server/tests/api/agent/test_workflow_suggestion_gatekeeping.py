@@ -52,10 +52,7 @@ def _collect_sse_events(client: TestClient, payload: dict) -> list[dict]:
 
 
 def _has_workflow_suggestion(events: list[dict]) -> bool:
-    return any(
-        e.get("type") == "status" and e.get("step_key") == "workflow_suggestion"
-        for e in events
-    )
+    return any(e.get("type") == "status" and e.get("step_key") == "workflow_suggestion" for e in events)
 
 
 @pytest.mark.e2e
@@ -83,9 +80,7 @@ class TestWorkflowSuggestionGatekeeping:
             "workflow_suggestion event should NOT be emitted when suggestWorkflowMode defaults to False"
         )
 
-    def test_opt_in_emits_workflow_suggestion(
-        self, client: TestClient, mock_load_user_configs
-    ):
+    def test_opt_in_emits_workflow_suggestion(self, client: TestClient, mock_load_user_configs):
         """Explicit opt-in (suggestWorkflowMode=True) → workflow_suggestion emitted."""
 
         original_configs = mock_load_user_configs.return_value
@@ -115,18 +110,13 @@ class TestWorkflowSuggestionGatekeeping:
         assert len(events) > 0, "Expected at least one SSE event"
 
         if _has_workflow_suggestion(events):
-            suggestion_events = [
-                e for e in events
-                if e.get("type") == "status" and e.get("step_key") == "workflow_suggestion"
-            ]
+            suggestion_events = [e for e in events if e.get("type") == "status" and e.get("step_key") == "workflow_suggestion"]
             assert suggestion_events[0]["data"]["phase"] == "workflow_suggestion"
             assert suggestion_events[0]["data"]["status"] == "suggested"
         # Note: even with opt-in, the model router may assign a non-reasoning tier,
         # in which case no suggestion is emitted. Both outcomes are valid.
 
-    def test_skip_flag_suppresses_suggestion(
-        self, client: TestClient, mock_load_user_configs
-    ):
+    def test_skip_flag_suppresses_suggestion(self, client: TestClient, mock_load_user_configs):
         """skipWorkflowSuggestion engine_param → no suggestion even with opt-in."""
         original_configs = mock_load_user_configs.return_value
         configs_with_opt_in = type(original_configs)(
@@ -153,6 +143,4 @@ class TestWorkflowSuggestionGatekeeping:
         events = _collect_sse_events(client, payload)
 
         assert len(events) > 0, "Expected at least one SSE event"
-        assert not _has_workflow_suggestion(events), (
-            "workflow_suggestion should be suppressed by skipWorkflowSuggestion flag"
-        )
+        assert not _has_workflow_suggestion(events), "workflow_suggestion should be suppressed by skipWorkflowSuggestion flag"

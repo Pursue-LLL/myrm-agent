@@ -63,7 +63,4 @@ def test_no_core_services_lifecycle_imports_app_api() -> None:
         "New app.api imports detected under app/core, app/services, or app/lifecycle. "
         "Move shared code to app/schemas, app/services, or app/core:\n" + "\n".join(new_imports)
     )
-    assert not current, (
-        "app.api imports remain under guarded layers (baseline must stay empty):\n"
-        + "\n".join(sorted(current))
-    )
+    assert not current, "app.api imports remain under guarded layers (baseline must stay empty):\n" + "\n".join(sorted(current))

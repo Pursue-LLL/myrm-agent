@@ -60,9 +60,7 @@ def _verify_cp_token(request: Request) -> None:
 
 
 @router.post("/api/admin/org-model-policy-sync", response_model=OrgModelPolicySyncResponse)
-async def org_model_policy_sync(
-    request: Request, body: OrgModelPolicySyncRequest
-) -> OrgModelPolicySyncResponse:
+async def org_model_policy_sync(request: Request, body: OrgModelPolicySyncRequest) -> OrgModelPolicySyncResponse:
     """Receive org model policy from Control Plane and persist locally."""
     _verify_cp_token(request)
 
@@ -77,9 +75,7 @@ async def org_model_policy_sync(
     bump_org_model_policy_revision()
     await get_execution_cache().close_all()
     logger.info("Org model policy sync: %d patterns", len(body.allowed_patterns))
-    return OrgModelPolicySyncResponse(
-        status="synced", pattern_count=len(body.allowed_patterns)
-    )
+    return OrgModelPolicySyncResponse(status="synced", pattern_count=len(body.allowed_patterns))
 
 
 frontend_router = APIRouter()

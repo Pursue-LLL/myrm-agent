@@ -16,9 +16,7 @@ from collections.abc import Callable
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -229,9 +227,7 @@ def _seed_rich_media_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-def _open_and_switch_to_workspace_tab(
-    client: object, page: object, chat_id: str, page_url: str
-) -> None:
+def _open_and_switch_to_workspace_tab(client: object, page: object, chat_id: str, page_url: str) -> None:
     bridge_ready = wait_for_react_e2e_bridge(
         client,  # type: ignore[arg-type]
         page,  # type: ignore[arg-type]
@@ -384,9 +380,7 @@ def _force_mux_heal_before_retry() -> None:
     time.sleep(5.0)
 
 
-def _run_with_transport_retry(
-    runner: Callable[..., None], api_url: str, ui_url: str
-) -> None:
+def _run_with_transport_retry(runner: Callable[..., None], api_url: str, ui_url: str) -> None:
     last_error: BaseException | None = None
     for _attempt in range(1, _MAX_ATTEMPTS + 1):
         try:

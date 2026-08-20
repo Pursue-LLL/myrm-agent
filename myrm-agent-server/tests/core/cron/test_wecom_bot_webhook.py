@@ -50,32 +50,22 @@ def _mock_httpx_success(response_json: dict | None = None) -> MagicMock:
 
 class TestIsWecomBotHookUrl:
     def test_standard_url(self) -> None:
-        assert is_wecom_bot_hook_url(
-            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=abc123"
-        )
+        assert is_wecom_bot_hook_url("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=abc123")
 
     def test_uppercase_url(self) -> None:
-        assert is_wecom_bot_hook_url(
-            "https://QYAPI.WEIXIN.QQ.COM/cgi-bin/webhook/send?key=xyz"
-        )
+        assert is_wecom_bot_hook_url("https://QYAPI.WEIXIN.QQ.COM/cgi-bin/webhook/send?key=xyz")
 
     def test_mixed_case_url(self) -> None:
-        assert is_wecom_bot_hook_url(
-            "https://QyApi.Weixin.QQ.com/CGI-BIN/webhook/send?key=k1"
-        )
+        assert is_wecom_bot_hook_url("https://QyApi.Weixin.QQ.com/CGI-BIN/webhook/send?key=k1")
 
     def test_feishu_url_rejected(self) -> None:
-        assert not is_wecom_bot_hook_url(
-            "https://open.feishu.cn/open-apis/bot/v2/hook/abc"
-        )
+        assert not is_wecom_bot_hook_url("https://open.feishu.cn/open-apis/bot/v2/hook/abc")
 
     def test_slack_url_rejected(self) -> None:
         assert not is_wecom_bot_hook_url("https://hooks.slack.com/services/T/B/X")
 
     def test_dingtalk_url_rejected(self) -> None:
-        assert not is_wecom_bot_hook_url(
-            "https://oapi.dingtalk.com/robot/send?access_token=abc"
-        )
+        assert not is_wecom_bot_hook_url("https://oapi.dingtalk.com/robot/send?access_token=abc")
 
     def test_empty_string(self) -> None:
         assert not is_wecom_bot_hook_url("")

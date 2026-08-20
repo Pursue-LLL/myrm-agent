@@ -131,9 +131,7 @@ class TestDraftsE2E:
         assert second.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_approve_skill_draft_blocked_in_sandbox(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_approve_skill_draft_blocked_in_sandbox(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.config.deploy_mode import get_deploy_mode
         from app.platform_utils.deployment_capabilities import (
             _reset_capabilities_cache_for_testing,

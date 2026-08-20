@@ -113,9 +113,7 @@ async def test_apply_lite_context_downgrade_returns_main_cfg_when_degraded() -> 
             return_value=degraded_llm,
         ),
     ):
-        result_llm, effective_cfg = await apply_lite_context_downgrade(
-            main_llm, lite_llm, main_cfg, lite_cfg
-        )
+        result_llm, effective_cfg = await apply_lite_context_downgrade(main_llm, lite_llm, main_cfg, lite_cfg)
 
     assert result_llm is degraded_llm
     assert effective_cfg.model == main_cfg.model
@@ -133,9 +131,7 @@ async def test_apply_lite_managed_fallback_uses_effective_cfg_after_downgrade() 
         new_callable=AsyncMock,
         return_value=mock_fallback,
     ):
-        wrapped = await apply_lite_managed_fallback(
-            degraded_llm, main_cfg, fallback_cfg
-        )
+        wrapped = await apply_lite_managed_fallback(degraded_llm, main_cfg, fallback_cfg)
 
     assert isinstance(wrapped, ManagedLLM)
     assert wrapped._main_model_name == main_cfg.model
@@ -157,14 +153,12 @@ async def test_create_agent_llms_with_multiple_fallbacks() -> None:
     ) as get_llm:
         get_llm.side_effect = [mock_main, mock_lite, mock_fb1, mock_fb2]
 
-        main_llm, lite_llm, stream_fallback, safety, stream_fallbacks = (
-            await create_agent_llms(
-                main_cfg,
-                main_cfg,
-                None,
-                None,
-                fallback_model_cfgs=[fb1_cfg, fb2_cfg],
-            )
+        main_llm, lite_llm, stream_fallback, safety, stream_fallbacks = await create_agent_llms(
+            main_cfg,
+            main_cfg,
+            None,
+            None,
+            fallback_model_cfgs=[fb1_cfg, fb2_cfg],
         )
 
     assert isinstance(main_llm, ManagedLLM)
@@ -172,4 +166,3 @@ async def test_create_agent_llms_with_multiple_fallbacks() -> None:
     assert stream_fallback is mock_fb1
     assert stream_fallbacks == [mock_fb1, mock_fb2]
     assert safety is None
-

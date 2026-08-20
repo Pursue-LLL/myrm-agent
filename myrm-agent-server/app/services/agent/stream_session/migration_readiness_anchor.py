@@ -25,9 +25,7 @@ logger = logging.getLogger(__name__)
 FirstTurnOutcome = Literal["success", "failed", "no_output"]
 
 
-def resolve_first_turn_outcome(
-    *, had_fatal_error: bool, has_assistant_content: bool
-) -> FirstTurnOutcome:
+def resolve_first_turn_outcome(*, had_fatal_error: bool, has_assistant_content: bool) -> FirstTurnOutcome:
     """Classify first-turn execution outcome from stream finalization signals."""
 
     if had_fatal_error:
@@ -65,9 +63,7 @@ async def record_migration_first_turn_outcome(
         service = MemoryImportSessionService(db)
         if readiness_status is None:
             try:
-                live_readiness = await service.resolve_live_import_readiness(
-                    import_batch_id
-                )
+                live_readiness = await service.resolve_live_import_readiness(import_batch_id)
             except Exception as exc:
                 logger.warning(
                     "Failed to live-resolve migration readiness for first-turn outcome batch %s: %s",

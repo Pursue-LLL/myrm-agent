@@ -26,12 +26,15 @@ async def test_wiki_ingest_stream_route_exists() -> None:
     app.dependency_overrides[get_optional_llm_for_user] = _override_llm
     app.dependency_overrides[get_optional_memory_manager] = _override_manager
 
-    with patch(
-        "app.api.wiki.ingest_stream.wiki_ingest_event_bus.stream_scope",
-        new=_fake_stream_scope,
-    ), patch(
-        "app.services.wiki.vault.get_wiki_archiver",
-        return_value=mock_archiver,
+    with (
+        patch(
+            "app.api.wiki.ingest_stream.wiki_ingest_event_bus.stream_scope",
+            new=_fake_stream_scope,
+        ),
+        patch(
+            "app.services.wiki.vault.get_wiki_archiver",
+            return_value=mock_archiver,
+        ),
     ):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:

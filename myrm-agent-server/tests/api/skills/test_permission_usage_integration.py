@@ -45,12 +45,7 @@ def real_local_skill(tmp_path: Path) -> str:
     skill_dir = test_path / _SKILL_NAME
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(
-        "---\n"
-        f"name: {_SKILL_NAME}\n"
-        "description: Usage stats integration skill\n"
-        "---\n\n"
-        "## Steps\n"
-        "1. Do the thing.\n",
+        f"---\nname: {_SKILL_NAME}\ndescription: Usage stats integration skill\n---\n\n## Steps\n1. Do the thing.\n",
         encoding="utf-8",
     )
     skill_id = compute_local_skill_id(skill_dir)
@@ -103,22 +98,16 @@ async def _insert_logs(skill_id: str, logs: list[SkillPermissionUsageLog]) -> No
         await db.commit()
 
 
-async def _fetch_usage(
-    usage_app: FastAPI, skill_id: str, days: int = 7
-) -> tuple[int, dict | None]:
+async def _fetch_usage(usage_app: FastAPI, skill_id: str, days: int = 7) -> tuple[int, dict | None]:
     transport = ASGITransport(app=usage_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get(
-            f"/api/v1/skills/{skill_id}/permissions/usage?days={days}"
-        )
+        response = await client.get(f"/api/v1/skills/{skill_id}/permissions/usage?days={days}")
     if response.status_code != 200:
         return response.status_code, None
     return 200, response.json()
 
 
-async def test_usage_real_db_aggregates_permission_groups(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_aggregates_permission_groups(usage_app: FastAPI, real_local_skill: str) -> None:
     skill_id = real_local_skill
     await _insert_logs(
         skill_id,
@@ -155,9 +144,7 @@ async def test_usage_real_db_aggregates_permission_groups(
     assert stats["file_read"]["recent_operations"][0]["deny_reason"] == "not granted"
 
 
-async def test_usage_real_db_days_window_filters_old_logs(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_days_window_filters_old_logs(usage_app: FastAPI, real_local_skill: str) -> None:
     skill_id = real_local_skill
     await _insert_logs(
         skill_id,
@@ -177,16 +164,11 @@ async def test_usage_real_db_days_window_filters_old_logs(
     assert payload_30d["total_operations"] == 2
 
 
-async def test_usage_real_db_recent_operations_capped_at_ten(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_recent_operations_capped_at_ten(usage_app: FastAPI, real_local_skill: str) -> None:
     skill_id = real_local_skill
     await _insert_logs(
         skill_id,
-        [
-            _log(skill_id, "env_var_access", f"op {i}", True, age=timedelta(hours=12 - i))
-            for i in range(12)
-        ],
+        [_log(skill_id, "env_var_access", f"op {i}", True, age=timedelta(hours=12 - i)) for i in range(12)],
     )
 
     _, payload = await _fetch_usage(usage_app, skill_id)
@@ -205,15 +187,11 @@ async def test_usage_real_db_recent_operations_capped_at_ten(
 async def test_usage_real_db_unknown_skill_returns_404(usage_app: FastAPI) -> None:
     transport = ASGITransport(app=usage_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get(
-            "/api/v1/skills/local::missing/permissions/usage"
-        )
+        response = await client.get("/api/v1/skills/local::missing/permissions/usage")
     assert response.status_code == 404
 
 
-async def test_usage_real_db_empty_logs_return_zero(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_empty_logs_return_zero(usage_app: FastAPI, real_local_skill: str) -> None:
     status, payload = await _fetch_usage(usage_app, real_local_skill)
 
     assert status == 200
@@ -222,9 +200,7 @@ async def test_usage_real_db_empty_logs_return_zero(
     assert payload["stats"] == []
 
 
-async def test_usage_real_db_same_timestamp_sorted_by_id_desc(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_same_timestamp_sorted_by_id_desc(usage_app: FastAPI, real_local_skill: str) -> None:
     """同 used_at 时按 id DESC 二级排序：后写入的（更大 id）在前。"""
     skill_id = real_local_skill
     same_ts = datetime.now(UTC).replace(tzinfo=None)
@@ -244,9 +220,7 @@ async def test_usage_real_db_same_timestamp_sorted_by_id_desc(
     assert [op["operation"] for op in recent] == ["third", "second", "first"]
 
 
-async def test_usage_real_db_recent_capped_per_permission(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_recent_capped_per_permission(usage_app: FastAPI, real_local_skill: str) -> None:
     """每个权限独立保留最近 10 条，互不干扰。"""
     skill_id = real_local_skill
     logs: list[SkillPermissionUsageLog] = []
@@ -273,9 +247,7 @@ async def test_usage_real_db_recent_capped_per_permission(
         assert len(stats[perm]["recent_operations"]) == 10
 
 
-async def test_usage_real_db_valid_days_boundaries(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_valid_days_boundaries(usage_app: FastAPI, real_local_skill: str) -> None:
     """days 有效边界 1 / 365 正常返回（Query ge=1, le=365）。"""
     skill_id = real_local_skill
     await _insert_logs(
@@ -295,9 +267,7 @@ async def test_usage_real_db_valid_days_boundaries(
     assert payload_365d["total_operations"] == 2
 
 
-async def test_usage_real_db_logger_flush_to_read(
-    usage_app: FastAPI, real_local_skill: str
-) -> None:
+async def test_usage_real_db_logger_flush_to_read(usage_app: FastAPI, real_local_skill: str) -> None:
     """端到端真实链路：permission_logger 批量落库（无 mock）→ 端点聚合读取。"""
     from contextlib import asynccontextmanager
     from unittest.mock import patch

@@ -34,10 +34,7 @@ from dev_gate.contract import EvaluateIntent  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
-E2E_PROMPT = (
-    "【E2E v2.1 持续监控】本轮只回复 OK。"
-    "禁止调用 complete_goal_tool，禁止标记 goal 完成。"
-)
+E2E_PROMPT = "【E2E v2.1 持续监控】本轮只回复 OK。禁止调用 complete_goal_tool，禁止标记 goal 完成。"
 DRAFT_OBJECTIVE = "Add health check endpoint returning 200 JSON"
 PAUSE_NOTE = "E2E pause note for v2.1"
 
@@ -50,9 +47,7 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     if not wait_e2e_provider_ready():
-        pytest.fail(
-            "Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
-        )
+        pytest.fail("Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome")
 
     async def _resolve_bound_api_base(chat: McpChatSession) -> str:
         page_api = await chat.evaluate(
@@ -89,9 +84,7 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
             "(() => location.pathname)()",
             intent=EvaluateIntent.SYNC_PROBE,
         )
-        if isinstance(path_probe, str) and (
-            path_probe.startswith("/settings") or path_probe.startswith("/login")
-        ):
+        if isinstance(path_probe, str) and (path_probe.startswith("/settings") or path_probe.startswith("/login")):
             await chat.cdp("Page.navigate", {"url": f"{BASE_URL}/"})
             await asyncio.sleep(3.0)
             await chat.bootstrap(BASE_URL, timeout_sec=120.0)
@@ -103,9 +96,7 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
 
         send_result = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or ""
         ).strip()
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
@@ -147,9 +138,9 @@ async def test_chrome_ui_goal_v21_pause_draft_bg_refresh(
 
         draft_result = await chat.run_goal_draft_from_composer()
         assert draft_result.get("ok") is True, draft_result
-        assert int(draft_result.get("acceptanceCount") or 0) >= 1 or int(
-            draft_result.get("constraintsCount") or 0
-        ) >= 1, draft_result
+        assert int(draft_result.get("acceptanceCount") or 0) >= 1 or int(draft_result.get("constraintsCount") or 0) >= 1, (
+            draft_result
+        )
 
         await _require_active_goal_ui(chat, chat_id, api_base)
 

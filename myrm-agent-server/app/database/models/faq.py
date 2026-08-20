@@ -71,6 +71,4 @@ class FaqHitLog(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    __table_args__ = (
-        Index("ix_faq_hit_logs_corpus_hit", "corpus_id", "hit"),
-    )
+    __table_args__ = (Index("ix_faq_hit_logs_corpus_hit", "corpus_id", "hit"),)

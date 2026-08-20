@@ -26,6 +26,7 @@ from app.channels.types import InboundMessage, OutboundMessage
 
 logger = logging.getLogger("app.channels.routing.router")
 
+
 class RouterCommandsGoalsMixin:
     """Mixin: /goal, /subgoal, /background, /handoff commands."""
 

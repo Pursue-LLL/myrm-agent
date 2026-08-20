@@ -554,9 +554,7 @@ class TestHandleCompact:
         result_obj.tokens_saved = 500
         handler = AsyncMock(return_value=result_obj)
 
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic="API design"
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="API design")
 
         handler.assert_called_once()
         _, kwargs = handler.call_args
@@ -576,9 +574,7 @@ class TestHandleCompact:
         result_obj.tokens_saved = 500
         handler = AsyncMock(return_value=result_obj)
 
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic="API design"
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="API design")
 
         reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
         assert "API design" in reply.content
@@ -602,9 +598,7 @@ class TestHandleCompact:
         handler = AsyncMock(return_value=result_obj)
 
         long_topic = "x" * 300
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic=long_topic
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic=long_topic)
 
         _, kwargs = handler.call_args
         assert len(kwargs["focus_topic"]) == MAX_FOCUS_TOPIC_LENGTH
@@ -623,9 +617,7 @@ class TestHandleCompact:
         result_obj.tokens_saved = 500
         handler = AsyncMock(return_value=result_obj)
 
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic=""
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="")
 
         reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
         assert "(focus:" not in reply.content
@@ -785,9 +777,7 @@ class TestHandleTopicCommand:
 
         await handle_topic_command(msg, cmd, bus, topic_resolver=topic_resolver)
 
-        topic_resolver.bind_topic.assert_called_once_with(
-            channel="test", chat_id="c1", thread_id=None, agent_id="support-agent"
-        )
+        topic_resolver.bind_topic.assert_called_once_with(channel="test", chat_id="c1", thread_id=None, agent_id="support-agent")
         reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
         assert "channel" in reply.content.lower()
         assert "support-agent" in reply.content
@@ -802,9 +792,7 @@ class TestHandleTopicCommand:
         bus = _mock_bus()
 
         topic_resolver = MagicMock()
-        topic_resolver.bind_topic = AsyncMock(
-            side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG)
-        )
+        topic_resolver.bind_topic = AsyncMock(side_effect=ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG))
 
         await handle_topic_command(msg, cmd, bus, topic_resolver=topic_resolver)
 
@@ -879,9 +867,7 @@ class TestRegistryValidation:
 
     def test_overwrite_system_alias_raises(self) -> None:
         registry = CommandRegistry()
-        system_cmd = CommandDef(
-            name="mycmd", description="safe", kind=CommandKind.SYSTEM, aliases=("mc",)
-        )
+        system_cmd = CommandDef(name="mycmd", description="safe", kind=CommandKind.SYSTEM, aliases=("mc",))
         registry.register(system_cmd)
         with pytest.raises(ValueError, match="Cannot overwrite system command alias"):
             registry.register(
@@ -943,9 +929,7 @@ class TestRegistryValidation:
     def test_invalid_alias_raises(self) -> None:
         registry = CommandRegistry()
         with pytest.raises(ValueError, match="Invalid alias"):
-            registry.register(
-                CommandDef(name="good", description="ok", aliases=("bad alias",))
-            )
+            registry.register(CommandDef(name="good", description="ok", aliases=("bad alias",)))
 
 
 class TestRegistryEdgeCases:
@@ -987,9 +971,7 @@ class TestRegistryUnregisterAndFilter:
 
     def test_unregister_existing(self) -> None:
         registry = CommandRegistry()
-        cmd = CommandDef(
-            name="custom", description="test", kind=CommandKind.SKILL, skill_ids=("s1",)
-        )
+        cmd = CommandDef(name="custom", description="test", kind=CommandKind.SKILL, skill_ids=("s1",))
         registry.register(cmd)
         assert registry.unregister("custom") is True
         assert registry.get("custom") is None
@@ -1020,9 +1002,7 @@ class TestRegistryUnregisterAndFilter:
 
     def test_commands_by_kind_skill(self) -> None:
         registry = CommandRegistry()
-        cmd = CommandDef(
-            name="daily", description="test", kind=CommandKind.SKILL, skill_ids=("s1",)
-        )
+        cmd = CommandDef(name="daily", description="test", kind=CommandKind.SKILL, skill_ids=("s1",))
         registry.register(cmd)
         skill_cmds = registry.commands_by_kind(CommandKind.SKILL)
         assert len(skill_cmds) == 1
@@ -1252,9 +1232,7 @@ class TestUpdateSkillCommands:
 def _mock_resolver(user_id: str = "uid1") -> MagicMock:
     resolver = MagicMock()
     resolver.resolve_dm_user = AsyncMock(return_value=user_id)
-    resolver.resolve_group_user = AsyncMock(
-        return_value=(user_id, _make_msg(is_group=True, user_id=user_id))
-    )
+    resolver.resolve_group_user = AsyncMock(return_value=(user_id, _make_msg(is_group=True, user_id=user_id)))
     return resolver
 
 

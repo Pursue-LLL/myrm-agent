@@ -41,8 +41,4 @@ async def count_cron_jobs_bound_to_template(template_id: str) -> int:
             exc,
         )
         return 0
-    return sum(
-        1
-        for job in jobs
-        if (job.workflow_template_id or "").strip() == normalized
-    )
+    return sum(1 for job in jobs if (job.workflow_template_id or "").strip() == normalized)

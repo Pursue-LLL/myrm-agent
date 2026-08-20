@@ -56,12 +56,14 @@ class CustomSourceConfig:
         if isinstance(raw_sources, list):
             for item in raw_sources:
                 if isinstance(item, dict):
-                    sources.append(CustomSourceEntry(
-                        url=str(item.get("url", "")),
-                        source_type=str(item.get("source_type", "well-known")),
-                        label=str(item.get("label", "")),
-                        healthy=bool(item.get("healthy", True)),
-                    ))
+                    sources.append(
+                        CustomSourceEntry(
+                            url=str(item.get("url", "")),
+                            source_type=str(item.get("source_type", "well-known")),
+                            label=str(item.get("label", "")),
+                            healthy=bool(item.get("healthy", True)),
+                        )
+                    )
         return cls(sources=sources)
 
 

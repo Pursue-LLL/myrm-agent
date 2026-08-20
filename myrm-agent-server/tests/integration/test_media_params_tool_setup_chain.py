@@ -129,7 +129,13 @@ def test_video_fallback_only_chain_mounts_video_tool() -> None:
         ]
     }
     _, video_params, _ = _extract_media_generation_params(
-        {"videoGeneration": {"provider": "openai", "model": "sora", "fallbackProviders": [{"provider": "openai", "model": "sora"}]}},
+        {
+            "videoGeneration": {
+                "provider": "openai",
+                "model": "sora",
+                "fallbackProviders": [{"provider": "openai", "model": "sora"}],
+            }
+        },
         providers_dict,
         enabled,
         None,

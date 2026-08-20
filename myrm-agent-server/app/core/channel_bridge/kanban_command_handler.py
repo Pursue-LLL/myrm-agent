@@ -323,9 +323,7 @@ class ChannelKanbanCommandHandler:
 
         if summary.by_agent:
             lines.append("**By agent:**")
-            for agent_id, count in sorted(
-                summary.by_agent.items(), key=lambda x: (x[0] or "")
-            ):
+            for agent_id, count in sorted(summary.by_agent.items(), key=lambda x: x[0] or ""):
                 lines.append(f"  🤖 {agent_id or 'unknown'}: {count}")
 
         dispatcher_label = "✅ active" if summary.dispatcher_active else "⏸ stopped"

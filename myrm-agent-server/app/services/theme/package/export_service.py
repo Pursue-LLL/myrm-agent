@@ -31,23 +31,23 @@ class ThemePackageExportError(ValueError):
     """User-facing export failure."""
 
 
-_FILE_ID_RE = re.compile(r'^file:(.+)$')
+_FILE_ID_RE = re.compile(r"^file:(.+)$")
 
 
 async def export_theme_package(profile: ThemeProfileRecipeModel) -> bytes:
     files: dict[str, bytes] = {}
-    hero_name = await _resolve_asset_filename(profile.art.assetRef, files, default_stem='hero')
+    hero_name = await _resolve_asset_filename(profile.art.assetRef, files, default_stem="hero")
     poster_name = await _resolve_asset_filename(
         profile.art.posterAssetRef,
         files,
-        default_stem='poster',
+        default_stem="poster",
     )
     preview_name = await _resolve_asset_filename(
         profile.packagePreviewAssetRef,
         files,
-        default_stem='preview',
+        default_stem="preview",
     )
-    if preview_name is None and hero_name and hero_name.endswith(('.png', '.jpg', '.jpeg', '.webp')):
+    if preview_name is None and hero_name and hero_name.endswith((".png", ".jpg", ".jpeg", ".webp")):
         preview_name = hero_name
 
     art = ThemePackageArtModel(
@@ -76,7 +76,7 @@ async def export_theme_package(profile: ThemeProfileRecipeModel) -> bytes:
     )
 
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
             RECIPE_JSON,
             json.dumps(manifest.model_dump(), ensure_ascii=False, indent=2),
@@ -96,35 +96,35 @@ async def _resolve_asset_filename(
         return None
     match = _FILE_ID_RE.match(asset_ref)
     if not match:
-        raise ThemePackageExportError(f'Unsupported asset ref for export: {asset_ref}')
+        raise ThemePackageExportError(f"Unsupported asset ref for export: {asset_ref}")
     file_id = match.group(1)
     metadata = await files_service.get_file(file_id)
     if metadata is None:
-        raise ThemePackageExportError(f'Theme asset not found: {file_id}')
+        raise ThemePackageExportError(f"Theme asset not found: {file_id}")
     content = await files_service.get_content(file_id)
     filename = _safe_filename(metadata.filename, default_stem=default_stem)
     if filename in files:
         suffix = 2
         stem, ext = _split_ext(filename)
-        while f'{stem}-{suffix}{ext}' in files:
+        while f"{stem}-{suffix}{ext}" in files:
             suffix += 1
-        filename = f'{stem}-{suffix}{ext}'
+        filename = f"{stem}-{suffix}{ext}"
     files[filename] = content
     return filename
 
 
 def _split_ext(filename: str) -> tuple[str, str]:
-    if '.' not in filename:
-        return filename, ''
-    stem, ext = filename.rsplit('.', 1)
-    return stem, f'.{ext}'
+    if "." not in filename:
+        return filename, ""
+    stem, ext = filename.rsplit(".", 1)
+    return stem, f".{ext}"
 
 
 def _safe_filename(original: str, *, default_stem: str) -> str:
-    base = original.replace('\\', '/').split('/')[-1].strip()
+    base = original.replace("\\", "/").split("/")[-1].strip()
     if not base:
-        return f'{default_stem}.bin'
-    if re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$', base):
+        return f"{default_stem}.bin"
+    if re.match(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", base):
         return base
-    ext = _split_ext(base)[1] or '.bin'
-    return f'{default_stem}{ext}'
+    ext = _split_ext(base)[1] or ".bin"
+    return f"{default_stem}{ext}"

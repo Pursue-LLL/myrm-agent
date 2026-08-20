@@ -58,10 +58,7 @@ def _resolve_growth_status(record_status: str, payload: dict[str, object]) -> st
 
 
 def _append_scan_failure(description: str, scan_result: ScanResult) -> str:
-    findings_texts = [
-        f"- [{f.severity.name}] {f.threat_type}: {f.description}"
-        for f in scan_result.findings
-    ]
+    findings_texts = [f"- [{f.severity.name}] {f.threat_type}: {f.description}" for f in scan_result.findings]
     base = description.strip()
     suffix = "\n".join(findings_texts)
     if base:
@@ -69,9 +66,7 @@ def _append_scan_failure(description: str, scan_result: ScanResult) -> str:
     return f"**PRE-FLIGHT SECURITY SCAN FAILED:**\n{suffix}"
 
 
-def _publish_sse_event(
-    event_type: AppEventType, data: dict[str, object]
-) -> None:
+def _publish_sse_event(event_type: AppEventType, data: dict[str, object]) -> None:
     """Publish an SSE event through the shared bus, logging failures."""
     try:
         bus = get_event_bus()
@@ -138,20 +133,14 @@ async def build_scannable_growth_content(result: dict[str, object]) -> str:
     if not skill_content_bytes:
         return patch_content
 
-    original_content = (
-        skill_content_bytes.decode("utf-8")
-        if isinstance(skill_content_bytes, bytes)
-        else skill_content_bytes
-    )
+    original_content = skill_content_bytes.decode("utf-8") if isinstance(skill_content_bytes, bytes) else skill_content_bytes
     pattern = r"<<<<<<<\s*SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>>\s*REPLACE"
     blocks = re.findall(pattern, patch_content, flags=re.DOTALL)
 
     new_content = original_content
     if blocks:
         for search, replace in blocks:
-            replace_result = fuzzy_replace(
-                new_content, search, replace, replace_all=False
-            )
+            replace_result = fuzzy_replace(new_content, search, replace, replace_all=False)
             if replace_result.success:
                 new_content = replace_result.content
         return new_content
@@ -178,11 +167,7 @@ async def evaluate_growth_scan(
         logger.error("Skill draft pre-flight scan failed: %s", exc)
         return "PENDING_REVIEW", description
 
-    if (
-        not scan_result.is_clean
-        and scan_result.max_severity
-        and scan_result.max_severity >= ScanSeverity.CRITICAL
-    ):
+    if not scan_result.is_clean and scan_result.max_severity and scan_result.max_severity >= ScanSeverity.CRITICAL:
         logger.warning(
             "Skill draft '%s' failed pre-flight security scan. Marking as FAILED_SCAN.",
             skill_name,
@@ -205,11 +190,7 @@ async def persist_skill_draft_record(
     draft_type = str(result.get("type") or "unknown")
     raw_content = result.get("content") or ""
     draft_name = str(result.get("skill_name") or str(raw_content)[:80] or "")
-    final_description = (
-        description
-        if description is not None
-        else str(result.get("skill_description") or "")
-    )
+    final_description = description if description is not None else str(result.get("skill_description") or "")
 
     if isinstance(raw_content, str) and len(raw_content) > MAX_SKILL_CONTENT_CHARS:
         logger.warning(
@@ -221,9 +202,7 @@ async def persist_skill_draft_record(
         return None
 
     if draft_name and status in dedupe_statuses:
-        pending_records = await ApprovalRegistry.list_pending_growth(
-            limit=MAX_PENDING_PROPOSALS + 1
-        )
+        pending_records = await ApprovalRegistry.list_pending_growth(limit=MAX_PENDING_PROPOSALS + 1)
         is_dup = False
         for rec in pending_records:
             existing_status = _resolve_growth_status(rec.status, rec.payload)
@@ -242,10 +221,7 @@ async def persist_skill_draft_record(
                 status,
             )
             for rec in pending_records:
-                if (
-                    rec.action_type == draft_type
-                    and rec.payload.get("skill_name") == draft_name
-                ):
+                if rec.action_type == draft_type and rec.payload.get("skill_name") == draft_name:
                     return rec
             return None
 
@@ -322,9 +298,7 @@ async def persist_skill_draft_record(
         name=draft_name,
     )
     if record is not None and status == "PENDING_REVIEW":
-        _publish_new_skill_draft_event(
-            draft_id=record.id, draft_type=draft_type, name=draft_name
-        )
+        _publish_new_skill_draft_event(draft_id=record.id, draft_type=draft_type, name=draft_name)
 
     return record
 
@@ -334,16 +308,12 @@ async def notify_skill_draft_created(result: dict[str, object]) -> ApprovalRecor
     if not result.get("has_value"):
         return None
 
-    draft_name = str(
-        result.get("skill_name") or str(result.get("content") or "")[:80] or ""
-    )
+    draft_name = str(result.get("skill_name") or str(result.get("content") or "")[:80] or "")
     description = str(result.get("skill_description") or "")
     status = "PENDING_REVIEW"
 
     if str(result.get("type") or "") in ("skill_draft", "skill_patch") and draft_name:
-        status, description = await evaluate_growth_scan(
-            result, skill_name=draft_name, description=description
-        )
+        status, description = await evaluate_growth_scan(result, skill_name=draft_name, description=description)
 
     return await persist_skill_draft_record(
         result,

@@ -193,9 +193,7 @@ class TestGoogleWorkspaceOAuthCallback:
         assert status["skill_auto_enabled"] is True
         assert status["skill_was_user_disabled"] is False
 
-    def test_callback_skips_enable_when_user_disabled_skill(
-        self, client: TestClient, google_oauth_configured: None
-    ) -> None:
+    def test_callback_skips_enable_when_user_disabled_skill(self, client: TestClient, google_oauth_configured: None) -> None:
         start = client.post(f"{API_PREFIX}/start").json()["data"]
         state = start["state"]
 

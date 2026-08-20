@@ -64,12 +64,8 @@ async def extension_ws(
 
     expected_token = settings.extension_auth_token.get_secret_value()
     if is_webui_remote_mode() and not expected_token:
-        logger.error(
-            "Rejected extension WS: EXTENSION_AUTH_TOKEN is required in remote mode"
-        )
-        await websocket.close(
-            code=4002, reason="Extension auth token required in remote mode"
-        )
+        logger.error("Rejected extension WS: EXTENSION_AUTH_TOKEN is required in remote mode")
+        await websocket.close(code=4002, reason="Extension auth token required in remote mode")
         return
 
     if expected_token and token != expected_token:

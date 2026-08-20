@@ -43,9 +43,7 @@ from app.services.hosting.packager import PublishFile
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///file:testdb_share_registry?mode=memory&cache=shared&uri=true"
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///file:testdb_share_registry?mode=memory&cache=shared&uri=true")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -104,9 +102,7 @@ async def html_artifact(db_session):
 
 def _single_file_files():
     return {
-        "index.html": PublishFile(
-            path="index.html", content="<html></html>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html></html>", encoding="utf-8"),
     }
 
 
@@ -138,14 +134,10 @@ async def test_register_share_persists_fingerprint(db_session) -> None:
 
 
 @pytest.mark.asyncio
-async def test_register_share_persists_password_share_path(
-    db_session, html_artifact
-) -> None:
+async def test_register_share_persists_password_share_path(db_session, html_artifact) -> None:
     """Password-protected rows keep their share_path so the GUI can offer
     copy/open links even though the token itself cannot be rebuilt."""
-    token, exp = create_artifact_share_token(
-        html_artifact.id, "ver-1", ttl_seconds=3600
-    )
+    token, exp = create_artifact_share_token(html_artifact.id, "ver-1", ttl_seconds=3600)
     record = await register_share(
         db_session,
         token=token,
@@ -162,13 +154,9 @@ async def test_register_share_persists_password_share_path(
 
 
 @pytest.mark.asyncio
-async def test_register_share_keeps_unprotected_share_path_null(
-    db_session, html_artifact
-) -> None:
+async def test_register_share_keeps_unprotected_share_path_null(db_session, html_artifact) -> None:
     """Unprotected rows stay stateless; the path is rebuilt on demand."""
-    token, exp = create_artifact_share_token(
-        html_artifact.id, "ver-1", ttl_seconds=3600
-    )
+    token, exp = create_artifact_share_token(html_artifact.id, "ver-1", ttl_seconds=3600)
     record = await register_share(
         db_session,
         token=token,
@@ -186,9 +174,7 @@ async def test_register_share_keeps_unprotected_share_path_null(
 @pytest.mark.asyncio
 async def test_rebuild_unprotected_token_matches_original(db_session) -> None:
     """An unprotected token is deterministically rebuilt from registry fields."""
-    token, exp = create_artifact_share_token(
-        "art-1", "ver-1", ttl_seconds=3600, artifact_type="html"
-    )
+    token, exp = create_artifact_share_token("art-1", "ver-1", ttl_seconds=3600, artifact_type="html")
     record = await register_share(
         db_session,
         token=token,
@@ -299,12 +285,8 @@ async def test_is_token_revoked_after_revoke(db_session) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_active_shares_excludes_revoked_and_expired(
-    db_session, html_artifact
-) -> None:
-    token_a, exp_a = create_artifact_share_token(
-        html_artifact.id, "ver-a", ttl_seconds=3600
-    )
+async def test_list_active_shares_excludes_revoked_and_expired(db_session, html_artifact) -> None:
+    token_a, exp_a = create_artifact_share_token(html_artifact.id, "ver-a", ttl_seconds=3600)
     await register_share(
         db_session,
         token=token_a,
@@ -314,9 +296,7 @@ async def test_list_active_shares_excludes_revoked_and_expired(
         password_protected=False,
         expires_at_unix=exp_a,
     )
-    token_b, exp_b = create_artifact_share_token(
-        html_artifact.id, "ver-b", ttl_seconds=3600
-    )
+    token_b, exp_b = create_artifact_share_token(html_artifact.id, "ver-b", ttl_seconds=3600)
     record_b = await register_share(
         db_session,
         token=token_b,
@@ -382,10 +362,7 @@ async def test_revoke_share_writes_audit_log(db_session, caplog) -> None:
     with caplog.at_level(logging.INFO, logger="app.services.artifacts.share.share_registry"):
         assert await revoke_share(db_session, record.id) is True
 
-    assert any(
-        "Revoked artifact share link" in message and "record=" in message
-        for message in caplog.messages
-    )
+    assert any("Revoked artifact share link" in message and "record=" in message for message in caplog.messages)
 
 
 @pytest.mark.asyncio
@@ -459,9 +436,7 @@ async def test_list_shares_endpoint(share_client, html_artifact) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_shares_endpoint_exposes_absolute_share_url(
-    share_client, html_artifact
-) -> None:
+async def test_list_shares_endpoint_exposes_absolute_share_url(share_client, html_artifact) -> None:
     """List exposes an absolute share_url once public ingress is configured."""
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -483,15 +458,11 @@ async def test_list_shares_endpoint_exposes_absolute_share_url(
         list_resp = share_client.get("/shares")
     assert list_resp.status_code == 200
     row = list_resp.json()[0]
-    assert row["share_url"] == (
-        f"https://myrm-x.example.com/api/v1/public/artifact-share/{token}"
-    )
+    assert row["share_url"] == (f"https://myrm-x.example.com/api/v1/public/artifact-share/{token}")
 
 
 @pytest.mark.asyncio
-async def test_list_shares_password_protected_exposes_persisted_share_path(
-    share_client, html_artifact
-) -> None:
+async def test_list_shares_password_protected_exposes_persisted_share_path(share_client, html_artifact) -> None:
     """Password-protected shares persist share_path at register time.
 
     The token cannot be rebuilt because the password is never stored, so the
@@ -518,9 +489,7 @@ async def test_list_shares_password_protected_exposes_persisted_share_path(
 
 
 @pytest.mark.asyncio
-async def test_revoke_share_endpoint_and_public_denied(
-    share_client, html_artifact, tmp_path
-) -> None:
+async def test_revoke_share_endpoint_and_public_denied(share_client, html_artifact, tmp_path) -> None:
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
@@ -555,14 +524,17 @@ async def test_revoke_unknown_record_returns_404(share_client) -> None:
 
 @pytest.mark.asyncio
 async def test_register_share_failure_returns_500(share_client, html_artifact) -> None:
-    with patch(
-        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
-        new_callable=AsyncMock,
-        return_value=(html_artifact, _single_file_files()),
-    ), patch(
-        "app.api.files.artifact_share_api.register_share",
-        new_callable=AsyncMock,
-        side_effect=RuntimeError("db down"),
+    with (
+        patch(
+            "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
+            new_callable=AsyncMock,
+            return_value=(html_artifact, _single_file_files()),
+        ),
+        patch(
+            "app.api.files.artifact_share_api.register_share",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("db down"),
+        ),
     ):
         response = share_client.post(
             f"/{html_artifact.id}/share-preview",
@@ -573,9 +545,7 @@ async def test_register_share_failure_returns_500(share_client, html_artifact) -
 
 
 @pytest.mark.asyncio
-async def test_public_access_denied_after_revoke(
-    share_client, html_artifact, tmp_path
-) -> None:
+async def test_public_access_denied_after_revoke(share_client, html_artifact, tmp_path) -> None:
     """A revoked token returns 404 even though its bundle was materialized."""
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -590,26 +560,20 @@ async def test_public_access_denied_after_revoke(
     token = create_resp.json()["token"]
 
     # Ensure the public URL is servable before revoke.
-    serve_before = share_client.get(
-        f"/public/artifact-share/{token}", follow_redirects=False
-    )
+    serve_before = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert serve_before.status_code == 200
 
     record_id = share_client.get("/shares").json()[0]["id"]
     assert share_client.delete(f"/shares/{record_id}").status_code == 204
 
     # Registry gate rejects regardless of on-disk bundle state.
-    serve_after = share_client.get(
-        f"/public/artifact-share/{token}", follow_redirects=False
-    )
+    serve_after = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert serve_after.status_code == 404
     assert "revoked" in serve_after.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_revoked_share_browser_gets_status_page(
-    share_client, html_artifact, tmp_path
-) -> None:
+async def test_revoked_share_browser_gets_status_page(share_client, html_artifact, tmp_path) -> None:
     """A revoked token answers browsers with a friendly status page, API JSON 404."""
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -647,9 +611,7 @@ async def test_revoked_share_browser_gets_status_page(
 
 
 @pytest.mark.asyncio
-async def test_revoked_password_share_skips_password_gate(
-    share_client, html_artifact
-) -> None:
+async def test_revoked_password_share_skips_password_gate(share_client, html_artifact) -> None:
     """A revoked password-protected token 404s immediately, without a gate page."""
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",

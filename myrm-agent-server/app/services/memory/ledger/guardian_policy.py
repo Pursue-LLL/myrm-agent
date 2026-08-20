@@ -111,9 +111,7 @@ async def load_memory_guardian_policy() -> MemoryGuardianPolicy:
     """Load memory guardian policy from UserConfig; return defaults when absent/invalid."""
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == MEMORY_GUARDIAN_POLICY_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == MEMORY_GUARDIAN_POLICY_CONFIG_KEY))
         row = result.scalar_one_or_none()
         if row is None:
             return MemoryGuardianPolicy()
@@ -128,9 +126,7 @@ async def save_memory_guardian_policy(policy: MemoryGuardianPolicy) -> MemoryGua
     canonical_policy = policy.model_copy(update={"timezone_initialized": True, "timezone_source": "manual"})
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == MEMORY_GUARDIAN_POLICY_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == MEMORY_GUARDIAN_POLICY_CONFIG_KEY))
         row = result.scalar_one_or_none()
         now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
         if row is None:
@@ -159,9 +155,7 @@ async def ensure_memory_guardian_timezone_initialized(
     normalized_offset = max(-720, min(840, int(offset_minutes)))
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == MEMORY_GUARDIAN_POLICY_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == MEMORY_GUARDIAN_POLICY_CONFIG_KEY))
         row = result.scalar_one_or_none()
         now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
         if row is None:

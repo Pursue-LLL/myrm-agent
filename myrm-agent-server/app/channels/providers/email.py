@@ -62,9 +62,19 @@ _POLL_INTERVAL = 30.0
 _SMTP_TIMEOUT = 30
 
 _NOREPLY_PATTERNS = (
-    "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
-    "mailer-daemon", "postmaster", "bounce", "notifications@",
-    "automated@", "auto-confirm", "auto-reply", "automailer",
+    "noreply",
+    "no-reply",
+    "no_reply",
+    "donotreply",
+    "do-not-reply",
+    "mailer-daemon",
+    "postmaster",
+    "bounce",
+    "notifications@",
+    "automated@",
+    "auto-confirm",
+    "auto-reply",
+    "automailer",
 )
 _AUTOMATED_HEADERS: dict[str, str] = {
     "Auto-Submitted": "no",
@@ -122,8 +132,7 @@ def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
     try:
         conn.xatom(
             "ID",
-            '("name" "myrm-agent" "version" "1" '
-            '"vendor" "myrm" "support-email" "noreply@myrm.sh")',
+            '("name" "myrm-agent" "version" "1" "vendor" "myrm" "support-email" "noreply@myrm.sh")',
         )
     except Exception:
         pass
@@ -345,13 +354,17 @@ class EmailChannel(BaseChannel):
 
         if self._smtp_port == 465:
             with smtplib.SMTP_SSL(
-                self._smtp_host, self._smtp_port, timeout=_SMTP_TIMEOUT,
+                self._smtp_host,
+                self._smtp_port,
+                timeout=_SMTP_TIMEOUT,
             ) as server:
                 server.login(self._smtp_user, self._smtp_password)
                 server.send_message(msg)
         else:
             with smtplib.SMTP(
-                self._smtp_host, self._smtp_port, timeout=_SMTP_TIMEOUT,
+                self._smtp_host,
+                self._smtp_port,
+                timeout=_SMTP_TIMEOUT,
             ) as server:
                 server.starttls()
                 server.login(self._smtp_user, self._smtp_password)
@@ -455,15 +468,18 @@ class EmailChannel(BaseChannel):
                     saved_path: str | None = None
                     if isinstance(file_data, bytes) and file_data:
                         suffix = Path(filename).suffix or ""
-                        tmp = tempfile.NamedTemporaryFile(
-                            delete=False, prefix="email_att_", suffix=suffix
-                        )
+                        tmp = tempfile.NamedTemporaryFile(delete=False, prefix="email_att_", suffix=suffix)
                         tmp.write(file_data)
                         tmp.close()
                         saved_path = tmp.name
-                    media_list.append(MediaAttachment(
-                        media_type=mt, filename=filename, mime_type=ct, path=saved_path,
-                    ))
+                    media_list.append(
+                        MediaAttachment(
+                            media_type=mt,
+                            filename=filename,
+                            mime_type=ct,
+                            path=saved_path,
+                        )
+                    )
                 elif ct == "text/html":
                     payload = part.get_payload(decode=True)
                     charset = part.get_content_charset() or "utf-8"

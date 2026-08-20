@@ -15,9 +15,7 @@ from __future__ import annotations
 import asyncio
 import weakref
 
-_compaction_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = (
-    weakref.WeakValueDictionary()
-)
+_compaction_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 
 
 def get_compaction_lock(chat_id: str) -> asyncio.Lock:

@@ -35,10 +35,13 @@ async def test_session_credentials_scope_channel_oauth_merge() -> None:
         return_value={"user_access_token": "feishu-token", "user_id": "u1"},
     )
 
-    with patch(
-        "app.services.agent.oauth_refresher.refresh_oauth_token",
-        new_callable=AsyncMock,
-    ), patch("app.channels.storage.CredentialsStore", return_value=mock_store):
+    with (
+        patch(
+            "app.services.agent.oauth_refresher.refresh_oauth_token",
+            new_callable=AsyncMock,
+        ),
+        patch("app.channels.storage.CredentialsStore", return_value=mock_store),
+    ):
         async with session_credentials_scope(oauth_credentials_dict=oauth_dict, channel="feishu"):
             active = user_credentials_ctx.get()
             issuers = {c.issuer for c in active}

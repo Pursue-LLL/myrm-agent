@@ -97,12 +97,7 @@ def _convert_tables(text: str) -> tuple[str, list[str]]:
     i = 0
     while i < len(lines):
         line = lines[i]
-        if (
-            "|" in line
-            and i + 1 < len(lines)
-            and "|" in lines[i + 1]
-            and _TABLE_SEPARATOR_RE.match(lines[i + 1])
-        ):
+        if "|" in line and i + 1 < len(lines) and "|" in lines[i + 1] and _TABLE_SEPARATOR_RE.match(lines[i + 1]):
             header = line
             j = i + 2
             data_rows: list[str] = []

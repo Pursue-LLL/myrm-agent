@@ -90,10 +90,7 @@ async def test_notify_skill_draft_patch_and_security(
     assert draft1 is not None
     assert draft1.status == "PENDING"
     assert draft1.payload["growth_status"] == "FAILED_SCAN"
-    assert (
-        "destructive" in str(draft1.reason).lower()
-        or "failed" in str(draft1.reason).lower()
-    )
+    assert "destructive" in str(draft1.reason).lower() or "failed" in str(draft1.reason).lower()
 
     # 2. Test safe patch draft -> should be PENDING_REVIEW
     patch_result = {
@@ -111,13 +108,7 @@ async def test_notify_skill_draft_patch_and_security(
 
     async with get_session() as db:
         events = list(
-            (
-                await db.execute(
-                    select(ExperienceLedgerEvent).where(
-                        ExperienceLedgerEvent.entity_id.in_([draft1.id, draft2.id])
-                    )
-                )
-            )
+            (await db.execute(select(ExperienceLedgerEvent).where(ExperienceLedgerEvent.entity_id.in_([draft1.id, draft2.id]))))
             .scalars()
             .all()
         )
@@ -140,10 +131,7 @@ async def test_notify_skill_draft_patch_and_security(
 def test_resolve_growth_status_priority() -> None:
     from app.services.skills.draft_notification import _resolve_growth_status
 
-    assert (
-        _resolve_growth_status("APPROVED", {"growth_status": "FAILED_SCAN"})
-        == "FAILED_SCAN"
-    )
+    assert _resolve_growth_status("APPROVED", {"growth_status": "FAILED_SCAN"}) == "FAILED_SCAN"
     assert _resolve_growth_status("PENDING", {}) == "PENDING_REVIEW"
     assert _resolve_growth_status("APPROVED", {}) == "APPROVED"
     assert _resolve_growth_status("REJECTED", {}) == "REJECTED"
@@ -163,9 +151,7 @@ def test_append_scan_failure_formats_findings() -> None:
         description="ZIP contains executable",
         severity=ScanSeverity.CRITICAL,
     )
-    scan_result = ScanResult(
-        skill_name="demo", findings=[finding], scan_duration_ms=1.0
-    )
+    scan_result = ScanResult(skill_name="demo", findings=[finding], scan_duration_ms=1.0)
 
     with_base = _append_scan_failure("Base description", scan_result)
     assert "Base description" in with_base
@@ -293,10 +279,7 @@ async def test_persist_draft_pending_limit_rejects(mock_local_skills_dir: Path) 
 
     # Simulate a full pending queue via list_pending_growth returning 50 records.
     fake_records = [
-        SimpleNamespace(
-            id=f"rec-{i}", action_type="other", payload={}, status="PENDING"
-        )
-        for i in range(MAX_PENDING_PROPOSALS)
+        SimpleNamespace(id=f"rec-{i}", action_type="other", payload={}, status="PENDING") for i in range(MAX_PENDING_PROPOSALS)
     ]
     with mock_patch(
         "app.services.skills.draft_notification.ApprovalRegistry.list_pending_growth",
@@ -379,9 +362,7 @@ async def test_build_scannable_unknown_type_uses_content(
     """Non-skill_draft/patch types fall back to plain content for scanning."""
     from app.services.skills.draft_notification import build_scannable_growth_content
 
-    content = await build_scannable_growth_content(
-        {"type": "semantic_memory", "content": "plain memory content"}
-    )
+    content = await build_scannable_growth_content({"type": "semantic_memory", "content": "plain memory content"})
     assert content == "plain memory content"
 
 

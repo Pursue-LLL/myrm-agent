@@ -30,9 +30,7 @@ _LIVENESS_FETCH_JS = """(async () => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_liveness_pending_outbound_count_chrome_e2e() -> None:

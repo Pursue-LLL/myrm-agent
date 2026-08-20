@@ -31,9 +31,7 @@ _FORBIDDEN_LEGACY_FLAT_FILES = (
 
 @pytest.mark.architecture
 def test_e2ee_subpackage_layout() -> None:
-    assert _E2EE_PACKAGE.is_dir(), (
-        f"Missing {_E2EE_PACKAGE}. See app/remote_access/e2ee/_ARCH.md."
-    )
+    assert _E2EE_PACKAGE.is_dir(), f"Missing {_E2EE_PACKAGE}. See app/remote_access/e2ee/_ARCH.md."
     for filename in _REQUIRED_MODULE_FILES:
         path = _E2EE_PACKAGE / filename
         assert path.is_file(), f"Missing required e2ee module file: {path}"
@@ -44,8 +42,7 @@ def test_e2ee_subpackage_layout() -> None:
 def test_e2ee_legacy_flat_files_removed(legacy_filename: str) -> None:
     legacy_path = _REMOTE_ACCESS_ROOT / legacy_filename
     assert not legacy_path.exists(), (
-        f"Legacy flat E2EE file must not reappear: {legacy_path}. "
-        "Use app/remote_access/e2ee/ instead."
+        f"Legacy flat E2EE file must not reappear: {legacy_path}. Use app/remote_access/e2ee/ instead."
     )
 
 

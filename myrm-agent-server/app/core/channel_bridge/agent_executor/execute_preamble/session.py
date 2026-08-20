@@ -86,16 +86,11 @@ async def resolve_channel_session_context(
         resolved_agent_id=resolved_agent_id,
     )
 
-    session_was_auto_reset = (
-        is_cold_start
-        and not force_new
-        and session_policy.mode != SessionResetMode.PERSISTENT
-    )
+    session_was_auto_reset = is_cold_start and not force_new and session_policy.mode != SessionResetMode.PERSISTENT
     working_query: str | list[dict[str, object]] = query
     if session_was_auto_reset and session_policy.notify_on_reset:
         context_note = (
-            "[System note: This is a fresh conversation with no prior context. "
-            "Do not reference any previous conversation.]"
+            "[System note: This is a fresh conversation with no prior context. Do not reference any previous conversation.]"
         )
         if isinstance(query, str):
             working_query = f"{context_note}\n{query}"
@@ -105,12 +100,14 @@ async def resolve_channel_session_context(
 
         if session_policy.mode == SessionResetMode.IDLE:
             reset_label = get_text(
-                msg, "session_reset_notify_idle",
+                msg,
+                "session_reset_notify_idle",
                 minutes=session_policy.idle_minutes,
             )
         else:
             reset_label = get_text(
-                msg, "session_reset_notify_daily",
+                msg,
+                "session_reset_notify_daily",
                 hour=session_policy.daily_reset_hour,
             )
         pre_events.append(ProgressUpdate(label=reset_label))

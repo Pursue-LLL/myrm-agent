@@ -54,8 +54,6 @@ async def test_semantic_judge_llm_triggered_real_llm() -> None:
 
     detail = await comp.compare(baseline, candidate)
 
-    assert "LLM semantic" in detail.diff_summary, (
-        "LLM semantic judge must run and annotate the diff summary"
-    )
+    assert "LLM semantic" in detail.diff_summary, "LLM semantic judge must run and annotate the diff summary"
     assert 0.0 <= detail.similarity_score <= 1.0
     assert isinstance(detail.is_match, bool)

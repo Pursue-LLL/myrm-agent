@@ -103,9 +103,7 @@ class SkillCreationService:
         """Delete skill directory and auto-disable."""
         validation_error = self._validate_name(name)
         if validation_error:
-            return SkillDeleteResult(
-                success=False, skill_name=name, error=validation_error
-            )
+            return SkillDeleteResult(success=False, skill_name=name, error=validation_error)
 
         target_dir = self.base_path / name
         if not target_dir.is_dir():
@@ -141,9 +139,7 @@ class SkillCreationService:
 
         except Exception as e:
             logger.error("Failed to delete skill directory '%s': %s", target_dir, e)
-            return SkillDeleteResult(
-                success=False, skill_name=name, error="Delete failed"
-            )
+            return SkillDeleteResult(success=False, skill_name=name, error="Delete failed")
 
         logger.warning("Deleted skill locally: %s -> %s", name, target_dir)
         return SkillDeleteResult(success=True, skill_name=name)
@@ -202,14 +198,10 @@ class SkillCreationService:
                     snapshot = SQLiteSkillSnapshot(snapshot_path)
                     snapshot.upsert_from_path(target, workspace_root=self.base_path)
                 except Exception as e:
-                    logger.warning(
-                        "Failed to trigger snapshot upsert for %s: %s", skill_name, e
-                    )
+                    logger.warning("Failed to trigger snapshot upsert for %s: %s", skill_name, e)
 
         except Exception as e:
-            logger.error(
-                "Failed to write resource '%s/%s': %s", skill_name, resource_path, e
-            )
+            logger.error("Failed to write resource '%s/%s': %s", skill_name, resource_path, e)
             return SkillResourceWriteResult(
                 success=False,
                 skill_name=skill_name,
@@ -218,9 +210,7 @@ class SkillCreationService:
             )
 
         logger.warning("Wrote resource: %s/%s", skill_name, resource_path)
-        return SkillResourceWriteResult(
-            success=True, skill_name=skill_name, resource_path=resource_path
-        )
+        return SkillResourceWriteResult(success=True, skill_name=skill_name, resource_path=resource_path)
 
     # ------------------------------------------------------------------
     # delete_resource
@@ -289,14 +279,10 @@ class SkillCreationService:
                     loop = asyncio.get_running_loop()
                     loop.run_in_executor(None, _do_delete)
                 except Exception as e:
-                    logger.warning(
-                        "Failed to trigger snapshot delete for %s: %s", skill_name, e
-                    )
+                    logger.warning("Failed to trigger snapshot delete for %s: %s", skill_name, e)
 
         except Exception as e:
-            logger.error(
-                "Failed to delete resource '%s/%s': %s", skill_name, resource_path, e
-            )
+            logger.error("Failed to delete resource '%s/%s': %s", skill_name, resource_path, e)
             return SkillResourceWriteResult(
                 success=False,
                 skill_name=skill_name,
@@ -305,9 +291,7 @@ class SkillCreationService:
             )
 
         logger.warning("Deleted resource: %s/%s", skill_name, resource_path)
-        return SkillResourceWriteResult(
-            success=True, skill_name=skill_name, resource_path=resource_path
-        )
+        return SkillResourceWriteResult(success=True, skill_name=skill_name, resource_path=resource_path)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -324,9 +308,7 @@ class SkillCreationService:
         if not fm_match:
             return content
         fm_body = fm_match.group(1)
-        if re.search(
-            r"^evolution[-_]locked\s*:", fm_body, re.IGNORECASE | re.MULTILINE
-        ):
+        if re.search(r"^evolution[-_]locked\s*:", fm_body, re.IGNORECASE | re.MULTILINE):
             return content
         new_fm = fm_body.rstrip() + "\nevolution-locked: true\n"
         return content[: fm_match.start(1)] + new_fm + content[fm_match.end(1) :]
@@ -341,10 +323,7 @@ class SkillCreationService:
     def _check_path_containment(resolved_target: Path, skill_dir: Path) -> str | None:
         """Defense-in-depth: verify resolved path stays within skill directory."""
         resolved_dir = skill_dir.resolve()
-        if (
-            not str(resolved_target).startswith(str(resolved_dir) + "/")
-            and resolved_target != resolved_dir
-        ):
+        if not str(resolved_target).startswith(str(resolved_dir) + "/") and resolved_target != resolved_dir:
             return "Path escapes skill directory (blocked by containment check)."
         return None
 

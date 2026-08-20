@@ -11,9 +11,7 @@ import httpx
 
 from tests.support.test_secrets import resolve_test_env
 
-_MCP_12306_INDEX = (
-    Path(__file__).resolve().parents[4] / "12306-mcp" / "build" / "index.js"
-)
+_MCP_12306_INDEX = Path(__file__).resolve().parents[4] / "12306-mcp" / "build" / "index.js"
 
 _NPX_PATH = os.environ.get("NPX_PATH") or shutil.which("npx") or "npx"
 _NODE_PATH = os.environ.get("NODE_PATH") or shutil.which("node") or "node"
@@ -51,10 +49,7 @@ def resolve_12306_mcp_stdio() -> tuple[str, list[str], str, float]:
 
     node = shutil.which("node")
     if node:
-        candidate = (
-            Path(node).resolve().parent.parent
-            / "lib/node_modules/12306-mcp/build/index.js"
-        )
+        candidate = Path(node).resolve().parent.parent / "lib/node_modules/12306-mcp/build/index.js"
         if candidate.is_file():
             return node, [str(candidate)], f"node {candidate}", 15.0
 
@@ -62,9 +57,7 @@ def resolve_12306_mcp_stdio() -> tuple[str, list[str], str, float]:
     if npx_cmd:
         return npx_cmd, ["-y", "12306-mcp"], f"npx -y 12306-mcp ({npx_cmd})", 90.0
 
-    raise RuntimeError(
-        "No Node 12306 MCP launcher found (install: npm install -g 12306-mcp)"
-    )
+    raise RuntimeError("No Node 12306 MCP launcher found (install: npm install -g 12306-mcp)")
 
 
 def preflight_llm_check() -> bool:

@@ -60,9 +60,7 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
 
 BUILTIN_TOOL_IDS: tuple[str, ...] = TOGGLABLE_BUILTIN_TOOL_IDS
 
-BUILTIN_TOOL_ID_SET: frozenset[str] = frozenset(
-    (*TOGGLABLE_BUILTIN_TOOL_IDS, *AGENT_BASELINE_BUILTIN_TOOLS)
-)
+BUILTIN_TOOL_ID_SET: frozenset[str] = frozenset((*TOGGLABLE_BUILTIN_TOOL_IDS, *AGENT_BASELINE_BUILTIN_TOOLS))
 
 LEGACY_REJECTED_BUILTIN_TOOL_IDS: frozenset[str] = frozenset(
     {
@@ -186,10 +184,7 @@ def normalize_enabled_builtin_tools(tools: Sequence[str]) -> list[str]:
         if legacy:
             parts.append(f"legacy IDs are no longer accepted: {sorted(set(legacy))}")
         if invalid:
-            parts.append(
-                f"unknown IDs: {sorted(set(invalid))}; "
-                f"valid: {sorted(BUILTIN_TOOL_ID_SET)}"
-            )
+            parts.append(f"unknown IDs: {sorted(set(invalid))}; valid: {sorted(BUILTIN_TOOL_ID_SET)}")
         raise InvalidBuiltinToolIdsError("; ".join(parts))
 
     return normalized

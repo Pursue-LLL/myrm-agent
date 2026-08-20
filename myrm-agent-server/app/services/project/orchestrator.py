@@ -64,14 +64,11 @@ class ProjectOrchestrator:
             return
 
         def _cleanup() -> None:
-            if (
-                self._locks.get(project_id) is lock
-                and not lock.locked()
-                and not lock._waiters
-            ):
+            if self._locks.get(project_id) is lock and not lock.locked() and not lock._waiters:
                 self._locks.pop(project_id, None)
 
         loop.call_soon(_cleanup)
+
     def is_locked(self, project_id: str) -> bool:
         """检查项目是否被锁定（纯查询，不创建锁）"""
         lock = self._locks.get(project_id)

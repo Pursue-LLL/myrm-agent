@@ -57,9 +57,7 @@ def test_office_assertion_without_command_returns_none(tmp_path: Path) -> None:
 
 
 def test_iter_verifier_env_non_dict_returns_empty(tmp_path: Path) -> None:
-    _write_verifier_toml(
-        tmp_path, 'family = "pytest_injected"\n[run]\ncommand = "x"\nenv = "nope"\n'
-    )
+    _write_verifier_toml(tmp_path, 'family = "pytest_injected"\n[run]\ncommand = "x"\nenv = "nope"\n')
     verifier = _read_verifier_toml(tmp_path)
     assert verifier is not None
     assert _iter_verifier_env(verifier) == []
@@ -71,16 +69,12 @@ def test_script_verifier_without_script_returns_none(tmp_path: Path) -> None:
 
 
 def test_pytest_injected_without_injected_dir_returns_none(tmp_path: Path) -> None:
-    _write_verifier_toml(
-        tmp_path, 'family = "pytest_injected"\n[run]\ncommand = "python -m pytest"\n'
-    )
+    _write_verifier_toml(tmp_path, 'family = "pytest_injected"\n[run]\ncommand = "python -m pytest"\n')
     assert _test_suite_assertion_for(tmp_path) is None
 
 
 def test_pytest_injected_falls_back_to_injected_root(tmp_path: Path) -> None:
-    tests_dir = _write_verifier_toml(
-        tmp_path, 'family = "pytest_injected"\n[run]\ncommand = "python -m pytest"\n'
-    ).parent
+    tests_dir = _write_verifier_toml(tmp_path, 'family = "pytest_injected"\n[run]\ncommand = "python -m pytest"\n').parent
     injected = tests_dir / "injected"
     injected.mkdir(parents=True)
     (injected / "test_app.py").write_text("def test_ok(): assert True\n")

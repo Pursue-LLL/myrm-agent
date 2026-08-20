@@ -138,8 +138,7 @@ async def instantiate_pipeline(
         raise ValueError(f"Board not found: {board_id}")
 
     role_agent_map: dict[str, str | None] = {
-        role.role_id: _match_role_to_agent(role, agents or [], default_agent_id)
-        for role in spec.role_templates
+        role.role_id: _match_role_to_agent(role, agents or [], default_agent_id) for role in spec.role_templates
     }
 
     seeds_to_use: list[TaskSeed] | None = None

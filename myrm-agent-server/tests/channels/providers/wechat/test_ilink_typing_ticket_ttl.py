@@ -90,9 +90,7 @@ class TestEnsureTypingTicket:
             ch._client.get_config.assert_not_awaited()
 
             mock_time.monotonic.return_value = 1000.0 + _TYPING_TICKET_TTL + 1
-            ch._client.get_config = AsyncMock(
-                return_value={"typing_ticket": "ticket-refreshed"}
-            )
+            ch._client.get_config = AsyncMock(return_value={"typing_ticket": "ticket-refreshed"})
             ticket = await ch._ensure_typing_ticket("user1")
             assert ticket == "ticket-refreshed"
             ch._client.get_config.assert_awaited_once()
@@ -130,9 +128,7 @@ class TestStopTypingWithTTL:
 
         expired_time = time.monotonic() - _TYPING_TICKET_TTL - 10
         ch._typing_tickets["user1"] = ("ticket-old", expired_time)
-        ch._client.get_config = AsyncMock(
-            return_value={"typing_ticket": "ticket-for-stop"}
-        )
+        ch._client.get_config = AsyncMock(return_value={"typing_ticket": "ticket-for-stop"})
         ch._client.send_typing.reset_mock()
 
         await ch.stop_typing("user1")
@@ -148,9 +144,7 @@ class TestMultiChatIdIsolation:
         ch = _make_channel()
         call_count = 0
 
-        async def _get_config_side_effect(
-            ilink_user_id: str, context_token: str | None = None
-        ) -> dict[str, str]:
+        async def _get_config_side_effect(ilink_user_id: str, context_token: str | None = None) -> dict[str, str]:
             nonlocal call_count
             call_count += 1
             return {"typing_ticket": f"ticket-{ilink_user_id}"}
@@ -257,9 +251,7 @@ class TestEdgeCaseTicketValues:
             await ch._ensure_typing_ticket("user1")
 
             mock_time.monotonic.return_value = 1000.0 + _TYPING_TICKET_TTL
-            ch._client.get_config = AsyncMock(
-                return_value={"typing_ticket": "ticket-boundary"}
-            )
+            ch._client.get_config = AsyncMock(return_value={"typing_ticket": "ticket-boundary"})
             ticket = await ch._ensure_typing_ticket("user1")
             assert ticket == "ticket-boundary"
             ch._client.get_config.assert_awaited_once()
@@ -298,9 +290,7 @@ class TestFullLifecycle:
 
         expired_time = time.monotonic() - _TYPING_TICKET_TTL - 10
         ch._typing_tickets["user1"] = ("ticket-old", expired_time)
-        ch._client.get_config = AsyncMock(
-            return_value={"typing_ticket": "ticket-refreshed"}
-        )
+        ch._client.get_config = AsyncMock(return_value={"typing_ticket": "ticket-refreshed"})
         ch._client.send_typing.reset_mock()
 
         await ch.start_typing("user1")

@@ -57,9 +57,7 @@ def test_auth_status_ready_for_delegation_live_detection(client: TestClient) -> 
     claude = backends["claude"]
     claude_on_path = shutil.which("claude") is not None
     assert claude["installed"] is claude_on_path
-    assert claude["readyForDelegation"] is (
-        claude["authenticated"] or claude["installed"]
-    )
+    assert claude["readyForDelegation"] is (claude["authenticated"] or claude["installed"])
 
     for name, row in backends.items():
         assert row["readyForDelegation"] is (row["authenticated"] or row["installed"]), name

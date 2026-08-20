@@ -25,9 +25,7 @@ router = APIRouter()
 
 @router.post("/test/seed-wiki-provenance-gap-fixture", include_in_schema=False)
 async def seed_wiki_provenance_gap_fixture(
-    agent_id: str | None = Query(
-        default=None, description="Optional agent wiki vault scope"
-    ),
+    agent_id: str | None = Query(default=None, description="Optional agent wiki vault scope"),
 ) -> dict[str, object]:
     """Local dev/test only: write a concept with missing raw-backed provenance."""
     if not is_local_mode():
@@ -49,20 +47,13 @@ async def seed_wiki_provenance_gap_fixture(
     concept_path = structure.concepts_dir / relative_concept
     concept_path.parent.mkdir(parents=True, exist_ok=True)
     concept_path.write_text(
-        "---\n"
-        "title: Provenance Gap E2E\n"
-        "type: concept\n"
-        "provenance: compiled\n"
-        "---\n\n"
-        "Fixture concept missing sources list.\n",
+        "---\ntitle: Provenance Gap E2E\ntype: concept\nprovenance: compiled\n---\n\nFixture concept missing sources list.\n",
         encoding="utf-8",
     )
     invalidate_structural_lint_cache(structure)
 
     gaps = collect_provenance_gap_issues(structure)
-    matching = [
-        issue for issue in gaps if issue.location.endswith(relative_concept)
-    ]
+    matching = [issue for issue in gaps if issue.location.endswith(relative_concept)]
     if not matching:
         raise HTTPException(
             status_code=500,

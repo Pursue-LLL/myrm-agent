@@ -36,11 +36,7 @@ def _collect_stream_slices(resp) -> tuple[str, str]:
             continue
         et = data.get("type")
         part = data.get("data") or ""
-        if (
-            isinstance(part, str)
-            and part
-            and et in ("message", "reasoning", "tool_response")
-        ):
+        if isinstance(part, str) and part and et in ("message", "reasoning", "tool_response"):
             all_parts.append(part)
         if isinstance(part, dict) and et == "tool_response":
             tool_text = json.dumps(part, ensure_ascii=False)
@@ -118,9 +114,7 @@ async def test_memory_e2e_real_world(client: TestClient):
     search_ok = False
     while loop.time() < deadline:
         await asyncio.sleep(3.0)
-        sr = client.get(
-            "/api/v1/memory/search", params={"query": "奥利奥 深海蓝 颜色", "limit": 10}
-        )
+        sr = client.get("/api/v1/memory/search", params={"query": "奥利奥 深海蓝 颜色", "limit": 10})
         if sr.status_code != 200:
             continue
         blob = json.dumps(sr.json(), ensure_ascii=False)
@@ -154,9 +148,7 @@ async def test_memory_e2e_real_world(client: TestClient):
         _second_msgs, _second_all = _collect_stream_slices(response_2)
 
     assert isinstance(_second_msgs, str) and isinstance(_second_all, str)
-    assert "奥利奥" in _second_all and (
-        "深海蓝" in _second_all or "蓝" in _second_all
-    ), (
+    assert "奥利奥" in _second_all and ("深海蓝" in _second_all or "蓝" in _second_all), (
         "Expected streamed message or reasoning slices to contain recalled facts (cat name / color cues). "
         f"combined_stream_text={_second_all[:600]!r}"
     )

@@ -61,7 +61,7 @@ async def _read_event_payload(chat_id: str, task_id: str) -> dict[str, object]:
             line = await generator.__anext__()
             if not line.startswith("data:"):
                 continue
-            payload = json.loads(line[len("data:"):].strip())
+            payload = json.loads(line[len("data:") :].strip())
             meta = (payload.get("data") or {}).get("meta_data") or {}
             if (
                 payload.get("type") == AppEventType.SYSTEM_NOTIFICATION

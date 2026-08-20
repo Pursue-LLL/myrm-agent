@@ -35,7 +35,6 @@ async def validate_extra_skill_ids(extra_skill_ids: list[str]) -> None:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Unknown skill id(s): {', '.join(unknown_ids)}. "
-                f"Available skills: {', '.join(sorted(known_ids)) or '(none)'}."
+                f"Unknown skill id(s): {', '.join(unknown_ids)}. Available skills: {', '.join(sorted(known_ids)) or '(none)'}."
             ),
         )

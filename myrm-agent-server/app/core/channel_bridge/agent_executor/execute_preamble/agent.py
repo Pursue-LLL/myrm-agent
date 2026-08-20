@@ -109,9 +109,7 @@ async def build_channel_execution_agent(
             configs.providers_dict,
             model_override=resolved_profile.model,
         )
-        agent_model_cfg = enrich_model_context_window(
-            agent_model_cfg, configs.providers_dict
-        )
+        agent_model_cfg = enrich_model_context_window(agent_model_cfg, configs.providers_dict)
     else:
         agent_model_cfg = configs.model_cfg
 
@@ -119,12 +117,10 @@ async def build_channel_execution_agent(
         resolve_vision_fallback_chain_for_agent,
     )
 
-    vision_fallback_model_cfg, vision_fallback_model_cfgs = (
-        resolve_vision_fallback_chain_for_agent(
-            configs.providers_dict,
-            primary_override=vision_fallback_model_cfg,
-            main_model_cfg=agent_model_cfg if agent_model_cfg.supports_vision else None,
-        )
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+        configs.providers_dict,
+        primary_override=vision_fallback_model_cfg,
+        main_model_cfg=agent_model_cfg if agent_model_cfg.supports_vision else None,
     )
 
     pre_events: tuple[ProgressUpdate, ...] = ()
@@ -157,9 +153,7 @@ async def build_channel_execution_agent(
 
     agent_wants_search = "web_search" in enabled_builtin_tools
     search_available = (
-        agent_wants_search
-        and configs.search_is_user_configured
-        and await verify_search_service_available(configs.search_cfg)
+        agent_wants_search and configs.search_is_user_configured and await verify_search_service_available(configs.search_cfg)
     )
     if agent_wants_search and not search_available:
         if not configs.search_is_user_configured:
@@ -167,9 +161,7 @@ async def build_channel_execution_agent(
         else:
             err_msg = get_text(msg, "search_unreachable")
         return ChannelAgentBuildOutcome(
-            early_reply=msg.get_or_create_correlation_context().create_reply(
-                content=err_msg
-            ),
+            early_reply=msg.get_or_create_correlation_context().create_reply(content=err_msg),
         )
 
     from app.ai_agents.general_agent.context import (
@@ -223,16 +215,10 @@ async def build_channel_execution_agent(
         ),
         auto_restore_domains=auto_restore_domains,
         enable_advanced_retrieval=bool(
-            configs.retrieval_dict.get("enableAdvancedRetrieval")
-            if configs.retrieval_dict
-            else False
+            configs.retrieval_dict.get("enableAdvancedRetrieval") if configs.retrieval_dict else False
         ),
-        memory_require_confirmation=bool(
-            memory_settings.get("memoryRequireConfirmation")
-        ),
-        enable_memory_auto_extraction=bool(
-            memory_settings.get("enableMemoryAutoExtraction")
-        ),
+        memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation")),
+        enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
         security_config_raw=apply_learn_skill_manage_permission_overlay(
             build_security_config(configs.security_config_dict, msg.metadata),

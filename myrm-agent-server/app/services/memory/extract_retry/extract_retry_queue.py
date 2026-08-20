@@ -112,11 +112,7 @@ async def delete(chat_id: str) -> None:
     from app.database.connection import get_session
 
     async with get_session() as db:
-        await db.execute(
-            sa_delete(MemoryExtractRetryModel).where(
-                MemoryExtractRetryModel.chat_id == chat_id
-            )
-        )
+        await db.execute(sa_delete(MemoryExtractRetryModel).where(MemoryExtractRetryModel.chat_id == chat_id))
         await db.commit()
 
 
@@ -147,11 +143,7 @@ async def clear_for_chat(chat_id: str) -> None:
     from app.database.connection import get_session
 
     async with get_session() as db:
-        await db.execute(
-            sa_delete(MemoryExtractRetryModel).where(
-                MemoryExtractRetryModel.chat_id == chat_id
-            )
-        )
+        await db.execute(sa_delete(MemoryExtractRetryModel).where(MemoryExtractRetryModel.chat_id == chat_id))
         await db.commit()
 
 

@@ -71,6 +71,7 @@ async def test_fork_conversation_from_any_message(db_session, test_user, monkeyp
     )
     try:
         from app import platform_utils
+
         monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
     except Exception:
         pass
@@ -389,9 +390,7 @@ async def test_fork_remaps_compacted_before_id(db_session, test_user, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_fork_clears_compaction_when_fork_before_compacted_point(
-    db_session, test_user, monkeypatch
-) -> None:
+async def test_fork_clears_compaction_when_fork_before_compacted_point(db_session, test_user, monkeypatch) -> None:
     """Fork before compaction boundary clears compaction fields to prevent stale reference."""
     monkeypatch.setattr(
         "app.services.chat.conversation_fork_manager.get_checkpointer",
@@ -572,12 +571,8 @@ async def test_fork_resets_sandbox_state_when_parent_has_active_sandbox(
     child_result = await db_session.execute(child_stmt)
     child_chat = child_result.scalar_one()
 
-    assert child_chat.workspace_dir == "/project", (
-        "Child should use original repo root, not parent's sandbox worktree"
-    )
-    assert child_chat.sandbox_base_dir is None, (
-        "Child should have no active sandbox"
-    )
+    assert child_chat.workspace_dir == "/project", "Child should use original repo root, not parent's sandbox worktree"
+    assert child_chat.sandbox_base_dir is None, "Child should have no active sandbox"
 
 
 @pytest.mark.asyncio
@@ -635,9 +630,7 @@ async def test_fork_preserves_workspace_when_parent_has_no_sandbox(
     child_result = await db_session.execute(child_stmt)
     child_chat = child_result.scalar_one()
 
-    assert child_chat.workspace_dir == "/project/my-app", (
-        "Child should inherit workspace_dir when parent has no sandbox"
-    )
+    assert child_chat.workspace_dir == "/project/my-app", "Child should inherit workspace_dir when parent has no sandbox"
     assert child_chat.sandbox_base_dir is None
 
 
@@ -1071,10 +1064,14 @@ async def test_delete_fork_lineage_counts_children(db_session, test_user, monkey
 
     # Create two forks
     r1 = await ConversationForkManager.fork_conversation(
-        db=db_session, parent_chat_id=chat_id, message_index=0,
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=0,
     )
     r2 = await ConversationForkManager.fork_conversation(
-        db=db_session, parent_chat_id=chat_id, message_index=1,
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=1,
     )
     assert r1.success and r2.success
 

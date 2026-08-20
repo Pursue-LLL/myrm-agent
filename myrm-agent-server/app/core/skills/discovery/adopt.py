@@ -63,9 +63,7 @@ async def complete_discovery_adoption(
     config = await skills_service.user_config.get_config()
     install_roots = _legacy_install_roots(config.local_skill_paths)
     normalized_new = normalize_local_skill_id(skill_id, install_roots)
-    normalized_existing = {
-        normalize_local_skill_id(sid, install_roots) for sid in existing
-    }
+    normalized_existing = {normalize_local_skill_id(sid, install_roots) for sid in existing}
     if normalized_new in normalized_existing:
         return DiscoveryAdoptionResult()
 
@@ -89,9 +87,7 @@ async def complete_discovery_adoption(
             context_agent_id,
         )
         return DiscoveryAdoptionResult(
-            allowlist_append_error=(
-                "Failed to update agent skill allowlist after install"
-            ),
+            allowlist_append_error=("Failed to update agent skill allowlist after install"),
         )
 
     logger.info(
@@ -170,9 +166,7 @@ async def sync_skill_to_agents(
             continue
 
         existing = _profile_explicit_skill_ids(agent)
-        normalized_existing = {
-            normalize_local_skill_id(sid, install_roots) for sid in existing
-        }
+        normalized_existing = {normalize_local_skill_id(sid, install_roots) for sid in existing}
         if normalized_new in normalized_existing:
             results[agent_id] = True
             continue
@@ -185,4 +179,3 @@ async def sync_skill_to_agents(
         results[agent_id] = outcome is not None
 
     return results
-

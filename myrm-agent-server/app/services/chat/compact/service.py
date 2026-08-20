@@ -54,12 +54,8 @@ async def compact_chat(
     """Compact a chat's context by generating a persistent summary."""
     lock = get_compaction_lock(chat_id)
     if lock.locked():
-        logger.warning(
-            "⚠️ Compaction already in progress for chat %s, skipping.", chat_id
-        )
-        return CompactResult(
-            compacted=False, reason="concurrent_compaction_in_progress"
-        )
+        logger.warning("⚠️ Compaction already in progress for chat %s, skipping.", chat_id)
+        return CompactResult(compacted=False, reason="concurrent_compaction_in_progress")
 
     async with lock:
         from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
@@ -91,9 +87,7 @@ async def compact_chat(
                 reason="no_compactable_messages",
             )
         if not for_idle_stale:
-            min_messages = resolve_min_messages_to_compact(
-                compacted_summary=chat.compacted_summary
-            )
+            min_messages = resolve_min_messages_to_compact(compacted_summary=chat.compacted_summary)
             if len(db_messages) < min_messages:
                 return CompactResult(
                     compacted=False,
@@ -104,11 +98,7 @@ async def compact_chat(
         lc_messages = db_messages_to_langchain(db_messages)
         original_tokens = estimate_messages_tokens(lc_messages)
 
-        existing_summary = (
-            parse_existing_summary(chat.compacted_summary)
-            if chat.compacted_summary
-            else None
-        )
+        existing_summary = parse_existing_summary(chat.compacted_summary) if chat.compacted_summary else None
         llm, max_context_tokens = await get_llm_for_user()
 
         await hydrate_compression_streak_from_db(db, chat_id)
@@ -117,9 +107,7 @@ async def compact_chat(
         if for_idle_stale and request_tokens_for_guard is not None:
             anti_thrash_tokens = request_tokens_for_guard
 
-        if should_block_automatic_compression(
-            chat_id, anti_thrash_tokens, max_context_tokens
-        ):
+        if should_block_automatic_compression(chat_id, anti_thrash_tokens, max_context_tokens):
             return CompactResult(
                 compacted=False,
                 original_tokens=original_tokens,
@@ -202,9 +190,7 @@ async def compact_chat(
             )
         except ValueError as exc:
             await db.rollback()
-            await record_compaction_failure_cooldown(
-                db, chat_id, f"persist_failed: {exc}"
-            )
+            await record_compaction_failure_cooldown(db, chat_id, f"persist_failed: {exc}")
             await db.commit()
             logger.error("Failed to persist compaction for chat %s: %s", chat_id, exc)
             return CompactResult(

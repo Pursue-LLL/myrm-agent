@@ -160,7 +160,9 @@ async def test_fanout_true_parses_children() -> None:
 async def test_fanout_false_returns_spec() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
-    content = '{"fanout": false, "rationale": "single task", "title": "Refined title", "body": "Detailed body", "assignee": "coder"}'
+    content = (
+        '{"fanout": false, "rationale": "single task", "title": "Refined title", "body": "Detailed body", "assignee": "coder"}'
+    )
     llm_resp = _make_llm_response(content)
     with (
         patch(

@@ -105,8 +105,7 @@ class StreamListenerManager:
 
         if len(self._tasks) >= self._max_streams:
             raise ValueError(
-                f"Max concurrent streams reached ({self._max_streams}). "
-                "Stop an existing stream before starting a new one."
+                f"Max concurrent streams reached ({self._max_streams}). Stop an existing stream before starting a new one."
             )
 
         compiled_regex: re.Pattern[str] | None = None
@@ -175,7 +174,11 @@ class StreamListenerManager:
                         if msg.type in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
                             raw = msg.data if isinstance(msg.data, str) else msg.data.decode()
                             await self._process_message(
-                                job_id, trigger, on_event, compiled_regex, raw,
+                                job_id,
+                                trigger,
+                                on_event,
+                                compiled_regex,
+                                raw,
                             )
                         elif msg.type == aiohttp.WSMsgType.ERROR:
                             logger.warning("WS error for job %s: %s", job_id, ws.exception())
@@ -188,7 +191,9 @@ class StreamListenerManager:
             except Exception as exc:
                 logger.warning(
                     "WS connection failed for job %s (retry in %.1fs): %s",
-                    job_id, backoff, exc,
+                    job_id,
+                    backoff,
+                    exc,
                 )
 
             await asyncio.sleep(backoff)
@@ -224,7 +229,11 @@ class StreamListenerManager:
                                 data = "\n".join(data_buf)
                                 data_buf.clear()
                                 await self._process_message(
-                                    job_id, trigger, on_event, compiled_regex, data,
+                                    job_id,
+                                    trigger,
+                                    on_event,
+                                    compiled_regex,
+                                    data,
                                 )
                             continue
                         if line.startswith("data:"):
@@ -237,7 +246,9 @@ class StreamListenerManager:
             except Exception as exc:
                 logger.warning(
                     "SSE connection failed for job %s (retry in %.1fs): %s",
-                    job_id, backoff, exc,
+                    job_id,
+                    backoff,
+                    exc,
                 )
 
             await asyncio.sleep(backoff)

@@ -68,8 +68,7 @@ class TestEvictedUecdLiveServerIntegration:
         )
         if not isinstance(seed, dict) or "chat_id" not in seed:
             pytest.skip(
-                "Live server missing seed route — stack pinned by wave; "
-                "run ./myrm restart when leases idle to pick up new code"
+                "Live server missing seed route — stack pinned by wave; run ./myrm restart when leases idle to pick up new code"
             )
         chat_id = str(seed["chat_id"])
         filename = str(seed["filename"])
@@ -116,9 +115,7 @@ class TestEvictedUecdLiveServerIntegration:
 class TestEvictedUecdSeedFixtureIntegration:
     """Seed fixture contract via in-process app (DB + disk, no live :8080)."""
 
-    def test_seed_fixture_persists_progress_steps_and_spill_file(
-        self, init_test_database
-    ) -> None:
+    def test_seed_fixture_persists_progress_steps_and_spill_file(self, init_test_database) -> None:
         import asyncio
         import uuid
 
@@ -147,9 +144,7 @@ class TestEvictedUecdSeedFixtureIntegration:
             return agent_id
 
         asyncio.run(_seed_agent())
-        with patch(
-            "app.api.chats.test_fixtures.evicted.is_local_mode", return_value=True
-        ):
+        with patch("app.api.chats.test_fixtures.evicted.is_local_mode", return_value=True):
             resp = client.post(
                 "/api/v1/chats/test/seed-evicted-live-terminal-fixture",
             )
@@ -198,9 +193,7 @@ class TestEvictedUecdSeedFixtureIntegration:
                 await db.commit()
 
         asyncio.run(_seed_agent())
-        with patch(
-            "app.api.chats.test_fixtures.evicted.is_local_mode", return_value=True
-        ):
+        with patch("app.api.chats.test_fixtures.evicted.is_local_mode", return_value=True):
             resp = client.post(
                 "/api/v1/chats/test/seed-evicted-live-terminal-fixture?variant=expired",
             )

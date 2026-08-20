@@ -36,9 +36,9 @@ async def install_theme_package(
 ) -> tuple[ThemeProfileRecipeModel, bool]:
     session = consume_session(session_id)
     if session is None:
-        raise ThemePackageInstallError('Theme import session expired or not found')
+        raise ThemePackageInstallError("Theme import session expired or not found")
     if not session.can_import:
-        raise ThemePackageInstallError('Theme package cannot be imported due to validation warnings')
+        raise ThemePackageInstallError("Theme package cannot be imported due to validation warnings")
 
     profile_id = _allocate_profile_id(existing_profile_ids)
     hero_file_id = await _upload_member(session, session.hero_filename)
@@ -57,7 +57,7 @@ async def install_theme_package(
 
 def _allocate_profile_id(existing_ids: set[str]) -> str:
     while True:
-        profile_id = f'imported/{uuid.uuid4().hex}'
+        profile_id = f"imported/{uuid.uuid4().hex}"
         if profile_id not in existing_ids:
             return profile_id
 
@@ -67,7 +67,7 @@ async def _upload_member(session: ThemePackageInspectSession, filename: str | No
         return None
     content = session.files.get(filename)
     if content is None:
-        raise ThemePackageInstallError(f'Missing packaged asset: {filename}')
+        raise ThemePackageInstallError(f"Missing packaged asset: {filename}")
     stored = await files_service.upload_file(
         filename=filename,
         content=content,
@@ -78,12 +78,12 @@ async def _upload_member(session: ThemePackageInspectSession, filename: str | No
 
 def _content_type_for_filename(filename: str) -> str:
     lower = filename.lower()
-    if lower.endswith('.png'):
-        return 'image/png'
-    if lower.endswith('.jpg') or lower.endswith('.jpeg'):
-        return 'image/jpeg'
-    if lower.endswith('.webp'):
-        return 'image/webp'
-    if lower.endswith('.mp4'):
-        return 'video/mp4'
-    return 'application/octet-stream'
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith(".jpg") or lower.endswith(".jpeg"):
+        return "image/jpeg"
+    if lower.endswith(".webp"):
+        return "image/webp"
+    if lower.endswith(".mp4"):
+        return "video/mp4"
+    return "application/octet-stream"

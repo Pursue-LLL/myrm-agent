@@ -23,9 +23,7 @@ def test_extract_obsidian_vault_paths_from_settings_nested_key(tmp_path: Path) -
             "obsidian_vault": str(vault),
         },
     }
-    assert extract_obsidian_vault_paths_from_settings(settings) == [
-        str(vault.resolve())
-    ]
+    assert extract_obsidian_vault_paths_from_settings(settings) == [str(vault.resolve())]
 
 
 def test_load_codex_emits_obsidian_vault_hints(tmp_path: Path) -> None:

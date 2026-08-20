@@ -81,28 +81,12 @@ async def iter_channel_stream_progress(
             if isinstance(data, dict):
                 action_requests = data.get("actionRequests", [])
                 extensions = data.get("extensions", {})
-                timeout_info = (
-                    extensions.get("timeout", {})
-                    if isinstance(extensions, dict)
-                    else {}
-                )
-                timeout_secs = (
-                    timeout_info.get("seconds", 300)
-                    if isinstance(timeout_info, dict)
-                    else 300
-                )
-                timeout_behavior = (
-                    timeout_info.get("behavior", "deny")
-                    if isinstance(timeout_info, dict)
-                    else "deny"
-                )
+                timeout_info = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
+                timeout_secs = timeout_info.get("seconds", 300) if isinstance(timeout_info, dict) else 300
+                timeout_behavior = timeout_info.get("behavior", "deny") if isinstance(timeout_info, dict) else "deny"
 
                 if isinstance(action_requests, list) and action_requests:
-                    tool_names = [
-                        str(req.get("action", "unknown"))
-                        for req in action_requests
-                        if isinstance(req, dict)
-                    ]
+                    tool_names = [str(req.get("action", "unknown")) for req in action_requests if isinstance(req, dict)]
                     reasons = [
                         str(req.get("description", ""))
                         for req in action_requests
@@ -114,25 +98,16 @@ async def iter_channel_stream_progress(
                     tools_str = str(data.get("tool_name", "unknown"))
                     reason_str = str(data.get("reason", ""))
 
-                timeout_action = (
-                    "auto-approve" if timeout_behavior == "allow" else "auto-deny"
-                )
+                timeout_action = "auto-approve" if timeout_behavior == "allow" else "auto-deny"
 
                 review_configs = data.get("reviewConfigs", [])
                 has_smart_denied = isinstance(review_configs, list) and any(
-                    isinstance(rc, dict) and rc.get("smartDenied") is True
-                    for rc in review_configs
+                    isinstance(rc, dict) and rc.get("smartDenied") is True for rc in review_configs
                 )
-                smart_prefix = (
-                    "⚠️ [Security reviewer recommends denial] "
-                    if has_smart_denied
-                    else ""
-                )
+                smart_prefix = "⚠️ [Security reviewer recommends denial] " if has_smart_denied else ""
                 label = f"{smart_prefix}{tools_str} needs approval: {reason_str}\n⏱ Timeout: {timeout_secs}s ({timeout_action})"
 
-                is_batch = (
-                    isinstance(action_requests, list) and len(action_requests) > 1
-                )
+                is_batch = isinstance(action_requests, list) and len(action_requests) > 1
                 quick_replies: tuple[QuickReply, ...] = (
                     QuickReply(label="✅ Approve", text="/approve", required=True),
                     QuickReply(label="❌ Deny", text="/deny", required=True),
@@ -175,9 +150,7 @@ async def iter_channel_stream_progress(
         elif event_type == "error":
             error_msg = str(event.get("error", "Unknown error"))
             error_type = str(event.get("error_type", ""))
-            acc.error_message = (
-                f"{error_type}: {error_msg}" if error_type else error_msg
-            )
+            acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
 
         elif event_type == "token_usage":
             data = event.get("data")
@@ -227,11 +200,7 @@ async def iter_channel_stream_progress(
 
         elif event_type == "message_end":
             end_cost = event.get("cost_usd")
-            if (
-                isinstance(end_cost, (int, float))
-                and end_cost > 0
-                and acc.cost_usd == 0
-            ):
+            if isinstance(end_cost, (int, float)) and end_cost > 0 and acc.cost_usd == 0:
                 acc.cost_usd = float(end_cost)
             end_model = event.get("model")
             if isinstance(end_model, str) and end_model and not acc.model_name:

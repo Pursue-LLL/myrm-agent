@@ -150,9 +150,13 @@ class _ChatCompactionMixin(_ChatServiceBase):
                 )
 
                 if success:
-                    logger.info("✅ [Drain] Optimistic MVCC update successful for chat %s, new snapshot: %s", chat_id, snapshot_id)
+                    logger.info(
+                        "✅ [Drain] Optimistic MVCC update successful for chat %s, new snapshot: %s", chat_id, snapshot_id
+                    )
                 else:
-                    logger.info("⚠️ [Drain] MVCC update failed for chat %s (concurrent modification), discarding summary.", chat_id)
+                    logger.info(
+                        "⚠️ [Drain] MVCC update failed for chat %s (concurrent modification), discarding summary.", chat_id
+                    )
 
         except Exception:
             logger.exception("❌ [Drain] Background drain failed for %s", chat_id)

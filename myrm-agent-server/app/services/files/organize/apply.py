@@ -55,9 +55,7 @@ def apply_organize_plan(workspace: str, plan: OrganizePlan, *, dry_run: bool) ->
     if issues:
         return OrganizeApplyResult(dry_run=dry_run, issues=issues)
 
-    preview_moves = [
-        OrganizeMoveRecord(src=item.src, dst=item.dst) for item in plan.items
-    ]
+    preview_moves = [OrganizeMoveRecord(src=item.src, dst=item.dst) for item in plan.items]
     if dry_run:
         return OrganizeApplyResult(
             dry_run=True,
@@ -135,9 +133,7 @@ def rollback_organize_job(job_id: str) -> OrganizeApplyResult:
     if rollback_pairs:
         rewrite_wikilinks_in_tree(ws, rollback_pairs)
 
-    job.status = (
-        OrganizeJobStatus.PARTIAL_ROLLBACK if failed else OrganizeJobStatus.ROLLED_BACK
-    )
+    job.status = OrganizeJobStatus.PARTIAL_ROLLBACK if failed else OrganizeJobStatus.ROLLED_BACK
 
     job.rolled_back_at = time.time()
     update_job(job)

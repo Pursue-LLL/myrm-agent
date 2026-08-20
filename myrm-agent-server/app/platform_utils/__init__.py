@@ -184,8 +184,7 @@ def get_checkpointer() -> "BaseCheckpointSaver[str]":
     global _checkpointer
     if _checkpointer is None:
         raise RuntimeError(
-            "Checkpointer not initialized. "
-            "App startup must inject via set_checkpointer() in app/server/lifespan.py."
+            "Checkpointer not initialized. App startup must inject via set_checkpointer() in app/server/lifespan.py."
         )
 
     return _checkpointer

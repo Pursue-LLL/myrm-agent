@@ -231,9 +231,7 @@ class ChatRepository:
         return [MessageDTO.model_validate(m) for m in msgs]
 
     @staticmethod
-    async def get_assistant_extra_data(
-        db: AsyncSession, chat_id: str
-    ) -> tuple[list[dict[str, object] | None], str | None]:
+    async def get_assistant_extra_data(db: AsyncSession, chat_id: str) -> tuple[list[dict[str, object] | None], str | None]:
         """Load active assistant message extra_data and the last message id.
 
         Used for rebuilding the Chat.total_* usage cache. Skips the message
@@ -287,7 +285,10 @@ class ChatRepository:
 
     @staticmethod
     async def delete_messages_after(
-        db: AsyncSession, chat_id: str, anchor: MessageDTO, include_anchor: bool = False,
+        db: AsyncSession,
+        chat_id: str,
+        anchor: MessageDTO,
+        include_anchor: bool = False,
     ) -> list[str]:
         """Delete messages after anchor and return their IDs."""
         if include_anchor:

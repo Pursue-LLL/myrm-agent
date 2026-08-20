@@ -54,11 +54,7 @@ def _stream_terminal_risk_blocked(events: list[dict[str, object]]) -> str | None
                 return message.strip()
             rules = data.get("rules")
             if isinstance(rules, list) and rules:
-                names = [
-                    str(item.get("display_name"))
-                    for item in rules
-                    if isinstance(item, dict) and item.get("display_name")
-                ]
+                names = [str(item.get("display_name")) for item in rules if isinstance(item, dict) and item.get("display_name")]
                 if names:
                     return f"risk_blocked: {', '.join(names)}"
         return "risk_blocked by input risk gate"
@@ -87,8 +83,7 @@ def consume_agent_stream(
             now = time.monotonic()
             if now - round_started > _STREAM_ROUND_WALL_SEC:
                 raise TimeoutError(
-                    f"agent-stream round exceeded {_STREAM_ROUND_WALL_SEC}s wall "
-                    f"(event_types={[e.get('type') for e in events]})"
+                    f"agent-stream round exceeded {_STREAM_ROUND_WALL_SEC}s wall (event_types={[e.get('type') for e in events]})"
                 )
             if now - last_progress > _STREAM_IDLE_AFTER_MEANINGFUL_SEC:
                 raise TimeoutError(
@@ -184,8 +179,7 @@ def run_until_subagent_approval(
     for round_idx in range(_MAX_RESUME_ROUNDS):
         heartbeat_once()
         _log_progress(
-            f"run_until_subagent_approval round={round_idx + 1} "
-            f"resume={resume_value is not None} query_len={len(current_query)}"
+            f"run_until_subagent_approval round={round_idx + 1} resume={resume_value is not None} query_len={len(current_query)}"
         )
         payload = build_subagent_stream_request(
             chat_id,
@@ -196,10 +190,7 @@ def run_until_subagent_approval(
             resume_value=resume_value,
         )
         action_type, events, errors = consume_agent_stream(client, api_base, payload)
-        _log_progress(
-            f"round={round_idx + 1} action_type={action_type!r} "
-            f"event_types={[e.get('type') for e in events]}"
-        )
+        _log_progress(f"round={round_idx + 1} action_type={action_type!r} event_types={[e.get('type') for e in events]}")
 
         if completed_without_approval(events):
             raise AssertionError(
@@ -208,26 +199,19 @@ def run_until_subagent_approval(
             )
         blocked = _stream_terminal_risk_blocked(events)
         if blocked is not None:
-            raise AssertionError(
-                f"Input risk gate blocked delegate query — revise E2E prompt: {blocked}"
-            )
+            raise AssertionError(f"Input risk gate blocked delegate query — revise E2E prompt: {blocked}")
         if action_type == "subagent_approval":
             return
         if errors:
             raise AssertionError(f"agent-stream errors before subagent approval: {errors}")
         if action_type in (None, "tool_approval"):
-            resume_value = [
-                {"type": "approve", "feedback": "Auto-approve delegate_task_tool"}
-            ]
+            resume_value = [{"type": "approve", "feedback": "Auto-approve delegate_task_tool"}]
             message_id = str(uuid.uuid4())
             current_query = ""
             continue
         break
 
-    raise AssertionError(
-        f"No subagent_approval after {_MAX_RESUME_ROUNDS} rounds; "
-        f"last action_type={action_type!r}"
-    )
+    raise AssertionError(f"No subagent_approval after {_MAX_RESUME_ROUNDS} rounds; last action_type={action_type!r}")
 
 
 def run_interrupt_flow(
@@ -238,9 +222,7 @@ def run_interrupt_flow(
     query: str,
     *,
     ephemeral_subagents: dict[str, dict[str, object]],
-    resume_decision_factory: Callable[
-        [list[dict[str, object]]], list[dict[str, object]]
-    ],
+    resume_decision_factory: Callable[[list[dict[str, object]]], list[dict[str, object]]],
 ) -> None:
     """Full HTTP approve flow through subagent_approval → resume → message_end."""
     message_id = str(uuid.uuid4())
@@ -253,8 +235,7 @@ def run_interrupt_flow(
     for round_idx in range(_MAX_RESUME_ROUNDS):
         heartbeat_once()
         _log_progress(
-            f"run_interrupt_flow round={round_idx + 1} "
-            f"resume={resume_value is not None} query_len={len(current_query)}"
+            f"run_interrupt_flow round={round_idx + 1} resume={resume_value is not None} query_len={len(current_query)}"
         )
         payload = build_subagent_stream_request(
             chat_id,
@@ -264,27 +245,19 @@ def run_interrupt_flow(
             ephemeral_subagents=ephemeral_subagents,
             resume_value=resume_value,
         )
-        action_type, last_events, errors = consume_agent_stream(
-            client, api_base, payload
-        )
-        _log_progress(
-            f"round={round_idx + 1} action_type={action_type!r} "
-            f"event_types={[e.get('type') for e in last_events]}"
-        )
+        action_type, last_events, errors = consume_agent_stream(client, api_base, payload)
+        _log_progress(f"round={round_idx + 1} action_type={action_type!r} event_types={[e.get('type') for e in last_events]}")
 
         if completed_without_approval(last_events) and not approval_seen:
             raise AssertionError(
-                "Agent stream completed without approval event — "
-                f"event_types={[e.get('type') for e in last_events]}"
+                f"Agent stream completed without approval event — event_types={[e.get('type') for e in last_events]}"
             )
         if approval_seen and any(e.get("type") == "message_end" for e in last_events):
             _log_progress("run_interrupt_flow completed after subagent approval resume")
             return
         blocked = _stream_terminal_risk_blocked(last_events)
         if blocked is not None:
-            raise AssertionError(
-                f"Input risk gate blocked delegate query — revise E2E prompt: {blocked}"
-            )
+            raise AssertionError(f"Input risk gate blocked delegate query — revise E2E prompt: {blocked}")
         if action_type == "subagent_approval":
             approval_seen = True
             resume_value = resume_decision_factory(last_events)
@@ -294,9 +267,7 @@ def run_interrupt_flow(
         if errors:
             raise AssertionError(f"agent-stream errors before approval: {errors}")
         if action_type in (None, "tool_approval"):
-            resume_value = [
-                {"type": "approve", "feedback": "Auto-approve delegate_task_tool"}
-            ]
+            resume_value = [{"type": "approve", "feedback": "Auto-approve delegate_task_tool"}]
             message_id = str(uuid.uuid4())
             current_query = ""
             continue
@@ -318,13 +289,8 @@ def run_interrupt_flow(
         ephemeral_subagents=ephemeral_subagents,
         resume_value=resume_value,
     )
-    _action_type, resume_events, resume_errors = consume_agent_stream(
-        client, api_base, payload
-    )
-    _log_progress(
-        f"final resume action_type={_action_type!r} "
-        f"event_types={[e.get('type') for e in resume_events]}"
-    )
+    _action_type, resume_events, resume_errors = consume_agent_stream(client, api_base, payload)
+    _log_progress(f"final resume action_type={_action_type!r} event_types={[e.get('type') for e in resume_events]}")
     has_end = any(e.get("type") == "message_end" for e in resume_events)
     if not has_end:
         raise AssertionError(

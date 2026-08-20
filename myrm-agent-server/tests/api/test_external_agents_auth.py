@@ -78,9 +78,7 @@ class TestAuthStatus:
 
     def test_status_reflects_installed_and_authenticated(self, client, tmp_path):
         (tmp_path / ".codex").mkdir()
-        (tmp_path / ".codex" / "auth.json").write_text(
-            '{"token": "x"}', encoding="utf-8"
-        )
+        (tmp_path / ".codex" / "auth.json").write_text('{"token": "x"}', encoding="utf-8")
         found = MagicMock()
         found.name = "codex"
         found.path = "/usr/bin/codex"
@@ -196,9 +194,7 @@ class TestAuthLogin:
             async def cancel(self) -> None:
                 pass
 
-        with patch(
-            "myrm_agent_harness.toolkits.acp.auth.CliLoginSession", _FakeSession
-        ):
+        with patch("myrm_agent_harness.toolkits.acp.auth.CliLoginSession", _FakeSession):
             resp = client.post(
                 "/api/v1/external-agents/auth/login",
                 json={"command": "codex", "sessionId": "s1"},

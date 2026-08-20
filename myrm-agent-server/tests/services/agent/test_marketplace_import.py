@@ -131,9 +131,7 @@ def mock_skill_svc() -> AsyncMock:
             skill_name="sales-skill",
         )
     )
-    svc.write_resource = AsyncMock(
-        return_value=FakeSkillResourceWriteResult(success=True)
-    )
+    svc.write_resource = AsyncMock(return_value=FakeSkillResourceWriteResult(success=True))
     svc.delete_skill = AsyncMock(return_value=FakeSkillDeleteResult(success=True))
     svc.base_path = None
     return svc
@@ -193,12 +191,8 @@ async def test_full_import_flow(mock_skill_svc: AsyncMock, patch_agent_service: 
     package = _make_package()
     result = await import_agent_package(mock_skill_svc, package)
 
-    mock_skill_svc.save_skill.assert_called_once_with(
-        "sales-skill", "# Sales Skill\nPrompt here.", "Sales helper"
-    )
-    mock_skill_svc.write_resource.assert_called_once_with(
-        "sales-skill", "data.json", '{"key": "val"}'
-    )
+    mock_skill_svc.save_skill.assert_called_once_with("sales-skill", "# Sales Skill\nPrompt here.", "Sales helper")
+    mock_skill_svc.write_resource.assert_called_once_with("sales-skill", "data.json", '{"key": "val"}')
     assert result == "new-test-agent"
 
 
@@ -223,9 +217,7 @@ async def test_skill_id_remapping(mock_skill_svc: AsyncMock, patch_agent_service
 
 
 @pytest.mark.asyncio
-async def test_subagent_skill_ids_remapped(
-    mock_skill_svc: AsyncMock, patch_agent_service: None
-):
+async def test_subagent_skill_ids_remapped(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Subagent's skill_ids also get remapped."""
     from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace.import_ import import_agent_package
@@ -264,11 +256,14 @@ async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
             display_name=data.name,
         )
 
-    with patch(
-        "app.services.agent.marketplace.import_._find_existing_subagent_by_origin_key",
-        new_callable=AsyncMock,
-        return_value="existing-sub-id",
-    ), patch.object(AgentService, "create_agent", side_effect=capture_create):
+    with (
+        patch(
+            "app.services.agent.marketplace.import_._find_existing_subagent_by_origin_key",
+            new_callable=AsyncMock,
+            return_value="existing-sub-id",
+        ),
+        patch.object(AgentService, "create_agent", side_effect=capture_create),
+    ):
         await import_agent_package(mock_skill_svc, package)
 
     assert len(created_data) == 1
@@ -298,14 +293,10 @@ async def test_save_skill_failure_aborts_import(mock_skill_svc: AsyncMock):
     from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace.import_ import import_agent_package
 
-    mock_skill_svc.save_skill = AsyncMock(
-        return_value=FakeSkillSaveResult(success=False, error="disk full")
-    )
+    mock_skill_svc.save_skill = AsyncMock(return_value=FakeSkillSaveResult(success=False, error="disk full"))
 
     package = _make_package(bundled_subagents=[])
-    with patch.object(
-        AgentService, "create_agent", new_callable=AsyncMock
-    ) as create_mock:
+    with patch.object(AgentService, "create_agent", new_callable=AsyncMock) as create_mock:
         with pytest.raises(ValueError, match="failed to save skill"):
             await import_agent_package(mock_skill_svc, package)
     create_mock.assert_not_called()
@@ -316,9 +307,7 @@ async def test_save_skill_missing_was_updated_flag_rejected(mock_skill_svc: Asyn
     """Skill backend must return was_updated to guarantee rollback safety."""
     from app.services.agent.marketplace.import_ import import_agent_package
 
-    mock_skill_svc.save_skill = AsyncMock(
-        return_value=FakeSkillSaveResultNoWasUpdated()
-    )
+    mock_skill_svc.save_skill = AsyncMock(return_value=FakeSkillSaveResultNoWasUpdated())
     package = _make_package(bundled_subagents=[])
 
     with pytest.raises(RuntimeError, match="did not return 'was_updated'"):
@@ -356,9 +345,7 @@ def _set_deploy_mode(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_rejects_bundled_skills_in_sandbox(
-    mock_skill_svc: AsyncMock, monkeypatch: pytest.MonkeyPatch
-):
+async def test_rejects_bundled_skills_in_sandbox(mock_skill_svc: AsyncMock, monkeypatch: pytest.MonkeyPatch):
     """Sandbox disables local skills — a package with bundled skills must fail closed.
 
     Writing skills to a store the agent can never load is a silent failure, so
@@ -369,9 +356,7 @@ async def test_rejects_bundled_skills_in_sandbox(
     _set_deploy_mode(monkeypatch, "sandbox")
     try:
         package = _make_package(bundled_subagents=[])
-        with pytest.raises(
-            ValueError, match="bundled skills are not supported in sandbox"
-        ):
+        with pytest.raises(ValueError, match="bundled skills are not supported in sandbox"):
             await import_agent_package(mock_skill_svc, package)
         mock_skill_svc.save_skill.assert_not_called()
     finally:
@@ -558,18 +543,20 @@ async def test_subagent_origin_index_loaded_once_per_import(mock_skill_svc: Asyn
             display_name=data.name,
         )
 
-    with patch(
-        "app.services.agent.marketplace.import_._load_subagent_origin_index",
-        new_callable=AsyncMock,
-        return_value={},
-    ) as load_origin_index_mock, patch(
-        "app.services.agent.marketplace.import_._find_existing_subagent_by_origin_key",
-        new_callable=AsyncMock,
-        side_effect=lambda origin_key, origin_index=None: (
-            origin_index.get(origin_key) if isinstance(origin_index, dict) else None
+    with (
+        patch(
+            "app.services.agent.marketplace.import_._load_subagent_origin_index",
+            new_callable=AsyncMock,
+            return_value={},
+        ) as load_origin_index_mock,
+        patch(
+            "app.services.agent.marketplace.import_._find_existing_subagent_by_origin_key",
+            new_callable=AsyncMock,
+            side_effect=lambda origin_key, origin_index=None: (
+                origin_index.get(origin_key) if isinstance(origin_index, dict) else None
+            ),
         ),
-    ), patch.object(
-        AgentService, "create_agent", side_effect=capture_create
+        patch.object(AgentService, "create_agent", side_effect=capture_create),
     ):
         await import_agent_package(mock_skill_svc, package)
 
@@ -670,9 +657,7 @@ async def test_profile_fidelity_fields_mapped(mock_skill_svc: AsyncMock):
     assert created.workspace_policy == "READ_ONLY_SANDBOX"
     assert created.engine_params == {"max_tool_calls": 7}
     assert created.auto_restore_domains == ["example.com"]
-    assert created.openapi_services == [
-        {"name": "weather", "schema": {"openapi": "3.0.0"}}
-    ]
+    assert created.openapi_services == [{"name": "weather", "schema": {"openapi": "3.0.0"}}]
     assert created.command_bindings is not None
     assert created.command_bindings[0].command_name == "daily-report"
     assert created.security_overrides == {"allow_bash": False}
@@ -719,15 +704,18 @@ async def test_atomic_rollback_subagent_and_skill_when_main_creation_fails(
         RuntimeError("main create failed"),
     ]
 
-    with patch.object(
-        AgentService,
-        "create_agent",
-        new=AsyncMock(side_effect=create_side_effect),
-    ), patch.object(
-        AgentService,
-        "delete_agent",
-        new=AsyncMock(return_value=True),
-    ) as delete_agent_mock:
+    with (
+        patch.object(
+            AgentService,
+            "create_agent",
+            new=AsyncMock(side_effect=create_side_effect),
+        ),
+        patch.object(
+            AgentService,
+            "delete_agent",
+            new=AsyncMock(return_value=True),
+        ) as delete_agent_mock,
+    ):
         with pytest.raises(RuntimeError, match="main create failed"):
             await import_agent_package(mock_skill_svc, package)
 
@@ -806,4 +794,3 @@ async def test_import_agent_sanitizes_security_overrides(mock_skill_svc: AsyncMo
     assert perms.get("mcp_invoke") == "ask"
     assert perms.get("shell_exec") == "ask"
     assert perms.get("file_read") == "allow"  # safe read remains
-

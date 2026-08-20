@@ -165,7 +165,6 @@ def test_stream_collector_ignores_invalid_memory_retrieval_trace() -> None:
     assert extra_data is None or "memoryRetrievalTraces" not in extra_data
 
 
-
 def test_stream_collector_persists_memory_citations_from_message_end() -> None:
     collector = StreamContentCollector()
 

@@ -67,15 +67,7 @@ class DatabaseMCPOAuthTokenStore:
 
     async def _load_tokens(self) -> dict[str, dict[str, object]]:
         async with get_session() as db:
-            row = (
-                (
-                    await db.execute(
-                        select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY)
-                    )
-                )
-                .scalars()
-                .first()
-            )
+            row = (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY))).scalars().first()
             if not row:
                 return {}
             data = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
@@ -83,15 +75,7 @@ class DatabaseMCPOAuthTokenStore:
 
     async def _save_tokens(self, tokens: dict[str, dict[str, object]]) -> None:
         async with get_session() as db:
-            row = (
-                (
-                    await db.execute(
-                        select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY)
-                    )
-                )
-                .scalars()
-                .first()
-            )
+            row = (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY))).scalars().first()
             await persist_credentials_locked(db, row, tokens, config_key=_CONFIG_KEY)
 
     async def get_token(self, server_name: str) -> MCPOAuthToken | None:
@@ -119,9 +103,7 @@ class DatabaseMCPOAuthTokenStore:
                 # flight; drop the write-back to keep the disconnect effective.
                 return
             entry = tokens.get(server_name)
-            existing_config = (
-                entry.get("_oauth_config") if isinstance(entry, dict) else None
-            )
+            existing_config = entry.get("_oauth_config") if isinstance(entry, dict) else None
             data = token.model_dump()
             if existing_config:
                 data["_oauth_config"] = existing_config
@@ -129,9 +111,7 @@ class DatabaseMCPOAuthTokenStore:
             await self._save_tokens(tokens)
         logger.info("Saved MCP OAuth token for '%s'", server_name)
 
-    async def save_token_with_config(
-        self, server_name: str, token: MCPOAuthToken, oauth_config: MCPOAuthConfig
-    ) -> None:
+    async def save_token_with_config(self, server_name: str, token: MCPOAuthToken, oauth_config: MCPOAuthConfig) -> None:
         """Persist token together with the OAuth server config for later refresh."""
         async with _persist_lock:
             tokens = await self._load_tokens()

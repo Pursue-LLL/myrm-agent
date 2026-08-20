@@ -39,13 +39,11 @@ async def test_ai_build_no_model_configured(client: AsyncClient):
             from myrm_agent_harness.agent.config import ConfigIncompleteError
 
             mock_resolve.side_effect = ConfigIncompleteError(
-                    user_friendly_message={"en": "No model"},
-                    technical_details="test",
-                    resolution_steps=["Configure a model"],
-                )
-            resp = await client.post(
-                f"{API_PREFIX}/user-agents/ai-build", json={"intent": "test agent"}
+                user_friendly_message={"en": "No model"},
+                technical_details="test",
+                resolution_steps=["Configure a model"],
             )
+            resp = await client.post(f"{API_PREFIX}/user-agents/ai-build", json={"intent": "test agent"})
             assert resp.status_code == 422
 
 
@@ -76,9 +74,7 @@ async def test_ai_build_streams_sse(client: AsyncClient):
         mock_enrich.return_value = mock_model_cfg
         mock_skills.list_skills = AsyncMock(return_value=[])
 
-        resp = await client.post(
-            f"{API_PREFIX}/user-agents/ai-build", json={"intent": "daily report writer"}
-        )
+        resp = await client.post(f"{API_PREFIX}/user-agents/ai-build", json={"intent": "daily report writer"})
         assert resp.status_code == 200
         assert "text/event-stream" in resp.headers.get("content-type", "")
 

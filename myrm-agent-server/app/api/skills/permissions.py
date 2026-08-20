@@ -103,9 +103,7 @@ class ApplyTemplateResponse(BaseModel):
 class BulkRevokeByTypeRequest(BaseModel):
     """批量撤销权限类型请求"""
 
-    permission_type: str = Field(
-        ..., description="要批量撤销的权限类型（如shell_exec）"
-    )
+    permission_type: str = Field(..., description="要批量撤销的权限类型（如shell_exec）")
 
 
 class BulkRevokeByTypeResponse(BaseModel):
@@ -184,9 +182,7 @@ async def grant_permissions(
             )
             db.add(grant)
             granted.append(perm.value)
-            logger.info(
-                f"Granted permission: user=sandbox, skill={skill_id}, permission={perm.value}"
-            )
+            logger.info(f"Granted permission: user=sandbox, skill={skill_id}, permission={perm.value}")
 
     await db.commit()
 
@@ -232,9 +228,7 @@ async def revoke_permissions(
     from myrm_agent_harness.api.hooks import invalidate_permissions
 
     invalidate_permissions("default", skill_id)
-    logger.info(
-        f"Notified framework to invalidate permissions: user=sandbox, skill={skill_id}"
-    )
+    logger.info(f"Notified framework to invalidate permissions: user=sandbox, skill={skill_id}")
 
     return RevokePermissionsResponse(
         skill_id=skill_id,
@@ -243,9 +237,7 @@ async def revoke_permissions(
     )
 
 
-@router.post(
-    "/{skill_id}/permissions/apply-template", response_model=ApplyTemplateResponse
-)
+@router.post("/{skill_id}/permissions/apply-template", response_model=ApplyTemplateResponse)
 async def apply_permission_template(
     skill_id: str,
     request: ApplyTemplateRequest,
@@ -325,9 +317,7 @@ async def apply_permission_template(
     )
 
 
-@router.post(
-    "/permissions/bulk-revoke-by-type", response_model=BulkRevokeByTypeResponse
-)
+@router.post("/permissions/bulk-revoke-by-type", response_model=BulkRevokeByTypeResponse)
 async def bulk_revoke_by_permission_type(
     request: BulkRevokeByTypeRequest,
     db: AsyncSession = Depends(get_db_session),
@@ -389,9 +379,7 @@ async def bulk_revoke_by_permission_type(
     for skill_id in affected_skill_ids:
         invalidate_permissions("default", skill_id)
 
-    logger.info(
-        f"Notified framework to invalidate {len(affected_skill_ids)} skills' permissions"
-    )
+    logger.info(f"Notified framework to invalidate {len(affected_skill_ids)} skills' permissions")
 
     return BulkRevokeByTypeResponse(
         permission_type=perm.value,
@@ -448,9 +436,7 @@ class SkillPermissionUsageResponse(BaseModel):
     total_operations: int
 
 
-@router.get(
-    "/{skill_id}/permissions/usage", response_model=SkillPermissionUsageResponse
-)
+@router.get("/{skill_id}/permissions/usage", response_model=SkillPermissionUsageResponse)
 async def get_permission_usage_stats(
     skill_id: str,
     days: int = Query(7, ge=1, le=365),

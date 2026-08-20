@@ -691,12 +691,7 @@ class TestEmailForwardedParsing:
         msg["To"] = "bot@example.com"
         msg["Subject"] = "Fwd: Report"
         msg["Message-ID"] = email.utils.make_msgid()
-        body = (
-            "---------- Forwarded message ---------\n"
-            "From: reports@company.com\n"
-            "Subject: Report\n\n"
-            "Q2 results are in..."
-        )
+        body = "---------- Forwarded message ---------\nFrom: reports@company.com\nSubject: Report\n\nQ2 results are in..."
         msg.attach(email.mime.text.MIMEText(body, "plain"))
 
         ch = _make_channel()
@@ -746,7 +741,6 @@ class TestEmailForwardedParsing:
         assert result.metadata["is_forwarded"] is True
         assert result.content == "Please handle this"
 
-
     def test_forwarded_non_multipart_plain_text(self) -> None:
         """Non-multipart plain text forwarded email (simple clients)."""
         import email.message
@@ -786,13 +780,7 @@ class TestEmailForwardedParsing:
         msg["To"] = "bot@example.com"
         msg["Subject"] = "轉發: 會議紀要"
         msg["Message-ID"] = email.utils.make_msgid()
-        body = (
-            "請查閱\n\n"
-            "---------- 轉發郵件 ----------\n"
-            "From: colleague@hk.example.com\n"
-            "Subject: 會議紀要\n\n"
-            "會議內容..."
-        )
+        body = "請查閱\n\n---------- 轉發郵件 ----------\nFrom: colleague@hk.example.com\nSubject: 會議紀要\n\n會議內容..."
         msg.attach(email.mime.text.MIMEText(body, "plain"))
 
         ch = _make_channel()
@@ -817,12 +805,12 @@ class TestEmailForwardedParsing:
             "Please find the contract."
         )
         html = (
-            '<div>Review this</div>'
+            "<div>Review this</div>"
             '<div style="border-top:1px solid #ccc">'
-            '<p><b>-----Original Message-----</b></p>'
-            '<p>From: partner@corp.com<br>'
-            'Subject: Contract Draft</p>'
-            '<p>Please find the contract.</p></div>'
+            "<p><b>-----Original Message-----</b></p>"
+            "<p>From: partner@corp.com<br>"
+            "Subject: Contract Draft</p>"
+            "<p>Please find the contract.</p></div>"
         )
 
         msg = email.mime.multipart.MIMEMultipart("alternative")

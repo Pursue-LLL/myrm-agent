@@ -42,9 +42,7 @@ async def test_save_and_load_streak_from_chat_row(db_session: AsyncSession) -> N
     db_session.add(Chat(id=chat_id, source="web"))
     await db_session.commit()
 
-    await save_compression_ineffective_streak(
-        db_session, chat_id, ANTI_THRASHING_STREAK_LIMIT
-    )
+    await save_compression_ineffective_streak(db_session, chat_id, ANTI_THRASHING_STREAK_LIMIT)
     await db_session.commit()
 
     loaded = await load_compression_ineffective_streak(db_session, chat_id)
@@ -59,9 +57,7 @@ async def test_hydrate_seeds_store_for_should_block(db_session: AsyncSession) ->
     clear_task_metrics(chat_id)
 
     await db_session.execute(
-        update(Chat)
-        .where(Chat.id == chat_id)
-        .values(compression_ineffective_streak=ANTI_THRASHING_STREAK_LIMIT)
+        update(Chat).where(Chat.id == chat_id).values(compression_ineffective_streak=ANTI_THRASHING_STREAK_LIMIT)
     )
     await db_session.commit()
 
@@ -99,21 +95,13 @@ def test_guard_record_persists_via_chat_compression_streak_store(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db_file = tmp_path / "streak_guard.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(db_file)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(db_file))
 
     import sqlite3
 
     with sqlite3.connect(db_file) as conn:
-        conn.execute(
-            "CREATE TABLE chats ("
-            "id TEXT PRIMARY KEY, "
-            "compression_ineffective_streak INTEGER NOT NULL DEFAULT 0)"
-        )
-        conn.execute(
-            "INSERT INTO chats (id, compression_ineffective_streak) VALUES ('chat-guard-persist', 0)"
-        )
+        conn.execute("CREATE TABLE chats (id TEXT PRIMARY KEY, compression_ineffective_streak INTEGER NOT NULL DEFAULT 0)")
+        conn.execute("INSERT INTO chats (id, compression_ineffective_streak) VALUES ('chat-guard-persist', 0)")
         conn.commit()
 
     register_chat_compression_streak_store()
@@ -143,62 +131,42 @@ def test_store_empty_chat_id_is_safe() -> None:
     store.set_streak("", 3)
 
 
-def test_store_reads_zero_when_db_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_store_reads_zero_when_db_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Missing DB file degrades to streak 0."""
     missing = tmp_path / "no_such" / "missing.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(missing)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(missing))
     store = ChatCompressionStreakStore()
     assert store.get_streak("chat-missing-db") == 0
 
 
-def test_store_reads_zero_when_row_absent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_store_reads_zero_when_row_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Absent chat row or NULL streak degrades to 0."""
     db_file = tmp_path / "streak_empty.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(db_file)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(db_file))
     import sqlite3
 
     with sqlite3.connect(db_file) as conn:
-        conn.execute(
-            "CREATE TABLE chats ("
-            "id TEXT PRIMARY KEY, "
-            "compression_ineffective_streak INTEGER NOT NULL DEFAULT 0)"
-        )
+        conn.execute("CREATE TABLE chats (id TEXT PRIMARY KEY, compression_ineffective_streak INTEGER NOT NULL DEFAULT 0)")
         conn.commit()
 
     store = ChatCompressionStreakStore()
     assert store.get_streak("chat-absent") == 0
 
 
-def test_store_handles_sqlite_read_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_store_handles_sqlite_read_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Corrupt/unsupported DB surface a warning and degrade to 0."""
     db_file = tmp_path / "streak_bad.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(db_file)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(db_file))
     db_file.write_text("this is not a sqlite database at all", encoding="utf-8")
 
     store = ChatCompressionStreakStore()
     assert store.get_streak("chat-bad-db") == 0
 
 
-def test_store_handles_sqlite_write_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_store_handles_sqlite_write_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Write failure against a non-sqlite file is tolerated."""
     db_file = tmp_path / "streak_bad_write.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(db_file)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(db_file))
     db_file.write_text("not a database", encoding="utf-8")
 
     store = ChatCompressionStreakStore()
@@ -240,14 +208,10 @@ async def test_load_streak_handles_null_column(
     assert loaded == 0
 
 
-def test_store_creates_parent_dir_on_write(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_store_creates_parent_dir_on_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Write creates missing parent directories for the SQLite file."""
     db_file = tmp_path / "nested" / "dir" / "streak.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(db_file)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(db_file))
 
     store = ChatCompressionStreakStore()
     store.set_streak("chat-mkdir", 1)

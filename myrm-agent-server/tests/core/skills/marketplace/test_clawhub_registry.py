@@ -9,9 +9,7 @@ from app.core.skills.marketplace.clawhub_registry import (
 
 
 def test_normalize_migrates_legacy_skillhub_cn() -> None:
-    assert normalize_clawhub_registry_url("https://skillhub.cn") == (
-        "https://skill.xfyun.cn"
-    )
+    assert normalize_clawhub_registry_url("https://skillhub.cn") == ("https://skill.xfyun.cn")
 
 
 def test_normalize_empty_means_international_default() -> None:

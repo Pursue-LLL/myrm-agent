@@ -172,4 +172,3 @@ async def test_idle_reclaim_disabled_when_idle_seconds_zero() -> None:
 
     assert registry.warm_entry_count == 1
     assert registry.reclaimed_count == 0
-

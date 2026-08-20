@@ -694,7 +694,10 @@ class TestSendBusyAck:
         bus = _make_bus(None)
         fx = MessageEffects(bus)
         msg = _inbound(
-            "hi", sender_id="u1", chat_id="grp-1", is_group=True,
+            "hi",
+            sender_id="u1",
+            chat_id="grp-1",
+            is_group=True,
             metadata={"message_id": "99"},
         )
         with patch("app.channels.routing.message_effects.get_text", return_value="Queued"):
@@ -744,8 +747,11 @@ class TestSendBusyAck:
         bus = _make_bus(None)
         fx = MessageEffects(bus)
         msg = InboundMessage(
-            channel="test", sender_id="u1", content="hi",
-            thread_id="thread-42", metadata={},
+            channel="test",
+            sender_id="u1",
+            content="hi",
+            thread_id="thread-42",
+            metadata={},
         )
         with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
             await fx.send_busy_ack(msg, position=1, max_pending=5)
@@ -758,7 +764,10 @@ class TestSendBusyAck:
         bus = _make_bus(None)
         fx = MessageEffects(bus)
         msg = InboundMessage(
-            channel="test", sender_id="u1", content="hi", metadata={},
+            channel="test",
+            sender_id="u1",
+            content="hi",
+            metadata={},
         )
         with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
             await fx.send_busy_ack(msg, position=1, max_pending=5)
@@ -771,8 +780,11 @@ class TestSendBusyAck:
         bus = _make_bus(None)
         fx = MessageEffects(bus)
         msg = InboundMessage(
-            channel="test", sender_id="u1", content="hi",
-            user_id="", metadata={},
+            channel="test",
+            sender_id="u1",
+            content="hi",
+            user_id="",
+            metadata={},
         )
         with patch("app.channels.routing.message_effects.get_text", return_value="ack"):
             await fx.send_busy_ack(msg, position=1, max_pending=5)

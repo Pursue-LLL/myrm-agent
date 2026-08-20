@@ -310,7 +310,6 @@ class TestGoalTerminalNotifier:
             sent_msg = mock_send_with_retry.call_args[0][1]
             assert sent_msg.components == deep_link_components
 
-
     @pytest.mark.asyncio
     async def test_deliver_uses_locale_from_event_data(self) -> None:
         from app.core.channel_bridge.goal_terminal_notifier import GoalTerminalNotifier

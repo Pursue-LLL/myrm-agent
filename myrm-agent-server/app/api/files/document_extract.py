@@ -50,9 +50,7 @@ class DocumentExtractRequest(BaseModel):
     """
 
     file_id: str | None = Field(default=None, description="File ID (sandbox mode)")
-    file_path: str | None = Field(
-        default=None, description="Local file path (local mode)"
-    )
+    file_path: str | None = Field(default=None, description="Local file path (local mode)")
 
     class Config:
         alias_generator = to_camel
@@ -62,16 +60,12 @@ class DocumentExtractRequest(BaseModel):
 class DocumentImageItemResponse(BaseModel):
     data: str = Field(default="", description="Base64-encoded image bytes")
     mime_type: str = Field(default="image/png", description="MIME type")
-    embed_id: str = Field(
-        default="", description="OOXML relationship id when available"
-    )
+    embed_id: str = Field(default="", description="OOXML relationship id when available")
 
 
 class DocumentExtractResponse(BaseModel):
     text: str = Field(default="", description="Extracted Markdown text")
-    format: str = Field(
-        default="", description="Source format (docx/xlsx/xls/pptx/ppt/ipynb)"
-    )
+    format: str = Field(default="", description="Source format (docx/xlsx/xls/pptx/ppt/ipynb)")
     char_count: int = Field(default=0, description="Character count of extracted text")
     images: list[DocumentImageItemResponse] = Field(
         default_factory=list,

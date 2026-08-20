@@ -40,9 +40,7 @@ class ArtifactPublishInput(BaseModel):
     )
     hosting_target_id: str = Field(
         default="",
-        description=(
-            "Optional hosting target ID. Leave empty to use the user's default target."
-        ),
+        description=("Optional hosting target ID. Leave empty to use the user's default target."),
     )
 
 
@@ -68,10 +66,7 @@ def create_artifact_publish_tool() -> BaseTool:
                 default_target = await get_default_hosting_target(db)
                 if default_target is None:
                     return {
-                        "content": (
-                            "No hosting target configured. "
-                            "Please add a hosting target in Settings → Hosting first."
-                        ),
+                        "content": ("No hosting target configured. Please add a hosting target in Settings → Hosting first."),
                         "metadata": {"error": True, "artifact_id": artifact_id},
                     }
                 target_id = default_target.id

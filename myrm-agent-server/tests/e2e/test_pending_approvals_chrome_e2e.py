@@ -85,9 +85,7 @@ def _api_pending_approvals(api_url: str) -> int:
     return int(body["data"]["pendingApprovals"])
 
 
-def _wait_pending_approvals(
-    api_url: str, expected: int, *, timeout_sec: float = 15.0
-) -> int:
+def _wait_pending_approvals(api_url: str, expected: int, *, timeout_sec: float = 15.0) -> int:
     """Poll the badges API until it settles on ``expected``."""
     deadline = time.monotonic() + timeout_sec
     last = -1
@@ -101,9 +99,7 @@ def _wait_pending_approvals(
 
 def _seed_in_review(api_url: str) -> dict[str, str]:
     """Create an IN_REVIEW task through the server fixture (single writer)."""
-    seeded = http_json(
-        "POST", f"{api_url}/api/v1/chats/test/seed-kanban-in-review-fixture"
-    )
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-kanban-in-review-fixture")
     assert isinstance(seeded, dict)
     board_id = str(seeded.get("board_id") or "")
     task_id = str(seeded.get("task_id") or "")
@@ -179,9 +175,7 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
     )
     assert clicked.get("clicked") is True, f"pending KPI link not clickable: {clicked}"
     href = str(clicked.get("href") or "")
-    assert href.endswith(
-        "/settings/kanban?status=in_review"
-    ), f"pending KPI must deep link to kanban in_review filter: {href}"
+    assert href.endswith("/settings/kanban?status=in_review"), f"pending KPI must deep link to kanban in_review filter: {href}"
 
     # Client-side nav: the board view mounts and KanbanSection auto-selects a
     # board holding the status. The in-review column must show our seeded card.
@@ -209,9 +203,7 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
         timeout_sec=90.0,
         page_url="/settings/kanban",
     )
-    assert (
-        landed.get("ready") is True
-    ), f"kanban deep link did not land on the in-review task: {landed}"
+    assert landed.get("ready") is True, f"kanban deep link did not land on the in-review task: {landed}"
 
     # Return to /agents for the rest of the lifecycle like a real user.
     agents_url = f"{ui_url}/agents"
@@ -296,9 +288,7 @@ def _open_task_drawer_and_click(
 
     # The drawer mounts asynchronously (task detail fetch), so wait until the
     # action control for the requested review state is actually rendered.
-    action_testid = (
-        "kanban-task-approve" if action == "approve" else "kanban-task-reject"
-    )
+    action_testid = "kanban-task-approve" if action == "approve" else "kanban-task-reject"
     drawer_state = wait_for_state(
         client,
         page,
@@ -329,10 +319,7 @@ def _open_task_drawer_and_click(
             })()""",
             timeout_sec=10.0,
         )
-        raise AssertionError(
-            f"kanban drawer did not render approve/reject; state={drawer_state} "
-            f"diag={diag}"
-        )
+        raise AssertionError(f"kanban drawer did not render approve/reject; state={drawer_state} diag={diag}")
     assert drawer_state.get("actionBtn") is True, drawer_state
 
     if agent_id:
@@ -373,12 +360,10 @@ def _open_task_drawer_and_click(
         )
         assert agent_state.get("ready") is True, agent_state
         assert agent_state.get("leaksEnglish") is False, (
-            f"zh kanban drawer leaked raw English built-in agent name; "
-            f"state={agent_state}"
+            f"zh kanban drawer leaked raw English built-in agent name; state={agent_state}"
         )
         assert agent_state.get("selectedText"), (
-            f"kanban drawer agent select should show a selected agent name; "
-            f"state={agent_state}"
+            f"kanban drawer agent select should show a selected agent name; state={agent_state}"
         )
 
     if action == "approve":
@@ -465,15 +450,13 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
         seeded_apr = _seed_in_review(api_url)
         api_after = _wait_pending_approvals(api_url, api_before + 1)
         assert api_after == api_before + 1, (
-            f"badges API must count the seeded IN_REVIEW task: "
-            f"api_before={api_before} actual={api_after}"
+            f"badges API must count the seeded IN_REVIEW task: api_before={api_before} actual={api_after}"
         )
         _reload_agents(client, page, agents_url)
         seeded = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
         seeded_text = str(seeded.get("text") or "")
         assert seeded_text == str(int(before) + 1), (
-            f"KPI should tick +1 after IN_REVIEW seed: before={before} "
-            f"seeded={seeded_text}"
+            f"KPI should tick +1 after IN_REVIEW seed: before={before} seeded={seeded_text}"
         )
 
         # Number-to-action: the KPI card deep links to the kanban board with
@@ -499,32 +482,24 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
         )
         api_released = _wait_pending_approvals(api_url, api_before)
         assert api_released == api_before, (
-            f"badges API must fall back after approve: api_before={api_before} "
-            f"actual={api_released}"
+            f"badges API must fall back after approve: api_before={api_before} actual={api_released}"
         )
         _reload_agents(client, page, agents_url)
         settled = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
         settled_text = str(settled.get("text") or "")
-        assert settled_text == before, (
-            f"KPI should fall back after approve: before={before!r} "
-            f"settled={settled_text!r}"
-        )
+        assert settled_text == before, f"KPI should fall back after approve: before={before!r} settled={settled_text!r}"
 
         # Lifecycle 2: IN_REVIEW -> reject -> READY also releases the KPI.
         seeded_rej = _seed_in_review(api_url)
         api_after_rej = _wait_pending_approvals(api_url, api_before + 1)
         assert api_after_rej == api_before + 1, (
-            f"badges API must count the second seeded IN_REVIEW task: "
-            f"api_before={api_before} actual={api_after_rej}"
+            f"badges API must count the second seeded IN_REVIEW task: api_before={api_before} actual={api_after_rej}"
         )
         _reload_agents(client, page, agents_url)
-        seeded_rej_state = wait_for_state(
-            client, page, _PENDING_KPI_JS, timeout_sec=90.0
-        )
+        seeded_rej_state = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
         seeded_rej_text = str(seeded_rej_state.get("text") or "")
         assert seeded_rej_text == str(int(before) + 1), (
-            f"KPI should tick +1 after second IN_REVIEW seed: before={before} "
-            f"seeded={seeded_rej_text}"
+            f"KPI should tick +1 after second IN_REVIEW seed: before={before} seeded={seeded_rej_text}"
         )
 
         _open_task_drawer_and_click(
@@ -540,13 +515,9 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
         )
         api_released_rej = _wait_pending_approvals(api_url, api_before)
         assert api_released_rej == api_before, (
-            f"badges API must fall back after reject: api_before={api_before} "
-            f"actual={api_released_rej}"
+            f"badges API must fall back after reject: api_before={api_before} actual={api_released_rej}"
         )
         _reload_agents(client, page, agents_url)
         settled_rej = wait_for_state(client, page, _PENDING_KPI_JS, timeout_sec=90.0)
         settled_rej_text = str(settled_rej.get("text") or "")
-        assert settled_rej_text == before, (
-            f"KPI should fall back after reject: before={before!r} "
-            f"settled={settled_rej_text!r}"
-        )
+        assert settled_rej_text == before, f"KPI should fall back after reject: before={before!r} settled={settled_rej_text!r}"

@@ -78,9 +78,7 @@ async def test_install_pet_downloads_and_persists(pet_data_dir: Path) -> None:
             "app.services.companion.pet_store._find_manifest_entry",
             new=AsyncMock(return_value=manifest_entry),
         ),
-        patch(
-            "app.services.companion.pet_store._download_url", side_effect=fake_download
-        ),
+        patch("app.services.companion.pet_store._download_url", side_effect=fake_download),
     ):
         installed = await install_pet("nous-girl")
 
@@ -129,9 +127,7 @@ async def test_install_pet_rejects_invalid_atlas(pet_data_dir: Path) -> None:
             "app.services.companion.pet_store._find_manifest_entry",
             new=AsyncMock(return_value=manifest_entry),
         ),
-        patch(
-            "app.services.companion.pet_store._download_url", side_effect=fake_download
-        ),
+        patch("app.services.companion.pet_store._download_url", side_effect=fake_download),
     ):
         with pytest.raises(PetStoreError, match="Spritesheet|Invalid|grid"):
             await install_pet("bad-pet")

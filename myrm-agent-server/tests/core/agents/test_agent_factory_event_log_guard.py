@@ -26,9 +26,7 @@ def _minimal_params(chat_id: str | None) -> GeneralAgentParams:
         ("../../etc/passwd", False),  # 恶意：跳过写入
     ],
 )
-def test_create_general_agent_guards_event_log_backend(
-    chat_id: str | None, backend_created: bool
-):
+def test_create_general_agent_guards_event_log_backend(chat_id: str | None, backend_created: bool):
     """Unsafe chat_ids must never reach FileEventLogBackend (path escape guard)."""
     with (
         patch(

@@ -36,10 +36,7 @@ from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
 
-_PNG_B64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
-    "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-)
+_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
 
 def _png_bytes() -> bytes:
@@ -125,9 +122,7 @@ async def seed_rich_media_preview_fixture(
 
     # Resolve after the chat exists so the persisted chat.workspace_dir field
     # is actually updated (update_chat_fields is a silent SQL UPDATE otherwise).
-    workspace_dir = await resolve_default_chat_workspace_dir(
-        chat_id, persist_workspace=True
-    )
+    workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
     if not workspace_dir:
         raise HTTPException(
             status_code=500,

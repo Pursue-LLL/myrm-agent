@@ -65,13 +65,9 @@ async def test_retry_extract_returns_400_when_no_assistant_reply(
 
     with patch(
         "app.api.chats.chat.memory_extract.schedule_retry_chat_memory_extract",
-        new=AsyncMock(
-            side_effect=ValueError("No assistant reply found for memory retry")
-        ),
+        new=AsyncMock(side_effect=ValueError("No assistant reply found for memory retry")),
     ):
-        response = await async_client.post(
-            f"/api/v1/chats/{chat_id}/memory/retry-extract"
-        )
+        response = await async_client.post(f"/api/v1/chats/{chat_id}/memory/retry-extract")
 
     assert response.status_code == 400
     assert "No assistant reply" in str(response.json())
@@ -88,9 +84,7 @@ async def test_retry_extract_schedules_for_normal_chat(
         "app.api.chats.chat.memory_extract.schedule_retry_chat_memory_extract",
         new=AsyncMock(return_value="scheduled"),
     ) as schedule_mock:
-        response = await async_client.post(
-            f"/api/v1/chats/{chat_id}/memory/retry-extract"
-        )
+        response = await async_client.post(f"/api/v1/chats/{chat_id}/memory/retry-extract")
 
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "scheduled"

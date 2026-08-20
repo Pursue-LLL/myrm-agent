@@ -56,9 +56,7 @@ def parse_agents_map(
         return {}
     agents = raw.get(_AGENTS_FIELD)
     if isinstance(agents, dict):
-        return {
-            str(key): value for key, value in agents.items() if isinstance(value, dict)
-        }
+        return {str(key): value for key, value in agents.items() if isinstance(value, dict)}
     if any(key in raw for key in legacy_keys):
         return {normalize_agent_scope(None): dict(raw)}
     return {}
@@ -66,11 +64,7 @@ def parse_agents_map(
 
 def serialize_agents_map(agents: dict[str, TModel]) -> dict[str, object]:
     """Serialize a ``{scope: model}`` dict into the stored payload shape."""
-    return {
-        _AGENTS_FIELD: {
-            scope: model.model_dump(mode="json") for scope, model in agents.items()
-        }
-    }
+    return {_AGENTS_FIELD: {scope: model.model_dump(mode="json") for scope, model in agents.items()}}
 
 
 async def load_scoped_userconfig(
@@ -84,15 +78,7 @@ async def load_scoped_userconfig(
 ) -> TModel:
     """Load the scoped value for ``agent_id`` under ``config_key``."""
     scope = normalize_agent_scope(agent_id)
-    row = (
-        (
-            await db.execute(
-                select(UserConfig).where(UserConfig.config_key == config_key)
-            )
-        )
-        .scalars()
-        .first()
-    )
+    row = (await db.execute(select(UserConfig).where(UserConfig.config_key == config_key))).scalars().first()
     if row is None:
         return model()
     raw = row.config_value
@@ -111,9 +97,7 @@ async def load_scoped_userconfig(
     try:
         return model.model_validate(scoped)
     except ValidationError as exc:
-        logger.warning(
-            "Invalid %s schema for scope %s: %s", invalid_log_label, scope, exc
-        )
+        logger.warning("Invalid %s schema for scope %s: %s", invalid_log_label, scope, exc)
         return model()
 
 
@@ -125,15 +109,7 @@ async def exists_scoped_userconfig(
     legacy_keys: tuple[str, ...],
 ) -> bool:
     """Return whether any scoped value exists under ``config_key``."""
-    row = (
-        (
-            await db.execute(
-                select(UserConfig).where(UserConfig.config_key == config_key)
-            )
-        )
-        .scalars()
-        .first()
-    )
+    row = (await db.execute(select(UserConfig).where(UserConfig.config_key == config_key))).scalars().first()
     if row is None:
         return False
     raw = row.config_value
@@ -160,15 +136,7 @@ async def save_scoped_userconfig(
     """Merge ``value`` into the agent-scoped store under ``config_key``."""
     async with _save_lock:
         scope = normalize_agent_scope(agent_id)
-        row = (
-            (
-                await db.execute(
-                    select(UserConfig).where(UserConfig.config_key == config_key)
-                )
-            )
-            .scalars()
-            .first()
-        )
+        row = (await db.execute(select(UserConfig).where(UserConfig.config_key == config_key))).scalars().first()
 
         agents: dict[str, TModel] = {}
         if row is not None:
@@ -179,9 +147,7 @@ async def save_scoped_userconfig(
                 except json.JSONDecodeError:
                     raw = {}
             if isinstance(raw, dict):
-                for key, value_map in parse_agents_map(
-                    raw, legacy_keys=legacy_keys
-                ).items():
+                for key, value_map in parse_agents_map(raw, legacy_keys=legacy_keys).items():
                     try:
                         agents[key] = model.model_validate(value_map)
                     except ValidationError:

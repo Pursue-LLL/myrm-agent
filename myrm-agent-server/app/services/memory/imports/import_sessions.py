@@ -117,16 +117,10 @@ class ImportReadinessRecheckFacts:
     def from_metadata_block(cls, block: dict[str, object]) -> ImportReadinessRecheckFacts:
         diagnostic_status_raw = block.get("diagnostic_status")
         diagnostic_status = (
-            diagnostic_status_raw.strip()
-            if isinstance(diagnostic_status_raw, str) and diagnostic_status_raw.strip()
-            else None
+            diagnostic_status_raw.strip() if isinstance(diagnostic_status_raw, str) and diagnostic_status_raw.strip() else None
         )
         competitor_raw = block.get("migration_competitor")
-        migration_competitor = (
-            competitor_raw.strip()
-            if isinstance(competitor_raw, str) and competitor_raw.strip()
-            else None
-        )
+        migration_competitor = competitor_raw.strip() if isinstance(competitor_raw, str) and competitor_raw.strip() else None
         return cls(
             source_has_api_keys=block.get("source_has_api_keys") is True,
             diagnostic_status=diagnostic_status,

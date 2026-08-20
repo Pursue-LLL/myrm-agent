@@ -18,9 +18,7 @@ def client() -> TestClient:
 class TestSecurityPresetSeedFixture:
     """Verify seed-security-preset-fixture route mounting, guards and payload."""
 
-    def test_seed_security_preset_fixture_http_endpoint(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_security_preset_fixture_http_endpoint(self, client: TestClient) -> None:
         preset_agent = MagicMock()
         preset_agent.id = "agent-e2e-sec-preset"
         plain_agent = MagicMock()
@@ -61,9 +59,7 @@ class TestSecurityPresetSeedFixture:
         assert body["explore_ui_path"] == "/?agentId=agent-e2e-sec-explore"
         assert create_chat.await_count == 3
 
-    def test_seed_security_preset_fixture_hidden_outside_local_mode(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_security_preset_fixture_hidden_outside_local_mode(self, client: TestClient) -> None:
         with patch(
             "app.api.chats.test_fixtures.security_preset.is_local_mode",
             return_value=False,

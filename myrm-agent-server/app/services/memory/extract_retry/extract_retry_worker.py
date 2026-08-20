@@ -73,9 +73,7 @@ class ExtractRetryWorker:
             except Exception as exc:
                 logger.warning("Memory extract retry sweep failed: %s", exc)
             try:
-                await asyncio.wait_for(
-                    self._wake.wait(), timeout=SWEEP_INTERVAL_SECONDS
-                )
+                await asyncio.wait_for(self._wake.wait(), timeout=SWEEP_INTERVAL_SECONDS)
             except TimeoutError:
                 pass
 
@@ -97,13 +95,9 @@ class ExtractRetryWorker:
             try:
                 try:
                     async with asyncio.timeout(RUN_TIMEOUT_SECONDS):
-                        await run_retry_extract_for_chat(
-                            chat_id, source="worker_retry_extract"
-                        )
+                        await run_retry_extract_for_chat(chat_id, source="worker_retry_extract")
                 except Exception as exc:
-                    exhausted = await queue.mark_failure(
-                        chat_id, attempt, f"{type(exc).__name__}: {exc}"
-                    )
+                    exhausted = await queue.mark_failure(chat_id, attempt, f"{type(exc).__name__}: {exc}")
                     if exhausted:
                         await _record_terminal_failure(chat_id, attempt, exc)
                     continue
@@ -118,9 +112,7 @@ class ExtractRetryWorker:
                 self._running.discard(chat_id)
 
 
-async def _record_terminal_failure(
-    chat_id: str, attempt: int, error: Exception
-) -> None:
+async def _record_terminal_failure(chat_id: str, attempt: int, error: Exception) -> None:
     """Surface a permanently failed retry in the memory operation ledger."""
     try:
         from myrm_agent_harness.toolkits.memory import (

@@ -112,15 +112,7 @@ def encrypt_oauth_credentials(
 
 
 async def load_oauth_credentials_row(db: AsyncSession) -> UserConfig | None:
-    return (
-        (
-            await db.execute(
-                select(UserConfig).where(UserConfig.config_key == CONFIG_KEY)
-            )
-        )
-        .scalars()
-        .first()
-    )
+    return (await db.execute(select(UserConfig).where(UserConfig.config_key == CONFIG_KEY))).scalars().first()
 
 
 async def persist_credentials_locked(
@@ -138,9 +130,7 @@ async def persist_credentials_locked(
     (guarded by its own persist lock).
     """
     service = get_encryption_service()
-    final_value, is_encrypted = encrypt_oauth_credentials(
-        credentials, service, config_key
-    )
+    final_value, is_encrypted = encrypt_oauth_credentials(credentials, service, config_key)
     if is_encrypted and isinstance(final_value, str):
         final_value = {"_cipher": final_value}
 
@@ -184,9 +174,7 @@ async def upsert_oauth_credential(
 
         credentials: dict[str, object] = {}
         if row:
-            credentials = decrypt_oauth_credentials(
-                row.config_value, row.is_encrypted, service
-            )
+            credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted, service)
 
         credentials[issuer] = entry
         await persist_credentials_locked(db, row, credentials)
@@ -217,9 +205,7 @@ async def delete_oauth_credential(db: AsyncSession, issuer: str) -> bool:
             return False
 
         service = get_encryption_service()
-        credentials = decrypt_oauth_credentials(
-            row.config_value, row.is_encrypted, service
-        )
+        credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted, service)
         if issuer not in credentials:
             return False
 

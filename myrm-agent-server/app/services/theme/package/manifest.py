@@ -28,7 +28,7 @@ from app.schemas.theme_profile import (
     ThemeProfileRecipeModel,
 )
 
-_RELATIVE_ASSET_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+_RELATIVE_ASSET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 class ThemePackageArtModel(BaseModel):
@@ -39,15 +39,15 @@ class ThemePackageArtModel(BaseModel):
     assetRef: str | None = None
     posterAssetRef: str | None = None
 
-    @field_validator('assetRef', 'posterAssetRef')
+    @field_validator("assetRef", "posterAssetRef")
     @classmethod
     def validate_relative_asset(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        if value.startswith('file:'):
-            raise ValueError('Package art refs must be relative filenames, not file: URLs')
+        if value.startswith("file:"):
+            raise ValueError("Package art refs must be relative filenames, not file: URLs")
         if not _RELATIVE_ASSET_RE.match(value):
-            raise ValueError(f'Invalid package asset filename: {value}')
+            raise ValueError(f"Invalid package asset filename: {value}")
         return value
 
 
@@ -69,13 +69,13 @@ class ThemePackageManifestModel(BaseModel):
     previewFile: str | None = None
     profile: ThemePackageProfileModel
 
-    @field_validator('previewFile')
+    @field_validator("previewFile")
     @classmethod
     def validate_preview_file(cls, value: str | None) -> str | None:
         if value is None:
             return None
         if not _RELATIVE_ASSET_RE.match(value):
-            raise ValueError(f'Invalid preview filename: {value}')
+            raise ValueError(f"Invalid preview filename: {value}")
         return value
 
 
@@ -99,12 +99,12 @@ def to_installed_profile(
             focusY=art.focusY,
             wash=art.wash,
             mediaKind=art.mediaKind,
-            assetRef=f'file:{hero_file_id}' if hero_file_id else None,
-            posterAssetRef=f'file:{poster_file_id}' if poster_file_id else None,
+            assetRef=f"file:{hero_file_id}" if hero_file_id else None,
+            posterAssetRef=f"file:{poster_file_id}" if poster_file_id else None,
         ),
         builtin=False,
         packageDescription=manifest.description,
         packageTagline=manifest.tagline,
         packageAuthor=manifest.author,
-        packagePreviewAssetRef=f'file:{preview_file_id}' if preview_file_id else None,
+        packagePreviewAssetRef=f"file:{preview_file_id}" if preview_file_id else None,
     )

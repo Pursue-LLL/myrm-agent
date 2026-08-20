@@ -20,6 +20,7 @@ from app.ai_agents.general_agent.tools.x_search_provider import (
 # _validate_date_range
 # ---------------------------------------------------------------------------
 
+
 class TestValidateDateRange:
     def test_valid_range(self) -> None:
         assert _validate_date_range("2026-01-01", "2026-01-31") is None
@@ -64,6 +65,7 @@ class TestValidateDateRange:
 # XSearchProvider.search — retry logic
 # ---------------------------------------------------------------------------
 
+
 def _make_provider() -> XSearchProvider:
     return XSearchProvider(XSearchProviderConfig(api_key="test-key"))
 
@@ -77,9 +79,13 @@ class TestRetryLogic:
             request=httpx.Request("POST", "https://api.x.ai/v1/responses"),
         )
         mock_client = AsyncMock()
-        mock_client.post = AsyncMock(side_effect=httpx.HTTPStatusError(
-            "Unauthorized", request=mock_response.request, response=mock_response,
-        ))
+        mock_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Unauthorized",
+                request=mock_response.request,
+                response=mock_response,
+            )
+        )
         mock_client.is_closed = False
         provider._client = mock_client
 
@@ -100,12 +106,16 @@ class TestRetryLogic:
             request=httpx.Request("POST", "https://api.x.ai/v1/responses"),
         )
         mock_client = AsyncMock()
-        mock_client.post = AsyncMock(side_effect=[
-            httpx.HTTPStatusError(
-                "Bad Gateway", request=error_response.request, response=error_response,
-            ),
-            success_response,
-        ])
+        mock_client.post = AsyncMock(
+            side_effect=[
+                httpx.HTTPStatusError(
+                    "Bad Gateway",
+                    request=error_response.request,
+                    response=error_response,
+                ),
+                success_response,
+            ]
+        )
         mock_client.is_closed = False
         provider._client = mock_client
 
@@ -133,6 +143,7 @@ class TestRetryLogic:
 # ---------------------------------------------------------------------------
 # XSearchProvider.search — degraded detection
 # ---------------------------------------------------------------------------
+
 
 class TestDegradedDetection:
     @pytest.mark.asyncio
@@ -165,7 +176,9 @@ class TestDegradedDetection:
         provider._client = mock_client
 
         result = await provider.search(
-            "test query", from_date="2026-01-01", to_date="2026-01-31",
+            "test query",
+            from_date="2026-01-01",
+            to_date="2026-01-31",
         )
         assert "general knowledge" in result.snippet
 
@@ -173,6 +186,7 @@ class TestDegradedDetection:
 # ---------------------------------------------------------------------------
 # XSearchProvider.search — citation merging
 # ---------------------------------------------------------------------------
+
 
 class TestCitationMerging:
     @pytest.mark.asyncio
@@ -284,6 +298,7 @@ class TestCitationMerging:
 # XSearchProvider.search — date validation integration
 # ---------------------------------------------------------------------------
 
+
 class TestValidateDateRangeEdge:
     def test_to_date_in_future_allowed(self) -> None:
         assert _validate_date_range("2026-01-01", "2099-12-31") is None
@@ -307,6 +322,7 @@ class TestValidateDateRangeEdge:
 # XSearchProvider.search — edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestSearchEdgeCases:
     @pytest.mark.asyncio
     async def test_no_api_key_returns_error(self) -> None:
@@ -319,7 +335,9 @@ class TestSearchEdgeCases:
     async def test_allowed_and_excluded_mutual_exclusion(self) -> None:
         provider = _make_provider()
         result = await provider.search(
-            "test", allowed_handles=["a"], excluded_handles=["b"],
+            "test",
+            allowed_handles=["a"],
+            excluded_handles=["b"],
         )
         assert result.is_error
         assert "cannot be used together" in result.snippet
@@ -392,7 +410,8 @@ class TestSearchEdgeCases:
         provider._client = mock_client
 
         result = await provider.search(
-            "test", allowed_handles=["elonmusk"],
+            "test",
+            allowed_handles=["elonmusk"],
         )
         assert "general knowledge" not in result.snippet
 
@@ -410,7 +429,8 @@ class TestSearchEdgeCases:
         provider._client = mock_client
 
         result = await provider.search(
-            "test", excluded_handles=["spambot"],
+            "test",
+            excluded_handles=["spambot"],
         )
         assert "general knowledge" in result.snippet
 
@@ -436,6 +456,7 @@ class TestSearchEdgeCases:
 # XSearchProvider.search — retry edge: all 5xx retries exhausted
 # ---------------------------------------------------------------------------
 
+
 class TestRetryExhausted:
     @pytest.mark.asyncio
     async def test_all_5xx_retries_exhausted(self) -> None:
@@ -446,11 +467,13 @@ class TestRetryExhausted:
             text="Service Unavailable",
         )
         mock_client = AsyncMock()
-        mock_client.post = AsyncMock(side_effect=httpx.HTTPStatusError(
-            "Service Unavailable",
-            request=error_response.request,
-            response=error_response,
-        ))
+        mock_client.post = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Service Unavailable",
+                request=error_response.request,
+                response=error_response,
+            )
+        )
         mock_client.is_closed = False
         provider._client = mock_client
 
@@ -466,6 +489,7 @@ class TestRetryExhausted:
 # XSearchProvider.search — date validation integration
 # ---------------------------------------------------------------------------
 
+
 class TestDateValidationIntegration:
     @pytest.mark.asyncio
     async def test_invalid_date_returns_error(self) -> None:
@@ -478,7 +502,9 @@ class TestDateValidationIntegration:
     async def test_inverted_range_returns_error(self) -> None:
         provider = _make_provider()
         result = await provider.search(
-            "test", from_date="2026-06-15", to_date="2026-06-01",
+            "test",
+            from_date="2026-06-15",
+            to_date="2026-06-01",
         )
         assert result.is_error
         assert "on or before" in result.snippet

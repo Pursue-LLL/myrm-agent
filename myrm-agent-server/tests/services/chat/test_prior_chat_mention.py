@@ -136,9 +136,7 @@ async def test_ensure_chat_source_syncs_recall_document_source(
 
     row = (
         await fts_db.execute(
-            text(
-                "SELECT source FROM conversation_recall_documents WHERE chat_id = :chat_id"
-            ),
+            text("SELECT source FROM conversation_recall_documents WHERE chat_id = :chat_id"),
             {"chat_id": chat_id},
         )
     ).first()
@@ -149,9 +147,7 @@ async def test_ensure_chat_source_syncs_recall_document_source(
 
     row = (
         await fts_db.execute(
-            text(
-                "SELECT source FROM conversation_recall_documents WHERE chat_id = :chat_id"
-            ),
+            text("SELECT source FROM conversation_recall_documents WHERE chat_id = :chat_id"),
             {"chat_id": chat_id},
         )
     ).first()

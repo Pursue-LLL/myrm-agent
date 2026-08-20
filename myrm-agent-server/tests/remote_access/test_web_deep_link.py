@@ -59,9 +59,7 @@ class TestResolveWebHandoffComponents:
             lambda: manager,
         )
 
-    async def test_returns_empty_when_no_public_url(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_returns_empty_when_no_public_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def _no_ingress() -> str:
             return ""
 
@@ -72,9 +70,7 @@ class TestResolveWebHandoffComponents:
         result = await resolve_web_handoff_components("chat-uuid-1", locale="en")
         assert result == ()
 
-    async def test_returns_action_button_with_tunnel(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_returns_action_button_with_tunnel(self, monkeypatch: pytest.MonkeyPatch) -> None:
         manager = TunnelManager()
         manager._state = TunnelState.RUNNING
         manager._public_url = "https://tunnel.example.com"
@@ -101,9 +97,7 @@ class TestResolveWebHandoffComponents:
         assert btn.style.value == "default"
         assert btn.label
 
-    async def test_returns_action_button_with_ingress(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_returns_action_button_with_ingress(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def _ingress() -> str:
             return "https://ingress.example.com"
 
@@ -118,9 +112,7 @@ class TestResolveWebHandoffComponents:
         assert btn.url == "https://ingress.example.com/db-uuid-2"
         assert btn.action_id == "web:continue_chat"
 
-    async def test_tunnel_trailing_slash_stripped(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_tunnel_trailing_slash_stripped(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Tunnel URL with trailing slash is normalized by resolve_mobile_remote_base_url."""
         manager = TunnelManager()
         manager._state = TunnelState.RUNNING
@@ -142,9 +134,7 @@ class TestResolveWebHandoffComponents:
         assert len(result) == 1
         assert result[0][0].url == "https://tunnel.example.com/uuid-3"
 
-    async def test_tunnel_preferred_over_ingress(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_tunnel_preferred_over_ingress(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When both tunnel and ingress are available, tunnel takes priority."""
         manager = TunnelManager()
         manager._state = TunnelState.RUNNING

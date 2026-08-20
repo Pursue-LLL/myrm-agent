@@ -82,9 +82,7 @@ def test_load_manifest_tolerates_corrupt_file(tmp_path: Path, monkeypatch: pytes
     (bundle_root / "manifest.json").write_text("{not json", encoding="utf-8")
     assert resolve_share_bundle_file(claims, None) is None
 
-    (bundle_root / "manifest.json").write_text(
-        '{"entry": 42, "exp": "bad"}', encoding="utf-8"
-    )
+    (bundle_root / "manifest.json").write_text('{"entry": 42, "exp": "bad"}', encoding="utf-8")
     assert resolve_share_bundle_file(claims, None) is None
 
 
@@ -94,9 +92,7 @@ def test_purge_skips_non_directories(tmp_path: Path, monkeypatch: pytest.MonkeyP
         "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
-    root = bundle_dir_for_claims(
-        ArtifactShareClaims(artifact_id="skip", version_id="v1", exp=9_999_999_999)
-    )
+    root = bundle_dir_for_claims(ArtifactShareClaims(artifact_id="skip", version_id="v1", exp=9_999_999_999))
     root.parent.mkdir(parents=True, exist_ok=True)
     (root.parent / ".DS_Store").write_text("junk", encoding="utf-8")
     purge_expired_share_bundles()
@@ -128,25 +124,19 @@ def test_guess_media_type_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert resolve_share_bundle_file(claims, "report.pdf")[1] == "application/pdf"
 
 
-def test_resolve_extensionless_entry_uses_artifact_type(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_extensionless_entry_uses_artifact_type(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Extension-less bundle entries resolve media type from token artifact_type."""
     monkeypatch.setattr(
         "app.services.artifacts.share.share_bundle.settings.database.state_dir",
         str(tmp_path),
     )
     monkeypatch.setattr("mimetypes.guess_type", lambda filename: (None, None))
-    claims = ArtifactShareClaims(
-        artifact_id="doc", version_id="v1", exp=9_999_999_999, artifact_type="document"
-    )
+    claims = ArtifactShareClaims(artifact_id="doc", version_id="v1", exp=9_999_999_999, artifact_type="document")
     bundle_root = bundle_dir_for_claims(claims)
     _write_deploy_files(
         bundle_root,
         {
-            "季度报告": PublishFile(
-                path="季度报告", content="# Title", encoding="utf-8"
-            ),
+            "季度报告": PublishFile(path="季度报告", content="# Title", encoding="utf-8"),
         },
     )
     _write_manifest(bundle_root, entry="季度报告", exp=claims.exp)
@@ -155,9 +145,7 @@ def test_resolve_extensionless_entry_uses_artifact_type(
     assert resolved is not None
     assert resolved[1] == "text/markdown; charset=utf-8"
 
-    html_claims = ArtifactShareClaims(
-        artifact_id="doc", version_id="v1", exp=9_999_999_999, artifact_type="html"
-    )
+    html_claims = ArtifactShareClaims(artifact_id="doc", version_id="v1", exp=9_999_999_999, artifact_type="html")
     resolved_html = resolve_share_bundle_file(html_claims, None)
     assert resolved_html is not None
     assert resolved_html[1] == "text/html; charset=utf-8"

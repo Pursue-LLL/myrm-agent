@@ -402,9 +402,7 @@ async def start_memory_guardian_scheduler() -> None:
                         _consecutive_unhealthy = 0
 
                     interval_hours = (
-                        intervals.healthy_hours
-                        if report.health.total >= HEALTH_THRESHOLD
-                        else intervals.unhealthy_hours
+                        intervals.healthy_hours if report.health.total >= HEALTH_THRESHOLD else intervals.unhealthy_hours
                     )
                 else:
                     interval_hours = intervals.healthy_hours

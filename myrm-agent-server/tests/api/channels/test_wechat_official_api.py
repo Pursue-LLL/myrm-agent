@@ -205,12 +205,15 @@ def test_wechat_official_draft_blocks_high_risk_compliance(
 
 
 def test_wechat_official_test_connection_success(client: TestClient) -> None:
-    with patch(
-        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.ensure_token",
-        new=AsyncMock(return_value="token_ok"),
-    ), patch(
-        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
-        new=AsyncMock(),
+    with (
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.ensure_token",
+            new=AsyncMock(return_value="token_ok"),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+            new=AsyncMock(),
+        ),
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/test",
@@ -223,12 +226,15 @@ def test_wechat_official_test_connection_success(client: TestClient) -> None:
 
 
 def test_wechat_official_test_connection_failure(client: TestClient) -> None:
-    with patch(
-        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.ensure_token",
-        new=AsyncMock(side_effect=RuntimeError("bad credentials")),
-    ), patch(
-        "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
-        new=AsyncMock(),
+    with (
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.ensure_token",
+            new=AsyncMock(side_effect=RuntimeError("bad credentials")),
+        ),
+        patch(
+            "app.channels.providers.wechat.wechat_api_client.WeChatOfficialApiClient.close",
+            new=AsyncMock(),
+        ),
     ):
         response = client.post(
             "/api/v1/channels/manage/wechat-official/test",
@@ -478,9 +484,12 @@ def test_get_workspace_root_uses_local_default_when_available(
     workspace = home / ".myrm" / "workspace"
     workspace.mkdir(parents=True)
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
-    with patch.object(wechat_official_module, "is_local_mode", return_value=True), patch(
-        "app.api.channels.wechat_official.os.path.expanduser",
-        return_value=str(home),
+    with (
+        patch.object(wechat_official_module, "is_local_mode", return_value=True),
+        patch(
+            "app.api.channels.wechat_official.os.path.expanduser",
+            return_value=str(home),
+        ),
     ):
         assert wechat_official_module._get_workspace_root() == str(workspace)
 
@@ -493,10 +502,14 @@ def test_collect_allowed_workspace_roots_includes_harness_in_local_mode(
     harness = home / ".myrm" / "harness" / "workspaces"
     harness.mkdir(parents=True)
     monkeypatch.delenv("MYRM_WORKSPACE_ROOT", raising=False)
-    with patch.object(wechat_official_module, "is_local_mode", return_value=True), patch(
-        "app.api.channels.wechat_official.os.path.expanduser",
-        return_value=str(home),
-    ), patch("app.api.channels.wechat_official._get_workspace_root", return_value=None):
+    with (
+        patch.object(wechat_official_module, "is_local_mode", return_value=True),
+        patch(
+            "app.api.channels.wechat_official.os.path.expanduser",
+            return_value=str(home),
+        ),
+        patch("app.api.channels.wechat_official._get_workspace_root", return_value=None),
+    ):
         roots = wechat_official_module._collect_allowed_workspace_roots()
     assert len(roots) == 1
     assert roots[0] == harness.resolve()

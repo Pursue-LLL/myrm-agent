@@ -154,13 +154,17 @@ async def test_publish_full_chain_http_webhook(hosting_integration_client) -> No
     assert data["provider_publication_ref"]
 
     pub = (
-        await db_session.execute(
-            select(ArtifactPublication).where(
-                ArtifactPublication.artifact_id == artifact_id,
-                ArtifactPublication.hosting_target_id == target_id,
+        (
+            await db_session.execute(
+                select(ArtifactPublication).where(
+                    ArtifactPublication.artifact_id == artifact_id,
+                    ArtifactPublication.hosting_target_id == target_id,
+                )
             )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     assert pub is not None
     assert pub.publication_status == "READY"
 
@@ -285,9 +289,7 @@ async def test_publish_websocket_polls_ready(hosting_integration_client) -> None
                 assert publish.status_code == 200
                 provider_ref = publish.json()["provider_publication_ref"]
 
-                with client.websocket_connect(
-                    f"/{artifact_id}/publish/status/{provider_ref}?target_id={target_id}"
-                ) as ws:
+                with client.websocket_connect(f"/{artifact_id}/publish/status/{provider_ref}?target_id={target_id}") as ws:
                     ws.send_json({"type": "auth"})
                     msg = ws.receive_json()
                     assert msg["status"] == "READY"
@@ -499,9 +501,7 @@ async def test_ws_rejects_invalid_auth(hosting_integration_client) -> None:
             return None
 
     with patch("app.api.files.hosting_api.get_session", return_value=_SessionCtx()):
-        with client.websocket_connect(
-            f"/{artifact_id}/publish/status/fake-ref?target_id={target_id}"
-        ) as ws:
+        with client.websocket_connect(f"/{artifact_id}/publish/status/fake-ref?target_id={target_id}") as ws:
             ws.send_json({"type": "not-auth"})
             # Server closes after invalid auth; receive may raise
             try:

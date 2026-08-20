@@ -135,9 +135,7 @@ class MilestoneService:
 
             # 解绑相关看板
             await db.execute(
-                update(KanbanBoardModel)
-                .where(KanbanBoardModel.milestone_id == milestone_id)
-                .values(milestone_id=None)
+                update(KanbanBoardModel).where(KanbanBoardModel.milestone_id == milestone_id).values(milestone_id=None)
             )
             await db.delete(milestone)
             await db.commit()
@@ -236,12 +234,14 @@ class MilestoneService:
                 total = sum(task_counts.get(bid, (0, 0))[0] for bid in milestone_board_ids[mid])
                 done = sum(task_counts.get(bid, (0, 0))[1] for bid in milestone_board_ids[mid])
                 progress = (done / total * 100) if total > 0 else 0.0
-                results.append({
-                    "milestoneId": mid,
-                    "totalTasks": total,
-                    "completedTasks": done,
-                    "progress": round(progress, 1),
-                })
+                results.append(
+                    {
+                        "milestoneId": mid,
+                        "totalTasks": total,
+                        "completedTasks": done,
+                        "progress": round(progress, 1),
+                    }
+                )
             return results
 
     @staticmethod

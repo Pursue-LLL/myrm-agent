@@ -86,9 +86,7 @@ class TestVideoFallbackConverterIntegration:
     """P0 evidence chain: converter must emit video_fallback_model_cfgs into agent runtime."""
 
     @pytest.mark.asyncio
-    async def test_converter_propagates_video_fallback_to_general_agent_params(
-        self, base_request: dict[str, object]
-    ) -> None:
+    async def test_converter_propagates_video_fallback_to_general_agent_params(self, base_request: dict[str, object]) -> None:
         request = AgentRequest(**base_request)
 
         with patch(
@@ -103,9 +101,7 @@ class TestVideoFallbackConverterIntegration:
         assert params.video_fallback_model_cfgs[0].supports_video is True
 
     @pytest.mark.asyncio
-    async def test_agent_factory_preserves_video_fallback_on_instance(
-        self, base_request: dict[str, object]
-    ) -> None:
+    async def test_agent_factory_preserves_video_fallback_on_instance(self, base_request: dict[str, object]) -> None:
         request = AgentRequest(**base_request)
 
         with patch(

@@ -120,9 +120,7 @@ def _run_interrupt_case(
     chat_id: str,
     target_dir: str,
     *,
-    resume_decision_factory: Callable[
-        [list[dict[str, object]]], list[dict[str, object]]
-    ],
+    resume_decision_factory: Callable[[list[dict[str, object]]], list[dict[str, object]]],
 ) -> None:
     pin_and_verify_hitl_mode(api_base)
     _seed_chat(client, api_base, chat_id=chat_id)
@@ -143,13 +141,10 @@ def _setup(api_base: str) -> None:
         seed_live_e2e_providers(api_base)
     except RuntimeError as exc:
         pytest.fail(
-            f"LIVE E2E LLM preflight failed (start OmniRoute :20128 or fix "
-            f"E2E_DIRECT_OPENCODE_API_KEY in .env.test): {exc}"
+            f"LIVE E2E LLM preflight failed (start OmniRoute :20128 or fix E2E_DIRECT_OPENCODE_API_KEY in .env.test): {exc}"
         )
     if not wait_e2e_provider_ready():
-        pytest.fail(
-            "Provider not ready — seed WebUI model via chrome-e2e-model-seed.mjs"
-        )
+        pytest.fail("Provider not ready — seed WebUI model via chrome-e2e-model-seed.mjs")
     ensure_e2e_onboarding_complete(api_url=api_base)
     ensure_e2e_hitl_mode(api_url=api_base)
 
@@ -267,9 +262,7 @@ def test_subagent_interrupt_live_edit(
         }
         edited = {k: v for k, v in original.items() if k not in metadata_keys}
         edited["command"] = "echo edited_live_e2e_ok"
-        return [
-            {"type": "edit", "args": edited, "feedback": "Edited command from LIVE E2E"}
-        ]
+        return [{"type": "edit", "args": edited, "feedback": "Edited command from LIVE E2E"}]
 
     _run_interrupt_case(
         _live_client,

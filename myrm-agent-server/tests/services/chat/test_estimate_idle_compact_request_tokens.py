@@ -16,9 +16,7 @@ from app.services.chat.stale_compact_gate import maybe_compact_stale_chat_before
 
 
 @pytest.mark.asyncio
-async def test_estimate_idle_compact_request_tokens_includes_compacted_summary() -> (
-    None
-):
+async def test_estimate_idle_compact_request_tokens_includes_compacted_summary() -> None:
     summary_text = '{"user_goal":"resume auth refactor","completed_actions":["setup"]}'
     db = AsyncMock()
     chat = Chat(id="chat-summary", compacted_summary=summary_text)
@@ -134,9 +132,7 @@ async def test_gate_compacts_when_summary_pushes_tokens_above_floor() -> None:
         )
 
     assert result.compacted is True
-    mock_compact.assert_awaited_once_with(
-        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000
-    )
+    mock_compact.assert_awaited_once_with(db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000)
 
 
 @pytest.mark.asyncio
@@ -177,9 +173,7 @@ async def test_gate_compacts_incremental_tail_with_for_idle_stale_flag() -> None
         )
 
     assert result.compacted is True
-    mock_compact.assert_awaited_once_with(
-        db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000
-    )
+    mock_compact.assert_awaited_once_with(db, "chat-1", for_idle_stale=True, request_tokens_for_guard=45_000)
 
 
 def test_resolve_min_messages_to_compact_incremental() -> None:

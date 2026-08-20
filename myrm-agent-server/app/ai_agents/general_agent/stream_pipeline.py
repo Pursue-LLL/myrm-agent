@@ -52,9 +52,7 @@ async def execute_stream_pipeline(
             directly to the named external agent via RuntimePool.
     """
     message_id = message_id or str(uuid4())
-    ch_label, ingress_label = resolve_general_agent_pipeline_labels(
-        agent_wrapper.channel_name
-    )
+    ch_label, ingress_label = resolve_general_agent_pipeline_labels(agent_wrapper.channel_name)
     logger.info(
         "general_agent_delivery_labels channel_label=%s ingress_label=%s message_id=%s chat_id=%s",
         ch_label,
@@ -62,9 +60,7 @@ async def execute_stream_pipeline(
         message_id,
         chat_id or "",
     )
-    query = apply_delivery_banner(
-        query, channel_label=ch_label, ingress_label=ingress_label
-    )
+    query = apply_delivery_banner(query, channel_label=ch_label, ingress_label=ingress_label)
     query_preview = query if isinstance(query, str) else "[multimodal]"
 
     if chat_id:
@@ -118,10 +114,7 @@ async def execute_stream_pipeline(
         for type_id, cfg_data in agent_wrapper.jit_subagents.items():
             if isinstance(cfg_data, dict):
                 label = cfg_data.get("display_name", type_id)
-                desc = (
-                    cfg_data.get("description")
-                    or str(cfg_data.get("system_prompt", ""))[:80]
-                )
+                desc = cfg_data.get("description") or str(cfg_data.get("system_prompt", ""))[:80]
                 roster_lines.append(f"  - '{type_id}': [{label}] {desc}")
         roster_lines.append("</Available_Team_Roster>")
         roster_xml = "\n".join(roster_lines)
@@ -153,9 +146,7 @@ async def execute_stream_pipeline(
     execution_mode = resolve_execution_mode(extra_context)
     scope_key = build_execution_scope_key(effective_chat_id, agent_wrapper.agent_id)
     execution_cache = get_execution_cache()
-    use_execution_pool = (
-        execution_mode == ExecutionMode.POOLED and scope_key is not None
-    )
+    use_execution_pool = execution_mode == ExecutionMode.POOLED and scope_key is not None
 
     async def _core_stream() -> AsyncGenerator[dict[str, object], None]:
         if agent_wrapper.agent is None:
@@ -193,10 +184,7 @@ async def execute_stream_pipeline(
                             "status": "success",
                         }
                     brief_status = extra_context.get("memory_brief_status")
-                    if (
-                        isinstance(brief_status, dict)
-                        and brief_status.get("reason") == "brief_pending"
-                    ):
+                    if isinstance(brief_status, dict) and brief_status.get("reason") == "brief_pending":
                         yield {
                             "type": "status",
                             "messageId": message_id,
@@ -218,17 +206,12 @@ async def execute_stream_pipeline(
             resolve_moa_overlay_models,
         )
 
-        overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(
-            agent_wrapper.engine_params
-        )
+        overlay_cfg, ref_cfgs = await resolve_moa_overlay_models(agent_wrapper.engine_params)
         moa_skip_reason: str | None = None
         if overlay_cfg is not None:
             if not ref_cfgs:
                 moa_skip_reason = MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS
-            elif (
-                agent_wrapper.moa_overlay_skip_reason
-                == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
-            ):
+            elif agent_wrapper.moa_overlay_skip_reason == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS:
                 moa_skip_reason = MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
         if moa_skip_reason:
             yield {
@@ -247,21 +230,15 @@ async def execute_stream_pipeline(
         if agent_wrapper.agent_id:
             from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
 
-            resolved_profile = await get_agent_profile_resolver().resolve(
-                agent_wrapper.agent_id
-            )
+            resolved_profile = await get_agent_profile_resolver().resolve(agent_wrapper.agent_id)
             if resolved_profile is not None and resolved_profile.security_overrides:
-                agent_wrapper.agent_security_raw = dict(
-                    resolved_profile.security_overrides
-                )
+                agent_wrapper.agent_security_raw = dict(resolved_profile.security_overrides)
 
         await sync_wrapper_security_from_store(agent_wrapper)
         refresh_wrapper_security_config(agent_wrapper)
         runtime_sec = agent_wrapper.agent.config.security_config
         if runtime_sec is None:
-            raise RuntimeError(
-                f"security_config is None after refresh (agent_id={agent_wrapper.agent_id})"
-            )
+            raise RuntimeError(f"security_config is None after refresh (agent_id={agent_wrapper.agent_id})")
         logger.info(
             "stream_security_snapshot agent=%s yolo=%s auto_mode=%s",
             agent_wrapper.agent_id,
@@ -298,11 +275,7 @@ async def execute_stream_pipeline(
             # Enrich active goal with relevant historical learnings
             goal_provider = context["goal_provider"]
             active_goal = await goal_provider.get_active_goal(effective_chat_id)
-            if (
-                active_goal
-                and memory_manager is not None
-                and not active_goal.metadata.get("relevant_learnings")
-            ):
+            if active_goal and memory_manager is not None and not active_goal.metadata.get("relevant_learnings"):
                 learnings = await retrieve_relevant_learnings(
                     memory_manager,
                     active_goal.objective,
@@ -310,20 +283,11 @@ async def execute_stream_pipeline(
                 if learnings:
                     active_goal.metadata["relevant_learnings"] = learnings
 
-        if (
-            agent_wrapper.enable_browser
-            and agent_wrapper._browser_session
-            and agent_wrapper._session_vault
-        ):
+        if agent_wrapper.enable_browser and agent_wrapper._browser_session and agent_wrapper._session_vault:
             from myrm_agent_harness.toolkits.browser import BrowserCheckpointHelper
 
-            expected_thread_id = agent_wrapper.approval_session_key or str(
-                context["session_id"]
-            )
-            if (
-                agent_wrapper._current_thread_id
-                and agent_wrapper._current_thread_id != expected_thread_id
-            ):
+            expected_thread_id = agent_wrapper.approval_session_key or str(context["session_id"])
+            if agent_wrapper._current_thread_id and agent_wrapper._current_thread_id != expected_thread_id:
                 logger.warning(
                     f"Thread ID mismatch: init={agent_wrapper._current_thread_id}, runtime={expected_thread_id}. "
                     "Using init value (BrowserSession already bound)."
@@ -331,24 +295,18 @@ async def execute_stream_pipeline(
             elif not agent_wrapper._current_thread_id:
                 agent_wrapper._current_thread_id = expected_thread_id
 
-            checkpoint_helper = BrowserCheckpointHelper(
-                agent_wrapper._browser_session, agent_wrapper._session_vault
-            )
+            checkpoint_helper = BrowserCheckpointHelper(agent_wrapper._browser_session, agent_wrapper._session_vault)
             agent_wrapper._checkpoint_helper = checkpoint_helper
             checkpoint_context = checkpoint_helper.get_initial_context()
             context.update(checkpoint_context)
-            logger.info(
-                f"Checkpoint: initialized for thread_id={agent_wrapper._current_thread_id}"
-            )
+            logger.info(f"Checkpoint: initialized for thread_id={agent_wrapper._current_thread_id}")
 
         artifact_processor = get_artifact_processor(
             user_id="sandbox",
             chat_id=effective_chat_id,
             api_prefix=settings.api_prefix,
         )
-        agent_wrapper.agent.on_artifacts_ready = (
-            artifact_processor.process_artifacts_ready
-        )
+        agent_wrapper.agent.on_artifacts_ready = artifact_processor.process_artifacts_ready
 
         from myrm_agent_harness.backends.skills.decorators.version_aware import (
             session_id_var,
@@ -386,28 +344,19 @@ async def execute_stream_pipeline(
                         timezone=timezone,
                     ):
                         if cancel_token and cancel_token.is_cancelled:
-                            logger.warning(
-                                f"🛑 GeneralAgent 被取消: chat_id={message_id}"
-                            )
+                            logger.warning(f"🛑 GeneralAgent 被取消: chat_id={message_id}")
                             break
 
                         if agent_wrapper._checkpoint_helper:
-                            should_update = await update_checkpoint_counters(
-                                agent_wrapper._checkpoint_helper, event
-                            )
+                            should_update = await update_checkpoint_counters(agent_wrapper._checkpoint_helper, event)
                             if should_update:
-                                await agent_wrapper._checkpoint_helper.update_context(
-                                    context
-                                )
+                                await agent_wrapper._checkpoint_helper.update_context(context)
 
                         yield event
 
                     task_completed = True
                 except Exception:
-                    if (
-                        agent_wrapper._checkpoint_helper
-                        and agent_wrapper._current_thread_id
-                    ):
+                    if agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
                         await mark_thread_failed(agent_wrapper._current_thread_id)
                     raise
                 finally:
@@ -419,11 +368,7 @@ async def execute_stream_pipeline(
                             _var.reset(_tok)
                         except ValueError:
                             pass
-                    if (
-                        task_completed
-                        and agent_wrapper._checkpoint_helper
-                        and agent_wrapper._current_thread_id
-                    ):
+                    if task_completed and agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
                         await mark_thread_completed(agent_wrapper._current_thread_id)
 
     if use_execution_pool:

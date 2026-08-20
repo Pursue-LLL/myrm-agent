@@ -166,9 +166,7 @@ class TestImplicitFeedbackUnit:
         async def dummy_llm(system: str, prompt: str) -> str:
             raise AssertionError("Should not call LLM for short messages")
 
-        result = await detect_implicit_feedback(
-            [{"role": "user", "content": "hi"}], dummy_llm
-        )
+        result = await detect_implicit_feedback([{"role": "user", "content": "hi"}], dummy_llm)
         assert not result.has_implicit_contradiction
         assert result.proposals == []
 
@@ -383,9 +381,7 @@ class TestImplicitFeedbackIntegration:
         assert result.signal != FeedbackSignal.NEGATIVE
 
     @pytest.mark.asyncio
-    async def test_chinese_correction_plans(
-        self, lite_llm_func: Any, zh_correction_messages: list[dict[str, str]]
-    ) -> None:
+    async def test_chinese_correction_plans(self, lite_llm_func: Any, zh_correction_messages: list[dict[str, str]]) -> None:
         from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
         from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
             detect_implicit_feedback,
@@ -404,9 +400,7 @@ class TestCorrectionPropagationEndToEnd:
     """End-to-end test: correction detection → proposal planning."""
 
     @pytest.mark.asyncio
-    async def test_full_pipeline_with_correction(
-        self, lite_llm_func: Any, correction_messages: list[dict[str, str]]
-    ) -> None:
+    async def test_full_pipeline_with_correction(self, lite_llm_func: Any, correction_messages: list[dict[str, str]]) -> None:
         """Verify the full pipeline from detection to proposal generation."""
         from myrm_agent_harness.toolkits.memory.strategies.extractor import (
             FeedbackSignal,

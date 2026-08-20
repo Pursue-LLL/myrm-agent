@@ -63,6 +63,7 @@ _SETTINGS_MODELS_SHELL_STATE = """(() => {
   }
 })()"""
 
+
 def _fetch_models_js(*, local_pool: bool) -> str:
     success_expr = (
         "text.includes('deepseek-v4-flash')"
@@ -70,9 +71,7 @@ def _fetch_models_js(*, local_pool: bool) -> str:
         else "text.includes('deepseek-v4-flash') && text.includes('minimax-m3')"
     )
     provider_checks = (
-        "['OpenCode Go', 'OpenAI-Like', 'OpenAI', 'openai-like', 'Compatible', '兼容']"
-        if local_pool
-        else "['OpenCode Go']"
+        "['OpenCode Go', 'OpenAI-Like', 'OpenAI', 'openai-like', 'Compatible', '兼容']" if local_pool else "['OpenCode Go']"
     )
     return f"""(async () => {{
   try {{
@@ -145,9 +144,7 @@ def _require_opencode_go_config() -> None:
         pytest.skip(f"BASIC_MODEL or LITE_MODEL must include {_EXPECTED_MODEL} for this E2E")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_opencode_go_settings_fetch_models_dialog(
@@ -229,16 +226,10 @@ async def test_opencode_go_chat_reply_ok(
         state = await chat.wait_turn_done(E2E_PROMPT, timeout_sec=TURN_WAIT_SEC)
         if str(state.get("path", "")).startswith("/settings"):
             pytest.fail(f"Chat redirected to settings: {state}")
-        assistant = str(
-            state.get("assistantText")
-            or state.get("lastAssistant")
-            or state.get("lastAssistantSample")
-            or ""
-        )
+        assistant = str(state.get("assistantText") or state.get("lastAssistant") or state.get("lastAssistantSample") or "")
         has_ok = state.get("hasOk") is True
         assert has_ok or "OK" in assistant.upper(), (
-            f"Expected OK reply (hasOk or text), assistant={assistant[:200]!r}, "
-            f"state={json.dumps(state)[:500]}"
+            f"Expected OK reply (hasOk or text), assistant={assistant[:200]!r}, state={json.dumps(state)[:500]}"
         )
         chat_id = str(state.get("chatId") or "")
         if chat_id:

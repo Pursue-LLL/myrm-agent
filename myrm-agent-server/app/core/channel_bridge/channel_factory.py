@@ -45,10 +45,7 @@ def flatten_credential_strings(value: dict[str, object]) -> dict[str, str]:
     ``"true"``/``"false"`` so they stay consistent with values submitted by the
     frontend (e.g. ``useLark``).
     """
-    return {
-        str(k): str(v).lower() if isinstance(v, bool) else str(v)
-        for k, v in value.items()
-    }
+    return {str(k): str(v).lower() if isinstance(v, bool) else str(v) for k, v in value.items()}
 
 
 async def create_all_channels() -> AsyncGenerator[BaseChannel, None]:

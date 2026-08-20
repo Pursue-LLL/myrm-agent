@@ -60,18 +60,10 @@ def _to_unix(value: datetime) -> int:
     return timegm(value.timetuple())
 
 
-async def _find_by_fingerprint(
-    db: AsyncSession, fingerprint: str
-) -> ArtifactShareRecord | None:
+async def _find_by_fingerprint(db: AsyncSession, fingerprint: str) -> ArtifactShareRecord | None:
     """Look up a registry row by its token fingerprint."""
     return (
-        (
-            await db.execute(
-                select(ArtifactShareRecord).where(
-                    ArtifactShareRecord.token_fingerprint == fingerprint
-                )
-            )
-        )
+        (await db.execute(select(ArtifactShareRecord).where(ArtifactShareRecord.token_fingerprint == fingerprint)))
         .scalars()
         .first()
     )
@@ -189,15 +181,7 @@ async def revoke_share(db: AsyncSession, record_id: str) -> bool:
     on-disk bundle, so the public URL can neither serve existing files nor
     re-materialize content even if the filesystem cleanup fails.
     """
-    record = (
-        (
-            await db.execute(
-                select(ArtifactShareRecord).where(ArtifactShareRecord.id == record_id)
-            )
-        )
-        .scalars()
-        .first()
-    )
+    record = (await db.execute(select(ArtifactShareRecord).where(ArtifactShareRecord.id == record_id))).scalars().first()
     if record is None:
         return False
 
@@ -233,17 +217,7 @@ async def purge_expired_shares(db: AsyncSession) -> int:
     (expires_at + 60 days) and then deleted here. Returns the number removed.
     """
     cutoff = _utcnow_naive() - timedelta(seconds=MAX_RECORD_AGE_SECONDS)
-    stale = (
-        (
-            await db.execute(
-                select(ArtifactShareRecord).where(
-                    ArtifactShareRecord.expires_at < cutoff
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stale = (await db.execute(select(ArtifactShareRecord).where(ArtifactShareRecord.expires_at < cutoff))).scalars().all()
     if not stale:
         return 0
     for record in stale:

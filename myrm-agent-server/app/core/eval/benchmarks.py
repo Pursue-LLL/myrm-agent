@@ -86,8 +86,7 @@ def list_benchmark_sources() -> list[dict[str, object]]:
 def _known_benchmark_ids() -> frozenset[str]:
     """All benchmark handles the run/download APIs accept."""
     return frozenset(
-        [f"{WB_BENCH_PREFIX}{s['id']}" for s in _wb_bench_subset_catalog()]
-        + [spec.id for spec in list_benchmarks()]
+        [f"{WB_BENCH_PREFIX}{s['id']}" for s in _wb_bench_subset_catalog()] + [spec.id for spec in list_benchmarks()]
     )
 
 
@@ -236,8 +235,6 @@ def benchmark_decontam(benchmark_id: str) -> tuple[tuple[str, ...], tuple[str, .
     if benchmark_id.startswith(WB_BENCH_PREFIX):
         return (), ()
     spec = get_benchmark(benchmark_id)
-    if not spec or not any(
-        tool in spec.required_tools for tool in ("web_search", "web_fetch")
-    ):
+    if not spec or not any(tool in spec.required_tools for tool in ("web_search", "web_fetch")):
         return (), ()
     return HUGGINGFACE_DOMAINS, HUGGINGFACE_QUERY_MARKERS

@@ -219,9 +219,7 @@ async def import_assessment(project_id: str, req: AssessmentImportRequest) -> JS
             ) from exc
         if detail in {ERROR_NO_ACTIONABLE_TASKS, ERROR_NO_IMPORTABLE_TASKS}:
             issue = (
-                IMPORT_REASON_NO_ACTIONABLE_TASKS
-                if detail == ERROR_NO_ACTIONABLE_TASKS
-                else IMPORT_REASON_NO_IMPORTABLE_TASKS
+                IMPORT_REASON_NO_ACTIONABLE_TASKS if detail == ERROR_NO_ACTIONABLE_TASKS else IMPORT_REASON_NO_IMPORTABLE_TASKS
             )
             raise unprocessable_error(detail, details=_import_reason_details(issue)) from exc
         raise validation_error(detail) from exc

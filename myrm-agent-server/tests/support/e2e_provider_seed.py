@@ -103,17 +103,9 @@ def resolve_e2e_llm_endpoints(
     basic_key = resolved.basic_api_key
     lite_key = resolved.lite_api_key or basic_key
 
-    uses_local_gateway = (
-        _LOCAL_GATEWAY_HOST in basic_url or _LOCAL_GATEWAY_HOST in lite_url
-    )
-    gateway_reachable = (
-        probe_openai_compatible_base(basic_url) if uses_local_gateway else False
-    )
-    gateway_auth_ok = (
-        probe_llm_api_key(basic_url, basic_key, basic_model)
-        if gateway_reachable
-        else False
-    )
+    uses_local_gateway = _LOCAL_GATEWAY_HOST in basic_url or _LOCAL_GATEWAY_HOST in lite_url
+    gateway_reachable = probe_openai_compatible_base(basic_url) if uses_local_gateway else False
+    gateway_auth_ok = probe_llm_api_key(basic_url, basic_key, basic_model) if gateway_reachable else False
     if uses_local_gateway and gateway_reachable and gateway_auth_ok:
         return ResolvedE2ELlmEndpoints(
             basic_base_url=basic_url,
@@ -128,21 +120,14 @@ def resolve_e2e_llm_endpoints(
         direct_key = resolved.get("E2E_DIRECT_OPENCODE_API_KEY")
         if not direct_key:
             raise RuntimeError(
-                "localhost:20128 unreachable or gateway key rejected, and "
-                "E2E_DIRECT_OPENCODE_API_KEY missing in .env.test"
+                "localhost:20128 unreachable or gateway key rejected, and E2E_DIRECT_OPENCODE_API_KEY missing in .env.test"
             )
-        if not probe_llm_api_key(
-            _DIRECT_OPENCODE_BASE, direct_key, _DIRECT_OPENCODE_MODEL
-        ):
+        if not probe_llm_api_key(_DIRECT_OPENCODE_BASE, direct_key, _DIRECT_OPENCODE_MODEL):
             raise RuntimeError(
                 "E2E LLM preflight failed: gateway unavailable/invalid and "
                 "direct OpenCode endpoint rejected E2E_DIRECT_OPENCODE_API_KEY"
             )
-        reason = (
-            "gateway key rejected"
-            if gateway_reachable and not gateway_auth_ok
-            else f"{_LOCAL_GATEWAY_HOST} unreachable"
-        )
+        reason = "gateway key rejected" if gateway_reachable and not gateway_auth_ok else f"{_LOCAL_GATEWAY_HOST} unreachable"
         print(
             f"[E2E_LLM_PROXY_FALLBACK] {reason}; using direct OpenCode Go endpoint",
             file=sys.stderr,
@@ -211,9 +196,7 @@ def upsert_provider(
                 enabled = item.get("enabledModels")
                 available = item.get("availableModels")
                 enabled_models = (
-                    list(enabled) + [model_id]
-                    if isinstance(enabled, list) and model_id not in enabled
-                    else [model_id]
+                    list(enabled) + [model_id] if isinstance(enabled, list) and model_id not in enabled else [model_id]
                 )
                 available_models = (
                     list(available) + [model_id]

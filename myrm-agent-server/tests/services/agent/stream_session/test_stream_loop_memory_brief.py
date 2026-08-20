@@ -109,9 +109,7 @@ class TestMemoryBriefPrelude:
         assert first_event.get("type") == "memory_brief"
         assert first_event.get("messageId") == "msg-1"
 
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert message_end_event.get("memory_brief_snapshot_id") == "snap-123"
         assert message_end_event.get("memory_brief_status") == {
             "state": "ready",
@@ -153,9 +151,7 @@ class TestMemoryBriefPrelude:
             async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert message_end_event.get("citations") == ["doc-b", "doc-a"]
 
     @pytest.mark.asyncio
@@ -192,9 +188,7 @@ class TestMemoryBriefPrelude:
                 chunks.append(chunk)
 
         assert all('"type":"memory_brief"' not in chunk for chunk in chunks)
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
             "source": "preflight",
@@ -232,9 +226,7 @@ class TestMemoryBriefPrelude:
             async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert "memoryBudget" not in message_end_event
         assert message_end_event.get("memory_brief_status") == {"state": "ready"}
 
@@ -271,9 +263,7 @@ class TestMemoryBriefPrelude:
             async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert "memoryBudget" not in message_end_event
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
@@ -319,9 +309,7 @@ class TestMemoryBriefPrelude:
             async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
             "source": "preflight",
@@ -359,9 +347,7 @@ class TestMemoryBriefPrelude:
             async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
             "source": "preflight",
@@ -425,13 +411,10 @@ class TestMemoryBriefPrelude:
             async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
                 chunks.append(chunk)
 
-        message_end_event = next(
-            _parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk
-        )
+        message_end_event = next(_parse_sse_chunk(chunk) for chunk in chunks if '"type":"message_end"' in chunk)
         assert message_end_event.get("memoryBudget") == {"used": 6, "total": 60}
         assert message_end_event.get("memory_brief_status") == {
             "state": "skipped",
             "source": "runtime_fallback",
             "injection": {"state": "not_applied", "reason": "missing_context"},
         }
-

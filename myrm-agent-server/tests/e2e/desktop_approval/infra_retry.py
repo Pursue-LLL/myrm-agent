@@ -86,10 +86,7 @@ def is_retriable_page_transport(exc: BaseException) -> bool:
 
 async def heal_chrome_attach_before_reopen() -> None:
     """R46 attach heal before mux page reopen (orchestrator-owned, not user cleanup)."""
-    if (
-        os.environ.get("E2E_SIGNOFF", "").strip() == "1"
-        and os.environ.get("MYRM_E2E_BOOT_MUX_GATE_OK", "").strip() == "1"
-    ):
+    if os.environ.get("E2E_SIGNOFF", "").strip() == "1" and os.environ.get("MYRM_E2E_BOOT_MUX_GATE_OK", "").strip() == "1":
         progress("chrome attach heal skipped (boot mux gate ok)")
         return
     progress("chrome attach heal before page reopen")

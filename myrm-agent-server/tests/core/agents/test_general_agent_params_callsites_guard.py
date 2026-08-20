@@ -117,9 +117,7 @@ def test_production_general_agent_params_pass_locale() -> None:
         + "\n".join(f"  - {rel}" for rel in missing)
         + f"\nUpdate LOCALE_REQUIRED_* in {Path(__file__).name} or pass locale=."
     )
-    assert LOCALE_EXCLUDED_GENERAL_AGENT_PARAMS_CALLSITES.isdisjoint(
-        LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES
-    )
+    assert LOCALE_EXCLUDED_GENERAL_AGENT_PARAMS_CALLSITES.isdisjoint(LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES)
 
 
 def test_discover_callsites_ignores_pos_docstring_references() -> None:

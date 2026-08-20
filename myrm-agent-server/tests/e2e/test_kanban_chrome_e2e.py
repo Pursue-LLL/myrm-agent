@@ -79,9 +79,7 @@ def _is_attach_failure(exc: BaseException) -> bool:
 
 
 @contextmanager
-def _open_chat_page_with_attach_retry(
-    chat_url: str, *, attempts: int = 3
-) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
+def _open_chat_page_with_attach_retry(chat_url: str, *, attempts: int = 3) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
     """Open a chat page, retrying on transient shared-UI attach contention.
 
     The orchestrator's cold-attach path can briefly fail BRIDGE_READY when
@@ -106,15 +104,12 @@ def _open_chat_page_with_attach_retry(
     assert last_exc is not None
     raise last_exc
 
-def _api_find_task_by_title(
-    api_url: str, board_id: str, title: str
-) -> dict[str, object] | None:
+
+def _api_find_task_by_title(api_url: str, board_id: str, title: str) -> dict[str, object] | None:
     deadline = time.monotonic() + 30.0
     while True:
         try:
-            resp = http_json(
-                "GET", f"{api_url}/api/v1/kanban/boards/{board_id}/tasks"
-            )
+            resp = http_json("GET", f"{api_url}/api/v1/kanban/boards/{board_id}/tasks")
             break
         except RuntimeError as exc:
             if "returned 5" not in str(exc) or time.monotonic() >= deadline:
@@ -148,9 +143,7 @@ def _api_wait_task_status(
         if st in ("completed", "failed"):
             break
         time.sleep(2)
-    raise AssertionError(
-        f"Task {task_id} did not reach {expected!r}; last status={last!r}"
-    )
+    raise AssertionError(f"Task {task_id} did not reach {expected!r}; last status={last!r}")
 
 
 def _create_task_via_ui(client, page, title: str, description: str) -> str:
@@ -235,8 +228,7 @@ def _create_task_via_ui(client, page, title: str, description: str) -> str:
         title,
     )
     assert _set_field(
-        'input[placeholder="Task description (optional)"], '
-        'input[placeholder="任务描述（可选）"]',
+        'input[placeholder="Task description (optional)"], input[placeholder="任务描述（可选）"]',
         description,
     )
     submitted = client.evaluate(
@@ -294,9 +286,7 @@ def _open_kanban_board(client, page, board_id: str, board_name: str) -> None:
     assert board_name in str(view_state.get("text") or "")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_board_and_task_render_in_real_ui() -> None:
@@ -344,15 +334,12 @@ def test_kanban_board_and_task_render_in_real_ui() -> None:
             restore = (
                 "localStorage.removeItem('kanban_last_board_id')"
                 if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_source_chat_deep_link_filters_board_view() -> None:
@@ -393,9 +380,7 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
         },
     )
 
-    with open_settings_subroute(
-        f"/settings/kanban?source_chat={chat_id}&board_id={board_id}"
-    ) as (client, page):
+    with open_settings_subroute(f"/settings/kanban?source_chat={chat_id}&board_id={board_id}") as (client, page):
         view_state = wait_for_state(
             client,
             page,
@@ -413,9 +398,7 @@ def test_kanban_source_chat_deep_link_filters_board_view() -> None:
         assert other_title not in str(view_state.get("text") or "")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
@@ -515,15 +498,12 @@ def test_kanban_task_drawer_shows_attachment_from_board_view() -> None:
             restore = (
                 "localStorage.removeItem('kanban_last_board_id')"
                 if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_stats_bar_shows_running_with_limit() -> None:
@@ -579,15 +559,12 @@ def test_kanban_stats_bar_shows_running_with_limit() -> None:
             restore = (
                 "localStorage.removeItem('kanban_last_board_id')"
                 if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
@@ -677,14 +654,10 @@ def test_kanban_ready_card_shows_queued_badge_when_concurrency_full() -> None:
             timeout_sec=90.0,
         )
         assert badge_state.get("ready") is True
-        assert str(badge_state.get("text") or ""), (
-            "queued badge rendered but its i18n text is empty"
-        )
+        assert str(badge_state.get("text") or ""), "queued badge rendered but its i18n text is empty"
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
@@ -765,9 +738,7 @@ def test_kanban_ready_card_shows_no_queued_badge_when_slot_available() -> None:
         assert board_state.get("badgeCount") == 0
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_kanban_multiple_ready_cards_show_queued_badge() -> None:
@@ -862,9 +833,7 @@ def test_kanban_multiple_ready_cards_show_queued_badge() -> None:
         assert badge_state.get("badgeCount") == 2
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(540)
 def test_kanban_real_execution_queued_badge_release_flow() -> None:
@@ -885,14 +854,8 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
     # lifecycle prompt already forces kanban_complete, so a terse instruction
     # leaves the model no room to "finish" without completing the task. Use the
     # same terse shape as the drain test, which passed all three real executions.
-    counting_task = (
-        "Reply with the word hello. "
-        "Then call kanban_complete with summary 'hello'. Do not use any tools."
-    )
-    done_task = (
-        "Reply with the word world. "
-        "Then call kanban_complete with summary 'world'. Do not use any tools."
-    )
+    counting_task = "Reply with the word hello. Then call kanban_complete with summary 'hello'. Do not use any tools."
+    done_task = "Reply with the word world. Then call kanban_complete with summary 'world'. Do not use any tools."
     api_url = get_e2e_api_url()
 
     board = _http_json_write(
@@ -949,9 +912,7 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
 
         # T1 really completes → the slot frees.
         t1_done = _api_wait_task_status(api_url, t1_id, "completed", timeout_sec=200.0)
-        assert str(t1_done.get("result") or "").strip(), (
-            "T1 completed without a summary"
-        )
+        assert str(t1_done.get("result") or "").strip(), "T1 completed without a summary"
 
         # T2 is claimed automatically → badge disappears.
         _api_wait_task_status(api_url, t2_id, "running", timeout_sec=200.0)
@@ -969,14 +930,10 @@ def test_kanban_real_execution_queued_badge_release_flow() -> None:
 
         # Full loop: T2 really completes as well.
         t2_done = _api_wait_task_status(api_url, t2_id, "completed", timeout_sec=200.0)
-        assert str(t2_done.get("result") or "").strip(), (
-            "T2 completed without a summary"
-        )
+        assert str(t2_done.get("result") or "").strip(), "T2 completed without a summary"
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
@@ -1089,9 +1046,7 @@ def test_kanban_queued_badge_count_drains_as_slots_release() -> None:
 
 
 def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
-    seeded = _http_json_write(
-        "POST", f"{api_url}/api/v1/chats/test/seed-kanban-closure-fixture"
-    )
+    seeded = _http_json_write("POST", f"{api_url}/api/v1/chats/test/seed-kanban-closure-fixture")
     assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     board_id = str(seeded.get("board_id") or "")
@@ -1104,9 +1059,7 @@ def _seed_kanban_closure_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
@@ -1218,9 +1171,7 @@ def test_kanban_chat_created_card_opens_filtered_board_view() -> None:
         assert task_title in str(board_state.get("text") or "")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_created_via_ui_form_with_model_override() -> None:
@@ -1366,15 +1317,12 @@ def test_kanban_task_created_via_ui_form_with_model_override() -> None:
             restore = (
                 "localStorage.removeItem('kanban_last_board_id')"
                 if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
@@ -1563,15 +1511,12 @@ def test_kanban_task_model_override_drawer_badge_edit_and_clear() -> None:
             restore = (
                 "localStorage.removeItem('kanban_last_board_id')"
                 if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_created_via_ui_form_with_skills() -> None:
@@ -1595,23 +1540,13 @@ def test_kanban_task_created_via_ui_form_with_skills() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    prebuilt_resp = http_json(
-        "GET", f"{api_url}/api/v1/skills?type=prebuilt&sort_by=name&order=asc"
-    )
-    local_resp = http_json(
-        "GET", f"{api_url}/api/v1/skills?type=local&sort_by=name&order=asc"
-    )
-    prebuilt = (
-        prebuilt_resp.get("skills") if isinstance(prebuilt_resp, dict) else None
-    ) or []
-    local = (
-        local_resp.get("skills") if isinstance(local_resp, dict) else None
-    ) or []
+    prebuilt_resp = http_json("GET", f"{api_url}/api/v1/skills?type=prebuilt&sort_by=name&order=asc")
+    local_resp = http_json("GET", f"{api_url}/api/v1/skills?type=local&sort_by=name&order=asc")
+    prebuilt = (prebuilt_resp.get("skills") if isinstance(prebuilt_resp, dict) else None) or []
+    local = (local_resp.get("skills") if isinstance(local_resp, dict) else None) or []
     skills = [*prebuilt, *local]
     if not skills:
-        pytest.skip(
-            "live backend exposes no discoverable skills; picker selection flow untestable"
-        )
+        pytest.skip("live backend exposes no discoverable skills; picker selection flow untestable")
 
     target = skills[0]
     target_id = str(target.get("id") or "")
@@ -1760,15 +1695,12 @@ def test_kanban_task_created_via_ui_form_with_skills() -> None:
             restore = (
                 "localStorage.removeItem('kanban_last_board_id')"
                 if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_task_skill_drawer_edit_and_clear() -> None:
@@ -1794,23 +1726,13 @@ def test_kanban_task_skill_drawer_edit_and_clear() -> None:
     board_id = str(board.get("board_id") or board.get("id") or "")
     assert board_id
 
-    prebuilt_resp = http_json(
-        "GET", f"{api_url}/api/v1/skills?type=prebuilt&sort_by=name&order=asc"
-    )
-    local_resp = http_json(
-        "GET", f"{api_url}/api/v1/skills?type=local&sort_by=name&order=asc"
-    )
-    prebuilt = (
-        prebuilt_resp.get("skills") if isinstance(prebuilt_resp, dict) else None
-    ) or []
-    local = (
-        local_resp.get("skills") if isinstance(local_resp, dict) else None
-    ) or []
+    prebuilt_resp = http_json("GET", f"{api_url}/api/v1/skills?type=prebuilt&sort_by=name&order=asc")
+    local_resp = http_json("GET", f"{api_url}/api/v1/skills?type=local&sort_by=name&order=asc")
+    prebuilt = (prebuilt_resp.get("skills") if isinstance(prebuilt_resp, dict) else None) or []
+    local = (local_resp.get("skills") if isinstance(local_resp, dict) else None) or []
     skills = [*prebuilt, *local]
     if not skills:
-        pytest.skip(
-            "live backend exposes no discoverable skills; drawer skill edit untestable"
-        )
+        pytest.skip("live backend exposes no discoverable skills; drawer skill edit untestable")
 
     target_id = str(skills[0].get("id") or "")
     assert target_id
@@ -2001,9 +1923,7 @@ def test_kanban_task_skill_drawer_edit_and_clear() -> None:
                 }})()""",
                 timeout_sec=60.0,
             )
-            assert final_state.get("ready") is True, (
-                f"drawer did not exit skill edit mode: {final_state}"
-            )
+            assert final_state.get("ready") is True, f"drawer did not exit skill edit mode: {final_state}"
 
             fetched = http_json("GET", f"{api_url}/api/v1/kanban/tasks/{task_id}")
             assert isinstance(fetched, dict)
@@ -2015,7 +1935,6 @@ def test_kanban_task_skill_drawer_edit_and_clear() -> None:
             restore = (
                 "localStorage.removeItem('kanban_last_board_id')"
                 if previous_board is None
-                else "localStorage.setItem('kanban_last_board_id', "
-                f"{json.dumps(str(previous_board))})"
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)

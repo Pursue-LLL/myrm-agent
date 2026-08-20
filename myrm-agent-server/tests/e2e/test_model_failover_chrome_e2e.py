@@ -171,8 +171,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
     api_url = get_e2e_api_url()
     if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
         pytest.fail(
-            "Provider config not ready for live failover E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome"
+            "Provider config not ready for live failover E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
         )
 
     backup = fetch_config_value("providers", api_url=api_url)
@@ -182,17 +181,9 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
         # mid-flow. The per-key mutex replaces the old 3-attempt re-seed race.
         with config_write_mutex("providers", wait_sec=900.0):
             merged = _configure_failover_providers(api_url)
-            merged_providers = (
-                merged.get("providers")
-                if isinstance(merged.get("providers"), list)
-                else []
-            )
+            merged_providers = merged.get("providers") if isinstance(merged.get("providers"), list) else []
             merged_ol = next(
-                (
-                    p
-                    for p in merged_providers
-                    if isinstance(p, dict) and str(p.get("id")) == "openai-like"
-                ),
+                (p for p in merged_providers if isinstance(p, dict) and str(p.get("id")) == "openai-like"),
                 None,
             )
             print(
@@ -204,24 +195,14 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
             seeded_state = fetch_config_value("providers", api_url=api_url)
             seeded_dmc = seeded_state.get("defaultModelConfig") or {}
             seeded_bm = seeded_dmc.get("baseModel") or {}
-            seeded_providers = (
-                seeded_state.get("providers")
-                if isinstance(seeded_state.get("providers"), list)
-                else []
-            )
+            seeded_providers = seeded_state.get("providers") if isinstance(seeded_state.get("providers"), list) else []
             seeded_openai_like = next(
-                (
-                    p
-                    for p in seeded_providers
-                    if isinstance(p, dict) and str(p.get("id")) == "openai-like"
-                ),
+                (p for p in seeded_providers if isinstance(p, dict) and str(p.get("id")) == "openai-like"),
                 None,
             )
             corrupt_visible = str(
                 (seeded_bm.get("primary") or {}).get("model")
-            ) == NONEXISTENT_MODEL_ID and NONEXISTENT_MODEL_ID in (
-                (seeded_openai_like or {}).get("enabledModels") or []
-            )
+            ) == NONEXISTENT_MODEL_ID and NONEXISTENT_MODEL_ID in ((seeded_openai_like or {}).get("enabledModels") or [])
             print(
                 "E2E_FAILOVER_SEED_VERIFY: primary=%s/%s openai_like_enabled=%s visible=%s",
                 str((seeded_bm.get("primary") or {}).get("providerId")),
@@ -230,9 +211,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                 corrupt_visible,
             )
             if not corrupt_visible:
-                pytest.fail(
-                    "Failover corrupt seed was not authoritative after mutexed seed"
-                )
+                pytest.fail("Failover corrupt seed was not authoritative after mutexed seed")
 
             async def run_flow(chat: McpChatSession) -> None:
                 ui_base = _base_url()
@@ -242,9 +221,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                     _PIN_BASIC_PRIMARY_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
-                pin_state = (
-                    pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
-                )
+                pin_state = pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
                 assert pin_state.get("ok") is True, pin_state
                 selection = pin_state.get("selection")
                 assert isinstance(selection, dict), pin_state
@@ -255,11 +232,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                     skip_model_sync=True,
                 )
                 chat_id = (
-                    str(
-                        send_result.get("started", {}).get("chatId")
-                        or send_result.get("submit", {}).get("chatId")
-                        or ""
-                    ).strip()
+                    str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
                     or None
                 )
 
@@ -278,9 +251,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
 
                 failover_task = asyncio.create_task(_poll_failover_step())
 
-                async def _wait_failover_and_ok() -> (
-                    tuple[dict[str, object], dict[str, object] | None]
-                ):
+                async def _wait_failover_and_ok() -> tuple[dict[str, object], dict[str, object] | None]:
                     deadline = time.monotonic() + TURN_WAIT_SEC
                     last_main: dict[str, object] = {}
                     while time.monotonic() < deadline:
@@ -288,25 +259,15 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                             _ASSISTANT_OK_JS,
                             intent=EvaluateIntent.SYNC_PROBE,
                         )
-                        ok_dict = (
-                            ok_raw if isinstance(ok_raw, dict) else json.loads(str(ok_raw))
-                        )
+                        ok_dict = ok_raw if isinstance(ok_raw, dict) else json.loads(str(ok_raw))
                         raw_failover = await chat.evaluate(
                             _FAILOVER_STEP_JS,
                             intent=EvaluateIntent.SYNC_PROBE,
                         )
-                        failover_state = (
-                            raw_failover
-                            if isinstance(raw_failover, dict)
-                            else json.loads(str(raw_failover))
-                        )
+                        failover_state = raw_failover if isinstance(raw_failover, dict) else json.loads(str(raw_failover))
                         bridge = await chat._bridge_turn_snapshot()
-                        streaming = (
-                            isinstance(bridge, dict) and bridge.get("isStreaming") is True
-                        )
-                        last_main = await chat.main_state(
-                            E2E_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
-                        )
+                        streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
+                        last_main = await chat.main_state(E2E_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
                         if (
                             ok_dict.get("ready") is True
                             and failover_state.get("ready") is True
@@ -337,9 +298,7 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                     e2e_resource_ledger.register("chat", resolved_chat_id)
                 heartbeat_once()
 
-                assert (
-                    failover_state is not None
-                ), "Expected model_failover progress step in WebUI after primary model failure"
+                assert failover_state is not None, "Expected model_failover progress step in WebUI after primary model failure"
                 step_key = str(failover_state.get("step_key") or "")
                 assert step_key.startswith("model_failover"), failover_state
 
@@ -347,12 +306,10 @@ async def test_chrome_ui_model_failover_primary_to_fallback(
                     _ASSISTANT_OK_JS,
                     intent=EvaluateIntent.SYNC_PROBE,
                 )
-                ok_dict = (
-                    ok_state if isinstance(ok_state, dict) else json.loads(str(ok_state))
+                ok_dict = ok_state if isinstance(ok_state, dict) else json.loads(str(ok_state))
+                assert ok_dict.get("ready") is True, (
+                    f"Expected assistant OK after fallback; state={ok_dict!r} failover={failover_state!r}"
                 )
-                assert (
-                    ok_dict.get("ready") is True
-                ), f"Expected assistant OK after fallback; state={ok_dict!r} failover={failover_state!r}"
 
             page_session = await open_mcp_page_async(
                 _base_url(),

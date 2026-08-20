@@ -181,7 +181,9 @@ async def test_web_channel_skips_handoff() -> None:
 
     if inbound.channel != "web":
         patched = await RouterExecutionMixin._attach_web_handoff(
-            result, "web-test-peer", inbound,
+            result,
+            "web-test-peer",
+            inbound,
         )
     else:
         patched = result
@@ -198,9 +200,7 @@ async def test_btw_notifier_handoff_resolves_db_uuid() -> None:
     session_key = "telegram:btw-notify-peer-7"
     chat = await ChatService.get_or_create_channel_chat(session_key, "telegram")
 
-    looked_up = await ChatService.get_channel_chat_by_key(
-        routing_session_key("telegram", "btw-notify-peer-7")
-    )
+    looked_up = await ChatService.get_channel_chat_by_key(routing_session_key("telegram", "btw-notify-peer-7"))
     assert looked_up is not None
     assert looked_up.id == chat.id
 
@@ -217,6 +217,7 @@ async def test_btw_notifier_no_task_id_skips_handoff() -> None:
     components: tuple[tuple[object, ...], ...] = ()
     if task_id:
         from app.remote_access.mobile_deep_link import resolve_web_handoff_components
+
         components = await resolve_web_handoff_components("some-id", locale="en")
     assert not components
 

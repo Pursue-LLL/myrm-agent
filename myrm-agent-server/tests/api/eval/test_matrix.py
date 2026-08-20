@@ -97,9 +97,7 @@ class TestRunMatrixEvalBackground:
     @pytest.mark.asyncio
     async def test_skips_when_already_running(self) -> None:
         matrix_state["is_running"] = True
-        with patch(
-            "app.core.eval.matrix._run_matrix_eval", new=AsyncMock()
-        ) as mock_run:
+        with patch("app.core.eval.matrix._run_matrix_eval", new=AsyncMock()) as mock_run:
             await run_matrix_eval_background(dataset_id="ds", profile_ids=["a", "b"])
         mock_run.assert_not_awaited()
 
@@ -109,9 +107,7 @@ class TestRunMatrixEvalBackground:
             "app.core.eval.matrix._run_matrix_eval",
             new=AsyncMock(return_value={"profile_ids": ["a", "b"]}),
         ) as mock_run:
-            await run_matrix_eval_background(
-                dataset_id="ds", profile_ids=["a", "b"], benchmark_mode=True
-            )
+            await run_matrix_eval_background(dataset_id="ds", profile_ids=["a", "b"], benchmark_mode=True)
         mock_run.assert_awaited_once_with("ds", ["a", "b"], benchmark_mode=True)
         assert matrix_state["is_running"] is False
         assert active_matrix_runner is None
@@ -209,9 +205,7 @@ class TestRunMatrixEvalCore:
                 new=AsyncMock(side_effect=lambda pid: f"model-{pid}"),
             ),
         ):
-            result = await _run_matrix_eval(
-                dataset_id="ds", profile_ids=["a", "b"], benchmark_mode=True
-            )
+            result = await _run_matrix_eval(dataset_id="ds", profile_ids=["a", "b"], benchmark_mode=True)
 
         assert result["profile_ids"] == ["a", "b"]
         assert result["timestamp"] > 0
@@ -313,12 +307,10 @@ class TestMatrixReportHistory:
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
         (reports_dir / "matrix_report_10.json").write_text(
-            '{"timestamp": 10, "eval_type": "layered", "dataset_id": "ds-a", '
-            '"stable_rate": 0.5, "aborted": false}'
+            '{"timestamp": 10, "eval_type": "layered", "dataset_id": "ds-a", "stable_rate": 0.5, "aborted": false}'
         )
         (reports_dir / "matrix_report_20.json").write_text(
-            '{"timestamp": 20, "eval_type": "matrix", "dataset_id": "ds-b", '
-            '"stable_rate": 0.8}'
+            '{"timestamp": 20, "eval_type": "matrix", "dataset_id": "ds-b", "stable_rate": 0.8}'
         )
         state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
 
@@ -353,9 +345,7 @@ class TestMatrixReportHistory:
 
         reports_dir = tmp_path / "reports"
         reports_dir.mkdir()
-        (reports_dir / "matrix_report_7.json").write_text(
-            '{"timestamp": 7, "profile_ids": ["a"]}'
-        )
+        (reports_dir / "matrix_report_7.json").write_text('{"timestamp": 7, "profile_ids": ["a"]}')
         state_mod.DEFAULT_MATRIX_REPORTS_DIR = reports_dir
 
         from app.core.eval.matrix import get_matrix_report
@@ -381,9 +371,7 @@ class TestMatrixRouterEndpoints:
             "app.api.eval.matrix_router.get_matrix_eval_status",
             return_value={"is_running": True},
         ):
-            res = client.post(
-                "/api/v1/eval/matrix/run", json={"profile_ids": ["a", "b"]}
-            )
+            res = client.post("/api/v1/eval/matrix/run", json={"profile_ids": ["a", "b"]})
         assert res.json()["status"] == "already_running"
 
     def test_run_starts_background(self, client: TestClient) -> None:
@@ -437,9 +425,7 @@ class TestMatrixRouterEndpoints:
         assert "text/event-stream" in res.headers["content-type"]
 
     def test_report_not_found(self, client: TestClient) -> None:
-        with patch(
-            "app.api.eval.matrix_router.get_latest_matrix_report", return_value=None
-        ):
+        with patch("app.api.eval.matrix_router.get_latest_matrix_report", return_value=None):
             res = client.get("/api/v1/eval/matrix/reports/latest")
         assert res.json()["status"] == "not_found"
 
@@ -572,9 +558,7 @@ class TestLayerSpecs:
             "memory",
         ]
         # Ascending: each layer adds exactly one capability switch.
-        for prev, spec in zip(
-            DEFAULT_LAYER_SPECS, DEFAULT_LAYER_SPECS[1:], strict=False
-        ):
+        for prev, spec in zip(DEFAULT_LAYER_SPECS, DEFAULT_LAYER_SPECS[1:], strict=False):
             added = (spec.benchmark_mode, spec.skills_enabled, spec.memory_enabled) != (
                 prev.benchmark_mode,
                 prev.skills_enabled,
@@ -607,9 +591,7 @@ class TestRunLayerEvalBackground:
     @pytest.mark.asyncio
     async def test_skips_when_already_running(self) -> None:
         matrix_state["is_running"] = True
-        with patch(
-            "app.core.eval.layered._run_layer_eval", new=AsyncMock()
-        ) as mock_run:
+        with patch("app.core.eval.layered._run_layer_eval", new=AsyncMock()) as mock_run:
             await run_layer_eval_background("wb-bench-code")
         mock_run.assert_not_awaited()
 
@@ -743,10 +725,7 @@ class TestRunLayerEvalCore:
         ]
         assert all("fingerprint" in m for m in result["layers"])
         # Each layer discloses how many times it actually invoked memory tools.
-        assert all(
-            isinstance(result["per_profile"][k]["memory_tool_calls"], int)
-            for k in ["bare", "core", "skills", "memory"]
-        )
+        assert all(isinstance(result["per_profile"][k]["memory_tool_calls"], int) for k in ["bare", "core", "skills", "memory"])
 
         # Four executors, one per layer, with the pinned switch combination.
         assert len(executor_factories) == 4

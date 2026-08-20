@@ -210,9 +210,7 @@ class ContextBranchForkService:
 
             parent_dto = await ChatService.get_chat_metadata(parent_chat_id)
             fork_workspace_dir = (
-                await resolve_effective_chat_workspace(parent_dto, jit_fallback=False)
-                if parent_dto is not None
-                else None
+                await resolve_effective_chat_workspace(parent_dto, jit_fallback=False) if parent_dto is not None else None
             )
 
         new_chat = Chat(

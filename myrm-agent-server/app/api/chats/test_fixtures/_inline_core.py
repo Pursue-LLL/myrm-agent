@@ -35,9 +35,7 @@ router = APIRouter()
 
 _CITATION_COUNT = 10
 _EMBED_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-_EMBED_ASSISTANT_MARKDOWN = (
-    f"Link embed E2E fixture — watch [YouTube video]({_EMBED_YOUTUBE_URL})."
-)
+_EMBED_ASSISTANT_MARKDOWN = f"Link embed E2E fixture — watch [YouTube video]({_EMBED_YOUTUBE_URL})."
 
 
 def _build_citation_extra_data() -> dict[str, object]:
@@ -67,9 +65,7 @@ async def seed_citation_fixture() -> dict[str, str | int]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for citation E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for citation E2E seed")
 
     agent = agents[0]
     agent_id = agent.id
@@ -126,9 +122,7 @@ async def seed_skill_chip_transcript_fixture() -> dict[str, str]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for skill chip E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for skill chip E2E seed")
 
     agent = agents[0]
     agent_id = agent.id
@@ -211,9 +205,7 @@ async def seed_embed_fixture() -> dict[str, str]:
 
     agents, _total = await AgentService.get_agent_list(1, 100)
     if not agents:
-        raise HTTPException(
-            status_code=500, detail="No agents available for embed E2E seed"
-        )
+        raise HTTPException(status_code=500, detail="No agents available for embed E2E seed")
 
     agent = agents[0]
     agent_id = agent.id

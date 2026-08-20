@@ -449,17 +449,13 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         # _session_yolo uses time.time() (wall clock), not monotonic
         wall_now = time.time()
         yolo_cutoff = wall_now - self._SESSION_STATE_TTL
-        stale_yolo = [
-            k for k, (enabled_at, _timeout) in self._session_yolo.items()
-            if enabled_at < yolo_cutoff
-        ]
+        stale_yolo = [k for k, (enabled_at, _timeout) in self._session_yolo.items() if enabled_at < yolo_cutoff]
         for k in stale_yolo:
             del self._session_yolo[k]
 
         if len(self._session_personality) > 1000:
             stale_personality = [
-                k for k in self._session_personality
-                if k not in self._session_yolo and k not in self._active_tasks
+                k for k in self._session_personality if k not in self._session_yolo and k not in self._active_tasks
             ]
             for k in stale_personality:
                 del self._session_personality[k]
@@ -468,7 +464,8 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         if total_cleaned > 0:
             logger.info(
                 "[JANITOR] Session state cleanup: peers=%d, yolo=%d",
-                len(stale_peers), len(stale_yolo),
+                len(stale_peers),
+                len(stale_yolo),
             )
 
     async def _reap_stuck_tasks(self, now: float) -> None:
@@ -522,9 +519,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             )
             if entry.placeholder_id:
                 try:
-                    await self._fx.cleanup_placeholder(
-                        entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg
-                    )
+                    await self._fx.cleanup_placeholder(entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg)
                 except Exception:
                     logger.debug("[JANITOR] Placeholder cleanup failed for %s (non-critical)", state_key)
             else:
@@ -968,9 +963,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                         msg.sender_id,
                         [m.display_name for m in risk_result.matches],
                     )
-                    asyncio.ensure_future(
-                        _record_inbound_risk_hits(risk_result.matches, msg)
-                    )
+                    asyncio.ensure_future(_record_inbound_risk_hits(risk_result.matches, msg))
                     return
 
         agent_route_resolved = self._registry.resolve(msg.content)
@@ -1068,9 +1061,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             self._gate.on_task_complete(msg)
 
 
-async def _record_inbound_risk_hits(
-    matches: tuple[object, ...], msg: InboundMessage
-) -> None:
+async def _record_inbound_risk_hits(matches: tuple[object, ...], msg: InboundMessage) -> None:
     """Fire-and-forget: persist risk hit records for inbound blocked messages."""
     try:
         import uuid

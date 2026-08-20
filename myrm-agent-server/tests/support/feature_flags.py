@@ -22,5 +22,3 @@ def voice_interaction_feature_flags() -> Iterator[None]:
     seed_voice_interaction_flags()
     yield
     _reset_for_testing()
-
-

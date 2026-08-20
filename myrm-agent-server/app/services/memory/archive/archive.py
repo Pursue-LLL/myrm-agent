@@ -200,7 +200,9 @@ class MemoryArchiveService:
         ]
 
     async def _export_audit(self) -> list[dict[str, object]]:
-        result = await self._db.execute(select(MemoryOperationEventModel).order_by(desc(MemoryOperationEventModel.occurred_at)).limit(1000))
+        result = await self._db.execute(
+            select(MemoryOperationEventModel).order_by(desc(MemoryOperationEventModel.occurred_at)).limit(1000)
+        )
         rows = list(result.scalars().all())
         return [
             {

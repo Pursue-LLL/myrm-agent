@@ -128,10 +128,7 @@ def test_agent_stream_desktop_snapshot_api_returns_som_nth(
             f"{sorted({e.get('type') for e in events if isinstance(e.get('type'), str)})}"
         )
 
-    assert snapshots, (
-        "GET /webui/desktop/snapshot never returned 200 during stream; "
-        "gateway may have closed session before poll"
-    )
+    assert snapshots, "GET /webui/desktop/snapshot never returned 200 during stream; gateway may have closed session before poll"
 
     nth_values: list[int] = []
     for snap in snapshots:

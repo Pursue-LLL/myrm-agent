@@ -54,9 +54,7 @@ class SkillStagingManager:
         except Exception as e:
             logger.warning(f"Failed to cleanup expired staging sessions: {e}")
 
-    def save_session(
-        self, session_id: str, skills: list[HermesImportedSkill]
-    ) -> None:
+    def save_session(self, session_id: str, skills: list[HermesImportedSkill]) -> None:
         """持久化保存会话的所有完整技能数据"""
         file_path = self._get_session_path(session_id)
         try:

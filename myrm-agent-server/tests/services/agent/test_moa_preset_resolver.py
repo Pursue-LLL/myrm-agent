@@ -25,9 +25,7 @@ def _sample_engine_params(*, overlay_enabled: bool = True) -> dict[str, object]:
 
 def test_is_moa_preset_configured_requires_enabled_and_refs() -> None:
     assert is_moa_preset_configured(_sample_engine_params()) is True
-    assert (
-        is_moa_preset_configured(_sample_engine_params(overlay_enabled=False)) is False
-    )
+    assert is_moa_preset_configured(_sample_engine_params(overlay_enabled=False)) is False
     assert is_moa_preset_configured({"moa_overlay": {"enabled": True}}) is False
     assert is_moa_preset_configured(None) is False
 
@@ -121,9 +119,7 @@ def test_is_moa_preset_configured_with_preset_only_refs() -> None:
 
 
 def test_apply_activation_no_op_without_overlay_block() -> None:
-    assert apply_moa_preset_activation(
-        {"consensus": {"enabled": True}}, MOA_PRESET_DEFAULT_ID
-    ) == {
+    assert apply_moa_preset_activation({"consensus": {"enabled": True}}, MOA_PRESET_DEFAULT_ID) == {
         "consensus": {"enabled": True},
     }
 

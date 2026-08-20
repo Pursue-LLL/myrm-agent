@@ -74,17 +74,11 @@ async def append_pre_reply_compact_sse(
     if result is None:
         return
     if result.compacted and result.tokens_saved > 0:
-        await buffer.append(
-            build_context_compaction_sse_chunk(
-                message_id, phase="completed", result=result
-            )
-        )
+        await buffer.append(build_context_compaction_sse_chunk(message_id, phase="completed", result=result))
         return
     if result.attempted:
         phase = _resolve_failure_phase(result.reason)
-        await buffer.append(
-            build_context_compaction_sse_chunk(message_id, phase=phase, result=result)
-        )
+        await buffer.append(build_context_compaction_sse_chunk(message_id, phase=phase, result=result))
 
 
 async def run_pre_reply_compact_with_sse(
@@ -99,9 +93,7 @@ async def run_pre_reply_compact_with_sse(
     from app.services.chat.stale_compact_gate import run_pre_reply_stale_compact_gate
 
     async def on_before_compact() -> None:
-        await buffer.append(
-            build_context_compaction_sse_chunk(message_id, phase="active")
-        )
+        await buffer.append(build_context_compaction_sse_chunk(message_id, phase="active"))
 
     try:
         result = await run_pre_reply_stale_compact_gate(

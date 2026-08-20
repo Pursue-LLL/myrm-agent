@@ -98,12 +98,8 @@ def test_pick_primary_readiness_issue_prefers_critical() -> None:
     )
 
     issues = [
-        MemoryImportReadinessIssue(
-            code="workspace_rules_skipped", severity="warning", params={"count": 1}
-        ),
-        MemoryImportReadinessIssue(
-            code="providers_not_configured", severity="critical"
-        ),
+        MemoryImportReadinessIssue(code="workspace_rules_skipped", severity="warning", params={"count": 1}),
+        MemoryImportReadinessIssue(code="providers_not_configured", severity="critical"),
     ]
     primary = pick_primary_readiness_issue(issues)
     assert primary is not None

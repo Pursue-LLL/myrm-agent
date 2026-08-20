@@ -39,9 +39,7 @@ async def _apply_chat_workspace_updates(
     chat: ChatDTO,
     updates: dict[str, object],
 ) -> ChatDTO:
-    if chat.project_id == updates.get("project_id") and chat.workspace_dir == updates.get(
-        "workspace_dir"
-    ):
+    if chat.project_id == updates.get("project_id") and chat.workspace_dir == updates.get("workspace_dir"):
         return chat
 
     from app.services.chat.chat_service import ChatService
@@ -77,9 +75,7 @@ async def sync_channel_chat_workspace(
 
         project = await ProjectService.get_project(topic_context.project_id)
         if project is None or not project.workspace_path:
-            raise ChannelWorkspaceSyncError(
-                f"Project workspace is unavailable: {topic_context.project_id}"
-            )
+            raise ChannelWorkspaceSyncError(f"Project workspace is unavailable: {topic_context.project_id}")
         updates["project_id"] = topic_context.project_id
         updates["workspace_dir"] = None
     elif topic_context.authorized_path:

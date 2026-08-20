@@ -30,11 +30,7 @@ async def get_llm_for_user() -> tuple[BaseChatModel, int]:
     # ``openai-like/xxx``) that LiteLLM cannot resolve; converge them to the
     # standard prefix (``openai/xxx``) before handing the config to the factory.
     normalized_model = _normalize_model_name(raw_cfg.model)
-    model_cfg = (
-        raw_cfg
-        if normalized_model == raw_cfg.model
-        else raw_cfg.model_copy(update={"model": normalized_model})
-    )
+    model_cfg = raw_cfg if normalized_model == raw_cfg.model else raw_cfg.model_copy(update={"model": normalized_model})
 
     llm: BaseChatModel = await llm_manager.get_llm_from_config(
         model_cfg, streaming=True, api_keys=getattr(model_cfg, "api_keys", None)

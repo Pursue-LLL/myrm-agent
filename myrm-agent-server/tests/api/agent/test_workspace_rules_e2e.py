@@ -58,10 +58,7 @@ def perform_agent_stream(
     collected.extend(_stream_once(client, request_data))
 
     for _ in range(10):
-        approval_required = any(
-            d.get("type") in ("approval_required", "tool_approval_request")
-            for d in reversed(collected)
-        )
+        approval_required = any(d.get("type") in ("approval_required", "tool_approval_request") for d in reversed(collected))
         if not approval_required:
             break
         resume_request = dict(request_data)
@@ -100,9 +97,7 @@ class TestWorkspaceRulesE2E:
         """
         harness_root = Path(get_settings().database.harness_dir)
         workspace_svc = create_workspace_service(root_dir=harness_root)
-        workspace = await workspace_svc.get_or_create(
-            session_id=to_workspace_session_id(chat_id)
-        )
+        workspace = await workspace_svc.get_or_create(session_id=to_workspace_session_id(chat_id))
         return Path(workspace_svc.get_workspace_absolute_path(workspace))
 
     @pytest.mark.e2e

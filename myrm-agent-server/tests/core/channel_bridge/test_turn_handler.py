@@ -54,14 +54,17 @@ class TestRevertMessages:
         mock_result_1 = _FakeRevertResult(reverted_files=["a.py", "b.py"], warnings=[])
         mock_result_2 = _FakeRevertResult(reverted_files=["c.py"], warnings=[])
 
-        with patch(
-            "app.core.channel_bridge.turn_handler.RevertService.revert_message",
-            new_callable=AsyncMock,
-            side_effect=[mock_result_1, mock_result_2],
-        ), patch(
-            "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
-            new_callable=AsyncMock,
-        ) as mock_cleanup:
+        with (
+            patch(
+                "app.core.channel_bridge.turn_handler.RevertService.revert_message",
+                new_callable=AsyncMock,
+                side_effect=[mock_result_1, mock_result_2],
+            ),
+            patch(
+                "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
+                new_callable=AsyncMock,
+            ) as mock_cleanup,
+        ):
             total = await _revert_messages("session-1", ["msg-1", "msg-2"])
 
         assert total.reverted_count == 3
@@ -80,16 +83,20 @@ class TestRevertMessages:
 
         mock_result = _FakeRevertResult(reverted_files=["a.py", "b.py"], warnings=[])
 
-        with patch(
-            "app.core.channel_bridge.turn_handler.RevertService.revert_message",
-            new_callable=AsyncMock,
-            return_value=mock_result,
-        ), patch(
-            "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
-            new_callable=AsyncMock,
-        ), patch(
-            "app.services.files.revert_agent_notify.notify_agent_of_turn_revert",
-        ) as mock_notify:
+        with (
+            patch(
+                "app.core.channel_bridge.turn_handler.RevertService.revert_message",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ),
+            patch(
+                "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.files.revert_agent_notify.notify_agent_of_turn_revert",
+            ) as mock_notify,
+        ):
             outcome = await _revert_messages("session-1", ["msg-1"])
 
         assert outcome.reverted_count == 2
@@ -110,13 +117,16 @@ class TestRevertMessages:
 
         mock_result = _FakeRevertResult(reverted_files=[], warnings=["no snapshots"])
 
-        with patch(
-            "app.core.channel_bridge.turn_handler.RevertService.revert_message",
-            new_callable=AsyncMock,
-            return_value=mock_result,
-        ), patch(
-            "app.services.files.revert_agent_notify.notify_agent_of_turn_revert",
-        ) as mock_notify:
+        with (
+            patch(
+                "app.core.channel_bridge.turn_handler.RevertService.revert_message",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ),
+            patch(
+                "app.services.files.revert_agent_notify.notify_agent_of_turn_revert",
+            ) as mock_notify,
+        ):
             await _revert_messages("session-1", ["msg-1"])
 
         mock_notify.assert_not_called()
@@ -132,14 +142,17 @@ class TestRevertMessages:
 
         mock_result = _FakeRevertResult(reverted_files=[], warnings=["no snapshots"])
 
-        with patch(
-            "app.core.channel_bridge.turn_handler.RevertService.revert_message",
-            new_callable=AsyncMock,
-            return_value=mock_result,
-        ), patch(
-            "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
-            new_callable=AsyncMock,
-        ) as mock_cleanup:
+        with (
+            patch(
+                "app.core.channel_bridge.turn_handler.RevertService.revert_message",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ),
+            patch(
+                "app.services.files.revert_hydrate.cleanup_persisted_snapshots",
+                new_callable=AsyncMock,
+            ) as mock_cleanup,
+        ):
             total = await _revert_messages("session-1", ["msg-1"])
 
         assert total.reverted_count == 0
@@ -205,17 +218,21 @@ class TestRevertMessages:
 
         mock_result = _FakeRevertResult(reverted_files=[], warnings=["not revertible"])
 
-        with patch(
-            "app.services.files.revert_hydrate.ensure_session_snapshots_hydrated",
-            new_callable=AsyncMock,
-        ), patch(
-            "app.core.channel_bridge.turn_handler.RevertService.get_message_changes",
-            new_callable=AsyncMock,
-            return_value=[_FakeChange(path="/big.log", revertible=False)],
-        ), patch(
-            "app.core.channel_bridge.turn_handler.RevertService.revert_message",
-            new_callable=AsyncMock,
-            return_value=mock_result,
+        with (
+            patch(
+                "app.services.files.revert_hydrate.ensure_session_snapshots_hydrated",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.core.channel_bridge.turn_handler.RevertService.get_message_changes",
+                new_callable=AsyncMock,
+                return_value=[_FakeChange(path="/big.log", revertible=False)],
+            ),
+            patch(
+                "app.core.channel_bridge.turn_handler.RevertService.revert_message",
+                new_callable=AsyncMock,
+                return_value=mock_result,
+            ),
         ):
             outcome = await _revert_messages("s1", ["m1"])
 
@@ -268,7 +285,9 @@ class TestChannelRetryHandler:
         mock_chat = MagicMock()
         mock_chat.id = "chat-123"
         svc_result = _FakeSvcResult(
-            success=True, query="hello", deleted_count=2,
+            success=True,
+            query="hello",
+            deleted_count=2,
             deleted_message_ids=["msg-a", "msg-b"],
         )
 
@@ -345,7 +364,9 @@ class TestChannelRetryHandler:
         mock_chat = MagicMock()
         mock_chat.id = "chat-1"
         svc_result = _FakeSvcResult(
-            success=True, query="hi", deleted_count=0,
+            success=True,
+            query="hi",
+            deleted_count=0,
             deleted_message_ids=[],
         )
 
@@ -394,7 +415,9 @@ class TestChannelUndoHandler:
         mock_chat = MagicMock()
         mock_chat.id = "chat-456"
         svc_result = _FakeSvcResult(
-            success=True, query="", deleted_count=3,
+            success=True,
+            query="",
+            deleted_count=3,
             deleted_message_ids=["m1", "m2", "m3"],
         )
 
@@ -466,7 +489,9 @@ class TestChannelUndoHandler:
         mock_chat = MagicMock()
         mock_chat.id = "chat-1"
         svc_result = _FakeSvcResult(
-            success=False, query="", deleted_count=0,
+            success=False,
+            query="",
+            deleted_count=0,
             deleted_message_ids=[],
         )
 
@@ -509,7 +534,9 @@ class TestChannelUndoHandler:
         mock_chat = MagicMock()
         mock_chat.id = "chat-1"
         svc_result = _FakeSvcResult(
-            success=True, query="", deleted_count=2,
+            success=True,
+            query="",
+            deleted_count=2,
             deleted_message_ids=["m1", "m2"],
         )
 

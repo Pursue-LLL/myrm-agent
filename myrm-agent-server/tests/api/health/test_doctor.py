@@ -10,6 +10,8 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="health")
+
+
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
@@ -137,9 +139,7 @@ def test_hook_system_probe_in_doctor(client: TestClient):
     harness_reports = data["harness"]
     component_names = [r["component_name"] for r in harness_reports]
 
-    assert "HookSystem" in component_names, (
-        f"HookSystem probe missing from doctor response. Found: {component_names}"
-    )
+    assert "HookSystem" in component_names, f"HookSystem probe missing from doctor response. Found: {component_names}"
 
     hook_report = next(r for r in harness_reports if r["component_name"] == "HookSystem")
     assert hook_report["status"] in ("pass", "warn", "fail")
@@ -157,9 +157,7 @@ def test_desktop_control_probe_in_doctor(client: TestClient):
     harness_reports = data["harness"]
     component_names = [r["component_name"] for r in harness_reports]
 
-    assert "DesktopControl" in component_names, (
-        f"DesktopControl probe missing from doctor response. Found: {component_names}"
-    )
+    assert "DesktopControl" in component_names, f"DesktopControl probe missing from doctor response. Found: {component_names}"
 
     desktop_report = next(r for r in harness_reports if r["component_name"] == "DesktopControl")
     assert desktop_report["status"] in ("pass", "warn", "fail")
@@ -184,9 +182,7 @@ def test_hook_system_probe_idle_without_executor(client: TestClient):
     try:
         response = client.get("/api/v1/health/doctor")
         assert response.status_code == 200
-        hook_report = next(
-            r for r in response.json()["harness"] if r["component_name"] == "HookSystem"
-        )
+        hook_report = next(r for r in response.json()["harness"] if r["component_name"] == "HookSystem")
         assert hook_report["status"] == "pass"
         assert "idle" in hook_report["message"].lower()
     finally:
@@ -213,9 +209,7 @@ def test_hook_system_probe_with_hooks_registered(client: TestClient):
     try:
         response = client.get("/api/v1/health/doctor")
         assert response.status_code == 200
-        hook_report = next(
-            r for r in response.json()["harness"] if r["component_name"] == "HookSystem"
-        )
+        hook_report = next(r for r in response.json()["harness"] if r["component_name"] == "HookSystem")
         assert hook_report["status"] == "pass"
         assert "healthy" in hook_report["message"].lower()
         assert "1 hook(s) active" in hook_report["message"]

@@ -85,9 +85,7 @@ async def run_benchmark(
     # when both configured and healthy). Fail fast so the user gets explicit
     # guidance instead of a misleading result — mirroring the embedding
     # pre-flight check in the memory A/B run flow.
-    if request.benchmark_mode and "web_search" in benchmark_required_tools(
-        request.benchmark_id
-    ):
+    if request.benchmark_mode and "web_search" in benchmark_required_tools(request.benchmark_id):
         from myrm_agent_harness.api.config import ConfigIncompleteError
 
         from app.core.channel_bridge.config_loader import load_user_configs

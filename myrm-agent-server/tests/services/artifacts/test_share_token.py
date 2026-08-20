@@ -65,7 +65,10 @@ def test_share_token_rejects_expired() -> None:
 
 def test_password_token_round_trip() -> None:
     token, exp = create_artifact_share_token(
-        "art-pw", "ver-pw", ttl_seconds=3600, password="s3cret",
+        "art-pw",
+        "ver-pw",
+        ttl_seconds=3600,
+        password="s3cret",
     )
     assert is_password_protected(token) is True
     assert parse_artifact_share_token(token) is None
@@ -78,7 +81,9 @@ def test_password_token_round_trip() -> None:
 
 def test_password_token_rejects_wrong_password() -> None:
     token, _ = create_artifact_share_token(
-        "art-pw", "ver-pw", password="correct",
+        "art-pw",
+        "ver-pw",
+        password="correct",
     )
     assert parse_artifact_share_token(token, password="wrong") is None
 

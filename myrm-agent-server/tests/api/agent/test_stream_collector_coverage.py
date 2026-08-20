@@ -43,9 +43,7 @@ async def test_stream_collector_full_coverage():
     )
 
     # 4. Test token_usage
-    collector.feed_event(
-        {"type": "token_usage", "data": {"usage": {"prompt_tokens": 10}}}
-    )
+    collector.feed_event({"type": "token_usage", "data": {"usage": {"prompt_tokens": 10}}})
 
     # 5. Test message_end
     collector.feed_event(
@@ -62,9 +60,7 @@ async def test_stream_collector_full_coverage():
             "usage_alert": {"alert": "high"},
         }
     )
-    collector.feed_event(
-        {"type": "error", "error": "temporary failure", "error_type": "runtime"}
-    )
+    collector.feed_event({"type": "error", "error": "temporary failure", "error_type": "runtime"})
     collector.feed_event(
         {
             "type": "iteration_limit_reached",
@@ -74,9 +70,7 @@ async def test_stream_collector_full_coverage():
 
     # 6. Test routing, privacy
     collector.feed_event({"type": "routing_decision", "data": {"tier": "reasoning"}})
-    collector.feed_event(
-        {"type": "privacy_level", "data": {"current_turn_level": "strict"}}
-    )
+    collector.feed_event({"type": "privacy_level", "data": {"current_turn_level": "strict"}})
     collector.feed_event({"type": "privacy_route", "data": {"route": "local"}})
 
     # 7. Test cache break
@@ -153,8 +147,7 @@ async def test_stream_collector_full_coverage():
     failover_steps = [
         step
         for step in extra["progressSteps"]
-        if isinstance(step, dict)
-        and str(step.get("step_key", "")).startswith("model_failover")
+        if isinstance(step, dict) and str(step.get("step_key", "")).startswith("model_failover")
     ]
     assert len(failover_steps) == 1
     assert failover_steps[0]["step_key"] == "model_failover_auth"
@@ -176,11 +169,7 @@ def test_stream_collector_replays_pending_interrupts_to_late_subscriber() -> Non
     approval = {
         "type": "tool_approval_request",
         "messageId": "msg-1",
-        "data": {
-            "actionRequests": [
-                {"action": "bash_code_execute_tool", "args": {"command": "echo hi"}}
-            ]
-        },
+        "data": {"actionRequests": [{"action": "bash_code_execute_tool", "args": {"command": "echo hi"}}]},
     }
     collector.feed_event(approval)
     _snapshot, queue = collector.subscribe()
@@ -265,9 +254,7 @@ def test_stream_collector_has_pending_hitl_replay() -> None:
     ACTIVE_COLLECTORS.clear()
     collector = StreamContentCollector(chat_id="chat-hitl-pending")
     assert collector.has_pending_hitl_replay() is False
-    collector.feed_event(
-        {"type": "tool_approval_request", "data": {"actionRequests": []}}
-    )
+    collector.feed_event({"type": "tool_approval_request", "data": {"actionRequests": []}})
     assert collector.has_pending_hitl_replay() is True
     collector.cleanup()
 
@@ -347,9 +334,7 @@ def test_stream_collector_persists_plan_confirmation_waiting() -> None:
 
 def test_stream_collector_clamps_reasoning_and_marks_truncation() -> None:
     collector = StreamContentCollector()
-    collector.feed_event(
-        {"type": "reasoning", "data": "x" * (_MAX_REASONING_CHARS + 64)}
-    )
+    collector.feed_event({"type": "reasoning", "data": "x" * (_MAX_REASONING_CHARS + 64)})
     collector.feed_event({"type": "reasoning", "data": "y" * 128})
 
     extra = collector.extra_data
@@ -363,9 +348,7 @@ def test_stream_collector_clamps_reasoning_and_marks_truncation() -> None:
 
 def test_stream_collector_reasoning_is_scrubbed_before_persist() -> None:
     collector = StreamContentCollector()
-    collector.feed_event(
-        {"type": "reasoning", "data": "api_key=sk-test-12345 /Users/alice/private"}
-    )
+    collector.feed_event({"type": "reasoning", "data": "api_key=sk-test-12345 /Users/alice/private"})
 
     extra = collector.extra_data
     assert extra is not None
@@ -402,8 +385,7 @@ def test_model_failover_dedupes_when_reason_key_unmapped() -> None:
     failover_steps = [
         step
         for step in extra["progressSteps"]
-        if isinstance(step, dict)
-        and str(step.get("step_key", "")).startswith("model_failover")
+        if isinstance(step, dict) and str(step.get("step_key", "")).startswith("model_failover")
     ]
     assert len(failover_steps) == 1
     assert failover_steps[0]["step_key"] == "model_failover_model_not_found"
@@ -439,10 +421,7 @@ def test_safety_block_failover_persists_single_safety_step() -> None:
         step
         for step in extra["progressSteps"]
         if isinstance(step, dict)
-        and (
-            str(step.get("step_key", "")).startswith("model_failover")
-            or step.get("step_key") == "safety_fallback_active"
-        )
+        and (str(step.get("step_key", "")).startswith("model_failover") or step.get("step_key") == "safety_fallback_active")
     ]
     assert len(failover_steps) == 1
     assert failover_steps[0]["step_key"] == "safety_fallback_active"
@@ -481,15 +460,11 @@ def test_model_failover_keeps_full_label_when_status_arrives_last() -> None:
     failover_steps = [
         step
         for step in extra["progressSteps"]
-        if isinstance(step, dict)
-        and str(step.get("step_key", "")).startswith("model_failover")
+        if isinstance(step, dict) and str(step.get("step_key", "")).startswith("model_failover")
     ]
     assert len(failover_steps) == 1
     assert failover_steps[0]["step_key"] == "model_failover_auth"
-    assert (
-        failover_steps[0]["items"][0]["text"]
-        == "openai/__e2e_nonexistent_model__ → openai/deepseek-v4-flash"
-    )
+    assert failover_steps[0]["items"][0]["text"] == "openai/__e2e_nonexistent_model__ → openai/deepseek-v4-flash"
     collector.cleanup()
 
 
@@ -527,8 +502,7 @@ def test_model_failover_drops_partial_draft() -> None:
     failover_steps = [
         step
         for step in extra["progressSteps"]
-        if isinstance(step, dict)
-        and str(step.get("step_key", "")).startswith("model_failover")
+        if isinstance(step, dict) and str(step.get("step_key", "")).startswith("model_failover")
     ]
     assert len(failover_steps) == 1
     assert failover_steps[0]["items"][0]["text"] == "openai/primary → openai/fallback"

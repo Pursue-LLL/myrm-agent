@@ -63,12 +63,8 @@ async def test_gate_allows_granted_sensitive_tool() -> None:
     set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
     async with _granted_loader({SkillPermission.CODE_INTERPRETER}):
         checker = await create_async_permission_checker()
-        mw = GuardrailMiddleware(
-            providers=[SkillBoundaryProvider(permission_checker=checker)]
-        )
-        result = await mw.awrap_tool_call(
-            _request("bash_code_execute_tool", {"command": "echo hi"}), _handler
-        )
+        mw = GuardrailMiddleware(providers=[SkillBoundaryProvider(permission_checker=checker)])
+        result = await mw.awrap_tool_call(_request("bash_code_execute_tool", {"command": "echo hi"}), _handler)
 
     assert result.content == "ok"
     assert result.status != "error"
@@ -80,12 +76,8 @@ async def test_gate_denies_ungranted_sensitive_tool() -> None:
     set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
     async with _granted_loader(set()):
         checker = await create_async_permission_checker()
-        mw = GuardrailMiddleware(
-            providers=[SkillBoundaryProvider(permission_checker=checker)]
-        )
-        result = await mw.awrap_tool_call(
-            _request("bash_code_execute_tool", {"command": "echo hi"}), _handler
-        )
+        mw = GuardrailMiddleware(providers=[SkillBoundaryProvider(permission_checker=checker)])
+        result = await mw.awrap_tool_call(_request("bash_code_execute_tool", {"command": "echo hi"}), _handler)
 
     assert result.status == "error"
     assert "skill_boundary" in str(result.content)
@@ -96,12 +88,8 @@ async def test_gate_allows_when_no_skill_loaded() -> None:
     """Without loaded skills the gate must not intercept the tool call."""
     async with _granted_loader(set()):
         checker = await create_async_permission_checker()
-        mw = GuardrailMiddleware(
-            providers=[SkillBoundaryProvider(permission_checker=checker)]
-        )
-        result = await mw.awrap_tool_call(
-            _request("bash_code_execute_tool", {"command": "echo hi"}), _handler
-        )
+        mw = GuardrailMiddleware(providers=[SkillBoundaryProvider(permission_checker=checker)])
+        result = await mw.awrap_tool_call(_request("bash_code_execute_tool", {"command": "echo hi"}), _handler)
 
     assert result.content == "ok"
 
@@ -112,12 +100,8 @@ async def test_gate_denies_network_tool_without_grant() -> None:
     set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
     async with _granted_loader(set()):
         checker = await create_async_permission_checker()
-        mw = GuardrailMiddleware(
-            providers=[SkillBoundaryProvider(permission_checker=checker)]
-        )
-        result = await mw.awrap_tool_call(
-            _request("browser_navigate_tool", {"url": "http://example.com"}), _handler
-        )
+        mw = GuardrailMiddleware(providers=[SkillBoundaryProvider(permission_checker=checker)])
+        result = await mw.awrap_tool_call(_request("browser_navigate_tool", {"url": "http://example.com"}), _handler)
 
     assert result.status == "error"
     assert "skill_boundary" in str(result.content)
@@ -129,12 +113,8 @@ async def test_gate_allows_network_tool_with_grant() -> None:
     set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
     async with _granted_loader({SkillPermission.NETWORK_ACCESS}):
         checker = await create_async_permission_checker()
-        mw = GuardrailMiddleware(
-            providers=[SkillBoundaryProvider(permission_checker=checker)]
-        )
-        result = await mw.awrap_tool_call(
-            _request("browser_navigate_tool", {"url": "http://example.com"}), _handler
-        )
+        mw = GuardrailMiddleware(providers=[SkillBoundaryProvider(permission_checker=checker)])
+        result = await mw.awrap_tool_call(_request("browser_navigate_tool", {"url": "http://example.com"}), _handler)
 
     assert result.content == "ok"
 
@@ -148,11 +128,7 @@ async def test_gate_denies_mcp_tool_by_mcp_auth() -> None:
     set_loaded_skills([SkillMetadata(name="demo", description="d", version="1.0.0")])
     async with _granted_loader(set()):
         checker = await create_async_permission_checker()
-        mw = GuardrailMiddleware(
-            providers=[SkillBoundaryProvider(permission_checker=checker)]
-        )
-        result = await mw.awrap_tool_call(
-            _request("mcp__github__get_repo", {"repo": "x"}), _handler
-        )
+        mw = GuardrailMiddleware(providers=[SkillBoundaryProvider(permission_checker=checker)])
+        result = await mw.awrap_tool_call(_request("mcp__github__get_repo", {"repo": "x"}), _handler)
 
     assert result.content == "ok"

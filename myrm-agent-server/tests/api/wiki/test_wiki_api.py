@@ -214,9 +214,7 @@ def test_wiki_purpose_get(client: TestClient) -> None:
     if response.status_code == 200:
         data = response.json()
         assert "purpose" in data
-        print(
-            f"  ✅ Purpose: '{data['purpose'][:50]}...' ({len(data['purpose'])} chars)"
-        )
+        print(f"  ✅ Purpose: '{data['purpose'][:50]}...' ({len(data['purpose'])} chars)")
     else:
         assert response.status_code in [200, 401, 403]
 
@@ -224,9 +222,7 @@ def test_wiki_purpose_get(client: TestClient) -> None:
 def test_wiki_purpose_put(client: TestClient) -> None:
     """Test PUT /api/v1/wiki/purpose endpoint."""
     print("\n🧭 Testing /api/v1/wiki/purpose PUT...")
-    response = client.put(
-        "/api/v1/wiki/purpose", json={"purpose": "Test purpose for CI"}
-    )
+    response = client.put("/api/v1/wiki/purpose", json={"purpose": "Test purpose for CI"})
     print(f"Status: {response.status_code}")
 
     if response.status_code == 200:
@@ -300,9 +296,7 @@ def test_wiki_graph_insights(client: TestClient) -> None:
         assert "unexpected_connections" in data
         assert "knowledge_gaps" in data
         assert "communities" in data
-        print(
-            f"  ✅ Insights: {len(data['communities'])} communities, {len(data['knowledge_gaps'])} gaps"
-        )
+        print(f"  ✅ Insights: {len(data['communities'])} communities, {len(data['knowledge_gaps'])} gaps")
     else:
         assert response.status_code in [200, 401, 403, 500]
 
@@ -359,9 +353,7 @@ def test_wiki_concept_get_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_wiki_concept_get_returns_source_chat(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_wiki_concept_get_returns_source_chat(client: TestClient, tmp_path: Path) -> None:
     """GET /api/v1/wiki/concepts/{name} surfaces source_chat/source_message provenance."""
     from unittest.mock import MagicMock
 
@@ -406,9 +398,7 @@ Body
     assert data["source_message"] == "msg-trace-1"
 
 
-def test_wiki_concept_get_omits_missing_provenance(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_wiki_concept_get_omits_missing_provenance(client: TestClient, tmp_path: Path) -> None:
     """GET /api/v1/wiki/concepts/{name} returns null provenance when absent."""
     from unittest.mock import MagicMock
 
@@ -461,10 +451,7 @@ def test_wiki_pending_approve_nonexistent(client: TestClient) -> None:
     """Test POST /pending/{edit_id}/approve returns 400 for non-existent edit."""
     response = client.post("/api/v1/wiki/pending/99999/approve")
     assert response.status_code == 400
-    assert (
-        "not found" in response.json()["detail"].lower()
-        or "already processed" in response.json()["detail"].lower()
-    )
+    assert "not found" in response.json()["detail"].lower() or "already processed" in response.json()["detail"].lower()
 
 
 def test_wiki_pending_reject_nonexistent(client: TestClient) -> None:
@@ -569,9 +556,7 @@ def test_all_wiki_endpoints_registered(client: TestClient) -> None:
         assert response.status_code != 404, f"{method} {path} not found (404)"
 
 
-def _find_tree_node(
-    nodes: list[dict[str, object]], node_id: str
-) -> dict[str, object] | None:
+def _find_tree_node(nodes: list[dict[str, object]], node_id: str) -> dict[str, object] | None:
     for node in nodes:
         if node.get("id") == node_id:
             return node
@@ -583,9 +568,7 @@ def _find_tree_node(
     return None
 
 
-def test_wiki_tree_ingest_status_tracked_modified(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_wiki_tree_ingest_status_tracked_modified(client: TestClient, tmp_path: Path) -> None:
     """Concept tree should mark nodes whose sources changed after last compile."""
     import json
     from unittest.mock import MagicMock
@@ -598,9 +581,7 @@ def test_wiki_tree_ingest_status_tracked_modified(
     structure = WikiStructure(tmp_path / "wiki")
     structure.ensure_structure()
     metadata_path = structure.get_wiki_metadata_path()
-    metadata_path.write_text(
-        json.dumps({"last_compile_time": "2020-01-01T00:00:00+00:00"}), encoding="utf-8"
-    )
+    metadata_path.write_text(json.dumps({"last_compile_time": "2020-01-01T00:00:00+00:00"}), encoding="utf-8")
 
     raw_file = structure.raw_dir / "source.md"
     raw_file.write_text("raw body", encoding="utf-8")
@@ -651,9 +632,7 @@ def test_wiki_raw_tree_ingest_status(client: TestClient, tmp_path: Path) -> None
     structure = WikiStructure(tmp_path / "wiki")
     structure.ensure_structure()
     metadata_path = structure.get_wiki_metadata_path()
-    metadata_path.write_text(
-        json.dumps({"last_compile_time": "2020-01-01T00:00:00+00:00"}), encoding="utf-8"
-    )
+    metadata_path.write_text(json.dumps({"last_compile_time": "2020-01-01T00:00:00+00:00"}), encoding="utf-8")
     raw_file = structure.raw_dir / "notes.md"
     raw_file.write_text("notes", encoding="utf-8")
 
@@ -798,10 +777,7 @@ def test_wiki_query_snapshot_status_stale(client: TestClient, tmp_path: Path) ->
     assert snippets[0]["claim_status"] == "supported"
     assert snippets[0]["evidence_path"] == "raw/source.md"
     assert snippets[0]["resource_uri"] == f"raw/source.md@sha256:{pinned}"
-    assert (
-        snippets[0]["resource_uri"]
-        != f"raw/{structure.get_concept_file_path('Budget')}".lower()
-    )
+    assert snippets[0]["resource_uri"] != f"raw/{structure.get_concept_file_path('Budget')}".lower()
 
 
 def test_wiki_compound_stages_pending_edit(client: TestClient) -> None:
@@ -839,17 +815,12 @@ def test_wiki_compound_returns_not_found_for_missing_message(
     with patch(
         "app.services.wiki.chat_compound_service.stage_chat_compound_from_message",
         new_callable=AsyncMock,
-        side_effect=ChatCompoundServiceError(
-            "message_not_found", "Chat message not found"
-        ),
+        side_effect=ChatCompoundServiceError("message_not_found", "Chat message not found"),
     ):
         response = client.post("/api/v1/wiki/compound", json=payload)
     assert response.status_code == 404
     body = response.json()
-    assert (
-        body.get("code") == "message_not_found"
-        or body.get("detail", {}).get("code") == "message_not_found"
-    )
+    assert body.get("code") == "message_not_found" or body.get("detail", {}).get("code") == "message_not_found"
 
 
 def test_wiki_compound_rejects_duplicate_source_message(client: TestClient) -> None:
@@ -864,9 +835,7 @@ def test_wiki_compound_rejects_duplicate_source_message(client: TestClient) -> N
         new_callable=AsyncMock,
         side_effect=[
             ChatCompoundResult(pending_edit_id=1, concept_name=payload["concept_name"]),
-            ChatCompoundServiceError(
-                "already_staged", "Chat message already staged as pending edit 1"
-            ),
+            ChatCompoundServiceError("already_staged", "Chat message already staged as pending edit 1"),
         ],
     ):
         first = client.post("/api/v1/wiki/compound", json=payload)

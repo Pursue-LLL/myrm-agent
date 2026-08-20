@@ -103,8 +103,7 @@ def _build_mcp_json(url: str, token: str, embed_token: bool) -> str:
 #: clients load SKILL.md only from the plugin's skills/<name>/ subdirectory, so a
 #: flat download silently loses the memory discipline layer.
 _FILE_STRUCTURE_HINT = (
-    "Keep the bundle structure: plugin.json and mcp.json in the plugin root, "
-    "SKILL.md under skills/myrm-memory/."
+    "Keep the bundle structure: plugin.json and mcp.json in the plugin root, SKILL.md under skills/myrm-memory/."
 )
 
 #: SKILL.md handed to the consuming agent. Written for best-model comprehension

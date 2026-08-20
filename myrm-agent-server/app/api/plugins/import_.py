@@ -99,9 +99,7 @@ class PluginImportConfirmRequest(BaseModel):
     session_id: str
     skills: list[PluginConfirmComponent]
     servers: list[PluginConfirmComponent]
-    bind_agent_id: str | None = Field(
-        default=None, description="Agent ID to bind MCP servers to"
-    )
+    bind_agent_id: str | None = Field(default=None, description="Agent ID to bind MCP servers to")
 
 
 class PluginImportConfirmResponse(BaseModel):
@@ -175,9 +173,7 @@ async def preview_plugin_import(
         plugin=PluginMetaResponse(**preview["plugin"]),
         skills=[PluginSkillPreview(**item) for item in preview["skills"]],
         servers=[PluginServerPreview(**item) for item in preview["servers"]],
-        diagnostics=[
-            PluginDiagnosticResponse(**item) for item in preview["diagnostics"]
-        ],
+        diagnostics=[PluginDiagnosticResponse(**item) for item in preview["diagnostics"]],
         is_valid=preview["is_valid"],
     )
 

@@ -68,9 +68,7 @@ async def _get_evicted_workspace_root(chat_id: str) -> str | None:
             resolve_default_chat_workspace_dir,
         )
 
-        resolved = await resolve_default_chat_workspace_dir(
-            chat_id, persist_workspace=False
-        )
+        resolved = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=False)
         if resolved and os.path.isdir(resolved):
             return resolved
     except Exception as exc:
@@ -106,9 +104,7 @@ async def _resolve_evicted_path(chat_id: str, filename: str) -> str:
     if not workspace_root:
         raise HTTPException(status_code=500, detail="Workspace root unavailable")
 
-    evicted_dir = os.path.join(
-        workspace_root, ".context", normalized_chat_id, "evicted"
-    )
+    evicted_dir = os.path.join(workspace_root, ".context", normalized_chat_id, "evicted")
     resolved = os.path.realpath(os.path.join(evicted_dir, filename))
 
     if is_dangerous_path(resolved):
@@ -116,9 +112,7 @@ async def _resolve_evicted_path(chat_id: str, filename: str) -> str:
 
     expected_prefix = os.path.realpath(evicted_dir)
     if not resolved.startswith(expected_prefix + os.sep):
-        raise HTTPException(
-            status_code=403, detail="Access denied: path traversal detected"
-        )
+        raise HTTPException(status_code=403, detail="Access denied: path traversal detected")
 
     return resolved
 
@@ -149,15 +143,9 @@ def _get_workspace_root() -> str | None:
 
 @router.get("/evicted", response_model=None)
 async def read_evicted_output(
-    chat_id: str = Query(
-        ..., description="Chat/session ID that produced the evicted output"
-    ),
-    filename: str = Query(
-        ..., description="Evicted output filename (e.g. web_fetch_a3f5c8d1.md)"
-    ),
-    offset: int = Query(
-        0, ge=0, description="Line offset to start reading from (0-based)"
-    ),
+    chat_id: str = Query(..., description="Chat/session ID that produced the evicted output"),
+    filename: str = Query(..., description="Evicted output filename (e.g. web_fetch_a3f5c8d1.md)"),
+    offset: int = Query(0, ge=0, description="Line offset to start reading from (0-based)"),
     limit: int = Query(
         _DEFAULT_PAGE_LIMIT,
         ge=1,

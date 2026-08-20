@@ -613,7 +613,9 @@ class TestChannelKanbanCommandHandler:
         svc.list_tasks = AsyncMock(return_value=tasks)
         with patch("app.services.kanban.KanbanService.get_instance", return_value=svc):
             result = await handler.handle_kanban(msg, "list")  # type: ignore[union-attr]
-            task_lines = [line for line in result.split("\n") if line.startswith(("📥", "📋", "🟢", "🔄", "✅", "❌", "🚫", "📦", "•"))]
+            task_lines = [
+                line for line in result.split("\n") if line.startswith(("📥", "📋", "🟢", "🔄", "✅", "❌", "🚫", "📦", "•"))
+            ]
             assert len(task_lines) <= 20
 
     @pytest.mark.asyncio

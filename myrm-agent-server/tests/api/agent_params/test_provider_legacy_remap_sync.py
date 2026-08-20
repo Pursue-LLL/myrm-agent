@@ -16,9 +16,7 @@ def _load_json_remap(path: Path) -> dict[str, str]:
     assert isinstance(raw_obj, dict), "provider_legacy_remap.json must contain a JSON object"
     result: dict[str, str] = {}
     for key_obj, val_obj in raw_obj.items():
-        assert isinstance(key_obj, str) and isinstance(val_obj, str), (
-            "provider_legacy_remap.json keys and values must be strings"
-        )
+        assert isinstance(key_obj, str) and isinstance(val_obj, str), "provider_legacy_remap.json keys and values must be strings"
         result[key_obj] = val_obj
     return result
 

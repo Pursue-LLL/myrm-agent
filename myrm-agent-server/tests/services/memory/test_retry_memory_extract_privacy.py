@@ -228,9 +228,7 @@ class TestPrivacyDeepScanContext:
                 "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
                 return_value=prev_pseudonymizer,
             ),
-            patch(
-                "myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"
-            ) as mock_restore,
+            patch("myrm_agent_harness.api.hooks.restore_memory_pseudonymizer") as mock_restore,
         ):
             with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
                 assert deep_scan is True
@@ -273,9 +271,7 @@ class TestPrivacyDeepScanContext:
                 "myrm_agent_harness.api.hooks.install_memory_pseudonymizer",
                 return_value=None,
             ),
-            patch(
-                "myrm_agent_harness.api.hooks.restore_memory_pseudonymizer"
-            ) as mock_restore,
+            patch("myrm_agent_harness.api.hooks.restore_memory_pseudonymizer") as mock_restore,
         ):
             with _privacy_deep_scan_context(settings, "/tmp/ws") as deep_scan:
                 assert deep_scan is False

@@ -34,8 +34,7 @@ class HostingProvider(Protocol):
         artifact_name: str,
         files: dict[str, PublishFile],
         existing_project_ref: str | None,
-    ) -> PublicationResult:
-        ...
+    ) -> PublicationResult: ...
 
     async def poll_status(
         self,
@@ -44,5 +43,4 @@ class HostingProvider(Protocol):
         credentials: dict[str, object],
         publication_id: str,
         project_ref: str | None = None,
-    ) -> dict[str, str]:
-        ...
+    ) -> dict[str, str]: ...

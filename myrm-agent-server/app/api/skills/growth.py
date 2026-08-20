@@ -155,9 +155,7 @@ def _summary_response(
         apply_error=item.apply_error,
         reason_code=item.reason_code,
         remediation=item.remediation,
-        runtime_failure=(
-            item.runtime_failure.model_dump(mode="json") if item.runtime_failure is not None else None
-        ),
+        runtime_failure=(item.runtime_failure.model_dump(mode="json") if item.runtime_failure is not None else None),
         chat_id=item.chat_id,
         form_metadata=_form_metadata_response(item.form_metadata),
         has_diff=item.has_diff,
@@ -238,14 +236,9 @@ async def get_skill_growth_cases(
     offset: int = Query(0, ge=0),
 ) -> JSONResponse:
     items, total = await list_skill_growth_cases(limit=limit, offset=offset, status=status)
-    dependents_map = await get_dependents_map(
-        [item.skill_id for item in items if item.skill_id]
-    )
+    dependents_map = await get_dependents_map([item.skill_id for item in items if item.skill_id])
     payload = SkillGrowthCaseListResponse(
-        items=[
-            _summary_response(item, dependents_map.get(item.skill_id))
-            for item in items
-        ],
+        items=[_summary_response(item, dependents_map.get(item.skill_id)) for item in items],
         total=total,
     )
     return success_response(data=payload.model_dump())
@@ -256,12 +249,8 @@ async def get_skill_growth_case(case_id: str) -> JSONResponse:
     item = await get_skill_growth_case_detail(case_id)
     if item is None:
         raise HTTPException(status_code=404, detail=f"Skill growth case not found: {case_id}")
-    dependents = (
-        await get_dependents_map([item.skill_id]) if item.skill_id else {}
-    )
-    return success_response(
-        data=_detail_response(item, dependents.get(item.skill_id)).model_dump()
-    )
+    dependents = await get_dependents_map([item.skill_id]) if item.skill_id else {}
+    return success_response(data=_detail_response(item, dependents.get(item.skill_id)).model_dump())
 
 
 @router.get("/stats")

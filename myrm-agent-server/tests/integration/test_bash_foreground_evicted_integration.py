@@ -111,18 +111,14 @@ async def test_foreground_bash_spill_persists_evicted_output(tmp_path: Path) -> 
 
         content = str(result.get("content") or "")
         assert "LARGE OUTPUT TRUNCATED" in content, content[:400]
-        evicted_events = [
-            p for name, p in events if name == "tool_evicted_ref"
-        ]
+        evicted_events = [p for name, p in events if name == "tool_evicted_ref"]
         assert evicted_events, f"expected tool_evicted_ref event, got {events!r}"
         ref_payload = evicted_events[0]
         assert isinstance(ref_payload, dict)
         evicted_ref = str(ref_payload.get("evicted_ref") or "")
         assert evicted_ref.startswith("output_"), evicted_ref
 
-        spill_path = (
-            tmp_path / ".context" / raw_chat_id / "evicted" / evicted_ref
-        )
+        spill_path = tmp_path / ".context" / raw_chat_id / "evicted" / evicted_ref
         assert spill_path.is_file(), spill_path
         spill_text = spill_path.read_text(encoding="utf-8")
         assert _MARKER in spill_text

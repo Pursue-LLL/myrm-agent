@@ -71,12 +71,15 @@ async def test_image_tool_generate_enqueues_when_async_config() -> None:
     async_config = MagicMock()
     mock_store = MagicMock()
 
-    with patch(
-        "app.lifecycle.task_worker.get_task_store",
-        return_value=mock_store,
-    ), patch(
-        "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
-    ) as async_cls:
+    with (
+        patch(
+            "app.lifecycle.task_worker.get_task_store",
+            return_value=mock_store,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
+        ) as async_cls,
+    ):
         async_engine = MagicMock()
         async_engine.generate_image = AsyncMock(
             return_value='{"task_id":"img-abc","status":"pending"}',

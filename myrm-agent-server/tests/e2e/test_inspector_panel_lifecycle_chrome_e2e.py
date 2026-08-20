@@ -68,21 +68,11 @@ def _build_png_base64(width: int = 1280, height: int = 720) -> str:
     import zlib as _zlib
 
     def _chunk(tag: bytes, data: bytes) -> bytes:
-        return (
-            _struct.pack(">I", len(data))
-            + tag
-            + data
-            + _struct.pack(">I", _zlib.crc32(tag + data) & 0xFFFFFFFF)
-        )
+        return _struct.pack(">I", len(data)) + tag + data + _struct.pack(">I", _zlib.crc32(tag + data) & 0xFFFFFFFF)
 
     ihdr = _struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
     raw = b"".join(b"\x00" + b"\x80\x80\x80" * width for _ in range(height))
-    png = (
-        b"\x89PNG\r\n\x1a\n"
-        + _chunk(b"IHDR", ihdr)
-        + _chunk(b"IDAT", _zlib.compress(raw))
-        + _chunk(b"IEND", b"")
-    )
+    png = b"\x89PNG\r\n\x1a\n" + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", _zlib.compress(raw)) + _chunk(b"IEND", b"")
     return base64.b64encode(png).decode()
 
 
@@ -143,9 +133,7 @@ _SIMULATE_BROWSER_CONTROL_JS = """(() => {{
     const view = await bridge.simulateBrowserViewUpdate(chatId, refs, '{png}');
     return {{ ok: start?.ok === true && view?.ok === true, chatId }};
   }})();
-}})()""".format(
-    png=_build_png_base64()
-)
+}})()""".format(png=_build_png_base64())
 
 _BROWSER_ACTIVE_JS = """(() => {
   const snap = window.__MYRM_E2E_CHAT__?.getBrowserInspectorSnapshot?.() ?? null;
@@ -245,11 +233,7 @@ def _create_inspector_live_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
 
@@ -268,8 +252,7 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
 ) -> None:
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live inspector E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome"
+            "Provider config not ready for live inspector E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
         )
 
     api_base = get_e2e_api_url()
@@ -278,131 +261,89 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
     agent_id = _create_inspector_live_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
 
-    async def _wait_agent_applied(
-        chat: McpChatSession, *, timeout_sec: float = 90.0
-    ) -> None:
+    async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float = 90.0) -> None:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return
             await asyncio.sleep(1.0)
         raise AssertionError(f"E2E chat bridge not ready after loading agent: {last}")
 
-    async def _wait_browser_engaged(
-        chat: McpChatSession, *, timeout_sec: float = 60.0
-    ) -> dict[str, object]:
+    async def _wait_browser_engaged(chat: McpChatSession, *, timeout_sec: float = 60.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _BROWSER_ACTIVE_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_BROWSER_ACTIVE_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(
-            f"Browser inspector panel did not engage: {json.dumps(last, ensure_ascii=False)}"
-        )
+        raise AssertionError(f"Browser inspector panel did not engage: {json.dumps(last, ensure_ascii=False)}")
 
-    async def _wait_overlay_geometry(
-        chat: McpChatSession, *, timeout_sec: float = 30.0
-    ) -> dict[str, object]:
+    async def _wait_overlay_geometry(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _OVERLAY_GEOMETRY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_OVERLAY_GEOMETRY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(
-            f"Overlay geometry not ready: {json.dumps(last, ensure_ascii=False)}"
-        )
+        raise AssertionError(f"Overlay geometry not ready: {json.dumps(last, ensure_ascii=False)}")
 
-    async def _wait_desktop_open(
-        chat: McpChatSession, *, timeout_sec: float = 30.0
-    ) -> dict[str, object]:
+    async def _wait_desktop_open(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _DESKTOP_OPEN_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_DESKTOP_OPEN_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(
-            f"Desktop panel did not open manually: {json.dumps(last, ensure_ascii=False)}"
-        )
+        raise AssertionError(f"Desktop panel did not open manually: {json.dumps(last, ensure_ascii=False)}")
 
-    async def _wait_turn_done(
-        chat: McpChatSession, *, timeout_sec: float = 300.0
-    ) -> dict[str, object]:
+    async def _wait_turn_done(chat: McpChatSession, *, timeout_sec: float = 300.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
             raw = await chat.evaluate(_TURN_DONE_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
-            if (
-                last.get("hasDone") is True
-                and last.get("isStreaming") is False
-                and int(last.get("userCount") or 0) >= 1
-            ):
+            if last.get("hasDone") is True and last.get("isStreaming") is False and int(last.get("userCount") or 0) >= 1:
                 return last
             await asyncio.sleep(1.5)
-        raise AssertionError(
-            f"Live OK turn did not complete: {json.dumps(last, ensure_ascii=False)}"
-        )
+        raise AssertionError(f"Live OK turn did not complete: {json.dumps(last, ensure_ascii=False)}")
 
-    async def _wait_browser_released(
-        chat: McpChatSession, *, timeout_sec: float = 60.0
-    ) -> dict[str, object]:
+    async def _wait_browser_released(chat: McpChatSession, *, timeout_sec: float = 60.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _BROWSER_RELEASED_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_BROWSER_RELEASED_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(
-            f"Browser inspector was not released on turn end: {json.dumps(last, ensure_ascii=False)}"
-        )
+        raise AssertionError(f"Browser inspector was not released on turn end: {json.dumps(last, ensure_ascii=False)}")
 
-    async def _wait_desktop_preserved(
-        chat: McpChatSession, *, timeout_sec: float = 30.0
-    ) -> dict[str, object]:
+    async def _wait_desktop_preserved(chat: McpChatSession, *, timeout_sec: float = 30.0) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
-            raw = await chat.evaluate(
-                _DESKTOP_PRESERVED_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_DESKTOP_PRESERVED_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return last
             await asyncio.sleep(0.5)
-        raise AssertionError(
-            f"Manually opened desktop panel was force-closed: {json.dumps(last, ensure_ascii=False)}"
-        )
+        raise AssertionError(f"Manually opened desktop panel was force-closed: {json.dumps(last, ensure_ascii=False)}")
 
     async def _run_flow(chat: McpChatSession) -> str:
         await chat.dismiss_modals()
@@ -412,18 +353,14 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
         assert isinstance(pinned, dict) and pinned.get("ok") is True, pinned
         assert isinstance(pinned.get("pinned"), dict), pinned
 
-        ensured = await chat.evaluate(
-            _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
-        )
+        ensured = await chat.evaluate(_ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH)
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
         assert chat_id, "Expected client chat id after ensureChatSession"
 
         # --- Phase 1: real frontend handlers engage the browser inspector panel ---
-        simulated = await chat.evaluate(
-            _SIMULATE_BROWSER_CONTROL_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        simulated = await chat.evaluate(_SIMULATE_BROWSER_CONTROL_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         assert isinstance(simulated, dict) and simulated.get("ok") is True, simulated
 
         engaged = await _wait_browser_engaged(chat)
@@ -439,29 +376,19 @@ async def test_inspector_panel_lifecycle_turn_end_releases_engaged_view(
         assert abs(geometry.get("heightWidthRatio", -1) - 0.4) < 0.05, geometry
 
         # --- Phase 2: manually opened desktop panel (no engagement) ---
-        computer_use = await chat.evaluate(
-            _ENSURE_COMPUTER_USE_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
-        assert (
-            isinstance(computer_use, dict) and computer_use.get("ok") is True
-        ), computer_use
+        computer_use = await chat.evaluate(_ENSURE_COMPUTER_USE_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(computer_use, dict) and computer_use.get("ok") is True, computer_use
         desktop = await _wait_desktop_open(chat)
         assert desktop.get("ready") is True, desktop
 
         # --- Phase 3: real LLM turn ends; MESSAGE_END must release the engaged browser view ---
         send_result = await chat.send_message(_REPLY_OK_PROMPT, _REPLY_OK_PROMPT)
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or chat_id
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or chat_id
         ).strip()
-        started = await chat.wait_stream_started(
-            _REPLY_OK_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None
-        )
+        started = await chat.wait_stream_started(_REPLY_OK_PROMPT, timeout_sec=120.0, chat_id_hint=chat_id_hint or None)
         resolved_chat_id = chat_id_hint or str(started.get("chatId") or "").strip()
-        assert (
-            resolved_chat_id
-        ), f"Expected chat id after stream start: started={started}; send={send_result}"
+        assert resolved_chat_id, f"Expected chat id after stream start: started={started}; send={send_result}"
 
         done = await _wait_turn_done(chat, timeout_sec=300.0)
         assert done.get("hasDone") is True, done

@@ -147,17 +147,13 @@ class SemanticComparator:
                 return None
             parsed = parsed_obj
             score_raw = parsed.get("score", 0.5)
-            if isinstance(score_raw, bool) or not isinstance(
-                score_raw, int | float | str
-            ):
+            if isinstance(score_raw, bool) or not isinstance(score_raw, int | float | str):
                 score = 0.5
             else:
                 score = float(score_raw)
             score = max(0.0, min(1.0, score))
 
-            logger.info(
-                f"LLM semantic judge: score={score:.2f}, reasoning={parsed.get('reasoning', 'N/A')}"
-            )
+            logger.info(f"LLM semantic judge: score={score:.2f}, reasoning={parsed.get('reasoning', 'N/A')}")
             return score
 
         except Exception as e:

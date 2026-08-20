@@ -72,9 +72,7 @@ async def prepare_mcp_configs_for_runtime(
                 continue
 
             cfg_headers = getattr(cfg, "headers", None) or {}
-            has_secret_refs = (
-                any("{{secret:" in value for value in cfg_headers.values()) if cfg_headers else False
-            )
+            has_secret_refs = any("{{secret:" in value for value in cfg_headers.values()) if cfg_headers else False
             if has_secret_refs:
                 auth_provider = MCPSecretAuthProvider(
                     header_templates=cfg_headers,

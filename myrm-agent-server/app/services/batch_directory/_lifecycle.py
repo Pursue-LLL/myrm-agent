@@ -72,10 +72,7 @@ async def _load_project_snapshot(
         model = await session.get(BatchDirectoryProjectModel, project_id)
         if model is None:
             return None, []
-        stmt = select(KanbanTaskModel).where(
-            KanbanTaskModel.metadata_json["batch_project_id"].as_string()
-            == project_id
-        )
+        stmt = select(KanbanTaskModel).where(KanbanTaskModel.metadata_json["batch_project_id"].as_string() == project_id)
         result = await session.execute(stmt)
         tasks = list(result.scalars().all())
         settings = _ProjectSettings(
@@ -86,14 +83,8 @@ async def _load_project_snapshot(
             model_override=model.model_override,
             max_runtime_seconds=model.max_runtime_seconds,
             require_approval=model.require_approval,
-            artifact_patterns=(
-                list(model.artifact_patterns_json)
-                if model.artifact_patterns_json
-                else []
-            ),
-            directories=(
-                list(model.directories_json) if model.directories_json else []
-            ),
+            artifact_patterns=(list(model.artifact_patterns_json) if model.artifact_patterns_json else []),
+            directories=(list(model.directories_json) if model.directories_json else []),
             status=model.status,
         )
     return settings, tasks
@@ -102,14 +93,10 @@ async def _load_project_snapshot(
 def _require_not_paused(settings: _ProjectSettings, project_id: str) -> None:
     """Reject lifecycle operations while the batch is paused (queue frozen)."""
     if settings.status == "paused":
-        raise ValueError(
-            f"Batch project {project_id} is paused; resume it before retrying"
-        )
+        raise ValueError(f"Batch project {project_id} is paused; resume it before retrying")
 
 
-async def pause_project(
-    service: BatchDirectoryService, project_id: str
-) -> dict[str, object] | None:
+async def pause_project(service: BatchDirectoryService, project_id: str) -> dict[str, object] | None:
     """Pause a running batch: freeze the queued work and stop executing tasks.
 
     Every non-terminal executable task (READY/BACKLOG/RUNNING) is moved to
@@ -135,9 +122,7 @@ async def pause_project(
             sa_update(BatchDirectoryProjectModel)
             .where(
                 BatchDirectoryProjectModel.id == project_id,
-                BatchDirectoryProjectModel.status.notin_(
-                    list(_PROJECT_TERMINAL_STATUSES)
-                ),
+                BatchDirectoryProjectModel.status.notin_(list(_PROJECT_TERMINAL_STATUSES)),
             )
             .values(status="paused")
         )
@@ -169,9 +154,7 @@ async def pause_project(
             )
             paused_ids.append(t.id)
         except Exception as exc:  # noqa: BLE001 - 单任务冻结失败不阻断
-            logger.warning(
-                "Batch project %s: pause task %s failed: %s", project_id, t.id, exc
-            )
+            logger.warning("Batch project %s: pause task %s failed: %s", project_id, t.id, exc)
 
     # 多轮收敛：每轮冻结当前所有可执行任务（READY/BACKLOG/RUNNING），
     # 重新拉取后捕获暂停窗口内 dispatcher 新 claim 或并发重试新创建的任务。
@@ -199,9 +182,7 @@ async def pause_project(
     return base
 
 
-async def resume_project(
-    service: BatchDirectoryService, project_id: str
-) -> dict[str, object] | None:
+async def resume_project(service: BatchDirectoryService, project_id: str) -> dict[str, object] | None:
     """Resume a paused batch: unblock every task frozen by
     :func:`pause_project` back to READY so the dispatcher schedules them again.
 
@@ -229,9 +210,7 @@ async def resume_project(
             await service.kanban.move_task(t.id, TaskStatus.READY)
             resumed_ids.append(t.id)
         except Exception as exc:  # noqa: BLE001 - 单任务恢复失败不阻断
-            logger.warning(
-                "Batch project %s: resume task %s failed: %s", project_id, t.id, exc
-            )
+            logger.warning("Batch project %s: resume task %s failed: %s", project_id, t.id, exc)
 
     # 重开条件：至少解冻了一个任务，或已无 batch_pause 冻结任务残留（任务
     # 全部终态，重开后由读取路径自愈收尾）。若解冻全部失败且仍有冻结任务，
@@ -243,8 +222,7 @@ async def resume_project(
     else:
         tasks_after = await fetch_project_task_models(project_id)
         still_frozen = any(
-            t.status == TaskStatus.BLOCKED.value
-            and t.blocked_reason == _BATCH_PAUSE_BLOCK_REASON
+            t.status == TaskStatus.BLOCKED.value and t.blocked_reason == _BATCH_PAUSE_BLOCK_REASON
             for t in _latest_tasks_per_directory(tasks_after)
         )
         if not still_frozen:
@@ -256,9 +234,7 @@ async def resume_project(
     return base
 
 
-async def approve_all_results(
-    service: BatchDirectoryService, project_id: str
-) -> dict[str, object] | None:
+async def approve_all_results(service: BatchDirectoryService, project_id: str) -> dict[str, object] | None:
     """Approve every current task awaiting review (IN_REVIEW) at once.
 
     Reuses the per-task approval gate (idempotent) so results already
@@ -281,9 +257,7 @@ async def approve_all_results(
             await service.kanban.approve_task(t.id, approver=_BATCH_APPROVER)
             approved_ids.append(t.id)
         except Exception as exc:  # noqa: BLE001 - 单任务审批失败不阻断
-            logger.warning(
-                "Batch project %s: approve task %s failed: %s", project_id, t.id, exc
-            )
+            logger.warning("Batch project %s: approve task %s failed: %s", project_id, t.id, exc)
 
     base = await service.get_project(project_id)
     if base is None:

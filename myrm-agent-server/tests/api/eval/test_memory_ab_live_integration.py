@@ -115,9 +115,7 @@ def test_memory_ab_embedding_probe_live(local_embedding: LocalEmbeddingServer) -
 
     from app.services.agent.platform_config import verify_platform_embedding_ready
 
-    mock_configs = _build_user_configs_from_env(
-        embedding_endpoint=local_embedding.base_url
-    )
+    mock_configs = _build_user_configs_from_env(embedding_endpoint=local_embedding.base_url)
     with patch(
         "app.core.channel_bridge.config_loader.load_user_configs",
         return_value=mock_configs,
@@ -198,11 +196,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
             limit=limit,
         )
         limited = cases[:1]
-        limited_seed_map = {
-            k: v
-            for k, v in seed_map.items()
-            if k in {c.turns[0].message for c in limited}
-        }
+        limited_seed_map = {k: v for k, v in seed_map.items() if k in {c.turns[0].message for c in limited}}
         return limited, limited_seed_map, False
 
     from app.core.eval.wb_bench import workspace as _wb_ws
@@ -242,9 +236,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
                 side_effect=_single_task_dirs,
             ),
         ):
-            response = client.post(
-                f"{p}/memory-ab/run", json={"benchmark_id": "wb-bench-office"}
-            )
+            response = client.post(f"{p}/memory-ab/run", json={"benchmark_id": "wb-bench-office"})
             assert response.status_code == 200, response.text
             body = response.json()
             assert body["status"] in ("started", "already_running"), body
@@ -299,11 +291,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
             # The arms must have really run against the LLM: at least one case
             # was evaluated and real tokens were consumed (evidence, not
             # structure). Per-arm summary carries pass/fail/error counts.
-            evaluated = (
-                summary.get("pass_count", 0)
-                + summary.get("fail_count", 0)
-                + summary.get("error_count", 0)
-            )
+            evaluated = summary.get("pass_count", 0) + summary.get("fail_count", 0) + summary.get("error_count", 0)
             assert isinstance(evaluated, int) and evaluated >= 1, arm
             assert isinstance(summary.get("total_tokens"), int), arm
             assert summary["total_tokens"] > 0, arm
@@ -311,9 +299,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
         # The throwaway memory volume must be evicted and removed.
         memory_root = Path(DEFAULT_MEMORY_AB_MEMORY_DIR)
         if memory_root.exists():
-            assert not list(
-                memory_root.glob("memory_ab_*")
-            ), "throwaway memory volume was not cleaned up"
+            assert not list(memory_root.glob("memory_ab_*")), "throwaway memory volume was not cleaned up"
 
         # The embedded Qdrant store that lived under the throwaway volume must
         # be evicted from the harness per-path singleton cache — otherwise the
@@ -335,6 +321,4 @@ def _run_full_chain(embedding_endpoint: str) -> None:
         # finally-block cleanup must leave no trace behind.
         workspace_root = Path(".myrm/eval_workspaces")
         if workspace_root.exists():
-            assert not list(
-                workspace_root.iterdir()
-            ), "eval session workspaces were not cleaned up after the run"
+            assert not list(workspace_root.iterdir()), "eval session workspaces were not cleaned up after the run"

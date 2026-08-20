@@ -82,9 +82,7 @@ async def verify_web_fetch_escalation(request: WebFetchEscalationVerifyRequest) 
 
     try:
         if request.provider == "jina":
-            provider: JinaEscalationProvider | FirecrawlEscalationProvider = JinaEscalationProvider(
-                api_key=request.api_key
-            )
+            provider: JinaEscalationProvider | FirecrawlEscalationProvider = JinaEscalationProvider(api_key=request.api_key)
         else:
             firecrawl_key = await _resolve_firecrawl_verify_key(
                 request.api_key,

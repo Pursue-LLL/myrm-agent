@@ -95,9 +95,7 @@ def test_wiki_dedup_progress_endpoint(client: TestClient) -> None:
 
     with patch(
         "app.services.wiki.dedup_runner.get_wiki_dedup_progress",
-        return_value=ScanProgress(
-            phase="scanning", files_scanned=3, files_total=10, message="Scanning"
-        ),
+        return_value=ScanProgress(phase="scanning", files_scanned=3, files_total=10, message="Scanning"),
     ):
         response = client.get("/api/v1/wiki/dedup/progress")
     assert response.status_code == 200
@@ -190,9 +188,7 @@ def test_wiki_dedup_group_snippets_endpoint(client: TestClient) -> None:
         "app.services.wiki.dedup_runner.get_wiki_dedup_group_snippets",
         return_value=(
             DuplicateMemberSnippet(relative_path="notes/a.md", snippet="Shared body"),
-            DuplicateMemberSnippet(
-                relative_path="backup/a-copy.md", snippet="Shared body"
-            ),
+            DuplicateMemberSnippet(relative_path="backup/a-copy.md", snippet="Shared body"),
         ),
     ):
         response = client.get("/api/v1/wiki/dedup/groups/7/snippets")

@@ -26,9 +26,8 @@ except ImportError:  # pragma: no cover - import path in pytest vs standalone
 
         return SimpleNamespace(cdp_timeout_sec=60.0)
 
-DEBUG_PROVIDER_STATE_JS = (
-    """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()"""
-)
+
+DEBUG_PROVIDER_STATE_JS = """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()"""
 
 PIN_BASIC_MODEL_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -100,10 +99,7 @@ async def _evaluate_bridge(
             timeout=wall_timeout,
         )
     except asyncio.TimeoutError as exc:
-        raise RuntimeError(
-            "desktop model pin bridge evaluate wall-timeout "
-            f"({wall_timeout:.0f}s intent={intent.value})"
-        ) from exc
+        raise RuntimeError(f"desktop model pin bridge evaluate wall-timeout ({wall_timeout:.0f}s intent={intent.value})") from exc
 
 
 async def _recover_provider_bridge(chat: McpChatSession) -> None:
@@ -139,21 +135,15 @@ def ui_provider_debug_matches_expected(debug: dict[str, object]) -> bool:
     ui = ui_selection_from_provider_debug(debug)
     if ui is None:
         return False
-    return (
-        ui["providerId"] == expected["providerId"] and ui["model"] == expected["model"]
-    )
+    return ui["providerId"] == expected["providerId"] and ui["model"] == expected["model"]
 
 
 def _assert_pinned_payload(pinned_raw: dict[str, object]) -> dict[str, object]:
     expected = expected_desktop_e2e_model()
     pinned_model = pinned_raw.get("pinned")
     assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned_raw}"
-    assert (
-        pinned_model.get("providerId") == expected["providerId"]
-    ), f"Pinned provider mismatch: {pinned_raw} vs {expected}"
-    assert (
-        pinned_model.get("model") == expected["model"]
-    ), f"Pinned model mismatch: {pinned_raw} vs {expected}"
+    assert pinned_model.get("providerId") == expected["providerId"], f"Pinned provider mismatch: {pinned_raw} vs {expected}"
+    assert pinned_model.get("model") == expected["model"], f"Pinned model mismatch: {pinned_raw} vs {expected}"
     return pinned_raw
 
 
@@ -191,8 +181,7 @@ async def ensure_desktop_basic_model_pinned_for_send(
                 await asyncio.sleep(retry_sleep_sec)
                 continue
             raise AssertionError(
-                "Desktop E2E provider debug probe failed before pin "
-                f"(attempt {attempt}/{max_attempts}): {err}"
+                f"Desktop E2E provider debug probe failed before pin (attempt {attempt}/{max_attempts}): {err}"
             ) from exc
         if ui_provider_debug_matches_expected(last_debug):
             return {
@@ -255,9 +244,7 @@ async def ensure_desktop_basic_model_pinned_for_send(
             err = pin_eval_error or sync_eval_error
         normalized_err = err.strip().lower()
         bridge_missing = normalized_err == "no-bridge" or "no-bridge" in normalized_err
-        no_selection = (
-            normalized_err == "no-selection" or "no-selection" in normalized_err
-        )
+        no_selection = normalized_err == "no-selection" or "no-selection" in normalized_err
         should_retry = (
             "e2e-base-model-unconfigured" in err
             or "e2e-base-model-unavailable" in err
@@ -286,9 +273,7 @@ async def ensure_desktop_basic_model_pinned_for_send(
             f"ui_selection={ui!r} pin={last_raw!r} debug={last_debug!r}"
         )
 
-    raise AssertionError(
-        f"Desktop E2E BASIC model pin failed: expected={expected} debug={last_debug!r}"
-    )
+    raise AssertionError(f"Desktop E2E BASIC model pin failed: expected={expected} debug={last_debug!r}")
 
 
 async def pin_basic_model_for_desktop_e2e(

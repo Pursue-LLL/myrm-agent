@@ -126,9 +126,7 @@ async def update_board(board_id: str, body: BoardUpdate) -> BoardResponse:
             ),
             default_workdir=(body.default_workdir if body.default_workdir is not None else board.settings.default_workdir),
             block_recurrence_limit=(
-                body.block_recurrence_limit
-                if body.block_recurrence_limit is not None
-                else board.settings.block_recurrence_limit
+                body.block_recurrence_limit if body.block_recurrence_limit is not None else board.settings.block_recurrence_limit
             ),
         )
 

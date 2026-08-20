@@ -51,9 +51,11 @@ class TestCustomSourceConfig:
         assert config.sources[0].url == "https://valid.com"
 
     def test_to_dict(self) -> None:
-        config = CustomSourceConfig(sources=[
-            CustomSourceEntry(url="https://x.com", source_type="well-known", label="X"),
-        ])
+        config = CustomSourceConfig(
+            sources=[
+                CustomSourceEntry(url="https://x.com", source_type="well-known", label="X"),
+            ]
+        )
         d = config.to_dict()
         assert d["sources"][0]["url"] == "https://x.com"
 
@@ -64,9 +66,11 @@ class TestLoadSaveCustomSources:
         assert config.sources == []
 
     def test_save_and_load(self, mock_config_path: Path) -> None:
-        config = CustomSourceConfig(sources=[
-            CustomSourceEntry(url="https://test.com", label="Test"),
-        ])
+        config = CustomSourceConfig(
+            sources=[
+                CustomSourceEntry(url="https://test.com", label="Test"),
+            ]
+        )
         save_custom_sources(config)
         assert mock_config_path.exists()
 

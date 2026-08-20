@@ -59,9 +59,7 @@ _memory_manager_cache_lock = asyncio.Lock()
 
 
 class _CreateMemoryTools(Protocol):
-    def __call__(
-        self, manager: MemoryManager, *, recall_mode: RecallMode
-    ) -> list[object]: ...
+    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode) -> list[object]: ...
 
 
 def _memory_policy_signature(
@@ -69,11 +67,7 @@ def _memory_policy_signature(
 ) -> tuple[object, ...] | None:
     if memory_policy is None:
         return None
-    read_scopes = (
-        tuple(scope.value for scope in memory_policy.read_scopes)
-        if memory_policy.read_scopes
-        else ()
-    )
+    read_scopes = tuple(scope.value for scope in memory_policy.read_scopes) if memory_policy.read_scopes else ()
     return (
         memory_policy.agent_id,
         memory_policy.channel_id,
@@ -301,9 +295,7 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
                     commit=True,
                 )
         except Exception:
-            logger.warning(
-                "Failed to record conflict ledger event for %s (non-fatal)", conflict_id, exc_info=True
-            )
+            logger.warning("Failed to record conflict ledger event for %s (non-fatal)", conflict_id, exc_info=True)
 
     async def _on_conflict(ctx: ConflictContext) -> ConflictResolution:
         from datetime import UTC, timedelta
@@ -317,11 +309,7 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
 
         conflict_id = str(uuid4())
         high_risk = (ctx.importance or 0.0) >= _HIGH_RISK_IMPORTANCE
-        auto_resolve_at = (
-            None
-            if high_risk
-            else dt.now(UTC) + timedelta(hours=_CONFLICT_AUTO_RESOLVE_HOURS)
-        )
+        auto_resolve_at = None if high_risk else dt.now(UTC) + timedelta(hours=_CONFLICT_AUTO_RESOLVE_HOURS)
 
         try:
             async with get_session() as db:
@@ -378,9 +366,7 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
                 memory_type=ctx.memory_type.value,
             )
         except Exception:
-            logger.warning(
-                "Failed to persist conflict, falling back to KEEP_OLD", exc_info=True
-            )
+            logger.warning("Failed to persist conflict, falling back to KEEP_OLD", exc_info=True)
             return ConflictResolution.KEEP_OLD
 
         return ConflictResolution.PENDING
@@ -403,11 +389,7 @@ def resolve_context_binding(
     from myrm_agent_harness.toolkits.context_bundle import AgentContextOverlay
 
     normalized_shared_context_ids = list(
-        dict.fromkeys(
-            context_id.strip()
-            for context_id in (shared_context_ids or [])
-            if context_id.strip()
-        )
+        dict.fromkeys(context_id.strip() for context_id in (shared_context_ids or []) if context_id.strip())
     )
     (
         resolved_agent_id,
@@ -422,11 +404,7 @@ def resolve_context_binding(
         memory_policy=memory_policy,
     )
     overlay = (
-        AgentContextOverlay(
-            task_workspace_root=task_workspace_root, memory_scenes_pinned=True
-        )
-        if task_workspace_root
-        else None
+        AgentContextOverlay(task_workspace_root=task_workspace_root, memory_scenes_pinned=True) if task_workspace_root else None
     )
     return ResolvedContextBinding(
         agent_id=resolved_agent_id or "default",
@@ -463,9 +441,7 @@ async def shutdown_cached_memory_managers() -> None:
 
     await shutdown_cascade_manager()
 
-    results = await asyncio.gather(
-        *(manager.close() for manager in managers), return_exceptions=True
-    )
+    results = await asyncio.gather(*(manager.close() for manager in managers), return_exceptions=True)
     for result in results:
         if isinstance(result, Exception):
             logger.warning("Failed to close cached MemoryManager: %s", result)
@@ -488,16 +464,10 @@ async def evict_cached_memory_manager(base_path: str | Path) -> None:
     resolved = str(Path(base_path).resolve())
 
     async with _memory_manager_cache_lock:
-        keys_to_close = [
-            key
-            for key in _memory_manager_cache
-            if isinstance(key, tuple) and key and key[0] == resolved
-        ]
+        keys_to_close = [key for key in _memory_manager_cache if isinstance(key, tuple) and key and key[0] == resolved]
         managers_to_close = [_memory_manager_cache.pop(key) for key in keys_to_close]
 
-    results = await asyncio.gather(
-        *(manager.close() for manager in managers_to_close), return_exceptions=True
-    )
+    results = await asyncio.gather(*(manager.close() for manager in managers_to_close), return_exceptions=True)
     for result in results:
         if isinstance(result, Exception):
             logger.warning("Failed to close evicted MemoryManager: %s", result)

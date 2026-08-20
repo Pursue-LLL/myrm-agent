@@ -71,9 +71,7 @@ def _create_task(
     return resp.json()
 
 
-async def _force_status(
-    tid: str, status: TaskStatus, *, error: str | None = None
-) -> None:
+async def _force_status(tid: str, status: TaskStatus, *, error: str | None = None) -> None:
     svc = KanbanService.get_instance()
     t = await svc.get_task(tid)
     assert t is not None
@@ -85,7 +83,6 @@ async def _force_status(
 
 
 class TestRequireApprovalFlag:
-
     def test_create_task_persists_require_approval(self, client: TestClient) -> None:
         board = _create_board(client)
         task = _create_task(client, board["board_id"], require_approval=True)
@@ -100,15 +97,12 @@ class TestRequireApprovalFlag:
         board = _create_board(client)
         task = _create_task(client, board["board_id"])
         tid = str(task["task_id"])
-        resp = client.patch(
-            f"/api/v1/kanban/tasks/{tid}", json={"require_approval": True}
-        )
+        resp = client.patch(f"/api/v1/kanban/tasks/{tid}", json={"require_approval": True})
         assert resp.status_code == 200
         assert resp.json()["require_approval"] is True
 
 
 class TestApproveEndpoint:
-
     def test_approve_in_review_task_completes_it(self, client: TestClient) -> None:
         board = _create_board(client)
         task = _create_task(client, board["board_id"], require_approval=True)
@@ -123,9 +117,7 @@ class TestApproveEndpoint:
 
     def test_approve_releases_dependents(self, client: TestClient) -> None:
         board = _create_board(client)
-        parent = _create_task(
-            client, board["board_id"], "Parent", require_approval=True
-        )
+        parent = _create_task(client, board["board_id"], "Parent", require_approval=True)
         child = _create_task(
             client,
             board["board_id"],
@@ -170,7 +162,6 @@ class TestApproveEndpoint:
 
 
 class TestRejectEndpoint:
-
     def test_reject_in_review_task_returns_to_ready(self, client: TestClient) -> None:
         board = _create_board(client)
         task = _create_task(client, board["board_id"], require_approval=True)
@@ -207,7 +198,6 @@ class TestRejectEndpoint:
 
 
 class TestManualMoveGuard:
-
     def test_move_out_of_in_review_returns_409(self, client: TestClient) -> None:
         """Manual moves cannot bypass the approval gate."""
         board = _create_board(client)
@@ -229,21 +219,14 @@ class TestManualMoveGuard:
 
 
 class TestFallbackNotification:
-
-    def test_approve_without_dispatcher_emits_completion_notification(
-        self, client: TestClient
-    ) -> None:
+    def test_approve_without_dispatcher_emits_completion_notification(self, client: TestClient) -> None:
         board = _create_board(client)
         task = _create_task(client, board["board_id"], require_approval=True)
         tid = str(task["task_id"])
-        asyncio.run(
-            _force_status(tid, TaskStatus.IN_REVIEW, error="stale failure reason")
-        )
+        asyncio.run(_force_status(tid, TaskStatus.IN_REVIEW, error="stale failure reason"))
 
         with (
-            patch(
-                "app.services.kanban.review_ops.emit_source_chat_done"
-            ) as mock_source,
+            patch("app.services.kanban.review_ops.emit_source_chat_done") as mock_source,
             patch("app.services.kanban.review_ops.emit_btw_done") as mock_btw,
         ):
             resp = client.post(
@@ -260,7 +243,6 @@ class TestFallbackNotification:
 
 
 class TestPendingReviewNotification:
-
     def test_source_chat_task_publishes_pending_review_event(self) -> None:
         """IN_REVIEW entry notifies the source chat via BACKGROUND_TASK_DONE."""
         from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority
@@ -322,7 +304,6 @@ class TestPendingReviewNotification:
 
 
 class TestRejectedNotification:
-
     def test_source_chat_task_publishes_rejected_event(self) -> None:
         """Rejection notifies the source chat with the reason via BACKGROUND_TASK_DONE."""
         from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority
@@ -383,18 +364,14 @@ class TestRejectedNotification:
 
         assert published == []
 
-    def test_reject_without_dispatcher_emits_rejection_notification(
-        self, client: TestClient
-    ) -> None:
+    def test_reject_without_dispatcher_emits_rejection_notification(self, client: TestClient) -> None:
         """The fallback reject path notifies the originating chat."""
         board = _create_board(client)
         task = _create_task(client, board["board_id"], require_approval=True)
         tid = str(task["task_id"])
         asyncio.run(_force_status(tid, TaskStatus.IN_REVIEW))
 
-        with patch(
-            "app.services.kanban.review_ops.emit_task_rejected"
-        ) as mock_rejected:
+        with patch("app.services.kanban.review_ops.emit_task_rejected") as mock_rejected:
             resp = client.post(
                 f"/api/v1/kanban/tasks/{tid}/reject",
                 json={"reason": "needs citations"},

@@ -9,6 +9,8 @@ from httpx import ASGITransport, AsyncClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="health")
+
+
 @pytest.fixture
 async def async_client():
     """提供 async HTTP client"""

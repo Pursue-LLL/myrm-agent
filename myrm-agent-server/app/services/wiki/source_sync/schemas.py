@@ -65,7 +65,5 @@ class WikiSourceSyncRunSummary(BaseModel):
         parts: list[str] = []
         for item in self.results:
             if item.published or item.failed:
-                parts.append(
-                    f"{item.source}: +{item.published} skip {item.skipped} fail {item.failed}"
-                )
+                parts.append(f"{item.source}: +{item.published} skip {item.skipped} fail {item.failed}")
         return "; ".join(parts) if parts else "[SILENT]"

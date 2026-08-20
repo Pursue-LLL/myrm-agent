@@ -67,9 +67,7 @@ class TestApplyAcceptanceCriteriaVerification:
             ],
         )
 
-        with patch(
-            "app.core.cron.adapters.acceptance_verification.VerificationGatekeeper"
-        ) as MockGK:
+        with patch("app.core.cron.adapters.acceptance_verification.VerificationGatekeeper") as MockGK:
             instance = MockGK.return_value
             instance.criteria = [object()]
             instance.verify_all = AsyncMock(return_value=mock_agg)
@@ -102,9 +100,7 @@ class TestApplyAcceptanceCriteriaVerification:
             ],
         )
 
-        with patch(
-            "app.core.cron.adapters.acceptance_verification.VerificationGatekeeper"
-        ) as MockGK:
+        with patch("app.core.cron.adapters.acceptance_verification.VerificationGatekeeper") as MockGK:
             instance = MockGK.return_value
             instance.criteria = [object(), object()]
             instance.verify_all = AsyncMock(return_value=mock_agg)
@@ -124,15 +120,15 @@ class TestApplyAcceptanceCriteriaVerification:
         )
         result = _ok_result()
 
-        with patch(
-            "app.core.cron.adapters.acceptance_verification.VerificationGatekeeper"
-        ) as MockGK:
+        with patch("app.core.cron.adapters.acceptance_verification.VerificationGatekeeper") as MockGK:
             instance = MockGK.return_value
             instance.criteria = [object()]
             instance.verify_all = AsyncMock(side_effect=asyncio.TimeoutError())
 
             out = await apply_acceptance_criteria_verification(
-                job, result, timeout_seconds=0.01,
+                job,
+                result,
+                timeout_seconds=0.01,
             )
 
         assert out.success is False
@@ -146,9 +142,7 @@ class TestApplyAcceptanceCriteriaVerification:
         )
         result = _ok_result()
 
-        with patch(
-            "app.core.cron.adapters.acceptance_verification.VerificationGatekeeper"
-        ) as MockGK:
+        with patch("app.core.cron.adapters.acceptance_verification.VerificationGatekeeper") as MockGK:
             instance = MockGK.return_value
             instance.criteria = [object()]
             instance.verify_all = AsyncMock(side_effect=RuntimeError("unexpected"))
@@ -174,9 +168,7 @@ class TestApplyAcceptanceCriteriaVerification:
             ],
         )
 
-        with patch(
-            "app.core.cron.adapters.acceptance_verification.VerificationGatekeeper"
-        ) as MockGK:
+        with patch("app.core.cron.adapters.acceptance_verification.VerificationGatekeeper") as MockGK:
             instance = MockGK.return_value
             instance.criteria = [object()]
             instance.verify_all = AsyncMock(return_value=mock_agg)
@@ -200,8 +192,11 @@ class TestWithVerificationMetadata:
     def test_fail_overrides_success(self) -> None:
         result = _ok_result()
         out = _with_verification_metadata(
-            result, status="fail", passed=False,
-            summary="failed", success_override=False,
+            result,
+            status="fail",
+            passed=False,
+            summary="failed",
+            success_override=False,
         )
         assert out.success is False
         assert out.exit_code == 2

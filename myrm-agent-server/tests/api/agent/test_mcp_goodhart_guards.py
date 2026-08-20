@@ -41,11 +41,7 @@ def test_get_tickets_engaged_via_bash_import() -> None:
     collected = [
         _tasks_step(
             "bash_code_execute_tool",
-            [
-                {
-                    "code": "from skills.mcp_12306_skill import get_tickets\nprint(get_tickets(...))"
-                }
-            ],
+            [{"code": "from skills.mcp_12306_skill import get_tickets\nprint(get_tickets(...))"}],
         )
     ]
     assert mcp_ptc_get_tickets_engaged(collected, "12306") is True
@@ -59,11 +55,7 @@ def test_get_tickets_not_engaged_when_only_station_lookup() -> None:
         ),
         _tasks_step(
             "bash_code_execute_tool",
-            [
-                {
-                    "code": "from skills.mcp_12306_skill import get_current_date, get_station_code_of_citys"
-                }
-            ],
+            [{"code": "from skills.mcp_12306_skill import get_current_date, get_station_code_of_citys"}],
         ),
     ]
     assert mcp_ptc_get_tickets_engaged(collected, "12306") is False
@@ -100,18 +92,12 @@ def test_answer_ticket_heuristic_accepts_train_listing() -> None:
 
 
 def test_answer_ticket_heuristic_rejects_iteration_limit_boilerplate() -> None:
-    answer = (
-        "I reached the iteration limit before completing the task. "
-        "Please resume or ask again with a narrower request."
-    )
+    answer = "I reached the iteration limit before completing the task. Please resume or ask again with a narrower request."
     assert answer_looks_like_ticket_result(answer) is False
 
 
 def test_answer_ticket_heuristic_accepts_summary_after_iteration_limit_suffix() -> None:
-    answer = (
-        "查询已完成，前 5 趟高铁车次信息已在上方表格中呈现。"
-        "I reached the iteration limit before completing the task."
-    )
+    answer = "查询已完成，前 5 趟高铁车次信息已在上方表格中呈现。I reached the iteration limit before completing the task."
     assert answer_looks_like_ticket_result(answer) is True
 
 

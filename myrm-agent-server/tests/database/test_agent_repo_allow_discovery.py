@@ -92,12 +92,8 @@ class TestUpdateProfileAppliesAllowDiscovery:
         result.scalar_one_or_none.return_value = agent
         db.execute.return_value = result
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
-            await AgentRepository.update_profile(
-                db, "a1", {"metadata": {"allow_discovery": False}}
-            )
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
+            await AgentRepository.update_profile(db, "a1", {"metadata": {"allow_discovery": False}})
 
         assert agent.allow_discovery is False
 
@@ -110,11 +106,7 @@ class TestUpdateProfileAppliesAllowDiscovery:
         result.scalar_one_or_none.return_value = agent
         db.execute.return_value = result
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
-            await AgentRepository.update_profile(
-                db, "a1", {"metadata": {"allow_discovery": None}}
-            )
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
+            await AgentRepository.update_profile(db, "a1", {"metadata": {"allow_discovery": None}})
 
         assert agent.allow_discovery is True

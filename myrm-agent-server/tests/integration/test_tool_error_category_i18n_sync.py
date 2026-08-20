@@ -16,9 +16,7 @@ from pathlib import Path
 import pytest
 from myrm_agent_harness.agent.errors import ToolErrorCategory
 
-FRONTEND_LOCALES_DIR = (
-    Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
-)
+FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
 
 LOCALE_FILES = ("en.json", "zh.json", "ja.json", "zh-TW.json")
 
@@ -56,9 +54,7 @@ class TestEnumI18nSync:
     ) -> None:
         locale_name, categories = locale_categories
         missing = enum_values - set(categories.keys())
-        assert not missing, (
-            f"[{locale_name}] ToolErrorCategory values missing i18n: {sorted(missing)}"
-        )
+        assert not missing, f"[{locale_name}] ToolErrorCategory values missing i18n: {sorted(missing)}"
 
     def test_no_orphan_i18n_keys(
         self,
@@ -67,9 +63,7 @@ class TestEnumI18nSync:
     ) -> None:
         locale_name, categories = locale_categories
         orphans = set(categories.keys()) - enum_values
-        assert not orphans, (
-            f"[{locale_name}] i18n keys without ToolErrorCategory: {sorted(orphans)}"
-        )
+        assert not orphans, f"[{locale_name}] i18n keys without ToolErrorCategory: {sorted(orphans)}"
 
     def test_no_empty_translations(
         self,
@@ -77,9 +71,7 @@ class TestEnumI18nSync:
     ) -> None:
         locale_name, categories = locale_categories
         empty = [k for k, v in categories.items() if not v or not v.strip()]
-        assert not empty, (
-            f"[{locale_name}] Empty translations for: {sorted(empty)}"
-        )
+        assert not empty, f"[{locale_name}] Empty translations for: {sorted(empty)}"
 
 
 class TestEnumValueConsistency:
@@ -87,18 +79,12 @@ class TestEnumValueConsistency:
 
     @pytest.mark.parametrize("member", list(ToolErrorCategory))
     def test_value_is_lowercase_snake(self, member: ToolErrorCategory) -> None:
-        assert member.value == member.value.lower(), (
-            f"{member.name} value should be lowercase: {member.value}"
-        )
-        assert " " not in member.value, (
-            f"{member.name} value contains spaces: {member.value}"
-        )
+        assert member.value == member.value.lower(), f"{member.name} value should be lowercase: {member.value}"
+        assert " " not in member.value, f"{member.name} value contains spaces: {member.value}"
 
     def test_no_duplicate_values(self) -> None:
         values = [m.value for m in ToolErrorCategory]
-        assert len(values) == len(set(values)), (
-            f"Duplicate enum values: {[v for v in values if values.count(v) > 1]}"
-        )
+        assert len(values) == len(set(values)), f"Duplicate enum values: {[v for v in values if values.count(v) > 1]}"
 
     def test_all_locales_have_same_keys(self) -> None:
         """All locale files must define the exact same set of errorCategories keys."""
@@ -119,6 +105,5 @@ class TestEnumValueConsistency:
             missing = reference_keys - keys
             extra = keys - reference_keys
             assert not missing and not extra, (
-                f"Key mismatch between {reference_locale} and {locale}: "
-                f"missing={sorted(missing)}, extra={sorted(extra)}"
+                f"Key mismatch between {reference_locale} and {locale}: missing={sorted(missing)}, extra={sorted(extra)}"
             )

@@ -102,16 +102,12 @@ class BrowserHealthChecker(HealthChecker):
             await asyncio.sleep(1)
 
             # Verify recovery
-            remaining_orphans = await asyncio.to_thread(
-                self._find_orphan_browser_processes
-            )
+            remaining_orphans = await asyncio.to_thread(self._find_orphan_browser_processes)
             if remaining_orphans:
                 return RecoveryResult(
                     status=RecoveryStatus.PARTIAL,
                     message=f"Partial recovery: {killed_count} killed, {len(remaining_orphans)} remain",
-                    actions_taken=[
-                        f"Terminated {killed_count} orphan browser process(es)"
-                    ],
+                    actions_taken=[f"Terminated {killed_count} orphan browser process(es)"],
                     details={"remaining_orphans": remaining_orphans[:5]},
                 )
 

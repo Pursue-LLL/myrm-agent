@@ -27,11 +27,7 @@ class TestIncognitoConverterMatrix:
             incognito_mode=True,
         )
         enable_memory = req.enable_memory
-        auto_extraction = (
-            False
-            if req.incognito_mode
-            else (req.enable_memory and req.enable_memory_auto_extraction)
-        )
+        auto_extraction = False if req.incognito_mode else (req.enable_memory and req.enable_memory_auto_extraction)
         assert enable_memory is True
         assert auto_extraction is False
 
@@ -45,11 +41,7 @@ class TestIncognitoConverterMatrix:
             incognito_mode=False,
         )
         enable_memory = req.enable_memory
-        auto_extraction = (
-            False
-            if req.incognito_mode
-            else (req.enable_memory and req.enable_memory_auto_extraction)
-        )
+        auto_extraction = False if req.incognito_mode else (req.enable_memory and req.enable_memory_auto_extraction)
         assert enable_memory is True
         assert auto_extraction is True
 
@@ -63,11 +55,7 @@ class TestIncognitoConverterMatrix:
             incognito_mode=True,
         )
         enable_memory = req.enable_memory
-        auto_extraction = (
-            False
-            if req.incognito_mode
-            else (req.enable_memory and req.enable_memory_auto_extraction)
-        )
+        auto_extraction = False if req.incognito_mode else (req.enable_memory and req.enable_memory_auto_extraction)
         assert enable_memory is False
         assert auto_extraction is False
 
@@ -81,11 +69,7 @@ class TestIncognitoConverterMatrix:
             incognito_mode=False,
         )
         enable_memory = req.enable_memory
-        auto_extraction = (
-            False
-            if req.incognito_mode
-            else (req.enable_memory and req.enable_memory_auto_extraction)
-        )
+        auto_extraction = False if req.incognito_mode else (req.enable_memory and req.enable_memory_auto_extraction)
         assert enable_memory is False
         assert auto_extraction is False
 
@@ -99,9 +83,7 @@ class TestIncognitoSystemPrompt:
         prompt_with_memory = get_core_system_prompt(enable_memory=True)
         prompt_without_memory = get_core_system_prompt(enable_memory=False)
         assert len(prompt_with_memory) > len(prompt_without_memory)
-        assert (
-            "memory_save_tool" in prompt_with_memory or "MEMORY" in prompt_with_memory
-        )
+        assert "memory_save_tool" in prompt_with_memory or "MEMORY" in prompt_with_memory
         assert "memory_save_tool" not in prompt_without_memory
 
     def test_prompt_cache_key_stability(self) -> None:

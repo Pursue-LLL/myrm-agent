@@ -53,7 +53,9 @@ class PDFTableItem(BaseModel):
 
 
 class PDFExtractResponse(BaseModel):
-    text: str = Field(default="", description="Extracted text; scanned PDFs include OCR text when the optional pdf-ocr extra is installed")
+    text: str = Field(
+        default="", description="Extracted text; scanned PDFs include OCR text when the optional pdf-ocr extra is installed"
+    )
     images: list[PDFImageItem] = Field(default=[], description="Rendered page images (only when text is sparse)")
     page_count: int = Field(default=0, description="Total pages in PDF")
     parsed_pages: int = Field(default=0, description="Number of pages actually parsed (may be less than page_count)")

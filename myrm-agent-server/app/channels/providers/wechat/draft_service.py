@@ -90,9 +90,7 @@ class WeChatDraftService:
             locale=locale,
         )
         compliance_warnings = tuple(
-            hit
-            for hit in compliance_hits_payload(compliance_result, locale=locale)
-            if hit.get("highRisk") is not True
+            hit for hit in compliance_hits_payload(compliance_result, locale=locale) if hit.get("highRisk") is not True
         )
         base_dir = html_path.parent
 
@@ -218,9 +216,7 @@ class WeChatDraftService:
                 candidate_paths.append(local)
 
         if not candidate_paths:
-            raise ValueError(
-                "Cover image required: provide coverPath or include at least one local image in the HTML"
-            )
+            raise ValueError("Cover image required: provide coverPath or include at least one local image in the HTML")
 
         thumb_path = candidate_paths[0]
         if not thumb_path.is_file():

@@ -26,9 +26,7 @@ from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import (
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_DOCUMENT_EXTENSIONS = frozenset(
-    {".docx", ".xlsx", ".xls", ".pptx", ".ppt", ".ipynb"}
-)
+SUPPORTED_DOCUMENT_EXTENSIONS = frozenset({".docx", ".xlsx", ".xls", ".pptx", ".ppt", ".ipynb"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,9 +77,7 @@ async def extract_document_text_from_bytes(content: bytes, *, filename: str) -> 
     return result.text
 
 
-async def extract_document_from_bytes(
-    content: bytes, *, filename: str
-) -> DocumentExtractResult:
+async def extract_document_from_bytes(content: bytes, *, filename: str) -> DocumentExtractResult:
     """Extract Markdown text and embedded image bytes from supported documents."""
     if not content:
         return DocumentExtractResult(text="", format="")
@@ -104,16 +100,12 @@ async def extract_document_from_bytes(
         path.unlink(missing_ok=True)
 
 
-async def extract_document_from_path(
-    file_path: Path, ext: str
-) -> DocumentExtractResult:
+async def extract_document_from_path(file_path: Path, ext: str) -> DocumentExtractResult:
     """Extract Markdown text and embedded assets from a document on disk."""
     return await _parse_document_with_assets(file_path, ext.lower())
 
 
-async def _parse_document_with_assets(
-    file_path: Path, ext: str
-) -> DocumentExtractResult:
+async def _parse_document_with_assets(file_path: Path, ext: str) -> DocumentExtractResult:
     text = await _parse_document(file_path, ext)
     images: tuple[DocumentImageItem, ...] = ()
     if ext == ".docx":
@@ -127,10 +119,7 @@ async def _parse_document_with_assets(
         embedded = parser.embedded_images(str(file_path))
         if embedded:
             images = tuple(
-                DocumentImageItem(
-                    data=img.data, mime_type=img.mime_type, embed_id=img.embed_id
-                )
-                for img in embedded.values()
+                DocumentImageItem(data=img.data, mime_type=img.mime_type, embed_id=img.embed_id) for img in embedded.values()
             )
     return DocumentExtractResult(text=text, format=ext.lstrip("."), images=images)
 

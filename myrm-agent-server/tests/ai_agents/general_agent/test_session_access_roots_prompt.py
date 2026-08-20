@@ -17,23 +17,14 @@ from pathlib import Path
 
 
 def _factory_source() -> str:
-    factory_path = (
-        Path(__file__).resolve().parents[3]
-        / "app"
-        / "ai_agents"
-        / "general_agent"
-        / "factory.py"
-    )
+    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
     return factory_path.read_text(encoding="utf-8")
 
 
 def test_factory_contains_session_roots_prompt_injection() -> None:
     """Verify factory.py has deterministic sorted session_access_roots prompt injection."""
     source = _factory_source()
-    assert (
-        'session_roots_raw = getattr(agent_wrapper, "session_access_roots", None)'
-        in source
-    )
+    assert 'session_roots_raw = getattr(agent_wrapper, "session_access_roots", None)' in source
     assert "[Mounted Workspace Directories]" in source
     assert 'key=lambda x: str(x.get("path", ""))' in source
 
@@ -59,7 +50,5 @@ def test_session_roots_prompt_formatting_logic() -> None:
         + "\nYou can read, search, and operate on files within these directories directly using tools."
     )
     # project-a should come before project-z due to sorting
-    assert formatted.index("/Users/test/project-a (read-write)") < formatted.index(
-        "/Users/test/project-z (read-only)"
-    )
+    assert formatted.index("/Users/test/project-a (read-write)") < formatted.index("/Users/test/project-z (read-only)")
     assert "[Mounted Workspace Directories]" in formatted

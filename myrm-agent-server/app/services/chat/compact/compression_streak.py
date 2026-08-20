@@ -77,9 +77,7 @@ class ChatCompressionStreakStore:
                     (chat_id,),
                 ).fetchone()
         except sqlite3.Error as exc:
-            logger.warning(
-                "Compression streak read failed for chat %s: %s", chat_id, exc
-            )
+            logger.warning("Compression streak read failed for chat %s: %s", chat_id, exc)
             return 0
         if row is None or row[0] is None:
             return 0
@@ -97,9 +95,7 @@ class ChatCompressionStreakStore:
                 )
                 conn.commit()
         except sqlite3.Error as exc:
-            logger.warning(
-                "Compression streak write failed for chat %s: %s", chat_id, exc
-            )
+            logger.warning("Compression streak write failed for chat %s: %s", chat_id, exc)
 
     @staticmethod
     def _mirror_task_metrics(chat_id: str, streak: int) -> None:
@@ -123,9 +119,7 @@ def register_chat_compression_streak_store() -> None:
 
 async def load_compression_ineffective_streak(db: AsyncSession, chat_id: str) -> int:
     """Load streak from Chat row (async ORM path)."""
-    row = await db.execute(
-        select(Chat.compression_ineffective_streak).where(Chat.id == chat_id)
-    )
+    row = await db.execute(select(Chat.compression_ineffective_streak).where(Chat.id == chat_id))
     value = row.scalar_one_or_none()
     if value is None:  # pragma: no cover - column has server_default=0, never NULL in DB
         return 0
@@ -139,11 +133,7 @@ async def save_compression_ineffective_streak(
 ) -> None:
     """Persist streak on Chat row within caller transaction."""
     normalized = max(0, int(streak))
-    await db.execute(
-        update(Chat)
-        .where(Chat.id == chat_id)
-        .values(compression_ineffective_streak=normalized)
-    )
+    await db.execute(update(Chat).where(Chat.id == chat_id).values(compression_ineffective_streak=normalized))
     await db.flush()
     ChatCompressionStreakStore._mirror_task_metrics(chat_id, normalized)
     from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (

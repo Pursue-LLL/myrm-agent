@@ -104,9 +104,7 @@ class TestCreateProfile:
         db.execute.return_value = result
 
         with pytest.raises(ValueError):
-            await AgentRepository.create_profile(
-                db, AgentProfile(id="a1", display_name="Agent1")
-            )
+            await AgentRepository.create_profile(db, AgentProfile(id="a1", display_name="Agent1"))
 
     @pytest.mark.asyncio
     async def test_sets_model_selection_from_profile_model(self) -> None:
@@ -169,9 +167,7 @@ class TestUpdateProfileCoreFields:
         result.scalar_one_or_none.return_value = agent
         db.execute.return_value = result
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -207,9 +203,7 @@ class TestUpdateProfileCoreFields:
         result.scalar_one_or_none.return_value = agent
         db.execute.return_value = result
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -251,9 +245,7 @@ class TestUpdateProfileCoreFields:
 
         with (
             pytest.raises(HTTPException) as exc_info,
-            patch.object(
-                AgentRepository, "_agent_to_profile", return_value=MagicMock()
-            ),
+            patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()),
         ):
             await AgentRepository.update_profile(db, "a1", {"display_name": "New"})
 
@@ -272,13 +264,9 @@ class TestUpdateProfileCoreFields:
 
         with (
             pytest.raises(HTTPException) as exc_info,
-            patch.object(
-                AgentRepository, "_agent_to_profile", return_value=MagicMock()
-            ),
+            patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()),
         ):
-            await AgentRepository.update_profile(
-                db, "a1", {"metadata": {"allow_discovery": False}}
-            )
+            await AgentRepository.update_profile(db, "a1", {"metadata": {"allow_discovery": False}})
 
         assert exc_info.value.status_code == 409
 
@@ -421,9 +409,7 @@ class TestUpdateProfileMetadataBranches:
         db = self._make_db(Agent(id="a1", name="Agent1"))
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -455,9 +441,7 @@ class TestUpdateProfileMetadataBranches:
         db = self._make_db(Agent(id="a1", name="Agent1"))
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -489,9 +473,7 @@ class TestUpdateProfileMetadataBranches:
         db = self._make_db(Agent(id="a1", name="Agent1"))
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -513,9 +495,7 @@ class TestUpdateProfileMetadataBranches:
         db = self._make_db(Agent(id="a1", name="Agent1"))
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -538,9 +518,7 @@ class TestUpdateProfileMetadataBranches:
         db = self._make_db(Agent(id="a1", name="Agent1"))
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -572,9 +550,7 @@ class TestUpdateProfileMetadataBranches:
         db = self._make_db(Agent(id="a1", name="Agent1"))
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -588,9 +564,7 @@ class TestUpdateProfileMetadataBranches:
         db = self._make_db(Agent(id="a1", name="Agent1"))
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
-        with patch.object(
-            AgentRepository, "_agent_to_profile", return_value=MagicMock()
-        ):
+        with patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()):
             await AgentRepository.update_profile(
                 db,
                 "a1",
@@ -613,9 +587,7 @@ class TestUpdateProfileMetadataBranches:
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
         with (
-            patch.object(
-                AgentRepository, "_agent_to_profile", return_value=MagicMock()
-            ),
+            patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()),
             patch.object(MasterKeyProvider, "get_master_key", return_value="mk"),
             patch(
                 "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.derive_key",
@@ -636,9 +608,7 @@ class TestUpdateProfileMetadataBranches:
                 },
             )
 
-        assert agent.tool_gateway_config == {
-            "auth_token": {"value": "encrypted"}
-        }
+        assert agent.tool_gateway_config == {"auth_token": {"value": "encrypted"}}
 
     @pytest.mark.asyncio
     async def test_update_encrypt_failure_removes_token(self) -> None:
@@ -647,9 +617,7 @@ class TestUpdateProfileMetadataBranches:
         agent = db.execute.return_value.scalar_one_or_none.return_value
 
         with (
-            patch.object(
-                AgentRepository, "_agent_to_profile", return_value=MagicMock()
-            ),
+            patch.object(AgentRepository, "_agent_to_profile", return_value=MagicMock()),
             patch.object(MasterKeyProvider, "get_master_key", return_value="mk"),
             patch(
                 "myrm_agent_harness.utils.crypto.config_crypto.ConfigCrypto.derive_key",

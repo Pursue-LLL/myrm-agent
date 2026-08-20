@@ -42,11 +42,7 @@ _sessions: dict[str, ThemePackageInspectSession] = {}
 
 
 def _purge_expired(now: float) -> None:
-    expired = [
-        session_id
-        for session_id, session in _sessions.items()
-        if now - session.created_at > INSPECT_SESSION_TTL_SECONDS
-    ]
+    expired = [session_id for session_id, session in _sessions.items() if now - session.created_at > INSPECT_SESSION_TTL_SECONDS]
     for session_id in expired:
         _sessions.pop(session_id, None)
 

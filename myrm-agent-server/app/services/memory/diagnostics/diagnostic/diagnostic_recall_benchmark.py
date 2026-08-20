@@ -212,9 +212,18 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
             content = pair.content.replace("{run_id}", run_id)
             meta = {"diagnostic_probe": True, "diagnostic_run_id": run_id, "category": pair.category}
             if pair.memory_type == MemoryType.SEMANTIC:
-                mem = SemanticMemory(content=content, importance=0.9, tags=["diagnostic_benchmark"], metadata=meta, language=pair.language)
+                mem = SemanticMemory(
+                    content=content, importance=0.9, tags=["diagnostic_benchmark"], metadata=meta, language=pair.language
+                )
             else:
-                mem = EpisodicMemory(content=content, event_type="diagnostic_benchmark", related_entities=["memory_doctor"], importance=0.9, metadata=meta, language=pair.language)
+                mem = EpisodicMemory(
+                    content=content,
+                    event_type="diagnostic_benchmark",
+                    related_entities=["memory_doctor"],
+                    importance=0.9,
+                    metadata=meta,
+                    language=pair.language,
+                )
             result = await manager.store(mem, _bypass_approval=True)
             if isinstance(result, (SemanticMemory, EpisodicMemory)):
                 stored_memories.append((pair, result))
@@ -265,7 +274,9 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                 status=summary.status,
                 evidence=evidence,
                 impact="Synthetic recall checks verify memory write-then-retrieve across 9 categories and 2 languages.",
-                next_action="No action required." if summary.status == "ready" else "Review retrieval trace and rerun diagnostics.",
+                next_action="No action required."
+                if summary.status == "ready"
+                else "Review retrieval trace and rerun diagnostics.",
                 safe_to_retry=True,
                 duration_ms=round((perf_counter() - started) * 1000, 2),
                 benchmark_summary=MemoryCommandBenchmarkSummary(

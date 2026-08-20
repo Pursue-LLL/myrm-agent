@@ -31,10 +31,7 @@ class TestVaultHandlerInjectionChain:
 
         workspace_root = str(tmp_path)
         vault_handler = build_mcp_vault_handler(workspace_root)
-        updated_configs = [
-            cfg.model_copy(update={"oversized_result_handler": vault_handler})
-            for cfg in configs
-        ]
+        updated_configs = [cfg.model_copy(update={"oversized_result_handler": vault_handler}) for cfg in configs]
 
         for cfg in updated_configs:
             assert cfg.oversized_result_handler is vault_handler

@@ -282,6 +282,7 @@ class TestTyping:
     async def test_start_typing_cached_ticket(self) -> None:
         ch = _make_channel()
         import time
+
         ch._typing_tickets["user1"] = ("cached_ticket", time.monotonic())
         ch._client.send_typing = AsyncMock()
 
@@ -297,6 +298,7 @@ class TestTyping:
     @pytest.mark.asyncio
     async def test_stop_typing(self) -> None:
         import time
+
         ch = _make_channel()
         ch._typing_tickets["user1"] = ("ticket1", time.monotonic())
         ch._client.send_typing = AsyncMock()

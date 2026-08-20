@@ -264,9 +264,7 @@ class TestCreateConflictCallback:
         mock_session_ctx.__aenter__ = AsyncMock(side_effect=RuntimeError("DB down"))
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.database.connection.get_session", return_value=mock_session_ctx
-        ):
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
             result = await callback(ctx)
 
         assert result == ConflictResolution.KEEP_OLD
@@ -444,9 +442,7 @@ class TestCreateConflictCallback:
         mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
         mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.database.connection.get_session", return_value=mock_session_ctx
-        ):
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
             result = await callback(ctx)
 
         assert result == ConflictResolution.PENDING

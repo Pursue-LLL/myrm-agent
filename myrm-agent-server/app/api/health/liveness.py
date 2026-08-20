@@ -56,10 +56,9 @@ async def agent_liveness() -> dict[str, object]:
     memory = _build_memory_summary()
     pending_outbound = await _count_pending_outbound()
 
-    has_degraded_channel = any(
-        ch.get("status") in ("degraded", "error")
-        for ch in channels_summary.values()
-    ) if channels_summary else False
+    has_degraded_channel = (
+        any(ch.get("status") in ("degraded", "error") for ch in channels_summary.values()) if channels_summary else False
+    )
 
     if gateway.is_draining:
         state = "draining"
@@ -92,10 +91,7 @@ def _build_channels_summary() -> dict[str, dict[str, object]]:
 
         gw = get_channel_gateway()
         statuses = gw.get_status()
-        return {
-            name: {"status": status.value}
-            for name, status in statuses.items()
-        }
+        return {name: {"status": status.value} for name, status in statuses.items()}
     except Exception:
         return {}
 

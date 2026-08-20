@@ -14,16 +14,7 @@ from app.services.agent.stream_session._memory_status_helpers import (
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _MYRM_AGENT_ROOT = _SERVER_ROOT.parent
-_FRONTEND_TYPES = (
-    _MYRM_AGENT_ROOT
-    / "myrm-agent-frontend"
-    / "src"
-    / "store"
-    / "chat"
-    / "types"
-    / "agentStream"
-    / "part2.ts"
-)
+_FRONTEND_TYPES = _MYRM_AGENT_ROOT / "myrm-agent-frontend" / "src" / "store" / "chat" / "types" / "agentStream" / "part2.ts"
 
 
 def _extract_interface_block(content: str, interface_name: str) -> str:

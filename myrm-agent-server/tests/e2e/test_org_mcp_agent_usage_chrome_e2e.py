@@ -39,9 +39,7 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once  #
 
 _ORG_PROBE_NAME = "e2e-minimal"
 _ORG_MCP_SYNC_PATH = "/api/admin/org-mcp-sync"
-_STDIO_STUB = (
-    Path(__file__).resolve().parents[1] / "support" / "e2e_minimal_stdio_mcp_server.py"
-)
+_STDIO_STUB = Path(__file__).resolve().parents[1] / "support" / "e2e_minimal_stdio_mcp_server.py"
 
 E2E_PROMPT = (
     "请调用 e2e-minimal MCP server 提供的 ping 工具。这是一个真实存在的 MCP 工具，"
@@ -151,9 +149,7 @@ async def test_org_mcp_tool_invoked_in_live_chat(
         "description": "E2E org-managed MCP probe",
     }
     _sync_org_mcp(api_url, [probe])
-    assert _org_mcp_server_names(api_url) == [_ORG_PROBE_NAME], (
-        "org MCP config not visible on the private E2E backend"
-    )
+    assert _org_mcp_server_names(api_url) == [_ORG_PROBE_NAME], "org MCP config not visible on the private E2E backend"
     ensure_e2e_yolo_mode(api_url=api_url)
     try:
         client = ChromeMcpClient(request_timeout_sec=180.0)
@@ -177,11 +173,10 @@ async def test_org_mcp_tool_invoked_in_live_chat(
             heartbeat_once()
 
             first_send = await chat.send_message(E2E_PROMPT, E2E_PROMPT)
-            chat_id_hint = str(
-                first_send.get("started", {}).get("chatId")
-                or first_send.get("submit", {}).get("chatId")
-                or ""
-            ).strip() or None
+            chat_id_hint = (
+                str(first_send.get("started", {}).get("chatId") or first_send.get("submit", {}).get("chatId") or "").strip()
+                or None
+            )
 
             after = await chat.wait_turn_done(
                 E2E_PROMPT,

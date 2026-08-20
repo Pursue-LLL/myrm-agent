@@ -58,9 +58,7 @@ _HIDE_APPROVAL_DRAWER_JS = """(() => {
 })()"""
 
 
-def _resolve_approval_cleanup(
-    api_url: str, approval_id: str, *, decision: str = "deny"
-) -> None:
+def _resolve_approval_cleanup(api_url: str, approval_id: str, *, decision: str = "deny") -> None:
     """Best-effort resolve for test cleanup; tolerates 404 on private SHPOIB backends.
 
     Private backends use ephemeral data directories that may lose records
@@ -90,9 +88,7 @@ def _deny_stale_e2e_push_approvals(api_url: str) -> None:
     stale_ids = [
         str(item.get("id") or "")
         for item in approvals
-        if isinstance(item, dict)
-        and str(item.get("chat_id") or "").startswith("e2epush")
-        and str(item.get("id") or "")
+        if isinstance(item, dict) and str(item.get("chat_id") or "").startswith("e2epush") and str(item.get("id") or "")
     ]
     if not stale_ids:
         return
@@ -163,9 +159,7 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
 
     with open_mcp_page(chat_url) as (client, page):
         _ensure_clean_chat_surface(client, page)
-        baseline = wait_for_state(
-            client, page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=60.0
-        )
+        baseline = wait_for_state(client, page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=60.0)
         assert baseline.get("ready") is True
         assert baseline.get("hasChatInput") is True
 
@@ -175,9 +169,7 @@ def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
         assert opened.get("ready") is True
         assert str(opened.get("pathname") or "").endswith(f"/{chat_id}")
 
-        stripped = wait_for_state(
-            client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0
-        )
+        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
         assert stripped.get("ready") is True
 
     _resolve_approval_cleanup(api_url, approval_id)
@@ -205,9 +197,7 @@ def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
         assert opened.get("ready") is True
         assert str(opened.get("pathname") or "").endswith(f"/{chat_id}")
 
-        stripped = wait_for_state(
-            client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0
-        )
+        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
         assert stripped.get("ready") is True
 
     _resolve_approval_cleanup(api_url, approval_id)
@@ -238,9 +228,7 @@ def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
         assert opened.get("ready") is True
         assert str(opened.get("pathname") or "").endswith(f"/{target['chat_id']}")
 
-        stripped = wait_for_state(
-            client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0
-        )
+        stripped = wait_for_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
         assert stripped.get("ready") is True
 
     for aid in (decoy["approval_id"], target["approval_id"]):
@@ -275,7 +263,5 @@ def test_push_approval_deeplink_unknown_id_strips_query_without_drawer() -> None
         _ensure_clean_chat_surface(client, page)
         _navigate_and_rebind(client, page, bogus_deeplink)
 
-        cleaned = wait_for_state(
-            client, page, _QUERY_STRIPPED_NO_DIALOG, timeout_sec=90.0
-        )
+        cleaned = wait_for_state(client, page, _QUERY_STRIPPED_NO_DIALOG, timeout_sec=90.0)
         assert cleaned.get("ready") is True

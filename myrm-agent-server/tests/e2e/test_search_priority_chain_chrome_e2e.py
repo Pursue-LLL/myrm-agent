@@ -83,9 +83,7 @@ def _assert_provider_chain_from_api(api_base: str) -> None:
     assert isinstance(configs, list) and len(configs) >= 2, stored
 
     priorities = sorted(
-        int(item["priority"])
-        for item in configs
-        if isinstance(item, dict) and item.get("enabled") is True and "priority" in item
+        int(item["priority"]) for item in configs if isinstance(item, dict) and item.get("enabled") is True and "priority" in item
     )
     assert priorities[:2] == [
         1,

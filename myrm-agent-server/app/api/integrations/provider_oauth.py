@@ -73,10 +73,7 @@ _ALL_PROVIDER_ISSUERS = {
 _ANTHROPIC_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 _ANTHROPIC_AUTHORIZE_URL = "https://claude.ai/oauth/authorize"
 _ANTHROPIC_TOKEN_URL = "https://platform.claude.com/v1/oauth/token"
-_ANTHROPIC_SCOPES = (
-    "org:create_api_key user:profile user:inference "
-    "user:sessions:claude_code user:mcp_servers user:file_upload"
-)
+_ANTHROPIC_SCOPES = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
 
 # ──────────────────────── OpenAI Constants ──────────────────────────────
 
@@ -137,6 +134,7 @@ def _evict_expired() -> None:
 
 # ──────────────────────── PKCE Helpers ────────────────────────────────
 
+
 def _generate_pkce() -> tuple[str, str]:
     """Generate PKCE code_verifier and code_challenge (S256)."""
     verifier = secrets.token_urlsafe(64)[:128]
@@ -172,6 +170,7 @@ h1{{font-size:1.5rem;margin:0 0 1rem}}p{{color:#666;margin:0}}</style></head>
 # ═══════════════════════════════════════════════════════════════════════
 #  Anthropic OAuth (PKCE + Callback)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.post("/anthropic/start")
 @limiter.limit("5/minute")
@@ -297,6 +296,7 @@ async def anthropic_oauth_callback(
 # ═══════════════════════════════════════════════════════════════════════
 #  OpenAI OAuth (Device Code)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.post("/openai/start")
 @limiter.limit("5/minute")
@@ -465,6 +465,7 @@ async def poll_openai_oauth(
 # ═══════════════════════════════════════════════════════════════════════
 #  GitHub Copilot OAuth (Device Code + Token Exchange)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.post("/copilot/start")
 @limiter.limit("5/minute")
@@ -685,6 +686,7 @@ async def _fetch_copilot_models(copilot_token: str, base_url: str) -> list[str]:
 # ═══════════════════════════════════════════════════════════════════════
 #  Shared Endpoints: Status & Disconnect
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.get("/status/{provider}")
 async def get_provider_oauth_status(

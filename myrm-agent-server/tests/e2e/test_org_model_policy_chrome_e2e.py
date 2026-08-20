@@ -93,17 +93,11 @@ def test_model_picker_shows_policy_restricted_models_as_disabled() -> None:
         # Phase 1: unrestricted baseline — every model stays selectable.
         _sync_org_model_policy(api_base, patterns=[])
         with open_mcp_page(f"{ui_base}/", timeout_ms=90_000) as (client, page):
-            state = wait_for_state(
-                client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0
-            )
+            state = wait_for_state(client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0)
             assert state.get("ready") is True, f"Model picker not ready: {state}"
             assert state.get("totalModels", 0) > 0, "No models found in picker"
-            assert (
-                len(state.get("enabledModels", [])) > 0
-            ), "Unrestricted policy must keep models selectable"
-            assert (
-                len(state.get("disabledModels", [])) == 0
-            ), "Unrestricted baseline must not grey out any model"
+            assert len(state.get("enabledModels", [])) > 0, "Unrestricted policy must keep models selectable"
+            assert len(state.get("disabledModels", [])) == 0, "Unrestricted baseline must not grey out any model"
 
             # Phase 2: a non-matching whitelist greys out every model. Reload the
             # page so the picker reopens and refetches the updated policy, then
@@ -111,16 +105,10 @@ def test_model_picker_shows_policy_restricted_models_as_disabled() -> None:
             _sync_org_model_policy(api_base, patterns=[_NON_MATCHING_PATTERN])
             client.reload(page, timeout_ms=60_000)
             time.sleep(2)
-            state = wait_for_state(
-                client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0
-            )
+            state = wait_for_state(client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0)
             assert state.get("ready") is True, f"Model picker not ready: {state}"
-            assert (
-                len(state.get("disabledModels", [])) > 0
-            ), "Restricted policy must grey out non-matching models"
-            assert (
-                len(state.get("enabledModels", [])) == 0
-            ), "Non-matching policy must block every model"
+            assert len(state.get("disabledModels", [])) > 0, "Restricted policy must grey out non-matching models"
+            assert len(state.get("enabledModels", [])) == 0, "Non-matching policy must block every model"
     finally:
         # Leave the shared stack unrestricted.
         _sync_org_model_policy(api_base, patterns=[])

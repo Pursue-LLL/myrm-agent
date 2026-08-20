@@ -88,18 +88,14 @@ class TestChatKeywordSearch:
             await _cleanup_chat(chat_id)
 
     async def test_search_no_match(self, async_client: httpx.AsyncClient) -> None:
-        resp = await async_client.get(
-            "/api/v1/chats/", params={"keyword": f"nomatch_{uuid.uuid4().hex[:8]}"}
-        )
+        resp = await async_client.get("/api/v1/chats/", params={"keyword": f"nomatch_{uuid.uuid4().hex[:8]}"})
         assert resp.status_code == 200
         items = resp.json()["data"]["items"]
         assert len(items) == 0
 
     async def test_search_empty_keyword_returns_all(self, async_client: httpx.AsyncClient) -> None:
         resp_no_kw = await async_client.get("/api/v1/chats/", params={"page": 1, "page_size": 5})
-        resp_empty_kw = await async_client.get(
-            "/api/v1/chats/", params={"keyword": "", "page": 1, "page_size": 5}
-        )
+        resp_empty_kw = await async_client.get("/api/v1/chats/", params={"keyword": "", "page": 1, "page_size": 5})
         assert resp_no_kw.status_code == 200
         assert resp_empty_kw.status_code == 200
         assert resp_no_kw.json()["data"]["pagination"]["total"] == resp_empty_kw.json()["data"]["pagination"]["total"]

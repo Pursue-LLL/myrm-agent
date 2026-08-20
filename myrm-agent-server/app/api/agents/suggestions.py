@@ -77,15 +77,9 @@ async def get_suggestions(
     try:
         from myrm_agent_harness.toolkits.llms import llm_manager
 
-        llm = await llm_manager.get_llm_from_config(
-            filter_cfg, streaming=False, api_keys=getattr(filter_cfg, "api_keys", None)
-        )
+        llm = await llm_manager.get_llm_from_config(filter_cfg, streaming=False, api_keys=getattr(filter_cfg, "api_keys", None))
 
-        conversation_text = "\n".join(
-            f"{pair[0]}: {pair[1]}"
-            for pair in request.chat_history[-6:]
-            if len(pair) >= 2
-        )
+        conversation_text = "\n".join(f"{pair[0]}: {pair[1]}" for pair in request.chat_history[-6:] if len(pair) >= 2)
         prompt = _SUGGESTIONS_PROMPT.format(conversation=conversation_text)
 
         async with asyncio.timeout(15):
@@ -131,9 +125,5 @@ def _parse_suggestions(content: str) -> list[str]:
         if suggestions:
             return suggestions
 
-    lines = [
-        line.strip().lstrip("0123456789.-) ")
-        for line in content.splitlines()
-        if line.strip()
-    ]
+    lines = [line.strip().lstrip("0123456789.-) ") for line in content.splitlines() if line.strip()]
     return [line for line in lines if len(line) > 5][:5]

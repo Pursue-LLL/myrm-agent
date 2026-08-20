@@ -48,9 +48,7 @@ async def run_wiki_source_sync(
     sync_gmail_rss: bool = True,
 ) -> WikiSourceSyncRunSummary:
     async with get_session() as db:
-        effective_config = config or await load_wiki_source_sync_config(
-            db, agent_id=agent_id
-        )
+        effective_config = config or await load_wiki_source_sync_config(db, agent_id=agent_id)
 
     structure = WikiStructure(resolve_wiki_vault_path(agent_id))
     compiler_enqueue: object | None = None
@@ -65,9 +63,7 @@ async def run_wiki_source_sync(
         if auto_compile:
             compiler_enqueue = archiver._compiler
     elif effective_config.auto_compile:
-        logger.warning(
-            "Wiki source sync: auto_compile requested but no LLM configured; raw-only mode"
-        )
+        logger.warning("Wiki source sync: auto_compile requested but no LLM configured; raw-only mode")
 
     max_items = effective_config.max_items_per_run
     run = WikiSourceSyncRunSummary()
@@ -112,18 +108,12 @@ async def run_wiki_source_sync(
         )
         run.results.append(feishu_result)
 
-    if (
-        effective_config.mirror_integrations_to_wiki
-        and integration_sync_results
-        and llm is not None
-    ):
+    if effective_config.mirror_integrations_to_wiki and integration_sync_results and llm is not None:
         from myrm_agent_harness.toolkits.memory.integration.types import (
             IntegrationSyncResult,
         )
 
-        typed_results = [
-            r for r in integration_sync_results if isinstance(r, IntegrationSyncResult)
-        ]
+        typed_results = [r for r in integration_sync_results if isinstance(r, IntegrationSyncResult)]
         if typed_results:
             mirror_result = await mirror_integration_sync_results_to_wiki(
                 typed_results,
@@ -164,9 +154,7 @@ async def run_wiki_source_sync(
         )
 
         async with get_session() as db:
-            await save_wiki_source_sync_state(
-                db, state_from_run_summary(run), agent_id=agent_id
-            )
+            await save_wiki_source_sync_state(db, state_from_run_summary(run), agent_id=agent_id)
     except Exception as exc:
         logger.warning("Failed to persist wiki source sync state: %s", exc)
 

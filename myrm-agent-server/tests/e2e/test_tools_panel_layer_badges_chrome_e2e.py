@@ -379,8 +379,7 @@ async def _wait_api_user_messages(
             return
         await asyncio.sleep(1.0)
     raise AssertionError(
-        f"Backend did not persist user message within {timeout_sec:.0f}s "
-        f"(chat_id={chat_id!r} last={last} api={api_url})"
+        f"Backend did not persist user message within {timeout_sec:.0f}s (chat_id={chat_id!r} last={last} api={api_url})"
     )
 
 
@@ -395,13 +394,9 @@ async def _assert_private_api_binding(chat: McpChatSession, *, api_url: str) -> 
         intent=EvaluateIntent.SYNC_PROBE,
     )
     binding = stream_binding if isinstance(stream_binding, dict) else {}
-    if (
-        binding.get("usesRelativeProxy") is True
-        or binding.get("hasPrivateBinding") is not True
-    ):
+    if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
         raise AssertionError(
-            "SHPOIB stream binding missing — agent-stream may hit shared :8080; "
-            f"binding={binding!r}; expected={api_url!r}"
+            f"SHPOIB stream binding missing — agent-stream may hit shared :8080; binding={binding!r}; expected={api_url!r}"
         )
 
 
@@ -447,11 +442,7 @@ async def _run_tools_panel_layer_badges_flow(
 
     chat_id = str(
         submit.get("chatId")
-        or (
-            send_result.get("started", {}).get("chatId")
-            if isinstance(send_result.get("started"), dict)
-            else None
-        )
+        or (send_result.get("started", {}).get("chatId") if isinstance(send_result.get("started"), dict) else None)
         or (await chat.bridge_chat_id())
         or ""
     ).strip()
@@ -463,19 +454,12 @@ async def _run_tools_panel_layer_badges_flow(
     baseline_users = int(submit_debug.get("baselineUsers") or 0)
     seal_api_users = int(submit_debug.get("apiUsers") or 0)
     seal_streaming = submit_debug.get("streaming") is True
-    _touch_wall_progress(
-        f"tools_panel_seal apiUsers={seal_api_users} "
-        f"streaming={seal_streaming} baseline={baseline_users}"
-    )
+    _touch_wall_progress(f"tools_panel_seal apiUsers={seal_api_users} streaming={seal_streaming} baseline={baseline_users}")
 
-    if seal_api_users <= baseline_users and not (
-        seal_streaming and submit.get("ok") is True
-    ):
+    if seal_api_users <= baseline_users and not (seal_streaming and submit.get("ok") is True):
         # LIVE sendTurnSealed may seal on uiProgress+streaming before API row persists (parallel SHPOIB).
         api_gate_sec = (
-            signoff_parallel_force_chat_timeout_sec(180.0)
-            if seal_streaming
-            else signoff_parallel_force_chat_timeout_sec(45.0)
+            signoff_parallel_force_chat_timeout_sec(180.0) if seal_streaming else signoff_parallel_force_chat_timeout_sec(45.0)
         )
         await _wait_api_user_messages(
             chat_id,
@@ -484,9 +468,7 @@ async def _run_tools_panel_layer_badges_flow(
             timeout_sec=api_gate_sec,
         )
     elif seal_api_users <= baseline_users:
-        _touch_wall_progress(
-            "tools_panel_api_gate_skipped sendTurnSealed streaming=true"
-        )
+        _touch_wall_progress("tools_panel_api_gate_skipped sendTurnSealed streaming=true")
 
     # SSOT: stay on the streaming tab — do not navigate_to_chat after sendTurnSealed;
     # full navigation drops direct SSE (userCount=0, sseTypes=[]).
@@ -584,9 +566,7 @@ async def _run_tools_panel_e2e_once(
         chat = McpChatSession(session.client, session.page)
         chat._base_url = BASE_URL
         session.client.set_tool_wall_deadline(None)
-        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(
-            shpoib_parallel_shell_timeout_sec(240.0)
-        )
+        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(shpoib_parallel_shell_timeout_sec(240.0))
         _touch_wall_progress("tools_panel_bootstrap")
         await chat.bootstrap(BASE_URL, timeout_sec=bootstrap_timeout)
         _touch_wall_progress("tools_panel_page_ready")

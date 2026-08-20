@@ -93,5 +93,3 @@ def rescue_database(db_path: str) -> bool:
         if corrupted_path.exists():
             _move_db_with_wal(corrupted_path, path)
         return False
-
-

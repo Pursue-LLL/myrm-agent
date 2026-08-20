@@ -171,23 +171,19 @@ class TestAgentMCP:
 
         if result.tool_stuck_count > MAX_TOOL_STUCK_APPROVALS:
             if has_task_step:
-                pytest.skip(
-                    f"Tool stuck {result.tool_stuck_count} times (external API timeout)"
-                )
+                pytest.skip(f"Tool stuck {result.tool_stuck_count} times (external API timeout)")
             pytest.skip("Agent tools stuck due to external API timeout")
 
         assert has_task_step, "Should contain tasks_steps events (MCP skill invocation)"
         assert has_normal_end, "Should have message_end event"
 
-        assert mcp_skill_was_invoked(
-            result.collected_data, "amap"
-        ), "amap MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
+        assert mcp_skill_was_invoked(result.collected_data, "amap"), (
+            "amap MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
+        )
 
         if len(result.message_chunks) == 0:
             bash_succeeded = any(
-                d.get("type") == "tasks_steps"
-                and d.get("tool_name") == "bash_code_execute_tool"
-                and d.get("status") == "success"
+                d.get("type") == "tasks_steps" and d.get("tool_name") == "bash_code_execute_tool" and d.get("status") == "success"
                 for d in result.collected_data
             )
             if bash_succeeded:
@@ -241,9 +237,7 @@ class TestAgentMCP:
         }
 
         log(f"🔍 查询: {search_request['query']}")
-        log(
-            f"🔌 MCP配置: 12306 (stdio, cmd={mcp_cmd}, args={mcp_args}, timeout={connect_timeout}s)"
-        )
+        log(f"🔌 MCP配置: 12306 (stdio, cmd={mcp_cmd}, args={mcp_args}, timeout={connect_timeout}s)")
         log("=" * 60)
 
         result = run_mcp_agent_stream(
@@ -264,35 +258,29 @@ class TestAgentMCP:
 
         if result.tool_stuck_count > MAX_TOOL_STUCK_APPROVALS:
             if has_task_step:
-                pytest.skip(
-                    f"Tool stuck {result.tool_stuck_count} times (external API timeout)"
-                )
+                pytest.skip(f"Tool stuck {result.tool_stuck_count} times (external API timeout)")
             pytest.skip("Agent tools stuck due to external API timeout")
 
-        assert (
-            has_task_step
-        ), "Should contain tasks_steps events (12306 MCP skill invocation)"
+        assert has_task_step, "Should contain tasks_steps events (12306 MCP skill invocation)"
         assert has_normal_end, "Should have message_end event"
 
-        assert mcp_skill_was_invoked(
-            result.collected_data, "12306"
-        ), "12306 MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
+        assert mcp_skill_was_invoked(result.collected_data, "12306"), (
+            "12306 MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
+        )
 
-        assert mcp_ptc_bash_was_engaged(
-            result.collected_data, "12306"
-        ), "12306 MCP PTC bash path was not engaged — skill_select alone is insufficient (Goodhart guard)"
+        assert mcp_ptc_bash_was_engaged(result.collected_data, "12306"), (
+            "12306 MCP PTC bash path was not engaged — skill_select alone is insufficient (Goodhart guard)"
+        )
 
-        assert mcp_ptc_get_tickets_engaged(
-            result.collected_data, "12306"
-        ), "12306 PTC did not reach get_tickets — date/station-only lookup is insufficient (Goodhart guard)"
+        assert mcp_ptc_get_tickets_engaged(result.collected_data, "12306"), (
+            "12306 PTC did not reach get_tickets — date/station-only lookup is insufficient (Goodhart guard)"
+        )
 
         if len(result.message_chunks) == 0:
-            if mcp_get_tickets_delivered(
+            if mcp_get_tickets_delivered(result.collected_data, "12306") or mcp_bash_get_tickets_succeeded(
                 result.collected_data, "12306"
-            ) or mcp_bash_get_tickets_succeeded(result.collected_data, "12306"):
-                print(
-                    "\n12306 MCP integration test passed (ticket evidence without final answer)"
-                )
+            ):
+                print("\n12306 MCP integration test passed (ticket evidence without final answer)")
                 return
 
             if result.error_events:
@@ -301,7 +289,5 @@ class TestAgentMCP:
             pytest.skip("Agent produced no answer and no error events")
 
         assert len(result.message_chunks) > 0, "Agent should produce a final answer"
-        assert_12306_ticket_evidence_delivered(
-            result.collected_data, result.full_answer
-        )
+        assert_12306_ticket_evidence_delivered(result.collected_data, result.full_answer)
         print("\n12306 MCP integration test passed")

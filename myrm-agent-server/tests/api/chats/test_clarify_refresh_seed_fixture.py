@@ -87,9 +87,7 @@ class TestChatsClarifyRefreshSeedFixture:
         assert body["clarification_answered"] is True
         assert append_message.await_count == 2
 
-    def test_seed_clarify_refresh_fixture_regenerate_sibling(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_clarify_refresh_fixture_regenerate_sibling(self, client: TestClient) -> None:
         fake_agent = MagicMock()
         fake_agent.id = "agent-e2e-clarify"
 
@@ -113,8 +111,7 @@ class TestChatsClarifyRefreshSeedFixture:
             ) as append_message,
         ):
             resp = client.post(
-                "/api/v1/chats/test/seed-clarify-refresh-fixture"
-                "?variant=regenerate_sibling",
+                "/api/v1/chats/test/seed-clarify-refresh-fixture?variant=regenerate_sibling",
             )
 
         assert resp.status_code == 200
@@ -123,9 +120,7 @@ class TestChatsClarifyRefreshSeedFixture:
         assert body["clarification_answered"] is False
         assert append_message.await_count == 3
 
-    def test_seed_clarify_refresh_fixture_structured_form(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_clarify_refresh_fixture_structured_form(self, client: TestClient) -> None:
         fake_agent = MagicMock()
         fake_agent.id = "agent-e2e-clarify"
 
@@ -149,8 +144,7 @@ class TestChatsClarifyRefreshSeedFixture:
             ) as append_message,
         ):
             resp = client.post(
-                "/api/v1/chats/test/seed-clarify-refresh-fixture"
-                "?variant=structured_form",
+                "/api/v1/chats/test/seed-clarify-refresh-fixture?variant=structured_form",
             )
 
         assert resp.status_code == 200
@@ -159,9 +153,7 @@ class TestChatsClarifyRefreshSeedFixture:
         assert body["clarification_answered"] is False
         assert append_message.await_count == 2
 
-    def test_seed_clarify_refresh_fixture_hidden_outside_local_mode(
-        self, client: TestClient
-    ) -> None:
+    def test_seed_clarify_refresh_fixture_hidden_outside_local_mode(self, client: TestClient) -> None:
         with patch(
             "app.api.chats.test_fixtures.clarify_refresh.is_local_mode",
             return_value=False,

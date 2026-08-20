@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import pytest
-from app.core.skills.models import Skill, SkillType
+
 from app.core.skills.discovery.adopt import (
     remove_skill_from_all_agents,
     sync_skill_to_agents,
 )
+from app.core.skills.models import Skill, SkillType
+from app.database.dto import AgentCreate
 from app.services.agent.agent_service import AgentService
-from app.schemas.agent import AgentCreate
 
 
 def test_skill_model_installed_from_roundtrip() -> None:

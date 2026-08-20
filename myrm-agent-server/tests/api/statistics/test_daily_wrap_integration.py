@@ -250,7 +250,10 @@ class TestDailyWrapEdgeCases:
         mock_llm.ainvoke = AsyncMock(side_effect=RuntimeError("LLM timeout"))
 
         with (
-            fetchers[0], fetchers[1], fetchers[2], fetchers[3],
+            fetchers[0],
+            fetchers[1],
+            fetchers[2],
+            fetchers[3],
             patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
             patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=mock_lite_cfg),
             patch("myrm_agent_harness.toolkits.llms.create_litellm_model", return_value=mock_llm),
@@ -278,7 +281,10 @@ class TestDailyWrapEdgeCases:
         mock_llm.ainvoke = AsyncMock(return_value=llm_response)
 
         with (
-            fetchers[0], fetchers[1], fetchers[2], fetchers[3],
+            fetchers[0],
+            fetchers[1],
+            fetchers[2],
+            fetchers[3],
             patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
             patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=mock_lite_cfg),
             patch("myrm_agent_harness.toolkits.llms.create_litellm_model", return_value=mock_llm),

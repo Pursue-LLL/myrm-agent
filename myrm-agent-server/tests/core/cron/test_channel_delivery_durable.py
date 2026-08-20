@@ -48,9 +48,7 @@ async def test_deliver_channel_null_send_retains_disk(tmp_path) -> None:
     channel_bridge.channel_gateway = gateway
     try:
         with pytest.raises(RuntimeError, match="no message_id"):
-            await ChannelResultDelivery().deliver(
-                job, JobResult(success=True, output="body")
-            )
+            await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
 
         pending = await load_pending_deliveries(base_dir=tmp_path)
         assert len(pending) == 1
@@ -93,9 +91,7 @@ async def test_deliver_disabled_channel_raises() -> None:
     channel_bridge.channel_gateway = gateway
     try:
         with pytest.raises(RuntimeError, match="disabled"):
-            await ChannelResultDelivery().deliver(
-                job, JobResult(success=True, output="body")
-            )
+            await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
     finally:
         channel_bridge.channel_gateway = previous
         await gateway.stop()
@@ -114,9 +110,7 @@ async def test_deliver_missing_channel_raises() -> None:
     )
 
     with pytest.raises(RuntimeError, match="No channel registered"):
-        await ChannelResultDelivery().deliver(
-            job, JobResult(success=True, output="body")
-        )
+        await ChannelResultDelivery().deliver(job, JobResult(success=True, output="body"))
 
 
 def test_resolve_recipient_requires_target() -> None:

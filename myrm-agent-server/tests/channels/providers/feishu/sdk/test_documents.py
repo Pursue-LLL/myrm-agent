@@ -40,11 +40,7 @@ class TestQueryDocumentMeta:
             200,
             {
                 "code": 0,
-                "data": {
-                    "metas": [
-                        {"title": "My Doc", "url": "https://...", "doc_type": "docx"}
-                    ]
-                },
+                "data": {"metas": [{"title": "My Doc", "url": "https://...", "doc_type": "docx"}]},
             },
         )
         client._http.post = AsyncMock(return_value=resp)
@@ -260,9 +256,7 @@ class TestBatchQueryComment:
             },
         )
         client._http.post = AsyncMock(return_value=resp)
-        comment = await client.batch_query_comment(
-            "tok_001", "docx", "c1", max_retries=1
-        )
+        comment = await client.batch_query_comment("tok_001", "docx", "c1", max_retries=1)
         assert comment["comment_id"] == "c1"
 
     @pytest.mark.asyncio
@@ -447,9 +441,7 @@ class TestCardKit:
     async def test_streaming_update_final(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0})
         client._http.patch = AsyncMock(return_value=resp)
-        result = await client.streaming_card_update(
-            "card_001", "final", seq=3, is_final=True
-        )
+        result = await client.streaming_card_update("card_001", "final", seq=3, is_final=True)
         assert result is True
         call_args = client._http.patch.call_args
         body = call_args.kwargs.get("json", call_args[1].get("json", {}))
@@ -468,18 +460,14 @@ class TestBitable:
     async def test_add_records_success(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0})
         client._http.post = AsyncMock(return_value=resp)
-        result = await client.add_bitable_records(
-            "app_tok", "tbl_001", [{"fields": {}}]
-        )
+        result = await client.add_bitable_records("app_tok", "tbl_001", [{"fields": {}}])
         assert result is True
 
     @pytest.mark.asyncio
     async def test_add_records_failure(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 99, "msg": "fail"})
         client._http.post = AsyncMock(return_value=resp)
-        result = await client.add_bitable_records(
-            "app_tok", "tbl_001", [{"fields": {}}]
-        )
+        result = await client.add_bitable_records("app_tok", "tbl_001", [{"fields": {}}])
         assert result is False
 
 
@@ -492,9 +480,7 @@ class TestDocx:
         assert result["code"] == 0
 
     @pytest.mark.asyncio
-    async def test_get_blocks_paginates_until_exhausted(
-        self, client: FeishuClient
-    ) -> None:
+    async def test_get_blocks_paginates_until_exhausted(self, client: FeishuClient) -> None:
         page1 = _mock_response(
             200,
             {
@@ -521,10 +507,7 @@ class TestDocx:
         assert result["code"] == 0
         items = result["data"]["items"]
         assert [item["block_id"] for item in items] == ["b1", "b2"]
-        assert (
-            client._http.get.await_args_list[1].kwargs["params"]["page_token"]
-            == "tok-2"
-        )
+        assert client._http.get.await_args_list[1].kwargs["params"]["page_token"] == "tok-2"
 
     @pytest.mark.asyncio
     async def test_get_blocks_stops_on_api_error(self, client: FeishuClient) -> None:
@@ -542,9 +525,7 @@ class TestDocx:
         assert data == b"\x89PNG\r\n\x1a\nfake-image"
 
     @pytest.mark.asyncio
-    async def test_download_media_failure_returns_none(
-        self, client: FeishuClient
-    ) -> None:
+    async def test_download_media_failure_returns_none(self, client: FeishuClient) -> None:
         resp = _mock_response(403, {"code": 99991663, "msg": "no permission"})
         client._http.get = AsyncMock(return_value=resp)
         assert await client.download_media("img_v2_abc") is None
@@ -554,16 +535,12 @@ class TestDocx:
     async def test_append_blocks_success(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0})
         client._http.post = AsyncMock(return_value=resp)
-        result = await client.append_docx_blocks(
-            "doc_001", "blk_001", [{"type": "text"}]
-        )
+        result = await client.append_docx_blocks("doc_001", "blk_001", [{"type": "text"}])
         assert result is True
 
     @pytest.mark.asyncio
     async def test_append_blocks_failure(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 99, "msg": "fail"})
         client._http.post = AsyncMock(return_value=resp)
-        result = await client.append_docx_blocks(
-            "doc_001", "blk_001", [{"type": "text"}]
-        )
+        result = await client.append_docx_blocks("doc_001", "blk_001", [{"type": "text"}])
         assert result is False

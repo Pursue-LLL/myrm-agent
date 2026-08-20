@@ -289,16 +289,10 @@ async def guardian_guard_alert_snapshot(
     total = sum(reason_counts.values())
     dominant_reason = max(reason_counts.items(), key=lambda item: item[1])[0] if reason_counts else None
     dominant_reason_count = reason_counts.get(dominant_reason, 0) if dominant_reason else 0
-    dominant_reason_ratio = (
-        float(dominant_reason_count) / float(total)
-        if dominant_reason_count > 0 and total > 0
-        else 0.0
-    )
+    dominant_reason_ratio = float(dominant_reason_count) / float(total) if dominant_reason_count > 0 and total > 0 else 0.0
     active = total >= min_total_events
     escalated = (
-        active
-        and dominant_reason_count >= escalation_min_reason_count
-        and dominant_reason_ratio >= escalation_min_reason_ratio
+        active and dominant_reason_count >= escalation_min_reason_count and dominant_reason_ratio >= escalation_min_reason_ratio
     )
     return {
         "active": active,

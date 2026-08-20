@@ -95,9 +95,7 @@ class TestDeliverAgentResultSilentFilter:
             inbound_had_voice=False,
         )
 
-        fx.cleanup_placeholder.assert_called_once_with(
-            "telegram", "chat1", "ph_123", "\u200b"
-        )
+        fx.cleanup_placeholder.assert_called_once_with("telegram", "chat1", "ph_123", "\u200b")
         bus.publish_outbound.assert_not_called()
         fx.edit_placeholder.assert_not_called()
 
@@ -205,9 +203,7 @@ class TestDeliverAgentResultSilentFilter:
             inbound_had_voice=False,
         )
 
-        fx.cleanup_placeholder.assert_called_once_with(
-            "feishu", "group-42", "ph_md", "\u200b"
-        )
+        fx.cleanup_placeholder.assert_called_once_with("feishu", "group-42", "ph_md", "\u200b")
         bus.publish_outbound.assert_not_called()
 
     @pytest.mark.asyncio

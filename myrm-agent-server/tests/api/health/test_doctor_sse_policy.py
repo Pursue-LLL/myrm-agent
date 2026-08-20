@@ -78,11 +78,7 @@ def test_doctor_system_resources_warn_does_not_publish_health_alert(client: Test
         response = client.get("/api/v1/health/doctor")
 
     assert response.status_code == 200
-    health_alerts = [
-        event
-        for event in published
-        if getattr(event, "event_type", None) == AppEventType.HEALTH_ALERT
-    ]
+    health_alerts = [event for event in published if getattr(event, "event_type", None) == AppEventType.HEALTH_ALERT]
     assert health_alerts == []
 
     harness = response.json()["harness"]
@@ -106,11 +102,7 @@ def test_doctor_database_fail_publishes_health_alert(client: TestClient) -> None
         response = client.get("/api/v1/health/doctor")
 
     assert response.status_code == 200
-    health_alerts = [
-        event
-        for event in published
-        if getattr(event, "event_type", None) == AppEventType.HEALTH_ALERT
-    ]
+    health_alerts = [event for event in published if getattr(event, "event_type", None) == AppEventType.HEALTH_ALERT]
     assert len(health_alerts) == 1
     assert health_alerts[0].data["component"] == "Database"
     assert health_alerts[0].data["status"] == "fail"
@@ -133,9 +125,5 @@ def test_doctor_database_fail_deduped_within_window(client: TestClient) -> None:
 
     assert first.status_code == 200
     assert second.status_code == 200
-    health_alerts = [
-        event
-        for event in published
-        if getattr(event, "event_type", None) == AppEventType.HEALTH_ALERT
-    ]
+    health_alerts = [event for event in published if getattr(event, "event_type", None) == AppEventType.HEALTH_ALERT]
     assert len(health_alerts) == 1

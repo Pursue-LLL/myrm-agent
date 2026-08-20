@@ -19,9 +19,7 @@ from app.platform_utils import get_database_engine
 @pytest.fixture
 async def async_client():
     pass
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
     app.dependency_overrides.clear()
 
@@ -162,9 +160,7 @@ async def test_approve_skill_migration_writes_local_skill(
     assert submit.status_code == 200
     migration_id = submit.json()["migration_id"]
 
-    approve = await async_client.post(
-        f"/api/v1/migrations/pending/{migration_id}/approve"
-    )
+    approve = await async_client.post(f"/api/v1/migrations/pending/{migration_id}/approve")
     assert approve.status_code == 200
     assert (skills_dir / "deploy" / "SKILL.md").is_file()
 
@@ -239,9 +235,7 @@ async def test_approve_skill_migration_binds_target_agent(
             new=update_mock,
         ),
     ):
-        approve = await async_client.post(
-            f"/api/v1/migrations/pending/{migration_id}/approve"
-        )
+        approve = await async_client.post(f"/api/v1/migrations/pending/{migration_id}/approve")
 
     assert approve.status_code == 200
     update_mock.assert_awaited_once()
@@ -281,9 +275,7 @@ async def test_approve_skill_migration_blocked_in_sandbox(
     migration_id = submit.json()["migration_id"]
 
     try:
-        approve = await async_client.post(
-            f"/api/v1/migrations/pending/{migration_id}/approve"
-        )
+        approve = await async_client.post(f"/api/v1/migrations/pending/{migration_id}/approve")
         assert approve.status_code == 403
     finally:
         monkeypatch.delenv("DEPLOY_MODE", raising=False)

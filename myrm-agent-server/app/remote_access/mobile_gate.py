@@ -63,9 +63,7 @@ def is_mobile_remote_api_path(path: str) -> bool:
         return True
     if path == "/api/v1/agents/agent-stream":
         return True
-    if path.startswith("/api/v1/agents/chats/") and (
-        path.endswith("/steer") or path.endswith("/cancel")
-    ):
+    if path.startswith("/api/v1/agents/chats/") and (path.endswith("/steer") or path.endswith("/cancel")):
         return True
     if path.startswith("/api/v1/chats/"):
         return True
@@ -113,9 +111,7 @@ _MOBILE_TAKEOVER_SNAPSHOT_SUFFIX = "/snapshot"
 
 
 def is_mobile_takeover_snapshot_path(path: str) -> bool:
-    return path.startswith("/api/v1/remote-access/mobile/takeover/") and path.endswith(
-        _MOBILE_TAKEOVER_SNAPSHOT_SUFFIX
-    )
+    return path.startswith("/api/v1/remote-access/mobile/takeover/") and path.endswith(_MOBILE_TAKEOVER_SNAPSHOT_SUFFIX)
 
 
 def is_e2ee_bootstrap_path(path: str) -> bool:

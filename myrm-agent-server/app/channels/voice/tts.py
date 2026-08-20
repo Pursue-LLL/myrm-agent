@@ -89,9 +89,7 @@ def _import_edge_tts() -> ModuleType:
     try:
         import edge_tts
     except ImportError as exc:
-        raise ImportError(
-            f"edge-tts is not installed. Install with: {_EDGE_TTS_INSTALL_HINT}"
-        ) from exc
+        raise ImportError(f"edge-tts is not installed. Install with: {_EDGE_TTS_INSTALL_HINT}") from exc
     return edge_tts
 
 

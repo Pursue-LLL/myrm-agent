@@ -3,6 +3,7 @@
 Verifies that a corrupted (unparseable) checkpoint file:
 - can still be deleted (not blocked by a 500)
 """
+
 from __future__ import annotations
 
 from importlib import import_module

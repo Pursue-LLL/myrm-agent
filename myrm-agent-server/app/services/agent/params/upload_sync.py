@@ -134,13 +134,10 @@ def inject_uploaded_files_into_query(
     for original_name, rel_path in synced_files:
         if workspace_dir and _should_use_rag(original_name, rel_path, workspace_dir):
             rag_lines.append(
-                f"  <file name={quoteattr(original_name)} workspace_path={quoteattr(rel_path)}"
-                f' action="wiki_ingest_then_query"/>'
+                f'  <file name={quoteattr(original_name)} workspace_path={quoteattr(rel_path)} action="wiki_ingest_then_query"/>'
             )
         else:
-            direct_lines.append(
-                f"  <file name={quoteattr(original_name)} workspace_path={quoteattr(rel_path)}/>"
-            )
+            direct_lines.append(f"  <file name={quoteattr(original_name)} workspace_path={quoteattr(rel_path)}/>")
 
     parts: list[str] = []
     if direct_lines:

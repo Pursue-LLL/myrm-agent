@@ -52,10 +52,7 @@ _RULES: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     (
         "promised_returns",
         "Promised returns or guaranteed outcomes",
-        re.compile(
-            "保本|稳赚|稳赚不赔|保收益|保底收益|包赚|躺赚|一夜暴富"
-            "|包过|保过|保分|名校保录|包录取|包就业|包瘦身"
-        ),
+        re.compile("保本|稳赚|稳赚不赔|保收益|保底收益|包赚|躺赚|一夜暴富|包过|保过|保分|名校保录|包录取|包就业|包瘦身"),
     ),
     (
         "medical_efficacy",

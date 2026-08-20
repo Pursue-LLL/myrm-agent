@@ -89,9 +89,7 @@ async def resolve_idle_compact_after_seconds(
 
 
 async def _load_last_message_at(db: AsyncSession, chat_id: str) -> datetime | None:
-    row = await db.execute(
-        select(func.max(Message.created_at)).where(Message.chat_id == chat_id)
-    )
+    row = await db.execute(select(func.max(Message.created_at)).where(Message.chat_id == chat_id))
     last_message_at = row.scalar_one_or_none()
     if last_message_at is None:
         return None
@@ -143,9 +141,7 @@ async def maybe_compact_stale_chat_before_turn(
             reason=f"idle_below_threshold ({idle_seconds:.0f}s < {idle_after_seconds}s)",
         )
 
-    cooldown_active, cooldown_error = await is_compaction_failure_cooldown_active(
-        db, chat_id
-    )
+    cooldown_active, cooldown_error = await is_compaction_failure_cooldown_active(db, chat_id)
     if cooldown_active:
         return CompactResult(
             compacted=False,
@@ -223,9 +219,7 @@ async def run_pre_reply_stale_compact_gate(
     on_before_compact: Callable[[], Awaitable[None]] | None = None,
 ) -> CompactResult:
     """Run stale compact gate inside a DB session (Web + Channel SSOT)."""
-    idle_after = await resolve_idle_compact_after_seconds(
-        agent_id, request_engine_params
-    )
+    idle_after = await resolve_idle_compact_after_seconds(agent_id, request_engine_params)
     from app.database.connection import get_session
 
     async with get_session() as db:

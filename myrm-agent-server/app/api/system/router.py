@@ -119,9 +119,7 @@ def get_storage_info() -> StorageInfoResponse:
 
     subdir_names = ["qdrant", "harness", "event_logs", "memory"]
     subdirs = [
-        SubdirUsage(name=name, bytes=_dir_size_bytes(data_dir / name))
-        for name in subdir_names
-        if (data_dir / name).exists()
+        SubdirUsage(name=name, bytes=_dir_size_bytes(data_dir / name)) for name in subdir_names if (data_dir / name).exists()
     ]
 
     db_file = data_dir / "data.db"

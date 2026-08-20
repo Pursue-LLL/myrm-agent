@@ -54,9 +54,7 @@ class TestBlueprintRegistry:
     def test_all_slot_defaults_are_strings(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
             for slot in bp.slots:
-                assert isinstance(slot.default, str), (
-                    f"{bp.id}.{slot.name} default is not str: {type(slot.default)}"
-                )
+                assert isinstance(slot.default, str), f"{bp.id}.{slot.name} default is not str: {type(slot.default)}"
 
     def test_prompt_templates_do_not_use_python_format_braces_outside_slots(self) -> None:
         """Ensure no stray {xxx} in prompts that would fail .format()."""
@@ -67,9 +65,7 @@ class TestBlueprintRegistry:
 
                 placeholders = set(re.findall(r"\{(\w+)\}", template))
                 stray = placeholders - slot_names
-                assert not stray, (
-                    f"{bp.id} [{lang}] has unresolved placeholders: {stray}"
-                )
+                assert not stray, f"{bp.id} [{lang}] has unresolved placeholders: {stray}"
 
 
 class TestReadItLaterBlueprint:
@@ -249,7 +245,7 @@ class TestFinancialMonitorBlueprints:
                 {
                     "time": "08:00",
                     "weekdays": "weekdays",
-                    "asset": "btc\";print(1)#",
+                    "asset": 'btc";print(1)#',
                     "quote_currency": "usd",
                     "lower_bound": "50000",
                     "upper_bound": "70000",

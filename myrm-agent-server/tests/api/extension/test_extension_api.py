@@ -104,9 +104,7 @@ class TestSSEBroadcast:
         bridge._ws.client_state = WebSocketState.DISCONNECTED
         bridge._tabs = []
 
-        with patch(
-            "app.services.extension.bridge._broadcast_extension_status"
-        ) as mock_broadcast:
+        with patch("app.services.extension.bridge._broadcast_extension_status") as mock_broadcast:
             await bridge.disconnect()
             mock_broadcast.assert_called_once_with(False)
 
@@ -143,40 +141,25 @@ class TestDomainMatching:
     """Test _match_domain wildcard matching logic."""
 
     def test_exact_match(self) -> None:
-        assert (
-            ExtensionBridgeService._match_domain("github.com", ["github.com"]) is True
-        )
+        assert ExtensionBridgeService._match_domain("github.com", ["github.com"]) is True
 
     def test_exact_no_match(self) -> None:
         assert ExtensionBridgeService._match_domain("evil.com", ["github.com"]) is False
 
     def test_wildcard_subdomain_match(self) -> None:
-        assert (
-            ExtensionBridgeService._match_domain("mail.google.com", ["*.google.com"])
-            is True
-        )
+        assert ExtensionBridgeService._match_domain("mail.google.com", ["*.google.com"]) is True
 
     def test_wildcard_deep_subdomain(self) -> None:
-        assert (
-            ExtensionBridgeService._match_domain("a.b.google.com", ["*.google.com"])
-            is True
-        )
+        assert ExtensionBridgeService._match_domain("a.b.google.com", ["*.google.com"]) is True
 
     def test_wildcard_matches_root(self) -> None:
-        assert (
-            ExtensionBridgeService._match_domain("google.com", ["*.google.com"]) is True
-        )
+        assert ExtensionBridgeService._match_domain("google.com", ["*.google.com"]) is True
 
     def test_case_insensitive_exact(self) -> None:
-        assert (
-            ExtensionBridgeService._match_domain("GitHub.COM", ["github.com"]) is True
-        )
+        assert ExtensionBridgeService._match_domain("GitHub.COM", ["github.com"]) is True
 
     def test_case_insensitive_wildcard(self) -> None:
-        assert (
-            ExtensionBridgeService._match_domain("MAIL.Google.Com", ["*.google.com"])
-            is True
-        )
+        assert ExtensionBridgeService._match_domain("MAIL.Google.Com", ["*.google.com"]) is True
 
     def test_empty_patterns(self) -> None:
         assert ExtensionBridgeService._match_domain("anything.com", []) is False
@@ -188,18 +171,14 @@ class TestDomainMatching:
         assert ExtensionBridgeService._match_domain("evil.com", patterns) is False
 
     def test_wildcard_warning_for_implicit_root(self) -> None:
-        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(
-            ["*.google.com"]
-        )
+        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(["*.google.com"])
         assert len(warnings) == 1
         assert warnings[0].code == "wildcard_includes_root"
         assert warnings[0].pattern == "*.google.com"
         assert warnings[0].root_domain == "google.com"
 
     def test_wildcard_warning_suppressed_when_root_explicit(self) -> None:
-        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(
-            ["*.google.com", "google.com"]
-        )
+        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(["*.google.com", "google.com"])
         assert warnings == []
 
 
@@ -215,9 +194,7 @@ class TestPlaywrightSingleton:
         mock_ctx = MagicMock()
         mock_ctx.start = AsyncMock(return_value=mock_pw)
 
-        with patch(
-            "app.services.extension.bridge.ExtensionBridgeService._ensure_playwright"
-        ) as mock_ensure:
+        with patch("app.services.extension.bridge.ExtensionBridgeService._ensure_playwright") as mock_ensure:
             mock_ensure.return_value = mock_pw
             pw = await bridge._ensure_playwright()
             assert pw is mock_pw
@@ -338,15 +315,11 @@ class TestConnectToDomainWildcard:
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
             patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
-            patch(
-                "app.services.extension.bridge.get_cdp_relay_manager"
-            ) as mock_manager_factory,
+            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=True)
-            manager.ensure_http_endpoint = AsyncMock(
-                return_value="http://127.0.0.1:9222"
-            )
+            manager.ensure_http_endpoint = AsyncMock(return_value="http://127.0.0.1:9222")
             manager.bind_extension_transport = AsyncMock()
             mock_manager_factory.return_value = manager
             result = await bridge.connect_to_domain("mail.google.com")
@@ -380,15 +353,11 @@ class TestConnectToDomainWildcard:
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
             patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
-            patch(
-                "app.services.extension.bridge.get_cdp_relay_manager"
-            ) as mock_manager_factory,
+            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=True)
-            manager.ensure_http_endpoint = AsyncMock(
-                return_value="http://127.0.0.1:9222"
-            )
+            manager.ensure_http_endpoint = AsyncMock(return_value="http://127.0.0.1:9222")
             manager.bind_extension_transport = AsyncMock()
             mock_manager_factory.return_value = manager
             result = await bridge.connect_to_domain("google.com")
@@ -447,9 +416,7 @@ class TestNavigateToUrl:
         bridge._capabilities = set()
         bridge._authorized_domains = ["*.corp.local"]
 
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="missing required capability"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="missing required capability"):
             await bridge.navigate_to_url("http://portal.corp.local/dashboard")
 
     @pytest.mark.asyncio
@@ -461,9 +428,7 @@ class TestNavigateToUrl:
         bridge._capabilities = {"navigate_url"}
         bridge._authorized_domains = ["*.corp.local"]
 
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="handshake is not completed"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="handshake is not completed"):
             await bridge.navigate_to_url("http://portal.corp.local/dashboard")
 
     @pytest.mark.asyncio
@@ -483,9 +448,7 @@ class TestNavigateToUrl:
         bridge._ws = MagicMock()
         bridge._authorized_domains = ["*.corp.local"]
 
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="does not match navigation target"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="does not match navigation target"):
             await bridge.navigate_to_url(
                 "http://portal.corp.local/dashboard",
                 domain="evil.local",
@@ -504,9 +467,7 @@ class TestActionCapabilityContract:
         bridge._authorized_domains = ["example.com"]
         bridge._capabilities = set()
 
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="missing required capability 'list_tabs'"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="missing required capability 'list_tabs'"):
             await bridge._send_request("list_tabs")
 
     @pytest.mark.asyncio
@@ -568,9 +529,7 @@ class TestActionCapabilityContract:
             bridge._pending_requests[req_id].set_result({"detached": True, "tabId": 42})
 
         task = asyncio.create_task(set_result_later())
-        result = await bridge._send_request(
-            "detach_debugger", {"tabId": 42}, timeout=2.0
-        )
+        result = await bridge._send_request("detach_debugger", {"tabId": 42}, timeout=2.0)
         await task
 
         assert result == {"detached": True, "tabId": 42}
@@ -594,23 +553,17 @@ class TestDirectCdpRiskGovernance:
 
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
-            patch(
-                "app.services.extension.bridge.get_cdp_relay_manager"
-            ) as mock_manager_factory,
+            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=True)
-            manager.ensure_http_endpoint = AsyncMock(
-                return_value="http://127.0.0.1:9222"
-            )
+            manager.ensure_http_endpoint = AsyncMock(return_value="http://127.0.0.1:9222")
             manager.bind_extension_transport = AsyncMock()
             mock_manager_factory.return_value = manager
 
             instance = await bridge.connect()
 
-        mock_pw.chromium.connect_over_cdp.assert_awaited_once_with(
-            "http://127.0.0.1:9222", timeout=10000
-        )
+        mock_pw.chromium.connect_over_cdp.assert_awaited_once_with("http://127.0.0.1:9222", timeout=10000)
         assert instance.browser is mock_browser
 
 
@@ -757,11 +710,7 @@ class TestReceiveLoop:
     async def test_response_resolves_future(self) -> None:
         bridge = ExtensionBridgeService()
         mock_ws = MagicMock()
-        msgs = [
-            json.dumps(
-                {"type": "response", "id": "req_1", "data": {"cdp_ws_url": "ws://x"}}
-            )
-        ]
+        msgs = [json.dumps({"type": "response", "id": "req_1", "data": {"cdp_ws_url": "ws://x"}})]
         call_count = 0
 
         async def fake_receive():
@@ -788,9 +737,7 @@ class TestReceiveLoop:
     async def test_response_error_sets_exception(self) -> None:
         bridge = ExtensionBridgeService()
         mock_ws = MagicMock()
-        msgs = [
-            json.dumps({"type": "response", "id": "req_2", "error": "debugger failed"})
-        ]
+        msgs = [json.dumps({"type": "response", "id": "req_2", "error": "debugger failed"})]
         call_count = 0
 
         async def fake_receive():
@@ -818,9 +765,7 @@ class TestReceiveLoop:
     async def test_domains_update_message(self) -> None:
         bridge = ExtensionBridgeService()
         mock_ws = MagicMock()
-        msgs = [
-            json.dumps({"type": "domains_update", "domains": ["new.com", "*.new.org"]})
-        ]
+        msgs = [json.dumps({"type": "domains_update", "domains": ["new.com", "*.new.org"]})]
         call_count = 0
 
         async def fake_receive():
@@ -881,9 +826,7 @@ class TestRequestDebuggerAttach:
             bridge._pending_requests[req_id].set_result({"tabId": 42})
 
         task = asyncio.create_task(set_result_later())
-        tab_id = await bridge._request_debugger_attach(
-            domain="example.com", timeout=2.0
-        )
+        tab_id = await bridge._request_debugger_attach(domain="example.com", timeout=2.0)
         await task
 
         assert tab_id == 42
@@ -904,9 +847,7 @@ class TestRequestDebuggerAttach:
             bridge._pending_requests[req_id].set_result({"something": "else"})
 
         task = asyncio.create_task(set_result_later())
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="did not return attached tab ID"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="did not return attached tab ID"):
             await bridge._request_debugger_attach(domain="example.com", timeout=2.0)
         await task
 
@@ -958,15 +899,11 @@ class TestExtensionRouterGuards:
 
         with (
             patch("app.config.deploy_mode.is_webui_remote_mode", return_value=True),
-            patch(
-                "app.config.settings.settings.extension_auth_token", new=SecretStr("")
-            ),
+            patch("app.config.settings.settings.extension_auth_token", new=SecretStr("")),
         ):
             await extension_ws(websocket, token="")
 
-        websocket.close.assert_awaited_once_with(
-            code=4002, reason="Extension auth token required in remote mode"
-        )
+        websocket.close.assert_awaited_once_with(code=4002, reason="Extension auth token required in remote mode")
 
     @pytest.mark.asyncio
     async def test_extension_ws_accepts_valid_extension_origin_and_token(self) -> None:
@@ -981,9 +918,7 @@ class TestExtensionRouterGuards:
 
         with (
             patch("app.config.deploy_mode.is_webui_remote_mode", return_value=False),
-            patch(
-                "app.config.settings.settings.extension_auth_token", new=SecretStr("")
-            ),
+            patch("app.config.settings.settings.extension_auth_token", new=SecretStr("")),
             patch("app.api.extension.router.get_extension_bridge", return_value=bridge),
         ):
             await extension_ws(websocket, token="")
@@ -1017,13 +952,11 @@ class TestExtensionRouterDomainsAndTabs:
 
         bridge = MagicMock()
         bridge.get_authorized_domains.return_value = ["*.example.com"]
-        bridge.analyze_domain_policy_warnings.return_value = (
-            ExtensionBridgeService.analyze_domain_policy_warnings(["*.example.com"])
+        bridge.analyze_domain_policy_warnings.return_value = ExtensionBridgeService.analyze_domain_policy_warnings(
+            ["*.example.com"]
         )
 
-        with patch(
-            "app.api.extension.router.get_extension_bridge", return_value=bridge
-        ):
+        with patch("app.api.extension.router.get_extension_bridge", return_value=bridge):
             response = await get_authorized_domains()
 
         assert response.authorized_domains == ["*.example.com"]
@@ -1046,9 +979,7 @@ class TestExtensionRouterDomainsAndTabs:
             ]
         )
 
-        with patch(
-            "app.api.extension.router.get_extension_bridge", return_value=bridge
-        ):
+        with patch("app.api.extension.router.get_extension_bridge", return_value=bridge):
             tabs = await list_extension_tabs()
 
         assert len(tabs) == 1
@@ -1062,9 +993,7 @@ class TestExtensionRouterDomainsAndTabs:
         bridge = MagicMock()
         bridge.disconnect = AsyncMock()
 
-        with patch(
-            "app.api.extension.router.get_extension_bridge", return_value=bridge
-        ):
+        with patch("app.api.extension.router.get_extension_bridge", return_value=bridge):
             response = await disconnect_extension()
 
         bridge.disconnect.assert_awaited_once()
@@ -1088,9 +1017,7 @@ class TestExtensionRouterHints:
         with (
             patch("app.api.extension.router.get_extension_bridge", return_value=bridge),
             patch("app.config.deploy_mode.is_webui_remote_mode", return_value=True),
-            patch(
-                "app.config.settings.settings.extension_auth_token", new=SecretStr("")
-            ),
+            patch("app.config.settings.settings.extension_auth_token", new=SecretStr("")),
         ):
             hints = await get_extension_setup_hints(mock_request)
 
@@ -1134,16 +1061,12 @@ class TestExtensionRouterHints:
         bridge = MagicMock()
         bridge.set_authorized_domains = AsyncMock()
         bridge.get_authorized_domains.return_value = ["*.example.com"]
-        bridge.analyze_domain_policy_warnings.return_value = (
-            ExtensionBridgeService.analyze_domain_policy_warnings(["*.example.com"])
+        bridge.analyze_domain_policy_warnings.return_value = ExtensionBridgeService.analyze_domain_policy_warnings(
+            ["*.example.com"]
         )
 
-        with patch(
-            "app.api.extension.router.get_extension_bridge", return_value=bridge
-        ):
-            response = await update_authorized_domains(
-                DomainsUpdateRequest(domains=["*.example.com"])
-            )
+        with patch("app.api.extension.router.get_extension_bridge", return_value=bridge):
+            response = await update_authorized_domains(DomainsUpdateRequest(domains=["*.example.com"]))
 
         assert response.authorized_domains == ["*.example.com"]
         assert len(response.warnings) == 1
@@ -1183,9 +1106,7 @@ class TestExtensionRouterStatus:
         bridge.relay_cdp_ready = AsyncMock(return_value=True)
         bridge.is_access_policy_valid.return_value = True
 
-        with patch(
-            "app.api.extension.router.get_extension_bridge", return_value=bridge
-        ):
+        with patch("app.api.extension.router.get_extension_bridge", return_value=bridge):
             status = await get_extension_status()
 
         assert status.connected is True
@@ -1291,10 +1212,7 @@ class TestMatchDomainEdgeCases:
         assert ExtensionBridgeService._match_domain("", ["example.com"]) is False
 
     def test_empty_pattern_is_skipped(self) -> None:
-        assert (
-            ExtensionBridgeService._match_domain("example.com", ["", "example.com"])
-            is True
-        )
+        assert ExtensionBridgeService._match_domain("example.com", ["", "example.com"]) is True
 
     def test_bare_wildcard_pattern_is_skipped(self) -> None:
         assert ExtensionBridgeService._match_domain("example.com", ["*."]) is False
@@ -1307,9 +1225,7 @@ class TestNormalizeCapabilities:
         assert ExtensionBridgeService._normalize_capabilities("navigate_url") == set()
 
     def test_mixed_payload_normalizes_tokens(self) -> None:
-        caps = ExtensionBridgeService._normalize_capabilities(
-            [" Navigate_URL ", "", 42, "list_tabs"]
-        )
+        caps = ExtensionBridgeService._normalize_capabilities([" Navigate_URL ", "", 42, "list_tabs"])
         assert caps == {"navigate_url", "list_tabs"}
 
 
@@ -1317,9 +1233,7 @@ class TestDomainPolicyWarningNormalization:
     """Cover duplicate/empty filtering in analyze_domain_policy_warnings."""
 
     def test_deduplicates_and_skips_empty_entries(self) -> None:
-        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(
-            ["", " *.example.com ", "*.example.com", "example.com"]
-        )
+        warnings = ExtensionBridgeService.analyze_domain_policy_warnings(["", " *.example.com ", "*.example.com", "example.com"])
         assert warnings == []
 
 
@@ -1349,9 +1263,7 @@ class TestNavigateToUrlAdditionalErrors:
         bridge._ws = MagicMock()
         bridge._authorized_domains = ["example.com"]
 
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="unable to resolve target domain"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="unable to resolve target domain"):
             await bridge.navigate_to_url("http://")
 
     @pytest.mark.asyncio
@@ -1365,9 +1277,7 @@ class TestNavigateToUrlAdditionalErrors:
         bridge._authorized_domains = ["example.com"]
         bridge._send_request = AsyncMock(return_value="bad")
 
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="invalid navigate_url response"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="invalid navigate_url response"):
             await bridge.navigate_to_url("https://example.com/page")
 
     @pytest.mark.asyncio
@@ -1379,9 +1289,7 @@ class TestNavigateToUrlAdditionalErrors:
         bridge._authorized_domains = ["example.com"]
         bridge._capabilities = {"navigate_url"}
         bridge._authorized_domains = ["example.com"]
-        bridge._send_request = AsyncMock(
-            return_value={"url": "https://example.com/page"}
-        )
+        bridge._send_request = AsyncMock(return_value={"url": "https://example.com/page"})
 
         with pytest.raises(ExtensionBridgeNotAvailable, match="did not return tab ID"):
             await bridge.navigate_to_url("https://example.com/page")
@@ -1430,9 +1338,7 @@ class TestConnectWithoutCdpEndpoint:
 
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
-            patch(
-                "app.services.extension.bridge.get_cdp_relay_manager"
-            ) as mock_manager_factory,
+            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=False)
@@ -1456,9 +1362,7 @@ class TestConnectWithoutCdpEndpoint:
 
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
-            patch(
-                "app.services.extension.bridge.get_cdp_relay_manager"
-            ) as mock_manager_factory,
+            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=False)
@@ -1489,9 +1393,7 @@ class TestRequestDebuggerAttachErrors:
         bridge._ws = MagicMock()
         bridge._send_request = AsyncMock(return_value="nope")
 
-        with pytest.raises(
-            ExtensionBridgeNotAvailable, match="invalid attach_debugger response"
-        ):
+        with pytest.raises(ExtensionBridgeNotAvailable, match="invalid attach_debugger response"):
             await bridge._request_debugger_attach(domain="example.com")
 
 
@@ -1514,9 +1416,7 @@ class TestHandleWsConnectionLifecycle:
             side_effect=stop_receive_loop,
         ):
             with patch.object(bridge, "_heartbeat_loop", new_callable=AsyncMock):
-                with patch(
-                    "app.services.extension.bridge._broadcast_extension_status"
-                ) as mock_broadcast:
+                with patch("app.services.extension.bridge._broadcast_extension_status") as mock_broadcast:
                     await bridge.handle_ws_connection(mock_ws)
 
         assert bridge._connected is False
@@ -1629,9 +1529,7 @@ class TestConnectToDomainWithoutCdp:
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
             patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
-            patch(
-                "app.services.extension.bridge.get_cdp_relay_manager"
-            ) as mock_manager_factory,
+            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=False)
@@ -1663,11 +1561,7 @@ class TestRequestDebuggerAttachPayload:
         bridge._send_request.assert_awaited_once()
         call_args = bridge._send_request.await_args
         assert call_args is not None
-        sent_payload = (
-            call_args.args[1]
-            if len(call_args.args) > 1
-            else call_args.kwargs.get("payload")
-        )
+        sent_payload = call_args.args[1] if len(call_args.args) > 1 else call_args.kwargs.get("payload")
         assert sent_payload is not None
         assert sent_payload["tabId"] == 55
 
@@ -1684,9 +1578,7 @@ class TestRefreshTabsFailureSwallowed:
         bridge._authorized_domains = ["example.com"]
         bridge._capabilities = set()
         bridge._tabs = [
-            ExtensionTab(
-                tab_id=1, url="https://github.com", title="GH", domain="github.com"
-            ),
+            ExtensionTab(tab_id=1, url="https://github.com", title="GH", domain="github.com"),
         ]
 
         await bridge._refresh_tabs()
@@ -1753,9 +1645,7 @@ class TestHandleWsConnectionReplaceExisting:
         new_ws = MagicMock()
         new_ws.accept = AsyncMock()
 
-        with patch.object(
-            bridge, "disconnect", new_callable=AsyncMock
-        ) as mock_disconnect:
+        with patch.object(bridge, "disconnect", new_callable=AsyncMock) as mock_disconnect:
             with patch.object(bridge, "_receive_loop", new_callable=AsyncMock):
                 with patch.object(bridge, "_heartbeat_loop", new_callable=AsyncMock):
                     await bridge.handle_ws_connection(new_ws)
@@ -1812,9 +1702,7 @@ class TestHandleWsConnectionCancelledReceive:
         async def raise_cancelled() -> None:
             raise asyncio.CancelledError
 
-        with patch.object(
-            bridge, "_receive_loop", new_callable=AsyncMock, side_effect=raise_cancelled
-        ):
+        with patch.object(bridge, "_receive_loop", new_callable=AsyncMock, side_effect=raise_cancelled):
             with patch.object(bridge, "_heartbeat_loop", new_callable=AsyncMock):
                 await bridge.handle_ws_connection(mock_ws)
 
@@ -1841,9 +1729,7 @@ class TestHeartbeatLoopPing:
             if sleep_calls >= 2:
                 bridge._connected = False
 
-        with patch(
-            "app.services.extension.bridge.asyncio.sleep", side_effect=fake_sleep
-        ):
+        with patch("app.services.extension.bridge.asyncio.sleep", side_effect=fake_sleep):
             await bridge._heartbeat_loop()
 
         mock_ws.send_text.assert_awaited_once()

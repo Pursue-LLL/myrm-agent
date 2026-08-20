@@ -10,9 +10,7 @@ from collections.abc import Callable
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -478,11 +476,7 @@ def _warm_platform_readiness(client, page, wiki_page_url: str) -> dict[str, obje
         timeout_ms=90_000,
     )
     platform_warm = client.evaluate(page, _WARM_PLATFORM_READINESS_JS, timeout_sec=45.0)
-    return (
-        platform_warm
-        if isinstance(platform_warm, dict)
-        else {"ok": False, "warm": platform_warm}
-    )
+    return platform_warm if isinstance(platform_warm, dict) else {"ok": False, "warm": platform_warm}
 
 
 def _assert_health_section_ready(client, page, wiki_page_url: str) -> None:
@@ -560,9 +554,7 @@ def _run_health_report_assertions(
     assert isinstance(health.get("open_actions_count"), int)
 
     _seed_wiki_provenance_gap_fixture(api_url)
-    health_after_seed = http_json(
-        "GET", f"{api_url.rstrip('/')}/api/v1/wiki/health-report"
-    )
+    health_after_seed = http_json("GET", f"{api_url.rstrip('/')}/api/v1/wiki/health-report")
     assert isinstance(health_after_seed, dict)
     issues = health_after_seed.get("issues") or []
     assert any(item.get("issue_type") == "provenance_gap" for item in issues)
@@ -587,9 +579,7 @@ def _run_health_report_assertions(
             page_url=wiki_page_url,
         )
         assert state.get("ready") is True, state
-        assert (
-            state.get("sectionReady") is True or state.get("hasProvenanceCopy") is True
-        )
+        assert state.get("sectionReady") is True or state.get("hasProvenanceCopy") is True
 
 
 def _run_with_transport_retry(
@@ -612,9 +602,7 @@ def _run_with_transport_retry(
         raise last_error
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)

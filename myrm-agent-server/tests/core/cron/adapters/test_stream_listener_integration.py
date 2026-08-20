@@ -37,6 +37,7 @@ _SSRF_OK = SSRFResult(safe=True, hostname="localhost", resolved_ips=("127.0.0.1"
 # Fixtures: in-process aiohttp test server with WS & SSE endpoints
 # ---------------------------------------------------------------------------
 
+
 async def _ws_handler(request: aiohttp.web.Request) -> aiohttp.web.WebSocketResponse:
     ws = aiohttp.web.WebSocketResponse()
     await ws.prepare(request)
@@ -65,6 +66,7 @@ async def _sse_handler(request: aiohttp.web.Request) -> aiohttp.web.StreamRespon
 
 class _TestServerContext:
     """Holds both the runner and the app for easy access in tests."""
+
     def __init__(self, runner: aiohttp.web.AppRunner, app: aiohttp.web.Application) -> None:
         self.runner = runner
         self.app = app
@@ -519,10 +521,13 @@ class TestStreamEdgeCases:
             filter_regex=huge_regex,
         )
 
-        with patch(
-            "app.core.cron.adapters.stream_listener.async_validate_url_for_ssrf",
-            return_value=_SSRF_OK,
-        ), pytest.raises(ValueError, match="too large"):
+        with (
+            patch(
+                "app.core.cron.adapters.stream_listener.async_validate_url_for_ssrf",
+                return_value=_SSRF_OK,
+            ),
+            pytest.raises(ValueError, match="too large"),
+        ):
             await mgr.start_stream("redos", trigger, on_event)
 
         await mgr.stop_all()

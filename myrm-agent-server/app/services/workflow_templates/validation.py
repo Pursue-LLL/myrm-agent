@@ -40,9 +40,7 @@ def _validate_trusted_cron_template(
         return error or "Invalid workflow template arguments."
 
     if require_readonly_spawns and not script_all_spawns_readonly(record.script_code):
-        return (
-            "Cron workflow template must contain only readonly spawn_subagent calls."
-        )
+        return "Cron workflow template must contain only readonly spawn_subagent calls."
     return None
 
 

@@ -54,9 +54,7 @@ async def _get_file_snapshot_store() -> FileSnapshotProtocol:
     return _file_snapshot_store
 
 
-async def _get_snapshot_external_effects(
-    store: FileSnapshotProtocol, snapshot_id: str
-) -> tuple[str, ...] | None:
+async def _get_snapshot_external_effects(store: FileSnapshotProtocol, snapshot_id: str) -> tuple[str, ...] | None:
     """Retrieve external_effects from snapshot metadata via git log (best-effort).
 
     Uses the store's internal git log parsing to find metadata for a specific commit.
@@ -73,7 +71,6 @@ async def _get_snapshot_external_effects(
         # warning is best-effort, so missing effects is not an error.
         logger.debug("Snapshot metadata unavailable (snapshot=%s)", snapshot_id)
     return None
-
 
 
 @router.get("/list", response_model=CheckpointListResponse)
@@ -181,7 +178,6 @@ async def cleanup_old_checkpoints(
 # ============================================================================
 # File Snapshot Endpoints
 # ============================================================================
-
 
 
 @router.get("/file-snapshot/list", response_model=FileSnapshotListResponse)

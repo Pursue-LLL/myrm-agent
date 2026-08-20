@@ -139,10 +139,7 @@ def is_moa_preset_configured(engine_params: dict[str, object] | None) -> bool:
         return False
     if not overlay.get("enabled"):
         return False
-    has_preset_refs = any(
-        len(resolve_preset_reference_selections(overlay, preset_id)) > 0
-        for preset_id in VALID_MOA_PRESET_IDS
-    )
+    has_preset_refs = any(len(resolve_preset_reference_selections(overlay, preset_id)) > 0 for preset_id in VALID_MOA_PRESET_IDS)
     if _has_presets_key(overlay):
         return has_preset_refs
     return has_preset_refs or len(_top_level_reference_selections(overlay)) > 0
@@ -163,9 +160,7 @@ def apply_moa_preset_activation(
 
     overlay_copy = dict(overlay)
     activate = (
-        overlay.get("enabled") is True
-        and active_moa_preset_id is not None
-        and active_moa_preset_id in VALID_MOA_PRESET_IDS
+        overlay.get("enabled") is True and active_moa_preset_id is not None and active_moa_preset_id in VALID_MOA_PRESET_IDS
     )
     overlay_copy["enabled"] = activate
     if activate and active_moa_preset_id is not None:

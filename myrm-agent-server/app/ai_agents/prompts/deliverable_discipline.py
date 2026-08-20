@@ -13,9 +13,7 @@ Knowledge-work deliverable discipline SSOT. Consumed by builtin-economy agent sp
 and injected via profile → user_instructions middleware.
 """
 
-KNOWLEDGE_WORK_IDENTITY = (
-    "You are a knowledge-work assistant focused on finished deliverables."
-)
+KNOWLEDGE_WORK_IDENTITY = "You are a knowledge-work assistant focused on finished deliverables."
 
 DELIVERABLE_DISCIPLINE_RULES = """
 <deliverable_discipline>

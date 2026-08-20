@@ -75,9 +75,7 @@ def apply_ptc_meta_mount(
     if file_access_mode == FileAccessMode.FULL and enable_shell_tools:
         return file_access_mode, enable_shell_tools
 
-    logger.info(
-        "PTC auto-inject: forcing file_access_mode=FULL, shell_tools=True (MCP skills present)"
-    )
+    logger.info("PTC auto-inject: forcing file_access_mode=FULL, shell_tools=True (MCP skills present)")
     return FileAccessMode.FULL, True
 
 
@@ -89,14 +87,8 @@ def _with_meta_mount(
 ) -> BuiltinToolFlags:
     from app.services.agent.profile.profile_resolver import BuiltinToolFlags
 
-    resolved_file_access = (
-        file_access_mode if file_access_mode is not None else flags["file_access_mode"]
-    )
-    resolved_shell = (
-        enable_shell_tools
-        if enable_shell_tools is not None
-        else flags["enable_shell_tools"]
-    )
+    resolved_file_access = file_access_mode if file_access_mode is not None else flags["file_access_mode"]
+    resolved_shell = enable_shell_tools if enable_shell_tools is not None else flags["enable_shell_tools"]
     return BuiltinToolFlags(
         enable_browser=flags["enable_browser"],
         enable_computer_use=flags["enable_computer_use"],

@@ -173,9 +173,7 @@ class DesktopControlGate:
             return None
         display_name = str(entry.get("display_name") or key).strip()
         app_id = str(entry.get("app_id") or "").strip()
-        trust_key = (
-            resolve_trust_key(app_name=display_name, app_id=app_id) or key.strip()
-        )
+        trust_key = resolve_trust_key(app_name=display_name, app_id=app_id) or key.strip()
         if not trust_key:
             return None
         return {
@@ -359,9 +357,7 @@ def resolve_desktop_control_approval(
         scope_enum = ForegroundPermissionScope(scope)
     except ValueError:
         scope_enum = ForegroundPermissionScope.once
-    return DesktopApprovalRegistry.resolve(
-        request_id, granted=granted, scope=scope_enum
-    )
+    return DesktopApprovalRegistry.resolve(request_id, granted=granted, scope=scope_enum)
 
 
 def _trust_store_workspace_roots(*, fallback_root: str | None) -> list[Path]:
@@ -399,26 +395,18 @@ def _trust_store_workspace_roots(*, fallback_root: str | None) -> list[Path]:
                             if not entry.is_dir(follow_symlinks=False):
                                 continue
                             agent_dir = os.path.join(entry.path, _APPROVAL_DIR)
-                            if os.path.isdir(agent_dir) and os.path.isfile(
-                                os.path.join(agent_dir, _APPROVAL_FILE)
-                            ):
+                            if os.path.isdir(agent_dir) and os.path.isfile(os.path.join(agent_dir, _APPROVAL_FILE)):
                                 _add(Path(entry.path))
                 except OSError:
                     return
 
             try:
-                collections = [
-                    entry.path
-                    for entry in os.scandir(harness_dir)
-                    if entry.is_dir(follow_symlinks=False)
-                ]
+                collections = [entry.path for entry in os.scandir(harness_dir) if entry.is_dir(follow_symlinks=False)]
             except OSError:
                 collections = []
             for collection in collections:
                 agent_dir = os.path.join(collection, _APPROVAL_DIR)
-                if os.path.isdir(agent_dir) and os.path.isfile(
-                    os.path.join(agent_dir, _APPROVAL_FILE)
-                ):
+                if os.path.isdir(agent_dir) and os.path.isfile(os.path.join(agent_dir, _APPROVAL_FILE)):
                     _add(Path(collection))
                 else:
                     _collect(collection)

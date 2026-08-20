@@ -51,19 +51,11 @@ _CLEANUP_MIN_INTERVAL = timedelta(hours=6)
 _DEEP_VERIFICATION_THRESHOLD_MS = 8_000
 _QUICK_BOUNCE_THRESHOLD_MS = 2_000
 _QUALITY_OUTCOME_NEGATIVE_EVENT_TYPE = "quality_outcome_negative"
-_ALERT_TRIGGER_EVENT_TYPES = frozenset(
-    {"dropped_report", "snippet_open", "snippet_close", _QUALITY_OUTCOME_NEGATIVE_EVENT_TYPE}
-)
+_ALERT_TRIGGER_EVENT_TYPES = frozenset({"dropped_report", "snippet_open", "snippet_close", _QUALITY_OUTCOME_NEGATIVE_EVENT_TYPE})
 _ALERT_DROPPED_EVENT_THRESHOLD = wiki_evidence_alerts_core._ALERT_DROPPED_EVENT_THRESHOLD
-_ALERT_DEEP_VERIFICATION_MIN_OPEN_COUNT = (
-    wiki_evidence_alerts_core._ALERT_DEEP_VERIFICATION_MIN_OPEN_COUNT
-)
-_ALERT_DEEP_VERIFICATION_MIN_DWELL_SAMPLES = (
-    wiki_evidence_alerts_core._ALERT_DEEP_VERIFICATION_MIN_DWELL_SAMPLES
-)
-_ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT = (
-    wiki_evidence_alerts_core._ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT
-)
+_ALERT_DEEP_VERIFICATION_MIN_OPEN_COUNT = wiki_evidence_alerts_core._ALERT_DEEP_VERIFICATION_MIN_OPEN_COUNT
+_ALERT_DEEP_VERIFICATION_MIN_DWELL_SAMPLES = wiki_evidence_alerts_core._ALERT_DEEP_VERIFICATION_MIN_DWELL_SAMPLES
+_ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT = wiki_evidence_alerts_core._ALERT_NEGATIVE_OUTCOME_MIN_EVIDENCE_SURFACE_COUNT
 _ALERT_NEGATIVE_OUTCOME_RATE_THRESHOLD = wiki_evidence_alerts_core._ALERT_NEGATIVE_OUTCOME_RATE_THRESHOLD
 _cleanup_lock = asyncio.Lock()
 _last_cleanup_at: datetime | None = None
@@ -368,9 +360,7 @@ async def get_wiki_evidence_summary(
         for surface, count in (await db.execute(quality_outcome_surface_stmt)).all():
             quality_outcome_negative_by_surface[str(surface)] = int(count or 0)
         outcome_rate_denominator = sum(
-            evidence_surface_by_surface[surface]
-            for surface in _SURFACES
-            if quality_outcome_negative_by_surface[surface] > 0
+            evidence_surface_by_surface[surface] for surface in _SURFACES if quality_outcome_negative_by_surface[surface] > 0
         )
         if outcome_rate_denominator <= 0:
             outcome_rate_denominator = evidence_surface_count

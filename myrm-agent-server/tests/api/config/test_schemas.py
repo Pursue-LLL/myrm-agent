@@ -11,9 +11,7 @@ from app.schemas.config import ConfigKey, PersonalSettingsConfigValue
 def test_whatsapp_credentials_in_config_key() -> None:
     """Verify whatsappCredentials is a valid ConfigKey."""
     config_keys = typing.get_args(ConfigKey)
-    assert (
-        "whatsappCredentials" in config_keys
-    ), "whatsappCredentials must be in ConfigKey enum"
+    assert "whatsappCredentials" in config_keys, "whatsappCredentials must be in ConfigKey enum"
 
 
 def test_all_credentials_keys_present() -> None:

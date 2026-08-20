@@ -12,12 +12,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 SCRIPT_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "assets"
-    / "prebuilt_skills"
-    / "google-workspace"
-    / "scripts"
-    / "google_api.py"
+    Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills" / "google-workspace" / "scripts" / "google_api.py"
 )
 
 

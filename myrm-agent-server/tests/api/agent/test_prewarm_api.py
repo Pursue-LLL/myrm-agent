@@ -56,13 +56,16 @@ class TestPrewarmEndpoint:
     def test_prewarm_starts_warming(self, client: TestClient, caplog) -> None:
         mock_params = MagicMock()
         mock_params.chat_id = "c-prewarm-ok"
-        with patch(
-            "app.api.agents.general_agent.prewarm.resolve_prewarm_agent_params",
-            new_callable=AsyncMock,
-            return_value=mock_params,
-        ), patch(
-            "app.api.agents.general_agent.prewarm.get_turn_prewarm_coordinator",
-        ) as mock_get_coordinator:
+        with (
+            patch(
+                "app.api.agents.general_agent.prewarm.resolve_prewarm_agent_params",
+                new_callable=AsyncMock,
+                return_value=mock_params,
+            ),
+            patch(
+                "app.api.agents.general_agent.prewarm.get_turn_prewarm_coordinator",
+            ) as mock_get_coordinator,
+        ):
             coordinator = MagicMock()
             coordinator.ensure_warming = AsyncMock()
             mock_get_coordinator.return_value = coordinator
@@ -74,9 +77,7 @@ class TestPrewarmEndpoint:
                 )
                 # 非 DEBUG 下 root logger 为 WARNING，INFO 被过滤；prewarm 观测行
                 # 必须用 WARNING 保证 E2E count_turn_prewarm_in_log 可读（BUG-R015）。
-                assert any(
-                    "Turn prewarm requested" in rec.message for rec in caplog.records
-                )
+                assert any("Turn prewarm requested" in rec.message for rec in caplog.records)
 
         assert resp.status_code == 200
         body = resp.json()

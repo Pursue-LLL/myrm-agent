@@ -77,9 +77,7 @@ class SearchServiceConfigItem(BaseModel):
     enabled: bool = Field(default=False, description="是否启用")
     priority: int = Field(..., ge=1, le=5, description="优先级（1 最高，启用项内唯一）")
     search_service: SearchServiceType = Field(..., description="搜索服务提供商 slug")
-    api_key: str | None = Field(
-        None, description="API 密钥", json_schema_extra={"ui:widget": "password"}
-    )
+    api_key: str | None = Field(None, description="API 密钥", json_schema_extra={"ui:widget": "password"})
     api_base: str | None = Field(None, description="自定义 API 基础地址")
     extra_params: dict[str, object] | None = Field(None, description="额外参数")
     latency: int | None = Field(None, description="延迟 (ms)")
@@ -114,9 +112,7 @@ class SearchServiceConfigItem(BaseModel):
 class SearchServicesConfigValue(BaseModel):
     """搜索服务配置集合"""
 
-    searchServiceConfigs: list[SearchServiceConfigItem] = Field(
-        default_factory=list, description="搜索服务配置列表"
-    )
+    searchServiceConfigs: list[SearchServiceConfigItem] = Field(default_factory=list, description="搜索服务配置列表")
 
     @model_validator(mode="after")
     def validate_unique_enabled_priorities(self) -> Self:
@@ -125,9 +121,7 @@ class SearchServicesConfigValue(BaseModel):
             if not item.enabled:
                 continue
             if item.priority in seen:
-                raise ValueError(
-                    f"Duplicate priority {item.priority} among enabled search configs"
-                )
+                raise ValueError(f"Duplicate priority {item.priority} among enabled search configs")
             seen.add(item.priority)
         return self
 
@@ -155,21 +149,15 @@ def _personal_settings_field(
 class PersonalSettingsConfigValue(BaseModel):
     """个人偏好设置"""
 
-    systemInstructions: str = _personal_settings_field(
-        "personalization", default="", description="系统指令"
-    )
-    fetchRawWebpage: bool = _personal_settings_field(
-        "preferences", default=False, description="获取原始网页", group="advanced"
-    )
+    systemInstructions: str = _personal_settings_field("personalization", default="", description="系统指令")
+    fetchRawWebpage: bool = _personal_settings_field("preferences", default=False, description="获取原始网页", group="advanced")
     extractDocumentText: bool = _personal_settings_field(
         "preferences",
         default=True,
         description="Extract text from PDF/Office attachments before sending to the model",
         group="advanced",
     )
-    generateSearchSuggestions: bool = _personal_settings_field(
-        "preferences", default=True, description="生成搜索建议"
-    )
+    generateSearchSuggestions: bool = _personal_settings_field("preferences", default=True, description="生成搜索建议")
     enableCostEstimation: bool = _personal_settings_field(
         "preferences", default=True, description="启用成本估算", visible_if="local"
     )
@@ -184,41 +172,25 @@ class PersonalSettingsConfigValue(BaseModel):
     showContextUsage: bool = _personal_settings_field(
         "preferences", default=True, description="显示上下文使用率", visible_if="local"
     )
-    reasoningDisplayMode: Literal["off", "collapsed", "inline"] = (
-        _personal_settings_field(
-            "preferences",
-            default="collapsed",
-            description="思考过程展示方式",
-        )
+    reasoningDisplayMode: Literal["off", "collapsed", "inline"] = _personal_settings_field(
+        "preferences",
+        default="collapsed",
+        description="思考过程展示方式",
     )
-    enableMemory: bool = _personal_settings_field(
-        "memory", default=False, description="启用记忆"
-    )
-    memoryRequireConfirmation: bool = _personal_settings_field(
-        "memory", default=False, description="记忆需要确认"
-    )
-    enableMemoryAutoExtraction: bool = _personal_settings_field(
-        "memory", default=True, description="启用记忆自动提取"
-    )
+    enableMemory: bool = _personal_settings_field("memory", default=False, description="启用记忆")
+    memoryRequireConfirmation: bool = _personal_settings_field("memory", default=False, description="记忆需要确认")
+    enableMemoryAutoExtraction: bool = _personal_settings_field("memory", default=True, description="启用记忆自动提取")
     memoryEnableConversationSearch: bool = _personal_settings_field(
         "memory",
         default=False,
         description="启用历史会话搜索工具（conversation_search）",
     )
-    enableAutoTitleGeneration: bool = _personal_settings_field(
-        "preferences", default=True, description="启用自动生成标题"
-    )
-    webTtsProvider: Literal[
-        "browser", "openai", "elevenlabs", "fish_audio", "minimax", "edge"
-    ] = _personal_settings_field(
+    enableAutoTitleGeneration: bool = _personal_settings_field("preferences", default=True, description="启用自动生成标题")
+    webTtsProvider: Literal["browser", "openai", "elevenlabs", "fish_audio", "minimax", "edge"] = _personal_settings_field(
         "voice", default="browser", description="Web TTS 提供商"
     )
-    timezone: str = _personal_settings_field(
-        "personalization", default="", description="时区"
-    )
-    locale: str | None = _personal_settings_field(
-        "personalization", default=None, description="语言"
-    )
+    timezone: str = _personal_settings_field("personalization", default="", description="时区")
+    locale: str | None = _personal_settings_field("personalization", default=None, description="语言")
     activeThemeProfileId: str | None = _personal_settings_field(
         "personalization",
         default="official-default",
@@ -234,24 +206,14 @@ class PersonalSettingsConfigValue(BaseModel):
         default=None,
         description="主题字体覆盖（inter/system/atkinson）",
     )
-    enableWebNotifications: bool = _personal_settings_field(
-        "notifications", default=True, description="启用 Web 通知"
-    )
-    enableCompletionSound: bool = _personal_settings_field(
-        "notifications", default=True, description="启用完成提示音"
-    )
+    enableWebNotifications: bool = _personal_settings_field("notifications", default=True, description="启用 Web 通知")
+    enableCompletionSound: bool = _personal_settings_field("notifications", default=True, description="启用完成提示音")
     notificationDeliveries: list[dict[str, object]] | None = _personal_settings_field(
         "notifications", default=None, description="通知投递配置"
     )
-    privacyEnabled: bool | None = _personal_settings_field(
-        "security", default=None, description="启用隐私保护"
-    )
-    privacyS2Action: str | None = _personal_settings_field(
-        "security", default=None, description="隐私 S2 动作"
-    )
-    privacyS3Action: str | None = _personal_settings_field(
-        "security", default=None, description="隐私 S3 动作"
-    )
+    privacyEnabled: bool | None = _personal_settings_field("security", default=None, description="启用隐私保护")
+    privacyS2Action: str | None = _personal_settings_field("security", default=None, description="隐私 S2 动作")
+    privacyS3Action: str | None = _personal_settings_field("security", default=None, description="隐私 S3 动作")
     privacyDeepScan: bool | None = _personal_settings_field(
         "security",
         default=None,
@@ -289,9 +251,7 @@ class PersonalSettingsConfigValue(BaseModel):
         description="Enterprise network compatibility (relaxes strict TLS for corporate proxies)",
         group="advanced",
     )
-    publicIngressBaseUrl: str = _personal_settings_field(
-        "system", default="", description="公网 Ingress 地址"
-    )
+    publicIngressBaseUrl: str = _personal_settings_field("system", default="", description="公网 Ingress 地址")
 
 
 class SecurityDashboardSettingsConfigValue(BaseModel):
@@ -317,9 +277,7 @@ class BrowserCloudProviderConfigValue(BaseModel):
     """Cloud browser provider configuration for remote browsing via Browserbase/Browserless/Notte."""
 
     enabled: bool = Field(default=False, description="Whether cloud browser is enabled")
-    provider: BrowserCloudProviderType = Field(
-        default="browserbase", description="Cloud browser provider"
-    )
+    provider: BrowserCloudProviderType = Field(default="browserbase", description="Cloud browser provider")
     credential: str = Field(default="", description="API key or token for the provider")
     custom_ws_url: str = Field(
         default="",
@@ -351,9 +309,7 @@ class BrowserProxyConfigValue(BaseModel):
 class CaptchaSolverConfigValue(BaseModel):
     """CAPTCHA auto-solver configuration for automated CAPTCHA resolution."""
 
-    enabled: bool = Field(
-        default=False, description="Whether auto CAPTCHA solving is enabled"
-    )
+    enabled: bool = Field(default=False, description="Whether auto CAPTCHA solving is enabled")
     api_key: str = Field(default="", description="CapSolver API key")
 
 
@@ -383,9 +339,7 @@ class WebFetchFirecrawlConfig(BaseModel):
 class WebFetchEscalationConfigValue(BaseModel):
     """Remote reader fallback (L4) after local HTTP/Browser/Stealth exhaustion."""
 
-    enabled: bool = Field(
-        default=False, description="Enable remote fetch escalation (default OFF)"
-    )
+    enabled: bool = Field(default=False, description="Enable remote fetch escalation (default OFF)")
     jina_api_key: str | None = Field(
         None,
         alias="jinaApiKey",
@@ -424,9 +378,7 @@ class ConfigMeta(BaseModel):
     """配置元数据"""
 
     version: str = Field(..., description="版本号（时间戳_计数器格式）")
-    updated_at: str = Field(
-        ..., alias="updatedAt", description="最后修改时间 (ISO 8601)"
-    )
+    updated_at: str = Field(..., alias="updatedAt", description="最后修改时间 (ISO 8601)")
     device_id: str = Field(..., alias="deviceId", description="最后修改的设备 ID")
 
     class Config:
@@ -452,9 +404,7 @@ class ConfigSetRequest(BaseModel):
     """设置配置请求"""
 
     value: dict[str, object] = Field(..., description="配置值")
-    expected_version: str | None = Field(
-        None, alias="expectedVersion", description="期望的服务端版本（乐观锁）"
-    )
+    expected_version: str | None = Field(None, alias="expectedVersion", description="期望的服务端版本（乐观锁）")
     device_id: str = Field(..., alias="deviceId", description="设备 ID")
 
     class Config:

@@ -86,10 +86,7 @@ def _reject_legacy_consensus_request(request: AgentRequest) -> JSONResponse | No
     return JSONResponse(
         status_code=400,
         content={
-            "detail": (
-                "action_mode 'consensus' was removed. "
-                "Use action_mode 'agent' with active_moa_preset_id instead."
-            ),
+            "detail": ("action_mode 'consensus' was removed. Use action_mode 'agent' with active_moa_preset_id instead."),
         },
     )
 
@@ -134,18 +131,14 @@ async def run_agent_stream(
             await _record_terminal_failure_if_needed("server_error")
             return JSONResponse(
                 status_code=403,
-                content={
-                    "detail": f"{request.action_mode} is disabled via Feature Gate"
-                },
+                content={"detail": f"{request.action_mode} is disabled via Feature Gate"},
             )
 
     text_content = stream_text_content(request)
 
     # Gateway hygiene check: block massive malicious payloads before they hit the agent harness
     if len(text_content) > _GATEWAY_MAX_INPUT_CHARS:
-        logger.warning(
-            f"Gateway rejected massive payload: length={len(text_content)} chars"
-        )
+        logger.warning(f"Gateway rejected massive payload: length={len(text_content)} chars")
         await _record_terminal_failure_if_needed("server_error")
         return JSONResponse(
             status_code=400,

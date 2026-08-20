@@ -108,9 +108,7 @@ class TestSubscribe:
         svc = WebPushService()
         mock_db = AsyncMock()
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = SimpleNamespace(
-            endpoint_hash="existing_hash"
-        )
+        mock_result.scalar_one_or_none.return_value = SimpleNamespace(endpoint_hash="existing_hash")
         mock_db.execute = AsyncMock(return_value=mock_result)
         mock_db.commit = AsyncMock()
 
@@ -188,12 +186,8 @@ class TestBroadcast:
         svc._private_pem = "MOCK_PEM"
         svc._public_key = "MOCK_PUB"
 
-        sub1 = SimpleNamespace(
-            endpoint="https://e1.com", p256dh="k1", auth="a1", endpoint_hash="h1"
-        )
-        sub2 = SimpleNamespace(
-            endpoint="https://e2.com", p256dh="k2", auth="a2", endpoint_hash="h2"
-        )
+        sub1 = SimpleNamespace(endpoint="https://e1.com", p256dh="k1", auth="a1", endpoint_hash="h1")
+        sub2 = SimpleNamespace(endpoint="https://e2.com", p256dh="k2", auth="a2", endpoint_hash="h2")
 
         mock_db = AsyncMock()
         mock_result = MagicMock()
@@ -219,12 +213,8 @@ class TestBroadcast:
         svc._private_pem = "MOCK_PEM"
         svc._public_key = "MOCK_PUB"
 
-        sub1 = SimpleNamespace(
-            endpoint="https://e1.com", p256dh="k1", auth="a1", endpoint_hash="h1"
-        )
-        sub2 = SimpleNamespace(
-            endpoint="https://e2.com", p256dh="k2", auth="a2", endpoint_hash="h2"
-        )
+        sub1 = SimpleNamespace(endpoint="https://e1.com", p256dh="k1", auth="a1", endpoint_hash="h1")
+        sub2 = SimpleNamespace(endpoint="https://e2.com", p256dh="k2", auth="a2", endpoint_hash="h2")
 
         mock_db = AsyncMock()
         mock_result = MagicMock()
@@ -288,9 +278,7 @@ class TestSendOne:
                 new_callable=AsyncMock,
                 side_effect=exc,
             ),
-            patch.object(
-                svc, "_remove_subscription", new_callable=AsyncMock
-            ) as mock_remove,
+            patch.object(svc, "_remove_subscription", new_callable=AsyncMock) as mock_remove,
         ):
             result = await svc._send_one(
                 endpoint="https://e.com",
@@ -321,9 +309,7 @@ class TestSendOne:
                 new_callable=AsyncMock,
                 side_effect=exc,
             ),
-            patch.object(
-                svc, "_remove_subscription", new_callable=AsyncMock
-            ) as mock_remove,
+            patch.object(svc, "_remove_subscription", new_callable=AsyncMock) as mock_remove,
         ):
             result = await svc._send_one(
                 endpoint="https://e.com",
@@ -398,9 +384,7 @@ class TestSendOne:
                 new_callable=AsyncMock,
                 side_effect=exc,
             ),
-            patch.object(
-                svc, "_remove_subscription", new_callable=AsyncMock
-            ) as mock_remove,
+            patch.object(svc, "_remove_subscription", new_callable=AsyncMock) as mock_remove,
         ):
             result = await svc._send_one(
                 endpoint="https://e.com",

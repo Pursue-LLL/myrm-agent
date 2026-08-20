@@ -123,11 +123,7 @@ class ChatAgentExecutionCache:
 
             if entry is not None:
                 turn_lock = self._turn_locks.get(scope_key)
-                if (
-                    entry.config_fingerprint != config_fingerprint
-                    and turn_lock is not None
-                    and turn_lock.locked()
-                ):
+                if entry.config_fingerprint != config_fingerprint and turn_lock is not None and turn_lock.locked():
                     logger.warning(
                         "execution_cache_replace_deferred scope=%s reason=config_changed_active_turn",
                         scope_key,
@@ -155,10 +151,7 @@ class ChatAgentExecutionCache:
     async def is_warm(self, scope_key: str, config_fingerprint: str) -> bool:
         async with self._lock:
             entry = self._entries.get(scope_key)
-            return (
-                entry is not None
-                and entry.config_fingerprint == config_fingerprint
-            )
+            return entry is not None and entry.config_fingerprint == config_fingerprint
 
     async def release(self, scope_key: str) -> None:
         async with self._lock:
@@ -224,10 +217,7 @@ class ChatAgentExecutionCache:
             scope_key
             for scope_key, entry in self._entries.items()
             if now - entry.last_used > self._idle_seconds
-            and not (
-                (turn_lock := self._turn_locks.get(scope_key)) is not None
-                and turn_lock.locked()
-            )
+            and not ((turn_lock := self._turn_locks.get(scope_key)) is not None and turn_lock.locked())
         ]
         evicted_entries: list[tuple[str, _CacheEntry]] = []
         for scope_key in stale_keys:

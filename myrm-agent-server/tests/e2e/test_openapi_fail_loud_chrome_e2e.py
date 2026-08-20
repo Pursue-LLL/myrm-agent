@@ -84,9 +84,7 @@ def _heavy_openapi_spec_yaml() -> str:
     return "\n".join(lines)
 
 
-def _create_agent(
-    api_url: str, *, openapi_services: list[dict[str, object]], label: str
-) -> str:
+def _create_agent(api_url: str, *, openapi_services: list[dict[str, object]], label: str) -> str:
     suffix = uuid.uuid4().hex[:8]
     payload = {
         "name": f"OpenAPI Fail Loud E2E {label} {suffix}",
@@ -115,9 +113,7 @@ def _assert_agent_openapi_services(
     assert isinstance(fetched, dict)
     data = fetched.get("data") if isinstance(fetched.get("data"), dict) else fetched
     services = data.get("openapi_services")
-    assert (
-        isinstance(services, list) and len(services) >= min_count
-    ), f"agent {agent_id} missing openapi_services: {data!r}"
+    assert isinstance(services, list) and len(services) >= min_count, f"agent {agent_id} missing openapi_services: {data!r}"
 
 
 def _delete_agent(api_url: str, agent_id: str) -> None:
@@ -147,14 +143,10 @@ async def _wait_agent_applied(
         if last.get("ok") is True:
             return
         await asyncio.sleep(1.0)
-    raise AssertionError(
-        f"E2E agent not applied: expected={expected_agent_id!r} last={last!r}"
-    )
+    raise AssertionError(f"E2E agent not applied: expected={expected_agent_id!r} last={last!r}")
 
 
-async def _wait_bridge_ready(
-    chat: McpChatSession, *, timeout_sec: float = 90.0
-) -> None:
+async def _wait_bridge_ready(chat: McpChatSession, *, timeout_sec: float = 90.0) -> None:
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -167,18 +159,14 @@ async def _wait_bridge_ready(
     raise AssertionError(f"E2E chat bridge not ready: {last!r}")
 
 
-async def _open_agent_page(
-    client: ChromeMcpClient, agent_url: str, api_url: str
-) -> object:
+async def _open_agent_page(client: ChromeMcpClient, agent_url: str, api_url: str) -> object:
     last_exc: RuntimeError | None = None
     for attempt in range(4):
         if attempt > 0:
             wait_e2e_provider_ready(api_url=api_url, timeout_sec=30.0)
             await asyncio.sleep(2.0 * attempt)
         try:
-            return await asyncio.to_thread(
-                client.new_page, agent_url, timeout_ms=120_000
-            )
+            return await asyncio.to_thread(client.new_page, agent_url, timeout_ms=120_000)
         except RuntimeError as exc:
             if "E2E_RUNTIME_BINDING_FAILED" not in str(exc):
                 raise
@@ -260,8 +248,7 @@ def _assert_openapi_outcome(
     assert outcome.get("sseHasError") is True, json.dumps(outcome, ensure_ascii=False)
     matched = outcome.get("matched")
     assert matched in {"metadata", "progressStep"}, (
-        f"expected chat metadata or progressStep, got {matched!r}: "
-        f"{json.dumps(outcome, ensure_ascii=False)}"
+        f"expected chat metadata or progressStep, got {matched!r}: {json.dumps(outcome, ensure_ascii=False)}"
     )
     error_type = outcome.get("errorType")
     if isinstance(error_type, str) and error_type:
@@ -308,9 +295,7 @@ async def test_openapi_load_fail_shows_chat_error_in_real_ui(
             agent_path=agent_path,
             agent_url=agent_url,
             expected_error_type="openapi_load_failed",
-            message_pattern=(
-                r"OpenAPI services are enabled but no tools|已启用 OpenAPI 服务但未加载任何工具"
-            ),
+            message_pattern=(r"OpenAPI services are enabled but no tools|已启用 OpenAPI 服务但未加载任何工具"),
         )
         _assert_openapi_outcome(outcome, expected_error_type="openapi_load_failed")
     finally:
@@ -362,8 +347,6 @@ async def test_openapi_budget_exceeded_shows_chat_error_in_real_ui(
                 r"exceeds Turn1 direct budget|超出.*直接绑定预算"
             ),
         )
-        _assert_openapi_outcome(
-            outcome, expected_error_type="openapi_direct_budget_exceeded"
-        )
+        _assert_openapi_outcome(outcome, expected_error_type="openapi_direct_budget_exceeded")
     finally:
         _delete_agent(api_url, agent_id)

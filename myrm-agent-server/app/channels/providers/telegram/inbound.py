@@ -313,10 +313,12 @@ class TelegramInboundMixin:
                 if msg.contact.vcard:
                     metadata["contact_cards"] = [_parse_telegram_vcard(msg.contact)]
                 elif contact_parts:
-                    metadata["contact_cards"] = [{
-                        "name": " ".join(name_parts),
-                        **({"phones": [msg.contact.phone_number]} if msg.contact.phone_number else {}),
-                    }]
+                    metadata["contact_cards"] = [
+                        {
+                            "name": " ".join(name_parts),
+                            **({"phones": [msg.contact.phone_number]} if msg.contact.phone_number else {}),
+                        }
+                    ]
                 text = "[Shared Contact] " + " | ".join(contact_parts) if contact_parts else "[Shared Contact]"
                 has_text = True
             elif msg.venue:

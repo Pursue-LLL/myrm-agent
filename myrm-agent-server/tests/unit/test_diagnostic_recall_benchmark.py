@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.schemas.memory.command_center import MemoryCommandBenchmarkSummary
 from app.services.memory.diagnostics.diagnostic.diagnostic_recall_benchmark import (
     _BENCHMARK_PAIRS,
     run_golden_recall_benchmark,

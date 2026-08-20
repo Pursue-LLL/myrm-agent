@@ -138,9 +138,13 @@ class TestGetTasteSummary:
         facets = [
             FakeFacet(key="code_style", value="concise", category=PreferenceCategory.STYLE, lifecycle=PreferenceLifecycle.ACTIVE),
             FakeFacet(key="lang", value="Python", category=PreferenceCategory.TOOLING, lifecycle=PreferenceLifecycle.ACTIVE),
-            FakeFacet(key="no_any", value="avoid any type", category=PreferenceCategory.VETO, lifecycle=PreferenceLifecycle.PROVISIONAL),
+            FakeFacet(
+                key="no_any", value="avoid any type", category=PreferenceCategory.VETO, lifecycle=PreferenceLifecycle.PROVISIONAL
+            ),
             FakeFacet(key="goal", value="ship v2", category=PreferenceCategory.GOAL, lifecycle=PreferenceLifecycle.ACTIVE),
-            FakeFacet(key="identity", value="backend dev", category=PreferenceCategory.IDENTITY, lifecycle=PreferenceLifecycle.ACTIVE),
+            FakeFacet(
+                key="identity", value="backend dev", category=PreferenceCategory.IDENTITY, lifecycle=PreferenceLifecycle.ACTIVE
+            ),
         ]
         manager = _make_manager(facets=facets, strategy_available=True)
 
@@ -161,8 +165,20 @@ class TestGetTasteSummary:
         )
 
         facets = [
-            FakeFacet(key="a", value="active", category=PreferenceCategory.STYLE, lifecycle=PreferenceLifecycle.ACTIVE, user_forgotten=False),
-            FakeFacet(key="b", value="forgotten", category=PreferenceCategory.STYLE, lifecycle=PreferenceLifecycle.ACTIVE, user_forgotten=True),
+            FakeFacet(
+                key="a",
+                value="active",
+                category=PreferenceCategory.STYLE,
+                lifecycle=PreferenceLifecycle.ACTIVE,
+                user_forgotten=False,
+            ),
+            FakeFacet(
+                key="b",
+                value="forgotten",
+                category=PreferenceCategory.STYLE,
+                lifecycle=PreferenceLifecycle.ACTIVE,
+                user_forgotten=True,
+            ),
         ]
         manager = _make_manager(facets=facets, strategy_available=True)
 

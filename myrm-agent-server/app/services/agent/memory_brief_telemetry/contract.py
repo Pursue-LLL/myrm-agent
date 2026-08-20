@@ -85,9 +85,7 @@ class MemoryBriefStatusTelemetryConfig:
         )
         queue_size = telemetry.queue_size if telemetry.queue_size > 0 else _DEFAULT_QUEUE_SIZE
         allowed_phases = parse_allowed_phases_config(telemetry.allowed_phases)
-        dropped_state_path = str(
-            Path(settings.database.state_dir).expanduser().resolve() / _DROPPED_STATE_FILENAME
-        )
+        dropped_state_path = str(Path(settings.database.state_dir).expanduser().resolve() / _DROPPED_STATE_FILENAME)
 
         return cls(
             control_plane_url=control_plane_url.rstrip("/"),
@@ -109,10 +107,7 @@ def normalize_label(raw: object) -> str:
 
 
 def parse_allowed_phases_config(raw: str) -> frozenset[str]:
-    values = {
-        normalize_label(part)
-        for part in raw.split(",")
-    }
+    values = {normalize_label(part) for part in raw.split(",")}
     requested = {phase for phase in values if phase != _LABEL_NONE}
     if not requested:
         logger.warning(

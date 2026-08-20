@@ -138,9 +138,7 @@ async def test_export_as_agent_plugin_and_raw_skill(
     )
 
     # 1. 测试 Agent Plugins 1.0.0 导出 (默认)
-    plugin_result: PackageResult = await packaging_service.package_skill(
-        "demo_skill", export_format="agent_plugin"
-    )
+    plugin_result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="agent_plugin")
     assert plugin_result.success
     assert plugin_result.filename == "demo-skill_v3.zip"
     assert plugin_result.zip_content is not None
@@ -153,9 +151,7 @@ async def test_export_as_agent_plugin_and_raw_skill(
         assert "demo-skill/skills/demo-skill/helper.py" in names
 
     # 2. 测试 raw_skill 导出
-    raw_result: PackageResult = await packaging_service.package_skill(
-        "demo_skill", export_format="raw_skill"
-    )
+    raw_result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="raw_skill")
     assert raw_result.success
     assert raw_result.filename == "demo_skill_v3.zip"
     assert raw_result.zip_content is not None
@@ -176,9 +172,7 @@ async def test_export_includes_evals_json(
         lambda skill_name: record,
     )
 
-    result: PackageResult = await packaging_service.package_skill(
-        "demo_skill", export_format="raw_skill"
-    )
+    result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="raw_skill")
 
     assert result.success
     assert result.eval_cases_count == 1
@@ -208,9 +202,7 @@ async def test_export_syncs_frontmatter_version_when_present(
         lambda skill_name: record,
     )
 
-    result: PackageResult = await packaging_service.package_skill(
-        "demo_skill", export_format="raw_skill"
-    )
+    result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="raw_skill")
 
     assert result.success
     assert result.eval_cases_count == 0
@@ -232,9 +224,7 @@ async def test_export_without_evolution_record_keeps_default_version(
         lambda skill_name: None,
     )
 
-    result: PackageResult = await packaging_service.package_skill(
-        "demo_skill", export_format="raw_skill"
-    )
+    result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="raw_skill")
 
     assert result.success
     assert result.eval_cases_count == 0
@@ -250,9 +240,7 @@ def _build_zip_with_evals(eval_cases: list[dict] | None) -> bytes:
         zf.writestr("demo_skill/SKILL.md", SKILL_MD)
         zf.writestr("demo_skill/helper.py", "def run():\n    return 42\n")
         if eval_cases is not None:
-            zf.writestr(
-                "demo_skill/evals.json", serialize_eval_cases("demo_skill", eval_cases)
-            )
+            zf.writestr("demo_skill/evals.json", serialize_eval_cases("demo_skill", eval_cases))
     return buffer.getvalue()
 
 
@@ -266,13 +254,9 @@ async def test_export_ignores_user_evals_json_file(
         "app.core.skills.packaging._load_evolution_record",
         lambda skill_name: record,
     )
-    packaging_service._skills_svc._files["evals.json"] = (
-        b'{"schema_version":999,"evals":[]}'
-    )
+    packaging_service._skills_svc._files["evals.json"] = b'{"schema_version":999,"evals":[]}'
 
-    result: PackageResult = await packaging_service.package_skill(
-        "demo_skill", export_format="raw_skill"
-    )
+    result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="raw_skill")
 
     assert result.success
     assert result.zip_content is not None
@@ -314,12 +298,8 @@ async def test_import_strips_all_evals_json_locations(
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("demo_skill/SKILL.md", SKILL_MD)
-        zf.writestr(
-            "demo_skill/evals.json", serialize_eval_cases("demo_skill", EVAL_CASES)
-        )
-        zf.writestr(
-            "demo_skill/nested/evals.json", serialize_eval_cases("demo_skill", [])
-        )
+        zf.writestr("demo_skill/evals.json", serialize_eval_cases("demo_skill", EVAL_CASES))
+        zf.writestr("demo_skill/nested/evals.json", serialize_eval_cases("demo_skill", []))
     result = await service.unpack_and_register(buffer.getvalue())
 
     assert result.success
@@ -474,9 +454,7 @@ def test_sync_skill_md_version_injects_and_replaces() -> None:
     from app.core.skills.packaging._helpers import _sync_skill_md_version
 
     # 替换已有 version
-    assert _sync_skill_md_version(SKILL_MD, "7") == SKILL_MD.replace(
-        "version: 1.0.0", "version: 7"
-    )
+    assert _sync_skill_md_version(SKILL_MD, "7") == SKILL_MD.replace("version: 1.0.0", "version: 7")
 
     # 无 frontmatter 不修改
     plain = "# No frontmatter\n"
@@ -506,9 +484,7 @@ async def test_evals_json_auto_redaction(
         lambda skill_name: record,
     )
 
-    result: PackageResult = await packaging_service.package_skill(
-        "demo_skill", export_format="raw_skill"
-    )
+    result: PackageResult = await packaging_service.package_skill("demo_skill", export_format="raw_skill")
 
     assert result.success
     assert result.eval_cases_count == 1

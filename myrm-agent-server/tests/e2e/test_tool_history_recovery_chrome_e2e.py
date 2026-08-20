@@ -9,9 +9,7 @@ import time
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -101,9 +99,7 @@ def _ensure_fixture_assistant_ready(api_url: str, chat_id: str, *, timeout_sec: 
                     meta = metadata if isinstance(metadata, dict) else {}
                     steps = meta.get("progressSteps")
                     if isinstance(steps, list) and any(
-                        isinstance(step, dict)
-                        and str(step.get("step_key") or "") == "tool_history_recovery"
-                        for step in steps
+                        isinstance(step, dict) and str(step.get("step_key") or "") == "tool_history_recovery" for step in steps
                     ):
                         return
                     last_error = f"metadata missing tool_history_recovery step: {meta!r}"
@@ -229,9 +225,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             timeout_sec=90.0,
             page_url=page_url,
         )
-        assert bridge_ready.get("ready") is True, json.dumps(
-            bridge_ready, ensure_ascii=False
-        )
+        assert bridge_ready.get("ready") is True, json.dumps(bridge_ready, ensure_ascii=False)
         _ensure_shpoib_api_binding(client, page, api_url.rstrip("/"))
 
         attached = client.evaluate(
@@ -249,9 +243,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             _RECOVERY_STEP_JS,
             timeout_sec=60.0,
         )
-        assert step_state.get("ready") is True, json.dumps(
-            step_state, ensure_ascii=False
-        )
+        assert step_state.get("ready") is True, json.dumps(step_state, ensure_ascii=False)
 
         dom_ready = wait_for_state(
             client,
@@ -259,9 +251,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             _PROGRESS_DOM_READY_JS,
             timeout_sec=60.0,
         )
-        assert dom_ready.get("ready") is True, json.dumps(
-            dom_ready, ensure_ascii=False
-        )
+        assert dom_ready.get("ready") is True, json.dumps(dom_ready, ensure_ascii=False)
 
         label_state = wait_for_state(
             client,
@@ -269,9 +259,7 @@ def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
             _RECOVERY_LABEL_JS,
             timeout_sec=60.0,
         )
-        assert label_state.get("ready") is True, json.dumps(
-            label_state, ensure_ascii=False
-        )
+        assert label_state.get("ready") is True, json.dumps(label_state, ensure_ascii=False)
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")

@@ -64,9 +64,7 @@ def create_kanban_attach_handler(store: KanbanStore) -> KanbanTaskAttachFn:
 
         existing = await load_task_attachment_ids(task_id)
         if len(existing) >= _MAX_ATTACHMENTS:
-            raise ValueError(
-                f"Task already has the maximum of {_MAX_ATTACHMENTS} attachments"
-            )
+            raise ValueError(f"Task already has the maximum of {_MAX_ATTACHMENTS} attachments")
 
         if source == "path":
             file_obj = await _attach_from_path(store, task_id, task, value)
@@ -112,10 +110,7 @@ async def _attach_from_path(
         candidate = workspace_resolved / candidate
     candidate = candidate.resolve()
 
-    if (
-        not str(candidate).startswith(str(workspace_resolved) + os.sep)
-        and candidate != workspace_resolved
-    ):
+    if not str(candidate).startswith(str(workspace_resolved) + os.sep) and candidate != workspace_resolved:
         raise ValueError("Path must be inside the task workspace")
 
     if not candidate.is_file():
@@ -134,9 +129,7 @@ async def _attach_from_path(
         content_type=content_type,
         source_chat_id=f"kanban:{task_id}",
     )
-    logger.info(
-        "kanban_attach path task=%s file=%s bytes=%s", task_id[:8], file_obj.id, size
-    )
+    logger.info("kanban_attach path task=%s file=%s bytes=%s", task_id[:8], file_obj.id, size)
     return file_obj
 
 

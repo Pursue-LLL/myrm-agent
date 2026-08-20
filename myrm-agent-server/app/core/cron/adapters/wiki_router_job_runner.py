@@ -85,9 +85,7 @@ class WikiRouterJobRunner:
             from app.services.wiki.maintain import run_wiki_maintain_job
 
             llm = await get_optional_llm_for_user()
-            result = await run_wiki_maintain_job(
-                llm=llm, agent_id=job.agent_id, mode=mode
-            )
+            result = await run_wiki_maintain_job(llm=llm, agent_id=job.agent_id, mode=mode)
             output = result.summary_text
             if context.strip() and output != "[SILENT]":
                 output = f"{context.strip()}\n{output}"
@@ -101,9 +99,7 @@ class WikiRouterJobRunner:
         try:
             from app.services.wiki.dedup_runner import run_wiki_dedup_scan_job
 
-            result = await run_wiki_dedup_scan_job(
-                agent_id=job.agent_id, incremental=False
-            )
+            result = await run_wiki_dedup_scan_job(agent_id=job.agent_id, incremental=False)
             output = result.summary_text
             if context.strip() and output != "[SILENT]":
                 output = f"{context.strip()}\n{output}"

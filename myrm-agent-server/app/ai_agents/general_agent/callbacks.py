@@ -345,9 +345,7 @@ async def _route_proposals_to_shared_contexts(
     if not context_ids:
         return
 
-    add_or_update_proposals = [
-        p for p in proposals if p.action in (CorrectionAction.ADD, CorrectionAction.UPDATE)
-    ]
+    add_or_update_proposals = [p for p in proposals if p.action in (CorrectionAction.ADD, CorrectionAction.UPDATE)]
     if not add_or_update_proposals:
         return
 
@@ -385,15 +383,17 @@ async def _route_proposals_to_shared_contexts(
                 if auto_approve:
                     await materializer.approve_write_proposal(sc_proposal.id)
 
-                get_event_bus().publish(AppEvent(
-                    event_type=AppEventType.MEMORY_OPERATION,
-                    data={
-                        "operation": "implicit_feedback_shared",
-                        "context_id": context_id,
-                        "context_name": context.name,
-                        "proposal_id": sc_proposal.id,
-                        "agent_id": agent_id,
-                        "auto_approved": bool(auto_approve),
-                        "content": proposal.content[:200],
-                    },
-                ))
+                get_event_bus().publish(
+                    AppEvent(
+                        event_type=AppEventType.MEMORY_OPERATION,
+                        data={
+                            "operation": "implicit_feedback_shared",
+                            "context_id": context_id,
+                            "context_name": context.name,
+                            "proposal_id": sc_proposal.id,
+                            "agent_id": agent_id,
+                            "auto_approved": bool(auto_approve),
+                            "content": proposal.content[:200],
+                        },
+                    )
+                )

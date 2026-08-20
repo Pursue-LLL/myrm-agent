@@ -126,10 +126,12 @@ async def test_notifier_ignores_unrelated_events() -> None:
     bus, notifier, mock_gateway = await _make_notifier_harness(captured)
 
     with _patched_delivery(mock_gateway):
-        bus.publish(AppEvent(
-            event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"task_id": "ignored"},
-        ))
+        bus.publish(
+            AppEvent(
+                event_type=AppEventType.KANBAN_TASK_UPDATED,
+                data={"task_id": "ignored"},
+            )
+        )
 
         await asyncio.sleep(0.15)
 
@@ -310,11 +312,7 @@ async def test_dispatcher_reject_task_delivers_im_notification() -> None:
     bus, notifier, mock_gateway = await _make_notifier_harness(captured)
 
     dispatcher = KanbanDispatcher(store, _FakeRunner(), board, verifier=_PassVerifier())
-    dispatcher.on_event(
-        lambda event_type, t: (
-            emit_task_rejected(t) if event_type == "task_rejected" else None
-        )
-    )
+    dispatcher.on_event(lambda event_type, t: emit_task_rejected(t) if event_type == "task_rejected" else None)
 
     with (
         _patched_delivery(mock_gateway),
@@ -361,11 +359,7 @@ async def test_dispatcher_reject_task_delivers_thread_notification() -> None:
     bus, notifier, mock_gateway = await _make_notifier_harness(captured)
 
     dispatcher = KanbanDispatcher(store, _FakeRunner(), board, verifier=_PassVerifier())
-    dispatcher.on_event(
-        lambda event_type, t: (
-            emit_task_rejected(t) if event_type == "task_rejected" else None
-        )
-    )
+    dispatcher.on_event(lambda event_type, t: emit_task_rejected(t) if event_type == "task_rejected" else None)
 
     with (
         _patched_delivery(mock_gateway),

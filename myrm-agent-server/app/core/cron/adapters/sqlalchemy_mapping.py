@@ -169,9 +169,7 @@ def job_to_domain(m: CronJobModel) -> CronJob:
         chat_id=m.chat_id,
         agent_id=getattr(m, "agent_id", None),
         workflow_template_id=getattr(m, "workflow_template_id", None),
-        workflow_template_args=_workflow_template_args_from_json(
-            getattr(m, "workflow_template_args", None)
-        ),
+        workflow_template_args=_workflow_template_args_from_json(getattr(m, "workflow_template_args", None)),
         command=m.command,
         delivery=delivery,
         failure_delivery=failure_delivery,

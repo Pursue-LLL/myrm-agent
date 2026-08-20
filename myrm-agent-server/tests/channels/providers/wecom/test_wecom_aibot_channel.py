@@ -469,12 +469,11 @@ class TestPlaceholderStreaming:
         ch = _make_channel()
         mock_ws = AsyncMock()
         ch._ws = mock_ws
-        ch._active_streams["sid_overflow"] = WeComStreamState(
-            stream_id="sid_overflow", chat_id="chat1", req_id="req_overflow"
-        )
+        ch._active_streams["sid_overflow"] = WeComStreamState(stream_id="sid_overflow", chat_id="chat1", req_id="req_overflow")
 
         # Mock render to return multiple chunks
         from unittest.mock import patch
+
         with patch("app.channels.providers.wecom.aibot_channel.render", return_value=["Chunk 1", "Chunk 2", "Chunk 3"]):
             msg = OutboundMessage(
                 channel="wecom_aibot",

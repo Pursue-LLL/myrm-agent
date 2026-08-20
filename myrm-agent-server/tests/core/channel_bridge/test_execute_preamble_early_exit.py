@@ -18,9 +18,7 @@ from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.types.business import ModelConfig
 
 
-def _inbound_message(
-    *, resume_value: object | None = None, locale: str = "en"
-) -> InboundMessage:
+def _inbound_message(*, resume_value: object | None = None, locale: str = "en") -> InboundMessage:
     return InboundMessage(
         channel="telegram",
         sender_id="user-1",
@@ -84,9 +82,7 @@ def _agent_build_kwargs(
 
 
 @pytest.mark.asyncio
-async def test_build_agent_rejects_resume_when_approval_timeout_already_resolved() -> (
-    None
-):
+async def test_build_agent_rejects_resume_when_approval_timeout_already_resolved() -> None:
     msg = _inbound_message(resume_value={"type": "approve"})
 
     with (
@@ -111,10 +107,7 @@ async def test_build_agent_rejects_resume_when_approval_timeout_already_resolved
     assert outcome.result is None
     assert outcome.early_reply is not None
     assert isinstance(outcome.early_reply, OutboundMessage)
-    assert (
-        "approval" in outcome.early_reply.content.lower()
-        or "审批" in outcome.early_reply.content
-    )
+    assert "approval" in outcome.early_reply.content.lower() or "审批" in outcome.early_reply.content
 
 
 @pytest.mark.asyncio
@@ -138,10 +131,7 @@ async def test_build_agent_returns_search_unreachable_when_service_down() -> Non
     assert outcome.result is None
     assert outcome.early_reply is not None
     assert isinstance(outcome.early_reply, OutboundMessage)
-    assert (
-        "search" in outcome.early_reply.content.lower()
-        or "搜索" in outcome.early_reply.content
-    )
+    assert "search" in outcome.early_reply.content.lower() or "搜索" in outcome.early_reply.content
 
 
 @pytest.mark.asyncio

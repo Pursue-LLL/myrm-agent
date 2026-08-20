@@ -74,9 +74,7 @@ class ConversationRecallIndexService:
             session = uow.session
             if session is None:
                 return False
-            return await ConversationRecallRepository.set_excluded(
-                session, chat_id, excluded
-            )
+            return await ConversationRecallRepository.set_excluded(session, chat_id, excluded)
 
     @staticmethod
     async def list_documents(
@@ -123,11 +121,7 @@ class ConversationRecallIndexService:
                 "missing_segments": health.missing_segments,
                 "fts_ready": health.fts_ready,
                 "segments_fts_ready": health.segments_fts_ready,
-                "last_indexed_at": (
-                    health.last_indexed_at.isoformat()
-                    if health.last_indexed_at
-                    else None
-                ),
+                "last_indexed_at": (health.last_indexed_at.isoformat() if health.last_indexed_at else None),
             }
 
     @staticmethod
@@ -165,18 +159,14 @@ class ConversationRecallIndexService:
                 since=None,
                 until=None,
             )
-            visible_chat_ids = await _public_chat_ids(
-                session, [row.chat_id for row in rows]
-            )
+            visible_chat_ids = await _public_chat_ids(session, [row.chat_id for row in rows])
 
             items: list[dict[str, object]] = []
             for row in rows:
                 if row.chat_id not in visible_chat_ids:
                     continue
                 snippet = _MARK_TAG_RE.sub("", row.snippet or "").strip()
-                sent_at = (
-                    row.last_message_at.isoformat() if row.last_message_at else None
-                )
+                sent_at = row.last_message_at.isoformat() if row.last_message_at else None
                 title = row.title or "Untitled conversation"
                 items.append(
                     {

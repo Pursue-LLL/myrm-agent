@@ -176,9 +176,7 @@ def _scan_html_references(content: str) -> list[str]:
     for style_block in re.findall(r"<style[^>]*>(.*?)</style>", content, re.I | re.S):
         refs.extend(CSS_IMPORT_PATTERN.findall(style_block))
         refs.extend(CSS_URL_PATTERN.findall(style_block))
-    for inline_style in re.findall(
-        r"""style\s*=\s*("([^"]*)"|'([^']*)')""", content, re.I
-    ):
+    for inline_style in re.findall(r"""style\s*=\s*("([^"]*)"|'([^']*)')""", content, re.I):
         inline = inline_style[1] or inline_style[2]
         refs.extend(CSS_IMPORT_PATTERN.findall(inline))
         refs.extend(CSS_URL_PATTERN.findall(inline))
@@ -328,9 +326,7 @@ def collect_publish_files(
         # object would be served as text/html via the fallback guesser).
         if not obj_path.suffix and entry_name_hint:
             hint = Path(entry_name_hint)
-            entry_name = (
-                "index.html" if hint.suffix.lower() in {".html", ".htm"} else hint.name
-            )
+            entry_name = "index.html" if hint.suffix.lower() in {".html", ".htm"} else hint.name
         else:
             entry_name = _normalize_entry_name(obj_path, obj_path)
         deploy_file, total_bytes = _read_file_entry(obj_path, entry_name, total_bytes)

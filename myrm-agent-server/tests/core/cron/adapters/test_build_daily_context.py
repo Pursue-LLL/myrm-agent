@@ -295,7 +295,7 @@ async def test_crossday_summary_truncation() -> None:
     assert "Yesterday's last output" in result
     yesterday_marker = "[Yesterday's last output]\n"
     marker_idx = result.index(yesterday_marker)
-    content_after_marker = result[marker_idx + len(yesterday_marker):]
+    content_after_marker = result[marker_idx + len(yesterday_marker) :]
     y_in_content = content_after_marker.count("Y")
     assert y_in_content <= _DAILY_CROSSDAY_SUMMARY_CHARS
 

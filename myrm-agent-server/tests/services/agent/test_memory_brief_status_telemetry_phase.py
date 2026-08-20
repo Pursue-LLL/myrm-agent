@@ -610,9 +610,7 @@ async def test_run_flushes_pending_dropped_aggregates_without_new_batch() -> Non
     await worker
 
     assert dispatcher._client.post.await_count == 1
-    payload = MemoryBriefStatusBatchPayload.model_validate(
-        dispatcher._client.post.await_args_list[0].kwargs["json"]
-    )
+    payload = MemoryBriefStatusBatchPayload.model_validate(dispatcher._client.post.await_args_list[0].kwargs["json"])
     assert payload.events[0].envelope_id.startswith("mbs-")
     assert payload.events[0].aggregates == []
     assert [row.model_dump() for row in payload.events[0].dropped_aggregates] == [
@@ -659,9 +657,7 @@ async def test_run_recovers_persisted_dropped_aggregates_and_flushes_without_new
     await worker
 
     assert dispatcher._client.post.await_count == 1
-    payload = MemoryBriefStatusBatchPayload.model_validate(
-        dispatcher._client.post.await_args_list[0].kwargs["json"]
-    )
+    payload = MemoryBriefStatusBatchPayload.model_validate(dispatcher._client.post.await_args_list[0].kwargs["json"])
     assert payload.events[0].envelope_id.startswith("mbs-")
     assert payload.events[0].aggregates == []
     assert [row.model_dump() for row in payload.events[0].dropped_aggregates] == [
@@ -691,11 +687,7 @@ def test_record_drop_persists_dropped_state_file(tmp_path) -> None:
 
     assert dropped_state_path.exists()
     payload = json.loads(dropped_state_path.read_text(encoding="utf-8"))
-    assert payload == {
-        "dropped_aggregates": [
-            {"dropped_phase": "stream", "incoming_phase": "persist", "count": 2}
-        ]
-    }
+    assert payload == {"dropped_aggregates": [{"dropped_phase": "stream", "incoming_phase": "persist", "count": 2}]}
 
 
 def test_dropped_state_load_uses_inter_process_file_lock(
@@ -714,13 +706,7 @@ def test_dropped_state_load_uses_inter_process_file_lock(
 
     dropped_state_path = tmp_path / "memory_brief_status_dropped_aggregates.json"
     dropped_state_path.write_text(
-        json.dumps(
-            {
-                "dropped_aggregates": [
-                    {"dropped_phase": "stream", "incoming_phase": "persist", "count": 3}
-                ]
-            }
-        ),
+        json.dumps({"dropped_aggregates": [{"dropped_phase": "stream", "incoming_phase": "persist", "count": 3}]}),
         encoding="utf-8",
     )
     fake_fcntl = _FakeFcntl()

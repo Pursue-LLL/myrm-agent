@@ -154,7 +154,10 @@ class TelegramOutboundMixin(TelegramRichOutboundMixin):
         if self._rich_draft_available is not False:
             try:
                 await self._client.send_rich_message_draft(
-                    chat_id, draft_id, text, message_thread_id=tid,
+                    chat_id,
+                    draft_id,
+                    text,
+                    message_thread_id=tid,
                 )
                 self._rich_draft_available = True
                 return draft_id

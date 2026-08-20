@@ -126,9 +126,7 @@ def validate_organize_plan(workspace: str, plan: OrganizePlan) -> list[OrganizeV
     seen_dst: set[str] = set()
     seen_src: set[str] = set()
     for index, item in enumerate(plan.items):
-        issues.extend(
-            _validate_item(ws, scope_resolved, plan.scope_root, index, item, seen_dst, seen_src)
-        )
+        issues.extend(_validate_item(ws, scope_resolved, plan.scope_root, index, item, seen_dst, seen_src))
 
     return issues
 

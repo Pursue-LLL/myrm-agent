@@ -42,9 +42,7 @@ class SQLiteSkillStateReader(SkillStateReader):
             record = store.get_skill(skill_name)
             return record.is_active if record else True
         except Exception as e:
-            logger.error(
-                "Failed to check skill active status for %s: %s", skill_name, e
-            )
+            logger.error("Failed to check skill active status for %s: %s", skill_name, e)
             return True
         finally:
             if store is not None and owns_connection:

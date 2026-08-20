@@ -197,7 +197,9 @@ async def test_update_corpus_settings_clamps_values(service: FaqCorpusService) -
 
     with patch("app.services.faq.corpus.get_session", return_value=_mock_session(session)):
         await service.update_corpus_settings(
-            "agent-1", threshold=0.5, min_score_gap=1.0,
+            "agent-1",
+            threshold=0.5,
+            min_score_gap=1.0,
         )
 
     assert corpus.threshold == 0.75

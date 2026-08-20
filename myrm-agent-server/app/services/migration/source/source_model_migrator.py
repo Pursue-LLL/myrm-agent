@@ -121,9 +121,7 @@ async def migrate_hermes_auxiliary_models(
         providers_record.value if providers_record and isinstance(providers_record.value, dict) else {}
     )
     current_model_config: dict[str, Any] = (
-        providers_value.get("defaultModelConfig")
-        if isinstance(providers_value.get("defaultModelConfig"), dict)
-        else {}
+        providers_value.get("defaultModelConfig") if isinstance(providers_value.get("defaultModelConfig"), dict) else {}
     )
 
     slot_candidates: dict[str, str] = {}
@@ -208,9 +206,7 @@ async def _enable_economy_routing_if_unset(providers_value: dict[str, Any] | Non
     existing_routing = routing_config if isinstance(routing_config, dict) else {}
     light_slot = existing_routing.get("lightModel") if isinstance(existing_routing.get("lightModel"), dict) else empty_slot
     reasoning_slot = (
-        existing_routing.get("reasoningModel")
-        if isinstance(existing_routing.get("reasoningModel"), dict)
-        else empty_slot
+        existing_routing.get("reasoningModel") if isinstance(existing_routing.get("reasoningModel"), dict) else empty_slot
     )
 
     light_primary = _slot_primary_selection(model_config, "liteModel")

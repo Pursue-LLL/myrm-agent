@@ -78,11 +78,7 @@ class ChatRuntimePoolRegistry:
 
             if entry is not None:
                 turn_lock = self._turn_locks.get(chat_scope_id)
-                if (
-                    entry.config_fingerprint != config_fingerprint
-                    and turn_lock is not None
-                    and turn_lock.locked()
-                ):
+                if entry.config_fingerprint != config_fingerprint and turn_lock is not None and turn_lock.locked():
                     logger.warning(
                         "runtime_pool_replace_deferred chat=%s reason=config_changed_active_turn",
                         chat_scope_id,
@@ -135,11 +131,7 @@ class ChatRuntimePoolRegistry:
 
     async def _evict_idle_unlocked(self) -> None:
         now = time.monotonic()
-        stale = [
-            chat_scope_id
-            for chat_scope_id, entry in self._entries.items()
-            if now - entry.last_used > self._idle_seconds
-        ]
+        stale = [chat_scope_id for chat_scope_id, entry in self._entries.items() if now - entry.last_used > self._idle_seconds]
         for chat_scope_id in stale:
             entry = self._entries.pop(chat_scope_id)
             self._turn_locks.pop(chat_scope_id, None)

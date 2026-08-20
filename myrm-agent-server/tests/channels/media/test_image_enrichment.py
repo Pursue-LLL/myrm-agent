@@ -65,9 +65,7 @@ class TestHasImageAttachment:
         msg = _make_msg(
             media=(
                 MediaAttachment(media_type=MediaType.DOCUMENT),
-                MediaAttachment(
-                    media_type=MediaType.IMAGE, url="https://example.com/img.jpg"
-                ),
+                MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg"),
             )
         )
         assert has_image_attachment(msg) is True
@@ -109,9 +107,7 @@ class TestEnrichImageInbound:
     @pytest.mark.asyncio
     async def test_image_url_download_success(self) -> None:
         jpeg_header = b"\xff\xd8\xff\xe0" + b"\x00" * 100
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/photo.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/photo.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -136,9 +132,7 @@ class TestEnrichImageInbound:
 
     @pytest.mark.asyncio
     async def test_image_download_failure_returns_original(self) -> None:
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/bad.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/bad.jpg")
         msg = _make_msg(media=(att,))
 
         with patch(
@@ -153,12 +147,7 @@ class TestEnrichImageInbound:
     @pytest.mark.asyncio
     async def test_caps_at_max_images(self) -> None:
         jpeg_header = b"\xff\xd8\xff\xe0" + b"\x00" * 100
-        atts = tuple(
-            MediaAttachment(
-                media_type=MediaType.IMAGE, url=f"https://example.com/img{i}.jpg"
-            )
-            for i in range(6)
-        )
+        atts = tuple(MediaAttachment(media_type=MediaType.IMAGE, url=f"https://example.com/img{i}.jpg") for i in range(6))
         msg = _make_msg(media=atts)
 
         with (
@@ -183,9 +172,7 @@ class TestDownloadAndCache:
     @pytest.mark.asyncio
     async def test_url_download_produces_file_url(self) -> None:
         raw = b"\xff\xd8\xff\xe0" + b"\x00" * 50
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/img.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -208,9 +195,7 @@ class TestDownloadAndCache:
     @pytest.mark.asyncio
     async def test_cache_failure_falls_back_to_base64(self) -> None:
         raw = b"\xff\xd8\xff\xe0" + b"\x00" * 50
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/img.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -284,18 +269,14 @@ class TestDownloadAndCache:
             result = await _download_and_cache(att, msg, None)
 
         assert result is not None
-        assert (
-            result["mime_type"] == "image/png"
-        ), "Sniffed MIME (image/png) should override platform-declared image/webp"
+        assert result["mime_type"] == "image/png", "Sniffed MIME (image/png) should override platform-declared image/webp"
 
     @pytest.mark.asyncio
     async def test_compression_used_when_smaller(self) -> None:
         """Compression result is used if smaller than original."""
         raw = b"\xff\xd8\xff\xe0" + b"\x00" * 200
         smaller_compressed = b"\xff\xd8\xff\xe0" + b"\x00" * 50
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/big.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/big.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -323,9 +304,7 @@ class TestDownloadAndCache:
         """Original bytes are kept if compression makes them larger."""
         raw = b"\xff\xd8\xff\xe0" + b"\x00" * 50
         larger_compressed = b"\xff\xd8\xff\xe0" + b"\x00" * 200
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/small.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/small.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -352,9 +331,7 @@ class TestDownloadAndCache:
     async def test_too_large_after_compression_returns_none(self) -> None:
         """If image is still too large after compression, returns None."""
         oversized = b"\xff\xd8\xff\xe0" + b"\x00" * (MAX_IMAGE_BYTES + 100)
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/huge.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/huge.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -455,9 +432,7 @@ class TestReadLocalFile:
     def test_read_exception_returns_none(self) -> None:
         with (
             patch("pathlib.Path.is_file", return_value=True),
-            patch(
-                "pathlib.Path.read_bytes", side_effect=PermissionError("Access denied")
-            ),
+            patch("pathlib.Path.read_bytes", side_effect=PermissionError("Access denied")),
         ):
             result = _read_local_file("/protected/image.jpg")
         assert result is None
@@ -602,9 +577,7 @@ class TestEnrichExceptionHandling:
     @pytest.mark.asyncio
     async def test_download_exception_is_caught(self) -> None:
         """Exception during download is caught; message returned unchanged."""
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/err.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/err.jpg")
         msg = _make_msg(media=(att,))
 
         with patch(
@@ -623,15 +596,9 @@ class TestPartialSuccessEnrichment:
         """When 3 images are sent but 1 fails, result contains 2 successful ones."""
         jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 50
         atts = (
-            MediaAttachment(
-                media_type=MediaType.IMAGE, url="https://example.com/ok1.jpg"
-            ),
-            MediaAttachment(
-                media_type=MediaType.IMAGE, url="https://example.com/bad.jpg"
-            ),
-            MediaAttachment(
-                media_type=MediaType.IMAGE, url="https://example.com/ok2.jpg"
-            ),
+            MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/ok1.jpg"),
+            MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/bad.jpg"),
+            MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/ok2.jpg"),
         )
         msg = _make_msg(media=atts)
 
@@ -666,9 +633,7 @@ class TestPartialSuccessEnrichment:
     async def test_original_content_preserved(self) -> None:
         """Enrichment does not modify the original message content."""
         jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 50
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/img.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -693,9 +658,7 @@ class TestChannelApiFallbackToUrl:
     async def test_channel_api_fails_falls_back_to_url(self) -> None:
         """When photo_file_id exists but channel API fails, falls back to URL download."""
         jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 50
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/fallback.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/fallback.jpg")
         msg = _make_msg(media=(att,), metadata={"photo_file_id": "file_abc"})
 
         mock_client = AsyncMock()
@@ -725,9 +688,7 @@ class TestChannelApiFallbackToUrl:
     async def test_channel_not_found_falls_back_to_url(self) -> None:
         """When get_channel_fn returns None for the channel, falls back to URL."""
         jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 50
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/photo.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/photo.jpg")
         msg = _make_msg(media=(att,), metadata={"photo_file_id": "file_xyz"})
 
         def get_ch(name: str) -> None:
@@ -755,9 +716,7 @@ class TestCompressionNoneKeepsOriginal:
     async def test_compress_returns_none_uses_original(self) -> None:
         """When _compress_image returns None (failure), original bytes are cached."""
         raw = b"\xff\xd8\xff\xe0" + b"\x00" * 50
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/img.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,))
 
         with (
@@ -812,9 +771,7 @@ class TestImmutability:
         """Original message metadata dict is not mutated."""
         jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 50
         original_meta: dict[str, object] = {"existing_key": "value"}
-        att = MediaAttachment(
-            media_type=MediaType.IMAGE, url="https://example.com/img.jpg"
-        )
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,), metadata=original_meta)
 
         with (

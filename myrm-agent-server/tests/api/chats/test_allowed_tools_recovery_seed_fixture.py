@@ -70,7 +70,4 @@ def test_seed_allowed_tools_recovery_fixture_persists_progress_steps(
     assert isinstance(steps, list)
     step_keys = {str(step.get("step_key") or "") for step in steps if isinstance(step, dict)}
     assert "allowed_tools_rejected_recovery" in step_keys
-    assert any(
-        isinstance(step, dict) and step.get("error_category") == "trust_attenuation"
-        for step in steps
-    )
+    assert any(isinstance(step, dict) and step.get("error_category") == "trust_attenuation" for step in steps)

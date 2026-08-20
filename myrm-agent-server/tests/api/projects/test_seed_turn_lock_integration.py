@@ -39,9 +39,7 @@ async def test_seed_turn_lock_creates_bound_chat_and_holds_lock(
     class _FakeAgent:
         id = "agent-1"
 
-    async def _fake_agent_list(
-        page: int = 1, page_size: int = 20
-    ) -> tuple[list[object], int]:
+    async def _fake_agent_list(page: int = 1, page_size: int = 20) -> tuple[list[object], int]:
         return [_FakeAgent()], 1
 
     monkeypatch.setattr(
@@ -127,9 +125,7 @@ async def test_seed_turn_lock_none_does_not_acquire_lock(
     class _FakeAgent:
         id = "agent-1"
 
-    async def _fake_agent_list(
-        page: int = 1, page_size: int = 20
-    ) -> tuple[list[object], int]:
+    async def _fake_agent_list(page: int = 1, page_size: int = 20) -> tuple[list[object], int]:
         return [_FakeAgent()], 1
 
     monkeypatch.setattr(
@@ -183,9 +179,7 @@ async def test_seed_turn_lock_zero_holds_until_explicit_release(
     class _FakeAgent:
         id = "agent-1"
 
-    async def _fake_agent_list(
-        page: int = 1, page_size: int = 20
-    ) -> tuple[list[object], int]:
+    async def _fake_agent_list(page: int = 1, page_size: int = 20) -> tuple[list[object], int]:
         return [_FakeAgent()], 1
 
     monkeypatch.setattr(

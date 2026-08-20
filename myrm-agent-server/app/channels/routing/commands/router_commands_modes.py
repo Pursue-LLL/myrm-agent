@@ -30,6 +30,7 @@ _ALL_PERSONALITY_KEYS: frozenset[str] = frozenset(PERSONALITY_TEMPLATES.keys())
 
 logger = logging.getLogger("app.channels.routing.router")
 
+
 class RouterCommandsModesMixin:
     """Mixin: /yolo, /personality, /steer, /queue commands."""
 

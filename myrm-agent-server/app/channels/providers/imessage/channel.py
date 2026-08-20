@@ -283,9 +283,7 @@ class IMessageChannel(BaseChannel):
 
         return last_guid
 
-    async def _send_text(
-        self, chat_guid: str, text: str, *, reply_to: str | None = None
-    ) -> str | None:
+    async def _send_text(self, chat_guid: str, text: str, *, reply_to: str | None = None) -> str | None:
         """Send a text message. Returns message guid on success."""
         payload: dict[str, object] = {
             "chatGuid": chat_guid,

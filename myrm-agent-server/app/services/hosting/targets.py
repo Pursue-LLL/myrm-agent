@@ -67,9 +67,7 @@ def _serialize_targets(targets: list[HostingTarget]) -> list[dict[str, object]]:
 
 
 async def _load_targets_row(db: AsyncSession) -> UserConfig | None:
-    return (
-        await db.execute(select(UserConfig).where(UserConfig.config_key == HOSTING_TARGETS_KEY))
-    ).scalars().first()
+    return (await db.execute(select(UserConfig).where(UserConfig.config_key == HOSTING_TARGETS_KEY))).scalars().first()
 
 
 async def list_hosting_targets(db: AsyncSession) -> list[HostingTarget]:

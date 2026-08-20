@@ -238,10 +238,7 @@ def _wait_max_iterations(
         if last == expected:
             return
         time.sleep(1.0)
-    raise AssertionError(
-        f"max_iterations did not persist: expected={expected} last={last}\n"
-        f"diag: {diag}"
-    )
+    raise AssertionError(f"max_iterations did not persist: expected={expected} last={last}\ndiag: {diag}")
 
 
 @pytest.mark.chrome_e2e(
@@ -275,17 +272,15 @@ def test_create_agent_with_max_iterations_via_ui() -> None:
                 _NEW_AGENT_FORM_READY_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             )
-            assert form.get("ready") is True, json.dumps(
-                form, indent=2, ensure_ascii=False
-            )
+            assert form.get("ready") is True, json.dumps(form, indent=2, ensure_ascii=False)
 
             # T1b: fill the agent name so hasChanges flips and Save unlocks.
             name_res = client.evaluate(page, _set_agent_name_js(name), timeout_sec=15.0)
             assert isinstance(name_res, dict) and name_res.get("ok") is True, name_res
             assert str(name_res.get("value")) == name, name_res
-            assert (
-                name_res.get("saveDisabled") is False
-            ), f"agent name must unlock Save (saveDisabled={name_res.get('saveDisabled')})"
+            assert name_res.get("saveDisabled") is False, (
+                f"agent name must unlock Save (saveDisabled={name_res.get('saveDisabled')})"
+            )
 
             # T2: capabilities tab + bounds on the Max Iterations input.
             probe = wait_for_state(
@@ -294,21 +289,16 @@ def test_create_agent_with_max_iterations_via_ui() -> None:
                 _CAPABILITIES_INPUT_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             )
-            assert probe.get("ready") is True, json.dumps(
-                probe, indent=2, ensure_ascii=False
-            )
+            assert probe.get("ready") is True, json.dumps(probe, indent=2, ensure_ascii=False)
             assert probe.get("min") == "5", f"input min mismatch: {probe}"
             assert probe.get("max") == "500", f"input max mismatch: {probe}"
 
             # T3: set max_iterations then save.
-            set_res = client.evaluate(
-                page, _set_max_iterations_js(50), timeout_sec=15.0
-            )
+            set_res = client.evaluate(page, _set_max_iterations_js(50), timeout_sec=15.0)
             assert isinstance(set_res, dict) and set_res.get("ok") is True, set_res
             assert str(set_res.get("value")) == "50", set_res
             assert set_res.get("saveDisabled") is False, (
-                "React state must update so the Save button unlocks "
-                f"(saveDisabled={set_res.get('saveDisabled')})"
+                f"React state must update so the Save button unlocks (saveDisabled={set_res.get('saveDisabled')})"
             )
 
             client.evaluate(page, _INSTALL_FETCH_TAP_JS, timeout_sec=15.0)
@@ -328,9 +318,7 @@ def test_create_agent_with_max_iterations_via_ui() -> None:
                 _CREATION_COMPLETE_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(45.0),
             )
-            assert done.get("ready") is True, json.dumps(
-                done, indent=2, ensure_ascii=False
-            )
+            assert done.get("ready") is True, json.dumps(done, indent=2, ensure_ascii=False)
             assert done.get("value") == "50", f"editor re-render mismatch: {done}"
 
             diag = client.evaluate(

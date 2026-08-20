@@ -131,16 +131,18 @@ class TestMigrateOpenclawDefaultModel:
         _mock_local(monkeypatch)
         captured = _mock_config(monkeypatch)
 
-        result = await migrate_openclaw_default_model({
-            "agents": {
-                "defaults": {
-                    "model": "My Claude",
-                    "models": {
-                        "anthropic/claude-opus-4-6": {"alias": "My Claude"},
+        result = await migrate_openclaw_default_model(
+            {
+                "agents": {
+                    "defaults": {
+                        "model": "My Claude",
+                        "models": {
+                            "anthropic/claude-opus-4-6": {"alias": "My Claude"},
+                        },
                     },
                 },
-            },
-        })
+            }
+        )
         assert result == "anthropic/claude-opus-4-6"
         written = captured["value"]["defaultModelConfig"]["baseModel"]["primary"]
         assert written == {"providerId": "anthropic", "model": "claude-opus-4-6"}
@@ -150,16 +152,18 @@ class TestMigrateOpenclawDefaultModel:
         _mock_local(monkeypatch)
         _mock_config(monkeypatch)
 
-        result = await migrate_openclaw_default_model({
-            "agents": {
-                "defaults": {
-                    "model": "My Claude",
-                    "models": {
-                        "anthropic/claude-opus-4-6": "My Claude",
+        result = await migrate_openclaw_default_model(
+            {
+                "agents": {
+                    "defaults": {
+                        "model": "My Claude",
+                        "models": {
+                            "anthropic/claude-opus-4-6": "My Claude",
+                        },
                     },
                 },
-            },
-        })
+            }
+        )
         assert result == "anthropic/claude-opus-4-6"
 
     @pytest.mark.asyncio()
@@ -177,11 +181,14 @@ class TestMigrateOpenclawDefaultModel:
     @pytest.mark.asyncio()
     async def test_skips_when_base_model_exists(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _mock_local(monkeypatch)
-        _mock_config(monkeypatch, existing_providers={
-            "defaultModelConfig": {
-                "baseModel": {"primary": {"providerId": "openai", "model": "gpt-4o"}},
+        _mock_config(
+            monkeypatch,
+            existing_providers={
+                "defaultModelConfig": {
+                    "baseModel": {"primary": {"providerId": "openai", "model": "gpt-4o"}},
+                },
             },
-        })
+        )
 
         result = await migrate_openclaw_default_model(
             {"agents": {"defaults": {"model": "anthropic/claude-opus-4-6"}}},
@@ -216,12 +223,14 @@ class TestMigrateHermesAuxiliaryModels:
         _mock_local(monkeypatch)
         _mock_config(monkeypatch, existing_providers={})
 
-        result = await migrate_hermes_auxiliary_models({
-            "auxiliary": {
-                "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
-                "vision": {"provider": "openai", "model": "gpt-4o-mini"},
-            },
-        })
+        result = await migrate_hermes_auxiliary_models(
+            {
+                "auxiliary": {
+                    "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
+                    "vision": {"provider": "openai", "model": "gpt-4o-mini"},
+                },
+            }
+        )
         assert isinstance(result, AuxiliaryMigrationResult)
         assert "liteModel" in result.migrated_slots
         assert "visionFallbackModel" in result.migrated_slots
@@ -230,17 +239,22 @@ class TestMigrateHermesAuxiliaryModels:
     @pytest.mark.asyncio()
     async def test_skips_occupied_slots(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _mock_local(monkeypatch)
-        _mock_config(monkeypatch, existing_providers={
-            "defaultModelConfig": {
-                "liteModel": {"model": "existing/model"},
+        _mock_config(
+            monkeypatch,
+            existing_providers={
+                "defaultModelConfig": {
+                    "liteModel": {"model": "existing/model"},
+                },
             },
-        })
+        )
 
-        result = await migrate_hermes_auxiliary_models({
-            "auxiliary": {
-                "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
-            },
-        })
+        result = await migrate_hermes_auxiliary_models(
+            {
+                "auxiliary": {
+                    "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
+                },
+            }
+        )
         assert result.migrated_slots == {}
         assert "compression" in result.skipped_tasks
 
@@ -249,11 +263,13 @@ class TestMigrateHermesAuxiliaryModels:
         _mock_local(monkeypatch)
         _mock_config(monkeypatch, existing_providers={})
 
-        result = await migrate_hermes_auxiliary_models({
-            "auxiliary": {
-                "unknown_hermes_task": {"provider": "openai", "model": "gpt-4o"},
-            },
-        })
+        result = await migrate_hermes_auxiliary_models(
+            {
+                "auxiliary": {
+                    "unknown_hermes_task": {"provider": "openai", "model": "gpt-4o"},
+                },
+            }
+        )
         assert result.migrated_slots == {}
         assert "unknown_hermes_task" in result.skipped_tasks
 
@@ -262,12 +278,14 @@ class TestMigrateHermesAuxiliaryModels:
         _mock_local(monkeypatch)
         captured = _mock_config(monkeypatch, existing_providers={})
 
-        await migrate_hermes_auxiliary_models({
-            "auxiliary": {
-                "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
-                "kanban_decomposer": {"provider": "openrouter", "model": "deepseek/deepseek-r1"},
-            },
-        })
+        await migrate_hermes_auxiliary_models(
+            {
+                "auxiliary": {
+                    "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
+                    "kanban_decomposer": {"provider": "openrouter", "model": "deepseek/deepseek-r1"},
+                },
+            }
+        )
 
         routing = captured["value"]["defaultModelConfig"]["routingConfig"]
         assert routing["enabled"] is True
@@ -285,11 +303,13 @@ class TestMigrateHermesAuxiliaryModels:
         _mock_local(monkeypatch)
         captured = _mock_config(monkeypatch, existing_providers={})
 
-        result = await migrate_hermes_auxiliary_models({
-            "auxiliary": {
-                "unknown_hermes_task": {"provider": "openai", "model": "gpt-4o"},
-            },
-        })
+        result = await migrate_hermes_auxiliary_models(
+            {
+                "auxiliary": {
+                    "unknown_hermes_task": {"provider": "openai", "model": "gpt-4o"},
+                },
+            }
+        )
         assert result.migrated_slots == {}
         assert captured == {}
 
@@ -297,10 +317,12 @@ class TestMigrateHermesAuxiliaryModels:
     async def test_cloud_mode_returns_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(f"{MODULE}.is_local_mode", lambda: False)
 
-        result = await migrate_hermes_auxiliary_models({
-            "auxiliary": {
-                "compression": {"provider": "openai", "model": "gpt-4o"},
-            },
-        })
+        result = await migrate_hermes_auxiliary_models(
+            {
+                "auxiliary": {
+                    "compression": {"provider": "openai", "model": "gpt-4o"},
+                },
+            }
+        )
         assert result.migrated_slots == {}
         assert result.total_tasks_detected == 0

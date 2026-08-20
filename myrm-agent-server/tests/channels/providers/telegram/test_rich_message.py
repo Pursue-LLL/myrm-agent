@@ -26,6 +26,7 @@ from app.channels.providers.telegram.html_converter import (
 # 1. md_to_telegram_html 转换测试
 # ──────────────────────────────────────────────
 
+
 class TestMdToTelegramHtml:
     def test_bold(self):
         assert md_to_telegram_html("**hello**") == "<b>hello</b>"
@@ -123,7 +124,7 @@ class TestMdToTelegramHtml:
 
     def test_expandable_blockquote_tag(self):
         """<blockquote expandable> should be preserved as a Telegram tag."""
-        md = '<blockquote expandable>collapsed text</blockquote>'
+        md = "<blockquote expandable>collapsed text</blockquote>"
         result = md_to_telegram_html(md)
         assert "<blockquote expandable>" in result
 
@@ -131,6 +132,7 @@ class TestMdToTelegramHtml:
 # ──────────────────────────────────────────────
 # 2. GFM 表格渲染测试
 # ──────────────────────────────────────────────
+
 
 class TestTableRendering:
     def test_render_monospace_table_basic(self):
@@ -191,6 +193,7 @@ class TestTableRendering:
 # 3. split_markdown_rich 测试 (Bot API 10.1 Rich Message UTF-8)
 # ──────────────────────────────────────────────
 
+
 class TestSplitMarkdownRich:
     def test_short_text_no_split(self):
         text = "Hello world"
@@ -247,6 +250,7 @@ class TestSplitMarkdownRich:
 # 4. _find_utf8_cut 测试
 # ──────────────────────────────────────────────
 
+
 class TestFindUtf8Cut:
     def test_ascii_exact(self):
         text = "A" * 100
@@ -262,7 +266,7 @@ class TestFindUtf8Cut:
     def test_semantic_break_paragraph(self):
         text = "Hello world.\n\nSecond paragraph." + "X" * 100
         cut = _find_utf8_cut(text, 50)
-        assert text[cut - 2:cut] == "\n\n" or cut <= 50
+        assert text[cut - 2 : cut] == "\n\n" or cut <= 50
 
     def test_semantic_break_sentence(self):
         text = "First sentence. Second sentence." + "X" * 100
@@ -274,6 +278,7 @@ class TestFindUtf8Cut:
 # ──────────────────────────────────────────────
 # 5. split_message 扩展测试 (HTML tag 状态机)
 # ──────────────────────────────────────────────
+
 
 class TestSplitMessageExtended:
     def test_blockquote_tag(self):
@@ -343,6 +348,7 @@ class TestSplitMessageExtended:
 # 6. _utf16_len 扩展测试
 # ──────────────────────────────────────────────
 
+
 class TestUtf16Len:
     def test_ascii(self):
         assert _utf16_len("hello") == 5
@@ -362,13 +368,14 @@ class TestUtf16Len:
 
     def test_flag_emoji(self):
         """Flag emoji (regional indicators) are 4 UTF-16 code units."""
-        flag = "\U0001F1E8\U0001F1F3"  # CN flag
+        flag = "\U0001f1e8\U0001f1f3"  # CN flag
         assert _utf16_len(flag) == 4
 
 
 # ──────────────────────────────────────────────
 # 7. 端到端集成测试: md → html → split 完整流水线
 # ──────────────────────────────────────────────
+
 
 class TestEndToEndPipeline:
     def test_full_pipeline_short(self):

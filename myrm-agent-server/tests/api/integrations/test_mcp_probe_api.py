@@ -123,9 +123,7 @@ class TestMCPProbeEndpoint:
 
         with patch(
             "httpx.AsyncClient.get",
-            side_effect=httpx.ConnectError(
-                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate"
-            ),
+            side_effect=httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate"),
         ):
             response = client.post(
                 "/api/v1/integrations/mcp/probe",
@@ -140,9 +138,7 @@ class TestMCPProbeEndpoint:
         assert data.get("recommendedMode") is None
         assert data["shouldBlockConnect"] is True
 
-    def test_probe_unreachable_tls_verification_error_from_ssl_cause(
-        self, client: TestClient
-    ) -> None:
+    def test_probe_unreachable_tls_verification_error_from_ssl_cause(self, client: TestClient) -> None:
         """Probe classifies wrapped SSLCertVerificationError as TLS verification failure."""
         import httpx
 
@@ -182,9 +178,7 @@ class TestMCPProbeEndpoint:
         assert data["recommendedMode"] == "verify_local_network_and_editor"
         assert data["shouldBlockConnect"] is True
 
-    def test_probe_cloud_not_supported(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_probe_cloud_not_supported(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """Probe returns cloud_not_supported when runtime deploy mode is sandbox."""
         from app.config.deploy_mode import get_deploy_mode
         from app.platform_utils.deployment_capabilities import (

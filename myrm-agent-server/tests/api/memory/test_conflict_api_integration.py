@@ -198,7 +198,8 @@ class TestResolveConflict:
 
         assert resp.status_code == 200
         override_memory_manager.update_memory.assert_called_once_with(
-            "old-mem-1", content="Rust is better",
+            "old-mem-1",
+            content="Rust is better",
         )
 
     def test_merge_resolution(
@@ -219,7 +220,8 @@ class TestResolveConflict:
 
         assert resp.status_code == 200
         override_memory_manager.update_memory.assert_called_once_with(
-            "old-mem-1", content="Both Python and Rust have merits",
+            "old-mem-1",
+            content="Both Python and Rust have merits",
         )
 
     def test_merge_without_content_returns_400(
@@ -257,7 +259,8 @@ class TestResolveConflict:
 
         assert resp.status_code == 200
         override_memory_manager.update_memory.assert_called_once_with(
-            "old-mem-1", importance=0.01,
+            "old-mem-1",
+            importance=0.01,
         )
 
     def test_invalid_resolution_returns_400(

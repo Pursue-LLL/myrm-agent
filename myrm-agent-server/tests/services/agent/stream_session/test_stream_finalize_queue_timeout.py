@@ -32,14 +32,9 @@ def _make_session(locale: str | None = None) -> AgentStreamSession:
     return session
 
 
-async def _collect_payload(
-    exc: AgentQueueTimeout, locale: str | None = None
-) -> dict[str, object]:
+async def _collect_payload(exc: AgentQueueTimeout, locale: str | None = None) -> dict[str, object]:
     session = _make_session(locale)
-    chunks = [
-        chunk
-        async for chunk in stream_finalize.yield_stream_exception_chunks(session, exc)
-    ]
+    chunks = [chunk async for chunk in stream_finalize.yield_stream_exception_chunks(session, exc)]
     assert len(chunks) == 1
     raw = chunks[0]
     assert raw.startswith("data: ")
@@ -74,9 +69,7 @@ class TestQueueTimeoutStructuredError:
         exc = AgentQueueTimeout(
             "Queue timeout (10s)",
             reason="user_limit",
-            active_sessions=[
-                {"chatId": "chat-a", "agentType": "general", "elapsedSeconds": 5.0}
-            ],
+            active_sessions=[{"chatId": "chat-a", "agentType": "general", "elapsedSeconds": 5.0}],
         )
         payload = await _collect_payload(exc, "en-US")
         diag = payload["diagnostic_result"]
@@ -114,10 +107,7 @@ class TestQueueTimeoutStructuredError:
         exc = AgentQueueTimeout(
             "Queue timeout (10s)",
             reason="global_limit",
-            active_sessions=[
-                {"chatId": f"chat-{i}", "agentType": "general", "elapsedSeconds": 1.0}
-                for i in range(5)
-            ],
+            active_sessions=[{"chatId": f"chat-{i}", "agentType": "general", "elapsedSeconds": 1.0} for i in range(5)],
         )
         payload = await _collect_payload(exc, "en")
         diag = payload["diagnostic_result"]
@@ -130,10 +120,7 @@ class TestQueueTimeoutStructuredError:
         exc = AgentQueueTimeout(
             "Queue timeout (10s)",
             reason="global_limit",
-            active_sessions=[
-                {"chatId": f"chat-{i}", "agentType": "general", "elapsedSeconds": 1.0}
-                for i in range(5)
-            ],
+            active_sessions=[{"chatId": f"chat-{i}", "agentType": "general", "elapsedSeconds": 1.0} for i in range(5)],
         )
         payload = await _collect_payload(exc, "zh")
         diag = payload["diagnostic_result"]
@@ -152,10 +139,7 @@ class TestExceptionChunkBranches:
         session: AgentStreamSession | None = None,
     ) -> list[str]:
         session = session or _make_session(locale)
-        return [
-            chunk
-            async for chunk in stream_finalize.yield_stream_exception_chunks(session, exc)
-        ]
+        return [chunk async for chunk in stream_finalize.yield_stream_exception_chunks(session, exc)]
 
     @staticmethod
     def _decode(raw: str) -> dict[str, object]:

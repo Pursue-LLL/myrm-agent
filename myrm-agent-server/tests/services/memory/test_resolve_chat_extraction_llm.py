@@ -114,9 +114,7 @@ async def test_apply_lite_context_downgrade_when_lite_too_small() -> None:
             new=AsyncMock(return_value=degraded_llm),
         ) as get_llm_mock,
     ):
-        result_llm, effective_cfg = await apply_lite_context_downgrade(
-            main_llm, lite_llm, model_cfg
-        )
+        result_llm, effective_cfg = await apply_lite_context_downgrade(main_llm, lite_llm, model_cfg)
 
     inject_mock.assert_called_once_with(model_cfg)
     get_llm_mock.assert_awaited_once()

@@ -13,9 +13,7 @@ from pathlib import Path
 
 import pytest
 
-_LIB = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
-)
+_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
@@ -113,10 +111,7 @@ def _is_transport_retryable(exc: BaseException) -> bool:
 def _normalize_live_transport_exc(exc: BaseException) -> BaseException:
     """R170: parallel open_mcp stall tripwire sends SIGINT — outer retry must heal mux."""
     if isinstance(exc, KeyboardInterrupt) and _parallel_live_agent_peer_count() >= 2:
-        return RuntimeError(
-            "MUX_RECLAIM: open_mcp_page_blocking stall tripwire (SIGINT); "
-            "recover mux and retry"
-        )
+        return RuntimeError("MUX_RECLAIM: open_mcp_page_blocking stall tripwire (SIGINT); recover mux and retry")
     return exc
 
 
@@ -304,9 +299,7 @@ def _seed_file_mutation_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_write_empty_shows_mutation_warning_banner() -> None:
@@ -379,9 +372,7 @@ def test_file_write_empty_shows_mutation_warning_banner() -> None:
         assert expanded.get("ready") is True, json.dumps(expanded, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_file_write_empty_mutation_banner_survives_page_reload() -> None:
@@ -457,11 +448,7 @@ def _create_empty_write_live_agent(api_url: str) -> str:
     }
     created = http_json("POST", f"{api_url}/api/v1/user-agents", payload)
     assert isinstance(created, dict)
-    agent_id = (
-        created.get("data", {}).get("id")
-        if isinstance(created.get("data"), dict)
-        else created.get("id")
-    )
+    agent_id = created.get("data", {}).get("id") if isinstance(created.get("data"), dict) else created.get("id")
     assert isinstance(agent_id, str) and agent_id
     _assert_live_agent_file_ops_enabled(api_url, agent_id)
     return agent_id
@@ -534,13 +521,9 @@ def _live_bridge_ready_timeout_sec() -> float:
 def _assert_live_agent_file_ops_enabled(api_url: str, agent_id: str) -> None:
     fetched = http_json("GET", f"{api_url}/api/v1/user-agents/{agent_id}")
     data = fetched.get("data") if isinstance(fetched.get("data"), dict) else fetched
-    assert isinstance(
-        data, dict
-    ), f"E2E_AGENT_TOOLS_DENY: agent fetch failed: {fetched!r}"
+    assert isinstance(data, dict), f"E2E_AGENT_TOOLS_DENY: agent fetch failed: {fetched!r}"
     resolved_id = str(data.get("id") or agent_id)
-    assert (
-        resolved_id == agent_id
-    ), f"E2E_AGENT_TOOLS_DENY: agent id mismatch: {resolved_id!r} vs {agent_id!r}"
+    assert resolved_id == agent_id, f"E2E_AGENT_TOOLS_DENY: agent id mismatch: {resolved_id!r} vs {agent_id!r}"
     # file_ops/code_execute are AGENT_BASELINE — stripped at persist, forced on General mount.
     print(
         f"E2E_AGENT_TOOLS_OK: agent_id={agent_id} baseline=file_ops+code_execute (runtime mount)",
@@ -549,9 +532,7 @@ def _assert_live_agent_file_ops_enabled(api_url: str, agent_id: str) -> None:
     )
 
 
-def _empty_write_failure_in_messages(
-    chat_id: str, *, api_url: str
-) -> tuple[bool, bool]:
+def _empty_write_failure_in_messages(chat_id: str, *, api_url: str) -> tuple[bool, bool]:
     return empty_write_failure_in_messages(
         chat_id,
         api_url=api_url,
@@ -575,9 +556,7 @@ def _assert_empty_write_disk_clean(target_file: Path) -> None:
     try:
         preview = target_file.read_bytes()[:200]
     except OSError as exc:
-        raise AssertionError(
-            f"Empty write must not create file on disk: {target_file} (read failed: {exc})"
-        ) from exc
+        raise AssertionError(f"Empty write must not create file on disk: {target_file} (read failed: {exc})") from exc
     raise AssertionError(
         f"Empty write must not create file on disk: {target_file} "
         f"(size={target_file.stat().st_size} preview={preview!r}) — "
@@ -585,9 +564,7 @@ def _assert_empty_write_disk_clean(target_file: Path) -> None:
     )
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE"
-, private_reason="live_shpoib")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -597,8 +574,7 @@ async def test_file_write_empty_live_agent_webui(
     """LIVE_AGENT: real LLM calls file_write_tool with empty content → FileMutationWarning."""
     if not wait_e2e_provider_ready():
         pytest.fail(
-            "Provider config not ready for live empty-write E2E — run via ./myrm test -m chrome_e2e "
-            "after ./myrm ready --chrome"
+            "Provider config not ready for live empty-write E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome"
         )
 
     api_base = get_e2e_api_url()
@@ -607,22 +583,14 @@ async def test_file_write_empty_live_agent_webui(
     agent_id = _create_empty_write_live_agent(api_base)
     e2e_resource_ledger.register("agent", agent_id)
 
-    async def _wait_agent_applied(
-        chat: McpChatSession, *, timeout_sec: float | None = None
-    ) -> None:
-        wait_cap = (
-            timeout_sec
-            if timeout_sec is not None
-            else _bounded_wait_sec(90.0, reserve_sec=120.0)
-        )
+    async def _wait_agent_applied(chat: McpChatSession, *, timeout_sec: float | None = None) -> None:
+        wait_cap = timeout_sec if timeout_sec is not None else _bounded_wait_sec(90.0, reserve_sec=120.0)
         deadline = time.monotonic() + wait_cap
         last: dict[str, object] = {}
         while time.monotonic() < deadline:
             heartbeat_once()
             touch_wall_progress()
-            raw = await chat.evaluate(
-                _AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL
-            )
+            raw = await chat.evaluate(_AGENT_READY_JS, intent=EvaluateIntent.BRIDGE_POLL)
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("ready") is True:
                 return
@@ -631,23 +599,17 @@ async def test_file_write_empty_live_agent_webui(
 
     async def _pin_lite_model(chat: McpChatSession) -> dict[str, object]:
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-        pinned = await chat.evaluate(
-            _PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT
-        )
+        pinned = await chat.evaluate(_PIN_LITE_MODEL_JS, intent=EvaluateIntent.AGENT_SUBMIT)
         assert isinstance(pinned, dict)
         assert pinned.get("ok") is True, f"Failed to pin lite model: {pinned}"
         expected_lite = get_lite_model_selection()
         pinned_model = pinned.get("pinned")
         assert isinstance(pinned_model, dict), f"Missing pinned model payload: {pinned}"
         assert pinned_model.get("providerId") == expected_lite["providerId"]
-        assert pinned_model.get("model") == _strip_provider_prefix(
-            str(expected_lite["model"])
-        )
+        assert pinned_model.get("model") == _strip_provider_prefix(str(expected_lite["model"]))
         return pinned_model
 
-    async def _api_nudge_turn(
-        resolved_chat_id: str, agent_id: str, filename: str
-    ) -> str:
+    async def _api_nudge_turn(resolved_chat_id: str, agent_id: str, filename: str) -> str:
         nudge_prompt = _live_user_prompt(filename)
         nudge_result = await asyncio.to_thread(
             nudge_agent_stream_turn,
@@ -669,10 +631,7 @@ async def test_file_write_empty_live_agent_webui(
                 flush=True,
             )
             return "deferred"
-        raise AssertionError(
-            f"Live empty write API nudge failed: {nudge_result}; "
-            f"filename={filename!r}"
-        )
+        raise AssertionError(f"Live empty write API nudge failed: {nudge_result}; filename={filename!r}")
 
     async def _steer_empty_write_turn(chat_id: str, filename: str) -> bool:
         """R150: REST steer on in-flight turn — works when UI nudge gets AgentBusyError."""
@@ -685,8 +644,7 @@ async def test_file_write_empty_live_agent_webui(
         touch_wall_progress()
         steer_ok = steer_result.get("ok") is True
         print(
-            f"E2E_STEER_EMPTY_WRITE: ok={steer_ok} "
-            f"parallel_peers={_parallel_live_agent_peer_count()}",
+            f"E2E_STEER_EMPTY_WRITE: ok={steer_ok} parallel_peers={_parallel_live_agent_peer_count()}",
             file=sys.stderr,
             flush=True,
         )
@@ -711,11 +669,7 @@ async def test_file_write_empty_live_agent_webui(
         target_file: Path | None = None,
         timeout_sec: float | None = None,
     ) -> dict[str, object]:
-        wait_cap = (
-            timeout_sec
-            if timeout_sec is not None
-            else _bounded_wait_sec(_live_turn_wait_cap_sec(), reserve_sec=60.0)
-        )
+        wait_cap = timeout_sec if timeout_sec is not None else _bounded_wait_sec(_live_turn_wait_cap_sec(), reserve_sec=60.0)
         deadline = time.monotonic() + wait_cap
         last_api = (False, False)
         last_progress_at = time.monotonic()
@@ -825,10 +779,7 @@ async def test_file_write_empty_live_agent_webui(
                     intent=EvaluateIntent.BRIDGE_POLL,
                 )
             except (RuntimeError, TimeoutError) as ui_exc:
-                if (
-                    _is_mux_io_deferrable(ui_exc)
-                    and _parallel_live_agent_peer_count() >= 2
-                ):
+                if _is_mux_io_deferrable(ui_exc) and _parallel_live_agent_peer_count() >= 2:
                     print(
                         "E2E_MUX_UI_EVAL_DEFER: parallel mux busy — API poll SSOT; "
                         f"api_invoked={last_api[0]} parallel_peers="
@@ -850,10 +801,7 @@ async def test_file_write_empty_live_agent_webui(
             if ui.get("isStreaming") is True and last_api[0]:
                 last_progress_at = time.monotonic()
                 touch_wall_progress()
-            if (
-                ui.get("hasDomEmptyWriteError") is True
-                and ui.get("isStreaming") is False
-            ):
+            if ui.get("hasDomEmptyWriteError") is True and ui.get("isStreaming") is False:
                 return {"source": "ui-dom", "ui": ui}
             if int(ui.get("failureCount") or 0) >= 1 and ui.get("isStreaming") is False:
                 banner = await chat.evaluate(
@@ -867,11 +815,7 @@ async def test_file_write_empty_live_agent_webui(
                     "ui": ui,
                     "failureCount": int(ui.get("failureCount") or 0),
                 }
-            if (
-                ui.get("hasEmptyWriteDone") is True
-                and ui.get("isStreaming") is False
-                and last_api[0]
-            ):
+            if ui.get("hasEmptyWriteDone") is True and ui.get("isStreaming") is False and last_api[0]:
                 settle_deadline = time.monotonic() + 45.0
                 while time.monotonic() < settle_deadline:
                     touch_wall_progress()
@@ -897,34 +841,24 @@ async def test_file_write_empty_live_agent_webui(
                     await asyncio.sleep(2.0)
             elif not last_api[0] and not_invoked_since is not None:
                 idle_sec = time.monotonic() - not_invoked_since
-                nudge_filename = (
-                    target_file.name if target_file is not None else "output.txt"
-                )
+                nudge_filename = target_file.name if target_file is not None else "output.txt"
                 if idle_sec >= 30.0 and not last_api[0]:
                     # R150/R173: steer before UI nudge; repeat steer under parallel.
                     steer_cap = _live_empty_write_steer_attempts_cap()
                     if steer_attempts < steer_cap and (
-                        steer_attempts == 0
-                        or idle_sec >= _live_empty_write_steer_retry_idle_sec()
+                        steer_attempts == 0 or idle_sec >= _live_empty_write_steer_retry_idle_sec()
                     ):
                         steer_attempts += 1
-                        steer_ok = await _steer_empty_write_turn(
-                            chat_id, nudge_filename
-                        )
+                        steer_ok = await _steer_empty_write_turn(chat_id, nudge_filename)
                         not_invoked_since = time.monotonic()
                         last_progress_at = not_invoked_since
                         if steer_ok:
                             await asyncio.sleep(1.5)
                             continue
                     if ui_nudge_attempts < 2 and (
-                        steer_attempts == 0
-                        or _live_empty_write_ui_nudge_allowed_after_steer(
-                            idle_sec=idle_sec
-                        )
+                        steer_attempts == 0 or _live_empty_write_ui_nudge_allowed_after_steer(idle_sec=idle_sec)
                     ):
-                        nudge_outcome = await _api_nudge_turn(
-                            chat_id, agent_id, nudge_filename
-                        )
+                        nudge_outcome = await _api_nudge_turn(chat_id, agent_id, nudge_filename)
                         not_invoked_since = time.monotonic()
                         last_progress_at = not_invoked_since
                         if nudge_outcome == "ok":
@@ -957,9 +891,7 @@ async def test_file_write_empty_live_agent_webui(
                         f"parallel_peers={_parallel_live_agent_peer_count()} "
                         f"remaining_wall={remaining_wall_sec():.0f}s"
                     )
-            elif ui.get("isStreaming") is not True and not (
-                last_api[0] and not last_api[1]
-            ):
+            elif ui.get("isStreaming") is not True and not (last_api[0] and not last_api[1]):
                 stall_elapsed = time.monotonic() - last_progress_at
                 stall_cap = _live_empty_write_post_send_stall_cap_sec()
                 if stall_elapsed >= stall_cap:
@@ -974,13 +906,10 @@ async def test_file_write_empty_live_agent_webui(
                     )
             await asyncio.sleep(1.5)
         raise AssertionError(
-            f"Live empty write did not produce mutation failure banner; "
-            f"api_invoked={last_api[0]} api_failure={last_api[1]}"
+            f"Live empty write did not produce mutation failure banner; api_invoked={last_api[0]} api_failure={last_api[1]}"
         )
 
-    async def _ensure_agent_url_loaded(
-        chat: McpChatSession, target_agent_url: str
-    ) -> None:
+    async def _ensure_agent_url_loaded(chat: McpChatSession, target_agent_url: str) -> None:
         """R135/R139: re-navigate when shared UI drops ?agentId= or tab is chrome-error."""
         raw = await chat.evaluate(
             "(() => ({ href: String(location.href || ''), path: String(location.pathname || '') }))()",
@@ -988,11 +917,7 @@ async def test_file_write_empty_live_agent_webui(
         )
         probe = raw if isinstance(raw, dict) else {"value": raw}
         href = str(probe.get("href") or "")
-        needs_navigate = (
-            href.startswith("chrome-error:")
-            or href in ("about:blank", "")
-            or "agentId=" not in href
-        )
+        needs_navigate = href.startswith("chrome-error:") or href in ("about:blank", "") or "agentId=" not in href
         if not needs_navigate:
             return
         print(
@@ -1048,8 +973,7 @@ async def test_file_write_empty_live_agent_webui(
             last = raw if isinstance(raw, dict) else {"value": raw}
             if last.get("sendReady") and last.get("selection"):
                 print(
-                    "E2E_AGENT_URL_REHYDRATE_OK: "
-                    f"parallel_peers={_parallel_live_agent_peer_count()} probe={last}",
+                    f"E2E_AGENT_URL_REHYDRATE_OK: parallel_peers={_parallel_live_agent_peer_count()} probe={last}",
                     file=sys.stderr,
                     flush=True,
                 )
@@ -1093,9 +1017,7 @@ async def test_file_write_empty_live_agent_webui(
         await chat.click_new_chat(timeout_sec=_live_bridge_ready_timeout_sec())
         await chat.ensure_chat_surface(BASE_URL)
 
-        ensured = await chat.evaluate(
-            _ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH
-        )
+        ensured = await chat.evaluate(_ENSURE_CHAT_SESSION_JS, intent=EvaluateIntent.ROUTE_ATTACH)
         assert isinstance(ensured, dict) and ensured.get("ok") is True, ensured
 
         chat_id = str((await chat.bridge_chat_id()) or "").strip()
@@ -1109,9 +1031,7 @@ async def test_file_write_empty_live_agent_webui(
         live_prompt = _live_user_prompt(live_filename)
         send_result = await chat.send_message(live_prompt, live_prompt)
         chat_id_hint = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or chat_id
+            send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or chat_id
         ).strip()
 
         heartbeat_once()
@@ -1120,9 +1040,7 @@ async def test_file_write_empty_live_agent_webui(
             timeout_sec=_bounded_wait_sec(90.0, reserve_sec=120.0),
             chat_id_hint=chat_id_hint or None,
         )
-        resolved_chat_id = (
-            chat_id_hint or str(started.get("chatId") or "").strip() or None
-        )
+        resolved_chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
         assert resolved_chat_id, (
             f"Expected chat id after stream start: started={started}; send={send_result}; "
             f"model={pinned_model.get('providerId')}/{pinned_model.get('model')}"
@@ -1143,10 +1061,7 @@ async def test_file_write_empty_live_agent_webui(
                     timeout_sec=_bounded_wait_sec(45.0, reserve_sec=45.0),
                 )
             except (RuntimeError, TimeoutError) as nav_exc:
-                if (
-                    _is_mux_io_deferrable(nav_exc)
-                    and _parallel_live_agent_peer_count() >= 2
-                ):
+                if _is_mux_io_deferrable(nav_exc) and _parallel_live_agent_peer_count() >= 2:
                     print(
                         "E2E_SKIP_CHAT_NAVIGATE_PARALLEL: chat_id mismatch tolerated; "
                         f"resolved={resolved_chat_id!r} bridge={current_chat!r} "
@@ -1157,31 +1072,19 @@ async def test_file_write_empty_live_agent_webui(
                     touch_wall_progress()
                 else:
                     raise
-        result = await _wait_turn_done(
-            chat, resolved_chat_id, agent_id=agent_id, target_file=target_file
-        )
-        invoked, has_failure = _empty_write_failure_in_messages(
-            resolved_chat_id, api_url=api_base
-        )
+        result = await _wait_turn_done(chat, resolved_chat_id, agent_id=agent_id, target_file=target_file)
+        invoked, has_failure = _empty_write_failure_in_messages(resolved_chat_id, api_url=api_base)
         write_calls = _file_write_tool_call_count(resolved_chat_id, api_url=api_base)
-        assert (
-            invoked
-        ), f"{_FILE_WRITE_TOOL} not found in persisted messages; result={result}"
+        assert invoked, f"{_FILE_WRITE_TOOL} not found in persisted messages; result={result}"
         assert (
             has_failure
             or (result.get("source") == "api+disk" and result.get("disk_clean") is True)
             or (
                 result.get("source") in ("ui", "ui-dom")
-                and (
-                    int(result.get("failureCount") or 0) >= 1
-                    or result.get("source") == "ui-dom"
-                )
+                and (int(result.get("failureCount") or 0) >= 1 or result.get("source") == "ui-dom")
             )
         ), f"fileMutationFailures missing; result={result}"
-        assert write_calls <= 1, (
-            f"Expected at most one {_FILE_WRITE_TOOL} call, got {write_calls}; "
-            f"result={result}"
-        )
+        assert write_calls <= 1, f"Expected at most one {_FILE_WRITE_TOOL} call, got {write_calls}; result={result}"
         _assert_empty_write_disk_clean(target_file)
         e2e_resource_ledger.register("chat", resolved_chat_id)
         return resolved_chat_id, result
@@ -1201,10 +1104,7 @@ async def test_file_write_empty_live_agent_webui(
                         await chat.bootstrap(agent_url, timeout_sec=180.0)
                         break
                     except (RuntimeError, TimeoutError) as boot_exc:
-                        if (
-                            not _is_mux_io_deferrable(boot_exc)
-                            or boot_idx >= boot_attempts - 1
-                        ):
+                        if not _is_mux_io_deferrable(boot_exc) or boot_idx >= boot_attempts - 1:
                             raise
                         print(
                             "E2E_BOOTSTRAP_MUX_RETRY: parallel mux reclaim — "

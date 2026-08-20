@@ -42,9 +42,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def _build_session_memory_events(
-    db: AsyncSession, session_id: str
-) -> list[dict[str, object]]:
+async def _build_session_memory_events(db: AsyncSession, session_id: str) -> list[dict[str, object]]:
     """Load session-scoped memory ledger events for replay overlay."""
     ledger = MemoryOperationLedgerService(db)
     rows = await ledger.list_events_for_session(session_id, limit=48)
@@ -66,9 +64,7 @@ async def _build_session_memory_events(
     ]
 
 
-def _empty_trace_payload(
-    session_id: str, memory_events: list[dict[str, object]]
-) -> dict[str, object]:
+def _empty_trace_payload(session_id: str, memory_events: list[dict[str, object]]) -> dict[str, object]:
     return {
         "session_id": session_id,
         "metadata": {
@@ -93,9 +89,7 @@ def _empty_trace_payload(
     }
 
 
-async def _attach_security_labels(
-    backend: FileEventLogBackend, session_id: str, trace_data: dict[str, object]
-) -> None:
+async def _attach_security_labels(backend: FileEventLogBackend, session_id: str, trace_data: dict[str, object]) -> None:
     """Attach step-level security decisions to matching tool calls.
 
     Reads the session's ``security_audit`` event (batch-persisted at session end)
@@ -104,9 +98,7 @@ async def _attach_security_labels(
     In-place mutation of ``trace_data["tool_calls"]``; no-op when no audit exists.
     """
     try:
-        events = await backend.get_events(
-            session_id, EventFilter(event_types=frozenset({"security_audit"}))
-        )
+        events = await backend.get_events(session_id, EventFilter(event_types=frozenset({"security_audit"})))
     except Exception:
         logger.debug("Failed to read security_audit events for lineage", exc_info=True)
         return
@@ -137,8 +129,7 @@ async def _attach_security_labels(
 
     if not by_call_id:
         logger.debug(
-            "security_audit decisions for session %s carry no tool_call_id; "
-            "cannot attach decisions to trace tool calls",
+            "security_audit decisions for session %s carry no tool_call_id; cannot attach decisions to trace tool calls",
             session_id,
         )
         return
@@ -184,13 +175,9 @@ async def get_session_execution_trace(
         memory_events = await _build_session_memory_events(db, session_id)
 
         if not event_log_file.exists():
-            return success_response(
-                data=_empty_trace_payload(session_id, memory_events)
-            )
+            return success_response(data=_empty_trace_payload(session_id, memory_events))
 
-        backend = FileEventLogBackend(
-            log_dir=Path(settings.database.event_log_dir), session_id=session_id
-        )
+        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
         trace = await build_trace(backend, session_id)
         trace_data = trace.to_dict()
         await _attach_security_labels(backend, session_id, trace_data)
@@ -200,6 +187,4 @@ async def get_session_execution_trace(
     except Exception as e:
         if "not found" in str(e).lower():
             raise
-        raise internal_error(
-            operation="Get session execution trace", exception=e
-        ) from e
+        raise internal_error(operation="Get session execution trace", exception=e) from e

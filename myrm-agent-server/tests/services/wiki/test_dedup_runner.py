@@ -28,17 +28,13 @@ def wiki_archiver(tmp_path):
         mock_settings.database.harness_dir = str(harness)
         mock_settings.database.state_dir = str(tmp_path)
         archiver = get_wiki_archiver(llm)
-    with patch(
-        "app.services.wiki.vault.get_wiki_archiver", return_value=archiver
-    ):
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=archiver):
         yield archiver
     dedup_runner._running_scans.clear()
     reset_wiki_archiver_cache_for_tests()
 
 
-def _write_duplicate_pair(
-    archiver, *, content: str = "# Dup\n\nShared runner test body."
-) -> None:
+def _write_duplicate_pair(archiver, *, content: str = "# Dup\n\nShared runner test body.") -> None:
     for relative_path in ("runner/a.md", "runner/b.md"):
         path = archiver._structure.get_raw_file_path(relative_path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,9 +121,7 @@ def test_get_wiki_dedup_group_snippets(wiki_archiver) -> None:
     scanner = CorpusDedupScanner(wiki_archiver._structure)
     scanner.scan(incremental=False)
     group_id = scanner.store.list_groups(status=GroupStatus.OPEN)[0].group_id
-    snippets = dedup_runner.get_wiki_dedup_group_snippets(
-        agent_id=None, group_id=group_id
-    )
+    snippets = dedup_runner.get_wiki_dedup_group_snippets(agent_id=None, group_id=group_id)
     assert len(snippets) == 2
     assert snippets[0].snippet
 
@@ -179,9 +173,7 @@ async def test_restore_wiki_dedup_trashed_requeues_scan(wiki_archiver) -> None:
         reason="restore runner test",
     )
     trashed = dedup_runner.get_wiki_dedup_vault_hygiene().trashed[0].relative_path
-    restored = await dedup_runner.restore_wiki_dedup_trashed(
-        agent_id=None, relative_path=trashed
-    )
+    restored = await dedup_runner.restore_wiki_dedup_trashed(agent_id=None, relative_path=trashed)
     assert restored.relative_path == trashed
     assert wiki_archiver._structure.get_raw_file_path(trashed).exists()
 
@@ -199,9 +191,7 @@ async def test_undo_wiki_dedup_excluded_requeues_scan(wiki_archiver) -> None:
         reason="undo runner test",
     )
     excluded = dedup_runner.get_wiki_dedup_vault_hygiene().excluded[0].relative_path
-    restored = await dedup_runner.undo_wiki_dedup_excluded(
-        agent_id=None, relative_path=excluded
-    )
+    restored = await dedup_runner.undo_wiki_dedup_excluded(agent_id=None, relative_path=excluded)
     assert restored.relative_path == excluded
 
 

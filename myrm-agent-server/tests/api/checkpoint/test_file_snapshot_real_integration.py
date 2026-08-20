@@ -78,9 +78,7 @@ async def async_client() -> httpx.AsyncClient:
         yield client
 
 
-async def _create_snapshot(
-    async_client: httpx.AsyncClient, working_dir: str, description: str
-) -> str:
+async def _create_snapshot(async_client: httpx.AsyncClient, working_dir: str, description: str) -> str:
     resp = await async_client.post(
         "/api/v1/checkpoint/file-snapshot/create",
         json={"working_dir": working_dir, "description": description},
@@ -89,9 +87,7 @@ async def _create_snapshot(
     return resp.json()["snapshot_id"]
 
 
-async def _list_snapshot_ids(
-    async_client: httpx.AsyncClient, working_dir: str
-) -> list[str]:
+async def _list_snapshot_ids(async_client: httpx.AsyncClient, working_dir: str) -> list[str]:
     resp = await async_client.get(
         "/api/v1/checkpoint/file-snapshot/list",
         params={"working_dir": working_dir},
@@ -101,9 +97,7 @@ async def _list_snapshot_ids(
 
 
 @pytest.mark.asyncio
-async def test_http_full_lifecycle_with_real_git_store(
-    async_client: httpx.AsyncClient, workspace: Path
-) -> None:
+async def test_http_full_lifecycle_with_real_git_store(async_client: httpx.AsyncClient, workspace: Path) -> None:
     """create → diff → restore (pre-rollback) → delete newest-only semantics."""
     sid = await _create_snapshot(async_client, str(workspace), "baseline")
 
@@ -115,9 +109,7 @@ async def test_http_full_lifecycle_with_real_git_store(
     assert resp.status_code == 200
     listed = resp.json()["snapshots"]
     assert any(s["snapshot_id"] == sid for s in listed)
-    assert (
-        next(s for s in listed if s["snapshot_id"] == sid)["description"] == "baseline"
-    )
+    assert next(s for s in listed if s["snapshot_id"] == sid)["description"] == "baseline"
 
     # modify the workspace, then diff must report the change
     (workspace / "app.py").write_text("def main(): print('v2')\n")
@@ -142,29 +134,21 @@ async def test_http_full_lifecycle_with_real_git_store(
     assert pre_id in ids
 
     # intermediate snapshots are not deletable (linear commit chain)
-    resp = await async_client.request(
-        "DELETE", f"/api/v1/checkpoint/file-snapshot/{sid}"
-    )
+    resp = await async_client.request("DELETE", f"/api/v1/checkpoint/file-snapshot/{sid}")
     assert resp.status_code == 404
 
     # newest snapshot (pre-rollback) is deletable
-    resp = await async_client.request(
-        "DELETE", f"/api/v1/checkpoint/file-snapshot/{pre_id}"
-    )
+    resp = await async_client.request("DELETE", f"/api/v1/checkpoint/file-snapshot/{pre_id}")
     assert resp.status_code == 200
 
     # after removing the newest, the former head (sid) becomes deletable
-    resp = await async_client.request(
-        "DELETE", f"/api/v1/checkpoint/file-snapshot/{sid}"
-    )
+    resp = await async_client.request("DELETE", f"/api/v1/checkpoint/file-snapshot/{sid}")
     assert resp.status_code == 200
     assert await _list_snapshot_ids(async_client, str(workspace)) == []
 
 
 @pytest.mark.asyncio
-async def test_cleanup_keeps_most_recent_through_http(
-    async_client: httpx.AsyncClient, workspace: Path
-) -> None:
+async def test_cleanup_keeps_most_recent_through_http(async_client: httpx.AsyncClient, workspace: Path) -> None:
     """cleanup prunes oldest snapshots, keeping the newest max_snapshots."""
     for i in range(6):
         (workspace / "app.py").write_text(f"def main(): print('v{i}')\n")
@@ -186,9 +170,7 @@ async def test_cleanup_keeps_most_recent_through_http(
 
 
 @pytest.mark.asyncio
-async def test_interceptor_snapshots_visible_via_api(
-    async_client: httpx.AsyncClient, workspace: Path
-) -> None:
+async def test_interceptor_snapshots_visible_via_api(async_client: httpx.AsyncClient, workspace: Path) -> None:
     """Snapshots taken by SnapshotInterceptor (same factory store) appear in the API list.
 
     Uses _safe_snapshot_with_lock directly instead of before_destructive_action:
@@ -200,9 +182,7 @@ async def test_interceptor_snapshots_visible_via_api(
 
     interceptor = SnapshotInterceptor()
     ws = str(workspace)
-    with patch.object(
-        SnapshotInterceptor, "_emit_snapshot_event", new_callable=AsyncMock
-    ):
+    with patch.object(SnapshotInterceptor, "_emit_snapshot_event", new_callable=AsyncMock):
         await interceptor._safe_snapshot_with_lock(
             workspace_path=ws,
             action_type="bash",

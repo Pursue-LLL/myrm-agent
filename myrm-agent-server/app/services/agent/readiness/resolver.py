@@ -128,14 +128,8 @@ def _check_model(
     return AgentReadinessItem(
         dimension="model",
         level=ReadinessLevel.BLOCKED,
-        reason=(
-            result.missing_items[0]
-            if result.missing_items
-            else "provider_not_configured"
-        ),
-        next_action=(
-            result.suggestions[0] if result.suggestions else "Configure model provider"
-        ),
+        reason=(result.missing_items[0] if result.missing_items else "provider_not_configured"),
+        next_action=(result.suggestions[0] if result.suggestions else "Configure model provider"),
         settings_path="/settings/models",
     )
 
@@ -205,9 +199,7 @@ async def _check_mcp(
         try:
             from app.services.agent.backends.secret_backend import DatabaseSecretBackend
 
-            existing = set(
-                await DatabaseSecretBackend().list_secret_keys(profile.agent_id)
-            )
+            existing = set(await DatabaseSecretBackend().list_secret_keys(profile.agent_id))
             missing_keys = [key for key in required_keys if key not in existing]
             if missing_keys:
                 items.append(
@@ -216,9 +208,7 @@ async def _check_mcp(
                         level=ReadinessLevel.WARNING,
                         reason=f"MCP servers missing secrets: {', '.join(missing_keys[:3])}",
                         next_action="Add the missing secrets in agent settings",
-                        settings_path=_agent_settings_path(
-                            profile.agent_id, anchor="secrets"
-                        ),
+                        settings_path=_agent_settings_path(profile.agent_id, anchor="secrets"),
                     )
                 )
         except Exception as exc:
@@ -293,10 +283,7 @@ def _check_deployment(profile: ResolvedAgentProfile) -> list[AgentReadinessItem]
 
         caps = get_deployment_capabilities()
 
-        if (
-            "computer_use" in set(profile.enabled_builtin_tools)
-            and caps.is_sandbox_instance
-        ):
+        if "computer_use" in set(profile.enabled_builtin_tools) and caps.is_sandbox_instance:
             items.append(
                 AgentReadinessItem(
                     dimension="deployment",

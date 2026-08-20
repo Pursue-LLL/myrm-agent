@@ -242,9 +242,7 @@ def _target_table_sql(
     for index, (chat_id, message_id) in enumerate(chat_message_ids.items()):
         chat_key = f"target_chat_{index}"
         message_key = f"target_message_{index}"
-        selects.append(
-            f"SELECT :{chat_key} AS chat_id, :{message_key} AS source_message_id"
-        )
+        selects.append(f"SELECT :{chat_key} AS chat_id, :{message_key} AS source_message_id")
         params[chat_key] = chat_id
         params[message_key] = message_id
     return (

@@ -192,9 +192,7 @@ async def test_run_benchmark_background_sample_size_follows_sampled(
 
 
 @pytest.mark.asyncio
-async def test_build_eval_manifest_records_limit_and_judge(
-    tmp_path, monkeypatch
-) -> None:
+async def test_build_eval_manifest_records_limit_and_judge(tmp_path, monkeypatch) -> None:
     """The eval manifest discloses the applied sample size and judge model."""
     from types import SimpleNamespace
 
@@ -209,9 +207,7 @@ async def test_build_eval_manifest_records_limit_and_judge(
             )
         )
 
-    monkeypatch.setattr(
-        "app.core.channel_bridge.config_loader.load_user_configs", fake_load
-    )
+    monkeypatch.setattr("app.core.channel_bridge.config_loader.load_user_configs", fake_load)
 
     manifest = await _build_eval_manifest(
         None,
@@ -242,9 +238,7 @@ async def test_build_eval_manifest_records_run_budgets(tmp_path, monkeypatch) ->
             )
         )
 
-    monkeypatch.setattr(
-        "app.core.channel_bridge.config_loader.load_user_configs", fake_load
-    )
+    monkeypatch.setattr("app.core.channel_bridge.config_loader.load_user_configs", fake_load)
 
     manifest = await _build_eval_manifest(
         None,
@@ -344,9 +338,7 @@ def test_ensure_benchmark_source_dispatches_browsecomp(monkeypatch) -> None:
     async def fake_ensure(*, progress_callback=None, should_abort=None):
         return "csv-root"
 
-    monkeypatch.setattr(
-        "app.core.eval.browse_comp.ensure_browse_comp_source", fake_ensure
-    )
+    monkeypatch.setattr("app.core.eval.browse_comp.ensure_browse_comp_source", fake_ensure)
     assert ensure_benchmark_source("browsecomp") == "csv-root"
 
 

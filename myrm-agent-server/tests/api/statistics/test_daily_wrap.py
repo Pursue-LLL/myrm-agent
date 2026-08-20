@@ -56,10 +56,7 @@ class TestBuildActivityPrompt:
         assert "T-123" in prompt
 
     def test_max_sessions_capped(self):
-        sessions = [
-            {"title": f"Session {i}", "action_mode": "chat", "total_tokens": 100, "total_usd": 0.001}
-            for i in range(20)
-        ]
+        sessions = [{"title": f"Session {i}", "action_mode": "chat", "total_tokens": 100, "total_usd": 0.001} for i in range(20)]
         prompt = _build_activity_prompt("2026-06-20", sessions, [], [], [])
         assert "Session 14" in prompt
         assert "Session 15" not in prompt
@@ -90,11 +87,13 @@ class TestGenerateWrapViaLlm:
         mock_lite_cfg.api_key = "test-key"
 
         llm_response = MagicMock()
-        llm_response.content = json.dumps({
-            "summary": "Productive day with 5 sessions focused on code review.",
-            "keywords": ["code-review", "refactoring", "testing"],
-            "suggestions": ["Follow up on PR #42", "Review test coverage"],
-        })
+        llm_response.content = json.dumps(
+            {
+                "summary": "Productive day with 5 sessions focused on code review.",
+                "keywords": ["code-review", "refactoring", "testing"],
+                "suggestions": ["Follow up on PR #42", "Review test coverage"],
+            }
+        )
 
         mock_llm = AsyncMock()
         mock_llm.ainvoke = AsyncMock(return_value=llm_response)

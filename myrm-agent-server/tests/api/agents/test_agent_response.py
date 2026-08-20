@@ -59,27 +59,19 @@ class TestSerializationHelpers:
         assert _meta_str_list({}, "missing") == []
 
     def test_meta_str_list_or_none_converts(self) -> None:
-        assert _meta_str_list_or_none(
-            {"suggestion_prompts": ["p"]}, "suggestion_prompts"
-        ) == ["p"]
+        assert _meta_str_list_or_none({"suggestion_prompts": ["p"]}, "suggestion_prompts") == ["p"]
 
     def test_meta_str_list_or_none_returns_none_for_scalar(self) -> None:
         assert _meta_str_list_or_none({"suggestion_prompts": "p"}, "suggestion_prompts") is None
 
     def test_meta_dict_or_none_converts(self) -> None:
-        assert _meta_dict_or_none(
-            {"security_overrides": {"allow": "1"}}, "security_overrides"
-        ) == {"allow": "1"}
+        assert _meta_dict_or_none({"security_overrides": {"allow": "1"}}, "security_overrides") == {"allow": "1"}
 
     def test_meta_list_or_empty_filters_dicts(self) -> None:
-        assert _meta_list_or_empty(
-            {"openapi_services": [{"url": "x"}, "junk"]}, "openapi_services"
-        ) == [{"url": "x"}]
+        assert _meta_list_or_empty({"openapi_services": [{"url": "x"}, "junk"]}, "openapi_services") == [{"url": "x"}]
 
     def test_meta_list_or_none_nonempty(self) -> None:
-        assert _meta_list_or_none(
-            {"notify_targets": [{"channel": "c"}]}, "notify_targets"
-        ) == [{"channel": "c"}]
+        assert _meta_list_or_none({"notify_targets": [{"channel": "c"}]}, "notify_targets") == [{"channel": "c"}]
 
     def test_response_memory_policy_valid(self) -> None:
         profile = AgentProfile(id="a1", memory_policy=AgentMemoryPolicy())
@@ -136,18 +128,14 @@ class TestSerializationHelpers:
                 "workspace_policy": "ISOLATED_COPY",
                 "session_policy": {"mode": "daily"},
                 "openapi_services": [{"url": "https://api.example.com/openapi.json"}],
-                "notify_targets": [
-                    {"channel": "im", "recipient_id": "u1", "label": "me"}
-                ],
+                "notify_targets": [{"channel": "im", "recipient_id": "u1", "label": "me"}],
                 "suggestion_prompts": ["p1"],
                 "busy_input_mode": "steer",
                 "cron_post_run_verify": True,
             },
         )
 
-        response = _to_agent_response(
-            profile, show_system_prompt=True, snapshot_count=2, snapshot_saved=True
-        )
+        response = _to_agent_response(profile, show_system_prompt=True, snapshot_count=2, snapshot_saved=True)
 
         assert response.allow_discovery is False
         assert response.personality_style == "friendly"

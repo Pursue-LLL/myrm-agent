@@ -66,9 +66,7 @@ async def test_resolve_goal_stream_agent_context_applies_ko_formal_suffix() -> N
 
 
 @pytest.mark.asyncio
-async def test_resolve_goal_stream_agent_context_team_includes_protocol_and_subagents() -> (
-    None
-):
+async def test_resolve_goal_stream_agent_context_team_includes_protocol_and_subagents() -> None:
     chat = MagicMock()
     chat.agent_id = "team-leader-1"
 
@@ -262,9 +260,7 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
     captured_params: dict[str, object] = {}
     stream_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
 
-    async def capturing_stream(
-        *_args: object, **_kwargs: object
-    ) -> AsyncGenerator[object, None]:
+    async def capturing_stream(*_args: object, **_kwargs: object) -> AsyncGenerator[object, None]:
         stream_calls.append((_args, _kwargs))
         if False:
             yield None

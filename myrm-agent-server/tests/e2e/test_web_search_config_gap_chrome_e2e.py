@@ -47,9 +47,7 @@ async def _open_e2e_page_with_runtime_retry(
             wait_e2e_provider_ready(api_url=api_base, timeout_sec=30.0)
             await asyncio.sleep(2.0 * attempt)
         try:
-            return await asyncio.to_thread(
-                client.new_page, base_url, timeout_ms=120_000
-            )
+            return await asyncio.to_thread(client.new_page, base_url, timeout_ms=120_000)
         except RuntimeError as exc:
             message = str(exc)
             if "E2E_RUNTIME_BINDING_FAILED" not in message:
@@ -57,6 +55,7 @@ async def _open_e2e_page_with_runtime_retry(
             last_exc = exc
     assert last_exc is not None
     raise last_exc
+
 
 _COUNT_TOASTS_JS = """(() => {
   const toastNodes = Array.from(
@@ -440,21 +439,10 @@ async def _send_and_collect_gap_while_streaming(
             message_id=stream_message_id,
             wall_deadline=wall_deadline,
         )
-        if (
-            isinstance(snapshot.get("streamMessageId"), str)
-            and snapshot["streamMessageId"].strip()
-        ):
+        if isinstance(snapshot.get("streamMessageId"), str) and snapshot["streamMessageId"].strip():
             stream_message_id = snapshot["streamMessageId"].strip()
-        toast_state = (
-            snapshot.get("toast")
-            if isinstance(snapshot.get("toast"), dict)
-            else {"count": 0}
-        )
-        sse_events = (
-            snapshot.get("sseEvents")
-            if isinstance(snapshot.get("sseEvents"), list)
-            else []
-        )
+        toast_state = snapshot.get("toast") if isinstance(snapshot.get("toast"), dict) else {"count": 0}
+        sse_events = snapshot.get("sseEvents") if isinstance(snapshot.get("sseEvents"), list) else []
         best_toast = toast_state
         best_sse = sse_events
         peak_toast_count = max(
@@ -468,9 +456,7 @@ async def _send_and_collect_gap_while_streaming(
             break
         if "tool_start" in sse_events and not saw_sse_gap:
             break
-        if int(toast_state.get("sseCount") or 0) >= 1 or int(
-            toast_state.get("clientCount") or 0
-        ) >= 1:
+        if int(toast_state.get("sseCount") or 0) >= 1 or int(toast_state.get("clientCount") or 0) >= 1:
             break
         await asyncio.sleep(0.5)
 
@@ -573,9 +559,9 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 WAIT_WORKSPACE_STREAM_JS,
                 intent=EvaluateIntent.AGENT_SUBMIT,
             )
-            assert (
-                isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True
-            ), f"workspace multiplex stream not ready: {workspace_ready!r}; api={api_base}"
+            assert isinstance(workspace_ready, dict) and workspace_ready.get("ok") is True, (
+                f"workspace multiplex stream not ready: {workspace_ready!r}; api={api_base}"
+            )
 
             binding = await chat.evaluate(
                 """(() => ({
@@ -586,35 +572,28 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 intent=EvaluateIntent.SYNC_PROBE,
             )
             assert isinstance(binding, dict), binding
-            assert str(binding.get("apiBase") or "").rstrip("/") == api_base.rstrip(
-                "/"
-            ), f"E2E API binding mismatch: expected {api_base}, got {binding}"
+            assert str(binding.get("apiBase") or "").rstrip("/") == api_base.rstrip("/"), (
+                f"E2E API binding mismatch: expected {api_base}, got {binding}"
+            )
 
             await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-            toast_state, sse_events, send, diag = (
-                await _send_and_collect_gap_while_streaming(
-                    chat,
-                    api_base=api_base,
-                    wall_deadline=wall_deadline,
-                    timeout_sec=45.0,
-                )
+            toast_state, sse_events, send, diag = await _send_and_collect_gap_while_streaming(
+                chat,
+                api_base=api_base,
+                wall_deadline=wall_deadline,
+                timeout_sec=45.0,
             )
 
             sse_count = int(toast_state.get("sseCount") or 0)
             client_count = int(toast_state.get("clientCount") or 0)
-            recorded_sse = (
-                diag.get("sse") if isinstance(diag.get("sse"), list) else sse_events
-            )
+            recorded_sse = diag.get("sse") if isinstance(diag.get("sse"), list) else sse_events
             if "capability_gap" not in recorded_sse:
                 all_sse = diag.get("allSse")
                 if isinstance(all_sse, list) and "capability_gap" in all_sse:
                     recorded_sse = list(all_sse)
 
             if "tool_start" in recorded_sse and "capability_gap" not in recorded_sse:
-                pytest.fail(
-                    "agent ran web_search tools instead of config-gap preflight; "
-                    f"sse={recorded_sse!r}; diag={diag!r}"
-                )
+                pytest.fail(f"agent ran web_search tools instead of config-gap preflight; sse={recorded_sse!r}; diag={diag!r}")
 
             if "capability_gap" not in recorded_sse:
                 pytest.fail(
@@ -623,29 +602,22 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                     f"send={send!r}; sse={recorded_sse!r}; diag={diag!r}"
                 )
 
-            assert (
-                "capability_gap" in recorded_sse
-            ), f"expected capability_gap in sseSnapshot; send={send!r}; sse={recorded_sse!r}; diag={diag!r}"
-            assert (
-                recorded_sse.count("capability_gap") == 1
-            ), f"expected single capability_gap SSE event; sse={recorded_sse!r}"
+            assert "capability_gap" in recorded_sse, (
+                f"expected capability_gap in sseSnapshot; send={send!r}; sse={recorded_sse!r}; diag={diag!r}"
+            )
+            assert recorded_sse.count("capability_gap") == 1, f"expected single capability_gap SSE event; sse={recorded_sse!r}"
             gap_toast_count = max(
                 sse_count,
                 int(toast_state.get("sseCount") or 0),
                 int(toast_state.get("peakCount") or 0),
             )
             assert gap_toast_count >= 1, (
-                f"expected at least 1 config-gap toast; "
-                f"toast={toast_state}; sse={recorded_sse!r}; diag={diag!r}"
+                f"expected at least 1 config-gap toast; toast={toast_state}; sse={recorded_sse!r}; diag={diag!r}"
             )
-            assert (
-                client_count == 0
-            ), f"client pre-send toast must not appear: {toast_state}"
+            assert client_count == 0, f"client pre-send toast must not appear: {toast_state}"
 
             chat_id = str(
-                (send.get("chatId") if isinstance(send, dict) else None)
-                or (diag.get("turn") or {}).get("chatId")
-                or ""
+                (send.get("chatId") if isinstance(send, dict) else None) or (diag.get("turn") or {}).get("chatId") or ""
             ).strip()
             if chat_id:
                 e2e_resource_ledger.register("chat", chat_id)
@@ -675,9 +647,7 @@ async def test_fast_mode_blocks_send_with_client_search_toast(
         client = ChromeMcpClient(request_timeout_sec=90.0)
         await asyncio.to_thread(client.start)
         try:
-            page = await asyncio.to_thread(
-                client.new_page, BASE_URL, timeout_ms=120_000
-            )
+            page = await asyncio.to_thread(client.new_page, BASE_URL, timeout_ms=120_000)
             chat = McpChatSession(client, page)
             await chat.bootstrap(BASE_URL, timeout_sec=120.0)
             await chat.ensure_react_e2e_bridge(timeout_sec=60.0)

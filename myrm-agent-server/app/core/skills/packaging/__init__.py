@@ -88,9 +88,7 @@ class SkillPackagingService:
 
             files = await self._skills_svc.list_skill_files(skill_id)
             if not files:
-                return PackageResult(
-                    success=False, zip_content=None, filename=None, error="技能没有文件"
-                )
+                return PackageResult(success=False, zip_content=None, filename=None, error="技能没有文件")
 
             # 从 evolution 存储读取回归门禁快照与真实演化版本
             eval_cases_count = 0
@@ -119,9 +117,7 @@ class SkillPackagingService:
 
                     # Perform sanitization check
                     file_ignored_indices = ignored_redactions.get(file_path, [])
-                    sanitization_result = content_sanitizer.sanitize(
-                        content, file_path, ignored_indices=file_ignored_indices
-                    )
+                    sanitization_result = content_sanitizer.sanitize(content, file_path, ignored_indices=file_ignored_indices)
 
                     # If there are redactions (even if we ignore some, if there are remaining ones, it's not safe)
                     # Actually, if we ignored ALL of them, is it safe?
@@ -162,15 +158,9 @@ class SkillPackagingService:
                 )
 
             # Actual packaging: 根据 export_format 选择打包规范
-            version_str = (
-                str(lineage_version)
-                if lineage_version is not None
-                else (skill.version or "1.0.0")
-            )
+            version_str = str(lineage_version) if lineage_version is not None else (skill.version or "1.0.0")
             if export_format == "raw_skill":
-                pack_result = self._packer.package_files(
-                    skill.name, version_str, file_contents
-                )
+                pack_result = self._packer.package_files(skill.name, version_str, file_contents)
             else:
                 extra_ext = None
                 if eval_cases_count > 0:
@@ -202,9 +192,7 @@ class SkillPackagingService:
 
         except Exception as e:
             logger.error(f"打包技能失败: {skill_id}, 错误: {e}")
-            return PackageResult(
-                success=False, zip_content=None, filename=None, error=str(e)
-            )
+            return PackageResult(success=False, zip_content=None, filename=None, error=str(e))
 
     async def package_workspace_directory(
         self,
@@ -217,9 +205,7 @@ class SkillPackagingService:
 
         from app.config.settings import settings
 
-        workspace_svc = create_workspace_service(
-            root_dir=Path(settings.database.harness_dir)
-        )
+        workspace_svc = create_workspace_service(root_dir=Path(settings.database.harness_dir))
         session_id = f"chat_{chat_id}"
         workspace = await workspace_svc.find_by_session_id(session_id)
 
@@ -285,9 +271,7 @@ class SkillPackagingService:
             )
             restored_eval_cases = 0
             if eval_cases:
-                restored_eval_cases = await self._restore_eval_cases(
-                    skill, files, eval_cases
-                )
+                restored_eval_cases = await self._restore_eval_cases(skill, files, eval_cases)
             logger.info("Skill registered: %s (%s)", skill.id, info.name)
             return UnpackResult(
                 success=True,
@@ -320,9 +304,7 @@ class SkillPackagingService:
             store = get_evolution_skill_store()
             record = store.get_skill_by_name_version(skill.name)
             if record is None:
-                skill_md = files.get(SKILL_MD_FILE, b"").decode(
-                    "utf-8", errors="replace"
-                )
+                skill_md = files.get(SKILL_MD_FILE, b"").decode("utf-8", errors="replace")
                 path = get_skill_file_path(SkillType.PREBUILT, skill.id, SKILL_MD_FILE)
                 record = SkillRecord(
                     skill_id=skill.id,

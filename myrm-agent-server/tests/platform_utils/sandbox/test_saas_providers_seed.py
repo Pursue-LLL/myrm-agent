@@ -93,9 +93,7 @@ class TestParseLiteModelRef:
 
 
 class TestSeedFreshSandbox:
-    async def test_seeds_platform_provider_when_no_record(
-        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_seeds_platform_provider_when_no_record(self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         fake = _FakeConfigService(record=None)
         _patch_service(monkeypatch, fake)
 
@@ -116,9 +114,7 @@ class TestSeedFreshSandbox:
             "model": "anthropic/claude-sonnet-4",
         }
 
-    async def test_seeds_when_record_value_is_not_dict(
-        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_seeds_when_record_value_is_not_dict(self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         """record 存在但 value 非 dict（异常数据）时按全新沙箱处理 seed。"""
         fake = _FakeConfigService(record=SimpleNamespace(value="corrupted", version="9_0"))
         _patch_service(monkeypatch, fake)
@@ -129,9 +125,7 @@ class TestSeedFreshSandbox:
         _key, _value, _device_id, expected_version = fake.set_calls[0]
         assert expected_version == "9_0"
 
-    async def test_seeds_when_providers_is_empty_list(
-        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_seeds_when_providers_is_empty_list(self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         fake = _FakeConfigService(record=_record({"providers": []}))
         _patch_service(monkeypatch, fake)
 
@@ -141,15 +135,11 @@ class TestSeedFreshSandbox:
 
 
 class TestSeedSkipsExistingConfiguration:
-    async def test_skips_when_provider_and_default_model_exist(
-        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_skips_when_provider_and_default_model_exist(self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         user_provider = {"id": "anthropic", "providerType": "anthropic"}
         existing = {
             "providers": [user_provider],
-            "defaultModelConfig": {
-                "baseModel": {"primary": {"providerId": "anthropic", "model": "claude-opus"}}
-            },
+            "defaultModelConfig": {"baseModel": {"primary": {"providerId": "anthropic", "model": "claude-opus"}}},
         }
         fake = _FakeConfigService(record=_record(existing))
         _patch_service(monkeypatch, fake)
@@ -174,11 +164,7 @@ class TestSeedSkipsExistingConfiguration:
     async def test_skips_when_default_model_set_but_providers_missing(
         self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        existing = {
-            "defaultModelConfig": {
-                "baseModel": {"primary": {"providerId": "anthropic", "model": "claude-opus"}}
-            }
-        }
+        existing = {"defaultModelConfig": {"baseModel": {"primary": {"providerId": "anthropic", "model": "claude-opus"}}}}
         fake = _FakeConfigService(record=_record(existing))
         _patch_service(monkeypatch, fake)
 
@@ -241,9 +227,7 @@ class TestSeedGuardClauses:
         assert fake.set_calls == []
         assert any("CP_PUBLIC_INGRESS_URL" in rec.message for rec in caplog.records)
 
-    async def test_returns_early_on_invalid_lite_model_ref(
-        self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_returns_early_on_invalid_lite_model_ref(self, sandbox_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MYRM_SAAS_DEFAULT_LITE_MODEL", "anthropic/claude-sonnet-4")
         fake = _FakeConfigService(record=None)
         _patch_service(monkeypatch, fake)

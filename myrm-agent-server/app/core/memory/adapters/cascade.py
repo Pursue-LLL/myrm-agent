@@ -39,7 +39,7 @@ async def _infer_embedding_model(vector_store: object) -> str:
         collections: list[str] = await vector_store.list_collections()
         for name in collections:
             if name.startswith(_SEMANTIC_PREFIX):
-                return name[len(_SEMANTIC_PREFIX):]
+                return name[len(_SEMANTIC_PREFIX) :]
     except Exception as e:
         logger.warning("Failed to infer embedding model from collections: %s", e)
     return "text-embedding-3-small"

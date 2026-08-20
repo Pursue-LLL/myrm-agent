@@ -30,9 +30,7 @@ router = APIRouter()
 _DELIVERABLE_REL_PATH = "deliverable_e2e.md"
 _DELIVERABLE_WORKSPACE_REF = f"workspace/{_DELIVERABLE_REL_PATH}"
 _DELIVERABLE_FILE_CONTENT = "# Deliverable E2E\n\nFixture content for Chrome MCP smoke.\n"
-_DELIVERABLE_ASSISTANT_MARKDOWN = (
-    f"Deliverable link E2E fixture — open `{_DELIVERABLE_WORKSPACE_REF}` in the portal."
-)
+_DELIVERABLE_ASSISTANT_MARKDOWN = f"Deliverable link E2E fixture — open `{_DELIVERABLE_WORKSPACE_REF}` in the portal."
 
 
 @router.post("/test/seed-deliverable-link-fixture", include_in_schema=False)

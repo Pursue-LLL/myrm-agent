@@ -157,9 +157,7 @@ def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
         icon=bp.icon,
         title=_merge_locale_dict(bp.title, supplement["title"]),
         description=_merge_locale_dict(bp.description, supplement["description"]),
-        prompt_template=_merge_locale_dict(
-            bp.prompt_template, supplement["prompt_template"]
-        ),
+        prompt_template=_merge_locale_dict(bp.prompt_template, supplement["prompt_template"]),
         slots=bp.slots,
         category=bp.category,
         tags=bp.tags,
@@ -186,9 +184,7 @@ def _time_to_cron_weekday(time_str: str, day: str) -> str:
 def _time_to_cron_with_weekdays(time_str: str, weekdays: str) -> str:
     parts = time_str.split(":")
     h, m = int(parts[0]), int(parts[1])
-    dow = (
-        "1-5" if weekdays == "weekdays" else ("0,6" if weekdays == "weekends" else "*")
-    )
+    dow = "1-5" if weekdays == "weekdays" else ("0,6" if weekdays == "weekends" else "*")
     return f"{m} {h} * * {dow}"
 
 
@@ -207,10 +203,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "weather outlook, and any important reminders for today. "
                 "Keep it brief and actionable."
             ),
-            "zh": (
-                "提供一份简洁的早间简报，涵盖：重要新闻头条、天气预报、"
-                "以及今天的重要提醒事项。保持简短且可操作。"
-            ),
+            "zh": ("提供一份简洁的早间简报，涵盖：重要新闻头条、天气预报、以及今天的重要提醒事项。保持简短且可操作。"),
         },
         slots=(
             BlueprintSlot(name="time", type="time", label="time", default="08:00"),
@@ -243,10 +236,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "identify blockers or challenges faced, and suggest priorities for "
                 "the upcoming week. Organize by category."
             ),
-            "zh": (
-                "进行一次全面的每周回顾：总结本周关键成果、"
-                "识别遇到的阻碍或挑战，并建议下周的优先事项。按类别组织。"
-            ),
+            "zh": ("进行一次全面的每周回顾：总结本周关键成果、识别遇到的阻碍或挑战，并建议下周的优先事项。按类别组织。"),
         },
         slots=(
             BlueprintSlot(name="time", type="time", label="time", default="18:00"),
@@ -340,10 +330,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "preview tomorrow's schedule and priorities, and offer a relaxation tip "
                 "or inspirational thought for the evening."
             ),
-            "zh": (
-                "提供一份平和的晚间总结：简要回顾今天的亮点、"
-                "预览明天的日程和优先事项，并提供一条放松建议或晚间灵感语录。"
-            ),
+            "zh": ("提供一份平和的晚间总结：简要回顾今天的亮点、预览明天的日程和优先事项，并提供一条放松建议或晚间灵感语录。"),
         },
         slots=(
             BlueprintSlot(name="time", type="time", label="time", default="21:00"),
@@ -594,10 +581,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "This job runs in router mode. Use the pre-flight probe output as the final message. "
                 "If the probe prints [SKIP], stay silent."
             ),
-            "zh": (
-                "该任务运行在 router 模式。将预检脚本输出作为最终消息。"
-                "如果预检脚本输出 [SKIP]，保持静默。"
-            ),
+            "zh": ("该任务运行在 router 模式。将预检脚本输出作为最终消息。如果预检脚本输出 [SKIP]，保持静默。"),
         },
         slots=(
             BlueprintSlot(name="time", type="time", label="time", default="08:00"),
@@ -616,12 +600,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 default="usd",
                 options=("usd", "usdt", "eur", "cny"),
             ),
-            BlueprintSlot(
-                name="lower_bound", type="text", label="lower_bound", default="58000"
-            ),
-            BlueprintSlot(
-                name="upper_bound", type="text", label="upper_bound", default="68000"
-            ),
+            BlueprintSlot(name="lower_bound", type="text", label="lower_bound", default="58000"),
+            BlueprintSlot(name="upper_bound", type="text", label="upper_bound", default="68000"),
             BlueprintSlot(
                 name="source",
                 type="enum",
@@ -639,9 +619,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
             deduplicate=True,
             skip_if_active=True,
             timeout_seconds=90,
-            failure_alert=BlueprintFailureAlertDefaults(
-                enabled=True, after=2, cooldown_seconds=900
-            ),
+            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
             pre_condition_script_template={
                 "en": (
                     "import json\n"
@@ -825,9 +803,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 default="weekdays",
                 options=("everyday", "weekdays", "weekends"),
             ),
-            BlueprintSlot(
-                name="watchlist", type="text", label="watchlist", default="BTC,ETH,SOL"
-            ),
+            BlueprintSlot(name="watchlist", type="text", label="watchlist", default="BTC,ETH,SOL"),
             BlueprintSlot(
                 name="signal_rules",
                 type="text",
@@ -853,12 +829,8 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
             deduplicate=True,
             skip_if_active=True,
             timeout_seconds=240,
-            monitor_config=BlueprintMonitorDefaults(
-                monitor_type="hash", ttl_days=14, enabled=True
-            ),
-            failure_alert=BlueprintFailureAlertDefaults(
-                enabled=True, after=2, cooldown_seconds=900
-            ),
+            monitor_config=BlueprintMonitorDefaults(monitor_type="hash", ttl_days=14, enabled=True),
+            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
         ),
         _schedule_builder="time_weekdays",
     ),
@@ -875,10 +847,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "Wiki source sync job (router mode). The sync summary is produced by the server; "
                 "deliver it as-is. Reply [SILENT] when nothing was ingested."
             ),
-            "zh": (
-                "知识库来源同步任务（router 模式）。同步摘要由服务端生成，请原样投递。"
-                "若无新内容则回复 [SILENT]。"
-            ),
+            "zh": ("知识库来源同步任务（router 模式）。同步摘要由服务端生成，请原样投递。若无新内容则回复 [SILENT]。"),
         },
         slots=(
             BlueprintSlot(name="time", type="time", label="time", default="06:00"),
@@ -963,10 +932,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "Wiki maintain job (router mode). The maintenance summary is produced by the server; "
                 "deliver it as-is. Reply [SILENT] when nothing changed."
             ),
-            "zh": (
-                "知识库维护任务（router 模式）。维护摘要由服务端生成，请原样投递。"
-                "若无变化则回复 [SILENT]。"
-            ),
+            "zh": ("知识库维护任务（router 模式）。维护摘要由服务端生成，请原样投递。若无变化则回复 [SILENT]。"),
         },
         slots=(
             BlueprintSlot(name="time", type="time", label="time", default="03:00"),
@@ -1013,10 +979,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 "Wiki corpus dedup job (router mode). The dedup summary is produced by the server; "
                 "deliver it as-is. Reply [SILENT] when no duplicate groups need review."
             ),
-            "zh": (
-                "知识库语料去重任务（router 模式）。去重摘要由服务端生成，请原样投递。"
-                "若无待审核重复组则回复 [SILENT]。"
-            ),
+            "zh": ("知识库语料去重任务（router 模式）。去重摘要由服务端生成，请原样投递。若无待审核重复组则回复 [SILENT]。"),
         },
         slots=(
             BlueprintSlot(name="time", type="time", label="time", default="04:30"),
@@ -1045,9 +1008,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
     ),
 )
 
-BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(
-    _with_supplemental_locales(bp) for bp in _RAW_BUILTIN_BLUEPRINTS
-)
+BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(_with_supplemental_locales(bp) for bp in _RAW_BUILTIN_BLUEPRINTS)
 
 _BLUEPRINT_MAP: dict[str, CronBlueprint] = {bp.id: bp for bp in BUILTIN_BLUEPRINTS}
 
@@ -1067,26 +1028,15 @@ def _validate_slot_values(bp: CronBlueprint, values: dict[str, str]) -> dict[str
     known = {slot.name for slot in bp.slots}
     unknown = sorted(set(values) - known)
     if unknown:
-        raise BlueprintFillError(
-            f"unknown slot(s): {', '.join(unknown)} — valid: {', '.join(sorted(known))}"
-        )
+        raise BlueprintFillError(f"unknown slot(s): {', '.join(unknown)} — valid: {', '.join(sorted(known))}")
 
     effective: dict[str, str] = {}
     for slot in bp.slots:
         raw = values.get(slot.name, slot.default)
-        if (
-            slot.type == "text"
-            and slot.default == ""
-            and not str(raw).strip()
-            and not slot.optional
-        ):
-            raise BlueprintFillError(
-                f"missing required value: {slot.name} ({slot.label})"
-            )
+        if slot.type == "text" and slot.default == "" and not str(raw).strip() and not slot.optional:
+            raise BlueprintFillError(f"missing required value: {slot.name} ({slot.label})")
         if slot.type == "enum" and slot.options and str(raw) not in slot.options:
-            raise BlueprintFillError(
-                f"{slot.name}={raw!r} not allowed — one of {', '.join(slot.options)}"
-            )
+            raise BlueprintFillError(f"{slot.name}={raw!r} not allowed — one of {', '.join(slot.options)}")
         effective[slot.name] = str(raw)
     return effective
 
@@ -1119,9 +1069,7 @@ def fill_blueprint(
     if bp.id == "wiki_maintain":
         mode = effective_values.get("mode", "structural")
         if mode not in ("structural", "full"):
-            raise BlueprintFillError(
-                f"mode={mode!r} not allowed — one of structural, full"
-            )
+            raise BlueprintFillError(f"mode={mode!r} not allowed — one of structural, full")
         command = f"__wiki_maintain__:{mode}"
 
     return BlueprintFillResult(
@@ -1181,12 +1129,7 @@ def _build_prompt_from_blueprint(
 
 def _escape_for_python_double_quote(value: str) -> str:
     """Escape a string for safe insertion into Python double-quoted literals."""
-    return (
-        value.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-    )
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
 
 
 def _parse_positive_number(raw: str, name: str) -> float:
@@ -1203,30 +1146,20 @@ def _parse_positive_number(raw: str, name: str) -> float:
 def _normalize_simple_financial_script_values(values: dict[str, str]) -> dict[str, str]:
     asset = values["asset"].strip().lower()
     if not _ASSET_ID_RE.fullmatch(asset):
-        raise BlueprintFillError(
-            "asset must match [a-z0-9-] and start with alphanumeric "
-            f"(got {values['asset']!r})"
-        )
+        raise BlueprintFillError(f"asset must match [a-z0-9-] and start with alphanumeric (got {values['asset']!r})")
 
     quote_currency = values["quote_currency"].strip().lower()
     if not _QUOTE_CURRENCY_RE.fullmatch(quote_currency):
-        raise BlueprintFillError(
-            "quote_currency must be alphanumeric (2-10 chars), "
-            f"got {values['quote_currency']!r}"
-        )
+        raise BlueprintFillError(f"quote_currency must be alphanumeric (2-10 chars), got {values['quote_currency']!r}")
 
     lower = _parse_positive_number(values["lower_bound"], "lower_bound")
     upper = _parse_positive_number(values["upper_bound"], "upper_bound")
     if lower >= upper:
-        raise BlueprintFillError(
-            f"lower_bound must be less than upper_bound (got {lower:g} >= {upper:g})"
-        )
+        raise BlueprintFillError(f"lower_bound must be less than upper_bound (got {lower:g} >= {upper:g})")
 
     source = values["source"].strip().lower()
     if source not in {"coingecko", "binance"}:
-        raise BlueprintFillError(
-            f"source must be coingecko or binance, got {values['source']!r}"
-        )
+        raise BlueprintFillError(f"source must be coingecko or binance, got {values['source']!r}")
 
     return {
         **values,
@@ -1259,9 +1192,7 @@ def _build_pre_condition_script(
     try:
         return template.format(**fmt_values)
     except KeyError as exc:
-        raise BlueprintFillError(
-            f"blueprint pre-condition script missing value for {exc}"
-        ) from exc
+        raise BlueprintFillError(f"blueprint pre-condition script missing value for {exc}") from exc
 
 
 def _slot_name_for_tool_description(slot: BlueprintSlot) -> str:
@@ -1274,9 +1205,7 @@ def get_blueprints_for_tool_description(locale: str = "en") -> str:
 
     Kept short to avoid bloating the tool schema and harming prompt cache.
     """
-    lines: list[str] = [
-        "Available blueprints (use blueprint param for pre-tuned prompts):"
-    ]
+    lines: list[str] = ["Available blueprints (use blueprint param for pre-tuned prompts):"]
     for bp in BUILTIN_BLUEPRINTS:
         lang = locale if locale in bp.title else "en"
         title = bp.title.get(lang, bp.title.get("en", bp.id))

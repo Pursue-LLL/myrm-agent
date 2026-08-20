@@ -119,9 +119,7 @@ async def _merge_refreshed_credential(
             row = await load_oauth_credentials_row(db)
             credentials: dict[str, object] = {}
             if row is not None:
-                credentials = decrypt_oauth_credentials(
-                    row.config_value, row.is_encrypted
-                )
+                credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
 
             if issuer not in credentials:
                 # The issuer was disconnected while the refresh HTTP request
@@ -139,15 +137,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
     lock = _refresh_locks.setdefault(issuer, asyncio.Lock())
     async with lock:
         async with get_session() as db_session:
-            row = (
-                (
-                    await db_session.execute(
-                        select(UserConfig).where(UserConfig.config_key == CONFIG_KEY)
-                    )
-                )
-                .scalars()
-                .first()
-            )
+            row = (await db_session.execute(select(UserConfig).where(UserConfig.config_key == CONFIG_KEY))).scalars().first()
 
             if not row:
                 logger.warning(
@@ -157,9 +147,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                 return None
 
             service = get_encryption_service()
-            credentials_dict = decrypt_oauth_credentials(
-                row.config_value, row.is_encrypted, service
-            )
+            credentials_dict = decrypt_oauth_credentials(row.config_value, row.is_encrypted, service)
 
             if issuer not in credentials_dict:
                 logger.warning("refresh_oauth_token: no credentials for '%s'", issuer)
@@ -173,21 +161,14 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
             # If another parallel coroutine refreshed this token while we were waiting for the lock,
             # its expires_at will be greater than now + 300s. We can use it directly!
             expires_at = cred_val.get("expires_at")
-            if (
-                expires_at is not None
-                and expires_at > time.time() + _TOKEN_FRESH_GRACE_S
-            ):
+            if expires_at is not None and expires_at > time.time() + _TOKEN_FRESH_GRACE_S:
                 logger.info(
                     "refresh_oauth_token: Token for '%s' was already refreshed by a parallel task. Skipping HTTP POST.",
                     issuer,
                 )
                 from app.services.agent.session_credential_assembler import XAI_ISSUER
 
-                scope = (
-                    str(cred_val.get("base_url", ""))
-                    if issuer == XAI_ISSUER
-                    else str(cred_val.get("scope", ""))
-                )
+                scope = str(cred_val.get("base_url", "")) if issuer == XAI_ISSUER else str(cred_val.get("scope", ""))
                 return EphemeralUserCredential(
                     issuer=issuer,
                     token=str(cred_val.get("token", "")),
@@ -203,9 +184,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
 
             refresh_token = cred_val.get("refresh_token")
             token_url = cred_val.get("token_url")
-            client_id, client_secret = _resolve_oauth_client_credentials(
-                issuer, cred_val
-            )
+            client_id, client_secret = _resolve_oauth_client_credentials(issuer, cred_val)
 
             if not refresh_token or not token_url:
                 logger.warning(
@@ -240,9 +219,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                         expires_in = int(res_json.get("expires_in") or 3600)
 
                         if not new_token:
-                            logger.error(
-                                "refresh_oauth_token: response did not contain 'access_token'"
-                            )
+                            logger.error("refresh_oauth_token: response did not contain 'access_token'")
                             return None
 
                         # Update and persist
@@ -268,9 +245,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                         )
 
                         refresh_scope = (
-                            str(updated_cred.get("base_url", ""))
-                            if issuer == XAI_ISSUER
-                            else str(updated_cred.get("scope", ""))
+                            str(updated_cred.get("base_url", "")) if issuer == XAI_ISSUER else str(updated_cred.get("scope", ""))
                         )
                         return EphemeralUserCredential(
                             issuer=issuer,
@@ -291,11 +266,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                             reason = "token_expired"
                             try:
                                 err_body = response.json()
-                                reason = (
-                                    err_body.get("error_description")
-                                    or err_body.get("error")
-                                    or reason
-                                )
+                                reason = err_body.get("error_description") or err_body.get("error") or reason
                             except Exception:
                                 pass
                             _emit_reauth_if_needed(issuer, str(reason))
@@ -319,9 +290,7 @@ async def _refresh_copilot_token(
     """
     github_access_token = cred_val.get("refresh_token")
     if not github_access_token:
-        logger.warning(
-            "refresh_copilot_token: missing GitHub access token (refresh_token)"
-        )
+        logger.warning("refresh_copilot_token: missing GitHub access token (refresh_token)")
         _emit_reauth_if_needed(COPILOT_ISSUER, "missing_github_token")
         return None
 

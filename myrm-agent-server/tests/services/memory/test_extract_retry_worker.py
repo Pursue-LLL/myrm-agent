@@ -303,8 +303,6 @@ async def test_record_terminal_failure_survives_ledger_error() -> None:
             "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
         ) as mock_cls,
     ):
-        mock_cls.return_value.record_event = AsyncMock(
-            side_effect=RuntimeError("ledger down")
-        )
+        mock_cls.return_value.record_event = AsyncMock(side_effect=RuntimeError("ledger down"))
         await _record_terminal_failure("chat-1", 3, RuntimeError("boom"))
     # Must not raise: a broken ledger must never crash the worker.

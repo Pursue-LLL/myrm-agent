@@ -57,9 +57,7 @@ class VercelClient:
         """Deploy files to Vercel."""
         # 1. 智能注入 vercel.json (处理 SPA 路由)
         if "index.html" in files and "vercel.json" not in files:
-            logger.info(
-                "Injecting vercel.json for SPA routing in project %s", project_name
-            )
+            logger.info("Injecting vercel.json for SPA routing in project %s", project_name)
             files["vercel.json"] = PublishFile(
                 path="vercel.json",
                 content=json.dumps(
@@ -88,15 +86,11 @@ class VercelClient:
         # 3. 发起部署请求
         url = f"{self.BASE_URL}/v13/deployments"
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url, headers=self.headers, json=payload, timeout=60.0
-            )
+            response = await client.post(url, headers=self.headers, json=payload, timeout=60.0)
 
             if response.status_code >= 400:
                 error_msg = response.text
-                logger.error(
-                    f"Vercel deployment failed: {response.status_code} - {error_msg}"
-                )
+                logger.error(f"Vercel deployment failed: {response.status_code} - {error_msg}")
                 raise Exception(f"Vercel deployment failed: {error_msg}")
 
             # httpx response.json() is synchronous
@@ -128,7 +122,5 @@ class VercelClient:
             return {
                 "id": data.get("id"),
                 "url": f"https://{data.get('url')}",
-                "status": data.get(
-                    "readyState"
-                ),  # e.g., QUEUED, BUILDING, READY, ERROR
+                "status": data.get("readyState"),  # e.g., QUEUED, BUILDING, READY, ERROR
             }

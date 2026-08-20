@@ -104,25 +104,22 @@ async def html_artifact(db_session):
 
 
 @pytest.mark.asyncio
-async def test_create_share_preview_materializes_bundle(
-    share_client, html_artifact
-) -> None:
+async def test_create_share_preview_materializes_bundle(share_client, html_artifact) -> None:
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html></html>", encoding="utf-8"
-        ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html></html>", encoding="utf-8"),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
-    with patch(
-        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
-        new_callable=AsyncMock,
-        return_value=(html_artifact, files),
-    ), patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
-        new_callable=AsyncMock,
-        return_value="",
+    with (
+        patch(
+            "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
+            new_callable=AsyncMock,
+            return_value=(html_artifact, files),
+        ),
+        patch(
+            "app.core.infra.ingress.get_public_ingress_base_url",
+            new_callable=AsyncMock,
+            return_value="",
+        ),
     ):
         response = share_client.post(
             f"/{html_artifact.id}/share-preview",
@@ -148,23 +145,22 @@ async def test_create_share_preview_materializes_bundle(
 
 
 @pytest.mark.asyncio
-async def test_create_share_preview_exposes_absolute_share_url(
-    share_client, html_artifact
-) -> None:
+async def test_create_share_preview_exposes_absolute_share_url(share_client, html_artifact) -> None:
     """Create response carries an absolute share_url when public ingress is set."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html></html>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html></html>", encoding="utf-8"),
     }
-    with patch(
-        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
-        new_callable=AsyncMock,
-        return_value=(html_artifact, files),
-    ), patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
-        new_callable=AsyncMock,
-        return_value="https://myrm-x.example.com",
+    with (
+        patch(
+            "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
+            new_callable=AsyncMock,
+            return_value=(html_artifact, files),
+        ),
+        patch(
+            "app.core.infra.ingress.get_public_ingress_base_url",
+            new_callable=AsyncMock,
+            return_value="https://myrm-x.example.com",
+        ),
     ):
         response = share_client.post(
             f"/{html_artifact.id}/share-preview",
@@ -172,29 +168,26 @@ async def test_create_share_preview_exposes_absolute_share_url(
         )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["share_url"] == (
-        f"https://myrm-x.example.com{payload['share_path']}"
-    )
+    assert payload["share_url"] == (f"https://myrm-x.example.com{payload['share_path']}")
 
 
 @pytest.mark.asyncio
-async def test_create_share_preview_share_url_falls_back_when_ingress_fails(
-    share_client, html_artifact
-) -> None:
+async def test_create_share_preview_share_url_falls_back_when_ingress_fails(share_client, html_artifact) -> None:
     """Ingress resolution failure must not fail share creation (degrade to None)."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html></html>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html></html>", encoding="utf-8"),
     }
-    with patch(
-        "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
-        new_callable=AsyncMock,
-        return_value=(html_artifact, files),
-    ), patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
-        new_callable=AsyncMock,
-        side_effect=RuntimeError("ingress unavailable"),
+    with (
+        patch(
+            "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
+            new_callable=AsyncMock,
+            return_value=(html_artifact, files),
+        ),
+        patch(
+            "app.core.infra.ingress.get_public_ingress_base_url",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("ingress unavailable"),
+        ),
     ):
         response = share_client.post(
             f"/{html_artifact.id}/share-preview",
@@ -208,9 +201,7 @@ async def test_create_share_preview_share_url_falls_back_when_ingress_fails(
 @pytest.mark.asyncio
 async def test_html_share_includes_csp_headers(share_client, html_artifact) -> None:
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html></html>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html></html>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -238,9 +229,7 @@ async def test_html_share_includes_csp_headers(share_client, html_artifact) -> N
 @pytest.mark.asyncio
 async def test_pdf_share_omits_csp_headers(share_client, html_artifact) -> None:
     files = {
-        "report.pdf": PublishFile(
-            path="report.pdf", content="JVBERi0=", encoding="base64"
-        ),
+        "report.pdf": PublishFile(path="report.pdf", content="JVBERi0=", encoding="base64"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -269,9 +258,7 @@ async def test_multi_file_bundle_csp_allows_self(share_client, html_artifact) ->
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -297,9 +284,7 @@ async def test_multi_file_bundle_csp_allows_self(share_client, html_artifact) ->
 
 
 @pytest.mark.asyncio
-async def test_create_share_preview_rejects_non_shareable(
-    share_client, db_session
-) -> None:
+async def test_create_share_preview_rejects_non_shareable(share_client, db_session) -> None:
     artifact = Artifact(
         id=str(uuid.uuid4()),
         name="app.tsx",
@@ -321,13 +306,9 @@ async def test_public_share_invalid_token(share_client) -> None:
 
 
 @pytest.mark.asyncio
-async def test_single_file_share_serves_without_redirect(
-    share_client, html_artifact
-) -> None:
+async def test_single_file_share_serves_without_redirect(share_client, html_artifact) -> None:
     files = {
-        "report.pdf": PublishFile(
-            path="report.pdf", content="JVBERi0=", encoding="base64"
-        ),
+        "report.pdf": PublishFile(path="report.pdf", content="JVBERi0=", encoding="base64"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -345,9 +326,7 @@ async def test_single_file_share_serves_without_redirect(
 
 
 @pytest.mark.asyncio
-async def test_create_share_accepts_document_type_without_suffix(
-    share_client, db_session
-) -> None:
+async def test_create_share_accepts_document_type_without_suffix(share_client, db_session) -> None:
     artifact = Artifact(
         id=str(uuid.uuid4()),
         name="季度报告",
@@ -445,9 +424,7 @@ async def test_create_share_ttl_out_of_range(share_client, html_artifact) -> Non
 @pytest.mark.asyncio
 async def test_public_share_expired_token(share_client, html_artifact) -> None:
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -501,12 +478,8 @@ async def test_public_share_nested_asset_path(share_client, html_artifact) -> No
 @pytest.mark.asyncio
 async def test_public_share_manifest_not_served(share_client, html_artifact) -> None:
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -523,14 +496,10 @@ async def test_public_share_manifest_not_served(share_client, html_artifact) -> 
 
 
 @pytest.mark.asyncio
-async def test_share_rematerialization_uses_pinned_version(
-    share_client, html_artifact
-) -> None:
+async def test_share_rematerialization_uses_pinned_version(share_client, html_artifact) -> None:
     """Verify that bundle re-materialization passes version_id from JWT claims."""
     files_v1 = {
-        "index.html": PublishFile(
-            path="index.html", content="<html>v1</html>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html>v1</html>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -561,18 +530,14 @@ async def test_share_rematerialization_uses_pinned_version(
         new_callable=AsyncMock,
         return_value=(html_artifact, files_v1),
     ) as mock_resolve_again:
-        serve = share_client.get(
-            f"/public/artifact-share/{token}", follow_redirects=False
-        )
+        serve = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
         assert serve.status_code == 200
         _, kwargs2 = mock_resolve_again.call_args
         assert kwargs2["version_id"] == claims.version_id
 
 
 @pytest.mark.asyncio
-async def test_share_version_pinning_integration(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_share_version_pinning_integration(share_client, db_session, tmp_path) -> None:
     """Integration: full share→delete→re-materialize chain with real vault, no key-path mocks."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
@@ -629,9 +594,7 @@ async def test_share_version_pinning_integration(
     claims = parse_artifact_share_token(token)
     assert claims is not None
 
-    first_serve = share_client.get(
-        f"/public/artifact-share/{token}", follow_redirects=False
-    )
+    first_serve = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert first_serve.status_code == 200
     assert "v2-latest" in first_serve.text
 
@@ -643,17 +606,13 @@ async def test_share_version_pinning_integration(
         new_callable=AsyncMock,
         return_value=artifact,
     ):
-        re_serve = share_client.get(
-            f"/public/artifact-share/{token}", follow_redirects=False
-        )
+        re_serve = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert re_serve.status_code == 200
     assert "v2-latest" in re_serve.text
 
 
 @pytest.mark.asyncio
-async def test_share_pinned_version_survives_new_version(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_share_pinned_version_survives_new_version(share_client, db_session, tmp_path) -> None:
     """Share pins v1, then v2 is added; re-materialization still serves v1 content."""
     from datetime import datetime, timedelta
 
@@ -725,18 +684,14 @@ async def test_share_pinned_version_survives_new_version(
         new_callable=AsyncMock,
         return_value=detached_both,
     ):
-        re_serve = share_client.get(
-            f"/public/artifact-share/{token}", follow_redirects=False
-        )
+        re_serve = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert re_serve.status_code == 200
     assert "v1-pinned" in re_serve.text
     assert "v2-newer" not in re_serve.text
 
 
 @pytest.mark.asyncio
-async def test_share_invalid_version_returns_404(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_share_invalid_version_returns_404(share_client, db_session, tmp_path) -> None:
     """Re-materialization with a deleted/invalid version_id returns 404."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
@@ -777,9 +732,7 @@ async def test_share_invalid_version_returns_404(
     assert claims is not None
     shutil.rmtree(bundle_dir_for_claims(claims), ignore_errors=True)
 
-    artifact_no_ver = Artifact(
-        id=artifact.id, name="index.html", chat_id=artifact.chat_id, is_deleted=False
-    )
+    artifact_no_ver = Artifact(id=artifact.id, name="index.html", chat_id=artifact.chat_id, is_deleted=False)
     artifact_no_ver.versions = []
 
     with patch(
@@ -787,9 +740,7 @@ async def test_share_invalid_version_returns_404(
         new_callable=AsyncMock,
         return_value=artifact_no_ver,
     ):
-        re_serve = share_client.get(
-            f"/public/artifact-share/{token}", follow_redirects=False
-        )
+        re_serve = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert re_serve.status_code == 404
 
 
@@ -801,9 +752,7 @@ def _make_detached_artifact(*, artifact_id, name, chat_id, versions):
 
 
 @pytest.mark.asyncio
-async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(
-    db_session, tmp_path
-) -> None:
+async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_session, tmp_path) -> None:
     """When version_id=None, resolve_artifact_deploy_files picks the latest version."""
     from datetime import datetime, timedelta
 
@@ -835,32 +784,24 @@ async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(
         created_at=t2,
     )
 
-    detached = _make_detached_artifact(
-        artifact_id=art_id, name="index.html", chat_id=chat_id, versions=[ver1, ver2]
-    )
+    detached = _make_detached_artifact(artifact_id=art_id, name="index.html", chat_id=chat_id, versions=[ver1, ver2])
 
     with patch(
         "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached,
     ):
-        _, files = await resolve_artifact_deploy_files(
-            db_session, art_id, str(tmp_path)
-        )
+        _, files = await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path))
 
     import base64
 
     raw = next(iter(files.values())).content
-    decoded = (
-        base64.b64decode(raw).decode() if ";" not in raw and "/" not in raw else raw
-    )
+    decoded = base64.b64decode(raw).decode() if ";" not in raw and "/" not in raw else raw
     assert "new-latest" in decoded
 
 
 @pytest.mark.asyncio
-async def test_resolve_artifact_deploy_files_explicit_version(
-    db_session, tmp_path
-) -> None:
+async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_path) -> None:
     """When version_id is given, resolve_artifact_deploy_files picks that exact version."""
     from datetime import datetime, timedelta
 
@@ -892,18 +833,14 @@ async def test_resolve_artifact_deploy_files_explicit_version(
         created_at=t2,
     )
 
-    detached = _make_detached_artifact(
-        artifact_id=art_id, name="index.html", chat_id=chat_id, versions=[ver1, ver2]
-    )
+    detached = _make_detached_artifact(artifact_id=art_id, name="index.html", chat_id=chat_id, versions=[ver1, ver2])
 
     with patch(
         "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached,
     ):
-        _, files_v1 = await resolve_artifact_deploy_files(
-            db_session, art_id, str(tmp_path), version_id=ver1.id
-        )
+        _, files_v1 = await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path), version_id=ver1.id)
     raw_v1 = next(iter(files_v1.values())).content
     # Vault object is extension-less but named from artifact.name (index.html),
     # so the HTML payload is stored as UTF-8 text rather than base64.
@@ -914,17 +851,13 @@ async def test_resolve_artifact_deploy_files_explicit_version(
         new_callable=AsyncMock,
         return_value=detached,
     ):
-        _, files_v2 = await resolve_artifact_deploy_files(
-            db_session, art_id, str(tmp_path), version_id=ver2.id
-        )
+        _, files_v2 = await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path), version_id=ver2.id)
     raw_v2 = next(iter(files_v2.values())).content
     assert "second" in raw_v2
 
 
 @pytest.mark.asyncio
-async def test_resolve_artifact_deploy_files_invalid_version_raises(
-    db_session, tmp_path
-) -> None:
+async def test_resolve_artifact_deploy_files_invalid_version_raises(db_session, tmp_path) -> None:
     """When version_id doesn't match any version, LookupError is raised."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
@@ -934,9 +867,7 @@ async def test_resolve_artifact_deploy_files_invalid_version_raises(
     v1_uri = vault.put("<html>only</html>", "index.html")
 
     art_id = str(uuid.uuid4())
-    ver1 = ArtifactVersion(
-        id=str(uuid.uuid4()), artifact_id=art_id, vault_uri=v1_uri, sha256_hash="h1"
-    )
+    ver1 = ArtifactVersion(id=str(uuid.uuid4()), artifact_id=art_id, vault_uri=v1_uri, sha256_hash="h1")
     detached = _make_detached_artifact(
         artifact_id=art_id,
         name="index.html",
@@ -950,15 +881,11 @@ async def test_resolve_artifact_deploy_files_invalid_version_raises(
         return_value=detached,
     ):
         with pytest.raises(LookupError, match="not found"):
-            await resolve_artifact_deploy_files(
-                db_session, art_id, str(tmp_path), version_id="nonexistent-id"
-            )
+            await resolve_artifact_deploy_files(db_session, art_id, str(tmp_path), version_id="nonexistent-id")
 
 
 @pytest.mark.asyncio
-async def test_create_share_rejects_ambiguous_multi_html(
-    share_client, html_artifact
-) -> None:
+async def test_create_share_rejects_ambiguous_multi_html(share_client, html_artifact) -> None:
     files = {
         "a.html": PublishFile(path="a.html", content="<html/>", encoding="utf-8"),
         "b.html": PublishFile(path="b.html", content="<html/>", encoding="utf-8"),
@@ -976,9 +903,7 @@ async def test_create_share_rejects_ambiguous_multi_html(
 
 
 @pytest.mark.asyncio
-async def test_csp_integration_html_real_vault(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_csp_integration_html_real_vault(share_client, db_session, tmp_path) -> None:
     """Integration: real Vault → create share → public GET → CSP headers present."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
@@ -1026,9 +951,7 @@ async def test_csp_integration_html_real_vault(
 
 
 @pytest.mark.asyncio
-async def test_csp_integration_multi_file_bundle(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_csp_integration_multi_file_bundle(share_client, db_session, tmp_path) -> None:
     """Integration: multi-file bundle with real Vault → CSP on HTML, no CSP on CSS asset."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
@@ -1085,9 +1008,7 @@ async def test_csp_integration_multi_file_bundle(
 
 
 @pytest.mark.asyncio
-async def test_csp_integration_pdf_real_vault(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_csp_integration_pdf_real_vault(share_client, db_session, tmp_path) -> None:
     """Integration: real Vault PDF → public GET → correct media type + no HTML headers.
 
     Vault objects are extension-less UUID files; the entry name now derives
@@ -1136,9 +1057,7 @@ async def test_csp_integration_pdf_real_vault(
 
 
 @pytest.mark.asyncio
-async def test_password_share_unlock_cookie_keeps_extensionless_media_type(
-    share_client, db_session, tmp_path
-) -> None:
+async def test_password_share_unlock_cookie_keeps_extensionless_media_type(share_client, db_session, tmp_path) -> None:
     """Unlock-cookie auth keeps artifact_type for extension-less PDF entries.
 
     A password share of a PDF whose artifact name has no suffix (entry file has
@@ -1180,9 +1099,7 @@ async def test_password_share_unlock_cookie_keeps_extensionless_media_type(
     assert resp.status_code == 200
     token = resp.json()["token"]
 
-    first = share_client.get(
-        f"/public/artifact-share/{token}?p=s3cret", follow_redirects=False
-    )
+    first = share_client.get(f"/public/artifact-share/{token}?p=s3cret", follow_redirects=False)
     assert first.status_code == 200
     assert first.headers["content-type"].startswith("application/pdf")
     cookie_name = unlock_cookie_name("artifact_share_unlock", token)
@@ -1276,9 +1193,7 @@ class TestFileResponsePrivacyHeaders:
             "application/octet-stream",
         ],
     )
-    def test_privacy_headers_present_for_all_media_types(
-        self, tmp_path: Path, media_type: str
-    ) -> None:
+    def test_privacy_headers_present_for_all_media_types(self, tmp_path: Path, media_type: str) -> None:
         path = self._make_tmp_file(tmp_path)
         resp = _file_response(path, media_type, "file")
         assert resp.headers.get("x-robots-tag") == "noindex, nofollow"
@@ -1322,12 +1237,8 @@ class TestShareSecurityHeadersCompleteness:
 async def test_multi_file_redirect_has_no_csp(share_client, html_artifact) -> None:
     """307 redirect for multi-file bundles must not carry CSP headers."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
-        "app.js": PublishFile(
-            path="app.js", content="console.log(1)", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "app.js": PublishFile(path="app.js", content="console.log(1)", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1339,9 +1250,7 @@ async def test_multi_file_redirect_has_no_csp(share_client, html_artifact) -> No
             json={"ttl_days": 7, "artifact_type": "html"},
         )
     token = response.json()["token"]
-    redirect = share_client.get(
-        f"/public/artifact-share/{token}", follow_redirects=False
-    )
+    redirect = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert redirect.status_code == 307
     assert "content-security-policy" not in redirect.headers
     # Redirect is transient; the followed target carries privacy headers itself.
@@ -1358,9 +1267,7 @@ async def test_nested_css_asset_no_csp(share_client, html_artifact) -> None:
             content='<html><link href="assets/main.css"/></html>',
             encoding="utf-8",
         ),
-        "assets/main.css": PublishFile(
-            path="assets/main.css", content=".a{}", encoding="utf-8"
-        ),
+        "assets/main.css": PublishFile(path="assets/main.css", content=".a{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1381,9 +1288,7 @@ async def test_nested_css_asset_no_csp(share_client, html_artifact) -> None:
 
 
 @pytest.mark.asyncio
-async def test_password_share_redirect_preserves_query(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_redirect_preserves_query(share_client, html_artifact) -> None:
     """307 redirect for multi-file password shares must keep the ``p`` query."""
     files = {
         "index.html": PublishFile(
@@ -1391,9 +1296,7 @@ async def test_password_share_redirect_preserves_query(
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1415,17 +1318,11 @@ async def test_password_share_redirect_preserves_query(
 
 
 @pytest.mark.asyncio
-async def test_password_share_asset_requires_credential(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_asset_requires_credential(share_client, html_artifact) -> None:
     """Static assets of a password-protected share are gated without credentials."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1443,9 +1340,7 @@ async def test_password_share_asset_requires_credential(
 
 
 @pytest.mark.asyncio
-async def test_password_share_asset_served_after_unlock(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_asset_served_after_unlock(share_client, html_artifact) -> None:
     """Once unlocked via ``p``, the unlock cookie authorizes static assets."""
     files = {
         "index.html": PublishFile(
@@ -1453,9 +1348,7 @@ async def test_password_share_asset_served_after_unlock(
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1467,9 +1360,7 @@ async def test_password_share_asset_served_after_unlock(
             json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
         )
     token = response.json()["token"]
-    entry = share_client.get(
-        f"/public/artifact-share/{token}/?p=s3cret", follow_redirects=False
-    )
+    entry = share_client.get(f"/public/artifact-share/{token}/?p=s3cret", follow_redirects=False)
     assert entry.status_code == 200
     cookie_name = unlock_cookie_name("artifact_share_unlock", token)
     unlock = share_client.cookies.get(cookie_name)
@@ -1484,14 +1375,10 @@ async def test_password_share_asset_served_after_unlock(
 
 
 @pytest.mark.asyncio
-async def test_password_single_file_share_serves_without_redirect(
-    share_client, html_artifact
-) -> None:
+async def test_password_single_file_share_serves_without_redirect(share_client, html_artifact) -> None:
     """Single-file password shares keep serving inline with a Set-Cookie unlock."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1503,9 +1390,7 @@ async def test_password_single_file_share_serves_without_redirect(
             json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
         )
     token = response.json()["token"]
-    entry = share_client.get(
-        f"/public/artifact-share/{token}?p=s3cret", follow_redirects=False
-    )
+    entry = share_client.get(f"/public/artifact-share/{token}?p=s3cret", follow_redirects=False)
     assert entry.status_code == 200
     assert "set-cookie" in entry.headers
     assert share_client.cookies.get(unlock_cookie_name("artifact_share_unlock", token)) is not None
@@ -1515,9 +1400,7 @@ async def test_password_single_file_share_serves_without_redirect(
 async def test_password_share_wrong_password_gate(share_client, html_artifact) -> None:
     """A wrong password renders the password gate again, never a 404."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1529,17 +1412,13 @@ async def test_password_share_wrong_password_gate(share_client, html_artifact) -
             json={"ttl_days": 7, "artifact_type": "html", "password": "s3cret"},
         )
     token = response.json()["token"]
-    gate = share_client.get(
-        f"/public/artifact-share/{token}?p=wrong", follow_redirects=False
-    )
+    gate = share_client.get(f"/public/artifact-share/{token}?p=wrong", follow_redirects=False)
     assert gate.status_code == 403
     assert "Incorrect password" in gate.text
 
 
 @pytest.mark.asyncio
-async def test_password_shares_use_independent_cookies(
-    share_client, html_artifact, db_session
-) -> None:
+async def test_password_shares_use_independent_cookies(share_client, html_artifact, db_session) -> None:
     """Concurrent password-protected shares must not collide on a shared cookie.
 
     Each share gets a token-bound cookie name, so unlocking one share never
@@ -1569,9 +1448,7 @@ async def test_password_shares_use_independent_cookies(
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1595,21 +1472,17 @@ async def test_password_shares_use_independent_cookies(
     second_token = second.json()["token"]
     assert unlock_cookie_name("artifact_share_unlock", first_token) != unlock_cookie_name("artifact_share_unlock", second_token)
 
-    first_entry = share_client.get(
-        f"/public/artifact-share/{first_token}/?p=s3cret", follow_redirects=False
-    )
+    first_entry = share_client.get(f"/public/artifact-share/{first_token}/?p=s3cret", follow_redirects=False)
     assert first_entry.status_code == 200
     first_unlock = share_client.cookies.get(unlock_cookie_name("artifact_share_unlock", first_token))
     assert first_unlock is not None
 
-    second_entry = share_client.get(
-        f"/public/artifact-share/{second_token}/?p=s3cret", follow_redirects=False
-    )
+    second_entry = share_client.get(f"/public/artifact-share/{second_token}/?p=s3cret", follow_redirects=False)
     assert second_entry.status_code == 200
 
     first_asset = share_client.get(
         f"/public/artifact-share/{first_token}/styles.css",
-        headers={"Cookie": f"{unlock_cookie_name("artifact_share_unlock", first_token)}={first_unlock}"},
+        headers={"Cookie": f"{unlock_cookie_name('artifact_share_unlock', first_token)}={first_unlock}"},
     )
     assert first_asset.status_code == 200
     assert "body" in first_asset.text
@@ -1617,25 +1490,14 @@ async def test_password_shares_use_independent_cookies(
 
 def test_unlock_credential_rejects_short_remaining() -> None:
     """No unlock cookie is issued when the share is about to expire."""
-    claims = ArtifactShareClaims(
-        artifact_id="a", version_id="v", exp=int(time.time()) + 30
-    )
-    assert (
-        build_unlock_credential(
-            {"aid": "a", "vid": "v"}, salt="artifact-share-unlock", exp=claims.exp
-        )
-        is None
-    )
+    claims = ArtifactShareClaims(artifact_id="a", version_id="v", exp=int(time.time()) + 30)
+    assert build_unlock_credential({"aid": "a", "vid": "v"}, salt="artifact-share-unlock", exp=claims.exp) is None
 
 
 def test_unlock_credential_roundtrip() -> None:
     """A valid credential round-trips through claims recovery."""
-    claims = ArtifactShareClaims(
-        artifact_id="a", version_id="v", exp=int(time.time()) + 3600
-    )
-    credential = build_unlock_credential(
-        {"aid": "a", "vid": "v"}, salt="artifact-share-unlock", exp=claims.exp
-    )
+    claims = ArtifactShareClaims(artifact_id="a", version_id="v", exp=int(time.time()) + 3600)
+    credential = build_unlock_credential({"aid": "a", "vid": "v"}, salt="artifact-share-unlock", exp=claims.exp)
     assert credential is not None
     recovered = _unlock_claims_from_cookie(credential)
     assert recovered is not None
@@ -1681,9 +1543,7 @@ def test_unlock_claims_rejects_missing_fields() -> None:
 def test_attach_unlock_cookie_skips_when_credential_unavailable() -> None:
     """No Set-Cookie when the share is too close to expiry to unlock."""
     response = Response()
-    claims = ArtifactShareClaims(
-        artifact_id="a", version_id="v", exp=int(time.time()) + 30
-    )
+    claims = ArtifactShareClaims(artifact_id="a", version_id="v", exp=int(time.time()) + 30)
     _attach_unlock_cookie(response, claims, "token", "pw", secure=False)
     assert "set-cookie" not in response.headers
 
@@ -1697,9 +1557,7 @@ def test_attach_unlock_cookie_skips_when_credential_unavailable() -> None:
     ],
 )
 @pytest.mark.asyncio
-async def test_create_share_materialize_error_mapping(
-    share_client, html_artifact, exc: Exception, status: int
-) -> None:
+async def test_create_share_materialize_error_mapping(share_client, html_artifact, exc: Exception, status: int) -> None:
     with patch(
         "app.api.files.artifact_share_api.materialize_share_bundle",
         new_callable=AsyncMock,
@@ -1713,14 +1571,10 @@ async def test_create_share_materialize_error_mapping(
 
 
 @pytest.mark.asyncio
-async def test_password_share_index_gate_without_password(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_index_gate_without_password(share_client, html_artifact) -> None:
     """A password-protected multi-file share's index is gated without ``p``."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1746,19 +1600,18 @@ async def test_password_share_index_gate_without_password(
     ],
 )
 @pytest.mark.asyncio
-async def test_serve_bundle_materialize_error_mapping(
-    share_client, exc: Exception, status: int
-) -> None:
-    claims = ArtifactShareClaims(
-        artifact_id="a", version_id="v", exp=int(time.time()) + 3600
-    )
-    with patch(
-        "app.api.files.artifact_share_public.resolve_share_bundle_file",
-        return_value=None,
-    ), patch(
-        "app.api.files.artifact_share_public.materialize_share_bundle",
-        new_callable=AsyncMock,
-        side_effect=exc,
+async def test_serve_bundle_materialize_error_mapping(share_client, exc: Exception, status: int) -> None:
+    claims = ArtifactShareClaims(artifact_id="a", version_id="v", exp=int(time.time()) + 3600)
+    with (
+        patch(
+            "app.api.files.artifact_share_public.resolve_share_bundle_file",
+            return_value=None,
+        ),
+        patch(
+            "app.api.files.artifact_share_public.materialize_share_bundle",
+            new_callable=AsyncMock,
+            side_effect=exc,
+        ),
     ):
         with pytest.raises(HTTPException) as exc_info:
             await _serve_share_bundle(claims, None, "/tmp", None, _api_client_request())
@@ -1768,15 +1621,16 @@ async def test_serve_bundle_materialize_error_mapping(
 @pytest.mark.asyncio
 async def test_serve_bundle_missing_after_materialize(share_client) -> None:
     """A bundle that still resolves to nothing after materialize is a 404."""
-    claims = ArtifactShareClaims(
-        artifact_id="a", version_id="v", exp=int(time.time()) + 3600
-    )
-    with patch(
-        "app.api.files.artifact_share_public.resolve_share_bundle_file",
-        return_value=None,
-    ), patch(
-        "app.api.files.artifact_share_public.materialize_share_bundle",
-        new_callable=AsyncMock,
+    claims = ArtifactShareClaims(artifact_id="a", version_id="v", exp=int(time.time()) + 3600)
+    with (
+        patch(
+            "app.api.files.artifact_share_public.resolve_share_bundle_file",
+            return_value=None,
+        ),
+        patch(
+            "app.api.files.artifact_share_public.materialize_share_bundle",
+            new_callable=AsyncMock,
+        ),
     ):
         with pytest.raises(HTTPException) as exc_info:
             await _serve_share_bundle(claims, None, "/tmp", None, _api_client_request())
@@ -1789,9 +1643,7 @@ async def test_serve_bundle_missing_after_materialize(share_client) -> None:
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_unlock_single_file(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_post_unlock_single_file(share_client, html_artifact) -> None:
     """POST form unlock keeps the password out of the URL and PRG-redirects.
 
     A successful POST for a single-file share answers 303 See Other to the
@@ -1799,9 +1651,7 @@ async def test_password_share_post_unlock_single_file(
     ``?p=...`` and a refresh cannot re-submit the password.
     """
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1841,9 +1691,7 @@ async def test_password_share_post_unlock_single_file(
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_unlock_multi_file_redirects_to_index(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_post_unlock_multi_file_redirects_to_index(share_client, html_artifact) -> None:
     """POST unlock of a multi-file share 303s to the trailing-slash index."""
     files = {
         "index.html": PublishFile(
@@ -1851,9 +1699,7 @@ async def test_password_share_post_unlock_multi_file_redirects_to_index(
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1877,9 +1723,7 @@ async def test_password_share_post_unlock_multi_file_redirects_to_index(
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_index_redirects_to_clean_index(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_post_index_redirects_to_clean_index(share_client, html_artifact) -> None:
     """POST unlock on the trailing-slash index 303s to the same clean index."""
     files = {
         "index.html": PublishFile(
@@ -1887,9 +1731,7 @@ async def test_password_share_post_index_redirects_to_clean_index(
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1913,9 +1755,7 @@ async def test_password_share_post_index_redirects_to_clean_index(
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_asset_unlock_redirects(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_post_asset_unlock_redirects(share_client, html_artifact) -> None:
     """POST unlock on a static-asset URL 303s back to the clean asset GET."""
     files = {
         "index.html": PublishFile(
@@ -1923,9 +1763,7 @@ async def test_password_share_post_asset_unlock_redirects(
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": PublishFile(
-            path="styles.css", content="body{}", encoding="utf-8"
-        ),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1958,14 +1796,10 @@ async def test_password_share_post_asset_unlock_redirects(
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_wrong_password_gate(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_post_wrong_password_gate(share_client, html_artifact) -> None:
     """A wrong password submitted via POST renders the gate again, never a 404."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -1988,14 +1822,10 @@ async def test_password_share_post_wrong_password_gate(
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_without_password_gate(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_post_without_password_gate(share_client, html_artifact) -> None:
     """POST without a password renders the gate like a bare GET."""
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
@@ -2008,17 +1838,13 @@ async def test_password_share_post_without_password_gate(
         )
     token = response.json()["token"]
 
-    gate = share_client.post(
-        f"/public/artifact-share/{token}", data={}, follow_redirects=False
-    )
+    gate = share_client.post(f"/public/artifact-share/{token}", data={}, follow_redirects=False)
     assert gate.status_code == 403
     assert "Password Required" in gate.text
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_short_remaining_serves_directly(
-    share_client, html_artifact
-) -> None:
+async def test_password_share_post_short_remaining_serves_directly(share_client, html_artifact) -> None:
     """POST unlock with <60s remaining serves content instead of 303-looping.
 
     When the share is too close to expiry to issue an unlock cookie, a
@@ -2027,9 +1853,7 @@ async def test_password_share_post_short_remaining_serves_directly(
     bundle is served directly so the current request always succeeds.
     """
     files = {
-        "index.html": PublishFile(
-            path="index.html", content="<html/>", encoding="utf-8"
-        ),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     short_token = sign_share_token(
         {"aid": html_artifact.id, "vid": "short-version", "p": 1},

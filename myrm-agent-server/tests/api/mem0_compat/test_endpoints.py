@@ -39,9 +39,7 @@ def _item(memory_id: str, memory_type: str) -> MemoryItem:
     )
 
 
-def test_delete_all_routes_every_type_to_delete_by_type(
-    client: TestClient, override_manager: AsyncMock
-) -> None:
+def test_delete_all_routes_every_type_to_delete_by_type(client: TestClient, override_manager: AsyncMock) -> None:
     """DELETE /v1/memories/ must delete every memory type via delete_by_type.
 
     ``delete_all`` takes no per-type argument, so delete_by_type is the only
@@ -54,9 +52,7 @@ def test_delete_all_routes_every_type_to_delete_by_type(
     override_manager.delete_all.assert_not_called()
 
 
-def test_delete_semantic_memory_soft_deletes(
-    client: TestClient, override_manager: AsyncMock
-) -> None:
+def test_delete_semantic_memory_soft_deletes(client: TestClient, override_manager: AsyncMock) -> None:
     """Semantic memories are soft-deleted via status=archived."""
     with patch(
         "app.api.mem0_compat.endpoints._find_memory_by_id",
@@ -65,14 +61,10 @@ def test_delete_semantic_memory_soft_deletes(
         resp = client.delete("/mem0/v1/memories/mem-1/")
 
     assert resp.status_code == 200
-    override_manager.update_memory.assert_awaited_once_with(
-        "mem-1", status=MemoryStatus.ARCHIVED
-    )
+    override_manager.update_memory.assert_awaited_once_with("mem-1", status=MemoryStatus.ARCHIVED)
 
 
-def test_delete_procedural_memory_success(
-    client: TestClient, override_manager: AsyncMock
-) -> None:
+def test_delete_procedural_memory_success(client: TestClient, override_manager: AsyncMock) -> None:
     """Procedural rules are hard-deleted through delete_rule."""
     override_manager.delete_rule.return_value = True
     with patch(
@@ -85,9 +77,7 @@ def test_delete_procedural_memory_success(
     override_manager.delete_rule.assert_awaited_once_with("rule-1")
 
 
-def test_delete_procedural_memory_not_found_returns_404(
-    client: TestClient, override_manager: AsyncMock
-) -> None:
+def test_delete_procedural_memory_not_found_returns_404(client: TestClient, override_manager: AsyncMock) -> None:
     """A failed delete_rule (missing/out-of-scope) must surface as 404."""
     override_manager.delete_rule.return_value = False
     with patch(
@@ -100,9 +90,7 @@ def test_delete_procedural_memory_not_found_returns_404(
     override_manager.delete_rule.assert_awaited_once_with("rule-1")
 
 
-def test_delete_unsupported_type_returns_400(
-    client: TestClient, override_manager: AsyncMock
-) -> None:
+def test_delete_unsupported_type_returns_400(client: TestClient, override_manager: AsyncMock) -> None:
     """Derived/system memory types are not deletable via the mem0 API."""
     with patch(
         "app.api.mem0_compat.endpoints._find_memory_by_id",

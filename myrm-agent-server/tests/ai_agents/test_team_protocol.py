@@ -197,12 +197,8 @@ class TestResolveRosterDynamicDiscovery:
                 description="I am the leader",
                 metadata={"allow_discovery": True},
             ),
-            self._profile(
-                "no-desc", description="", metadata={"allow_discovery": True}
-            ),
-            self._profile(
-                "member", description="A member", metadata={"allow_discovery": True}
-            ),
+            self._profile("no-desc", description="", metadata={"allow_discovery": True}),
+            self._profile("member", description="A member", metadata={"allow_discovery": True}),
         ]
 
         async def mock_list(page: int, page_size: int):
@@ -213,9 +209,7 @@ class TestResolveRosterDynamicDiscovery:
             new_callable=AsyncMock,
             side_effect=mock_list,
         ):
-            result = await _resolve_roster(
-                [], leader_id="leader", dynamic_discovery=True
-            )
+            result = await _resolve_roster([], leader_id="leader", dynamic_discovery=True)
 
         ids = [entry.agent_id for entry in result]
         assert ids == ["member"]
@@ -260,12 +254,8 @@ class TestResolveRosterDynamicDiscovery:
     async def test_dynamic_discovery_skips_existing_static_members(self):
         """Dynamic candidates already bound as static subagents must not be duplicated."""
         profiles = [
-            self._profile(
-                "member", description="A member", metadata={"allow_discovery": True}
-            ),
-            self._profile(
-                "extra", description="Extra agent", metadata={"allow_discovery": True}
-            ),
+            self._profile("member", description="A member", metadata={"allow_discovery": True}),
+            self._profile("extra", description="Extra agent", metadata={"allow_discovery": True}),
         ]
 
         async def mock_list(page: int, page_size: int):
@@ -274,9 +264,7 @@ class TestResolveRosterDynamicDiscovery:
         with patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
             new_callable=AsyncMock,
-            side_effect=lambda agent_id: MagicMock(
-                display_name=f"Agent-{agent_id}", description=f"Description {agent_id}"
-            ),
+            side_effect=lambda agent_id: MagicMock(display_name=f"Agent-{agent_id}", description=f"Description {agent_id}"),
         ):
             with patch(
                 "app.services.agent.agent_service.AgentService.get_agent_list",
@@ -294,9 +282,7 @@ class TestResolveRosterDynamicDiscovery:
         with patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
             new_callable=AsyncMock,
-            side_effect=lambda agent_id: MagicMock(
-                display_name=f"Agent-{agent_id}", description=f"Description {agent_id}"
-            ),
+            side_effect=lambda agent_id: MagicMock(display_name=f"Agent-{agent_id}", description=f"Description {agent_id}"),
         ):
             with patch(
                 "app.services.agent.agent_service.AgentService.get_agent_list",

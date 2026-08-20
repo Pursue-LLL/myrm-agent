@@ -54,9 +54,7 @@ async def list_pipelines() -> PipelineTemplateListResponse:
     return PipelineTemplateListResponse(items=items, total=len(items))
 
 
-@pipeline_router.get(
-    "/pipelines/{skill_id}", response_model=PipelineTemplateDetailResponse
-)
+@pipeline_router.get("/pipelines/{skill_id}", response_model=PipelineTemplateDetailResponse)
 async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
     """Get full pipeline template detail including discovery questions."""
     from app.services.kanban.pipeline import get_pipeline_skill
@@ -75,12 +73,7 @@ async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
             PipelineQuestionGroupResponse(
                 group=g.group,
                 group_label=g.group_label,
-                questions=[
-                    PipelineQuestionResponse(
-                        id=q.id, type=q.type, label=q.label, options=q.options
-                    )
-                    for q in g.questions
-                ],
+                questions=[PipelineQuestionResponse(id=q.id, type=q.type, label=q.label, options=q.options) for q in g.questions],
             )
             for g in spec.discovery_questions
         ],

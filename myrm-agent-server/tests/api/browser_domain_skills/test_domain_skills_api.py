@@ -85,6 +85,7 @@ async def test_distill_and_verify(domain_skills_app, tmp_path, monkeypatch) -> N
     monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path))
 
     import myrm_agent_harness.toolkits.browser.domain_skills.store as store_mod
+
     store_mod._global_store = None
 
     try:
@@ -138,6 +139,7 @@ async def test_distill_duplicate_rejected(domain_skills_app, tmp_path, monkeypat
     monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path))
 
     import myrm_agent_harness.toolkits.browser.domain_skills.store as store_mod
+
     store_mod._global_store = None
 
     try:
@@ -219,6 +221,7 @@ async def test_distill_writes_script_to_disk(domain_skills_app, tmp_path, monkey
     monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path))
 
     import myrm_agent_harness.toolkits.browser.domain_skills.store as store_mod
+
     store_mod._global_store = None
 
     script_body = "async def greet(session, args):\n    return 'hello'\n"
@@ -281,6 +284,7 @@ async def test_list_reflects_distilled_skill(domain_skills_app, tmp_path, monkey
     monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path))
 
     import myrm_agent_harness.toolkits.browser.domain_skills.store as store_mod
+
     store_mod._global_store = None
 
     try:

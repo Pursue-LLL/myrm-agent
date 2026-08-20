@@ -82,9 +82,7 @@ async def apply_cron_post_run_verification(
 
     progress_steps_raw = (result.metadata or {}).get("progressSteps")
     progress_steps: list[dict[str, object]] = (
-        [step for step in progress_steps_raw if isinstance(step, dict)]
-        if isinstance(progress_steps_raw, list)
-        else []
+        [step for step in progress_steps_raw if isinstance(step, dict)] if isinstance(progress_steps_raw, list) else []
     )
     if not _has_effectful_tools(progress_steps):
         return _attach_verification_metadata(
@@ -148,9 +146,7 @@ async def apply_cron_post_run_verification(
                 summary=f"Verifier preset '{_DEFAULT_VERIFIER_TYPE}' not found",
             )
 
-        readonly_verifier = replace(
-            verifier_config, workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX
-        )
+        readonly_verifier = replace(verifier_config, workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX)
         verdict = await asyncio.wait_for(
             verify_worker_output(
                 manager,
@@ -199,9 +195,7 @@ async def apply_cron_post_run_verification(
         return annotated
 
     fail_note = f"[Delivery verification: FAIL] {verdict.summary}"
-    combined_output = (
-        f"{worker_output}\n\n---\n{fail_note}" if worker_output else fail_note
-    )
+    combined_output = f"{worker_output}\n\n---\n{fail_note}" if worker_output else fail_note
     return JobResult(
         success=result.success,
         output=combined_output,

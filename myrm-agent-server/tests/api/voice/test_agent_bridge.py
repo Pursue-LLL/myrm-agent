@@ -251,9 +251,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
 
         mock_params = MagicMock()
 
-        async def fake_stream(
-            params: object, cancel_token: object, **kwargs
-        ) -> AsyncIterator[dict[str, object]]:
+        async def fake_stream(params: object, cancel_token: object, **kwargs) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "Hello."}
 
         with (
@@ -307,9 +305,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
         with (
             patch.object(bridge, "_build_agent_params", return_value=mock_params),
             patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
-            patch.object(
-                bridge, "_handle_approval_required", new_callable=AsyncMock
-            ) as mock_handle,
+            patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock) as mock_handle,
             patch.object(bridge, "_speak_fallback", new_callable=AsyncMock) as mock_fb,
             patch(
                 "app.services.agent.streaming.ai_agent_service_stream",
@@ -341,9 +337,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
         with (
             patch.object(bridge, "_build_agent_params", return_value=mock_params),
             patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
-            patch.object(
-                bridge, "_handle_approval_required", new_callable=AsyncMock
-            ) as mock_handle,
+            patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock) as mock_handle,
             patch.object(bridge, "_speak_fallback", new_callable=AsyncMock) as mock_fb,
             patch(
                 "app.services.agent.streaming.ai_agent_service_stream",
@@ -364,9 +358,7 @@ class TestHandleApprovalRequired:
         bridge._voice_config = _FakeVoiceConfig(stt_language="zh-CN")  # type: ignore[assignment]
         bridge._current_turn = "turn-1"
 
-        with patch.object(
-            bridge, "_stream_tts_segment", new_callable=AsyncMock
-        ) as mock_tts:
+        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
             await bridge._handle_approval_required(
                 {"type": "approval_required", "data": {"action_type": "bash"}},
                 "turn-1",
@@ -382,9 +374,7 @@ class TestHandleApprovalRequired:
         bridge = _make_bridge()
         bridge._current_turn = "turn-1"
 
-        with patch.object(
-            bridge, "_stream_tts_segment", new_callable=AsyncMock
-        ) as mock_tts:
+        with patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_tts:
             await bridge._handle_approval_required(
                 {"type": "approval_required", "data": {}},
                 "turn-1",
@@ -536,9 +526,7 @@ class TestConsumeAgentStreamApproval:
 
         with (
             patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(
-                bridge, "_handle_approval_required", new_callable=AsyncMock
-            ) as mock_handle,
+            patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock) as mock_handle,
             patch(
                 "app.services.agent.streaming.ai_agent_service_stream",
                 side_effect=fake_stream,
@@ -571,9 +559,7 @@ class TestConsumeAgentStreamApproval:
 
         with (
             patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock),
-            patch.object(
-                bridge, "_handle_approval_required", new_callable=AsyncMock
-            ) as mock_handle,
+            patch.object(bridge, "_handle_approval_required", new_callable=AsyncMock) as mock_handle,
             patch(
                 "app.services.agent.streaming.ai_agent_service_stream",
                 side_effect=fake_stream,

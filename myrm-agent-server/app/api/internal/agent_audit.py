@@ -131,8 +131,7 @@ async def agent_audit_events(
     security_deny_total = _count_security_denies(collected)
     truncated = collected[:capped_limit]
     logger.info(
-        "Agent audit pull: sessions=%d window_hours=%d total=%d returned=%d "
-        "tool_calls=%d security_events=%d security_denies=%d",
+        "Agent audit pull: sessions=%d window_hours=%d total=%d returned=%d tool_calls=%d security_events=%d security_denies=%d",
         len(session_ids),
         hours,
         total,

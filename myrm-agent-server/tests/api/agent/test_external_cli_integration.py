@@ -27,11 +27,7 @@ def _tool_names_from_snapshot(events: list[dict[str, object]]) -> set[str]:
     snapshot_rows = tools_snapshot.get("data")
     if not isinstance(snapshot_rows, list):
         return set()
-    return {
-        str(row.get("name"))
-        for row in snapshot_rows
-        if isinstance(row, dict) and row.get("name")
-    }
+    return {str(row.get("name")) for row in snapshot_rows if isinstance(row, dict) and row.get("name")}
 
 
 def _enabled_builtin_from_snapshot(events: list[dict[str, object]]) -> list[str] | None:
@@ -45,9 +41,7 @@ def _enabled_builtin_from_snapshot(events: list[dict[str, object]]) -> list[str]
     return list(enabled) if isinstance(enabled, list) else None
 
 
-def _external_cli_payload(
-    chat_id: str, *, include_external_cli: bool
-) -> dict[str, object]:
+def _external_cli_payload(chat_id: str, *, include_external_cli: bool) -> dict[str, object]:
     enabled = ["web_search", "memory"]
     if include_external_cli:
         enabled.append("external_cli")
@@ -71,9 +65,7 @@ def test_agent_stream_external_cli_off_excludes_delegate_tool(
 ) -> None:
     """Writer-style profile without external_cli must not mount delegate_to_agent_tool Turn1."""
     chat_id = f"test_ext_cli_off_{uuid.uuid4().hex[:8]}"
-    events = _collect_agent_stream(
-        client, _external_cli_payload(chat_id, include_external_cli=False)
-    )
+    events = _collect_agent_stream(client, _external_cli_payload(chat_id, include_external_cli=False))
     check_e2e_errors(events)
 
     tool_names = _tool_names_from_snapshot(events)
@@ -84,20 +76,14 @@ def test_agent_stream_external_cli_off_excludes_delegate_tool(
 @pytest.mark.e2e
 @patch(
     "app.ai_agents.general_agent.external_agents._resolve_external_agent_cfgs",
-    new=AsyncMock(
-        return_value=[
-            {"name": "echo-cli", "type": "cli", "command": "echo", "args": []}
-        ]
-    ),
+    new=AsyncMock(return_value=[{"name": "echo-cli", "type": "cli", "command": "echo", "args": []}]),
 )
 def test_agent_stream_external_cli_on_mounts_delegate_when_backends_exist(
     client: TestClient,
 ) -> None:
     """external_cli ON + resolvable CLI backends must expose delegate_to_agent_tool Turn1."""
     chat_id = f"test_ext_cli_on_{uuid.uuid4().hex[:8]}"
-    events = _collect_agent_stream(
-        client, _external_cli_payload(chat_id, include_external_cli=True)
-    )
+    events = _collect_agent_stream(client, _external_cli_payload(chat_id, include_external_cli=True))
     check_e2e_errors(events)
 
     tool_names = _tool_names_from_snapshot(events)
@@ -115,9 +101,7 @@ def test_agent_stream_external_cli_on_skips_delegate_without_backends(
         "app.ai_agents.general_agent.external_agents._resolve_external_agent_cfgs",
         new=AsyncMock(return_value=None),
     ):
-        events = _collect_agent_stream(
-            client, _external_cli_payload(chat_id, include_external_cli=True)
-        )
+        events = _collect_agent_stream(client, _external_cli_payload(chat_id, include_external_cli=True))
     check_e2e_errors(events)
 
     tool_names = _tool_names_from_snapshot(events)

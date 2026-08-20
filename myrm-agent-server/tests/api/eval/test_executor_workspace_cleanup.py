@@ -17,9 +17,7 @@ from app.core.eval.executor import LocalEvalExecutor, cleanup_orphan_eval_worksp
 
 
 @pytest.mark.asyncio
-async def test_cleanup_removes_created_session_workspaces(
-    monkeypatch, tmp_path
-) -> None:
+async def test_cleanup_removes_created_session_workspaces(monkeypatch, tmp_path) -> None:
     """cleanup must delete the physical workspace and reset executor state."""
     monkeypatch.chdir(tmp_path)
 
@@ -40,9 +38,7 @@ async def test_cleanup_removes_created_session_workspaces(
 
 
 @pytest.mark.asyncio
-async def test_cleanup_removes_implicit_execute_workspace(
-    monkeypatch, tmp_path
-) -> None:
+async def test_cleanup_removes_implicit_execute_workspace(monkeypatch, tmp_path) -> None:
     """An execute-only session (no create_session) still gets cleaned up.
 
     The executor registers the workspace it creates for an implicit chat id,
@@ -70,9 +66,7 @@ async def test_cleanup_removes_implicit_execute_workspace(
 
     with (
         patch("app.core.eval.executor.load_user_configs") as mock_load,
-        patch(
-            "app.core.eval.executor.AgentFactory.create_general_agent"
-        ) as mock_factory,
+        patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_factory,
     ):
         mock_cfg = MagicMock()
         mock_cfg.retrieval_dict = {}
@@ -80,9 +74,7 @@ async def test_cleanup_removes_implicit_execute_workspace(
         mock_cfg.providers_dict = {}
         mock_cfg.personal_settings_dict = {}
         mock_cfg.model_cfg = ModelConfig(model="test-model", api_key="key")
-        mock_cfg.search_cfg = SearchServiceConfig(
-            provider="tavily", searchService="tavily"
-        )
+        mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
         mock_cfg.search_is_user_configured = False
         mock_load.return_value = mock_cfg
 
@@ -156,9 +148,7 @@ async def test_cleanup_handles_missing_workspace(monkeypatch, tmp_path) -> None:
     assert executor._sandbox_executors == {}
 
 
-def test_cleanup_orphan_eval_workspaces_removes_leftovers(
-    monkeypatch, tmp_path
-) -> None:
+def test_cleanup_orphan_eval_workspaces_removes_leftovers(monkeypatch, tmp_path) -> None:
     """Startup sweep must remove every stale session directory and count them."""
     root = Path(tmp_path / ".myrm" / "eval_workspaces")
     root.mkdir(parents=True)

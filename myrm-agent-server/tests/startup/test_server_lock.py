@@ -59,9 +59,7 @@ server_lock._state_dir = Path({str(tmp_path)!r})
 server_lock.acquire_server_lock(18099, "127.0.0.1", holder_listen_grace_sec=0.5)
 print("NO_EXIT")
 """
-        result = subprocess.run(
-            [sys.executable, "-c", code], capture_output=True, text=True, timeout=30
-        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=30)
         assert result.returncode == 1
         assert "另一 backend 实例正在运行" in result.stdout
     finally:

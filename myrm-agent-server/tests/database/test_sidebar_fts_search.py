@@ -23,9 +23,7 @@ from app.database.repositories.chat_repo import ChatRepository
 
 @pytest_asyncio.fixture
 async def fts_session():
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///file:testdb_sidebar_fts?mode=memory&cache=shared&uri=true"
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///file:testdb_sidebar_fts?mode=memory&cache=shared&uri=true")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(
@@ -131,9 +129,7 @@ class TestGetMatchingChatIds:
             "标题",
             [("msg-b1", "user", "hello world")],
         )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(
-            fts_session, "nonexistent_xyz"
-        )
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "nonexistent_xyz")
         assert result == []
 
     async def test_excludes_incognito_chats(self, fts_session: AsyncSession) -> None:
@@ -166,9 +162,7 @@ class TestGetMatchingChatIds:
                 f"标题{i}",
                 [(f"msg-lim-{i}", "user", "common keyword data")],
             )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(
-            fts_session, "common", limit=3
-        )
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "common", limit=3)
         assert len(result) <= 3
 
     async def test_returns_distinct_chat_ids(self, fts_session: AsyncSession) -> None:
@@ -190,18 +184,14 @@ class TestGetMatchingChatIds:
 
 @pytest.mark.asyncio
 class TestGetChatsPaginatedWithFTS:
-    async def test_keyword_finds_chat_via_message_content(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_keyword_finds_chat_via_message_content(self, fts_session: AsyncSession) -> None:
         await _seed_chat_with_messages(
             fts_session,
             "chat-pg-1",
             "数据库性能优化",
             [("msg-pg1", "user", "WAL并发写入问题分析")],
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10, keyword="WAL"
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="WAL")
         assert total >= 1
         assert any(c.id == "chat-pg-1" for c in chats)
 
@@ -212,9 +202,7 @@ class TestGetChatsPaginatedWithFTS:
             "WAL并发讨论",
             [("msg-pg2", "user", "hello")],
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10, keyword="WAL"
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="WAL")
         assert any(c.id == "chat-pg-2" for c in chats)
 
     async def test_keyword_no_match_returns_empty(self, fts_session: AsyncSession) -> None:
@@ -236,9 +224,7 @@ class TestGetChatsPaginatedWithFTS:
             "任意标题",
             [("msg-pg4", "user", "任意内容")],
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10)
         assert total >= 1
 
     async def test_keyword_wildcard_percent_safe(self, fts_session: AsyncSession) -> None:
@@ -249,16 +235,12 @@ class TestGetChatsPaginatedWithFTS:
             "100% 完成率",
             [("msg-pg-pct", "user", "完成率100%")],
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10, keyword="%"
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="%")
         # '%' alone should not act as SQL wildcard matching everything
         for c in chats:
             assert "%" in (c.title or "") or "%" in (c.first_message or "") or c.id == "chat-pg-pct"
 
-    async def test_keyword_fts_combined_with_title_match(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_keyword_fts_combined_with_title_match(self, fts_session: AsyncSession) -> None:
         """Both title-match and message-match chats should appear."""
         await _seed_chat_with_messages(
             fts_session,
@@ -272,16 +254,12 @@ class TestGetChatsPaginatedWithFTS:
             "普通对话",
             [("msg-pg-m1", "user", "Docker Compose配置示例")],
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10, keyword="Docker"
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="Docker")
         chat_ids = {c.id for c in chats}
         assert "chat-pg-title" in chat_ids, "title-match should appear"
         assert "chat-pg-msg" in chat_ids, "message-content-match should appear"
 
-    async def test_keyword_does_not_return_incognito(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_keyword_does_not_return_incognito(self, fts_session: AsyncSession) -> None:
         await _seed_chat_with_messages(
             fts_session,
             "chat-pg-incog",
@@ -289,14 +267,10 @@ class TestGetChatsPaginatedWithFTS:
             [("msg-pg-inc", "user", "secret UniqueKeyword999 data")],
             is_incognito=True,
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10, keyword="UniqueKeyword999"
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="UniqueKeyword999")
         assert all(c.id != "chat-pg-incog" for c in chats)
 
-    async def test_keyword_does_not_return_deleted(
-        self, fts_session: AsyncSession
-    ) -> None:
+    async def test_keyword_does_not_return_deleted(self, fts_session: AsyncSession) -> None:
         await _seed_chat_with_messages(
             fts_session,
             "chat-pg-del",
@@ -304,9 +278,7 @@ class TestGetChatsPaginatedWithFTS:
             [("msg-pg-del", "user", "DeletedContent777 important")],
             deleted=True,
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10, keyword="DeletedContent777"
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="DeletedContent777")
         assert all(c.id != "chat-pg-del" for c in chats)
 
     async def test_chinese_keyword_via_fts(self, fts_session: AsyncSession) -> None:
@@ -317,7 +289,5 @@ class TestGetChatsPaginatedWithFTS:
             "普通标题",
             [("msg-pg-zh", "user", "Kubernetes弹性伸缩和HPA配置详解")],
         )
-        chats, total = await ChatRepository.get_chats_paginated(
-            fts_session, offset=0, limit=10, keyword="HPA"
-        )
+        chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="HPA")
         assert any(c.id == "chat-pg-zh" for c in chats)

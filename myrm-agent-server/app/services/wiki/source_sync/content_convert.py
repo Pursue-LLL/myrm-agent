@@ -53,9 +53,7 @@ async def bytes_to_wiki_markdown(
         effective_name = f"{stem}{sniffed_ext}"
         lowered_name = effective_name.lower()
 
-    if lowered_mime in {"text/markdown", "text/plain"} or lowered_name.endswith(
-        _TEXT_EXTENSIONS
-    ):
+    if lowered_mime in {"text/markdown", "text/plain"} or lowered_name.endswith(_TEXT_EXTENSIONS):
         if lowered_name.endswith(".csv") or sniffed_ext == ".csv":
             return await _parse_with_tempfile(content, effective_name)
         if lowered_name.endswith(".rtf") or sniffed_ext == ".rtf":
@@ -63,9 +61,7 @@ async def bytes_to_wiki_markdown(
         text = content.decode("utf-8", errors="replace").strip()
         return text or None
 
-    if "wordprocessingml.document" in lowered_mime or lowered_name.endswith(
-        _DOCX_EXTENSIONS
-    ):
+    if "wordprocessingml.document" in lowered_mime or lowered_name.endswith(_DOCX_EXTENSIONS):
         return await _parse_docx_bytes(
             content,
             effective_name,

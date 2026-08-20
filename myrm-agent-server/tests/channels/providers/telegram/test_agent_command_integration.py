@@ -44,9 +44,7 @@ def _build_text_update(text: str, chat_id: int = 123, user_id: int = 456) -> dic
     }
 
 
-def _build_callback_update(
-    data: str, chat_id: int = 123, user_id: int = 456, message_id: int = 99
-) -> dict:
+def _build_callback_update(data: str, chat_id: int = 123, user_id: int = 456, message_id: int = 99) -> dict:
     """Build a Telegram Update payload with a callback_query."""
     return {
         "update_id": 2,

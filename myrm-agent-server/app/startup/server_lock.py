@@ -27,10 +27,7 @@ def _read_pid_file(pid_file: Path) -> int | None:
 
 def _process_alive(pid: int) -> bool:
     try:
-        return (
-            psutil.pid_exists(pid)
-            and psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
-        )
+        return psutil.pid_exists(pid) and psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False
 
@@ -91,9 +88,7 @@ def acquire_server_lock(
     try:
         from filelock import FileLock, Timeout
     except ImportError:
-        print(
-            "⚠️  Warning: 'filelock' package not found, skipping OS lock. Run: uv sync"
-        )
+        print("⚠️  Warning: 'filelock' package not found, skipping OS lock. Run: uv sync")
         return
 
     global _server_lock
@@ -160,10 +155,7 @@ def acquire_server_lock(
             _write_pid_atomic()
 
             if not _verify_port_free(target_host, target_port):
-                print(
-                    f"⚠️  警告：端口 {target_port} 尚未释放 (可能处于 TIME_WAIT)，"
-                    "将继续尝试启动..."
-                )
+                print(f"⚠️  警告：端口 {target_port} 尚未释放 (可能处于 TIME_WAIT)，将继续尝试启动...")
             else:
                 print("✅  成功接管服务器端口！\n")
             return

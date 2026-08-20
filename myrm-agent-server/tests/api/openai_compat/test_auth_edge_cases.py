@@ -14,6 +14,8 @@ from app.database.models.api_key import APIKey
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="openai_compat_only", openai_compat=True)
+
+
 @pytest.fixture
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

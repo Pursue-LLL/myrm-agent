@@ -22,37 +22,37 @@ from tests.support.chrome_mcp_e2e import (
 
 def _build_sample_package() -> bytes:
     recipe = {
-        'schemaVersion': 1,
-        'minEngineVersion': '1.0.0',
-        'name': 'E2E Theme',
-        'description': 'Chrome MCP smoke theme',
-        'profile': {
-            'name': 'E2E Theme',
-            'layoutId': 'full-bleed',
-            'fontId': 'inter',
-            'palette': {
-                'primaryLight': '#588e95',
-                'primaryDark': '#6ba3aa',
-                'primaryHoverLight': '#4a7d84',
-                'primaryHoverDark': '#7eb5bc',
-                'primaryDarkLight': '#10505a',
-                'primaryDarkDark': '#588e95',
-                'dualAccent': True,
+        "schemaVersion": 1,
+        "minEngineVersion": "1.0.0",
+        "name": "E2E Theme",
+        "description": "Chrome MCP smoke theme",
+        "profile": {
+            "name": "E2E Theme",
+            "layoutId": "full-bleed",
+            "fontId": "inter",
+            "palette": {
+                "primaryLight": "#588e95",
+                "primaryDark": "#6ba3aa",
+                "primaryHoverLight": "#4a7d84",
+                "primaryHoverDark": "#7eb5bc",
+                "primaryDarkLight": "#10505a",
+                "primaryDarkDark": "#588e95",
+                "dualAccent": True,
             },
-            'art': {
-                'focusX': 0.5,
-                'focusY': 0.42,
-                'wash': 0.4,
-                'mediaKind': 'image',
-                'assetRef': 'hero.png',
+            "art": {
+                "focusX": 0.5,
+                "focusY": 0.42,
+                "wash": 0.4,
+                "mediaKind": "image",
+                "assetRef": "hero.png",
             },
         },
     }
-    png = b'\x89PNG\r\n\x1a\n' + b'\x00' * 64
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_STORED) as archive:
-        archive.writestr('recipe.json', json.dumps(recipe))
-        archive.writestr('hero.png', png)
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("recipe.json", json.dumps(recipe))
+        archive.writestr("hero.png", png)
     return buffer.getvalue()
 
 
@@ -94,18 +94,16 @@ _BROWSER_INSPECT_JS = """async (base64Zip) => {
 }"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode='SHARED', access_scope='READ', workload='STANDARD'
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_theme_package_appearance_import_smoke() -> None:
     prepare_e2e_ui_session(get_e2e_api_url())
-    zip_b64 = base64.b64encode(_build_sample_package()).decode('ascii')
+    zip_b64 = base64.b64encode(_build_sample_package()).decode("ascii")
 
-    warm_ui_route('/settings/preferences')
+    warm_ui_route("/settings/preferences")
     with open_settings_subroute(
-        '/settings/preferences',
+        "/settings/preferences",
         timeout_ms=90_000,
     ) as (client, page):
         dismiss_blocking_modals(client, page)
@@ -115,18 +113,18 @@ def test_theme_package_appearance_import_smoke() -> None:
             _APPEARANCE_PACKAGE_STATE,
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
         )
-        assert state.get('ready') is True, state
-        assert state.get('hasImport') is True, state
-        assert state.get('hasExport') is True, state
+        assert state.get("ready") is True, state
+        assert state.get("hasImport") is True, state
+        assert state.get("hasExport") is True, state
 
         inspect_state = client.evaluate(
             page,
-            f'({ _BROWSER_INSPECT_JS })({json.dumps(zip_b64)})',
+            f"({_BROWSER_INSPECT_JS})({json.dumps(zip_b64)})",
             timeout_sec=60.0,
         )
         assert isinstance(inspect_state, dict), inspect_state
-        assert inspect_state.get('ok') is True, inspect_state
-        assert inspect_state.get('canImport') is True, inspect_state
-        assert inspect_state.get('name') == 'E2E Theme', inspect_state
-        hero = inspect_state.get('heroThumbnail')
-        assert isinstance(hero, str) and hero.startswith('data:image/png;base64,'), inspect_state
+        assert inspect_state.get("ok") is True, inspect_state
+        assert inspect_state.get("canImport") is True, inspect_state
+        assert inspect_state.get("name") == "E2E Theme", inspect_state
+        hero = inspect_state.get("heroThumbnail")
+        assert isinstance(hero, str) and hero.startswith("data:image/png;base64,"), inspect_state

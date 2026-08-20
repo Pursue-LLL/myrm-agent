@@ -141,9 +141,7 @@ async def test_iter_stream_injects_ttft_into_message_end(monkeypatch) -> None:
     clarification = ClarificationTimeoutHolder()
 
     chunks = [chunk async for chunk in iter_agent_stream_chunks(session, approval, clarification)]
-    message_end_chunk = next(
-        chunk for chunk in chunks if '"type":"message_end"' in chunk or '"type": "message_end"' in chunk
-    )
+    message_end_chunk = next(chunk for chunk in chunks if '"type":"message_end"' in chunk or '"type": "message_end"' in chunk)
     payload = json.loads(message_end_chunk[len("data: ") :].strip())
     assert payload["stream_ttft_ms"] == 200
 
@@ -203,4 +201,3 @@ async def test_iter_stream_hides_reasoning_chunks_when_mode_off(monkeypatch) -> 
     assert not any('"type":"reasoning"' in chunk or '"type": "reasoning"' in chunk for chunk in chunks)
     assert any('"type":"message"' in chunk or '"type": "message"' in chunk for chunk in chunks)
     assert session.collector.reasoning is None
-

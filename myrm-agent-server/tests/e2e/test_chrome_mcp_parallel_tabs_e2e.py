@@ -68,16 +68,10 @@ def _read_browser_globals(
         raise AssertionError(f"Expected browser global state object, got {raw!r}")
     databases = raw.get("databases")
     service_workers = raw.get("serviceWorkers")
-    if not isinstance(databases, list) or not all(
-        isinstance(item, str) for item in databases
-    ):
+    if not isinstance(databases, list) or not all(isinstance(item, str) for item in databases):
         raise AssertionError(f"Expected IndexedDB name list, got {databases!r}")
-    if not isinstance(service_workers, list) or not all(
-        isinstance(item, str) for item in service_workers
-    ):
-        raise AssertionError(
-            f"Expected Service Worker scope list, got {service_workers!r}"
-        )
+    if not isinstance(service_workers, list) or not all(isinstance(item, str) for item in service_workers):
+        raise AssertionError(f"Expected Service Worker scope list, got {service_workers!r}")
     local_storage = raw.get("localStorage")
     cookie = raw.get("cookie")
     if local_storage is not None and not isinstance(local_storage, str):
@@ -113,10 +107,7 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
             except RuntimeError as exc:
                 last_error = exc
                 message = str(exc)
-                if (
-                    "Navigation timeout" not in message
-                    and "upstream request timed out" not in message
-                ) or attempt >= 2:
+                if ("Navigation timeout" not in message and "upstream request timed out" not in message) or attempt >= 2:
                     raise
                 time.sleep(3.0 * (attempt + 1))
         if page is None:
@@ -141,25 +132,17 @@ def _open_probe_and_hold(barrier: threading.Barrier) -> PageProbe:
                 })""",
                 timeout_sec=5.0,
             )
-            if (
-                isinstance(raw, dict)
-                and raw.get("hasLayout") is True
-                and raw.get("hasInput") is True
-            ):
+            if isinstance(raw, dict) and raw.get("hasLayout") is True and raw.get("hasInput") is True:
                 break
             time.sleep(0.25)
         if not isinstance(raw, dict):
             raise AssertionError(f"Expected DOM probe object, got {raw!r}")
         if not raw.get("hasLayout") or not raw.get("hasInput"):
-            raise AssertionError(
-                f"Chat shell not ready for parallel tab probe: {raw!r}"
-            )
+            raise AssertionError(f"Chat shell not ready for parallel tab probe: {raw!r}")
         try:
             barrier.wait(timeout=layout_wait_sec)
         except threading.BrokenBarrierError as exc:
-            raise AssertionError(
-                "Parallel tab barrier broken — a worker failed before rendezvous"
-            ) from exc
+            raise AssertionError("Parallel tab barrier broken — a worker failed before rendezvous") from exc
         return {
             "page_id": page.page_id,
             "target_id": page.target_id,
@@ -259,10 +242,7 @@ def test_isolated_browser_contexts_do_not_share_global_state() -> None:
             }
             while time.monotonic() < deadline:
                 seeded_globals = _read_browser_globals(client_a, page_a, marker)
-                if (
-                    database in seeded_globals["databases"]
-                    and service_worker_scope in seeded_globals["serviceWorkers"]
-                ):
+                if database in seeded_globals["databases"] and service_worker_scope in seeded_globals["serviceWorkers"]:
                     break
                 time.sleep(0.25)
             isolated = _read_browser_globals(client_b, page_b, marker)

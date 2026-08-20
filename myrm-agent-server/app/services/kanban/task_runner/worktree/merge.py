@@ -111,9 +111,7 @@ async def _ensure_target_branch_checked_out(base_dir: str, target_branch: str) -
             env=_GIT_ENV,
         )
         checkout = (
-            ["git", "checkout", target_branch]
-            if branch_exists.returncode == 0
-            else ["git", "checkout", "-b", target_branch]
+            ["git", "checkout", target_branch] if branch_exists.returncode == 0 else ["git", "checkout", "-b", target_branch]
         )
         result = await asyncio.to_thread(
             subprocess.run,

@@ -55,8 +55,7 @@ def test_registry_probe_explicit_url(client: TestClient) -> None:
         new=AsyncMock(return_value=(True, "reachable")),
     ) as probe:
         response = client.get(
-            "/api/v1/skills/discovery/registry-probe?"
-            "url=https%3A%2F%2Fskill.xfyun.cn",
+            "/api/v1/skills/discovery/registry-probe?url=https%3A%2F%2Fskill.xfyun.cn",
         )
 
     assert response.status_code == 200

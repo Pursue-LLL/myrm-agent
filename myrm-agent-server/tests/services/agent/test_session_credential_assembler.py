@@ -54,10 +54,13 @@ async def test_assemble_merges_channel_token_with_oauth() -> None:
         return_value={"user_access_token": "channel-token", "user_id": "peer-1"},
     )
 
-    with patch(
-        "app.services.agent.oauth_refresher.refresh_oauth_token",
-        new_callable=AsyncMock,
-    ), patch("app.channels.storage.CredentialsStore", return_value=mock_store):
+    with (
+        patch(
+            "app.services.agent.oauth_refresher.refresh_oauth_token",
+            new_callable=AsyncMock,
+        ),
+        patch("app.channels.storage.CredentialsStore", return_value=mock_store),
+    ):
         credentials = await assemble_session_credentials(
             oauth_credentials_dict=oauth_dict,
             channel="feishu",

@@ -392,9 +392,7 @@ def _seeded_memory_ab_reports() -> object:
             latest_path.unlink(missing_ok=True)
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
@@ -411,22 +409,16 @@ def test_memory_ab_card_entry_and_confirm_dialog_chrome_e2e() -> None:
         restore_eval_lab_route(client, page, f"{ui_url}{EVAL_LAB_PATH}")
         dismiss_blocking_modals(client, page)
 
-        sources_ready = wait_for_state(
-            client, page, SOURCES_READY_JS, timeout_sec=120.0
-        )
+        sources_ready = wait_for_state(client, page, SOURCES_READY_JS, timeout_sec=120.0)
         assert sources_ready.get("ready") is True, sources_ready
 
-        buttons = wait_for_state(
-            client, page, all_cards_memory_ab_ready_js(), timeout_sec=30.0
-        )
+        buttons = wait_for_state(client, page, all_cards_memory_ab_ready_js(), timeout_sec=30.0)
         assert buttons.get("ready") is True, buttons
 
         clicked = client.evaluate(page, click_subset_memory_ab_js("WBBench Office"))
         assert clicked.get("ok") is True, clicked
 
-        dialog = wait_for_state(
-            client, page, _CONFIRM_DIALOG_VISIBLE_JS, timeout_sec=15.0
-        )
+        dialog = wait_for_state(client, page, _CONFIRM_DIALOG_VISIBLE_JS, timeout_sec=15.0)
         assert dialog.get("ready") is True, dialog
 
         cancelled = client.evaluate(page, _CLICK_CONFIRM_CANCEL_JS)
@@ -436,9 +428,7 @@ def test_memory_ab_card_entry_and_confirm_dialog_chrome_e2e() -> None:
         assert closed.get("ready") is True, closed
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -456,23 +446,17 @@ def test_memory_ab_report_and_history_render_chrome_e2e() -> None:
             restore_eval_lab_route(client, page, f"{ui_url}{EVAL_LAB_PATH}")
             dismiss_blocking_modals(client, page)
 
-            render = wait_for_state(
-                client, page, _MEMORY_AB_REPORT_RENDER_JS, timeout_sec=60.0
-            )
+            render = wait_for_state(client, page, _MEMORY_AB_REPORT_RENDER_JS, timeout_sec=60.0)
             assert render.get("ready") is True, render
 
             clicked = client.evaluate(page, _CLICK_HISTORY_VIEW_JS)
             assert clicked.get("ok") is True, clicked
 
-            selected = wait_for_state(
-                client, page, _SELECTED_HISTORY_JS, timeout_sec=30.0
-            )
+            selected = wait_for_state(client, page, _SELECTED_HISTORY_JS, timeout_sec=30.0)
             assert selected.get("ready") is True, selected
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -509,25 +493,19 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
             restore_eval_lab_route(client, page, f"{ui_url}{EVAL_LAB_PATH}")
             dismiss_blocking_modals(client, page)
 
-            sources_ready = wait_for_state(
-                client, page, SOURCES_READY_JS, timeout_sec=120.0
-            )
+            sources_ready = wait_for_state(client, page, SOURCES_READY_JS, timeout_sec=120.0)
             assert sources_ready.get("ready") is True, sources_ready
 
             clicked = client.evaluate(page, click_subset_memory_ab_js("WBBench Office"))
             assert clicked.get("ok") is True, clicked
 
-            dialog = wait_for_state(
-                client, page, _CONFIRM_DIALOG_VISIBLE_JS, timeout_sec=15.0
-            )
+            dialog = wait_for_state(client, page, _CONFIRM_DIALOG_VISIBLE_JS, timeout_sec=15.0)
             assert dialog.get("ready") is True, dialog
 
             started = client.evaluate(page, _CLICK_CONFIRM_START_JS)
             assert started.get("ok") is True, started
 
-            inflight = wait_for_state(
-                client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0
-            )
+            inflight = wait_for_state(client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0)
             assert inflight.get("ready") is True, inflight
 
             stopped = client.evaluate(page, _CLICK_STOP_JS)

@@ -26,12 +26,8 @@ async def test_ensure_chat_source_sync_demotes_in_search_without_rebuild(
     now = datetime(2026, 4, 20, 12, 0, 0, tzinfo=timezone.utc)
     fts_db.add_all(
         [
-            Chat(
-                id=web_id, title="Alpha planning web", action_mode="agent", source="web"
-            ),
-            Chat(
-                id=cron_id, title="Alpha digest cron", action_mode="agent", source="web"
-            ),
+            Chat(id=web_id, title="Alpha planning web", action_mode="agent", source="web"),
+            Chat(id=cron_id, title="Alpha digest cron", action_mode="agent", source="web"),
         ]
     )
     fts_db.add_all(

@@ -33,11 +33,7 @@ def pin_and_verify_hitl_mode(api_url: str) -> None:
         if cfg.get("yoloModeEnabled") or cfg.get("yolo_mode_enabled"):
             raise AssertionError(f"LIVE E2E requires YOLO off on {target}; got {cfg!r}")
         if int(cfg.get("approvalTimeoutSeconds") or cfg.get("approval_timeout_seconds") or 0) < 300:
-            raise AssertionError(
-                f"LIVE E2E requires approval timeout >= 300s on {target}; got {cfg!r}"
-            )
+            raise AssertionError(f"LIVE E2E requires approval timeout >= 300s on {target}; got {cfg!r}")
         probe = hitl_probe(target)
         if probe.get("yolo") or probe.get("expects_ask") is not True:
-            raise AssertionError(
-                f"LIVE E2E HITL probe failed on {target}: {probe!r}; cfg={cfg!r}"
-            )
+            raise AssertionError(f"LIVE E2E HITL probe failed on {target}: {probe!r}; cfg={cfg!r}")

@@ -41,10 +41,7 @@ def _seed(client: TestClient, *, agent_id: str) -> dict[str, object]:
         "app.api.chats.test_fixtures.rich_media_preview.is_local_mode",
         return_value=True,
     ):
-        resp = client.post(
-            "/api/v1/chats/test/seed-rich-media-preview-fixture?agent_id="
-            f"{agent_id}"
-        )
+        resp = client.post(f"/api/v1/chats/test/seed-rich-media-preview-fixture?agent_id={agent_id}")
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert str(body["chat_id"]).startswith("e2ermd")
@@ -62,9 +59,7 @@ def _browse(client: TestClient, workspace: str, path: str) -> object:
 class TestRichMediaPreviewSeedIntegration:
     def test_seed_writes_all_fixture_files(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(
-            _seed_visible_agent(agent_id, display_name="Rich Media Seed Agent")
-        )
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Rich Media Seed Agent"))
 
         body = _seed(client, agent_id=agent_id)
         workspace_dir = Path(str(body["workspace_dir"]))
@@ -102,13 +97,9 @@ class TestRichMediaPreviewSeedIntegration:
         roles = [m.get("role") for m in messages if isinstance(m, dict)]
         assert roles.count("user") == 1
 
-    def test_browse_serves_png_inline_with_full_bytes(
-        self, client: TestClient
-    ) -> None:
+    def test_browse_serves_png_inline_with_full_bytes(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(
-            _seed_visible_agent(agent_id, display_name="Rich Media Seed Agent")
-        )
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Rich Media Seed Agent"))
         body = _seed(client, agent_id=agent_id)
         workspace = str(body["workspace_dir"])
         file_path = str(body["files"]["preview.png"])
@@ -125,9 +116,7 @@ class TestRichMediaPreviewSeedIntegration:
 
     def test_browse_serves_pdf_streaming(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(
-            _seed_visible_agent(agent_id, display_name="Rich Media Seed Agent")
-        )
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Rich Media Seed Agent"))
         body = _seed(client, agent_id=agent_id)
         workspace = str(body["workspace_dir"])
         file_path = str(body["files"]["preview.pdf"])
@@ -141,9 +130,7 @@ class TestRichMediaPreviewSeedIntegration:
 
     def test_browse_serves_zip_as_stream(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(
-            _seed_visible_agent(agent_id, display_name="Rich Media Seed Agent")
-        )
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Rich Media Seed Agent"))
         body = _seed(client, agent_id=agent_id)
         workspace = str(body["workspace_dir"])
         file_path = str(body["files"]["bundle.zip"])
@@ -155,9 +142,7 @@ class TestRichMediaPreviewSeedIntegration:
 
     def test_browse_serves_txt_as_inline_text(self, client: TestClient) -> None:
         agent_id = f"agent_{uuid.uuid4().hex[:8]}"
-        asyncio.run(
-            _seed_visible_agent(agent_id, display_name="Rich Media Seed Agent")
-        )
+        asyncio.run(_seed_visible_agent(agent_id, display_name="Rich Media Seed Agent"))
         body = _seed(client, agent_id=agent_id)
         workspace = str(body["workspace_dir"])
         file_path = str(body["files"]["readme.txt"])

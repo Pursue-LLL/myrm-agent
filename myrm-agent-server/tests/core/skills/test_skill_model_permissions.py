@@ -29,9 +29,7 @@ def _make_metadata(
 
 class TestSkillRequiredPermissionsFromMetadata:
     def test_from_metadata_maps_enum_values_to_strings(self) -> None:
-        meta = _make_metadata(
-            [SkillPermission.FILE_WRITE, SkillPermission.SHELL_EXEC]
-        )
+        meta = _make_metadata([SkillPermission.FILE_WRITE, SkillPermission.SHELL_EXEC])
         skill = Skill.from_metadata(
             meta,
             skill_id="local::abc",

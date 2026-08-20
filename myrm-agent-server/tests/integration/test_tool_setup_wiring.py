@@ -23,9 +23,7 @@ def test_image_generation_registers_basetool() -> None:
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
-    mixin.image_generation_params = ImageGenerationParams(
-        model="dall-e-3", api_key="test-key"
-    )
+    mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key="test-key")
     tools: list[object] = []
 
     with patch(
@@ -44,9 +42,7 @@ def test_image_generation_skipped_without_api_key_or_gateway() -> None:
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
-    mixin.image_generation_params = ImageGenerationParams(
-        model="dall-e-3", api_key=None
-    )
+    mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key=None)
     tools: list[object] = []
 
     mixin._setup_image_generation_tools(tools)
@@ -131,9 +127,7 @@ def test_video_generation_accepts_fallback_provider_key_only() -> None:
         provider="openai",
         model="sora",
         api_key=None,
-        fallback_providers=[
-            {"provider": "openai", "model": "sora", "api_key": "fallback-only-key"}
-        ],
+        fallback_providers=[{"provider": "openai", "model": "sora", "api_key": "fallback-only-key"}],
     )
     tools: list[object] = []
 
@@ -163,9 +157,7 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
 
     def _capture_create_cron_tools(manager, user_id, **kwargs):
         captured["delivery_resolver"] = kwargs.get("delivery_resolver")
-        captured["blueprint_catalog_provider"] = kwargs.get(
-            "blueprint_catalog_provider"
-        )
+        captured["blueprint_catalog_provider"] = kwargs.get("blueprint_catalog_provider")
         captured["default_delivery"] = kwargs.get("default_delivery")
         return [MagicMock(name="cron_manage_tool", spec=BaseTool)]
 
@@ -248,9 +240,7 @@ async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None
             "myrm_agent_harness.toolkits.create_browser_tools",
             return_value=[MagicMock(name="browser_navigate_tool", spec=BaseTool)],
         ),
-        patch.object(
-            ToolSetupMixin, "_build_captcha_solver", _fake_build_captcha_solver
-        ),
+        patch.object(ToolSetupMixin, "_build_captcha_solver", _fake_build_captcha_solver),
     ):
         await mixin._setup_browser_tools(tools, "chat-blocklist-wiring")
 

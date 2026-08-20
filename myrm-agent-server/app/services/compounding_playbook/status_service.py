@@ -85,11 +85,7 @@ async def _count_active_skills() -> int:
 async def _count_cron_jobs(cron_manager: CronManager) -> tuple[int, int]:
     try:
         jobs = await cron_manager.list_jobs(USER_ID)
-        verify_count = sum(
-            1
-            for job in jobs
-            if job.acceptance_criteria and len(job.acceptance_criteria) > 0
-        )
+        verify_count = sum(1 for job in jobs if job.acceptance_criteria and len(job.acceptance_criteria) > 0)
         return len(jobs), verify_count
     except Exception as exc:
         logger.warning("Compounding status: cron list failed: %s", exc)

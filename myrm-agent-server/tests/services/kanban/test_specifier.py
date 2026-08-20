@@ -71,10 +71,7 @@ class TestExtractJsonBlob:
 
     def test_multiple_objects_picks_last(self) -> None:
         """格式示例对象在前、真实结果在后时应取真实结果（最后者）。"""
-        raw = (
-            '```json\n{"title": "example", "body": "demo"}\n```\n'
-            'real spec:\n{"title": "T", "body": "B"}'
-        )
+        raw = '```json\n{"title": "example", "body": "demo"}\n```\nreal spec:\n{"title": "T", "body": "B"}'
         assert extract_json_blob(raw) == {"title": "T", "body": "B"}
 
 
@@ -96,9 +93,7 @@ def _make_triage_task(
     )
 
 
-def _make_llm_response(
-    content: str, prompt_tokens: int = 100, completion_tokens: int = 200
-) -> MagicMock:
+def _make_llm_response(content: str, prompt_tokens: int = 100, completion_tokens: int = 200) -> MagicMock:
     resp = MagicMock()
     resp.choices = [MagicMock()]
     resp.choices[0].message.content = content
@@ -229,9 +224,7 @@ async def test_specify_handles_llm_exception() -> None:
 async def test_specify_picks_cjk_prompt_for_chinese_title() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task(title="给项目加个暗黑模式")
-    llm_resp = _make_llm_response(
-        '{"title": "实现暗黑模式切换", "body": "**Goal** 支持暗黑模式"}'
-    )
+    llm_resp = _make_llm_response('{"title": "实现暗黑模式切换", "body": "**Goal** 支持暗黑模式"}')
 
     captured_messages: list[dict[str, str]] = []
 
@@ -250,18 +243,14 @@ async def test_specify_picks_cjk_prompt_for_chinese_title() -> None:
         outcome = await specifier.specify(task)
 
     assert outcome.ok
-    assert any(
-        "看板任务规范化助手" in str(m.get("content", "")) for m in captured_messages
-    )
+    assert any("看板任务规范化助手" in str(m.get("content", "")) for m in captured_messages)
 
 
 @pytest.mark.asyncio
 async def test_specify_picks_english_prompt_for_english_title() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task(title="Add dark mode toggle")
-    llm_resp = _make_llm_response(
-        '{"title": "Implement dark mode", "body": "**Goal** ..."}'
-    )
+    llm_resp = _make_llm_response('{"title": "Implement dark mode", "body": "**Goal** ..."}')
 
     captured_messages: list[dict[str, str]] = []
 
@@ -280,10 +269,7 @@ async def test_specify_picks_english_prompt_for_english_title() -> None:
         outcome = await specifier.specify(task)
 
     assert outcome.ok
-    assert any(
-        "Kanban triage specifier" in str(m.get("content", ""))
-        for m in captured_messages
-    )
+    assert any("Kanban triage specifier" in str(m.get("content", "")) for m in captured_messages)
 
 
 @pytest.mark.asyncio

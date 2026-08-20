@@ -100,9 +100,7 @@ class TestCollectSessionDeliverables:
 
 class TestDownloadBundle:
     @pytest.mark.asyncio
-    async def test_bundles_multiple_artifacts(
-        self, client: TestClient, db_session: AsyncSession, tmp_path
-    ) -> None:
+    async def test_bundles_multiple_artifacts(self, client: TestClient, db_session: AsyncSession, tmp_path) -> None:
         vault_dir = tmp_path / ".agent" / "vault" / "objects"
         vault_dir.mkdir(parents=True, exist_ok=True)
 
@@ -119,13 +117,17 @@ class TestDownloadBundle:
         (vault_dir / "obj-2").write_bytes(content2)
 
         v1 = ArtifactVersion(
-            id="v-b1", artifact_id="bundle-a1",
-            vault_uri="vault://obj-1", sha256_hash="fake",
+            id="v-b1",
+            artifact_id="bundle-a1",
+            vault_uri="vault://obj-1",
+            sha256_hash="fake",
             created_at=now,
         )
         v2 = ArtifactVersion(
-            id="v-b2", artifact_id="bundle-a2",
-            vault_uri="vault://obj-2", sha256_hash="fake",
+            id="v-b2",
+            artifact_id="bundle-a2",
+            vault_uri="vault://obj-2",
+            sha256_hash="fake",
             created_at=now,
         )
         db_session.add_all([v1, v2])
@@ -155,9 +157,7 @@ class TestDownloadBundle:
             assert zf.read("slides.pptx") == content2
 
     @pytest.mark.asyncio
-    async def test_deduplicates_filenames(
-        self, client: TestClient, db_session: AsyncSession, tmp_path
-    ) -> None:
+    async def test_deduplicates_filenames(self, client: TestClient, db_session: AsyncSession, tmp_path) -> None:
         vault_dir = tmp_path / ".agent" / "vault" / "objects"
         vault_dir.mkdir(parents=True, exist_ok=True)
 
@@ -172,13 +172,17 @@ class TestDownloadBundle:
         (vault_dir / "obj-dup2").write_bytes(b"v2")
 
         v1 = ArtifactVersion(
-            id="v-dup1", artifact_id="dup-a1",
-            vault_uri="vault://obj-dup1", sha256_hash="x",
+            id="v-dup1",
+            artifact_id="dup-a1",
+            vault_uri="vault://obj-dup1",
+            sha256_hash="x",
             created_at=now,
         )
         v2 = ArtifactVersion(
-            id="v-dup2", artifact_id="dup-a2",
-            vault_uri="vault://obj-dup2", sha256_hash="y",
+            id="v-dup2",
+            artifact_id="dup-a2",
+            vault_uri="vault://obj-dup2",
+            sha256_hash="y",
             created_at=now,
         )
         db_session.add_all([v1, v2])
@@ -216,9 +220,7 @@ class TestDownloadBundle:
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_nonexistent_ids_returns_404(
-        self, client: TestClient, db_session: AsyncSession
-    ) -> None:
+    async def test_nonexistent_ids_returns_404(self, client: TestClient, db_session: AsyncSession) -> None:
         response = client.post(
             "/api/v1/files/artifacts/download-bundle",
             json={"artifact_ids": ["non-exist-1", "non-exist-2"], "chat_id": "chat-y"},

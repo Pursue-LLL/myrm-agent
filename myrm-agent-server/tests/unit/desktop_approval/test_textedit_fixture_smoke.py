@@ -22,10 +22,7 @@ def test_preflight_textedit_foreground_soft_fail_returns_false(
     monkeypatch.setattr(textedit_fixture, "textedit_is_frontmost", lambda: False)
     monkeypatch.setattr(textedit_fixture.time, "sleep", lambda _: None)
 
-    assert (
-        textedit_fixture.preflight_textedit_foreground(attempts=2, fail_hard=False)
-        is False
-    )
+    assert textedit_fixture.preflight_textedit_foreground(attempts=2, fail_hard=False) is False
 
 
 def test_textedit_is_frontmost_osascript_timeout_returns_false(
@@ -78,9 +75,7 @@ def test_restart_textedit_fixture_process_force_kills_on_quit_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(
-        textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: False
-    )
+    monkeypatch.setattr(textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: False)
     calls: list[tuple[str, ...]] = []
     prepared: list[bool] = []
 
@@ -98,9 +93,7 @@ def test_restart_textedit_fixture_process_force_kills_on_quit_timeout(
         return subprocess.CompletedProcess(args, returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr(textedit_fixture.subprocess, "run", _run)
-    monkeypatch.setattr(
-        textedit_fixture, "prepare_textedit_fixture", lambda: prepared.append(True)
-    )
+    monkeypatch.setattr(textedit_fixture, "prepare_textedit_fixture", lambda: prepared.append(True))
     monkeypatch.setattr(textedit_fixture.time, "sleep", lambda _: None)
 
     textedit_fixture.restart_textedit_fixture_process()
@@ -114,9 +107,7 @@ def test_restart_textedit_fixture_process_signoff_skips_graceful_quit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(textedit_fixture.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(
-        textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: True
-    )
+    monkeypatch.setattr(textedit_fixture, "_signoff_or_desktop_soak_fast_path", lambda: True)
     kill_calls: list[bool] = []
     prepared: list[bool] = []
 
@@ -125,9 +116,7 @@ def test_restart_textedit_fixture_process_signoff_skips_graceful_quit(
         "_force_kill_textedit_process",
         lambda **_: kill_calls.append(True),
     )
-    monkeypatch.setattr(
-        textedit_fixture, "prepare_textedit_fixture", lambda: prepared.append(True)
-    )
+    monkeypatch.setattr(textedit_fixture, "prepare_textedit_fixture", lambda: prepared.append(True))
     monkeypatch.setattr(textedit_fixture.time, "sleep", lambda _: None)
 
     textedit_fixture.restart_textedit_fixture_process()
@@ -151,12 +140,7 @@ def test_prepare_textedit_fixture_force_kills_on_seed_timeout(
         timeout: int,
     ) -> subprocess.CompletedProcess[str]:
         calls.append(tuple(args))
-        if (
-            args
-            and args[0] == "osascript"
-            and len(args) >= 3
-            and args[2] == 'tell application "TextEdit"'
-        ):
+        if args and args[0] == "osascript" and len(args) >= 3 and args[2] == 'tell application "TextEdit"':
             raise subprocess.TimeoutExpired(args, timeout)
         return subprocess.CompletedProcess(args, returncode=0, stdout="", stderr="")
 

@@ -22,6 +22,7 @@ def _e2e_run_namespace() -> str:
     """Per-run namespace so parallel chrome_e2e seeds never deny each other."""
     return os.environ.get("MYRM_E2E_RUN_ID", "").strip() or f"growth-{os.getpid()}"
 
+
 _GROWTH_DASHBOARD_STATE = """(() => {
   const bodyText = document.body.innerText || '';
   if (location.pathname.includes('/settings/skills') && location.search.includes('sub=pending')) {
@@ -65,14 +66,11 @@ _GROWTH_DASHBOARD_STATE = """(() => {
 def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
     api_url = get_e2e_api_url()
 
-    seed_url = (
-        f"{api_url}/api/v1/skills/drafts/test/seed-mock?"
-        + urllib.parse.urlencode(
-            {
-                "agent_id": "builtin-general",
-                "namespace": _e2e_run_namespace(),
-            }
-        )
+    seed_url = f"{api_url}/api/v1/skills/drafts/test/seed-mock?" + urllib.parse.urlencode(
+        {
+            "agent_id": "builtin-general",
+            "namespace": _e2e_run_namespace(),
+        }
     )
     seeded = http_json("POST", seed_url)
     assert isinstance(seeded, dict)
@@ -97,11 +95,7 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
     assert "proposed_content" not in case_items[0]
 
     with open_settings_subroute("/settings/skills?sub=pending") as (client, page):
-        dashboard_timeout = (
-            _warm_ui_parallel_wait_sec(180.0)
-            if _parallel_chrome_e2e_active()
-            else 90.0
-        )
+        dashboard_timeout = _warm_ui_parallel_wait_sec(180.0) if _parallel_chrome_e2e_active() else 90.0
         skills_url = f"{get_e2e_ui_url().rstrip('/')}/settings/skills?sub=pending"
         dashboard = wait_for_state(
             client,
@@ -144,14 +138,8 @@ def test_growth_center_stats_and_lazy_detail_in_real_ui() -> None:
             timeout_sec=5.0,
         )
         assert filter_state.get("ready") is True
-        pending_card_digits = "".join(
-            ch for ch in str(filter_state.get("pendingCardText") or "") if ch.isdigit()
-        )
-        pending_filter_digits = "".join(
-            ch
-            for ch in str(filter_state.get("pendingFilterText") or "")
-            if ch.isdigit()
-        )
+        pending_card_digits = "".join(ch for ch in str(filter_state.get("pendingCardText") or "") if ch.isdigit())
+        pending_filter_digits = "".join(ch for ch in str(filter_state.get("pendingFilterText") or "") if ch.isdigit())
         if pending_card_digits and pending_filter_digits:
             assert pending_filter_digits == pending_card_digits
 

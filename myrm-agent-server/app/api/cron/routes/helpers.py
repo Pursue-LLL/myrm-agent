@@ -251,11 +251,7 @@ def _failure_alert_from_request(
         enabled=fa.enabled,
         after=fa.after,
         cooldown_seconds=fa.cooldown_seconds,
-        delivery=(
-            _delivery_from_request(fa.delivery, existing_secret=existing_delivery_secret)
-            if fa.delivery
-            else None
-        ),
+        delivery=(_delivery_from_request(fa.delivery, existing_secret=existing_delivery_secret) if fa.delivery else None),
     )
 
 
@@ -373,9 +369,7 @@ async def _run_test_delivery(
     )
     from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 
-    test_delivery = ChannelResultDelivery(
-        webhook_delivery=WebhookDelivery(max_retries=0, connect_timeout=5, read_timeout=15)
-    )
+    test_delivery = ChannelResultDelivery(webhook_delivery=WebhookDelivery(max_retries=0, connect_timeout=5, read_timeout=15))
     try:
         await test_delivery.deliver(test_job, result)
     except Exception as exc:

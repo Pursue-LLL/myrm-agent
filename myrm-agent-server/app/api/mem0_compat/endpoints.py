@@ -134,10 +134,7 @@ async def search_memories(
 ) -> Mem0SearchResponse:
     """Semantic search across memories."""
     results = await manager.search(body.query, limit=body.top_k)
-    items = [
-        memory_item_to_mem0_search(memory_to_item(r.memory, r.memory_type), r.score)
-        for r in results
-    ]
+    items = [memory_item_to_mem0_search(memory_to_item(r.memory, r.memory_type), r.score) for r in results]
     return Mem0SearchResponse(results=items)
 
 
@@ -231,7 +228,8 @@ async def memory_history(
 
 
 async def _find_memory_by_id(
-    manager: MemoryManager, memory_id: str,
+    manager: MemoryManager,
+    memory_id: str,
 ) -> MemoryItem | None:
     """Search across all memory types to find a memory by ID."""
     for mem_type in ALL_MEMORY_TYPES:

@@ -45,9 +45,7 @@ def test_server_metrics_endpoint_exposes_harness_approval_counter(
     from myrm_agent_harness.observability.metrics.registry import metrics_registry
 
     assert metrics_registry.enabled
-    metrics_registry.record_approval_denied(
-        agent_id="it-server", tool_name="bash_code_execute_tool", reason="subagent_auto_deny"
-    )
+    metrics_registry.record_approval_denied(agent_id="it-server", tool_name="bash_code_execute_tool", reason="subagent_auto_deny")
 
     client = TestClient(metrics_app)
     response = client.get("/metrics")
@@ -67,9 +65,7 @@ def test_server_metrics_endpoint_exposes_harness_hook_counter(
     from myrm_agent_harness.observability.metrics.registry import metrics_registry
 
     assert metrics_registry.enabled
-    metrics_registry.record_hook_failure(
-        agent_id="it-server", tool_name="bash_code_execute_tool", hook_event="post_tool_use"
-    )
+    metrics_registry.record_hook_failure(agent_id="it-server", tool_name="bash_code_execute_tool", hook_event="post_tool_use")
 
     client = TestClient(metrics_app)
     response = client.get("/metrics")

@@ -123,9 +123,7 @@ async def _stream_to_bytes(upload: UploadFile, max_bytes: int) -> bytes:
     while chunk := await upload.read(_STREAM_CHUNK_SIZE):
         total += len(chunk)
         if total > max_bytes:
-            raise validation_error(
-                f"File {upload.filename} exceeds {max_bytes // (1024 * 1024)}MB limit"
-            )
+            raise validation_error(f"File {upload.filename} exceeds {max_bytes // (1024 * 1024)}MB limit")
         buf.write(chunk)
     return buf.getvalue()
 

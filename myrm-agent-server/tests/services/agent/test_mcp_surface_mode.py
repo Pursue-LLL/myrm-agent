@@ -6,9 +6,7 @@ from app.services.agent.mcp_surface_mode import normalize_mcp_surface_engine_par
 
 
 def test_normalize_catalog_invoke_to_auto() -> None:
-    mode, params = normalize_mcp_surface_engine_params(
-        {"mcp_surface_mode": "catalog_invoke", "timeout_seconds": 120}
-    )
+    mode, params = normalize_mcp_surface_engine_params({"mcp_surface_mode": "catalog_invoke", "timeout_seconds": 120})
 
     assert mode == "auto"
     assert params == {"mcp_surface_mode": "auto", "timeout_seconds": 120}

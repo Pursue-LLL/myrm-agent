@@ -244,15 +244,19 @@ class MemoryCommandCenterService:
     async def _build_spaces(self) -> list[MemoryCommandSpace]:
         project_ctx_ids = await self._resolve_project_context_ids()
 
-        spaces: list[MemoryCommandSpace] = [
-            MemoryCommandSpace(
-                namespace=namespace,
-                kind=self._space_kind(namespace).value,
-                label=self._space_label(namespace),
-                active=True,
-            )
-            for namespace in self._memory_manager.namespaces
-        ] if project_ctx_ids is None else []
+        spaces: list[MemoryCommandSpace] = (
+            [
+                MemoryCommandSpace(
+                    namespace=namespace,
+                    kind=self._space_kind(namespace).value,
+                    label=self._space_label(namespace),
+                    active=True,
+                )
+                for namespace in self._memory_manager.namespaces
+            ]
+            if project_ctx_ids is None
+            else []
+        )
 
         binding_counts = await self._shared_context_binding_counts()
 
@@ -308,9 +312,7 @@ class MemoryCommandCenterService:
         )
         if project_ctx_ids is not None:
             if project_ctx_ids:
-                proposal_stmt = proposal_stmt.where(
-                    SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)
-                )
+                proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids))
             else:
                 proposal_stmt = proposal_stmt.where(False)
 
@@ -453,15 +455,11 @@ class MemoryCommandCenterService:
                 )
 
         proposal_stmt = (
-            select(SharedContextWriteProposalModel)
-            .order_by(desc(SharedContextWriteProposalModel.created_at))
-            .limit(6)
+            select(SharedContextWriteProposalModel).order_by(desc(SharedContextWriteProposalModel.created_at)).limit(6)
         )
         if project_ctx_ids is not None:
             if project_ctx_ids:
-                proposal_stmt = proposal_stmt.where(
-                    SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)
-                )
+                proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids))
             else:
                 proposal_stmt = proposal_stmt.where(False)
 
@@ -481,11 +479,7 @@ class MemoryCommandCenterService:
                 )
             )
 
-        context_stmt = (
-            select(SharedContextModel)
-            .order_by(desc(SharedContextModel.updated_at))
-            .limit(6)
-        )
+        context_stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(6)
         if project_ctx_ids is not None:
             if project_ctx_ids:
                 context_stmt = context_stmt.where(SharedContextModel.id.in_(project_ctx_ids))
@@ -534,11 +528,7 @@ class MemoryCommandCenterService:
         """
         if not self._memory_manager.has_vector:
             return "unavailable"
-        return (
-            "persistent"
-            if self._memory_manager.vector_is_persistent
-            else "memory_fallback"
-        )
+        return "persistent" if self._memory_manager.vector_is_persistent else "memory_fallback"
 
     def _build_runtime(self, deploy_mode: str) -> MemoryCommandRuntimeStatus:
         return MemoryCommandRuntimeStatus(

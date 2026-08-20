@@ -72,6 +72,7 @@ class TestBuildWikiVaultCallback:
 
     def _get_callback_factory(self):
         from app.services.agent.stream_session.stream_lane_factory import _build_wiki_vault_callback
+
         return _build_wiki_vault_callback
 
     def test_returns_callable(self):
@@ -140,9 +141,7 @@ class TestBuildWikiVaultCallback:
         raw_dir = wiki_dir / "raw"
         raw_dir.mkdir(parents=True)
 
-        result = _FakeResult(
-            agent_results=[{"task": "Short", "result": "Too short"}]
-        )
+        result = _FakeResult(agent_results=[{"task": "Short", "result": "Too short"}])
 
         with _wiki_vault_callback_patches(wiki_dir):
             await callback(result)
@@ -180,7 +179,7 @@ class TestBuildWikiVaultCallback:
             content = fp.read_text(encoding="utf-8")
             assert content.startswith("---\n")
             assert "source: deep_research" in content
-            assert "session_id: \"sess-abc\"" in content
+            assert 'session_id: "sess-abc"' in content
 
         assert mock_compiler.enqueue_file.call_count == 2
 
@@ -302,9 +301,7 @@ class TestBuildWikiVaultCallback:
         raw_dir.mkdir(parents=True)
 
         long_task = "A" * 100
-        result = _FakeResult(
-            agent_results=[{"task": long_task, "result": "F" * 300}]
-        )
+        result = _FakeResult(agent_results=[{"task": long_task, "result": "F" * 300}])
 
         mock_compiler = MagicMock()
         mock_compiler.enqueue_file = MagicMock()
@@ -332,9 +329,7 @@ class TestBuildWikiVaultCallback:
         raw_dir = wiki_dir / "raw"
         raw_dir.mkdir(parents=True)
 
-        result = _FakeResult(
-            agent_results=[{"task": "Valid task", "result": "E" * 300}]
-        )
+        result = _FakeResult(agent_results=[{"task": "Valid task", "result": "E" * 300}])
 
         with (
             patch(

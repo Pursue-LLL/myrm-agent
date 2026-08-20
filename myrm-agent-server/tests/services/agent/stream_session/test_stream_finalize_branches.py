@@ -66,9 +66,7 @@ def _approval(value: dict[str, object] | None = None) -> ApprovalTimeoutHolder:
     return ApprovalTimeoutHolder(value=value)
 
 
-def _clarification(
-    pending: bool = False, directory_pending: bool = False
-) -> ClarificationTimeoutHolder:
+def _clarification(pending: bool = False, directory_pending: bool = False) -> ClarificationTimeoutHolder:
     return ClarificationTimeoutHolder(pending=pending, directory_pending=directory_pending)
 
 
@@ -78,12 +76,8 @@ class TestFinalizeBranchCoverage:
         """approval timeout must be scheduled when no clarification/directory pending."""
         session = _make_session()
         with (
-            patch(
-                "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
@@ -96,12 +90,8 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
                 new_callable=AsyncMock,
             ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.schedule_approval_timeout"
-            ) as mock_schedule_approval,
-            patch(
-                "app.services.agent.evolution.engine.trigger_skill_evolution"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.schedule_approval_timeout") as mock_schedule_approval,
+            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(
@@ -120,12 +110,8 @@ class TestFinalizeBranchCoverage:
         session.had_fatal_error = True
         metrics = MagicMock(compaction_debt_pending=True)
         with (
-            patch(
-                "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
@@ -138,25 +124,15 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
                 new_callable=AsyncMock,
             ),
-            patch(
-                "app.services.chat.chat_service.ChatService.schedule_background_drain"
-            ) as mock_drain,
-            patch(
-                "app.services.copilot.run_digest_store.RunDigestStore.end_run"
-            ) as mock_end_run,
-            patch(
-                "app.services.agent.evolution.engine.trigger_skill_evolution"
-            ),
+            patch("app.services.chat.chat_service.ChatService.schedule_background_drain") as mock_drain,
+            patch("app.services.copilot.run_digest_store.RunDigestStore.end_run") as mock_end_run,
+            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(
-                session, MagicMock(), _approval(), _clarification()
-            )
+            await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
         mock_drain.assert_called_once_with("chat-branch")
-        mock_end_run.assert_called_once_with(
-            "chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}]
-        )
+        mock_end_run.assert_called_once_with("chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}])
 
     @pytest.mark.asyncio
     async def test_slice_flush_and_artifact_patch_and_turn_completed(self) -> None:
@@ -174,12 +150,8 @@ class TestFinalizeBranchCoverage:
         evo_integration._slice_cursors = {"chat-branch": (2, ["tool-a", "tool-b"])}
         evo_integration.queue = AsyncMock()
         with (
-            patch(
-                "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
@@ -192,9 +164,7 @@ class TestFinalizeBranchCoverage:
                 "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
                 new_callable=AsyncMock,
             ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.merge_memory_citation_fallback"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.merge_memory_citation_fallback"),
             patch(
                 "myrm_agent_harness.api.hooks.get_memory_manager",
                 return_value=manager,
@@ -224,20 +194,14 @@ class TestFinalizeBranchCoverage:
                 "app.services.chat.ui_artifact_patch.patch_ui_artifact_data_updates",
                 new_callable=AsyncMock,
             ) as mock_patch_artifact,
-            patch(
-                "app.services.agent.evolution.engine.trigger_skill_evolution"
-            ),
+            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(
-                session, MagicMock(), _approval(), _clarification()
-            )
+            await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
         manager.record_citations.assert_awaited_once()
         assert evo_integration.queue.enqueue.await_count == 1
-        mock_patch_artifact.assert_awaited_once_with(
-            "chat-branch", {"ui": {"card": "closed"}}
-        )
+        mock_patch_artifact.assert_awaited_once_with("chat-branch", {"ui": {"card": "closed"}})
         assert session.turn_capability_terminal_recorded is True
 
     @pytest.mark.asyncio
@@ -247,12 +211,8 @@ class TestFinalizeBranchCoverage:
         session.collector.has_persistable_turn = True
         session.collector.content = "Result <cite:doc-1> text"
         with (
-            patch(
-                "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
@@ -265,9 +225,7 @@ class TestFinalizeBranchCoverage:
                 "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
                 new_callable=AsyncMock,
             ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.merge_memory_citation_fallback"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.merge_memory_citation_fallback"),
             patch(
                 "myrm_agent_harness.api.hooks.get_memory_manager",
                 side_effect=RuntimeError("manager gone"),
@@ -288,14 +246,10 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize._clear_interrupted_turn_marker",
                 side_effect=RuntimeError("marker gone"),
             ),
-            patch(
-                "app.services.agent.evolution.engine.trigger_skill_evolution"
-            ),
+            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(
-                session, MagicMock(), _approval(), _clarification()
-            )
+            await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
         session.collector.cleanup.assert_called_once()
 
@@ -310,12 +264,8 @@ class TestFinalizeBranchCoverage:
         directory_msg = MagicMock(id="m-directory", role="assistant")
         directory_msg.extra_data = {"directoryRequest": {"answered": False}}
         with (
-            patch(
-                "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
@@ -339,14 +289,10 @@ class TestFinalizeBranchCoverage:
             patch(
                 "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
-            patch(
-                "app.services.agent.evolution.engine.trigger_skill_evolution"
-            ),
+            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(
-                session, MagicMock(), _approval(), _clarification()
-            )
+            await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
         assert mock_update_extra.await_count == 2
         mock_schedule_clarification.assert_called_once()
@@ -356,12 +302,8 @@ class TestFinalizeBranchCoverage:
         """directory_pending in the holder schedules the directory timeout."""
         session = _make_session()
         with (
-            patch(
-                "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
@@ -374,17 +316,11 @@ class TestFinalizeBranchCoverage:
                 "app.services.agent.stream_session.stream_finalize.record_migration_first_turn_outcome",
                 new_callable=AsyncMock,
             ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.schedule_directory_timeout"
-            ) as mock_schedule_directory,
-            patch(
-                "app.services.agent.evolution.engine.trigger_skill_evolution"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.schedule_directory_timeout") as mock_schedule_directory,
+            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(
-                session, MagicMock(), _approval(), _clarification(directory_pending=True)
-            )
+            await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification(directory_pending=True))
 
         mock_schedule_directory.assert_called_once()
 
@@ -393,12 +329,8 @@ class TestFinalizeBranchCoverage:
         """pending in the holder schedules the clarification timeout."""
         session = _make_session()
         with (
-            patch(
-                "app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"
-            ),
-            patch(
-                "app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"
-            ),
+            patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
+            patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
             patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
             patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
             patch("app.services.agent.goals.goal_registry.GoalRegistry"),
@@ -414,13 +346,9 @@ class TestFinalizeBranchCoverage:
             patch(
                 "app.services.agent.stream_session.stream_finalize.schedule_clarification_timeout"
             ) as mock_schedule_clarification,
-            patch(
-                "app.services.agent.evolution.engine.trigger_skill_evolution"
-            ),
+            patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
-            await finalize_agent_stream_session(
-                session, MagicMock(), _approval(), _clarification(pending=True)
-            )
+            await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification(pending=True))
 
         mock_schedule_clarification.assert_called_once()

@@ -117,7 +117,11 @@ class DatabaseSubagentCatalog:
 
                 max_turns = agent_profile.max_iterations or 25
                 raw_workspace_policy = (agent_profile.metadata or {}).get("workspace_policy")
-                workspace_policy = _WP_MAP.get(str(raw_workspace_policy), WorkspacePolicy.INHERIT) if raw_workspace_policy else WorkspacePolicy.INHERIT
+                workspace_policy = (
+                    _WP_MAP.get(str(raw_workspace_policy), WorkspacePolicy.INHERIT)
+                    if raw_workspace_policy
+                    else WorkspacePolicy.INHERIT
+                )
 
                 return SubagentConfig(
                     system_prompt=agent_profile.system_prompt or "",

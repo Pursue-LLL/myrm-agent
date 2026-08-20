@@ -68,9 +68,7 @@ async def run_memory_ab_evaluation(
 
     spec = get_benchmark(request.benchmark_id)
     is_wb_bench = request.benchmark_id.startswith("wb-bench-")
-    if not is_known_benchmark(request.benchmark_id) or not (
-        is_wb_bench or (spec is not None and spec.supports_memory_ab)
-    ):
+    if not is_known_benchmark(request.benchmark_id) or not (is_wb_bench or (spec is not None and spec.supports_memory_ab)):
         return {
             "status": "error",
             "error": f"Benchmark does not support memory A/B: {request.benchmark_id}",

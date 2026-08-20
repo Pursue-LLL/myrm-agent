@@ -38,15 +38,17 @@ def verify_goals_enabled() -> None:
 router = APIRouter(prefix="/goals", tags=["goals"], dependencies=[Depends(verify_goals_enabled)])
 
 
-_NON_TERMINAL_STATUSES: frozenset[GoalStatus] = frozenset({
-    GoalStatus.ACTIVE,
-    GoalStatus.PAUSED,
-    GoalStatus.PENDING_APPROVAL,
-    GoalStatus.BUDGET_LIMITED,
-    GoalStatus.NEEDS_HUMAN_REVIEW,
-    GoalStatus.QUEUED,
-    GoalStatus.WAIT,
-})
+_NON_TERMINAL_STATUSES: frozenset[GoalStatus] = frozenset(
+    {
+        GoalStatus.ACTIVE,
+        GoalStatus.PAUSED,
+        GoalStatus.PENDING_APPROVAL,
+        GoalStatus.BUDGET_LIMITED,
+        GoalStatus.NEEDS_HUMAN_REVIEW,
+        GoalStatus.QUEUED,
+        GoalStatus.WAIT,
+    }
+)
 
 
 def _serialize_goal(goal: "Goal") -> dict[str, object]:

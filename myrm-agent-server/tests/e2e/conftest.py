@@ -23,9 +23,7 @@ _PREPARE_PREFIX = "E2E_PREPARE_JSON="
 from tests.support.e2e_runtime_guard import E2EResourceLedger  # noqa: E402
 
 
-def _read_prepare_result(
-    process: subprocess.Popen[str], timeout_sec: float
-) -> dict[str, object]:
+def _read_prepare_result(process: subprocess.Popen[str], timeout_sec: float) -> dict[str, object]:
     if process.stdout is None:
         raise RuntimeError("Subagent prepare stdout is unavailable")
     selector = selectors.DefaultSelector()
@@ -38,9 +36,7 @@ def _read_prepare_result(
                 remainder = process.stdout.read()
                 if remainder:
                     diagnostics.extend(remainder.splitlines())
-                raise RuntimeError(
-                    f"Subagent prepare exited {process.returncode}: {diagnostics[-20:]}"
-                )
+                raise RuntimeError(f"Subagent prepare exited {process.returncode}: {diagnostics[-20:]}")
             events = selector.select(timeout=min(1.0, deadline - time.monotonic()))
             if not events:
                 continue
@@ -64,10 +60,7 @@ def running_subagent(
 ) -> Iterator[dict[str, object]]:
     if shutil.which("bun") is None:
         pytest.skip("bun is required for subagent dashboard prepare")
-    if (
-        not os.environ.get("BASIC_API_KEY", "").strip()
-        or not os.environ.get("BASIC_MODEL", "").strip()
-    ):
+    if not os.environ.get("BASIC_API_KEY", "").strip() or not os.environ.get("BASIC_MODEL", "").strip():
         pytest.skip("BASIC_API_KEY and BASIC_MODEL are required")
     env = os.environ.copy()
     env["E2E_HOLD_MS"] = "600000"

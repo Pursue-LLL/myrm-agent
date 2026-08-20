@@ -101,14 +101,10 @@ class TestCreateProject:
         assert board_resp.status_code == 201
         board_id = board_resp.json()["board_id"]
 
-        project = _create_project(
-            client, [str(dir_a)], name="Into Board", board_id=board_id
-        )
+        project = _create_project(client, [str(dir_a)], name="Into Board", board_id=board_id)
         assert project["board_id"] == board_id
 
-    def test_create_project_forwards_advanced_settings_to_tasks(
-        self, client, tmp_path
-    ) -> None:
+    def test_create_project_forwards_advanced_settings_to_tasks(self, client, tmp_path) -> None:
         """agent_id / model_override / max_runtime_seconds / require_approval are
         persisted on the project and forwarded to every created Kanban task.
 
@@ -177,9 +173,7 @@ class TestCreateProject:
         assert settings["max_concurrent_tasks"] == 1
 
     @pytest.mark.asyncio
-    async def test_create_project_rolls_back_when_any_task_creation_fails(
-        self, client, tmp_path
-    ) -> None:
+    async def test_create_project_rolls_back_when_any_task_creation_fails(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
         from app.services.kanban import KanbanService
@@ -253,9 +247,7 @@ class TestListGetProjects:
         assert resp.status_code == 200
         body = resp.json()
         assert body["total"] >= 1
-        item = next(
-            i for i in body["items"] if i["project_id"] == project["project_id"]
-        )
+        item = next(i for i in body["items"] if i["project_id"] == project["project_id"])
         assert item["total_tasks"] == 2
         assert item["completed_tasks"] == 0
         assert item["artifact_patterns"] == ["**/test_*.py"]
@@ -310,9 +302,7 @@ class TestCancelDelete:
 
 class TestFinalize:
     @pytest.mark.asyncio
-    async def test_maybe_finalize_success_sends_notification(
-        self, client, tmp_path
-    ) -> None:
+    async def test_maybe_finalize_success_sends_notification(self, client, tmp_path) -> None:
         dir_a = tmp_path / "alpha"
         dir_b = tmp_path / "beta"
         dir_a.mkdir()
@@ -343,9 +333,7 @@ class TestFinalize:
             kwargs = mock_notify.await_args.kwargs
             assert kwargs["meta_data"]["status"] == "completed"
             assert kwargs["meta_data"]["completed"] == 2
-            assert (
-                kwargs["meta_data"]["action_url"] == f"/batch-directories/{project_id}"
-            )
+            assert kwargs["meta_data"]["action_url"] == f"/batch-directories/{project_id}"
 
         detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
         assert detail["status"] == "completed"
@@ -353,9 +341,7 @@ class TestFinalize:
         assert detail["finished_at"] is not None
 
     @pytest.mark.asyncio
-    async def test_maybe_finalize_partial_failure_marks_failed(
-        self, client, tmp_path
-    ) -> None:
+    async def test_maybe_finalize_partial_failure_marks_failed(self, client, tmp_path) -> None:
         dir_a = tmp_path / "alpha"
         dir_b = tmp_path / "beta"
         dir_a.mkdir()
@@ -399,9 +385,7 @@ class TestFinalize:
         assert detail["failed_tasks"] == 2
 
     @pytest.mark.asyncio
-    async def test_maybe_finalize_skips_when_tasks_pending(
-        self, client, tmp_path
-    ) -> None:
+    async def test_maybe_finalize_skips_when_tasks_pending(self, client, tmp_path) -> None:
         dir_a = tmp_path / "alpha"
         dir_b = tmp_path / "beta"
         dir_a.mkdir()
@@ -512,9 +496,7 @@ class TestDispatcherHook:
 
 class TestCancelRunningExecution:
     @pytest.mark.asyncio
-    async def test_cancel_project_cancels_running_task_before_archiving(
-        self, client, tmp_path
-    ) -> None:
+    async def test_cancel_project_cancels_running_task_before_archiving(self, client, tmp_path) -> None:
         """RUNNING tasks are cancelled in the dispatcher before being archived."""
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
@@ -555,9 +537,7 @@ class TestCancelRunningExecution:
 
 class TestArtifactVerification:
     @pytest.mark.asyncio
-    async def test_missing_artifacts_flagged_on_finalize(
-        self, client, tmp_path
-    ) -> None:
+    async def test_missing_artifacts_flagged_on_finalize(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -617,9 +597,7 @@ class TestArtifactVerification:
         assert detail["missing_artifact_directories"] == []
 
     @pytest.mark.asyncio
-    async def test_failed_directory_listed_in_failed_directories(
-        self, client, tmp_path
-    ) -> None:
+    async def test_failed_directory_listed_in_failed_directories(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -643,9 +621,7 @@ class TestArtifactVerification:
 
 class TestFinalizeIdempotency:
     @pytest.mark.asyncio
-    async def test_second_finalize_does_not_resend_notification(
-        self, client, tmp_path
-    ) -> None:
+    async def test_second_finalize_does_not_resend_notification(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -677,9 +653,7 @@ class TestFinalizeIdempotency:
 
 
 class TestArtifactPatternValidation:
-    def test_create_project_rejects_absolute_artifact_pattern(
-        self, client, tmp_path
-    ) -> None:
+    def test_create_project_rejects_absolute_artifact_pattern(self, client, tmp_path) -> None:
         dir_a = tmp_path / "alpha"
         dir_a.mkdir()
         resp = client.post(
@@ -693,9 +667,7 @@ class TestArtifactPatternValidation:
         )
         assert resp.status_code == 422
 
-    def test_create_project_rejects_traversal_artifact_pattern(
-        self, client, tmp_path
-    ) -> None:
+    def test_create_project_rejects_traversal_artifact_pattern(self, client, tmp_path) -> None:
         dir_a = tmp_path / "alpha"
         dir_a.mkdir()
         resp = client.post(
@@ -709,9 +681,7 @@ class TestArtifactPatternValidation:
         )
         assert resp.status_code == 422
 
-    def test_create_project_rejects_empty_artifact_pattern(
-        self, client, tmp_path
-    ) -> None:
+    def test_create_project_rejects_empty_artifact_pattern(self, client, tmp_path) -> None:
         dir_a = tmp_path / "alpha"
         dir_a.mkdir()
         resp = client.post(
@@ -725,9 +695,7 @@ class TestArtifactPatternValidation:
         )
         assert resp.status_code == 422
 
-    def test_verify_artifact_patterns_never_raises_on_absolute_pattern(
-        self, tmp_path
-    ) -> None:
+    def test_verify_artifact_patterns_never_raises_on_absolute_pattern(self, tmp_path) -> None:
         """Absolute-path globs raise NotImplementedError; the runtime check must swallow it."""
         from app.services.batch_directory._helpers import _verify_artifact_patterns
 
@@ -737,9 +705,7 @@ class TestArtifactPatternValidation:
 
 class TestCancelInReview:
     @pytest.mark.asyncio
-    async def test_cancel_project_rejects_in_review_task_before_archiving(
-        self, client, tmp_path
-    ) -> None:
+    async def test_cancel_project_rejects_in_review_task_before_archiving(self, client, tmp_path) -> None:
         """IN_REVIEW tasks cannot be manually moved out; they must be rejected first."""
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
@@ -768,9 +734,7 @@ class TestCancelInReview:
             mock_prop.return_value = fake_kanban
             result = await service.cancel_project(project_id)
 
-        fake_kanban.reject_task.assert_awaited_once_with(
-            task_id, reason="Batch project cancelled"
-        )
+        fake_kanban.reject_task.assert_awaited_once_with(task_id, reason="Batch project cancelled")
         fake_kanban.move_task.assert_awaited_once_with(
             task_id,
             TaskStatus.ARCHIVED,
@@ -783,9 +747,7 @@ class TestCancelInReview:
 
 class TestRetryFailed:
     @pytest.mark.asyncio
-    async def test_retry_failed_creates_new_tasks_and_reopens_project(
-        self, client, tmp_path
-    ) -> None:
+    async def test_retry_failed_creates_new_tasks_and_reopens_project(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -824,15 +786,11 @@ class TestRetryFailed:
 
         fresh = client.get(f"/api/v1/batch-directories/{project_id}").json()
         assert fresh["status"] == "running"
-        running_tasks = [
-            t for t in fresh["tasks"] if t["status"] == TaskStatus.READY.value
-        ]
+        running_tasks = [t for t in fresh["tasks"] if t["status"] == TaskStatus.READY.value]
         assert len(running_tasks) == 2
 
     @pytest.mark.asyncio
-    async def test_retry_failed_nothing_to_retry_keeps_state(
-        self, client, tmp_path
-    ) -> None:
+    async def test_retry_failed_nothing_to_retry_keeps_state(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -868,9 +826,7 @@ class TestRetryFailed:
         assert await service.retry_failed("does-not-exist") is None
 
     @pytest.mark.asyncio
-    async def test_retry_failed_does_not_overwrite_concurrent_cancel(
-        self, client, tmp_path
-    ) -> None:
+    async def test_retry_failed_does_not_overwrite_concurrent_cancel(self, client, tmp_path) -> None:
         """A concurrent cancel that flips the project to ``cancelled`` while
         retry is fanning out must win — retry reopens the project with a
         conditional ``expected_status`` guard, so a concurrent cancel is never
@@ -1017,9 +973,7 @@ class TestRetryTask:
 
 class TestRerunProject:
     @pytest.mark.asyncio
-    async def test_rerun_project_requeues_all_directories(
-        self, client, tmp_path
-    ) -> None:
+    async def test_rerun_project_requeues_all_directories(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1075,9 +1029,7 @@ class TestRerunProject:
 
 class TestDeleteProtection:
     @pytest.mark.asyncio
-    async def test_delete_rejects_project_with_active_tasks(
-        self, client, tmp_path
-    ) -> None:
+    async def test_delete_rejects_project_with_active_tasks(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1104,9 +1056,7 @@ class TestDeleteProtection:
 
 class TestRetryThenComplete:
     @pytest.mark.asyncio
-    async def test_project_reaches_completed_after_retry_succeeds(
-        self, client, tmp_path
-    ) -> None:
+    async def test_project_reaches_completed_after_retry_succeeds(self, client, tmp_path) -> None:
         """After retry, aggregation must key on the latest task per directory:
         once the fresh tasks succeed, the project reaches ``completed`` instead
         of being stuck forever with historical failures."""
@@ -1158,9 +1108,7 @@ class TestRetryThenComplete:
 
 class TestPauseResume:
     @pytest.mark.asyncio
-    async def test_pause_freezes_queue_and_running_tasks(
-        self, client, tmp_path
-    ) -> None:
+    async def test_pause_freezes_queue_and_running_tasks(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1275,9 +1223,7 @@ class TestPauseResume:
             await service.resume_project(project_id)
 
     @pytest.mark.asyncio
-    async def test_retry_and_rerun_rejected_while_paused(
-        self, client, tmp_path
-    ) -> None:
+    async def test_retry_and_rerun_rejected_while_paused(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1302,9 +1248,7 @@ class TestPauseResume:
             await service.rerun_project(project_id)
 
     @pytest.mark.asyncio
-    async def test_pause_cancels_running_execution_before_block(
-        self, client, tmp_path
-    ) -> None:
+    async def test_pause_cancels_running_execution_before_block(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1335,9 +1279,7 @@ class TestPauseResume:
         assert task_ids[0] in cancelled
 
     @pytest.mark.asyncio
-    async def test_pause_then_cancel_archives_frozen_tasks(
-        self, client, tmp_path
-    ) -> None:
+    async def test_pause_then_cancel_archives_frozen_tasks(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1361,9 +1303,7 @@ class TestPauseResume:
             assert task.status == TaskStatus.ARCHIVED.value
 
     @pytest.mark.asyncio
-    async def test_resume_without_frozen_tasks_still_reopens(
-        self, client, tmp_path
-    ) -> None:
+    async def test_resume_without_frozen_tasks_still_reopens(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1391,9 +1331,7 @@ class TestPauseResume:
         assert result["finished_at"] is None
 
     @pytest.mark.asyncio
-    async def test_resume_keeps_paused_when_unblock_fails(
-        self, client, tmp_path
-    ) -> None:
+    async def test_resume_keeps_paused_when_unblock_fails(self, client, tmp_path) -> None:
         from app.database.connection import get_session
         from app.database.models.kanban import KanbanTaskModel
 
@@ -1424,9 +1362,7 @@ class TestPauseResume:
             assert task.status == TaskStatus.BLOCKED.value
 
     @pytest.mark.asyncio
-    async def test_pause_skips_task_that_finished_during_freeze(
-        self, client, tmp_path
-    ) -> None:
+    async def test_pause_skips_task_that_finished_during_freeze(self, client, tmp_path) -> None:
         """W1: a task that reaches a terminal state after the pause snapshot
         (while the freeze is in flight) must keep its result and be skipped —
         no cancel/move is issued against it, avoiding a redundant re-run."""
@@ -1461,8 +1397,9 @@ class TestPauseResume:
             return task
 
         cancel_spy = AsyncMock(side_effect=lambda tid: real_cancel(tid))
-        with patch.object(service.kanban, "get_task", new=get_task_fresh), patch.object(
-            service.kanban, "cancel_task_execution", new=cancel_spy
+        with (
+            patch.object(service.kanban, "get_task", new=get_task_fresh),
+            patch.object(service.kanban, "cancel_task_execution", new=cancel_spy),
         ):
             result = await service.pause_project(project_id)
 
@@ -1483,9 +1420,7 @@ class TestPauseResume:
             assert task_b.status == TaskStatus.BLOCKED.value
 
     @pytest.mark.asyncio
-    async def test_resume_does_not_overwrite_concurrent_cancel(
-        self, client, tmp_path
-    ) -> None:
+    async def test_resume_does_not_overwrite_concurrent_cancel(self, client, tmp_path) -> None:
         """W2: when a concurrent cancel flips the project to ``cancelled``
         while resume is unblocking, resume must not overwrite it back to
         ``running`` — cancel wins, the state machine stays consistent."""
@@ -1599,17 +1534,18 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m1")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m1"))
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1635,17 +1571,18 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m2")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m2"))
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1674,18 +1611,19 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m4")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m4"))
         failed_dirs = [f"/tmp/dir-{i:02d}" for i in range(12)]
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1712,19 +1650,19 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m5")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m5"))
 
-        with patch.object(
-            settings, "app_base_url", "https://myrm.example.com/"
-        ), patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(settings, "app_base_url", "https://myrm.example.com/"),
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1745,12 +1683,13 @@ class TestChannelNotification:
         from app.services.batch_directory import _helpers
 
         sender = MagicMock()
-        with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=())
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
-        ) as mock_factory:
+        with (
+            patch.object(_helpers, "_load_agent_notify_targets", new=AsyncMock(return_value=())),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ) as mock_factory,
+        ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
                 project_name="Channel Test",
@@ -1764,9 +1703,7 @@ class TestChannelNotification:
             mock_factory.assert_not_called()
 
         # 未绑定 agent 时连 targets 解析都跳过
-        with patch.object(
-            _helpers, "_load_agent_notify_targets", new=AsyncMock()
-        ) as mock_load:
+        with patch.object(_helpers, "_load_agent_notify_targets", new=AsyncMock()) as mock_load:
             await _helpers._send_channel_notification(
                 agent_id=None,
                 project_name="Channel Test",
@@ -1786,17 +1723,18 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=False, channel="feishu", error="http 500")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=False, channel="feishu", error="http 500"))
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             # 投递失败不得抛异常
             await _helpers._send_channel_notification(
@@ -1813,13 +1751,16 @@ class TestChannelNotification:
 
         # 发送抛异常同样静默
         sender.send = AsyncMock(side_effect=RuntimeError("boom"))
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1837,13 +1778,16 @@ class TestChannelNotification:
         """Sender construction failure degrades to no push without raising."""
         from app.services.batch_directory import _helpers
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            side_effect=RuntimeError("no credential"),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                side_effect=RuntimeError("no credential"),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1861,13 +1805,16 @@ class TestChannelNotification:
         """Sender build returning None degrades to no push without raising."""
         from app.services.batch_directory import _helpers
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=None,
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=None,
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1890,22 +1837,23 @@ class TestChannelNotification:
             self._target("feishu", "u-1"),
             self._target("dingtalk", "u-2"),
         ]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m"))
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(
-                return_value=(
-                    {"channel": "feishu", "recipient_id": "u-1"},
-                    {"channel": "dingtalk", "recipient_id": "u-2"},
-                )
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(
+                    return_value=(
+                        {"channel": "feishu", "recipient_id": "u-1"},
+                        {"channel": "dingtalk", "recipient_id": "u-2"},
+                    )
+                ),
             ),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1930,17 +1878,18 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m"))
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",
@@ -1977,11 +1926,7 @@ class TestChannelNotification:
                 AgentProfile(
                     id="batch-channel-agent",
                     display_name="Batch Agent",
-                    metadata={
-                        "notify_targets": [
-                            {"channel": "feishu", "recipient_id": "u-1", "label": "ops"}
-                        ]
-                    },
+                    metadata={"notify_targets": [{"channel": "feishu", "recipient_id": "u-1", "label": "ops"}]},
                 ),
             )
             await session.commit()
@@ -2018,18 +1963,19 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m3")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m3"))
 
         service = BatchDirectoryService.get_instance()
-        with patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
-        ), patch(
-            "app.services.infra.system_notification.SystemNotificationService.create_notification",
-            new_callable=AsyncMock,
-        ) as mock_notify:
+        with (
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
+            patch(
+                "app.services.infra.system_notification.SystemNotificationService.create_notification",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+        ):
             await service.maybe_finalize(project_id)
 
         sender.send.assert_awaited_once()
@@ -2044,9 +1990,7 @@ class TestChannelNotification:
         assert detail["agent_id"] == "batch-channel-agent"
 
     @pytest.mark.asyncio
-    async def test_notify_disabled_skips_all_notifications(
-        self, client, tmp_path
-    ) -> None:
+    async def test_notify_disabled_skips_all_notifications(self, client, tmp_path) -> None:
         """notify_enabled=False suppresses both in-app and channel notifications
         while the project still reaches its terminal state."""
         from myrm_agent_harness.backends.profiles.types import AgentProfile
@@ -2060,11 +2004,7 @@ class TestChannelNotification:
                 AgentProfile(
                     id="batch-silent-agent",
                     display_name="Silent Agent",
-                    metadata={
-                        "notify_targets": [
-                            {"channel": "feishu", "recipient_id": "u-1", "label": "ops"}
-                        ]
-                    },
+                    metadata={"notify_targets": [{"channel": "feishu", "recipient_id": "u-1", "label": "ops"}]},
                 ),
             )
             await session.commit()
@@ -2101,18 +2041,19 @@ class TestChannelNotification:
         target = self._target()
         sender = MagicMock()
         sender.list_available_targets.return_value = [target]
-        sender.send = AsyncMock(
-            return_value=NotifyResult(success=True, channel="feishu", message_id="m6")
-        )
+        sender.send = AsyncMock(return_value=NotifyResult(success=True, channel="feishu", message_id="m6"))
 
         service = BatchDirectoryService.get_instance()
-        with patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
-        ), patch(
-            "app.services.infra.system_notification.SystemNotificationService.create_notification",
-            new_callable=AsyncMock,
-        ) as mock_notify:
+        with (
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
+            patch(
+                "app.services.infra.system_notification.SystemNotificationService.create_notification",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+        ):
             await service.maybe_finalize(project_id)
 
         mock_notify.assert_not_awaited()
@@ -2227,9 +2168,7 @@ class TestEdgeCaseCoverage:
         assert project["directories"] == [str(dir_a)]
 
     @pytest.mark.asyncio
-    async def test_read_path_self_heals_after_manual_terminal_move(
-        self, client, tmp_path
-    ) -> None:
+    async def test_read_path_self_heals_after_manual_terminal_move(self, client, tmp_path) -> None:
         """REST-moved tasks (no dispatcher event) are finalized on the read path:
         get_project must trigger the terminal detection and fire notifications."""
         import asyncio
@@ -2329,13 +2268,16 @@ class TestEdgeCaseCoverage:
         sender.list_available_targets.return_value = [target]
         sender.send = AsyncMock(side_effect=RuntimeError("gateway down"))
 
-        with patch.object(
-            _helpers,
-            "_load_agent_notify_targets",
-            new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
-        ), patch(
-            "app.services.agent.outbound_notify.sender.create_notification_sender",
-            return_value=(sender, None),
+        with (
+            patch.object(
+                _helpers,
+                "_load_agent_notify_targets",
+                new=AsyncMock(return_value=({"channel": "feishu", "recipient_id": "u-1"},)),
+            ),
+            patch(
+                "app.services.agent.outbound_notify.sender.create_notification_sender",
+                return_value=(sender, None),
+            ),
         ):
             await _helpers._send_channel_notification(
                 agent_id="ag-1",

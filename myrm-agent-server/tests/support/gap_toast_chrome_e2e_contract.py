@@ -54,12 +54,8 @@ def find_agent_stream_violations(path: Path) -> list[str]:
                 "(use integration tier for API SSE; browser-only in E2E)"
             )
             break
-        if _AGENT_STREAM_PATH.search(line) and (
-            "urlopen" in line or "httpx" in line and "stream" in line
-        ):
-            violations.append(
-                f"{path.name}:{line_no}: HTTP client to agent-stream forbidden in gap E2E"
-            )
+        if _AGENT_STREAM_PATH.search(line) and ("urlopen" in line or "httpx" in line and "stream" in line):
+            violations.append(f"{path.name}:{line_no}: HTTP client to agent-stream forbidden in gap E2E")
     return violations
 
 

@@ -41,9 +41,7 @@ router = APIRouter()
 _MARKETPLACE_SIGN_SECRET_ENV = "MARKETPLACE_CP_SIGNING_SECRET"
 _MARKETPLACE_REQUIRE_SIGNATURE_ENV = "MARKETPLACE_REQUIRE_CP_SIGNATURE"
 
-_SENSITIVE_AUTH_FIELDS = frozenset(
-    {"api_key", "bearer_token", "client_secret", "password", "username"}
-)
+_SENSITIVE_AUTH_FIELDS = frozenset({"api_key", "bearer_token", "client_secret", "password", "username"})
 
 
 class AgentCloneRequest(BaseModel):
@@ -97,9 +95,7 @@ async def export_agent(
                 try:
                     members.append(await _export_single_agent(mid))
                 except HTTPException:
-                    logger.warning(
-                        "Skipping missing subagent %s during team export", mid
-                    )
+                    logger.warning("Skipping missing subagent %s during team export", mid)
             return success_response(
                 data={
                     "_export_version": 1,
@@ -179,9 +175,7 @@ async def marketplace_import_agent(
     from app.services.agent.marketplace import import_agent_package
 
     try:
-        package_payload, marketplace_entry_id = _parse_marketplace_import_request_body(
-            body
-        )
+        package_payload, marketplace_entry_id = _parse_marketplace_import_request_body(body)
         require_signature, signature_secret = _marketplace_signature_policy()
         agent_id = await import_agent_package(
             skill_creation_service,
@@ -199,8 +193,7 @@ async def marketplace_import_agent(
             if not os.getenv("PYTEST_CURRENT_TEST"):
                 raise not_found_error("Imported agent")
             logger.warning(
-                "Marketplace import created agent %s but immediate readback was unavailable; "
-                "returning minimal response payload",
+                "Marketplace import created agent %s but immediate readback was unavailable; returning minimal response payload",
                 agent_id,
             )
             return success_response(
@@ -229,21 +222,15 @@ async def clone_agent(
             raise not_found_error("Agent")
 
         agent_resp = _to_agent_response(agent, show_system_prompt=True)
-        clone_data = agent_resp.model_dump(
-            exclude={"id", "user_id", "created_at", "updated_at"}
-        )
+        clone_data = agent_resp.model_dump(exclude={"id", "user_id", "created_at", "updated_at"})
 
         clone_data["home_directory"] = None
 
-        if isinstance(clone_data.get("avatar_url"), str) and clone_data[
-            "avatar_url"
-        ].startswith("home://"):
+        if isinstance(clone_data.get("avatar_url"), str) and clone_data["avatar_url"].startswith("home://"):
             clone_data["avatar_url"] = None
 
         original_name = clone_data.get("name") or "Agent"
-        clone_data["name"] = (
-            body.name if body and body.name else f"{original_name} (Copy)"
-        )
+        clone_data["name"] = body.name if body and body.name else f"{original_name} (Copy)"
         clone_data["is_built_in"] = False
 
         new_agent_data = AgentCreate.model_validate(clone_data)

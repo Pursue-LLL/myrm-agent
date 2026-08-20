@@ -188,9 +188,7 @@ def snapshot_live_e2e_processes(
 ) -> E2EParallelSnapshot:
     tmp = Path(os.environ.get("TMPDIR", "/tmp"))
     stream_path = agent_stream_lock_path or (tmp / "myrm-live-agent-stream.lock")
-    desktop_path = desktop_approval_lock_path or (
-        tmp / "myrm-desktop-approval-e2e.lock"
-    )
+    desktop_path = desktop_approval_lock_path or (tmp / "myrm-desktop-approval-e2e.lock")
     return E2EParallelSnapshot(
         agent_stream_lock=read_e2e_lock_holder(stream_path),
         desktop_approval_lock=read_e2e_lock_holder(desktop_path),
@@ -201,14 +199,8 @@ def snapshot_live_e2e_processes(
 def parallel_snapshot_to_dict(snapshot: E2EParallelSnapshot) -> dict[str, object]:
     sessions = list_live_e2e_sessions()
     return {
-        "agent_stream_lock": (
-            asdict(snapshot.agent_stream_lock) if snapshot.agent_stream_lock else None
-        ),
-        "desktop_approval_lock": (
-            asdict(snapshot.desktop_approval_lock)
-            if snapshot.desktop_approval_lock
-            else None
-        ),
+        "agent_stream_lock": (asdict(snapshot.agent_stream_lock) if snapshot.agent_stream_lock else None),
+        "desktop_approval_lock": (asdict(snapshot.desktop_approval_lock) if snapshot.desktop_approval_lock else None),
         "active_tests": [asdict(row) for row in snapshot.active_tests],
         "active_test_count": len(snapshot.active_tests),
         "admit_active_count": admit_active_count(sessions),
@@ -221,9 +213,7 @@ def format_parallel_snapshot_human(snapshot: E2EParallelSnapshot) -> list[str]:
     if snapshot.active_tests:
         for row in snapshot.active_tests:
             detail = (
-                "E2E_PARALLEL_ACTIVE: "
-                f"pid={row.pid} state={row.state} process_elapsed={row.elapsed_sec:.0f}s "
-                f"test={row.test_id}"
+                f"E2E_PARALLEL_ACTIVE: pid={row.pid} state={row.state} process_elapsed={row.elapsed_sec:.0f}s test={row.test_id}"
             )
             if row.current_node:
                 detail += f" current_node={row.current_node}"

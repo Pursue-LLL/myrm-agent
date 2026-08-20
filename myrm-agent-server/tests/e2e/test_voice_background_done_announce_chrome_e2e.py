@@ -227,9 +227,7 @@ def test_voice_background_done_dispatches_announce_event() -> None:
                 # Arm listeners first so no event is missed.
                 armed = client.evaluate(page, _VOICE_BG_DONE_LISTENER_JS, timeout_sec=10.0)
                 assert armed.get("armed") is True, armed
-                sys_armed = client.evaluate(
-                    page, _SYSTEM_NOTIFICATION_LISTENER_JS, timeout_sec=10.0
-                )
+                sys_armed = client.evaluate(page, _SYSTEM_NOTIFICATION_LISTENER_JS, timeout_sec=10.0)
                 assert sys_armed.get("armed") is True, sys_armed
 
                 # Warm-shell reuse may leave a SHPOIB private apiBase on this page while
@@ -241,17 +239,13 @@ def test_voice_background_done_dispatches_announce_event() -> None:
                     _PIN_API_BASE_JS_TEMPLATE.replace("{api_base}", api_base),
                     timeout_sec=10.0,
                 )
-                assert isinstance(pinned, dict) and str(pinned.get("apiBase") or "").rstrip(
-                    "/"
-                ) == api_base.rstrip("/"), pinned
+                assert isinstance(pinned, dict) and str(pinned.get("apiBase") or "").rstrip("/") == api_base.rstrip("/"), pinned
 
                 # Install the SSE bridge so real stream frames reach this page through
                 # BroadcastChannel regardless of which tab owns SSE leadership.
                 bridge_install = client.evaluate(
                     page,
-                    _SSE_BRIDGE_INSTALL_JS_TEMPLATE.replace(
-                        "{sse_url}", f"{api_base}/api/v1/notifications/stream"
-                    ),
+                    _SSE_BRIDGE_INSTALL_JS_TEMPLATE.replace("{sse_url}", f"{api_base}/api/v1/notifications/stream"),
                     timeout_sec=10.0,
                 )
                 assert bridge_install.get("installed") is True, bridge_install
@@ -318,16 +312,13 @@ def test_voice_background_done_dispatches_announce_event() -> None:
                     f"{ui_url}/{chat_id}",
                     timeout_ms=60_000,
                 )
-                message_ready = wait_for_state(
-                    client, page, _CHAT_MESSAGE_VISIBLE_JS, timeout_sec=60.0
-                )
+                message_ready = wait_for_state(client, page, _CHAT_MESSAGE_VISIBLE_JS, timeout_sec=60.0)
                 assert message_ready.get("ready") is True, message_ready
             break
         except (RuntimeError, TimeoutError, AssertionError) as exc:
             last_open_error = exc
             print(
-                f"[voice-bg-e2e] attempt={attempt} failed: "
-                f"{type(exc).__name__}: {str(exc)[:220]}",
+                f"[voice-bg-e2e] attempt={attempt} failed: {type(exc).__name__}: {str(exc)[:220]}",
                 flush=True,
             )
             time.sleep(3.0)

@@ -69,9 +69,7 @@ async def test_list_evolution_review_records_respects_sql_limit() -> None:
 @pytest.mark.asyncio
 async def test_list_evolution_review_records_pending_only_filters_in_sql() -> None:
     pending = await _create_record(growth_status=EvolutionGrowthStatus.PENDING_REVIEW)
-    apply_failed = await _create_record(
-        growth_status=EvolutionGrowthStatus.APPLY_FAILED
-    )
+    apply_failed = await _create_record(growth_status=EvolutionGrowthStatus.APPLY_FAILED)
     await _create_record(
         growth_status=EvolutionGrowthStatus.APPROVED,
         approval_status="APPROVED",
@@ -86,9 +84,7 @@ async def test_list_evolution_review_records_pending_only_filters_in_sql() -> No
 
     assert pending_ids == {pending.id, apply_failed.id}
     assert all(
-        record.status
-        in {EvolutionGrowthStatus.PENDING_REVIEW, EvolutionGrowthStatus.APPLY_FAILED}
-        for record in pending_records
+        record.status in {EvolutionGrowthStatus.PENDING_REVIEW, EvolutionGrowthStatus.APPLY_FAILED} for record in pending_records
     )
 
 

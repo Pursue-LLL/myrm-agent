@@ -41,17 +41,13 @@ class PluginStaging:
             with open(path, "wb") as f:
                 pickle.dump(session, f)
         except Exception as exc:
-            logger.error(
-                "Failed to save plugin staging session %s: %s", session_id, exc
-            )
+            logger.error("Failed to save plugin staging session %s: %s", session_id, exc)
             raise RuntimeError("Failed to persist the plugin import session.") from exc
 
     def load_session(self, session_id: str) -> PluginImportSession:
         path = self._session_path(session_id)
         if not path.exists():
-            raise FileNotFoundError(
-                f"Plugin import session {session_id} not found in staging area."
-            )
+            raise FileNotFoundError(f"Plugin import session {session_id} not found in staging area.")
         try:
             with open(path, "rb") as f:
                 loaded = pickle.load(f)  # noqa: S301
@@ -59,9 +55,7 @@ class PluginStaging:
                 raise RuntimeError("Plugin staging session is corrupted")
             return loaded
         except Exception as exc:
-            logger.error(
-                "Failed to load plugin staging session %s: %s", session_id, exc
-            )
+            logger.error("Failed to load plugin staging session %s: %s", session_id, exc)
             raise RuntimeError("Failed to read the plugin import session.") from exc
 
     def cleanup_session(self, session_id: str) -> None:
@@ -70,9 +64,7 @@ class PluginStaging:
             try:
                 path.unlink()
             except OSError as exc:
-                logger.warning(
-                    "Failed to cleanup plugin staging file %s: %s", path, exc
-                )
+                logger.warning("Failed to cleanup plugin staging file %s: %s", path, exc)
 
     def _cleanup_expired_sessions_sync(self) -> None:
         """Remove plugin sessions older than the TTL (abandoned uploads)."""

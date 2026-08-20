@@ -81,11 +81,7 @@ def test_agent_stream_tools_snapshot_semantic_layer_slugs(
     assert isinstance(snapshot_rows, list), "tools_snapshot data must be a list"
     assert snapshot_rows, "tools_snapshot must not be empty"
 
-    by_name = {
-        row["name"]: row
-        for row in snapshot_rows
-        if isinstance(row, dict) and isinstance(row.get("name"), str)
-    }
+    by_name = {row["name"]: row for row in snapshot_rows if isinstance(row, dict) and isinstance(row.get("name"), str)}
     assert "web_search_tool" in by_name, "web_search_tool must be Turn1 bound"
     assert by_name["web_search_tool"].get("layer") == "common"
     assert "bash_code_execute_tool" in by_name

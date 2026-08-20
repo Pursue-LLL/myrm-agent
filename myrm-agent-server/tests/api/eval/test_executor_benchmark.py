@@ -35,9 +35,7 @@ async def test_benchmark_mode_overrides_user_config():
     executor = LocalEvalExecutor(profile_id="test_profile", benchmark_mode=True)
     assert executor.benchmark_mode is True
 
-    with patch(
-        "app.core.eval.executor.AgentFactory.create_general_agent"
-    ) as mock_factory:
+    with patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_factory:
         mock_agent = MagicMock()
         mock_agent.close = AsyncMock()
 
@@ -53,12 +51,8 @@ async def test_benchmark_mode_overrides_user_config():
             mock_cfg.mcp_dict = {"server1": {"url": "http://mcp"}}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {"user_instructions": "My custom prompt"}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test-model", apiKey="key"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test-model", apiKey="key")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_cfg.search_is_user_configured = True
             mock_configs.return_value = mock_cfg
 
@@ -99,9 +93,7 @@ async def test_normal_mode_preserves_user_config():
     executor = LocalEvalExecutor()
     assert executor.benchmark_mode is False
 
-    with patch(
-        "app.core.eval.executor.AgentFactory.create_general_agent"
-    ) as mock_factory:
+    with patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_factory:
         mock_agent = MagicMock()
         mock_agent.close = AsyncMock()
 
@@ -117,12 +109,8 @@ async def test_normal_mode_preserves_user_config():
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test-model", apiKey="key"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test-model", apiKey="key")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_cfg.search_is_user_configured = False
             mock_configs.return_value = mock_cfg
 
@@ -165,13 +153,9 @@ async def test_resolve_shared_contexts_false_skips_injection():
     agent_types_mod.RerankerConfig = RerankerConfig
     GeneralAgentParams.model_rebuild()
 
-    executor = LocalEvalExecutor(
-        profile_id="p1", benchmark_mode=False, resolve_shared_contexts=False
-    )
+    executor = LocalEvalExecutor(profile_id="p1", benchmark_mode=False, resolve_shared_contexts=False)
 
-    with patch(
-        "app.core.eval.executor.AgentFactory.create_general_agent"
-    ) as mock_factory:
+    with patch("app.core.eval.executor.AgentFactory.create_general_agent") as mock_factory:
         mock_agent = MagicMock()
         mock_agent.close = AsyncMock()
 
@@ -193,12 +177,8 @@ async def test_resolve_shared_contexts_false_skips_injection():
             mock_cfg.mcp_dict = {}
             mock_cfg.providers_dict = {}
             mock_cfg.personal_settings_dict = {}
-            mock_cfg.model_cfg = ModelConfig(
-                provider="test", model="test-model", apiKey="key"
-            )
-            mock_cfg.search_cfg = SearchServiceConfig(
-                provider="tavily", searchService="tavily"
-            )
+            mock_cfg.model_cfg = ModelConfig(provider="test", model="test-model", apiKey="key")
+            mock_cfg.search_cfg = SearchServiceConfig(provider="tavily", searchService="tavily")
             mock_cfg.search_is_user_configured = False
             mock_configs.return_value = mock_cfg
 

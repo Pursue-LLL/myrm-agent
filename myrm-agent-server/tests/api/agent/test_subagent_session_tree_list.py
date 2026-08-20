@@ -390,16 +390,12 @@ async def test_steer_subagent_success_and_404(client: AsyncClient) -> None:
     mock_manager.steer_child.return_value = True
 
     with patch("app.api.agents.subagents.ACTIVE_SUBAGENTS", {task_id: mock_manager}):
-        ok = await client.post(
-            f"/api/v1/chats/{chat_id}/subagents/{task_id}/steer", json={"message": "go"}
-        )
+        ok = await client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/steer", json={"message": "go"})
         assert ok.status_code == 200
         assert ok.json()["data"]["steered"] is True
         mock_manager.steer_child.assert_called_once_with(task_id, "go")
 
-        missing = await client.post(
-            f"/api/v1/chats/{chat_id}/subagents/ghost/steer", json={"message": "go"}
-        )
+        missing = await client.post(f"/api/v1/chats/{chat_id}/subagents/ghost/steer", json={"message": "go"})
         assert missing.status_code == 404
 
 
@@ -412,9 +408,7 @@ async def test_steer_subagent_returns_400_when_steer_fails(client: AsyncClient) 
     mock_manager.steer_child.return_value = False
 
     with patch("app.api.agents.subagents.ACTIVE_SUBAGENTS", {task_id: mock_manager}):
-        resp = await client.post(
-            f"/api/v1/chats/{chat_id}/subagents/{task_id}/steer", json={"message": "go"}
-        )
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/steer", json={"message": "go"})
 
     assert resp.status_code == 400
 
