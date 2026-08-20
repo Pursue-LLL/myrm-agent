@@ -40,7 +40,7 @@ async def test_server_init_database_live_lifecycle_and_schema_gate(
         await init_database()
 
         # 2. Check on-disk sqlite user_version matches migration statements count
-        expected_ver = len(MIGRATION_STATEMENTS)
+        expected_ver = len(MIGRATION_STATEMENTS) - 1
         with sqlite3.connect(str(test_db_file)) as conn:
             row = conn.execute("PRAGMA user_version").fetchone()
             assert row is not None and row[0] == expected_ver

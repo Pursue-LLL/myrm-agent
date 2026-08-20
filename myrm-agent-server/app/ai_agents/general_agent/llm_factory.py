@@ -19,8 +19,7 @@ from __future__ import annotations
 import logging
 
 from langchain_core.language_models import BaseChatModel
-from myrm_agent_harness.toolkits.llms import llm_manager
-from myrm_agent_harness.toolkits.llms.fallback import ManagedLLM, ScenarioType
+from myrm_agent_harness.toolkits.llms import ManagedLLM, ScenarioType, llm_manager
 
 from app.core.types import ModelConfig
 

@@ -109,7 +109,7 @@ async def init_database() -> None:
     from app.database.migrations import MIGRATION_STATEMENTS
 
     if MIGRATION_STATEMENTS:
-        latest_expected_version = len(MIGRATION_STATEMENTS)
+        latest_expected_version = len(MIGRATION_STATEMENTS) - 1
         server_caps = StorageCapabilities(
             schema_version=latest_expected_version,
             min_compatible_version=1,

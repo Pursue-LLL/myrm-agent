@@ -9,7 +9,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils/classnameUtils';
 
 const emptyStateVariants = cva(
-  'flex flex-col items-center justify-center text-center transition-all duration-200',
+  'flex flex-col items-center justify-center text-center transition-all duration-200 animate-in fade-in-50',
   {
     variants: {
       variant: {
@@ -17,6 +17,7 @@ const emptyStateVariants = cva(
         dashed: 'rounded-xl border border-dashed border-border/60 bg-muted/10 py-10 px-4',
         compact: 'py-6 px-3',
         card: 'rounded-xl border border-border/50 bg-card/60 p-6 shadow-sm',
+        error: 'rounded-xl border border-destructive/20 bg-destructive/5 py-10 px-4',
       },
     },
     defaultVariants: {
