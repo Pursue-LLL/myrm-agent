@@ -260,11 +260,11 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
             categories_hit = _count_category_hits(benchmark_results)
             categories_dict = _build_categories_dict(benchmark_results)
             evidence = (
-                f"Golden recall benchmark: {summary.passed_count}/{summary.case_count} cases passed; "
+                f"Golden recall: {summary.passed_count}/{summary.case_count} passed; "
                 f"recall@5={summary.recall_at_k:.2f}, ndcg@5={summary.ndcg_at_k:.2f}, "
                 f"mrr={summary.mrr_score:.2f}, precision@5={summary.precision_at_k:.2f}, "
-                f"duplicate_rate={summary.duplicate_rate:.2f}, distinct_sources={summary.distinct_source_ratio:.2f}, "
-                f"latency_p50={summary.latency_p50_ms:.0f}ms, latency_p95={summary.latency_p95_ms:.0f}ms. "
+                f"dup={summary.duplicate_rate:.2f}, distinct={summary.distinct_source_ratio:.2f}, "
+                f"p50={summary.latency_p50_ms:.0f}ms, p95={summary.latency_p95_ms:.0f}ms. "
                 f"Categories: {categories_hit}."
             )
             probe = MemoryCommandDiagnosticProbeResult(
@@ -274,9 +274,7 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                 status=summary.status,
                 evidence=evidence,
                 impact="Synthetic recall checks verify memory write-then-retrieve across 9 categories and 2 languages.",
-                next_action="No action required."
-                if summary.status == "ready"
-                else "Review retrieval trace and rerun diagnostics.",
+                next_action="No action required." if summary.status == "ready" else "Review retrieval trace.",
                 safe_to_retry=True,
                 duration_ms=round((perf_counter() - started) * 1000, 2),
                 benchmark_summary=MemoryCommandBenchmarkSummary(
