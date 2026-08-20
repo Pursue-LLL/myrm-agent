@@ -29,7 +29,8 @@ async def test_run_golden_recall_benchmark_no_vector() -> None:
 @pytest.mark.asyncio
 async def test_run_golden_recall_benchmark_mock_manager() -> None:
     from unittest.mock import AsyncMock, MagicMock
-    from myrm_agent_harness.toolkits.memory.types import SemanticMemory, EpisodicMemory
+
+    from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, SemanticMemory
 
     mock_manager = MagicMock()
     mock_manager.has_vector = True
