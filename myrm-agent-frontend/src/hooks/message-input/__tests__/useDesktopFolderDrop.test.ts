@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { normalizeDesktopPath, useDesktopFolderDrop } from '../useDesktopFolderDrop';
 import * as tauriLib from '@/lib/tauri';
 import * as chatService from '@/services/chat';
@@ -77,9 +77,11 @@ describe('useDesktopFolderDrop', () => {
 
     const { unmount } = renderHook(() => useDesktopFolderDrop());
 
-    expect(tauriLib.listenTauriEvent).toHaveBeenCalledWith('tauri://drag-drop', expect.any(Function));
-    expect(tauriLib.listenTauriEvent).toHaveBeenCalledWith('tauri://drag-enter', expect.any(Function));
-    expect(tauriLib.listenTauriEvent).toHaveBeenCalledWith('tauri://drag-leave', expect.any(Function));
+    await waitFor(() => {
+      expect(tauriLib.listenTauriEvent).toHaveBeenCalledWith('tauri://drag-drop', expect.any(Function));
+      expect(tauriLib.listenTauriEvent).toHaveBeenCalledWith('tauri://drag-enter', expect.any(Function));
+      expect(tauriLib.listenTauriEvent).toHaveBeenCalledWith('tauri://drag-leave', expect.any(Function));
+    });
 
     unmount();
     expect(unlistenMock).toHaveBeenCalled();

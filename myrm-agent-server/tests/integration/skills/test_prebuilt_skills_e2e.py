@@ -53,7 +53,9 @@ async def test_prebuilt_pipeline_lists_all_seeds(
     sync_result = await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
     assert len(sync_result.skill_ids) >= 12
 
-    await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
+    await skills_service.user_config.ensure_prebuilt_enabled_after_sync(
+        list(sync_result.skill_ids)
+    )
 
     listed = await skills_service.list_skills()
     prebuilt_ids = {s.id for s in listed if s.type.value == "prebuilt"}
@@ -452,25 +454,66 @@ async def test_tdd_skill_v120_contract_guard(
         assert heading in body, f"missing v1.2.0 body section: {heading}"
     assert '"The source text changed"' in body, "missing Gate Function 4th branch"
     assert "run the artifact and assert its effects" in body
-    assert '"The test passes immediately"' in body, "missing Red Flags test-passes-immediately"
+    assert (
+        '"The test passes immediately"' in body
+    ), "missing Red Flags test-passes-immediately"
     assert "Fix the test to fail first" in body
-    assert '"Can\'t explain why test failed"' in body, "missing Red Flags cant-explain-why-failed"
+    assert (
+        '"Can\'t explain why test failed"' in body
+    ), "missing Red Flags cant-explain-why-failed"
     assert "Figure out the failure cause first" in body
     assert "Test errors?" in body, "missing RED test-errors-discipline"
     assert "re-run until it fails for the right reason" in body
-    assert "confirm it FAILS for the expected reason" in body, "missing RED expected-reason wording"
+    assert (
+        "confirm it FAILS for the expected reason" in body
+    ), "missing RED expected-reason wording"
     assert "Test passes?" in body, "missing RED test-passes-discipline"
     assert "a test that passes immediately protects nothing" in body
     assert "It's OK to cheat in GREEN" in body, "missing GREEN cheat-permission"
     assert "REFACTOR is where they get cleaned up" in body
-    assert "If tests fail during refactor" in body, "missing REFACTOR rollback instruction"
+    assert (
+        "If tests fail during refactor" in body
+    ), "missing REFACTOR rollback instruction"
     assert "undo immediately, take smaller steps" in body
     assert "Don't add behavior" in body, "missing REFACTOR no-behavior discipline"
     assert "changes how code is structured, not what it does" in body
-    assert "output pristine (no errors, warnings)" in body, "missing GREEN pristine check"
+    assert (
+        "output pristine (no errors, warnings)" in body
+    ), "missing GREEN pristine check"
     assert "skipping edge cases" in body, "missing GREEN cheat-permission edge-cases"
     assert "### Repeat" in body, "missing Repeat cycle section"
     assert "one cycle at a time" in body
+
+
+@pytest.mark.asyncio
+async def test_full_pipeline_export_prebuilt_as_agent_plugin_and_validate(
+    skills_service: SkillsService,
+) -> None:
+    """Full unmocked integration: sync prebuilt → package_skill as agent_plugin → AgentPluginParser validate."""
+    from myrm_agent_harness.agent.plugins.parser import AgentPluginParser
+    from app.core.skills.packaging import SkillPackagingService
+
+    await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
+
+    pkg_service = SkillPackagingService(skills_svc=skills_service)
+    export_res = await pkg_service.package_skill(
+        "code-review", export_format="agent_plugin"
+    )
+
+    assert export_res.success
+    assert export_res.filename == "code-review_v1.2.0.zip"
+    assert export_res.zip_content is not None
+
+    # 反向自解全链路校验
+    parser = AgentPluginParser()
+    parsed = parser.parse_zip(export_res.zip_content)
+
+    assert parsed.meta is not None
+    assert parsed.meta.name == "code-review"
+    assert len(parsed.skills) == 1
+    assert parsed.skills[0].name == "code-review"
+    assert "SKILL.md" in parsed.skills[0].files
+    assert len(parsed.diagnostics) == 0
 
     ref_path = get_skill_file_path(
         SkillType.PREBUILT,

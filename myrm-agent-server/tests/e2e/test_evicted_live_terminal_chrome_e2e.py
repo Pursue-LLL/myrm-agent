@@ -163,9 +163,7 @@ def _run_drawer_flow(
     clicked = wait_for_state(client, page, _VIEW_FULL_OUTPUT_JS, timeout_sec=120.0)
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
 
-    mounted = wait_for_state(
-        client, page, _DRAWER_MOUNT_WAIT_JS, timeout_sec=90.0
-    )
+    mounted = wait_for_state(client, page, _DRAWER_MOUNT_WAIT_JS, timeout_sec=90.0)
     assert mounted.get("ready") is True, json.dumps(mounted, ensure_ascii=False)
 
     # Diagnostic: capture drawer DOM + probe state right after mount, so a

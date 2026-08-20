@@ -162,7 +162,11 @@ class SkillPackagingService:
                 )
 
             # Actual packaging: 根据 export_format 选择打包规范
-            version_str = str(lineage_version) if lineage_version is not None else (skill.version or "1.0.0")
+            version_str = (
+                str(lineage_version)
+                if lineage_version is not None
+                else (skill.version or "1.0.0")
+            )
             if export_format == "raw_skill":
                 pack_result = self._packer.package_files(
                     skill.name, version_str, file_contents
@@ -319,9 +323,7 @@ class SkillPackagingService:
                 skill_md = files.get(SKILL_MD_FILE, b"").decode(
                     "utf-8", errors="replace"
                 )
-                path = get_skill_file_path(
-                    SkillType.PREBUILT, skill.id, SKILL_MD_FILE
-                )
+                path = get_skill_file_path(SkillType.PREBUILT, skill.id, SKILL_MD_FILE)
                 record = SkillRecord(
                     skill_id=skill.id,
                     name=skill.name,

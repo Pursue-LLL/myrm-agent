@@ -186,13 +186,32 @@ def _monaco_ready_js() -> str:
     })()"""
 
 
-def _focus_monaco_js() -> str:
+def _monaco_type_js(text: str) -> str:
+    # Monaco listens on its hidden textarea for InputEvent(inputType:'insertText');
+    # dispatch per-char so the editor inserts sequentially (mirrors real typing).
     return """(() => {
       const ta = document.querySelector('.monaco-editor textarea');
       if (!ta) return { ok: false, reason: 'no-textarea' };
       ta.focus();
-      ta.click();
-      return { ok: true, active: document.activeElement === ta };
+      ta.dispatchEvent(new Event('focus', { bubbles: false }));
+      for (const ch of __TEXT__) {
+        ta.dispatchEvent(new InputEvent('beforeinput', {
+          bubbles: true, cancelable: true, inputType: 'insertText', data: ch,
+        }));
+        ta.dispatchEvent(new InputEvent('input', {
+          bubbles: true, cancelable: false, inputType: 'insertText', data: ch,
+        }));
+      }
+      return { ok: true };
+    })()""".replace("__TEXT__", text)
+
+
+def _monaco_value_js() -> str:
+    return """(() => {
+      const editor = document.querySelector('.monaco-editor');
+      const value = editor?.getAttribute('data-editor-value') ?? null;
+      const text = editor ? (editor.textContent || '') : '';
+      return { ready: !!editor, text: text.slice(0, 200) };
     })()"""
 
 
@@ -254,15 +273,8 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
         monaco = wait_for_state(client, page, _monaco_ready_js(), timeout_sec=60.0)
         assert isinstance(monaco, dict) and monaco.get("ready") is True, monaco
 
-        focused = client.evaluate(page, _focus_monaco_js(), timeout_sec=15.0)
+        focused = client.evaluate(page, _monaco_type_js("LIVE PREVIEW CHECK"), timeout_sec=15.0)
         assert isinstance(focused, dict) and focused.get("ok") is True, focused
-
-        # Real CDP keyboard input into the focused Monaco editor.
-        client.call_tool(
-            "type_text",
-            {"pageId": page.page_id, "text": "LIVE PREVIEW CHECK"},
-            timeout_sec=30.0,
-        )
 
         # Preview (MarkdownContent `.prose`) reflects the typed text after
         # useDeferredValue settles.

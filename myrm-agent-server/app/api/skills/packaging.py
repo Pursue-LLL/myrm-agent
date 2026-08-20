@@ -9,7 +9,11 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.api.skills.schemas import PackagePreviewResponse, SkillPackageInfoResponse, UploadSkillResponse
+from app.api.skills.schemas import (
+    PackagePreviewResponse,
+    SkillPackageInfoResponse,
+    UploadSkillResponse,
+)
 from app.core.skills.packaging import skill_packaging_service
 
 logger = logging.getLogger(__name__)
@@ -38,7 +42,12 @@ async def preview_skill_package(
     if result.redactions:
         redactions_response = {
             filename: [
-                {"line_number": r["line_number"], "original": r["original"], "redacted": r["redacted"], "reason": r["reason"]}
+                {
+                    "line_number": r["line_number"],
+                    "original": r["original"],
+                    "redacted": r["redacted"],
+                    "reason": r["reason"],
+                }
                 for r in file_redactions
             ]
             for filename, file_redactions in result.redactions.items()
@@ -95,7 +104,9 @@ async def export_skill(
 @router.post("/upload", response_model=UploadSkillResponse)
 async def upload_skill(
     file: UploadFile = File(...),
-    force: bool = Query(False, description="Whether to force overwrite skill with same name"),
+    force: bool = Query(
+        False, description="Whether to force overwrite skill with same name"
+    ),
 ) -> UploadSkillResponse:
     """Upload skill package and register
 
@@ -108,7 +119,9 @@ async def upload_skill(
         Upload result
     """
     # Validate file type (supports .zip and .skill formats, .skill is essentially ZIP)
-    if not file.filename or not (file.filename.endswith(".zip") or file.filename.endswith(".skill")):
+    if not file.filename or not (
+        file.filename.endswith(".zip") or file.filename.endswith(".skill")
+    ):
         raise HTTPException(status_code=400, detail="Please upload .zip or .skill file")
 
     # Read content
@@ -144,7 +157,9 @@ async def validate_skill_zip(
         Skill package information
     """
     # Validate file type (supports .zip and .skill formats, .skill is essentially ZIP)
-    if not file.filename or not (file.filename.endswith(".zip") or file.filename.endswith(".skill")):
+    if not file.filename or not (
+        file.filename.endswith(".zip") or file.filename.endswith(".skill")
+    ):
         raise HTTPException(status_code=400, detail="Please upload .zip or .skill file")
 
     # Read content
@@ -167,7 +182,9 @@ async def validate_skill_zip(
 @router.post("/workspace/package")
 async def package_workspace_directory(
     chat_id: str = Form(..., description="Chat ID"),
-    directory: str = Form("", description="Directory path to package (relative to workspace root)"),
+    directory: str = Form(
+        "", description="Directory path to package (relative to workspace root)"
+    ),
     container_id: str | None = Form(None, description="Container ID (Docker mode)"),
 ) -> Response:
     """Package workspace directory as ZIP

@@ -12,7 +12,7 @@
 | `catchup.py` | 模块 | Get catchup briefs for all chats with unread activity. | ✅ |
 | `compaction.py` | 模块 | 压缩摘要、归档只读、context pins/branches CRUD、snapshot bookmark fork | ✅ |
 | `copilot.py` | 模块 | Co-Pilot API：run-digest GET、advisor ask/messages/clear | ✅ |
-| `core.py` | 模块 | 会话 CRUD 核心：列表（分页/来源/项目过滤）、元数据、`GET /recall/search`（@chat SSOT）、`GET /recall/entries`、创建/更新、Fission 拓扑、session-skills PATCH、active-moa-preset PATCH、session-access-roots revoke PATCH；PATCH workspace 在 project 已绑定时 409 | ✅ |
+| `core.py` | 模块 | 会话 CRUD 核心：列表（分页/来源/项目过滤）、元数据、`GET /recall/search`（@chat SSOT）、`GET /recall/entries`、创建/更新、Fission 拓扑、session-skills PATCH、active-moa-preset PATCH、session-access-roots grant POST / revoke PATCH；PATCH workspace 在 project 已绑定时 409 | ✅ |
 | `fork.py` | 模块 | Fork conversation from specific message index. | ✅ |
 | `rewind.py` | 模块 | Rewind conversation to before a user message; optional `scope` (conversation/files/both) reverts file snapshots and returns reverted-file details. | ✅ |
 | `handoff.py` | 模块 | Web→Channel handoff API. | ✅ |

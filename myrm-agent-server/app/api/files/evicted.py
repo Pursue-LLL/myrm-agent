@@ -43,7 +43,9 @@ async def _get_evicted_workspace_root(chat_id: str) -> str | None:
     """Resolve the workspace root that holds `.context/{chat_id}/evicted/`."""
     try:
         from app.services.chat.chat_service import ChatService
-        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+        from app.services.chat.effective_workspace import (
+            resolve_effective_chat_workspace,
+        )
 
         chat = await ChatService.get_chat_by_id(chat_id)
         if chat is not None:

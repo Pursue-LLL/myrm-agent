@@ -12,7 +12,11 @@ from myrm_agent_harness.agent.security.session_access import (
     merge_path_policy_with_session_access,
     set_session_access_roots,
 )
-from myrm_agent_harness.agent.security.types import AccessRoot, PathPolicy, PermissionAction
+from myrm_agent_harness.agent.security.types import (
+    AccessRoot,
+    PathPolicy,
+    PermissionAction,
+)
 
 from app.services.agent.session_access_service import (
     access_roots_to_json,
@@ -108,7 +112,9 @@ async def test_directory_grant_blocked_in_sandbox_mode(tmp_path) -> None:
     assert get_session_access_roots() == ()
 
 
-def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path) -> None:
+def test_cloud_deployment_rejects_host_path_outside_volume(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setattr(
         "app.services.agent.session_access_service._is_cloud_volume_deployment",
         lambda: True,
@@ -116,18 +122,24 @@ def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path
 
     host_path = str(tmp_path / "host-only")
     os.makedirs(host_path, exist_ok=True)
-    assert is_directory_grant_allowed_for_deployment(
-        host_path,
-        workspace_dir=str(tmp_path / "ws"),
-        sandbox_active=False,
-    ) is False
+    assert (
+        is_directory_grant_allowed_for_deployment(
+            host_path,
+            workspace_dir=str(tmp_path / "ws"),
+            sandbox_active=False,
+        )
+        is False
+    )
 
     under_volume = "/persistent/workspace/project-a"
-    assert is_directory_grant_allowed_for_deployment(
-        under_volume,
-        workspace_dir=None,
-        sandbox_active=False,
-    ) is True
+    assert (
+        is_directory_grant_allowed_for_deployment(
+            under_volume,
+            workspace_dir=None,
+            sandbox_active=False,
+        )
+        is True
+    )
 
 
 @pytest.mark.asyncio
@@ -179,7 +191,9 @@ async def test_persist_session_access_roots_direct_call(
     extra = tmp_path / "extra"
     extra.mkdir()
 
-    from myrm_agent_harness.agent.security.session_access import grant_session_access_root
+    from myrm_agent_harness.agent.security.session_access import (
+        grant_session_access_root,
+    )
     from myrm_agent_harness.agent.security.types import AccessRoot
 
     grant_session_access_root(
@@ -288,7 +302,9 @@ async def test_revoke_chat_session_access_root_persists(
 
 
 @pytest.mark.asyncio
-async def test_grant_chat_session_access_root_direct(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+async def test_grant_chat_session_access_root_direct(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
     workspace = tmp_path / "ws"
     workspace.mkdir()
     target = tmp_path / "drag-drop-folder"

@@ -471,9 +471,7 @@ def _run_drawer_flow(client, page, *, marker_line: str) -> None:
         )
     assert clicked.get("clicked") is True, json.dumps(clicked, ensure_ascii=False)
 
-    mounted = wait_for_state(
-        client, page, _DRAWER_MOUNT_WAIT_JS, timeout_sec=90.0
-    )
+    mounted = wait_for_state(client, page, _DRAWER_MOUNT_WAIT_JS, timeout_sec=90.0)
     assert mounted.get("ready") is True, json.dumps(mounted, ensure_ascii=False)
 
     request_probe = wait_for_state(

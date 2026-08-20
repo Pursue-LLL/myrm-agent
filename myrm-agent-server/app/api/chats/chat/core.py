@@ -436,7 +436,9 @@ async def update_chat_recall_exclusion(
         )
 
         from app.database.connection import get_session
-        from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+        from app.services.memory.ledger.operation_ledger import (
+            MemoryOperationLedgerService,
+        )
 
         kind = (
             MemoryOperationKind.FORGET if body.excluded else MemoryOperationKind.WRITE

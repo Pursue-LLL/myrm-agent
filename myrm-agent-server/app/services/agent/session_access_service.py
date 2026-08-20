@@ -28,7 +28,11 @@ from myrm_agent_harness.agent.security.session_access import (
     revoke_session_access_root,
     set_session_access_roots,
 )
-from myrm_agent_harness.agent.security.types import AccessRoot, PathPolicy, _default_path_policy
+from myrm_agent_harness.agent.security.types import (
+    AccessRoot,
+    PathPolicy,
+    _default_path_policy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +67,11 @@ def access_roots_from_json(raw: object) -> tuple[AccessRoot, ...]:
                 path=path_obj.strip(),
                 writable=bool(writable_obj) if isinstance(writable_obj, bool) else True,
                 label=str(label_obj).strip() if isinstance(label_obj, str) else "",
-                source=str(source_obj).strip() if isinstance(source_obj, str) else "persisted",
+                source=(
+                    str(source_obj).strip()
+                    if isinstance(source_obj, str)
+                    else "persisted"
+                ),
             )
         )
     return tuple(roots)
@@ -250,7 +258,9 @@ async def apply_directory_resume_grant(
 ) -> None:
     """Persist and bootstrap grants from request_directory or path-ASK resume payloads."""
     if sandbox_active:
-        logger.warning("Directory grant ignored: sandbox mode active (chat_id=%s)", chat_id)
+        logger.warning(
+            "Directory grant ignored: sandbox mode active (chat_id=%s)", chat_id
+        )
         return
 
     policy = _default_path_policy()
@@ -262,7 +272,9 @@ async def apply_directory_resume_grant(
         if isinstance(path_obj, str) and path_obj.strip():
             granted = _apply_validated_grant(
                 path_obj,
-                writable=bool(writable_obj) if isinstance(writable_obj, bool) else False,
+                writable=(
+                    bool(writable_obj) if isinstance(writable_obj, bool) else False
+                ),
                 source="hitl_grant",
                 workspace_dir=workspace_dir,
                 sandbox_active=sandbox_active,
@@ -291,7 +303,9 @@ async def apply_directory_resume_grant(
             if isinstance(path_obj, str) and path_obj.strip():
                 if _apply_validated_grant(
                     path_obj,
-                    writable=bool(writable_obj) if isinstance(writable_obj, bool) else False,
+                    writable=(
+                        bool(writable_obj) if isinstance(writable_obj, bool) else False
+                    ),
                     source="path_ask_grant",
                     workspace_dir=workspace_dir,
                     sandbox_active=sandbox_active,

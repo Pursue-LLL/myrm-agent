@@ -360,9 +360,7 @@ def parallel_load_blocks_mux_restart() -> bool:
     status = read_mux_status(force=True)
     contexts = mux_context_count(status)
     leases = wave_lease_count(status)
-    allow = should_allow_mux_restart(
-        verdict, wave_leases=leases, mux_contexts=contexts
-    )
+    allow = should_allow_mux_restart(verdict, wave_leases=leases, mux_contexts=contexts)
     return not allow
 
 
