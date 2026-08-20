@@ -21,12 +21,18 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.plugins.parser import AgentPluginParser
+from myrm_agent_harness.agent.skills.evolution.core.types import (
+    EnvironmentFingerprint,
+    EvolutionType,
+    SkillLineage,
+    SkillRecord,
+)
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.api.skills.packaging import router as packaging_router
 from app.core.skills import prebuilt_sync
+from app.core.skills.models import SkillType
 from app.core.skills.store.service import SkillsService
-from app.database.models import SkillEvolutionRecordModel
 
 
 @pytest.fixture
@@ -109,31 +115,42 @@ description: A skill with secret keys
 ---
 sk-proj-1234567890abcdef1234567890abcdef12345678
 """
-    await storage.write("skills/sensitive-analyzer/SKILL.md", skill_content)
-    await storage.write(
-        "skills/sensitive-analyzer/evals.json",
-        json.dumps({"user_evals": "should_be_stripped"}),
+    await svc.create_skill(
+        name="sensitive-analyzer",
+        description="A skill with secret keys",
+        skill_type=SkillType.PREBUILT,
+        files={
+            "SKILL.md": skill_content.encode("utf-8"),
+            "evals.json": json.dumps({"user_evals": "should_be_stripped"}).encode("utf-8"),
+        },
     )
 
-    mock_rec = SkillEvolutionRecordModel(
-        skill_name="sensitive-analyzer",
-        baseline_version="1.0.0",
-        candidate_version="1.1.0",
-        status="completed",
-        eval_metrics={
-            "eval_cases": [
-                {
-                    "prompt": "Test secret sk-proj-1234567890abcdef1234567890abcdef12345678",
-                    "expected_outcome": "Outcome secret sk-proj-1234567890abcdef1234567890abcdef12345678",
-                }
-            ]
-        },
+    record = SkillRecord(
+        skill_id="sensitive-analyzer",
+        name="sensitive-analyzer",
+        description="A skill with secret keys",
+        content=skill_content,
+        path="skills/prebuilt/sensitive-analyzer/SKILL.md",
+        lineage=SkillLineage(
+            evolution_type=EvolutionType.DERIVED,
+            version=2,
+            change_summary="v2",
+            created_by="test",
+        ),
+        eval_cases=[
+            {
+                "message": "Test secret sk-proj-1234567890abcdef1234567890abcdef12345678",
+                "expected_tools": ["code_interpreter"],
+            }
+        ],
+        is_active=True,
+        environment=EnvironmentFingerprint(),
     )
 
     with patch("app.core.skills.packaging.skills_service", svc), \
          patch("app.core.skills.store.service.skills_service", svc), \
          patch("app.api.skills.packaging.skill_packaging_service._skills_svc", svc), \
-         patch("app.core.skills.packaging.skill_evolution_record_ops.get_latest_active_record", return_value=mock_rec):
+         patch("app.core.skills.packaging._load_evolution_record", return_value=record):
 
         client = TestClient(app)
 
@@ -154,14 +171,14 @@ sk-proj-1234567890abcdef1234567890abcdef12345678
 
         with zipfile.ZipFile(io.BytesIO(export_res.content), "r") as zf:
             namelist = zf.namelist()
-            assert "plugin.json" in namelist
-            assert "skills/sensitive-analyzer/SKILL.md" in namelist
-            assert "skills/sensitive-analyzer/evals.json" in namelist
+            assert "sensitive-analyzer/plugin.json" in namelist
+            assert "sensitive-analyzer/skills/sensitive-analyzer/SKILL.md" in namelist
+            assert "sensitive-analyzer/skills/sensitive-analyzer/evals.json" in namelist
 
-            skill_md_text = zf.read("skills/sensitive-analyzer/SKILL.md").decode("utf-8")
+            skill_md_text = zf.read("sensitive-analyzer/skills/sensitive-analyzer/SKILL.md").decode("utf-8")
             assert "sk-proj-1234567890abcdef1234567890abcdef12345678" not in skill_md_text
             assert "[REDACTED:" in skill_md_text
 
-            evals_json = json.loads(zf.read("skills/sensitive-analyzer/evals.json").decode("utf-8"))
+            evals_json = json.loads(zf.read("sensitive-analyzer/skills/sensitive-analyzer/evals.json").decode("utf-8"))
             assert "should_be_stripped" not in json.dumps(evals_json)
             assert "[REDACTED:" in json.dumps(evals_json)
