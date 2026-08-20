@@ -116,6 +116,26 @@ async def maybe_mount_after_install(
         catalog_skill_id,
         context_agent_id,
     )
+    try:
+        from app.services.event.app_event_bus import (
+            AppEvent,
+            AppEventType,
+            get_event_bus,
+        )
+
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.SKILL_POOL_UPDATED,
+                data={
+                    "action": "install",
+                    "skill_id": catalog_skill_id,
+                    "agent_id": context_agent_id,
+                },
+            )
+        )
+    except Exception as exc:
+        logger.warning("Failed to broadcast SKILL_POOL_UPDATED on mount: %s", exc)
+
     return SkillMountResult(
         mounted=True,
         agent_id=context_agent_id,

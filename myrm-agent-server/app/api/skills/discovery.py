@@ -396,6 +396,29 @@ async def uninstall_skill(
     result = await market_service.uninstall(request.skill_id)
     if result.success:
         _audit_skill_action("uninstall", request.skill_id)
+        try:
+            from app.core.skills.config_version import bump_skill_config_version
+            from app.core.skills.store.service import skills_service
+            from app.services.event.app_event_bus import (
+                AppEvent,
+                AppEventType,
+                get_event_bus,
+            )
+
+            await skills_service.user_config.disable_local_skill(request.skill_id)
+            bump_skill_config_version()
+            get_event_bus().publish(
+                AppEvent(
+                    event_type=AppEventType.SKILL_POOL_UPDATED,
+                    data={
+                        "action": "uninstall",
+                        "skill_id": request.skill_id,
+                        "uninstalled_skills": list(result.installed_skills),
+                    },
+                )
+            )
+        except Exception as exc:
+            logger.warning("Failed to broadcast SKILL_POOL_UPDATED on uninstall: %s", exc)
     return SkillInstallResponse(
         success=result.success,
         skill_name=result.skill_name,

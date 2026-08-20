@@ -67,6 +67,7 @@ class AppEventType(StrEnum):
     OAUTH_REAUTH_REQUIRED = "oauth_reauth_required"
     WORKSPACE_FILE_CHANGED = "workspace_file_changed"
     RUN_DIGEST_UPDATED = "run_digest_updated"
+    SKILL_POOL_UPDATED = "skill_pool_updated"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +76,9 @@ class AppEvent:
 
     event_type: AppEventType
     data: dict[str, Any]
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
 
 
 ServerEventBus = PubSubBus[AppEvent]
