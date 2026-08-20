@@ -115,7 +115,7 @@ async def test_wecom_aibot_overflow_chunks_lifecycle_integration() -> None:
 
     with patch("app.channels.providers.wecom.aibot_channel.render", return_value=["Chunk 1", "Chunk 2", "Chunk 3"]):
         await ch._dispatch_inbound(inbound)
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.8)
 
     # Assert 1 respond_msg (first chunk finished) + 2 proactive aibot_send_msg
     sent_payloads = [json.loads(call[0][0]) for call in mock_ws.send.call_args_list]

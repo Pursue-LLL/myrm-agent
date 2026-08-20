@@ -2,7 +2,15 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EmptyState } from '../empty-state';
-import { ListSkeleton, CardGridSkeleton, TableSkeleton, FormSkeleton, ListDetailSkeleton } from '../skeleton-templates';
+import {
+  ListSkeleton,
+  CardGridSkeleton,
+  TableSkeleton,
+  FormSkeleton,
+  ListDetailSkeleton,
+  MetricCardsSkeleton,
+  TimelineSkeleton,
+} from '../skeleton-templates';
 
 describe('EmptyState Primitive', () => {
   it('renders title and description properly', () => {
@@ -51,6 +59,14 @@ describe('EmptyState Primitive', () => {
     const el = container.firstChild as HTMLElement;
     expect(el.className).toContain('border-dashed');
   });
+
+  it('renders error variant properly with alert styling', () => {
+    const { container } = render(<EmptyState variant="error" title="Sync Failed" description="Network error" />);
+
+    const el = container.firstChild as HTMLElement;
+    expect(el.className).toContain('border-destructive');
+    expect(screen.getByText('Sync Failed')).toBeInTheDocument();
+  });
 });
 
 describe('Skeleton Templates', () => {
@@ -78,5 +94,15 @@ describe('Skeleton Templates', () => {
   it('renders ListDetailSkeleton properly', () => {
     render(<ListDetailSkeleton />);
     expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('renders MetricCardsSkeleton properly', () => {
+    render(<MetricCardsSkeleton count={4} />);
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('renders TimelineSkeleton properly', () => {
+    render(<TimelineSkeleton count={3} />);
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
   });
 });
