@@ -53,13 +53,38 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 async def init_database() -> None:
     """初始化数据库表、执行迁移和创建索引"""
+    from myrm_agent_harness.utils.db.sqlite import (
+        StorageCapabilities,
+        validate_schema_gate_async,
+    )
+
+    from app.database.migrations import MIGRATION_STATEMENTS
+
+    engine = get_database_engine()
+
+    # Fail-closed pre-check: If database already exists and has a higher schema version,
+    # abort immediately BEFORE running metadata.create_all or migrations.
+    latest_expected_version = len(MIGRATION_STATEMENTS) - 1 if MIGRATION_STATEMENTS else 0
+    server_caps = StorageCapabilities(
+        schema_version=latest_expected_version,
+        min_compatible_version=1,
+        supports_atomic_batch=True,
+        supports_concurrent_readers=True,
+        is_persistent=True,
+    )
+    async with engine.connect() as conn:
+        raw_conn = await conn.get_raw_connection()
+        db_api_conn = raw_conn.driver_connection
+        if db_api_conn is not None and hasattr(db_api_conn, "execute"):
+            await validate_schema_gate_async(
+                db_api_conn, server_caps, auto_initialize_version=False
+            )
+
     # Import all models to ensure they're registered with Base.metadata
     from app.database import models  # noqa: F401
     from app.database.migrations import create_indexes, run_migrations
     from app.database.models import Base
     from app.database.models import skill_optimization as _opt_models  # noqa: F401
-
-    engine = get_database_engine()
 
     try:
         async with engine.begin() as conn:
@@ -100,29 +125,12 @@ async def init_database() -> None:
         logger.error("Index creation failed: %s", e)
         raise
 
-    # Fail-closed Schema Gate: Verify database version satisfies runtime expectations
-    from myrm_agent_harness.utils.db.sqlite import (
-        StorageCapabilities,
-        validate_schema_gate_async,
-    )
-
-    from app.database.migrations import MIGRATION_STATEMENTS
-
-    if MIGRATION_STATEMENTS:
-        latest_expected_version = len(MIGRATION_STATEMENTS) - 1
-        server_caps = StorageCapabilities(
-            schema_version=latest_expected_version,
-            min_compatible_version=1,
-            supports_atomic_batch=True,
-            supports_concurrent_readers=True,
-            is_persistent=True,
-        )
-        async with engine.connect() as conn:
-            raw_conn = await conn.get_raw_connection()
-            db_api_conn = raw_conn.driver_connection
-            if db_api_conn is not None and hasattr(db_api_conn, "execute"):
-                # Under aiosqlite / sqlite3 driver
-                await validate_schema_gate_async(db_api_conn, server_caps)
+    # Post-migration validation: verify user_version was synchronized
+    async with engine.connect() as conn:
+        raw_conn = await conn.get_raw_connection()
+        db_api_conn = raw_conn.driver_connection
+        if db_api_conn is not None and hasattr(db_api_conn, "execute"):
+            await validate_schema_gate_async(db_api_conn, server_caps)
 
 
 __all__ = [

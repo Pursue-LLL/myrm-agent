@@ -103,8 +103,21 @@ async def get_learning_timeline(
         items: list[LearningTimelineItem] = []
 
         # 1. Fetch memories
+        target_memory_types = ALL_MEMORY_TYPES
+        if allowed_kinds:
+            # Map requested kind filters to specific memory types if only specific kinds are needed
+            types_to_query = set()
+            if "fact_memory" in allowed_kinds or "preference_memory" in allowed_kinds:
+                types_to_query.add(MemoryType.SEMANTIC)
+            if "procedural_memory" in allowed_kinds:
+                types_to_query.add(MemoryType.PROCEDURAL)
+            if "episodic_memory" in allowed_kinds:
+                types_to_query.add(MemoryType.EPISODIC)
+            if types_to_query:
+                target_memory_types = tuple(types_to_query)
+
         memory_tasks = []
-        for mem_type in ALL_MEMORY_TYPES:
+        for mem_type in target_memory_types:
             memory_tasks.append(
                 manager.list_memories(
                     mem_type,
@@ -117,7 +130,7 @@ async def get_learning_timeline(
 
         memory_results = await asyncio.gather(*memory_tasks, return_exceptions=True)
 
-        for mem_type, mem_list in zip(ALL_MEMORY_TYPES, memory_results, strict=False):
+        for mem_type, mem_list in zip(target_memory_types, memory_results, strict=False):
             if isinstance(mem_list, Exception):
                 logger.warning("Failed to list memories for %s: %s", mem_type, mem_list)
                 continue

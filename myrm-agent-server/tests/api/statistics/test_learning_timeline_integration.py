@@ -109,3 +109,51 @@ class TestLearningTimelineIntegration:
             data = resp.json()
             assert data["code"] == 0
             assert data["data"]["deleted"] is True
+
+    async def test_archive_learning_timeline_skill_endpoint(self, app, client):
+        mock_skill = SimpleNamespace(
+            id="skill-1",
+            name="test-skill",
+            is_active=False,
+        )
+        with patch(
+            "app.api.statistics.learning_timeline.skills_service.update_skill",
+            new_callable=AsyncMock,
+            return_value=mock_skill,
+        ):
+            resp = await client.post("/api/v1/statistics/learning-timeline/skill/skill-1/archive?active=false")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["code"] == 0
+            assert data["data"]["is_active"] is False
+            assert "Skill archived" in data["data"]["message"]
+
+    async def test_filter_by_kind_and_pagination(self, app, client):
+        mock_manager = AsyncMock()
+        mock_mem = SimpleNamespace(
+            id="mem-fact-1",
+            content="Fact memory rule",
+            created_at=datetime.now(UTC),
+            importance=0.5,
+            confidence=1.0,
+            is_user_locked=False,
+            scope=SimpleNamespace(agent_id="test-agent"),
+            tags=[],
+            status="active",
+            source_chat_id=None,
+            preference_type=None,
+        )
+        mock_manager.list_memories.return_value = [mock_mem]
+        app.dependency_overrides[get_crud_memory_manager] = lambda: mock_manager
+
+        with patch(
+            "app.api.statistics.learning_timeline.list_skill_growth_timeline",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            resp = await client.get("/api/v1/statistics/learning-timeline?kind_filter=fact_memory&limit=5")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["code"] == 0
+            assert len(data["data"]["items"]) == 1
+            assert data["data"]["items"][0]["kind"] == "fact_memory"

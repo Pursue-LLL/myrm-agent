@@ -1023,6 +1023,7 @@ async def create_indexes(engine: AsyncEngine) -> None:
         table_name="_schema_indexes",
         baseline_check_sql="SELECT 1 FROM sqlite_master WHERE type='table' AND name='chats'",
         slow_threshold_ms=100.0,
+        sync_user_version=False,
     )
 
     report = await index_engine.run_migrations(indexes)

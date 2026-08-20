@@ -17,7 +17,7 @@
 | `SkillCard.tsx`                                        | 核心 | 技能列表卡片（信任态/版本/快捷操作）                                                                                                 | ✅    |
 | `SkillDetailSheet.tsx`                                 | 核心 | 技能详情侧边栏入口（编排 hook 与内容组件、信任/删除确认对话框）                                                                      | ✅    |
 | `useSkillDetailSheet.ts`                               | 辅助 | 技能详情状态管理 hook（内容加载/信任/env/进化锁/优化）                                                                               | ✅    |
-| `SkillDetailSheetContent.tsx`                          | 辅助 | 技能详情滚动内容区（元信息/安全扫描/权限使用审计/存储路径/生命周期/SKILL.md 渲染）                                                   | ✅    |
+| `SkillDetailSheetContent.tsx`                          | 辅助 | 技能详情滚动内容区（元信息/溯源 installed_from 渠道/安全扫描/权限使用审计/存储路径/生命周期/SKILL.md 渲染）                                                   | ✅    |
 | `SkillDetailHelpers.tsx`                               | 辅助 | 技能详情辅助组件（RequirementRow/SecurityScan/KnownPitfalls）                                                                        | ✅    |
 | `SkillDiscoverTab.tsx`                                 | 组件 | 技能发现/市场浏览 Tab（安装后 enable toast；canonical installed_skill_id 卸载）                                                      | ✅    |
 | `skillDiscoverInstallToast.ts`                         | 辅助 | Discover install API 响应 → 单条 toast 文案解析（含 partial-failure 合并）                                                           | ✅    |
