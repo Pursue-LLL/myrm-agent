@@ -55,7 +55,7 @@ class TestLearningTimelineIntegration:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            resp = await client.get("/statistics/learning-timeline?days=30&limit=10")
+            resp = await client.get("/api/v1/statistics/learning-timeline?days=30&limit=10")
             assert resp.status_code == 200
             data = resp.json()
             assert data["code"] == 0
@@ -83,7 +83,7 @@ class TestLearningTimelineIntegration:
             new_callable=AsyncMock,
         ):
             resp = await client.put(
-                "/statistics/learning-timeline/memory/semantic/mem-1",
+                "/api/v1/statistics/learning-timeline/memory/semantic/mem-1",
                 json={
                     "content": "Updated content via HTTP",
                     "importance": 0.9,
@@ -104,7 +104,7 @@ class TestLearningTimelineIntegration:
             "app.api.statistics.learning_timeline._record_memory_event",
             new_callable=AsyncMock,
         ):
-            resp = await client.delete("/statistics/learning-timeline/memory/mem-1?memory_type=semantic")
+            resp = await client.delete("/api/v1/statistics/learning-timeline/memory/mem-1?memory_type=semantic")
             assert resp.status_code == 200
             data = resp.json()
             assert data["code"] == 0
