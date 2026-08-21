@@ -315,6 +315,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   }, [fetchTasks, fetchSummary, fetchEdges, viewMode, board.board_id, scheduleReload]);
 
   const columnTasks = useMemo(() => {
+    const filteredTasks = filterTasksByResponsibility(tasks, responsibilityFilter);
     const grouped: Record<TaskStatus, KanbanTask[]> = {
       triage: [],
       backlog: [],
@@ -326,11 +327,11 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       failed: [],
       archived: [],
     };
-    for (const task of tasks) {
+    for (const task of filteredTasks) {
       grouped[task.status]?.push(task);
     }
     return grouped;
-  }, [tasks]);
+  }, [tasks, responsibilityFilter]);
 
   const triageCount = columnTasks.triage.length;
   const [specifyAllLoading, setSpecifyAllLoading] = useState(false);
