@@ -9432,6 +9432,8 @@
       "benchmarkNdcg": "NDCG@{k}",
       "benchmarkMrr": "MRR",
       "benchmarkPrecision": "Precision@{k}",
+      "benchmarkDuplicateRate": "Rate doppelter Chunks",
+      "benchmarkDistinctSources": "Quellendiversität",
       "benchmarkLatencyP50": "Latenz P50",
       "benchmarkLatencyP95": "Latenz P95",
       "benchmarkCategories": "Aufschlüsselung nach Kategorien",

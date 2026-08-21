@@ -9458,6 +9458,8 @@
       "benchmarkNdcg": "NDCG@{k}",
       "benchmarkMrr": "MRR",
       "benchmarkPrecision": "精確率@{k}",
+      "benchmarkDuplicateRate": "重複分塊率",
+      "benchmarkDistinctSources": "來源多樣性",
       "benchmarkLatencyP50": "延遲 P50",
       "benchmarkLatencyP95": "延遲 P95",
       "benchmarkCategories": "分類明細",

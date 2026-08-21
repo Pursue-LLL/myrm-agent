@@ -4,7 +4,6 @@ app/ai_agents/custom_agent_factory.py
 app/ai_agents/desktop_control/gate.py
 app/ai_agents/general_agent/agent.py
 app/ai_agents/general_agent/factory.py
-app/ai_agents/general_agent/stream_pipeline.py
 app/ai_agents/general_agent/tool_setup.py
 app/api/batch_optimization/router.py
 app/api/channels/router.py
@@ -29,7 +28,6 @@ app/api/skills/discovery.py
 app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
-app/api/skills/sync.py
 app/api/statistics/context_health/context_health.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
@@ -101,7 +99,6 @@ app/core/kanban/adapters/sqlalchemy_store.py
 app/core/media/batch/orchestrator.py
 app/core/memory/adapters/setup.py
 app/core/skills/creation/service.py
-app/core/skills/models.py
 app/core/storage/service.py
 app/core/utils/chat_utils.py
 app/core/utils/errors.py
@@ -137,7 +134,6 @@ app/services/agent/streaming.py
 app/services/agent/streaming_support/stream_collector.py
 app/services/approvals/registry.py
 app/services/batch_directory/_helpers.py
-app/services/batch_directory/service.py
 app/services/chat/chat_crud.py
 app/services/chat/chat_turn.py
 app/services/chat/conversation_fork_manager.py
@@ -150,6 +146,7 @@ app/services/memory/archive/restore/archive_restore_executor.py
 app/services/memory/backup/backup_remote.py
 app/services/memory/command_center/command_center.py
 app/services/memory/command_center/command_center_insights.py
+app/services/memory/diagnostics/diagnostic/diagnostic_recall_benchmark.py
 app/services/memory/diagnostics/diagnostics.py
 app/services/memory/imports/import_sessions.py
 app/services/memory/ledger/operation_ledger.py
@@ -158,6 +155,7 @@ app/services/memory/operations/crud/list_write.py
 app/services/memory/shared_context/shared_context.py
 app/services/migration/hermes/hermes_moa_migrator.py
 app/services/onboarding/second_brain_preset.py
+app/services/ops/snapshot_service.py
 app/services/plugins/import_service.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py

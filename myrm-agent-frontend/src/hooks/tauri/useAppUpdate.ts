@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import { saveUpdateHandoff } from './useUpdateHandoff';
 
 export type AppUpdatePhase =
   'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'installing' | 'restarting' | 'up_to_date' | 'error';
@@ -203,6 +204,9 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
     console.debug('[app-update] installing update…');
 
     try {
+      if (update.currentVersion && update.version) {
+        saveUpdateHandoff(update.currentVersion, update.version);
+      }
       await update.install();
       if (!mountedRef.current) {
         return;
