@@ -44,7 +44,7 @@ class ResolvedMountPlan:
 
 def resolve_agent_mount(
     channel_name: str | None,
-    agent_wrapper: Any,
+    agent_wrapper: object,
 ) -> ResolvedMountPlan:
     """Resolve physical mount decisions by intersecting profile flags with channel type.
 

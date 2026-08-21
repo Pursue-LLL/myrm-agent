@@ -266,11 +266,18 @@ export default function WikiGraph3D({
       {data && data.nodes.length > 0 ? (
         <>
           <ForceGraph3D
+            ref={fgRef}
             graphData={data}
             width={dimensions.width}
             height={dimensions.height}
             nodeLabel="name"
-            nodeColor={(node) => getGroupColor((node as GraphNode).group)}
+            nodeColor={(node) => {
+              const n = node as GraphNode;
+              if (selectedNodeId && n.id === selectedNodeId) {
+                return '#ffffff';
+              }
+              return getGroupColor(n.group);
+            }}
             nodeVisibility={(node) => isGroupActive((node as GraphNode).group)}
             linkVisibility={(link) => {
               const srcGroup =
@@ -285,7 +292,13 @@ export default function WikiGraph3D({
                 srcGroup !== undefined && tgtGroup !== undefined && isGroupActive(srcGroup) && isGroupActive(tgtGroup)
               );
             }}
-            nodeVal="val"
+            nodeVal={(node) => {
+              const n = node as GraphNode;
+              if (selectedNodeId && n.id === selectedNodeId) {
+                return (n.val || 1) * 2;
+              }
+              return n.val;
+            }}
             linkDirectionalArrowLength={3.5}
             linkDirectionalArrowRelPos={1}
             backgroundColor="rgba(0,0,0,0)"
@@ -295,6 +308,9 @@ export default function WikiGraph3D({
             linkColor={(link) => {
               const source = typeof link.source === 'object' ? (link.source as unknown as GraphNode).id : link.source;
               const target = typeof link.target === 'object' ? (link.target as unknown as GraphNode).id : link.target;
+              if (selectedNodeId && (source === selectedNodeId || target === selectedNodeId)) {
+                return 'rgba(255, 200, 50, 1.0)';
+              }
               if (!hoveredNode) {
                 return 'rgba(150, 150, 255, 0.4)';
               }

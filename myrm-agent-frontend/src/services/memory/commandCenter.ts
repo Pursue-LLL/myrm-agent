@@ -241,7 +241,7 @@ export interface MemoryCommandBenchmarkSummary {
 
 export interface MemoryCommandDiagnosticProbeResult {
   id: string;
-  category: 'storage' | 'index' | 'embedding' | 'ledger' | 'deployment' | 'quality' | 'migration';
+  category: 'storage' | 'index' | 'embedding' | 'ledger' | 'deployment' | 'quality' | 'migration' | 'governance';
   label: string;
   status: 'ready' | 'warning' | 'critical' | 'missing';
   evidence: string;

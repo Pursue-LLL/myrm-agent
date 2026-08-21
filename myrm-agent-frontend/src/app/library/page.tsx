@@ -40,6 +40,7 @@ const Page = () => {
   const initialTab = resolveLibraryTab(searchParams.get('tab'));
   const [activeTab, setActiveTab] = useState<LibraryTab>(initialTab);
   const agentId = searchParams.get('agentId');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(resolveLibraryTab(searchParams.get('tab')));
@@ -64,9 +65,9 @@ const Page = () => {
       {activeTab === 'graph' && (
         <div className="flex flex-col gap-4 lg:flex-row">
           <div className="min-h-[480px] flex-1">
-            <WikiGraph3D agentId={agentId} />
+            <WikiGraph3D agentId={agentId} selectedNodeId={selectedNodeId} />
           </div>
-          <WikiGraphInsightsPanel agentId={agentId} />
+          <WikiGraphInsightsPanel agentId={agentId} onSelectNode={(nodeId) => setSelectedNodeId(nodeId)} />
         </div>
       )}
     </div>

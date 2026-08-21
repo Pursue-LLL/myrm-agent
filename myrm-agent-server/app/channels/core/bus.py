@@ -783,6 +783,20 @@ class MessageBus:
             msg = downgrade_components(msg, channel)
             msg = _apply_outbound_risk_gate(msg)
 
+            # Pre-Publish Outbound Content & Link Liveness Gate
+            from app.channels.core.outbound_gate import get_outbound_content_gate
+
+            gate_result = await get_outbound_content_gate().evaluate_and_apply(msg)
+            if gate_result is None:
+                # Fail-Closed HOLD triggered on dead links for unattended cron/broadcast messages
+                logger.warning(
+                    "Outbound message held by pre-publish content gate for channel '%s'",
+                    msg.channel,
+                )
+                await self._durable_outbound.ack(msg)
+                continue
+            msg = gate_result
+
             limiter = self._limiters.get(msg.channel)
             if limiter:
                 await limiter.acquire()

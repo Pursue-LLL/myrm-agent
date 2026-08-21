@@ -1,10 +1,8 @@
 """Tests for app.ai_agents.general_agent.mount_resolver — Channel x Profile tool mount resolution."""
 
 from unittest.mock import MagicMock, patch
-import pytest
 
 from app.ai_agents.general_agent.mount_resolver import (
-    ResolvedMountPlan,
     resolve_agent_mount,
 )
 
