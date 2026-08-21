@@ -14687,10 +14687,60 @@
     },
     "tabs": {
       "overview": "概要",
+      "timeline": "学習タイムライン",
       "evolution": "進化ダイジェスト",
       "graph": "ナレッジグラフ",
       "trends": "スキルトレンド",
       "daily": "毎日の振り返り"
+    },
+    "learningTimeline": {
+      "title": "学習と進化ストリーム",
+      "description": "事実、嗜好、手順記憶とスキルの進化記録を時系列で集約し、インライン編集と管理を提供します。",
+      "filterAll": "すべてのストリーム",
+      "filterMemories": "記憶のみ",
+      "filterSkills": "スキルのみ",
+      "filterFact": "事実記憶",
+      "filterPreference": "嗜好記憶",
+      "filterProcedural": "手順経験",
+      "filterEpisodic": "エピソード",
+      "filterEvolution": "スキル進化",
+      "filterDraft": "スキル下書き",
+      "days7": "過去7日間",
+      "days30": "過去30日間",
+      "days90": "過去90日間",
+      "editMemory": "記憶を編集",
+      "archiveSkill": "スキルをアーカイブ",
+      "unarchiveSkill": "スキルを復元",
+      "deleteMemory": "記憶を削除",
+      "deleteConfirm": "この記憶アイテムを完全に削除してもよろしいですか？",
+      "archiveConfirm": "このスキルをアーカイブしますか？モデルのツールルーティングから呼び出されなくなります。",
+      "unarchiveConfirm": "このスキルを復元して再有効化しますか？",
+      "contentLabel": "コア内容 / ルール",
+      "reasoningLabel": "推論の背景とコンテキスト",
+      "importanceLabel": "重要度レベル",
+      "userLockedBadge": "手動校正済み (ロック保護)",
+      "agentOrigin": "エージェント: {agent}",
+      "confidenceLabel": "信頼度",
+      "saveChanges": "変更を保存",
+      "cancel": "キャンセル",
+      "loading": "学習タイムラインを読み込み中...",
+      "loadMore": "さらにノードを読み込む",
+      "noMore": "すべてのノードを読み込みました",
+      "empty": {
+        "title": "学習の足跡はまだありません",
+        "description": "エージェントが対話で事実を学習したり嗜好を記録したりスキルを蓄積すると、ここに時系列で表示され管理できます。"
+      },
+      "stats": {
+        "totalNodes": "合計 {count} 個の学習ノード",
+        "userEditedCount": "{count} 件の手動校正"
+      },
+      "toast": {
+        "updateSuccess": "記憶を正常に更新しました",
+        "deleteSuccess": "記憶を削除しました",
+        "archiveSuccess": "スキルをアーカイブしました",
+        "unarchiveSuccess": "スキルを復元して有効化しました",
+        "actionFailed": "操作に失敗しました: {error}"
+      }
     },
     "knowledgeGraph": {
       "title": "ナレッジグラフ",

@@ -257,21 +257,59 @@ export default function KanbanTaskCard({
             </button>
           </div>
           {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.description}</p>}
-          {task.status === 'running' && hasKanbanCompletionIntent(task.metadata) && (
-            <p className="text-[10px] mt-1 text-amber-600 dark:text-amber-400 font-medium truncate">
-              {t('status.verifying')}
-            </p>
-          )}
-          {task.status === 'running' && task.progress_note && !hasKanbanCompletionIntent(task.metadata) && (
-            <p className="text-[10px] mt-1 text-chart-4 font-medium truncate" title={task.progress_note}>
-              {task.progress_note}
-            </p>
-          )}
-          {task.status === 'in_review' && (
-            <p className="text-[10px] mt-1 text-amber-600 dark:text-amber-400 font-medium truncate">
-              {t('reviewRequested')}
-            </p>
-          )}
+
+          {/* Decision Frame Micro-strip */}
+          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+            {decisionFrame.waitingEntity === 'human' && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">
+                <UserCheck className="w-3 h-3" />
+                {t('decisionWaitingHuman')}
+              </span>
+            )}
+            {decisionFrame.waitingEntity === 'agent' && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-chart-4/10 text-chart-4 border border-chart-4/20 font-medium">
+                <Bot className="w-3 h-3" />
+                {t('decisionWaitingAgent')}
+              </span>
+            )}
+            {decisionFrame.safetyTier === 'hitl_guarded' && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/20 font-medium"
+                title={t('decisionHitlGuarded')}
+              >
+                <ShieldAlert className="w-3 h-3" />
+                {t('decisionHitlGuarded')}
+              </span>
+            )}
+            {decisionFrame.safetyTier === 'safe_auto' && decisionFrame.waitingEntity === 'agent' && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-chart-2/10 text-chart-2 border border-chart-2/20 font-medium"
+                title={t('decisionSafeAuto')}
+              >
+                <ShieldCheck className="w-3 h-3" />
+                {t('decisionSafeAuto')}
+              </span>
+            )}
+          </div>
+
+          {/* Recommended Action / Note */}
+          <p
+            className={cn(
+              'text-[10px] mt-1 truncate font-medium',
+              decisionFrame.hasAttention
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-muted-foreground',
+            )}
+            title={
+              t(decisionFrame.recommendedActionKey, {
+                defaultValue: decisionFrame.recommendedActionFallback,
+              })
+            }
+          >
+            {t(decisionFrame.recommendedActionKey, {
+              defaultValue: decisionFrame.recommendedActionFallback,
+            })}
+          </p>
 
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             {task.branch && (

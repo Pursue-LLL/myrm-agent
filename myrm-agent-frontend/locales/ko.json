@@ -15211,10 +15211,60 @@
     },
     "tabs": {
       "overview": "개요",
+      "timeline": "학습 타임라인",
       "evolution": "진화 요약",
       "graph": "지식 그래프",
       "trends": "스킬 트렌드",
       "daily": "일일 리뷰"
+    },
+    "learningTimeline": {
+      "title": "학습 및 진화 스트림",
+      "description": "사실, 선호도, 절차적 기억 및 스킬 진화 기록을 연대순으로 통합하여 인라인 수정 및 거버넌스를 제공합니다.",
+      "filterAll": "모든 스트림",
+      "filterMemories": "기억만",
+      "filterSkills": "스킬만",
+      "filterFact": "사실 기억",
+      "filterPreference": "선호도 기억",
+      "filterProcedural": "절차적 경험",
+      "filterEpisodic": "에피소드",
+      "filterEvolution": "스킬 진화",
+      "filterDraft": "스킬 초안",
+      "days7": "최근 7일",
+      "days30": "최근 30일",
+      "days90": "최근 90일",
+      "editMemory": "기억 편집",
+      "archiveSkill": "스킬 아카이브",
+      "unarchiveSkill": "스킬 복원",
+      "deleteMemory": "기억 삭제",
+      "deleteConfirm": "이 기억 항목을 영구적으로 삭제하시겠습니까?",
+      "archiveConfirm": "이 스킬을 아카이브하시겠습니까? 모델의 도구 라우팅에서 더 이상 호출되지 않습니다.",
+      "unarchiveConfirm": "이 스킬을 복원하여 다시 활성화하시겠습니까?",
+      "contentLabel": "핵심 내용 / 규칙",
+      "reasoningLabel": "추론 배경 및 맥락",
+      "importanceLabel": "중요도 레벨",
+      "userLockedBadge": "수동 교정됨 (잠금 보호)",
+      "agentOrigin": "에이전트: {agent}",
+      "confidenceLabel": "신뢰도",
+      "saveChanges": "변경사항 저장",
+      "cancel": "취소",
+      "loading": "학습 타임라인을 불러오는 중...",
+      "loadMore": "더 많은 노드 불러오기",
+      "noMore": "모든 노드를 불러왔습니다",
+      "empty": {
+        "title": "아직 학습 기록이 없습니다",
+        "description": "에이전트가 대화에서 사실을 학습하거나 선호도를 기록하거나 스킬을 축적하면 여기에 시계열로 표시되어 관리할 수 있습니다."
+      },
+      "stats": {
+        "totalNodes": "총 {count}개의 학습 노드",
+        "userEditedCount": "{count}개 수동 교정"
+      },
+      "toast": {
+        "updateSuccess": "기억이 성공적으로 업데이트되었습니다",
+        "deleteSuccess": "기억이 삭제되었습니다",
+        "archiveSuccess": "스킬이 아카이브되었습니다",
+        "unarchiveSuccess": "스킬이 복원되어 활성화되었습니다",
+        "actionFailed": "작업 실패: {error}"
+      }
     },
     "knowledgeGraph": {
       "title": "지식 그래프",
