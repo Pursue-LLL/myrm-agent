@@ -173,6 +173,10 @@ impl SidecarManager {
     pub fn is_running(&self) -> bool {
         self.process.is_some()
     }
+
+    pub fn process_id(&self) -> Option<u32> {
+        self.process.as_ref().map(|c| c.id())
+    }
 }
 
 impl Default for SidecarManager {

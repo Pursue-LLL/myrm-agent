@@ -58,38 +58,6 @@ class ImportAgentProfileResponse(BaseModel):
     snapshot_id: str | None = None
 
 
-def _verify_cp_token(request: Request) -> None:
-    """Verify the request comes from the Control Plane."""
-    expected = os.environ.get(_CP_TOKEN_ENV)
-    if not expected:
-        return
-    provided = request.headers.get(_CP_TOKEN_HEADER, "")
-    if not secrets.compare_digest(provided, expected):
-        raise HTTPException(status_code=403, detail="Invalid CP token")
-
-
-def _env_flag(value: str | None, *, default: bool) -> bool:
-    if value is None:
-        return default
-    normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    return default
-
-
-def _marketplace_signature_policy() -> tuple[bool, str | None]:
-    secret_raw = os.environ.get(_MARKETPLACE_SIGN_SECRET_ENV)
-    secret = secret_raw.strip() if isinstance(secret_raw, str) else ""
-    normalized_secret = secret or None
-    require_signature = _env_flag(
-        os.environ.get(_MARKETPLACE_REQUIRE_SIGNATURE_ENV),
-        default=normalized_secret is not None,
-    )
-    return require_signature, normalized_secret
-
-
 @router.post(
     "/api/admin/import-agent-profile",
     response_model=ImportAgentProfileResponse,
@@ -106,7 +74,6 @@ async def import_agent_profile_endpoint(
     When ``force=True``, the endpoint snapshots the existing Agent before
     overwriting, enabling user rollback via the snapshot service.
     """
-    _verify_cp_token(request)
 
     try:
         from app.core.skills.creation.service import skill_creation_service

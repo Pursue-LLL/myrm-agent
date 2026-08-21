@@ -1,9 +1,9 @@
 """Agent profile startup health check, fault isolation, and recovery service.
 
 [INPUT]
-services.agent.profile.profile_snapshot_service::ProfileSnapshotService
-services.agent.profile.profile_resolver::get_agent_profile_resolver
-database.repositories.uow::UnitOfWork
+services.agent.profile.profile_snapshot_service::ProfileSnapshotService (POS: WebUI 配置安全网快照与回滚服务)
+services.agent.profile.profile_resolver::get_agent_profile_resolver (POS: 统一智能体配置解析服务)
+database.repositories.uow::UnitOfWork (POS: 事务单元工作)
 
 [OUTPUT]
 ProfileStartupRecoveryService:

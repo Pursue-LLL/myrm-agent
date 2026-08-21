@@ -87,6 +87,13 @@ async fn run_watchdog(app: AppHandle, port: u16, mut cancel_rx: watch::Receiver<
         }
 
         println!("[watchdog] Backend process exited unexpectedly");
+        if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+            let reg = registry.inner().clone();
+            tauri::async_runtime::spawn(async move {
+                reg.mark_crashed("sidecar:backend", None, Some("Unexpected process exit".to_string())).await;
+                reg.record_restart("sidecar:backend").await;
+            });
+        }
         update_tray_status(&app, "restarting");
         let _ = app.emit("backend-crash", ());
 

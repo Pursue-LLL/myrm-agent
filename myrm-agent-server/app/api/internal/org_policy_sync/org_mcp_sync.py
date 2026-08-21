@@ -20,18 +20,17 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.config.settings import settings
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 from app.services.config.service import ConfigService
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
 
-_CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_CP_TOKEN_HEADER = "X-Telemetry-Token"
 _ORG_MCP_CONFIG_KEY = "orgMcpServers"
 
 
@@ -42,16 +41,6 @@ class OrgMCPSyncRequest(BaseModel):
 class OrgMCPSyncResponse(BaseModel):
     status: str = "synced"
     count: int = 0
-
-
-def _verify_cp_token(request: Request) -> None:
-    """Verify the request comes from the Control Plane."""
-    expected = os.environ.get(_CP_TOKEN_ENV)
-    if not expected:
-        return
-    token = request.headers.get(_CP_TOKEN_HEADER, "")
-    if token != expected:
-        raise HTTPException(status_code=403, detail="Invalid CP token")
 
 
 def _normalize_mcp_server_types(servers: list[dict]) -> list[dict]:

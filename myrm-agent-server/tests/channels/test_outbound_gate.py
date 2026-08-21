@@ -82,6 +82,21 @@ async def test_interactive_chat_warning_on_dead_link(gate: OutboundContentGate) 
         assert result_msg is not None
         assert "Read more at https://dead-domain-xyz.org/doc404" in result_msg.content
         assert "dead-domain-xyz.org/doc404" in result_msg.content
+        assert result_msg.content.endswith("]") or "https://dead-domain-xyz.org/doc404" in result_msg.content
+
+
+@pytest.mark.asyncio
+async def test_multiple_dead_links_warning(gate: OutboundContentGate) -> None:
+    msg = _make_msg("Links: https://bad1.com and https://bad2.com")
+
+    async def _mock_probe(url: str) -> LinkProbeResult:
+        return LinkProbeResult(url=url, is_alive=False, status_code=404, error="HTTP 404")
+
+    with patch.object(gate, "probe_url", side_effect=_mock_probe):
+        result_msg = await gate.evaluate_and_apply(msg)
+        assert result_msg is not None
+        assert "bad1.com" in result_msg.content
+        assert "bad2.com" in result_msg.content
 
 
 @pytest.mark.asyncio
