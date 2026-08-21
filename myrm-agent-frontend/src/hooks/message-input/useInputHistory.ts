@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 
 // ─── Storage Layer ───
 
@@ -138,7 +139,7 @@ export function useInputHistory({ agentId, getInputValue }: UseInputHistoryOptio
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent): boolean => {
       // IME 组合输入阶段不拦截
-      if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+      if (isImeComposing(e) || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
         return false;
       }
 

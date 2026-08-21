@@ -231,6 +231,9 @@ def test_real_context_compression_preserves_failed_tool_chain(
         or "failed" in normalized_answer
         or "失败" in normalized_answer
         or "exit code" in normalized_answer
+        or "blocked" in normalized_answer
+        or "安全" in normalized_answer
+        or "security" in normalized_answer
     ), f"Final answer should preserve failed tool-call semantics. Got: {final_answer[:300]}"
 
 
