@@ -9687,7 +9687,7 @@
         "review_storage_config": "檢查儲存配置",
         "enable_vector_store": "啟用向量儲存",
         "configure_embedding": "配置嵌入模型",
-        "run_diagnostics": "執行診断",
+        "run_diagnostics": "執行診斷",
         "run_health_refresh": "重新整理健康快照",
         "review_retrieval_trace": "檢視檢索軌跡",
         "restore_disciplined_defaults": "恢復紀律預設"
@@ -12369,6 +12369,9 @@
     "updatedAt": "更新時間",
     "latestProgress": "最近進展",
     "completionCriteria": "驗收條件",
+    "acceptanceResults": "驗收結果",
+    "acceptancePassed": "已通過",
+    "acceptanceFailed": "未通過",
     "criteriaPlaceholder": "驗收條件（可選）",
     "skillsPlaceholder": "選擇技能（可選）",
     "branchPlaceholder": "Git 分支（可選，自動建立 worktree）",

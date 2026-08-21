@@ -20,15 +20,12 @@ import {
   notifyBackgroundTasksChangedForVoiceJobFinish,
 } from '@/services/backgroundTasksRefresh';
 import { MANAGED_POLICY_UPDATED_EVENT } from '@/lib/managedPolicyEffectiveEvents';
+import { asRecord } from '@/lib/utils/typeUtils';
 
 interface SSEPayload {
   type: string;
   data: Record<string, unknown>;
   timestamp: string;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 const BC_CHANNEL = 'myrm-sse-events';

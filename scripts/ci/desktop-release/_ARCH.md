@@ -16,8 +16,9 @@
 | `bundle-paths.sh` | `is_release_bundle_path` / `is_updater_bundle_path`（Windows 反斜路径兼容） |
 | `rename-updater-bundles.sh` | Intel：`MyrmAgent_x64.app.tar.gz`（macOS bash） |
 | `rename-windows-updater-bundle.ps1` | Win：`MyrmAgent_x64-setup.exe`（GHA pwsh；Tauri v2 OTA 用 setup.exe，nsis.zip 为临时文件） |
+| `smoke-launch-runtime.ps1` | `build-windows` 后运行时烟测：验证 Python/AgentRunner/Next.js 完整性，拉起 Python sidecar + Next standalone，探测 `:8080/health` 与 `:webui_port`，级联销毁进程树 |
 | `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + OTA 资产交叉校验 + 安装包 glob + 安装包 `.sha256`；`REQUIRE_MIN_OTA_PLATFORMS` + `REQUIRED_OTA_PLATFORM_KEYS` + `REQUIRED_INSTALLER_GLOBS` + `REQUIRE_BARE_LINUX_APPIMAGE` 分阶段门禁 |
-| `smoke-launch-runtime.sh` | `build-macos-arm` 后运行时烟测：解压 `.app` resources，拉起 Python sidecar + Next standalone，探测 `:8080/health` 与 `:webui_port`；`--dev` 供维护者本地；`tests/architecture/test_desktop_launch_smoke_script.py` 语法门禁 |
+| `smoke-launch-runtime.sh` | `build-macos-arm` 后运行时烟测：解压 `.app` resources，验证 AgentRunner，拉起 Python sidecar + Next standalone，探测 `:8080/health` 与 `:webui_port`；`--dev` 供维护者本地；`tests/architecture/test_desktop_launch_smoke_script.py` 语法门禁 |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；用 `bundle-paths` 过滤 |
 | `finalize-fixture-test.sh` | 无网络 fixture：四平台匹配 + `.sig`；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |

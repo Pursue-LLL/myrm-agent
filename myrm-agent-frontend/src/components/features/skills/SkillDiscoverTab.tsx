@@ -622,7 +622,9 @@ const SkillResultCard = memo(
               )}
             </div>
 
-            <p className="text-xs text-muted-foreground line-clamp-2">{skill.description || 'No description'}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {resolveSkillDescription(skill, t('detail.noDescription', { fallback: 'No description provided' }))}
+            </p>
 
             {skill.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">

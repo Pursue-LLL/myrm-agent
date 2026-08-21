@@ -88,6 +88,10 @@ interface ProviderState {
   setVisionFallbackModelFallback: (selection: SingleModelSelection | null) => void;
   setVideoFallbackModel: (selection: SingleModelSelection | null) => void;
   setVideoFallbackModelFallback: (selection: SingleModelSelection | null) => void;
+  setCodeModel: (selection: SingleModelSelection | null) => void;
+  setCodeModelFallback: (selection: SingleModelSelection | null) => void;
+  setLongDocModel: (selection: SingleModelSelection | null) => void;
+  setLongDocModelFallback: (selection: SingleModelSelection | null) => void;
 
   // 自定义模型信息操作
   getModelInfo: (providerId: string, model: string) => CustomModelInfo | undefined;
@@ -651,6 +655,78 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     const config: DefaultModelConfig = {
       ...current,
       videoFallbackModel:
+        selection || existing?.primary
+          ? {
+              primary: existing?.primary ?? null,
+              fallback: selection,
+            }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setCodeModel: (selection) => {
+    const current = get().defaultModelConfig;
+    const config: DefaultModelConfig = {
+      ...current,
+      codeModel: selection
+        ? {
+            primary: selection,
+            fallback: current.codeModel?.fallback ?? null,
+          }
+        : current.codeModel?.fallback
+          ? { primary: null, fallback: current.codeModel.fallback }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setCodeModelFallback: (selection) => {
+    const current = get().defaultModelConfig;
+    const existing = current.codeModel;
+    const config: DefaultModelConfig = {
+      ...current,
+      codeModel:
+        selection || existing?.primary
+          ? {
+              primary: existing?.primary ?? null,
+              fallback: selection,
+            }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setLongDocModel: (selection) => {
+    const current = get().defaultModelConfig;
+    const config: DefaultModelConfig = {
+      ...current,
+      longDocModel: selection
+        ? {
+            primary: selection,
+            fallback: current.longDocModel?.fallback ?? null,
+          }
+        : current.longDocModel?.fallback
+          ? { primary: null, fallback: current.longDocModel.fallback }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setLongDocModelFallback: (selection) => {
+    const current = get().defaultModelConfig;
+    const existing = current.longDocModel;
+    const config: DefaultModelConfig = {
+      ...current,
+      longDocModel:
         selection || existing?.primary
           ? {
               primary: existing?.primary ?? null,

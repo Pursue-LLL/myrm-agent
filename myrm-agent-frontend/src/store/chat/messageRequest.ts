@@ -539,6 +539,26 @@ export const getVisionFallbackModelSelection = (): ModelSelection | null => {
   return resolveSelectionToModelSelection(defaultModelConfig?.visionFallbackModel?.primary);
 };
 
+export const getCodeModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.codeModel?.primary);
+};
+
+export const getFallbackCodeModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.codeModel?.fallback);
+};
+
+export const getLongDocModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.longDocModel?.primary);
+};
+
+export const getFallbackLongDocModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.longDocModel?.fallback);
+};
+
 /**
  * 检查聊天模型配置是否完整（与 Server model_resolver 对齐，无 env fallback）。
  */
@@ -663,6 +683,10 @@ export const createMessageRequest = async (
   const reasoningModelSelection = getReasoningModelSelection(agentConfig);
   const fallbackReasoningModelSelection = getFallbackReasoningModelSelection(agentConfig);
   const visionFallbackModelSelection = getVisionFallbackModelSelection();
+  const codeModelSelection = getCodeModelSelection();
+  const fallbackCodeModelSelection = getFallbackCodeModelSelection();
+  const longDocModelSelection = getLongDocModelSelection();
+  const fallbackLongDocModelSelection = getFallbackLongDocModelSelection();
 
   const query = await buildMultimodalQuery(input, state.files, state.cameraFrames);
 

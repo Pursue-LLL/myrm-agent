@@ -79,6 +79,7 @@ def dry_run_plur(payload: dict[str, object]) -> MemoryImportDryRunResult:
             unmapped_items += 1
             continue
 
+        domain = text(entry.get("domain") or "general")
         scope = text(entry.get("scope") or "global")
         engram_type = text(entry.get("type") or entry.get("category") or "fact")
         created_at = iso_or_now(entry.get("timestamp") or entry.get("created_at"))
@@ -91,6 +92,8 @@ def dry_run_plur(payload: dict[str, object]) -> MemoryImportDryRunResult:
 
         item: dict[str, object] = {
             "content": content,
+            "key": f"plur_{domain}_{engram_type}",
+            "value": content,
             "created_at": created_at,
             "metadata": meta,
         }
