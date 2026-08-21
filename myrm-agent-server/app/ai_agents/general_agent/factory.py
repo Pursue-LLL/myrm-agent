@@ -508,12 +508,12 @@ async def build_general_agent(
             max_runtime_seconds=getattr(agent_wrapper, "kanban_max_runtime_seconds", None),
         )
 
-    if _should_setup_computer_use_tools(agent_wrapper.enable_computer_use):
+    if mount_plan.mount_desktop_prompt:
         from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
 
         system_prompt += DESKTOP_CONTROL_RULES
 
-    if executor is not None:
+    if executor is not None and mount_plan.mount_cli_context:
         try:
             from myrm_agent_harness.toolkits.code_execution.tool_discovery import (
                 get_cli_tools_context,

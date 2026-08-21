@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Any
 
 from myrm_agent_harness.agent.security.channel_presets import (
     ChannelType,

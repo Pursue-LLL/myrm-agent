@@ -1,151 +1,256 @@
+/**
+ * [INPUT]
+ * - id: string | undefined (POS: 会话/视图唯一标识)
+ * - enabled: boolean (POS: 是否开启持久化镜像)
+ * - getScrollElement?: () => HTMLElement | Window | null (POS: 滚动宿主获取器，支持 window 或 virtual list div)
+ * - onRestore?: (entry: ScrollFollowMirrorEntry) => void (POS: 恢复成功回调)
+ *
+ * [OUTPUT]
+ * - saveScrollPosition: () => void (POS: 即刻同步当前滚动镜像到 L1 内存并在卸载/隐藏/防抖时持久化到 L2 SessionStorage)
+ * - restoreScrollPosition: () => boolean (POS: 根据持久化镜像自适应恢复跟随态或视口坐标)
+ * - getScrollMirrorSnapshot: () => ScrollFollowMirrorEntry | null (POS: 提取当前会话持久化快照)
+ * - userScrolledRef: MutableRefObject<boolean> (POS: 用户是否主动离开底部)
+ * - isFollowingBottomRef: MutableRefObject<boolean> (POS: 是否处于流式底部跟随态)
+ * - saveTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null> (POS: 防抖定时器)
+ *
+ * [POS]
+ * AutoScrollFollowPersistenceMirror: 通用滚动跟随持久化镜像总线。
+ * 抹平原生 window 与虚拟列表容器差异，实现会话离开 0 延迟镜像、重入 0ms 精确还原。
+ */
 import { useCallback, useRef, useEffect } from 'react';
-import { isNearBottom } from '@/lib/utils/domUtils';
 
-// 滚动位置存储的键名前缀
-const SCROLL_POSITION_KEY_PREFIX = 'chat_scroll_';
-// 最大缓存的聊天数量
-const MAX_CACHED_CHATS = 5;
+const SCROLL_POSITION_KEY_PREFIX = 'myrm_scroll_mirror_';
+const MAX_CACHED_SESSIONS = 10;
 
-// 滚动位置缓存数据结构
-interface ScrollPositionCache {
+export interface ScrollFollowMirrorEntry {
+  /** 滚动条绝对位置 */
   position: number;
+  /** 是否处于底部跟随态 */
+  isFollowingBottom: boolean;
+  /** 用户是否主动上滑离开底部 */
+  isUserScrolledUp: boolean;
+  /** 语义锚点消息 ID */
+  anchorMessageId?: string;
+  /** 更新时间戳 */
   timestamp: number;
 }
 
-// 解析缓存数据
-const parseScrollCache = (data: string | null): ScrollPositionCache | null => {
+// L1 内存即时镜像缓存（支持切会话 0ms 瞬间直读）
+const inMemoryMirrorMap = new Map<string, ScrollFollowMirrorEntry>();
+
+/**
+ * 解析 SessionStorage 缓存数据
+ */
+const parseScrollMirror = (data: string | null): ScrollFollowMirrorEntry | null => {
   if (!data) {
     return null;
   }
   try {
-    // 兼容旧格式（纯数字）
-    if (!data.startsWith('{')) {
-      const position = parseInt(data, 10);
-      return isNaN(position) ? null : { position, timestamp: Date.now() };
+    const parsed = JSON.parse(data) as Partial<ScrollFollowMirrorEntry>;
+    if (typeof parsed?.position !== 'number') {
+      return null;
     }
-    return JSON.parse(data) as ScrollPositionCache;
+    return {
+      position: Math.max(0, parsed.position),
+      isFollowingBottom: Boolean(parsed.isFollowingBottom),
+      isUserScrolledUp: Boolean(parsed.isUserScrolledUp),
+      anchorMessageId: typeof parsed.anchorMessageId === 'string' ? parsed.anchorMessageId : undefined,
+      timestamp: typeof parsed.timestamp === 'number' ? parsed.timestamp : Date.now(),
+    };
   } catch {
     return null;
   }
 };
 
-interface UseScrollPositionRestoreOptions {
-  /** 唯一标识符，用于区分不同的页面/聊天 */
+export interface UseScrollPositionRestoreOptions {
+  /** 唯一标识符，用于区分不同的页面/聊天会话 */
   id: string | undefined;
   /** 是否启用滚动位置保存/恢复 */
   enabled?: boolean;
+  /** 滚动容器获取器（默认 window） */
+  getScrollElement?: () => HTMLElement | Window | null;
   /** 恢复后的回调 */
-  onRestore?: (position: number) => void;
+  onRestore?: (entry: ScrollFollowMirrorEntry) => void;
 }
 
-interface UseScrollPositionRestoreReturn {
-  /** 保存当前滚动位置 */
-  saveScrollPosition: () => void;
-  /** 恢复滚动位置 */
-  restoreScrollPosition: () => void;
+export interface UseScrollPositionRestoreReturn {
+  /** 保存当前滚动位置与跟随状态到 L1/L2 镜像 */
+  saveScrollPosition: (override?: Partial<ScrollFollowMirrorEntry>) => void;
+  /** 恢复滚动位置与跟随状态 */
+  restoreScrollPosition: () => boolean;
+  /** 获取当前会话的快照 */
+  getScrollMirrorSnapshot: () => ScrollFollowMirrorEntry | null;
   /** 标记用户是否已手动滚动（用于配合自动滚动逻辑） */
   userScrolledRef: React.MutableRefObject<boolean>;
+  /** 标记是否处于底部跟随态 */
+  isFollowingBottomRef: React.MutableRefObject<boolean>;
   /** 用于防抖保存的定时器引用 */
   saveTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
 }
 
-/**
- * 滚动位置保存和恢复的自定义 Hook
- *
- * 功能：
- * 1. 在滚动时自动保存位置到 sessionStorage（防抖）
- * 2. 页面卸载/隐藏时立即保存
- * 3. 组件挂载时自动恢复滚动位置
- * 4. 自动清理过期缓存（保留最近 N 个）
- */
 export function useScrollPositionRestore({
   id,
   enabled = true,
+  getScrollElement,
   onRestore,
 }: UseScrollPositionRestoreOptions): UseScrollPositionRestoreReturn {
   const hasRestoredRef = useRef(false);
   const userScrolledRef = useRef(false);
+  const isFollowingBottomRef = useRef(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 保存滚动位置到 sessionStorage
-  const saveScrollPosition = useCallback(() => {
-    if (!id || !enabled) {
-      return;
+  // 获取当前滚动容器与状态
+  const resolveScrollMetrics = useCallback(() => {
+    const target = getScrollElement ? getScrollElement() : typeof window !== 'undefined' ? window : null;
+    if (!target) {
+      return { position: 0, scrollHeight: 0, clientHeight: 0, isBottom: true };
     }
 
-    const scrollPosition = window.scrollY;
-    const key = `${SCROLL_POSITION_KEY_PREFIX}${id}`;
+    if (target === window || !('scrollTop' in target)) {
+      const position = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const isBottom = scrollHeight - position - clientHeight <= 80;
+      return { position, scrollHeight, clientHeight, isBottom };
+    }
 
-    try {
-      // 保存当前聊天的滚动位置（包含时间戳）
-      const cacheData: ScrollPositionCache = {
-        position: scrollPosition,
+    const el = target as HTMLElement;
+    const position = el.scrollTop;
+    const scrollHeight = el.scrollHeight;
+    const clientHeight = el.clientHeight;
+    const isBottom = scrollHeight - position - clientHeight <= 80;
+    return { position, scrollHeight, clientHeight, isBottom };
+  }, [getScrollElement]);
+
+  // 保存滚动镜像
+  const saveScrollPosition = useCallback(
+    (override?: Partial<ScrollFollowMirrorEntry>) => {
+      if (!id || !enabled) {
+        return;
+      }
+
+      const { position, isBottom } = resolveScrollMetrics();
+      const isFollowing = override?.isFollowingBottom ?? (isBottom && !userScrolledRef.current);
+      const isScrolledUp = override?.isUserScrolledUp ?? userScrolledRef.current;
+
+      const entry: ScrollFollowMirrorEntry = {
+        position: override?.position ?? position,
+        isFollowingBottom: isFollowing,
+        isUserScrolledUp: isScrolledUp,
+        anchorMessageId: override?.anchorMessageId,
         timestamp: Date.now(),
       };
-      sessionStorage.setItem(key, JSON.stringify(cacheData));
 
-      // 清理旧的缓存，只保留最近的 N 个聊天的滚动位置
-      const allKeys = Object.keys(sessionStorage).filter((k) => k.startsWith(SCROLL_POSITION_KEY_PREFIX));
-      if (allKeys.length > MAX_CACHED_CHATS) {
-        // 按时间戳排序，移除最旧的缓存
-        const keyWithTimestamp = allKeys.map((k) => {
-          const cache = parseScrollCache(sessionStorage.getItem(k));
-          return { key: k, timestamp: cache?.timestamp || 0 };
-        });
-        keyWithTimestamp.sort((a, b) => a.timestamp - b.timestamp);
+      // 1. 同步更新 L1 内存镜像
+      inMemoryMirrorMap.set(id, entry);
 
-        // 移除最旧的缓存，保留最新的 MAX_CACHED_CHATS 个
-        const keysToRemove = keyWithTimestamp.slice(0, keyWithTimestamp.length - MAX_CACHED_CHATS);
-        keysToRemove.forEach(({ key: k }) => sessionStorage.removeItem(k));
+      // 2. 持久化到 L2 SessionStorage（LRU 维护）
+      const key = `${SCROLL_POSITION_KEY_PREFIX}${id}`;
+      try {
+        sessionStorage.setItem(key, JSON.stringify(entry));
+
+        const allKeys = Object.keys(sessionStorage).filter((k) => k.startsWith(SCROLL_POSITION_KEY_PREFIX));
+        if (allKeys.length > MAX_CACHED_SESSIONS) {
+          const keyWithTimestamp = allKeys.map((k) => {
+            const cache = parseScrollMirror(sessionStorage.getItem(k));
+            return { key: k, timestamp: cache?.timestamp || 0 };
+          });
+          keyWithTimestamp.sort((a, b) => a.timestamp - b.timestamp);
+
+          const keysToRemove = keyWithTimestamp.slice(0, keyWithTimestamp.length - MAX_CACHED_SESSIONS);
+          keysToRemove.forEach(({ key: k }) => sessionStorage.removeItem(k));
+        }
+      } catch {
+        // QuotaExceededError 或隐私模式降级
+      }
+    },
+    [id, enabled, resolveScrollMetrics],
+  );
+
+  // 获取当前镜像快照
+  const getScrollMirrorSnapshot = useCallback((): ScrollFollowMirrorEntry | null => {
+    if (!id) {
+      return null;
+    }
+    if (inMemoryMirrorMap.has(id)) {
+      return inMemoryMirrorMap.get(id)!;
+    }
+    try {
+      const raw = sessionStorage.getItem(`${SCROLL_POSITION_KEY_PREFIX}${id}`);
+      const parsed = parseScrollMirror(raw);
+      if (parsed) {
+        inMemoryMirrorMap.set(id, parsed);
+        return parsed;
       }
     } catch {
-      // sessionStorage 可能已满或不可用，忽略错误
+      // 忽略
     }
-  }, [id, enabled]);
+    return null;
+  }, [id]);
 
   // 恢复滚动位置
-  const restoreScrollPosition = useCallback(() => {
+  const restoreScrollPosition = useCallback((): boolean => {
     if (!id || !enabled || hasRestoredRef.current) {
-      return;
+      return false;
     }
 
-    const key = `${SCROLL_POSITION_KEY_PREFIX}${id}`;
+    const snapshot = getScrollMirrorSnapshot();
+    hasRestoredRef.current = true;
 
-    try {
-      const cache = parseScrollCache(sessionStorage.getItem(key));
-      if (cache && cache.position > 0) {
-        // 使用 requestAnimationFrame 确保 DOM 已经渲染完成
-        requestAnimationFrame(() => {
-          // 计算页面最大可滚动距离
+    if (!snapshot) {
+      userScrolledRef.current = false;
+      isFollowingBottomRef.current = true;
+      return false;
+    }
+
+    userScrolledRef.current = snapshot.isUserScrolledUp;
+    isFollowingBottomRef.current = snapshot.isFollowingBottom;
+
+    const target = getScrollElement ? getScrollElement() : typeof window !== 'undefined' ? window : null;
+    if (!target) {
+      onRestore?.(snapshot);
+      return true;
+    }
+
+    // 若离开前为跟随模式，恢复时优先置底
+    if (snapshot.isFollowingBottom) {
+      requestAnimationFrame(() => {
+        if (target === window || !('scrollTop' in target)) {
+          window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
+        } else {
+          (target as HTMLElement).scrollTop = (target as HTMLElement).scrollHeight;
+        }
+        onRestore?.(snapshot);
+      });
+      return true;
+    }
+
+    // 若离开前为手动查阅模式，恢复绝对位置
+    if (snapshot.position > 0) {
+      requestAnimationFrame(() => {
+        if (target === window || !('scrollTop' in target)) {
           const maxScrollY = document.documentElement.scrollHeight - window.innerHeight;
-          // 确保不超过最大可滚动距离
-          const targetPosition = Math.min(cache.position, Math.max(0, maxScrollY));
-
-          if (targetPosition > 0) {
-            window.scrollTo(0, targetPosition);
-            // 标记用户已经滚动过（如果恢复的位置不在底部）
-            if (!isNearBottom()) {
-              userScrolledRef.current = true;
-            }
-            onRestore?.(targetPosition);
-          }
-          hasRestoredRef.current = true;
-        });
-      } else {
-        hasRestoredRef.current = true;
-      }
-    } catch {
-      // sessionStorage 不可用，忽略错误
-      hasRestoredRef.current = true;
+          window.scrollTo(0, Math.min(snapshot.position, Math.max(0, maxScrollY)));
+        } else {
+          const el = target as HTMLElement;
+          const maxScroll = el.scrollHeight - el.clientHeight;
+          el.scrollTop = Math.min(snapshot.position, Math.max(0, maxScroll));
+        }
+        onRestore?.(snapshot);
+      });
+      return true;
     }
-  }, [id, enabled, onRestore]);
+
+    onRestore?.(snapshot);
+    return true;
+  }, [id, enabled, getScrollElement, getScrollMirrorSnapshot, onRestore]);
 
   // id 变化时重置恢复标志
   useEffect(() => {
     hasRestoredRef.current = false;
   }, [id]);
 
-  // 页面卸载或隐藏时立即保存滚动位置
+  // 卸载与隐藏时即刻快照
   useEffect(() => {
     if (!id || !enabled) {
       return;
@@ -164,13 +269,16 @@ export function useScrollPositionRestore({
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      saveScrollPosition();
     };
   }, [saveScrollPosition, id, enabled]);
 
   return {
     saveScrollPosition,
     restoreScrollPosition,
+    getScrollMirrorSnapshot,
     userScrolledRef,
+    isFollowingBottomRef,
     saveTimerRef,
   };
 }

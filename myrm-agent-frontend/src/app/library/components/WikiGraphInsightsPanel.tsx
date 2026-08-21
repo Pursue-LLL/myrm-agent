@@ -2,26 +2,22 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Focus, GitFork, Network, Layers } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { wikiService, type WikiGraphInsights } from '@/services/wikiService';
+import {
+  wikiService,
+  type WikiGraphInsights,
+  type WikiKnowledgeGapItem,
+  type WikiUnexpectedConnectionItem,
+  type WikiCommunityItem,
+} from '@/services/wikiService';
 
 interface WikiGraphInsightsPanelProps {
   agentId?: string | null;
+  onSelectNode?: (nodeId: string) => void;
 }
 
-function insightLabel(record: Record<string, unknown>): string {
-  const candidates = ['label', 'name', 'topic', 'concept', 'source', 'target', 'description'];
-  for (const key of candidates) {
-    const value = record[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-  }
-  return JSON.stringify(record).slice(0, 120);
-}
-
-export default function WikiGraphInsightsPanel({ agentId }: WikiGraphInsightsPanelProps) {
+export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGraphInsightsPanelProps) {
   const t = useTranslations('library.graph.insights');
   const [insights, setInsights] = useState<WikiGraphInsights | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,48 +72,128 @@ export default function WikiGraphInsightsPanel({ agentId }: WikiGraphInsightsPan
       ) : null}
 
       {!loading && !error && insights ? (
-        <div className="space-y-4 text-sm">
-          <section>
-            <h4 className="font-medium text-foreground">{t('gapsTitle', { count: insights.knowledge_gaps.length })}</h4>
+        <div className="space-y-5 text-sm">
+          {/* Knowledge Gaps */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-1.5 font-medium text-foreground">
+              <Network className="h-4 w-4 text-amber-500" />
+              <h4>{t('gapsTitle', { count: insights.knowledge_gaps.length })}</h4>
+            </div>
             {insights.knowledge_gaps.length === 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">{t('emptyGaps')}</p>
+              <p className="text-xs text-muted-foreground">{t('emptyGaps')}</p>
             ) : (
-              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                {insights.knowledge_gaps.slice(0, 5).map((item, index) => (
-                  <li key={`gap-${index}`} className="truncate">
-                    {insightLabel(item)}
+              <ul className="space-y-1.5">
+                {insights.knowledge_gaps.slice(0, 6).map((item: WikiKnowledgeGapItem, index: number) => (
+                  <li
+                    key={`gap-${index}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 transition-colors hover:bg-muted/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-medium text-foreground">{item.node}</span>
+                        <span
+                          className={`rounded px-1.5 py-0.2 text-[10px] font-medium ${
+                            item.type === 'isolated'
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                          }`}
+                        >
+                          {item.type === 'isolated' ? t('isolated') : t('bridge')}
+                        </span>
+                      </div>
+                    </div>
+                    {onSelectNode ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelectNode(item.node)}
+                        className="flex shrink-0 items-center gap-1 rounded p-1 text-[10px] text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                        title={t('locate')}
+                      >
+                        <Focus className="h-3 w-3" />
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             )}
           </section>
-          <section>
-            <h4 className="font-medium text-foreground">
-              {t('connectionsTitle', { count: insights.unexpected_connections.length })}
-            </h4>
+
+          {/* Unexpected Connections */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-1.5 font-medium text-foreground">
+              <GitFork className="h-4 w-4 text-emerald-500" />
+              <h4>{t('connectionsTitle', { count: insights.unexpected_connections.length })}</h4>
+            </div>
             {insights.unexpected_connections.length === 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">{t('emptyConnections')}</p>
+              <p className="text-xs text-muted-foreground">{t('emptyConnections')}</p>
             ) : (
-              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                {insights.unexpected_connections.slice(0, 5).map((item, index) => (
-                  <li key={`conn-${index}`} className="truncate">
-                    {insightLabel(item)}
+              <ul className="space-y-1.5">
+                {insights.unexpected_connections.slice(0, 6).map((item: WikiUnexpectedConnectionItem, index: number) => (
+                  <li
+                    key={`conn-${index}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 transition-colors hover:bg-muted/60"
+                  >
+                    <div className="min-w-0 flex-1 truncate text-xs">
+                      <span
+                        className="cursor-pointer font-medium text-foreground hover:underline"
+                        onClick={() => onSelectNode?.(item.source)}
+                      >
+                        {item.source}
+                      </span>
+                      <span className="mx-1 text-muted-foreground">↔</span>
+                      <span
+                        className="cursor-pointer font-medium text-foreground hover:underline"
+                        onClick={() => onSelectNode?.(item.target)}
+                      >
+                        {item.target}
+                      </span>
+                    </div>
+                    <span className="shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                      w={item.weight}
+                    </span>
                   </li>
                 ))}
               </ul>
             )}
           </section>
-          <section>
-            <h4 className="font-medium text-foreground">
-              {t('communitiesTitle', { count: insights.communities.length })}
-            </h4>
+
+          {/* Communities */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-1.5 font-medium text-foreground">
+              <Layers className="h-4 w-4 text-sky-500" />
+              <h4>{t('communitiesTitle', { count: insights.communities.length })}</h4>
+            </div>
             {insights.communities.length === 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">{t('emptyCommunities')}</p>
+              <p className="text-xs text-muted-foreground">{t('emptyCommunities')}</p>
             ) : (
-              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                {insights.communities.slice(0, 5).map((item, index) => (
-                  <li key={`community-${index}`} className="truncate">
-                    {insightLabel(item)}
+              <ul className="space-y-1.5">
+                {insights.communities.slice(0, 5).map((item: WikiCommunityItem, index: number) => (
+                  <li
+                    key={`community-${index}`}
+                    className="space-y-1 rounded-lg border border-border/40 bg-muted/30 p-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        Cluster #{item.id} ({item.size} {t('members')})
+                      </span>
+                      <span className="text-[10px]">
+                        {t('cohesion')}: {Math.round(item.cohesion * 100)}%
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {item.members.slice(0, 4).map((member, mIdx) => (
+                        <span
+                          key={mIdx}
+                          onClick={() => onSelectNode?.(member)}
+                          className="cursor-pointer rounded bg-background/80 px-1.5 py-0.5 text-[10px] text-foreground transition-colors hover:bg-primary/20"
+                        >
+                          {member}
+                        </span>
+                      ))}
+                      {item.members.length > 4 ? (
+                        <span className="text-[10px] text-muted-foreground">+{item.members.length - 4}</span>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>

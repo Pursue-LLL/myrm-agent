@@ -63,12 +63,25 @@ const GROUP_COLORS = [
 
 const getGroupColor = (group: number) => GROUP_COLORS[group % GROUP_COLORS.length];
 
-export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
+export interface WikiGraph3DHandle {
+  focusNode: (nodeId: string) => void;
+  resetView: () => void;
+}
+
+export default function WikiGraph3D({
+  agentId,
+  selectedNodeId,
+}: {
+  agentId?: string | null;
+  selectedNodeId?: string | null;
+}) {
   const t = useTranslations('library');
   const [data, setData] = useState<ForceGraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fgRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -207,7 +220,7 @@ export default function WikiGraph3D({ agentId }: { agentId?: string | null }) {
     } catch (err) {
       console.error('Failed to fetch neighborhood:', err);
     }
-  }, []);
+  }, [agentId]);
 
   useEffect(() => {
     const updateDimensions = () => {
