@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 router.include_router(command_center.router, tags=["memory-command-center"])
+router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
 router.include_router(pending.router, tags=["memory-pending"])
 router.include_router(shared_context_health.router, tags=["memory-shared-contexts"])
 router.include_router(shared_contexts.router, tags=["memory-shared-contexts"])

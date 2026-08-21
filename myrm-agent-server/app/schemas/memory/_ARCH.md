@@ -8,4 +8,4 @@
 |------|------|------|-------|
 | `crud.py` | 核心 | Memory CRUD、偏好、评分、导出请求/响应模型 | ✅ |
 | `archive.py` | 核心 | 归档、导入、回滚请求/响应模型；`MemoryImportReadiness`/`MemoryImportReadinessIssue`（含可选 `settings_path` 深链） | ✅ |
-| `command_center.py` | 核心 | Memory Command Center 仪表盘 DTO；`MemoryCommandRuntimeStatus` 含 `vector_persistence`（persistent/memory_fallback/unavailable） | ✅ |
+| `command_center.py` | 核心 | Memory Command Center 仪表盘 DTO；`MemoryCommandRuntimeStatus` 含 `vector_persistence`（persistent/memory_fallback/unavailable）；包含 Review-First `MemoryRecallBoundaryData`、`MemoryRecallScopeBoundary`、`MemoryFourPartitionSummary`、`MemoryCandidateRecord` 与 `MemoryApprovedRecord` | ✅ |
