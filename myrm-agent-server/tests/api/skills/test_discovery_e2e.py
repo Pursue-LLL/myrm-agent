@@ -159,6 +159,7 @@ class TestSkillDiscoveryE2E:
                 "skill_id": "plugin::code-review-plugin",
                 "source": "github",
                 "mount_to_agent": False,
+                "allow_downgrade": False,
             },
         )
         assert res_install.status_code == 200
@@ -167,6 +168,41 @@ class TestSkillDiscoveryE2E:
         assert install_data["skill_name"] == "code-review-plugin"
         assert install_data["installed_skills"] == ["code-review", "git-lint"]
         assert install_data["declared_mcp_servers"] == ["sqlite-srv"]
+
+    def test_install_skill_downgrade_blocked_e2e(self, client: TestClient, monkeypatch: pytest.MonkeyPatch):
+        """E2E test verifying skill downgrade blockage response."""
+        from unittest.mock import AsyncMock
+
+        from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
+
+        downgrade_res = SkillInstallResult(
+            success=False,
+            skill_name="my-skill",
+            error="Skill downgrade blocked: incoming version '1.0.0' is lower than installed version '1.2.0'.",
+            error_code="DOWNGRADE_BLOCKED",
+        )
+        monkeypatch.setattr(
+            "app.api.skills.discovery.market_service.install",
+            AsyncMock(return_value=downgrade_res),
+        )
+        monkeypatch.setattr(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            AsyncMock(),
+        )
+
+        res = client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": "github::test/my-skill",
+                "source": "github",
+                "allow_downgrade": False,
+            },
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["success"] is False
+        assert data["error_code"] == "DOWNGRADE_BLOCKED"
+        assert "downgrade blocked" in data["error"]
 
     def test_uninstall_broadcasts_skill_pool_updated(self, client: TestClient, monkeypatch):
         """Test uninstalling a skill broadcasts SKILL_POOL_UPDATED event."""

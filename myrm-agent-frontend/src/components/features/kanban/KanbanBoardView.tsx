@@ -19,7 +19,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
-import { Layers, Sparkles, Users } from 'lucide-react';
+import { Layers, Sparkles, Users, UserCheck, Bot } from 'lucide-react';
+import {
+  deriveTaskDecisionFrame,
+  filterTasksByResponsibility,
+  type ResponsibilityFilter,
+} from '@/lib/kanban/kanbanDecisionFrame';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import type { KanbanBoard, KanbanTask, TaskStatus, TaskDependency, BoardSummary } from '@/services/kanban';
@@ -127,6 +132,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     }
   });
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
+  const [responsibilityFilter, setResponsibilityFilter] = useState<ResponsibilityFilter>('all');
   const [forcePromoteState, setForcePromoteState] = useState<{
     taskId: string;
     targetStatus: TaskStatus;
@@ -643,31 +649,81 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         </div>
       )}
 
-      {/* View tabs */}
-      <Tabs
-        value={viewMode}
-        onValueChange={(v) => {
-          const mode = v as 'board' | 'graph' | 'activity';
-          setViewMode(mode);
-          try {
-            localStorage.setItem('kanban_view_mode', mode);
-          } catch {
-            /* ignore */
-          }
-        }}
-      >
-        <TabsList className="h-8">
-          <TabsTrigger value="board" className="text-xs px-3 py-1">
-            {t('viewBoard')}
-          </TabsTrigger>
-          <TabsTrigger value="graph" className="text-xs px-3 py-1" data-testid="kanban-view-graph">
-            {t('viewGraph')}
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="text-xs px-3 py-1">
-            {t('viewActivity')}
-          </TabsTrigger>
-        </TabsList>
+      {/* View tabs and Decision Filter */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <Tabs
+          value={viewMode}
+          onValueChange={(v) => {
+            const mode = v as 'board' | 'graph' | 'activity';
+            setViewMode(mode);
+            try {
+              localStorage.setItem('kanban_view_mode', mode);
+            } catch {
+              /* ignore */
+            }
+          }}
+        >
+          <TabsList className="h-8">
+            <TabsTrigger value="board" className="text-xs px-3 py-1">
+              {t('viewBoard')}
+            </TabsTrigger>
+            <TabsTrigger value="graph" className="text-xs px-3 py-1" data-testid="kanban-view-graph">
+              {t('viewGraph')}
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="text-xs px-3 py-1">
+              {t('viewActivity')}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
+        {viewMode === 'board' && (
+          <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/40">
+            <button
+              type="button"
+              onClick={() => setResponsibilityFilter('all')}
+              className={cn(
+                'text-xs px-2.5 py-1 rounded-md transition-colors font-medium',
+                responsibilityFilter === 'all'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              title={t('decisionFilterAllHint')}
+            >
+              {t('decisionFilterAll')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setResponsibilityFilter('needs_action')}
+              className={cn(
+                'text-xs px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1 font-medium',
+                responsibilityFilter === 'needs_action'
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-xs'
+                  : 'text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400',
+              )}
+              title={t('decisionFilterNeedsActionHint')}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              {t('decisionFilterNeedsAction')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setResponsibilityFilter('autonomous')}
+              className={cn(
+                'text-xs px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1 font-medium',
+                responsibilityFilter === 'autonomous'
+                  ? 'bg-chart-4/10 text-chart-4 border border-chart-4/20 shadow-xs'
+                  : 'text-muted-foreground hover:text-chart-4',
+              )}
+              title={t('decisionFilterAutonomousHint')}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              {t('decisionFilterAutonomous')}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <Tabs value={viewMode}>
         <TabsContent value="board" className="mt-3">
           {loading ? (
             <div className="flex gap-4">

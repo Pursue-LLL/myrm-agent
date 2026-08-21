@@ -26,7 +26,7 @@ def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:
     pick_script = _REPO_ROOT / "scripts/ci/desktop-release/pick-platform-asset.sh"
     assert pick_script.is_file()
 
-    # 1. Empty assets directory -> returns empty string with 0 exit code
+    # 1. Empty assets directory -> returns 1 (no asset matched)
     res_empty = subprocess.run(
         ["bash", "-c", f'source "{pick_script}" && pick_platform_asset darwin-aarch64 "{tmp_path}"'],
         cwd=_REPO_ROOT,
@@ -34,7 +34,7 @@ def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert res_empty.returncode == 0
+    assert res_empty.returncode == 1
     assert res_empty.stdout.strip() == ""
 
     # 2. Unknown platform -> returns 1

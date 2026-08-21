@@ -14662,10 +14662,60 @@
     },
     "tabs": {
       "overview": "總覽",
+      "timeline": "學習時間線",
       "evolution": "進化覆盤",
       "graph": "知識圖譜",
       "trends": "技能趨勢",
       "daily": "每日回顧"
+    },
+    "learningTimeline": {
+      "title": "記憶與技能學習時間線",
+      "description": "統一按時間軸彙聚事實、偏好、經驗流程記憶與技能演化流，提供行內修改與治理能力。",
+      "filterAll": "全部流",
+      "filterMemories": "僅記憶",
+      "filterSkills": "僅技能",
+      "filterFact": "事實記憶",
+      "filterPreference": "偏好記憶",
+      "filterProcedural": "流程經驗",
+      "filterEpisodic": "情景片段",
+      "filterEvolution": "技能進化",
+      "filterDraft": "技能草稿",
+      "days7": "近 7 天",
+      "days30": "近 30 天",
+      "days90": "近 90 天",
+      "editMemory": "編輯記憶",
+      "archiveSkill": "歸檔技能",
+      "unarchiveSkill": "恢復技能",
+      "deleteMemory": "刪除記憶",
+      "deleteConfirm": "確定要永久刪除該條記憶嗎？",
+      "archiveConfirm": "確定歸檔該技能？歸檔後模型工具路由將不再呼叫此技能。",
+      "unarchiveConfirm": "確定恢復並重新啟用該技能？",
+      "contentLabel": "核心內容 / 規則",
+      "reasoningLabel": "推演背景與上下文",
+      "importanceLabel": "重要度等級",
+      "userLockedBadge": "使用者人工校準 (鎖定免覆蓋)",
+      "agentOrigin": "智慧體: {agent}",
+      "confidenceLabel": "置信度",
+      "saveChanges": "儲存修改",
+      "cancel": "取消",
+      "loading": "正在載入學習時間線...",
+      "loadMore": "載入更多節點",
+      "noMore": "已載入全部節點",
+      "empty": {
+        "title": "暫無學習成長足跡",
+        "description": "當智慧體在對話中習得事實、記錄偏好或自動沉澱技能時，會按時間序列在此清晰展現並支援人工治理。"
+      },
+      "stats": {
+        "totalNodes": "共 {count} 個學習節點",
+        "userEditedCount": "{count} 條人工校準"
+      },
+      "toast": {
+        "updateSuccess": "記憶更新成功",
+        "deleteSuccess": "記憶已刪除",
+        "archiveSuccess": "技能已歸檔",
+        "unarchiveSuccess": "技能已恢復啟用",
+        "actionFailed": "操作失敗: {error}"
+      }
     },
     "knowledgeGraph": {
       "title": "知識圖譜",

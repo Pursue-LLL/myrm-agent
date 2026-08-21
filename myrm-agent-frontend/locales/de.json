@@ -15211,10 +15211,60 @@
     },
     "tabs": {
       "overview": "Überblick",
+      "timeline": "Lernzeitleiste",
       "evolution": "Evolutionsübersicht",
       "graph": "Wissensgraph",
       "trends": "Skill-Trends",
       "daily": "Täglicher Rückblick"
+    },
+    "learningTimeline": {
+      "title": "Lern- und Evolutionsstream",
+      "description": "Einheitlicher chronologischer Stream von Fakten-, Präferenz- und prozeduralen Erinnerungen sowie Skill-Evolutionsaufzeichnungen mit Inline-Verwaltung.",
+      "filterAll": "Alle Streams",
+      "filterMemories": "Nur Erinnerungen",
+      "filterSkills": "Nur Skills",
+      "filterFact": "Fakten",
+      "filterPreference": "Präferenzen",
+      "filterProcedural": "Abläufe",
+      "filterEpisodic": "Episodisch",
+      "filterEvolution": "Skill-Evolution",
+      "filterDraft": "Skill-Entwurf",
+      "days7": "Letzte 7 Tage",
+      "days30": "Letzte 30 Tage",
+      "days90": "Letzte 90 Tage",
+      "editMemory": "Erinnerung bearbeiten",
+      "archiveSkill": "Skill archivieren",
+      "unarchiveSkill": "Skill wiederherstellen",
+      "deleteMemory": "Erinnerung löschen",
+      "deleteConfirm": "Möchten Sie dieses Erinnerungselement wirklich dauerhaft löschen?",
+      "archiveConfirm": "Möchten Sie diesen Skill archivieren? Er wird nicht mehr vom Modell-Tool-Routing aufgerufen.",
+      "unarchiveConfirm": "Möchten Sie diesen Skill wiederherstellen und aktivieren?",
+      "contentLabel": "Kerninhalt / Regel",
+      "reasoningLabel": "Begründung und Kontext",
+      "importanceLabel": "Wichtigkeitsstufe",
+      "userLockedBadge": "Manuell kalibriert (Gesperrt)",
+      "agentOrigin": "Agent: {agent}",
+      "confidenceLabel": "Konfidenz",
+      "saveChanges": "Änderungen speichern",
+      "cancel": "Abbrechen",
+      "loading": "Lernzeitleiste wird geladen...",
+      "loadMore": "Weitere Knoten laden",
+      "noMore": "Alle Knoten geladen",
+      "empty": {
+        "title": "Noch keine Lernaktivitäten",
+        "description": "Wenn der Agent in Unterhaltungen Fakten lernt, Präferenzen speichert oder Skills aufbaut, werden diese hier chronologisch angezeigt."
+      },
+      "stats": {
+        "totalNodes": "Insgesamt {count} Lernknoten",
+        "userEditedCount": "{count} manuell kalibriert"
+      },
+      "toast": {
+        "updateSuccess": "Erinnerung erfolgreich aktualisiert",
+        "deleteSuccess": "Erinnerung gelöscht",
+        "archiveSuccess": "Skill archiviert",
+        "unarchiveSuccess": "Skill wiederhergestellt und aktiviert",
+        "actionFailed": "Aktion fehlgeschlagen: {error}"
+      }
     },
     "knowledgeGraph": {
       "title": "Wissensgraph",

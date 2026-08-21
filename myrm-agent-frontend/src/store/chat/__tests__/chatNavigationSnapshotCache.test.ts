@@ -166,4 +166,26 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
     expect(getChatNavigationSnapshot('chat-to-clear')).toBeNull();
     expect(window.sessionStorage.getItem('myrm_nav_snap_chat-to-clear')).toBeNull();
   });
+
+  it('handles invalid JSON in sessionStorage gracefully without crashing', () => {
+    window.sessionStorage.setItem('myrm_nav_snap_corrupt', '{invalid json');
+    const restored = getChatNavigationSnapshot('corrupt');
+    expect(restored).toBeNull();
+  });
+
+  it('correctly resolves pane snapshot combined with LRU snapshot via resolvePaneSnapshotBase', async () => {
+    const { resolvePaneSnapshotBase } = await import('../chatNavigationSnapshotCache');
+    saveChatNavigationSnapshot('chat-pane-1', {
+      actionMode: 'agent',
+      activeMoaPresetId: 'preset-deep-seek',
+    });
+
+    const paneMerged = resolvePaneSnapshotBase('chat-pane-1', {
+      actionMode: 'fast',
+    });
+
+    expect(paneMerged.actionMode).toBe('fast');
+    expect(paneMerged.activeMoaPresetId).toBe('preset-deep-seek');
+  });
 });
+
