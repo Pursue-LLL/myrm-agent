@@ -190,6 +190,8 @@ const useChatStore = create<ChatState>()(
       regenerateInstruction: undefined,
       abortController: null,
       currentSessionMessageId: null,
+      recoveryDialogOpen: false,
+      recoveryAgentId: null,
       isConfigPanelExpanded: true, // 默认展开（聊天首页）
       _autoSaveTimer: null,
       environmentAlerts: new Set<string>(),
@@ -218,6 +220,12 @@ const useChatStore = create<ChatState>()(
       },
       initSessionStatuses: (statuses: Record<string, string>) => {
         set({ sessionStatuses: statuses });
+      },
+      openRecoveryDialog: (agentId: string) => {
+        set({ recoveryDialogOpen: true, recoveryAgentId: agentId });
+      },
+      closeRecoveryDialog: () => {
+        set({ recoveryDialogOpen: false, recoveryAgentId: null });
       },
 
       // 设置方法

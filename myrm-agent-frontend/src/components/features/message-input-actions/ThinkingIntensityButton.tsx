@@ -9,6 +9,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { resolveActiveModelSelection } from '@/lib/model-binding';
 import { detectReasoningSupport } from '@/lib/reasoning-model-detection';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import type { ActionMode, AgentConfig } from '@/store/chat/types';
 
 export type IntensityLevel = 'off' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -322,7 +323,7 @@ const ThinkingIntensityButton = ({ actionMode, agentConfig }: ThinkingIntensityB
                   value={customInputValue}
                   onChange={(e) => setCustomInputValue(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) {
+                    if (isImeComposing(e)) {
                       return;
                     }
                     if (e.key === 'Enter') {

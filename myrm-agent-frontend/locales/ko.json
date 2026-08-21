@@ -9642,6 +9642,10 @@
         "migration_integrity": {
           "label": "마이그레이션 무결성",
           "evidence": "적용된 마이그레이션 체크섬을 현재 마이그레이션 매니페스트와 비교하여 시작 또는 임포트 롤백 실패 전에 스키마 드리프트를 드러냅니다."
+        },
+        "capacity_theater": {
+          "label": "용량 극장 및 메모리 규율",
+          "evidence": "활성 작업 메모리가 예산 상한을 초과하거나 과도한 누적 및 인과적 맹점이 있는지 확인합니다."
         }
       },
       "doctorRepairAction": {
@@ -9650,7 +9654,8 @@
         "configure_embedding": "임베딩 구성",
         "run_diagnostics": "진단 실행",
         "run_health_refresh": "상태 스냅샷 새로고침",
-        "review_retrieval_trace": "검색 추적 검토"
+        "review_retrieval_trace": "검색 추적 검토",
+        "restore_disciplined_defaults": "규율 있는 기본값 복원"
       },
       "doctorRepairRisk": {
         "safe": "안전",
@@ -9665,6 +9670,10 @@
         "run_health_refresh": {
           "dryRun": "로컬 메모리 품질 지표를 다시 계산하고 상태 캐시를 업데이트합니다.",
           "expectedEffect": "GUI에서 신선도, 커버리지, 보존 상태, 일관성 신호를 업데이트합니다."
+        },
+        "restore_disciplined_defaults": {
+          "dryRun": "고정되지 않은 작업 메모리를 백업 스냅샷으로 안전하게 아카이브하고 활성 메모리를 규율 있는 기본값으로 좁힙니다.",
+          "expectedEffect": "용량 극장과 인과적 맹점을 제거하는 동시에 프롬프트 접두사 캐싱과 추론 선명도를 향상시킵니다."
         },
         "review_storage_config": {
           "dryRun": "로컬 저장소, 데이터베이스 또는 권한 문제를 가리키는지 확인합니다.",

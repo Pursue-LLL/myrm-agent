@@ -28,6 +28,23 @@ async def test_export_diagnostics():
 
 
 @pytest.mark.asyncio
+async def test_probe_single_model():
+    # Empty or None model inherits default
+    res_default = await ProfileStartupRecoveryService._probe_single_model(None)
+    assert res_default.status == "healthy"
+    assert res_default.component_id == "default_inherited"
+
+    # Valid model ID
+    res_valid = await ProfileStartupRecoveryService._probe_single_model("claude-3-7-sonnet")
+    assert res_valid.status == "healthy"
+    assert res_valid.component_id == "claude-3-7-sonnet"
+
+    # Invalid model ID with newline injection
+    res_invalid = await ProfileStartupRecoveryService._probe_single_model("invalid\nmodel")
+    assert res_invalid.status == "quarantined"
+
+
+@pytest.mark.asyncio
 async def test_recovery_api_endpoints():
     test_app = build_minimal_app(preset="agents_api")
     transport = ASGITransport(app=test_app)

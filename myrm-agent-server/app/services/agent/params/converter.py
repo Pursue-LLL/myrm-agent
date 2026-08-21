@@ -226,11 +226,9 @@ async def convert_to_general_agent_params(
         or request.long_doc_model_selection
     ):
         try:
-            from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-                route_task,
-            )
-            from myrm_agent_harness.toolkits.llms.routing.specialty_router import (
+            from myrm_agent_harness.api import (
                 TaskSpecialty,
+                route_task,
                 route_task_specialty,
             )
 

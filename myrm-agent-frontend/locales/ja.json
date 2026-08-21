@@ -9669,6 +9669,10 @@
         "migration_integrity": {
           "label": "移行整合性",
           "evidence": "適用済みマイグレーションのチェックサムが現在のマイグレーションマニフェストと一致するか検査し、スキーマドリフトを起動やインポートのロールバック失敗の前に可視化します。"
+        },
+        "capacity_theater": {
+          "label": "容量シアターとメモリ規律",
+          "evidence": "アクティブな作業メモリが予算上限を超えていないか、過剰なスタックや因果盲目がないか検査します。"
         }
       },
       "doctorRepairAction": {
@@ -9677,7 +9681,8 @@
         "configure_embedding": "エンベディングモデルを設定",
         "run_diagnostics": "診断を実行",
         "run_health_refresh": "ヘルススナップショットを更新",
-        "review_retrieval_trace": "検索トレースを確認"
+        "review_retrieval_trace": "検索トレースを確認",
+        "restore_disciplined_defaults": "規律あるデフォルトに戻す"
       },
       "doctorRepairRisk": {
         "safe": "セキュリティ",
@@ -9692,6 +9697,10 @@
         "run_health_refresh": {
           "dryRun": "ローカルメモリ品質メトリクスを再計算し、ヘルスキャッシュを更新します。",
           "expectedEffect": "GUI の鮮度、カバレッジ、保持ヘルス、一貫性シグナルを更新します。"
+        },
+        "restore_disciplined_defaults": {
+          "dryRun": "ピン留めされていない作業メモリをバックアップスナップショットに安全に退避し、アクティブメモリを規律あるデフォルトに絞り込みます。",
+          "expectedEffect": "容量シアターと因果盲目を解消し、プロンプト接頭辞キャッシュと推論の鋭さを高めます。"
         },
         "review_storage_config": {
           "dryRun": "検査結果はローカルストレージ、データベース、または権限の問題を示しています。",

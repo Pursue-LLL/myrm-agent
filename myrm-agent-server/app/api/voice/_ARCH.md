@@ -21,7 +21,7 @@
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `voice_memory_context.py` | 核心 | Voice memory ACL SSOT（settings + profile → flags） | ✅ |
 | `tool_catalog.py` | 核心 | Realtime 工具声明唯一归属：通用工具 catalog / always-available 集 + `build_realtime_tools` 聚合（内置 catalog + 后台任务 + memory ACL）；共享 `memory_search_tool` 声明（Realtime + Gemini）；Gemini 自身 catalog 留在 `gemini_live.py`（`GeminiFunctionDeclaration` schema） | ✅ |
-| `agent_bridge.py` | 模块 | Voice STT→Agent bridge；merge profile `system_prompt` + **`profile_output_suffixes`**；`enable_web_fetch` 由 profile `net_fetch` 门控；`_consume_agent_stream` 注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
+| `agent_bridge.py` | 模块 | Voice STT→Agent bridge；语音 Fast-Lane 快车道直出（<1.5s 问候/简单问答）+ 15s Supervisor 长任务超时平缓脱困（自动移交 Kanban 后台持久化任务并在完工后主动播报）；merge profile `system_prompt` + **`profile_output_suffixes`**；`enable_web_fetch` 由 profile `net_fetch` 门控；`_consume_agent_stream` 注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
 | `gemini_live.py` | 模块 | Gemini Live token/WS；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`** | ✅ |
 | `realtime.py` | 模块 | OpenAI Realtime token；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`**；工具声明 import 自 `tool_catalog`；tool-exec 路由入口 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，统一覆盖 background lifecycle 委托与 Agent 代理）；tool-exec Agent 代理注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
 | `realtime_background.py` | 模块 | Background task lifecycle handlers（run/cancel/status/steer）短路 Kanban；由 `realtime.py` tool-exec 路由调用 | ✅ |

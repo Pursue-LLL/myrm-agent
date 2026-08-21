@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { FolderOpen, Check, Pencil, FolderSearch, Clock } from 'lucide-react';
 import { Input } from '@/components/primitives/input';
 import { isAbsolutePath, normalizePath } from '@/lib/utils/pathValidation';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import { CLI_RECENT_PROJECTS_STORAGE_KEY, MAX_RECENT_PROJECTS } from './constants';
 import { isTauriEnvironment } from '@/lib/tauri';
 import {
@@ -208,7 +209,7 @@ const CLIWorkingDirectory = memo<CLIWorkingDirectoryProps>(({ workingDirectory, 
   // 处理按键
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) {
+      if (isImeComposing(e)) {
         return;
       }
       if (e.key === 'Enter') {

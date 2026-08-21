@@ -9643,6 +9643,10 @@
         "migration_integrity": {
           "label": "Migrationsintegrität",
           "evidence": "Überprüft die angewendeten Migrationsprüfsummen anhand des aktuellen Migrationsmanifests, sodass die Schemaabweichung sichtbar ist, bevor der Start oder das Import-Rollback fehlschlägt."
+        },
+        "capacity_theater": {
+          "label": "Kapazitätstheater & Speicherdisziplin",
+          "evidence": "Prüft, ob der aktive Arbeitsspeicher Budgetgrenzen überschreitet oder unter übermäßiger Anhäufung leidet."
         }
       },
       "doctorRepairAction": {
@@ -9651,7 +9655,8 @@
         "configure_embedding": "Einbettung konfigurieren",
         "run_diagnostics": "Führen Sie eine Diagnose durch",
         "run_health_refresh": "Gesundheits-Snapshot aktualisieren",
-        "review_retrieval_trace": "Überprüfen Sie die Abrufverfolgung"
+        "review_retrieval_trace": "Überprüfen Sie die Abrufverfolgung",
+        "restore_disciplined_defaults": "Disziplinierte Standardwerte wiederherstellen"
       },
       "doctorRepairRisk": {
         "safe": "Sicher",
@@ -9666,6 +9671,10 @@
         "run_health_refresh": {
           "dryRun": "Berechnet lokale Speicherqualitätsmetriken neu und aktualisiert den Integritätscache.",
           "expectedEffect": "Aktualisiert Aktualität, Abdeckung, Aufbewahrungszustand und Kohärenzsignale in der GUI."
+        },
+        "restore_disciplined_defaults": {
+          "dryRun": "Archiviert nicht angeheftete Arbeitsspeicher sicher in einen Backup-Snapshot und reduziert den aktiven Speicher auf disziplinierte Standardwerte.",
+          "expectedEffect": "Beseitigt Kapazitätstheater und kausale Blindheit und verbessert gleichzeitig das Caching von Prompt-Präfixen und die Schärfe der Argumentation."
         },
         "review_storage_config": {
           "dryRun": "Überprüfungen deuten auf ein lokales Speicher-, Datenbank- oder Berechtigungsproblem hin.",

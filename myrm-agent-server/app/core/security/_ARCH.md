@@ -51,6 +51,7 @@ security/
 | `browser_vault.py` | SessionVault 实例管理：全局单例（非 agent 场景）+ 按 agent_id 物理隔离的 agent vault |
 | `llm_reviewer.py` | 动态 Transcript Classifier 适配器，运行时获取用户 LLM 实例 |
 | `pii_actions.py` | 持久化 PII action 字符串安全解析：缺失/非法值回退默认枚举，杜绝非法配置导致 agent 初始化或记忆提取崩溃（retry 与 security extension 共用） |
+| `auth/`（子包） | 认证原语子包，含 `control_plane_guard.py`（CP 鉴权、内部端点 Origin/Host 门禁、Fail-Closed 本地回环检查）等 |
 | `share/`（子包） | 分享链接安全子域，含 5 个模块：`share_hmac.py`（HMAC-SHA256 签名层 + token_fingerprint）、`share_headers.py`（隐私头常量）、`share_status_page.py`（失效页/JSON 404 分流）、`share_unlock.py`（解锁 cookie 机制）、`share_password_page.py`（密码门页面）。`share/__init__.py` 为聚合门面，统一 re-export。 |
 | `integration_write_patterns.py` | 业务层 shell 命令分析的集成写模式：委托框架层 `register_integration_write_patterns` 注册 |
 

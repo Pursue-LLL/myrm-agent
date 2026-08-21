@@ -96,6 +96,9 @@ export default function ChatWindowSatellites({
   onDesktopInspectorInstruction,
 }: ChatWindowSatellitesProps) {
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
+  const recoveryDialogOpen = useChatStore((s) => s.recoveryDialogOpen);
+  const recoveryAgentId = useChatStore((s) => s.recoveryAgentId);
+  const closeRecoveryDialog = useChatStore((s) => s.closeRecoveryDialog);
 
   return (
     <>
@@ -116,6 +119,17 @@ export default function ChatWindowSatellites({
       ) : null}
       <SubagentPromptButton />
       <SubagentDashboard chatId={chatId} />
+      {recoveryDialogOpen && recoveryAgentId ? (
+        <StartupRecoveryDialog
+          agentId={recoveryAgentId}
+          open={recoveryDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeRecoveryDialog();
+            }
+          }}
+        />
+      ) : null}
       {isCompanionEnabled ? (
         <>
           <PetOverlay />

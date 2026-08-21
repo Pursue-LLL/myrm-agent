@@ -6,6 +6,7 @@ import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -194,7 +195,7 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
             placeholder={t('aiPromptPlaceholder')}
             className="flex-1 min-h-[60px] text-sm p-2 rounded border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
             onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) {
+              if (isImeComposing(e)) {
                 return;
               }
               if (e.key === 'Enter' && !e.shiftKey) {
