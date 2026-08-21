@@ -40,6 +40,8 @@ from app.database.models.memory import (
 )
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 from app.schemas.memory.command_center import (
+    MemoryApprovedRecord,
+    MemoryCandidateRecord,
     MemoryCommandCenterResponse,
     MemoryCommandGovernanceItem,
     MemoryCommandHealth,
@@ -52,8 +54,6 @@ from app.schemas.memory.command_center import (
     MemoryFourPartitionSummary,
     MemoryRecallBoundaryData,
     MemoryRecallScopeBoundary,
-    MemoryApprovedRecord,
-    MemoryCandidateRecord,
 )
 from app.services.memory.archive.restore.archive_restore import (
     MemoryArchiveRestoreService,

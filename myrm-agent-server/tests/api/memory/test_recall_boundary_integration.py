@@ -13,17 +13,18 @@ Tests for the Review-First Memory Recall Boundary and Candidate/Approved partiti
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from unittest.mock import AsyncMock, MagicMock
 
 from app.main import app
 from app.schemas.memory.command_center import (
+    MemoryApprovedRecord,
+    MemoryCandidateRecord,
+    MemoryFourPartitionSummary,
     MemoryRecallBoundaryData,
     MemoryRecallScopeBoundary,
-    MemoryFourPartitionSummary,
-    MemoryCandidateRecord,
-    MemoryApprovedRecord,
 )
 
 

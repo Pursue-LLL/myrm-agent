@@ -7,8 +7,6 @@ import pytest
 
 from app.core.infra.health.server_diagnostics import (
     AgentColdStartDiagnostic,
-    DLQDiagnostic,
-    ExecutionCacheDiagnostic,
     ServerDiagnosticsManager,
     run_server_diagnostics,
 )
