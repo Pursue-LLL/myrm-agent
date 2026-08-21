@@ -12422,7 +12422,30 @@
     "pipelineNoTemplates": "暫無可用的流水線模板",
     "pipelineLoadError": "載入流水線模板失敗",
     "showMore": "展開更多",
-    "showLess": "收起"
+    "showLess": "收起",
+    "decisionFilterAll": "全部任務",
+    "decisionFilterNeedsAction": "待我決策",
+    "decisionFilterAutonomous": "Agent 推進中",
+    "decisionFilterAllHint": "檢視所有任務",
+    "decisionFilterNeedsActionHint": "僅檢視等待人工審查、審批或失敗阻斷的任務",
+    "decisionFilterAutonomousHint": "僅檢視由 Agent 自主執行或排隊中的任務",
+    "decisionWaitingHuman": "等待人工",
+    "decisionWaitingAgent": "Agent 推進",
+    "decisionWaitingSystem": "等待系統",
+    "decisionSafeAuto": "安全自動",
+    "decisionHitlGuarded": "人工管控",
+    "decisionFrame": {
+      "actionReview": "審核驗收與批准完成",
+      "actionUnblockHuman": "解除人工阻斷 / 授予審批",
+      "actionCheckBlock": "等待前置依賴或排程條件",
+      "actionRetryOrDiagnose": "排查失敗診斷 / 重試任務",
+      "actionSpecify": "規範化驗收條件並放行",
+      "actionVerifying": "Agent 正在進行驗收標準驗證",
+      "actionRunning": "Agent 正在自主執行計劃",
+      "actionDispatching": "排隊等待空閒執行器派發",
+      "actionBacklog": "排定優先順序並安排執行",
+      "actionDone": "任務已成功執行完畢"
+    }
   },
   "channels": {
     "sectionTitle": "訊息通道",
