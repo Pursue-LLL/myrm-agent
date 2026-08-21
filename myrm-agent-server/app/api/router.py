@@ -135,7 +135,7 @@ api_router.include_router(fleet_overview_router, prefix="/agents", tags=["agents
 api_router.include_router(openapi_services_router, prefix="/agents", tags=["agents"])
 api_router.include_router(profile_audit_router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(readiness_router, prefix="/user-agents", tags=["user-agents"])
-api_router.include_router(agent_recovery_router, prefix="/user-agents", tags=["user-agents"])
+api_router.include_router(agent_recovery_router, prefix="", tags=["user-agents"])
 api_router.include_router(goals_router)
 api_router.include_router(external_agents_router, prefix="/external-agents", tags=["external-agents"])
 

@@ -16527,6 +16527,7 @@
     "auditFieldMetadata": "Metadata"
   },
   "project": {
+    "newProject": "New Project",
     "all": "All",
     "unassigned": "No Project",
     "addFirst": "Add Project",

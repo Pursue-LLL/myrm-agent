@@ -16088,6 +16088,7 @@
     "auditFieldMetadata": "元数据"
   },
   "project": {
+    "newProject": "新建项目",
     "all": "全部",
     "unassigned": "未归类",
     "addFirst": "添加项目",
