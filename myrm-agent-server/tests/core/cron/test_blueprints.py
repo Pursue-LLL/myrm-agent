@@ -354,6 +354,10 @@ class TestToolDescription:
         desc = get_blueprints_for_tool_description("en")
         assert "wiki_morning_delta" in desc
 
+    def test_includes_seo_weekly_audit(self) -> None:
+        desc = get_blueprints_for_tool_description("en")
+        assert "seo_weekly_audit" in desc
+
     def test_output_is_concise(self) -> None:
         desc = get_blueprints_for_tool_description("en")
         lines = desc.strip().split("\n")

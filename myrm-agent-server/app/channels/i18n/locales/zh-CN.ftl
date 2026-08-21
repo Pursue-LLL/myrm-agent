@@ -349,3 +349,4 @@ goal_completed =
 goal_failed =
     ❌ 目标已结束："{ $objective }"
     { $turns } 轮 · { $duration } 分钟 · { $files } 个文件变更
+bang_command_unsupported = ℹ️ 出于安全隔离与沙箱保护，Myrm 不支持在 IM 渠道直接执行 `!shell` 远程命令。如需执行脚本或管理工作区，请在 WebUI 或桌面端控制台中操作，或直接使用自然语言向我提问。

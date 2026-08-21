@@ -34,6 +34,11 @@ from app.channels.core.logging_filter import (
 )
 from app.channels.core.metrics import ChannelMetrics
 from app.channels.core.mixins import CachedGroupMixin
+from app.channels.core.outbound_gate import (
+    LinkProbeResult,
+    OutboundContentGate,
+    get_outbound_content_gate,
+)
 from app.channels.core.user_resolver import (
     UserResolver,
     UserResolverCache,
@@ -57,7 +62,9 @@ __all__ = [
     "CredentialSource",
     "EventEmitter",
     "FilterReason",
+    "LinkProbeResult",
     "MessageBus",
+    "OutboundContentGate",
     "RateLimitError",
     "SensitiveDataFilter",
     "UserResolver",
@@ -65,6 +72,7 @@ __all__ = [
     "create_channels",
     "credential_field",
     "credential_spec",
+    "get_outbound_content_gate",
     "parse_bool",
     "redact_sensitive",
     "resolve_credentials",

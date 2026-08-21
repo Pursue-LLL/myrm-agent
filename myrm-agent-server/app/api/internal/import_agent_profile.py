@@ -23,7 +23,7 @@ so NOT NULL columns are never written None values.
 from __future__ import annotations
 
 import logging
-from typing import Any
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -127,6 +127,13 @@ async def import_agent_profile_endpoint(
     except Exception as exc:
         logger.exception("Failed to import agent profile from marketplace")
         raise HTTPException(status_code=500, detail="Import failed") from exc
+
+
+def _marketplace_signature_policy() -> tuple[bool, str | None]:
+    secret = os.environ.get(_MARKETPLACE_SIGN_SECRET_ENV)
+    require_env = os.environ.get(_MARKETPLACE_REQUIRE_SIGNATURE_ENV, "").strip().lower()
+    require = require_env in {"1", "true", "yes", "on"} or bool(secret)
+    return require, secret
 
 
 def _normalize_marketplace_entry_id(entry_id: str | None) -> str | None:
@@ -303,6 +310,15 @@ async def _force_update_agent(
         status="force_updated",
         snapshot_id=snapshot_id,
     )
+
+
+def _marketplace_signature_policy() -> tuple[bool, str | None]:
+    require_raw = os.getenv(_MARKETPLACE_REQUIRE_SIGNATURE_ENV, "").strip().lower()
+    require = require_raw in {"1", "true", "yes"}
+    secret = os.getenv(_MARKETPLACE_SIGN_SECRET_ENV)
+    if secret is not None:
+        secret = secret.strip() or None
+    return require, secret
 
 
 def _with_marketplace_entry_binding(

@@ -592,6 +592,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 if handled:
                     continue
 
+            if self._is_bang_command(msg.content):
+                asyncio.create_task(self._handle_bang_command(msg))
+                continue
+
             await dispatch_cron_event_for_inbound_message(
                 msg.content,
                 msg.channel,
@@ -772,6 +776,34 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             return True
 
         return False
+
+    @staticmethod
+    def _is_bang_command(content: str | None) -> bool:
+        """Return True if content looks like an intentional CLI !command."""
+        if not content:
+            return False
+        trimmed = content.strip()
+        if not trimmed:
+            return False
+        # Matches !cmd or ！cmd where leading char is bang and next char is ASCII/alphanumeric
+        if trimmed.startswith("!") and len(trimmed) > 1 and (trimmed[1].isalnum() or trimmed[1] == "/"):
+            return True
+        if trimmed.startswith("！") and len(trimmed) > 1 and (trimmed[1].isalnum() or trimmed[1] == "/"):
+            return True
+        return False
+
+    async def _handle_bang_command(self, msg: InboundMessage) -> None:
+        """Fast-path honest migration reply for !shell CLI commands."""
+        chat_id = msg.chat_id or msg.sender_id
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=chat_id,
+            content=get_text(msg, "bang_command_unsupported"),
+            user_id=msg.user_id or "",
+            thread_id=msg.thread_id,
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        )
+        await self._bus.publish_outbound(reply)
 
     async def _handle_skill_command(
         self,

@@ -349,3 +349,4 @@ goal_completed =
 goal_failed =
     ❌ Goal ended: "{ $objective }"
     { $turns } turns · { $duration } min · { $files } files modified
+bang_command_unsupported = ℹ️ For sandboxing and security protection, Myrm does not execute remote `!` shell commands from IM channels. Please use the WebUI/Desktop console, or ask via natural language.

@@ -249,6 +249,7 @@ async def test_apply_pass_does_not_append_fail_note(monkeypatch) -> None:
     assert result.success is True
     assert result.output == "task done"
     assert (result.metadata or {}).get("verification", {}).get("status") == "pass"
+    assert (result.metadata or {}).get("deliverable_tier", {}).get("tier") == "VERIFIED"
 
 
 async def test_apply_timeout_records_error(monkeypatch) -> None:

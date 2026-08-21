@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.api.security import (
     ManagedApprovalPolicy,
     configure_process_managed_approval_policy,
@@ -24,13 +24,11 @@ from myrm_agent_harness.api.security import (
 )
 from pydantic import BaseModel, Field
 
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
-
-_CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_CP_TOKEN_HEADER = "X-Telemetry-Token"
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
 
 
 class OrgManagedApprovalPolicySyncRequest(BaseModel):
@@ -43,15 +41,6 @@ class OrgManagedApprovalPolicySyncRequest(BaseModel):
 class OrgManagedApprovalPolicySyncResponse(BaseModel):
     status: str = "synced"
     active: bool = False
-
-
-def _verify_cp_token(request: Request) -> None:
-    expected = os.environ.get(_CP_TOKEN_ENV)
-    if not expected:
-        return
-    token = request.headers.get(_CP_TOKEN_HEADER, "")
-    if token != expected:
-        raise HTTPException(status_code=403, detail="Invalid CP token")
 
 
 def _notify_managed_policy_updated(revision: int, active: bool) -> None:
@@ -71,12 +60,9 @@ def _notify_managed_policy_updated(revision: int, active: bool) -> None:
     response_model=OrgManagedApprovalPolicySyncResponse,
 )
 async def org_managed_approval_policy_sync(
-    request: Request,
     body: OrgManagedApprovalPolicySyncRequest,
 ) -> OrgManagedApprovalPolicySyncResponse:
     """Receive org MAP from Control Plane and apply to the running agent-server process."""
-    _verify_cp_token(request)
-
     policy = ManagedApprovalPolicy.from_mapping(body.model_dump())
     configure_process_managed_approval_policy(policy)
     active = get_process_managed_approval_policy() != ManagedApprovalPolicy.empty()

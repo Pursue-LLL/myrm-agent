@@ -18,9 +18,8 @@ Servers pushed without `type` are normalized (command→stdio, url→sse) so
 from __future__ import annotations
 
 import logging
-import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.config.settings import settings
@@ -80,10 +79,8 @@ def _filter_mcp_servers_for_sandbox(servers: list[dict]) -> list[dict]:
 
 
 @router.post("/api/admin/org-mcp-sync", response_model=OrgMCPSyncResponse)
-async def org_mcp_sync(request: Request, body: OrgMCPSyncRequest) -> OrgMCPSyncResponse:
+async def org_mcp_sync(body: OrgMCPSyncRequest) -> OrgMCPSyncResponse:
     """Receive org-level MCP servers from Control Plane and persist locally."""
-    _verify_cp_token(request)
-
     normalized_servers = _normalize_mcp_server_types(body.mcp_servers)
     filtered_servers = _filter_mcp_servers_for_sandbox(normalized_servers)
     config_svc = ConfigService()

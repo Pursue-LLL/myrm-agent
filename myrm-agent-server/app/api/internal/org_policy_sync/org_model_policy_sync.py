@@ -17,22 +17,21 @@ for model picker grey-out.
 from __future__ import annotations
 
 import logging
-import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 from app.services.agent.execution_cache import get_execution_cache
 from app.services.config.service import ConfigService
 from app.services.org_model_policy.normalize import normalize_org_model_policy_pattern
 from app.services.org_model_policy.revision import bump_org_model_policy_revision
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
+frontend_router = APIRouter()
 
-_CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_CP_TOKEN_HEADER = "X-Telemetry-Token"
 _ORG_MODEL_POLICY_KEY = "orgModelPolicy"
 
 
@@ -50,20 +49,9 @@ class AllowedModelsResponse(BaseModel):
     restricted: bool = False
 
 
-def _verify_cp_token(request: Request) -> None:
-    expected = os.environ.get(_CP_TOKEN_ENV)
-    if not expected:
-        return
-    token = request.headers.get(_CP_TOKEN_HEADER, "")
-    if token != expected:
-        raise HTTPException(status_code=403, detail="Invalid CP token")
-
-
 @router.post("/api/admin/org-model-policy-sync", response_model=OrgModelPolicySyncResponse)
-async def org_model_policy_sync(request: Request, body: OrgModelPolicySyncRequest) -> OrgModelPolicySyncResponse:
+async def org_model_policy_sync(body: OrgModelPolicySyncRequest) -> OrgModelPolicySyncResponse:
     """Receive org model policy from Control Plane and persist locally."""
-    _verify_cp_token(request)
-
     config_svc = ConfigService()
     await config_svc.set(
         config_key=_ORG_MODEL_POLICY_KEY,
@@ -76,9 +64,6 @@ async def org_model_policy_sync(request: Request, body: OrgModelPolicySyncReques
     await get_execution_cache().close_all()
     logger.info("Org model policy sync: %d patterns", len(body.allowed_patterns))
     return OrgModelPolicySyncResponse(status="synced", pattern_count=len(body.allowed_patterns))
-
-
-frontend_router = APIRouter()
 
 
 @frontend_router.get("/org-policy/allowed-models", response_model=AllowedModelsResponse)

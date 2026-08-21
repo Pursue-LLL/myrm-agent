@@ -29,7 +29,7 @@ async def test_export_diagnostics():
 
 @pytest.mark.asyncio
 async def test_recovery_api_endpoints():
-    test_app = build_minimal_app(preset="full")
+    test_app = build_minimal_app(preset="agents_api")
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Test health probe
