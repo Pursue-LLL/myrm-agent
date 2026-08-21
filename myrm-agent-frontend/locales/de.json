@@ -7843,6 +7843,20 @@
     "deliverable": {
       "awaitingArtifact": "Artefakt wird synchronisiert — Link wird in Kürze aktiv"
     },
+    "deliverableTier": {
+      "verified": "Verifizierte Lieferung",
+      "verifiedDesc": "Automatisierte Tests, Prüfungen oder Verifizierungs-Review bestanden",
+      "artifact": "Artefakt-Lieferung",
+      "artifactDesc": "Workspace-Dateien oder Code-Artefakte erfolgreich erstellt/geändert",
+      "research": "Recherche-Ergebnis",
+      "researchDesc": "Fundiert durch externe Websuchen und Quellenbelege",
+      "plan": "Planung / Konzept",
+      "planDesc": "Strategische Überlegung oder Vorschlag (ausstehende Verifizierung)",
+      "evidenceDetails": "Evidenz-Details",
+      "verificationsPassed": "Bestandene Verifizierungen",
+      "artifactsWritten": "Erstellte/Geänderte Dateien",
+      "sourcesConsulted": "Konsultierte Quellen"
+    },
     "dragDrop": {
       "title": "Dateien hier ablegen",
       "description": "Unterstützt Bilder und PDF-Dateien, bis zu 10 Dateien",

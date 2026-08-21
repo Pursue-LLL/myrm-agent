@@ -7801,6 +7801,20 @@
     "deliverable": {
       "awaitingArtifact": "工件同步中，連結稍後可點擊"
     },
+    "deliverableTier": {
+      "verified": "已驗證交付",
+      "verifiedDesc": "已通過自動化測試、檢查或後置驗證複核",
+      "artifact": "工件交付",
+      "artifactDesc": "已在工作區生成或修改實體程式碼/檔案工件",
+      "research": "調研產出",
+      "researchDesc": "基於外部搜尋檢索與可靠事實依據產出",
+      "plan": "方案規劃",
+      "planDesc": "策略方案或概念推理，尚未執行實際驗證",
+      "evidenceDetails": "證據明細",
+      "verificationsPassed": "驗證通過項",
+      "artifactsWritten": "修改/產出檔案",
+      "sourcesConsulted": "參考資訊源"
+    },
     "tokenUsage": {
       "title": "Token 使用量",
       "inputTokens": "輸入 Token",

@@ -349,3 +349,4 @@ goal_failed =
 deliverable_attached_only = 交付物已附上。
 deliverable_oversized_note = { $filename }（{ $size }）超出管道附件大小限制，未作為附件傳送。
 deliverable_compressed_note = { $filename }（{ $size }）超出管道大小限制，已傳送壓縮版本。
+bang_command_unsupported = ℹ️ 出於安全隔離與沙盒保護，Myrm 不支援在 IM 渠道直接執行 `!shell` 遠端命令。如需執行腳本或管理工作區，請在 WebUI 或桌面端控制台中操作，或直接使用自然語言向我提問。

@@ -69,6 +69,7 @@ import VisualApprovalInlineSection from '@/components/features/chat-window/appro
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
+import { DeliverableTierBadge } from './DeliverableTierBadge';
 import type { ReasoningDisplayMode } from '@/services/config/types';
 
 const ReasoningBlock = ({
@@ -686,24 +687,29 @@ const MessageBox = ({
         {/* 回复 */}
         {!taskResponse && (
           <div className="flex flex-col space-y-2">
-            <div className="flex flex-row items-center space-x-2">
-              <Disc3
-                className={cn(
-                  'text-black dark:text-white',
-                  // 只在生成答案步骤且正在加载时旋转
-                  isLast &&
-                    loading &&
-                    (() => {
-                      const lastStepKey =
-                        message.progressSteps?.[message.progressSteps.length - 1]?.step_key?.toLowerCase() || '';
-                      return lastStepKey.includes('generating') || lastStepKey.includes('answer');
-                    })()
-                    ? 'animate-spin'
-                    : 'animate-none',
-                )}
-                size={20}
-              />
-              <h3 className="text-gray-800 dark:text-gray-100 font-medium text-lg">{t('answer')}</h3>
+            <div className="flex flex-row items-center justify-between">
+              <div className="flex flex-row items-center space-x-2">
+                <Disc3
+                  className={cn(
+                    'text-black dark:text-white',
+                    // 只在生成答案步骤且正在加载时旋转
+                    isLast &&
+                      loading &&
+                      (() => {
+                        const lastStepKey =
+                          message.progressSteps?.[message.progressSteps.length - 1]?.step_key?.toLowerCase() || '';
+                        return lastStepKey.includes('generating') || lastStepKey.includes('answer');
+                      })()
+                      ? 'animate-spin'
+                      : 'animate-none',
+                  )}
+                  size={20}
+                />
+                <h3 className="text-gray-800 dark:text-gray-100 font-medium text-lg">{t('answer')}</h3>
+              </div>
+              {message.deliverableTier && !(isLast && loading) && (
+                <DeliverableTierBadge data={message.deliverableTier} />
+              )}
             </div>
 
             {/* Reasoning display */}

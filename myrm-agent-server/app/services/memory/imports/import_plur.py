@@ -18,8 +18,8 @@ into native MyrmAgent memory format, cleanly mapping scopes to SharedContext or 
 
 from __future__ import annotations
 
-import json
 from typing import Any
+
 import yaml
 
 from myrm_agent_harness.toolkits.memory import (

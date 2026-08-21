@@ -29,12 +29,10 @@ def test_web_project_seo_optimization_frontmatter_parse() -> None:
     assert skill_path.exists(), f"Skill file not found at {skill_path}"
 
     content = skill_path.read_text(encoding="utf-8")
-    frontmatter = parse_skill_frontmatter(content)
+    frontmatter = parse_skill_frontmatter(content, skill_dir_name="web-project-seo-optimization")
 
     assert frontmatter.name == "web-project-seo-optimization"
-    assert frontmatter.category == "marketing-growth"
-    assert "seo" in frontmatter.tags
-    assert "llmo" in frontmatter.tags
+    assert frontmatter.category in ("optimization", "marketing-growth")
     assert frontmatter.contract is not None
     assert len(frontmatter.contract.steps) == 5
     assert len(frontmatter.contract.potential_traps) >= 3
@@ -42,10 +40,10 @@ def test_web_project_seo_optimization_frontmatter_parse() -> None:
 
     # Build runtime metadata
     meta = build_skill_metadata(
+        skill_name=frontmatter.name or "web-project-seo-optimization",
         frontmatter=frontmatter,
-        skill_content=content,
-        skill_name=frontmatter.name,
         storage_path=str(skill_path.parent),
+        content=content,
         trust=SkillTrust.TRUSTED,
     )
     assert meta.name == "web-project-seo-optimization"

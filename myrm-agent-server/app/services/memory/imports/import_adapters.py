@@ -135,6 +135,8 @@ def build_memory_import_dry_run(
         return dry_run_mem0(resolved_payload)
     if detected == "chatgpt":
         return dry_run_chatgpt(resolved_payload)
+    if detected == "plur":
+        return dry_run_plur(resolved_payload)
     if _is_pi_payload(resolved_payload):
         return _dry_run_pi(resolved_payload)
     return unsupported_result(to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE)
@@ -165,6 +167,8 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
         return "mem0"
     if is_chatgpt_payload(payload):
         return "chatgpt"
+    if is_plur_payload(payload):
+        return "plur"
     data = payload.get("data")
     if isinstance(data, dict):
         return "native_json"

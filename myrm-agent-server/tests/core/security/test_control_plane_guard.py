@@ -10,7 +10,6 @@ from starlette.datastructures import Headers
 
 from app.core.security.auth.control_plane_guard import (
     extract_provided_cp_token,
-    get_expected_control_plane_token,
     verify_control_plane_token,
     verify_internal_origin,
 )
