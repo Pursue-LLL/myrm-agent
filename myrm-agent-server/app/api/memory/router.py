@@ -17,6 +17,7 @@ from app.api.memory.operations import (
     backup_remote,
     command_center,
     command_center_consolidation,
+    command_center_diagnostics,
     crud,
     guardian,
     pending,
@@ -36,6 +37,7 @@ router = APIRouter()
 
 router.include_router(command_center.router, tags=["memory-command-center"])
 router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
+router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
 router.include_router(pending.router, tags=["memory-pending"])
 router.include_router(shared_context_health.router, tags=["memory-shared-contexts"])
 router.include_router(shared_contexts.router, tags=["memory-shared-contexts"])

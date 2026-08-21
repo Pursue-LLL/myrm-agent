@@ -53,9 +53,7 @@ def _diagnostic_action_status(
     return "failed"
 
 
-def _history_status(
-    status: str, metadata: dict[str, object]
-) -> Literal["healthy", "degraded", "failed"]:
+def _history_status(status: str, metadata: dict[str, object]) -> Literal["healthy", "degraded", "failed"]:
     explicit = str(metadata.get("status") or "").lower()
     if explicit in {"healthy", "degraded", "failed"}:
         return explicit  # type: ignore[return-value]
@@ -83,11 +81,7 @@ def _diagnostic_history_item(
             latency_p50_ms=float(metadata.get("benchmark_latency_p50_ms") or 0.0),
             latency_p95_ms=float(metadata.get("benchmark_latency_p95_ms") or 0.0),
             top_k=int(metadata.get("benchmark_top_k") or 5),
-            categories=(
-                {str(k): str(v) for k, v in categories_raw.items()}
-                if isinstance(categories_raw, dict)
-                else {}
-            ),
+            categories=({str(k): str(v) for k, v in categories_raw.items()} if isinstance(categories_raw, dict) else {}),
         )
     embedding_model = metadata.get("benchmark_embedding_model")
     return MemoryCommandDiagnosticHistoryItem(
@@ -98,11 +92,7 @@ def _diagnostic_history_item(
         probe_count=int(metadata.get("probe_count") or 0),
         failed_count=int(metadata.get("failed_count") or 0),
         benchmark=benchmark,
-        embedding_model=(
-            embedding_model
-            if isinstance(embedding_model, str) and embedding_model.strip()
-            else None
-        ),
+        embedding_model=(embedding_model if isinstance(embedding_model, str) and embedding_model.strip() else None),
     )
 
 
@@ -121,9 +111,7 @@ async def run_memory_diagnostic_action(
         health_cache_status=snapshot.health.cache_status,
         runtime=snapshot.runtime,
     )
-    return MemoryCommandDiagnosticActionResponse(
-        status=_diagnostic_action_status(run.status), action=body.action, run=run
-    )
+    return MemoryCommandDiagnosticActionResponse(status=_diagnostic_action_status(run.status), action=body.action, run=run)
 
 
 @router.get("/history", response_model=MemoryCommandDiagnosticHistoryResponse)
@@ -133,9 +121,7 @@ async def list_memory_diagnostic_history(
     db: AsyncSession = Depends(get_db_session),
 ) -> MemoryCommandDiagnosticHistoryResponse:
     """Return persisted Memory Doctor benchmark history for regression trends."""
-    events = await MemoryOperationLedgerService(db).list_diagnostic_events(
-        limit=limit, offset=offset
-    )
+    events = await MemoryOperationLedgerService(db).list_diagnostic_events(limit=limit, offset=offset)
     items = [_diagnostic_history_item(event) for event in events]
     return MemoryCommandDiagnosticHistoryResponse(items=items)
 
@@ -147,7 +133,5 @@ async def run_memory_diagnostic_repair(
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryCommandRepairActionResponse:
     """Execute a structured Memory Doctor repair plan through a whitelist."""
-    result, run = await MemoryDiagnosticRepairExecutor(db, memory_manager).run(
-        body.plan_id, body.mode
-    )
+    result, run = await MemoryDiagnosticRepairExecutor(db, memory_manager).run(body.plan_id, body.mode)
     return MemoryCommandRepairActionResponse(result=result, run=run)

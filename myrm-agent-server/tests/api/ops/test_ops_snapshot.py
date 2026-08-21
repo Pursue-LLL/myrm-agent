@@ -102,9 +102,7 @@ async def test_ops_snapshot_subtask_isolation_and_fallback() -> None:
         "_collect_governance_info",
         side_effect=RuntimeError("Simulated governance DB crash"),
     ):
-        snapshot = await OpsAggregatedSnapshotService.collect_snapshot(
-            include_doctor=False
-        )
+        snapshot = await OpsAggregatedSnapshotService.collect_snapshot(include_doctor=False)
         assert isinstance(snapshot, OpsAggregatedSnapshot)
         assert snapshot.governance.cron_failures_24h == 0
         assert snapshot.governance.pending_approvals == 0

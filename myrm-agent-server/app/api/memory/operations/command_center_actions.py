@@ -33,14 +33,10 @@ from app.services.memory.shared_context.shared_context_materializer import (
 )
 
 
-async def run_pending_action(
-    body: MemoryCommandActionRequest, db: AsyncSession, manager: MemoryManager
-) -> None:
+async def run_pending_action(body: MemoryCommandActionRequest, db: AsyncSession, manager: MemoryManager) -> None:
     pending = await db.get(PendingMemory, body.target_id)
     if pending is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found")
     if body.action == "approve":
         await manager.approve(body.target_id)
         return
@@ -62,9 +58,7 @@ async def run_pending_action(
     )
 
 
-async def run_shared_proposal_action(
-    body: MemoryCommandActionRequest, db: AsyncSession
-) -> None:
+async def run_shared_proposal_action(body: MemoryCommandActionRequest, db: AsyncSession) -> None:
     service = SharedContextService(db)
     proposal = await service.get_write_proposal(body.target_id)
     if proposal is None:
@@ -73,9 +67,7 @@ async def run_shared_proposal_action(
             detail="Shared context proposal not found",
         )
     if body.action == "approve":
-        await SharedContextProposalMaterializer(db).approve_write_proposal(
-            body.target_id
-        )
+        await SharedContextProposalMaterializer(db).approve_write_proposal(body.target_id)
         return
     if body.action == "reject":
         await service.set_write_proposal_status(body.target_id, "rejected")
@@ -86,9 +78,7 @@ async def run_shared_proposal_action(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Edited proposal content is required",
             )
-        await service.update_write_proposal(
-            body.target_id, content=body.content.strip()
-        )
+        await service.update_write_proposal(body.target_id, content=body.content.strip())
         return
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -96,9 +86,7 @@ async def run_shared_proposal_action(
     )
 
 
-async def run_memory_action(
-    body: MemoryCommandActionRequest, manager: MemoryManager
-) -> None:
+async def run_memory_action(body: MemoryCommandActionRequest, manager: MemoryManager) -> None:
     if body.action == "correct":
         if not body.content or not body.content.strip():
             raise HTTPException(
@@ -125,9 +113,7 @@ async def run_memory_action(
         else:
             await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
         return
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported memory action"
-    )
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported memory action")
 
 
 def action_to_operation(action: str) -> MemoryOperationKind:

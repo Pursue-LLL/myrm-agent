@@ -18,9 +18,7 @@ def test_finalize_fixture_script_passes() -> None:
         capture_output=True,
         text=True,
     )
-    assert (
-        completed.returncode == 0
-    ), f"finalize-fixture-test failed:\nstdout={completed.stdout}\nstderr={completed.stderr}"
+    assert completed.returncode == 0, f"finalize-fixture-test failed:\nstdout={completed.stdout}\nstderr={completed.stderr}"
 
 
 def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:

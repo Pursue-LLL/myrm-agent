@@ -26,18 +26,12 @@ class ProjectCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="项目名称")
     color: str | None = Field(None, description="项目颜色 (hex format)")
     description: str = Field("", max_length=5000, description="项目描述")
-    workspace_path: str | None = Field(
-        None, max_length=4096, description="项目工作目录绝对路径"
-    )
+    workspace_path: str | None = Field(None, max_length=4096, description="项目工作目录绝对路径")
 
 
 class ProjectAdoptRequest(BaseModel):
-    workspace_path: str = Field(
-        ..., min_length=1, max_length=4096, description="要接纳的工作目录绝对路径"
-    )
-    name: str | None = Field(
-        None, max_length=255, description="项目名称（若不提供则自动从目录名提取）"
-    )
+    workspace_path: str = Field(..., min_length=1, max_length=4096, description="要接纳的工作目录绝对路径")
+    name: str | None = Field(None, max_length=255, description="项目名称（若不提供则自动从目录名提取）")
     color: str | None = Field(None, description="项目颜色 (hex format)")
     description: str = Field("", max_length=5000, description="项目描述")
 
@@ -45,16 +39,10 @@ class ProjectAdoptRequest(BaseModel):
 class ProjectUpdateRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255, description="项目名称")
     color: str | None = Field(None, description="项目颜色 (hex format)")
-    workspace_path: str | None = Field(
-        None, max_length=4096, description="项目工作目录绝对路径"
-    )
+    workspace_path: str | None = Field(None, max_length=4096, description="项目工作目录绝对路径")
     description: str | None = Field(None, max_length=5000, description="项目描述")
-    goal_summary: str | None = Field(
-        None, max_length=2000, description="项目当前目标摘要"
-    )
-    default_agent_id: str | None = Field(
-        None, max_length=255, description="默认智能体 ID (null=清除)"
-    )
+    goal_summary: str | None = Field(None, max_length=2000, description="项目当前目标摘要")
+    default_agent_id: str | None = Field(None, max_length=255, description="默认智能体 ID (null=清除)")
 
 
 class ChatMoveRequest(BaseModel):

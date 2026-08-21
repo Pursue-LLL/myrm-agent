@@ -38,6 +38,4 @@ async def get_ops_snapshot(
     ),
 ) -> OpsAggregatedSnapshot:
     """Collect full or lightweight operational snapshot."""
-    return await OpsAggregatedSnapshotService.collect_snapshot(
-        include_doctor=include_doctor
-    )
+    return await OpsAggregatedSnapshotService.collect_snapshot(include_doctor=include_doctor)

@@ -57,11 +57,12 @@ class SkillQualityDataSource(Protocol):
 # server/app/adapters/skill_optimization/sqlalchemy_storage.py
 class SQLAlchemyStorage(SkillOptimizationStorage):
     """SQLAlchemy implementation of SkillOptimizationStorage Protocol
-    
+
     支持两种session管理模式：
     - 固定session（API请求级，FastAPI依赖注入）
     - session_factory（scheduler等长生命周期组件）
     """
+
     def __init__(self, session=None, session_factory=None): ...
 ```
 
@@ -172,11 +173,13 @@ class StorageProtocol(Protocol):
         """Returns: record_id"""
         ...
 
+
 # ✅ 正确：完全遵循契约
 class SQLAlchemyStorage:
     async def save(self, data: dict) -> str:
         record = await self.repo.create(data)
         return record.id  # 返回 str
+
 
 # ❌ 错误：返回类型不匹配
 class SQLAlchemyStorage:
@@ -189,6 +192,7 @@ class SQLAlchemyStorage:
 ```python
 # ✅ 将底层异常转换为框架异常
 from myrm_agent_harness.agent.skills.optimization.exceptions import StorageError
+
 
 class SQLAlchemyStorage:
     async def save(self, data: dict) -> str:

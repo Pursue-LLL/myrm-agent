@@ -565,6 +565,7 @@ from app.channels.protocols import (
 from app.channels.core import BaseChannel
 from app.channels.core.rate_limit import RateLimitConfig
 
+
 class TelegramChannel(BaseChannel):
     def register_routes(self, registrar: object) -> None:
         if not isinstance(registrar, RouteRegistrar):
@@ -602,8 +603,11 @@ from app.channels.implementations.fastapi import (
     ChannelRouteRegistry,
 )
 from fastapi import Depends, FastAPI
+
+
 # 业务层实现：提供当前用户 ID 的依赖函数
 def get_current_user_id() -> str: ...
+
 
 app = FastAPI()
 registry = ChannelRouteRegistry(
@@ -762,7 +766,10 @@ class AsyncLoginProtocol(Protocol):
     async def cancel_login(self) -> None: ...
 
     async def handle_oauth2_callback(
-        self, code: str | None, state: str, error: str | None = None,
+        self,
+        code: str | None,
+        state: str,
+        error: str | None = None,
     ) -> None: ...
 ```
 

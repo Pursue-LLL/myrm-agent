@@ -192,9 +192,7 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
 ]
 
 
-async def run_golden_recall_benchmark(
-    manager: MemoryManager | None, *, run_id: str
-) -> MemoryCommandDiagnosticProbeResult:
+async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: str) -> MemoryCommandDiagnosticProbeResult:
     """Run a synthetic top-k recall benchmark across 8 categories and remove probe memories."""
 
     started = perf_counter()
@@ -287,11 +285,7 @@ async def run_golden_recall_benchmark(
                 status=summary.status,
                 evidence=evidence,
                 impact="Synthetic recall checks verify memory write-then-retrieve across 9 categories and 2 languages.",
-                next_action=(
-                    "No action required."
-                    if summary.status == "ready"
-                    else "Review retrieval trace."
-                ),
+                next_action=("No action required." if summary.status == "ready" else "Review retrieval trace."),
                 safe_to_retry=True,
                 duration_ms=round((perf_counter() - started) * 1000, 2),
                 benchmark_summary=MemoryCommandBenchmarkSummary(
@@ -308,11 +302,7 @@ async def run_golden_recall_benchmark(
                     top_k=5,
                     categories=categories_dict,
                 ),
-                repair_actions=(
-                    []
-                    if summary.status == "ready"
-                    else ["review_retrieval_trace", "run_diagnostics"]
-                ),
+                repair_actions=([] if summary.status == "ready" else ["review_retrieval_trace", "run_diagnostics"]),
             )
     except Exception as exc:
         probe = critical_probe(
@@ -332,9 +322,7 @@ async def run_golden_recall_benchmark(
 
     cleanup_errors = await _cleanup_stored_memories(manager, stored_memories)
     if cleanup_errors:
-        repair_actions = list(
-            dict.fromkeys([*probe.repair_actions, "review_storage_config"])
-        )
+        repair_actions = list(dict.fromkeys([*probe.repair_actions, "review_storage_config"]))
         probe = probe.model_copy(
             update={
                 "status": "warning" if probe.status == "ready" else probe.status,
@@ -383,23 +371,15 @@ async def _run_case(
     category: str = "",
 ) -> MemoryRecallBenchmarkResult:
     t0 = perf_counter()
-    results = await manager.search(
-        case.query, memory_types=[memory_type], limit=case.top_k, use_rrf=True
-    )
+    results = await manager.search(case.query, memory_types=[memory_type], limit=case.top_k, use_rrf=True)
     latency_ms = round((perf_counter() - t0) * 1000, 2)
     hit_ids = [result.id for result in results]
-    matching_ranks = [
-        idx + 1
-        for idx, memory_id in enumerate(hit_ids)
-        if memory_id in case.expected_memory_ids
-    ]
+    matching_ranks = [idx + 1 for idx, memory_id in enumerate(hit_ids) if memory_id in case.expected_memory_ids]
     best_rank = min(matching_ranks) if matching_ranks else None
     score = 1.0 / best_rank if best_rank else 0.0
 
     # Calculate distinct sources and collapse statistics
-    distinct_sources = len(
-        {getattr(r, "id", None) or getattr(r, "source_path", None) for r in results}
-    )
+    distinct_sources = len({getattr(r, "id", None) or getattr(r, "source_path", None) for r in results})
     duplicate_count = max(0, len(results) - distinct_sources)
 
     return MemoryRecallBenchmarkResult(

@@ -17,9 +17,7 @@ async def test_agent_cold_start_diagnostic_fully_ready() -> None:
     """Test AgentColdStartDiagnostic when all phases are primed and available."""
     diagnostic = AgentColdStartDiagnostic()
 
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(model="test-gpt-4o")
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="test-gpt-4o"))
 
     mock_cache = MagicMock()
     mock_cache.warm_entry_count = 2
@@ -60,9 +58,7 @@ async def test_agent_cold_start_diagnostic_cold_cache_ready() -> None:
     """Test AgentColdStartDiagnostic when cache is cold (0 warm units) but other components are ready."""
     diagnostic = AgentColdStartDiagnostic()
 
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet")
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet"))
 
     mock_cache = MagicMock()
     mock_cache.warm_entry_count = 0
@@ -100,9 +96,7 @@ async def test_agent_cold_start_diagnostic_unconfigured_model() -> None:
     """Test AgentColdStartDiagnostic when no LLM is configured."""
     diagnostic = AgentColdStartDiagnostic()
 
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(model="")
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model=""))
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
@@ -135,9 +129,7 @@ async def test_agent_cold_start_diagnostic_storage_degraded() -> None:
     """Test AgentColdStartDiagnostic when storage ping fails."""
     diagnostic = AgentColdStartDiagnostic()
 
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(model="test-gpt-4o")
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="test-gpt-4o"))
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),

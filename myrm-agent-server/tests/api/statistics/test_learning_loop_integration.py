@@ -85,12 +85,8 @@ class TestLearningLoopIntegration:
                 "app.api.statistics.learning_loop.list_skill_growth_timeline",
                 new_callable=AsyncMock,
                 return_value=[
-                    SimpleNamespace(
-                        status="approved", created_at="2026-08-20T10:00:00Z"
-                    ),
-                    SimpleNamespace(
-                        status="pending", created_at="2026-08-20T11:00:00Z"
-                    ),
+                    SimpleNamespace(status="approved", created_at="2026-08-20T10:00:00Z"),
+                    SimpleNamespace(status="pending", created_at="2026-08-20T11:00:00Z"),
                 ],
             ),
         ):

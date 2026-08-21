@@ -49,9 +49,7 @@ class MemoryCommandGovernanceItem(BaseModel):
 
     id: str
     kind: str
-    target_kind: Literal["pending_memory", "shared_context_proposal", "memory"] = (
-        "memory"
-    )
+    target_kind: Literal["pending_memory", "shared_context_proposal", "memory"] = "memory"
     title: str
     description: str
     severity: Literal["info", "warning", "critical"] = "info"
@@ -267,9 +265,7 @@ class MemoryCommandDoctorCheck(BaseModel):
     """Runtime memory doctor check shown in the local command center."""
 
     id: str
-    category: Literal[
-        "storage", "index", "embedding", "ledger", "deployment", "quality", "migration"
-    ]
+    category: Literal["storage", "index", "embedding", "ledger", "deployment", "quality", "migration"]
     label: str
     status: Literal["ready", "warning", "critical", "missing"]
     evidence: str
@@ -303,9 +299,7 @@ class MemoryCommandDiagnosticProbeResult(BaseModel):
     """Single probe result from an executable memory diagnostic run."""
 
     id: str
-    category: Literal[
-        "storage", "index", "embedding", "ledger", "deployment", "quality", "migration"
-    ]
+    category: Literal["storage", "index", "embedding", "ledger", "deployment", "quality", "migration"]
     label: str
     status: Literal["ready", "warning", "critical", "missing"]
     evidence: str
@@ -395,9 +389,7 @@ class MemoryCommandPlaneSummary(BaseModel):
     sandbox_isolation: Literal["local_or_per_user_sandbox"]
 
 
-MemoryCommandMigrationImportSource = Literal[
-    "hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi"
-]
+MemoryCommandMigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi"]
 
 
 class MemoryCommandMigrationSourceManifestItem(BaseModel):
@@ -406,9 +398,7 @@ class MemoryCommandMigrationSourceManifestItem(BaseModel):
     id: str
     display_name: str
     import_source: MemoryCommandMigrationImportSource
-    discover_modes: list[Literal["local_scan", "zip_upload"]] = Field(
-        default_factory=list
-    )
+    discover_modes: list[Literal["local_scan", "zip_upload"]] = Field(default_factory=list)
     deep_link_enabled: bool = True
 
 
@@ -416,24 +406,18 @@ class MemoryCommandMigrationProvenance(BaseModel):
     """Import/export provenance summary for memory migration visibility."""
 
     supported_sources: list[str]
-    source_manifest: list[MemoryCommandMigrationSourceManifestItem] = Field(
-        default_factory=list
-    )
+    source_manifest: list[MemoryCommandMigrationSourceManifestItem] = Field(default_factory=list)
     source_manifest_authoritative: bool = True
     tracked_imports: int = 0
     unmapped_items: int = 0
     coverage_status: Literal["not_tracked", "partial", "complete"] = "not_tracked"
-    adapter_status: dict[str, Literal["ready", "planned", "missing"]] = Field(
-        default_factory=dict
-    )
+    adapter_status: dict[str, Literal["ready", "planned", "missing"]] = Field(default_factory=dict)
     last_import_batch_id: str | None = None
     verification_recommended: bool = False
     last_import_diagnostic_status: str | None = None
     last_import_diagnostic_run_id: str | None = None
     last_import_readiness_status: Literal["ready", "warning", "critical"] | None = None
-    last_import_first_turn_outcome: Literal["success", "failed", "no_output"] | None = (
-        None
-    )
+    last_import_first_turn_outcome: Literal["success", "failed", "no_output"] | None = None
     cleanup_pending_sessions: int = 0
     cleanup_confirmed_sessions: int = 0
     cleanup_expired_sessions: int = 0
@@ -455,9 +439,7 @@ class MemoryCommandRuntimeStatus(BaseModel):
     control_plane_status: Literal["not_used", "proxied_by_sandbox"]
     event_ledger_status: Literal["available", "unavailable"]
     health_snapshot_status: Literal["available", "unavailable"]
-    supported_clients: list[Literal["local_web", "tauri_desktop", "saas_sandbox"]] = (
-        Field(default_factory=list)
-    )
+    supported_clients: list[Literal["local_web", "tauri_desktop", "saas_sandbox"]] = Field(default_factory=list)
 
 
 class MemoryCommandCenterResponse(BaseModel):
@@ -618,9 +600,7 @@ class MemoryApprovedRecord(BaseModel):
     memory_type: str
     content_preview: str
     namespace: str
-    partition: Literal[
-        "identity", "working_memory", "operating_instructions", "retrievable_evidence"
-    ]
+    partition: Literal["identity", "working_memory", "operating_instructions", "retrievable_evidence"]
     importance: float
     access_count: int
     char_count: int
@@ -634,9 +614,7 @@ class MemoryRecallBoundaryData(BaseModel):
     task_id: str | None = None
     read_scopes: list[MemoryRecallScopeBoundary] = Field(default_factory=list)
     write_policy: str = "inherit"
-    partitions: MemoryFourPartitionSummary = Field(
-        default_factory=MemoryFourPartitionSummary
-    )
+    partitions: MemoryFourPartitionSummary = Field(default_factory=MemoryFourPartitionSummary)
     candidate_records: list[MemoryCandidateRecord] = Field(default_factory=list)
     approved_records: list[MemoryApprovedRecord] = Field(default_factory=list)
     budget_chars_used: int = 0

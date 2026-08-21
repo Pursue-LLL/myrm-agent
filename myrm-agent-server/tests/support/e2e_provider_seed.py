@@ -98,20 +98,13 @@ def resolve_e2e_llm_endpoints(
     basic_key = resolved.basic_api_key
     lite_key = resolved.lite_api_key or basic_key
 
-    uses_local_gateway = (
-        _LOCAL_GATEWAY_HOST in basic_url or _LOCAL_GATEWAY_HOST in lite_url
-    )
+    uses_local_gateway = _LOCAL_GATEWAY_HOST in basic_url or _LOCAL_GATEWAY_HOST in lite_url
     if uses_local_gateway:
         gateway_reachable = probe_openai_compatible_base(basic_url)
-        gateway_auth_ok = (
-            probe_llm_api_key(basic_url, basic_key, basic_model)
-            if gateway_reachable
-            else False
-        )
+        gateway_auth_ok = probe_llm_api_key(basic_url, basic_key, basic_model) if gateway_reachable else False
         if not gateway_reachable:
             raise RuntimeError(
-                f"OmniRoute gateway {_LOCAL_GATEWAY_HOST} unreachable — "
-                "start with: bash ~/.omniroute/start-omniroute.sh"
+                f"OmniRoute gateway {_LOCAL_GATEWAY_HOST} unreachable — start with: bash ~/.omniroute/start-omniroute.sh"
             )
         if not gateway_auth_ok:
             raise RuntimeError(
@@ -171,9 +164,7 @@ def upsert_provider(
                 enabled = item.get("enabledModels")
                 available = item.get("availableModels")
                 enabled_models = (
-                    list(enabled) + [model_id]
-                    if isinstance(enabled, list) and model_id not in enabled
-                    else [model_id]
+                    list(enabled) + [model_id] if isinstance(enabled, list) and model_id not in enabled else [model_id]
                 )
                 available_models = (
                     list(available) + [model_id]

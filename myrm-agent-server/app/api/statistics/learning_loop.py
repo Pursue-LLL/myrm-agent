@@ -165,9 +165,7 @@ async def _fetch_ring2_distillation(days: int) -> Ring2DistillationStatus:
             proposals_rejected=rejected,
             total_active_skills=active_skills_count,
             is_active=True,
-            status=(
-                "active" if total_proposals > 0 or active_skills_count > 0 else "ready"
-            ),
+            status=("active" if total_proposals > 0 or active_skills_count > 0 else "ready"),
         )
     except Exception as e:
         logger.warning("Failed to aggregate ring 2 distillation status: %s", e)
@@ -272,12 +270,7 @@ async def get_learning_loop_status(
             _fetch_ring5_profiling(db),
         )
 
-        total_learnings = (
-            r1.total_traces_analyzed
-            + r2.proposals_approved
-            + r4.total_memories
-            + r5.conversations_indexed
-        )
+        total_learnings = r1.total_traces_analyzed + r2.proposals_approved + r4.total_memories + r5.conversations_indexed
 
         overall_health = 100
         if r3.regressions_blocked > 5 and r3.evaluations_run > 0:

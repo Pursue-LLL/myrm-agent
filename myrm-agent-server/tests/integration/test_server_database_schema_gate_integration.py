@@ -25,14 +25,10 @@ from app.platform_utils import reset_database_engine
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_server_init_database_live_lifecycle_and_schema_gate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_server_init_database_live_lifecycle_and_schema_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Validate server init_database initializes tables and enforces SchemaGate."""
     test_db_file = tmp_path / "server_test.db"
-    monkeypatch.setattr(
-        "app.config.settings.settings.database.sqlite_path", str(test_db_file)
-    )
+    monkeypatch.setattr("app.config.settings.settings.database.sqlite_path", str(test_db_file))
 
     # Reset any existing connection engine in the process
     await reset_database_engine()

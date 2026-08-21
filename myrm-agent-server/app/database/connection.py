@@ -76,9 +76,7 @@ async def init_database() -> None:
         raw_conn = await conn.get_raw_connection()
         db_api_conn = raw_conn.driver_connection
         if db_api_conn is not None and hasattr(db_api_conn, "execute"):
-            await validate_schema_gate_async(
-                db_api_conn, server_caps, auto_initialize_version=False
-            )
+            await validate_schema_gate_async(db_api_conn, server_caps, auto_initialize_version=False)
 
     # Import all models to ensure they're registered with Base.metadata
     from app.database import models  # noqa: F401

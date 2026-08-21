@@ -67,7 +67,7 @@ InboundMessage(
         sender_id="sender_456",
         sender_name="Alice",
         timestamp=1712345678.9,
-    )
+    ),
 )
 ```
 

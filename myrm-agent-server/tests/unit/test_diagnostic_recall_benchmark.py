@@ -80,6 +80,3 @@ async def test_run_golden_recall_benchmark_mock_manager() -> None:
     assert "Golden recall:" in result.evidence
     assert result.benchmark_summary is not None
     assert result.benchmark_summary.case_count > 0
-
-
-

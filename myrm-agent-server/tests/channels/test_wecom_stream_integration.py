@@ -29,9 +29,7 @@ class StubPairingStore:
     async def resolve(self, channel: str, sender_id: str) -> str | None:
         return "test-user"
 
-    async def bind(
-        self, channel: str, sender_id: str, user_id: str, **kwargs: object
-    ) -> None:
+    async def bind(self, channel: str, sender_id: str, user_id: str, **kwargs: object) -> None:
         pass
 
     async def unbind(self, channel: str, sender_id: str) -> None:
@@ -77,9 +75,7 @@ async def test_wecom_aibot_overflow_chunks_lifecycle_integration() -> None:
     ch._ws = mock_ws
 
     # Seed placeholder stream
-    stream_id = await ch.send_placeholder(
-        "chat_long", "Thinking...", thread_id="req_long"
-    )
+    stream_id = await ch.send_placeholder("chat_long", "Thinking...", thread_id="req_long")
     assert stream_id is not None
     assert stream_id in ch._active_streams
 
@@ -101,9 +97,7 @@ async def test_wecom_aibot_overflow_chunks_lifecycle_integration() -> None:
     respond_msgs = [p for p in sent_payloads if p.get("cmd") == "aibot_respond_msg"]
     proactive_msgs = [p for p in sent_payloads if p.get("cmd") == "aibot_send_msg"]
 
-    assert any(
-        p.get("body", {}).get("stream", {}).get("finish") is True for p in respond_msgs
-    )
+    assert any(p.get("body", {}).get("stream", {}).get("finish") is True for p in respond_msgs)
     assert len(proactive_msgs) == 2
 
 
@@ -171,12 +165,8 @@ async def test_wecom_self_built_router_no_zombie_integration() -> None:
     ch._token = "valid_mock_token"
     ch._token_expires_at = 9999999999.0
 
-    async def _mock_api_send(
-        touser: str, msgtype: str, content: dict[str, object], **kwargs: object
-    ) -> bool:
-        sent_api_calls.append(
-            {"touser": touser, "msgtype": msgtype, "content": content}
-        )
+    async def _mock_api_send(touser: str, msgtype: str, content: dict[str, object], **kwargs: object) -> bool:
+        sent_api_calls.append({"touser": touser, "msgtype": msgtype, "content": content})
         return True
 
     ch._api_send = _mock_api_send  # type: ignore[assignment]

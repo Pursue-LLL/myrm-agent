@@ -57,9 +57,7 @@ async def get_memory_command_center(
         project_id: Optional project ID to scope the snapshot to a single project's memory spaces.
     """
 
-    return await MemoryCommandCenterService(
-        db, memory_manager, project_id=project_id or None
-    ).build_snapshot()
+    return await MemoryCommandCenterService(db, memory_manager, project_id=project_id or None).build_snapshot()
 
 
 @router.get("/events", response_model=list[MemoryCommandTimelineEvent])
@@ -94,9 +92,7 @@ async def get_memory_recall_boundary(
 ) -> MemoryRecallBoundaryData:
     """Return review-first per-task memory recall boundary and candidate/approved partition snapshot."""
 
-    return await MemoryCommandCenterService(
-        db, memory_manager
-    ).build_recall_boundary_snapshot(
+    return await MemoryCommandCenterService(db, memory_manager).build_recall_boundary_snapshot(
         agent_id=agent_id,
         task_id=task_id,
     )
@@ -128,17 +124,11 @@ async def get_memory_graph(
     namespaces = [namespace] if namespace else None
 
     filtered_nodes = [
-        n
-        for n in nodes_raw
-        if not namespaces
-        or str(n.properties.get("primary_namespace", "")).strip() in namespaces
+        n for n in nodes_raw if not namespaces or str(n.properties.get("primary_namespace", "")).strip() in namespaces
     ]
     filtered_node_ids = {n.id for n in filtered_nodes}
 
-    nodes = [
-        MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties)
-        for n in filtered_nodes
-    ]
+    nodes = [MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties) for n in filtered_nodes]
     edges = [
         MemoryCommandGraphEdge(
             id=r.id,
@@ -156,9 +146,7 @@ async def get_memory_graph(
         node_label_counts=stats_raw.node_label_counts,
         relationship_type_counts=stats_raw.relationship_type_counts,
     )
-    return MemoryCommandGraphResponse(
-        nodes=nodes, edges=edges, stats=stats, has_graph=True
-    )
+    return MemoryCommandGraphResponse(nodes=nodes, edges=edges, stats=stats, has_graph=True)
 
 
 @router.post("/actions", response_model=MemoryCommandActionResponse)

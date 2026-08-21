@@ -56,9 +56,7 @@ class OpsAggregatedSnapshotService:
     """Service to collect a full-spectrum operational snapshot with isolation & safety fallbacks."""
 
     @classmethod
-    async def collect_snapshot(
-        cls, *, include_doctor: bool = True
-    ) -> OpsAggregatedSnapshot:
+    async def collect_snapshot(cls, *, include_doctor: bool = True) -> OpsAggregatedSnapshot:
         """Collect all operational metrics concurrently.
 
         Uses isolated DB sessions and protected memory accesses so any individual
@@ -71,36 +69,16 @@ class OpsAggregatedSnapshotService:
         governance_task = asyncio.create_task(cls._collect_governance_info())
         usage_radar_task = asyncio.create_task(cls._collect_usage_radar_info())
         memory_task = asyncio.create_task(cls._collect_memory_info())
-        doctor_task = (
-            asyncio.create_task(cls._collect_doctor_summary())
-            if include_doctor
-            else None
-        )
+        doctor_task = asyncio.create_task(cls._collect_doctor_summary()) if include_doctor else None
 
-        system_res = await cls._safe_await(
-            system_task, default=cls._fallback_system_info()
-        )
-        liveness_res = await cls._safe_await(
-            liveness_task, default=cls._fallback_liveness_info()
-        )
-        resources_res = await cls._safe_await(
-            resources_task, default=cls._fallback_resource_info()
-        )
-        channels_res = await cls._safe_await(
-            channels_task, default=cls._fallback_channel_info()
-        )
-        governance_res = await cls._safe_await(
-            governance_task, default=OpsGovernanceInfo()
-        )
-        usage_radar_res = await cls._safe_await(
-            usage_radar_task, default=OpsUsageRadarInfo()
-        )
-        memory_res = await cls._safe_await(
-            memory_task, default=cls._fallback_memory_info()
-        )
-        doctor_res = (
-            await cls._safe_await(doctor_task, default=None) if doctor_task else None
-        )
+        system_res = await cls._safe_await(system_task, default=cls._fallback_system_info())
+        liveness_res = await cls._safe_await(liveness_task, default=cls._fallback_liveness_info())
+        resources_res = await cls._safe_await(resources_task, default=cls._fallback_resource_info())
+        channels_res = await cls._safe_await(channels_task, default=cls._fallback_channel_info())
+        governance_res = await cls._safe_await(governance_task, default=OpsGovernanceInfo())
+        usage_radar_res = await cls._safe_await(usage_radar_task, default=OpsUsageRadarInfo())
+        memory_res = await cls._safe_await(memory_task, default=cls._fallback_memory_info())
+        doctor_res = await cls._safe_await(doctor_task, default=None) if doctor_task else None
 
         return OpsAggregatedSnapshot(
             system=system_res,
@@ -150,21 +128,13 @@ class OpsAggregatedSnapshotService:
             from app.core.channel_bridge import get_channel_gateway
 
             gw = get_channel_gateway()
-            if (
-                gw
-                and gw.bus
-                and hasattr(gw.bus, "durable_outbound")
-                and gw.bus.durable_outbound
-            ):
+            if gw and gw.bus and hasattr(gw.bus, "durable_outbound") and gw.bus.durable_outbound:
                 pending_outbound = await gw.bus.durable_outbound.count_pending()
         except Exception:
             pass
 
         channels_summary = cls._get_channels_dict()
-        has_degraded = any(
-            ch.get("status") in ("degraded", "error")
-            for ch in channels_summary.values()
-        )
+        has_degraded = any(ch.get("status") in ("degraded", "error") for ch in channels_summary.values())
 
         if gateway.is_draining:
             state = "draining"
@@ -232,9 +202,7 @@ class OpsAggregatedSnapshotService:
     @classmethod
     async def _collect_channel_info(cls) -> OpsChannelInfo:
         channels_map = cls._get_channels_dict()
-        has_degraded = any(
-            ch.get("status") in ("degraded", "error") for ch in channels_map.values()
-        )
+        has_degraded = any(ch.get("status") in ("degraded", "error") for ch in channels_map.values())
         return OpsChannelInfo(
             total_channels=len(channels_map),
             channels=channels_map,
@@ -280,24 +248,16 @@ class OpsAggregatedSnapshotService:
                 from app.services.kanban import KanbanService
 
                 goal_pending = await db.scalar(
-                    select(func.count())
-                    .select_from(ApprovalRecord)
-                    .where(ApprovalRecord.status == "PENDING")
+                    select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.status == "PENDING")
                 )
-                kanban_review = (
-                    await KanbanService.get_instance().count_tasks_by_status(
-                        TaskStatus.IN_REVIEW
-                    )
-                )
+                kanban_review = await KanbanService.get_instance().count_tasks_by_status(TaskStatus.IN_REVIEW)
                 pending_approvals = (goal_pending or 0) + kanban_review
             except Exception:
                 pass
 
             try:
                 notif_res = await db.scalar(
-                    select(func.count())
-                    .select_from(SystemNotification)
-                    .where(SystemNotification.is_read == False)  # noqa: E712
+                    select(func.count()).select_from(SystemNotification).where(SystemNotification.is_read == False)  # noqa: E712
                 )
                 unread_notifications = notif_res or 0
             except Exception:
@@ -392,14 +352,11 @@ class OpsAggregatedSnapshotService:
             from myrm_agent_harness.toolkits.memory.types import MemoryOperationStatus
 
             async with get_session() as db:
-                event_cnt = await db.scalar(
-                    select(func.count(MemoryOperationEventModel.id))
-                )
+                event_cnt = await db.scalar(select(func.count(MemoryOperationEventModel.id)))
                 event_count = event_cnt or 0
                 failed_cnt = await db.scalar(
                     select(func.count(MemoryOperationEventModel.id)).where(
-                        MemoryOperationEventModel.status
-                        == MemoryOperationStatus.FAILED.value
+                        MemoryOperationEventModel.status == MemoryOperationStatus.FAILED.value
                     )
                 )
                 failed_event_count = failed_cnt or 0
@@ -428,24 +385,14 @@ class OpsAggregatedSnapshotService:
                 server_reports = snapshot.server_reports
 
                 harness_passed = sum(1 for r in harness_reports if r.status == "pass")
-                harness_failed = sum(
-                    1 for r in harness_reports if r.status in ("fail", "warn")
-                )
+                harness_failed = sum(1 for r in harness_reports if r.status in ("fail", "warn"))
                 server_passed = sum(1 for r in server_reports if r.status == "pass")
-                server_failed = sum(
-                    1 for r in server_reports if r.status in ("fail", "warn")
-                )
+                server_failed = sum(1 for r in server_reports if r.status in ("fail", "warn"))
 
-                has_fail = any(
-                    r.status == "fail" for r in (*harness_reports, *server_reports)
-                )
-                has_warn = any(
-                    r.status == "warn" for r in (*harness_reports, *server_reports)
-                )
+                has_fail = any(r.status == "fail" for r in (*harness_reports, *server_reports))
+                has_warn = any(r.status == "warn" for r in (*harness_reports, *server_reports))
 
-                doctor_status: Literal["pass", "warn", "fail"] = (
-                    "fail" if has_fail else ("warn" if has_warn else "pass")
-                )
+                doctor_status: Literal["pass", "warn", "fail"] = "fail" if has_fail else ("warn" if has_warn else "pass")
 
                 issues: list[dict[str, object]] = [
                     {
@@ -468,9 +415,7 @@ class OpsAggregatedSnapshotService:
                     issues=issues,
                 )
         except Exception as exc:
-            logger.warning(
-                "Doctor summary diagnostic collection timed out or failed: %s", exc
-            )
+            logger.warning("Doctor summary diagnostic collection timed out or failed: %s", exc)
             return OpsDoctorSummaryInfo(
                 status="warn",
                 issues=[
