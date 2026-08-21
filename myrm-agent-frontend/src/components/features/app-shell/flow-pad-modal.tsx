@@ -644,7 +644,7 @@ export function FlowPadModal() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) {
+      if (isImeComposing(e)) {
         return;
       }
 

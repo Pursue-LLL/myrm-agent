@@ -1,7 +1,7 @@
 """Enable installed skills in user catalog after discovery install.
 
 [INPUT]
-- myrm_agent_harness.backends.skills.market_protocols::SkillInstallResult (POS: Market install result)
+- myrm_agent_harness.api.skills::SkillInstallResult (POS: Market install result)
 - app.core.skills.providers.local::compute_local_skill_id (POS: Stable local skill ID from path)
 - app.core.skills.store.service::skills_service (POS: Skill CRUD and user config)
 
