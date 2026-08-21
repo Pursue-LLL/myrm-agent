@@ -107,6 +107,35 @@ class MemoryDiagnosticRepairExecutor:
                 run,
             )
 
+        if plan_id == "restore_disciplined_defaults":
+            from app.api.memory.operations.command_center_actions import run_restore_disciplined_defaults
+            from app.schemas.memory.command_center import MemoryCommandActionRequest
+
+            req = MemoryCommandActionRequest(target_kind="memory", action="restore_defaults")
+            res_msg = await run_restore_disciplined_defaults(req, self._db, self._memory_manager)
+
+            command_center = MemoryCommandCenterService(self._db, self._memory_manager)
+            await command_center.refresh_health()
+            snapshot = await command_center.build_snapshot()
+            run = await MemoryDiagnosticsService(
+                self._db,
+                self._memory_manager,
+                ledger=MemoryOperationLedgerService(self._db),
+            ).run_diagnostics(
+                health_cache_status=snapshot.health.cache_status,
+                runtime=snapshot.runtime,
+            )
+            return (
+                MemoryRepairExecutionResult(
+                    plan_id=plan_id,
+                    status="completed",
+                    message=res_msg,
+                    probe_run_id=run.id,
+                    changed=True,
+                ),
+                run,
+            )
+
         return (
             MemoryRepairExecutionResult(
                 plan_id=plan_id,
@@ -126,6 +155,7 @@ def _dry_run_message(plan_id: str) -> str:
         "enable_vector_store": "Requires explicit storage and embedding configuration before execution.",
         "configure_embedding": "Requires explicit provider configuration before execution.",
         "review_retrieval_trace": "Requires opening trace metadata in the GUI; no memory content is exposed.",
+        "restore_disciplined_defaults": "Would archive unpinned working memories into a safe snapshot and restore disciplined budget defaults.",
     }
     return messages.get(plan_id, "Unknown repair plan.")
 
