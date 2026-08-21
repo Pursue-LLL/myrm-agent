@@ -24,6 +24,7 @@ import { useFlowPadStore } from '@/store/useFlowPadStore';
 import useChatStore from '@/store/useChatStore';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import { X, Monitor, ClipboardPaste } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
