@@ -12,11 +12,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-    RoutingResult,
-    RoutingTier,
-)
-from myrm_agent_harness.toolkits.llms.routing.specialty_router import TaskSpecialty
 
 from app.core.types import ModelConfig
 from app.services.agent.params.models import AgentRequest, ModelSelection

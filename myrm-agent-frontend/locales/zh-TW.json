@@ -9672,15 +9672,20 @@
         "migration_integrity": {
           "label": "遷移完整性",
           "evidence": "檢查已應用遷移的校驗和是否匹配當前遷移清單，讓 schema drift 在啟動或匯入回滾失敗前可見。"
+        },
+        "capacity_theater": {
+          "label": "容量劇場與記憶紀律",
+          "evidence": "檢查活躍工作記憶是否超出預算上限或存在過度堆疊，避免因果盲區與 Token 賬單浪費。"
         }
       },
       "doctorRepairAction": {
         "review_storage_config": "檢查儲存配置",
         "enable_vector_store": "啟用向量儲存",
         "configure_embedding": "配置嵌入模型",
-        "run_diagnostics": "執行診斷",
+        "run_diagnostics": "執行診断",
         "run_health_refresh": "重新整理健康快照",
-        "review_retrieval_trace": "檢視檢索軌跡"
+        "review_retrieval_trace": "檢視檢索軌跡",
+        "restore_disciplined_defaults": "恢復紀律預設"
       },
       "doctorRepairRisk": {
         "safe": "安全",
@@ -9695,6 +9700,10 @@
         "run_health_refresh": {
           "dryRun": "重新計算本地記憶質量指標並更新健康快取。",
           "expectedEffect": "更新 GUI 中的新鮮度、覆蓋率、保留健康和一致性訊號。"
+        },
+        "restore_disciplined_defaults": {
+          "dryRun": "安全地將未釘選的工作記憶歸檔至備份快照，並將活躍記憶收窄至紀律預設值。",
+          "expectedEffect": "消除容量劇場與因果盲區，同時提升提示詞字首快取命中率與推理敏銳度。"
         },
         "review_storage_config": {
           "dryRun": "檢查結果指向本地儲存、資料庫或許可權問題。",

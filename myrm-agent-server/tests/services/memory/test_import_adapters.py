@@ -370,6 +370,7 @@ class TestAdapterRegistryConsistency:
             "codex",
             "mem0",
             "chatgpt",
+            "plur",
         }, "Registry 'ready' set drifted from actual adapters"
 
     def test_source_adapters_are_ready(self) -> None:
