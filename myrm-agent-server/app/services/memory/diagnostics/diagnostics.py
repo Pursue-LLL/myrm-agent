@@ -42,6 +42,7 @@ from app.services.memory.diagnostics.diagnostic.diagnostic_recall_benchmark impo
 from app.services.memory.diagnostics.diagnostic.diagnostic_repair_plans import with_check_repair_plans, with_probe_repair_plans
 from app.services.memory.diagnostics.diagnostic.diagnostic_slo import build_diagnostic_slo
 from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import (
+    probe_capacity_theater,
     probe_context_bundle_manifest,
     probe_deployment_boundary,
     probe_embedding_provider,

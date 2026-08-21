@@ -32,6 +32,7 @@ RepairPlanId = Literal[
     "enable_vector_store",
     "configure_embedding",
     "review_retrieval_trace",
+    "restore_disciplined_defaults",
 ]
 RepairMode = Literal["dry_run", "execute"]
 
