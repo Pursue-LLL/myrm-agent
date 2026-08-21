@@ -14,7 +14,7 @@ import type { Source, File, AgentStreamEvent } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState } from './types';
 
 export type TurnMeta = {
-  routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex';
+  routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
   modelTier?: 'weak' | 'medium';
 };
 

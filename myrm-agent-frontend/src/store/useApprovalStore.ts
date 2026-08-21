@@ -146,10 +146,6 @@ function syncBrowserTakeoverFromApproval(approval: ApprovalPayload): void {
   });
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
 function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
