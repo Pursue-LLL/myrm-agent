@@ -488,6 +488,8 @@ export interface DefaultModelConfig {
   routingConfig: RoutingConfig | null;
   visionFallbackModel?: ModelSlot | null;
   videoFallbackModel?: ModelSlot | null;
+  codeModel?: ModelSlot | null;
+  longDocModel?: ModelSlot | null;
 }
 
 // 初始化默认提供商配置
@@ -524,6 +526,8 @@ export const getInitialDefaultModelConfig = (): DefaultModelConfig => ({
   routingConfig: null,
   visionFallbackModel: null,
   videoFallbackModel: null,
+  codeModel: null,
+  longDocModel: null,
 });
 
 /**

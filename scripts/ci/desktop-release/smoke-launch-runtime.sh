@@ -13,6 +13,7 @@ MAX_ATTEMPTS="${MAX_ATTEMPTS:-120}"
 MIN_BINARY_BYTES="${MIN_BINARY_BYTES:-1024}"
 
 BACKEND_BIN=""
+AGENT_RUNNER_BIN=""
 FRONTEND_DIR=""
 backend_pid=""
 frontend_pid=""
@@ -63,6 +64,8 @@ resolve_bundle_paths() {
   BACKEND_BIN="$(find "$app/Contents/MacOS" -maxdepth 1 -type f -name 'myrmagent-backend*' 2>/dev/null | head -1)"
   [[ -n "$BACKEND_BIN" ]] || fail "backend sidecar not found under ${app}/Contents/MacOS"
 
+  AGENT_RUNNER_BIN="$(find "$app/Contents/MacOS" -maxdepth 1 -type f -name 'agent-runner*' 2>/dev/null | head -1)"
+
   local server_js
   server_js="$(find "$app/Contents/Resources/frontend" -name 'server.js' -type f 2>/dev/null | head -1)"
   [[ -n "$server_js" ]] || fail "Next standalone server.js not found under ${app}/Contents/Resources/frontend"
@@ -76,6 +79,7 @@ resolve_dev_paths() {
   host="$(rustc -vV | sed -n 's/^host: //p')"
 
   BACKEND_BIN="${repo_root}/myrm-agent-desktop/src-tauri/binaries/myrmagent-backend-${host}"
+  AGENT_RUNNER_BIN="${repo_root}/myrm-agent-desktop/src-tauri/binaries/agent-runner-${host}"
   FRONTEND_DIR="${repo_root}/myrm-agent-frontend/.next/standalone/myrm-agent-frontend"
 }
 
@@ -145,6 +149,10 @@ main() {
   fi
 
   echo "[launch-smoke] backend=${BACKEND_BIN}"
+  if [[ -n "${AGENT_RUNNER_BIN}" && -f "${AGENT_RUNNER_BIN}" ]]; then
+    assert_non_empty_file "$AGENT_RUNNER_BIN" "Agent runner sidecar"
+    echo "[launch-smoke] agent_runner=${AGENT_RUNNER_BIN}"
+  fi
   echo "[launch-smoke] frontend=${FRONTEND_DIR}"
 
   start_backend

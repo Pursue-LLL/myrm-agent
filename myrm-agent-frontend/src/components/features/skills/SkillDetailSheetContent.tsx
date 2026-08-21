@@ -26,6 +26,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { resolveSkillDescription } from '@/lib/utils/skillUtils';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
@@ -124,7 +125,9 @@ export function SkillDetailSheetContent({
 
   return (
     <div className="py-4 space-y-5">
-      <p className="text-muted-foreground">{skill.description}</p>
+      <p className="text-muted-foreground">
+        {resolveSkillDescription(skill, t('detail.noDescription', { fallback: 'No description provided' }))}
+      </p>
 
       <SkillQualityGuardian skillId={skill.id} onPromoted={reloadSkillContent} />
       <SkillVersionsPanel skillId={skill.id} onActivated={reloadSkillContent} />

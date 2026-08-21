@@ -19,6 +19,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { resolveSkillDescription } from '@/lib/utils/skillUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Badge } from '@/components/primitives/badge';

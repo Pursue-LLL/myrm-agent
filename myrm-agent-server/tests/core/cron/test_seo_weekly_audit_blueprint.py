@@ -100,3 +100,38 @@ def test_seo_weekly_audit_blueprint_fill_invalid_depth() -> None:
                 "day": "1",
             },
         )
+
+
+def test_seo_weekly_audit_all_five_locales_fill_correctly() -> None:
+    """Verify seo_weekly_audit generates correct prompt and titles in all 5 supported locales."""
+    locales = ("en", "zh", "ja", "de", "ko")
+    for loc in locales:
+        res = fill_blueprint(
+            "seo_weekly_audit",
+            {
+                "target_url": "https://example.org",
+                "depth": "standard",
+                "time": "10:00",
+                "day": "5",
+            },
+            locale=loc,
+        )
+        assert res is not None
+        assert res.schedule.expr == "0 10 * * 5"
+        assert "https://example.org" in res.prompt
+        assert "standard" in res.prompt
+        assert len(res.name) > 0
+
+
+def test_seo_weekly_audit_defaults_applied_when_optional_omitted() -> None:
+    """Verify default values are properly populated when optional slots are omitted."""
+    res = fill_blueprint(
+        "seo_weekly_audit",
+        {},
+        locale="en",
+    )
+    assert res is not None
+    assert "https://example.com" in res.prompt
+    assert "standard" in res.prompt
+    assert res.schedule.expr == "0 9 * * 1"
+

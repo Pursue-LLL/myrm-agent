@@ -55,6 +55,10 @@ contract:
 
 # Doc Tutorial Case Rerun & Screenshot Refresh SOP
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## Overview
 This skill provides an end-to-end, zero-hallucination workflow for keeping developer documentation, tutorials, and quickstart guides continuously fresh. When upstream libraries or UI designs evolve, it runs test cases in sandbox, captures pixel-perfect sanitized screenshots, and atomically replaces outdated images in Markdown/MDX or documentation blocks.
 

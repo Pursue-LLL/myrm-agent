@@ -321,6 +321,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/desktop-release/rename-windows-updater-bundle.ps1
 
+      - name: Launch runtime smoke (Windows)
+        shell: pwsh
+        run: ./scripts/ci/desktop-release/smoke-launch-runtime.ps1 -Dev
+
       - name: Ensure updater bundle signatures
         env:
           REQUIRE_UPDATER_BUNDLES: '1'

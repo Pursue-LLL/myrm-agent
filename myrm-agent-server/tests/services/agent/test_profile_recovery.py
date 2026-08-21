@@ -45,6 +45,41 @@ async def test_probe_single_model():
 
 
 @pytest.mark.asyncio
+async def test_probe_single_builtin_tool():
+    # Valid baseline tool
+    res_valid = await ProfileStartupRecoveryService._probe_single_builtin_tool("file_ops")
+    assert res_valid.status == "healthy"
+    assert res_valid.component_type == "builtin_tool"
+
+    # Valid togglable tool
+    res_search = await ProfileStartupRecoveryService._probe_single_builtin_tool("web_search")
+    assert res_search.status == "healthy"
+
+    # Empty tool
+    res_empty = await ProfileStartupRecoveryService._probe_single_builtin_tool("")
+    assert res_empty.status == "quarantined"
+
+    # Unknown tool
+    res_unknown = await ProfileStartupRecoveryService._probe_single_builtin_tool("non_existent_tool_xyz")
+    assert res_unknown.status == "quarantined"
+
+
+@pytest.mark.asyncio
+async def test_probe_single_mcp():
+    # Empty mcp
+    res_empty = await ProfileStartupRecoveryService._probe_single_mcp("")
+    assert res_empty.status == "quarantined"
+
+    # Command exists in PATH
+    res_sh = await ProfileStartupRecoveryService._probe_single_mcp("sh -c echo")
+    assert res_sh.status == "healthy"
+
+    # Non-existent executable
+    res_unknown = await ProfileStartupRecoveryService._probe_single_mcp("non_existent_command_xyz_12345")
+    assert res_unknown.status == "quarantined"
+
+
+@pytest.mark.asyncio
 async def test_recovery_api_endpoints():
     test_app = build_minimal_app(preset="agents_api")
     transport = ASGITransport(app=test_app)

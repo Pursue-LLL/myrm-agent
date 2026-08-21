@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { getCategoryIcon, getCategoryColor } from './skillCategories';
 import { cn } from '@/lib/utils/classnameUtils';
+import { resolveSkillDescription } from '@/lib/utils/skillUtils';
 import { Switch } from '@/components/primitives/switch';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -280,7 +281,9 @@ const SkillCard = memo(
                 )}
                 {skill.author && <span className="text-xs text-muted-foreground shrink-0">by {skill.author}</span>}
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{skill.description}</p>
+              <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
+                {resolveSkillDescription(skill, t('detail.noDescription', { fallback: 'No description provided' }))}
+              </p>
               {skill.usage_stats && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground/80">
                   <Clock size={12} />
