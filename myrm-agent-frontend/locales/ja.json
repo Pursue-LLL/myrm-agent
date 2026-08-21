@@ -8303,6 +8303,7 @@
       "dismiss": "後で",
       "apiKeysHint": "API キー名を検出しました — 設定で手動入力してください"
     },
+    "uploadFailed": "アップロードに失敗しました",
     "skillActivation": {
       "remove": "選択したスキルを削除"
     },

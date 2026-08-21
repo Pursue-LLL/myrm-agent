@@ -7544,6 +7544,7 @@
     "providerDisabledWarning": "This provider is disabled"
   },
   "chat": {
+    "uploadFailed": "Upload failed",
     "skillActivation": {
       "remove": "Remove selected skills"
     },

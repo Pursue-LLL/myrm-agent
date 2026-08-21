@@ -7544,6 +7544,7 @@
     "providerDisabledWarning": "此服务商已被禁用"
   },
   "chat": {
+    "uploadFailed": "上传失败",
     "skillActivation": {
       "remove": "移除已选技能"
     },
