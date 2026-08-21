@@ -7798,6 +7798,20 @@
     "deliverable": {
       "awaitingArtifact": "アーティファクト同期中 — リンクはまもなく有効になります"
     },
+    "deliverableTier": {
+      "verified": "検証済み納品",
+      "verifiedDesc": "自動テスト・チェック・検証レビューに合格",
+      "artifact": "成果物納品",
+      "artifactDesc": "ワークスペース成果物ファイルを生成または変更済み",
+      "research": "調査結果",
+      "researchDesc": "外部 Web 検索と客観的証拠に基づく調査結果",
+      "plan": "提案 / 計画",
+      "planDesc": "戦略的推論または提案（実機検証待ち）",
+      "evidenceDetails": "根拠の詳細",
+      "verificationsPassed": "検証合格項目",
+      "artifactsWritten": "変更・出力ファイル",
+      "sourcesConsulted": "参照情報源"
+    },
     "tokenUsage": {
       "title": "Token 使用量",
       "inputTokens": "入力 Token",

@@ -1,6 +1,5 @@
 {
   "stuck_task_timeout_user_message": "⏱ Aufgabe nach {elapsed}s Inaktivität abgelaufen und automatisch abgebrochen. Bitte senden Sie Ihre Nachricht erneut.",
   "risk_outbound_blocked": "⚠️ Diese Antwort wurde durch die Inhaltssicherheitsrichtlinie blockiert. Bitte kontaktieren Sie den Administrator oder formulieren Sie Ihre Anfrage um.",
-  "risk_inbound_blocked": "⚠️ Ihre Nachricht wurde durch die Inhaltssicherheitsrichtlinie blockiert. Bitte entfernen Sie sensible Informationen und versuchen Sie es erneut.",
-  "outbound_dead_link_warning": "⚠️ [Hinweis: Der folgende Referenzlink ist möglicherweise nicht erreichbar: {url}]"
+  "risk_inbound_blocked": "⚠️ Ihre Nachricht wurde durch die Inhaltssicherheitsrichtlinie blockiert. Bitte entfernen Sie sensible Informationen und versuchen Sie es erneut."
 }

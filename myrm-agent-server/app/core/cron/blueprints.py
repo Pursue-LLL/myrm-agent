@@ -619,7 +619,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         ),
         category="marketing-growth",
         tags=("seo", "audit", "marketing", "website", "weekly"),
-        sort_order=10,
+        sort_order=16,
         default_required_capabilities=_CAP_RESEARCH,
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekday",

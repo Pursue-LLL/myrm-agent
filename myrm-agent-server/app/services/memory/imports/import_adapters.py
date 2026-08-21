@@ -41,6 +41,7 @@ from app.services.memory.imports.import_mem0 import dry_run_mem0, is_mem0_payloa
 from app.services.memory.imports.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
 from app.services.memory.imports.import_native_json import dry_run_native_json
 from app.services.memory.imports.import_openclaw import dry_run_openclaw
+from app.services.memory.imports.import_plur import dry_run_plur, is_plur_payload
 from app.services.migration.source.source_manifest import migration_source_import_map
 from app.services.migration.source.source_payload_loader import (
     is_source_discovery_payload,
@@ -63,6 +64,7 @@ RequestedImportSource = Literal[
     "mem0",
     "chatgpt",
     "pi",
+    "plur",
 ]
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
@@ -78,6 +80,7 @@ _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
     "claude": "claude",
     "mem0": "mem0",
     "chatgpt": "chatgpt",
+    "plur": "plur",
 }
 
 

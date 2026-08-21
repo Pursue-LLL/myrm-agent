@@ -6,7 +6,6 @@ bash_code_execute_tool in production.
 
 from __future__ import annotations
 
-import asyncio
 import re
 from pathlib import Path
 

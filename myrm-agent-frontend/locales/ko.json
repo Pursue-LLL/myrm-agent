@@ -7843,6 +7843,20 @@
     "deliverable": {
       "awaitingArtifact": "아티팩트 동기화 중 — 링크가 곧 활성화됩니다"
     },
+    "deliverableTier": {
+      "verified": "검증 완료 전달",
+      "verifiedDesc": "자동화 테스트, 점검 및 검증 검토 통과",
+      "artifact": "산출물 전달",
+      "artifactDesc": "작업 영역 산출물 파일 생성 또는 수정 완료",
+      "research": "조사 결과",
+      "researchDesc": "외부 웹 검색 및 객관적 사실 근거 기반 결과",
+      "plan": "방안 및 계획",
+      "planDesc": "전략적 추론 또는 제안 (실제 검증 대기 중)",
+      "evidenceDetails": "근거 세부정보",
+      "verificationsPassed": "통과된 검증 항목",
+      "artifactsWritten": "수정/생성 파일",
+      "sourcesConsulted": "참조 정보 출처"
+    },
     "dragDrop": {
       "title": "파일을 여기에 끌어다 놓으세요",
       "description": "이미지와 PDF 파일 지원, 최대 10개",
