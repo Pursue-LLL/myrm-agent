@@ -185,12 +185,10 @@ class ProfileStartupRecoveryService:
 
         # 1. 如果是 HTTP / SSE 远程端点
         if mcp_clean.startswith(("http://", "https://")):
-            parsed = urlparse(mcp_clean)
-            hostname = parsed.hostname or ""
             # 如果是本地或远程端点，发异步轻量探测
             try:
                 async with httpx.AsyncClient(timeout=_PROBE_NETWORK_TIMEOUT_SECONDS) as client:
-                    resp = await client.get(mcp_clean)
+                    await client.get(mcp_clean)
                     latency = (time.monotonic() - start) * 1000
                     # 任何响应（甚至 4xx/5xx）说明端口和服务活着
                     return ComponentProbeResult(

@@ -9723,6 +9723,10 @@
         "migration_integrity": {
           "label": "Migration integrity",
           "evidence": "Checks applied migration checksums against the current migration manifest so schema drift is visible before startup or import rollback fails."
+        },
+        "capacity_theater": {
+          "label": "Capacity theater & memory discipline",
+          "evidence": "Checks whether active working memory exceeds budget limits or suffers from excessive stacking and causal blindness."
         }
       },
       "doctorRepairAction": {
@@ -9731,7 +9735,8 @@
         "configure_embedding": "Configure embedding",
         "run_diagnostics": "Run diagnostics",
         "run_health_refresh": "Refresh health snapshot",
-        "review_retrieval_trace": "Review retrieval trace"
+        "review_retrieval_trace": "Review retrieval trace",
+        "restore_disciplined_defaults": "Restore disciplined defaults"
       },
       "doctorRepairRisk": {
         "safe": "Safe",
@@ -9746,6 +9751,10 @@
         "run_health_refresh": {
           "dryRun": "Recomputes local memory quality metrics and updates the health cache.",
           "expectedEffect": "Updates freshness, coverage, retention health, and coherence signals in the GUI."
+        },
+        "restore_disciplined_defaults": {
+          "dryRun": "Safely archives unpinned working memories into a backup snapshot and narrows active memory to disciplined defaults.",
+          "expectedEffect": "Eliminates capacity theater and causal blindness while boosting prompt prefix caching and reasoning sharpness."
         },
         "review_storage_config": {
           "dryRun": "Checks point to a local storage, database, or permission issue.",

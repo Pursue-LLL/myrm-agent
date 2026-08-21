@@ -14185,6 +14185,10 @@
   },
   "subagentDashboard": {
     "inlineStripRunning": "Wird ausgeführt...",
+    "inlineStripPending": "Wird geplant...",
+    "inlineStripCompleted": "Alle {count} Unteraufgaben abgeschlossen",
+    "inlineStripPendingApprovalAlert": "{count} Unteraufgabe wartet auf Genehmigung",
+    "inlineStripStaleAlert": "{count} Unteraufgabe stockt möglicherweise",
     "inlineStripOpenTooltip": "Klicken Sie hier, um das Multi-Agenten-Team-Dashboard zu öffnen",
     "inlineStripActiveSummary": "{count} Subagenten aktiv",
     "inlineStripViewLive": "Echtzeit-Dashboard ansehen",

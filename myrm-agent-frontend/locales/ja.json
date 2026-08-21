@@ -14905,6 +14905,10 @@
   },
   "subagentDashboard": {
     "inlineStripRunning": "実行中...",
+    "inlineStripPending": "スケジューリング中...",
+    "inlineStripCompleted": "すべての {count} 個のサブタスクが完了しました",
+    "inlineStripPendingApprovalAlert": "{count} 個のサブタスクが承認待ちです",
+    "inlineStripStaleAlert": "{count} 個のサブタスクが停止している可能性があります",
     "inlineStripOpenTooltip": "クリックしてマルチエージェントチームのダッシュボードを開く",
     "inlineStripActiveSummary": "{count} 個のサブエージェント実行中",
     "inlineStripViewLive": "リアルタイム看板を見る",

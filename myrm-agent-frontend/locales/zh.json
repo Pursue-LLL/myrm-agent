@@ -1,4 +1,20 @@
 {
+  "recovery": {
+    "title": "Agent 启动与配置自愈中心",
+    "description": "检测到当前 Agent 绑定的组件或配置在启动期存在异常。您可以一键恢复至最后已知良好配置，或导出诊断包进行排查。",
+    "probeStatus": "组件探针状态",
+    "allHealthy": "全部正常",
+    "quarantinedFound": "发现故障隔离项",
+    "allVerified": "所有 Skill/MCP 及核心组件校验通过",
+    "exportDiagnostics": "导出诊断包",
+    "ignoreAndContinue": "忽略并继续",
+    "rollbackGood": "回滚良好配置",
+    "fetchHealthFailed": "获取健康诊断失败",
+    "rollbackSuccess": "已成功回滚至最近良好配置",
+    "rollbackFailed": "回滚失败",
+    "exportSuccess": "已导出排障诊断包",
+    "exportFailed": "导出诊断包失败"
+  },
   "emptyState": {
     "defaultTitle": "暂无数据",
     "defaultDescription": "当前列表为空或尚未生成任何内容",

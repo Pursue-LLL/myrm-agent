@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isTauriRuntime } from '@/lib/deploy-mode';
-import { saveUpdateHandoff } from './useUpdateHandoff';
+import { clearUpdateHandoff, saveUpdateHandoff } from './useUpdateHandoff';
 
 export type AppUpdatePhase =
   'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'installing' | 'restarting' | 'up_to_date' | 'error';
@@ -219,6 +219,8 @@ export function useAppUpdate(options: UseAppUpdateOptions = {}): UseAppUpdateRes
         await invoke('restart_app');
       }
     } catch (err) {
+      // If install threw error before restart, clean up handoff record immediately
+      clearUpdateHandoff();
       if (!mountedRef.current) {
         return;
       }
