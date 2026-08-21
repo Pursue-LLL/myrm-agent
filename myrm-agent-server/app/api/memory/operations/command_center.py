@@ -30,32 +30,23 @@ from app.database.models.memory import MemoryOperationEventModel, PendingMemory
 from app.schemas.memory.command_center import (
     MemoryCommandActionRequest,
     MemoryCommandActionResponse,
-    MemoryCommandBenchmarkSummary,
     MemoryCommandCenterResponse,
-    MemoryCommandDiagnosticActionRequest,
-    MemoryCommandDiagnosticActionResponse,
-    MemoryCommandDiagnosticHistoryItem,
-    MemoryCommandDiagnosticHistoryResponse,
     MemoryCommandGraphEdge,
     MemoryCommandGraphNode,
     MemoryCommandGraphResponse,
     MemoryCommandGraphStats,
     MemoryCommandPlaneSummary,
-    MemoryCommandRepairActionRequest,
-    MemoryCommandRepairActionResponse,
     MemoryCommandTimelineEvent,
     MemoryRecallBoundaryData,
 )
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor import (
-    MemoryDiagnosticRepairExecutor,
-)
-from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 from app.services.memory.ledger.operation_ledger_guardian import as_aware
-from app.services.memory.shared_context.shared_context import SharedContextService
-from app.services.memory.shared_context.shared_context_materializer import (
-    SharedContextProposalMaterializer,
+from app.api.memory.operations.command_center_actions import (
+    action_to_operation,
+    run_memory_action,
+    run_pending_action,
+    run_shared_proposal_action,
 )
 
 router = APIRouter(prefix="/command-center")
@@ -186,14 +177,14 @@ async def run_memory_command_action(
     """Execute a GUI governance action from the command center."""
 
     if body.target_kind == "pending_memory":
-        await _run_pending_action(body, db, memory_manager)
+        await run_pending_action(body, db, memory_manager)
     elif body.target_kind == "shared_context_proposal":
-        await _run_shared_proposal_action(body, db)
+        await run_shared_proposal_action(body, db)
     else:
-        await _run_memory_action(body, memory_manager)
+        await run_memory_action(body, memory_manager)
 
     await MemoryOperationLedgerService(db).record_event(
-        kind=_action_to_operation(body.action),
+        kind=action_to_operation(body.action),
         status=MemoryOperationStatus.SUCCESS,
         summary=f"Command center action {body.action} completed for {body.target_kind}:{body.target_id}.",
         memory_id=body.target_id if body.target_kind == "memory" else None,
@@ -263,117 +254,6 @@ async def run_memory_diagnostic_repair(
         body.plan_id, body.mode
     )
     return MemoryCommandRepairActionResponse(result=result, run=run)
-
-
-async def _run_pending_action(
-    body: MemoryCommandActionRequest, db: AsyncSession, manager: MemoryManager
-) -> None:
-    pending = await db.get(PendingMemory, body.target_id)
-    if pending is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found"
-        )
-    if body.action == "approve":
-        await manager.approve(body.target_id)
-        return
-    if body.action == "reject":
-        await manager.reject(body.target_id)
-        return
-    if body.action == "edit":
-        if not body.content or not body.content.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Edited memory content is required",
-            )
-        pending.content = body.content.strip()
-        await db.commit()
-        return
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Unsupported pending memory action",
-    )
-
-
-async def _run_shared_proposal_action(
-    body: MemoryCommandActionRequest, db: AsyncSession
-) -> None:
-    service = SharedContextService(db)
-    proposal = await service.get_write_proposal(body.target_id)
-    if proposal is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shared context proposal not found",
-        )
-    if body.action == "approve":
-        await SharedContextProposalMaterializer(db).approve_write_proposal(
-            body.target_id
-        )
-        return
-    if body.action == "reject":
-        await service.set_write_proposal_status(body.target_id, "rejected")
-        return
-    if body.action == "edit":
-        if not body.content or not body.content.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Edited proposal content is required",
-            )
-        await service.update_write_proposal(
-            body.target_id, content=body.content.strip()
-        )
-        return
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Unsupported shared proposal action",
-    )
-
-
-async def _run_memory_action(
-    body: MemoryCommandActionRequest, manager: MemoryManager
-) -> None:
-    if body.action == "correct":
-        if not body.content or not body.content.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Corrected memory content is required",
-            )
-        await manager.correct_memory(body.target_id, body.content.strip())
-        return
-    if body.action == "pin":
-        await manager.pin_memory(body.target_id)
-        return
-    if body.action == "unpin":
-        await manager.unpin_memory(body.target_id)
-        return
-    if body.action == "forget":
-        if not body.memory_type:
-            await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
-            return
-        mem_type = MemoryType(body.memory_type)
-        if mem_type == MemoryType.PROFILE:
-            await manager.delete_profile(body.target_id)
-        elif mem_type == MemoryType.PROCEDURAL:
-            await manager.delete_rule(body.target_id)
-        else:
-            await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
-        return
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported memory action"
-    )
-
-
-def _action_to_operation(action: str) -> MemoryOperationKind:
-    if action == "approve":
-        return MemoryOperationKind.APPROVE
-    if action == "reject":
-        return MemoryOperationKind.REJECT
-    if action == "correct":
-        return MemoryOperationKind.CORRECT
-    if action == "forget":
-        return MemoryOperationKind.FORGET
-    if action in {"pin", "unpin", "edit"}:
-        return MemoryOperationKind.WRITE
-    return MemoryOperationKind.OBSERVE
 
 
 def _diagnostic_action_status(
