@@ -375,7 +375,7 @@ describe('useInputFileUpload', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([imgFile], expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([imgFile], expect.anything(), expect.anything());
     });
 
     it('should upload pure image paste (no text at all)', async () => {
@@ -392,7 +392,7 @@ describe('useInputFileUpload', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([img], expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([img], expect.anything(), expect.anything());
     });
 
     it('should still upload non-image files even when text is present (PDF paste)', async () => {
