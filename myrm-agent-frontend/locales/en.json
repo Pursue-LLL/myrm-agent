@@ -14988,6 +14988,10 @@
   },
   "subagentDashboard": {
     "inlineStripRunning": "Executing...",
+    "inlineStripPending": "Scheduling...",
+    "inlineStripCompleted": "All {count} subagents completed",
+    "inlineStripPendingApprovalAlert": "{count} subagent awaiting human approval",
+    "inlineStripStaleAlert": "{count} subagent stalled",
     "inlineStripOpenTooltip": "Click to open Multi-Agent Team Dashboard",
     "inlineStripActiveSummary": "{count} subagents running",
     "inlineStripViewLive": "View Team Dashboard",

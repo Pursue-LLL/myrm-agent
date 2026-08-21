@@ -9727,6 +9727,10 @@
         "migration_integrity": {
           "label": "迁移完整性",
           "evidence": "检查已应用迁移的校验和是否匹配当前迁移清单，让 schema drift 在启动或导入回滚失败前可见。"
+        },
+        "capacity_theater": {
+          "label": "容量剧场与记忆纪律",
+          "evidence": "检查活跃工作记忆是否超出预算上限或存在过度堆叠，避免因果盲区与 Token 账单浪费。"
         }
       },
       "doctorRepairAction": {
@@ -9735,7 +9739,8 @@
         "configure_embedding": "配置嵌入模型",
         "run_diagnostics": "运行诊断",
         "run_health_refresh": "刷新健康快照",
-        "review_retrieval_trace": "查看检索轨迹"
+        "review_retrieval_trace": "查看检索轨迹",
+        "restore_disciplined_defaults": "恢复纪律默认"
       },
       "doctorRepairRisk": {
         "safe": "安全",
@@ -9750,6 +9755,10 @@
         "run_health_refresh": {
           "dryRun": "重新计算本地记忆质量指标并更新健康缓存。",
           "expectedEffect": "更新 GUI 中的新鲜度、覆盖率、保留健康和一致性信号。"
+        },
+        "restore_disciplined_defaults": {
+          "dryRun": "将未固定的临时工作记忆与知识安全归档，保留固定偏好并收窄到纪律默认状态。",
+          "expectedEffect": "消除记忆过载与因果盲区，恢复提示词前缀缓存高命中率与极速推理。"
         },
         "review_storage_config": {
           "dryRun": "检查结果指向本地存储、数据库或权限问题。",

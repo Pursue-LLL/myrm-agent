@@ -14880,6 +14880,10 @@
   },
   "subagentDashboard": {
     "inlineStripRunning": "執行中...",
+    "inlineStripPending": "排程準備中...",
+    "inlineStripCompleted": "全部 {count} 個子任務已完成",
+    "inlineStripPendingApprovalAlert": "{count} 個子任務等待人工審批",
+    "inlineStripStaleAlert": "{count} 個子任務疑似卡住",
     "inlineStripOpenTooltip": "點擊打開多智能體團隊協作監控面板",
     "inlineStripActiveSummary": "{count} 個子智能體執行中",
     "inlineStripViewLive": "查看即時看板",
