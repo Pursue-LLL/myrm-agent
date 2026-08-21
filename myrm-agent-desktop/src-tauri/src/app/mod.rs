@@ -12,6 +12,7 @@
 
 mod lifecycle;
 mod linux_gpu;
+mod menu;
 mod setup;
 mod shortcut_handler;
 mod tray;

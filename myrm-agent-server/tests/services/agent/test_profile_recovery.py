@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
 from app.services.agent.profile.profile_recovery_service import (
     ProfileStartupRecoveryService,
 )
+from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.mark.asyncio
@@ -29,7 +29,8 @@ async def test_export_diagnostics():
 
 @pytest.mark.asyncio
 async def test_recovery_api_endpoints():
-    transport = ASGITransport(app=app)
+    test_app = build_minimal_app(preset="full")
+    transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Test health probe
         res = await client.get("/api/v1/user-agents/agents/test_agent_123/recovery/health")

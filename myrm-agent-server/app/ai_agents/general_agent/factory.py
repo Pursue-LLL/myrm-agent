@@ -178,6 +178,13 @@ async def build_general_agent(
         enable_memory=session_memory_enabled,
     )
 
+    from app.ai_agents.general_agent.mount_resolver import resolve_agent_mount
+
+    mount_plan = resolve_agent_mount(
+        channel_name=getattr(agent_wrapper, "channel_name", "web_chat"),
+        agent_wrapper=agent_wrapper,
+    )
+
     memory_manager = None
     memory_binding = context_assembly.binding
     if session_memory_enabled and memory_binding is not None:
@@ -186,10 +193,10 @@ async def build_general_agent(
     if agent_wrapper.enable_cron_eager and _should_enable_cron_tools():
         await agent_wrapper._setup_cron_tools(tools, user_id=user_id)
 
-    if agent_wrapper.enable_browser:
+    if mount_plan.mount_browser:
         await agent_wrapper._setup_browser_tools(tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager)
 
-    if _should_setup_computer_use_tools(agent_wrapper.enable_computer_use):
+    if mount_plan.mount_computer_use:
         agent_wrapper._setup_computer_use_tools(tools)
 
     if agent_wrapper.enable_kanban:

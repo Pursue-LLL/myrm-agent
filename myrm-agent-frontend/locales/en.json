@@ -8812,7 +8812,12 @@
         "communitiesTitle": "Topic clusters ({count})",
         "emptyGaps": "No knowledge gaps detected.",
         "emptyConnections": "No unexpected links yet.",
-        "emptyCommunities": "No clusters yet — add more concepts to the vault."
+        "emptyCommunities": "No clusters yet — add more concepts to the vault.",
+        "isolated": "Isolated",
+        "bridge": "Bridge",
+        "locate": "Focus",
+        "cohesion": "Cohesion",
+        "members": "members"
       },
       "deselectAll": "Toggle All",
       "legend": "Node Types",

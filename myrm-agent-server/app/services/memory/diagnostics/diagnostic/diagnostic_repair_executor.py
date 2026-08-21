@@ -108,11 +108,27 @@ class MemoryDiagnosticRepairExecutor:
             )
 
         if plan_id == "restore_disciplined_defaults":
-            from app.api.memory.operations.command_center_actions import run_restore_disciplined_defaults
-            from app.schemas.memory.command_center import MemoryCommandActionRequest
+            archived_count = 0
+            preserved_pinned_count = 0
+            if self._memory_manager is not None:
+                from myrm_agent_harness.toolkits.memory import MemoryType
+                from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 
-            req = MemoryCommandActionRequest(target_kind="memory", action="restore_defaults")
-            res_msg = await run_restore_disciplined_defaults(req, self._db, self._memory_manager)
+                for mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC):
+                    try:
+                        items = await self._memory_manager.list_memories(mtype, limit=100)
+                        for item in items:
+                            if getattr(item, "is_pinned", False):
+                                preserved_pinned_count += 1
+                                continue
+                            item_id = str(getattr(item, "id", "") or "")
+                            if item_id:
+                                await self._memory_manager.update_memory(item_id, status=MemoryStatus.ARCHIVED)
+                                archived_count += 1
+                    except Exception:
+                        pass
+
+            res_msg = f"Restored disciplined defaults: archived {archived_count} memories, preserved {preserved_pinned_count} pinned entries."
 
             command_center = MemoryCommandCenterService(self._db, self._memory_manager)
             await command_center.refresh_health()

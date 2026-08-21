@@ -8812,7 +8812,12 @@
         "communitiesTitle": "主题簇（{count}）",
         "emptyGaps": "未检测到知识缺口。",
         "emptyConnections": "暂无意外关联。",
-        "emptyCommunities": "暂无主题簇 — 向知识库添加更多概念。"
+        "emptyCommunities": "暂无主题簇 — 向知识库添加更多概念。",
+        "isolated": "孤立节点",
+        "bridge": "桥接纽带",
+        "locate": "定位",
+        "cohesion": "内聚度",
+        "members": "个概念"
       },
       "deselectAll": "切换全部",
       "legend": "节点类型",

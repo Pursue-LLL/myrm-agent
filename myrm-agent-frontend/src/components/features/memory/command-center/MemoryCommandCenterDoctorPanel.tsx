@@ -41,6 +41,7 @@ const DOCTOR_CHECK_IDS = [
   'golden_recall_benchmark',
   'memory_quality_governance',
   'migration_integrity',
+  'capacity_theater',
 ] as const;
 const DOCTOR_REPAIR_ACTIONS = [
   'review_storage_config',
@@ -49,12 +50,16 @@ const DOCTOR_REPAIR_ACTIONS = [
   'run_diagnostics',
   'run_health_refresh',
   'review_retrieval_trace',
+  'restore_disciplined_defaults',
 ] as const;
 
 type ReadinessStatus = (typeof READINESS_STATUSES)[number];
 type DoctorCheckId = (typeof DOCTOR_CHECK_IDS)[number];
 type DoctorRepairAction = (typeof DOCTOR_REPAIR_ACTIONS)[number];
-export type DoctorExecutableAction = Extract<DoctorRepairAction, 'run_diagnostics' | 'run_health_refresh'>;
+export type DoctorExecutableAction = Extract<
+  DoctorRepairAction,
+  'run_diagnostics' | 'run_health_refresh' | 'restore_disciplined_defaults'
+>;
 
 const isReadinessStatus = (value: string): value is ReadinessStatus =>
   READINESS_STATUSES.includes(value as ReadinessStatus);
@@ -62,7 +67,7 @@ const isDoctorCheckId = (value: string): value is DoctorCheckId => DOCTOR_CHECK_
 const isDoctorRepairAction = (value: string): value is DoctorRepairAction =>
   DOCTOR_REPAIR_ACTIONS.includes(value as DoctorRepairAction);
 const isExecutableDoctorAction = (value: string): value is DoctorExecutableAction =>
-  value === 'run_diagnostics' || value === 'run_health_refresh';
+  value === 'run_diagnostics' || value === 'run_health_refresh' || value === 'restore_disciplined_defaults';
 
 const formatTime = (value?: string | null): string =>
   value

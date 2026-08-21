@@ -113,7 +113,36 @@ async def run_memory_action(body: MemoryCommandActionRequest, manager: MemoryMan
         else:
             await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
         return
+    if body.action == "restore_defaults":
+        return
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported memory action")
+
+
+async def run_restore_disciplined_defaults(
+    body: MemoryCommandActionRequest,
+    db: AsyncSession,
+    manager: MemoryManager,
+) -> str:
+    """Safely archive unpinned working memories and restore disciplined defaults."""
+    archived_count = 0
+    preserved_pinned_count = 0
+
+    # Clean working and candidate memories
+    for mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC):
+        try:
+            items = await manager.list_memories(mtype, limit=100)
+            for item in items:
+                if getattr(item, "is_pinned", False):
+                    preserved_pinned_count += 1
+                    continue
+                item_id = str(getattr(item, "id", "") or "")
+                if item_id:
+                    await manager.update_memory(item_id, status=MemoryStatus.ARCHIVED)
+                    archived_count += 1
+        except Exception:
+            pass
+
+    return f"Restored disciplined defaults: archived {archived_count} memories, preserved {preserved_pinned_count} pinned entries."
 
 
 def action_to_operation(action: str) -> MemoryOperationKind:

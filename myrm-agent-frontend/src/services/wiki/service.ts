@@ -113,14 +113,30 @@ export interface WikiHealthReport {
   synthesis_pending: number;
 }
 
-export interface WikiGraphInsightRecord {
-  [key: string]: string | number | boolean | null | undefined;
+export interface WikiKnowledgeGapItem {
+  node: string;
+  type: 'isolated' | 'bridge';
+  degree?: number;
+  communities_connected?: number;
+}
+
+export interface WikiUnexpectedConnectionItem {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface WikiCommunityItem {
+  id: number;
+  size: number;
+  members: string[];
+  cohesion: number;
 }
 
 export interface WikiGraphInsights {
-  unexpected_connections: WikiGraphInsightRecord[];
-  knowledge_gaps: WikiGraphInsightRecord[];
-  communities: WikiGraphInsightRecord[];
+  unexpected_connections: WikiUnexpectedConnectionItem[];
+  knowledge_gaps: WikiKnowledgeGapItem[];
+  communities: WikiCommunityItem[];
 }
 
 export interface WikiMaintainResponse {

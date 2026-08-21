@@ -6,7 +6,7 @@ use std::time::Duration;
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-use super::{lifecycle, tray};
+use super::{lifecycle, menu, tray};
 use crate::commands::agent::AgentSystemState;
 use crate::config::{BackendConfig, ConfigManager, FrontendConfig};
 use crate::runtime::{
@@ -107,6 +107,10 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
     if let Err(e) = tray::setup_tray(&app.handle().clone()) {
         println!("⚠️ Failed to setup tray: {e}");
+    }
+
+    if let Err(e) = menu::setup_app_menu(&app.handle().clone()) {
+        println!("⚠️ Failed to setup app menu: {e}");
     }
 
     let sidecar_path = resolve_agent_runner_path(&app.handle().clone());
