@@ -14963,6 +14963,10 @@
   },
   "subagentDashboard": {
     "inlineStripRunning": "执行中...",
+    "inlineStripPending": "调度准备中...",
+    "inlineStripCompleted": "全部 {count} 个子任务已完成",
+    "inlineStripPendingApprovalAlert": "{count} 个子任务等待人工审批",
+    "inlineStripStaleAlert": "{count} 个子任务疑似卡住",
     "inlineStripOpenTooltip": "点击打开多智能体团队协作监控面板",
     "inlineStripActiveSummary": "{count} 个子智能体执行中",
     "inlineStripViewLive": "查看实时看板",

@@ -1,6 +1,5 @@
 """Unit tests for Pre-Publish Outbound Content Gate."""
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -8,7 +7,6 @@ import pytest
 from app.channels.core.outbound_gate import (
     LinkProbeResult,
     OutboundContentGate,
-    get_outbound_content_gate,
 )
 from app.channels.types.messages import OutboundMessage
 
