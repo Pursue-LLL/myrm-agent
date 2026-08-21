@@ -36,7 +36,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
-| `blueprints.py` | 核心 | 自动化蓝图单一数据源：15 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；含 `wiki_maintain` router 蓝图 · structural/full mode slot） | — |
+| `blueprints.py` | 核心 | 自动化蓝图单一数据源：16 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；含 `seo_weekly_audit` 与 `wiki_maintain` 等） | — |
 | `blueprint_i18n_supplement.py` | 核心 | ja/de/ko 蓝图文案补充模块，导入时合并进 `BUILTIN_BLUEPRINTS` | — |
 
 ---

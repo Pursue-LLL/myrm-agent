@@ -24,6 +24,7 @@
 | `import_myrm_archive.py` | 辅助 | Myrm Archive 导入解析器。处理 Myrm Memory Archive 的 memory section | ✅ |
 | `import_native_json.py` | 辅助 | Native JSON 导入解析器。处理原生 JSON 格式导入映射 | ✅ |
 | `import_openclaw.py` | 辅助 | OpenClaw 竞品导入解析器。解析 OpenClaw sessions 和 memory entries | ✅ |
+| `import_plur.py` | 辅助 | PLUR 竞品导入解析器。解析 PLUR local YAML/JSON engrams 并映射到 profile 与 semantic 记忆分桶 | ✅ |
 | `import_rollback.py` | 核心 | 记忆导入回滚辅助。封装账本条目分类、profile revision 并发冲突检测、结构化 warning 生成、普通记忆 exact mutation refs 回滚和 profile 乐观回滚 | ✅ |
 | `import_session_data.py` | 辅助 | 记忆导入会话数据转换。负责 payload 指纹、纯导入计划、normalized data JSON 转换、导入 metadata 注入、transaction item 构建和 profile 导入前后 revision snapshot 采集 | ✅ |
 | `import_session_models.py` | 辅助 | 记忆导入会话 DTO。定义 confirm、rollback preview 和含 exact ref drilldown / integrity status 的 rollback result 服务层返回对象 | ✅ |
