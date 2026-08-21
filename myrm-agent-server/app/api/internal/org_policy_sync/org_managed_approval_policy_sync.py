@@ -13,9 +13,8 @@ Receives org approval floor from Control Plane and applies via harness configure
 from __future__ import annotations
 
 import logging
-import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from myrm_agent_harness.api.security import (
     ManagedApprovalPolicy,
     configure_process_managed_approval_policy,

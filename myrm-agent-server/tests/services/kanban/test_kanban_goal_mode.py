@@ -249,7 +249,7 @@ class TestGoalOutcomeMapping:
         task = _make_task(goal_mode=True)
 
         mock_provider = AsyncMock()
-        mock_provider.get_active_goal = AsyncMock(return_value=None)
+        mock_provider.get_latest_goal = AsyncMock(return_value=None)
 
         result = await runner._map_goal_outcome(task, mock_provider, (True, "Agent done"))
         assert result == (True, "Agent done")

@@ -140,3 +140,52 @@ async def test_dispatch_help_action() -> None:
     assert handled is True
     await asyncio.sleep(0.05)
     bus.publish_outbound.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_bang_command_interception_zh() -> None:
+    bus = _make_bus()
+    router = _make_router(bus=bus)
+    msg = InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="!ls -la",
+        metadata={"locale": "zh-CN"},
+    )
+    assert router._is_bang_command(msg.content) is True
+    await router._handle_bang_command(msg)
+    bus.publish_outbound.assert_called_once()
+    reply = bus.publish_outbound.call_args[0][0]
+    assert "安全隔离" in reply.content or "!shell" in reply.content
+
+
+@pytest.mark.asyncio
+async def test_bang_command_interception_en() -> None:
+    bus = _make_bus()
+    router = _make_router(bus=bus)
+    msg = InboundMessage(
+        channel="slack",
+        sender_id="u1",
+        content="!git status",
+        metadata={"locale": "en"},
+    )
+    assert router._is_bang_command(msg.content) is True
+    await router._handle_bang_command(msg)
+    bus.publish_outbound.assert_called_once()
+    reply = bus.publish_outbound.call_args[0][0]
+    assert "sandboxing and security protection" in reply.content
+
+
+@pytest.mark.asyncio
+async def test_bang_command_variations() -> None:
+    assert AgentRouter._is_bang_command("!cmd") is True
+    assert AgentRouter._is_bang_command("！cmd") is True
+    assert AgentRouter._is_bang_command("!sh") is True
+    assert AgentRouter._is_bang_command("!/bin/bash") is True
+    # Non-command or natural exclamation marks should not be blocked
+    assert AgentRouter._is_bang_command("!") is False
+    assert AgentRouter._is_bang_command("！") is False
+    assert AgentRouter._is_bang_command("! 太棒了") is False
+    assert AgentRouter._is_bang_command("Hello world!") is False
+    assert AgentRouter._is_bang_command("") is False
+    assert AgentRouter._is_bang_command(None) is False

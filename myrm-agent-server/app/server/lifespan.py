@@ -370,6 +370,21 @@ async def _phase_1a_sequential() -> None:
     except Exception as e:
         logger.debug("[Startup] TLS config from DB skipped: %s", e)
 
+    # Register Control Plane URL to Harness SSRF dynamic blocklist
+    try:
+        from urllib.parse import urlparse
+
+        from myrm_agent_harness.utils.url_utils import register_blocked_hostnames
+
+        cp_url = settings.control_plane.url.strip()
+        if cp_url:
+            parsed_cp = urlparse(cp_url)
+            if parsed_cp.hostname:
+                register_blocked_hostnames(parsed_cp.hostname)
+                logger.info("[Startup] Registered control plane host '%s' to SSRF blocklist", parsed_cp.hostname)
+    except Exception as cp_err:
+        logger.warning("[Startup] Control plane SSRF registration skipped: %s", cp_err)
+
 
 async def _phase_1b_parallel() -> None:
     """Phase 1b: Parallel independent tasks after DB ready."""
