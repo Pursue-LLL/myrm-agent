@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from app.api.memory.operations.command_center_actions import run_restore_disciplined_defaults
 from app.schemas.memory.command_center import MemoryCommandActionRequest
 from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import probe_capacity_theater

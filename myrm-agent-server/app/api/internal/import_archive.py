@@ -20,14 +20,13 @@ import secrets
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-logger = logging.getLogger(__name__)
-router = APIRouter()
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 
-_CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_CP_TOKEN_HEADER = "X-Telemetry-Token"
+logger = logging.getLogger(__name__)
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
 
 PERSISTENT_DIR = Path("/persistent")
 
@@ -43,18 +42,8 @@ class ImportArchiveResponse(BaseModel):
     message: str
 
 
-def _verify_cp_token(request: Request) -> None:
-    """Verify the Control Plane token for internal endpoints."""
-    expected = os.environ.get(_CP_TOKEN_ENV)
-    if not expected:
-        return
-    provided = request.headers.get(_CP_TOKEN_HEADER, "")
-    if not provided or not secrets.compare_digest(provided, expected):
-        raise HTTPException(status_code=401, detail="Invalid or missing CP token")
-
-
 @router.post("/admin/import-archive", tags=["internal"])
-async def import_archive(request: Request, body: ImportArchiveRequest) -> ImportArchiveResponse:
+async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
     """Import a tar.gz archive into the sandbox persistent volume.
 
     merge_mode:

@@ -58,6 +58,18 @@ pub fn bootstrap_agent_runner(agent_system: Arc<AgentSystemState>, app: &AppHand
         match sidecar_guard.start(&sidecar_path).await {
             Ok(_) => {
                 println!("✅ Agent sidecar started");
+                if let Some(registry) = app_handle.try_state::<crate::runtime::ProcessRegistry>() {
+                    let pid = sidecar_guard.process_id();
+                    let reg = registry.inner().clone();
+                    tauri::async_runtime::spawn(async move {
+                        reg.register_spawn(
+                            "sidecar:agent-runner",
+                            crate::runtime::ProcessRole::AgentRunner,
+                            pid,
+                        )
+                        .await;
+                    });
+                }
                 agent_system.set_sidecar_status(SidecarStatus::Ready).await;
                 let _ = app_handle.emit("agent-sidecar-ready", ());
 

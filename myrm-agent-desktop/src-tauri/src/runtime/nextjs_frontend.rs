@@ -121,19 +121,42 @@ pub async fn start_frontend(
         .spawn()
         .map_err(|e| format!("Failed to start frontend: {}", e))?;
 
+    let child_pid = child.id();
+    if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+        registry
+            .register_spawn(
+                "sidecar:frontend",
+                crate::runtime::ProcessRole::Frontend,
+                Some(child_pid),
+            )
+            .await;
+    }
+
     {
         let mut process_guard = frontend.process.lock().unwrap();
         *process_guard = Some(child);
     }
 
-    println!("✅ Frontend process started");
+    println!("✅ Frontend process started (PID: {})", child_pid);
 
     Ok("Frontend started successfully".to_string())
 }
 
 #[tauri::command]
-pub fn stop_frontend(frontend: State<'_, NextJSFrontend>) -> Result<String, String> {
+pub fn stop_frontend(
+    app: Option<AppHandle>,
+    frontend: State<'_, NextJSFrontend>,
+) -> Result<String, String> {
     println!("Stopping Next.js frontend...");
+
+    if let Some(ref handle) = app {
+        if let Some(registry) = handle.try_state::<crate::runtime::ProcessRegistry>() {
+            let reg = registry.inner().clone();
+            tauri::async_runtime::spawn(async move {
+                reg.mark_stopped("sidecar:frontend", Some(0)).await;
+            });
+        }
+    }
 
     let mut process_guard = frontend.process.lock().unwrap();
 

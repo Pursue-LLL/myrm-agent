@@ -13,10 +13,8 @@ CP-to-sandbox internal endpoint for remote skill killswitch management.
 from __future__ import annotations
 
 import logging
-import os
-import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core.security.auth.control_plane_guard import verify_control_plane_token

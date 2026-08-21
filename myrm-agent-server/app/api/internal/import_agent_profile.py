@@ -26,10 +26,11 @@ import logging
 import os
 import secrets
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core.memory.adapters.policy import memory_policy_from_dict
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 from app.database.repositories.uow import UnitOfWork
 from app.services.agent.marketplace import (
     import_agent_package,
@@ -37,10 +38,8 @@ from app.services.agent.marketplace import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
 
-_CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_CP_TOKEN_HEADER = "X-Telemetry-Token"
 _MARKETPLACE_SIGN_SECRET_ENV = "MARKETPLACE_CP_SIGNING_SECRET"
 _MARKETPLACE_REQUIRE_SIGNATURE_ENV = "MARKETPLACE_REQUIRE_CP_SIGNATURE"
 _MARKETPLACE_ENTRY_ENGINE_PARAM_KEY = "marketplace_entry_id"

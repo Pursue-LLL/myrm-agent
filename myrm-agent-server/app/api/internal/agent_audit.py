@@ -21,7 +21,7 @@ import secrets
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.types import EventFilter
 from pydantic import BaseModel
@@ -63,15 +63,6 @@ def _is_deny_decision(decision: str) -> bool:
     return any(token in decision for token in _DENY_TOKENS)
 
 
-def _verify_cp_token(request: Request) -> None:
-    expected = os.environ.get(_CP_TOKEN_ENV)
-    if not expected:
-        return
-    token = request.headers.get(_CP_TOKEN_HEADER, "")
-    if not token or not secrets.compare_digest(token, expected):
-        raise HTTPException(status_code=403, detail="Invalid CP token")
-
-
 @router.get("/api/admin/agent-audit/events", response_model=AgentAuditQueryResponse)
 async def agent_audit_events(
     request: Request,
@@ -80,7 +71,6 @@ async def agent_audit_events(
     session_id: str | None = None,
 ) -> AgentAuditQueryResponse:
     """Pull persisted agent events for the control-plane org audit fan-out."""
-    _verify_cp_token(request)
     if hours < 1 or hours > _MAX_HOURS:
         raise HTTPException(status_code=400, detail="hours must be within [1, 720]")
     capped_limit = min(max(limit, 1), _MAX_LIMIT)

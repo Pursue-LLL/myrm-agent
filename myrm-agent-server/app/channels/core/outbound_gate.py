@@ -243,8 +243,15 @@ class OutboundContentGate:
 
         # Interactive chat: annotate with warning rather than blocking
         locale = get_locale_from_metadata(msg.metadata)
-        warning_header = channel_t(locale, "outbound_dead_link_warning") if channel_t(locale, "outbound_dead_link_warning") != "outbound_dead_link_warning" else "⚠️ [Note: The following reference link may be unreachable: "
-        warning_note = f"\n\n{warning_header}{dead_links[0].url}]"
+        warning_tmpl = channel_t(locale, "outbound_dead_link_warning")
+        if warning_tmpl == "outbound_dead_link_warning":
+            warning_tmpl = "⚠️ [Note: The following reference link may be unreachable: {url}]"
+
+        dead_urls_str = ", ".join(r.url for r in dead_links)
+        if "{url}" in warning_tmpl:
+            warning_note = f"\n\n{warning_tmpl.format(url=dead_urls_str)}"
+        else:
+            warning_note = f"\n\n{warning_tmpl}{dead_urls_str}]"
 
         return dataclasses.replace(
             msg,

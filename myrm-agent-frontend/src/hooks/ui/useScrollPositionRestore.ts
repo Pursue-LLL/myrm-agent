@@ -212,6 +212,8 @@ export function useScrollPositionRestore({
       return true;
     }
 
+    onRestore?.(snapshot);
+
     // 若离开前为跟随模式，恢复时优先置底
     if (snapshot.isFollowingBottom) {
       requestAnimationFrame(() => {
@@ -220,7 +222,6 @@ export function useScrollPositionRestore({
         } else {
           (target as HTMLElement).scrollTop = (target as HTMLElement).scrollHeight;
         }
-        onRestore?.(snapshot);
       });
       return true;
     }
@@ -236,12 +237,10 @@ export function useScrollPositionRestore({
           const maxScroll = el.scrollHeight - el.clientHeight;
           el.scrollTop = Math.min(snapshot.position, Math.max(0, maxScroll));
         }
-        onRestore?.(snapshot);
       });
       return true;
     }
 
-    onRestore?.(snapshot);
     return true;
   }, [id, enabled, getScrollElement, getScrollMirrorSnapshot, onRestore]);
 
@@ -269,7 +268,10 @@ export function useScrollPositionRestore({
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      saveScrollPosition();
+      // 仅当已经恢复或主动操作过时才在卸载时保存，避免未恢复的空白挂载覆盖已有快照
+      if (hasRestoredRef.current) {
+        saveScrollPosition();
+      }
     };
   }, [saveScrollPosition, id, enabled]);
 

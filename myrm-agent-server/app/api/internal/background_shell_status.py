@@ -17,15 +17,18 @@ import logging
 import os
 import secrets
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 
 logger = logging.getLogger(__name__)
 
-_TELEMETRY_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_TELEMETRY_TOKEN_HEADER = "X-Telemetry-Token"
-
-router = APIRouter(prefix="/api/internal/background-shell", tags=["internal-background-shell"])
+router = APIRouter(
+    prefix="/api/internal/background-shell",
+    tags=["internal-background-shell"],
+    dependencies=[Depends(verify_control_plane_token)],
+)
 
 
 class BackgroundShellStatusResponse(BaseModel):
@@ -33,16 +36,8 @@ class BackgroundShellStatusResponse(BaseModel):
     registry_ephemeral: bool = True
 
 
-def _verify_token(request: Request) -> None:
-    expected = os.getenv(_TELEMETRY_TOKEN_ENV, "").strip()
-    provided = request.headers.get(_TELEMETRY_TOKEN_HEADER, "").strip()
-    if not expected or not provided or not secrets.compare_digest(expected, provided):
-        raise HTTPException(status_code=403, detail="Invalid telemetry token")
-
-
 @router.get("/status", response_model=BackgroundShellStatusResponse)
-async def background_shell_status(request: Request) -> BackgroundShellStatusResponse:
-    _verify_token(request)
+async def background_shell_status() -> BackgroundShellStatusResponse:
     from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
 
     from app.services.agent.shell_background_tasks import shell_registry_is_ephemeral
