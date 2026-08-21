@@ -15293,6 +15293,57 @@
         "actionFailed": "Aktion fehlgeschlagen: {error}"
       }
     },
+    "learningLoop": {
+      "title": "5-Ringe-Closed-Loop-Lernstatus",
+      "subtitle": "Domänenübergreifende kontinuierliche Selbsteentwicklungstopologie und Integritätsbeobachtbarkeit",
+      "healthScore": "Loop-Integritätswert",
+      "optimal": "Optimaler Betrieb",
+      "warning": "Handlungsbedarf",
+      "degraded": "Beeinträchtigt",
+      "totalLearnings": "Gesamte kognitive Assets",
+      "ring1": {
+        "name": "Selbstreflexion",
+        "stage": "Trace-Mining & Anti-Muster",
+        "desc": "Autonome Überprüfung von Sitzungsausführungsprotokollen im Leerlauf zur Erkennung von Tool-Fehlern, Reibungssignalen und manuellen Korrekturen.",
+        "metricsTraces": "Analysierte Traces: {count}",
+        "metricsAntiPatterns": "Anti-Muster: {count}"
+      },
+      "ring2": {
+        "name": "Skill-Destillation",
+        "stage": "Skill-Extraktion & Vorschläge",
+        "desc": "Synthetisiert automatisierte FIX- und DERIVED-Erweiterungsvorschläge basierend auf verifizierten empirischen Beweisen.",
+        "metricsProposals": "Vorschläge: {count}",
+        "metricsApproved": "Genehmigt: {count}"
+      },
+      "ring3": {
+        "name": "Selbstfortschritt",
+        "stage": "Baseline-Benchmarking & Regressions-Gates",
+        "desc": "Nutzt Improvement Gate und EvalCase-Regressionssuiten, um sicherzustellen, dass Varianten die Baseline strikt übertreffen.",
+        "metricsEvals": "Bewertungen: {count}",
+        "metricsBlocked": "Blockierte Regressionen: {count}",
+        "metricsBoost": "Verbesserung: +{pct}%"
+      },
+      "ring4": {
+        "name": "Periodische Selbstüberwachung",
+        "stage": "Leerlaufwartung & Gedächtnisbereinigung",
+        "desc": "Der Memory-Guardian-Daemon dedupliziert im Hintergrund fragmentierte Präferenzen und bereinigt veraltete Regeln sanft.",
+        "metricsCycles": "Zyklen: {count}",
+        "metricsMerged": "Zusammengeführt & bereinigt: {count}",
+        "metricsMemories": "Gesamterinnerungen: {count}"
+      },
+      "ring5": {
+        "name": "Profilierung",
+        "stage": "Sitzungsübergreifender Abruf & Benutzerprofilierung",
+        "desc": "Erstellt kontinuierlich präzise Benutzer-Personas mit FTS5 und Vektorsemantik für millisekundenschnellen Wissensabruf.",
+        "metricsIndexed": "Indexierte Unterhaltungen: {count}",
+        "metricsDimensions": "Profildimensionen: {count}"
+      },
+      "discoveryChip": {
+        "growsWithYou": "Der Agent, der mit Ihnen wächst · 5-Ringe-Closed-Loop aktiv",
+        "stats": "{memories} Erinnerungen konsolidiert · {skills} aktive Skills",
+        "viewLoop": "Lernschleife anzeigen"
+      }
+    },
     "knowledgeGraph": {
       "title": "Wissensgraph",
       "description": "Visualisieren Sie die semantischen Beziehungen zwischen den Erinnerungen und dem Wissen Ihres Agenten."

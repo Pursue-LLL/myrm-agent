@@ -14,9 +14,11 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
 from app.schemas.ops import OpsAggregatedSnapshot
 from app.services.ops.snapshot_service import OpsAggregatedSnapshotService
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="health")
 
 
 @pytest.mark.asyncio

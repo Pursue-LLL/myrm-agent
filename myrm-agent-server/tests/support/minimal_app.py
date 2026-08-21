@@ -100,6 +100,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "artifact_mappings": _RouterMount("app.api.config.artifact_mappings", prefix="/config", tags=("config",)),
     "allowlist": _RouterMount("app.api.security.allowlist", prefix="/security/allowlist", tags=("security",)),
     "security_estop": _RouterMount("app.api.security.estop", tags=("security",)),
+    "ops": _RouterMount("app.api.ops.router"),
     "security_dashboard": _RouterMount("app.api.security.router", tags=("security",)),
     "security_generate": _RouterMount("app.api.security.generate", tags=("security",)),
     "security_profiles": _RouterMount("app.api.security.profiles", tags=("security",)),
@@ -169,7 +170,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
 
 PRESETS: dict[str, tuple[str, ...]] = {
     "chats": ("chats",),
-    "health": ("health", "diagnostic"),
+    "health": ("health", "diagnostic", "ops"),
     "notifications": ("notifications",),
     "security": (
         "allowlist",

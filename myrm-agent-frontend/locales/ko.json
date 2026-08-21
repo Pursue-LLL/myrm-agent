@@ -15293,6 +15293,57 @@
         "actionFailed": "작업 실패: {error}"
       }
     },
+    "learningLoop": {
+      "title": "5개 링 닫힌 루프 학습 상태 센터",
+      "subtitle": "도메인 간 지속적 자가 진화 토폴로지 및 상태 관측 대시보드",
+      "healthScore": "루프 상태 점수",
+      "optimal": "최적 작동",
+      "warning": "주의 필요",
+      "degraded": "성능 저하",
+      "totalLearnings": "전체 축적 자산",
+      "ring1": {
+        "name": "사후 성찰",
+        "stage": "추적 마이닝 및 안티패턴",
+        "desc": "유휴 시 세션 실행 로그를 자동으로 검토하여 도구 오류, 마찰 신호 및 수동 수정을 감지합니다.",
+        "metricsTraces": "분석된 추적: {count}",
+        "metricsAntiPatterns": "안티패턴: {count}"
+      },
+      "ring2": {
+        "name": "스킬 추출",
+        "stage": "스킬 추출 및 제안",
+        "desc": "검증된 실증 증거를 기반으로 자동화된 FIX 및 DERIVED 개선 제안을 합성합니다.",
+        "metricsProposals": "제안: {count}",
+        "metricsApproved": "승인됨: {count}"
+      },
+      "ring3": {
+        "name": "자가 진화 적용",
+        "stage": "기준 벤치마킹 및 회귀 게이트",
+        "desc": "Improvement Gate 및 EvalCase 회귀 제품군을 활용하여 변형이 기준을 엄격하게 능가하도록 보장합니다.",
+        "metricsEvals": "평가: {count}",
+        "metricsBlocked": "차단된 회귀: {count}",
+        "metricsBoost": "개선율: +{pct}%"
+      },
+      "ring4": {
+        "name": "주기적 자가 감시",
+        "stage": "유휴 유지보수 및 기억 가지치기",
+        "desc": "백그라운드 메모리 가디언이 단편화된 선호도를 중복 제거하고 오래된 규칙을 점진적으로 감쇠 및 정리합니다.",
+        "metricsCycles": "주기: {count}",
+        "metricsMerged": "병합 및 중복 제거: {count}",
+        "metricsMemories": "총 기억: {count}"
+      },
+      "ring5": {
+        "name": "프로파일 구축",
+        "stage": "세션 간 회상 및 사용자 프로파일링",
+        "desc": "FTS5 및 벡터 의미론을 통해 고정밀 사용자 페르소나를 구축하여 밀리초 단위의 지식 회상을 실현합니다.",
+        "metricsIndexed": "인덱싱된 대화: {count}",
+        "metricsDimensions": "프로필 차원: {count}"
+      },
+      "discoveryChip": {
+        "growsWithYou": "함께 성장하는 에이전트 · 5-링 닫힌 루프 활성화됨",
+        "stats": "{memories}개 기억 통합됨 · {skills}개 활성 스킬",
+        "viewLoop": "학습 루프 보기"
+      }
+    },
     "knowledgeGraph": {
       "title": "지식 그래프",
       "description": "에이전트의 기억과 지식 간의 의미적 관계를 시각화합니다."

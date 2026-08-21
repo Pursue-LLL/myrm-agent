@@ -25,6 +25,7 @@ import resource
 import sys
 import time
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import func, select
 
@@ -429,7 +430,7 @@ class OpsAggregatedSnapshotService:
                     r.status == "warn" for r in (*harness_reports, *server_reports)
                 )
 
-                status: Literal["pass", "warn", "fail"] = (
+                doctor_status: Literal["pass", "warn", "fail"] = (
                     "fail" if has_fail else ("warn" if has_warn else "pass")
                 )
 
@@ -450,7 +451,7 @@ class OpsAggregatedSnapshotService:
                     server_total=len(server_reports),
                     server_passed=server_passed,
                     server_failed=server_failed,
-                    status=status,
+                    status=doctor_status,
                     issues=issues,
                 )
         except Exception as exc:

@@ -21,6 +21,11 @@ const WhatsNewModal = dynamic(() => import('./whats-new-modal').then((module) =>
   ssr: false,
 });
 
+const UpdateHandoffNotifier = dynamic(
+  () => import('./update-handoff-notifier').then((module) => ({ default: module.UpdateHandoffNotifier })),
+  { ssr: false },
+);
+
 const AppshotInitializer = dynamic(() => import('./appshot-initializer'), { ssr: false });
 
 const VoicePttInitializer = dynamic(() => import('./voice-ptt-initializer'), { ssr: false });
