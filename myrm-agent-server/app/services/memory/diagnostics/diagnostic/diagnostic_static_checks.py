@@ -221,3 +221,48 @@ def probe_context_bundle_manifest(runtime: MemoryCommandRuntimeStatus) -> Memory
         else "Run context bundle migration from Settings or Doctor.",
         repair_actions=repair_actions,
     )
+
+
+def probe_capacity_theater(
+    *,
+    total_active_chars: int = 0,
+    working_memory_count: int = 0,
+    unpinned_count: int = 0,
+    budget_limit: int = 6000,
+) -> MemoryCommandDoctorCheck:
+    """Evaluate whether the active memory stack suffers from capacity theater or causal blindness."""
+    is_overflow = total_active_chars > budget_limit
+    is_bloated = working_memory_count > 30 or unpinned_count > 40
+    has_risk = is_overflow or is_bloated
+
+    status: DiagnosticStatus = "warning" if has_risk else "ready"
+    repair_actions: list[str] = ["restore_disciplined_defaults"] if has_risk else []
+
+    evidence = (
+        f"Active memory load: {total_active_chars}/{budget_limit} chars, "
+        f"{working_memory_count} working memories, {unpinned_count} unpinned entries."
+        if has_risk
+        else f"Disciplined memory load within budget: {total_active_chars}/{budget_limit} chars."
+    )
+    impact = (
+        "Memory stack bloating causes causal blindness, attention dilution, and higher token billing."
+        if has_risk
+        else "Disciplined memory footprint preserves prompt prefix caching and sharp attention focus."
+    )
+    next_action = (
+        "Restore disciplined defaults to archive unpinned working memories safely."
+        if has_risk
+        else "No action required."
+    )
+
+    return MemoryCommandDoctorCheck(
+        id="capacity_theater",
+        category="governance",
+        label="Capacity theater & memory discipline",
+        status=status,
+        evidence=evidence,
+        impact=impact,
+        next_action=next_action,
+        can_auto_fix=has_risk,
+        repair_actions=repair_actions,
+    )

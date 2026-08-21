@@ -14710,6 +14710,7 @@
     "viewChat": "채팅 보기"
   },
   "project": {
+    "newProject": "새 프로젝트",
     "all": "전체",
     "unassigned": "미분류",
     "addFirst": "프로젝트 추가",

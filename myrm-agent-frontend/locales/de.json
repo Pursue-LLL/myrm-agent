@@ -14710,6 +14710,7 @@
     "viewChat": "Chat anzeigen"
   },
   "project": {
+    "newProject": "Neues Projekt",
     "all": "Alle",
     "unassigned": "Ohne Projekt",
     "addFirst": "Projekt hinzufügen",

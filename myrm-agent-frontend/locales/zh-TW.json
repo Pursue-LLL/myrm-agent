@@ -15995,6 +15995,7 @@
     "auditFieldMetadata": "後設資料"
   },
   "project": {
+    "newProject": "新建專案",
     "all": "全部",
     "unassigned": "未歸類",
     "addFirst": "新增專案",

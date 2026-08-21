@@ -12,6 +12,7 @@ Tauri 桌面端集成：runtime invoke、tray、全局快捷键桥接、应用�
 | `useInlineInputListener.ts` | 全局 Inline Input 快捷键 → FlowPad                                                                                  |
 | `useAppshotListener.ts`     | Appshot 快捷键事件桥接                                                                                              |
 | `useAppUpdate.ts`           | Tauri 应用更新检查/下载/安装                                                                                        |
+| `useUpdateHandoff.ts`        | 跨重启更新交接事务感知与原子判定（成功升级/未生效降级识别与防抖）                                                   |
 | `usePowerLock.ts`           | Agent 忙碌时阻止系统休眠                                                                                            |
 
 ## 依赖

@@ -1,15 +1,18 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatInlineTeamRunVisibilityStrip } from '../ChatInlineTeamRunVisibilityStrip';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params?.count !== undefined) {
+    return `${key}:${params.count}`;
+  }
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params?.count !== undefined) {
-      return `${key}:${params.count}`;
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/agent/AgentAvatar', () => ({

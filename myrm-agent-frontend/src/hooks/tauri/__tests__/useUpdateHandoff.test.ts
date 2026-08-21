@@ -1,5 +1,8 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 
 import {
   saveUpdateHandoff,
@@ -165,7 +168,10 @@ describe('useUpdateHandoff', () => {
         expect(result.current.result).not.toBeNull();
       });
 
-      result.current.dismiss();
+      act(() => {
+        result.current.dismiss();
+      });
+
       expect(result.current.result).toBeNull();
     });
   });

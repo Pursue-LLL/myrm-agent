@@ -16434,6 +16434,7 @@
     "auditFieldMetadata": "元データ"
   },
   "project": {
+    "newProject": "新規プロジェクト",
     "all": "すべて",
     "unassigned": "未分類",
     "addFirst": "プロジェクト追加",
