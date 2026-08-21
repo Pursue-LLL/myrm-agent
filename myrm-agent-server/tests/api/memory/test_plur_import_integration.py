@@ -70,6 +70,6 @@ async def test_plur_import_session_full_lifecycle(db_session: AsyncSession) -> N
     assert preview.summary.mapped_items == 2
 
     confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
-    assert confirm.status == "confirmed"
-    assert confirm.imported_count == 2
+    assert confirm.total_imported == 2
+    assert confirm.source == "plur"
     assert confirm.import_batch_id.startswith("import-batch:")
