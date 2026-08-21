@@ -13,12 +13,12 @@ Tests for the Review-First Memory Recall Boundary and Candidate/Approved partiti
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from tests.support.minimal_app import build_minimal_app
 from app.schemas.memory.command_center import (
     MemoryApprovedRecord,
     MemoryCandidateRecord,
@@ -26,6 +26,7 @@ from app.schemas.memory.command_center import (
     MemoryRecallBoundaryData,
     MemoryRecallScopeBoundary,
 )
+from tests.support.minimal_app import build_minimal_app
 
 
 def test_recall_boundary_schema_contracts() -> None:
@@ -67,7 +68,7 @@ def test_recall_boundary_schema_contracts() -> None:
                 content_preview="User prefers dark mode",
                 confidence=0.88,
                 source="extraction",
-                created_at="2026-08-20T12:00:00Z",
+                created_at=datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc),
                 status="pending",
             )
         ],
@@ -106,22 +107,22 @@ async def test_get_memory_recall_boundary_api() -> None:
     from app.api.dependencies import get_db_session
     from app.api.memory.utils import get_crud_memory_manager
 
+    mock_exec_result = MagicMock()
+    mock_exec_result.scalars.return_value.all.return_value = []
     mock_db = AsyncMock()
-    mock_db.execute = AsyncMock()
-    scalars_mock = MagicMock()
-    scalars_mock.all.return_value = []
-    mock_db.execute.return_value.scalars.return_value = scalars_mock
+    mock_db.execute = AsyncMock(return_value=mock_exec_result)
 
     mock_manager = MagicMock()
     mock_manager.memory_policy = None
     mock_manager.namespaces = ["global", "agent:default"]
     mock_manager.list_memories = AsyncMock(return_value=[])
 
-    app.dependency_overrides[get_db_session] = lambda: mock_db
-    app.dependency_overrides[get_crud_memory_manager] = lambda: mock_manager
+    test_app = build_minimal_app(preset="memory")
+    test_app.dependency_overrides[get_db_session] = lambda: mock_db
+    test_app.dependency_overrides[get_crud_memory_manager] = lambda: mock_manager
 
     try:
-        transport = ASGITransport(app=app)
+        transport = ASGITransport(app=test_app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/v1/memory/command-center/recall-boundary?agent_id=ag-1&task_id=task-1")
             assert response.status_code == 200
@@ -132,5 +133,5 @@ async def test_get_memory_recall_boundary_api() -> None:
             assert data["budget_chars_total"] == 6000
             assert data["budget_overflow_risk"] in ("safe", "approaching_limit", "overflow")
     finally:
-        app.dependency_overrides.pop(get_db_session, None)
-        app.dependency_overrides.pop(get_crud_memory_manager, None)
+        test_app.dependency_overrides.pop(get_db_session, None)
+        test_app.dependency_overrides.pop(get_crud_memory_manager, None)

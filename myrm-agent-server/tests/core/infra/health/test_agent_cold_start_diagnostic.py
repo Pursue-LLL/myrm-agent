@@ -4,12 +4,14 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 from app.core.infra.health.server_diagnostics import (
     AgentColdStartDiagnostic,
     ServerDiagnosticsManager,
     run_server_diagnostics,
 )
+from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.mark.asyncio
@@ -24,7 +26,7 @@ async def test_agent_cold_start_diagnostic_fully_ready() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("myrm_agent_harness.agent.tool_management.tool_layers.is_registered_action_tool", return_value=True),
+        patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
         patch("app.services.agent.execution_cache.get_execution_cache", return_value=mock_cache),
         patch("app.database.connection.get_session") as mock_get_session,
     ):
@@ -46,10 +48,11 @@ async def test_agent_cold_start_diagnostic_fully_ready() -> None:
         assert report.code == "OK_AGENT_WARM_PATH_WARM"
         assert report.meta_data is not None
         assert report.meta_data["warm_path_score"] == 100
-        assert "model_ready" in report.meta_data["ready_phases"]
-        assert "tools_ready" in report.meta_data["ready_phases"]
-        assert "cache_warm" in report.meta_data["ready_phases"]
-        assert "storage_healthy" in report.meta_data["ready_phases"]
+        ready_phases = list(report.meta_data.get("ready_phases", []))  # type: ignore[arg-type]
+        assert "model_ready" in ready_phases
+        assert "tools_ready" in ready_phases
+        assert "cache_warm" in ready_phases
+        assert "storage_healthy" in ready_phases
         assert report.fix_suggestion is None
 
 
@@ -65,7 +68,7 @@ async def test_agent_cold_start_diagnostic_cold_cache_ready() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("myrm_agent_harness.agent.tool_management.tool_layers.is_registered_action_tool", return_value=True),
+        patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
         patch("app.services.agent.execution_cache.get_execution_cache", return_value=mock_cache),
         patch("app.database.connection.get_session") as mock_get_session,
     ):
@@ -87,8 +90,9 @@ async def test_agent_cold_start_diagnostic_cold_cache_ready() -> None:
         assert report.code == "OK_AGENT_WARM_PATH_COLD_READY"
         assert report.meta_data is not None
         assert report.meta_data["warm_path_score"] == 90
-        assert "model_ready" in report.meta_data["ready_phases"]
-        assert "cache_warm" not in report.meta_data["ready_phases"]
+        ready_phases = list(report.meta_data.get("ready_phases", []))  # type: ignore[arg-type]
+        assert "model_ready" in ready_phases
+        assert "cache_warm" not in ready_phases
 
 
 @pytest.mark.asyncio
@@ -100,7 +104,7 @@ async def test_agent_cold_start_diagnostic_unconfigured_model() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("myrm_agent_harness.agent.tool_management.tool_layers.is_registered_action_tool", return_value=True),
+        patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
         patch("app.services.agent.execution_cache.get_execution_cache", side_effect=Exception("no cache")),
         patch("app.database.connection.get_session") as mock_get_session,
     ):
@@ -133,7 +137,7 @@ async def test_agent_cold_start_diagnostic_storage_degraded() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
-        patch("myrm_agent_harness.agent.tool_management.tool_layers.is_registered_action_tool", return_value=True),
+        patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
         patch("app.database.connection.get_session", side_effect=Exception("DB locked")),
     ):
         report = await diagnostic.check_health()
@@ -170,9 +174,6 @@ async def test_run_server_diagnostics_shortcut() -> None:
 @pytest.mark.asyncio
 async def test_doctor_api_endpoint_integrates_cold_start() -> None:
     """Test GET /api/v1/health/doctor endpoint returns AgentColdStart report."""
-    from httpx import ASGITransport, AsyncClient
-    from tests.support.minimal_app import build_minimal_app
-
     app = build_minimal_app(preset="health")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

@@ -16884,7 +16884,7 @@
     "title": "審查優先召回邊界 (Review-First Recall Boundary)",
     "subtitle": "任務級知識訪問範圍隔離、四記憶職責分區與候選審查閘門",
     "scopeTitle": "任務召回邊界 (Task Scope Boundary)",
-    "scopeDescription": "嚴格界定當前任務允許讀取的命名空間範圍，杜絕跨任務知識污染與因果盲區。",
+    "scopeDescription": "設定此任務允許讀取的命名空間範疇，防範跨任務知識污染與因果盲區。",
     "policyWrite": "寫入策略",
     "activeScopes": "生效範圍",
     "candidateReviewTitle": "候選記憶審查閘門 (Candidate Review Gate)",

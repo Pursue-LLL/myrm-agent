@@ -181,7 +181,7 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
 
         # 2. Tool Catalog Readiness
         try:
-            from myrm_agent_harness.agent.tool_management.tool_layers import is_registered_action_tool
+            from myrm_agent_harness.api import is_registered_action_tool
 
             # Verify that tool layer registry is loaded and functioning
             has_bash = is_registered_action_tool("bash")
