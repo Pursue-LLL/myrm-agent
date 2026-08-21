@@ -198,7 +198,7 @@ const UserMessage = React.memo(
           return;
         }
         if (e.key === 'Enter' && !e.shiftKey) {
-          if (e.nativeEvent.isComposing || isLoading) {
+          if (isImeComposing(e) || isLoading) {
             return;
           }
           e.preventDefault();
