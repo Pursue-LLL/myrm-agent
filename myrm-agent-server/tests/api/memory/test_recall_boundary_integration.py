@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 from app.schemas.memory.command_center import (
     MemoryApprovedRecord,
     MemoryCandidateRecord,

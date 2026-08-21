@@ -165,3 +165,26 @@ async def test_run_server_diagnostics_shortcut() -> None:
     reports = await run_server_diagnostics()
     assert len(reports) >= 3
     assert any(r.component_name == "AgentColdStart" for r in reports)
+
+
+@pytest.mark.asyncio
+async def test_doctor_api_endpoint_integrates_cold_start() -> None:
+    """Test GET /api/v1/health/doctor endpoint returns AgentColdStart report."""
+    from httpx import ASGITransport, AsyncClient
+    from tests.support.minimal_app import build_minimal_app
+
+    app = build_minimal_app(preset="health")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/api/v1/health/doctor")
+        assert response.status_code == 200
+        data = response.json()
+        assert "server" in data
+        assert "harness" in data
+        assert "repair_actions" in data
+
+        server_components = [item["component_name"] for item in data["server"]]
+        assert "AgentColdStart" in server_components
+        assert "ExecutionCache" in server_components
+        assert "DLQ" in server_components
+

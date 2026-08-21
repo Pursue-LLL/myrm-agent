@@ -111,7 +111,7 @@ async def get_memory_graph(
         namespace: Filter nodes by primary_namespace property. None = show all.
     """
 
-    if not memory_manager.has_graph:
+    if not memory_manager.has_graph or memory_manager._graph is None:
         return MemoryCommandGraphResponse(has_graph=False)
 
     graph = memory_manager._graph
