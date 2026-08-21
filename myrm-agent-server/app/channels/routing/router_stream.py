@@ -52,7 +52,9 @@ logger = logging.getLogger("myrm.channels.routing.stream")
 class RouterStreamMixin:
     """Mixin: throttled placeholder edits and approval message tracking during execute_stream."""
 
-    async def _mark_deferred_placeholder_activity(self: RouterStreamHost, state_key: str) -> None:
+    async def _mark_deferred_placeholder_activity(
+        self: RouterStreamHost, state_key: str
+    ) -> None:
         active = self._active_tasks.get(state_key)
         deferred = active.deferred_placeholder if active else None
         if isinstance(deferred, DeferredPlaceholder):
@@ -118,11 +120,15 @@ class RouterStreamMixin:
 
                 if isinstance(event, ProgressUpdate):
                     cleaned_label = normalize_progress_stage(event.label)
-                    reassurance_state["step_count"] = int(reassurance_state["step_count"]) + 1
+                    reassurance_state["step_count"] = (
+                        int(reassurance_state["step_count"]) + 1
+                    )
                     reassurance_state["current_stage"] = cleaned_label
                     await self._mark_deferred_placeholder_activity(stream_state_key)
                     if event.quick_replies:
-                        approval_mid = await self._send_interactive_progress(msg, chat_id, event)
+                        approval_mid = await self._send_interactive_progress(
+                            msg, chat_id, event
+                        )
                         if approval_mid:
                             session_key = routing_session_key(msg.channel, chat_id)
                             self._approval_msg_ids[session_key] = approval_mid
@@ -162,8 +168,12 @@ class RouterStreamMixin:
                             "content_length": len(display_text),
                         },
                     ) as span:
-                        decision = self._stream_coordinator.should_send_update(metrics_key, display_text, is_final=False)
-                        self._stream_metrics.record_decision(metrics_key, decision.reason)
+                        decision = self._stream_coordinator.should_send_update(
+                            metrics_key, display_text, is_final=False
+                        )
+                        self._stream_metrics.record_decision(
+                            metrics_key, decision.reason
+                        )
                         span.set_attribute("decision.should_send", decision.should_send)
                         span.set_attribute("decision.reason", decision.reason)
 
@@ -174,7 +184,9 @@ class RouterStreamMixin:
                                 decision.reason,
                                 trace_id,
                             )
-                            span.add_event("update_skipped", {"reason": decision.reason})
+                            span.add_event(
+                                "update_skipped", {"reason": decision.reason}
+                            )
                             continue
 
                         if not self._session_rate_limiter.can_update(metrics_key):
@@ -182,21 +194,33 @@ class RouterStreamMixin:
                                 "session_rate_limit_exceeded session_key=%s trace_id=%s update_count=%d",
                                 metrics_key,
                                 trace_id,
-                                self._session_rate_limiter.get_update_count(metrics_key),
+                                self._session_rate_limiter.get_update_count(
+                                    metrics_key
+                                ),
                             )
                             span.add_event("rate_limit_exceeded")
                             continue
 
                         self._session_rate_limiter.record_update(metrics_key)
 
-                        progress_info = self._progress_estimator.estimate_progress(metrics_key, len(display_text))
+                        progress_info = self._progress_estimator.estimate_progress(
+                            metrics_key, len(display_text)
+                        )
                         final_display_text = display_text
-                        if progress_info and progress_info.percentage < 95 and not is_thinking:
+                        if (
+                            progress_info
+                            and progress_info.percentage < 95
+                            and not is_thinking
+                        ):
                             remaining_str = (
-                                f" (~{progress_info.remaining_seconds}s left)" if progress_info.remaining_seconds else ""
+                                f" (~{progress_info.remaining_seconds}s left)"
+                                if progress_info.remaining_seconds
+                                else ""
                             )
                             final_display_text = f"{display_text}\n\n[{progress_info.percentage}%{remaining_str}]"
-                            span.set_attribute("progress.percentage", progress_info.percentage)
+                            span.set_attribute(
+                                "progress.percentage", progress_info.percentage
+                            )
 
                         span.add_event("api_call_start")
                         live_placeholder = self._resolve_live_placeholder_id(state_key)
@@ -213,7 +237,9 @@ class RouterStreamMixin:
                         span.set_attribute("api.success", success)
 
                         is_first = last_stream_at == 0.0
-                        self._stream_metrics.record_edit(metrics_key, len(display_text), success, is_first=is_first)
+                        self._stream_metrics.record_edit(
+                            metrics_key, len(display_text), success, is_first=is_first
+                        )
 
                         if success:
                             last_stream_at = time.monotonic()
@@ -239,7 +265,8 @@ class RouterStreamMixin:
                         thread_id=msg.thread_id,
                         reply_to_id=(
                             (msg.message_id or str(msg.metadata["message_id"]))
-                            if msg.is_group and (msg.message_id or msg.metadata.get("message_id"))
+                            if msg.is_group
+                            and (msg.message_id or msg.metadata.get("message_id"))
                             else event.reply_to_id
                         ),
                     )
@@ -280,7 +307,9 @@ class RouterStreamMixin:
             )
         return result, last_edit_at
 
-    _EMOJI_APPROVAL_HINT = "\n\n\U0001f44d Allow once  ·  \u267e\ufe0f Allow always  ·  \U0001f44e Deny"
+    _EMOJI_APPROVAL_HINT = (
+        "\n\n\U0001f44d Allow once  ·  \u267e\ufe0f Allow always  ·  \U0001f44e Deny"
+    )
 
     async def _send_interactive_progress(
         self: RouterStreamHost,
@@ -334,7 +363,9 @@ class RouterStreamMixin:
         )
         return await self._bus.send_tracked(reply)
 
-    async def _resolve_mobile_status_deep_link(self: RouterStreamHost, chat_id: str) -> str | None:
+    async def _resolve_mobile_status_deep_link(
+        self: RouterStreamHost, chat_id: str
+    ) -> str | None:
         from app.remote_access.mobile_deep_link import resolve_mobile_status_deep_link
 
         return await resolve_mobile_status_deep_link(chat_id)
@@ -410,7 +441,9 @@ class RouterStreamMixin:
                 edit_start = time.perf_counter()
                 span.add_event("api_call_start")
 
-                success = await self._fx.edit_progress(channel, chat_id, placeholder_id, content)
+                success = await self._fx.edit_progress(
+                    channel, chat_id, placeholder_id, content
+                )
                 edit_latency_s = time.perf_counter() - edit_start
                 edit_latency_ms = edit_latency_s * 1000
 
@@ -427,7 +460,9 @@ class RouterStreamMixin:
                 self._stream_metrics.record_api_latency(metrics_key, edit_latency_ms)
 
                 full_text_bytes = full_text_length * 3
-                self._stream_metrics.record_transmission(metrics_key, full_text_bytes, full_text_bytes)
+                self._stream_metrics.record_transmission(
+                    metrics_key, full_text_bytes, full_text_bytes
+                )
 
                 if success:
                     self._degradation_controller.record_success()
@@ -456,7 +491,9 @@ class RouterStreamMixin:
                 )
                 retry_content = f"{content}{retry_suffix}"
                 try:
-                    await self._fx.edit_progress(channel, chat_id, placeholder_id, retry_content)
+                    await self._fx.edit_progress(
+                        channel, chat_id, placeholder_id, retry_content
+                    )
                 except Exception:
                     pass
                 span.add_event(
