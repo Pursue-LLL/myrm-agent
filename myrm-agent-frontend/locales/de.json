@@ -8537,7 +8537,12 @@
         "communitiesTitle": "Themencluster ({count})",
         "emptyGaps": "Keine Wissenslücken erkannt.",
         "emptyConnections": "Noch keine unerwarteten Verbindungen.",
-        "emptyCommunities": "No clusters yet — add more concepts to the vault."
+        "emptyCommunities": "No clusters yet — add more concepts to the vault.",
+        "isolated": "Isolierter Knoten",
+        "bridge": "Brücke",
+        "locate": "Fokus",
+        "cohesion": "Kohäsion",
+        "members": "Konzepte"
       },
       "deselectAll": "Alle umschalten",
       "legend": "Knotentypen",

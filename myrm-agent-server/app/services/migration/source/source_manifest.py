@@ -91,7 +91,7 @@ _MIGRATION_SOURCE_MANIFEST: tuple[MigrationSourceManifestEntry, ...] = (
         id="plur",
         display_name="PLUR",
         import_source="plur",
-        discover_modes=("zip_upload", "local_scan"),
+        discover_modes=("zip_upload",),
     ),
 )
 

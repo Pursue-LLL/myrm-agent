@@ -8764,7 +8764,12 @@
         "communitiesTitle": "主題簇（{count}）",
         "emptyGaps": "未檢測到知識缺口。",
         "emptyConnections": "暫無意外關聯。",
-        "emptyCommunities": "暫無主題簇 — 向知識庫添加更多概念。"
+        "emptyCommunities": "暫無主題簇 — 向知識庫添加更多概念。",
+        "isolated": "孤立節點",
+        "bridge": "橋接紐帶",
+        "locate": "定位",
+        "cohesion": "內聚度",
+        "members": "個概念"
       },
       "deselectAll": "切換全部",
       "legend": "節點類型",

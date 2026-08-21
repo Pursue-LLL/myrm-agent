@@ -8537,7 +8537,12 @@
         "communitiesTitle": "주제 클러스터 ({count})",
         "emptyGaps": "감지된 지식 공백이 없습니다.",
         "emptyConnections": "아직 예상치 못한 링크가 없습니다.",
-        "emptyCommunities": "아직 클러스터가 없습니다 — 볼트에 개념을 더 추가하세요."
+        "emptyCommunities": "아직 클러스터가 없습니다 — 볼트에 개념을 더 추가하세요.",
+        "isolated": "고립된 노드",
+        "bridge": "브리지 연결",
+        "locate": "초점",
+        "cohesion": "응집도",
+        "members": "개 개념"
       },
       "deselectAll": "모두 토글",
       "legend": "노드 유형",

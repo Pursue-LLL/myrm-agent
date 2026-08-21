@@ -27,6 +27,7 @@ import {
 } from '@/services/chat';
 import { ApiError, apiRequest } from '@/lib/api';
 import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
+import { disambiguateChatTitle } from '@/lib/utils/titleUtils';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
@@ -712,6 +713,10 @@ function _updateSidebar(
   const now = new Date();
   const existing = chatHistoryItems.findIndex((item) => item.id === chatId);
 
+  // 会话标题自动消歧（除当前正在更新的会话之外，若已有同名标题则追加自增序号）
+  const otherTitles = chatHistoryItems.filter((item) => item.id !== chatId).map((item) => item.title);
+  const resolvedTitle = disambiguateChatTitle(title, otherTitles);
+
   const resolveProjectIdForSidebar = (): string | null => {
     const boundProjectId = consumeMigrationBoundProjectId();
     if (boundProjectId) {
@@ -735,7 +740,7 @@ function _updateSidebar(
 
   const newItem: ChatHistoryItem = {
     id: chatId,
-    title,
+    title: resolvedTitle,
     firstMessage,
     lastMessage: summary,
     actionMode,
