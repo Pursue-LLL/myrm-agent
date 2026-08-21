@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.memory.adapters.policy import memory_policy_from_dict
@@ -63,7 +63,6 @@ class ImportAgentProfileResponse(BaseModel):
 )
 async def import_agent_profile_endpoint(
     body: ImportAgentProfileRequest,
-    request: Request,
 ):
     """Import an Agent profile package from the marketplace.
 

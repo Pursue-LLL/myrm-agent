@@ -1,5 +1,6 @@
 {
   "stuck_task_timeout_user_message": "⏱ 작업이 {elapsed}초 동안 응답이 없어 자동 취소되었습니다. 메시지를 다시 보내주세요.",
   "risk_outbound_blocked": "⚠️ 이 응답은 콘텐츠 보안 정책에 의해 차단되었습니다. 관리자에게 문의하거나 질문을 바꿔 시도해주세요.",
-  "risk_inbound_blocked": "⚠️ 메시지가 콘텐츠 보안 정책에 의해 차단되었습니다. 민감한 정보를 제거하고 다시 시도해주세요."
+  "risk_inbound_blocked": "⚠️ 메시지가 콘텐츠 보안 정책에 의해 차단되었습니다. 민감한 정보를 제거하고 다시 시도해주세요.",
+  "outbound_dead_link_warning": "⚠️ [참고: 다음 참조 링크에 접근할 수 없을 수 있습니다: {url}]"
 }

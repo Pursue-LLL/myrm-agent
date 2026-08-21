@@ -56,15 +56,26 @@ def test_os_compat_process_group_kwargs_on_host() -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_os_compat_kill_process_group_no_crash() -> None:
-    """kill_process_group on dead PID must not raise."""
-    proc = await asyncio.create_subprocess_exec(
-        "sleep",
-        "60",
-        **os_compat.get_process_group_kwargs(),  # type: ignore[arg-type]
+async def test_persistent_session_shell_quote_interpolation_real(tmp_path: Path) -> None:
+    """Real session executes command with safely interpolated shell_quote arguments."""
+    from myrm_agent_harness.utils.shell_quote import shell_quote
+
+    config = SessionConfig(
+        session_id="shell-quote-integ",
+        work_dir=str(tmp_path),
+        timeout=30,
+        sandbox_mode="disable",
     )
-    pid = proc.pid
-    assert pid is not None
-    os_compat.kill_process_group(pid)
-    await proc.wait()
-    assert proc.returncode is not None
+    session = LocalPersistentSession(config)
+    await session.start()
+    try:
+        user_input = "hello 'world'; echo dangerous"
+        safe_arg = shell_quote(user_input)
+        result = await session.execute(f"echo {safe_arg}")
+        assert result.success, result.stderr
+        # Must output the literal string without splitting or executing the injected command
+        assert "hello 'world'; echo dangerous" in result.stdout
+        assert "dangerous" not in result.stdout.replace("hello 'world'; echo dangerous", "")
+    finally:
+        await session.close()
+

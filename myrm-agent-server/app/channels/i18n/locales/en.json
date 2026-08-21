@@ -1,6 +1,5 @@
 {
   "stuck_task_timeout_user_message": "⏱ Task timed out after {elapsed}s of inactivity and was automatically cancelled. Please resend your message to retry.",
   "risk_outbound_blocked": "⚠️ This reply was blocked by content safety policy. Please contact the administrator or try rephrasing your request.",
-  "risk_inbound_blocked": "⚠️ Your message was blocked by content safety policy. Please remove sensitive information and try again.",
-  "outbound_dead_link_warning": "⚠️ [Note: The following reference link(s) may be unreachable: {url}]"
+  "risk_inbound_blocked": "⚠️ Your message was blocked by content safety policy. Please remove sensitive information and try again."
 }

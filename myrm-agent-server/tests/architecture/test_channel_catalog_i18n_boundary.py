@@ -33,6 +33,7 @@ _SERVER_CATALOG_ALLOWLIST: frozenset[str] = frozenset(
         "stuck_task_timeout_user_message",
         "risk_outbound_blocked",
         "risk_inbound_blocked",
+        "outbound_dead_link_warning",
     }
 )
 

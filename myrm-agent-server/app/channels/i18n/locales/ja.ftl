@@ -349,3 +349,4 @@ goal_failed =
 deliverable_attached_only = 成果物が添付されました。
 deliverable_oversized_note = { $filename }（{ $size }）がチャンネルの添付ファイルサイズ上限を超えたため、添付されませんでした。
 deliverable_compressed_note = { $filename }（{ $size }）がチャンネルのサイズ制限を超えたため、圧縮版を送信しました。
+bang_command_unsupported = ℹ️ セキュリティとサンドボックス保護のため、MyrmはIMチャンネルからのリモート「!」シェルコマンドの実行をサポートしていません。WebUI/デスクトップコンソールをご利用いただくか、自然言語でお問い合わせください。

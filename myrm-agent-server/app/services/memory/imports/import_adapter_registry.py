@@ -34,6 +34,7 @@ _SUPPORTED_SOURCES: tuple[str, ...] = (
     "trae",
     "mem0",
     "chatgpt",
+    "plur",
 )
 _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "native-json": "ready",
@@ -50,6 +51,7 @@ _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "trae": "missing",
     "mem0": "ready",
     "chatgpt": "ready",
+    "plur": "ready",
 }
 _SOURCE_LABELS: dict[MemoryImportSource, str] = {
     "native_json": "native-json",
@@ -66,6 +68,7 @@ _SOURCE_LABELS: dict[MemoryImportSource, str] = {
     "trae": "trae",
     "mem0": "mem0",
     "chatgpt": "chatgpt",
+    "plur": "plur",
     "unknown": "unknown",
 }
 

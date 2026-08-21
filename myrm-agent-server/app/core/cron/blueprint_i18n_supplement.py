@@ -270,43 +270,6 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             ),
         },
     },
-    "seo_weekly_digest": {
-        "title": {
-            "ja": "SEO週次ダイジェスト＆サイト健全性監査",
-            "de": "Wöchentlicher SEO-Digest & Site-Audit",
-            "ko": "SEO 주간 다이제스트 & 사이트 건강 감사",
-        },
-        "description": {
-            "ja": "週次のクローリング、リンク切れ検出、メタデータ監査、SEO健全性レポート",
-            "de": "Wöchentliches Crawling, Broken-Link-Erkennung, Metadaten-Audit und SEO-Bericht",
-            "ko": "주간 자동 크롤링, 깨진 링크 감지, 메타데이터 감사 및 SEO 건강 보고서",
-        },
-        "prompt_template": {
-            "ja": (
-                "対象Webサイト/リポジトリ {target_url_or_repo} の包括的なSEO健全性監査を実施してください。"
-                "1. 主要ページのステータスコードを確認し、404リンク切れやリダイレクトループを検出。"
-                "2. メタタグ（Title、Description、OG、Canonical、Hreflang）を監査。"
-                "3. sitemap.xml と robots.txt の到達可能性と有効性を検証。"
-                "4. 簡潔で実行可能な要約レポートを作成。問題がなければ短く要約し、重大なリンク切れやメタ欠落があれば強調してください。"
-            ),
-            "de": (
-                "Führe ein umfassendes SEO-Audit für die Ziel-Website/das Repository durch: {target_url_or_repo}. "
-                "1. Statuscodes prüfen und 404/defekte Links oder Weiterleitungsschleifen erkennen. "
-                "2. Meta-Tags (Title, Description, OpenGraph, Canonical, Alternate Hreflang) prüfen. "
-                "3. Erreichbarkeit und Gültigkeit von sitemap.xml und robots.txt prüfen. "
-                "4. Kompakten, umsetzbaren Bericht erstellen. Bei keinen kritischen Fehlern kurze Zusammenfassung; "
-                "bei schweren Fehlern deutlich hervorheben."
-            ),
-            "ko": (
-                "대상 웹사이트/저장소에 대한 포괄적인 SEO 건강 감사를 수행하세요: {target_url_or_repo}. "
-                "1. 주요 페이지 상태 코드를 확인하고 404 깨진 링크 및 리다이렉트 루프를 감지합니다. "
-                "2. 메타 태그(Title, Description, OpenGraph, Canonical, Hreflang)를 점검합니다. "
-                "3. sitemap.xml 및 robots.txt의 접근성과 유효성을 검증합니다. "
-                "4. 간결하고 실행 가능한 주간 보고서를 작성합니다. 심각한 문제가 없으면 짧은 요약을 제공하고, "
-                "치명적인 깨진 링크나 누락된 메타가 발견되면 강조 표시하세요."
-            ),
-        },
-    },
     "financial_monitor_simple": {
         "title": {
             "ja": "金融モニター（シンプル）",

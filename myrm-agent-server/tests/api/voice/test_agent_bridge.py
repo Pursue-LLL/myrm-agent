@@ -743,3 +743,97 @@ class TestBuildAgentParamsWebFetchGate:
         assert params is not None
         assert params.enable_web_fetch is True
         assert params.agent_security_raw is None
+
+
+class TestVoiceFastLaneAndSupervisor:
+    """Tests for Voice Fast Lane quick response and 15s supervisor handoff."""
+
+    def test_is_fast_lane_query_simple_greeting(self) -> None:
+        bridge = _make_bridge()
+        mock_params = MagicMock()
+        mock_params.agent_skill_ids = []
+        mock_params.subagent_ids = None
+
+        assert bridge._is_fast_lane_query("你好", mock_params) is True
+        assert bridge._is_fast_lane_query("hello", mock_params) is True
+        assert bridge._is_fast_lane_query("thanks", mock_params) is True
+
+    def test_is_fast_lane_query_complex_rejected(self) -> None:
+        bridge = _make_bridge()
+        mock_params = MagicMock()
+        mock_params.agent_skill_ids = []
+        mock_params.subagent_ids = None
+
+        # Complex query with coding/reasoning/tools
+        assert bridge._is_fast_lane_query("帮我重构一下这段代码并执行测试", mock_params) is False
+        assert bridge._is_fast_lane_query("prove the pythagorean theorem step by step", mock_params) is False
+
+    def test_is_fast_lane_query_skills_rejected(self) -> None:
+        bridge = _make_bridge()
+        mock_params = MagicMock()
+        mock_params.agent_skill_ids = ["skill-1"]
+        mock_params.subagent_ids = None
+
+        # Even simple greetings with active skills bypass fast lane
+        assert bridge._is_fast_lane_query("你好", mock_params) is False
+
+    @pytest.mark.asyncio
+    async def test_fast_lane_execution_skips_working_hint(self) -> None:
+        bridge = _make_bridge()
+        mock_params = MagicMock()
+        mock_params.agent_skill_ids = []
+        mock_params.subagent_ids = None
+
+        async def fake_fast_stream(params: object, cancel_token: object) -> AsyncIterator[dict[str, object]]:
+            yield {"type": "message", "data": "你好！有什么我可以帮你的？"}
+
+        with (
+            patch.object(bridge, "_build_agent_params", return_value=mock_params),
+            patch.object(bridge, "_is_fast_lane_query", return_value=True),
+            patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock) as mock_hint,
+            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_stream_tts,
+            patch(
+                "app.services.agent.stream_session.stream_lane_factory.create_fast_lane_stream",
+                side_effect=fake_fast_stream,
+            ),
+        ):
+            await bridge.handle_stt_final("你好")
+
+        # Working hint must NOT be called for fast lane!
+        mock_hint.assert_not_called()
+        mock_stream_tts.assert_called()
+        assert len(bridge._transcript) == 2
+        assert bridge._transcript[0].text == "你好"
+        assert bridge._transcript[1].text == "你好！有什么我可以帮你的？"
+
+    @pytest.mark.asyncio
+    async def test_supervisor_handoff_on_timeout(self) -> None:
+        bridge = _make_bridge()
+        mock_params = MagicMock()
+        mock_params.agent_skill_ids = []
+        mock_params.subagent_ids = None
+
+        async def fake_slow_stream(*args: object, **kwargs: object) -> tuple[str, bool]:
+            await asyncio.sleep(2.0)  # simulate slow execution
+            return "done", False
+
+        mock_handler = AsyncMock()
+        mock_handler.spawn_background = AsyncMock(return_value="task-12345")
+
+        with (
+            patch("app.api.voice.agent_bridge._VOICE_SUPERVISOR_TIMEOUT_S", 0.05),
+            patch.object(bridge, "_build_agent_params", return_value=mock_params),
+            patch.object(bridge, "_is_fast_lane_query", return_value=False),
+            patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
+            patch.object(bridge, "_consume_agent_stream", side_effect=fake_slow_stream),
+            patch.object(bridge, "_stream_tts_segment", new_callable=AsyncMock) as mock_stream_tts,
+            patch(
+                "app.core.channel_bridge.setup.get_background_task_handler",
+                return_value=mock_handler,
+            ),
+        ):
+            await bridge.handle_stt_final("帮我做一个长耗时分析")
+
+        mock_handler.spawn_background.assert_awaited_once()
+        mock_stream_tts.assert_called()
+
