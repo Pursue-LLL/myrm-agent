@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import Any
 
 import yaml
-
 from myrm_agent_harness.toolkits.memory import (
     MemoryImportDryRunResult,
     MemoryImportMappingItem,
@@ -86,13 +85,9 @@ def dry_run_plur(payload: dict[str, object]) -> MemoryImportDryRunResult:
         created_at = iso_or_now(entry.get("timestamp") or entry.get("created_at"))
 
         meta = build_metadata(
-            source="plur",
-            extra={
-                "domain": domain,
-                "scope": scope,
-                "engram_type": engram_type,
-                "original_id": text(entry.get("id")),
-            },
+            "plur",
+            entry,
+            ("domain", "scope", "type", "id"),
         )
 
         item: dict[str, object] = {

@@ -12,8 +12,6 @@ Unit tests for app.services.memory.imports.import_plur and dispatch via import_a
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.memory.imports.import_adapters import build_memory_import_dry_run
 from app.services.memory.imports.import_plur import dry_run_plur, is_plur_payload
 

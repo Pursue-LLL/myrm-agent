@@ -779,23 +779,15 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
     @staticmethod
     def _is_bang_command(content: str | None) -> bool:
-        """Return True if content looks like an intentional CLI !command (excluding prefix trigger aliases like !ai)."""
+        """Return True if content is an unsupported CLI shell command (e.g. !sh, !bash, !cmd)."""
         if not content:
             return False
         trimmed = content.strip()
         if not trimmed:
             return False
-        # Matches !cmd or ！cmd where leading char is bang and next char is ASCII/alphanumeric
-        if trimmed.startswith("!") and len(trimmed) > 1 and (trimmed[1].isalnum() or trimmed[1] == "/"):
-            # Avoid intercepting common prefix triggers like '!ai ...' when followed by whitespace
-            first_word = trimmed.split()[0] if trimmed.split() else ""
-            if first_word.lower() in ("!ai", "!ask", "!bot", "!agent", "!myrm"):
-                return False
-            return True
-        if trimmed.startswith("！") and len(trimmed) > 1 and (trimmed[1].isalnum() or trimmed[1] == "/"):
-            first_word = trimmed.split()[0] if trimmed.split() else ""
-            if first_word.lower() in ("！ai", "！ask", "！bot", "！agent", "！myrm"):
-                return False
+        # Only intercept explicit raw shell execution syntax, avoiding group prefixes like !ai, !ask
+        first_word = trimmed.split()[0].lower() if trimmed.split() else ""
+        if first_word in ("!sh", "!bash", "!exec", "!cmd", "!shell", "！sh", "！bash", "！exec", "！cmd", "！shell"):
             return True
         return False
 
