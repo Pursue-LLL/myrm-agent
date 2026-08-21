@@ -18,7 +18,6 @@ from pydantic import SecretStr
 from app.api.channels.channel_ingress import router as channel_router
 from app.api.internal.agent_interrupt import router as interrupt_router
 from app.config.settings import settings
-from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.fixture
