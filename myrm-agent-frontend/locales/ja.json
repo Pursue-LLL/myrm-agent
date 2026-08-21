@@ -12422,7 +12422,30 @@
     "pipelineNoTemplates": "利用可能なパイプラインテンプレートがありません",
     "pipelineLoadError": "パイプラインテンプレートの読み込みに失敗",
     "showMore": "展開もっと見る",
-    "showLess": "表示を減らす"
+    "showLess": "表示を減らす",
+    "decisionFilterAll": "すべてのタスク",
+    "decisionFilterNeedsAction": "要アクション",
+    "decisionFilterAutonomous": "自律実行中",
+    "decisionFilterAllHint": "すべてのタスクを表示",
+    "decisionFilterNeedsActionHint": "人間のレビュー、承認、または失敗トリアージを待っているタスクのみを表示",
+    "decisionFilterAutonomousHint": "エージェントが自律実行中またはキューに入っているタスクのみを表示",
+    "decisionWaitingHuman": "人間待ち",
+    "decisionWaitingAgent": "エージェント実行中",
+    "decisionWaitingSystem": "システム待ち",
+    "decisionSafeAuto": "安全自動",
+    "decisionHitlGuarded": "人間介入ガード",
+    "decisionFrame": {
+      "actionReview": "検証をレビューして完了を承認",
+      "actionUnblockHuman": "ブロックを解除 / 承認を付与",
+      "actionCheckBlock": "依存関係またはスケジュール待ち",
+      "actionRetryOrDiagnose": "タスクを再試行または診断を確認",
+      "actionSpecify": "条件を明確にして準備完了に移動",
+      "actionVerifying": "エージェントが受入基準を検証中",
+      "actionRunning": "エージェントが自律計画を実行中",
+      "actionDispatching": "待機中の実行エージェントにキューイング",
+      "actionBacklog": "優先度を設定して実行をスケジュール",
+      "actionDone": "タスクは正常に完了しました"
+    }
   },
   "channels": {
     "sectionTitle": "メッセージチャネル",

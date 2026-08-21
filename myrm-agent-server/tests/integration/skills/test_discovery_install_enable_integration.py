@@ -557,6 +557,66 @@ async def test_install_appends_explicit_allowlist_when_agent_has_subset(
 
 
 @pytest.mark.asyncio
+async def test_install_returns_receipt_when_provided(
+    discovery_client: TestClient,
+) -> None:
+    from myrm_agent_harness.backends.skills.market_protocols import SkillFileDigest, SkillInstallReceipt
+
+    receipt = SkillInstallReceipt(
+        receipt_id="rcpt_123456",
+        skill_id="test-skill",
+        skill_name="Test Skill",
+        source="clawhub",
+        installed_at="2026-08-20T12:00:00Z",
+        version="1.0.0",
+        installed_path="/path/to/skill",
+        files=(SkillFileDigest(relative_path="SKILL.md", sha256="abc", size_bytes=100),),
+        installed_skills=("test-skill",),
+        declared_mcp_servers=("mcp_server",),
+        scan_score=100,
+        security_verified=True,
+        manifest_hash="hash123",
+    )
+    install_result = SkillInstallResult(
+        success=True,
+        skill_name="Test Skill",
+        skill_id="test-skill",
+        installed_path="/path/to/skill",
+        receipt=receipt,
+    )
+
+    with (
+        patch.object(
+            market_service._base,
+            "install",
+            new=AsyncMock(return_value=install_result),
+        ),
+        patch(
+            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            new=AsyncMock(),
+        ),
+        patch("app.api.skills.discovery._audit_skill_action"),
+    ):
+        response = discovery_client.post(
+            "/api/v1/skills/discovery/install",
+            json={
+                "skill_id": "test-skill",
+                "source": "clawhub",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["receipt"] is not None
+    assert body["receipt"]["receipt_id"] == "rcpt_123456"
+    assert body["receipt"]["manifest_hash"] == "hash123"
+    assert body["receipt"]["scan_score"] == 100
+    assert body["receipt"]["security_verified"] is True
+
+
+
+@pytest.mark.asyncio
 async def test_install_reports_allowlist_append_error_when_update_fails(
     discovery_client: TestClient,
 ) -> None:
