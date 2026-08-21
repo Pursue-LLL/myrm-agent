@@ -42,7 +42,6 @@ from app.services.memory.diagnostics.diagnostic.diagnostic_recall_benchmark impo
 from app.services.memory.diagnostics.diagnostic.diagnostic_repair_plans import with_check_repair_plans, with_probe_repair_plans
 from app.services.memory.diagnostics.diagnostic.diagnostic_slo import build_diagnostic_slo
 from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import (
-    probe_capacity_theater,
     probe_context_bundle_manifest,
     probe_deployment_boundary,
     probe_embedding_provider,
@@ -80,6 +79,24 @@ class MemoryDiagnosticsService:
     ) -> list[MemoryCommandDoctorCheck]:
         """Return snapshot doctor checks without mutating storage."""
 
+        # Sample active memory metrics for capacity theater probe
+        total_chars = 0
+        working_count = 0
+        unpinned_count = 0
+        if self._memory_manager is not None:
+            try:
+                for mtype in (MemoryType.PROFILE, MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC):
+                    items = await self._memory_manager.list_memories(mtype, limit=20)
+                    for item in items:
+                        content_str = str(getattr(item, "content", "") or "")
+                        total_chars += len(content_str)
+                        if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
+                            working_count += 1
+                        if not getattr(item, "is_pinned", False):
+                            unpinned_count += 1
+            except Exception:
+                pass
+
         checks = [
             probe_relational_store(runtime),
             probe_memory_base_path(runtime),
@@ -88,6 +105,11 @@ class MemoryDiagnosticsService:
             probe_embedding_provider(runtime),
             probe_event_ledger_snapshot(runtime),
             probe_health_snapshot(health_cache_status),
+            probe_capacity_theater(
+                total_active_chars=total_chars,
+                working_memory_count=working_count,
+                unpinned_count=unpinned_count,
+            ),
             probe_context_bundle_manifest(runtime),
             probe_deployment_boundary(runtime),
             await self._inspect_migration_integrity(),
@@ -105,12 +127,38 @@ class MemoryDiagnosticsService:
         run_id = f"memory-diagnostic:{uuid4().hex}"
         started_at = datetime.now(UTC)
         started_timer = perf_counter()
+
+        # Sample active memory metrics for capacity theater probe
+        total_chars = 0
+        working_count = 0
+        unpinned_count = 0
+        if self._memory_manager is not None:
+            try:
+                for mtype in (MemoryType.PROFILE, MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC):
+                    items = await self._memory_manager.list_memories(mtype, limit=20)
+                    for item in items:
+                        content_str = str(getattr(item, "content", "") or "")
+                        total_chars += len(content_str)
+                        if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
+                            working_count += 1
+                        if not getattr(item, "is_pinned", False):
+                            unpinned_count += 1
+            except Exception:
+                pass
+
         probes = [
             await self._run_probe(lambda: probe_relational_store(runtime)),
             await self._run_probe(lambda: probe_memory_base_path(runtime)),
             await self._run_probe(lambda: probe_vector_index(runtime)),
             await self._run_probe(lambda: probe_knowledge_graph(runtime)),
             await self._run_probe(lambda: probe_embedding_provider(runtime)),
+            await self._run_probe(
+                lambda: probe_capacity_theater(
+                    total_active_chars=total_chars,
+                    working_memory_count=working_count,
+                    unpinned_count=unpinned_count,
+                )
+            ),
             await self._run_embedding_live_probe(),
             await self._run_retrieval_pipeline_probe(),
             await self._run_sparse_cjk_recall_probe(),

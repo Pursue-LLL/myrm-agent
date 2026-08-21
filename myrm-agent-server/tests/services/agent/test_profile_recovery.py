@@ -7,8 +7,6 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.services.agent.profile.profile_recovery_service import (
-    ComponentProbeResult,
-    ProfileHealthReport,
     ProfileStartupRecoveryService,
 )
 
