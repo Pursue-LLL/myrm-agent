@@ -9431,6 +9431,8 @@
       "benchmarkNdcg": "NDCG@{k}",
       "benchmarkMrr": "MRR",
       "benchmarkPrecision": "Precision@{k}",
+      "benchmarkDuplicateRate": "중복 청크 비율",
+      "benchmarkDistinctSources": "소스 다양성",
       "benchmarkLatencyP50": "지연 P50",
       "benchmarkLatencyP95": "지연 P95",
       "benchmarkCategories": "카테고리 분석",
