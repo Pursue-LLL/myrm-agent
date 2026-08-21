@@ -15,9 +15,6 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.database.repositories.uow import UnitOfWork
-from app.services.agent.profile.profile_recovery_service import ProfileStartupRecoveryService
-from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
 from tests.support.minimal_app import build_minimal_app
 
 

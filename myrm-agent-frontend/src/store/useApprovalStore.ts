@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
+import { asRecord } from '@/lib/utils/typeUtils';
 
 export interface ApprovalToolCall {
   name: string;

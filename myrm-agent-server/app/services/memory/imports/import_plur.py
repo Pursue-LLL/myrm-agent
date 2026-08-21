@@ -81,6 +81,7 @@ def dry_run_plur(payload: dict[str, object]) -> MemoryImportDryRunResult:
 
         domain = text(entry.get("domain") or "general")
         scope = text(entry.get("scope") or "global")
+        domain = text(entry.get("domain") or "default")
         engram_type = text(entry.get("type") or entry.get("category") or "fact")
         created_at = iso_or_now(entry.get("timestamp") or entry.get("created_at"))
 
