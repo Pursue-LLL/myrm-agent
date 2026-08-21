@@ -20,7 +20,6 @@ import logging
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
 from app.core.utils.errors import internal_error, not_found_error
 from app.core.utils.response_utils import success_response
@@ -28,7 +27,6 @@ from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.profile.profile_recovery_service import (
     ProfileStartupRecoveryService,
 )
-from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
 
 logger = logging.getLogger(__name__)
 
