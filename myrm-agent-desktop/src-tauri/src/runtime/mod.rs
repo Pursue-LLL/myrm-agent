@@ -21,12 +21,14 @@ mod inline_input;
 mod theme_package_open;
 pub mod nextjs_frontend;
 pub mod port;
+pub mod process_registry;
 pub mod python_backend;
 pub mod setup_token;
 pub mod survivor_diag;
 pub mod watchdog;
 
 pub use agent_runner::{bootstrap_agent_runner, resolve_agent_runner_path};
+pub use process_registry::{ManagedProcessEntry, ProcessRegistry, ProcessRole, ProcessStatus};
 pub use appshot::{
     force_capture, handle_appshot_shortcut, handle_toggle_window, handle_voice_ptt_start,
     handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,

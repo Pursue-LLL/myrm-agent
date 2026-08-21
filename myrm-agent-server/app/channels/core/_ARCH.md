@@ -19,6 +19,7 @@ Core infrastructure: BaseChannel, MessageBus, ChannelGateway, EventEmitter, Cred
 | logging_filter.py | Core | Framework-level log sanitization filter. Auto-detects and redacts sensitive data (token, password, s | ✅ |
 | metrics.py | Core | Framework-level metrics data layer. Provides structured data only; | ✅ |
 | mixins.py | Core | Reusable channel capability components via Mixin pattern. Allows different channels | ✅ |
+| outbound_gate.py | Core | Pre-publish outbound content & link liveness gate. Probes extracted URLs concurrently via fast HTTP HEAD/Range with TTL cache; enforces fail-closed HOLD on dead links for Cron/broadcast channels and soft warning on interactive chats. | ✅ |
 | rate_limit.py | Core | Rate limiting for inbound messages. | ✅ |
 | user_resolver.py | Core | Generic user resolver protocol and cache implementation. Protocol-first framework design | ✅ |
 

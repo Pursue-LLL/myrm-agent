@@ -1,4 +1,20 @@
 {
+  "recovery": {
+    "title": "Agent Startup & Configuration Recovery Center",
+    "description": "Detected anomalies in components or configurations during startup. You can roll back to the last-known-good configuration or export a diagnostic bundle.",
+    "probeStatus": "Component Probe Status",
+    "allHealthy": "All Healthy",
+    "quarantinedFound": "Fault Quarantine Items Found",
+    "allVerified": "All Skill/MCP and Core Components Verified",
+    "exportDiagnostics": "Export Diagnostic Bundle",
+    "ignoreAndContinue": "Ignore & Continue",
+    "rollbackGood": "Rollback to Good Configuration",
+    "fetchHealthFailed": "Failed to fetch health report",
+    "rollbackSuccess": "Successfully rolled back to last-known-good configuration",
+    "rollbackFailed": "Rollback failed",
+    "exportSuccess": "Diagnostic bundle exported",
+    "exportFailed": "Failed to export diagnostic bundle"
+  },
   "emptyState": {
     "defaultTitle": "No Data",
     "defaultDescription": "This list is currently empty or no items have been generated yet",

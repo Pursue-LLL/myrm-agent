@@ -65,13 +65,13 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
       setReport(data);
     } catch {
       toast({
-        title: '获取健康诊断失败',
+        title: t('fetchHealthFailed'),
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  }, [agentId]);
+  }, [agentId, t]);
 
   useEffect(() => {
     if (open) {
@@ -86,14 +86,14 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
       const success = await rollbackProfileToLastKnownGood(agentId);
       if (success) {
         toast({
-          title: '已成功回滚至最近良好配置',
+          title: t('rollbackSuccess'),
         });
         onRecovered?.();
         onOpenChange(false);
       }
     } catch (error) {
       toast({
-        title: '回滚失败',
+        title: t('rollbackFailed'),
         description: error instanceof Error ? error.message : String(error),
         variant: 'destructive',
       });
@@ -116,11 +116,11 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
       a.click();
       URL.revokeObjectURL(url);
       toast({
-        title: '已导出排障诊断包',
+        title: t('exportSuccess'),
       });
     } catch (error) {
       toast({
-        title: '导出诊断失败',
+        title: t('exportFailed'),
         description: error instanceof Error ? error.message : String(error),
         variant: 'destructive',
       });
@@ -136,11 +136,11 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
           <div className="flex items-center gap-2 text-amber-500">
             <ShieldAlert className="h-5 w-5" />
             <AlertDialogTitle className="text-base font-semibold">
-              Agent 启动与配置自愈中心
+              {t('title')}
             </AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-xs text-muted-foreground">
-            检测到当前 Agent 绑定的组件或配置在启动期存在异常。您可以一键恢复至最后已知良好配置，或导出诊断包进行排查。
+            {t('description')}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -148,13 +148,13 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
           {report && (
             <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-2">
               <div className="flex items-center justify-between font-medium">
-                <span>组件探针状态</span>
+                <span>{t('probeStatus')}</span>
                 <span
                   className={
                     report.is_healthy ? 'text-emerald-500' : 'text-amber-500'
                   }
                 >
-                  {report.is_healthy ? '全部正常' : '发现故障隔离项'}
+                  {report.is_healthy ? t('allHealthy') : t('quarantinedFound')}
                 </span>
               </div>
 
@@ -182,7 +182,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
               ) : (
                 <div className="flex items-center gap-1.5 text-emerald-600 text-[11px]">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>所有 Skill/MCP 及核心组件校验通过</span>
+                  <span>{t('allVerified')}</span>
                 </div>
               )}
             </div>
@@ -197,7 +197,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
             className="gap-1.5 text-xs"
           >
             <Download className="h-3.5 w-3.5" />
-            导出诊断包
+            {t('exportDiagnostics')}
           </Button>
 
           <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
               onClick={() => onOpenChange(false)}
               className="text-xs"
             >
-              忽略并继续
+              {t('ignoreAndContinue')}
             </Button>
             {report?.has_last_known_good && (
               <Button
@@ -218,7 +218,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
                 className="gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
-                回滚良好配置
+                {t('rollbackGood')}
               </Button>
             )}
           </div>
