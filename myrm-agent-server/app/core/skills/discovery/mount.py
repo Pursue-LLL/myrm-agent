@@ -20,7 +20,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.agent.skills.market.protocols import SkillInstallResult
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
 
 logger = logging.getLogger(__name__)
 
