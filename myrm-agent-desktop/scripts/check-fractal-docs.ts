@@ -272,7 +272,15 @@ function isGitTracked(relPath: string): boolean {
     cwd: DESKTOP_ROOT,
     stdio: 'ignore',
   });
-  return result.status === 0;
+  if (result.status === 0) {
+    return true;
+  }
+  // If desktop is inside monorepo, check from repo root with desktop prefix
+  const repoResult = spawnSync('git', ['ls-files', '--error-unmatch', '--', `myrm-agent-desktop/${relPath}`], {
+    cwd: join(DESKTOP_ROOT, '..'),
+    stdio: 'ignore',
+  });
+  return repoResult.status === 0;
 }
 
 export function collectFractalDocViolations(): string[] {

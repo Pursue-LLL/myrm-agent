@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pet-surface-set-ignore-cursor"
+description = "Enables the pet_surface_set_ignore_cursor command without any pre-configured scope."
+commands.allow = ["pet_surface_set_ignore_cursor"]
+
+[[permission]]
+identifier = "deny-pet-surface-set-ignore-cursor"
+description = "Denies the pet_surface_set_ignore_cursor command without any pre-configured scope."
+commands.deny = ["pet_surface_set_ignore_cursor"]

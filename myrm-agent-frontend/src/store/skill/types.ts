@@ -119,6 +119,21 @@ export interface Skill {
   /** Provenance tracking for installed skills (e.g. source, url, version, installed_at) */
   installed_from?: Record<string, unknown> | null;
 
+  /** Managed installation receipt (immutable verification snapshot) */
+  receipt?: {
+    receipt_id: string;
+    skill_id: string;
+    skill_name: string;
+    source: string;
+    installed_at: string;
+    version?: string;
+    installed_skills?: string[];
+    declared_mcp_servers?: string[];
+    scan_score?: number;
+    security_verified?: boolean;
+    manifest_hash?: string;
+  } | null;
+
   usage_stats?: {
     call_count: number;
     success_count: number;

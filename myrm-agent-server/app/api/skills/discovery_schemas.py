@@ -51,6 +51,21 @@ class SkillInstallRequest(BaseModel):
     mount_to_agent: bool = True
 
 
+class SkillReceiptResponse(BaseModel):
+    receipt_id: str
+    skill_id: str
+    skill_name: str
+    source: str
+    installed_at: str
+    version: str = ""
+    installed_path: str = ""
+    installed_skills: list[str] = []
+    declared_mcp_servers: list[str] = []
+    scan_score: int = 100
+    security_verified: bool = True
+    manifest_hash: str = ""
+
+
 class SkillInstallResponse(BaseModel):
     success: bool
     skill_name: str = ""
@@ -67,6 +82,7 @@ class SkillInstallResponse(BaseModel):
     allowlist_append_error: str = ""
     installed_skills: list[str] = []
     declared_mcp_servers: list[str] = []
+    receipt: SkillReceiptResponse | None = None
 
 
 class SkillUpdateInfoResponse(BaseModel):

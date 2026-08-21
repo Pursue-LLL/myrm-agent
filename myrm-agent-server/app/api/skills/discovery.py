@@ -77,6 +77,8 @@ def _install_response(
     allowlist_appended: bool = False,
     allowlist_append_error: str = "",
 ) -> SkillInstallResponse:
+    from app.api.skills.discovery_schemas import SkillReceiptResponse
+
     response_skill_id = resolve_mount_skill_id(result) or result.skill_id
     mounted = False
     mount_agent_id = ""
@@ -90,6 +92,23 @@ def _install_response(
         mount_skill_id = mount_result.mount_skill_id
         mount_already_present = mount_result.already_mounted
         mount_error = mount_result.error
+
+    receipt_resp: SkillReceiptResponse | None = None
+    if result.receipt is not None:
+        receipt_resp = SkillReceiptResponse(
+            receipt_id=result.receipt.receipt_id,
+            skill_id=result.receipt.skill_id,
+            skill_name=result.receipt.skill_name,
+            source=result.receipt.source,
+            installed_at=result.receipt.installed_at,
+            version=result.receipt.version,
+            installed_path=result.receipt.installed_path,
+            installed_skills=list(result.receipt.installed_skills),
+            declared_mcp_servers=list(result.receipt.declared_mcp_servers),
+            scan_score=result.receipt.scan_score,
+            security_verified=result.receipt.security_verified,
+            manifest_hash=result.receipt.manifest_hash,
+        )
 
     return SkillInstallResponse(
         success=result.success,
@@ -107,6 +126,7 @@ def _install_response(
         allowlist_append_error=allowlist_append_error,
         installed_skills=list(result.installed_skills),
         declared_mcp_servers=list(result.declared_mcp_servers),
+        receipt=receipt_resp,
     )
 
 
