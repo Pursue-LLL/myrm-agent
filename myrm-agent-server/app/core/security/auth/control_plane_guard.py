@@ -68,7 +68,14 @@ def verify_internal_origin(request: Request) -> None:
         # Non-browser clients (e.g. CP dispatcher httpx, local scripts) omit Origin header
         return
 
-    allowed_origins = set(parse_and_validate_cors_origins(settings.cors_origins or CORS_ORIGINS_DEFAULT))
+    cors_conf = settings.cors_origins
+    if isinstance(cors_conf, list):
+        allowed_origins = set(cors_conf)
+    elif isinstance(cors_conf, str):
+        allowed_origins = set(parse_and_validate_cors_origins(cors_conf or CORS_ORIGINS_DEFAULT))
+    else:
+        allowed_origins = set(parse_and_validate_cors_origins(CORS_ORIGINS_DEFAULT))
+
     normalized_origin = origin.rstrip("/")
     if normalized_origin not in allowed_origins and "*" not in allowed_origins:
         logger.warning("Internal endpoint request rejected: unauthorized origin '%s'", origin)
