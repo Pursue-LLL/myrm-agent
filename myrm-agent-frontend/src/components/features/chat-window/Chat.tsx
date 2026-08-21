@@ -155,11 +155,18 @@ const Chat = ({
   // JumpBar：虚拟滚动模式的跳转函数引用
   const scrollToMessageRef = useRef<((index: number) => void) | null>(null);
 
-  // 使用滚动位置保存/恢复 Hook
-  const { saveScrollPosition, restoreScrollPosition, userScrolledRef, saveTimerRef } = useScrollPositionRestore({
-    id: chatId,
-    enabled: true,
-  });
+  // 使用滚动位置保存/恢复 Hook（支持双模态流式跟随与视口镜像）
+  const { saveScrollPosition, restoreScrollPosition, getScrollMirrorSnapshot, userScrolledRef, isFollowingBottomRef, saveTimerRef } =
+    useScrollPositionRestore({
+      id: chatId,
+      enabled: true,
+      onRestore: (entry) => {
+        setIsUserScrolledUp(entry.isUserScrolledUp);
+        if (!entry.isUserScrolledUp) {
+          setHasNewMessage(false);
+        }
+      },
+    });
 
   const handleJumpToMessage = useCallback(
     (messageIndex: number) => {
@@ -176,10 +183,12 @@ const Chat = ({
       const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(String(msg.messageId))}"]`);
       if (el) {
         userScrolledRef.current = true;
+        setIsUserScrolledUp(true);
+        saveScrollPosition({ isFollowingBottom: false, isUserScrolledUp: true, anchorMessageId: String(msg.messageId) });
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     },
-    [messages, userScrolledRef],
+    [messages, userScrolledRef, saveScrollPosition],
   );
 
   // VirtualMessageList 滚动状态变化回调
@@ -201,13 +210,15 @@ const Chat = ({
     }
     // 传统渲染模式
     userScrolledRef.current = false;
+    isFollowingBottomRef.current = true;
     setIsUserScrolledUp(false);
     setHasNewMessage(false);
+    saveScrollPosition({ isFollowingBottom: true, isUserScrolledUp: false });
     if (messageEnd.current) {
       messageEnd.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
     setShowInput(true);
-  }, [userScrolledRef]);
+  }, [userScrolledRef, isFollowingBottomRef, saveScrollPosition]);
 
   // 立即滚动函数，完全无延迟
   const scrollToBottom = useCallback(() => {
@@ -222,11 +233,20 @@ const Chat = ({
     setShowInput(true);
   }, [userScrolledRef]);
 
-  // 聊天切换时重置滚动状态
+  // 聊天切换时从持久化镜像同步状态，避免直接暴击清零
   useEffect(() => {
-    setIsUserScrolledUp(false);
+    const snapshot = getScrollMirrorSnapshot();
+    if (snapshot) {
+      setIsUserScrolledUp(snapshot.isUserScrolledUp);
+      userScrolledRef.current = snapshot.isUserScrolledUp;
+      isFollowingBottomRef.current = snapshot.isFollowingBottom;
+    } else {
+      setIsUserScrolledUp(false);
+      userScrolledRef.current = false;
+      isFollowingBottomRef.current = true;
+    }
     setHasNewMessage(false);
-  }, [chatId]);
+  }, [chatId, getScrollMirrorSnapshot, userScrolledRef, isFollowingBottomRef]);
 
   // 组件挂载时恢复滚动位置
   useEffect(() => {
