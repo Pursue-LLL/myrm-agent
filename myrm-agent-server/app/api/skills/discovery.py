@@ -271,7 +271,11 @@ async def install_skill(
     """Install a skill from external source to local filesystem."""
     require_local_skills_capability()
     await market_service.ensure_clawhub_registry()
-    result = await market_service.install(request.skill_id, request.source)
+    result = await market_service.install(
+        request.skill_id,
+        request.source,
+        allow_downgrade=request.allow_downgrade,
+    )
     mount_result = None
     if result.success:
         _audit_skill_action("install", result.skill_id or request.skill_id, source=request.source)
@@ -471,7 +475,10 @@ async def install_skill_from_url(
     """Install a skill directly from a GitHub URL."""
     require_local_skills_capability()
     await market_service.ensure_clawhub_registry()
-    result = await market_service.install_from_url(request.url)
+    result = await market_service.install_from_url(
+        request.url,
+        allow_downgrade=request.allow_downgrade,
+    )
     mount_result = None
     if result.success:
         _audit_skill_action("install_from_url", result.skill_id or request.url, source="github")

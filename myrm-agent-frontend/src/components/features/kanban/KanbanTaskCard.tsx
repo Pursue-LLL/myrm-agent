@@ -21,7 +21,8 @@ import {
   removeDependency,
   getTask,
 } from '@/services/kanban';
-import { Clock, ExternalLink, GitBranch, Paperclip, Sparkles, User } from 'lucide-react';
+import { Clock, ExternalLink, GitBranch, Paperclip, Sparkles, User, ShieldAlert, ShieldCheck, UserCheck, Bot } from 'lucide-react';
+import { deriveTaskDecisionFrame } from '@/lib/kanban/kanbanDecisionFrame';
 import {
   NEXT_STATUSES,
   OUTCOME_STYLES,
@@ -86,6 +87,7 @@ export default function KanbanTaskCard({
 }: KanbanTaskCardProps) {
   const t = useTranslations('kanban');
   const agentName = useAgentName(task.agent_id);
+  const decisionFrame = useMemo(() => deriveTaskDecisionFrame(task), [task]);
   const [showActions, setShowActions] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [runs, setRuns] = useState<TaskRun[]>([]);

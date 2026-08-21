@@ -49,6 +49,7 @@ class SkillInstallRequest(BaseModel):
     source: str
     agent_id: str | None = None
     mount_to_agent: bool = True
+    allow_downgrade: bool = False
 
 
 class SkillReceiptResponse(BaseModel):
@@ -103,6 +104,7 @@ class SkillUpdateRequest(BaseModel):
     skill_name: str
     skill_id: str
     source: str
+    allow_downgrade: bool = False
 
 
 class SkillUninstallRequest(BaseModel):
@@ -139,6 +141,7 @@ class SkillInstallFromUrlRequest(BaseModel):
     url: str
     agent_id: str | None = None
     mount_to_agent: bool = True
+    allow_downgrade: bool = False
 
 
 class SkillUrlInfo(BaseModel):

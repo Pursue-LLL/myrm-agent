@@ -12500,7 +12500,30 @@
     "pipelineNoTemplates": "暂无可用的流水线模板",
     "pipelineLoadError": "加载流水线模板失败",
     "showMore": "展开更多",
-    "showLess": "收起"
+    "showLess": "收起",
+    "decisionFilterAll": "全部任务",
+    "decisionFilterNeedsAction": "待我决策",
+    "decisionFilterAutonomous": "Agent 推进中",
+    "decisionFilterAllHint": "查看所有任务",
+    "decisionFilterNeedsActionHint": "仅查看等待人工审查、审批或失败阻断的任务",
+    "decisionFilterAutonomousHint": "仅查看由 Agent 自主运行或排队中的任务",
+    "decisionWaitingHuman": "等待人工",
+    "decisionWaitingAgent": "Agent 推进",
+    "decisionWaitingSystem": "等待系统",
+    "decisionSafeAuto": "安全自动",
+    "decisionHitlGuarded": "人工管控",
+    "decisionFrame": {
+      "actionReview": "审核验收与批准完成",
+      "actionUnblockHuman": "解除人工阻断 / 授予审批",
+      "actionCheckBlock": "等待前置依赖或调度条件",
+      "actionRetryOrDiagnose": "排查失败诊断 / 重试任务",
+      "actionSpecify": "规范化验收条件并放行",
+      "actionVerifying": "Agent 正在进行验收标准验证",
+      "actionRunning": "Agent 正在自主执行计划",
+      "actionDispatching": "排队等待空闲执行器派发",
+      "actionBacklog": "排定优先级并安排执行",
+      "actionDone": "任务已成功执行完毕"
+    }
   },
   "channels": {
     "sectionTitle": "消息通道",

@@ -12500,7 +12500,30 @@
     "pipelineNoTemplates": "No pipeline templates available",
     "pipelineLoadError": "Failed to load pipeline templates",
     "showMore": "Show more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "decisionFilterAll": "All Tasks",
+    "decisionFilterNeedsAction": "Needs Action",
+    "decisionFilterAutonomous": "Autonomous",
+    "decisionFilterAllHint": "View all tasks across columns",
+    "decisionFilterNeedsActionHint": "View only tasks waiting for human review, approval, or failure triage",
+    "decisionFilterAutonomousHint": "View only tasks running autonomously or queued for agents",
+    "decisionWaitingHuman": "Waiting on Human",
+    "decisionWaitingAgent": "Agent Running",
+    "decisionWaitingSystem": "Waiting System",
+    "decisionSafeAuto": "Safe Auto",
+    "decisionHitlGuarded": "HITL Guarded",
+    "decisionFrame": {
+      "actionReview": "Review verification & approve completion",
+      "actionUnblockHuman": "Resolve blocker / grant approval",
+      "actionCheckBlock": "Waiting for dependency or schedule",
+      "actionRetryOrDiagnose": "Retry task or inspect failure diagnostic",
+      "actionSpecify": "Specify criteria & move to ready",
+      "actionVerifying": "Agent verifying acceptance criteria",
+      "actionRunning": "Agent executing autonomous plan",
+      "actionDispatching": "Queued for next available agent runner",
+      "actionBacklog": "Prioritize or schedule for execution",
+      "actionDone": "Task completed successfully"
+    }
   },
   "channels": {
     "sectionTitle": "Message Channels",

@@ -161,14 +161,18 @@ class SkillMarketService:
         self,
         skill_id: str,
         source: str,
+        *,
+        allow_downgrade: bool = False,
     ) -> SkillInstallResult:
-        return await self._base.install(skill_id, source)
+        return await self._base.install(skill_id, source, allow_downgrade=allow_downgrade)
 
     async def install_from_url(
         self,
         url: str,
+        *,
+        allow_downgrade: bool = False,
     ) -> SkillInstallResult:
-        return await self._base.install_from_url(url)
+        return await self._base.install_from_url(url, allow_downgrade=allow_downgrade)
 
     async def analyze_url(self, url: str) -> list[dict[str, object]]:
         """Analyze a GitHub URL and return a list of specific subdirectories that contain skills."""

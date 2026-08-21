@@ -267,20 +267,57 @@ function hasPosHeader(relPath: string): boolean {
   return readDocHead(relPath).includes(POS_MARKER);
 }
 
-function isGitTracked(relPath: string): boolean {
-  const result = spawnSync('git', ['ls-files', '--error-unmatch', '--', relPath], {
-    cwd: DESKTOP_ROOT,
-    stdio: 'ignore',
-  });
-  if (result.status === 0) {
-    return true;
+function getTrackedFilesSet(): Set<string> {
+  const set = new Set<string>();
+  const res1 = spawnSync('git', ['ls-files'], { cwd: DESKTOP_ROOT, encoding: 'utf8' });
+  if (res1.status === 0 && res1.stdout) {
+    for (const rawLine of res1.stdout.split('\n')) {
+      const file = rawLine.trim().replaceAll('\\', '/');
+      if (file) set.add(file);
+    }
   }
-  // If desktop is inside monorepo, check from repo root with desktop prefix
-  const repoResult = spawnSync('git', ['ls-files', '--error-unmatch', '--', `myrm-agent-desktop/${relPath}`], {
-    cwd: join(DESKTOP_ROOT, '..'),
-    stdio: 'ignore',
+  const parentRepo = join(DESKTOP_ROOT, '..');
+  const res2 = spawnSync('git', ['ls-files'], {
+    cwd: parentRepo,
+    encoding: 'utf8',
   });
-  return repoResult.status === 0;
+  if (res2.status === 0 && res2.stdout) {
+    for (const rawLine of res2.stdout.split('\n')) {
+      const file = rawLine.trim().replaceAll('\\', '/');
+      if (file.startsWith('myrm-agent-desktop/')) {
+        set.add(file.slice('myrm-agent-desktop/'.length));
+      }
+    }
+  }
+  const topRepo = join(DESKTOP_ROOT, '../..');
+  const res3 = spawnSync('git', ['ls-files'], {
+    cwd: topRepo,
+    encoding: 'utf8',
+  });
+  if (res3.status === 0 && res3.stdout) {
+    for (const rawLine of res3.stdout.split('\n')) {
+      const file = rawLine.trim().replaceAll('\\', '/');
+      if (file.startsWith('myrm-agent/myrm-agent-desktop/')) {
+        set.add(file.slice('myrm-agent/myrm-agent-desktop/'.length));
+      }
+    }
+  }
+  return set;
+}
+
+let cachedTrackedFiles: Set<string> | null = null;
+
+export function isGitTracked(relPath: string): boolean {
+  if (!cachedTrackedFiles) {
+    cachedTrackedFiles = getTrackedFilesSet();
+  }
+  const clean = relPath.replaceAll('\\', '/');
+  // If git tracked list is populated, check set
+  if (cachedTrackedFiles.size > 0) {
+    return cachedTrackedFiles.has(clean);
+  }
+  // Fallback to checking file existence on disk
+  return existsSync(join(DESKTOP_ROOT, clean));
 }
 
 export function collectFractalDocViolations(): string[] {
