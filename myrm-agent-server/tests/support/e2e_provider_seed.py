@@ -1,12 +1,11 @@
 """@input: urllib (stdlib), tests.support.test_secrets::TestSecrets (POS: [T] secrets loader)
 @output: ResolvedE2ELlmEndpoints, resolve_e2e_llm_endpoints(), probe_openai_compatible_base(), probe_llm_api_key(), upsert_provider(), infer_provider_id(), strip_provider_prefix()
-@pos: [T] Shared LIVE Chrome E2E provider-seed SSOT — single upsert + LLM endpoint resolve with gateway probe and direct OpenCode fallback.
+@pos: [T] Shared LIVE Chrome E2E provider-seed SSOT — single upsert + LLM endpoint resolve with OmniRoute gateway preflight (fail-fast, no silent fallback).
 """
 
 from __future__ import annotations
 
 import json
-import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -14,9 +13,6 @@ from dataclasses import dataclass
 from tests.support.test_secrets import TestSecrets, load_test_secrets
 
 NONEXISTENT_MODEL_ID = "__e2e_nonexistent_model__"
-
-_DIRECT_OPENCODE_BASE = "https://opencode.ai/zen/go/v1"
-_DIRECT_OPENCODE_MODEL = "openai-like/deepseek-v4-flash"
 _LOCAL_GATEWAY_HOST = "localhost:20128"
 
 
@@ -28,7 +24,6 @@ class ResolvedE2ELlmEndpoints:
     lite_base_url: str
     lite_model: str
     lite_api_key: str
-    used_fallback: bool
 
 
 def probe_openai_compatible_base(base_url: str, *, timeout_sec: float = 3.0) -> bool:
@@ -94,7 +89,7 @@ def probe_llm_api_key(
 def resolve_e2e_llm_endpoints(
     secrets: TestSecrets | None = None,
 ) -> ResolvedE2ELlmEndpoints:
-    """Resolve LIVE E2E LLM endpoints, falling back when the local OmniRoute gateway is down."""
+    """Resolve LIVE E2E LLM endpoints; fail fast when OmniRoute :20128 is misconfigured."""
     resolved = secrets or load_test_secrets()
     basic_url = resolved.basic_base_url
     lite_url = resolved.lite_base_url or basic_url
@@ -103,45 +98,26 @@ def resolve_e2e_llm_endpoints(
     basic_key = resolved.basic_api_key
     lite_key = resolved.lite_api_key or basic_key
 
-    uses_local_gateway = _LOCAL_GATEWAY_HOST in basic_url or _LOCAL_GATEWAY_HOST in lite_url
-    gateway_reachable = probe_openai_compatible_base(basic_url) if uses_local_gateway else False
-    gateway_auth_ok = probe_llm_api_key(basic_url, basic_key, basic_model) if gateway_reachable else False
-    if uses_local_gateway and gateway_reachable and gateway_auth_ok:
-        return ResolvedE2ELlmEndpoints(
-            basic_base_url=basic_url,
-            basic_model=basic_model,
-            basic_api_key=basic_key,
-            lite_base_url=lite_url,
-            lite_model=lite_model,
-            lite_api_key=lite_key,
-            used_fallback=False,
+    uses_local_gateway = (
+        _LOCAL_GATEWAY_HOST in basic_url or _LOCAL_GATEWAY_HOST in lite_url
+    )
+    if uses_local_gateway:
+        gateway_reachable = probe_openai_compatible_base(basic_url)
+        gateway_auth_ok = (
+            probe_llm_api_key(basic_url, basic_key, basic_model)
+            if gateway_reachable
+            else False
         )
-    if uses_local_gateway and (not gateway_reachable or not gateway_auth_ok):
-        direct_key = resolved.get("E2E_DIRECT_OPENCODE_API_KEY")
-        if not direct_key:
+        if not gateway_reachable:
             raise RuntimeError(
-                "localhost:20128 unreachable or gateway key rejected, and E2E_DIRECT_OPENCODE_API_KEY missing in .env.test"
+                f"OmniRoute gateway {_LOCAL_GATEWAY_HOST} unreachable — "
+                "start with: bash ~/.omniroute/start-omniroute.sh"
             )
-        if not probe_llm_api_key(_DIRECT_OPENCODE_BASE, direct_key, _DIRECT_OPENCODE_MODEL):
+        if not gateway_auth_ok:
             raise RuntimeError(
-                "E2E LLM preflight failed: gateway unavailable/invalid and "
-                "direct OpenCode endpoint rejected E2E_DIRECT_OPENCODE_API_KEY"
+                f"OmniRoute gateway {_LOCAL_GATEWAY_HOST} rejected BASIC_API_KEY or "
+                f"BASIC_MODEL ({basic_model!r}) on chat preflight — fix .env.test"
             )
-        reason = "gateway key rejected" if gateway_reachable and not gateway_auth_ok else f"{_LOCAL_GATEWAY_HOST} unreachable"
-        print(
-            f"[E2E_LLM_PROXY_FALLBACK] {reason}; using direct OpenCode Go endpoint",
-            file=sys.stderr,
-            flush=True,
-        )
-        return ResolvedE2ELlmEndpoints(
-            basic_base_url=_DIRECT_OPENCODE_BASE,
-            basic_model=_DIRECT_OPENCODE_MODEL,
-            basic_api_key=direct_key,
-            lite_base_url=_DIRECT_OPENCODE_BASE,
-            lite_model=_DIRECT_OPENCODE_MODEL,
-            lite_api_key=direct_key,
-            used_fallback=True,
-        )
 
     return ResolvedE2ELlmEndpoints(
         basic_base_url=basic_url,
@@ -150,7 +126,6 @@ def resolve_e2e_llm_endpoints(
         lite_base_url=lite_url,
         lite_model=lite_model,
         lite_api_key=lite_key,
-        used_fallback=False,
     )
 
 
@@ -196,7 +171,9 @@ def upsert_provider(
                 enabled = item.get("enabledModels")
                 available = item.get("availableModels")
                 enabled_models = (
-                    list(enabled) + [model_id] if isinstance(enabled, list) and model_id not in enabled else [model_id]
+                    list(enabled) + [model_id]
+                    if isinstance(enabled, list) and model_id not in enabled
+                    else [model_id]
                 )
                 available_models = (
                     list(available) + [model_id]
@@ -218,7 +195,7 @@ def upsert_provider(
 
 
 def build_e2e_model_selection(*, use_lite: bool = True) -> dict[str, object]:
-    """Model selection for LIVE agent-stream using gateway probe + OpenCode fallback."""
+    """Model selection for LIVE agent-stream using gateway preflight."""
     from tests.api.agent.utils import _convert_litellm_model
 
     endpoints = resolve_e2e_llm_endpoints()

@@ -6,6 +6,8 @@ import type { PetState } from './PetStateMachine';
 
 export type PetSurfaceMode = 'embedded' | 'popped-out';
 
+export type PetSurfaceVoiceState = 'idle' | 'listening' | 'processing' | 'speaking';
+
 export interface PetSurfaceBounds {
   x: number;
   y: number;
@@ -23,6 +25,8 @@ export interface PetSurfaceStatePayload {
   loading: boolean;
   unread: boolean;
   activeChatId: string | null;
+  voiceState?: PetSurfaceVoiceState;
+  audioLevel?: number;
 }
 
 export type PetSurfaceControl =
@@ -32,6 +36,10 @@ export type PetSurfaceControl =
   | { type: 'open-app' }
   | { type: 'toggle-app' }
   | { type: 'clear-unread' }
+  | { type: 'voice-toggle' }
+  | { type: 'voice-interrupt' }
+  | { type: 'voice-ptt-start' }
+  | { type: 'voice-ptt-stop' }
   | { type: 'bounds'; bounds: PetSurfaceBounds };
 
 export const PET_SURFACE_STATE_EVENT = 'pet-surface-state';

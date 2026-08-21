@@ -7,6 +7,7 @@ import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
 import SamplePrompts from './SamplePrompts';
 import ConversationRecallHint from './ConversationRecallHint';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
+import GrowingLoopDiscoveryChip from './GrowingLoopDiscoveryChip';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
@@ -34,6 +35,8 @@ const EmptyChat = React.memo(() => {
         </div>
 
         <MigrationDiscoveryBanner />
+
+        <GrowingLoopDiscoveryChip />
 
         <ConversationRecallHint />
 

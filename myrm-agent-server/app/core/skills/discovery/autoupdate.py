@@ -97,7 +97,9 @@ class SkillAutoUpdateChecker:
         from myrm_agent_harness.agent.skills.market.helpers import read_origin
         from myrm_agent_harness.agent.skills.market.service import LOCAL_INSTALL_DIR
 
-        non_prebuilt_sources = [s for s in market_service._sources if s.source_name != "prebuilt"]
+        non_prebuilt_sources = [
+            s for s in market_service._sources if s.source_name != "prebuilt"
+        ]
         update_infos: list[SkillUpdateInfo] = []
 
         for skill in installed:
@@ -109,7 +111,9 @@ class SkillAutoUpdateChecker:
 
             sources_to_check = non_prebuilt_sources
             if origin_source:
-                preferred = [s for s in non_prebuilt_sources if s.source_name == origin_source]
+                preferred = [
+                    s for s in non_prebuilt_sources if s.source_name == origin_source
+                ]
                 if preferred:
                     sources_to_check = preferred
 
@@ -146,6 +150,8 @@ class SkillAutoUpdateChecker:
         self,
         update_info: SkillUpdateInfo,
         user_id: str,
+        *,
+        allow_downgrade: bool = False,
     ) -> SkillInstallResult:
         """Perform a non-inplace update via quarantine install flow.
 
@@ -157,6 +163,7 @@ class SkillAutoUpdateChecker:
         return await market_service.install(
             skill_id=update_info.skill_id,
             source=update_info.source,
+            allow_downgrade=allow_downgrade,
         )
 
 

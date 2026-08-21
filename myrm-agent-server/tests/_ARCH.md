@@ -11,8 +11,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`**（与 `scripts/dev/e2e_session/profile.py` 对齐） |
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
-| `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`）；可选 `E2E_DIRECT_OPENCODE_API_KEY` 供 `resolve_e2e_llm_endpoints` 在 `localhost:20128` 网关不可用时 fallback OpenCode Go |
-| `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（gateway `/models` + chat 鉴权 preflight · direct OpenCode fallback）；OmniRoute 运维见 `tools/cursor-usage-watch/docs/OMNIRoute_GATEWAY_SYSTEM.md` |
+| `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
+| `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（OmniRoute `:20128` preflight · fail-fast，无 silent fallback）、`seed_live_e2e_providers` |
 | `support/test_e2e_provider_seed.py` | 单元 | `resolve_e2e_llm_endpoints` keep/fallback 契约 |
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |

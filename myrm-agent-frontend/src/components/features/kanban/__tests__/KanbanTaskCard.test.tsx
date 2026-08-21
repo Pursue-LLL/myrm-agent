@@ -48,6 +48,10 @@ vi.mock('lucide-react', () => ({
   Paperclip: () => <span />,
   Sparkles: () => <span />,
   User: () => <span />,
+  ShieldAlert: () => <span />,
+  ShieldCheck: () => <span />,
+  UserCheck: () => <span />,
+  Bot: () => <span />,
 }));
 
 function makeTask(overrides: Partial<KanbanTask> = {}): KanbanTask {

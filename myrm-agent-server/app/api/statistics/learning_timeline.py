@@ -23,7 +23,11 @@ from enum import StrEnum
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryType
+from myrm_agent_harness.toolkits.memory import (
+    MemoryManager,
+    MemoryOperationKind,
+    MemoryType,
+)
 from pydantic import BaseModel, Field
 
 from app.core.skills.store.service import skills_service
@@ -32,7 +36,10 @@ from app.core.utils.response_utils import success_response
 from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
-from app.services.memory.operations.presentation import memory_to_item, parse_memory_type
+from app.services.memory.operations.presentation import (
+    memory_to_item,
+    parse_memory_type,
+)
 from app.services.skills.growth.audit_queries import list_skill_growth_timeline
 
 router = APIRouter()
@@ -87,8 +94,12 @@ class TimelineSkillArchiveResponse(BaseModel):
 @router.get("/learning-timeline")
 async def get_learning_timeline(
     days: int = Query(30, ge=1, le=365, description="Lookback window in days"),
-    agent_id: str | None = Query(None, description="Filter by agent ID (or None for global)"),
-    kind_filter: str | None = Query(None, description="Filter by node kind (comma separated)"),
+    agent_id: str | None = Query(
+        None, description="Filter by agent ID (or None for global)"
+    ),
+    kind_filter: str | None = Query(
+        None, description="Filter by node kind (comma separated)"
+    ),
     limit: int = Query(50, ge=1, le=100, description="Items per page limit"),
     cursor: str | None = Query(None, description="Timestamp cursor for pagination"),
     manager: MemoryManager = Depends(get_crud_memory_manager),
@@ -130,13 +141,17 @@ async def get_learning_timeline(
 
         memory_results = await asyncio.gather(*memory_tasks, return_exceptions=True)
 
-        for mem_type, mem_list in zip(target_memory_types, memory_results, strict=False):
+        for mem_type, mem_list in zip(
+            target_memory_types, memory_results, strict=False
+        ):
             if isinstance(mem_list, Exception):
                 logger.warning("Failed to list memories for %s: %s", mem_type, mem_list)
                 continue
 
             for mem in mem_list:
-                created_at = getattr(mem, "created_at", None) or getattr(mem, "timestamp", None)
+                created_at = getattr(mem, "created_at", None) or getattr(
+                    mem, "timestamp", None
+                )
                 if not isinstance(created_at, datetime):
                     continue
                 if created_at.tzinfo is None:
@@ -199,7 +214,9 @@ async def get_learning_timeline(
 
         # 2. Fetch skill evolution events
         try:
-            timeline_events = await list_skill_growth_timeline(limit=limit * 2, days=days)
+            timeline_events = await list_skill_growth_timeline(
+                limit=limit * 2, days=days
+            )
             for evt in timeline_events:
                 evt_created = evt.created_at
                 if evt_created.tzinfo is None:
@@ -210,7 +227,11 @@ async def get_learning_timeline(
                 if cursor_dt and evt_created >= cursor_dt:
                     continue
 
-                kind = TimelineNodeKind.SKILL_DRAFT if evt.source.value == "draft" else TimelineNodeKind.SKILL_EVOLUTION
+                kind = (
+                    TimelineNodeKind.SKILL_DRAFT
+                    if evt.source.value == "draft"
+                    else TimelineNodeKind.SKILL_EVOLUTION
+                )
                 if allowed_kinds and kind.value not in allowed_kinds:
                     continue
 
@@ -219,7 +240,8 @@ async def get_learning_timeline(
                         id=evt.case_id,
                         kind=kind,
                         title=f"Skill: {evt.skill_name}",
-                        content=evt.change_summary or f"Evolution {evt.growth_type} ({evt.status.value})",
+                        content=evt.change_summary
+                        or f"Evolution {evt.growth_type} ({evt.status.value})",
                         created_at=evt_created.isoformat(),
                         agent_id=None,
                         confidence=1.0,
@@ -242,7 +264,9 @@ async def get_learning_timeline(
         total_count = len(items)
         has_more = total_count > limit
         paginated_items = items[:limit]
-        next_cursor = paginated_items[-1].created_at if has_more and paginated_items else None
+        next_cursor = (
+            paginated_items[-1].created_at if has_more and paginated_items else None
+        )
 
         response_payload = LearningTimelineResponse(
             items=paginated_items,

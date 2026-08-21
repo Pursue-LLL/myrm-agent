@@ -9538,6 +9538,8 @@
       "benchmarkNdcg": "NDCG@{k}",
       "benchmarkMrr": "MRR",
       "benchmarkPrecision": "精确率@{k}",
+      "benchmarkDuplicateRate": "重复分块率",
+      "benchmarkDistinctSources": "来源多样性",
       "benchmarkLatencyP50": "延迟 P50",
       "benchmarkLatencyP95": "延迟 P95",
       "benchmarkCategories": "分类明细",
@@ -10775,6 +10777,7 @@
   "artifacts": {
     "title": "工件",
     "empty": "暂无工件资产",
+    "emptyDesc": "智能体在对话中生成的报告、图表、代码将自动归档在此",
     "select_prompt": "选择左侧工件查看不可变时间线",
     "no_desc": "无描述",
     "version_history": "版本时间线（不可篡改）",
@@ -14818,6 +14821,57 @@
         "actionFailed": "操作失败: {error}"
       }
     },
+    "learningLoop": {
+      "title": "闭环学习五环状态中心",
+      "subtitle": "全域自进化闭环拓扑与健康可观测看板",
+      "healthScore": "闭环健康度",
+      "optimal": "极佳运转",
+      "warning": "需要关注",
+      "degraded": "存在退化",
+      "totalLearnings": "全域沉淀资产",
+      "ring1": {
+        "name": "战后自省",
+        "stage": "Trace 挖掘与反模式",
+        "desc": "闲时自动回溯会话执行日志，挖掘工具调用失败、挫败信号与人工纠错。",
+        "metricsTraces": "分析会话: {count}",
+        "metricsAntiPatterns": "捕获反模式: {count}"
+      },
+      "ring2": {
+        "name": "技能提炼",
+        "stage": "自动生成与优化提案",
+        "desc": "基于自省证据与高频行为模式，生成技能修复 (FIX) 与优化 (DERIVED) 提案。",
+        "metricsProposals": "提炼提案: {count}",
+        "metricsApproved": "已采纳: {count}"
+      },
+      "ring3": {
+        "name": "施用自进",
+        "stage": "基线评测与防退化门禁",
+        "desc": "通过 Improvement Gate 与 EvalCase 回归评测，确保新演化方案严格优于基线才准许晋级。",
+        "metricsEvals": "评测验证: {count}",
+        "metricsBlocked": "拦截退化: {count}",
+        "metricsBoost": "提升率: +{pct}%"
+      },
+      "ring4": {
+        "name": "周期自警",
+        "stage": "闲时整理与记忆去噪",
+        "desc": "记忆守护线程在后台自动去重、合并碎片偏好，并对陈旧规则实施平滑衰减与去噪。",
+        "metricsCycles": "维护周期: {count}",
+        "metricsMerged": "合并去重: {count}",
+        "metricsMemories": "记忆总量: {count}"
+      },
+      "ring5": {
+        "name": "渐构画像",
+        "stage": "跨会话召回与偏好演进",
+        "desc": "基于 FTS5 与向量语义持续构建精准用户画像，实现任意会话历史知识与偏好的毫秒级召回。",
+        "metricsIndexed": "会话索引: {count}",
+        "metricsDimensions": "画像维度: {count}"
+      },
+      "discoveryChip": {
+        "growsWithYou": "越用越懂 · 五环闭环运转中",
+        "stats": "已沉淀 {memories} 条记忆 · {skills} 项活跃技能",
+        "viewLoop": "查看闭环"
+      }
+    },
     "knowledgeGraph": {
       "title": "知识图谱",
       "description": "可视化 Agent 记忆与知识之间的语义关联。"
@@ -15076,6 +15130,7 @@
       "limitHitTitle": "该用例因达到配置的运行预算（如最大工具调用次数）而停止——其回答不完整",
       "blocked": "已拦截",
       "blockedTitle": "本次运行中，搜索查询或 URL 被评测去污染守卫拦截",
+      "retrievalSpanRecallTitle": "检索片段召回率",
       "toolCallsTitle": "该用例轨迹中记录的工具调用次数",
       "status": "状态",
       "messageSnippet": "消息片段",

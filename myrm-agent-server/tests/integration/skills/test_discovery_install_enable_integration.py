@@ -65,7 +65,9 @@ async def test_install_api_enables_catalog_and_runtime_includes_skill(
 ) -> None:
     skill_dir = tmp_path / "demo-skill"
     skill_dir.mkdir()
-    (skill_dir / "SKILL.md").write_text("---\nname: demo-skill\ndescription: demo\n---\n")
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: demo-skill\ndescription: demo\n---\n"
+    )
     catalog_id = local_skill_id_from_path(skill_dir)
 
     with (
@@ -122,7 +124,9 @@ async def test_install_api_skips_enable_when_mount_disabled(
 ) -> None:
     skill_dir = tmp_path / "keep-disabled"
     skill_dir.mkdir()
-    (skill_dir / "SKILL.md").write_text("---\nname: keep-disabled\ndescription: x\n---\n")
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: keep-disabled\ndescription: x\n---\n"
+    )
     catalog_id = local_skill_id_from_path(skill_dir)
 
     with (
@@ -217,7 +221,9 @@ async def test_update_api_enables_catalog_after_reinstall(
 ) -> None:
     skill_dir = tmp_path / "update-skill"
     skill_dir.mkdir()
-    (skill_dir / "SKILL.md").write_text("---\nname: update-skill\ndescription: u\n---\n")
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: update-skill\ndescription: u\n---\n"
+    )
     catalog_id = local_skill_id_from_path(skill_dir)
 
     with (
@@ -560,7 +566,10 @@ async def test_install_appends_explicit_allowlist_when_agent_has_subset(
 async def test_install_returns_receipt_when_provided(
     discovery_client: TestClient,
 ) -> None:
-    from myrm_agent_harness.backends.skills.market_protocols import SkillFileDigest, SkillInstallReceipt
+    from myrm_agent_harness.backends.skills.market_protocols import (
+        SkillFileDigest,
+        SkillInstallReceipt,
+    )
 
     receipt = SkillInstallReceipt(
         receipt_id="rcpt_123456",
@@ -570,7 +579,9 @@ async def test_install_returns_receipt_when_provided(
         installed_at="2026-08-20T12:00:00Z",
         version="1.0.0",
         installed_path="/path/to/skill",
-        files=(SkillFileDigest(relative_path="SKILL.md", sha256="abc", size_bytes=100),),
+        files=(
+            SkillFileDigest(relative_path="SKILL.md", sha256="abc", size_bytes=100),
+        ),
         installed_skills=("test-skill",),
         declared_mcp_servers=("mcp_server",),
         scan_score=100,
@@ -613,7 +624,6 @@ async def test_install_returns_receipt_when_provided(
     assert body["receipt"]["manifest_hash"] == "hash123"
     assert body["receipt"]["scan_score"] == 100
     assert body["receipt"]["security_verified"] is True
-
 
 
 @pytest.mark.asyncio

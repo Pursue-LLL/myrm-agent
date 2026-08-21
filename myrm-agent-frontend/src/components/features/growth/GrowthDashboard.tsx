@@ -28,6 +28,7 @@ import { showApiError } from '@/lib/api';
 import ActivityHeatmap from './ActivityHeatmap';
 import DailyJournal from './DailyJournal';
 import HealthRadar from './HealthRadar';
+import LearningLoopFiveRingHub from './LearningLoopFiveRingHub';
 import LearningTimeline from './LearningTimeline';
 import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
@@ -253,6 +254,9 @@ export default function GrowthDashboard() {
         </TabsContent>
 
         <TabsContent value="overview" className="mt-4 space-y-6">
+          {/* Learning Loop Five-Ring Status Hub */}
+          <LearningLoopFiveRingHub onNavigateTab={setActiveTab} />
+
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {kpiCards.map((card) => (

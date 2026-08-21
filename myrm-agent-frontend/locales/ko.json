@@ -10473,6 +10473,7 @@
   "artifacts": {
     "title": "아티팩트",
     "empty": "아직 아티팩트가 없습니다",
+    "emptyDesc": "대화 중 에이전트가 생성한 보고서, 차트, 코드가 여기에 보관됩니다",
     "select_prompt": "왼쪽에서 아티팩트를 선택하여 불변 타임라인을 확인하세요",
     "no_desc": "설명 없음",
     "version_history": "버전 타임라인 (변조 방지)",
@@ -14359,6 +14360,7 @@
       "limitHitTitle": "이 케이스는 구성된 실행 예산(예: 최대 도구 호출 수)에 도달하여 중단되었습니다 — 답변이 불완전합니다",
       "blocked": "차단됨",
       "blockedTitle": "이 실행에서 검색 쿼리 또는 URL이 디컨타미네이션 가드에 의해 거부되었습니다",
+      "retrievalSpanRecallTitle": "검색 스팬 재현율",
       "toolCallsTitle": "이 사례의 궤적에 기록된 도구 호출",
       "environment": "환경 스냅샷",
       "envModel": "모델",

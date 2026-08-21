@@ -789,3 +789,66 @@ export async function archiveTimelineSkill(skillId: string, active = false): Pro
     },
   );
 }
+
+// ── Learning Loop Five-Ring Status (Roadmap #55) ──────────────────────
+
+export interface Ring1ReflectionStatus {
+  total_traces_analyzed: number;
+  anti_patterns_detected: number;
+  recent_reflection_time: string | null;
+  is_active: boolean;
+  status: string;
+}
+
+export interface Ring2DistillationStatus {
+  proposals_generated: number;
+  proposals_approved: number;
+  proposals_pending: number;
+  proposals_rejected: number;
+  total_active_skills: number;
+  is_active: boolean;
+  status: string;
+}
+
+export interface Ring3AdvancementStatus {
+  evaluations_run: number;
+  regressions_blocked: number;
+  avg_score_boost_pct: number;
+  is_active: boolean;
+  status: string;
+}
+
+export interface Ring4ConsolidationStatus {
+  consolidation_cycles: number;
+  memories_merged: number;
+  noise_pruned: number;
+  memory_health_score: number;
+  total_memories: number;
+  is_active: boolean;
+  status: string;
+}
+
+export interface Ring5ProfilingStatus {
+  conversations_indexed: number;
+  profile_dimensions: number;
+  cross_session_recall_ready: boolean;
+  is_active: boolean;
+  status: string;
+}
+
+export interface LearningLoopFiveRingStatusResponse {
+  ring1_reflection: Ring1ReflectionStatus;
+  ring2_distillation: Ring2DistillationStatus;
+  ring3_advancement: Ring3AdvancementStatus;
+  ring4_consolidation: Ring4ConsolidationStatus;
+  ring5_profiling: Ring5ProfilingStatus;
+  overall_loop_health_score: number;
+  overall_status: 'optimal' | 'warning' | 'degraded';
+  total_learnings_count: number;
+  summary_text: string;
+}
+
+export async function getLearningLoopStatus(days = 30): Promise<LearningLoopFiveRingStatusResponse> {
+  return apiRequest<LearningLoopFiveRingStatusResponse>(`/statistics/learning-loop/status?days=${days}`);
+}
+

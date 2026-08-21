@@ -10697,6 +10697,7 @@
   "artifacts": {
     "title": "工件",
     "empty": "暫無工件資產",
+    "emptyDesc": "智慧體在對話中產生的報告、圖表、程式碼將自動歸檔在此",
     "select_prompt": "選擇左側工件檢視不可變時間線",
     "no_desc": "無描述",
     "version_history": "版本時間線（不可篡改）",
@@ -15006,6 +15007,7 @@
       "limitHitTitle": "該用例因達到設定的執行預算（如最大工具呼叫次數）而停止——其回答不完整",
       "blocked": "已攔截",
       "blockedTitle": "本次執行中，搜尋查詢或 URL 被評測去汙染防護攔截",
+      "retrievalSpanRecallTitle": "檢索片段召回率",
       "toolCallsTitle": "本案例軌跡中記錄的工具呼叫次數"
     },
     "history": {

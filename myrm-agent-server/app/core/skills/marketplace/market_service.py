@@ -85,7 +85,9 @@ class SkillMarketService:
         from app.config.settings import settings
 
         github_token = settings.services.github_token.get_secret_value() or None
-        self._base = BaseSkillMarketService(github_token=github_token, skill_store=_AppSkillStore())
+        self._base = BaseSkillMarketService(
+            github_token=github_token, skill_store=_AppSkillStore()
+        )
         self._github_token = github_token
         self._clawhub_registry_applied = False
         self._register_custom_sources()
@@ -139,7 +141,9 @@ class SkillMarketService:
                     source = WellKnownSkillSource(entry.url)
                     self._base.register_source(source)
                 except ValueError as e:
-                    logger.warning("Skipping invalid custom source %s: %s", entry.url, e)
+                    logger.warning(
+                        "Skipping invalid custom source %s: %s", entry.url, e
+                    )
 
     @property
     def _sources(self) -> list[SkillSource]:
@@ -154,7 +158,9 @@ class SkillMarketService:
         installed_versions = await self._get_installed_versions()
         return cast(
             list[EnrichedSearchResult],
-            await self._base.search(query, limit=limit, installed_versions_map=installed_versions),
+            await self._base.search(
+                query, limit=limit, installed_versions_map=installed_versions
+            ),
         )
 
     async def install(
@@ -164,7 +170,9 @@ class SkillMarketService:
         *,
         allow_downgrade: bool = False,
     ) -> SkillInstallResult:
-        return await self._base.install(skill_id, source, allow_downgrade=allow_downgrade)
+        return await self._base.install(
+            skill_id, source, allow_downgrade=allow_downgrade
+        )
 
     async def install_from_url(
         self,
@@ -190,12 +198,18 @@ class SkillMarketService:
             async def _fetch_metadata(r: GitHubRef) -> dict[str, object]:
                 base = f"https://github.com/{r.owner}/{r.repo}"
                 name = r.subdirectory.split("/")[-1] if r.subdirectory else r.repo
-                full_url = f"{base}/tree/{r.ref}/{r.subdirectory}" if (r.subdirectory and r.ref) else base
+                full_url = (
+                    f"{base}/tree/{r.ref}/{r.subdirectory}"
+                    if (r.subdirectory and r.ref)
+                    else base
+                )
                 description = ""
 
                 # Fetch raw SKILL.md to get true name and description
                 raw_base = f"https://raw.githubusercontent.com/{r.owner}/{r.repo}/{r.ref or 'HEAD'}"
-                raw_path = f"{r.subdirectory}/SKILL.md" if r.subdirectory else "SKILL.md"
+                raw_path = (
+                    f"{r.subdirectory}/SKILL.md" if r.subdirectory else "SKILL.md"
+                )
 
                 headers = {}
                 if self._github_token:
@@ -203,16 +217,22 @@ class SkillMarketService:
 
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     try:
-                        resp = await client.get(f"{raw_base}/{raw_path}", headers=headers)
+                        resp = await client.get(
+                            f"{raw_base}/{raw_path}", headers=headers
+                        )
                         if resp.status_code == 200:
                             content = resp.text
-                            match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+                            match = re.match(
+                                r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL
+                            )
                             if match:
                                 yaml_mod = importlib.import_module("yaml")
                                 frontmatter = yaml_mod.safe_load(match.group(1))
                                 if isinstance(frontmatter, dict):
                                     name = str(frontmatter.get("name", name))
-                                    description = str(frontmatter.get("description", description))
+                                    description = str(
+                                        frontmatter.get("description", description)
+                                    )
                     except Exception as e:
                         logger.debug("Failed to fetch SKILL.md for %s: %s", raw_path, e)
 
@@ -246,7 +266,9 @@ class SkillMarketService:
             try:
                 await purge_skill_permissions(skill_id)
             except Exception as e:
-                logger.warning("Failed to purge permission data for %s: %s", skill_id, e)
+                logger.warning(
+                    "Failed to purge permission data for %s: %s", skill_id, e
+                )
             logger.info("Uninstalled skill: %s", skill_id)
         return result
 
@@ -257,7 +279,9 @@ class SkillMarketService:
             skills = await skills_service.list_skills()
             return {s.name.lower(): s.version for s in skills}
         except Exception as e:
-            logger.warning("Failed to fetch installed skills for version comparison: %s", e)
+            logger.warning(
+                "Failed to fetch installed skills for version comparison: %s", e
+            )
             return {}
 
     async def get_installed_local_ids_by_name(self) -> dict[str, str]:

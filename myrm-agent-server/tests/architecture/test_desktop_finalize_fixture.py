@@ -18,7 +18,9 @@ def test_finalize_fixture_script_passes() -> None:
         capture_output=True,
         text=True,
     )
-    assert completed.returncode == 0, f"finalize-fixture-test failed:\nstdout={completed.stdout}\nstderr={completed.stderr}"
+    assert (
+        completed.returncode == 0
+    ), f"finalize-fixture-test failed:\nstdout={completed.stdout}\nstderr={completed.stderr}"
 
 
 def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:
@@ -28,7 +30,11 @@ def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:
 
     # 1. Empty assets directory -> returns 1 (no asset matched)
     res_empty = subprocess.run(
-        ["bash", "-c", f'source "{pick_script}" && pick_platform_asset darwin-aarch64 "{tmp_path}"'],
+        [
+            "bash",
+            "-c",
+            f'source "{pick_script}" && pick_platform_asset darwin-aarch64 "{tmp_path}"',
+        ],
         cwd=_REPO_ROOT,
         check=False,
         capture_output=True,
@@ -39,7 +45,11 @@ def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:
 
     # 2. Unknown platform -> returns 1
     res_unknown = subprocess.run(
-        ["bash", "-c", f'source "{pick_script}" && pick_platform_asset unknown-platform "{tmp_path}"'],
+        [
+            "bash",
+            "-c",
+            f'source "{pick_script}" && pick_platform_asset unknown-platform "{tmp_path}"',
+        ],
         cwd=_REPO_ROOT,
         check=False,
         capture_output=True,
@@ -51,7 +61,11 @@ def test_pick_platform_asset_missing_and_edge_cases(tmp_path: Path) -> None:
     intel_pkg = tmp_path / "MyrmAgent_x64.app.tar.gz"
     intel_pkg.write_text("intel-content")
     res_intel = subprocess.run(
-        ["bash", "-c", f'source "{pick_script}" && pick_platform_asset darwin-x86_64 "{tmp_path}"'],
+        [
+            "bash",
+            "-c",
+            f'source "{pick_script}" && pick_platform_asset darwin-x86_64 "{tmp_path}"',
+        ],
         cwd=_REPO_ROOT,
         check=False,
         capture_output=True,

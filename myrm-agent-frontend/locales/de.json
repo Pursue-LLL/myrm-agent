@@ -10473,6 +10473,7 @@
   "artifacts": {
     "title": "Artefakte",
     "empty": "Noch keine Artefakte",
+    "emptyDesc": "Vom Agenten während Unterhaltungen erstellte Berichte, Diagramme und Codes werden hier archiviert",
     "select_prompt": "Wählen Sie links ein Artefakt aus, um dessen unveränderliche Zeitleiste anzuzeigen",
     "no_desc": "Keine Beschreibung",
     "version_history": "Versionszeitleiste (manipulationssicher)",
@@ -14359,6 +14360,7 @@
       "limitHitTitle": "Dieser Fall wurde gestoppt, weil das Agent das konfigurierte Ausführungsbudget (z. B. maximale Tool-Aufrufe) erreicht hat — seine Antwort ist unvollständig",
       "blocked": "Blockiert",
       "blockedTitle": "Eine Suchanfrage oder URL wurde während dieses Laufs vom Dekontaminationsschutz abgelehnt",
+      "retrievalSpanRecallTitle": "Abruf-Span-Recall",
       "toolCallsTitle": "In der Trajektorie dieses Falls aufgezeichnete Tool-Aufrufe",
       "environment": "Umgebungsschnappschuss",
       "envModel": "Modell",

@@ -430,7 +430,7 @@ export const useMessageInput = () => {
       const finalFiles = useChatStore.getState().files;
       const failed = finalFiles.some((f) => f.status === 'error');
       if (failed) {
-        toast.error(t('uploadError') || 'Upload failed');
+        toast.error(t('uploadFailed') || 'Upload failed');
         return false;
       }
     }
