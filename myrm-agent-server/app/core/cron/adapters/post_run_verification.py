@@ -50,6 +50,18 @@ def _attach_verification_metadata(
         "passed": passed,
         "summary": summary[:500],
     }
+    tier = "VERIFIED" if passed is True else ("ARTIFACT" if status != "skipped" else "PLAN")
+    metadata["deliverable_tier"] = {
+        "tier": tier,
+        "evidence": {
+            "verification_count": 1 if passed is True else 0,
+            "verification_categories": ["adversarial_review"] if passed is True else [],
+            "files_written": [],
+            "sources_count": 0,
+            "gatekeeper_passed": passed is True,
+            "details": summary[:500] if summary else f"Cron post-run: {status}",
+        },
+    }
     return JobResult(
         success=result.success,
         output=result.output,

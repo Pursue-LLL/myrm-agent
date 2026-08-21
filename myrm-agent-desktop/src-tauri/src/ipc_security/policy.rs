@@ -64,6 +64,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "list_agent_sessions"
             | "get_agent_session"
             | "get_permission_mode"
+            | "get_desktop_process_registry"
             | "power_lock_status"
             | "screen_is_locked"
             | "screen_lock_has_password"
@@ -90,6 +91,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "screen_relock"
             | "screen_lock_store_password"
             | "screen_lock_delete_password"
+            | "kill_desktop_process"
             | "issue_sensitive_action_ticket"
     );
 

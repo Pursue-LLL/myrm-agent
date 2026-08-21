@@ -298,14 +298,20 @@ class KanbanTaskRunner:
         return await resolve_agent_profile(agent_id)
 
     async def _setup_goal_provider(self, task: KanbanTask) -> GoalProvider:
-        """Create a GoalProvider for a goal-mode kanban task."""
-        from myrm_agent_harness.agent.goals.types import GoalBudget
+        """Create or resume a GoalProvider for a goal-mode kanban task."""
+        from myrm_agent_harness.agent.goals.types import GoalBudget, GoalStatus
 
         session_id = f"kanban:{task.task_id}"
         provider = GoalRegistry.get_or_create_provider(session_id)
 
         active = await provider.get_active_goal(session_id)
         if active:
+            return provider
+
+        latest = await provider.get_latest_goal(session_id)
+        if latest and not latest.is_terminal and latest.status in (GoalStatus.PAUSED, GoalStatus.BUDGET_LIMITED, GoalStatus.WAIT):
+            await provider.resume_goal(latest.goal_id, reset_turns=False)
+            logger.info("Goal %s resumed for kanban task %s", latest.goal_id, task.task_id[:8])
             return provider
 
         budget = GoalBudget(max_turns=task.goal_max_turns or 10)
@@ -336,30 +342,53 @@ class KanbanTaskRunner:
         goal_provider: GoalProvider,
         agent_result: tuple[bool, str],
     ) -> tuple[bool, str]:
-        """Map Goal terminal status to Kanban result."""
+        """Map Goal terminal status to Kanban result with SSOT persistence."""
         from myrm_agent_harness.agent.goals.types import GoalStatus
+        from myrm_agent_harness.toolkits.kanban.types import BlockKind, TaskStatus
 
         session_id = f"kanban:{task.task_id}"
-        goal = await goal_provider.get_active_goal(session_id)
+        goal = await goal_provider.get_latest_goal(session_id)
         if not goal:
             return agent_result
 
+        acceptance_results = goal.metadata.get("acceptance_results")
+        fresh = await self._store.get_task(task.task_id)
+
         if goal.status == GoalStatus.COMPLETE:
-            fresh = await self._store.get_task(task.task_id)
+            if fresh is not None:
+                updated_meta = dict(fresh.metadata)
+                if acceptance_results:
+                    updated_meta["acceptance_results"] = acceptance_results
+                fresh.metadata = updated_meta
+                await self._store.save_task(fresh)
+
             if fresh is not None and has_completion_intent(fresh.metadata):
                 turns_info = f" ({goal.turns_used} turns)"
                 summary = fresh.result or agent_result[1] or "Goal completed"
                 return True, summary + turns_info
             return False, _PROTOCOL_VIOLATION_MSG
 
-        if goal.status == GoalStatus.BUDGET_LIMITED:
-            return False, f"Budget exhausted after {goal.turns_used} turns"
+        if goal.status in (GoalStatus.PAUSED, GoalStatus.NEEDS_HUMAN_REVIEW, GoalStatus.WAIT):
+            pause_reason = str(goal.metadata.get("pause_reason") or goal.metadata.get("wait_reason") or "needs review")
+            block_kind = BlockKind.EXTERNAL if goal.status == GoalStatus.WAIT else BlockKind.HUMAN
+            if fresh is not None:
+                fresh.status = TaskStatus.BLOCKED
+                fresh.blocked_reason = pause_reason
+                fresh.block_kind = block_kind
+                updated_meta = dict(fresh.metadata)
+                if acceptance_results:
+                    updated_meta["acceptance_results"] = acceptance_results
+                fresh.metadata = updated_meta
+                await self._store.save_task(fresh)
+            return False, f"Goal paused: {pause_reason}"
 
-        if goal.status in (GoalStatus.PAUSED, GoalStatus.NEEDS_HUMAN_REVIEW):
-            return (
-                False,
-                f"Goal paused: {goal.metadata.get('pause_reason', 'needs review')}",
-            )
+        if goal.status == GoalStatus.BUDGET_LIMITED:
+            if fresh is not None and acceptance_results:
+                updated_meta = dict(fresh.metadata)
+                updated_meta["acceptance_results"] = acceptance_results
+                fresh.metadata = updated_meta
+                await self._store.save_task(fresh)
+            return False, f"Budget exhausted after {goal.turns_used} turns"
 
         return agent_result
 

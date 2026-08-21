@@ -14,8 +14,6 @@ CP-to-sandbox internal probe before container recreate / runtime rolling deploy.
 from __future__ import annotations
 
 import logging
-import os
-import secrets
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel

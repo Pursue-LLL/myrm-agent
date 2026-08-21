@@ -55,6 +55,7 @@ from myrm_agent_harness.infra.delivery.storage import (
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.events import EventEmitter
+from app.channels.core.outbound_gate import get_outbound_content_gate
 from app.channels.i18n import channel_t, get_locale_from_metadata
 from app.channels.reliability.durable_outbound import DurableOutboundGate
 from app.channels.reliability.rate_limiter import (
@@ -784,8 +785,6 @@ class MessageBus:
             msg = _apply_outbound_risk_gate(msg)
 
             # Pre-Publish Outbound Content & Link Liveness Gate
-            from app.channels.core.outbound_gate import get_outbound_content_gate
-
             gate_result = await get_outbound_content_gate().evaluate_and_apply(msg)
             if gate_result is None:
                 # Fail-Closed HOLD triggered on dead links for unattended cron/broadcast messages

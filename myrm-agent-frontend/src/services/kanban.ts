@@ -55,6 +55,14 @@ export interface AttachmentInfo {
   url: string;
 }
 
+export interface AcceptanceResultItem {
+  label: string;
+  passed: boolean;
+  duration_ms?: number;
+  reason?: string;
+  error_logs?: string;
+}
+
 export interface CompletionCriterion {
   type: string;
   criteria?: string;

@@ -81,6 +81,14 @@ macro_rules! tauri_command_registry {
                 "issue_sensitive_action_ticket",
                 crate::ipc_security::issue_sensitive_action_ticket
             ),
+            (
+                "get_desktop_process_registry",
+                crate::commands::process_registry::get_desktop_process_registry
+            ),
+            (
+                "kill_desktop_process",
+                crate::commands::process_registry::kill_desktop_process
+            ),
             ("set_tray_status", tray::set_tray_status),
         }
     };

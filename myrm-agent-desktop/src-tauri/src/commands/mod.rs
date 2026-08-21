@@ -13,6 +13,7 @@ pub mod agent;
 pub mod config;
 pub mod pet_surface;
 pub mod power;
+pub mod process_registry;
 pub mod recovery;
 pub mod screen_lock;
 pub mod session_window;

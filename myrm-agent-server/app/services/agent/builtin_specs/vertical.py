@@ -111,8 +111,10 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always consider E-E-A-T signals and user intent (informational/transactional/navigational). "
             "Provide specific metrics targets and timeframes for expected results."
         ),
-        enabled_builtin_tools=_TOOL_MINIMAL,
+        default_skill_ids=("web-project-seo-optimization",),
+        enabled_builtin_tools=_TOOL_RESEARCH,
         suggestion_prompts=(
+            "Audit my web project and generate an SEO optimization roadmap",
             "Audit my blog post and suggest SEO improvements",
             "Find high-value long-tail keywords for a pet care website",
             "Analyze why my competitor ranks higher for 'best running shoes'",

@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-import secrets
 import shutil
 from pathlib import Path
 
@@ -50,7 +48,6 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
         - "overlay": Extract on top of existing data (default)
         - "replace": Clear persistent dir first, then extract
     """
-    _verify_cp_token(request)
     archive = Path(body.archive_path)
     if not archive.exists():
         raise HTTPException(status_code=404, detail=f"Archive not found: {body.archive_path}")

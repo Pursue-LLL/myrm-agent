@@ -433,4 +433,42 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             ),
         },
     },
+    "seo_weekly_audit": {
+        "title": {
+            "ja": "SEO とサイト健全性の週次監査",
+            "de": "Wöchentliches SEO- & Website-Gesundheitsaudit",
+            "ko": "SEO 및 사이트 상태 주간 감사",
+        },
+        "description": {
+            "ja": "テクニカルSEO、robots、sitemap、メタタグ、AI検索準備状況の定期監査と優先ロードマップ生成",
+            "de": "Regelmäßiges Audit für technisches SEO, robots, sitemap, Meta-Tags und KI-Suchbereitschaft mit Roadmap",
+            "ko": "기술적 SEO, robots, sitemap, 메타 태그 및 AI 검색 준비 상태 정기 감사 및 로드맵 생성",
+        },
+        "prompt_template": {
+            "ja": (
+                "{target_url}（深さ: {depth}）のテクニカルSEOおよびサイト健全性の包括的な監査を実行してください。\n"
+                "1. robots.txt、sitemap.xml、/llms.txt を取得して検証。\n"
+                "2. 主要なレンダリング済みページで title、meta description、canonical、H1、JSON-LD、OpenGraph、hreflang を検査。\n"
+                "3. 内部リンク切れや画像の alt 属性の有無をサンプリング確認。\n"
+                "4. 証拠付きの優先度 P0-P3 SEO-OPTIMIZATION-ROADMAP.md アーティファクトを artifacts/ に生成。\n"
+                "5. 重要な課題と実行可能な次のステップをまとめたエグゼクティブサマリーを提示。"
+            ),
+            "de": (
+                "Führe ein umfassendes technisches SEO- und Website-Gesundheitsaudit für {target_url} (Tiefe: {depth}) durch.\n"
+                "1. robots.txt, sitemap.xml und /llms.txt abrufen und überprüfen.\n"
+                "2. Wichtige Seiten auf Title, Meta Description, Canonical, H1, JSON-LD, OpenGraph und hreflang prüfen.\n"
+                "3. Auf defekte interne Links und fehlende Alt-Texte bei Bildern prüfen.\n"
+                "4. Ein priorisiertes P0-P3 SEO-OPTIMIZATION-ROADMAP.md-Artefakt in artifacts/ mit Nachweisen erstellen.\n"
+                "5. Eine prägnante Zusammenfassung der kritischen Punkte und nächsten Schritte liefern."
+            ),
+            "ko": (
+                "{target_url}(깊이: {depth})에 대한 종합적인 기술적 SEO 및 사이트 상태 감사를 실행하세요.\n"
+                "1. robots.txt, sitemap.xml 및 /llms.txt를 확인 및 검증.\n"
+                "2. 주요 렌더링 페이지의 title, meta description, canonical, H1, JSON-LD, OpenGraph, hreflang 검사.\n"
+                "3. 내부 깨진 링크 및 이미지 alt 태그 누락 샘플링 검사.\n"
+                "4. 실제 증거가 포함된 P0-P3 우선순위 SEO-OPTIMIZATION-ROADMAP.md 아티팩트를 artifacts/에 생성.\n"
+                "5. 핵심 문제점과 실행 가능한 다음 조치를 담은 요약 보고서 제공."
+            ),
+        },
+    },
 }

@@ -569,6 +569,54 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
+        id="seo_weekly_digest",
+        icon="Search",
+        title={"en": "SEO Weekly Digest & Health Audit", "zh": "SEO 周报与站点健康巡检"},
+        description={
+            "en": "Weekly crawling, broken-link detection, metadata auditing, and SEO health report",
+            "zh": "每周自动化抓取、死链检测、元数据审查与 SEO 站点健康度周报",
+        },
+        prompt_template={
+            "en": (
+                "Perform a comprehensive SEO health audit for target website/repository: {target_url_or_repo}. "
+                "1. Check key page status codes and detect 404/broken links or redirect loops. "
+                "2. Audit meta tags (Title, Description, OpenGraph, Canonical, Alternate Hreflang). "
+                "3. Verify sitemap.xml and robots.txt reachability and validity. "
+                "4. Compile a concise, actionable executive summary. If no critical issues or broken links are found, "
+                "provide a short positive health summary; if critical dead links or missing metadata are detected, highlight them prominently."
+            ),
+            "zh": (
+                "对目标站点或项目仓库执行全面的 SEO 健康度巡检：{target_url_or_repo}。"
+                "1. 检查核心页面 HTTP 状态码，排查 404 死链与重定向循环。"
+                "2. 审查核心页面的元标签（Title、Description、OpenGraph、Canonical、多语言 Hreflang）。"
+                "3. 验证 sitemap.xml 与 robots.txt 的可访问性与有效性。"
+                "4. 生成精炼且可落地的周报摘要。若未发现严重死链或元数据缺失，输出精简健康摘要；若发现严重死链或重大问题，高亮预警并提供修复建议。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="03:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="target_url_or_repo",
+                type="text",
+                label="target_url_or_repo",
+                default="",
+            ),
+        ),
+        category="business",
+        tags=("seo", "audit", "monitoring", "sitemap", "dead-links", "weekly"),
+        sort_order=10,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
         id="financial_monitor_simple",
         icon="Activity",
         title={"en": "Financial Monitor (Simple)", "zh": "金融监控（简单版）"},
@@ -1005,6 +1053,62 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
             command="__wiki_dedup__",
         ),
         _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="seo_weekly_audit",
+        icon="Search",
+        title={"en": "SEO & Site Health Weekly Audit", "zh": "SEO 与网站健康周度巡检"},
+        description={
+            "en": "Scheduled audit of technical SEO, robots, sitemap, meta tags, and AI search readiness with prioritized roadmap",
+            "zh": "定时巡检网站 technical SEO、robots、sitemap、标签与 AI 搜索就绪度，生成优先级路线图",
+        },
+        prompt_template={
+            "en": (
+                "Run a comprehensive technical SEO and site health audit for {target_url} (depth: {depth}).\n"
+                "1. Fetch and verify robots.txt, sitemap.xml, and /llms.txt if present.\n"
+                "2. Inspect core rendered pages for title, meta description, canonical, H1, JSON-LD, OpenGraph, and hreflang.\n"
+                "3. Check for dead internal links and broken images.\n"
+                "4. Generate a prioritized P0-P3 SEO-OPTIMIZATION-ROADMAP.md artifact in artifacts/ with concrete evidence.\n"
+                "5. Provide a crisp executive summary of critical issues and actionable next steps."
+            ),
+            "zh": (
+                "对目标站点 {target_url} 执行全面的技术 SEO 与站点健康巡检（检测深度: {depth}）。\n"
+                "1. 抓取并验证 robots.txt、sitemap.xml 以及 /llms.txt（若存在）。\n"
+                "2. 深度检查核心页面的 title、meta description、canonical、H1、JSON-LD 结构化数据、OpenGraph 及 hreflang。\n"
+                "3. 采样检测站内死链与缺失 alt 的图片。\n"
+                "4. 在 artifacts/ 目录生成带真实证据的 P0-P3 结构化 SEO-OPTIMIZATION-ROADMAP.md 工件。\n"
+                "5. 输出精炼的高管摘要，列出致命缺陷与本周可执行的优化动作。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(
+                name="target_url",
+                type="text",
+                label="target_url",
+                default="https://example.com",
+            ),
+            BlueprintSlot(
+                name="depth",
+                type="enum",
+                label="depth",
+                default="standard",
+                options=("quick", "standard", "deep"),
+            ),
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="day",
+                default="1",
+                options=("1", "2", "3", "4", "5", "6", "0"),
+            ),
+        ),
+        category="marketing-growth",
+        tags=("seo", "audit", "marketing", "website", "weekly"),
+        sort_order=16,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekday",
     ),
 )
 
