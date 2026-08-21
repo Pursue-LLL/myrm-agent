@@ -37,6 +37,7 @@ export default function DeferredAppInitializers() {
       <PWAUpdater />
       <AppUpdatePrompt />
       <WhatsNewModal />
+      <UpdateHandoffNotifier />
       <AppshotInitializer />
       <VoicePttInitializer />
     </DeferredMount>

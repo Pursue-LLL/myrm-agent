@@ -48,6 +48,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "memory",
         "message_filter",
         "migration",
+        "ops",
         "plugins",
         "progression",
         "risk",

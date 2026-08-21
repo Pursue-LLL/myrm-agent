@@ -14743,6 +14743,57 @@
         "actionFailed": "操作失敗: {error}"
       }
     },
+    "learningLoop": {
+      "title": "閉環學習五環狀態中心",
+      "subtitle": "全域自進化閉環拓撲與健康可觀測看板",
+      "healthScore": "閉環健康度",
+      "optimal": "極佳運轉",
+      "warning": "需要關注",
+      "degraded": "存在退化",
+      "totalLearnings": "全域沉澱資產",
+      "ring1": {
+        "name": "戰後自省",
+        "stage": "Trace 挖掘與反模式",
+        "desc": "閒時自動回溯會話執行日誌，挖掘工具呼叫失敗、挫敗訊號與人工糾錯。",
+        "metricsTraces": "分析會話: {count}",
+        "metricsAntiPatterns": "捕獲反模式: {count}"
+      },
+      "ring2": {
+        "name": "技能提煉",
+        "stage": "自動生成與優化提案",
+        "desc": "基於自省證據與高頻行為模式，生成技能修復 (FIX) 與優化 (DERIVED) 提案。",
+        "metricsProposals": "提煉提案: {count}",
+        "metricsApproved": "已採納: {count}"
+      },
+      "ring3": {
+        "name": "施用自進",
+        "stage": "基準評測與防退化門禁",
+        "desc": "透過 Improvement Gate 與 EvalCase 回歸評測，確保新演化方案嚴格優於基準才準許晉級。",
+        "metricsEvals": "評測驗證: {count}",
+        "metricsBlocked": "攔截退化: {count}",
+        "metricsBoost": "提升率: +{pct}%"
+      },
+      "ring4": {
+        "name": "週期自警",
+        "stage": "閒時整理與記憶去噪",
+        "desc": "記憶守護執行緒在後台自動去重、合併碎片偏好，並對陳舊規則實施平滑衰減與去噪。",
+        "metricsCycles": "維護週期: {count}",
+        "metricsMerged": "合併去重: {count}",
+        "metricsMemories": "記憶總量: {count}"
+      },
+      "ring5": {
+        "name": "漸構畫像",
+        "stage": "跨會話召回與偏好演進",
+        "desc": "基於 FTS5 與向量語義持續建構精準使用者畫像，實現任意會話歷史知識與偏好的毫秒級召回。",
+        "metricsIndexed": "會話索引: {count}",
+        "metricsDimensions": "畫像維度: {count}"
+      },
+      "discoveryChip": {
+        "growsWithYou": "越用越懂 · 五環閉環運轉中",
+        "stats": "已沉澱 {memories} 條記憶 · {skills} 項活躍技能",
+        "viewLoop": "檢視閉環"
+      }
+    },
     "knowledgeGraph": {
       "title": "知識圖譜",
       "description": "視覺化 Agent 記憶與知識之間的語義關聯。"
