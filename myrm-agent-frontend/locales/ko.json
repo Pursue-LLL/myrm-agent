@@ -7266,6 +7266,7 @@
     "providerDisabledWarning": "이 공급자가 비활성화되었습니다"
   },
   "chat": {
+    "uploadFailed": "업로드 실패",
     "jumpBar": {
       "ariaLabel": "대화 탐색",
       "title": "메시지 탐색",
@@ -9284,6 +9285,7 @@
         "understand": "이해",
         "act": "실행",
         "verify": "검증",
+        "boundary": "경계",
         "graph": "그래프"
       },
       "graph": {
@@ -14181,6 +14183,10 @@
     }
   },
   "subagentDashboard": {
+    "inlineStripRunning": "실행 중...",
+    "inlineStripOpenTooltip": "클릭하여 다중 에이전트 팀 대시보드 열기",
+    "inlineStripActiveSummary": "{count}개 하위 에이전트 실행 중",
+    "inlineStripViewLive": "실시간 대시보드 보기",
     "overtimeTitle": "예상보다 오래 실행 중",
     "overtimeDescription": "이 하위 작업이 예상보다 훨씬 오래 실행되고 있으며 루프에 빠졌을 수 있습니다. 취소하고 프롬프트를 조정하는 것을 권장합니다.",
     "swarmFissionGroup": "병렬 피션 배치",
@@ -14740,7 +14746,12 @@
       "browseTrigger": "폴더 찾아보기",
       "recent": "최근",
       "filter": "필터…",
-      "noSubdirs": "하위 폴더 없음"
+      "noSubdirs": "하위 폴더 없음",
+      "adoptFolder": "외부 프로젝트 폴더 가져오기",
+      "loadFailed": "디렉터리를 로드하지 못했습니다",
+      "boundSuccess": "프로젝트를 가져오고 워크스페이스를 성공적으로 바인딩했습니다",
+      "bindFailed": "프로젝트 가져오기 실패",
+      "currentPath": "워크스페이스 절대 경로"
     }
   },
   "milestone": {

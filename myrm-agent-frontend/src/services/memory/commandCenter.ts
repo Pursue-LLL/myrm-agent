@@ -553,3 +553,71 @@ export const rollbackConsolidation = async (): Promise<ConsolidationRollbackResu
     method: 'POST',
   });
 };
+
+export interface MemoryRecallScopeBoundary {
+  level: string;
+  label: string;
+  is_active: boolean;
+  namespace_pattern: string;
+  description: string;
+}
+
+export interface MemoryFourPartitionSummary {
+  identity_count: number;
+  working_memory_count: number;
+  operating_instructions_count: number;
+  retrievable_evidence_count: number;
+  identity_chars: number;
+  working_memory_chars: number;
+  operating_instructions_chars: number;
+  retrievable_evidence_chars: number;
+}
+
+export interface MemoryCandidateRecord {
+  id: string;
+  memory_type: string;
+  content_preview: string;
+  confidence: number;
+  source: string;
+  created_at: string;
+  status: 'pending' | 'review_required';
+}
+
+export interface MemoryApprovedRecord {
+  id: string;
+  memory_type: string;
+  content_preview: string;
+  namespace: string;
+  partition: 'identity' | 'working_memory' | 'operating_instructions' | 'retrievable_evidence';
+  importance: number;
+  access_count: number;
+  char_count: number;
+  is_pinned: boolean;
+}
+
+export interface MemoryRecallBoundaryData {
+  agent_id?: string | null;
+  task_id?: string | null;
+  read_scopes: MemoryRecallScopeBoundary[];
+  write_policy: string;
+  partitions: MemoryFourPartitionSummary;
+  candidate_records: MemoryCandidateRecord[];
+  approved_records: MemoryApprovedRecord[];
+  budget_chars_used: number;
+  budget_chars_total: number;
+  budget_overflow_risk: 'safe' | 'approaching_limit' | 'overflow';
+  total_candidates: number;
+  total_approved: number;
+}
+
+export const getMemoryRecallBoundary = async (
+  agentId?: string,
+  taskId?: string,
+): Promise<MemoryRecallBoundaryData> => {
+  const params = new URLSearchParams();
+  if (agentId) params.set('agent_id', agentId);
+  if (taskId) params.set('task_id', taskId);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest<MemoryRecallBoundaryData>(`/memory/command-center/recall-boundary${query}`);
+};
+

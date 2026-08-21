@@ -24,11 +24,40 @@ export const getProjects = async (): Promise<Project[]> => {
   return data.projects ?? [];
 };
 
-export const createProject = async (name: string, color?: string): Promise<Project> => {
+export const createProject = async (
+  name: string,
+  color?: string,
+  description?: string,
+  workspacePath?: string,
+): Promise<Project> => {
   const data = (await apiRequest('/projects', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, ...(color ? { color } : {}) }),
+    body: JSON.stringify({
+      name,
+      ...(color ? { color } : {}),
+      ...(description ? { description } : {}),
+      ...(workspacePath ? { workspace_path: workspacePath } : {}),
+    }),
+  })) as { project: Project };
+  return data.project;
+};
+
+export const adoptProjectWorkspace = async (
+  workspacePath: string,
+  name?: string,
+  color?: string,
+  description?: string,
+): Promise<Project> => {
+  const data = (await apiRequest('/projects/adopt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      workspace_path: workspacePath,
+      ...(name ? { name } : {}),
+      ...(color ? { color } : {}),
+      ...(description ? { description } : {}),
+    }),
   })) as { project: Project };
   return data.project;
 };

@@ -290,9 +290,12 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     };
     window.addEventListener('subagents_updated', handleSseEvent);
     window.addEventListener('teammate_message', handleTeammateEvent);
+    const handleOpenDashboard = () => setOpen(true);
+    window.addEventListener('open_subagent_dashboard', handleOpenDashboard);
     return () => {
       window.removeEventListener('subagents_updated', handleSseEvent);
       window.removeEventListener('teammate_message', handleTeammateEvent);
+      window.removeEventListener('open_subagent_dashboard', handleOpenDashboard);
     };
   }, [chatId]);
 

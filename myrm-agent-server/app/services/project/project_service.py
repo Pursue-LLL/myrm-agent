@@ -59,13 +59,20 @@ class ProjectService:
     @staticmethod
     async def list_projects() -> list[dict[str, object]]:
         async with get_session() as db:
-            stmt = select(Project).order_by(Project.sort_order.asc(), Project.created_at.asc())
+            stmt = select(Project).order_by(
+                Project.sort_order.asc(), Project.created_at.asc()
+            )
             result = await db.execute(stmt)
             projects = result.scalars().all()
             return [_project_to_dict(p) for p in projects]
 
     @staticmethod
-    async def create_project(name: str, color: str | None = None, description: str = "") -> dict[str, object]:
+    async def create_project(
+        name: str,
+        color: str | None = None,
+        description: str = "",
+        workspace_path: str | None = None,
+    ) -> dict[str, object]:
         async with get_session() as db:
             count_stmt = select(func.count(Project.id))
             count_result = await db.execute(count_stmt)
@@ -73,24 +80,42 @@ class ProjectService:
 
             project_id = uuid4().hex[:12]
 
+            normalized_path: str | None = None
+            if workspace_path is not None and workspace_path.strip():
+                from app.services.project.workspace_path_resolve import (
+                    WorkspacePathValidationError,
+                    normalize_project_workspace_path,
+                )
+
+                try:
+                    normalized_path = (
+                        normalize_project_workspace_path(workspace_path) or None
+                    )
+                except WorkspacePathValidationError as exc:
+                    raise ValueError(str(exc)) from exc
+
             project = Project(
                 id=project_id,
                 name=name.strip(),
                 description=description.strip(),
                 color=color or PROJECT_COLORS[count % len(PROJECT_COLORS)],
                 sort_order=count,
-                workspace_path=None,
+                workspace_path=normalized_path,
             )
             db.add(project)
 
-            from app.services.memory.shared_context.shared_context import SharedContextService
+            from app.services.memory.shared_context.shared_context import (
+                SharedContextService,
+            )
 
             shared_context_svc = SharedContextService(db)
             context = await shared_context_svc.create_context(
                 name=f"Project: {project.name}",
                 description=f"Shared memory context for project {project.name}",
             )
-            await shared_context_svc.bind_context(context_id=context.id, target_type="project", target_id=project.id)
+            await shared_context_svc.bind_context(
+                context_id=context.id, target_type="project", target_id=project.id
+            )
 
             await db.commit()
             await db.refresh(project)
@@ -149,7 +174,11 @@ class ProjectService:
             if not project:
                 return False
 
-            await db.execute(update(Chat).where(Chat.project_id == project_id).values(project_id=None))
+            await db.execute(
+                update(Chat)
+                .where(Chat.project_id == project_id)
+                .values(project_id=None)
+            )
             await db.execute(delete(Project).where(Project.id == project_id))
             await db.commit()
 
@@ -190,7 +219,11 @@ class ProjectService:
                 if not proj_result.scalar_one_or_none():
                     return 0
 
-            stmt = update(Chat).where(Chat.id.in_(chat_ids), Chat.deleted_at.is_(None)).values(project_id=project_id)
+            stmt = (
+                update(Chat)
+                .where(Chat.id.in_(chat_ids), Chat.deleted_at.is_(None))
+                .values(project_id=project_id)
+            )
             result = await db.execute(stmt)
             await db.commit()
             return result.rowcount  # type: ignore[return-value]

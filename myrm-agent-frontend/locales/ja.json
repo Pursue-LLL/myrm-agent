@@ -7773,7 +7773,8 @@
       "updated": "作業ディレクトリを更新しました",
       "cleared": "作業ディレクトリをクリアしました",
       "recent": "最近の使用",
-      "filter": "ディレクトリを検索..."
+      "filter": "ディレクトリを検索...",
+      "unboundWarning": "未バインドディレクトリ（デフォルトサンドボックス）"
     },
     "enableBrowser": "ブラウザ自動化を有効化",
     "disableBrowser": "ブラウザ自動化を無効化",
@@ -9312,6 +9313,7 @@
         "understand": "理解",
         "act": "アクション",
         "verify": "検証",
+        "boundary": "境界",
         "graph": "グラフ"
       },
       "graph": {
@@ -14902,6 +14904,10 @@
     }
   },
   "subagentDashboard": {
+    "inlineStripRunning": "実行中...",
+    "inlineStripOpenTooltip": "クリックしてマルチエージェントチームのダッシュボードを開く",
+    "inlineStripActiveSummary": "{count} 個のサブエージェント実行中",
+    "inlineStripViewLive": "リアルタイム看板を見る",
     "overtimeTitle": "実行時間が予想を超過",
     "overtimeDescription": "このサブタスクは予想以上に長時間実行されており、ループに陥っている可能性があります。キャンセルしてプロンプトを調整することをお勧めします。",
     "staleTitle": "サブエージェント停滞 — 進捗なし",
@@ -16465,7 +16471,12 @@
       "browseTrigger": "フォルダを参照",
       "recent": "最近",
       "filter": "フィルタ…",
-      "noSubdirs": "サブフォルダがありません"
+      "noSubdirs": "サブフォルダがありません",
+      "adoptFolder": "外部プロジェクトフォルダを導入",
+      "loadFailed": "ディレクトリの読み込みに失敗しました",
+      "boundSuccess": "プロジェクトを導入しワークスペースをバインドしました",
+      "bindFailed": "プロジェクトの導入に失敗しました",
+      "currentPath": "ワークスペースの絶対パス"
     }
   },
   "milestone": {

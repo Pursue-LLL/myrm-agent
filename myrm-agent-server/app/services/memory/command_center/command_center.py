@@ -49,9 +49,18 @@ from app.schemas.memory.command_center import (
     MemoryCommandTimelineEvent,
     MemoryCommandTraceRun,
     MemoryCommandTraceStep,
+    MemoryFourPartitionSummary,
+    MemoryRecallBoundaryData,
+    MemoryRecallScopeBoundary,
+    MemoryApprovedRecord,
+    MemoryCandidateRecord,
 )
-from app.services.memory.archive.restore.archive_restore import MemoryArchiveRestoreService
-from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.archive.restore.archive_restore import (
+    MemoryArchiveRestoreService,
+)
+from app.services.memory.command_center.command_center_insights import (
+    MemoryCommandCenterInsights,
+)
 from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.imports.import_ledger import MemoryImportLedgerService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
@@ -91,7 +100,9 @@ class MemoryCommandCenterService:
         self._ledger = MemoryOperationLedgerService(db)
         self._import_ledger = MemoryImportLedgerService(db)
         self._insights = MemoryCommandCenterInsights(db, memory_manager, self._ledger)
-        self._diagnostics = MemoryDiagnosticsService(db, memory_manager, ledger=self._ledger)
+        self._diagnostics = MemoryDiagnosticsService(
+            db, memory_manager, ledger=self._ledger
+        )
 
     async def _resolve_project_context_ids(self) -> set[str] | None:
         """Resolve SharedContext IDs bound to the given project, or None for global view."""
@@ -99,10 +110,14 @@ class MemoryCommandCenterService:
             return None
         if self._project_context_ids is not None:
             return self._project_context_ids
-        from app.services.memory.shared_context.shared_context import SharedContextService
+        from app.services.memory.shared_context.shared_context import (
+            SharedContextService,
+        )
 
         svc = SharedContextService(self._db)
-        bindings = await svc.list_bindings_for_target(target_type="project", target_id=self._project_id)
+        bindings = await svc.list_bindings_for_target(
+            target_type="project", target_id=self._project_id
+        )
         self._project_context_ids = {b.context_id for b in bindings}
         return self._project_context_ids
 
@@ -110,7 +125,9 @@ class MemoryCommandCenterService:
         generated_at = datetime.now(UTC)
         by_type = await self._count_memories_by_type()
         pending_memories = await self._count_rows(
-            select(func.count()).select_from(PendingMemory).where(PendingMemory.status == "pending")
+            select(func.count())
+            .select_from(PendingMemory)
+            .where(PendingMemory.status == "pending")
         )
         pending_shared_proposals = await self._count_rows(
             select(func.count())
@@ -118,7 +135,9 @@ class MemoryCommandCenterService:
             .where(SharedContextWriteProposalModel.status == "pending")
         )
         active_shared_contexts = await self._count_rows(
-            select(func.count()).select_from(SharedContextModel).where(SharedContextModel.status == "active")
+            select(func.count())
+            .select_from(SharedContextModel)
+            .where(SharedContextModel.status == "active")
         )
         health = await self._build_health()
         deploy_mode = get_deploy_mode().value
@@ -129,7 +148,9 @@ class MemoryCommandCenterService:
         conflicts = await self._insights.build_conflicts()
         migration = await self._insights.build_migration()
         import_rollback_health = await self._import_ledger.rollback_health()
-        archive_restore_health = await MemoryArchiveRestoreService(self._db).restore_health()
+        archive_restore_health = await MemoryArchiveRestoreService(
+            self._db
+        ).restore_health()
         runtime = self._build_runtime(deploy_mode)
 
         overview = MemoryCommandOverview(
@@ -182,7 +203,193 @@ class MemoryCommandCenterService:
             runtime=runtime,
         )
 
-    def _build_trace_runs(self, timeline: list[MemoryCommandTimelineEvent]) -> list[MemoryCommandTraceRun]:
+    async def build_recall_boundary_snapshot(
+        self,
+        *,
+        agent_id: str | None = None,
+        task_id: str | None = None,
+    ) -> MemoryRecallBoundaryData:
+        """Build review-first memory recall boundary and candidate/approved partition snapshot."""
+        policy = self._memory_manager.memory_policy
+        read_scopes_list: list[MemoryRecallScopeBoundary] = []
+
+        all_scope_levels = [
+            (
+                "global",
+                "Global Shared Knowledge",
+                "global",
+                "System-wide persistent facts and rules",
+            ),
+            (
+                "agent",
+                f"Agent Dedicated ({agent_id or 'default'})",
+                f"agent:{agent_id or 'default'}",
+                "Private memory assigned to this agent identity",
+            ),
+            (
+                "channel",
+                "Channel/Integration Boundary",
+                "channel:*",
+                "Platform or channel-specific context",
+            ),
+            (
+                "conversation",
+                "Session Conversation State",
+                "conversation:*",
+                "Current multi-turn dialog flow",
+            ),
+            (
+                "task",
+                f"Task Boundary ({task_id or 'active'})",
+                f"task:{task_id or 'active'}",
+                "Ephemeral execution working memory",
+            ),
+            (
+                "shared",
+                "Team Shared Context",
+                "shared:*",
+                "Explicitly shared team vaults and resources",
+            ),
+        ]
+
+        active_levels = (
+            {s.value for s in policy.read_scopes}
+            if (policy and policy.read_scopes)
+            else {"global", "agent", "channel", "conversation", "task", "shared"}
+        )
+
+        for level_key, label, pattern, desc in all_scope_levels:
+            read_scopes_list.append(
+                MemoryRecallScopeBoundary(
+                    level=level_key,
+                    label=label,
+                    is_active=level_key in active_levels,
+                    namespace_pattern=pattern,
+                    description=desc,
+                )
+            )
+
+        pending_result = await self._db.execute(
+            select(PendingMemory)
+            .where(PendingMemory.status == "pending")
+            .order_by(desc(PendingMemory.created_at))
+            .limit(20)
+        )
+        candidates: list[MemoryCandidateRecord] = [
+            MemoryCandidateRecord(
+                id=item.id,
+                memory_type=item.memory_type,
+                content_preview=self._preview(item.content, limit=120),
+                confidence=float(item.confidence or 0.8),
+                source=item.source or "extraction",
+                created_at=item.created_at,
+                status="pending",
+            )
+            for item in pending_result.scalars().all()
+        ]
+
+        # Calculate partition summary and approved records sample
+        total_chars = 0
+        identity_chars, identity_count = 0, 0
+        working_chars, working_count = 0, 0
+        operating_chars, operating_count = 0, 0
+        evidence_chars, evidence_count = 0, 0
+        approved_records: list[MemoryApprovedRecord] = []
+
+        for mtype in ALL_MEMORY_TYPES:
+            try:
+                memories = await self._memory_manager.list_memories(mtype, limit=10)
+                for mem in memories:
+                    content_str = str(getattr(mem, "content", "") or "")
+                    char_len = len(content_str)
+                    total_chars += char_len
+
+                    # Partition classification
+                    if mtype == MemoryType.PROFILE:
+                        partition = "identity"
+                        identity_count += 1
+                        identity_chars += char_len
+                    elif mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
+                        partition = "working_memory"
+                        working_count += 1
+                        working_chars += char_len
+                    elif mtype == MemoryType.PROCEDURAL:
+                        partition = "operating_instructions"
+                        operating_count += 1
+                        operating_chars += char_len
+                    else:
+                        partition = "retrievable_evidence"
+                        evidence_count += 1
+                        evidence_chars += char_len
+
+                    if len(approved_records) < 15:
+                        approved_records.append(
+                            MemoryApprovedRecord(
+                                id=str(
+                                    getattr(mem, "id", "")
+                                    or f"mem-{len(approved_records)}"
+                                ),
+                                memory_type=mtype.value,
+                                content_preview=self._preview(content_str, limit=100),
+                                namespace=str(
+                                    getattr(mem, "primary_namespace", "") or "global"
+                                ),
+                                partition=partition,
+                                importance=float(
+                                    getattr(mem, "importance", 0.7) or 0.7
+                                ),
+                                access_count=int(getattr(mem, "access_count", 1) or 1),
+                                char_count=char_len,
+                                is_pinned=bool(getattr(mem, "is_pinned", False)),
+                            )
+                        )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to list memories for %s partition summary: %s",
+                    mtype.value,
+                    exc,
+                )
+
+        risk: Literal["safe", "approaching_limit", "overflow"] = "safe"
+        if total_chars > 6000:
+            risk = "overflow"
+        elif total_chars > 4500:
+            risk = "approaching_limit"
+
+        return MemoryRecallBoundaryData(
+            agent_id=agent_id or (policy.agent_id if policy else None),
+            task_id=task_id or (policy.task_id if policy else None),
+            read_scopes=read_scopes_list,
+            write_policy=(
+                policy.write_policy.value
+                if (policy and hasattr(policy.write_policy, "value"))
+                else "inherit"
+            ),
+            partitions=MemoryFourPartitionSummary(
+                identity_count=identity_count,
+                working_memory_count=working_count,
+                operating_instructions_count=operating_count,
+                retrievable_evidence_count=evidence_count,
+                identity_chars=identity_chars,
+                working_memory_chars=working_chars,
+                operating_instructions_chars=operating_chars,
+                retrievable_evidence_chars=evidence_chars,
+            ),
+            candidate_records=candidates,
+            approved_records=approved_records,
+            budget_chars_used=total_chars,
+            budget_chars_total=6000,
+            budget_overflow_risk=risk,
+            total_candidates=len(candidates),
+            total_approved=identity_count
+            + working_count
+            + operating_count
+            + evidence_count,
+        )
+
+    def _build_trace_runs(
+        self, timeline: list[MemoryCommandTimelineEvent]
+    ) -> list[MemoryCommandTraceRun]:
         grouped: dict[str, list[MemoryCommandTimelineEvent]] = {}
         for event in timeline:
             if event.source != TRACE_SOURCE:
@@ -195,7 +402,10 @@ class MemoryCommandCenterService:
             key=lambda item: max(event.occurred_at for event in item[1]),
             reverse=True,
         )
-        return [self._timeline_events_to_trace_run(trace_id, events) for trace_id, events in ordered_groups[:TRACE_RUN_LIMIT]]
+        return [
+            self._timeline_events_to_trace_run(trace_id, events)
+            for trace_id, events in ordered_groups[:TRACE_RUN_LIMIT]
+        ]
 
     @staticmethod
     def _timeline_events_to_trace_run(
@@ -227,7 +437,10 @@ class MemoryCommandCenterService:
             status=_trace_run_status(ordered_events),
             occurred_at=max(event.occurred_at for event in ordered_events),
             duration_ms=_trace_run_duration_ms(ordered_events),
-            result_count=max((_metadata_int(event.metadata, "result_count") or 0) for event in ordered_events),
+            result_count=max(
+                (_metadata_int(event.metadata, "result_count") or 0)
+                for event in ordered_events
+            ),
             steps=steps,
         )
 
@@ -235,7 +448,9 @@ class MemoryCommandCenterService:
         counts: dict[str, int] = {}
         for memory_type in ALL_MEMORY_TYPES:
             try:
-                counts[memory_type.value] = await self._memory_manager.count_memories(memory_type)
+                counts[memory_type.value] = await self._memory_manager.count_memories(
+                    memory_type
+                )
             except Exception as exc:
                 logger.warning("Memory count failed for %s: %s", memory_type.value, exc)
                 counts[memory_type.value] = 0
@@ -260,7 +475,11 @@ class MemoryCommandCenterService:
 
         binding_counts = await self._shared_context_binding_counts()
 
-        stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(20)
+        stmt = (
+            select(SharedContextModel)
+            .order_by(desc(SharedContextModel.updated_at))
+            .limit(20)
+        )
         if project_ctx_ids is not None:
             if project_ctx_ids:
                 stmt = stmt.where(SharedContextModel.id.in_(project_ctx_ids))
@@ -287,7 +506,10 @@ class MemoryCommandCenterService:
 
         if project_ctx_ids is None:
             pending_result = await self._db.execute(
-                select(PendingMemory).where(PendingMemory.status == "pending").order_by(desc(PendingMemory.created_at)).limit(5)
+                select(PendingMemory)
+                .where(PendingMemory.status == "pending")
+                .order_by(desc(PendingMemory.created_at))
+                .limit(5)
             )
             for item in pending_result.scalars().all():
                 items.append(
@@ -312,7 +534,9 @@ class MemoryCommandCenterService:
         )
         if project_ctx_ids is not None:
             if project_ctx_ids:
-                proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids))
+                proposal_stmt = proposal_stmt.where(
+                    SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)
+                )
             else:
                 proposal_stmt = proposal_stmt.where(False)
 
@@ -338,8 +562,12 @@ class MemoryCommandCenterService:
     async def refresh_health(self) -> MemoryCommandHealth:
         return await self._build_health(force_refresh=True)
 
-    async def _build_health(self, *, force_refresh: bool = False) -> MemoryCommandHealth:
-        cached = await self._ledger.get_fresh_health_snapshot(ttl_seconds=HEALTH_TTL_SECONDS)
+    async def _build_health(
+        self, *, force_refresh: bool = False
+    ) -> MemoryCommandHealth:
+        cached = await self._ledger.get_fresh_health_snapshot(
+            ttl_seconds=HEALTH_TTL_SECONDS
+        )
         if cached is not None and not force_refresh:
             return MemoryCommandHealth(
                 status=self._health_status(cached.total),
@@ -366,7 +594,11 @@ class MemoryCommandCenterService:
             total = int(health_dict.get("total", 0))
             raw_dimensions = health_dict.get("dimensions", {})
             if isinstance(raw_dimensions, dict):
-                dimensions = {str(key): float(value) for key, value in raw_dimensions.items() if isinstance(value, (int, float))}
+                dimensions = {
+                    str(key): float(value)
+                    for key, value in raw_dimensions.items()
+                    if isinstance(value, (int, float))
+                }
             raw_suggestions = health_dict.get("suggestions", [])
             if isinstance(raw_suggestions, list):
                 suggestions = [str(item) for item in raw_suggestions]
@@ -416,7 +648,11 @@ class MemoryCommandCenterService:
         )
         await self._ledger.record_event(
             kind=MemoryOperationKind.HEALTH_CHECK,
-            status=MemoryOperationStatus.SUCCESS if total is not None else MemoryOperationStatus.WARNING,
+            status=(
+                MemoryOperationStatus.SUCCESS
+                if total is not None
+                else MemoryOperationStatus.WARNING
+            ),
             summary="Memory health snapshot refreshed.",
             source="memory_command_center",
             target_kind="health",
@@ -439,7 +675,9 @@ class MemoryCommandCenterService:
         events: list[MemoryCommandTimelineEvent] = []
 
         if project_ctx_ids is None:
-            pending_result = await self._db.execute(select(PendingMemory).order_by(desc(PendingMemory.created_at)).limit(6))
+            pending_result = await self._db.execute(
+                select(PendingMemory).order_by(desc(PendingMemory.created_at)).limit(6)
+            )
             for item in pending_result.scalars().all():
                 events.append(
                     MemoryCommandTimelineEvent(
@@ -455,11 +693,15 @@ class MemoryCommandCenterService:
                 )
 
         proposal_stmt = (
-            select(SharedContextWriteProposalModel).order_by(desc(SharedContextWriteProposalModel.created_at)).limit(6)
+            select(SharedContextWriteProposalModel)
+            .order_by(desc(SharedContextWriteProposalModel.created_at))
+            .limit(6)
         )
         if project_ctx_ids is not None:
             if project_ctx_ids:
-                proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids))
+                proposal_stmt = proposal_stmt.where(
+                    SharedContextWriteProposalModel.context_id.in_(project_ctx_ids)
+                )
             else:
                 proposal_stmt = proposal_stmt.where(False)
 
@@ -479,10 +721,16 @@ class MemoryCommandCenterService:
                 )
             )
 
-        context_stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(6)
+        context_stmt = (
+            select(SharedContextModel)
+            .order_by(desc(SharedContextModel.updated_at))
+            .limit(6)
+        )
         if project_ctx_ids is not None:
             if project_ctx_ids:
-                context_stmt = context_stmt.where(SharedContextModel.id.in_(project_ctx_ids))
+                context_stmt = context_stmt.where(
+                    SharedContextModel.id.in_(project_ctx_ids)
+                )
             else:
                 context_stmt = context_stmt.where(False)
 
@@ -528,19 +776,37 @@ class MemoryCommandCenterService:
         """
         if not self._memory_manager.has_vector:
             return "unavailable"
-        return "persistent" if self._memory_manager.vector_is_persistent else "memory_fallback"
+        return (
+            "persistent"
+            if self._memory_manager.vector_is_persistent
+            else "memory_fallback"
+        )
 
     def _build_runtime(self, deploy_mode: str) -> MemoryCommandRuntimeStatus:
         return MemoryCommandRuntimeStatus(
             deploy_mode=deploy_mode,
             storage_mode=get_storage_mode().value,
             memory_base_path=settings.database.memory_base_path,
-            relational_status="available" if self._memory_manager.has_relational else "unavailable",
-            vector_status="available" if self._memory_manager.has_vector else "unavailable",
+            relational_status=(
+                "available" if self._memory_manager.has_relational else "unavailable"
+            ),
+            vector_status=(
+                "available" if self._memory_manager.has_vector else "unavailable"
+            ),
             vector_persistence=self._build_vector_persistence(),
-            graph_status="available" if self._memory_manager.has_graph else "unavailable",
-            embedding_status=get_embedding_mode().value if self._memory_manager.has_vector else "unavailable",
-            control_plane_status="proxied_by_sandbox" if get_deployment_capabilities().is_sandbox_instance else "not_used",
+            graph_status=(
+                "available" if self._memory_manager.has_graph else "unavailable"
+            ),
+            embedding_status=(
+                get_embedding_mode().value
+                if self._memory_manager.has_vector
+                else "unavailable"
+            ),
+            control_plane_status=(
+                "proxied_by_sandbox"
+                if get_deployment_capabilities().is_sandbox_instance
+                else "not_used"
+            ),
             event_ledger_status="available",
             health_snapshot_status="available",
             supported_clients=["local_web", "tauri_desktop", "saas_sandbox"],
@@ -548,9 +814,10 @@ class MemoryCommandCenterService:
 
     async def _shared_context_binding_counts(self) -> dict[str, int]:
         result = await self._db.execute(
-            select(SharedContextBindingModel.context_id, func.count(SharedContextBindingModel.id)).group_by(
-                SharedContextBindingModel.context_id
-            )
+            select(
+                SharedContextBindingModel.context_id,
+                func.count(SharedContextBindingModel.id),
+            ).group_by(SharedContextBindingModel.context_id)
         )
         counts: dict[str, int] = {}
         for context_id, count in result.all():
@@ -562,7 +829,9 @@ class MemoryCommandCenterService:
         return int(result.scalar_one() or 0)
 
     @staticmethod
-    def _ledger_event_to_timeline(row: MemoryOperationEventModel) -> MemoryCommandTimelineEvent:
+    def _ledger_event_to_timeline(
+        row: MemoryOperationEventModel,
+    ) -> MemoryCommandTimelineEvent:
         return MemoryCommandTimelineEvent(
             id=row.id,
             kind=row.kind,
@@ -621,7 +890,9 @@ class MemoryCommandCenterService:
         return f"{normalized[: limit - 1]}..."
 
 
-def _coerce_timeline_metadata(value: dict[str, object] | None) -> dict[str, str | int | float | bool | None]:
+def _coerce_timeline_metadata(
+    value: dict[str, object] | None,
+) -> dict[str, str | int | float | bool | None]:
     if not value:
         return {}
     result: dict[str, str | int | float | bool | None] = {}
@@ -631,14 +902,18 @@ def _coerce_timeline_metadata(value: dict[str, object] | None) -> dict[str, str 
     return result
 
 
-def _metadata_str(metadata: dict[str, str | int | float | bool | None], key: str) -> str | None:
+def _metadata_str(
+    metadata: dict[str, str | int | float | bool | None], key: str
+) -> str | None:
     value = metadata.get(key)
     if isinstance(value, str) and value:
         return value
     return None
 
 
-def _metadata_int(metadata: dict[str, str | int | float | bool | None], key: str) -> int | None:
+def _metadata_int(
+    metadata: dict[str, str | int | float | bool | None], key: str
+) -> int | None:
     value = metadata.get(key)
     if isinstance(value, bool):
         return None
@@ -649,7 +924,9 @@ def _metadata_int(metadata: dict[str, str | int | float | bool | None], key: str
     return None
 
 
-def _metadata_float(metadata: dict[str, str | int | float | bool | None], key: str) -> float | None:
+def _metadata_float(
+    metadata: dict[str, str | int | float | bool | None], key: str
+) -> float | None:
     value = metadata.get(key)
     if isinstance(value, bool):
         return None
@@ -658,7 +935,9 @@ def _metadata_float(metadata: dict[str, str | int | float | bool | None], key: s
     return None
 
 
-def _first_metadata_str(events: list[MemoryCommandTimelineEvent], key: str) -> str | None:
+def _first_metadata_str(
+    events: list[MemoryCommandTimelineEvent], key: str
+) -> str | None:
     for event in events:
         value = _metadata_str(event.metadata, key)
         if value:
@@ -668,7 +947,10 @@ def _first_metadata_str(events: list[MemoryCommandTimelineEvent], key: str) -> s
 
 def _trace_step_sort_key(event: MemoryCommandTimelineEvent) -> tuple[int, datetime]:
     step_index = _metadata_int(event.metadata, "step_index")
-    return (step_index if step_index is not None else TRACE_STEP_LIMIT, event.occurred_at)
+    return (
+        step_index if step_index is not None else TRACE_STEP_LIMIT,
+        event.occurred_at,
+    )
 
 
 def _trace_status(status: str) -> str:
@@ -687,7 +969,11 @@ def _trace_run_status(events: list[MemoryCommandTimelineEvent]) -> str:
 
 
 def _trace_run_duration_ms(events: list[MemoryCommandTimelineEvent]) -> float | None:
-    durations = [duration for event in events if (duration := _metadata_float(event.metadata, "duration_ms")) is not None]
+    durations = [
+        duration
+        for event in events
+        if (duration := _metadata_float(event.metadata, "duration_ms")) is not None
+    ]
     if not durations:
         return None
     return max(durations)

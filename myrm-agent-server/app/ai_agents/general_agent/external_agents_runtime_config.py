@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 _CLI_DEFAULT_ARGS: dict[str, list[str]] = {
     "claude": ["-p", "--output-format", "stream-json", "--verbose"],
-    "codex": ["exec", "--json", "--full-auto"],
+    "codex": ["exec", "--json", "--sandbox", "workspace-write"],
     "gemini": ["--output-format", "stream-json", "--yolo"],
 }
 

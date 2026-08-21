@@ -7902,7 +7902,8 @@
       "updated": "Working directory updated",
       "cleared": "Working directory cleared",
       "recent": "Recent",
-      "filter": "Filter directories..."
+      "filter": "Filter directories...",
+      "unboundWarning": "No Workspace (Default Sandbox)"
     },
     "enableBrowser": "Enable Browser Automation",
     "disableBrowser": "Disable Browser Automation",
@@ -9391,6 +9392,7 @@
         "understand": "Understand",
         "act": "Act",
         "verify": "Verify",
+        "boundary": "Boundary",
         "graph": "Graph"
       },
       "graph": {
@@ -14980,6 +14982,10 @@
     }
   },
   "subagentDashboard": {
+    "inlineStripRunning": "Executing...",
+    "inlineStripOpenTooltip": "Click to open Multi-Agent Team Dashboard",
+    "inlineStripActiveSummary": "{count} subagents running",
+    "inlineStripViewLive": "View Team Dashboard",
     "overtimeTitle": "Running longer than expected",
     "overtimeDescription": "This sub-task has been running significantly longer than expected and may be stuck in a loop. Consider cancelling and adjusting your prompt.",
     "staleTitle": "Subagent stalled — no progress detected",
@@ -16558,7 +16564,12 @@
       "browseTrigger": "Browse folders",
       "recent": "Recent",
       "filter": "Filter…",
-      "noSubdirs": "No subfolders"
+      "noSubdirs": "No subfolders",
+      "adoptFolder": "Adopt external project folder",
+      "loadFailed": "Failed to load directory",
+      "boundSuccess": "Project adopted and workspace bound successfully",
+      "bindFailed": "Failed to adopt project",
+      "currentPath": "Workspace Absolute Path"
     }
   },
   "milestone": {
@@ -16867,5 +16878,39 @@
     "openDetailLabel": "Open project {name}",
     "deleteLabel": "Delete project {name}"
   },
-  "error": "Error"
+  "error": "Error",
+  "memoryRecallBoundary": {
+    "title": "Review-First Recall Boundary",
+    "subtitle": "Task-scoped knowledge boundary isolation, 4-job partition, and candidate review gate",
+    "scopeTitle": "Task Scope Boundary",
+    "scopeDescription": "Strictly limits the namespace visibility for the active task, preventing cross-task knowledge pollution and causal blindness.",
+    "policyWrite": "Write Policy",
+    "activeScopes": "Active Scopes",
+    "candidateReviewTitle": "Candidate Review Gate",
+    "candidateReviewDesc": "Unverified inferences enter the candidate pool first, and only graduate to approved memories upon confirmation.",
+    "noCandidates": "Candidate review pool is empty. Memory state is clean and healthy.",
+    "approvedRecordsTitle": "Approved In-Scope Memories",
+    "approvedRecordsDesc": "Active memory records currently participating in search and context injection.",
+    "noApproved": "No approved memory records found.",
+    "fourPartitionsTitle": "Four Memory Partitions (Mise en Place)",
+    "partitionIdentity": "Identity & Preferences",
+    "partitionWorkingMemory": "Working Memory",
+    "partitionOperatingInstructions": "Operating Instructions",
+    "partitionRetrievableEvidence": "Retrievable Evidence",
+    "budgetTitle": "Per-Turn Load Char Budget",
+    "budgetUsed": "{used} / {total} chars used",
+    "budgetRiskSafe": "Safe (Ample)",
+    "budgetRiskApproaching": "Approaching Limit",
+    "budgetRiskOverflow": "Overflow (Will trigger eviction/pruning)",
+    "confidence": "Confidence",
+    "importance": "Importance",
+    "source": "Source",
+    "partition": "Partition",
+    "actions": "Actions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "pinned": "Pinned",
+    "viewDetails": "View Details",
+    "refresh": "Refresh Boundary"
+  }
 }

@@ -7466,6 +7466,7 @@
     "providerDisabledWarning": "此供應商已停用"
   },
   "chat": {
+    "uploadFailed": "上傳失敗",
     "skillActivation": {
       "remove": "移除已選技能"
     },
@@ -9314,6 +9315,7 @@
         "understand": "理解",
         "act": "治理",
         "verify": "驗證",
+        "boundary": "召回邊界",
         "graph": "圖譜"
       },
       "graph": {
@@ -14876,6 +14878,10 @@
     }
   },
   "subagentDashboard": {
+    "inlineStripRunning": "執行中...",
+    "inlineStripOpenTooltip": "點擊打開多智能體團隊協作監控面板",
+    "inlineStripActiveSummary": "{count} 個子智能體執行中",
+    "inlineStripViewLive": "查看即時看板",
     "overtimeTitle": "執行時間超出預期",
     "overtimeDescription": "該子任務執行時間已大幅超出預期，可能陷入死迴圈或遇到困難。建議取消並重新調整指令。",
     "staleTitle": "子 Agent 停滯 — 未偵測到進展",
@@ -16025,7 +16031,12 @@
       "browseTrigger": "瀏覽資料夾",
       "recent": "最近使用",
       "filter": "篩選…",
-      "noSubdirs": "沒有子資料夾"
+      "noSubdirs": "沒有子資料夾",
+      "adoptFolder": "接納外部專案資料夾",
+      "loadFailed": "載入目錄失敗",
+      "boundSuccess": "專案接納並綁定成功",
+      "bindFailed": "接納專案失敗",
+      "currentPath": "工作區目錄絕對路徑"
     }
   },
   "milestone": {

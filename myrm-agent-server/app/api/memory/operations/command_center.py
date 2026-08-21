@@ -15,7 +15,12 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryOperationStatus, MemoryType
+from myrm_agent_harness.toolkits.memory import (
+    MemoryManager,
+    MemoryOperationKind,
+    MemoryOperationStatus,
+    MemoryType,
+)
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,14 +44,19 @@ from app.schemas.memory.command_center import (
     MemoryCommandRepairActionRequest,
     MemoryCommandRepairActionResponse,
     MemoryCommandTimelineEvent,
+    MemoryRecallBoundaryData,
 )
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
-from app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor import MemoryDiagnosticRepairExecutor
+from app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor import (
+    MemoryDiagnosticRepairExecutor,
+)
 from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 from app.services.memory.ledger.operation_ledger_guardian import as_aware
 from app.services.memory.shared_context.shared_context import SharedContextService
-from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer
+from app.services.memory.shared_context.shared_context_materializer import (
+    SharedContextProposalMaterializer,
+)
 
 router = APIRouter(prefix="/command-center")
 
@@ -63,7 +73,9 @@ async def get_memory_command_center(
         project_id: Optional project ID to scope the snapshot to a single project's memory spaces.
     """
 
-    return await MemoryCommandCenterService(db, memory_manager, project_id=project_id or None).build_snapshot()
+    return await MemoryCommandCenterService(
+        db, memory_manager, project_id=project_id or None
+    ).build_snapshot()
 
 
 @router.get("/events", response_model=list[MemoryCommandTimelineEvent])
@@ -87,6 +99,23 @@ async def get_memory_plane_summary(
 
     snapshot = await MemoryCommandCenterService(db, memory_manager).build_snapshot()
     return snapshot.plane_summary
+
+
+@router.get("/recall-boundary", response_model=MemoryRecallBoundaryData)
+async def get_memory_recall_boundary(
+    agent_id: str | None = None,
+    task_id: str | None = None,
+    db: AsyncSession = Depends(get_db_session),
+    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
+) -> MemoryRecallBoundaryData:
+    """Return review-first per-task memory recall boundary and candidate/approved partition snapshot."""
+
+    return await MemoryCommandCenterService(
+        db, memory_manager
+    ).build_recall_boundary_snapshot(
+        agent_id=agent_id,
+        task_id=task_id,
+    )
 
 
 @router.get("/graph", response_model=MemoryCommandGraphResponse)
@@ -115,13 +144,25 @@ async def get_memory_graph(
     namespaces = [namespace] if namespace else None
 
     filtered_nodes = [
-        n for n in nodes_raw if not namespaces or str(n.properties.get("primary_namespace", "")).strip() in namespaces
+        n
+        for n in nodes_raw
+        if not namespaces
+        or str(n.properties.get("primary_namespace", "")).strip() in namespaces
     ]
     filtered_node_ids = {n.id for n in filtered_nodes}
 
-    nodes = [MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties) for n in filtered_nodes]
+    nodes = [
+        MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties)
+        for n in filtered_nodes
+    ]
     edges = [
-        MemoryCommandGraphEdge(id=r.id, source=r.start_id, target=r.end_id, rel_type=r.rel_type, properties=r.properties)
+        MemoryCommandGraphEdge(
+            id=r.id,
+            source=r.start_id,
+            target=r.end_id,
+            rel_type=r.rel_type,
+            properties=r.properties,
+        )
         for r in rels_raw
         if r.start_id in filtered_node_ids and r.end_id in filtered_node_ids
     ]
@@ -131,7 +172,9 @@ async def get_memory_graph(
         node_label_counts=stats_raw.node_label_counts,
         relationship_type_counts=stats_raw.relationship_type_counts,
     )
-    return MemoryCommandGraphResponse(nodes=nodes, edges=edges, stats=stats, has_graph=True)
+    return MemoryCommandGraphResponse(
+        nodes=nodes, edges=edges, stats=stats, has_graph=True
+    )
 
 
 @router.post("/actions", response_model=MemoryCommandActionResponse)
@@ -168,7 +211,9 @@ async def run_memory_command_action(
     )
 
 
-@router.post("/diagnostics/actions", response_model=MemoryCommandDiagnosticActionResponse)
+@router.post(
+    "/diagnostics/actions", response_model=MemoryCommandDiagnosticActionResponse
+)
 async def run_memory_diagnostic_action(
     body: MemoryCommandDiagnosticActionRequest,
     db: AsyncSession = Depends(get_db_session),
@@ -184,10 +229,14 @@ async def run_memory_diagnostic_action(
         health_cache_status=snapshot.health.cache_status,
         runtime=snapshot.runtime,
     )
-    return MemoryCommandDiagnosticActionResponse(status=_diagnostic_action_status(run.status), action=body.action, run=run)
+    return MemoryCommandDiagnosticActionResponse(
+        status=_diagnostic_action_status(run.status), action=body.action, run=run
+    )
 
 
-@router.get("/diagnostics/history", response_model=MemoryCommandDiagnosticHistoryResponse)
+@router.get(
+    "/diagnostics/history", response_model=MemoryCommandDiagnosticHistoryResponse
+)
 async def list_memory_diagnostic_history(
     limit: int = 24,
     offset: int = 0,
@@ -195,7 +244,9 @@ async def list_memory_diagnostic_history(
 ) -> MemoryCommandDiagnosticHistoryResponse:
     """Return persisted Memory Doctor benchmark history for regression trends."""
 
-    events = await MemoryOperationLedgerService(db).list_diagnostic_events(limit=limit, offset=offset)
+    events = await MemoryOperationLedgerService(db).list_diagnostic_events(
+        limit=limit, offset=offset
+    )
     items = [_diagnostic_history_item(event) for event in events]
     return MemoryCommandDiagnosticHistoryResponse(items=items)
 
@@ -208,14 +259,20 @@ async def run_memory_diagnostic_repair(
 ) -> MemoryCommandRepairActionResponse:
     """Execute a structured Memory Doctor repair plan through a whitelist."""
 
-    result, run = await MemoryDiagnosticRepairExecutor(db, memory_manager).run(body.plan_id, body.mode)
+    result, run = await MemoryDiagnosticRepairExecutor(db, memory_manager).run(
+        body.plan_id, body.mode
+    )
     return MemoryCommandRepairActionResponse(result=result, run=run)
 
 
-async def _run_pending_action(body: MemoryCommandActionRequest, db: AsyncSession, manager: MemoryManager) -> None:
+async def _run_pending_action(
+    body: MemoryCommandActionRequest, db: AsyncSession, manager: MemoryManager
+) -> None:
     pending = await db.get(PendingMemory, body.target_id)
     if pending is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Pending memory not found"
+        )
     if body.action == "approve":
         await manager.approve(body.target_id)
         return
@@ -224,36 +281,62 @@ async def _run_pending_action(body: MemoryCommandActionRequest, db: AsyncSession
         return
     if body.action == "edit":
         if not body.content or not body.content.strip():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Edited memory content is required")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Edited memory content is required",
+            )
         pending.content = body.content.strip()
         await db.commit()
         return
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported pending memory action")
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Unsupported pending memory action",
+    )
 
 
-async def _run_shared_proposal_action(body: MemoryCommandActionRequest, db: AsyncSession) -> None:
+async def _run_shared_proposal_action(
+    body: MemoryCommandActionRequest, db: AsyncSession
+) -> None:
     service = SharedContextService(db)
     proposal = await service.get_write_proposal(body.target_id)
     if proposal is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shared context proposal not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shared context proposal not found",
+        )
     if body.action == "approve":
-        await SharedContextProposalMaterializer(db).approve_write_proposal(body.target_id)
+        await SharedContextProposalMaterializer(db).approve_write_proposal(
+            body.target_id
+        )
         return
     if body.action == "reject":
         await service.set_write_proposal_status(body.target_id, "rejected")
         return
     if body.action == "edit":
         if not body.content or not body.content.strip():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Edited proposal content is required")
-        await service.update_write_proposal(body.target_id, content=body.content.strip())
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Edited proposal content is required",
+            )
+        await service.update_write_proposal(
+            body.target_id, content=body.content.strip()
+        )
         return
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported shared proposal action")
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Unsupported shared proposal action",
+    )
 
 
-async def _run_memory_action(body: MemoryCommandActionRequest, manager: MemoryManager) -> None:
+async def _run_memory_action(
+    body: MemoryCommandActionRequest, manager: MemoryManager
+) -> None:
     if body.action == "correct":
         if not body.content or not body.content.strip():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Corrected memory content is required")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Corrected memory content is required",
+            )
         await manager.correct_memory(body.target_id, body.content.strip())
         return
     if body.action == "pin":
@@ -274,7 +357,9 @@ async def _run_memory_action(body: MemoryCommandActionRequest, manager: MemoryMa
         else:
             await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
         return
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported memory action")
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported memory action"
+    )
 
 
 def _action_to_operation(action: str) -> MemoryOperationKind:
@@ -291,7 +376,9 @@ def _action_to_operation(action: str) -> MemoryOperationKind:
     return MemoryOperationKind.OBSERVE
 
 
-def _diagnostic_action_status(run_status: str) -> Literal["completed", "completed_with_findings", "failed"]:
+def _diagnostic_action_status(
+    run_status: str,
+) -> Literal["completed", "completed_with_findings", "failed"]:
     if run_status == "ready":
         return "completed"
     if run_status in {"warning", "missing"}:
@@ -299,7 +386,9 @@ def _diagnostic_action_status(run_status: str) -> Literal["completed", "complete
     return "failed"
 
 
-def _diagnostic_history_item(event: MemoryOperationEventModel) -> MemoryCommandDiagnosticHistoryItem:
+def _diagnostic_history_item(
+    event: MemoryOperationEventModel,
+) -> MemoryCommandDiagnosticHistoryItem:
     """Map one diagnostic audit ledger row into a trend-ready history item.
 
     Benchmark metrics are reconstructed from metadata keys persisted by
@@ -321,7 +410,11 @@ def _diagnostic_history_item(event: MemoryOperationEventModel) -> MemoryCommandD
             latency_p50_ms=float(metadata.get("benchmark_latency_p50_ms") or 0.0),
             latency_p95_ms=float(metadata.get("benchmark_latency_p95_ms") or 0.0),
             top_k=int(metadata.get("benchmark_top_k") or 5),
-            categories={str(k): str(v) for k, v in categories_raw.items()} if isinstance(categories_raw, dict) else {},
+            categories=(
+                {str(k): str(v) for k, v in categories_raw.items()}
+                if isinstance(categories_raw, dict)
+                else {}
+            ),
         )
     embedding_model = metadata.get("benchmark_embedding_model")
     return MemoryCommandDiagnosticHistoryItem(
@@ -332,13 +425,24 @@ def _diagnostic_history_item(event: MemoryOperationEventModel) -> MemoryCommandD
         probe_count=int(metadata.get("probe_count") or 0),
         failed_count=int(metadata.get("failed_count") or 0),
         benchmark=benchmark,
-        embedding_model=embedding_model if isinstance(embedding_model, str) and embedding_model else None,
+        embedding_model=(
+            embedding_model
+            if isinstance(embedding_model, str) and embedding_model
+            else None
+        ),
     )
 
 
-def _history_status(event_status: str, metadata: dict[str, object]) -> Literal["ready", "warning", "critical", "missing"]:
+def _history_status(
+    event_status: str, metadata: dict[str, object]
+) -> Literal["ready", "warning", "critical", "missing"]:
     diagnostic_status = metadata.get("diagnostic_status")
-    if isinstance(diagnostic_status, str) and diagnostic_status in {"ready", "warning", "critical", "missing"}:
+    if isinstance(diagnostic_status, str) and diagnostic_status in {
+        "ready",
+        "warning",
+        "critical",
+        "missing",
+    }:
         return diagnostic_status  # type: ignore[return-value]
     if event_status in {"ready", "warning", "critical", "missing"}:
         return event_status  # type: ignore[return-value]

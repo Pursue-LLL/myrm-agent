@@ -26,15 +26,35 @@ class ProjectCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="项目名称")
     color: str | None = Field(None, description="项目颜色 (hex format)")
     description: str = Field("", max_length=5000, description="项目描述")
+    workspace_path: str | None = Field(
+        None, max_length=4096, description="项目工作目录绝对路径"
+    )
+
+
+class ProjectAdoptRequest(BaseModel):
+    workspace_path: str = Field(
+        ..., min_length=1, max_length=4096, description="要接纳的工作目录绝对路径"
+    )
+    name: str | None = Field(
+        None, max_length=255, description="项目名称（若不提供则自动从目录名提取）"
+    )
+    color: str | None = Field(None, description="项目颜色 (hex format)")
+    description: str = Field("", max_length=5000, description="项目描述")
 
 
 class ProjectUpdateRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255, description="项目名称")
     color: str | None = Field(None, description="项目颜色 (hex format)")
-    workspace_path: str | None = Field(None, max_length=4096, description="项目工作目录绝对路径")
+    workspace_path: str | None = Field(
+        None, max_length=4096, description="项目工作目录绝对路径"
+    )
     description: str | None = Field(None, max_length=5000, description="项目描述")
-    goal_summary: str | None = Field(None, max_length=2000, description="项目当前目标摘要")
-    default_agent_id: str | None = Field(None, max_length=255, description="默认智能体 ID (null=清除)")
+    goal_summary: str | None = Field(
+        None, max_length=2000, description="项目当前目标摘要"
+    )
+    default_agent_id: str | None = Field(
+        None, max_length=255, description="默认智能体 ID (null=清除)"
+    )
 
 
 class ChatMoveRequest(BaseModel):
@@ -63,10 +83,46 @@ async def create_project(req: ProjectCreateRequest) -> JSONResponse:
         raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
 
     try:
-        project = await ProjectService.create_project(name=req.name, color=req.color, description=req.description)
+        project = await ProjectService.create_project(
+            name=req.name,
+            color=req.color,
+            description=req.description,
+            workspace_path=req.workspace_path,
+        )
         return success_response(data={"project": project})
+    except ValueError as exc:
+        raise validation_error(str(exc)) from exc
     except Exception as e:
         raise internal_error(operation="Create project", exception=e) from e
+
+
+@router.post("/adopt", response_model=StandardSuccessResponse)
+async def adopt_project_workspace(req: ProjectAdoptRequest) -> JSONResponse:
+    """接纳本地或已有工程文件夹为 Myrm 项目并绑定工作区路径"""
+    if req.color and not _HEX_COLOR_RE.match(req.color):
+        raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
+
+    from pathlib import Path
+
+    raw_path = req.workspace_path.strip()
+    if not raw_path:
+        raise validation_error("workspace_path cannot be empty")
+
+    folder_name = Path(raw_path).expanduser().name.strip() or "Untitled Project"
+    effective_name = (req.name or "").strip() or folder_name
+
+    try:
+        project = await ProjectService.create_project(
+            name=effective_name,
+            color=req.color,
+            description=req.description,
+            workspace_path=raw_path,
+        )
+        return success_response(data={"project": project})
+    except ValueError as exc:
+        raise validation_error(str(exc)) from exc
+    except Exception as e:
+        raise internal_error(operation="Adopt project workspace", exception=e) from e
 
 
 @router.put("/{project_id}", response_model=StandardSuccessResponse)
@@ -76,7 +132,14 @@ async def update_project(project_id: str, req: ProjectUpdateRequest) -> JSONResp
         raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
     agent_id_provided = "default_agent_id" in req.model_fields_set
     has_update = agent_id_provided or any(
-        v is not None for v in (req.name, req.color, req.workspace_path, req.description, req.goal_summary)
+        v is not None
+        for v in (
+            req.name,
+            req.color,
+            req.workspace_path,
+            req.description,
+            req.goal_summary,
+        )
     )
     if not has_update:
         raise validation_error("At least one field must be provided")

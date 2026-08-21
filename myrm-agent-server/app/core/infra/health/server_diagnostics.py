@@ -13,7 +13,10 @@ Server 层专属业务诊断管理器。负责解耦 API 控制器与内部业�
 import logging
 from typing import Sequence
 
-from myrm_agent_harness.observability.diagnostics.protocols import DiagnosticProtocol, HealthReport
+from myrm_agent_harness.observability.diagnostics.protocols import (
+    DiagnosticProtocol,
+    HealthReport,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +102,11 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             reclaimed = getattr(cache, "reclaimed_count", 0)
 
             detail_parts = [
-                f"Idle timeout: {idle_s:.0f}s" if idle_s > 0 else "Idle reclaim disabled",
+                (
+                    f"Idle timeout: {idle_s:.0f}s"
+                    if idle_s > 0
+                    else "Idle reclaim disabled"
+                ),
                 f"Warm units: {warm_units}",
                 f"Reclaimed: {reclaimed}",
             ]
@@ -119,9 +126,11 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
                 status="pass",
                 code="OK_EXECUTION_CACHE_ACTIVE",
                 meta_data=meta,
-                message=f"Execution cache active ({rss_mb} MB RSS, {warm_units} warm units)"
-                if rss_mb is not None
-                else f"Execution cache active ({warm_units} warm units)",
+                message=(
+                    f"Execution cache active ({rss_mb} MB RSS, {warm_units} warm units)"
+                    if rss_mb is not None
+                    else f"Execution cache active ({warm_units} warm units)"
+                ),
                 detail=", ".join(detail_parts),
             )
         except Exception as e:
@@ -135,6 +144,143 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             )
 
 
+class AgentColdStartDiagnostic(DiagnosticProtocol):
+    """Agent cold-start warm-path readiness and stage latency diagnostic probe.
+
+    Evaluates the readiness of the primary turn-1 execution warm path without consuming
+    any LLM tokens. Diagnoses 4 key dimensions:
+    1. Model Provider Configuration (credentials & client viability)
+    2. Tool Catalog / MCP Registry (lazy index cache status)
+    3. ExecutionCache Warm State (warm BuiltExecutionUnit count & idle status)
+    4. Storage / DB Liveness & Query Latency (SQLite microsecond-level ping)
+    """
+
+    async def check_health(self) -> HealthReport:
+        import asyncio
+        import time
+
+        ready_phases: list[str] = []
+        phase_details: dict[str, object] = {}
+        score: int = 0
+        status: str = "pass"
+        code: str = "OK_AGENT_WARM_PATH_READY"
+        fix_suggestions: list[str] = []
+
+        # 1. Model Provider Readiness
+        try:
+            from app.core.channel_bridge.config_loader import load_user_configs
+
+            configs = await load_user_configs()
+            model_name = getattr(configs.model_cfg, "model", "")
+            if model_name:
+                ready_phases.append("model_ready")
+                phase_details["model_provider"] = model_name
+                score += 35
+            else:
+                phase_details["model_provider"] = "unconfigured"
+                fix_suggestions.append(
+                    "Configure a default LLM Provider in Settings -> Models."
+                )
+        except Exception as exc:
+            phase_details["model_provider_error"] = str(exc)
+            fix_suggestions.append(
+                "Verify LLM Provider credentials and network connection."
+            )
+
+        # 2. Tool Catalog Readiness
+        try:
+            from myrm_agent_harness.agent.tool_management.tool_layers import is_registered_action_tool
+
+            # Verify that tool layer registry is loaded and functioning
+            has_bash = is_registered_action_tool("bash")
+            ready_phases.append("tools_ready")
+            phase_details["tools_ssot_active"] = bool(has_bash)
+            score += 25
+        except Exception as exc:
+            phase_details["tools_error"] = str(exc)
+            fix_suggestions.append("Check tool catalog plugin registration status.")
+
+        # 3. Execution Cache Warm State
+        try:
+            from app.services.agent.execution_cache import get_execution_cache
+
+            cache = get_execution_cache()
+            warm_units = getattr(cache, "warm_entry_count", 0)
+            phase_details["warm_execution_units"] = warm_units
+            if warm_units > 0:
+                ready_phases.append("cache_warm")
+                score += 20
+            else:
+                score += 10  # Cold cache is acceptable on startup
+        except Exception as exc:
+            phase_details["cache_error"] = str(exc)
+
+        # 4. Storage / DB Ping Latency
+        storage_latency_ms: float | None = None
+        try:
+            from sqlalchemy import text
+
+            from app.database.connection import get_session
+
+            start_t = time.perf_counter()
+            async with asyncio.timeout(1.0):
+                async with get_session() as session:
+                    await session.execute(text("SELECT 1"))
+            storage_latency_ms = round((time.perf_counter() - start_t) * 1000, 2)
+            ready_phases.append("storage_healthy")
+            phase_details["storage_latency_ms"] = storage_latency_ms
+            score += 20
+        except Exception as exc:
+            phase_details["storage_error"] = str(exc)
+            fix_suggestions.append(
+                "Check database connection and file lock permissions."
+            )
+
+        # Evaluate overall status
+        if "model_ready" not in ready_phases:
+            status = "warn"
+            code = "WARN_AGENT_MODEL_UNCONFIGURED"
+            message = "Agent model provider is not configured."
+        elif "storage_healthy" not in ready_phases:
+            status = "warn"
+            code = "WARN_AGENT_STORAGE_UNHEALTHY"
+            message = "Agent storage connectivity is degraded."
+        elif "cache_warm" in ready_phases:
+            status = "pass"
+            code = "OK_AGENT_WARM_PATH_WARM"
+            message = f"Agent warm-path fully primed (score: {score}/100, storage: {storage_latency_ms}ms)"
+        else:
+            status = "pass"
+            code = "OK_AGENT_WARM_PATH_COLD_READY"
+            message = f"Agent warm-path ready (score: {score}/100, cold cache, storage: {storage_latency_ms}ms)"
+
+        detail_items = [f"Phases: {', '.join(ready_phases)}", f"Score: {score}/100"]
+        if storage_latency_ms is not None:
+            detail_items.append(f"DB ping: {storage_latency_ms}ms")
+        if "warm_execution_units" in phase_details:
+            detail_items.append(f"Warm units: {phase_details['warm_execution_units']}")
+
+        meta_data: dict[str, object] = {
+            "warm_path_score": score,
+            "ready_phases": ready_phases,
+            "phase_details": phase_details,
+        }
+
+        return HealthReport(
+            component_name="AgentColdStart",
+            status=status,
+            code=code,
+            meta_data=meta_data,
+            message=message,
+            detail="; ".join(detail_items),
+            fix_suggestion="; ".join(fix_suggestions) if fix_suggestions else None,
+            metrics={
+                "warm_path_score": float(score),
+                "storage_latency_ms": storage_latency_ms or 0.0,
+            },
+        )
+
+
 class ServerDiagnosticsManager:
     """Manages and executes all Server-level business diagnostics."""
 
@@ -142,6 +288,7 @@ class ServerDiagnosticsManager:
         self._probes: list[DiagnosticProtocol] = [
             DLQDiagnostic(),
             ExecutionCacheDiagnostic(),
+            AgentColdStartDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:
@@ -151,7 +298,9 @@ class ServerDiagnosticsManager:
                 report = await probe.check_health()
                 reports.append(report)
             except Exception as exc:
-                logger.error("Probe %s failed unhandled: %s", probe.__class__.__name__, exc)
+                logger.error(
+                    "Probe %s failed unhandled: %s", probe.__class__.__name__, exc
+                )
                 reports.append(
                     HealthReport(
                         component_name=probe.__class__.__name__,

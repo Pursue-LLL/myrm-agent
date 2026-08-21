@@ -177,11 +177,11 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
             }
           }}
         >
-          <FolderOpen className="h-3.5 w-3.5" />
+          <FolderOpen className={cn("h-3.5 w-3.5", !currentDir && "text-amber-500/80")} />
           {displayPath ? (
             <span className="max-w-[120px] truncate">{displayPath}</span>
           ) : (
-            <span className="hidden xl:inline">{t('label')}</span>
+            <span className="hidden xl:inline text-amber-500/90 font-medium">{t('unboundWarning') || t('label')}</span>
           )}
         </Button>
       </PopoverTrigger>

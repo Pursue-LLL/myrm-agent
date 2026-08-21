@@ -70,6 +70,7 @@ import { SkillActivationChips } from '../message-box/SkillActivationChips';
 import { WorkflowTemplateArmedBar } from './WorkflowTemplateArmedBar';
 import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
+import { ChatInlineTeamRunVisibilityStrip } from './subagent/ChatInlineTeamRunVisibilityStrip';
 
 const KEYTERM_PATTERN =
   /(?:[A-Z][a-z]+(?:[A-Z][a-z]+)+|[A-Z]{2,}[a-z]*|[a-zA-Z][\w.-]{2,}(?:\.[\w]+)+|[\u4e00-\u9fff]{2,4}(?:[\u4e00-\u9fff]+)?)/g;
@@ -458,6 +459,9 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
 
           {/* 动态工作记忆面板 (Active Working Memory) */}
           <ActiveWorkingMemoryPanel />
+
+          {/* 子代理协同常驻微进度条 */}
+          <ChatInlineTeamRunVisibilityStrip />
 
           <div
             className="flex flex-col bg-secondary px-3 sm:px-5 pt-5 pb-2 rounded-lg w-full border border-border relative"

@@ -59,8 +59,9 @@ import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import MemoryHealthDashboard from '../insights/MemoryHealthDashboard';
 import { canDeepLinkMigrationSource, registerMigrationSourceManifest } from '@/services/migrationDiscovery';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { MemoryRecallBoundaryPanel } from './MemoryRecallBoundaryPanel';
 
-const SECTIONS = ['observe', 'understand', 'act', 'verify'] as const;
+const SECTIONS = ['observe', 'understand', 'act', 'verify', 'boundary'] as const;
 const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
 
 type Section = (typeof SECTIONS)[number];
@@ -596,6 +597,9 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           onDoctorAction={runDoctorAction}
           onConnectClick={() => setConnectWizardOpen(true)}
         />
+      )}
+      {activeSection === 'boundary' && (
+        <MemoryRecallBoundaryPanel />
       )}
       <RollbackPreviewDialog
         open={rollbackDialogOpen}

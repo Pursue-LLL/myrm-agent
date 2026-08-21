@@ -11,6 +11,7 @@ import type { Project } from '@/services/projects';
 import {
   getProjects,
   createProject,
+  adoptProjectWorkspace as apiAdoptProjectWorkspace,
   updateProject as apiUpdateProject,
   deleteProject as apiDeleteProject,
 } from '@/services/projects';
@@ -25,7 +26,8 @@ interface ProjectState {
 interface ProjectActions {
   fetchProjects: () => Promise<void>;
   setActiveFilter: (filter: string | null | undefined) => void;
-  addProject: (name: string, color?: string) => Promise<Project>;
+  addProject: (name: string, color?: string, description?: string, workspacePath?: string) => Promise<Project>;
+  adoptProject: (workspacePath: string, name?: string, color?: string, description?: string) => Promise<Project>;
   updateProject: (
     id: string,
     updates: { name?: string; color?: string; workspace_path?: string; default_agent_id?: string | null },
@@ -49,9 +51,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>()(
         set({ activeFilter: filter });
       },
 
-      addProject: async (name, color) => {
-        const project = await createProject(name, color);
+      addProject: async (name, color, description, workspacePath) => {
+        const project = await createProject(name, color, description, workspacePath);
         set((s) => ({ projects: [...s.projects, project] }));
+        return project;
+      },
+
+      adoptProject: async (workspacePath, name, color, description) => {
+        const project = await apiAdoptProjectWorkspace(workspacePath, name, color, description);
+        set((s) => ({
+          projects: [...s.projects.filter((p) => p.id !== project.id), project],
+          activeFilter: project.id,
+        }));
         return project;
       },
 

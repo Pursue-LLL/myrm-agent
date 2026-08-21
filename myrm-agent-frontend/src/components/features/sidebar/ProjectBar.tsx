@@ -7,12 +7,13 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Plus, Pencil, Trash2, FolderOpen, FolderCog, Bot } from 'lucide-react';
+import { Plus, Pencil, Trash2, FolderOpen, FolderCog, Bot, FolderInput } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/services/projects';
 import { useTranslations } from 'next-intl';
 import ProjectWorkspaceMount from '@/components/features/project-workspace/ProjectWorkspaceMount';
+import ProjectWorkspaceAdoptDialog from '@/components/features/project-workspace/ProjectWorkspaceAdoptDialog';
 import { ProjectDefaultAgentDialog } from './ProjectDefaultAgentDialog';
 
 const PROJECT_COLORS = [
@@ -43,6 +44,7 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
   const [contextMenu, setContextMenu] = useState<{ projectId: string; x: number; y: number } | null>(null);
   const [workspaceMountProject, setWorkspaceMountProject] = useState<Project | null>(null);
   const [defaultAgentProject, setDefaultAgentProject] = useState<Project | null>(null);
+  const [adoptDialogOpen, setAdoptDialogOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -228,12 +230,22 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
             />
           </div>
         ) : (
-          <button
-            onClick={() => setShowInput(true)}
-            className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          >
-            <Plus size={10} className="text-muted-foreground/50" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowInput(true)}
+              title={t('project.newProject') || '新建项目'}
+              className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              <Plus size={10} className="text-muted-foreground/50" />
+            </button>
+            <button
+              onClick={() => setAdoptDialogOpen(true)}
+              title={t('project.workspaceMount.adoptFolder') || '接纳外部项目文件夹'}
+              className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-muted-foreground/50 hover:text-primary"
+            >
+              <FolderInput size={11} />
+            </button>
+          </div>
         )}
       </div>
 
@@ -290,6 +302,13 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
             }
           }}
           project={defaultAgentProject}
+        />
+      )}
+
+      {adoptDialogOpen && (
+        <ProjectWorkspaceAdoptDialog
+          open={adoptDialogOpen}
+          onOpenChange={setAdoptDialogOpen}
         />
       )}
     </div>
