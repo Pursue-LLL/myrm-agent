@@ -90,3 +90,21 @@ async def test_get_ops_snapshot_api_endpoint() -> None:
         parsed = OpsAggregatedSnapshot.model_validate(data)
         assert parsed.system.app_name is not None
         assert parsed.liveness.state in ("idle", "busy", "degraded", "draining")
+
+
+@pytest.mark.asyncio
+async def test_ops_snapshot_subtask_isolation_and_fallback() -> None:
+    """Verify that when a subtask raises an unexpected error, the snapshot falls back gracefully."""
+    from unittest.mock import patch
+
+    with patch.object(
+        OpsAggregatedSnapshotService,
+        "_collect_governance_info",
+        side_effect=RuntimeError("Simulated governance DB crash"),
+    ):
+        snapshot = await OpsAggregatedSnapshotService.collect_snapshot(include_doctor=False)
+        assert isinstance(snapshot, OpsAggregatedSnapshot)
+        assert snapshot.governance.cron_failures_24h == 0
+        assert snapshot.governance.pending_approvals == 0
+        assert snapshot.system.app_name is not None
+

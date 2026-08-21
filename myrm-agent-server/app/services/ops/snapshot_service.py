@@ -304,8 +304,21 @@ class OpsAggregatedSnapshotService:
                 pass
 
         try:
-            from app.api.goals.router import _NON_TERMINAL_STATUSES
+            from myrm_agent_harness.agent.goals.types import GoalStatus
+
             from app.services.agent.goals.goal_registry import GoalRegistry
+
+            non_terminal_statuses = frozenset(
+                {
+                    GoalStatus.ACTIVE,
+                    GoalStatus.PAUSED,
+                    GoalStatus.PENDING_APPROVAL,
+                    GoalStatus.BUDGET_LIMITED,
+                    GoalStatus.NEEDS_HUMAN_REVIEW,
+                    GoalStatus.QUEUED,
+                    GoalStatus.WAIT,
+                }
+            )
 
             with GoalRegistry._lock:
                 session_ids = list(GoalRegistry._providers.keys())
@@ -315,7 +328,7 @@ class OpsAggregatedSnapshotService:
                     continue
                 try:
                     goal = await provider.get_latest_goal(sid)
-                    if goal and goal.status in _NON_TERMINAL_STATUSES:
+                    if goal and goal.status in non_terminal_statuses:
                         active_goals += 1
                 except Exception:
                     pass
