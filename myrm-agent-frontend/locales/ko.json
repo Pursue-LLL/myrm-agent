@@ -7944,6 +7944,7 @@
       "dismiss": "나중에",
       "apiKeysHint": "API 키 이름이 감지되었습니다 — 설정에서 값을 직접 입력하세요"
     },
+    "uploadFailed": "업로드에 실패했습니다",
     "skillActivation": {
       "remove": "선택한 스킬 제거"
     },

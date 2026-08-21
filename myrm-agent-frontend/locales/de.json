@@ -7944,6 +7944,7 @@
       "dismiss": "Vielleicht später",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
     },
+    "uploadFailed": "Upload fehlgeschlagen",
     "skillActivation": {
       "remove": "Ausgewählte Fähigkeiten entfernen"
     },
