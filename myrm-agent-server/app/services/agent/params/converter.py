@@ -218,11 +218,85 @@ async def convert_to_general_agent_params(
     vision_fallback_model_cfgs: list[ModelConfig] | None = None
 
     routing_tier: str | None = None
-    if request.light_model_selection or request.reasoning_model_selection:
+    routing_specialty: str | None = None
+    if (
+        request.light_model_selection
+        or request.reasoning_model_selection
+        or request.code_model_selection
+        or request.long_doc_model_selection
+    ):
         try:
             from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
                 route_task,
             )
+            from myrm_agent_harness.toolkits.llms.routing.specialty_router import (
+                TaskSpecialty,
+                route_task_specialty,
+            )
+
+            # Resolve domain specialty slots first if configured
+            specialty_slots: dict[TaskSpecialty, ModelConfig] = {}
+            specialty_fallback_slots: dict[TaskSpecialty, ModelConfig] = {}
+
+            if request.code_model_selection:
+                try:
+                    specialty_slots[TaskSpecialty.CODE] = await _resolve_model_config(
+                        request.code_model_selection, providers_dict
+                    )
+                except ValueError:
+                    logger.warning("Failed to resolve code specialty model")
+            if request.fallback_code_model_selection:
+                try:
+                    specialty_fallback_slots[TaskSpecialty.CODE] = await _resolve_model_config(
+                        request.fallback_code_model_selection, providers_dict
+                    )
+                except ValueError:
+                    pass
+
+            if request.long_doc_model_selection:
+                try:
+                    specialty_slots[TaskSpecialty.LONG_DOC] = await _resolve_model_config(
+                        request.long_doc_model_selection, providers_dict
+                    )
+                except ValueError:
+                    logger.warning("Failed to resolve long_doc specialty model")
+            if request.fallback_long_doc_model_selection:
+                try:
+                    specialty_fallback_slots[TaskSpecialty.LONG_DOC] = await _resolve_model_config(
+                        request.fallback_long_doc_model_selection, providers_dict
+                    )
+                except ValueError:
+                    pass
+
+            if request.reasoning_model_selection:
+                try:
+                    reasoning_cfg_slot = await _resolve_model_config(
+                        request.reasoning_model_selection, providers_dict
+                    )
+                    specialty_slots[TaskSpecialty.REASONING] = reasoning_cfg_slot
+                except ValueError:
+                    pass
+
+            specialty_result = await route_task_specialty(
+                query=request.query,
+                default_model_cfg=model_cfg,
+                specialty_model_slots=specialty_slots if specialty_slots else None,
+                specialty_fallback_slots=specialty_fallback_slots if specialty_fallback_slots else None,
+                default_fallback_cfg=fallback_model_cfg,
+            )
+            routing_specialty = specialty_result.specialty.value
+
+            # If a specific domain specialty slot hit (and not general default), take priority
+            if "specialty_slot_hit" in specialty_result.reason:
+                model_cfg = specialty_result.model_cfg
+                if specialty_result.fallback_model_cfg is not None:
+                    fallback_model_cfg = specialty_result.fallback_model_cfg
+                logger.info(
+                    "Specialty routing activated: specialty=%s model=%s reason=%s",
+                    routing_specialty,
+                    model_cfg.model,
+                    specialty_result.reason,
+                )
 
             light_model_cfg = None
             if request.light_model_selection:
@@ -295,38 +369,40 @@ async def convert_to_general_agent_params(
             elif is_complaint_up:
                 complaint_min_tier = RoutingTier.STANDARD
 
-            routing_result = await route_task(
-                query=request.query,
-                standard_model_cfg=model_cfg,
-                light_model_cfg=light_model_cfg,
-                reasoning_model_cfg=reasoning_model_cfg,
-                standard_fallback_cfg=fallback_model_cfg,
-                light_fallback_cfg=light_fallback_cfg,
-                reasoning_fallback_cfg=reasoning_fallback_cfg,
-                judge_llm=judge_llm,
-                recent_tiers=recent_routing_tiers,
-                min_tier=complaint_min_tier,
-            )
-            model_cfg = routing_result.model_cfg
-            if routing_result.fallback_model_cfg is not None:
-                fallback_model_cfg = routing_result.fallback_model_cfg
-            routing_tier = routing_result.tier.value
-
-            # 最高档 REASONING 无更高档可升：complaint-up 只是重新生成，并非
-            # 档位选择错误。记录惩罚会削弱未来同类任务的档位选择（越用越笨），故跳过。
-            if is_complaint_up and recent_routing_tiers and recent_routing_tiers[-1] is not RoutingTier.REASONING:
-                from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-                    record_misroute,
+            # Only run complexity router if specialty routing didn't explicitly bind a non-general slot
+            if "specialty_slot_hit" not in specialty_result.reason and (request.light_model_selection or request.reasoning_model_selection):
+                routing_result = await route_task(
+                    query=request.query,
+                    standard_model_cfg=model_cfg,
+                    light_model_cfg=light_model_cfg,
+                    reasoning_model_cfg=reasoning_model_cfg,
+                    standard_fallback_cfg=fallback_model_cfg,
+                    light_fallback_cfg=light_fallback_cfg,
+                    reasoning_fallback_cfg=reasoning_fallback_cfg,
+                    judge_llm=judge_llm,
+                    recent_tiers=recent_routing_tiers,
+                    min_tier=complaint_min_tier,
                 )
+                model_cfg = routing_result.model_cfg
+                if routing_result.fallback_model_cfg is not None:
+                    fallback_model_cfg = routing_result.fallback_model_cfg
+                routing_tier = routing_result.tier.value
 
-                record_misroute(recent_routing_tiers[-1])
+                # 最高档 REASONING 无更高档可升：complaint-up 只是重新生成，并非
+                # 档位选择错误。记录惩罚会削弱未来同类任务的档位选择（越用越笨），故跳过。
+                if is_complaint_up and recent_routing_tiers and recent_routing_tiers[-1] is not RoutingTier.REASONING:
+                    from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+                        record_misroute,
+                    )
 
-            logger.warning(
-                "Smart routing: tier=%s model=%s reason=%s",
-                routing_result.tier.value,
-                model_cfg.model,
-                routing_result.reason,
-            )
+                    record_misroute(recent_routing_tiers[-1])
+
+                logger.warning(
+                    "Smart routing: tier=%s model=%s reason=%s",
+                    routing_result.tier.value,
+                    model_cfg.model,
+                    routing_result.reason,
+                )
         except Exception:
             logger.warning("Smart routing failed, using default model", exc_info=True)
 

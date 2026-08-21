@@ -22,6 +22,7 @@ import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import type { ClarificationForm } from '@/store/chat/types';
 import { cn } from '@/lib/utils';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import { buildStructuredClarificationAnswer } from './clarificationAnswer';
 
 const SendIcon = ({ className }: { className?: string }) => (
@@ -268,7 +269,7 @@ const ClarificationInput = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) {
+    if (isImeComposing(e)) {
       return;
     }
     if (e.key === 'Enter' && !e.shiftKey) {

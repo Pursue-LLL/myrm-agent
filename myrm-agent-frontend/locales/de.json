@@ -1,4 +1,20 @@
 {
+  "recovery": {
+    "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
+    "description": "Beim Start wurden Anomalien in Komponenten oder Konfigurationen festgestellt. Sie können zur letzten funktionierenden Konfiguration zurückkehren oder ein Diagnosepaket exportieren.",
+    "probeStatus": "Komponenten-Prüfstatus",
+    "allHealthy": "Alle einwandfrei",
+    "quarantinedFound": "In Quarantäne befindliche Elemente gefunden",
+    "allVerified": "Alle Skill/MCP- und Kernkomponenten verifiziert",
+    "exportDiagnostics": "Diagnosepaket exportieren",
+    "ignoreAndContinue": "Ignorieren und fortfahren",
+    "rollbackGood": "Zur guten Konfiguration zurückkehren",
+    "fetchHealthFailed": "Fehler beim Abrufen des Zustandsberichts",
+    "rollbackSuccess": "Erfolgreich zur letzten bekannten guten Konfiguration zurückgekehrt",
+    "rollbackFailed": "Rollback fehlgeschlagen",
+    "exportSuccess": "Diagnosepaket exportiert",
+    "exportFailed": "Exportieren des Diagnosepakets fehlgeschlagen"
+  },
   "emptyState": {
     "defaultTitle": "Keine Daten",
     "defaultDescription": "Diese Liste ist derzeit leer oder es wurden noch keine Elemente generiert",

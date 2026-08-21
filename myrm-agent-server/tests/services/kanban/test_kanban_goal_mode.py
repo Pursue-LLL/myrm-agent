@@ -242,6 +242,40 @@ class TestGoalOutcomeMapping:
         assert saved_task.metadata.get("acceptance_results") == [{"label": "criteria 1", "passed": False}]
 
     @pytest.mark.asyncio
+    async def test_wait_goal_maps_to_blocked_external(self):
+        from myrm_agent_harness.agent.goals.types import GoalStatus
+        from myrm_agent_harness.toolkits.kanban.types import BlockKind, TaskStatus
+
+        from app.services.kanban.task_runner import KanbanTaskRunner
+
+        mock_store = AsyncMock()
+        fresh_task = _make_task(goal_mode=True)
+        mock_store.get_task = AsyncMock(return_value=fresh_task)
+        mock_store.save_task = AsyncMock()
+        runner = KanbanTaskRunner(mock_store)
+        task = _make_task(goal_mode=True)
+
+        mock_goal = MagicMock()
+        mock_goal.status = GoalStatus.WAIT
+        mock_goal.metadata = {
+            "wait_reason": "Waiting on CI background job",
+            "acceptance_results": [{"label": "build", "passed": True}],
+        }
+
+        mock_provider = AsyncMock()
+        mock_provider.get_latest_goal = AsyncMock(return_value=mock_goal)
+
+        result = await runner._map_goal_outcome(task, mock_provider, (False, ""))
+        assert result[0] is False
+        assert "Waiting on CI" in result[1]
+        mock_store.save_task.assert_called_once()
+        saved_task = mock_store.save_task.call_args[0][0]
+        assert saved_task.status == TaskStatus.BLOCKED
+        assert saved_task.blocked_reason == "Waiting on CI background job"
+        assert saved_task.block_kind == BlockKind.EXTERNAL
+        assert saved_task.metadata.get("acceptance_results") == [{"label": "build", "passed": True}]
+
+    @pytest.mark.asyncio
     async def test_no_active_goal_returns_agent_result(self):
         from app.services.kanban.task_runner import KanbanTaskRunner
 

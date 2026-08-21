@@ -12,6 +12,7 @@
  */
 import * as React from 'react';
 import { ArrowRight, Square, Plus, X, Navigation, ListPlus, Maximize2, Minimize2, CornerDownLeft } from 'lucide-react';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import TextareaAutosize from 'react-textarea-autosize';
 import AttachList from '../message-input-actions/AttachList';
 import AttachButton from '../message-input-actions/AttachButton';
@@ -344,7 +345,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
           }}
           onKeyDown={(e) => {
             // IME 组合输入阶段不拦截按键，避免回车键误发送或触发快捷指令。
-            if (e.nativeEvent.isComposing) {
+            if (isImeComposing(e)) {
               return;
             }
 

@@ -1,4 +1,20 @@
 {
+  "recovery": {
+    "title": "에이전트 시작 및 구성 복구 센터",
+    "description": "시작 중 에이전트 구성 요소 또는 구성에 이상이 감지되었습니다. 마지막으로 확인된 정상 구성으로 롤백하거나 진단 번들을 내보낼 수 있습니다.",
+    "probeStatus": "구성 요소 프로브 상태",
+    "allHealthy": "모두 정상",
+    "quarantinedFound": "격리된 결함 항목 발견됨",
+    "allVerified": "모든 Skill/MCP 및 핵심 구성 요소 검증됨",
+    "exportDiagnostics": "진단 번들 내보내기",
+    "ignoreAndContinue": "무시하고 계속",
+    "rollbackGood": "정상 구성으로 롤백",
+    "fetchHealthFailed": "상태 보고서 가져오기 실패",
+    "rollbackSuccess": "마지막으로 확인된 정상 구성으로 성공적으로 롤백되었습니다",
+    "rollbackFailed": "롤백 실패",
+    "exportSuccess": "진단 번들을 내보냈습니다",
+    "exportFailed": "진단 번들 내보내기 실패"
+  },
   "emptyState": {
     "defaultTitle": "데이터 없음",
     "defaultDescription": "현재 목록이 비어 있거나 아직 생성된 콘텐츠가 없습니다",

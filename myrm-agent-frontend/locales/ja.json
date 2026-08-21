@@ -1,4 +1,20 @@
 {
+  "recovery": {
+    "title": "エージェント起動・設定復旧センター",
+    "description": "起動時にエージェントのコンポーネントまたは設定に異常が検出されました。最後に正常だった構成にロールバックするか、診断バンドルをエクスポートできます。",
+    "probeStatus": "コンポーネントプローブ状態",
+    "allHealthy": "すべて正常",
+    "quarantinedFound": "障害隔離アイテムが見つかりました",
+    "allVerified": "すべてのSkill/MCPおよびコアコンポーネントを検証済み",
+    "exportDiagnostics": "診断バンドルをエクスポート",
+    "ignoreAndContinue": "無視して続行",
+    "rollbackGood": "良好な構成にロールバック",
+    "fetchHealthFailed": "健全性レポートの取得に失敗しました",
+    "rollbackSuccess": "最後に確認された正常な構成に正常にロールバックしました",
+    "rollbackFailed": "ロールバックに失敗しました",
+    "exportSuccess": "診断バンドルをエクスポートしました",
+    "exportFailed": "診断バンドルのエクスポートに失敗しました"
+  },
   "emptyState": {
     "defaultTitle": "データがありません",
     "defaultDescription": "リストが空であるか、まだコンテンツが生成されていません",

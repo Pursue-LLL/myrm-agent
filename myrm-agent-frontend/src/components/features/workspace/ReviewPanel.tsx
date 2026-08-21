@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { FileEdit, ChevronDown, ChevronRight, RefreshCw, MessageSquare, MessagesSquare, User, Bot } from 'lucide-react';
 import { createPatch } from 'diff';
 import { cn } from '@/lib/utils/classnameUtils';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { getMessages } from '@/services/chat';
@@ -283,7 +284,7 @@ export default function ReviewPanel({ sessionId, messageId, onSendFeedback }: Re
               className="flex-1 text-sm bg-muted/50 border border-border/50 rounded-lg px-3 py-1.5
                 focus:outline-none focus:ring-1 focus:ring-primary/50"
               onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) {
+                if (isImeComposing(e)) {
                   return;
                 }
                 if (e.key === 'Enter' && feedbackText.trim()) {

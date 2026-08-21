@@ -1,4 +1,5 @@
 /**
+ * @vitest-environment jsdom
  * Tests for useScrollPositionRestore (AutoScrollFollowPersistenceMirror)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

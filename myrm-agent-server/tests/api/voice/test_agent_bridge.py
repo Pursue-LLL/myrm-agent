@@ -838,3 +838,32 @@ class TestVoiceFastLaneAndSupervisor:
         mock_handler.spawn_background.assert_awaited_once()
         mock_stream_tts.assert_called()
 
+    @pytest.mark.asyncio
+    async def test_fast_lane_fallback_self_healing(self) -> None:
+        """If fast lane stream fails without output, fallback to full agent stream."""
+        bridge = _make_bridge()
+        mock_params = MagicMock()
+        mock_params.agent_skill_ids = []
+        mock_params.subagent_ids = None
+
+        async def failing_fast_stream(params: object, cancel_token: object) -> AsyncIterator[dict[str, object]]:
+            raise RuntimeError("Fast lane provider boom")
+            yield {}  # make it a generator
+
+        with (
+            patch.object(bridge, "_build_agent_params", return_value=mock_params),
+            patch.object(bridge, "_is_fast_lane_query", return_value=True),
+            patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
+            patch.object(bridge, "_consume_agent_stream", new_callable=AsyncMock, return_value=("Recovered full text.", False)) as mock_full_stream,
+            patch(
+                "app.services.agent.stream_session.stream_lane_factory.create_fast_lane_stream",
+                side_effect=failing_fast_stream,
+            ),
+        ):
+            await bridge.handle_stt_final("hello")
+
+        mock_full_stream.assert_awaited_once()
+        assert len(bridge._transcript) == 2
+        assert bridge._transcript[1].text == "Recovered full text."
+
+

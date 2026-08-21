@@ -280,6 +280,10 @@ class VoiceAgentBridge:
 
         except Exception:
             logger.exception("Voice bridge fast lane error (turn=%s)", turn_id)
+            # Fallback self-healing: if fast lane fails unexpectedly, try falling back to full stream
+            if not full_text_parts and self._current_turn == turn_id:
+                logger.info("Fast lane produced no output, falling back to full agent stream (turn=%s)", turn_id)
+                return await self._consume_agent_stream(params, cancel_token, turn_id)
 
         return "".join(full_text_parts), False
 

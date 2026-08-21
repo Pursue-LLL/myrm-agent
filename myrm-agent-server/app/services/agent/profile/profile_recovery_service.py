@@ -228,6 +228,39 @@ class ProfileStartupRecoveryService:
             latency_ms=round(latency, 2),
         )
 
+    @classmethod
+    async def _probe_single_model(cls, model_entry: str | None) -> ComponentProbeResult:
+        """Validate agent configured model identifier."""
+        start = time.monotonic()
+        if not model_entry or not model_entry.strip():
+            # 模型可留空（继承系统默认模型）
+            return ComponentProbeResult(
+                component_type="model",
+                component_id="default_inherited",
+                status="healthy",
+                latency_ms=round((time.monotonic() - start) * 1000, 2),
+            )
+
+        model_clean = model_entry.strip()
+        latency = (time.monotonic() - start) * 1000
+
+        # 基本合法性格式校验：不能包含非法字符或破坏性控制字符
+        if len(model_clean) > 128 or any(c in model_clean for c in ("\n", "\r", "\t", "\0")):
+            return ComponentProbeResult(
+                component_type="model",
+                component_id=model_clean,
+                status="quarantined",
+                error_message="Invalid model identifier format",
+                latency_ms=round(latency, 2),
+            )
+
+        return ComponentProbeResult(
+            component_type="model",
+            component_id=model_clean,
+            status="healthy",
+            latency_ms=round(latency, 2),
+        )
+
     @staticmethod
     async def probe_profile_health(agent_id: str) -> ProfileHealthReport:
         """Probe all configured skills, MCPs, and tools for an agent concurrently."""
@@ -269,6 +302,9 @@ class ProfileStartupRecoveryService:
         for mcp_id in resolved.mcp_ids:
             if mcp_id.strip():
                 tasks.append(asyncio.create_task(ProfileStartupRecoveryService._probe_single_mcp(mcp_id)))
+
+        # 4. 探针模型有效性
+        tasks.append(asyncio.create_task(ProfileStartupRecoveryService._probe_single_model(resolved.model)))
 
         results = await asyncio.gather(*tasks, return_exceptions=True) if tasks else []
 

@@ -239,6 +239,11 @@ class AgentRequest(BaseModel):
     fallback_reasoning_model_selection: ModelSelection | None = None
     research_model_selection: ModelSelection | None = None
 
+    code_model_selection: ModelSelection | None = None
+    fallback_code_model_selection: ModelSelection | None = None
+    long_doc_model_selection: ModelSelection | None = None
+    fallback_long_doc_model_selection: ModelSelection | None = None
+
     agent_config: AgentConfigRequest | None = None
 
     user_instructions: str | None = None

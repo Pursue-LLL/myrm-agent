@@ -126,7 +126,7 @@ async def _run_single(
     await router.start()
     try:
         await bus._handle_inbound(_group_msg(content, mentioned=mentioned))
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(0.8)
         return list(executor.calls)
     finally:
         await router.stop()
