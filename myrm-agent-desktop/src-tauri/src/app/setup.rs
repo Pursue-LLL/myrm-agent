@@ -102,6 +102,9 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     app.manage(commands::power::PowerState::new());
     app.manage(commands::screen_lock::ScreenLockState::new());
 
+    let process_registry = runtime::ProcessRegistry::new();
+    app.manage(process_registry);
+
     app.manage(PythonBackend::new());
     app.manage(NextJSFrontend::new());
 

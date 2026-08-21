@@ -15,14 +15,12 @@ Integration tests proving capacity theater detection and zero-data-loss safe arc
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
-import pytest
 
-from myrm_agent_harness.toolkits.memory import MemoryType
-from myrm_agent_harness.toolkits.memory.types import MemoryStatus
+from app.api.memory.operations.command_center_actions import run_restore_disciplined_defaults
 from app.schemas.memory.command_center import MemoryCommandActionRequest
 from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import probe_capacity_theater
-from app.api.memory.operations.command_center_actions import run_restore_disciplined_defaults
-from app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor import MemoryDiagnosticRepairExecutor
+from myrm_agent_harness.toolkits.memory import MemoryType
+from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 
 
 def test_capacity_theater_probe_clean() -> None:

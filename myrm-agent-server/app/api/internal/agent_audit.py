@@ -21,18 +21,16 @@ import secrets
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.types import EventFilter
 from pydantic import BaseModel
 
 from app.config.settings import settings
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
-
-_CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_CP_TOKEN_HEADER = "X-Telemetry-Token"
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
 _MAX_LIMIT = 1000
 _DEFAULT_LIMIT = 200
 _MAX_HOURS = 24 * 30

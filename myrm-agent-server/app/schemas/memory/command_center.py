@@ -265,7 +265,7 @@ class MemoryCommandDoctorCheck(BaseModel):
     """Runtime memory doctor check shown in the local command center."""
 
     id: str
-    category: Literal["storage", "index", "embedding", "ledger", "deployment", "quality", "migration"]
+    category: Literal["storage", "index", "embedding", "ledger", "deployment", "quality", "migration", "governance"]
     label: str
     status: Literal["ready", "warning", "critical", "missing"]
     evidence: str
@@ -299,7 +299,7 @@ class MemoryCommandDiagnosticProbeResult(BaseModel):
     """Single probe result from an executable memory diagnostic run."""
 
     id: str
-    category: Literal["storage", "index", "embedding", "ledger", "deployment", "quality", "migration"]
+    category: Literal["storage", "index", "embedding", "ledger", "deployment", "quality", "migration", "governance"]
     label: str
     status: Literal["ready", "warning", "critical", "missing"]
     evidence: str
@@ -508,8 +508,8 @@ class MemoryCommandActionRequest(BaseModel):
     """Command center governance action request."""
 
     target_kind: Literal["pending_memory", "shared_context_proposal", "memory"]
-    target_id: str
-    action: Literal["approve", "reject", "edit", "correct", "forget", "pin", "unpin"]
+    target_id: str = ""
+    action: Literal["approve", "reject", "edit", "correct", "forget", "pin", "unpin", "restore_defaults"]
     memory_type: str | None = None
     content: str | None = None
 
@@ -526,7 +526,7 @@ class MemoryCommandActionResponse(BaseModel):
 class MemoryCommandDiagnosticActionRequest(BaseModel):
     """Executable Memory Doctor action request."""
 
-    action: Literal["run_diagnostics", "run_health_refresh"]
+    action: Literal["run_diagnostics", "run_health_refresh", "restore_disciplined_defaults"]
 
 
 class MemoryCommandDiagnosticActionResponse(BaseModel):
@@ -547,6 +547,7 @@ class MemoryCommandRepairActionRequest(BaseModel):
         "enable_vector_store",
         "configure_embedding",
         "review_retrieval_trace",
+        "restore_disciplined_defaults",
     ]
     mode: Literal["dry_run", "execute"] = "execute"
 

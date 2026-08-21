@@ -16,13 +16,12 @@ import logging
 import os
 import secrets
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger(__name__)
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 
-_TELEMETRY_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
-_TELEMETRY_TOKEN_HEADER = "X-Telemetry-Token"
+logger = logging.getLogger(__name__)
 
 
 class KillSwitchBody(BaseModel):
@@ -30,19 +29,15 @@ class KillSwitchBody(BaseModel):
     action: str = Field(pattern="^(disable|enable)$")
 
 
-router = APIRouter(prefix="/api/internal/skills", tags=["internal-skills"])
-
-
-def _verify_token(request: Request) -> None:
-    expected = os.getenv(_TELEMETRY_TOKEN_ENV, "").strip()
-    provided = request.headers.get(_TELEMETRY_TOKEN_HEADER, "").strip()
-    if not expected or not provided or not secrets.compare_digest(expected, provided):
-        raise HTTPException(status_code=403, detail="Invalid telemetry token")
+router = APIRouter(
+    prefix="/api/internal/skills",
+    tags=["internal-skills"],
+    dependencies=[Depends(verify_control_plane_token)],
+)
 
 
 @router.post("/killswitch")
-async def killswitch_action(body: KillSwitchBody, request: Request) -> dict[str, str]:
-    _verify_token(request)
+async def killswitch_action(body: KillSwitchBody) -> dict[str, str]:
     from app.core.skills.store.service import skills_service
 
     if body.action == "disable":

@@ -12,10 +12,12 @@ CP-to-sandbox internal endpoint for interrupting agent execution.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-router = APIRouter()
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
+
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
 
 
 @router.post("/agent/interrupt", tags=["agents"])

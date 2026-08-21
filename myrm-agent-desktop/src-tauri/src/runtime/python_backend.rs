@@ -208,12 +208,23 @@ pub async fn start_backend_with_config(
         .spawn()
         .map_err(|e| format!("Failed to start backend: {}", e))?;
 
+    let child_pid = child.id();
+    if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+        registry
+            .register_spawn(
+                "sidecar:backend",
+                crate::runtime::ProcessRole::Backend,
+                Some(child_pid),
+            )
+            .await;
+    }
+
     {
         let mut process_guard = backend.process.lock().unwrap();
         *process_guard = Some(child);
     }
 
-    println!("✅ Backend process started");
+    println!("✅ Backend process started (PID: {})", child_pid);
 
     for i in 0..BACKEND_HEALTH_MAX_ATTEMPTS {
         tokio::time::sleep(BACKEND_HEALTH_POLL_INTERVAL).await;
@@ -264,8 +275,20 @@ async fn check_health_with_port(port: u16) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn stop_backend(backend: State<'_, PythonBackend>) -> Result<String, String> {
+pub fn stop_backend(
+    app: Option<AppHandle>,
+    backend: State<'_, PythonBackend>,
+) -> Result<String, String> {
     println!("Stopping Python backend...");
+
+    if let Some(ref handle) = app {
+        if let Some(registry) = handle.try_state::<crate::runtime::ProcessRegistry>() {
+            let reg = registry.inner().clone();
+            tauri::async_runtime::spawn(async move {
+                reg.mark_stopped("sidecar:backend", Some(0)).await;
+            });
+        }
+    }
 
     let mut process_guard = backend.process.lock().unwrap();
 

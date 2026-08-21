@@ -18,7 +18,6 @@ from __future__ import annotations
 import logging
 import secrets
 from collections.abc import Mapping
-from urllib.parse import urlparse
 
 from fastapi import HTTPException, Request, status
 

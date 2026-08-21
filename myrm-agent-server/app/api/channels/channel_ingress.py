@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.channels.types import InboundMessage
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
 
 
 class ResolvedChannelIdentityRequest(BaseModel):

@@ -290,7 +290,22 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     };
     window.addEventListener('subagents_updated', handleSseEvent);
     window.addEventListener('teammate_message', handleTeammateEvent);
-    const handleOpenDashboard = () => setOpen(true);
+    const handleOpenDashboard = (event: Event) => {
+      const customEvent = event as CustomEvent<{ taskId?: string }>;
+      const targetTaskId = customEvent.detail?.taskId;
+      setOpen(true);
+      if (targetTaskId) {
+        setViewMode('tree');
+        requestAnimationFrame(() => {
+          const el = document.querySelector(`[data-subagent-tree-id="${targetTaskId}"]`);
+          if (el instanceof HTMLElement) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg', 'transition-all');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg'), 2000);
+          }
+        });
+      }
+    };
     window.addEventListener('open_subagent_dashboard', handleOpenDashboard);
     return () => {
       window.removeEventListener('subagents_updated', handleSseEvent);
