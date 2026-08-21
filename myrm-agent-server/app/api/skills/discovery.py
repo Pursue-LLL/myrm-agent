@@ -23,7 +23,7 @@ from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
-from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
+from myrm_agent_harness.api.skills import SkillInstallResult
 
 from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.audit import _audit_skill_action

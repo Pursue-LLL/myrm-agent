@@ -8764,7 +8764,12 @@
         "communitiesTitle": "トピッククラスター（{count}）",
         "emptyGaps": "ナレッジギャップは検出されませんでした。",
         "emptyConnections": "意外なリンクはまだありません。",
-        "emptyCommunities": "クラスターはまだありません — ボールトに概念を追加してください。"
+        "emptyCommunities": "クラスターはまだありません — ボールトに概念を追加してください。",
+        "isolated": "孤立ノード",
+        "bridge": "ブリッジ",
+        "locate": "フォーカス",
+        "cohesion": "凝集度",
+        "members": "個の概念"
       },
       "deselectAll": "すべて切り替え",
       "legend": "ノードタイプ",

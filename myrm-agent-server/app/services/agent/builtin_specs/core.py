@@ -116,9 +116,11 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "systematic-debugging",
             "test-driven-development",
             "code-review",
+            "doc-tutorial-case-rerun-screenshot-refresh",
         ),
         enabled_builtin_tools=_TOOL_CODING,
         suggestion_prompts=(
+            "Rerun tutorial test cases and refresh outdated screenshots in docs",
             "Help me build a REST API with authentication in Python",
             "Review my code and suggest performance improvements",
             "Explain the difference between SQL and NoSQL databases",
