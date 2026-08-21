@@ -10,7 +10,6 @@ from myrm_agent_harness.backends.skills._utils import parse_skill_frontmatter
 from myrm_agent_harness.backends.skills.types import SkillTrust
 
 from app.core.cron.blueprints import (
-    BUILTIN_BLUEPRINTS,
     BlueprintFillError,
     fill_blueprint,
     get_blueprint,

@@ -33,13 +33,13 @@ async def test_recovery_api_endpoints():
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Test health probe
-        res = await client.get("/api/v1/user-agents/agents/test_agent_123/recovery/health")
+        res = await client.get("/agents/test_agent_123/recovery/health")
         assert res.status_code == 200
         data = res.json()["data"]
         assert "is_healthy" in data
         assert "healthy_components" in data
 
         # Test diagnostics
-        diag_res = await client.get("/api/v1/user-agents/agents/test_agent_123/recovery/diagnostics")
+        diag_res = await client.get("/agents/test_agent_123/recovery/diagnostics")
         assert diag_res.status_code == 200
         assert "diagnostics" in diag_res.json()["data"]

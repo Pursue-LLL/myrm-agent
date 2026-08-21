@@ -122,6 +122,7 @@ class TestGoalOutcomeMapping:
     @pytest.mark.asyncio
     async def test_setup_resumes_paused_goal(self):
         from myrm_agent_harness.agent.goals.types import GoalStatus
+
         from app.services.kanban.task_runner import KanbanTaskRunner
 
         mock_store = AsyncMock()

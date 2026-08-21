@@ -189,6 +189,21 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
         memory_type=MemoryType.SEMANTIC,
         language="zh",
     ),
+    _BenchmarkPair(
+        case_id="adversarial_lockfile_override_zh",
+        category="adversarial_conflict",
+        content="diagnostic benchmark {run_id} 冲突决议：项目依赖更新完成，禁止使用旧版 uv.lock 与旧 poetry 锁文件，所有构建以 pyproject.toml 声明为主",
+        query="依赖管理 lockfile pyproject 规范 {run_id}",
+        memory_type=MemoryType.SEMANTIC,
+        language="zh",
+    ),
+    _BenchmarkPair(
+        case_id="adversarial_deprecated_api_en",
+        category="adversarial_conflict",
+        content="diagnostic benchmark {run_id} supersession: legacy v1 payment callback API is strictly revoked, route all webhooks through v2 signing gateway",
+        query="payment webhook callback endpoint v2 signing {run_id}",
+        memory_type=MemoryType.SEMANTIC,
+    ),
 ]
 
 

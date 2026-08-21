@@ -14,7 +14,10 @@ def test_benchmark_pairs_contain_longdoc_penetration() -> None:
     cases = {p.case_id: p for p in _BENCHMARK_PAIRS}
     assert "longdoc_head_zh" in cases
     assert "longdoc_tail_zh" in cases
+    assert "adversarial_lockfile_override_zh" in cases
+    assert "adversarial_deprecated_api_en" in cases
     assert cases["longdoc_tail_zh"].category == "longdoc_penetration"
+    assert cases["adversarial_lockfile_override_zh"].category == "adversarial_conflict"
     assert "user_id % 128" in cases["longdoc_tail_zh"].content
 
 

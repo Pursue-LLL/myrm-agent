@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 
 _SENTENCE_END = re.compile(r"[.!?。！？\n]")
 _MAX_TRANSCRIPT_HISTORY = 12
+_VOICE_SUPERVISOR_TIMEOUT_S = 15.0
 _VOICE_SYSTEM_SUFFIX = (
     "\n\n[Voice Mode] "
     "You are in a live voice conversation. Keep responses concise, "
@@ -63,6 +64,8 @@ _FALLBACK_ZH = "抱歉，处理时出了点问题，请再试一次"
 _FALLBACK_EN = "Sorry, something went wrong. Please try again"
 _APPROVAL_HINT_ZH = "这个操作需要您在屏幕上确认"
 _APPROVAL_HINT_EN = "This action requires your confirmation on screen"
+_HANDOFF_HINT_ZH = "这个任务需要较长时间，已转入后台继续处理，完成后会主动提醒您"
+_HANDOFF_HINT_EN = "This task requires more time and has been moved to the background. I will notify you when it finishes"
 
 _SPEECH_INTERRUPTED_NOTE = (
     "[Note: the user interrupted your previous spoken reply before it finished. "
@@ -126,13 +129,24 @@ class VoiceAgentBridge:
                 await self._speak_fallback()
                 return
 
-            await self._tts_working_hint()
+            is_fast = self._is_fast_lane_query(effective_query, params)
 
-            full_text, has_approval = await self._consume_agent_stream(
-                params,
-                cancel_token,
-                turn_id,
-            )
+            if not is_fast:
+                await self._tts_working_hint()
+
+            if is_fast:
+                full_text, has_approval = await self._consume_fast_lane_stream(
+                    params,
+                    cancel_token,
+                    turn_id,
+                )
+            else:
+                full_text, has_approval = await self._consume_agent_stream_supervised(
+                    params,
+                    cancel_token,
+                    turn_id,
+                    effective_query,
+                )
 
             if self._current_turn != turn_id:
                 outcome = "superseded"
