@@ -24,6 +24,7 @@ import type { BuiltinToolId } from '@/store/chat/types';
 import { Textarea } from '@/components/primitives/textarea';
 import { useSkillStore } from '@/store/skill';
 import { isFormalKoreanRepliesEnabled, setFormalKoreanRepliesEnabled } from '@/lib/utils/responseLocalePolicy';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'faq' | 'inbox';
 
@@ -368,7 +369,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
               className="min-h-[60px] max-h-[100px] resize-none text-sm flex-1"
               disabled={aiGenerating}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                if (e.key === 'Enter' && !e.shiftKey && !isImeComposing(e)) {
                   e.preventDefault();
                   void handleAiBuild(aiIntent);
                 }

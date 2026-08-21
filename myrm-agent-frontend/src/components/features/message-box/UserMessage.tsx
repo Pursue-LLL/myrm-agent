@@ -12,6 +12,7 @@ import { localizeReactNode } from '@/lib/utils/localeText';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { formatMessageTimestamp } from '@/lib/utils/timeUtils';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import { ImageLightbox } from '../message-input-actions/ImageLightbox';
 import { ForkButton } from '../chat-window/ForkButton';
 import { RewindDialog } from '../chat-window/RewindDialog';

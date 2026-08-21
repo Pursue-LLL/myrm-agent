@@ -137,6 +137,10 @@ export interface ChatState {
   // 当前会话的messageId - 用于确保文件上传和消息发送使用相同的ID
   currentSessionMessageId: string | null;
 
+  // 启动自愈恢复弹窗控制
+  recoveryDialogOpen: boolean;
+  recoveryAgentId: string | null;
+
   // 智能体配置面板展开状态
   isConfigPanelExpanded: boolean;
 
@@ -234,6 +238,8 @@ export interface ChatState {
   setActiveSessionAnalyticsMessageId: (id: string | null) => void;
   setSessionStatus: (chatId: string, status: string) => void;
   initSessionStatuses: (statuses: Record<string, string>) => void;
+  openRecoveryDialog: (agentId: string) => void;
+  closeRecoveryDialog: () => void;
 
   // 配置面板展开状态
   setConfigPanelExpanded: (expanded: boolean) => void;
