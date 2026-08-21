@@ -7776,7 +7776,8 @@
       "updated": "工作目錄已更新",
       "cleared": "工作目錄已清除",
       "recent": "最近使用",
-      "filter": "過濾目錄..."
+      "filter": "過濾目錄...",
+      "unboundWarning": "未綁定目錄 (預設沙箱)"
     },
     "enableBrowser": "開啟瀏覽器自動化",
     "disableBrowser": "關閉瀏覽器自動化",

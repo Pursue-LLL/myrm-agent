@@ -16,6 +16,7 @@ from app.api.memory.operations import (
     backup,
     backup_remote,
     command_center,
+    command_center_consolidation,
     crud,
     guardian,
     pending,

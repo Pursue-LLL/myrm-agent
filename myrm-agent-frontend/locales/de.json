@@ -7826,7 +7826,8 @@
       "updated": "Arbeitsverzeichnis aktualisiert",
       "cleared": "Arbeitsverzeichnis geleert",
       "recent": "Zuletzt verwendet",
-      "filter": "Verzeichnisse filtern..."
+      "filter": "Verzeichnisse filtern...",
+      "unboundWarning": "Nicht gebundenes Verzeichnis (Standard-Sandbox)"
     },
     "workingMemory": {
       "title": "Aktives Arbeitsgedächtnis",
@@ -16925,5 +16926,39 @@
     "openDetailLabel": "Projekt {name} öffnen",
     "deleteLabel": "Projekt {name} löschen"
   },
-  "error": "Fehler"
+  "error": "Fehler",
+  "memoryRecallBoundary": {
+    "title": "Review-Prioritäts-Abruf-Grenze (Review-First Recall Boundary)",
+    "subtitle": "Aufgabenbezogene Wissensisolierung, 4-Gedächtnis-Partitionierung und Kandidaten-Review-Gate",
+    "scopeTitle": "Aufgaben-Geltungsbereichsgrenze (Task Scope Boundary)",
+    "scopeDescription": "Begrenzt streng die Namespace-Sichtbarkeit für die aktive Aufgabe, um wissensübergreifende Verschmutzung zu verhindern.",
+    "policyWrite": "Schreibrichtlinie",
+    "activeScopes": "Aktive Bereiche",
+    "candidateReviewTitle": "Kandidaten-Prüfgate (Candidate Review Gate)",
+    "candidateReviewDesc": "Ungeprüfte Schlussfolgerungen gelangen zuerst in den Kandidatenpool und werden erst nach Bestätigung übernommen.",
+    "noCandidates": "Der Kandidaten-Prüfpool ist leer. Der Gedächtniszustand ist sauber und gesund.",
+    "approvedRecordsTitle": "Genehmigte aktive Erinnerungen (Approved In-Scope Memories)",
+    "approvedRecordsDesc": "Aktive Gedächtnisdatensätze, die derzeit an Suche und Kontextvariable teilnehmen.",
+    "noApproved": "Keine genehmigten Gedächtnisdatensätze gefunden.",
+    "fourPartitionsTitle": "Vier Gedächtnis-Funktionspartitionen (Mise en Place)",
+    "partitionIdentity": "Identität & Präferenzen",
+    "partitionWorkingMemory": "Arbeitsgedächtnis",
+    "partitionOperatingInstructions": "Betriebsanweisungen",
+    "partitionRetrievableEvidence": "Abrufbare Beweise",
+    "budgetTitle": "Zeichenbudget pro Zug",
+    "budgetUsed": "{used} / {total} Zeichen verwendet",
+    "budgetRiskSafe": "Sicher (Ausreichend)",
+    "budgetRiskApproaching": "Grenze nähert sich",
+    "budgetRiskOverflow": "Überlauf (Löst Bereinigung/Kürzung aus)",
+    "confidence": "Konfidenz",
+    "importance": "Wichtigkeit",
+    "source": "Quelle",
+    "partition": "Funktionspartition",
+    "actions": "Aktionen",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen",
+    "pinned": "Angeheftet",
+    "viewDetails": "Details anzeigen",
+    "refresh": "Grenze aktualisieren"
+  }
 }
