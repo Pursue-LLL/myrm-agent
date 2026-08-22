@@ -102,8 +102,8 @@ from app.api.tts.router import router as tts_router
 from app.api.voice.gemini_live import router as voice_gemini_live_router
 from app.api.voice.realtime import router as voice_realtime_router
 from app.api.voice.ws_session import router as voice_ws_router
-from app.api.webhook.routes import router as lifecycle_webhook_router
 from app.api.web_push.router import router as web_push_router
+from app.api.webhook.routes import router as lifecycle_webhook_router
 from app.api.widget_storage import router as widget_storage_router
 from app.api.wiki import router as wiki_router
 from app.api.workflow_templates import router as workflow_templates_router

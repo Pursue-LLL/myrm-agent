@@ -83,6 +83,7 @@ class TestAllowlistProtocolAlignment:
         assert "user_id" in remove_sig.parameters
         assert "permission" in remove_sig.parameters
         assert "command_pattern" in remove_sig.parameters
+        assert "agent_id" in remove_sig.parameters
 
 
 class TestAllowlistPatternIntegration:
@@ -111,3 +112,38 @@ class TestAllowlistPatternIntegration:
         list_response = client.get("/api/v1/security/allowlist")
         assert list_response.status_code == 200
         assert list_response.json()["data"] == []
+
+    def test_list_and_delete_agent_scoped_entry(self, client: TestClient) -> None:
+        import uuid
+        from app.database.models import UserToolAllowlist
+        from app.platform_utils import get_session_factory
+
+        entry_id = uuid.uuid4().hex
+        factory = get_session_factory()
+
+        async def _seed():
+            async with factory() as session:
+                session.add(
+                    UserToolAllowlist(
+                        id=entry_id,
+                        permission="mcp_invoke",
+                        tool_name="mcp__github__create_issue",
+                        tool_args_hash="",
+                        command_pattern="",
+                        agent_id="code_worker_subagent",
+                    )
+                )
+                await session.commit()
+
+        asyncio.run(_seed())
+
+        response = client.get("/api/v1/security/allowlist")
+        assert response.status_code == 200
+        rows = response.json()["data"]
+        assert len(rows) == 1
+        assert rows[0]["id"] == entry_id
+        assert rows[0]["agent_id"] == "code_worker_subagent"
+
+        del_resp = client.delete(f"/api/v1/security/allowlist/{entry_id}")
+        assert del_resp.status_code == 200
+        assert del_resp.json()["data"]["deleted"] is True

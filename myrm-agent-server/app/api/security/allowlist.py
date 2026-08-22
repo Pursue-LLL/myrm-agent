@@ -82,6 +82,7 @@ async def delete_allowlist_entry(
         tool_name=nullable_db_field(entry.tool_name),
         tool_args_hash=nullable_db_field(entry.tool_args_hash),
         command_pattern=nullable_db_field(entry.command_pattern),
+        agent_id=nullable_db_field(getattr(entry, "agent_id", "")),
     )
 
     return success_response(data={"deleted": True})

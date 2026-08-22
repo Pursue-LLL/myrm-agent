@@ -8,11 +8,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import pytest
-from unittest.mock import MagicMock, patch
 
-from app.api.webhook.schemas import LifecycleWebhookCreate, LifecycleWebhookUpdate, WebhookPingRequest
-from app.database.models.lifecycle_webhook import LifecycleWebhookModel
+import pytest
+
 from app.services.webhook.lifecycle_webhook_service import (
     LifecycleOutboundWebhookService,
     OutboundWebhookTarget,

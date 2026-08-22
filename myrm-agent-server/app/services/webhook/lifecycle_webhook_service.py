@@ -20,11 +20,10 @@ from urllib import error as urlerror
 from urllib import request as urlrequest
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_session
 from app.database.models.lifecycle_webhook import LifecycleWebhookModel
-from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+from app.services.event.app_event_bus import AppEvent, get_event_bus
 from app.services.hosting.ssrf_guard import SSRFValidationError, validate_webhook_url
 
 logger = logging.getLogger(__name__)
@@ -251,9 +250,11 @@ class LifecycleOutboundWebhookService:
         headers: dict[str, str],
         timeout: int,
     ) -> tuple[int | None, str | None]:
+        if not url.startswith(("http://", "https://")):
+            return None, "Invalid URL scheme"
         last_error = None
         for attempt in range(1, MAX_DELIVERY_ATTEMPTS + 1):
-            req = urlrequest.Request(url, data=body, headers=headers, method="POST")
+            req = urlrequest.Request(url, data=body, headers=headers, method="POST")  # noqa: S310
             try:
                 with _opener.open(req, timeout=timeout) as resp:
                     status = getattr(resp, "status", 200)

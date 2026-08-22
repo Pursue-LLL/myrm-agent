@@ -4993,6 +4993,8 @@
         "scrubSnapHint": "Loslassen, um zum nächsten Ereignis einzurasten",
         "securityLabels": "Sicherheitskennzeichnungen",
         "securityFlag": "Sicherheit",
+        "memoryEvents": "Kontextinjektion und Speicher",
+        "influenceCount": "Einflussrunden: {count}",
         "marker": {
           "tool": "Werkzeug",
           "llm": "LLM",

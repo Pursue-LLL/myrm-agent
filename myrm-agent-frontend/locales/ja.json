@@ -472,6 +472,24 @@
         }
       }
     },
+    "lifecycleWebhook": {
+      "title": "ライフサイクル送信 Webhook",
+      "description": "エージェントのセッション完了・失敗、承認要求、Kanban タスク更新時に、外部システム（Slack/Teams/Zapier/自社API）へ HMAC-SHA256 署名付きの HTTP POST 通知を送信します。",
+      "endpointsTitle": "Webhook エンドポイント一覧",
+      "addEndpoint": "Webhook を追加",
+      "newEndpoint": "新規 Webhook エンドポイントの設定",
+      "endpointName": "エンドポイント名",
+      "payloadUrl": "ペイロード URL (Payload URL)",
+      "signingSecret": "HMAC 署名シークレット (任意)",
+      "generateRandom": "ランダム生成",
+      "subscribedEvents": "購読イベント",
+      "saveEndpoint": "エンドポイントを保存",
+      "saving": "保存中...",
+      "cancel": "キャンセル",
+      "testPing": "接続テスト",
+      "noEndpoints": "設定された送信 Webhook はありません",
+      "noEndpointsDesc": "送信 Webhook を設定して、エージェントの実行進捗と結果を外部の監視やワークフローシステムにリアルタイム配信します。"
+    },
     "integrationCatalog": {
       "title": "サービスカタログ",
       "description": "サードパーティのサービスを閲覧して接続します。MCP または OpenAPI 経由で人気インテグレーションをワンクリック設定できます。",

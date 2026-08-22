@@ -114,7 +114,7 @@ class TestSmartRoutingJudgeCreation:
             patch(
                 "myrm_agent_harness.toolkits.llms.core.manager.LLMManager.get_llm_from_config",
                 new_callable=AsyncMock,
-            ) as mock_get_llm,
+            ),
             patch(
                 "myrm_agent_harness.toolkits.llms.routing.complexity_router.route_task",
                 mock_route,
