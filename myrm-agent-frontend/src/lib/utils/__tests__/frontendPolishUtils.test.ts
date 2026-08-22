@@ -1,0 +1,119 @@
+import { describe, it, expect } from 'vitest';
+import { isImeComposing } from '../imeUtils';
+import { parseTitleIndex, disambiguateChatTitle } from '../titleUtils';
+import { isAbsolutePath, normalizePath, normalizeDisplayPath, formatPathForDisplay } from '../pathValidation';
+import { resolveSkillDescription } from '../skillUtils';
+import { isRecord, asRecord, safeGet } from '../typeUtils';
+
+describe('Frontend Polish Utilities Suite', () => {
+  describe('imeUtils - isImeComposing', () => {
+    it('returns true when nativeEvent.isComposing is true', () => {
+      const event = { nativeEvent: { isComposing: true } };
+      expect(isImeComposing(event as any)).toBe(true);
+    });
+
+    it('returns true when event.isComposing is true', () => {
+      const event = { isComposing: true };
+      expect(isImeComposing(event as any)).toBe(true);
+    });
+
+    it('returns true when event.key is Process', () => {
+      const event = { key: 'Process', isComposing: false };
+      expect(isImeComposing(event as any)).toBe(true);
+    });
+
+    it('returns true when event.keyCode is 229', () => {
+      const event = { keyCode: 229, isComposing: false };
+      expect(isImeComposing(event as any)).toBe(true);
+    });
+
+    it('returns false for normal Enter press without IME composition', () => {
+      const event = { key: 'Enter', keyCode: 13, isComposing: false, nativeEvent: { isComposing: false } };
+      expect(isImeComposing(event as any)).toBe(false);
+    });
+  });
+
+  describe('titleUtils - parseTitleIndex & disambiguateChatTitle', () => {
+    it('parses base and index correctly', () => {
+      expect(parseTitleIndex('方案讨论')).toEqual({ base: '方案讨论', index: 1 });
+      expect(parseTitleIndex('方案讨论 (2)')).toEqual({ base: '方案讨论', index: 2 });
+      expect(parseTitleIndex('方案讨论 (10)')).toEqual({ base: '方案讨论', index: 10 });
+    });
+
+    it('returns candidate title when no collision exists', () => {
+      expect(disambiguateChatTitle('方案讨论', ['其他会话', '历史记录'])).toBe('方案讨论');
+    });
+
+    it('increments index cleanly when collision exists', () => {
+      expect(disambiguateChatTitle('方案讨论', ['方案讨论'])).toBe('方案讨论 (2)');
+      expect(disambiguateChatTitle('方案讨论', ['方案讨论', '方案讨论 (2)'])).toBe('方案讨论 (3)');
+      expect(disambiguateChatTitle('方案讨论 (2)', ['方案讨论', '方案讨论 (2)'])).toBe('方案讨论 (3)');
+    });
+  });
+
+  describe('pathValidation - Windows, POSIX & UNC support', () => {
+    it('identifies absolute paths correctly across platforms', () => {
+      expect(isAbsolutePath('/usr/local/bin')).toBe(true);
+      expect(isAbsolutePath('C:\\Windows\\System32')).toBe(true);
+      expect(isAbsolutePath('d:/workspace/code')).toBe(true);
+      expect(isAbsolutePath('\\\\nas-server\\share\\repo')).toBe(true);
+      expect(isAbsolutePath('relative/path')).toBe(false);
+    });
+
+    it('normalizes display paths with unified forward slashes and capitalized drive letters', () => {
+      expect(normalizeDisplayPath('c:\\my projects\\agent\\')).toBe('C:/my projects/agent');
+      expect(normalizeDisplayPath('\\\\server\\share\\subfolder\\')).toBe('//server/share/subfolder');
+      expect(normalizeDisplayPath('/var/log/myrm//')).toBe('/var/log/myrm');
+    });
+
+    it('formats paths gracefully for UI chips with center truncation', () => {
+      expect(formatPathForDisplay('/short/path', 30)).toBe('/short/path');
+      const longPath = 'C:/Users/Administrator/Projects/DeepResearch/SubModules/App';
+      const formatted = formatPathForDisplay(longPath, 25);
+      expect(formatted).toContain('...');
+      expect(formatted.length).toBeLessThanOrEqual(25);
+    });
+  });
+
+  describe('skillUtils - resolveSkillDescription', () => {
+    it('returns skill description if present and non-empty', () => {
+      expect(resolveSkillDescription({ description: 'A helpful skill' }, 'No description')).toBe('A helpful skill');
+    });
+
+    it('returns fallback when description is missing, null or empty whitespace', () => {
+      expect(resolveSkillDescription({ description: '' }, '暂无描述')).toBe('暂无描述');
+      expect(resolveSkillDescription({ description: '   ' }, '暂无描述')).toBe('暂无描述');
+      expect(resolveSkillDescription(null, '暂无描述')).toBe('暂无描述');
+      expect(resolveSkillDescription(undefined, '暂无描述')).toBe('暂无描述');
+    });
+  });
+
+  describe('typeUtils - isRecord, asRecord & safeGet', () => {
+    it('identifies plain records safely', () => {
+      expect(isRecord({ a: 1 })).toBe(true);
+      expect(isRecord(null)).toBe(false);
+      expect(isRecord([1, 2, 3])).toBe(false);
+      expect(isRecord('string')).toBe(false);
+    });
+
+    it('asRecord returns valid record or empty object', () => {
+      expect(asRecord({ key: 'value' })).toEqual({ key: 'value' });
+      expect(asRecord(null)).toEqual({});
+      expect(asRecord('dirty')).toEqual({});
+      expect(asRecord(undefined)).toEqual({});
+    });
+
+    it('safeGet safely retrieves nested attributes without crashing', () => {
+      const complex = {
+        metadata: {
+          usage: {
+            total_tokens: 1500,
+          },
+        },
+      };
+      expect(safeGet(complex, 'metadata.usage.total_tokens')).toBe(1500);
+      expect(safeGet(complex, 'metadata.invalid.field', 'default')).toBe('default');
+      expect(safeGet(null, 'any.path', 'fallback')).toBe('fallback');
+    });
+  });
+});

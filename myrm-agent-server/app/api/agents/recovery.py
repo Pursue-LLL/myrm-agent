@@ -21,7 +21,7 @@ import logging
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from app.core.utils.errors import internal_error, not_found_error
+from app.core.utils.errors import StandardHTTPException, internal_error, not_found_error
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.profile.profile_recovery_service import (
@@ -75,9 +75,11 @@ async def rollback_profile_to_last_known_good(agent_id: str) -> JSONResponse:
     try:
         success = await ProfileStartupRecoveryService.rollback_to_last_known_good(agent_id)
         if not success:
-            raise not_found_error(resource="Last-known-good snapshot", resource_id=agent_id)
+            raise not_found_error(resource=f"Last-known-good snapshot for agent {agent_id}")
         return success_response(data={"agent_id": agent_id, "rolled_back": True})
     except Exception as exc:
+        if isinstance(exc, StandardHTTPException):
+            raise exc
         raise internal_error(operation="Rollback to last-known-good", exception=exc) from exc
 
 

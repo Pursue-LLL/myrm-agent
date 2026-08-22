@@ -102,3 +102,37 @@ def test_dispatch_via_build_memory_import_dry_run() -> None:
     res = build_memory_import_dry_run(payload)
     assert res.summary.source == "plur"
     assert res.summary.mapped_items == 1
+
+
+def test_dry_run_plur_corrupted_yaml_handling() -> None:
+    """Verify invalid YAML gracefully falls back to empty result with warning."""
+    corrupted_yaml = ":::invalid-yaml-syntax"
+    payload: dict[str, object] = {
+        "raw_yaml": corrupted_yaml,
+    }
+    res = dry_run_plur(payload)
+    assert res.summary.source == "plur"
+    assert res.summary.mapped_items == 0
+    assert "plur_no_engrams_found" in res.warnings
+
+
+def test_dry_run_plur_nested_dict_engrams() -> None:
+    """Verify parsing dictionary payload with top-level 'engrams' list."""
+    payload: dict[str, object] = {
+        "raw_yaml": """
+engrams:
+  - content: Prefer FastAPI over Flask
+    domain: backend
+    scope: global
+    type: preference
+  - content: Use Tailwind v4 for all styles
+    domain: frontend
+    scope: project:web
+    type: rule
+"""
+    }
+    res = dry_run_plur(payload)
+    assert res.summary.mapped_items == 2
+    assert len(res.normalized_data.get("profile", [])) == 1
+    assert len(res.normalized_data.get("semantic", [])) == 1
+
