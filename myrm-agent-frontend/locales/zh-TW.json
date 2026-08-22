@@ -3316,6 +3316,7 @@
       },
       "detail": {
         "title": "技能詳情",
+        "noDescription": "暫無技能描述",
         "close": "關閉",
         "enable": "啟用技能",
         "disable": "禁用技能",

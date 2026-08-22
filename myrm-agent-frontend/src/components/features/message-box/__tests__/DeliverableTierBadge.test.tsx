@@ -4,24 +4,25 @@ import React from 'react';
 import { DeliverableTierBadge } from '../DeliverableTierBadge';
 
 // Mock next-intl
+const deliverableTranslations: Record<string, string> = {
+  verified: 'Verified Delivery',
+  verifiedDesc: 'Passed automated tests or checks',
+  artifact: 'Artifact Delivery',
+  artifactDesc: 'Generated workspace files',
+  research: 'Research Output',
+  researchDesc: 'Backed by external research',
+  plan: 'Plan / Proposal',
+  planDesc: 'Conceptual proposal',
+  evidenceDetails: 'Evidence Details',
+  verificationsPassed: 'Verifications Passed',
+  artifactsWritten: 'Artifacts Written',
+  sourcesConsulted: 'Sources Consulted',
+};
+
+const stableT = (key: string) => deliverableTranslations[key] || key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      verified: 'Verified Delivery',
-      verifiedDesc: 'Passed automated tests or checks',
-      artifact: 'Artifact Delivery',
-      artifactDesc: 'Generated workspace files',
-      research: 'Research Output',
-      researchDesc: 'Backed by external research',
-      plan: 'Plan / Proposal',
-      planDesc: 'Conceptual proposal',
-      evidenceDetails: 'Evidence Details',
-      verificationsPassed: 'Verifications Passed',
-      artifactsWritten: 'Artifacts Written',
-      sourcesConsulted: 'Sources Consulted',
-    };
-    return map[key] || key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('DeliverableTierBadge', () => {

@@ -39,11 +39,11 @@ from app.channels.core.credentials import (
     credential_field,
     credential_spec,
 )
-from app.channels.rendering.renderer import render
 from app.channels.providers.discord.config import (
     DiscordChannelConfig,
 )
 from app.channels.providers.discord.helpers import build_discord_files
+from app.channels.rendering.renderer import render
 from app.channels.types import (
     ChannelCapabilities,
     ChannelStatus,
