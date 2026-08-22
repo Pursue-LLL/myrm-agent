@@ -7515,6 +7515,8 @@
       "routingSimple": "경량",
       "routingStandard": "표준",
       "routingReasoning": "추론",
+      "routingCode": "코드",
+      "routingLongDoc": "긴 문서",
       "privacyLevel": "개인정보",
       "privacyS2": "민감",
       "privacyS3": "기밀",

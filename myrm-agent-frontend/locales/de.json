@@ -2549,6 +2549,9 @@
       "discover": {
         "title": "Fähigkeiten entdecken",
         "description": "Fähigkeiten aus GitHub und der Community suchen und installieren",
+        "detail": {
+          "noDescription": "Keine Beschreibung angegeben"
+        },
         "searchPlaceholder": "Suchfähigkeiten, z.B. Reaktionsleistung, Codeüberprüfung ...",
         "searching": "Suche...",
         "noResults": "Keine Fähigkeiten gefunden",

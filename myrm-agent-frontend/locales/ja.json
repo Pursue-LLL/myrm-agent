@@ -8311,6 +8311,14 @@
       "time_night_2": "個人ナレッジベースを整理し古いノートをアーカイブする",
       "time_night_3": "技術ブログのアウトラインとコア論点をまとめる"
     },
+    "lifeOperator": {
+      "contextHeader": "時間帯に応じたライフ・ワークオペレーター",
+      "morning": "朝の重要事項",
+      "afternoon": "午後のスプリント",
+      "evening": "夜の振り返り",
+      "night": "深夜の集中",
+      "all": "すべて探索"
+    },
     "subagent": {
       "viewResults": "表示結果"
     },
