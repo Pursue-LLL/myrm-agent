@@ -25,8 +25,8 @@ def cp_ingress_app():
     from fastapi import FastAPI
 
     app = FastAPI(title="CP Ingress Test App")
-    app.include_router(channel_router)
-    app.include_router(interrupt_router)
+    app.include_router(channel_router, prefix="/api")
+    app.include_router(interrupt_router, prefix="/api")
     return app
 
 

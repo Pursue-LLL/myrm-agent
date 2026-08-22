@@ -42,57 +42,52 @@ const TERMINAL_STATUSES: ReadonlySet<SubagentStatus> = new Set<SubagentStatus>([
  * Classifies an agent type or role or description into a standardized workflow stage category.
  */
 export function classifyNodeStage(node: SubagentNode): { category: StageCategory; name: string } {
-  const typeLower = (node.agent_type || '').toLowerCase();
-  const descLower = (node.description || '').toLowerCase();
-  const roleLower = (node.role || '').toLowerCase();
+  const typeLower = (node.agent_type || "").toLowerCase();
+  const descLower = (node.description || "").toLowerCase();
+  const roleLower = (node.role || "").toLowerCase();
 
+  let res: { category: StageCategory; name: string };
   if (
-    typeLower.includes('scope') ||
-    typeLower.includes('plan') ||
-    roleLower.includes('scope') ||
-    descLower.startsWith('scope') ||
-    descLower.startsWith('plan')
+    typeLower.includes("scope") ||
+    typeLower.includes("plan") ||
+    roleLower.includes("scope") ||
+    descLower.startsWith("scope") ||
+    descLower.startsWith("plan")
   ) {
-    return { category: 'scope', name: 'Scope' };
-  }
-
-  if (
-    typeLower.includes('verify') ||
-    typeLower.includes('audit') ||
-    typeLower.includes('review') ||
-    roleLower.includes('verify') ||
-    roleLower.includes('auditor') ||
+    res = { category: "scope", name: "Scope" };
+  } else if (
+    typeLower.includes("verif") ||
+    typeLower.includes("audit") ||
+    typeLower.includes("review") ||
+    roleLower.includes("verif") ||
+    roleLower.includes("auditor") ||
     Boolean(node.verification) ||
-    node.status === 'verifying'
+    node.status === "verifying"
   ) {
-    return { category: 'verify', name: 'Verify' };
-  }
-
-  if (
-    typeLower.includes('synthesize') ||
-    typeLower.includes('summary') ||
-    typeLower.includes('merge') ||
-    typeLower.includes('report') ||
-    roleLower.includes('synthesize') ||
-    descLower.startsWith('synthesize')
+    res = { category: "verify", name: "Verify" };
+  } else if (
+    typeLower.includes("synthesize") ||
+    typeLower.includes("summary") ||
+    typeLower.includes("merge") ||
+    typeLower.includes("report") ||
+    roleLower.includes("synthesize") ||
+    descLower.startsWith("synthesize")
   ) {
-    return { category: 'synthesize', name: 'Synthesize' };
-  }
-
-  // Multi-subagent parallel fan-out or general workers
-  if (
-    typeLower.includes('worker') ||
-    typeLower.includes('fission') ||
-    typeLower.includes('exec') ||
-    typeLower.includes('coder') ||
-    typeLower.includes('scout') ||
-    typeLower.includes('researcher') ||
+    res = { category: "synthesize", name: "Synthesize" };
+  } else if (
+    typeLower.includes("worker") ||
+    typeLower.includes("fission") ||
+    typeLower.includes("exec") ||
+    typeLower.includes("coder") ||
+    typeLower.includes("scout") ||
+    typeLower.includes("researcher") ||
     node.parent_task_id
   ) {
-    return { category: 'fan_out', name: 'Fan-out' };
+    res = { category: "fan_out", name: "Fan-out" };
+  } else {
+    res = { category: "custom", name: node.agent_type || "Task" };
   }
-
-  return { category: 'custom', name: node.agent_type || 'Task' };
+  return res;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowUpDown, Filter, ListTree, Loader2, Network, PauseCircle, PlayCircle, StopCircle } from 'lucide-react';
+import { ArrowUpDown, Filter, Gauge, ListTree, Loader2, Network, PauseCircle, PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithTimeout } from '@/lib/api';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
@@ -26,12 +26,16 @@ import {
   type SortMode,
   type TreeNode,
 } from '@/lib/utils/subagentTree';
+import { deriveStageTaskCounts } from '@/lib/utils/stageTaskCount';
 import { useSubagentStore, type SubagentNode } from '@/store/chat/useSubagentStore';
 import useChatStore from '@/store/useChatStore';
 import { AgentToolDiagnostics } from '../AgentToolDiagnostics';
 import AgentWorkMap from './AgentWorkMap';
 import { MiniGantt } from './SubagentGantt';
 import { SubagentTreeNode } from './SubagentTree';
+import { StageTaskCountStrip } from './StageTaskCountStrip';
+import { SubagentDetailDrawer } from './SubagentDetailDrawer';
+import { SubagentInsightsView } from './SubagentInsightsView';
 
 // ── Sort/Filter Controls ─────────────────────────────────────────────
 
@@ -160,23 +164,35 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const [delegationPaused, setDelegationPaused] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('spawn');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const [viewMode, setViewMode] = useState<'tree' | 'canvas'>('tree');
+  const [viewMode, setViewMode] = useState<'tree' | 'canvas' | 'insights'>('tree');
+  const [detailNode, setDetailNode] = useState<SubagentNode | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleOpenDetail = useCallback((node: SubagentNode) => {
+    setDetailNode(node);
+    setDetailOpen(true);
+  }, []);
 
   const handleCanvasNodeClick = useCallback(
     (taskId: string) => {
-      setViewMode('tree');
-      requestAnimationFrame(() => {
-        const el = document.querySelector(`[data-subagent-tree-id="${taskId}"]`);
-        if (el instanceof HTMLElement) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg', 'transition-all');
-          setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg'), 2000);
-        } else {
-          toast.error(t('canvasLocateFail'));
-        }
-      });
+      const targetNode = useSubagentStore.getState().nodes[taskId];
+      if (targetNode) {
+        handleOpenDetail(targetNode);
+      } else {
+        setViewMode('tree');
+        requestAnimationFrame(() => {
+          const el = document.querySelector(`[data-subagent-tree-id="${taskId}"]`);
+          if (el instanceof HTMLElement) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg', 'transition-all');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg'), 2000);
+          } else {
+            toast.error(t('canvasLocateFail'));
+          }
+        });
+      }
     },
-    [t],
+    [handleOpenDetail, t],
   );
   const nodes = useSubagentStore((s) => s.nodes);
   const fissionBatch = useSubagentStore((s) => s.fissionBatch);
@@ -415,11 +431,34 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
             label={t('canvasTab')}
             testId="subagent-view-tab-canvas"
           />
+          <ViewTab
+            active={viewMode === 'insights'}
+            onClick={() => setViewMode('insights')}
+            icon={Gauge}
+            label={t('insightsTab') || 'Insights'}
+            testId="subagent-view-tab-insights"
+          />
+        </div>
+        {/* Stage Task Count Progress Strip */}
+        <div className="px-4 py-2 border-b border-border/30 bg-muted/10">
+          <StageTaskCountStrip summary={deriveStageTaskCounts(nodes)} />
         </div>
         {viewMode === 'canvas' ? (
           <div className="flex-1 min-h-0">
             <AgentWorkMap chatId={chatId || undefined} onNodeClick={handleCanvasNodeClick} />
           </div>
+        ) : viewMode === 'insights' ? (
+          <ScrollArea className="flex-1 p-4">
+            <SubagentInsightsView
+              nodes={nodes}
+              onSelectNode={(taskId) => {
+                const target = nodes[taskId];
+                if (target) {
+                  handleOpenDetail(target);
+                }
+              }}
+            />
+          </ScrollArea>
         ) : (
           <ScrollArea className="flex-1 p-4">
             <div className="flex flex-col pb-10">
@@ -461,12 +500,24 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
                 </div>
               )}
               {displayNodes.map((node) => (
-                <SubagentTreeNode key={node.task_id} node={node} chatId={chatId || ''} setOpen={setOpen} />
+                <SubagentTreeNode
+                  key={node.task_id}
+                  node={node}
+                  chatId={chatId || ''}
+                  setOpen={setOpen}
+                  onOpenDetail={handleOpenDetail}
+                />
               ))}
             </div>
           </ScrollArea>
         )}
       </SheetContent>
+      <SubagentDetailDrawer
+        node={detailNode}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        chatId={chatId || undefined}
+      />
       <ConfirmDialog
         open={stopAllOpen}
         onOpenChange={setStopAllOpen}

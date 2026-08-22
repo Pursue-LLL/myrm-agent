@@ -36,7 +36,11 @@ from app.services.agent.stream_session.stream_lane_factory import (
     create_fast_lane_stream,
 )
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
-from app.services.agent.stream_session.workflow_escalation import should_suggest_workflow_for_session
+from app.services.agent.stream_session.workflow_escalation import (
+    should_auto_escalate_workflow_for_session,
+    should_bypass_dw_for_admission,
+    should_suggest_workflow_for_session,
+)
 from app.services.agent.streaming import ai_agent_service_stream
 from app.services.agent.streaming_support.sse_helpers import (
     extract_approval_intercepted,
@@ -221,7 +225,7 @@ async def iter_agent_stream_chunks(
     stream: AsyncIterable[str | dict[str, object]]
     if session.request.action_mode == "deep_research":
         stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
-    elif session.request.use_workflow or session.request.workflow_template_id:
+    elif (session.request.use_workflow or session.request.workflow_template_id) and not should_bypass_dw_for_admission(session):
         from app.services.agent.stream_session.stream_lane_factory import create_dynamic_workflow_stream
 
         logger.info(
@@ -235,6 +239,26 @@ async def iter_agent_stream_chunks(
             session.request.resume_value if isinstance(session.request.resume_value, dict) else None,
             workflow_template_id=session.request.workflow_template_id,
             workflow_template_args=session.request.workflow_template_args,
+            unattended=_dynamic_workflow_unattended(session.params),
+        )
+    elif (
+        session.request.resume_value is None
+        and not session.request.use_workflow
+        and not session.request.workflow_template_id
+        and should_auto_escalate_workflow_for_session(session)
+    ):
+        from app.services.agent.stream_session.stream_lane_factory import create_dynamic_workflow_stream
+
+        logger.info(
+            "Dynamic Workflow Engine auto-escalated for message_id=%s",
+            session.params.message_id,
+        )
+        stream = create_dynamic_workflow_stream(
+            session.params,
+            session.cancel_token,
+            None,
+            workflow_template_id=None,
+            workflow_template_args=None,
             unattended=_dynamic_workflow_unattended(session.params),
         )
     elif (

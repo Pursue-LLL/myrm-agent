@@ -172,6 +172,85 @@ async def test_run_server_diagnostics_shortcut() -> None:
 
 
 @pytest.mark.asyncio
+async def test_dlq_diagnostic_healthy_and_pending_redelivery() -> None:
+    """Test DLQDiagnostic when DLQ is clean and pending outbound deliveries exist."""
+    from app.core.infra.health.server_diagnostics import DLQDiagnostic
+
+    diagnostic = DLQDiagnostic()
+
+    mock_bus = MagicMock()
+    mock_bus._dlq = MagicMock()
+    mock_bus._dlq.get_failed_count = AsyncMock(return_value=0)
+    mock_bus.durable_outbound = MagicMock()
+    mock_bus.durable_outbound.count_pending = AsyncMock(return_value=3)
+
+    mock_gateway = MagicMock()
+    mock_gateway.bus = mock_bus
+
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
+        report = await diagnostic.check_health()
+        assert report.component_name == "DLQ"
+        assert report.status == "pass"
+        assert report.code == "OK_DLQ_HEALTHY"
+        assert report.meta_data is not None
+        assert report.meta_data["failed_count"] == 0
+        assert report.meta_data["pending_outbound_count"] == 3
+        assert "3 pending outbound redelivery" in (report.detail or "")
+
+
+@pytest.mark.asyncio
+async def test_dlq_diagnostic_pending_backlog_warning() -> None:
+    """Test DLQDiagnostic when pending outbound delivery count exceeds backlog threshold."""
+    from app.core.infra.health.server_diagnostics import DLQDiagnostic
+
+    diagnostic = DLQDiagnostic()
+
+    mock_bus = MagicMock()
+    mock_bus._dlq = MagicMock()
+    mock_bus._dlq.get_failed_count = AsyncMock(return_value=2)
+    mock_bus.durable_outbound = MagicMock()
+    mock_bus.durable_outbound.count_pending = AsyncMock(return_value=60)
+
+    mock_gateway = MagicMock()
+    mock_gateway.bus = mock_bus
+
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
+        report = await diagnostic.check_health()
+        assert report.component_name == "DLQ"
+        assert report.status == "warn"
+        assert report.code == "WARN_OUTBOUND_PENDING_BACKLOG"
+        assert report.meta_data is not None
+        assert report.meta_data["pending_outbound_count"] == 60
+        assert report.fix_suggestion is not None
+
+
+@pytest.mark.asyncio
+async def test_dlq_diagnostic_critical_failures() -> None:
+    """Test DLQDiagnostic when failed count exceeds critical threshold."""
+    from app.core.infra.health.server_diagnostics import DLQDiagnostic
+
+    diagnostic = DLQDiagnostic()
+
+    mock_bus = MagicMock()
+    mock_bus._dlq = MagicMock()
+    mock_bus._dlq.get_failed_count = AsyncMock(return_value=120)
+    mock_bus.durable_outbound = MagicMock()
+    mock_bus.durable_outbound.count_pending = AsyncMock(return_value=0)
+
+    mock_gateway = MagicMock()
+    mock_gateway.bus = mock_bus
+
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
+        report = await diagnostic.check_health()
+        assert report.component_name == "DLQ"
+        assert report.status == "fail"
+        assert report.code == "ERR_DLQ_CRITICAL"
+        assert report.meta_data is not None
+        assert report.meta_data["failed_count"] == 120
+        assert report.fix_suggestion is not None
+
+
+@pytest.mark.asyncio
 async def test_doctor_api_endpoint_integrates_cold_start() -> None:
     """Test GET /api/v1/health/doctor endpoint returns AgentColdStart report."""
     app = build_minimal_app(preset="health")

@@ -22,32 +22,75 @@ logger = logging.getLogger(__name__)
 
 
 class DLQDiagnostic(DiagnosticProtocol):
-    """Dead Letter Queue diagnostic probe."""
+    """Dead Letter Queue and Durable Outbound delivery diagnostic probe.
+
+    Evaluates both in-flight / persisted pending outbound deliveries and DLQ failed message counts.
+    """
 
     async def check_health(self) -> HealthReport:
         try:
             from app.core.channel_bridge import get_channel_gateway
 
             gateway = get_channel_gateway()
-            if gateway and gateway.bus and gateway.bus._dlq:
-                failed_count = await gateway.bus._dlq.get_failed_count()
-                if failed_count > 100:
+            if gateway and gateway.bus:
+                failed_count = await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
+                pending_count = await gateway.bus.durable_outbound.count_pending()
+
+                meta_data: dict[str, object] = {
+                    "failed_count": failed_count,
+                    "pending_outbound_count": pending_count,
+                }
+                metrics: dict[str, float] = {
+                    "dlq_failed_count": float(failed_count),
+                    "pending_outbound_count": float(pending_count),
+                }
+
+                if failed_count > 100 or pending_count > 200:
                     return HealthReport(
                         component_name="DLQ",
                         status="fail",
                         code="ERR_DLQ_CRITICAL",
-                        meta_data={"failed_count": failed_count},
-                        message="Message delivery queue has critical failures.",
-                        detail=f"DLQ has {failed_count} failed messages (critical threshold).",
-                        fix_suggestion="Review failed messages in settings.",
+                        meta_data=meta_data,
+                        metrics=metrics,
+                        message="Message delivery queue has critical backlog or failures.",
+                        detail=f"DLQ has {failed_count} failed messages, {pending_count} pending outbound (critical threshold).",
+                        fix_suggestion="Review failed messages in Settings -> DLQ or check channel connectivity.",
                     )
+                if failed_count > 10:
+                    return HealthReport(
+                        component_name="DLQ",
+                        status="warn",
+                        code="WARN_DLQ_FAILED",
+                        meta_data=meta_data,
+                        metrics=metrics,
+                        message="Message delivery queue has failed messages.",
+                        detail=f"DLQ has {failed_count} failed message(s), {pending_count} pending outbound.",
+                        fix_suggestion="Review failed messages in Settings -> DLQ.",
+                    )
+                if pending_count > 50:
+                    return HealthReport(
+                        component_name="DLQ",
+                        status="warn",
+                        code="WARN_OUTBOUND_PENDING_BACKLOG",
+                        meta_data=meta_data,
+                        metrics=metrics,
+                        message="Outbound message delivery backlog is accumulating.",
+                        detail=f"Durable outbound has {pending_count} pending message(s) waiting for delivery/recovery.",
+                        fix_suggestion="Check external channel network connectivity or rate limits.",
+                    )
+
+                detail_parts = [f"DLQ has {failed_count} failed message(s)"]
+                if pending_count > 0:
+                    detail_parts.append(f"{pending_count} pending outbound redelivery")
+
                 return HealthReport(
                     component_name="DLQ",
                     status="pass",
                     code="OK_DLQ_HEALTHY",
-                    meta_data={"failed_count": failed_count},
+                    meta_data=meta_data,
+                    metrics=metrics,
                     message="Message delivery is healthy.",
-                    detail=f"DLQ has {failed_count} failed message(s).",
+                    detail=", ".join(detail_parts) + ".",
                 )
 
             # Not initialized yet or unavailable
