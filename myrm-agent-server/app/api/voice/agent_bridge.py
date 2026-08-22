@@ -295,9 +295,7 @@ class VoiceAgentBridge:
         effective_query: str,
     ) -> tuple[str, bool]:
         """Supervised full agent execution: hands off to background if duration exceeds 15s."""
-        agent_task = asyncio.create_task(
-            self._consume_agent_stream(params, cancel_token, turn_id)
-        )
+        agent_task = asyncio.create_task(self._consume_agent_stream(params, cancel_token, turn_id))
 
         try:
             done, pending = await asyncio.wait(

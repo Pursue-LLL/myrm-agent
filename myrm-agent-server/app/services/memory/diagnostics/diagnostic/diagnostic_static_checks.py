@@ -250,9 +250,7 @@ def probe_capacity_theater(
         else "Disciplined memory footprint preserves prompt prefix caching and sharp attention focus."
     )
     next_action = (
-        "Restore disciplined defaults to archive unpinned working memories safely."
-        if has_risk
-        else "No action required."
+        "Restore disciplined defaults to archive unpinned working memories safely." if has_risk else "No action required."
     )
 
     return MemoryCommandDoctorCheck(

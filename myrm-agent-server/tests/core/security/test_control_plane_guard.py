@@ -92,9 +92,7 @@ class TestControlPlaneGuard:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_verify_control_plane_token_no_secret_loopback_fallback(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_verify_control_plane_token_no_secret_loopback_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from pydantic import SecretStr
 
         from app.config.settings import settings

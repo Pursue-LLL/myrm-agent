@@ -77,4 +77,3 @@ async def test_persistent_session_shell_quote_interpolation_real(tmp_path: Path)
         assert "dangerous" not in result.stdout.replace("hello 'world'; echo dangerous", "")
     finally:
         await session.close()
-

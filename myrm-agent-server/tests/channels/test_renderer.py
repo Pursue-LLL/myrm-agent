@@ -123,9 +123,7 @@ class TestReasoningBlock:
 class TestToolSummary:
     def test_tool_summary_off(self) -> None:
         steps = (ToolStep(name="search_tool", label="search", detail="query"),)
-        result = render(
-            _msg(tool_steps=steps), _style(tool_summary_display=ToolSummaryDisplay.OFF)
-        )
+        result = render(_msg(tool_steps=steps), _style(tool_summary_display=ToolSummaryDisplay.OFF))
         assert "search" not in result[0]
 
     def test_tool_summary_compact(self) -> None:
@@ -368,11 +366,7 @@ class TestCostFooter:
         assert "~$0.0010" in full
 
     def test_cost_footer_zero_cost_no_render(self) -> None:
-        msg = _msg(
-            metadata={
-                "cost_metadata": {"cost_usd": 0, "model_name": "x", "total_tokens": 100}
-            }
-        )
+        msg = _msg(metadata={"cost_metadata": {"cost_usd": 0, "model_name": "x", "total_tokens": 100}})
         result = render(msg, _style())
         full = "".join(result)
         assert "~$" not in full

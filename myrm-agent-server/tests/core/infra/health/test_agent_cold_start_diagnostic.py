@@ -267,4 +267,3 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
         assert "AgentColdStart" in server_components
         assert "ExecutionCache" in server_components
         assert "DLQ" in server_components
-

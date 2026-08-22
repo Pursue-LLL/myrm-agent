@@ -381,4 +381,3 @@ class ProfileStartupRecoveryService:
                 for s in snapshots
             ],
         }
-

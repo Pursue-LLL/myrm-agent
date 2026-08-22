@@ -115,6 +115,7 @@ class TestAllowlistPatternIntegration:
 
     def test_list_and_delete_agent_scoped_entry(self, client: TestClient) -> None:
         import uuid
+
         from app.database.models import UserToolAllowlist
         from app.platform_utils import get_session_factory
 

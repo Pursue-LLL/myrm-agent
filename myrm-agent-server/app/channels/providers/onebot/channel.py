@@ -117,9 +117,7 @@ class OneBotChannel(BaseChannel):
             access_token=creds.get("access_token", ""),
         )
 
-    def __init__(
-        self, host: str = "0.0.0.0", port: int = 3001, access_token: str = ""
-    ) -> None:
+    def __init__(self, host: str = "0.0.0.0", port: int = 3001, access_token: str = "") -> None:
         super().__init__()
         self._host = host
         self._port = port
@@ -191,9 +189,7 @@ class OneBotChannel(BaseChannel):
                 self.health.record_failure(str(e))
 
                 # Exponential backoff: double the delay up to max
-                self._reconnect_delay = min(
-                    self._reconnect_delay * 2, self._max_reconnect_delay
-                )
+                self._reconnect_delay = min(self._reconnect_delay * 2, self._max_reconnect_delay)
 
     async def stop(self) -> None:
         """Stop the WebSocket server and disable auto-reconnect."""
@@ -230,9 +226,7 @@ class OneBotChannel(BaseChannel):
         self.health.record_success()
         return True
 
-    async def _ws_handler(
-        self, websocket: websockets.server.WebSocketServerProtocol
-    ) -> None:
+    async def _ws_handler(self, websocket: websockets.server.WebSocketServerProtocol) -> None:
         """Handle incoming WebSocket connections from OneBot clients."""
         # 1. Authentication
         if self._access_token:
@@ -330,10 +324,7 @@ class OneBotChannel(BaseChannel):
 
         if isinstance(raw_message, list):
             for seg in raw_message:
-                if (
-                    seg.get("type") == "at"
-                    and str(seg.get("data", {}).get("qq")) == self._bot_id
-                ):
+                if seg.get("type") == "at" and str(seg.get("data", {}).get("qq")) == self._bot_id:
                     mentioned = True
                 elif seg.get("type") == "reply":
                     # OneBot doesn't always provide full quoted message content in the event,
@@ -361,9 +352,7 @@ class OneBotChannel(BaseChannel):
 
         await self._emit_inbound(inbound_msg)
 
-    async def _call_api(
-        self, action: str, params: dict[str, object], timeout: float = 10.0
-    ) -> dict[str, object]:
+    async def _call_api(self, action: str, params: dict[str, object], timeout: float = 10.0) -> dict[str, object]:
         """Call a OneBot API endpoint and wait for response."""
         if not self._active_ws or self._active_ws.closed:
             raise RuntimeError("No OneBot client connected")

@@ -854,7 +854,9 @@ class TestVoiceFastLaneAndSupervisor:
             patch.object(bridge, "_build_agent_params", return_value=mock_params),
             patch.object(bridge, "_is_fast_lane_query", return_value=True),
             patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),
-            patch.object(bridge, "_consume_agent_stream", new_callable=AsyncMock, return_value=("Recovered full text.", False)) as mock_full_stream,
+            patch.object(
+                bridge, "_consume_agent_stream", new_callable=AsyncMock, return_value=("Recovered full text.", False)
+            ) as mock_full_stream,
             patch(
                 "app.services.agent.stream_session.stream_lane_factory.create_fast_lane_stream",
                 side_effect=failing_fast_stream,
@@ -865,5 +867,3 @@ class TestVoiceFastLaneAndSupervisor:
         mock_full_stream.assert_awaited_once()
         assert len(bridge._transcript) == 2
         assert bridge._transcript[1].text == "Recovered full text."
-
-

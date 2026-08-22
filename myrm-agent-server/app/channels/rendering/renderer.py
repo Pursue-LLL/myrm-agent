@@ -113,9 +113,7 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
 _REASONING_MAX_LEN = 2000
 
 
-def _resolve_reasoning_display(
-    msg: OutboundMessage, style: RenderStyle
-) -> ReasoningDisplay:
+def _resolve_reasoning_display(msg: OutboundMessage, style: RenderStyle) -> ReasoningDisplay:
     metadata = msg.metadata
     if not metadata:
         return style.reasoning_display

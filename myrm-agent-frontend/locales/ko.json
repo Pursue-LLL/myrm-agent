@@ -4288,6 +4288,24 @@
         "downloadCta": "다운로드 페이지로 이동"
       }
     },
+    "lifecycleWebhook": {
+      "title": "수명 주기 아웃바운드 웹훅",
+      "description": "에이전트 실행 완료, 실패, 승인 요청 또는 칸반 작업 업데이트 시 HMAC-SHA256 서명된 HTTP POST 알림을 외부 시스템(Slack/Teams/Zapier/사용자 정의 API)으로 발송합니다.",
+      "endpointsTitle": "웹훅 엔드포인트 목록",
+      "addEndpoint": "웹훅 추가",
+      "newEndpoint": "새 웹훅 엔드포인트 구성",
+      "endpointName": "엔드포인트 이름",
+      "payloadUrl": "페이로드 URL (Payload URL)",
+      "signingSecret": "HMAC 서명 시크릿 (선택사항)",
+      "generateRandom": "랜덤 생성",
+      "subscribedEvents": "구독 이벤트",
+      "saveEndpoint": "엔드포인트 저장",
+      "saving": "저장 중...",
+      "cancel": "취소",
+      "testPing": "연결 테스트",
+      "noEndpoints": "구성된 아웃바운드 웹훅이 없습니다",
+      "noEndpointsDesc": "아웃바운드 웹훅을 설정하여 에이전트 실행 진행 상황과 결과를 외부 파이프라인으로 스트리밍하세요."
+    },
     "integrationCatalog": {
       "title": "서비스 카탈로그",
       "description": "타사 서비스 탐색 및 연결. 인기 통합을 MCP 또는 OpenAPI로 원클릭 설정.",

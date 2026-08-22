@@ -85,9 +85,7 @@ class TestCodeFenceReserveSpace:
 
         for i, chunk in enumerate(chunks):
             fence_count = chunk.count("```")
-            assert (
-                fence_count % 2 == 0
-            ), f"Chunk {i + 1} has unbalanced fences (count={fence_count})"
+            assert fence_count % 2 == 0, f"Chunk {i + 1} has unbalanced fences (count={fence_count})"
 
     def test_reserve_space_for_closing_fence(self) -> None:
         """Ensure space is reserved for closing fence when splitting inside code block."""
@@ -111,14 +109,10 @@ class TestCodeFenceReserveSpace:
         assert len(chunks) >= 2, "Should have multiple chunks"
 
         code_chunks = [c for c in chunks if "```python" in c]
-        assert (
-            len(code_chunks) >= 2
-        ), "Code fence should be reopened in subsequent chunks"
+        assert len(code_chunks) >= 2, "Code fence should be reopened in subsequent chunks"
 
         for chunk in code_chunks:
-            assert (
-                chunk.count("```") % 2 == 0
-            ), "Each chunk with fence should be balanced"
+            assert chunk.count("```") % 2 == 0, "Each chunk with fence should be balanced"
 
     def test_nested_fence_like_content(self) -> None:
         """Content with triple backticks inside code block should not confuse splitter."""
@@ -172,9 +166,7 @@ class TestCodeFenceReserveSpace:
 
         for i, chunk in enumerate(chunks):
             if i > 0 and "```typescript" in chunk:
-                assert chunk.startswith(
-                    "```typescript\n"
-                ), "Reopened fence should have language tag"
+                assert chunk.startswith("```typescript\n"), "Reopened fence should have language tag"
 
 
 class TestBugFixes:
@@ -197,13 +189,9 @@ class TestBugFixes:
         for chunk in chunks:
             if "xxx" in chunk:
                 # Should have opening fence
-                assert (
-                    "```" in chunk[:20]
-                ), f"Chunk containing fence content should start with fence: {chunk[:50]}"
+                assert "```" in chunk[:20], f"Chunk containing fence content should start with fence: {chunk[:50]}"
                 # Should have closing fence
-                assert chunk.rstrip().endswith(
-                    "```"
-                ), f"Chunk containing fence content should end with fence: {chunk[-20:]}"
+                assert chunk.rstrip().endswith("```"), f"Chunk containing fence content should end with fence: {chunk[-20:]}"
 
     def test_tilde_fence_support(self) -> None:
         """Enhancement: ~~~ fences should be supported (not just ```)."""
@@ -211,9 +199,7 @@ class TestBugFixes:
 
         # Test both no-split and split scenarios
         result_no_split = split_message(text, max_len=100)
-        assert any(
-            "~~~" in chunk for chunk in result_no_split
-        ), "Tilde fence should be preserved"
+        assert any("~~~" in chunk for chunk in result_no_split), "Tilde fence should be preserved"
 
         # Force split
         text_long = "normal\n~~~python\n" + ("code line\n" * 20) + "~~~\nend"
@@ -223,9 +209,7 @@ class TestBugFixes:
         for chunk in chunks:
             if "code line" in chunk:
                 # Should have fence markers (either ~~~ or reopened ~~~python)
-                assert (
-                    "~~~" in chunk or "~~~python" in chunk
-                ), f"Code content should be fence-wrapped: {chunk[:30]}"
+                assert "~~~" in chunk or "~~~python" in chunk, f"Code content should be fence-wrapped: {chunk[:30]}"
 
     def test_multiple_backticks_support(self) -> None:
         """Enhancement: Support 4+ backticks (3-10 symbols).
@@ -238,24 +222,18 @@ class TestBugFixes:
         # Test 4 backticks
         text = "````python\ncode\n````"
         result = split_message(text, max_len=50)
-        assert any(
-            "````" in chunk for chunk in result
-        ), "Four backticks should be recognized"
+        assert any("````" in chunk for chunk in result), "Four backticks should be recognized"
 
         # Test 5 backticks with nested content
         text = "`````python\ncode with ```\ninside\n`````"
         result = split_message(text, max_len=50)
-        assert any(
-            "`````" in chunk for chunk in result
-        ), "Five backticks should be recognized"
+        assert any("`````" in chunk for chunk in result), "Five backticks should be recognized"
 
         # Test fence balance
         for chunk in result:
             if "code" in chunk or "inside" in chunk:
                 # Should have fence wrapper
-                assert (
-                    "`````" in chunk or "```" in chunk
-                ), f"Nested fence content should be wrapped: {chunk}"
+                assert "`````" in chunk or "```" in chunk, f"Nested fence content should be wrapped: {chunk}"
 
     def test_smart_split_at_whitespace(self) -> None:
         """Enhancement: Long lines should be split at whitespace/punctuation boundaries when possible."""

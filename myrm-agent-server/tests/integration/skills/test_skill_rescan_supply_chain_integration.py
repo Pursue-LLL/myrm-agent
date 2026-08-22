@@ -75,17 +75,13 @@ async def test_full_supply_chain_rescan_compromise_and_quarantine_integration(
     clean_skill = skills_root / "clean-tool"
     clean_skill.mkdir()
     (clean_skill / "SKILL.md").write_text("# Clean Tool\nSafe utility", encoding="utf-8")
-    (clean_skill / "package.json").write_text(
-        '{"dependencies": {"safe-math": "1.0.0"}}', encoding="utf-8"
-    )
+    (clean_skill / "package.json").write_text('{"dependencies": {"safe-math": "1.0.0"}}', encoding="utf-8")
 
     # 2. Compromised skill (using notorious ua-parser-js miner injection)
     evil_skill = skills_root / "compromised-tool"
     evil_skill.mkdir()
     (evil_skill / "SKILL.md").write_text("# Compromised Tool", encoding="utf-8")
-    (evil_skill / "package.json").write_text(
-        '{"dependencies": {"ua-parser-js": "0.7.29"}}', encoding="utf-8"
-    )
+    (evil_skill / "package.json").write_text('{"dependencies": {"ua-parser-js": "0.7.29"}}', encoding="utf-8")
 
     user_id = "test_user_integration"
     await bind_skills_service.user_config.enable_local_skill("clean-tool")

@@ -70,7 +70,11 @@ class SqlAlchemyKanbanStore:
     # -- Board CRUD --
 
     async def update_active_tasks_branch_metadata(
-        self, new_branch: str, old_branch: str | None = None, migrated: bool = False, board_id: str | None = None
+        self,
+        new_branch: str,
+        old_branch: str | None = None,
+        migrated: bool = False,
+        board_id: str | None = None,
     ) -> list[KanbanTask]:
         """Update branch metadata for all active tasks across all boards (or a specific board) and append branch_switched event."""
         import datetime
@@ -81,7 +85,14 @@ class SqlAlchemyKanbanStore:
 
         async with get_session() as session:
             stmt = select(KanbanTaskModel).where(
-                KanbanTaskModel.status.in_([TaskStatus.BACKLOG, TaskStatus.READY, TaskStatus.RUNNING, TaskStatus.BLOCKED])
+                KanbanTaskModel.status.in_(
+                    [
+                        TaskStatus.BACKLOG,
+                        TaskStatus.READY,
+                        TaskStatus.RUNNING,
+                        TaskStatus.BLOCKED,
+                    ]
+                )
             )
             if board_id:
                 stmt = stmt.where(KanbanTaskModel.board_id == board_id)
@@ -101,7 +112,11 @@ class SqlAlchemyKanbanStore:
                 event = KanbanTaskEventModel(
                     task_id=task.id,
                     kind=TaskEventKind.BRANCH_SWITCHED.value,
-                    payload_json={"from": old_branch, "to": new_branch, "migrated": migrated},
+                    payload_json={
+                        "from": old_branch,
+                        "to": new_branch,
+                        "migrated": migrated,
+                    },
                     created_at=datetime.datetime.now(datetime.UTC),
                 )
                 session.add(event)
@@ -514,15 +529,9 @@ class SqlAlchemyKanbanStore:
                 shadow_edges = [e for e in shadow_edges if not (e[0] == p_id and e[1] == c_id)]
 
             # Clean cascade edges for removed tasks
-            removed_task_ids_set = {
-                item.task_id for item in spec.task_changes if item.action == "remove" and item.task_id
-            }
+            removed_task_ids_set = {item.task_id for item in spec.task_changes if item.action == "remove" and item.task_id}
             if removed_task_ids_set:
-                shadow_edges = [
-                    e
-                    for e in shadow_edges
-                    if e[0] not in removed_task_ids_set and e[1] not in removed_task_ids_set
-                ]
+                shadow_edges = [e for e in shadow_edges if e[0] not in removed_task_ids_set and e[1] not in removed_task_ids_set]
 
             # Add new edges
             for p_id, c_id in spec.add_edges:

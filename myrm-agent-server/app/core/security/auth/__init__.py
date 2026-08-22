@@ -32,4 +32,3 @@ __all__ = [
     "verify_control_plane_token",
     "verify_internal_origin",
 ]
-

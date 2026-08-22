@@ -69,9 +69,7 @@ class LINEChannel(BaseChannel):
     name = "line"
     credential_spec = credential_spec(
         "lineCredentials",
-        channel_access_token=credential_field(
-            "channelAccessToken", "LINE_CHANNEL_ACCESS_TOKEN"
-        ),
+        channel_access_token=credential_field("channelAccessToken", "LINE_CHANNEL_ACCESS_TOKEN"),
         channel_secret=credential_field("channelSecret", "LINE_CHANNEL_SECRET"),
     )
     capabilities = ChannelCapabilities(
@@ -435,9 +433,7 @@ class LINEChannel(BaseChannel):
                 media=tuple(media_list),
                 metadata=metadata,
                 message_id=msg_id,
-                sender_name=await self._resolve_sender_name(
-                    sender_id, scope=scope, chat_id=chat_id
-                ),
+                sender_name=await self._resolve_sender_name(sender_id, scope=scope, chat_id=chat_id),
             )
         )
 
@@ -470,9 +466,7 @@ class LINEChannel(BaseChannel):
                 is_group=is_group,
                 mentioned=False,
                 metadata=metadata,
-                sender_name=await self._resolve_sender_name(
-                    sender_id, scope=scope, chat_id=chat_id
-                ),
+                sender_name=await self._resolve_sender_name(sender_id, scope=scope, chat_id=chat_id),
             )
         )
 
@@ -518,11 +512,7 @@ class LINEChannel(BaseChannel):
         etype = event.get("type", "")
         source = cast(_Source, event.get("source", {}))
         src_type = source.get("type", "")
-        target_id = (
-            source.get("groupId", "")
-            or source.get("roomId", "")
-            or source.get("userId", "")
-        )
+        target_id = source.get("groupId", "") or source.get("roomId", "") or source.get("userId", "")
         logger.info("LINE %s event: %s %s", etype, src_type, target_id)
         self.emit(f"line:{etype}", {"source_type": src_type, "id": target_id})
 
@@ -569,9 +559,7 @@ class LINEChannel(BaseChannel):
             chars = list(text)
             for m in reversed(mentionees):
                 should_strip = False
-                if m.get("isSelf") is True or (
-                    self._bot_user_id and m.get("userId") == self._bot_user_id
-                ):
+                if m.get("isSelf") is True or (self._bot_user_id and m.get("userId") == self._bot_user_id):
                     should_strip = True
                 elif self._bot_display_name:
                     idx = m.get("index", -1)

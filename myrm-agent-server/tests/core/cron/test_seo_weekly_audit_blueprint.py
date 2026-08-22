@@ -19,13 +19,7 @@ from app.services.agent.builtin_specs.vertical import _VERTICAL_BUILTIN_AGENTS
 
 def test_web_project_seo_optimization_frontmatter_parse() -> None:
     """Verify web-project-seo-optimization SKILL.md parses cleanly and adheres to agentskills spec."""
-    skill_path = (
-        Path(__file__).resolve().parents[3]
-        / "assets"
-        / "prebuilt_skills"
-        / "web-project-seo-optimization"
-        / "SKILL.md"
-    )
+    skill_path = Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills" / "web-project-seo-optimization" / "SKILL.md"
     assert skill_path.exists(), f"Skill file not found at {skill_path}"
 
     content = skill_path.read_text(encoding="utf-8")
@@ -134,4 +128,3 @@ def test_seo_weekly_audit_defaults_applied_when_optional_omitted() -> None:
     assert "https://example.com" in res.prompt
     assert "standard" in res.prompt
     assert res.schedule.expr == "0 9 * * 1"
-

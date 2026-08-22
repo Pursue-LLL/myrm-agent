@@ -2435,4 +2435,3 @@ class TestSyntheticRun:
         assert len(runs) == 1
         assert "token_usage" in runs[0]
         assert "cost_usd" in runs[0]
-

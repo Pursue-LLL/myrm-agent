@@ -51,9 +51,7 @@ def test_does_not_split_inside_code_fence() -> None:
     chunks = split_message(text, 50)
     for chunk in chunks:
         fence_count = chunk.count("```")
-        assert (
-            fence_count % 2 == 0 or fence_count == 0
-        ), f"Unbalanced fences in chunk: {chunk!r}"
+        assert fence_count % 2 == 0 or fence_count == 0, f"Unbalanced fences in chunk: {chunk!r}"
 
 
 def test_split_before_code_block_when_possible() -> None:

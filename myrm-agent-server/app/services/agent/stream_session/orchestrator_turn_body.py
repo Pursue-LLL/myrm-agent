@@ -297,7 +297,13 @@ async def execute_agent_turn_after_reserve(
                 sandbox_active=sandbox_active,
                 workspace_dir=chat_workspace_dir,
             )
-            params, routing_tier, routing_specialty, context_warnings, archive_restore_results = await convert_to_general_agent_params(
+            (
+                params,
+                routing_tier,
+                routing_specialty,
+                context_warnings,
+                archive_restore_results,
+            ) = await convert_to_general_agent_params(
                 request,
                 chat_history,
                 http_request=http_request,
@@ -307,7 +313,13 @@ async def execute_agent_turn_after_reserve(
             extra_context = {"hitl_session_active": True}
             logger.info("HITL session marked active for cache preservation")
         else:
-            params, routing_tier, routing_specialty, context_warnings, archive_restore_results = await convert_to_general_agent_params(
+            (
+                params,
+                routing_tier,
+                routing_specialty,
+                context_warnings,
+                archive_restore_results,
+            ) = await convert_to_general_agent_params(
                 request,
                 chat_history,
                 http_request=http_request,

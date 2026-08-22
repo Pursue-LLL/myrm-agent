@@ -205,9 +205,7 @@ class MSTeamsChannel(BaseChannel):
         chunks = render(msg, self.render_style)
         last_id: str | None = None
         for chunk in chunks:
-            mid = await self._api.send_text_activity(
-                service_url, conversation_id, chunk
-            )
+            mid = await self._api.send_text_activity(service_url, conversation_id, chunk)
             if mid:
                 last_id = mid
         return last_id
@@ -305,9 +303,7 @@ class MSTeamsChannel(BaseChannel):
             return
 
         try:
-            await self._api.add_reaction(
-                service_url, conversation_id, activity_id, reaction_type
-            )
+            await self._api.add_reaction(service_url, conversation_id, activity_id, reaction_type)
         except Exception:
             pass
 
@@ -382,9 +378,7 @@ class MSTeamsChannel(BaseChannel):
             "conversation_type": conv.conversation_type if conv else None,
         }
 
-        quote_ctx = extract_quote_context(
-            [att.model_dump(by_alias=True) for att in act.attachments]
-        )
+        quote_ctx = extract_quote_context([att.model_dump(by_alias=True) for att in act.attachments])
         if quote_ctx:
             metadata.update(quote_ctx)
 
@@ -474,11 +468,7 @@ class MSTeamsChannel(BaseChannel):
         if not bot_was_added or not service_url or not conv_id:
             return
 
-        conv_type = (
-            (act.conversation.conversation_type or "").lower()
-            if act.conversation
-            else ""
-        )
+        conv_type = (act.conversation.conversation_type or "").lower() if act.conversation else ""
         is_personal = conv_type == "personal" or not conv_type
 
         try:
@@ -487,9 +477,7 @@ class MSTeamsChannel(BaseChannel):
                 payload = self._build_welcome_card()
                 await self._api.post_activity(service_url, conv_id, payload)
             elif self._welcome_text:
-                await self._api.send_text_activity(
-                    service_url, conv_id, self._welcome_text
-                )
+                await self._api.send_text_activity(service_url, conv_id, self._welcome_text)
         except Exception:
             logger.debug("MSTeams: failed to send welcome message")
 

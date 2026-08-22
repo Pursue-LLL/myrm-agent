@@ -142,7 +142,9 @@ async def run_restore_disciplined_defaults(
         except Exception:
             pass
 
-    return f"Restored disciplined defaults: archived {archived_count} memories, preserved {preserved_pinned_count} pinned entries."
+    return (
+        f"Restored disciplined defaults: archived {archived_count} memories, preserved {preserved_pinned_count} pinned entries."
+    )
 
 
 def action_to_operation(action: str) -> MemoryOperationKind:

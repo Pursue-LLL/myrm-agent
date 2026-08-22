@@ -20,9 +20,7 @@ class RescanTriggerRequest(BaseModel):
 
     skill_id: str | None = Field(default=None, description="Optional single skill name to rescan")
     enable_online_osv: bool = Field(default=True, description="Whether to query OSV API")
-    auto_quarantine: bool = Field(
-        default=True, description="Whether to disable skills with critical vulnerabilities"
-    )
+    auto_quarantine: bool = Field(default=True, description="Whether to disable skills with critical vulnerabilities")
 
 
 class AdvisoryAckRequest(BaseModel):

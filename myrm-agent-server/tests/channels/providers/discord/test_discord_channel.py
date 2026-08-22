@@ -123,14 +123,7 @@ async def test_on_message_ignores_bot(channel):
 # ── Media extraction tests ──
 
 
-def _make_attachment(
-    *,
-    content_type: str,
-    filename: str,
-    width=None,
-    height=None,
-    url="https://cdn.discord.com/file"
-):
+def _make_attachment(*, content_type: str, filename: str, width=None, height=None, url="https://cdn.discord.com/file"):
     att = MagicMock()
     att.content_type = content_type
     att.filename = filename
@@ -152,9 +145,7 @@ async def test_on_message_with_image_attachment(channel):
     mock_message.id = 102
     mock_message.content = "check this image"
     mock_message.attachments = [
-        _make_attachment(
-            content_type="image/png", filename="screenshot.png", width=800, height=600
-        ),
+        _make_attachment(content_type="image/png", filename="screenshot.png", width=800, height=600),
     ]
 
     received = []
@@ -216,9 +207,7 @@ async def test_on_message_with_multiple_attachments(channel):
     mock_message.id = 104
     mock_message.content = "mixed media"
     mock_message.attachments = [
-        _make_attachment(
-            content_type="image/jpeg", filename="photo.jpg", width=1920, height=1080
-        ),
+        _make_attachment(content_type="image/jpeg", filename="photo.jpg", width=1920, height=1080),
         _make_attachment(content_type="video/mp4", filename="clip.mp4"),
         _make_attachment(content_type="audio/ogg", filename="voice.ogg"),
         _make_attachment(content_type="text/plain", filename="notes.txt"),
@@ -278,9 +267,7 @@ async def test_on_message_image_by_dimensions_fallback(channel):
     mock_message.id = 106
     mock_message.content = ""
     mock_message.attachments = [
-        _make_attachment(
-            content_type="", filename="unknown.bin", width=640, height=480
-        ),
+        _make_attachment(content_type="", filename="unknown.bin", width=640, height=480),
     ]
 
     received = []
@@ -344,16 +331,10 @@ class TestDeriveThreadName:
         assert DiscordChannel._derive_thread_name("###") == "New Post"
 
     def test_skips_empty_leading_lines(self):
-        assert (
-            DiscordChannel._derive_thread_name("\n\nActual Title\nBody")
-            == "Actual Title"
-        )
+        assert DiscordChannel._derive_thread_name("\n\nActual Title\nBody") == "Actual Title"
 
     def test_skips_blank_leading_with_markdown(self):
-        assert (
-            DiscordChannel._derive_thread_name("\n# Report Title\nContent")
-            == "Report Title"
-        )
+        assert DiscordChannel._derive_thread_name("\n# Report Title\nContent") == "Report Title"
 
     def test_truncates_to_100(self):
         long = "A" * 200
@@ -365,9 +346,7 @@ def _setup_resolve(channel, mock_channel):
     channel._resolve_channel = AsyncMock(return_value=mock_channel)
 
 
-def _make_forum_mock(
-    *, requires_tag: bool = False, available_tags: list[MagicMock] | None = None
-):
+def _make_forum_mock(*, requires_tag: bool = False, available_tags: list[MagicMock] | None = None):
     mock_forum = MagicMock(spec=discord.ForumChannel)
     mock_forum.type = MagicMock()
     mock_forum.type.value = 15
@@ -454,9 +433,7 @@ async def test_send_to_regular_channel(channel):
     )
     result = await channel.send(msg)
 
-    mock_ch.send.assert_called_once_with(
-        content="Regular message", files=discord.utils.MISSING
-    )
+    mock_ch.send.assert_called_once_with(content="Regular message", files=discord.utils.MISSING)
     assert result == "55555"
 
 
@@ -807,9 +784,7 @@ async def test_discord_fetch_history(channel):
 
     mock_channel.history.return_value = MockAsyncIterator([msg1, msg2])
 
-    with patch.object(
-        channel, "_resolve_channel", AsyncMock(return_value=mock_channel)
-    ):
+    with patch.object(channel, "_resolve_channel", AsyncMock(return_value=mock_channel)):
         res = await channel.fetch_history("12345", limit=5)
 
         # msg2 should be filtered out because it is a bot message
@@ -826,15 +801,11 @@ class TestParseAllowedChannels:
         assert result == [("111", "222"), ("333", "444")]
 
     def test_entries_with_whitespace(self) -> None:
-        result = DiscordChannelConfig._parse_allowed_channels(
-            [" 111 : 222 ", "333:444"]
-        )
+        result = DiscordChannelConfig._parse_allowed_channels([" 111 : 222 ", "333:444"])
         assert result == [("111", "222"), ("333", "444")]
 
     def test_invalid_entries_skipped(self) -> None:
-        result = DiscordChannelConfig._parse_allowed_channels(
-            ["111", "222:333:444", ":555", "666:", "777:888"]
-        )
+        result = DiscordChannelConfig._parse_allowed_channels(["111", "222:333:444", ":555", "666:", "777:888"])
         assert result == [("777", "888")]
 
     def test_none_returns_empty(self) -> None:

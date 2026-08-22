@@ -259,14 +259,9 @@ async def convert_to_general_agent_params(
                 except ValueError:
                     pass
 
-            if (
-                request.reasoning_model_selection
-                and (request.code_model_selection or request.long_doc_model_selection)
-            ):
+            if request.reasoning_model_selection and (request.code_model_selection or request.long_doc_model_selection):
                 try:
-                    reasoning_cfg_slot = await _resolve_model_config(
-                        request.reasoning_model_selection, providers_dict
-                    )
+                    reasoning_cfg_slot = await _resolve_model_config(request.reasoning_model_selection, providers_dict)
                     specialty_slots[TaskSpecialty.REASONING] = reasoning_cfg_slot
                 except ValueError:
                     pass
@@ -294,10 +289,7 @@ async def convert_to_general_agent_params(
         except Exception:
             logger.warning("Specialty routing failed, using default model", exc_info=True)
 
-    if (
-        routing_tier is None
-        and (request.light_model_selection or request.reasoning_model_selection)
-    ):
+    if routing_tier is None and (request.light_model_selection or request.reasoning_model_selection):
         try:
             from myrm_agent_harness.api import route_task
 

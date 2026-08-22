@@ -176,10 +176,7 @@ class SkillRescanService:
                     logger.error("Failed to disable compromised skill %s: %s", s_name, exc)
 
             findings_count = (
-                len(res.advisory_findings)
-                + len(res.code_findings)
-                + len(res.lifecycle_findings)
-                + len(res.ast_findings)
+                len(res.advisory_findings) + len(res.code_findings) + len(res.lifecycle_findings) + len(res.ast_findings)
             )
 
             report.items.append(

@@ -43,17 +43,19 @@ _URL_REGEX: Final[re.Pattern[str]] = re.compile(
 _TRAILING_PUNCTUATION: Final[str] = ".,;:!?)'\""
 
 # High-trust major domains that bypass aggressive dead-link probes (fast-path)
-_TRUSTED_HOSTS: Final[frozenset[str]] = frozenset({
-    "localhost",
-    "127.0.0.1",
-    "github.com",
-    "gitlab.com",
-    "google.com",
-    "wikipedia.org",
-    "python.org",
-    "anthropic.com",
-    "openai.com",
-})
+_TRUSTED_HOSTS: Final[frozenset[str]] = frozenset(
+    {
+        "localhost",
+        "127.0.0.1",
+        "github.com",
+        "gitlab.com",
+        "google.com",
+        "wikipedia.org",
+        "python.org",
+        "anthropic.com",
+        "openai.com",
+    }
+)
 
 # Custom browser-like User-Agent for HEAD/GET probing
 _PROBE_UA: Final[str] = (
@@ -162,14 +164,10 @@ class OutboundContentGate:
                     if resp.status_code in (403, 405):
                         resp_get = await client.get(url, headers={"Range": "bytes=0-0"})
                         if 200 <= resp_get.status_code < 400 or resp_get.status_code == 206:
-                            return LinkProbeResult(
-                                url=url, is_alive=True, status_code=resp_get.status_code
-                            )
+                            return LinkProbeResult(url=url, is_alive=True, status_code=resp_get.status_code)
                         # If still 403, host exists and answered (bot block rather than dead link)
                         if resp_get.status_code == 403:
-                            return LinkProbeResult(
-                                url=url, is_alive=True, status_code=403
-                            )
+                            return LinkProbeResult(url=url, is_alive=True, status_code=403)
                     # 404 / 410 / 5xx considered dead or broken
                     return LinkProbeResult(
                         url=url,

@@ -41,15 +41,11 @@ def _make_channel(**kwargs: object) -> MSTeamsChannel:
     return MSTeamsChannel(**defaults)
 
 
-def _seed_service_url(
-    ch: MSTeamsChannel, conv_id: str, url: str = "https://smba.trafficmanager.net/apis"
-) -> None:
+def _seed_service_url(ch: MSTeamsChannel, conv_id: str, url: str = "https://smba.trafficmanager.net/apis") -> None:
     ch._api._service_url_cache[conv_id] = (url, time.monotonic())
 
 
-def _make_outbound(
-    recipient_id: str, content: str = "", **kwargs: object
-) -> OutboundMessage:
+def _make_outbound(recipient_id: str, content: str = "", **kwargs: object) -> OutboundMessage:
     return OutboundMessage(
         channel="teams",
         user_id="u1",
@@ -187,18 +183,13 @@ class TestHelpers:
             '<p itemprop="copy">Hello world</p>'
             "</blockquote>"
         )
-        result = extract_quote_context(
-            [{"contentType": "text/html", "content": html_content}]
-        )
+        result = extract_quote_context([{"contentType": "text/html", "content": html_content}])
         assert result is not None
         assert result["quote_sender"] == "Alice"
         assert result["quote_body"] == "Hello world"
 
     def test_extract_quote_context_no_match(self) -> None:
-        assert (
-            extract_quote_context([{"contentType": "text/html", "content": "no reply"}])
-            is None
-        )
+        assert extract_quote_context([{"contentType": "text/html", "content": "no reply"}]) is None
         assert extract_quote_context([]) is None
 
     def test_build_adaptive_card_with_buttons(self) -> None:
@@ -220,18 +211,14 @@ class TestHelpers:
 
     def test_build_adaptive_card_url_button(self) -> None:
         btn = ActionButton(label="Open", action_id="open_1", url="https://example.com")
-        result = build_adaptive_card_activity(
-            components=((btn,),), quick_replies=(), text=""
-        )
+        result = build_adaptive_card_activity(components=((btn,),), quick_replies=(), text="")
         card = result["attachments"][0]["content"]
         assert card["actions"][0]["type"] == "Action.OpenUrl"
         assert card["actions"][0]["url"] == "https://example.com"
 
     def test_build_adaptive_card_danger_button(self) -> None:
         btn = ActionButton(label="Delete", action_id="del_1", style=ButtonStyle.DANGER)
-        result = build_adaptive_card_activity(
-            components=((btn,),), quick_replies=(), text=""
-        )
+        result = build_adaptive_card_activity(components=((btn,),), quick_replies=(), text="")
         card = result["attachments"][0]["content"]
         assert card["actions"][0]["style"] == "destructive"
 
@@ -533,9 +520,7 @@ class TestHandleActivity:
         }
         await ch.handle_activity(raw)
         mock_http.post.assert_called_once()
-        call_json = mock_http.post.call_args.kwargs.get(
-            "json", mock_http.post.call_args[1].get("json")
-        )
+        call_json = mock_http.post.call_args.kwargs.get("json", mock_http.post.call_args[1].get("json"))
         assert call_json is not None
         assert "attachments" in call_json
 
@@ -575,9 +560,7 @@ class TestHandleActivity:
         }
         await ch.handle_activity(raw)
         mock_http.post.assert_called_once()
-        call_json = mock_http.post.call_args.kwargs.get(
-            "json", mock_http.post.call_args[1].get("json")
-        )
+        call_json = mock_http.post.call_args.kwargs.get("json", mock_http.post.call_args[1].get("json"))
         assert call_json.get("text") == "Hi group!"
 
 
@@ -730,9 +713,7 @@ class TestOutbound:
 
         await ch.start_typing("conv_t")
         mock_http.post.assert_called_once()
-        call_json = mock_http.post.call_args.kwargs.get(
-            "json", mock_http.post.call_args[1].get("json")
-        )
+        call_json = mock_http.post.call_args.kwargs.get("json", mock_http.post.call_args[1].get("json"))
         assert call_json["type"] == "typing"
 
     @pytest.mark.asyncio
@@ -774,9 +755,7 @@ class TestOutbound:
         mock_http = _mock_http_on_channel(ch)
         mock_http.post = AsyncMock(return_value=mock_resp)
 
-        result = await ch._api.post_activity(
-            "https://svc.url", "conv_1", {"type": "message", "text": "hi"}
-        )
+        result = await ch._api.post_activity("https://svc.url", "conv_1", {"type": "message", "text": "hi"})
         assert result is None
 
     @pytest.mark.asyncio
@@ -796,17 +775,13 @@ class TestOutbound:
         mock_http = _mock_http_on_channel(ch)
         mock_http.post = AsyncMock(return_value=mock_resp)
 
-        result = await ch._api.post_activity(
-            "https://svc.url", "conv_1", {"type": "message"}
-        )
+        result = await ch._api.post_activity("https://svc.url", "conv_1", {"type": "message"})
         assert result is None
 
     @pytest.mark.asyncio
     async def test_send_attachment_no_url(self) -> None:
         ch = _make_channel()
-        media = MediaAttachment(
-            media_type=MediaType.IMAGE, url="", mime_type="image/png"
-        )
+        media = MediaAttachment(media_type=MediaType.IMAGE, url="", mime_type="image/png")
         result = await ch._api.send_attachment("https://svc.url", "conv_1", media)
         assert result is None
 
@@ -829,9 +804,7 @@ class TestOutbound:
         )
         result = await ch._api.send_attachment("https://svc.url", "conv_1", media)
         assert result is not None
-        call_json = mock_http.post.call_args.kwargs.get(
-            "json", mock_http.post.call_args[1].get("json")
-        )
+        call_json = mock_http.post.call_args.kwargs.get("json", mock_http.post.call_args[1].get("json"))
         assert call_json.get("text") == "Look at this"
 
     @pytest.mark.asyncio
@@ -853,9 +826,7 @@ class TestOutbound:
 
         await ch.edit_placeholder_message("conv_ep", key, msg)
         mock_http.put.assert_called_once()
-        call_json = mock_http.put.call_args.kwargs.get(
-            "json", mock_http.put.call_args[1].get("json")
-        )
+        call_json = mock_http.put.call_args.kwargs.get("json", mock_http.put.call_args[1].get("json"))
         assert call_json["text"] == expected_first
         assert len(call_json["text"]) <= ch.render_style.max_text_length
 
@@ -880,9 +851,7 @@ class TestEditPlaceholderMultiChunk:
         assert len(chunks) >= 2
 
         await ch.edit_placeholder_message("conv_ep2", key, msg)
-        call_json = mock_http.put.call_args.kwargs.get(
-            "json", mock_http.put.call_args[1].get("json")
-        )
+        call_json = mock_http.put.call_args.kwargs.get("json", mock_http.put.call_args[1].get("json"))
         assert call_json["text"] == chunks[0]
         assert len(call_json["text"]) <= ch.render_style.max_text_length
         assert len(call_json["text"]) < len(long_body)

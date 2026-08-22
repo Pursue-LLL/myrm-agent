@@ -35,9 +35,7 @@ def cp_ingress_app():
 
 
 @pytest.mark.asyncio
-async def test_channel_ingress_token_gate_unauthorized(
-    cp_ingress_app, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_channel_ingress_token_gate_unauthorized(cp_ingress_app, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("secret-cp-token"))
     monkeypatch.setattr(settings, "cors_origins", ["http://localhost:3000"])
 
@@ -73,9 +71,7 @@ async def test_channel_ingress_token_gate_unauthorized(
 
 
 @pytest.mark.asyncio
-async def test_agent_interrupt_token_gate_success(
-    cp_ingress_app, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_agent_interrupt_token_gate_success(cp_ingress_app, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("secret-cp-token"))
     monkeypatch.setattr(settings, "cors_origins", ["http://localhost:3000"])
 
@@ -94,9 +90,7 @@ async def test_agent_interrupt_token_gate_success(
 
 
 @pytest.mark.asyncio
-async def test_background_shell_status_token_gate(
-    cp_ingress_app, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_background_shell_status_token_gate(cp_ingress_app, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("secret-cp-token"))
     monkeypatch.setattr(settings, "cors_origins", ["http://localhost:3000"])
 
@@ -119,9 +113,7 @@ async def test_background_shell_status_token_gate(
 
 
 @pytest.mark.asyncio
-async def test_killswitch_origin_and_token_gate(
-    cp_ingress_app, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_killswitch_origin_and_token_gate(cp_ingress_app, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("secret-cp-token"))
     monkeypatch.setattr(settings, "cors_origins", ["http://localhost:3000"])
 
@@ -153,4 +145,3 @@ async def test_killswitch_origin_and_token_gate(
         data = resp_allowed.json()
         assert data["status"] == "disabled"
         assert data["skill_id"] == "test_skill"
-

@@ -94,9 +94,7 @@ def test_dispatch_via_build_memory_import_dry_run() -> None:
     """Verify general dispatcher routes to PLUR adapter."""
     payload: dict[str, object] = {
         "_source": "plur",
-        "engrams": [
-            {"content": "Always format code with ruff", "scope": "global", "type": "rule"}
-        ],
+        "engrams": [{"content": "Always format code with ruff", "scope": "global", "type": "rule"}],
     }
 
     res = build_memory_import_dry_run(payload)
@@ -135,4 +133,3 @@ engrams:
     assert res.summary.mapped_items == 2
     assert len(res.normalized_data.get("profile", [])) == 1
     assert len(res.normalized_data.get("semantic", [])) == 1
-

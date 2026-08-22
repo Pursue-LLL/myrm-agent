@@ -64,9 +64,7 @@ async def test_enrich_message_locale_preserves_existing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_enrich_message_locale_user_overrides_platform_on_neutral_channel() -> (
-    None
-):
+async def test_enrich_message_locale_user_overrides_platform_on_neutral_channel() -> None:
     ch = MagicMock()
     ch.extract_sender_locale = MagicMock(return_value="zh-CN")
     bus = _make_bus(ch)

@@ -40,4 +40,3 @@ def test_smoke_launch_runtime_script_ps1_content() -> None:
     assert "Assert-NonEmptyFile" in text
     assert "Kill-ProcessTree" in text
     assert "taskkill.exe" in text
-
