@@ -4957,9 +4957,7 @@
         "firstIrrecoverable": "Erster nicht behebbarer Fehlerpunkt",
         "recoverySteps": "Wiederherstellungsschritte",
         "securityLabels": "Sicherheitskennzeichnungen",
-        "securityFlag": "Sicherheit",
-        "memoryEvents": "Kontextinjektionen und Gedächtnis",
-        "influenceCount": "Beeinflusste Runden: {count}"
+        "securityFlag": "Sicherheit"
       },
       "replay": {
         "title": "Sitzungs-Wiedergabe",

@@ -72,8 +72,12 @@ async def generate_cancellable_stream(
     _max_ctx = getattr(session.params.model_cfg, "max_context_tokens", None)
     _model_tier = infer_model_tier(session.params.model_cfg.model, _custom_def, _max_ctx)
 
-    if session.routing_tier:
-        routing_data: dict[str, object] = {"tier": session.routing_tier}
+    if session.routing_tier or session.routing_specialty:
+        routing_data: dict[str, object] = {}
+        if session.routing_tier:
+            routing_data["tier"] = session.routing_tier
+        if session.routing_specialty:
+            routing_data["specialty"] = session.routing_specialty
         if _model_tier != ModelTier.STRONG:
             routing_data["model_tier"] = _model_tier.value
 
