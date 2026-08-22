@@ -3038,6 +3038,9 @@
       "discover": {
         "title": "發現技能",
         "description": "從 GitHub 和社群搜尋並安裝技能",
+        "detail": {
+          "noDescription": "暫無技能描述"
+        },
         "searchPlaceholder": "搜尋技能，如 react 效能最佳化、程式碼審查...",
         "import": "匯入",
         "importUrl": "匯入 GitHub URL",

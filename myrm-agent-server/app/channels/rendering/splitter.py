@@ -121,7 +121,7 @@ def split_message(
 
     Features:
         1. Fence state tracking: ``` and ~~~ (3-10 symbols) support
-        2. Bug fix: Long lines inside fences won't escape fence protection
+        2. Long lines inside fences retain fence protection across chunk boundaries
         3. Smart splitting: Prefers whitespace/punctuation boundaries
         4. Configurable overflow tolerance for semantic integrity
 
@@ -235,7 +235,7 @@ def split_message(
                 current.append(reopener)
                 current_len += len(reopener)
 
-        # Handle long lines (THE KEY BUG FIX)
+        # Long lines inside an open fence: preserve fence wrapper per segment
         if len(line_with_nl) > max_len:
             if fence_open:
                 # ===== CRITICAL: Preserve fence integrity for long lines =====

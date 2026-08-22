@@ -459,6 +459,8 @@ class RunResponse(BaseModel):
     summary: str = ""
     error: str = ""
     duration_seconds: float | None = None
+    token_usage: dict[str, int] | None = None
+    cost_usd: float | None = None
 
 
 class EventResponse(BaseModel):

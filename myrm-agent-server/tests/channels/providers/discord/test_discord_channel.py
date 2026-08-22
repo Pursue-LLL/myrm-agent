@@ -438,6 +438,45 @@ async def test_send_to_regular_channel(channel):
 
 
 @pytest.mark.asyncio
+async def test_send_long_message_splits_via_render(channel):
+    """Long Discord replies must use render() and send multiple messages."""
+    from app.channels.rendering.renderer import render
+
+    mock_ch = MagicMock(spec=discord.TextChannel)
+    mock_ch.type = MagicMock()
+    mock_ch.type.value = 0
+
+    sent_counter = 0
+
+    async def _send(**kwargs: object) -> MagicMock:
+        nonlocal sent_counter
+        sent_counter += 1
+        msg = MagicMock()
+        msg.id = 10000 + sent_counter
+        return msg
+
+    mock_ch.send = AsyncMock(side_effect=_send)
+    _setup_resolve(channel, mock_ch)
+
+    long_body = "Discord long reply line.\n" * 180
+    msg = OutboundMessage(
+        channel="discord",
+        recipient_id="12345",
+        content=long_body,
+        user_id="u1",
+    )
+    expected_chunks = render(msg, channel.render_style)
+    assert len(expected_chunks) >= 2
+
+    result = await channel.send(msg)
+
+    assert mock_ch.send.call_count == len(expected_chunks)
+    for i, call in enumerate(mock_ch.send.call_args_list):
+        assert call.kwargs["content"] == expected_chunks[i]
+    assert result == str(10000 + mock_ch.send.call_count)
+
+
+@pytest.mark.asyncio
 async def test_send_placeholder_to_forum(channel):
     """send_placeholder() should create forum thread when target is Forum."""
     mock_forum = _make_forum_mock()

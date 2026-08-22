@@ -7,35 +7,36 @@ import SamplePrompts from '../SamplePrompts';
 
 const mockSetInputMessage = vi.fn();
 
+const translations: Record<string, string> = {
+  'samplePrompts.time_morning_0': 'Morning Key Priority 0',
+  'samplePrompts.time_morning_1': 'Morning Key Priority 1',
+  'samplePrompts.time_morning_2': 'Morning Key Priority 2',
+  'samplePrompts.time_morning_3': 'Morning Key Priority 3',
+  'samplePrompts.time_afternoon_0': 'Afternoon Sprint 0',
+  'samplePrompts.time_afternoon_1': 'Afternoon Sprint 1',
+  'samplePrompts.time_afternoon_2': 'Afternoon Sprint 2',
+  'samplePrompts.time_afternoon_3': 'Afternoon Sprint 3',
+  'samplePrompts.time_evening_0': 'Evening Retro 0',
+  'samplePrompts.time_evening_1': 'Evening Retro 1',
+  'samplePrompts.time_evening_2': 'Evening Retro 2',
+  'samplePrompts.time_evening_3': 'Evening Retro 3',
+  'samplePrompts.time_night_0': 'Night Deep Work 0',
+  'samplePrompts.time_night_1': 'Night Deep Work 1',
+  'samplePrompts.time_night_2': 'Night Deep Work 2',
+  'samplePrompts.time_night_3': 'Night Deep Work 3',
+  'samplePrompts.agent_0': 'Agent Prompt 0',
+  'samplePrompts.fast_0': 'Fast Prompt 0',
+  'lifeOperator.morning': 'Morning Focus',
+  'lifeOperator.afternoon': 'Afternoon Sprint',
+  'lifeOperator.evening': 'Evening Retro',
+  'lifeOperator.night': 'Night Deep Work',
+  'lifeOperator.all': 'Explore All',
+};
+
+const stableT = (key: string) => translations[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const translations: Record<string, string> = {
-      'samplePrompts.time_morning_0': 'Morning Key Priority 0',
-      'samplePrompts.time_morning_1': 'Morning Key Priority 1',
-      'samplePrompts.time_morning_2': 'Morning Key Priority 2',
-      'samplePrompts.time_morning_3': 'Morning Key Priority 3',
-      'samplePrompts.time_afternoon_0': 'Afternoon Sprint 0',
-      'samplePrompts.time_afternoon_1': 'Afternoon Sprint 1',
-      'samplePrompts.time_afternoon_2': 'Afternoon Sprint 2',
-      'samplePrompts.time_afternoon_3': 'Afternoon Sprint 3',
-      'samplePrompts.time_evening_0': 'Evening Retro 0',
-      'samplePrompts.time_evening_1': 'Evening Retro 1',
-      'samplePrompts.time_evening_2': 'Evening Retro 2',
-      'samplePrompts.time_evening_3': 'Evening Retro 3',
-      'samplePrompts.time_night_0': 'Night Deep Work 0',
-      'samplePrompts.time_night_1': 'Night Deep Work 1',
-      'samplePrompts.time_night_2': 'Night Deep Work 2',
-      'samplePrompts.time_night_3': 'Night Deep Work 3',
-      'samplePrompts.agent_0': 'Agent Prompt 0',
-      'samplePrompts.fast_0': 'Fast Prompt 0',
-      'lifeOperator.morning': 'Morning Focus',
-      'lifeOperator.afternoon': 'Afternoon Sprint',
-      'lifeOperator.evening': 'Evening Retro',
-      'lifeOperator.night': 'Night Deep Work',
-      'lifeOperator.all': 'Explore All',
-    };
-    return translations[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/store/useChatStore', () => ({

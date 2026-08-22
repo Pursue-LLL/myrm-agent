@@ -7877,6 +7877,8 @@
       "routingSimple": "軽量",
       "routingStandard": "標準",
       "routingReasoning": "推論",
+      "routingCode": "コード",
+      "routingLongDoc": "長文ドキュメント",
       "privacyLevel": "プライバシー",
       "privacyPseudonymized": "保護済み",
       "privacyS2": "機密",

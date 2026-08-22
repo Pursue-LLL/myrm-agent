@@ -282,7 +282,7 @@ const SkillCard = memo(
                 {skill.author && <span className="text-xs text-muted-foreground shrink-0">by {skill.author}</span>}
               </div>
               <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
-                {resolveSkillDescription(skill, t('detail.noDescription', { fallback: 'No description provided' }))}
+                {resolveSkillDescription(skill, t('detail.noDescription'))}
               </p>
               {skill.usage_stats && (
                 <div className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground/80">

@@ -39,6 +39,7 @@ from app.channels.core.credentials import (
     credential_field,
     credential_spec,
 )
+from app.channels.rendering.renderer import render
 from app.channels.providers.discord.config import (
     DiscordChannelConfig,
 )
@@ -422,20 +423,29 @@ class DiscordChannel(BaseChannel):
             return await self._create_forum_thread(channel, message.content)
         try:
             files = build_discord_files(message.media) if message.media else []
-            kwargs: dict[str, object] = {
-                "content": message.content,
-                "files": files or discord.utils.MISSING,
-            }
-            if message.reply_to_id:
-                try:
-                    kwargs["reference"] = discord.MessageReference(
-                        message_id=int(message.reply_to_id),
-                        fail_if_not_exists=False,
-                    )
-                except (ValueError, TypeError):
-                    pass
-            sent = await channel.send(**kwargs)  # type: ignore[arg-type]
-            return str(sent.id)
+            last_sent_id: str | None = None
+            if message.content:
+                chunks = render(message, self.render_style)
+                for i, chunk in enumerate(chunks):
+                    chunk_files = files if i == 0 and files else discord.utils.MISSING
+                    kwargs: dict[str, object] = {
+                        "content": chunk,
+                        "files": chunk_files,
+                    }
+                    if message.reply_to_id and i == 0:
+                        try:
+                            kwargs["reference"] = discord.MessageReference(
+                                message_id=int(message.reply_to_id),
+                                fail_if_not_exists=False,
+                            )
+                        except (ValueError, TypeError):
+                            pass
+                    sent = await channel.send(**kwargs)  # type: ignore[arg-type]
+                    last_sent_id = str(sent.id)
+            elif files:
+                sent = await channel.send(files=files)  # type: ignore[arg-type]
+                last_sent_id = str(sent.id)
+            return last_sent_id
         except Exception as exc:
             logger.error("Failed to send Discord message: %s", exc)
             return None

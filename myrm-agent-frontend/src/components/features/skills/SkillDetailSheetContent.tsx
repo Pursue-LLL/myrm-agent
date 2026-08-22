@@ -126,7 +126,7 @@ export function SkillDetailSheetContent({
   return (
     <div className="py-4 space-y-5">
       <p className="text-muted-foreground">
-        {resolveSkillDescription(skill, t('detail.noDescription', { fallback: 'No description provided' }))}
+        {resolveSkillDescription(skill, t('detail.noDescription'))}
       </p>
 
       <SkillQualityGuardian skillId={skill.id} onPromoted={reloadSkillContent} />

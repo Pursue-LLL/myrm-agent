@@ -7440,9 +7440,8 @@
       "browser": "Browser",
       "desktop": "Desktop",
       "artifacts": "Deliverables",
-      "advisorAsk": "Ask Advisor",
-      "advisorOpen": "Side Q&A"
-    }
+    "advisorAsk": "Ask Advisor",
+    "advisorOpen": "Side Q&A"
   },
   "common": {
     "keyValueEditor": {

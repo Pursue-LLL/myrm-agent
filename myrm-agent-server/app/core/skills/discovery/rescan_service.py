@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.market.service import LOCAL_INSTALL_DIR
-from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
+from myrm_agent_harness.api import (
     AdvisoryAck,
     AdvisoryAckRegistry,
     InstalledSkillRescanEngine,

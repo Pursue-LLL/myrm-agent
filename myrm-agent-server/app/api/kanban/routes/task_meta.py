@@ -51,6 +51,8 @@ async def list_task_runs(task_id: str) -> RunListResponse:
                 summary=r.summary,
                 error=r.error,
                 duration_seconds=r.duration_seconds,
+                token_usage=r.token_usage,
+                cost_usd=r.cost_usd,
             )
             for r in runs
         ],

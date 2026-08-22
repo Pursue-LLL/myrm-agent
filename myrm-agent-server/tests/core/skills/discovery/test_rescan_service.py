@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
+from myrm_agent_harness.api import (
     SkillRescanResult,
 )
 from myrm_agent_harness.backends.skills.scanning.scanner import (

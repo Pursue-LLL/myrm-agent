@@ -2827,6 +2827,7 @@
       },
       "detail": {
         "title": "Fähigkeitsdetails",
+        "noDescription": "Keine Beschreibung angegeben",
         "close": "Schließen",
         "enable": "Fähigkeit aktivieren",
         "disable": "Fähigkeit deaktivieren",

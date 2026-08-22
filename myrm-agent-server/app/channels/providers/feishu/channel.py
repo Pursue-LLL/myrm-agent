@@ -18,6 +18,7 @@ Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messa
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
 import hmac
 import json
@@ -35,6 +36,7 @@ from pydantic import ValidationError
 from app.channels.core.allow_policy import AllowPolicy, ChatPolicy
 from app.channels.core.base import BaseChannel, DedupMode
 from app.channels.core.credentials import credential_field, credential_spec, parse_bool
+from app.channels.rendering.renderer import render
 from app.channels.security.errors import WebhookResponseError
 from app.channels.types import (
     ChannelCapabilities,
@@ -263,16 +265,26 @@ class FeishuChannel(BaseChannel):
                 last_msg_id = mid
 
         if msg.content:
-            msg_type, content = self._format_outbound(msg)
-            mid_str = await self._client.send_message(
-                chat_id,
-                msg_type,
-                content,
-                receive_id_type=receive_type,
-                reply_in_thread=bool(msg.reply_to_id),
-            )
-            if mid_str:
-                last_msg_id = mid_str
+            chunks = render(msg, self.render_style)
+            for i, chunk in enumerate(chunks):
+                is_last = i == len(chunks) - 1
+                chunk_msg = dataclasses.replace(
+                    msg,
+                    content=chunk,
+                    quick_replies=msg.quick_replies if is_last else (),
+                    components=msg.components if is_last else (),
+                    metadata=msg.metadata if is_last else None,
+                )
+                msg_type, content = self._format_outbound(chunk_msg)
+                mid_str = await self._client.send_message(
+                    chat_id,
+                    msg_type,
+                    content,
+                    receive_id_type=receive_type,
+                    reply_in_thread=bool(msg.reply_to_id),
+                )
+                if mid_str:
+                    last_msg_id = mid_str
 
         return last_msg_id
 
@@ -618,7 +630,7 @@ class FeishuChannel(BaseChannel):
 
     def _format_outbound(self, msg: OutboundMessage) -> tuple[str, str]:
         """Three-level format detection: text → post → card."""
-        content = (msg.content or "")[:_MAX_TEXT_LENGTH]
+        content = msg.content or ""
         if self._render_mode == "raw":
             return "text", json.dumps({"text": content}, ensure_ascii=False)
         if self._render_mode == "card" or self._should_use_card(content, msg):
@@ -644,7 +656,7 @@ class FeishuChannel(BaseChannel):
         from app.channels.types import extract_cron_context
 
         cron = extract_cron_context(msg)
-        content = (msg.content or "")[:_MAX_TEXT_LENGTH]
+        content = msg.content or ""
         cost_meta = msg.metadata.get("cost_metadata") if msg.metadata else None
         card = build_result_card(
             content,

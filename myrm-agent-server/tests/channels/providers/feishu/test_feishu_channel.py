@@ -257,6 +257,30 @@ class TestSend:
         call_args = mock.send_message.call_args
         assert call_args[0][1] == "interactive"
 
+    @pytest.mark.asyncio
+    async def test_send_long_message_uses_render_multi_chunk(self) -> None:
+        ch = _make_channel()
+        ch._render_mode = "raw"
+        mock = _mock_client(ch)
+        mock.send_message.side_effect = ["om_1", "om_2"]
+
+        long_body = "飞书长文测试。" * 600
+        msg = OutboundMessage(
+            channel="feishu",
+            recipient_id="oc_chat1",
+            content=long_body,
+            user_id="u1",
+            metadata={"receive_type": "chat_id"},
+        )
+        mid = await ch.send(msg)
+        assert mid == "om_2"
+        assert mock.send_message.call_count == 2
+        parts: list[str] = []
+        for call in mock.send_message.call_args_list:
+            payload = json.loads(call[0][2])
+            parts.append(str(payload["text"]))
+        assert "".join(parts) == long_body
+
 
 class TestEditMessage:
     @pytest.mark.asyncio
