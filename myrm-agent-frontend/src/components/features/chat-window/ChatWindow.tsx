@@ -515,7 +515,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const openConfirmDialog = useMemoryStore((s) => s.openConfirmDialog);
   const memoryT = useTranslations('memory');
 
-  const prevPendingCountRef = useRef(-1);
+  const [activeTab, setActiveTab] = useState<'chat' | 'trace'>('chat');
+  const recoveryT = useTranslations('recovery');
   useEffect(() => {
     const prev = prevPendingCountRef.current;
     prevPendingCountRef.current = pendingCount;
@@ -560,10 +561,39 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
             {id ? (
-              <div className="flex flex-wrap items-center gap-2 px-1 pb-1">
-                <ParentChatLink chatId={id} />
-                <ChatCronLink chatId={id} />
-                <SessionRevertButton sessionId={id} />
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 border-b border-border/30 bg-muted/20">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ParentChatLink chatId={id} />
+                  <ChatCronLink chatId={id} />
+                  <SessionRevertButton sessionId={id} />
+                </div>
+                {/* 活跃会话 双 Tab 切换器 */}
+                <div className="inline-flex items-center rounded-lg bg-muted/60 p-0.5 text-xs font-medium border border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('chat')}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+                      activeTab === 'chat'
+                        ? 'bg-background text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>{recoveryT('dualTabChat')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('trace')}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+                      activeTab === 'trace'
+                        ? 'bg-background text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Activity className="h-3.5 w-3.5 text-amber-500" />
+                    <span>{recoveryT('dualTabTrace')}</span>
+                  </button>
+                </div>
               </div>
             ) : null}
             <WorkingStateBadge />
@@ -584,23 +614,31 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
               className="fixed top-3 right-14 z-40 max-sm:top-2 max-sm:right-12"
             />
 
-            {/* 聊天内容：路由 hydrate 前 skeleton 覆盖，Chat 始终挂载以便 store 更新后立即渲染消息 */}
+            {/* 聊天内容或物理执行轨迹：按 activeTab 无缝切换 */}
             <div className="relative flex-1 min-h-0">
-              {id && !chatRouteHydrated ? (
-                <div className="absolute inset-0 z-10 bg-background">
-                  <MessageListSkeleton />
+              {activeTab === 'chat' ? (
+                <>
+                  {id && !chatRouteHydrated ? (
+                    <div className="absolute inset-0 z-10 bg-background">
+                      <MessageListSkeleton />
+                    </div>
+                  ) : null}
+                  <div
+                    className="flex h-full min-h-0"
+                    key={`${id ?? 'home'}-${routeHydrationEpoch}-${storeMessageCount}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
+                  >
+                    <Chat
+                      loading={loading}
+                      messageAppeared={messageAppeared}
+                      messagesOverride={chatMessagesForRender.length > messages.length ? chatMessagesForRender : undefined}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="h-full overflow-y-auto p-4 bg-background">
+                  {id && <ExecutionTraceTimeline sessionId={id} pollMs={loading ? 2000 : undefined} />}
                 </div>
-              ) : null}
-              <div
-                className="flex h-full min-h-0"
-                key={`${id ?? 'home'}-${routeHydrationEpoch}-${storeMessageCount}-${chatRouteHydrated ? 'hydrated' : 'pending'}`}
-              >
-                <Chat
-                  loading={loading}
-                  messageAppeared={messageAppeared}
-                  messagesOverride={chatMessagesForRender.length > messages.length ? chatMessagesForRender : undefined}
-                />
-              </div>
+              )}
             </div>
           </div>
 

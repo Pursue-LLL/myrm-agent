@@ -289,6 +289,7 @@ async def convert_to_general_agent_params(
                 model_cfg = specialty_result.model_cfg
                 if specialty_result.fallback_model_cfg is not None:
                     fallback_model_cfg = specialty_result.fallback_model_cfg
+                routing_tier = routing_specialty
                 logger.info(
                     "Specialty routing activated: specialty=%s model=%s reason=%s",
                     routing_specialty,

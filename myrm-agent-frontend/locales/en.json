@@ -13,9 +13,7 @@
     "rollbackSuccess": "Successfully rolled back to last-known-good configuration",
     "rollbackFailed": "Rollback failed",
     "exportSuccess": "Diagnostic bundle exported",
-    "exportFailed": "Failed to export diagnostic bundle",
-    "dualTabChat": "Chat",
-    "dualTabTrace": "Trace"
+    "exportFailed": "Failed to export diagnostic bundle"
   },
   "emptyState": {
     "defaultTitle": "No Data",
@@ -16991,6 +16989,7 @@
     "openDetailLabel": "Open project {name}",
     "deleteLabel": "Delete project {name}"
   },
+  "error": "Error",
   "memoryRecallBoundary": {
     "title": "Review-First Recall Boundary",
     "subtitle": "Task-scoped knowledge boundary isolation, 4-job partition, and candidate review gate",

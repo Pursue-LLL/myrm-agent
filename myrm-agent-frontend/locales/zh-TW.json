@@ -16979,6 +16979,7 @@
     "openDetailLabel": "開啟專案 {name}",
     "deleteLabel": "刪除專案 {name}"
   },
+  "error": "錯誤",
   "memoryRecallBoundary": {
     "title": "審查優先召回邊界 (Review-First Recall Boundary)",
     "subtitle": "任務級知識訪問範圍隔離、四記憶職責分區與候選審查閘門",

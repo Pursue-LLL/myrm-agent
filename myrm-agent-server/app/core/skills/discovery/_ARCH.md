@@ -15,6 +15,7 @@
 | `adopt.py` | 显式 allowlist 场景安装后自动采纳：`complete_discovery_adoption`（append skill_id）、`remove_skill_from_all_agents`（卸载孤儿清理）、`sync_skill_to_agents`（跨 Agent 白名单批量同步）。 |
 | `mount.py` | 安装/更新后 catalog enable 入口：`maybe_mount_after_install`/`resolve_mount_skill_id`/`DEFAULT_MOUNT_AGENT_ID`，触发 `SKILL_POOL_UPDATED` 广播，返回 `SkillMountResult`。 |
 | `autoupdate.py` | 上游版本检测与更新检查：`get_update_checker`。 |
+| `rescan_service.py` | 已安装技能供应链漏洞与恶意投毒重扫服务：`SkillRescanService` / `rescan_service`，联动 `AdvisoryAckRegistry` 与 `AppEventBus` 广播。 |
 
 ---
 
