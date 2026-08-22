@@ -161,7 +161,9 @@ class TestEditPlaceholder:
         ch = _make_channel_mock()
         bus = _make_bus(ch)
         fx = MessageEffects(bus)
-        result = OutboundMessage(channel="test", recipient_id="r1", content="response", user_id="u1")
+        result = OutboundMessage(
+            channel="test", recipient_id="r1", content="response", user_id="u1"
+        )
         with (
             patch(
                 "app.channels.routing.message_effects.send_with_retry",
@@ -178,7 +180,9 @@ class TestEditPlaceholder:
     async def test_no_channel_publishes_normally(self) -> None:
         bus = _make_bus(None)
         fx = MessageEffects(bus)
-        result = OutboundMessage(channel="test", recipient_id="r1", content="response", user_id="u1")
+        result = OutboundMessage(
+            channel="test", recipient_id="r1", content="response", user_id="u1"
+        )
         await fx.edit_placeholder("test", "chat-1", "ph-1", result)
         bus.publish_outbound.assert_called_once()
 
@@ -187,7 +191,9 @@ class TestEditPlaceholder:
         ch = _make_channel_mock()
         bus = _make_bus(ch)
         fx = MessageEffects(bus)
-        result = OutboundMessage(channel="test", recipient_id="r1", content="response", user_id="u1")
+        result = OutboundMessage(
+            channel="test", recipient_id="r1", content="response", user_id="u1"
+        )
         with (
             patch(
                 "app.channels.routing.message_effects.send_with_retry",
@@ -479,7 +485,9 @@ class TestAckAndCompletionReaction:
     async def test_completion_reaction_no_message_id(self) -> None:
         bus = _make_bus(_make_channel_mock())
         fx = MessageEffects(bus)
-        await fx.completion_reaction("test", "chat-1", None, success=True, success_emoji="\u2705")
+        await fx.completion_reaction(
+            "test", "chat-1", None, success=True, success_emoji="\u2705"
+        )
 
 
 class TestSendMuteReply:
@@ -643,7 +651,9 @@ class TestFriendlyErrorMessage:
         assert "超时" in msg
 
     def test_rate_limit(self) -> None:
-        msg, ref_id = friendly_error_message(Exception("429 too many requests rate limit"))
+        msg, ref_id = friendly_error_message(
+            Exception("429 too many requests rate limit")
+        )
         assert "rate limit" in msg.lower()
         assert ref_id in msg
         assert len(ref_id) == 8
@@ -724,7 +734,9 @@ class TestSendBusyAck:
         bus = _make_bus(None)
         fx = MessageEffects(bus)
         msg = _inbound("hi", sender_id="u1", is_group=False)
-        with patch("app.channels.routing.message_effects.get_text", return_value="Queued #2/5"):
+        with patch(
+            "app.channels.routing.message_effects.get_text", return_value="Queued #2/5"
+        ):
             await fx.send_busy_ack(msg, position=2, max_pending=5)
         bus.publish_outbound.assert_called_once()
         out = bus.publish_outbound.call_args[0][0]
@@ -743,7 +755,9 @@ class TestSendBusyAck:
             is_group=True,
             metadata={"message_id": "99"},
         )
-        with patch("app.channels.routing.message_effects.get_text", return_value="Queued"):
+        with patch(
+            "app.channels.routing.message_effects.get_text", return_value="Queued"
+        ):
             await fx.send_busy_ack(msg, position=1, max_pending=10)
         out = bus.publish_outbound.call_args[0][0]
         assert out.recipient_id == "grp-1"
@@ -755,7 +769,9 @@ class TestSendBusyAck:
         bus = _make_bus(None)
         fx = MessageEffects(bus)
         msg = _inbound("hi", sender_id="u1")
-        with patch("app.channels.routing.message_effects.get_text", return_value="Queue full") as mock_gt:
+        with patch(
+            "app.channels.routing.message_effects.get_text", return_value="Queue full"
+        ) as mock_gt:
             await fx.send_busy_ack(msg, position=-1, max_pending=3)
         mock_gt.assert_called_once_with(msg, "busy_ack_queue_full")
         out = bus.publish_outbound.call_args[0][0]

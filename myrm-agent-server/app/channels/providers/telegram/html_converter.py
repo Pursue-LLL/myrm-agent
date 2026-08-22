@@ -69,7 +69,10 @@ def _render_monospace_table(header_row: str, data_rows: list[str]) -> str:
             col_widths[i] = max(col_widths[i], len(cell))
 
     def _fmt_row(cells: list[str]) -> str:
-        padded = [cells[i].ljust(col_widths[i]) if i < len(cells) else " " * col_widths[i] for i in range(col_count)]
+        padded = [
+            cells[i].ljust(col_widths[i]) if i < len(cells) else " " * col_widths[i]
+            for i in range(col_count)
+        ]
         return "│ " + " │ ".join(padded) + " │"
 
     sep_parts = ["─" * (w + 2) for w in col_widths]
@@ -100,7 +103,12 @@ def _convert_tables(text: str) -> tuple[str, list[str]]:
     i = 0
     while i < len(lines):
         line = lines[i]
-        if "|" in line and i + 1 < len(lines) and "|" in lines[i + 1] and _TABLE_SEPARATOR_RE.match(lines[i + 1]):
+        if (
+            "|" in line
+            and i + 1 < len(lines)
+            and "|" in lines[i + 1]
+            and _TABLE_SEPARATOR_RE.match(lines[i + 1])
+        ):
             header = line
             j = i + 2
             data_rows: list[str] = []
@@ -130,7 +138,9 @@ def md_to_telegram_html(text: str) -> str:
     def _preserve_code_block(m: re.Match[str]) -> str:
         lang, code = m.group(1), m.group(2)
         tag = (
-            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>' if lang else f"<pre>{html.escape(code)}</pre>"
+            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>'
+            if lang
+            else f"<pre>{html.escape(code)}</pre>"
         )
         preserved.append(tag)
         return f"\x00PRESERVE{len(preserved) - 1}\x00"
@@ -146,7 +156,9 @@ def md_to_telegram_html(text: str) -> str:
     tbl_offset = len(preserved)
     preserved.extend(table_blocks)
     for idx in range(len(table_blocks)):
-        result = result.replace(f"\x00TBLPRESERVE{idx}\x00", f"\x00PRESERVE{tbl_offset + idx}\x00")
+        result = result.replace(
+            f"\x00TBLPRESERVE{idx}\x00", f"\x00PRESERVE{tbl_offset + idx}\x00"
+        )
 
     # Split by PRESERVE placeholders AND Telegram-supported HTML tags to protect both
     _SPLIT_RE = re.compile(r"(\x00PRESERVE\d+\x00)|" + _TELEGRAM_TAGS_RE.pattern)
@@ -155,7 +167,9 @@ def md_to_telegram_html(text: str) -> str:
     for part in parts:
         if part is None:
             continue
-        if (part.startswith("\x00PRESERVE") and part.endswith("\x00")) or _TELEGRAM_TAGS_RE.fullmatch(part):
+        if (
+            part.startswith("\x00PRESERVE") and part.endswith("\x00")
+        ) or _TELEGRAM_TAGS_RE.fullmatch(part):
             escaped_parts.append(part)
         else:
             escaped_parts.append(html.escape(part))
@@ -227,7 +241,10 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
 
                 new_closing_length = sum(_utf16_len(t[2]) for t in new_active_tags)
 
-                if current_chunk_utf16_len + part_len + new_closing_length > limit and current_chunk:
+                if (
+                    current_chunk_utf16_len + part_len + new_closing_length > limit
+                    and current_chunk
+                ):
                     # Need to split BEFORE adding this tag
                     # Close tags using the CURRENT stack (before this tag is added)
                     close_tags_str = "".join(t[2] for t in reversed(active_tags))
@@ -297,7 +314,9 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
                 if guess_len < len(text_part):
                     force_split = True
                     split_at_idx = -1
-                    min_acceptable_split = max(0, len(sub_text) - 1000)  # Only search in the last 1000 chars
+                    min_acceptable_split = max(
+                        0, len(sub_text) - 1000
+                    )  # Only search in the last 1000 chars
 
                     # 1. Paragraph boundary
                     p_idx = sub_text.rfind("\n\n")
@@ -321,14 +340,20 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
                             "？\n",
                         ]:
                             p_idx = sub_text.rfind(punct)
-                            if p_idx >= min_acceptable_split and (p_idx + len(punct)) > split_at_idx:
+                            if (
+                                p_idx >= min_acceptable_split
+                                and (p_idx + len(punct)) > split_at_idx
+                            ):
                                 split_at_idx = p_idx + len(punct)
 
                     # 2b. Bare CJK full-width punctuation (no trailing space/newline)
                     if split_at_idx == -1:
                         for punct in CJK_BOUNDARY_CHARS:
                             p_idx = sub_text.rfind(punct)
-                            if p_idx >= min_acceptable_split and (p_idx + len(punct)) > split_at_idx:
+                            if (
+                                p_idx >= min_acceptable_split
+                                and (p_idx + len(punct)) > split_at_idx
+                            ):
                                 split_at_idx = p_idx + len(punct)
 
                     # 3. Newline

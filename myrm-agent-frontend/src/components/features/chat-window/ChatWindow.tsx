@@ -44,6 +44,8 @@ import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import Chat from './Chat';
+import ExecutionTraceTimeline from '@/components/features/settings/sections/system/ExecutionTraceTimeline';
+import { MessageSquare, Activity } from 'lucide-react';
 
 const ArtifactPortal = dynamic(() => import('../artifacts/ArtifactPortal'), {
   ssr: false,

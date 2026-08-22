@@ -264,7 +264,9 @@ class TestOneBotChannelAutoReconnect:
         # Simulate exponential backoff manually
         delays = [channel._reconnect_delay]
         for _ in range(6):
-            channel._reconnect_delay = min(channel._reconnect_delay * 2, channel._max_reconnect_delay)
+            channel._reconnect_delay = min(
+                channel._reconnect_delay * 2, channel._max_reconnect_delay
+            )
             delays.append(channel._reconnect_delay)
 
         # Verify exponential growth: 1, 2, 4, 8, 16, 32, 60 (capped)
@@ -340,7 +342,9 @@ class TestOneBotChannelRenderDelivery:
 
         call_count = 0
 
-        async def _fake_call_api(action: str, params: dict[str, object], timeout: float = 10.0) -> dict[str, object]:
+        async def _fake_call_api(
+            action: str, params: dict[str, object], timeout: float = 10.0
+        ) -> dict[str, object]:
             nonlocal call_count
             call_count += 1
             return {"status": "ok", "data": {"message_id": 1000 + call_count}}

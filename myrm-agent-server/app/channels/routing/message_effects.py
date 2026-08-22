@@ -62,7 +62,9 @@ _ERROR_KIND_KEYS: dict[ErrorKind, str] = {
     ErrorKind.RESPONSE_FORMAT_ERROR: "error_response_format",
     ErrorKind.UNKNOWN: "error_unknown",
 }
-assert set(_ERROR_KIND_KEYS) == set(ErrorKind), f"_ERROR_KIND_KEYS missing: {set(ErrorKind) - set(_ERROR_KIND_KEYS)}"
+assert set(_ERROR_KIND_KEYS) == set(
+    ErrorKind
+), f"_ERROR_KIND_KEYS missing: {set(ErrorKind) - set(_ERROR_KIND_KEYS)}"
 
 
 def _error_ref_id() -> str:
@@ -173,7 +175,11 @@ class MessageEffects:
         ch = self._bus.get_channel(channel)
         if not ch or not ch.capabilities.edit:
             return None
-        placeholder_text = get_text(msg, "placeholder_thinking") if msg is not None else channel_t(None, "placeholder_thinking")
+        placeholder_text = (
+            get_text(msg, "placeholder_thinking")
+            if msg is not None
+            else channel_t(None, "placeholder_thinking")
+        )
         try:
             fn = partial(ch.send_placeholder, thread_id=thread_id)
             return await send_with_retry(
@@ -213,7 +219,9 @@ class MessageEffects:
 
         meta = dict(result.metadata) if isinstance(result.metadata, dict) else {}
         first_result = dataclasses.replace(result, content=chunks[0], metadata=meta)
-        first_result = await self._bus.durable_outbound.persist_direct_send(first_result)
+        first_result = await self._bus.durable_outbound.persist_direct_send(
+            first_result
+        )
 
         try:
             logger.debug("editing placeholder with %d chars", len(chunks[0]))
@@ -254,7 +262,9 @@ class MessageEffects:
             try:
                 await ch.delete_message(chat_id, placeholder_id)
             except Exception as exc:
-                logger.debug("placeholder cleanup failed for %s/%s: %s", channel, chat_id, exc)
+                logger.debug(
+                    "placeholder cleanup failed for %s/%s: %s", channel, chat_id, exc
+                )
 
     async def edit_progress(
         self,
@@ -274,7 +284,9 @@ class MessageEffects:
         ch = self._bus.get_channel(channel)
         if not ch:
             return False
-        max_len = ch.render_style.max_text_length or ch.capabilities.max_text_length or 4096
+        max_len = (
+            ch.render_style.max_text_length or ch.capabilities.max_text_length or 4096
+        )
         capped_label = cap_stream_preview(label, max_len)
         try:
             await ch.edit_message(chat_id, placeholder_id, capped_label)
@@ -329,9 +341,13 @@ class MessageEffects:
             return
         if had_ack:
             await self.set_reaction(channel, chat_id, message_id, "")
-        await self.set_reaction(channel, chat_id, message_id, success_emoji if success else failure_emoji)
+        await self.set_reaction(
+            channel, chat_id, message_id, success_emoji if success else failure_emoji
+        )
 
-    async def send_error_reply(self, msg: InboundMessage, error: str | Exception) -> None:
+    async def send_error_reply(
+        self, msg: InboundMessage, error: str | Exception
+    ) -> None:
         """Send a classified, user-friendly error reply.
 
         Accepts either a pre-formatted friendly string (from router's
@@ -408,7 +424,9 @@ class MessageEffects:
         )
         await self._bus.publish_outbound(reply)
 
-    async def send_busy_ack(self, msg: InboundMessage, position: int, max_pending: int) -> None:
+    async def send_busy_ack(
+        self, msg: InboundMessage, position: int, max_pending: int
+    ) -> None:
         """Acknowledge a message received while the agent is busy.
 
         Args:
@@ -420,7 +438,9 @@ class MessageEffects:
         if position < 0:
             content = get_text(msg, "busy_ack_queue_full")
         else:
-            content = get_text(msg, "busy_ack_queued", position=position, max_pending=max_pending)
+            content = get_text(
+                msg, "busy_ack_queued", position=position, max_pending=max_pending
+            )
         reply = OutboundMessage(
             channel=msg.channel,
             recipient_id=recipient,
@@ -433,10 +453,14 @@ class MessageEffects:
         try:
             await self._bus.publish_outbound(reply)
         except Exception:
-            logger.debug("busy_ack send failed for %s/%s", msg.channel, recipient, exc_info=True)
+            logger.debug(
+                "busy_ack send failed for %s/%s", msg.channel, recipient, exc_info=True
+            )
 
     @staticmethod
-    async def wait_for_edit_gap(last_progress_at: float, min_interval: float = 2.0) -> None:
+    async def wait_for_edit_gap(
+        last_progress_at: float, min_interval: float = 2.0
+    ) -> None:
         """Ensure minimum interval since the last progress edit before the final edit.
 
         Prevents rapid successive edits that some messaging platforms

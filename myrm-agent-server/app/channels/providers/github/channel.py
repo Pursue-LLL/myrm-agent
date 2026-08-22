@@ -111,7 +111,9 @@ class GitHubChannel(BaseChannel):
     async def start(self) -> None:
         """GitHub channel is passive (webhook-driven), no active connection needed."""
         if not self._secret:
-            logger.warning("GitHubChannel: no webhook_secret configured, signature verification disabled")
+            logger.warning(
+                "GitHubChannel: no webhook_secret configured, signature verification disabled"
+            )
         self._set_connected(True)
         logger.info("GitHubChannel: started (webhook mode)")
 
@@ -135,17 +137,27 @@ class GitHubChannel(BaseChannel):
             raw_body: bytes = await request.body()  # type: ignore[attr-defined]
             headers = getattr(request, "headers", {})
 
-            sig = headers.get("x-hub-signature-256", "") if hasattr(headers, "get") else ""
-            event_type = headers.get("x-github-event", "") if hasattr(headers, "get") else ""
+            sig = (
+                headers.get("x-hub-signature-256", "")
+                if hasattr(headers, "get")
+                else ""
+            )
+            event_type = (
+                headers.get("x-github-event", "") if hasattr(headers, "get") else ""
+            )
 
             if self._secret and sig:
                 if not verify_github_signature(raw_body, sig, self._secret):
                     logger.warning("GitHubChannel: signature verification failed")
-                    return GenericResponse(status_code=401, body={"error": "Invalid signature"})
+                    return GenericResponse(
+                        status_code=401, body={"error": "Invalid signature"}
+                    )
                 self._webhook_verified = True
             elif self._secret and not sig:
                 logger.warning("GitHubChannel: missing signature header")
-                return GenericResponse(status_code=401, body={"error": "Missing signature"})
+                return GenericResponse(
+                    status_code=401, body={"error": "Missing signature"}
+                )
 
             try:
                 payload = json.loads(raw_body)
@@ -172,7 +184,9 @@ class GitHubChannel(BaseChannel):
 
         ctx = parse_github_event(event_type, payload)
         if ctx is None:
-            logger.debug("GitHubChannel: unsupported event type '%s', ignoring", event_type)
+            logger.debug(
+                "GitHubChannel: unsupported event type '%s', ignoring", event_type
+            )
             return
 
         content = format_event_as_markdown(ctx)

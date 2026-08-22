@@ -123,7 +123,9 @@ class TestReasoningBlock:
 class TestToolSummary:
     def test_tool_summary_off(self) -> None:
         steps = (ToolStep(name="search_tool", label="search", detail="query"),)
-        result = render(_msg(tool_steps=steps), _style(tool_summary_display=ToolSummaryDisplay.OFF))
+        result = render(
+            _msg(tool_steps=steps), _style(tool_summary_display=ToolSummaryDisplay.OFF)
+        )
         assert "search" not in result[0]
 
     def test_tool_summary_compact(self) -> None:
@@ -352,7 +354,11 @@ class TestCostFooter:
     def test_cost_footer_no_emoji(self) -> None:
         msg = _msg(
             metadata={
-                "cost_metadata": {"cost_usd": 0.001, "model_name": "gpt-4o", "total_tokens": 500},
+                "cost_metadata": {
+                    "cost_usd": 0.001,
+                    "model_name": "gpt-4o",
+                    "total_tokens": 500,
+                },
             }
         )
         result = render(msg, _style(use_emoji=False))
@@ -362,7 +368,11 @@ class TestCostFooter:
         assert "~$0.0010" in full
 
     def test_cost_footer_zero_cost_no_render(self) -> None:
-        msg = _msg(metadata={"cost_metadata": {"cost_usd": 0, "model_name": "x", "total_tokens": 100}})
+        msg = _msg(
+            metadata={
+                "cost_metadata": {"cost_usd": 0, "model_name": "x", "total_tokens": 100}
+            }
+        )
         result = render(msg, _style())
         full = "".join(result)
         assert "~$" not in full
@@ -377,7 +387,11 @@ class TestCostFooter:
     def test_cost_footer_small_token_count(self) -> None:
         msg = _msg(
             metadata={
-                "cost_metadata": {"cost_usd": 0.0001, "model_name": "m", "total_tokens": 50},
+                "cost_metadata": {
+                    "cost_usd": 0.0001,
+                    "model_name": "m",
+                    "total_tokens": 50,
+                },
             }
         )
         result = render(msg, _style(use_emoji=False))

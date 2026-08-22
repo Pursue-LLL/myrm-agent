@@ -29,6 +29,8 @@
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
 | `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
 | `quality.py` | 模块 | Skill Quality Aggregation API | ✅ |
+| `rescan.py` | 模块 | Skill supply chain rescan and advisory acknowledgment API (`POST /rescan`, `GET /rescan/report`, `POST /advisories/ack`, `POST /advisories/unack`, `GET /advisories/acks`). | ✅ |
+| `rescan_schemas.py` | 模块 | Request/response Pydantic schemas for rescan and advisory governance endpoints. | ✅ |
 | `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |
 | `schemas.py` | 模块 | Skills API request/response schemas. | ✅ |
 | `sync.py` | 模块 | Skill synchronization and backup protocol；export 打包 `manifest.json`（format/format_version/skills[].sha256+version），import 按 manifest 做完整性校验并返回 `imported/updated/unchanged/hash_mismatch` 恢复摘要；`_safe_extract` 逐成员校验路径（绝对路径/`..` 穿越/反斜杠分隔符归一化），恶意 ZIP 返回 400；import 受沙箱能力门控（export 只读天然安全） | ✅ |

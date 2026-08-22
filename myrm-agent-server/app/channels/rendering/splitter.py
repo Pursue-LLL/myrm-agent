@@ -96,7 +96,9 @@ def _smart_split_line(line: str, max_len: int) -> list[str]:
 _PREVIEW_TRUNC_SUFFIX = "…"
 
 
-def cap_stream_preview(text: str, max_len: int, *, suffix: str = _PREVIEW_TRUNC_SUFFIX) -> str:
+def cap_stream_preview(
+    text: str, max_len: int, *, suffix: str = _PREVIEW_TRUNC_SUFFIX
+) -> str:
     """Cap streaming placeholder preview text to a channel max length.
 
     Uses the same smart boundary set as ``split_message`` so preview truncation
@@ -115,7 +117,10 @@ def cap_stream_preview(text: str, max_len: int, *, suffix: str = _PREVIEW_TRUNC_
 
 
 def split_message(
-    content: str, max_len: int = 4096, overflow_tolerance: float = 0.2, fence_patterns: re.Pattern | None = None
+    content: str,
+    max_len: int = 4096,
+    overflow_tolerance: float = 0.2,
+    fence_patterns: re.Pattern | None = None,
 ) -> list[str]:
     """Split content into chunks with perfect fence-aware semantic preservation.
 
@@ -192,7 +197,9 @@ def split_message(
             return
 
         # Use provided fence state, or default to current fence_open
-        state_to_check = fence_state_to_use if fence_state_to_use is not None else fence_open
+        state_to_check = (
+            fence_state_to_use if fence_state_to_use is not None else fence_open
+        )
 
         body = _append_fence_close("".join(current), state_to_check)
         chunks.append(body)

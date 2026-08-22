@@ -36,6 +36,9 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
   const local = isLocalMode();
   const t = useTranslations('billing.spendSurface');
   const messages = useChatStore((s) => s.messages);
+  const chatId = useChatStore((s) => s.chatId);
+  const setActiveSessionAnalyticsId = useChatStore((s) => s.setActiveSessionAnalyticsId);
+  const isGenerating = useChatStore((s) => s.isGenerating);
   const { entitlements } = useEntitlements();
   const { catalog } = useBillingCatalog();
 
@@ -88,9 +91,16 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
     }
 
     const pillContent = (
-      <span
+      <button
+        type="button"
+        onClick={() => {
+          if (chatId) {
+            setActiveSessionAnalyticsId(chatId);
+          }
+        }}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums',
+          'inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums hover:bg-muted/60 hover:text-foreground transition cursor-pointer',
+          isGenerating && 'animate-pulse border-orange-500/30',
           className,
         )}
       >
@@ -101,7 +111,7 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
         {etaDays !== null && etaDays < 999 && (
           <span className="text-muted-foreground/70">{t('burnEta', { days: etaDays })}</span>
         )}
-      </span>
+      </button>
     );
 
     if (!etaDays || !balanceWu) {
@@ -129,9 +139,16 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
   }
 
   return (
-    <span
+    <button
+      type="button"
+      onClick={() => {
+        if (chatId) {
+          setActiveSessionAnalyticsId(chatId);
+        }
+      }}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums',
+        'inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums hover:bg-muted/60 hover:text-foreground transition cursor-pointer',
+        isGenerating && 'animate-pulse border-orange-500/30',
         className,
       )}
     >
@@ -141,6 +158,6 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
         </span>
       )}
       <span>{t('sessionCost', { cost: sessionCost.toFixed(4) })}</span>
-    </span>
+    </button>
   );
 }

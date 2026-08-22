@@ -13,7 +13,9 @@
     "rollbackSuccess": "Successfully rolled back to last-known-good configuration",
     "rollbackFailed": "Rollback failed",
     "exportSuccess": "Diagnostic bundle exported",
-    "exportFailed": "Failed to export diagnostic bundle"
+    "exportFailed": "Failed to export diagnostic bundle",
+    "dualTabChat": "Chat",
+    "dualTabTrace": "Trace"
   },
   "emptyState": {
     "defaultTitle": "No Data",

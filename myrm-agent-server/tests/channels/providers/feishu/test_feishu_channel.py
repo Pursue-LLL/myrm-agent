@@ -156,7 +156,10 @@ class TestHandleWebhookEvent:
             "header": {"event_type": "card.action.trigger"},
             "event": {
                 "operator": {"open_id": "ou_user2"},
-                "action": {"tag": "button", "value": {"type": "act", "action_id": "approve:req-1"}},
+                "action": {
+                    "tag": "button",
+                    "value": {"type": "act", "action_id": "approve:req-1"},
+                },
                 "context": {"open_chat_id": "oc_chat2", "open_message_id": "om_msg3"},
             },
         }
@@ -426,7 +429,9 @@ class TestResolveInboundMedia:
         assert att.filename == "img_key_001.jpg"
         assert att.mime_type == "image/jpeg"
         assert att.path is not None
-        mock.download_message_resource.assert_called_once_with("om_msg_img", "img_key_001", "image")
+        mock.download_message_resource.assert_called_once_with(
+            "om_msg_img", "img_key_001", "image"
+        )
 
     @pytest.mark.asyncio
     async def test_image_fallback_to_download_image_when_no_message_id(self) -> None:
@@ -469,7 +474,9 @@ class TestResolveInboundMedia:
         att = result[0]
         assert att.media_type == MediaType.DOCUMENT
         assert att.filename == "report.pdf"
-        mock.download_message_resource.assert_called_once_with("om_msg_file", "file_key_001", "file")
+        mock.download_message_resource.assert_called_once_with(
+            "om_msg_file", "file_key_001", "file"
+        )
 
     @pytest.mark.asyncio
     async def test_file_without_message_id_skipped(self) -> None:
@@ -733,7 +740,9 @@ class TestStreaming:
         await ch._streaming_finalize("om_1", "final text")
         assert "om_1" not in ch._streaming_card_ids
         assert "om_1" not in ch._streaming_seq
-        mock.streaming_card_update.assert_called_once_with("card_1", "final text", seq=4, is_final=True)
+        mock.streaming_card_update.assert_called_once_with(
+            "card_1", "final text", seq=4, is_final=True
+        )
 
     @pytest.mark.asyncio
     async def test_streaming_finalize_noop_without_card_id(self) -> None:
@@ -958,7 +967,10 @@ class TestFetchReplyContext:
     async def test_fetch_parent_message(self) -> None:
         ch = _make_channel()
         mock = _mock_client(ch)
-        mock.get_message.return_value = {"body": {"content": json.dumps({"text": "parent text"})}, "msg_type": "text"}
+        mock.get_message.return_value = {
+            "body": {"content": json.dumps({"text": "parent text"})},
+            "msg_type": "text",
+        }
         result = await ch._fetch_reply_context("om_parent")
         assert result is not None
         assert "parent text" in result.content
@@ -1028,7 +1040,9 @@ class TestDownloadAttachment:
         ch = _make_channel()
         mock = _mock_client(ch)
         mock.download_url.return_value = b"URL_DATA"
-        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png")
+        att = MediaAttachment(
+            media_type=MediaType.IMAGE, url="https://example.com/img.png"
+        )
         result = await ch._download_attachment(att)
         assert result == b"URL_DATA"
 

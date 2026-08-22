@@ -80,7 +80,9 @@ class _FakePolicyProvider:
     async def get_group_policy(self, channel: str) -> GroupPolicy:
         return GroupPolicy.DISABLED
 
-    async def get_group_trigger(self, channel: str) -> tuple[GroupTriggerMode, list[str]]:
+    async def get_group_trigger(
+        self, channel: str
+    ) -> tuple[GroupTriggerMode, list[str]]:
         return GroupTriggerMode.MENTION_ONLY, []
 
     async def get_enabled_groups(self) -> set[str]:
@@ -164,7 +166,9 @@ class _RecordingChannel:
     def extract_sender_locale(self, msg: InboundMessage) -> str | None:
         return None
 
-    async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
+    async def send_placeholder(
+        self, chat_id: str, text: str, *, thread_id: str | None = None
+    ) -> str | None:
         self._counter += 1
         mid = f"ph-{self._counter}"
         self.placeholder_sends.append((chat_id, text))
@@ -241,7 +245,9 @@ async def _run_scenario(
 @pytest.mark.asyncio
 @_PATCH_STREAM_INTERVAL
 @_PATCH_EXEC_INTERVAL
-async def test_progress_updates_edit_placeholder(bus: MessageBus, channel: _RecordingChannel) -> None:
+async def test_progress_updates_edit_placeholder(
+    bus: MessageBus, channel: _RecordingChannel
+) -> None:
     """ProgressUpdate events should trigger placeholder edits, final answer edits placeholder."""
     executor = _ProgressExecutor([" Searching...", " Reviewing..."])
     bus.register_channel(channel)
@@ -273,7 +279,9 @@ async def test_progress_throttling(bus: MessageBus, channel: _RecordingChannel) 
 @pytest.mark.asyncio
 @_PATCH_STREAM_INTERVAL
 @_PATCH_EXEC_INTERVAL
-async def test_no_progress_still_works(bus: MessageBus, channel: _RecordingChannel) -> None:
+async def test_no_progress_still_works(
+    bus: MessageBus, channel: _RecordingChannel
+) -> None:
     """An executor that yields no ProgressUpdate should still deliver via placeholder edit."""
     long_final = "Final answer " + ("x" * 400)
     executor = _ProgressExecutor([], final_content=long_final)
