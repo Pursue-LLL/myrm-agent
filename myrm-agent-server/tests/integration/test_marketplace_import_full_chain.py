@@ -790,6 +790,7 @@ async def test_cp_token_rejected_when_configured(
 ) -> None:
     """When a CP token is configured, missing/mismatched headers are rejected."""
     from pydantic import SecretStr
+
     from app.config.settings import settings
 
     monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("cp-secret"))

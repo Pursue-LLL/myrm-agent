@@ -16394,9 +16394,7 @@
         "unknown": "Unbekannt"
       },
       "llmCalls": "LLM-Aufrufe",
-      "saveAsEval": "Als Eval-Case speichern",
-      "memoryEvents": "Kontextinjektionen und Gedächtnis",
-      "influenceCount": "Beeinflusste Runden: {count}"
+      "saveAsEval": "Als Eval-Case speichern"
     },
     "replay": {
       "title": "Sitzungswiederholung",

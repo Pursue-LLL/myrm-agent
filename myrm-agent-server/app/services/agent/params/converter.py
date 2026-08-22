@@ -372,20 +372,18 @@ async def convert_to_general_agent_params(
             elif is_complaint_up:
                 complaint_min_tier = RoutingTier.STANDARD
 
-            # Only run complexity router if specialty routing didn't explicitly bind a non-general slot
-            if "specialty_slot_hit" not in specialty_result.reason and (request.light_model_selection or request.reasoning_model_selection):
-                routing_result = await route_task(
-                    query=request.query,
-                    standard_model_cfg=model_cfg,
-                    light_model_cfg=light_model_cfg,
-                    reasoning_model_cfg=reasoning_model_cfg,
-                    standard_fallback_cfg=fallback_model_cfg,
-                    light_fallback_cfg=light_fallback_cfg,
-                    reasoning_fallback_cfg=reasoning_fallback_cfg,
-                    judge_llm=judge_llm,
-                    recent_tiers=recent_routing_tiers,
-                    min_tier=complaint_min_tier,
-                )
+            routing_result = await route_task(
+                query=request.query,
+                standard_model_cfg=model_cfg,
+                light_model_cfg=light_model_cfg,
+                reasoning_model_cfg=reasoning_model_cfg,
+                standard_fallback_cfg=fallback_model_cfg,
+                light_fallback_cfg=light_fallback_cfg,
+                reasoning_fallback_cfg=reasoning_fallback_cfg,
+                judge_llm=judge_llm,
+                recent_tiers=recent_routing_tiers,
+                min_tier=complaint_min_tier,
+            )
                 model_cfg = routing_result.model_cfg
                 if routing_result.fallback_model_cfg is not None:
                     fallback_model_cfg = routing_result.fallback_model_cfg
@@ -1097,7 +1095,7 @@ async def convert_to_general_agent_params(
         client_surface=request.client_surface,
         force_skill_manage=_is_learn_skill_authoring_query(final_query),
     )
-    return params, routing_tier, mention_warnings, archive_restore_results
+    return params, routing_tier, routing_specialty, mention_warnings, archive_restore_results
 
 
 def _is_learn_skill_authoring_query(query: object) -> bool:

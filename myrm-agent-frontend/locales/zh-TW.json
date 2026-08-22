@@ -16600,9 +16600,7 @@
         "unknown": "未知"
       },
       "llmCalls": "LLM 調用",
-      "saveAsEval": "儲存為評測案例",
-      "memoryEvents": "上下文注入與記憶",
-      "influenceCount": "影響輪次: {count}"
+      "saveAsEval": "儲存為評測案例"
     },
     "replay": {
       "title": "會話回放",
