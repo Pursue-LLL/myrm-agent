@@ -169,6 +169,16 @@ describe('TokenUsageDisplay', () => {
     expect(screen.getByText('routingStandard')).toBeInTheDocument();
   });
 
+  it('displays routing tier badge for code specialty', () => {
+    render(<TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="code" />);
+    expect(screen.getByText('routingCode')).toBeInTheDocument();
+  });
+
+  it('displays routing tier badge for long_doc specialty', () => {
+    render(<TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="long_doc" />);
+    expect(screen.getByText('routingLongDoc')).toBeInTheDocument();
+  });
+
   // --- 模型兼容层 ---
 
   it('displays model tier when provided', () => {
