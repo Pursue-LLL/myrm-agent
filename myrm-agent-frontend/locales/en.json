@@ -8558,6 +8558,7 @@
       "dismiss": "Maybe Later",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
     },
+    "reasoningModelDisabledWithImage": "Images require a vision model when vision enhancement is enabled",
     "retry": "Retry",
     "archiveRestore": {
       "invalidTitle": "Archive Restore Failed",

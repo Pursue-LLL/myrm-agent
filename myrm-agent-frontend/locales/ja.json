@@ -3066,6 +3066,7 @@
         "scanWarningDesc": "スキル「{name}」に {count} 件のセキュリティ問題が見つかりました。続行する前に以下の詳細を確認してください。",
         "scanCancel": "キャンセル",
         "scanConfirm": "まだインストール",
+        "noDescription": "説明がありません。",
         "allTags": "すべて",
         "sortDefault": "デフォルト",
         "sortStars": "人気順",
@@ -7498,6 +7499,21 @@
     "providerDisabledWarning": "このプロバイダーは無効です"
   },
   "chat": {
+    "specialtyRouting": {
+      "codeSpecialty": "コード専門",
+      "codeSpecialtyDesc": "プログラミング/リファクタリング/デバッグの特性を検出し、コード専門モデルに自動ルーティングしました",
+      "longDocSpecialty": "長文ドキュメント専門",
+      "longDocSpecialtyDesc": "大規模ドキュメントまたは複数章の抽出特性を検出し、長文コンテキスト専門モデルに自動ルーティングしました",
+      "reasoningSpecialty": "推論専門",
+      "reasoningSpecialtyDesc": "数理/定理/論理導出の特性を検出し、深層推論モデルに自動ルーティングしました",
+      "multimodalSpecialty": "マルチモーダル視覚",
+      "multimodalSpecialtyDesc": "画像/動画/マルチモーダルペイロードを検出し、視覚モデルに自動ルーティングしました",
+      "casualSpecialty": "日常・軽量",
+      "casualSpecialtyDesc": "日常の挨拶や簡単な対話を検出し、高速軽量モデルに自動ルーティングしました",
+      "generalSpecialty": "標準汎用",
+      "generalSpecialtyDesc": "通常の対話タスク。プライマリモデルによって処理されます",
+      "actualModelLabel": "実際の呼び出しモデル"
+    },
     "uploadFailed": "アップロードに失敗しました",
     "skillActivation": {
       "remove": "選択したスキルを削除"

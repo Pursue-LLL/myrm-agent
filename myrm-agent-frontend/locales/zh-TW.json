@@ -7498,6 +7498,21 @@
     "providerDisabledWarning": "此供應商已停用"
   },
   "chat": {
+    "specialtyRouting": {
+      "codeSpecialty": "程式碼專長",
+      "codeSpecialtyDesc": "命中程式碼編寫/重構/Debug特徵，已自動路由至程式碼專精模型",
+      "longDocSpecialty": "長文件專長",
+      "longDocSpecialtyDesc": "命中超長文字或多章節精讀特徵，已自動路由至大上下文專精模型",
+      "reasoningSpecialty": "推理專長",
+      "reasoningSpecialtyDesc": "命中數理公式推導或形式化證明特徵，已自動路由至深度推理模型",
+      "multimodalSpecialty": "多模態視覺",
+      "multimodalSpecialtyDesc": "命中圖像/音視頻等多模態特徵，已自動路由至視覺專精模型",
+      "casualSpecialty": "輕量日常",
+      "casualSpecialtyDesc": "命中日常問候與簡短對話，已自動路由至秒級響應輕量模型",
+      "generalSpecialty": "標準通用",
+      "generalSpecialtyDesc": "常規對話任務，由主模型提供標準響應",
+      "actualModelLabel": "實際調用模型"
+    },
     "uploadFailed": "上傳失敗",
     "skillActivation": {
       "remove": "移除已選技能"

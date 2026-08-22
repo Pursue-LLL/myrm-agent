@@ -7298,6 +7298,21 @@
     "providerDisabledWarning": "Dieser Anbieter ist deaktiviert"
   },
   "chat": {
+    "specialtyRouting": {
+      "codeSpecialty": "Code-Spezialisierung",
+      "codeSpecialtyDesc": "Programmier-/Refaktorisierungs-/Debugging-Muster erkannt, automatisch an Code-Expertenmodell weitergeleitet",
+      "longDocSpecialty": "Langdokument-Spezialisierung",
+      "longDocSpecialtyDesc": "Großes Dokument oder Extraktion über mehrere Kapitel erkannt, automatisch an erweitertes Kontextmodell weitergeleitet",
+      "reasoningSpecialty": "Schlussfolgerungs-Spezialisierung",
+      "reasoningSpecialtyDesc": "Mathematik-/Theorem-/Logik-Muster erkannt, automatisch an Deep-Reasoning-Modell weitergeleitet",
+      "multimodalSpecialty": "Multimodale Vision",
+      "multimodalSpecialtyDesc": "Bild-/Video-/Multimodal-Payloads erkannt, automatisch an Visionsmodell weitergeleitet",
+      "casualSpecialty": "Alltägliche/Leichte Konversation",
+      "casualSpecialtyDesc": "Alltägliche Begrüßung/einfache Konversation erkannt, automatisch an schnelles Leichtgewicht-Modell weitergeleitet",
+      "generalSpecialty": "Standard allgemein",
+      "generalSpecialtyDesc": "Standardanfrage, wird vom Hauptmodell verarbeitet",
+      "actualModelLabel": "Tatsächliches Modell"
+    },
     "uploadFailed": "Upload fehlgeschlagen",
     "jumpBar": {
       "ariaLabel": "Konversationsnavigation",

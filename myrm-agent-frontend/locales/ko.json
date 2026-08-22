@@ -7298,6 +7298,21 @@
     "providerDisabledWarning": "이 공급자가 비활성화되었습니다"
   },
   "chat": {
+    "specialtyRouting": {
+      "codeSpecialty": "코드 전문",
+      "codeSpecialtyDesc": "프로그래밍/리팩토링/디버깅 특성을 감지하여 코드 전문 모델로 자동 라우팅했습니다",
+      "longDocSpecialty": "장문 문서 전문",
+      "longDocSpecialtyDesc": "대용량 문서 또는 다중 챕터 추출 특성을 감지하여 확장 컨텍스트 모델로 자동 라우팅했습니다",
+      "reasoningSpecialty": "추론 전문",
+      "reasoningSpecialtyDesc": "수리/정리/논리 도출 특성을 감지하여 심층 추론 모델로 자동 라우팅했습니다",
+      "multimodalSpecialty": "멀티모달 시각",
+      "multimodalSpecialtyDesc": "이미지/비디오/멀티모달 페이로드를 감지하여 시각 모델로 자동 라우팅했습니다",
+      "casualSpecialty": "일상/가벼운 대화",
+      "casualSpecialtyDesc": "일상 인사 및 간단한 대화를 감지하여 초고속 경량 모델로 자동 라우팅했습니다",
+      "generalSpecialty": "표준 일반",
+      "generalSpecialtyDesc": "일반 대화 작업으로, 기본 모델이 처리합니다",
+      "actualModelLabel": "실제 호출 모델"
+    },
     "uploadFailed": "업로드에 실패했습니다",
     "jumpBar": {
       "ariaLabel": "대화 탐색",

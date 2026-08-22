@@ -3086,6 +3086,7 @@
         "scanWarningDesc": "技能「{name}」发现 {count} 个安全问题。请查看以下详情后再决定是否继续安装。",
         "scanCancel": "取消",
         "scanConfirm": "仍然安装",
+        "noDescription": "暂无描述。",
         "allTags": "全部",
         "sortDefault": "默认",
         "sortStars": "最受欢迎",
