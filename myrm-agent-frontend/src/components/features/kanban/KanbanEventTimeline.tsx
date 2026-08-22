@@ -29,6 +29,16 @@ export function KanbanRunHistory({ runs }: KanbanRunHistoryProps) {
                   {run.outcome ?? '...'}
                 </span>
                 <span className="text-muted-foreground">{formatDuration(run.duration_seconds)}</span>
+                {run.token_usage?.total_tokens ? (
+                  <span className="text-muted-foreground/90 font-mono text-[9px] bg-muted/60 px-1 py-0.5 rounded">
+                    {(run.token_usage.total_tokens / 1000).toFixed(1)}k tok
+                  </span>
+                ) : null}
+                {typeof run.cost_usd === 'number' && run.cost_usd > 0 ? (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono font-medium text-[9px] bg-emerald-500/10 px-1 py-0.5 rounded">
+                    ${run.cost_usd < 0.01 ? run.cost_usd.toFixed(4) : run.cost_usd.toFixed(3)}
+                  </span>
+                ) : null}
                 <span className="text-muted-foreground truncate max-w-[100px]" title={run.worker_id}>
                   {run.worker_id.slice(0, 12)}
                 </span>

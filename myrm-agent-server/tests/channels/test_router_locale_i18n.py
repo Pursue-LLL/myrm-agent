@@ -149,7 +149,7 @@ async def test_bang_command_interception_zh() -> None:
     msg = InboundMessage(
         channel="feishu",
         sender_id="u1",
-        content="!ls -la",
+        content="!bash -lc 'ls -la'",
         metadata={"locale": "zh-CN"},
     )
     assert router._is_bang_command(msg.content) is True
@@ -166,7 +166,7 @@ async def test_bang_command_interception_en() -> None:
     msg = InboundMessage(
         channel="slack",
         sender_id="u1",
-        content="!git status",
+        content="!sh -c 'git status'",
         metadata={"locale": "en"},
     )
     assert router._is_bang_command(msg.content) is True
@@ -181,7 +181,11 @@ async def test_bang_command_variations() -> None:
     assert AgentRouter._is_bang_command("!cmd") is True
     assert AgentRouter._is_bang_command("！cmd") is True
     assert AgentRouter._is_bang_command("!sh") is True
-    assert AgentRouter._is_bang_command("!/bin/bash") is True
+    assert AgentRouter._is_bang_command("!bash") is True
+    # Generic CLI shortcuts and group prefixes must not be blocked
+    assert AgentRouter._is_bang_command("!git status") is False
+    assert AgentRouter._is_bang_command("!/bin/bash") is False
+    assert AgentRouter._is_bang_command("!ai summarize") is False
     # Non-command or natural exclamation marks should not be blocked
     assert AgentRouter._is_bang_command("!") is False
     assert AgentRouter._is_bang_command("！") is False

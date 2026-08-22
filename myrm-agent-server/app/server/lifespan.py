@@ -374,7 +374,7 @@ async def _phase_1a_sequential() -> None:
     try:
         from urllib.parse import urlparse
 
-        from myrm_agent_harness.utils.url_utils import register_blocked_hostnames
+        from myrm_agent_harness.api.security import register_blocked_hostnames
 
         cp_url = settings.control_plane.url.strip()
         if cp_url:

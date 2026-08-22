@@ -85,6 +85,7 @@ export type Message = {
   consensusRefsExpected?: number;
   modelName?: string; // 最后使用的模型名称
   routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
+  routingSpecialty?: 'code' | 'long_doc' | 'reasoning' | 'multimodal' | 'casual' | 'general';
   modelTier?: 'weak' | 'medium';
   privacyLevel?: SensitivityLevel;
   privacyAction?: string;

@@ -153,7 +153,7 @@ class _RecordingChannel:
     def capabilities(self):
         from app.channels.types import ChannelCapabilities
 
-        return ChannelCapabilities()
+        return ChannelCapabilities(edit=True)
 
     def set_inbound_handler(self, handler: object) -> None:
         pass

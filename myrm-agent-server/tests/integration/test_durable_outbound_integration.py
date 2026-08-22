@@ -23,14 +23,15 @@ from myrm_agent_harness.toolkits.cron.types import (
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
 from app.channels.routing.message_effects import MessageEffects
-from app.channels.types import ChannelStatus, OutboundMessage
+from app.channels.types import ChannelStatus, OutboundMessage, RenderStyle
 from app.channels.types.status import ChannelCapabilities
 from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 
 
 class _FeishuStubChannel(BaseChannel):
     name = "feishu"
-    capabilities = ChannelCapabilities()
+    capabilities = ChannelCapabilities(max_text_length=4000)
+    render_style = RenderStyle(format="text", max_text_length=4000)
 
     def __init__(self) -> None:
         super().__init__()

@@ -386,6 +386,13 @@ export interface TaskRun {
   summary: string;
   error: string;
   duration_seconds?: number | null;
+  token_usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    [key: string]: number | undefined;
+  } | null;
+  cost_usd?: number | null;
 }
 
 export interface TaskEvent {
