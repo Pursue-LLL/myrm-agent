@@ -186,26 +186,41 @@ class LINEChannel(BaseChannel):
             return None
 
     async def _send_impl(self, msg: OutboundMessage) -> str | None:
-        messages = self._build_outbound_messages(msg)
-        if not messages:
+        all_messages = self._build_outbound_messages(msg)
+        if not all_messages:
             return None
 
         chat_id = msg.recipient_id
         reply_entry = self._reply_tokens.pop(chat_id, None)
         quote_token = self._quote_tokens.pop(chat_id, None)
 
-        if quote_token and messages:
-            first = messages[0]
-            if first.get("type") == "text":
-                first["quoteToken"] = quote_token
+        last_msg_id: str | None = None
+        offset = 0
+        batch_index = 0
 
-        if reply_entry and not reply_entry.expired:
-            result = await self._call_reply(reply_entry.token, messages)
+        while offset < len(all_messages):
+            batch = all_messages[offset : offset + _MAX_MESSAGES_PER_REQUEST]
+            offset += len(batch)
+
+            if batch_index == 0 and quote_token:
+                first = batch[0]
+                if first.get("type") == "text":
+                    first["quoteToken"] = quote_token
+
+            if batch_index == 0 and reply_entry and not reply_entry.expired:
+                result = await self._call_reply(reply_entry.token, batch)
+                if result is not None:
+                    last_msg_id = result
+                    batch_index += 1
+                    continue
+                logger.debug("LINE reply token failed, falling back to push")
+
+            result = await self._call_push(chat_id, batch)
             if result is not None:
-                return result
-            logger.debug("LINE reply token failed, falling back to push")
+                last_msg_id = result
+            batch_index += 1
 
-        return await self._call_push(chat_id, messages)
+        return last_msg_id
 
     def _build_outbound_messages(
         self,
@@ -220,7 +235,7 @@ class LINEChannel(BaseChannel):
 
         if msg.content:
             chunks = render(msg, self.render_style)
-            for chunk in chunks[:_MAX_MESSAGES_PER_REQUEST]:
+            for chunk in chunks:
                 messages.append({"type": "text", "text": chunk})
 
         if msg.quick_replies and messages:
@@ -237,7 +252,7 @@ class LINEChannel(BaseChannel):
             ]
             messages[-1]["quickReply"] = {"items": items}
 
-        return messages[:_MAX_MESSAGES_PER_REQUEST]
+        return messages
 
     @staticmethod
     def _build_media_message(ma: MediaAttachment) -> dict[str, object] | None:

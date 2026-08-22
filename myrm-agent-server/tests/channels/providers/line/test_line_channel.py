@@ -671,6 +671,35 @@ class TestSendPush:
         result = await ch.send(_outbound(content="test"))
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_long_message_uses_batch_push(self) -> None:
+        from app.channels.rendering.renderer import render
+
+        ch, _ = _make_channel()
+        ch._api.push = AsyncMock(
+            side_effect=[
+                _mock_response(200, {"sentMessages": [{"id": "mid-batch-1"}]}),
+                _mock_response(200, {"sentMessages": [{"id": "mid-batch-2"}]}),
+            ],
+        )
+
+        long_body = "LINE long reply segment.\n" * 1100
+        msg = _outbound(content=long_body)
+        expected_chunks = render(msg, ch.render_style)
+        assert len(expected_chunks) > 5
+
+        result = await ch.send(msg)
+        assert result == "mid-batch-2"
+        assert ch._api.push.await_count == 2
+        batch_sizes = [len(call.args[1]) for call in ch._api.push.await_args_list]
+        assert batch_sizes == [5, len(expected_chunks) - 5]
+        sent_texts: list[str] = []
+        for call in ch._api.push.await_args_list:
+            for item in call.args[1]:
+                if item.get("type") == "text":
+                    sent_texts.append(str(item["text"]))
+        assert sent_texts == expected_chunks
+
 
 class TestSendReplyFallback:
     @pytest.mark.asyncio

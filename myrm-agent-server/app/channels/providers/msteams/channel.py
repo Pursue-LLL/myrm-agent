@@ -270,7 +270,7 @@ class MSTeamsChannel(BaseChannel):
         msg: OutboundMessage,
     ) -> None:
         chunks = render(msg, self.render_style)
-        final_text = "\n\n".join(chunks) if chunks else msg.content
+        final_text = chunks[0] if chunks else (msg.content or "")
         await self.edit_message(chat_id, message_id, final_text)
 
     # ── Typing indicator ───────────────────────────────────────

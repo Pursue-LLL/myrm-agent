@@ -773,6 +773,8 @@ class TestOutbound:
 
     @pytest.mark.asyncio
     async def test_edit_placeholder_message(self) -> None:
+        from app.channels.rendering.renderer import render
+
         ch = _make_channel()
         _set_valid_token(ch)
 
@@ -782,9 +784,41 @@ class TestOutbound:
         mock_http.put = AsyncMock(return_value=mock_resp)
 
         key = encode_message_key("act_ep", "https://svc.url", "conv_ep")
-        msg = _make_outbound("conv_ep", "Final answer")
+        long_body = "Teams final answer line.\n" * 800
+        msg = _make_outbound("conv_ep", long_body)
+        expected_first = render(msg, ch.render_style)[0]
+
         await ch.edit_placeholder_message("conv_ep", key, msg)
         mock_http.put.assert_called_once()
+        call_json = mock_http.put.call_args.kwargs.get("json", mock_http.put.call_args[1].get("json"))
+        assert call_json["text"] == expected_first
+        assert len(call_json["text"]) <= ch.render_style.max_text_length
+
+
+class TestEditPlaceholderMultiChunk:
+    @pytest.mark.asyncio
+    async def test_edit_placeholder_uses_first_chunk_only(self) -> None:
+        from app.channels.rendering.renderer import render
+
+        ch = _make_channel()
+        _set_valid_token(ch)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_http = _mock_http_on_channel(ch)
+        mock_http.put = AsyncMock(return_value=mock_resp)
+
+        key = encode_message_key("act_ep2", "https://svc.url", "conv_ep2")
+        long_body = "Teams placeholder chunk.\n" * 1200
+        msg = _make_outbound("conv_ep2", long_body)
+        chunks = render(msg, ch.render_style)
+        assert len(chunks) >= 2
+
+        await ch.edit_placeholder_message("conv_ep2", key, msg)
+        call_json = mock_http.put.call_args.kwargs.get("json", mock_http.put.call_args[1].get("json"))
+        assert call_json["text"] == chunks[0]
+        assert len(call_json["text"]) <= ch.render_style.max_text_length
+        assert len(call_json["text"]) < len(long_body)
 
 
 # ── Lifecycle Tests ───────────────────────────────────────────

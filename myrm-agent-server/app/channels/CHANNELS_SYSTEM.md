@@ -409,6 +409,7 @@ MessageBus 出站分发
     └── Channel.send()
         ├── render(msg, render_style) → chunks
         ├── send_with_retry(chunk) (指数退避)
+        ├── [平台限制] 超出单次 API 上限时分 batch 多次 send（如 LINE 每请求 ≤5 条 message）
         ├── [媒体附件] safe_download_media() → SSRF 验证 → 下载 → 上传到平台
         └── activity.record_outbound()
             └── ack_delivery (成功后删除磁盘队列条目)

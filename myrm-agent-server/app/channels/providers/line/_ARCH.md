@@ -10,6 +10,6 @@ LINE 渠道 Provider 实现（入站/出站、凭证、路由）。上级文档�
 |------|------|------|-------|
 | `__init__.py` | 入口 | LINE channel provider via Messaging API. | ✅ |
 | `api.py` | 模块 | LINE HTTP layer. Called by channel.py via self._api. | ✅ |
-| `channel.py` | 模块 | LINE integration: webhook inbound, Reply/Push outbound, mention detection, quote-token context linking. | ✅ |
+| `channel.py` | 模块 | LINE integration: webhook inbound, Reply/Push outbound, mention detection, quote-token context linking. Outbound batches >5 messages across multiple push/reply API calls (Item 46). | ✅ |
 | `helpers.py` | 模块 | LINE webhook type definitions and constants. Referenced by channel.py. | ✅ |
 | `user_resolver.py` | 模块 | LINE user resolver. Resolves display names via 1:1 / group / room profile APIs with scope-aware caching. | ✅ |

@@ -312,110 +312,44 @@ class TestOneBotChannelAutoReconnect:
         assert channel._should_reconnect is False
 
 
-class TestOneBotChannelMessageFragmentation:
-    """Test OneBot Channel message fragmentation (indirect test via send logic)."""
+class TestOneBotChannelRenderDelivery:
+    """Test OneBot Channel uses render() multi-chunk delivery."""
 
     @pytest.mark.asyncio
-    async def test_message_fragmentation_logic(self):
-        """Test message fragmentation splits large messages correctly."""
+    async def test_send_long_message_uses_render_multi_chunk(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock
 
-        # This is a logic test, not a full integration test
-        def fragment_message(content: str, max_size: int = 4000, fragment_size: int = 3500) -> list[str]:
-            """Simulate fragmentation logic."""
-            if len(content) <= max_size:
-                return [content]
+        from app.channels.providers.onebot.channel import OneBotChannel
+        from app.channels.rendering.renderer import render
+        from app.channels.types.messages import OutboundMessage
 
-            fragments = []
-            total = (len(content) + fragment_size - 1) // fragment_size
-            for i in range(total):
-                start = i * fragment_size
-                end = start + fragment_size
-                prefix = f"[{i + 1}/{total}] "
-                fragments.append(prefix + content[start:end])
-            return fragments
+        channel = OneBotChannel(host="127.0.0.1", port=3001)
+        channel._active_ws = MagicMock()
+        channel._active_ws.closed = False
 
-        # Test with small message (no fragmentation)
-        small_msg = "Hello World"
-        fragments = fragment_message(small_msg)
-        assert len(fragments) == 1
-        assert fragments[0] == small_msg
+        long_body = "OneBot QQ long reply。" * 500
+        msg = OutboundMessage(
+            channel="onebot",
+            recipient_id="123456789",
+            content=long_body,
+            user_id="u1",
+            metadata={"is_group": False},
+        )
+        expected_chunks = render(msg, channel.render_style)
+        assert len(expected_chunks) >= 2
 
-        # Test with large message (fragmentation needed)
-        large_msg = "A" * 8000
-        fragments = fragment_message(large_msg)
-        assert len(fragments) == 3  # 8000 / 3500 = 2.28 -> 3 fragments
-        assert all(f.startswith("[") for f in fragments)
-        assert fragments[0].startswith("[1/3]")
-        assert fragments[1].startswith("[2/3]")
-        assert fragments[2].startswith("[3/3]")
+        call_count = 0
 
-    @pytest.mark.asyncio
-    async def test_message_fragmentation_boundary_cases(self):
-        """Test message fragmentation at boundary conditions."""
+        async def _fake_call_api(action: str, params: dict[str, object], timeout: float = 10.0) -> dict[str, object]:
+            nonlocal call_count
+            call_count += 1
+            return {"status": "ok", "data": {"message_id": 1000 + call_count}}
 
-        def fragment_message(content: str, max_size: int = 4000, fragment_size: int = 3500) -> list[str]:
-            if len(content) <= max_size:
-                return [content]
+        channel._call_api = AsyncMock(side_effect=_fake_call_api)
 
-            fragments = []
-            total = (len(content) + fragment_size - 1) // fragment_size
-            for i in range(total):
-                start = i * fragment_size
-                end = start + fragment_size
-                prefix = f"[{i + 1}/{total}] "
-                fragments.append(prefix + content[start:end])
-            return fragments
-
-        # Exactly at threshold (4000 chars) - no fragmentation
-        exact_threshold = "X" * 4000
-        fragments = fragment_message(exact_threshold)
-        assert len(fragments) == 1
-
-        # Just over threshold (4001 chars) - fragmentation needed
-        just_over = "Y" * 4001
-        fragments = fragment_message(just_over)
-        assert len(fragments) == 2
-        assert fragments[0].startswith("[1/2]")
-        assert fragments[1].startswith("[2/2]")
-
-        # Exactly one fragment size (3500 chars) - no fragmentation
-        one_fragment = "Z" * 3500
-        fragments = fragment_message(one_fragment)
-        assert len(fragments) == 1
-
-        # Edge: Empty message
-        fragments = fragment_message("")
-        assert len(fragments) == 1
-        assert fragments[0] == ""
-
-    @pytest.mark.asyncio
-    async def test_fragment_content_preservation(self):
-        """Test fragmentation preserves all content."""
-
-        def fragment_message(content: str, max_size: int = 4000, fragment_size: int = 3500) -> list[str]:
-            if len(content) <= max_size:
-                return [content]
-
-            fragments = []
-            total = (len(content) + fragment_size - 1) // fragment_size
-            for i in range(total):
-                start = i * fragment_size
-                end = start + fragment_size
-                prefix = f"[{i + 1}/{total}] "
-                fragments.append(prefix + content[start:end])
-            return fragments
-
-        original = "X" * 10000
-        fragments = fragment_message(original)
-
-        # Reconstruct content by removing prefixes
-        reconstructed = ""
-        for fragment in fragments:
-            # Remove [X/Y] prefix
-            content_part = fragment.split("] ", 1)[1] if "] " in fragment else fragment
-            reconstructed += content_part
-
-        assert reconstructed == original, "Fragmentation lost content"
+        result = await channel.send(msg)
+        assert result == str(1000 + len(expected_chunks))
+        assert channel._call_api.await_count == len(expected_chunks)
 
 
 if __name__ == "__main__":

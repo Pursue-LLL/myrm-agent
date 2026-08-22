@@ -2,7 +2,7 @@
 
 Inbound: receives GitHub webhook POSTs, verifies X-Hub-Signature-256,
          parses event payload, emits InboundMessage to Router.
-Outbound: posts comments to GitHub issues/PRs via REST API.
+Outbound: posts comments to GitHub issues/PRs via REST API (render multi-chunk).
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
@@ -215,14 +215,20 @@ class GitHubChannel(BaseChannel):
             self.health.record_failure("Invalid recipient")
             return None
 
-        content = render(msg, self.render_style)
+        chunks = render(msg, self.render_style)
+        if not chunks:
+            return None
 
-        success = await post_issue_comment(self._token, repo, number, content)
-        if success:
-            self.health.record_success()
-            return f"gh-comment-{repo}-{number}"
-        self.health.record_failure("API error")
-        return None
+        last_id: str | None = None
+        for chunk in chunks:
+            success = await post_issue_comment(self._token, repo, number, chunk)
+            if not success:
+                self.health.record_failure("API error")
+                return last_id
+            last_id = f"gh-comment-{repo}-{number}"
+
+        self.health.record_success()
+        return last_id
 
     @staticmethod
     def _parse_recipient(recipient_id: str) -> tuple[str, int | None]:

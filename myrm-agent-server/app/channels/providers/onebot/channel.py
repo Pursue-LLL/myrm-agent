@@ -17,6 +17,7 @@ clients like NapCatQQ and go-cqhttp, enabling QQ personal/group message send/rec
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import logging
 import uuid
@@ -30,6 +31,7 @@ from app.channels.providers.onebot.helpers import (
     build_onebot_message,
     parse_onebot_message,
 )
+from app.channels.rendering.renderer import render
 from app.channels.types.messages import (
     OutboundMessage,
     ReasoningDisplay,
@@ -368,76 +370,51 @@ class OneBotChannel(BaseChannel):
             raise
 
     async def send(self, msg: OutboundMessage) -> str | None:
-        """Send a message via OneBot API with automatic fragmentation for long messages."""
+        """Send a message via OneBot API with render() multi-chunk delivery."""
         if not self._active_ws or self._active_ws.closed:
             logger.error("OneBotChannel: Cannot send message, no client connected")
             return None
 
-        # Determine if it's a group or private message
         is_group = False
         if msg.metadata and msg.metadata.get("is_group") is True:
             is_group = True
         elif len(msg.recipient_id) < 11:
             pass
 
-        # Check if message needs fragmentation (>4000 chars)
-        if msg.content and len(msg.content) > 4000:
-            return await self._send_fragmented(msg, is_group)
-
-        # Send single message
         action = "send_group_msg" if is_group else "send_private_msg"
-        params: dict[str, object] = {
-            "group_id" if is_group else "user_id": int(msg.recipient_id),
-            "message": build_onebot_message(msg),
-        }
+        id_key = "group_id" if is_group else "user_id"
+        last_message_id: str | None = None
 
-        try:
-            response = await self._call_api(action, params)
-            data = response.get("data", {})
-            return str(data.get("message_id")) if data else None
-        except Exception as e:
-            logger.error("Failed to send OneBot message: %s", e)
-            self.health.record_failure(str(e))
-            return None
+        chunks = list(render(msg, self.render_style)) if msg.content else []
+        if not chunks:
+            if not msg.media:
+                return None
+            chunks = [""]
 
-    async def _send_fragmented(self, msg: OutboundMessage, is_group: bool) -> str | None:
-        """Send a long message by fragmenting it into multiple parts."""
-        content = msg.content or ""
-        fragment_size = 3500  # Leave buffer for overhead
-        fragments = [content[i : i + fragment_size] for i in range(0, len(content), fragment_size)]
-
-        logger.info("OneBotChannel: Fragmenting long message into %d parts", len(fragments))
-
-        action = "send_group_msg" if is_group else "send_private_msg"
-        last_message_id = None
-
-        for i, fragment in enumerate(fragments, 1):
-            # Create fragment message
-            fragment_msg = OutboundMessage(
-                content=f"[{i}/{len(fragments)}] {fragment}" if len(fragments) > 1 else fragment,
-                recipient_id=msg.recipient_id,
-                media=msg.media if i == 1 else (),  # Only send media with first fragment
-                metadata=msg.metadata,
+        for i, chunk in enumerate(chunks):
+            chunk_msg = dataclasses.replace(
+                msg,
+                content=chunk,
+                media=msg.media if i == 0 else (),
             )
-
             params: dict[str, object] = {
-                "group_id" if is_group else "user_id": int(msg.recipient_id),
-                "message": build_onebot_message(fragment_msg),
+                id_key: int(msg.recipient_id),
+                "message": build_onebot_message(chunk_msg),
             }
-
             try:
                 response = await self._call_api(action, params)
                 data = response.get("data", {})
-                last_message_id = str(data.get("message_id")) if data else None
-
-                # Small delay between fragments to avoid rate limiting
-                if i < len(fragments):
+                if data:
+                    last_message_id = str(data.get("message_id"))
+                if i < len(chunks) - 1:
                     await asyncio.sleep(0.5)
             except Exception as e:
-                logger.error("Failed to send OneBot message fragment %d/%d: %s", i, len(fragments), e)
+                logger.error("Failed to send OneBot message chunk %d/%d: %s", i + 1, len(chunks), e)
                 self.health.record_failure(str(e))
                 break
 
+        if last_message_id is not None:
+            self.health.record_success()
         return last_message_id
 
     async def delete_message(self, chat_id: str, message_id: str) -> None:

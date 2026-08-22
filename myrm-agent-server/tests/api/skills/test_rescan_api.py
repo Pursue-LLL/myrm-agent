@@ -1,19 +1,17 @@
 """API tests for skills rescan and advisory endpoints."""
 
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-from app.api.skills.rescan import router
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
+from myrm_agent_harness.api import (
     SkillRescanResult,
 )
 from myrm_agent_harness.backends.skills.scanning.scanner import (
-    ScanSeverity,
     SkillTrustRecommendation,
 )
-from myrm_agent_harness.backends.skills.scanning.security_advisories import AdvisoryFinding
+
+from app.api.skills.rescan import router
 
 app = FastAPI()
 app.include_router(router, prefix="/api/skills")
@@ -63,6 +61,7 @@ def test_api_trigger_rescan() -> None:
     with (
         patch("app.api.skills.rescan.require_local_skills_capability"),
         patch("app.core.skills.discovery.rescan_service.rescan_service.rescan_skills") as mock_rescan,
+        patch("app.core.skills.discovery.rescan_service.rescan_service.get_last_report") as mock_get_last,
     ):
         from app.core.skills.discovery.rescan_service import RescanReport, SkillRescanItem
 
@@ -87,6 +86,7 @@ def test_api_trigger_rescan() -> None:
             results={"sample-skill": mock_res},
         )
         mock_rescan.return_value = mock_report
+        mock_get_last.return_value = mock_report
 
         resp = client.post(
             "/api/skills/rescan",
