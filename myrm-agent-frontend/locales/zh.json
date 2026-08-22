@@ -7443,9 +7443,8 @@
       "browser": "浏览器",
       "desktop": "桌面",
       "artifacts": "交付物",
-      "advisorAsk": "问顾问",
-      "advisorOpen": "旁路问答"
-    }
+    "advisorAsk": "问顾问",
+    "advisorOpen": "旁路问答"
   },
   "common": {
     "keyValueEditor": {
