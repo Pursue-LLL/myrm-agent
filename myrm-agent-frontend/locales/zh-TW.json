@@ -3127,6 +3127,9 @@
           "empty": "未配置自定義源",
           "emptyDesc": "添加 .well-known/skills 端點來發現私有技能",
           "alreadyExists": "源已存在"
+        },
+        "detail": {
+          "noDescription": "暫無描述"
         }
       },
       "market": {

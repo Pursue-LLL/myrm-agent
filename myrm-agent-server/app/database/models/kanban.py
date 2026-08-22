@@ -228,6 +228,8 @@ class KanbanTaskRunModel(Base):
     summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
     error: Mapped[str] = mapped_column(Text, default="", nullable=False)
     metadata_json: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+    token_usage_json: Mapped[dict | None] = mapped_column("token_usage", JSON, nullable=True)
+    cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

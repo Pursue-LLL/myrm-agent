@@ -3147,6 +3147,9 @@
           "empty": "未配置自定义源",
           "emptyDesc": "添加 .well-known/skills 端点来发现私有技能",
           "alreadyExists": "源已存在"
+        },
+        "detail": {
+          "noDescription": "暂无描述"
         }
       },
       "market": {
@@ -3330,7 +3333,7 @@
       },
       "detail": {
         "title": "技能详情",
-        "noDescription": "暂无技能描述",
+        "noDescription": "暂无描述",
         "close": "关闭",
         "enable": "启用技能",
         "disable": "禁用技能",
@@ -3387,8 +3390,7 @@
         "revealInManager": "显示",
         "cleanupInvalid": "清理",
         "revealFailed": "显示路径失败",
-        "export": "导出",
-        "noDescription": "暂无描述"
+        "export": "导出"
       },
       "growth": {
         "title": "技能成长",

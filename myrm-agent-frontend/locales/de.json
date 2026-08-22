@@ -2638,6 +2638,9 @@
           "empty": "Keine benutzerdefinierten Quellen konfiguriert",
           "emptyDesc": "Fügen Sie einen .well-known/skills-Endpunkt hinzu, um private Fähigkeiten zu entdecken",
           "alreadyExists": "Quelle existiert bereits"
+        },
+        "detail": {
+          "noDescription": "Keine Beschreibung vorhanden."
         }
       },
       "market": {

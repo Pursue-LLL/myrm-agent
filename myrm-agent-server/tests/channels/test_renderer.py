@@ -383,3 +383,22 @@ class TestCostFooter:
         result = render(msg, _style(use_emoji=False))
         full = "".join(result)
         assert "50 tokens" in full
+
+
+class TestLongContentPreservation:
+    def test_long_content_zero_loss_multi_chunk(self) -> None:
+        content = "报告段落。" * 800
+        style = _style(max_text_length=500)
+        result = render(_msg(content=content), style)
+        assert len(result) > 1
+        assert all(len(chunk) <= 500 for chunk in result)
+        assert "".join(result) == content
+
+    def test_long_ascii_content_not_truncated_in_prepare(self) -> None:
+        content = "Word " * 2500
+        style = _style(max_text_length=800)
+        result = render(_msg(content=content), style)
+        combined = "".join(result)
+        assert len(result) > 5
+        assert len(combined) > 5000
+        assert combined.count("Word") == content.count("Word")

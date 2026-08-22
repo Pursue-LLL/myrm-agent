@@ -95,9 +95,7 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
     tool_summary_block = _build_tool_summary_block(msg.tool_steps, style)
     cost_footer = _build_cost_footer(msg, style)
 
-    reserve = len(header) + len(sources_block) + len(reasoning_block) + len(tool_summary_block) + len(cost_footer)
-    body = (msg.content or "")[: max(style.max_text_length - reserve, 0)]
-    body = strip_thinking_tags(body)
+    body = strip_thinking_tags(msg.content or "")
 
     if not sources_block:
         body = strip_orphan_citations(body)

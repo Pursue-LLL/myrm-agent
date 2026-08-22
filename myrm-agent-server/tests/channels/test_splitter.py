@@ -351,3 +351,29 @@ class TestRegressionAndEdgeCases:
         for chunk in result:
             fence_count = chunk.count("```") + chunk.count("~~~")
             assert fence_count % 2 == 0
+
+
+class TestCjkAndContentPreservation:
+    def test_cjk_long_line_splits_at_punctuation(self) -> None:
+        part_a = "第一部分内容" * 15
+        part_b = "第二部分内容" * 15
+        line = part_a + "，" + part_b
+        result = split_message(line, max_len=120)
+        assert len(result) >= 2
+        assert all(len(chunk) <= 120 for chunk in result)
+        assert "".join(result) == line
+
+    def test_non_fence_long_line_smart_split_preserves_content(self) -> None:
+        line = "alpha " * 60
+        result = split_message(line, max_len=50)
+        assert len(result) >= 2
+        assert all(len(chunk) <= 50 for chunk in result)
+        assert "".join(result) == line
+
+    def test_smart_split_second_segment_uses_window_not_global(self) -> None:
+        # Second segment should not split at an early comma in the full line.
+        prefix = "x" * 180
+        line = "a，" + prefix + "，" + ("b" * 80)
+        result = split_message(line, max_len=100)
+        assert len(result) >= 2
+        assert "".join(result) == line

@@ -3127,6 +3127,9 @@
           "empty": "カスタムソースが設定されていません",
           "emptyDesc": ".well-known/skills エンドポイントを追加するとプライベートスキルを発見できます",
           "alreadyExists": "ソースは既に存在します"
+        },
+        "detail": {
+          "noDescription": "説明はありません。"
         }
       },
       "market": {

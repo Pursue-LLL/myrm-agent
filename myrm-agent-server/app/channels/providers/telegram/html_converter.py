@@ -23,6 +23,8 @@ from __future__ import annotations
 import html
 import re
 
+from app.channels.rendering.splitter import CJK_BOUNDARY_CHARS
+
 _MAX_MSG_LENGTH = 4096
 
 _CODE_BLOCK_RE = re.compile(r"```(\w*)\n(.*?)```", re.DOTALL)
@@ -317,6 +319,13 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
                             "?\n",
                             "？\n",
                         ]:
+                            p_idx = sub_text.rfind(punct)
+                            if p_idx >= min_acceptable_split and (p_idx + len(punct)) > split_at_idx:
+                                split_at_idx = p_idx + len(punct)
+
+                    # 2b. Bare CJK full-width punctuation (no trailing space/newline)
+                    if split_at_idx == -1:
+                        for punct in CJK_BOUNDARY_CHARS:
                             p_idx = sub_text.rfind(punct)
                             if p_idx >= min_acceptable_split and (p_idx + len(punct)) > split_at_idx:
                                 split_at_idx = p_idx + len(punct)

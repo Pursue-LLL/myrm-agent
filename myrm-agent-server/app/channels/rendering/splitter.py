@@ -8,13 +8,15 @@ are properly closed and reopened across chunk boundaries.
 
 [OUTPUT]
 - split_message(): str → list[str]（Message chunk list split at natural boundaries）
+- BOUNDARY_CHARS / CJK_BOUNDARY_CHARS: shared smart-split punctuation sets
 
 [POS]
 Smart long-message splitter. Line-by-line processing with fence state machine,
 auto-closing and reopening code blocks that span chunks. "escape" fence protection
 2. Enhanced: Supports both ``` and ~~~ fences (3-10 symbols)
-3. Smart: Intelligent line splitting at whitespace/punctuation boundaries
+3. Smart: Intelligent line splitting at whitespace/punctuation boundaries (ASCII + CJK full-width)
 4. Configurable: Overflow tolerance for semantic preservation
+5. Exports: `BOUNDARY_CHARS`, `CJK_BOUNDARY_CHARS` for cross-module punctuation SSOT
 """
 
 from __future__ import annotations
@@ -23,6 +25,11 @@ import re
 
 # Matches code fences: ``` or ~~~, 3-10 symbols, optional language tag
 _CODE_FENCE = re.compile(r"^(?P<fence>[`~]{3,10})(?P<lang>\w*)\s*$")
+
+# Smart-split boundaries: ASCII whitespace/punctuation + CJK full-width punctuation.
+ASCII_BOUNDARY_CHARS = " \t,.;:!?|&)]}"
+CJK_BOUNDARY_CHARS = "，。！？；：、）】》\"'"
+BOUNDARY_CHARS = ASCII_BOUNDARY_CHARS + CJK_BOUNDARY_CHARS
 
 
 def _detect_fence(line: str) -> tuple[bool, str]:
@@ -67,13 +74,14 @@ def _smart_split_line(line: str, max_len: int) -> list[str]:
 
         if end_pos < len(line):
             # Not the last segment, search for best split point
-            # Look backwards from end_pos within 10% range
-            search_start = max(current_pos + 1, int(end_pos * 0.9))
+            # Look backwards from end_pos within 10% of the current segment window
+            window_len = end_pos - current_pos
+            search_start = max(current_pos + 1, end_pos - max(1, int(window_len * 0.1)))
             best_split = end_pos
 
-            # Prefer splitting at whitespace or punctuation
+            # Prefer splitting at whitespace or punctuation (incl. CJK full-width)
             for i in range(end_pos - 1, search_start - 1, -1):
-                if line[i] in " \t,.;:!?|&)]}":
+                if line[i] in BOUNDARY_CHARS:
                     best_split = i + 1
                     break
 
@@ -230,9 +238,12 @@ def split_message(
                 current.append(fence_open + "\n")
                 current_len += len(fence_open) + 1
             else:
-                # Not in fence: normal hard-split
-                for i in range(0, len(line), max_len):
-                    chunks.append(line[i : i + max_len])
+                if current:
+                    _flush(fence_state_to_use=fence_open_before)
+                    current_len = 0
+                for seg in _smart_split_line(line, max_len):
+                    if seg.strip():
+                        chunks.append(seg)
         else:
             # Normal-length line
             current.append(line_with_nl)

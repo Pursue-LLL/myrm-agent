@@ -2638,6 +2638,9 @@
           "empty": "사용자 정의 소스가 없습니다",
           "emptyDesc": ".well-known/skills 엔드포인트를 추가하여 프라이빗 스킬을 검색하세요",
           "alreadyExists": "이미 존재하는 소스입니다"
+        },
+        "detail": {
+          "noDescription": "제공된 설명이 없습니다."
         }
       },
       "market": {
