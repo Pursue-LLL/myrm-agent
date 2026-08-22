@@ -3086,6 +3086,7 @@
         "scanWarningDesc": "Skill \"{name}\" has {count} security finding(s). Review the details below before proceeding.",
         "scanCancel": "Cancel",
         "scanConfirm": "Install Anyway",
+        "noDescription": "No description provided.",
         "allTags": "All",
         "sortDefault": "Default",
         "sortStars": "Most Popular",
