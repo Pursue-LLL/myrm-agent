@@ -1,3 +1,17 @@
+/**
+ * [INPUT]
+ * store/chat/useSubagentStore::useSubagentStore (POS: 子智能体状态管理 Zustand Store)
+ * components/agent/AgentAvatar::AgentAvatar (POS: 智能体头像展示组件)
+ * components/features/chat-window/subagent/SubagentStream::STATUS_ICON_MAP (POS: 子智能体状态图标映射表)
+ * lib/utils::cn (POS: Tailwind CSS 类名合并工具函数)
+ *
+ * [OUTPUT]
+ * ChatInlineTeamRunVisibilityStrip: 聊天输入区常驻轻量化子智能体团队运行可见性微条
+ *
+ * [POS]
+ * 主对话窗口输入区上方的常驻子智能体运行状态微条。在不打扰主聊天体验的前提下，提供多子智能体并发状态堆叠、优先级抢占告警、微进度条与深链交互。
+ */
+
 'use client';
 
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';

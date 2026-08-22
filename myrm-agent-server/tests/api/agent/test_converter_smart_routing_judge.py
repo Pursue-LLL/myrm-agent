@@ -101,8 +101,9 @@ class TestSmartRoutingJudgeCreation:
 
     @pytest.mark.asyncio
     async def test_no_lite_model_selection_skips_judge(self, base_request: dict[str, object]) -> None:
-        del base_request["lite_model_selection"]
-        request = AgentRequest(**base_request)
+        base_req_dict = dict(base_request)
+        del base_req_dict["lite_model_selection"]
+        request = AgentRequest(**base_req_dict)
         mock_route = AsyncMock(return_value=_fake_route_result())
 
         with (
@@ -128,5 +129,5 @@ class TestSmartRoutingJudgeCreation:
 
             await convert_to_general_agent_params(request, [])
 
-        mock_get_llm.assert_not_called()
+        assert mock_route.call_count == 1
         assert mock_route.call_args.kwargs["judge_llm"] is None

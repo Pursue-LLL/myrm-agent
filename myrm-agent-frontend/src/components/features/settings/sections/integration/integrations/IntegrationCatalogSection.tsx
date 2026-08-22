@@ -12,6 +12,7 @@ import { IconSearch, IconExternalLink } from './catalog-icons';
 import SettingsSection from '../../SettingsSection';
 import { IntegrationConnectDialog } from './IntegrationConnectDialog';
 import { SERVICE_ICONS } from './service-icons';
+import { LifecycleWebhookSection } from './LifecycleWebhookSection';
 import type { CatalogEntry, CatalogResponse } from './catalog-types';
 
 const CATEGORY_LABELS: Record<string, { en: string; zh: string }> = {
@@ -153,10 +154,12 @@ const IntegrationCatalogSection = memo(() => {
           <div className="text-muted-foreground py-12 text-center text-sm">{t('noResults')}</div>
         )}
 
-        {/* Custom integration link */}
-        <div className="border-border mt-6 border-t pt-4">
-          <p className="text-muted-foreground text-sm">{t('customIntegrationHint')}</p>
-        </div>
+      {/* Custom integration link & Lifecycle Outbound Webhooks */}
+      <div className="border-border mt-6 border-t pt-4">
+        <p className="text-muted-foreground text-sm">{t('customIntegrationHint')}</p>
+      </div>
+
+      <LifecycleWebhookSection />
       </SettingsSection>
 
       {/* Connect Dialog */}

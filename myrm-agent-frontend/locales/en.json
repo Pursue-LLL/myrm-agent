@@ -492,6 +492,24 @@
         }
       }
     },
+    "lifecycleWebhook": {
+      "title": "Lifecycle Outbound Webhooks",
+      "description": "Send HMAC-SHA256 signed HTTP POST notifications to external systems (Slack/Teams/Zapier/Custom API) when Agent sessions complete, fail, require approvals, or Kanban tasks update.",
+      "endpointsTitle": "Webhook Endpoints",
+      "addEndpoint": "Add Webhook",
+      "newEndpoint": "Configure New Webhook Endpoint",
+      "endpointName": "Endpoint Name",
+      "payloadUrl": "Payload URL",
+      "signingSecret": "HMAC Signing Secret (Optional)",
+      "generateRandom": "Generate Random Secret",
+      "subscribedEvents": "Subscribed Events",
+      "saveEndpoint": "Save Endpoint",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "testPing": "Ping Test",
+      "noEndpoints": "No Outbound Webhooks Configured",
+      "noEndpointsDesc": "Configure outbound webhooks to stream Agent lifecycle events and status updates to your external pipelines."
+    },
     "integrationCatalog": {
       "title": "Service Catalog",
       "description": "Browse and connect third-party services. One-click setup for popular integrations via MCP or OpenAPI.",
@@ -5698,9 +5716,7 @@
         "firstIrrecoverable": "First point of no recovery",
         "recoverySteps": "Recovery steps",
         "securityLabels": "Security Labels",
-        "securityFlag": "Security",
-        "memoryEvents": "Context Injections & Memory",
-        "influenceCount": "Influenced turns: {count}"
+        "securityFlag": "Security"
       },
       "replay": {
         "title": "Session Replay",
@@ -6648,6 +6664,29 @@
     "view": "View",
     "modelBinding": "Select Model",
     "modelBindingDesc": "Bind a dedicated model to this agent",
+    "continuity": {
+      "title": "Asset Continuity Safeguard & Model Adaptation",
+      "expandDetails": "Expand Capabilities",
+      "collapse": "Collapse Details",
+      "assetSkills": "Skills ({count})",
+      "assetMcp": "MCP Services ({count})",
+      "assetMemory": "Memory & Vault",
+      "assetWorkspace": "Workspace & Policy",
+      "assetSubagents": "Subagents ({count})",
+      "disciplineTitle": "{family} Execution Discipline",
+      "recommendedPromptMode": "Recommended: {mode}",
+      "disciplineClaude": "Auto-activated structured tool contracts and minimal disclaimers for enhanced execution precision.",
+      "disciplineDeepSeek": "Auto-activated anti-narration and direct tool enforcement to streamline task output.",
+      "disciplineGpt": "Auto-activated tool persistence and action-first protocols for complex multi-step tasks.",
+      "disciplineGemini": "Auto-activated absolute path constraints and parallel execution standards for multi-tool tasks.",
+      "disciplineQwen": "Auto-activated strict tool execution protocols and structured reasoning formatting.",
+      "disciplineUniversal": "Auto-activated universal grounding search and tool honesty protocols.",
+      "contextWindow": "Context Window",
+      "unlimitedOrAuto": "Adaptive / Default",
+      "visionSupport": "Vision Multimodal",
+      "visionNative": "Native Support",
+      "visionFallbackActive": "Vision Fallback Active"
+    },
     "orgMapBadgeTitle": "Organization approval policy",
     "orgMapForceReview": "Smart Intent Guard is required for this model.",
     "orgMapIgnoreAllowlist": "Saved allowlist shortcuts do not apply to this model.",
@@ -8595,9 +8634,9 @@
     "deepSearchLabel": "Deep",
     "deepSearchTitle": "Deep Search",
     "deepSearchDescription": "Reads full web pages for accurate, detailed answers. Takes a bit longer but delivers higher quality results.",
-    "workflowModeLabel": "Workflow",
-    "workflowModeTitle": "Dynamic Workflow Mode",
-    "workflowModeDescription": "Launch background multi-agent concurrent engine, designed for massive complex tasks like full codebase refactoring. Note: High Token consumption."
+    "workflowModeLabel": "Orchestration (PTC)",
+    "workflowModeTitle": "Dynamic Workflow Concurrent Orchestration",
+    "workflowModeDescription": "Orchestration Mode (PTC) generates Python scripts to spawn concurrent sub-agents in sandbox, breaking context window limits for deep research and full codebase refactoring. Cost Honesty: Direct-FC is recommended for short tasks; PTC adds ~9% token overhead for script generation and preflight."
   },
   "thinkingIntensity": {
     "title": "Thinking Intensity",

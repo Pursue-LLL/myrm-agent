@@ -205,7 +205,7 @@ For bulk note management:
 ## Best Practices
 
 - Match the user's existing style — don't impose your own formatting
-- Prefer `[[wiki-links]]` over `[markdown](links)` for internal connections
+- Prefer wiki-links like `[[note-title]]` over standard markdown links for internal connections
 - Use tags sparingly — too many tags reduce their utility
 - Keep atomic notes focused on one idea (Zettelkasten principle)
 - Always check if a note already exists before creating a duplicate

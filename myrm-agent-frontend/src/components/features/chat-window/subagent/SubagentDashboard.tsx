@@ -1,3 +1,20 @@
+/**
+ * [INPUT]
+ * lib/utils/subagentTree::buildTree,filterNodes,flattenTree,fmtCost,sortNodes,treeTotals (POS: 树结构与元数据推导)
+ * lib/utils/stageTaskCount::deriveStageTaskCounts (POS: 阶段级任务计数派生引擎)
+ * store/chat/useSubagentStore::useSubagentStore (POS: 子智能体状态管理 Zustand Store)
+ * store/useChatStore::useChatStore (POS: 主聊天全局状态 Store)
+ * components/features/chat-window/subagent/AgentWorkMap::AgentWorkMap (POS: 子智能体拓扑画布组件)
+ * components/features/chat-window/subagent/SubagentTree::SubagentTreeNode (POS: 子智能体树节点渲染组件)
+ * components/features/chat-window/subagent/SubagentGantt::MiniGantt (POS: 迷你甘特图并行时间线组件)
+ *
+ * [OUTPUT]
+ * SubagentDashboard: 子智能体全景监控与协同控制中心（支持树/画布视图、任务阶段感知与深链定位）
+ *
+ * [POS]
+ * 子智能体协作控制面板。提供全量多智能体执行拓扑、耗时/Token 预算监控、阶段任务计数与单节点定位高亮能力。
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowUpDown, Filter, Gauge, ListTree, Loader2, Network, PauseCircle, PlayCircle, StopCircle } from 'lucide-react';

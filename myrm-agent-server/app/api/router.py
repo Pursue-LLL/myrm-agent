@@ -102,6 +102,7 @@ from app.api.tts.router import router as tts_router
 from app.api.voice.gemini_live import router as voice_gemini_live_router
 from app.api.voice.realtime import router as voice_realtime_router
 from app.api.voice.ws_session import router as voice_ws_router
+from app.api.webhook.routes import router as lifecycle_webhook_router
 from app.api.web_push.router import router as web_push_router
 from app.api.widget_storage import router as widget_storage_router
 from app.api.wiki import router as wiki_router
@@ -187,6 +188,7 @@ api_router.include_router(runs_router)
 api_router.include_router(eval_router, tags=["eval"])
 
 api_router.include_router(datasets_router, prefix="/datasets", tags=["datasets"])
+api_router.include_router(lifecycle_webhook_router, tags=["lifecycle-webhooks"])
 
 # Channels - webhook routes are dynamically registered via init_channel_routes() in main.py
 

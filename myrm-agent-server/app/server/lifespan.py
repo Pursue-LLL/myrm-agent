@@ -163,6 +163,9 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     # === Phase 2: Essential services ===
     async with timer.phase("core"):
         from app.services.background.daemon import maintenance_daemon
+        from app.services.webhook.lifecycle_webhook_service import LifecycleOutboundWebhookService
+
+        LifecycleOutboundWebhookService.get_instance().start()
 
         await maintenance_daemon.start()
 
@@ -682,6 +685,11 @@ async def _shutdown(app_instance: FastAPI) -> None:
 
         await extract_retry_worker.stop()
 
+    async def _stop_lifecycle_webhook_service() -> None:
+        from app.services.webhook.lifecycle_webhook_service import LifecycleOutboundWebhookService
+
+        await LifecycleOutboundWebhookService.get_instance().stop()
+
     shutdown_results = await asyncio.gather(
         safe_stop_cron(),
         safe_stop_gateway(),
@@ -713,6 +721,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         harness_bridge_task,
         _shutdown_mcp(),
         _stop_extract_retry_worker(),
+        _stop_lifecycle_webhook_service(),
         return_exceptions=True,
     )
     for r in shutdown_results:

@@ -22,6 +22,9 @@ export type BusyInputMode = 'redirect' | 'steer' | 'queue';
 // 快速搜索深度类型
 export type SearchDepth = 'normal' | 'deep';
 
+// 编排模式类型：standard (Direct-FC) vs orchestrated (PTC / Dynamic Workflow)
+export type OrchestrationMode = 'standard' | 'orchestrated';
+
 export interface ModelSelection {
   providerId: string;
   model: string;
@@ -69,6 +72,8 @@ export interface AgentConfig {
   promptMode?: 'full' | 'lean' | 'naked' | 'search';
   /** Agent 默认会话安全预设（hitl/accept_edits/explore）。绑定/切换该 Agent 时用其初始化会话 securityPreset。 */
   defaultSecurityPreset?: 'hitl' | 'accept_edits' | 'explore' | null;
+  /** 编排模式（standard: Direct-FC / orchestrated: Dynamic Workflow PTC 批量并发编排） */
+  orchestrationMode?: OrchestrationMode;
 }
 
 // 已选模型配置

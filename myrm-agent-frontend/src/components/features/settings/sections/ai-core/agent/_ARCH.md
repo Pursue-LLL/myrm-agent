@@ -10,7 +10,8 @@
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AgentBasicInfoTab.tsx`                  | 名称、描述、头像、**正式韩语回复 Switch**（`engine_params.response_locale_policy`）等基础信息                                                                                 |
 | `AgentCapabilitiesTab.tsx`               | 模型绑定、引擎参数、共识、会话策略等能力 Tab 入口；顶部 `AgentLoadoutSummary`（`refreshKey`（bind/unbind 与保存后重拉）+ SC tile→`#shared-context-binding`）；`#loadout` 深链 |
-| `AgentCapabilitiesTabSections.tsx`       | 能力 Tab 基础区段（模型绑定含 org MAP 约束 badge（hook refetch 同步）、路由覆盖/迭代/工作区/**IdleCompactSection** 等）                                                       |
+| `AgentCapabilitiesTabSections.tsx`       | 能力 Tab 基础区段（模型绑定含 org MAP 约束 badge（hook refetch 同步）、ModelSwapContinuityCard 资产连续性保障与模型能力适配、路由覆盖/迭代/工作区/**IdleCompactSection** 等） |
+| `ModelSwapContinuityCard.tsx`             | 资产连续性保障与底层模型适配卡片（已绑定 Skills/MCP/Memory/Rules 100% 连续保留凭证、模型专属 Execution Discipline 行为纪律、Vision 兼容与上下文窗口感知）                      |
 | `AgentCapabilitiesConsensusSection.tsx`  | MoA overlay 参考模型选择器（`ConsensusRefModels`，供 MoaOverlaySection 复用）                                                                                                 |
 | `AgentCapabilitiesMoaOverlaySection.tsx` | Agent 环 MoA 顾问叠加配置（fanout / privacy / 参考模型）                                                                                                                      |
 | `AgentCapabilitiesSessionSection.tsx`    | 会话策略区段                                                                                                                                                                  |

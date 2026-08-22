@@ -13,6 +13,7 @@ import { IconChevronDown } from '@/components/features/icons/PremiumIcons';
 import { useManagedPolicyEffective } from '@/hooks/useManagedPolicyEffective';
 import { managedPolicyConstraintsForModel } from '@/lib/managedPolicyMatch';
 import useProviderStore from '@/store/useProviderStore';
+import { ModelSwapContinuityCard } from './ModelSwapContinuityCard';
 import type { AgentCapabilitiesTabProps } from './AgentCapabilitiesTab';
 
 type SectionProps = {
@@ -101,6 +102,7 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
           )}
         </div>
       )}
+      <ModelSwapContinuityCard editor={editor} effectiveModelSlug={effectiveModelSlug} />
     </div>
   );
 }

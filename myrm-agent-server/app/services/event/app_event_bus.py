@@ -68,6 +68,12 @@ class AppEventType(StrEnum):
     WORKSPACE_FILE_CHANGED = "workspace_file_changed"
     RUN_DIGEST_UPDATED = "run_digest_updated"
     SKILL_POOL_UPDATED = "skill_pool_updated"
+    SESSION_COMPLETED = "session_completed"
+    SESSION_FAILED = "session_failed"
+    PRE_TOOL_CALL = "pre_tool_call"
+    POST_TOOL_CALL = "post_tool_call"
+    SUBAGENT_SPAWNED = "subagent_spawned"
+    SUBAGENT_MERGED = "subagent_merged"
 
 
 @dataclass(frozen=True, slots=True)

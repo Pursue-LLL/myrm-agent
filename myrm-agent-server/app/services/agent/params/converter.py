@@ -219,10 +219,7 @@ async def convert_to_general_agent_params(
 
     routing_tier: str | None = None
     routing_specialty: str | None = None
-    if (
-        request.code_model_selection
-        or request.long_doc_model_selection
-    ):
+    if bool(request.code_model_selection or request.long_doc_model_selection):
         try:
             from myrm_agent_harness.api import (
                 TaskSpecialty,
@@ -262,7 +259,10 @@ async def convert_to_general_agent_params(
                 except ValueError:
                     pass
 
-            if request.reasoning_model_selection:
+            if (
+                request.reasoning_model_selection
+                and (request.code_model_selection or request.long_doc_model_selection)
+            ):
                 try:
                     reasoning_cfg_slot = await _resolve_model_config(
                         request.reasoning_model_selection, providers_dict
@@ -278,13 +278,13 @@ async def convert_to_general_agent_params(
                 specialty_fallback_slots=specialty_fallback_slots if specialty_fallback_slots else None,
                 default_fallback_cfg=fallback_model_cfg,
             )
-            routing_specialty = specialty_result.specialty.value
 
             if "specialty_slot_hit" in specialty_result.reason:
                 model_cfg = specialty_result.model_cfg
                 if specialty_result.fallback_model_cfg is not None:
                     fallback_model_cfg = specialty_result.fallback_model_cfg
-                routing_tier = routing_specialty
+                routing_tier = specialty_result.specialty.value
+                routing_specialty = specialty_result.specialty.value
                 logger.info(
                     "Specialty routing activated: specialty=%s model=%s reason=%s",
                     routing_specialty,

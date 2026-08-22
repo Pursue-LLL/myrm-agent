@@ -25,6 +25,7 @@ class UserToolAllowlist(Base):
     """工具白名单表（HITL 审批系统）
 
     四种粒度：权限级别、工具级别、精确匹配、命令模式匹配。
+    身份作用域：agent_id 确保 Hosted MCP 工具与子 Agent 隔离，防范 Confused Deputy 攻击。
     使用空字符串代替 NULL 确保 UNIQUE 约束生效。
     """
 
@@ -35,6 +36,7 @@ class UserToolAllowlist(Base):
     tool_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     tool_args_hash: Mapped[str] = mapped_column(String(32), nullable=False, default="")
     command_pattern: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    agent_id: Mapped[str] = mapped_column(String(255), nullable=False, default="")
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -44,6 +46,7 @@ class UserToolAllowlist(Base):
             "tool_name",
             "tool_args_hash",
             "command_pattern",
+            "agent_id",
             name="uq_user_allowlist_final",
         ),
     )

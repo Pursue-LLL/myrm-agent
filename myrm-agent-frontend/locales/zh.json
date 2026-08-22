@@ -492,6 +492,24 @@
         }
       }
     },
+    "lifecycleWebhook": {
+      "title": "生命周期出站 Webhook",
+      "description": "当智能体运行完成、失败、需要审批或看板任务更新时，向外部系统（企业微信/飞书/Zapier/自定义API）发送带有 HMAC-SHA256 签名的 HTTP POST 通知。",
+      "endpointsTitle": "Webhook 终端列表",
+      "addEndpoint": "新增 Webhook",
+      "newEndpoint": "配置新的 Webhook 终端",
+      "endpointName": "终端名称",
+      "payloadUrl": "接收端 URL (Payload URL)",
+      "signingSecret": "HMAC 签名密钥 (可选)",
+      "generateRandom": "生成随机密钥",
+      "subscribedEvents": "订阅事件",
+      "saveEndpoint": "保存终端",
+      "saving": "保存中...",
+      "cancel": "取消",
+      "testPing": "连通性测试",
+      "noEndpoints": "暂无配置的出站 Webhook",
+      "noEndpointsDesc": "配置出站 Webhook 以便将智能体执行进度与结果实时通知到你的外部监控或业务流系统。"
+    },
     "integrationCatalog": {
       "title": "服务目录",
       "description": "浏览并连接第三方服务。通过 MCP 或 OpenAPI 一键配置热门集成。",
@@ -5739,7 +5757,9 @@
         "firstIrrecoverable": "首个无法恢复的错误点",
         "recoverySteps": "恢复步骤",
         "securityLabels": "安全标签",
-        "securityFlag": "安全"
+        "securityFlag": "安全",
+        "memoryEvents": "上下文注入与记忆",
+        "influenceCount": "影响轮次: {count}"
       },
       "replay": {
         "title": "录像回放",
@@ -6638,6 +6658,29 @@
     "loadFailed": "加载智能体失败",
     "systemPromptLoaded": "系统提示词已加载",
     "modelBindingDesc": "为此智能体绑定专用模型",
+    "continuity": {
+      "title": "资产连续性保障与底层模型适配",
+      "expandDetails": "展开能力详情",
+      "collapse": "收起详情",
+      "assetSkills": "技能 ({count})",
+      "assetMcp": "MCP 服务 ({count})",
+      "assetMemory": "知识库与记忆",
+      "assetWorkspace": "沙箱与安全策略",
+      "assetSubagents": "子智能体 ({count})",
+      "disciplineTitle": "{family} 模型专属行为纪律",
+      "recommendedPromptMode": "推荐 Prompt: {mode}",
+      "disciplineClaude": "已自动激活结构化工具调用合约与免责声明极简协议，提升代码与工具执行严谨度。",
+      "disciplineDeepSeek": "已自动激活反啰嗦与工具调用强制执行纪律，减少过度解释，直奔最终产物。",
+      "disciplineGpt": "已自动激活工具主动持久度与行动优先协议，保障长链路复杂任务稳步推进。",
+      "disciplineGemini": "已自动激活绝对路径约束与并行工具调用规范，优化多工具协同执行效率。",
+      "disciplineQwen": "已自动激活严格工具执行协议与结构化推理规范，提升工具调用稳定性。",
+      "disciplineUniversal": "已自动激活通用工具诚实协议与防幻觉接地检索纪律。",
+      "contextWindow": "上下文窗口",
+      "unlimitedOrAuto": "自适应 / 默认",
+      "visionSupport": "视觉多模态",
+      "visionNative": "原生支持",
+      "visionFallbackActive": "自动 Vision Fallback 接管"
+    },
     "orgMapBadgeTitle": "组织审批策略",
     "orgMapForceReview": "组织要求此模型必须启用智能意图审查。",
     "orgMapIgnoreAllowlist": "组织规定此模型不适用已保存的白名单捷径。",
@@ -8592,9 +8635,9 @@
     "deepSearchLabel": "深度",
     "deepSearchTitle": "深度搜索",
     "deepSearchDescription": "深度阅读网页全文，获取更准确详尽的回答。耗时稍长，但结果质量更高。",
-    "workflowModeLabel": "工作流",
-    "workflowModeTitle": "动态工作流模式",
-    "workflowModeDescription": "启动后台多代理并发引擎，专为全代码库重构等超大型复杂任务设计。注意：Token 消耗巨大。"
+    "workflowModeLabel": "编排模式 (PTC)",
+    "workflowModeTitle": "Dynamic Workflow 动态并发编排",
+    "workflowModeDescription": "编排模式（PTC）利用 Python 脚本并发拉起子 Agent，突破单次上下文窗口，专为长篇调研与全代码库重构设计。注意：短任务使用 Direct-FC 更经济，PTC 每次执行会额外产生 ~9% 代码生成与预检 Token 消耗。"
   },
   "thinkingIntensity": {
     "title": "思考强度",

@@ -57,6 +57,7 @@ class DBAllowlistStore:
                     tool_name=_from_db_value(row.tool_name),
                     tool_args_hash=_from_db_value(row.tool_args_hash),
                     command_pattern=_from_db_value(row.command_pattern),
+                    agent_id=_from_db_value(getattr(row, "agent_id", None)),
                     created_at=row.created_at.timestamp(),
                 )
                 for row in rows
@@ -78,6 +79,7 @@ class DBAllowlistStore:
                 tool_name=_to_db_value(entry.tool_name),
                 tool_args_hash=_to_db_value(entry.tool_args_hash),
                 command_pattern=_to_db_value(entry.command_pattern),
+                agent_id=_to_db_value(entry.agent_id),
             )
             session.add(new_entry)
 
@@ -86,19 +88,21 @@ class DBAllowlistStore:
             except IntegrityError:
                 await session.rollback()
                 logger.info(
-                    "[DB_ALLOWLIST] Entry already exists: (%s, tool=%s, args_hash=%s, pattern=%s)",
+                    "[DB_ALLOWLIST] Entry already exists: (%s, tool=%s, args_hash=%s, pattern=%s, agent=%s)",
                     entry.permission,
                     entry.tool_name,
                     entry.tool_args_hash,
                     entry.command_pattern,
+                    entry.agent_id,
                 )
                 return
             logger.info(
-                "[DB_ALLOWLIST] Saved (%s, tool=%s, args_hash=%s, pattern=%s)",
+                "[DB_ALLOWLIST] Saved (%s, tool=%s, args_hash=%s, pattern=%s, agent=%s)",
                 entry.permission,
                 entry.tool_name,
                 entry.tool_args_hash,
                 entry.command_pattern,
+                entry.agent_id,
             )
 
     async def remove(
@@ -108,6 +112,7 @@ class DBAllowlistStore:
         tool_name: str | None = None,
         tool_args_hash: str | None = None,
         command_pattern: str | None = None,
+        agent_id: str | None = None,
     ) -> None:
         """Remove allowlist entry from database.
 
@@ -117,6 +122,7 @@ class DBAllowlistStore:
             tool_name: Optional tool name (None for permission-level removal)
             tool_args_hash: Optional args hash (None for tool-level removal)
             command_pattern: Optional shell glob pattern (None for non-pattern removal)
+            agent_id: Optional agent identity scope
         """
         async with self._session_factory() as session:
             stmt = select(UserToolAllowlist).where(
@@ -124,6 +130,7 @@ class DBAllowlistStore:
                 UserToolAllowlist.tool_name == _to_db_value(tool_name),
                 UserToolAllowlist.tool_args_hash == _to_db_value(tool_args_hash),
                 UserToolAllowlist.command_pattern == _to_db_value(command_pattern),
+                UserToolAllowlist.agent_id == _to_db_value(agent_id),
             )
             result = await session.execute(stmt)
             entry = result.scalar_one_or_none()
@@ -132,17 +139,19 @@ class DBAllowlistStore:
                 await session.delete(entry)
                 await session.commit()
                 logger.info(
-                    "[DB_ALLOWLIST] Removed (%s, tool=%s, args_hash=%s, pattern=%s)",
+                    "[DB_ALLOWLIST] Removed (%s, tool=%s, args_hash=%s, pattern=%s, agent=%s)",
                     permission,
                     tool_name,
                     tool_args_hash,
                     command_pattern,
+                    agent_id,
                 )
             else:
                 logger.info(
-                    "[DB_ALLOWLIST] Entry not found for removal: permission=%s tool=%s args_hash=%s pattern=%s",
+                    "[DB_ALLOWLIST] Entry not found for removal: permission=%s tool=%s args_hash=%s pattern=%s agent=%s",
                     permission,
                     tool_name,
                     tool_args_hash,
                     command_pattern,
+                    agent_id,
                 )

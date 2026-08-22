@@ -69,6 +69,7 @@ class TestTaskSpecialtyRoutingIntegration:
         assert params.model_cfg.model == "claude-3-7-sonnet-20250219"
         assert params.fallback_model_cfg.model == "deepseek-coder"
         assert routing_tier == "code"
+        assert specialty == "code"
 
     @pytest.mark.asyncio
     async def test_long_doc_specialty_routing_applied(self, base_request_data: dict[str, object]) -> None:
@@ -92,6 +93,7 @@ class TestTaskSpecialtyRoutingIntegration:
 
         assert params.model_cfg.model == "gemini-1.5-pro"
         assert routing_tier == "long_doc"
+        assert specialty == "long_doc"
 
     @pytest.mark.asyncio
     async def test_fail_open_to_complexity_router_when_no_specialty_configured(

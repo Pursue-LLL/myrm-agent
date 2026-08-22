@@ -11,4 +11,6 @@ export const validateSearchServiceConfig = async (config: SearchServiceConfig): 
 };
 
 // 验证MCP服务配置
-export const validateMCPConfig = validateMCPConfigService;
+export const validateMCPConfig = (service: MCPServiceConfig): Promise<ValidationResult> => {
+  return validateMCPConfigService(service);
+};

@@ -30,6 +30,7 @@ from .expert_summon_metric import ExpertSummonMetricEvent
 from .faq import FaqCorpus, FaqEntry, FaqHitLog
 from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
+from .lifecycle_webhook import LifecycleWebhookModel
 from .media import BatchImageJob, MediaLibrary
 from .memory import (
     MemoryArchiveRestoreBatchModel,
@@ -129,6 +130,8 @@ __all__ = [
     "KanbanBoardModel",
     "KanbanTaskEdgeModel",
     "KanbanTaskModel",
+    # Lifecycle Webhook
+    "LifecycleWebhookModel",
     # Channel
     "ChannelPairingModel",
     # Media
