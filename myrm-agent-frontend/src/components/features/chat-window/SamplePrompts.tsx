@@ -8,7 +8,6 @@ import {
   Brain,
   CalendarDays,
   CheckCircle2,
-  Clock,
   Compass,
   Cpu,
   FileSpreadsheet,

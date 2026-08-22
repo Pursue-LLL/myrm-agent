@@ -3058,6 +3058,9 @@
       "discover": {
         "title": "Discover Skills",
         "description": "Search and install skills from GitHub and community",
+        "detail": {
+          "noDescription": "No description provided."
+        },
         "searchPlaceholder": "Search skills, e.g. react performance, code review...",
         "import": "Import",
         "importUrl": "Import GitHub URL",

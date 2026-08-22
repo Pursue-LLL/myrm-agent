@@ -3366,7 +3366,8 @@
         "revealInManager": "顯示",
         "cleanupInvalid": "清理",
         "revealFailed": "顯示路徑失敗",
-        "export": "匯出"
+        "export": "匯出",
+        "noDescription": "暫無描述"
       },
       "growth": {
         "title": "技能成長",

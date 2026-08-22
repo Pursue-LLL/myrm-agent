@@ -2877,7 +2877,8 @@
         "revealInManager": "표시",
         "cleanupInvalid": "정리",
         "revealFailed": "경로를 표시하지 못했습니다",
-        "export": "내보내기"
+        "export": "내보내기",
+        "noDescription": "제공된 설명이 없습니다."
       },
       "upload": {
         "title": "사용자 정의 스킬 업로드",

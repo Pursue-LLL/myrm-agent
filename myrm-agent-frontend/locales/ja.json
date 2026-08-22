@@ -3366,7 +3366,8 @@
         "revealInManager": "表示",
         "cleanupInvalid": "クリーンアップ",
         "revealFailed": "パスの表示に失敗しました",
-        "export": "エクスポート"
+        "export": "エクスポート",
+        "noDescription": "説明はありません。"
       },
       "growth": {
         "title": "スキル成長",

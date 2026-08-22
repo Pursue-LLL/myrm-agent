@@ -2877,7 +2877,8 @@
         "revealInManager": "Anzeigen",
         "cleanupInvalid": "Bereinigen",
         "revealFailed": "Anzeigen des Pfads fehlgeschlagen",
-        "export": "Exportieren"
+        "export": "Exportieren",
+        "noDescription": "Keine Beschreibung vorhanden."
       },
       "upload": {
         "title": "Benutzerdefinierte Fähigkeit hochladen",
@@ -7541,7 +7542,7 @@
       "modelBreakdown": "Modellaufschlüsselung",
       "performance": "Leistung",
       "toolBreakdown": "Tool-Aufschlüsselung",
-      "routingCode": "Code",
+      "routingCode": "Quellcode",
       "routingLongDoc": "Langes Dokument"
     },
     "contextUsage": {
