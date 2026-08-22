@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  ExternalLink,
   GitCompareArrows,
   MessageSquare,
   RotateCcw,
