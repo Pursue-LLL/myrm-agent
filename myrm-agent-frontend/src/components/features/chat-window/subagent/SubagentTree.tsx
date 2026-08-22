@@ -147,9 +147,10 @@ type TreeNodeProps = {
   node: TreeNode;
   chatId: string;
   setOpen: (open: boolean) => void;
+  onOpenDetail?: (node: SubagentNode) => void;
 };
 
-export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
+export const SubagentTreeNode = ({ node, chatId, setOpen, onOpenDetail }: TreeNodeProps) => {
   const t = useTranslations('subagentDashboard');
   const [expanded, setExpanded] = useState(true);
   const [steerMessage, setSteerMessage] = useState('');
@@ -342,6 +343,16 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
         </div>
 
         <div className="flex items-center gap-1 ml-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
+            onClick={() => onOpenDetail && onOpenDetail(node)}
+            title={t('viewDetails') || 'View Details'}
+            data-testid="subagent-view-detail-btn"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </Button>
           {isRunning && (
             <>
               <Button
@@ -492,7 +503,13 @@ export const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
       {expanded && hasChildren && (
         <div className="flex flex-col">
           {node.children?.map((child) => (
-            <SubagentTreeNode key={child.task_id} node={child} chatId={chatId} setOpen={setOpen} />
+            <SubagentTreeNode
+              key={child.task_id}
+              node={child}
+              chatId={chatId}
+              setOpen={setOpen}
+              onOpenDetail={onOpenDetail}
+            />
           ))}
         </div>
       )}
