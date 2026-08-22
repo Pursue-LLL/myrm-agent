@@ -83,6 +83,19 @@ async def seed_deliverable_link_fixture() -> dict[str, str]:
         _DELIVERABLE_ASSISTANT_MARKDOWN,
         now,
         timezone,
+        extra_data={
+            "deliverable_tier": {
+                "tier": "ARTIFACT",
+                "evidence": {
+                    "verification_count": 0,
+                    "verification_categories": [],
+                    "files_written": [_DELIVERABLE_WORKSPACE_REF],
+                    "sources_count": 0,
+                    "gatekeeper_passed": False,
+                    "details": "1 artifacts written",
+                },
+            }
+        },
     )
 
     return {

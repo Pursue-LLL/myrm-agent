@@ -4957,7 +4957,9 @@
         "firstIrrecoverable": "Erster nicht behebbarer Fehlerpunkt",
         "recoverySteps": "Wiederherstellungsschritte",
         "securityLabels": "Sicherheitskennzeichnungen",
-        "securityFlag": "Sicherheit"
+        "securityFlag": "Sicherheit",
+        "memoryEvents": "Kontextinjektionen und Gedächtnis",
+        "influenceCount": "Beeinflusste Runden: {count}"
       },
       "replay": {
         "title": "Sitzungs-Wiedergabe",
@@ -16392,7 +16394,9 @@
         "unknown": "Unbekannt"
       },
       "llmCalls": "LLM-Aufrufe",
-      "saveAsEval": "Als Eval-Case speichern"
+      "saveAsEval": "Als Eval-Case speichern",
+      "memoryEvents": "Kontextinjektionen und Gedächtnis",
+      "influenceCount": "Beeinflusste Runden: {count}"
     },
     "replay": {
       "title": "Sitzungswiederholung",

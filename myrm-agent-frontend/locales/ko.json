@@ -4957,7 +4957,9 @@
         "firstIrrecoverable": "복구할 수 없는 첫 번째 오류 지점",
         "recoverySteps": "복구 단계",
         "securityLabels": "보안 라벨",
-        "securityFlag": "보안"
+        "securityFlag": "보안",
+        "memoryEvents": "컨텍스트 주입 및 메모리",
+        "influenceCount": "영향을 받은 턴: {count}"
       },
       "replay": {
         "title": "세션 리플레이",

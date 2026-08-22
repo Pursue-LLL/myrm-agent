@@ -5436,7 +5436,9 @@
         "firstIrrecoverable": "首個無法恢復的錯誤點",
         "recoverySteps": "恢復步驟",
         "securityLabels": "安全標籤",
-        "securityFlag": "安全"
+        "securityFlag": "安全",
+        "memoryEvents": "上下文注入與記憶",
+        "influenceCount": "影響輪次: {count}"
       },
       "replay": {
         "title": "錄影回放",
@@ -16598,7 +16600,9 @@
         "unknown": "未知"
       },
       "llmCalls": "LLM 調用",
-      "saveAsEval": "儲存為評測案例"
+      "saveAsEval": "儲存為評測案例",
+      "memoryEvents": "上下文注入與記憶",
+      "influenceCount": "影響輪次: {count}"
     },
     "replay": {
       "title": "會話回放",

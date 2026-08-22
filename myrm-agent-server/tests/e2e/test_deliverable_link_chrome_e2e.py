@@ -147,3 +147,19 @@ def test_deliverable_workspace_link_opens_portal() -> None:
             timeout_sec=60.0,
         )
         assert portal_state.get("ready") is True, portal_state
+
+        # Verify Deliverable Confidence Tier Badge is rendered
+        badge_state = client.evaluate(
+            page,
+            """(() => {
+                const badge = document.querySelector('[data-testid="deliverable-tier-badge-artifact"]');
+                return {
+                    found: !!badge,
+                    text: badge ? (badge.textContent || '').trim() : '',
+                };
+            })()""",
+            timeout_sec=10.0,
+        )
+        assert isinstance(badge_state, dict)
+        # In seeded chat history, the badge should render if deliverableTier is present on the message
+        assert badge_state.get("found") is True, badge_state

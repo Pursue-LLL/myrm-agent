@@ -152,7 +152,7 @@ describe('routingTier retention across SSE sequence', () => {
         {
           type: AgentEventType.ROUTING_DECISION,
           messageId: MESSAGE_ID,
-          data: { tier: 'simple' },
+          data: { tier: 'code', specialty: 'code' },
         },
         {
           type: AgentEventType.MESSAGE,
@@ -175,7 +175,8 @@ describe('routingTier retention across SSE sequence', () => {
     // (already awaited inside serial).
     const assistant = state.messages.find((m) => m.role === 'assistant');
     expect(assistant, JSON.stringify(state.messages)).toBeDefined();
-    expect(assistant?.routingTier).toBe('simple');
+    expect(assistant?.routingTier).toBe('code');
+    expect(assistant?.routingSpecialty).toBe('code');
     expect(assistant?.content).toContain('final answer');
   });
 });

@@ -34,7 +34,6 @@ function makeNode(partial: Partial<SubagentNode>): SubagentNode {
 describe('ChatInlineTeamRunVisibilityStrip', () => {
   beforeEach(() => {
     useSubagentStore.getState().clear();
-    vi.clearAllTimers();
   });
 
   it('renders null when there are no subagent nodes', () => {

@@ -220,19 +220,15 @@ async def convert_to_general_agent_params(
     routing_tier: str | None = None
     routing_specialty: str | None = None
     if (
-        request.light_model_selection
-        or request.reasoning_model_selection
-        or request.code_model_selection
+        request.code_model_selection
         or request.long_doc_model_selection
     ):
         try:
             from myrm_agent_harness.api import (
                 TaskSpecialty,
-                route_task,
                 route_task_specialty,
             )
 
-            # Resolve domain specialty slots first if configured
             specialty_slots: dict[TaskSpecialty, ModelConfig] = {}
             specialty_fallback_slots: dict[TaskSpecialty, ModelConfig] = {}
 
@@ -284,7 +280,6 @@ async def convert_to_general_agent_params(
             )
             routing_specialty = specialty_result.specialty.value
 
-            # If a specific domain specialty slot hit (and not general default), take priority
             if "specialty_slot_hit" in specialty_result.reason:
                 model_cfg = specialty_result.model_cfg
                 if specialty_result.fallback_model_cfg is not None:
@@ -296,6 +291,15 @@ async def convert_to_general_agent_params(
                     model_cfg.model,
                     specialty_result.reason,
                 )
+        except Exception:
+            logger.warning("Specialty routing failed, using default model", exc_info=True)
+
+    if (
+        routing_tier is None
+        and (request.light_model_selection or request.reasoning_model_selection)
+    ):
+        try:
+            from myrm_agent_harness.api import route_task
 
             light_model_cfg = None
             if request.light_model_selection:

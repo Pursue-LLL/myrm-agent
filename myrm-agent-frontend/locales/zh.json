@@ -5739,7 +5739,9 @@
         "firstIrrecoverable": "首个无法恢复的错误点",
         "recoverySteps": "恢复步骤",
         "securityLabels": "安全标签",
-        "securityFlag": "安全"
+        "securityFlag": "安全",
+        "memoryEvents": "上下文注入与记忆",
+        "influenceCount": "影响轮次: {count}"
       },
       "replay": {
         "title": "录像回放",

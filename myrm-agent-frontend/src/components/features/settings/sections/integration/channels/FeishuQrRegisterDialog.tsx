@@ -146,7 +146,7 @@ export function FeishuQrRegisterDialog({
             /* network hiccup, keep polling */
           }
         },
-        (res.interval || 5) * 1000,
+        Math.max(10, (res.interval || 5) * 1000),
       );
     } catch (err) {
       setQrStatus(err instanceof ApiError && err.code === 503 ? 'unsupported' : 'failed');

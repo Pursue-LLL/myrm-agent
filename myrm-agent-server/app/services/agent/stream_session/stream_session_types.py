@@ -29,7 +29,8 @@ class AgentStreamSession:
     cancel_token: CancellationToken
     steering_token: SteeringToken | None
     routing_tier: str | None
-    context_warnings: list[str]
+    routing_specialty: str | None = field(default=None)
+    context_warnings: list[str] = field(default_factory=list)
     archive_restore_results: list[object]
     research_model_cfg: ModelConfig | None
     registry: object

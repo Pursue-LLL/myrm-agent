@@ -789,26 +789,29 @@ async def test_cp_token_rejected_when_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When a CP token is configured, missing/mismatched headers are rejected."""
-    monkeypatch.setenv("CONTROL_PLANE_TELEMETRY_TOKEN", "cp-secret")
+    from pydantic import SecretStr
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings.control_plane, "telemetry_token", SecretStr("cp-secret"))
     monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
     transport = ASGITransport(app=_import_app())
 
-    # Missing header -> 403.
+    # Missing header -> 401.
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
             "/api/admin/import-agent-profile",
             json={"package": _build_package(), "force": False},
         )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
-    # Wrong token -> 403.
+    # Wrong token -> 401.
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
             "/api/admin/import-agent-profile",
             json={"package": _build_package(), "force": False},
             headers={"X-Telemetry-Token": "wrong"},
         )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
     # Correct token -> passes the gate (installs).
     async with AsyncClient(transport=transport, base_url="http://test") as client:

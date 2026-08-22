@@ -5396,8 +5396,8 @@
         "recoverySteps": "回復手順",
         "securityLabels": "セキュリティラベル",
         "securityFlag": "セキュリティ",
-        "memoryEvents": "コンテキスト注入とメモリ",
-        "influenceCount": "影響を受けたターン数: {count}"
+        "memoryEvents": "コンテキスト注入と記憶",
+        "influenceCount": "影響を受けたターン: {count}"
       },
       "replay": {
         "title": "セッションリプレイ",
