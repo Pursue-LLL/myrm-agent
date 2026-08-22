@@ -708,9 +708,14 @@ const MessageBox = ({
                 />
                 <h3 className="text-gray-800 dark:text-gray-100 font-medium text-lg">{t('answer')}</h3>
               </div>
-              {message.deliverableTier && !(isLast && loading) && (
-                <DeliverableTierBadge data={message.deliverableTier} />
-              )}
+              <div className="flex items-center gap-2">
+                {message.routingSpecialty && (
+                  <ModelSpecialtyChip specialty={message.routingSpecialty} modelName={message.modelName} />
+                )}
+                {message.deliverableTier && !(isLast && loading) && (
+                  <DeliverableTierBadge data={message.deliverableTier} />
+                )}
+              </div>
             </div>
 
             {/* Reasoning display */}

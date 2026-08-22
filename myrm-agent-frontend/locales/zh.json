@@ -7574,6 +7574,21 @@
     "providerDisabledWarning": "此服务商已被禁用"
   },
   "chat": {
+    "specialtyRouting": {
+      "codeSpecialty": "代码专长",
+      "codeSpecialtyDesc": "命中代码编写/重构/Debug特征，已自动路由至代码专精模型",
+      "longDocSpecialty": "长文档专长",
+      "longDocSpecialtyDesc": "命中超长文本或多章节精读特征，已自动路由至大上下文专精模型",
+      "reasoningSpecialty": "推理专长",
+      "reasoningSpecialtyDesc": "命中数理公式推导或形式化证明特征，已自动路由至深度推理模型",
+      "multimodalSpecialty": "多模态视觉",
+      "multimodalSpecialtyDesc": "命中图像/音视频等多模态特征，已自动路由至视觉专精模型",
+      "casualSpecialty": "轻量日常",
+      "casualSpecialtyDesc": "命中日常问候与简短对话，已自动路由至秒级响应轻量模型",
+      "generalSpecialty": "标准通用",
+      "generalSpecialtyDesc": "常规对话任务，由主模型提供标准响应",
+      "actualModelLabel": "实际调用模型"
+    },
     "uploadFailed": "上传失败",
     "skillActivation": {
       "remove": "移除已选技能"
@@ -17011,4 +17026,5 @@
     "viewDetails": "查看详情",
     "refresh": "刷新边界"
   }
+}
 }
