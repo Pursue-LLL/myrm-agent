@@ -39,7 +39,7 @@ describe('LifecycleWebhookSection', () => {
   });
 
   it('renders loading skeleton initially and loads webhooks', async () => {
-    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce(mockWebhooks);
+    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
     render(<LifecycleWebhookSection />);
 
     expect(await screen.findByText('CI Webhook')).toBeInTheDocument();
@@ -49,8 +49,8 @@ describe('LifecycleWebhookSection', () => {
   });
 
   it('allows toggling active state', async () => {
-    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce(mockWebhooks);
-    vi.mocked(webhookService.updateLifecycleWebhook).mockResolvedValueOnce({
+    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
+    (webhookService.updateLifecycleWebhook as any).mockResolvedValueOnce({
       ...mockWebhooks[0],
       is_active: false,
     });
@@ -69,8 +69,8 @@ describe('LifecycleWebhookSection', () => {
   });
 
   it('executes ping test and displays results', async () => {
-    vi.mocked(webhookService.listLifecycleWebhooks).mockResolvedValueOnce(mockWebhooks);
-    vi.mocked(webhookService.pingLifecycleWebhook).mockResolvedValueOnce({
+    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
+    (webhookService.pingLifecycleWebhook as any).mockResolvedValueOnce({
       success: true,
       status_code: 200,
       latency_ms: 45.2,

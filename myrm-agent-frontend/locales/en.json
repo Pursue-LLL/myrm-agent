@@ -5750,6 +5750,8 @@
         "scrubSnapHint": "Release to snap to nearest event",
         "securityLabels": "Security Labels",
         "securityFlag": "Security",
+        "memoryEvents": "Context Injection & Memory",
+        "influenceCount": "Influenced turns: {count}",
         "marker": {
           "tool": "Tool",
           "llm": "LLM",
