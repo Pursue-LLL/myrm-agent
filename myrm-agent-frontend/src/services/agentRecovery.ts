@@ -11,7 +11,7 @@
  * Agent Profile 启动期容灾自愈与回滚 API 客户端服务。
  */
 
-import { apiRequest } from '@/lib/api/apiClient';
+import { apiRequest } from '@/lib/api';
 
 export interface ComponentProbe {
   component_type: string;

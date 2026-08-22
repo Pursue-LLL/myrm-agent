@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import DesktopControlApprovalOverlay from '@/components/features/desktop-inspector/DesktopControlApprovalOverlay';
 import SubagentDashboard from './subagent/SubagentDashboard';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import useChatStore from '@/store/useChatStore';
 
 const VisualDesktopToggle = dynamic(
   () =>

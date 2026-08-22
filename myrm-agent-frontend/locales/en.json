@@ -7440,8 +7440,9 @@
       "browser": "Browser",
       "desktop": "Desktop",
       "artifacts": "Deliverables",
-    "advisorAsk": "Ask Advisor",
-    "advisorOpen": "Side Q&A"
+      "advisorAsk": "Ask Advisor",
+      "advisorOpen": "Side Q&A"
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -7571,6 +7572,21 @@
     "providerDisabledWarning": "This provider is disabled"
   },
   "chat": {
+    "specialtyRouting": {
+      "codeSpecialty": "Code Specialty",
+      "codeSpecialtyDesc": "Detected programming / refactoring / debugging features, routed silently to code expert model",
+      "longDocSpecialty": "Long Doc Specialty",
+      "longDocSpecialtyDesc": "Detected large document / multi-chapter extraction features, routed silently to extended-context model",
+      "reasoningSpecialty": "Reasoning Specialty",
+      "reasoningSpecialtyDesc": "Detected math / theorem / logic derivation features, routed silently to deep reasoning model",
+      "multimodalSpecialty": "Multimodal Vision",
+      "multimodalSpecialtyDesc": "Detected image / video / multimodal payloads, routed silently to vision model",
+      "casualSpecialty": "Casual / Light",
+      "casualSpecialtyDesc": "Detected casual greeting / simple chat, routed silently to fast light model",
+      "generalSpecialty": "General Standard",
+      "generalSpecialtyDesc": "Standard query, processed by primary model",
+      "actualModelLabel": "Resolved Model"
+    },
     "uploadFailed": "Upload failed",
     "skillActivation": {
       "remove": "Remove selected skills"
@@ -16973,7 +16989,6 @@
     "openDetailLabel": "Open project {name}",
     "deleteLabel": "Delete project {name}"
   },
-  "error": "Error",
   "memoryRecallBoundary": {
     "title": "Review-First Recall Boundary",
     "subtitle": "Task-scoped knowledge boundary isolation, 4-job partition, and candidate review gate",
@@ -17008,5 +17023,4 @@
     "viewDetails": "View Details",
     "refresh": "Refresh Boundary"
   }
-}
 }

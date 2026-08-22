@@ -7443,8 +7443,9 @@
       "browser": "浏览器",
       "desktop": "桌面",
       "artifacts": "交付物",
-    "advisorAsk": "问顾问",
-    "advisorOpen": "旁路问答"
+      "advisorAsk": "问顾问",
+      "advisorOpen": "旁路问答"
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -16991,7 +16992,6 @@
     "openDetailLabel": "打开项目 {name}",
     "deleteLabel": "删除项目 {name}"
   },
-  "error": "错误",
   "memoryRecallBoundary": {
     "title": "审查优先召回边界 (Review-First Recall Boundary)",
     "subtitle": "任务级知识访问范围隔离、四记忆职责分区与候选审查闸门",
@@ -17026,5 +17026,4 @@
     "viewDetails": "查看详情",
     "refresh": "刷新边界"
   }
-}
 }
