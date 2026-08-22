@@ -16,6 +16,8 @@ import {
   IconShield,
   IconSliders,
   IconZap,
+  IconCode,
+  IconFileText,
 } from '@/components/features/icons/PremiumIcons';
 import { useShallow } from 'zustand/react/shallow';
 import useProviderStore from '@/store/useProviderStore';
@@ -62,6 +64,10 @@ const DefaultModelSection = memo(() => {
     setVisionFallbackModelFallback,
     setVideoFallbackModel,
     setVideoFallbackModelFallback,
+    setCodeModel,
+    setCodeModelFallback,
+    setLongDocModel,
+    setLongDocModelFallback,
     getEnabledModels,
     getModelInfo,
   } = useProviderStore(
@@ -86,6 +92,10 @@ const DefaultModelSection = memo(() => {
       setVisionFallbackModelFallback: state.setVisionFallbackModelFallback,
       setVideoFallbackModel: state.setVideoFallbackModel,
       setVideoFallbackModelFallback: state.setVideoFallbackModelFallback,
+      setCodeModel: state.setCodeModel,
+      setCodeModelFallback: state.setCodeModelFallback,
+      setLongDocModel: state.setLongDocModel,
+      setLongDocModelFallback: state.setLongDocModelFallback,
       getEnabledModels: state.getEnabledModels,
       getModelInfo: state.getModelInfo,
     })),
@@ -265,6 +275,18 @@ const DefaultModelSection = memo(() => {
     if (!isSelectionValid(defaultModelConfig.videoFallbackModel?.fallback ?? null)) {
       setVideoFallbackModelFallback(null);
     }
+    if (!isSelectionValid(defaultModelConfig.codeModel?.primary ?? null)) {
+      setCodeModel(null);
+    }
+    if (!isSelectionValid(defaultModelConfig.codeModel?.fallback ?? null)) {
+      setCodeModelFallback(null);
+    }
+    if (!isSelectionValid(defaultModelConfig.longDocModel?.primary ?? null)) {
+      setLongDocModel(null);
+    }
+    if (!isSelectionValid(defaultModelConfig.longDocModel?.fallback ?? null)) {
+      setLongDocModelFallback(null);
+    }
 
     hasCleanedModelsRef.current = true;
   }, [
@@ -283,6 +305,10 @@ const DefaultModelSection = memo(() => {
     setVisionFallbackModelFallback,
     setVideoFallbackModel,
     setVideoFallbackModelFallback,
+    setCodeModel,
+    setCodeModelFallback,
+    setLongDocModel,
+    setLongDocModelFallback,
   ]);
 
   const handleBaseModelChange = useCallback(

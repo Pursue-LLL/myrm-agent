@@ -19,8 +19,9 @@ class TestSplitMessage:
         text = "first paragraph\n\nsecond paragraph"
         result = split_message(text, max_len=25)
         assert len(result) == 2
-        assert result[0] == "first paragraph"
+        assert result[0] == "first paragraph\n\n"
         assert result[1] == "second paragraph"
+        assert "".join(result) == text
 
     def test_split_at_newline(self) -> None:
         text = "line one\nline two\nline three"
@@ -377,3 +378,9 @@ class TestCjkAndContentPreservation:
         result = split_message(line, max_len=100)
         assert len(result) >= 2
         assert "".join(result) == line
+
+    def test_paragraph_content_join_preserves_newlines(self) -> None:
+        text = "Paragraph.\n\n" * 50
+        result = split_message(text, max_len=120)
+        assert len(result) >= 2
+        assert "".join(result) == text

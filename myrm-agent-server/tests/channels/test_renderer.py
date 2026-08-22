@@ -395,10 +395,12 @@ class TestLongContentPreservation:
         assert "".join(result) == content
 
     def test_long_ascii_content_not_truncated_in_prepare(self) -> None:
-        content = "Word " * 2500
+        from app.channels.rendering.text_utils import strip_thinking_tags
+
+        content = "Paragraph.\n\n" * 300
+        expected = strip_thinking_tags(content)
         style = _style(max_text_length=800)
         result = render(_msg(content=content), style)
         combined = "".join(result)
-        assert len(result) > 5
-        assert len(combined) > 5000
-        assert combined.count("Word") == content.count("Word")
+        assert len(result) >= 2
+        assert combined == expected

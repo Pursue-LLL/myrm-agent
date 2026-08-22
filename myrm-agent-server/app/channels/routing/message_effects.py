@@ -9,7 +9,7 @@ instead of raw internal errors.
 - channels.core.bus::MessageBus (POS: async message bus)
 - channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
-- channels.rendering.splitter::split_message (POS: smart long-message splitting)
+- channels.rendering.renderer::render (POS: outbound message formatting pipeline)
 - llms.errors.classifier::classify_error, ErrorKind (POS: LLM error classification)
 
 [OUTPUT]
@@ -38,6 +38,7 @@ from app.channels.core.bus import (
 )
 from app.channels.i18n import channel_t, get_text
 from app.channels.reliability.retry import send_with_retry
+from app.channels.rendering.renderer import render
 from app.channels.types import (
     InboundMessage,
     MessagePriority,
@@ -206,12 +207,7 @@ class MessageEffects:
 
         result = downgrade_components(result, ch)
 
-        from app.channels.rendering.splitter import (
-            split_message,
-        )
-
-        max_len = ch.capabilities.max_text_length or 4096
-        chunks = split_message(result.content, max_len)
+        chunks = render(result, ch.render_style)
 
         meta = dict(result.metadata) if isinstance(result.metadata, dict) else {}
         first_result = dataclasses.replace(result, content=chunks[0], metadata=meta)

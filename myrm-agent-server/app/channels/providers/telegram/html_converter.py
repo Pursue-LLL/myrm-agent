@@ -4,6 +4,7 @@ Telegram HTML supports: <b>, <i>, <s>, <code>, <pre>, <a href>.
 Only &, <, > need escaping in non-tag text — much simpler than MarkdownV2.
 
 [INPUT]
+- channels.rendering.splitter::CJK_BOUNDARY_CHARS (POS: shared CJK punctuation SSOT for smart splitting)
 
 [OUTPUT]
 - md_to_telegram_html(): Telegram-safe HTML string with GFM table degradation

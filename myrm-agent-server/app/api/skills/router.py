@@ -14,6 +14,7 @@ from app.api.skills import (
     packaging,
     permissions,
     prebuilt,
+    rescan,
     sync,
     test_fixtures,
 )
@@ -26,6 +27,7 @@ router.include_router(batch_import.router)
 router.include_router(prebuilt.router, tags=["skills-prebuilt"])
 router.include_router(local.router, tags=["skills-local"])
 router.include_router(discovery.router, tags=["skills-discovery"])
+router.include_router(rescan.router, tags=["skills-rescan"])
 router.include_router(sync.router, tags=["skills-sync"])
 router.include_router(drafts.router, tags=["skills-drafts"])
 

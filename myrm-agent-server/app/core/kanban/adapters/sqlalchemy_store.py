@@ -655,6 +655,8 @@ class SqlAlchemyKanbanStore:
         *,
         summary: str = "",
         error: str = "",
+        token_usage: dict[str, int] | None = None,
+        cost_usd: float | None = None,
     ) -> TaskRun:
         now = datetime.now(UTC)
         async with get_session() as session:
@@ -665,6 +667,10 @@ class SqlAlchemyKanbanStore:
             m.ended_at = now
             m.summary = summary
             m.error = error
+            if token_usage is not None:
+                m.token_usage_json = token_usage
+            if cost_usd is not None:
+                m.cost_usd = cost_usd
             await session.commit()
             await session.refresh(m)
             return self._run_model_to_domain(m)
@@ -780,6 +786,8 @@ class SqlAlchemyKanbanStore:
             summary=m.summary or "",
             error=m.error or "",
             metadata=m.metadata_json or {},
+            token_usage=m.token_usage_json,
+            cost_usd=m.cost_usd,
         )
 
     @staticmethod

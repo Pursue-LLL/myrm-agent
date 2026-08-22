@@ -1,4 +1,16 @@
-"""Skill supply chain rescan and advisory governance endpoints."""
+"""Skill supply chain rescan and advisory governance endpoints.
+
+[INPUT]
+- app.api.skills.rescan_schemas (POS: request/response schemas)
+- app.core.skills.discovery.rescan_service::rescan_service (POS: skill rescan engine)
+
+[OUTPUT]
+- router (POS: FastAPI router for /rescan endpoints)
+
+[POS]
+API endpoints for triggering skill supply chain rescans, viewing vulnerability advisories,
+and managing manual advisory acknowledgments.
+"""
 
 from __future__ import annotations
 

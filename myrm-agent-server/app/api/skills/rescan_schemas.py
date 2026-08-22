@@ -1,4 +1,14 @@
-"""Schemas for skill supply chain rescan and advisory governance endpoints."""
+"""Schemas for skill supply chain rescan and advisory governance endpoints.
+
+[INPUT]
+- pydantic::BaseModel, Field
+
+[OUTPUT]
+- RescanTriggerRequest, AdvisoryAckRequest, AdvisoryUnackRequest, RescanReportResponse, etc.
+
+[POS]
+Data contracts and DTO schemas for skill rescan API endpoints.
+"""
 
 from __future__ import annotations
 

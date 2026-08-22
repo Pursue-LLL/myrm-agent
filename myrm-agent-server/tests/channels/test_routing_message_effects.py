@@ -11,7 +11,7 @@ from app.channels.routing.message_effects import (
     MessageEffects,
     friendly_error_message,
 )
-from app.channels.types import InboundMessage, OutboundMessage
+from app.channels.types import InboundMessage, OutboundMessage, RenderStyle
 
 
 def _make_bus(channel_mock: MagicMock | None = None) -> MagicMock:
@@ -43,6 +43,7 @@ def _make_channel_mock() -> MagicMock:
     ch.extract_retry_after = MagicMock(return_value=None)
     ch.capabilities = MagicMock()
     ch.capabilities.max_text_length = 4096
+    ch.render_style = RenderStyle(format="markdown", max_text_length=4096)
     return ch
 
 
@@ -204,7 +205,7 @@ class TestEditPlaceholder:
     @pytest.mark.asyncio
     async def test_publishes_extra_chunks(self) -> None:
         ch = _make_channel_mock()
-        ch.capabilities.max_text_length = 8
+        ch.render_style = RenderStyle(format="markdown", max_text_length=8)
         bus = _make_bus(ch)
         fx = MessageEffects(bus)
         result = OutboundMessage(
@@ -225,6 +226,35 @@ class TestEditPlaceholder:
         ):
             await fx.edit_placeholder("test", "chat-1", "ph-1", result)
         assert bus.publish_outbound.await_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_edit_placeholder_uses_render_pipeline(self) -> None:
+        ch = _make_channel_mock()
+        bus = _make_bus(ch)
+        fx = MessageEffects(bus)
+        result = OutboundMessage(
+            channel="test",
+            recipient_id="r1",
+            content="**bold** response",
+            user_id="u1",
+        )
+        with (
+            patch(
+                "app.channels.routing.message_effects.send_with_retry",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.channels.routing.message_effects.downgrade_components",
+                return_value=result,
+            ),
+            patch(
+                "app.channels.routing.message_effects.render",
+                return_value=["chunk-a", "chunk-b"],
+            ) as mock_render,
+        ):
+            await fx.edit_placeholder("test", "chat-1", "ph-1", result)
+        mock_render.assert_called_once_with(result, ch.render_style)
+        assert bus.publish_outbound.await_count == 1
 
 
 class TestCleanupPlaceholder:

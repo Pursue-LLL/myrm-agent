@@ -7,7 +7,7 @@ are properly closed and reopened across chunk boundaries.
 (No external dependencies, pure string processing)
 
 [OUTPUT]
-- split_message(): str → list[str]（Message chunk list split at natural boundaries）
+- split_message(): str → list[str]（Message chunk list; join-preserving line iteration）
 - BOUNDARY_CHARS / CJK_BOUNDARY_CHARS: shared smart-split punctuation sets
 
 [POS]
@@ -154,6 +154,14 @@ def split_message(
         match = re.match(r"^[`~]+", fence_marker)
         return match.group(0) if match else "```"
 
+    def _append_fence_close(body: str, fence_state: str) -> str:
+        if not fence_state:
+            return body
+        fence_symbol = _get_fence_symbol(fence_state)
+        if body and not body.endswith("\n"):
+            body += "\n"
+        return body + fence_symbol
+
     def _flush(fence_state_to_use: str = "") -> None:
         """Flush current buffer to chunks, closing fence if needed.
 
@@ -167,16 +175,16 @@ def split_message(
         # Use provided fence state, or default to current fence_open
         state_to_check = fence_state_to_use if fence_state_to_use is not None else fence_open
 
-        body = "".join(current).rstrip("\n")
-        if state_to_check:
-            # Close with matching fence symbol
-            fence_symbol = _get_fence_symbol(state_to_check)
-            body += f"\n{fence_symbol}"
+        body = _append_fence_close("".join(current), state_to_check)
         chunks.append(body)
         current.clear()
 
-    for line in content.split("\n"):
-        line_with_nl = line + "\n"
+    lines = content.split("\n")
+    for line_idx, line in enumerate(lines):
+        if line_idx < len(lines) - 1:
+            line_with_nl = line + "\n"
+        else:
+            line_with_nl = line
         stripped = line.strip()
 
         # Detect fence toggle
@@ -251,10 +259,7 @@ def split_message(
 
     # Final flush
     if current:
-        body = "".join(current).rstrip("\n")
-        if fence_open:
-            fence_symbol = _get_fence_symbol(fence_open)
-            body += f"\n{fence_symbol}"
+        body = _append_fence_close("".join(current), fence_open)
         chunks.append(body)
 
     return [c for c in chunks if c.strip()]
