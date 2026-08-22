@@ -24,7 +24,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
 
 from myrm_agent_harness.agent.skills.market.service import LOCAL_INSTALL_DIR
 from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
@@ -33,7 +32,6 @@ from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
     InstalledSkillRescanEngine,
     SkillRescanResult,
 )
-from myrm_agent_harness.backends.skills.scanning.scanner import SkillTrustRecommendation
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 

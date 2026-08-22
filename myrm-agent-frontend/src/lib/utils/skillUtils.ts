@@ -14,7 +14,7 @@ export interface SkillLikeWithDescription {
  * 安全解析技能描述。如果技能缺失描述或为空白字符，返回多语言降级文本。
  *
  * @param skill 技能对象
- * @param fallbackText 缺省占位文案 (通常来自 i18n t('skills.noDescription') 或本地化翻译)
+ * @param fallbackText 缺省占位文案 (通常来自 i18n 如 noDescription 或本地化翻译)
  * @returns 规整后的技能描述字符串
  */
 export function resolveSkillDescription(

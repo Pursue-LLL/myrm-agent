@@ -10,6 +10,7 @@ instead of raw internal errors.
 - channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
 - channels.rendering.renderer::render (POS: outbound message formatting pipeline)
+- channels.rendering.splitter::cap_stream_preview (POS: smart preview length cap for IM placeholders)
 - llms.errors.classifier::classify_error, ErrorKind (POS: LLM error classification)
 
 [OUTPUT]
@@ -39,6 +40,7 @@ from app.channels.core.bus import (
 from app.channels.i18n import channel_t, get_text
 from app.channels.reliability.retry import send_with_retry
 from app.channels.rendering.renderer import render
+from app.channels.rendering.splitter import cap_stream_preview
 from app.channels.types import (
     InboundMessage,
     MessagePriority,
@@ -272,8 +274,10 @@ class MessageEffects:
         ch = self._bus.get_channel(channel)
         if not ch:
             return False
+        max_len = ch.render_style.max_text_length or ch.capabilities.max_text_length or 4096
+        capped_label = cap_stream_preview(label, max_len)
         try:
-            await ch.edit_message(chat_id, placeholder_id, label)
+            await ch.edit_message(chat_id, placeholder_id, capped_label)
             return True
         except Exception as exc:
             logger.debug("progress edit failed for %s/%s: %s", channel, chat_id, exc)

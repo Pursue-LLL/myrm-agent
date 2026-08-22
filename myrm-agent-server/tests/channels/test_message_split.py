@@ -13,16 +13,18 @@ def test_split_at_paragraph_boundary() -> None:
     text = "A" * 50 + "\n\n" + "B" * 50
     chunks = split_message(text, 60)
     assert len(chunks) == 2
-    assert chunks[0] == "A" * 50
+    assert chunks[0] == "A" * 50 + "\n\n"
     assert chunks[1] == "B" * 50
+    assert "".join(chunks) == text
 
 
 def test_split_at_line_boundary() -> None:
     text = "A" * 50 + "\n" + "B" * 50
     chunks = split_message(text, 60)
     assert len(chunks) == 2
-    assert chunks[0] == "A" * 50
+    assert chunks[0] == "A" * 50 + "\n"
     assert chunks[1] == "B" * 50
+    assert "".join(chunks) == text
 
 
 def test_preserves_code_block_integrity() -> None:

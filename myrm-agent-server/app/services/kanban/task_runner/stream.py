@@ -60,15 +60,28 @@ class _StreamAccumulator:
 
     chunks: list[str] = field(default_factory=list)
     usage: dict[str, int] | None = None
+    cost_usd: float | None = None
     error: str | None = None
 
     def add(self, event: dict[str, object]) -> None:
         event_type = event.get("type", "")
         if event_type == "message" and isinstance(event.get("data"), str):
             self.chunks.append(str(event["data"]))
-        elif event_type == "message_end" and isinstance(event.get("usage"), dict):
-            raw = event["usage"]
-            self.usage = {str(k): _coerce_int(v) for k, v in raw.items()}
+        elif event_type == "token_usage" and isinstance(event.get("data"), dict):
+            data = event["data"]
+            if isinstance(data.get("usage"), dict):
+                raw = data["usage"]
+                self.usage = {str(k): _coerce_int(v) for k, v in raw.items()}
+            cost = data.get("cost_usd")
+            if isinstance(cost, (int, float)):
+                self.cost_usd = (self.cost_usd or 0.0) + float(cost)
+        elif event_type == "message_end":
+            if isinstance(event.get("usage"), dict):
+                raw = event["usage"]
+                self.usage = {str(k): _coerce_int(v) for k, v in raw.items()}
+            cost = event.get("cost_usd")
+            if isinstance(cost, (int, float)):
+                self.cost_usd = float(cost)
         elif event_type == "error":
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")

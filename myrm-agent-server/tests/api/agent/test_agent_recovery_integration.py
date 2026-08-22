@@ -44,7 +44,7 @@ async def test_agent_startup_recovery_full_flow_integration() -> None:
 
         # 3. Create real agent, save snapshot, and test rollback success flow
         create_res = await client.post(
-            "/api/v1/agents",
+            "/api/v1/user-agents",
             json={
                 "name": "Recovery Integration Agent",
                 "description": "For recovery integration testing",
@@ -58,14 +58,14 @@ async def test_agent_startup_recovery_full_flow_integration() -> None:
 
         # Save snapshot
         snap_res = await client.post(
-            f"/api/v1/agents/{created_id}/snapshots",
+            f"/api/v1/user-agents/{created_id}/snapshots",
             json={"reason": "integration_test_baseline"},
         )
         assert snap_res.status_code == 200
 
         # Update profile to dirty state
         update_res = await client.put(
-            f"/api/v1/agents/{created_id}",
+            f"/api/v1/user-agents/{created_id}",
             json={"system_prompt": "Dirty mutated prompt."},
         )
         assert update_res.status_code == 200

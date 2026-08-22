@@ -7498,6 +7498,14 @@
     "providerDisabledWarning": "このプロバイダーは無効です"
   },
   "chat": {
+    "uploadFailed": "アップロードに失敗しました",
+    "skillActivation": {
+      "remove": "選択したスキルを削除"
+    },
+    "workflowTemplateArmed": {
+      "label": "ピン留めしたテンプレート",
+      "disarm": "ピン留めを解除"
+    },
     "jumpBar": {
       "ariaLabel": "対話ナビゲーション",
       "title": "メッセージナビゲーション",

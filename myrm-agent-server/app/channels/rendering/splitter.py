@@ -8,6 +8,7 @@ are properly closed and reopened across chunk boundaries.
 
 [OUTPUT]
 - split_message(): str → list[str]（Message chunk list; join-preserving line iteration）
+- cap_stream_preview(): cap streaming placeholder preview to channel max length
 - BOUNDARY_CHARS / CJK_BOUNDARY_CHARS: shared smart-split punctuation sets
 
 [POS]
@@ -93,6 +94,27 @@ def _smart_split_line(line: str, max_len: int) -> list[str]:
             break
 
     return segments
+
+
+_PREVIEW_TRUNC_SUFFIX = "…"
+
+
+def cap_stream_preview(text: str, max_len: int, *, suffix: str = _PREVIEW_TRUNC_SUFFIX) -> str:
+    """Cap streaming placeholder preview text to a channel max length.
+
+    Uses the same smart boundary set as ``split_message`` so preview truncation
+    prefers whitespace and CJK punctuation over hard mid-character cuts.
+    """
+    if max_len <= 0 or len(text) <= max_len:
+        return text
+
+    suffix_len = len(suffix)
+    if max_len <= suffix_len:
+        return text[:max_len]
+
+    body_budget = max_len - suffix_len
+    head = _smart_split_line(text, body_budget)[0]
+    return head + suffix
 
 
 def split_message(

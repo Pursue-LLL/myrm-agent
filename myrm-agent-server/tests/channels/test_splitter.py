@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.channels.rendering.splitter import split_message
+from app.channels.rendering.splitter import cap_stream_preview, split_message
 
 
 class TestSplitMessage:
@@ -384,3 +384,20 @@ class TestCjkAndContentPreservation:
         result = split_message(text, max_len=120)
         assert len(result) >= 2
         assert "".join(result) == text
+
+    def test_cap_stream_preview_within_limit(self) -> None:
+        text = "短预览"
+        assert cap_stream_preview(text, 100) == text
+
+    def test_cap_stream_preview_truncates_with_suffix(self) -> None:
+        text = "中" * 100
+        result = cap_stream_preview(text, 50)
+        assert len(result) <= 50
+        assert result.endswith("…")
+        assert result.startswith("中")
+
+    def test_cap_stream_preview_prefers_cjk_boundary(self) -> None:
+        text = "前言" + "x" * 80 + "，" + "y" * 80
+        result = cap_stream_preview(text, 90)
+        assert len(result) <= 90
+        assert result.endswith("…")

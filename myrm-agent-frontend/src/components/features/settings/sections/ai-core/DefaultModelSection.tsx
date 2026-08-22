@@ -432,6 +432,34 @@ const DefaultModelSection = memo(() => {
     [setRoutingReasoningModelFallback],
   );
 
+  const handleCodeModelChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setCodeModel(selection);
+    },
+    [setCodeModel],
+  );
+
+  const handleCodeModelFallbackChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setCodeModelFallback(selection);
+    },
+    [setCodeModelFallback],
+  );
+
+  const handleLongDocModelChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setLongDocModel(selection);
+    },
+    [setLongDocModel],
+  );
+
+  const handleLongDocModelFallbackChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setLongDocModelFallback(selection);
+    },
+    [setLongDocModelFallback],
+  );
+
   // Model info dialog state
   const [modelInfoOpen, setModelInfoOpen] = useState(false);
   const [modelInfoTarget, setModelInfoTarget] = useState<{
@@ -1050,6 +1078,108 @@ const DefaultModelSection = memo(() => {
                       label={t('selectFallbackModel')}
                       value={defaultModelConfig.routingConfig?.reasoningModel?.fallback ?? null}
                       onChange={handleRoutingReasoningModelFallbackChange}
+                      enabledModels={enabledModels}
+                      providers={providers}
+                      isModelRestricted={isModelRestricted}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Code Specialty Model */}
+              <div className="p-5 bg-background/50 rounded-xl border border-border/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <IconCode className="w-4 h-4 text-cyan-500" />
+                  <span className="text-sm font-medium text-foreground">{t('smartRouting.codeModel')}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">{t('smartRouting.codeModelDescription')}</p>
+                <div className="space-y-4">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <EnabledModelSelect
+                        label={t('smartRouting.selectCodeModel')}
+                        value={defaultModelConfig.codeModel?.primary ?? null}
+                        onChange={handleCodeModelChange}
+                        enabledModels={enabledModels}
+                        providers={providers}
+                        isModelRestricted={isModelRestricted}
+                      />
+                    </div>
+                    {defaultModelConfig.codeModel?.primary && (
+                      <button
+                        onClick={() =>
+                          openModelConfig(
+                            defaultModelConfig.codeModel!.primary!.providerId,
+                            defaultModelConfig.codeModel!.primary!.model,
+                          )
+                        }
+                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
+                        title={t('configureModel')}
+                      >
+                        <IconSliders className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="pl-4 border-l-2 border-border/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <IconShield className="w-3.5 h-3.5 text-sky-500" />
+                      <span className="text-xs font-medium text-muted-foreground">{t('fallbackModel')}</span>
+                    </div>
+                    <EnabledModelSelect
+                      label={t('selectFallbackModel')}
+                      value={defaultModelConfig.codeModel?.fallback ?? null}
+                      onChange={handleCodeModelFallbackChange}
+                      enabledModels={enabledModels}
+                      providers={providers}
+                      isModelRestricted={isModelRestricted}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Long Document Specialty Model */}
+              <div className="p-5 bg-background/50 rounded-xl border border-border/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <IconFileText className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm font-medium text-foreground">{t('smartRouting.longDocModel')}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">{t('smartRouting.longDocModelDescription')}</p>
+                <div className="space-y-4">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <EnabledModelSelect
+                        label={t('smartRouting.selectLongDocModel')}
+                        value={defaultModelConfig.longDocModel?.primary ?? null}
+                        onChange={handleLongDocModelChange}
+                        enabledModels={enabledModels}
+                        providers={providers}
+                        isModelRestricted={isModelRestricted}
+                      />
+                    </div>
+                    {defaultModelConfig.longDocModel?.primary && (
+                      <button
+                        onClick={() =>
+                          openModelConfig(
+                            defaultModelConfig.longDocModel!.primary!.providerId,
+                            defaultModelConfig.longDocModel!.primary!.model,
+                          )
+                        }
+                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
+                        title={t('configureModel')}
+                      >
+                        <IconSliders className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="pl-4 border-l-2 border-border/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <IconShield className="w-3.5 h-3.5 text-sky-500" />
+                      <span className="text-xs font-medium text-muted-foreground">{t('fallbackModel')}</span>
+                    </div>
+                    <EnabledModelSelect
+                      label={t('selectFallbackModel')}
+                      value={defaultModelConfig.longDocModel?.fallback ?? null}
+                      onChange={handleLongDocModelFallbackChange}
                       enabledModels={enabledModels}
                       providers={providers}
                       isModelRestricted={isModelRestricted}

@@ -2549,6 +2549,9 @@
       "discover": {
         "title": "스킬 탐색",
         "description": "GitHub 및 커뮤니티에서 스킬 검색 및 설치",
+        "detail": {
+          "noDescription": "스킬 설명이 제공되지 않았습니다"
+        },
         "searchPlaceholder": "스킬 검색, 예: react performance, code review...",
         "searching": "검색 중...",
         "noResults": "검색 결과가 없습니다",

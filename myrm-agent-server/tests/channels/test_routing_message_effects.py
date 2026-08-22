@@ -323,6 +323,19 @@ class TestEditProgress:
         result = await fx.edit_progress("test", "chat-1", "ph-1", "Processing...")
         assert result is False
 
+    @pytest.mark.asyncio
+    async def test_edit_progress_caps_long_label(self) -> None:
+        ch = _make_channel_mock()
+        ch.render_style = RenderStyle(format="markdown", max_text_length=20)
+        bus = _make_bus(ch)
+        fx = MessageEffects(bus)
+        long_label = "中" * 100
+        await fx.edit_progress("test", "chat-1", "ph-1", long_label)
+        ch.edit_message.assert_called_once()
+        sent = ch.edit_message.call_args[0][2]
+        assert len(sent) <= 20
+        assert sent.endswith("…")
+
 
 class TestSetReaction:
     @pytest.mark.asyncio
