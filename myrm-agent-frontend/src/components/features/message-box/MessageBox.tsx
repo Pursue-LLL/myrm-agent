@@ -70,6 +70,7 @@ import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
 import { DeliverableTierBadge } from './DeliverableTierBadge';
+import { ModelSpecialtyChip } from './ModelSpecialtyChip';
 import type { ReasoningDisplayMode } from '@/services/config/types';
 
 const ReasoningBlock = ({

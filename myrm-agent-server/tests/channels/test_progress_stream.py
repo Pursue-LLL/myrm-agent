@@ -134,6 +134,9 @@ class _RecordingChannel:
     extract_retry_after = staticmethod(default_extract_retry_after)
 
     def __init__(self) -> None:
+        from app.channels.types import RenderStyle
+
+        self.render_style = RenderStyle(format="text", max_text_length=4096)
         self.placeholder_sends: list[tuple[str, str]] = []
         self.edits: list[tuple[str, str, str]] = []
         self.sent_messages: list[OutboundMessage] = []
@@ -246,7 +249,7 @@ async def test_progress_updates_edit_placeholder(bus: MessageBus, channel: _Reco
 
     assert len(channel.placeholder_sends) == 1
     edit_texts = [text for _, _, text in channel.edits]
-    assert " Searching..." in edit_texts
+    assert any("Searching..." in text for text in edit_texts)
     assert "Final answer" in edit_texts
 
 
