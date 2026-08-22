@@ -1319,7 +1319,15 @@
         "standardModelDescription": "Verwendet das oben konfigurierte Basismodell. Keine zusätzliche Konfiguration erforderlich.",
         "reasoningModel": "Reasoning-Modell",
         "reasoningModelDescription": "Modell für komplexe Denkaufgaben (z. B. mathematische Beweise, Systemarchitektur-Design). Unterstützt das Aktivieren des Denkmodus über Modellparameter.",
-        "selectReasoningModel": "Reasoning-Modell auswählen"
+        "selectReasoningModel": "Reasoning-Modell auswählen",
+        "specialtyRouting": "Spezialisierungs-Routing",
+        "specialtyRoutingDescription": "Erkennt Programmier- oder Langdokument-Aufgaben automatisch und leitet sie an spezialisierte Hochleistungsmodelle weiter",
+        "codeModel": "Code-Spezialmodell",
+        "codeModelDescription": "Spezialisiertes Modell für Coding, Refactoring, Debugging und Unit-Tests (fällt auf das Standardmodell zurück, falls nicht konfiguriert)",
+        "selectCodeModel": "Code-Spezialmodell auswählen",
+        "longDocModel": "Langdokument-Spezialmodell",
+        "longDocModelDescription": "Spezialisiertes Modell für große Kontexte, lange Berichte und Volltext-Zusammenfassungen (fällt auf das Standardmodell zurück, falls nicht konfiguriert)",
+        "selectLongDocModel": "Langdokument-Spezialmodell auswählen"
       },
       "retrieval": {
         "embeddingModel": "Embedding-Modell",
@@ -7532,7 +7540,9 @@
       "compatMedium": "Ausgewogen",
       "modelBreakdown": "Modellaufschlüsselung",
       "performance": "Leistung",
-      "toolBreakdown": "Tool-Aufschlüsselung"
+      "toolBreakdown": "Tool-Aufschlüsselung",
+      "routingCode": "Code",
+      "routingLongDoc": "Langes Dokument"
     },
     "contextUsage": {
       "title": "Kontextnutzung",

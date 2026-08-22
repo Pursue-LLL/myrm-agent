@@ -1803,7 +1803,15 @@
         "standardModelDescription": "使用上方配置的主模型，无需额外配置。",
         "reasoningModel": "推理模型",
         "reasoningModelDescription": "用于复杂推理任务的模型（如数学证明、系统架构设计）。支持通过模型参数开启思考模式。",
-        "selectReasoningModel": "选择推理模型"
+        "selectReasoningModel": "选择推理模型",
+        "specialtyRouting": "专长路由",
+        "specialtyRoutingDescription": "自动识别代码编写或超长文档任务，分流至具备针对性专长的高性能模型",
+        "codeModel": "代码专长模型",
+        "codeModelDescription": "针对编写代码、重构、Debug与单元测试场景定向路由的模型（未配置则使用默认模型）",
+        "selectCodeModel": "选择代码专长模型",
+        "longDocModel": "长文档专长模型",
+        "longDocModelDescription": "针对超大上下文阅读、长篇报告与全文总结场景定向路由的模型（未配置则使用默认模型）",
+        "selectLongDocModel": "选择长文档专长模型"
       },
       "retrieval": {
         "embeddingModel": "嵌入模型",
@@ -7981,6 +7989,8 @@
       "routingSimple": "轻量",
       "routingStandard": "常规",
       "routingReasoning": "推理",
+      "routingCode": "代码",
+      "routingLongDoc": "长文档",
       "privacyLevel": "隐私",
       "privacyPseudonymized": "已保护",
       "privacyS2": "敏感",

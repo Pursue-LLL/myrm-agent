@@ -25,20 +25,28 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.services.agent.stream_session.stream_session_types import AgentStreamSession
+    from app.services.agent.stream_session.stream_session_types import (
+        AgentStreamSession,
+    )
 
 _MULTI_GOAL_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(\d+)\s*[.、)）]\s*.{4,}", re.MULTILINE),
     re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]", re.MULTILINE),
-    re.compile(r"(?:第[一二三四五六七八九十]+|step\s*\d+)", re.IGNORECASE | re.MULTILINE),
+    re.compile(
+        r"(?:第[一二三四五六七八九十]+|step\s*\d+)", re.IGNORECASE | re.MULTILINE
+    ),
     re.compile(r"(?:分别|各自|同时|并行|逐一|一一)", re.MULTILINE),
-    re.compile(r"(?:first|second|third|then|next|finally|also|additionally)", re.IGNORECASE),
+    re.compile(
+        r"(?:first|second|third|then|next|finally|also|additionally)", re.IGNORECASE
+    ),
 ]
 
 _PARALLEL_KEYWORDS: list[re.Pattern[str]] = [
     re.compile(r"(\d+)\s*(?:家|个|种|篇|份|组|项|条)", re.MULTILINE),
     re.compile(r"(?:每个|每家|每种|每篇|每份|各个|各家)", re.MULTILINE),
-    re.compile(r"(?:compare|对比|比较|调研|分析).{0,20}(?:\d+|多个|几个|各)", re.IGNORECASE),
+    re.compile(
+        r"(?:compare|对比|比较|调研|分析).{0,20}(?:\d+|多个|几个|各)", re.IGNORECASE
+    ),
 ]
 
 _MIN_QUERY_LENGTH = 30

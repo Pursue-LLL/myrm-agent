@@ -485,7 +485,7 @@ if (!enBuiltinNames || typeof enBuiltinNames !== 'object') {
 // 验证8: home-route settings i18n shell contract（防 chat 首屏 MISSING_MESSAGE）
 console.log('\n📋 验证 home-route settings i18n shell contract...');
 try {
-  execSync('node scripts/scan-home-i18n-shell.mjs', { stdio: 'inherit', cwd: rootDir });
+  execSync(`"${process.execPath}" scripts/scan-home-i18n-shell.mjs`, { stdio: 'inherit', cwd: rootDir });
   console.log('  ✅ home-route settings shell contract 通过');
 } catch {
   hasErrors = true;

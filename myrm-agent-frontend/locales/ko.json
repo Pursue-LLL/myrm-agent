@@ -1318,7 +1318,15 @@
         "standardModelDescription": "위에 구성된 기본 모델을 사용합니다. 추가 구성이 필요 없습니다.",
         "reasoningModel": "추론 모델",
         "reasoningModelDescription": "복잡한 추론 작업용 모델 (예: 수학 증명, 시스템 아키텍처 설계). 모델 매개변수를 통한 사고 모드 활성화 지원.",
-        "selectReasoningModel": "추론 모델 선택"
+        "selectReasoningModel": "추론 모델 선택",
+        "specialtyRouting": "전문 라우팅",
+        "specialtyRoutingDescription": "코드 작성 또는 장문 문서 작업을 자동으로 감지하여 전문화된 고성능 모델로 라우팅합니다",
+        "codeModel": "코드 전문 모델",
+        "codeModelDescription": "코드 작성, 리팩터링, 디버깅 및 단위 테스트에 특화된 모델 (미설정 시 기본 모델 사용)",
+        "selectCodeModel": "코드 전문 모델 선택",
+        "longDocModel": "장문 문서 전문 모델",
+        "longDocModelDescription": "대규모 컨텍스트 읽기, 긴 보고서 및 전체 요약에 특화된 모델 (미설정 시 기본 모델 사용)",
+        "selectLongDocModel": "장문 문서 전문 모델 선택"
       },
       "retrieval": {
         "embeddingModel": "임베딩 모델",
@@ -7532,7 +7540,9 @@
       "compatMedium": "균형",
       "modelBreakdown": "모델별 분석",
       "performance": "성능",
-      "toolBreakdown": "도구별 분석"
+      "toolBreakdown": "도구별 분석",
+      "routingCode": "코드",
+      "routingLongDoc": "장문 문서"
     },
     "contextUsage": {
       "title": "컨텍스트 사용량",

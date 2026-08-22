@@ -65,6 +65,29 @@ async def test_probe_single_builtin_tool():
 
 
 @pytest.mark.asyncio
+async def test_probe_single_skill(tmp_path):
+    # Empty skill
+    res_empty = await ProfileStartupRecoveryService._probe_single_skill("")
+    assert res_empty.status == "quarantined"
+
+    # Non-existent skill
+    res_unknown = await ProfileStartupRecoveryService._probe_single_skill("non_existent_skill_xyz")
+    assert res_unknown.status == "quarantined"
+
+    # Valid skill created in tmp_path
+    skill_dir = tmp_path / "valid_test_skill"
+    skill_dir.mkdir()
+    skill_file = skill_dir / "SKILL.md"
+    skill_file.write_text(
+        "---\nname: valid_test_skill\ndescription: A valid test skill\n---\n# Valid Skill\nBody",
+        encoding="utf-8",
+    )
+    res_valid = await ProfileStartupRecoveryService._probe_single_skill(str(skill_file))
+    assert res_valid.status == "healthy"
+    assert res_valid.component_type == "skill"
+
+
+@pytest.mark.asyncio
 async def test_probe_single_mcp():
     # Empty mcp
     res_empty = await ProfileStartupRecoveryService._probe_single_mcp("")

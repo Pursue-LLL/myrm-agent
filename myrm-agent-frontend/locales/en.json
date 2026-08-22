@@ -1803,7 +1803,15 @@
         "standardModelDescription": "Uses the Base Model configured above. No additional configuration needed.",
         "reasoningModel": "Reasoning Model",
         "reasoningModelDescription": "Model for complex reasoning tasks (e.g., mathematical proofs, system architecture design). Supports enabling thinking mode via model parameters.",
-        "selectReasoningModel": "Select Reasoning Model"
+        "selectReasoningModel": "Select Reasoning Model",
+        "specialtyRouting": "Specialty Routing",
+        "specialtyRoutingDescription": "Automatically detect coding or long-document tasks and route them to models with targeted expertise",
+        "codeModel": "Coding Specialty Model",
+        "codeModelDescription": "Specialized model for coding, refactoring, debugging, and unit testing tasks (falls back to default if not configured)",
+        "selectCodeModel": "Select Coding Specialty Model",
+        "longDocModel": "Long-Document Specialty Model",
+        "longDocModelDescription": "Specialized model for large context reading, long reports, and full-text summaries (falls back to default if not configured)",
+        "selectLongDocModel": "Select Long-Document Specialty Model"
       },
       "retrieval": {
         "embeddingModel": "Embedding Model",
@@ -3323,6 +3331,7 @@
       "detail": {
         "title": "Skill Details",
         "close": "Close",
+        "noDescription": "No description provided.",
         "enable": "Enable Skill",
         "disable": "Disable Skill",
         "delete": "Delete Skill",
@@ -7982,6 +7991,8 @@
       "routingSimple": "Light",
       "routingStandard": "Standard",
       "routingReasoning": "Reasoning",
+      "routingCode": "Code",
+      "routingLongDoc": "Long Doc",
       "privacyLevel": "Privacy",
       "privacyPseudonymized": "Protected",
       "privacyS2": "Sensitive",

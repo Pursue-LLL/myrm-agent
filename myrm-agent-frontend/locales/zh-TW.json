@@ -1733,7 +1733,15 @@
         "standardModelDescription": "使用上方配置的主模型，無需額外配置。",
         "reasoningModel": "推理模型",
         "reasoningModelDescription": "用於複雜推理任務的模型（如數學證明、系統架構設計）。支援透過模型引數開啟思考模式。",
-        "selectReasoningModel": "選擇推理模型"
+        "selectReasoningModel": "選擇推理模型",
+        "specialtyRouting": "專長路由",
+        "specialtyRoutingDescription": "自動識別程式碼編寫或超長文件任務，分流至具備針對性專長的高性能模型",
+        "codeModel": "程式碼專長模型",
+        "codeModelDescription": "針對編寫程式碼、重構、除錯與單元測試場景定向路由的模型（未配置則使用預設模型）",
+        "selectCodeModel": "選擇程式碼專長模型",
+        "longDocModel": "長文件專長模型",
+        "longDocModelDescription": "針對超大上下文閱讀、長篇報告與全文總結場景定向路由的模型（未配置則使用預設模型）",
+        "selectLongDocModel": "選擇長文件專長模型"
       },
       "retrieval": {
         "embeddingModel": "嵌入模型",
@@ -7881,7 +7889,9 @@
       "noSessionStats": "暫無效能資料",
       "modelBreakdown": "模型分解",
       "performance": "效能",
-      "toolBreakdown": "工具分解"
+      "toolBreakdown": "工具分解",
+      "routingCode": "程式碼",
+      "routingLongDoc": "長文件"
     },
     "liveness": {
       "idle": "就緒",

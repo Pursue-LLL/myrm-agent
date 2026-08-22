@@ -1733,7 +1733,15 @@
         "standardModelDescription": "上で設定したメインモデルを使用します。追加設定は不要です。",
         "reasoningModel": "推論モデル",
         "reasoningModelDescription": "複雑な推論タスク（数学の証明、システムアーキテクチャ設計など）向けのモデル。モデルパラメータによる思考モードをサポートします。",
-        "selectReasoningModel": "推論モデルを選択"
+        "selectReasoningModel": "推論モデルを選択",
+        "specialtyRouting": "専門ルーティング",
+        "specialtyRoutingDescription": "コーディングや長文ドキュメントタスクを自動識別し、特化した高性能モデルにルーティングします",
+        "codeModel": "コード専門モデル",
+        "codeModelDescription": "コード作成、リファクタリング、デバッグ、単体テスト向けに最適化されたモデル（未設定時はデフォルトモデルを使用）",
+        "selectCodeModel": "コード専門モデルを選択",
+        "longDocModel": "長文ドキュメント専門モデル",
+        "longDocModelDescription": "大規模コンテキスト閲覧、長文レポート、全文要約向けに最適化されたモデル（未設定時はデフォルトモデルを使用）",
+        "selectLongDocModel": "長文ドキュメント専門モデルを選択"
       },
       "retrieval": {
         "embeddingModel": "エンベディングモデル",
@@ -7878,7 +7886,9 @@
       "noSessionStats": "パフォーマンスデータがありません",
       "modelBreakdown": "モデル別内訳",
       "performance": "パフォーマンス",
-      "toolBreakdown": "ツール別内訳"
+      "toolBreakdown": "ツール別内訳",
+      "routingCode": "コード",
+      "routingLongDoc": "長文ドキュメント"
     },
     "liveness": {
       "idle": "待機中",

@@ -15,16 +15,26 @@ class TestAdmissionAndAutoEscalation:
     """Tests for Admission Check and Auto Escalation logic."""
 
     def test_is_simple_query_for_admission_true_for_short_simple_queries(self) -> None:
-        assert is_simple_query_for_admission("Python 怎么反转列表？", routing_tier="simple") is True
+        assert (
+            is_simple_query_for_admission(
+                "Python 怎么反转列表？", routing_tier="simple"
+            )
+            is True
+        )
         assert is_simple_query_for_admission("你好", routing_tier=None) is True
         assert is_simple_query_for_admission("", routing_tier=None) is True
 
     def test_is_simple_query_for_admission_false_for_reasoning_or_complex(self) -> None:
-        assert is_simple_query_for_admission("简单问题", routing_tier="reasoning") is False
-        assert is_simple_query_for_admission(
-            "帮我分别调研以下3家公司：\n1. Apple\n2. Google\n3. Meta",
-            routing_tier="standard",
-        ) is False
+        assert (
+            is_simple_query_for_admission("简单问题", routing_tier="reasoning") is False
+        )
+        assert (
+            is_simple_query_for_admission(
+                "帮我分别调研以下3家公司：\n1. Apple\n2. Google\n3. Meta",
+                routing_tier="standard",
+            )
+            is False
+        )
 
     def test_should_bypass_dw_for_admission_guards(self) -> None:
         from unittest.mock import MagicMock
@@ -86,7 +96,9 @@ class TestShouldSuggestWorkflow:
         assert should_suggest_workflow(query, routing_tier="reasoning") is True
 
     def test_circled_numbers_with_parallel_keyword_triggers(self) -> None:
-        query = "请分别完成以下任务：①调研竞品定价 ②分析市场份额 ③对比核心功能 ④总结优劣势"
+        query = (
+            "请分别完成以下任务：①调研竞品定价 ②分析市场份额 ③对比核心功能 ④总结优劣势"
+        )
         assert should_suggest_workflow(query, routing_tier="reasoning") is True
 
     def test_circled_numbers_alone_conservative(self) -> None:
@@ -117,12 +129,17 @@ class TestShouldSuggestWorkflow:
 
     def test_multimodal_list_input(self) -> None:
         query = [
-            {"type": "text", "text": "帮我分别调研以下5家公司：\n1. Apple\n2. Google\n3. Microsoft\n4. Amazon\n5. Meta"},
+            {
+                "type": "text",
+                "text": "帮我分别调研以下5家公司：\n1. Apple\n2. Google\n3. Microsoft\n4. Amazon\n5. Meta",
+            },
         ]
         assert should_suggest_workflow(query, routing_tier="reasoning") is True
 
     def test_multimodal_image_only_returns_false(self) -> None:
-        query = [{"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}]
+        query = [
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+        ]
         assert should_suggest_workflow(query, routing_tier="reasoning") is False
 
     def test_chinese_parallel_markers(self) -> None:
