@@ -153,4 +153,27 @@ describe('ExecutionTraceTimeline tool call security labels', () => {
     expect(screen.getByText('DENY')).toBeInTheDocument();
     expect(screen.getByText('destructive path blocked')).toBeInTheDocument();
   });
+
+  it('renders context injection and memory events when trace includes memory_events', async () => {
+    const trace = baseTrace({
+      memory_events: [
+        {
+          id: 'mem-1',
+          phase: 'recall',
+          status: 'success',
+          timestamp: 1000.2,
+          title: 'Project Architecture Preferences',
+          summary: 'Injected Next.js App Router rules into prompt',
+          target_kind: 'system_memory',
+          target_id: 'tgt-1',
+          influence_count: 3,
+        },
+      ],
+    });
+    await renderTrace(trace);
+
+    expect(screen.getByText('Project Architecture Preferences')).toBeInTheDocument();
+    expect(screen.getByText('Injected Next.js App Router rules into prompt')).toBeInTheDocument();
+    expect(screen.getByText('influenceCount')).toBeInTheDocument();
+  });
 });

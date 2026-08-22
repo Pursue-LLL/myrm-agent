@@ -13,7 +13,9 @@
     "rollbackSuccess": "Erfolgreich zur letzten bekannten guten Konfiguration zurückgekehrt",
     "rollbackFailed": "Rollback fehlgeschlagen",
     "exportSuccess": "Diagnosepaket exportiert",
-    "exportFailed": "Exportieren des Diagnosepakets fehlgeschlagen"
+    "exportFailed": "Exportieren des Diagnosepakets fehlgeschlagen",
+    "dualTabChat": "Unterhaltung",
+    "dualTabTrace": "Ausführungstrace"
   },
   "emptyState": {
     "defaultTitle": "Keine Daten",
@@ -2568,6 +2570,7 @@
         "scanWarningDesc": "Der Skill „{name}“ weist {count} Sicherheitsbefund(e) auf. Überprüfen Sie die folgenden Details, bevor Sie fortfahren.",
         "scanCancel": "Abbrechen",
         "scanConfirm": "Trotzdem installieren",
+        "noDescription": "Keine Beschreibung angegeben.",
         "allTags": "Alle",
         "sortDefault": "Standard",
         "sortStars": "Am beliebtesten",
@@ -2680,6 +2683,11 @@
         "tags": "Schlagworte",
         "createdAt": "Erstellt",
         "updatedAt": "Aktualisiert",
+        "idleWarning": "Seit 30+ Tagen ungenutzt, erwägen Sie Einfrieren oder Archivieren",
+        "archivedReason": "Dieser Skill wurde archiviert",
+        "usageStats": "{count} Mal aufgerufen",
+        "neverUsed": "Nie verwendet",
+        "tokenCostTooltip": "Kontextkosten: ~{count} Tokens pro Konversation",
         "needsSetup": "Needs setup — missing dependencies or configuration",
         "ready": "Bereit",
         "securityScore": "Sicherheitsbewertung: {score}/100",

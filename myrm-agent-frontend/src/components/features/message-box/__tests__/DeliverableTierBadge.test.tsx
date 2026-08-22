@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
-import { DeliverableTierBadge } from '../DeliverableTierBadge';
 
 // Mock next-intl
 const deliverableTranslations: Record<string, string> = {
@@ -24,6 +23,14 @@ const stableT = (key: string) => deliverableTranslations[key] || key;
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
+
+vi.mock('@/components/primitives/hover-card', () => ({
+  HoverCard: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  HoverCardTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  HoverCardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+import { DeliverableTierBadge } from '../DeliverableTierBadge';
 
 describe('DeliverableTierBadge', () => {
   it('renders verified tier badge correctly', () => {

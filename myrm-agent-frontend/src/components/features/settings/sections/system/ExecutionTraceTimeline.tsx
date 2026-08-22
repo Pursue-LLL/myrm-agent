@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
+  IconBrain,
   IconCheckCircle,
   IconChevronDown,
   IconChevronRight,
@@ -265,6 +266,31 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
                   </span>
                 )}
               </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {trace.memory_events && trace.memory_events.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-xs font-semibold text-muted-foreground mb-2 mt-4 px-1 flex items-center gap-1.5">
+            <IconBrain className="w-3.5 h-3.5 text-purple-500" />
+            <span>{t('memoryEvents', { defaultMessage: 'Context Injections & Memory' })}</span>
+          </div>
+          {trace.memory_events.map((me, idx) => (
+            <div
+              key={`me-${me.id || idx}`}
+              className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-2.5 transition-all text-xs"
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="font-medium text-foreground">{me.title || me.phase}</span>
+                {me.influence_count > 0 && (
+                  <span className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
+                    {t('influenceCount', { count: me.influence_count, defaultMessage: `Influenced turns: ${me.influence_count}` })}
+                  </span>
+                )}
+              </div>
+              {me.summary && <p className="text-muted-foreground text-[11px] leading-relaxed line-clamp-2">{me.summary}</p>}
             </div>
           ))}
         </div>

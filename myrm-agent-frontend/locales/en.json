@@ -13,7 +13,9 @@
     "rollbackSuccess": "Successfully rolled back to last-known-good configuration",
     "rollbackFailed": "Rollback failed",
     "exportSuccess": "Diagnostic bundle exported",
-    "exportFailed": "Failed to export diagnostic bundle"
+    "exportFailed": "Failed to export diagnostic bundle",
+    "dualTabChat": "Chat",
+    "dualTabTrace": "Trace"
   },
   "emptyState": {
     "defaultTitle": "No Data",
@@ -3189,6 +3191,7 @@
         "createdAt": "Created",
         "updatedAt": "Updated",
         "idleWarning": "Unused for 30+ days, consider freezing or archiving",
+        "archivedReason": "This skill has been archived",
         "usageStats": "Called {count} times",
         "neverUsed": "Never used",
         "tokenCostTooltip": "Context cost: ~{count} tokens per conversation",
@@ -5695,7 +5698,9 @@
         "firstIrrecoverable": "First point of no recovery",
         "recoverySteps": "Recovery steps",
         "securityLabels": "Security Labels",
-        "securityFlag": "Security"
+        "securityFlag": "Security",
+        "memoryEvents": "Context Injections & Memory",
+        "influenceCount": "Influenced turns: {count}"
       },
       "replay": {
         "title": "Session Replay",

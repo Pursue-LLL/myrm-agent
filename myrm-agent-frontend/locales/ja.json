@@ -13,7 +13,9 @@
     "rollbackSuccess": "最後に確認された正常な構成に正常にロールバックしました",
     "rollbackFailed": "ロールバックに失敗しました",
     "exportSuccess": "診断バンドルをエクスポートしました",
-    "exportFailed": "診断バンドルのエクスポートに失敗しました"
+    "exportFailed": "診断バンドルのエクスポートに失敗しました",
+    "dualTabChat": "対話",
+    "dualTabTrace": "実行トレース"
   },
   "emptyState": {
     "defaultTitle": "データがありません",
@@ -3131,9 +3133,6 @@
           "empty": "カスタムソースが設定されていません",
           "emptyDesc": ".well-known/skills エンドポイントを追加するとプライベートスキルを発見できます",
           "alreadyExists": "ソースは既に存在します"
-        },
-        "detail": {
-          "noDescription": "説明はありません。"
         }
       },
       "market": {
@@ -3172,6 +3171,7 @@
         "createdAt": "作成時間",
         "updatedAt": "更新日時",
         "idleWarning": "30 日以上未使用です。フリーズまたはアーカイブを検討してください",
+        "archivedReason": "このスキルはアーカイブされています",
         "usageStats": "{count} 回呼び出されました",
         "neverUsed": "未使用",
         "tokenCostTooltip": "コンテキストコスト：会話ごとに約 {count} tokens",
@@ -5395,7 +5395,9 @@
         "firstIrrecoverable": "回復不能になった最初のエラーポイント",
         "recoverySteps": "回復手順",
         "securityLabels": "セキュリティラベル",
-        "securityFlag": "セキュリティ"
+        "securityFlag": "セキュリティ",
+        "memoryEvents": "コンテキスト注入とメモリ",
+        "influenceCount": "影響を受けたターン数: {count}"
       },
       "replay": {
         "title": "セッションリプレイ",

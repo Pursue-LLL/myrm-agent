@@ -13,11 +13,13 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
   if (data.type === H.AgentEventType.ROUTING_DECISION) {
     const routingData = data.data as
       | {
-          tier?: 'simple' | 'standard' | 'reasoning' | 'complex';
+          tier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
+          specialty?: 'code' | 'long_doc' | 'reasoning' | 'multimodal' | 'casual' | 'general';
           model_tier?: 'weak' | 'medium';
         }
       | undefined;
     const tier = routingData?.tier;
+    const specialty = routingData?.specialty;
     const modelTier = routingData?.model_tier;
     if (typeof window !== 'undefined') {
       const afterPush = () => {
@@ -60,10 +62,11 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
       (window as unknown as { __MYRM_ROUTING_DIAG__?: unknown[] }).__MYRM_ROUTING_DIAG__ = diagArr;
       console.warn('[MYRM_ROUTING_DIAG]', JSON.stringify(diag));
     }
-    if (tier || modelTier) {
+    if (tier || specialty || modelTier) {
       ctx.meta = {
         ...(ctx.meta ?? {}),
         ...(tier ? { routingTier: tier } : {}),
+        ...(specialty ? { routingSpecialty: specialty } : {}),
         ...(modelTier ? { modelTier } : {}),
       };
       if (!added) {
@@ -74,6 +77,7 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
             chatId: H.resolveStreamChatId(ctx.state),
             role: 'assistant',
             routingTier: tier,
+            routingSpecialty: specialty,
             modelTier,
             createdAt: new Date(),
             metadata: data.metadata,
@@ -86,6 +90,9 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
           if (messageIndex !== -1) {
             if (tier) {
               state.messages[messageIndex].routingTier = tier;
+            }
+            if (specialty) {
+              state.messages[messageIndex].routingSpecialty = specialty;
             }
             if (modelTier) {
               state.messages[messageIndex].modelTier = modelTier;

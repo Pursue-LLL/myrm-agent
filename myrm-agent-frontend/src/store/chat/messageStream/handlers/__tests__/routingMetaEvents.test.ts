@@ -115,6 +115,34 @@ describe('routingMetaEvents', () => {
     expect(mockSetMessages).not.toHaveBeenCalled();
   });
 
+  it('updates routingSpecialty and routingTier on existing assistant message (added=true)', async () => {
+    const ctx = makeCtx({
+      data: { type: 'routing_decision', messageId: 'msg-1', data: { tier: 'code', specialty: 'code' } } as never,
+    });
+    let captured: Record<string, unknown> = {};
+    mockSetMessages.mockImplementation((updater: (s: Record<string, unknown>) => void) => {
+      const draft: Record<string, unknown> = {
+        messages: [
+          {
+            messageId: 'msg-1',
+            chatId: 'c1',
+            role: 'assistant',
+            content: 'def solve(): pass',
+            createdAt: new Date(),
+          },
+        ],
+      };
+      updater(draft);
+      captured = draft;
+    });
+
+    await routingMetaEvents(ctx);
+    expect(mockSetMessages).toHaveBeenCalledTimes(1);
+    const messages = captured.messages as Array<Record<string, unknown>>;
+    expect(messages[0].routingTier).toBe('code');
+    expect(messages[0].routingSpecialty).toBe('code');
+  });
+
   it('handles model_tier-only events (weak model, no routing)', async () => {
     const ctx = makeCtx({
       data: { type: 'routing_decision', messageId: 'msg-1', data: { model_tier: 'weak' } } as never,

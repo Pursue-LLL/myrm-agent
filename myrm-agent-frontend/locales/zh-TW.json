@@ -13,7 +13,9 @@
     "rollbackSuccess": "已成功回滾至最近良好配置",
     "rollbackFailed": "回滾失敗",
     "exportSuccess": "已匯出排障診斷包",
-    "exportFailed": "匯出診斷包失敗"
+    "exportFailed": "匯出診斷包失敗",
+    "dualTabChat": "對話",
+    "dualTabTrace": "執行軌跡"
   },
   "emptyState": {
     "defaultTitle": "暫無資料",
@@ -3066,6 +3068,7 @@
         "scanWarningDesc": "技能「{name}」發現 {count} 個安全問題。請檢視以下詳情後再決定是否繼續安裝。",
         "scanCancel": "取消",
         "scanConfirm": "仍然安裝",
+        "noDescription": "暫無描述。",
         "allTags": "全部",
         "sortDefault": "預設",
         "sortStars": "最受歡迎",
@@ -3130,9 +3133,6 @@
           "empty": "未配置自定義源",
           "emptyDesc": "添加 .well-known/skills 端點來發現私有技能",
           "alreadyExists": "源已存在"
-        },
-        "detail": {
-          "noDescription": "暫無描述"
         }
       },
       "market": {
@@ -3171,6 +3171,7 @@
         "createdAt": "建立時間",
         "updatedAt": "更新時間",
         "idleWarning": "近30天未被任何智慧體呼叫，建議凍結或歸檔",
+        "archivedReason": "該技能已被歸檔",
         "usageStats": "已呼叫 {count} 次",
         "neverUsed": "從未呼叫",
         "tokenCostTooltip": "上下文開銷：每次對話約 {count} tokens",

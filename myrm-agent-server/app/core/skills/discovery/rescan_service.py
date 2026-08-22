@@ -76,9 +76,12 @@ class SkillRescanService:
         acks_file: Path | None = None,
     ) -> None:
         self._acks_file = acks_file or _DEFAULT_ACKS_FILE
-        self._registry = AdvisoryAckRegistry()
-        if self._acks_file.exists():
-            self._registry.load_from_disk(self._acks_file)
+        if engine is not None and getattr(engine, "ack_registry", None) is not None:
+            self._registry = engine.ack_registry
+        else:
+            self._registry = AdvisoryAckRegistry()
+            if self._acks_file.exists():
+                self._registry.load_from_disk(self._acks_file)
 
         self._engine = engine or InstalledSkillRescanEngine(ack_registry=self._registry)
         self._last_report: RescanReport | None = None
@@ -160,7 +163,7 @@ class SkillRescanService:
             if auto_quarantine and res.has_critical_or_malware:
                 # Disable compromised skill to prevent execution
                 try:
-                    await skills_service.user_config.disable_local_skill(user_id, s_name)
+                    await skills_service.user_config.disable_local_skill(s_name)
                     quarantined = True
                     report.quarantined_count += 1
                     quarantined_any = True

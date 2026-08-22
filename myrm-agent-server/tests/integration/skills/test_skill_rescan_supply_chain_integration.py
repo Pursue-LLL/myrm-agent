@@ -88,10 +88,10 @@ async def test_full_supply_chain_rescan_compromise_and_quarantine_integration(
     )
 
     user_id = "test_user_integration"
-    await bind_skills_service.user_config.enable_local_skill(user_id, "clean-tool")
-    await bind_skills_service.user_config.enable_local_skill(user_id, "compromised-tool")
+    await bind_skills_service.user_config.enable_local_skill("clean-tool")
+    await bind_skills_service.user_config.enable_local_skill("compromised-tool")
 
-    user_cfg = await bind_skills_service.user_config.get_config(user_id)
+    user_cfg = await bind_skills_service.user_config.get_config()
     assert "clean-tool" in user_cfg.enabled_local_skill_ids
     assert "compromised-tool" in user_cfg.enabled_local_skill_ids
 
@@ -103,12 +103,7 @@ async def test_full_supply_chain_rescan_compromise_and_quarantine_integration(
     custom_rescan_service = SkillRescanService(engine=engine, acks_file=acks_file)
 
     event_bus = get_event_bus()
-    captured_events = []
-
-    async def _capture_listener(event):
-        captured_events.append(event)
-
-    event_bus.subscribe(AppEventType.SKILL_POOL_UPDATED, _capture_listener)
+    event_queue = event_bus.subscribe()
 
     with (
         patch("app.api.skills.rescan.require_local_skills_capability"),
@@ -138,11 +133,16 @@ async def test_full_supply_chain_rescan_compromise_and_quarantine_integration(
         assert item_map["compromised-tool"]["unacked_advisories_count"] == 1
 
         # 4. Verify user_config state
-        updated_cfg = await bind_skills_service.user_config.get_config(user_id)
+        updated_cfg = await bind_skills_service.user_config.get_config()
         assert "clean-tool" in updated_cfg.enabled_local_skill_ids
         assert "compromised-tool" not in updated_cfg.enabled_local_skill_ids
 
         # 5. Verify event bus broadcast
+        captured_events = []
+        while not event_queue.empty():
+            ev = event_queue.get_nowait()
+            if ev.event_type == AppEventType.SKILL_POOL_UPDATED:
+                captured_events.append(ev)
         assert len(captured_events) >= 1
         assert captured_events[0].data.get("action") == "quarantine"
 
@@ -208,6 +208,7 @@ async def test_supply_chain_advisory_ack_and_reinstatement_integration(
         )
         assert ack_resp.status_code == 200
         assert ack_resp.json()["advisory_id"] == "MAL-2022-004"
+        assert custom_rescan_service._registry.is_acked("MAL-2022-004", "ctx") is True
 
         # List acks
         list_resp = rescan_client.get("/api/v1/skills/advisories/acks")

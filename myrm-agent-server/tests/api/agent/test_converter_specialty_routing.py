@@ -66,13 +66,13 @@ class TestTaskSpecialtyRoutingIntegration:
 
             params, routing_tier, warnings, _ = await convert_to_general_agent_params(request, [])
 
-        assert params.model == "claude-3-7-sonnet-20250219"
-        assert params.fallback_model == "deepseek-coder"
+        assert params.model_cfg.model == "claude-3-7-sonnet-20250219"
+        assert params.fallback_model_cfg.model == "deepseek-coder"
         assert routing_tier == "code"
 
     @pytest.mark.asyncio
     async def test_long_doc_specialty_routing_applied(self, base_request_data: dict[str, object]) -> None:
-        base_request_data["query"] = "Please summarize this full transcript document: " + "word " * 500
+        base_request_data["query"] = "请帮我总结这份全文长文档与整份报告内容: " + "word " * 500
         request = AgentRequest(**base_request_data)
 
         with (
@@ -90,17 +90,19 @@ class TestTaskSpecialtyRoutingIntegration:
 
             params, routing_tier, warnings, _ = await convert_to_general_agent_params(request, [])
 
-        assert params.model == "gemini-1.5-pro"
+        assert params.model_cfg.model == "gemini-1.5-pro"
         assert routing_tier == "long_doc"
 
     @pytest.mark.asyncio
     async def test_fail_open_to_complexity_router_when_no_specialty_configured(
         self, base_request_data: dict[str, object]
     ) -> None:
-        # Clear specialty slots
+        # Clear specialty slots and add light/reasoning slots to enable complexity routing
         del base_request_data["code_model_selection"]
         del base_request_data["fallback_code_model_selection"]
         del base_request_data["long_doc_model_selection"]
+        base_request_data["light_model_selection"] = _selection("openai", "gpt-4o-mini")
+        base_request_data["reasoning_model_selection"] = _selection("deepseek", "deepseek-reasoner")
         request = AgentRequest(**base_request_data)
 
         with (
@@ -118,5 +120,5 @@ class TestTaskSpecialtyRoutingIntegration:
 
             params, routing_tier, warnings, _ = await convert_to_general_agent_params(request, [])
 
-        # Should fall open to default model_selection
+        # Should fall open to complexity router
         assert routing_tier in ("standard", "reasoning", "simple")

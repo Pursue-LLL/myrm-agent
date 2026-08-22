@@ -2420,3 +2420,19 @@ class TestSyntheticRun:
         completed_events = [e for e in events if e["kind"] == "completed"]
         assert len(completed_events) == 1
         assert completed_events[0]["run_id"] == run_id
+
+    def test_run_response_includes_token_usage_and_cost_usd(self, client: TestClient) -> None:
+        """Verify RunResponse schema supports token_usage and cost_usd."""
+        board = _create_board(client, "CostRunBoard")
+        tid = str(_create_task(client, board["board_id"], "CostTask")["task_id"])
+
+        client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "completed", "result": "ok"},
+        )
+
+        runs = client.get(f"/api/v1/kanban/tasks/{tid}/runs").json()["items"]
+        assert len(runs) == 1
+        assert "token_usage" in runs[0]
+        assert "cost_usd" in runs[0]
+

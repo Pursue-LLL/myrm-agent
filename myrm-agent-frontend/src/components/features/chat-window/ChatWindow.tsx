@@ -125,6 +125,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const [advisorQuestion, setAdvisorQuestion] = useState('');
   const [advisorSelection, setAdvisorSelection] = useState<string | undefined>();
   const [routeHydrationEpoch, setRouteHydrationEpoch] = useState(0);
+  const [activeTab, setActiveTab] = useState<'chat' | 'trace'>('chat');
+  const recoveryT = useTranslations('recovery');
 
   useEffect(() => {
     if (!id) {

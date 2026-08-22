@@ -13,7 +13,9 @@
     "rollbackSuccess": "已成功回滚至最近良好配置",
     "rollbackFailed": "回滚失败",
     "exportSuccess": "已导出排障诊断包",
-    "exportFailed": "导出诊断包失败"
+    "exportFailed": "导出诊断包失败",
+    "dualTabChat": "对话",
+    "dualTabTrace": "执行轨迹"
   },
   "emptyState": {
     "defaultTitle": "暂无数据",
@@ -3151,9 +3153,6 @@
           "empty": "未配置自定义源",
           "emptyDesc": "添加 .well-known/skills 端点来发现私有技能",
           "alreadyExists": "源已存在"
-        },
-        "detail": {
-          "noDescription": "暂无描述"
         }
       },
       "market": {
@@ -3192,6 +3191,7 @@
         "createdAt": "创建时间",
         "updatedAt": "更新时间",
         "idleWarning": "近30天未被任何智能体调用，建议冻结或归档",
+        "archivedReason": "该技能已被归档",
         "usageStats": "已调用 {count} 次",
         "neverUsed": "从未调用",
         "tokenCostTooltip": "上下文开销：每次对话约 {count} tokens",

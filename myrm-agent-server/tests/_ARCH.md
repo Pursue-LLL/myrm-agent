@@ -73,7 +73,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/skills/test_permission_service.py` | 模块 | 技能权限 service 单测：async/sync checker、per-session 缓存命中/未命中、缓存清理、DB 脏值跳过（覆盖率 100%） |
 | `services/skills/test_permission_gate_integration.py` | 模块 | 技能权限 gate 装配链路集成（真实 checker + SkillBoundaryProvider + GuardrailMiddleware；授权/拒绝/无技能/MCP 绕过/网络工具） |
 | `services/skills/test_permission_gate_real_db_integration.py` | 模块 | 技能权限 gate 真实 DB 全链路集成（无 mock）：grant 行写入 SQLite → 缓存读取 → gate 决策；revoke 清缓存实时失效；脏值跳过 |
-| `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/边界护栏措辞/references 段落 + batch import/curator/discovery 等 7 文件） |
+| `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/边界护栏措辞/references 段落 + batch import/curator/discovery 等 7 文件） + `test_skill_rescan_supply_chain_integration.py`（供应链重扫全链路集成：真实磁盘包提取、OSV缓存/已知通告、AdvisoryAck 确认治理、自动隔离下架与事件总线广播） |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_deliverable_seed_fixture.py` | 模块 | deliverable link fixture seed HTTP 单测（`/chats/test/seed-deliverable-link-fixture`） |
 | `core/artifacts/test_processor_short_file_id.py` | 模块 | LocalArtifactProcessor 透传 `short_file_id` → artifacts SSE JSON |
