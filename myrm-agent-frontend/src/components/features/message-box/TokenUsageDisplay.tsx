@@ -128,7 +128,7 @@ interface TokenUsageDisplayProps {
   cacheBreakReason?: string;
   cacheSuggestedActions?: string;
   modelName?: string;
-  routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex';
+  routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
   modelTier?: 'weak' | 'medium';
   privacyLevel?: SensitivityLevel;
   privacyAction?: string;
@@ -559,7 +559,11 @@ export default function TokenUsageDisplay({
                             ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
                             : routingTier === 'reasoning'
                               ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
-                              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                              : routingTier === 'code'
+                                ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400'
+                                : routingTier === 'long_doc'
+                                  ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
+                                  : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
                         }`}
                       >
                         {t(
@@ -567,7 +571,11 @@ export default function TokenUsageDisplay({
                             ? 'routingSimple'
                             : routingTier === 'reasoning'
                               ? 'routingReasoning'
-                              : 'routingStandard',
+                              : routingTier === 'code'
+                                ? 'routingCode'
+                                : routingTier === 'long_doc'
+                                  ? 'routingLongDoc'
+                                  : 'routingStandard',
                         )}
                       </span>
                     )}

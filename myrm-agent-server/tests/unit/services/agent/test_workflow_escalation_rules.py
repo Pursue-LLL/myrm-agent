@@ -8,7 +8,6 @@ from app.services.agent.stream_session.workflow_escalation import (
     should_auto_escalate_workflow_for_session,
     should_bypass_dw_for_admission,
     should_suggest_workflow,
-    should_suggest_workflow_for_session,
 )
 
 

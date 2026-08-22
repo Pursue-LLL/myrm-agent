@@ -7282,7 +7282,7 @@
     "providerDisabledWarning": "Dieser Anbieter ist deaktiviert"
   },
   "chat": {
-    "uploadFailed": "Der Upload ist fehlgeschlagen",
+    "uploadFailed": "Upload fehlgeschlagen",
     "jumpBar": {
       "ariaLabel": "Konversationsnavigation",
       "title": "Nachrichtennavigation",
@@ -7776,7 +7776,23 @@
       "deep_research_8": "Analysieren Sie die Machbarkeit, Rust C++ in der Systemprogrammierung zu ersetzen",
       "deep_research_9": "Recherchieren Sie Kommerzialisierungspfade für Open-Source-Großmodelle",
       "deep_research_10": "Studieren Sie die praktische Wirksamkeit von Federated Learning beim Datenschutz",
-      "deep_research_11": "Analysieren Sie Quantencomputing-Bedrohungen für aktuelle Verschlüsselung und Gegenmaßnahmen"
+      "deep_research_11": "Analysieren Sie Quantencomputing-Bedrohungen für aktuelle Verschlüsselung und Gegenmaßnahmen",
+      "time_morning_0": "Helfen Sie mir, die wichtigsten Aufgaben für heute zu priorisieren",
+      "time_morning_1": "Standup-Agenda und offene To-Do-Punkte strukturieren",
+      "time_morning_2": "Wichtige Branchen-Updates und Watchlist für heute zusammenfassen",
+      "time_morning_3": "E-Mail zur teamübergreifenden Abstimmung und Fortschrittsaktualisierung verfassen",
+      "time_afternoon_0": "Projektarchitektur und Sicherheitsgrenzen eingehend überprüfen",
+      "time_afternoon_1": "Zukunftsorientierten Bewertungsbericht für Technologieentscheidungen erstellen",
+      "time_afternoon_2": "Geschäftskennzahlen analysieren und Optimierungsstrategien ableiten",
+      "time_afternoon_3": "Nebenläufigkeit und Fehlerbehandlung dieses Kernmoduls optimieren",
+      "time_evening_0": "Zusammenfassung der heutigen Arbeitsergebnisse und Hindernisse erstellen",
+      "time_evening_1": "Wichtige Entscheidungen und Fakten von heute im Langzeitgedächtnis sichern",
+      "time_evening_2": "Ziele für morgen organisieren und Erinnerungsnotizen anlegen",
+      "time_evening_3": "Wöchentliche technische Erkenntnisse in einer Wiki-Wissenskarte bündeln",
+      "time_night_0": "Refactoring-Strategien und Schnittstellenisolierung für komplexe Systeme strukturieren",
+      "time_night_1": "Engpässe bei der Zeit- und Speicherkomplexität von Algorithmen analysieren",
+      "time_night_2": "Persönliche Wissensdatenbank organisieren und veraltete Notizen archivieren",
+      "time_night_3": "Gliederung für einen technischen Blogbeitrag und Kernargumente verfassen"
     },
     "cancel_request": "Anfrage stornieren",
     "performanceDiagnostics": "Leistungsdiagnostik",
@@ -7976,7 +7992,6 @@
       "dismiss": "Vielleicht später",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
     },
-    "uploadFailed": "Upload fehlgeschlagen",
     "skillActivation": {
       "remove": "Ausgewählte Fähigkeiten entfernen"
     },
@@ -8231,6 +8246,14 @@
     "archiveRestore": {
       "invalidTitle": "Archivwiederherstellung fehlgeschlagen",
       "invalidDescription": "Archivierter Kontext konnte nicht wiederhergestellt werden: {error}"
+    },
+    "lifeOperator": {
+      "contextHeader": "Zeitbezogene Arbeits- & Lebens-Operatoren",
+      "morning": "Morgen-Fokus",
+      "afternoon": "Nachmittags-Sprint",
+      "evening": "Abend-Rückblick",
+      "night": "Nächtliche Tiefenarbeit",
+      "all": "Alle erkunden"
     }
   },
   "mode": {

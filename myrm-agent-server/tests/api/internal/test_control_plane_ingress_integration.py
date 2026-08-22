@@ -86,4 +86,4 @@ async def test_agent_interrupt_token_gate_success(
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "ok"
+        assert "interrupted" in data

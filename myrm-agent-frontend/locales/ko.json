@@ -7282,7 +7282,7 @@
     "providerDisabledWarning": "이 공급자가 비활성화되었습니다"
   },
   "chat": {
-    "uploadFailed": "업로드 실패",
+    "uploadFailed": "업로드에 실패했습니다",
     "jumpBar": {
       "ariaLabel": "대화 탐색",
       "title": "메시지 탐색",
@@ -7776,7 +7776,23 @@
       "deep_research_8": "시스템 프로그래밍에서 Rust가 C++를 대체할 가능성 분석",
       "deep_research_9": "오픈소스 대형 모델의 상업화 경로 연구",
       "deep_research_10": "프라이버시 보호에서 연합 학습의 실효성 연구",
-      "deep_research_11": "양자 컴퓨팅이 현재 암호화에 미치는 위협과 대응책 분석"
+      "deep_research_11": "양자 컴퓨팅이 현재 암호화에 미치는 위협과 대응책 분석",
+      "time_morning_0": "오늘의 핵심 우선순위 업무 일정 계획하기",
+      "time_morning_1": "스탠드업 미팅 안건 및 미완료 할 일 정리하기",
+      "time_morning_2": "오늘의 주요 업계 동향 및 관심 목록 요약하기",
+      "time_morning_3": "오늘의 부서 간 협업 및 진행 상황 공유 이메일 초안 작성하기",
+      "time_afternoon_0": "현재 프로젝트의 핵심 아키텍처 및 보안 경계 심층 검토하기",
+      "time_afternoon_1": "기술 스택 선정에 대한 미래 전망 평가 보고서 작성하기",
+      "time_afternoon_2": "비즈니스 지표 데이터를 분석하고 최적화 전략 도출하기",
+      "time_afternoon_3": "핵심 코드 모듈의 동시성 및 예외 처리 최적화하기",
+      "time_evening_0": "오늘의 업무 성과 및 장애물 회고 요약 생성하기",
+      "time_evening_1": "오늘 논의된 핵심 결정사항과 사실을 장기 기억에 저장하기",
+      "time_evening_2": "내일의 업무 목표를 정리하고 메모 알림 설정하기",
+      "time_evening_3": "이번 주의 기술적 학습 내용을 Wiki 지식 카드로 정리하기",
+      "time_night_0": "복잡한 시스템 리팩터링 방향 및 경계 격리 방안 정리하기",
+      "time_night_1": "알고리즘의 시간 및 공간 복잡도 병목 심층 분석하기",
+      "time_night_2": "개인 지식 베이스를 정리하고 오래된 노트 아카이브하기",
+      "time_night_3": "기술 블로그 개요 작성 및 핵심 주장 정리하기"
     },
     "cancel_request": "요청 취소",
     "performanceDiagnostics": "성능 진단",
@@ -7976,7 +7992,6 @@
       "dismiss": "나중에",
       "apiKeysHint": "API 키 이름이 감지되었습니다 — 설정에서 값을 직접 입력하세요"
     },
-    "uploadFailed": "업로드에 실패했습니다",
     "skillActivation": {
       "remove": "선택한 스킬 제거"
     },
@@ -8231,6 +8246,14 @@
     "archiveRestore": {
       "invalidTitle": "아카이브 복원 실패",
       "invalidDescription": "아카이브된 컨텍스트를 복원할 수 없습니다: {error}"
+    },
+    "lifeOperator": {
+      "contextHeader": "시간대별 상황 운영자",
+      "morning": "아침 핵심",
+      "afternoon": "오후 집중",
+      "evening": "저녁 회고",
+      "night": "심야 몰입",
+      "all": "전체 탐색"
     }
   },
   "mode": {

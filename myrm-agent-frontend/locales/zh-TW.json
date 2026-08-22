@@ -8295,7 +8295,23 @@
       "deep_research_8": "全面分析 Rust 在系統程式設計領域取代 C++ 的可行性",
       "deep_research_9": "深度調研開源大模型的商業化路徑",
       "deep_research_10": "研究聯邦學習在隱私保護中的實際應用效果",
-      "deep_research_11": "分析量子計算對現有加密體系的潛在威脅與應對策略"
+      "deep_research_11": "分析量子計算對現有加密體系的潛在威脅與應對策略",
+      "time_morning_0": "幫我規劃今日核心要事優先級排期",
+      "time_morning_1": "幫我拆解晨會工作與未完成待辦事項",
+      "time_morning_2": "彙總今日關鍵行業資訊與關注清單",
+      "time_morning_3": "起草一封今日跨團隊協作與進度同步郵件",
+      "time_afternoon_0": "幫我深度審查當前工程的核心架構與安全邊界",
+      "time_afternoon_1": "針對當前技術選型撰寫一份前瞻性評估報告",
+      "time_afternoon_2": "分析業務指標數據並推演優化策略",
+      "time_afternoon_3": "幫我優化這段核心業務代碼的併發與異常處理",
+      "time_evening_0": "幫我做一份今日工作產出與卡點複盤總結",
+      "time_evening_1": "將今天討論的關鍵決策與事實沉澱入長期記憶",
+      "time_evening_2": "梳理明天的工作目標並生成備忘提醒",
+      "time_evening_3": "提煉本週技術積累並整理為 Wiki 知識卡片",
+      "time_night_0": "幫我梳理複雜系統的重構思路與邊界隔離",
+      "time_night_1": "深度推演算法實現的時間與空間複雜度瓶頸",
+      "time_night_2": "整理個人知識庫並歸檔過時筆記",
+      "time_night_3": "撰寫技術部落格大綱並提煉核心論點"
     },
     "subagent": {
       "viewResults": "檢視結果"
@@ -8430,6 +8446,14 @@
     "archiveRestore": {
       "invalidTitle": "封存復原失敗",
       "invalidDescription": "無法復原封存上下文：{error}"
+    },
+    "lifeOperator": {
+      "contextHeader": "時段情境操作算子",
+      "morning": "晨間要事",
+      "afternoon": "午後衝刺",
+      "evening": "晚間複盤",
+      "night": "深夜專注",
+      "all": "全部探索"
     }
   },
   "mode": {
@@ -16937,7 +16961,6 @@
     "openDetailLabel": "開啟專案 {name}",
     "deleteLabel": "刪除專案 {name}"
   },
-  "error": "錯誤",
   "memoryRecallBoundary": {
     "title": "審查優先召回邊界 (Review-First Recall Boundary)",
     "subtitle": "任務級知識訪問範圍隔離、四記憶職責分區與候選審查閘門",
