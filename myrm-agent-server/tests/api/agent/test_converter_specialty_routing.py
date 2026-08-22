@@ -64,7 +64,7 @@ class TestTaskSpecialtyRoutingIntegration:
         ):
             from app.services.agent.params.converter import convert_to_general_agent_params
 
-            params, routing_tier, warnings, _ = await convert_to_general_agent_params(request, [])
+            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
 
         assert params.model_cfg.model == "claude-3-7-sonnet-20250219"
         assert params.fallback_model_cfg.model == "deepseek-coder"
@@ -88,7 +88,7 @@ class TestTaskSpecialtyRoutingIntegration:
         ):
             from app.services.agent.params.converter import convert_to_general_agent_params
 
-            params, routing_tier, warnings, _ = await convert_to_general_agent_params(request, [])
+            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
 
         assert params.model_cfg.model == "gemini-1.5-pro"
         assert routing_tier == "long_doc"
@@ -118,7 +118,7 @@ class TestTaskSpecialtyRoutingIntegration:
         ):
             from app.services.agent.params.converter import convert_to_general_agent_params
 
-            params, routing_tier, warnings, _ = await convert_to_general_agent_params(request, [])
+            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
 
         # Should fall open to complexity router
         assert routing_tier in ("standard", "reasoning", "simple")

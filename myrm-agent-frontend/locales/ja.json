@@ -5395,9 +5395,7 @@
         "firstIrrecoverable": "回復不能になった最初のエラーポイント",
         "recoverySteps": "回復手順",
         "securityLabels": "セキュリティラベル",
-        "securityFlag": "セキュリティ",
-        "memoryEvents": "コンテキスト注入と記憶",
-        "influenceCount": "影響を受けたターン: {count}"
+        "securityFlag": "セキュリティ"
       },
       "replay": {
         "title": "セッションリプレイ",

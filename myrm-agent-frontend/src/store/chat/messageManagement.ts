@@ -437,6 +437,11 @@ function parseMessages(raw: Message[]): Message[] {
       parsed.contextBudget = rawBudget as Message['contextBudget'];
     }
 
+    const rawDeliverableTier = metadata.deliverableTier ?? metadata.deliverable_tier;
+    if (rawDeliverableTier && typeof rawDeliverableTier === 'object' && !parsed.deliverableTier) {
+      parsed.deliverableTier = rawDeliverableTier as Message['deliverableTier'];
+    }
+
     return parsed;
   });
 }

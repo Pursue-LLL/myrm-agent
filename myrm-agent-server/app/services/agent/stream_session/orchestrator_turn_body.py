@@ -471,6 +471,7 @@ async def execute_agent_turn_after_reserve(
         cancel_token=cancel_token,
         steering_token=steering_token,
         routing_tier=routing_tier,
+        routing_specialty=routing_specialty,
         context_warnings=context_warnings,
         archive_restore_results=archive_restore_results,
         research_model_cfg=research_model_cfg,
