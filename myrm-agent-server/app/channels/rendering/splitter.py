@@ -12,12 +12,9 @@ are properly closed and reopened across chunk boundaries.
 - BOUNDARY_CHARS / CJK_BOUNDARY_CHARS: shared smart-split punctuation sets
 
 [POS]
-Smart long-message splitter. Line-by-line processing with fence state machine,
-auto-closing and reopening code blocks that span chunks. "escape" fence protection
-2. Enhanced: Supports both ``` and ~~~ fences (3-10 symbols)
-3. Smart: Intelligent line splitting at whitespace/punctuation boundaries (ASCII + CJK full-width)
-4. Configurable: Overflow tolerance for semantic preservation
-5. Exports: `BOUNDARY_CHARS`, `CJK_BOUNDARY_CHARS` for cross-module punctuation SSOT
+Smart long-message splitter for IM outbound delivery. Line-by-line fence state machine
+(auto-close/reopen ``` and ~~~ fences across chunks), ASCII/CJK punctuation boundaries,
+overflow tolerance, and shared boundary-char exports for provider-specific splitters.
 """
 
 from __future__ import annotations

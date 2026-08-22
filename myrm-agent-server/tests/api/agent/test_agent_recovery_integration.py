@@ -42,7 +42,7 @@ async def test_agent_startup_recovery_full_flow_integration() -> None:
         assert "health_report" in diag_data
         assert "recent_snapshots" in diag_data
 
-        # 3. Create real agent, save snapshot, and test rollback success flow
+        # 3. Create real agent, mutate profile, and test rollback success flow
         create_res = await client.post(
             "/api/v1/user-agents",
             json={
@@ -56,19 +56,13 @@ async def test_agent_startup_recovery_full_flow_integration() -> None:
         assert create_res.status_code == 200
         created_id = create_res.json()["data"]["id"]
 
-        # Save snapshot
-        snap_res = await client.post(
-            f"/api/v1/user-agents/{created_id}/snapshots",
-            json={"reason": "integration_test_baseline"},
-        )
-        assert snap_res.status_code == 200
-
-        # Update profile to dirty state
+        # Update profile to dirty state (mutating triggers auto-snapshot)
         update_res = await client.put(
             f"/api/v1/user-agents/{created_id}",
             json={"system_prompt": "Dirty mutated prompt."},
         )
         assert update_res.status_code == 200
+        assert update_res.json()["data"]["snapshot_saved"] is True
 
         # Rollback via recovery endpoint
         rollback_res = await client.post(f"/api/v1/agents/{created_id}/recovery/rollback")

@@ -1,81 +1,100 @@
 'use client';
 
-import { render, screen } from '@testing-library/react';
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-
-const stableT = (key: string) => key;
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-}));
-
-const mockStore: Record<string, unknown> = {
-  actionMode: 'agent',
-  inputMessage: '',
-  agentConfig: null,
-};
-
-vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: typeof mockStore) => unknown) => selector(mockStore),
-}));
-
 import SamplePrompts from '../SamplePrompts';
 
-describe('SamplePrompts', () => {
-  beforeEach(() => {
-    mockStore.actionMode = 'agent';
-    mockStore.agentConfig = null;
-  });
+const mockSetInputMessage = vi.fn();
 
-  it('renders prompt chips for agent mode', () => {
-    render(<SamplePrompts />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(4);
-  });
-
-  it('renders prompt chips for fast mode', () => {
-    mockStore.actionMode = 'fast';
-    render(<SamplePrompts />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(4);
-  });
-
-  it('falls back to agent mode for deep_research (hidden product mode)', () => {
-    mockStore.actionMode = 'deep_research';
-    render(<SamplePrompts />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(4);
-    buttons.forEach((btn) => {
-      expect(btn.textContent).toMatch(/^samplePrompts\.agent_/);
-    });
-  });
-
-  it('falls back to agent mode for unsupported modes', () => {
-    mockStore.actionMode = 'claude_code';
-    render(<SamplePrompts />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(4);
-    buttons.forEach((btn) => {
-      expect(btn.textContent).toMatch(/^samplePrompts\.agent_/);
-    });
-  });
-
-  it('uses agent custom suggestion prompts when available', () => {
-    mockStore.agentConfig = {
-      suggestionPrompts: [
-        'Custom prompt A',
-        'Custom prompt B',
-        'Custom prompt C',
-        'Custom prompt D',
-        'Custom prompt E',
-      ],
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      'samplePrompts.time_morning_0': 'Morning Key Priority 0',
+      'samplePrompts.time_morning_1': 'Morning Key Priority 1',
+      'samplePrompts.time_morning_2': 'Morning Key Priority 2',
+      'samplePrompts.time_morning_3': 'Morning Key Priority 3',
+      'samplePrompts.time_afternoon_0': 'Afternoon Sprint 0',
+      'samplePrompts.time_afternoon_1': 'Afternoon Sprint 1',
+      'samplePrompts.time_afternoon_2': 'Afternoon Sprint 2',
+      'samplePrompts.time_afternoon_3': 'Afternoon Sprint 3',
+      'samplePrompts.time_evening_0': 'Evening Retro 0',
+      'samplePrompts.time_evening_1': 'Evening Retro 1',
+      'samplePrompts.time_evening_2': 'Evening Retro 2',
+      'samplePrompts.time_evening_3': 'Evening Retro 3',
+      'samplePrompts.time_night_0': 'Night Deep Work 0',
+      'samplePrompts.time_night_1': 'Night Deep Work 1',
+      'samplePrompts.time_night_2': 'Night Deep Work 2',
+      'samplePrompts.time_night_3': 'Night Deep Work 3',
+      'samplePrompts.agent_0': 'Agent Prompt 0',
+      'samplePrompts.fast_0': 'Fast Prompt 0',
+      'lifeOperator.morning': 'Morning Focus',
+      'lifeOperator.afternoon': 'Afternoon Sprint',
+      'lifeOperator.evening': 'Evening Retro',
+      'lifeOperator.night': 'Night Deep Work',
+      'lifeOperator.all': 'Explore All',
     };
+    return translations[key] ?? key;
+  },
+}));
+
+vi.mock('@/store/useChatStore', () => ({
+  __esModule: true,
+  default: (selector: (state: any) => any) => {
+    const state = {
+      actionMode: 'agent',
+      setInputMessage: mockSetInputMessage,
+      agentConfig: null,
+    };
+    return selector(state);
+  },
+}));
+
+vi.mock('@/store/useProgressionStore', () => ({
+  useProgressionStore: (selector: (state: any) => any) => {
+    const state = {
+      currentLevel: 1,
+    };
+    return selector(state);
+  },
+}));
+
+describe('SamplePrompts with Context-Aware Life Operator', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders time slot tabs and prompt chips', () => {
     render(<SamplePrompts />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(4);
-    const texts = buttons.map((btn) => btn.textContent);
-    texts.forEach((text) => {
-      expect(text).toMatch(/^Custom prompt/);
-    });
+    expect(screen.getByText('Morning Focus')).toBeInTheDocument();
+    expect(screen.getByText('Afternoon Sprint')).toBeInTheDocument();
+    expect(screen.getByText('Evening Retro')).toBeInTheDocument();
+    expect(screen.getByText('Night Deep Work')).toBeInTheDocument();
+    expect(screen.getByText('Explore All')).toBeInTheDocument();
+  });
+
+  it('switches time slots and updates displayed prompts when clicking tabs', () => {
+    render(<SamplePrompts />);
+    
+    // Click Afternoon tab
+    fireEvent.click(screen.getByText('Afternoon Sprint'));
+    expect(screen.getByText('Afternoon Sprint 0')).toBeInTheDocument();
+    expect(screen.getByText('Afternoon Sprint 1')).toBeInTheDocument();
+
+    // Click Evening tab
+    fireEvent.click(screen.getByText('Evening Retro'));
+    expect(screen.getByText('Evening Retro 0')).toBeInTheDocument();
+    expect(screen.getByText('Evening Retro 1')).toBeInTheDocument();
+  });
+
+  it('injects structured prompt into chat store input message when prompt chip clicked', () => {
+    render(<SamplePrompts />);
+    
+    // Click Afternoon tab
+    fireEvent.click(screen.getByText('Afternoon Sprint'));
+    const chip = screen.getByText('Afternoon Sprint 0');
+    fireEvent.click(chip);
+
+    expect(mockSetInputMessage).toHaveBeenCalledWith('Afternoon Sprint 0');
   });
 });

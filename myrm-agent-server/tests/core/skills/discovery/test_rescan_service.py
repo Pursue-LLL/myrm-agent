@@ -4,22 +4,16 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from app.api.skills.rescan_schemas import (
-    AdvisoryAckRequest,
-    AdvisoryUnackRequest,
-    RescanTriggerRequest,
-)
-from app.core.skills.discovery.rescan_service import SkillRescanService
-from fastapi.testclient import TestClient
 from myrm_agent_harness.backends.skills.scanning.rescan_engine import (
     SkillRescanResult,
 )
 from myrm_agent_harness.backends.skills.scanning.scanner import (
-    ScanFinding,
     ScanSeverity,
     SkillTrustRecommendation,
 )
 from myrm_agent_harness.backends.skills.scanning.security_advisories import AdvisoryFinding
+
+from app.core.skills.discovery.rescan_service import SkillRescanService
 
 
 @pytest.mark.asyncio

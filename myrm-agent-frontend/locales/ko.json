@@ -2827,6 +2827,7 @@
       },
       "detail": {
         "title": "스킬 상세",
+        "noDescription": "스킬 설명이 제공되지 않았습니다",
         "close": "닫기",
         "enable": "스킬 활성화",
         "disable": "스킬 비활성화",

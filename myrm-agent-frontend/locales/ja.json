@@ -8376,14 +8376,6 @@
       "dismiss": "後で",
       "apiKeysHint": "API キー名を検出しました — 設定で手動入力してください"
     },
-    "uploadFailed": "アップロードに失敗しました",
-    "skillActivation": {
-      "remove": "選択したスキルを削除"
-    },
-    "workflowTemplateArmed": {
-      "label": "ピン留めしたテンプレート",
-      "disarm": "ピン留めを解除"
-    },
     "snapshot": {
       "createdTitle": "システムスナップショットを作成しました",
       "createdMessage": {

@@ -648,6 +648,19 @@ class KanbanTaskRunner:
                 ):
                     acc.add(event)
 
+                if task.metadata is not None:
+                    if acc.usage:
+                        task.metadata["last_token_usage"] = acc.usage
+                    if acc.cost_usd is not None:
+                        task.metadata["last_cost_usd"] = acc.cost_usd
+                else:
+                    meta = {}
+                    if acc.usage:
+                        meta["last_token_usage"] = acc.usage
+                    if acc.cost_usd is not None:
+                        meta["last_cost_usd"] = acc.cost_usd
+                    task.metadata = meta
+
                 return acc.to_result()
             finally:
                 await finalize_agent_session(

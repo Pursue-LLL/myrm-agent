@@ -7511,6 +7511,8 @@
       "routingSimple": "Leicht",
       "routingStandard": "Standardmodus",
       "routingReasoning": "Argumentation",
+      "routingCode": "Code",
+      "routingLongDoc": "Langes Dokument",
       "privacyLevel": "Datenschutz",
       "privacyS2": "Sensibel",
       "privacyS3": "Vertraulich",
