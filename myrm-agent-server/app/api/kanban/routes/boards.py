@@ -31,6 +31,8 @@ from app.api.kanban.schemas import (
     BoardResponse,
     BoardSummaryResponse,
     BoardUpdate,
+    PlanRevisionRequest,
+    PlanRevisionResponse,
 )
 
 # ---------------------------------------------------------------------------
@@ -218,3 +220,66 @@ async def list_board_events(
         items=[BoardEventResponse(**e) for e in events],
         total=len(events),
     )
+
+
+@router.post("/boards/{board_id}/replan", response_model=PlanRevisionResponse)
+async def revise_board_plan(
+    board_id: str,
+    body: PlanRevisionRequest,
+) -> PlanRevisionResponse:
+    """Atomically revise board tasks and DAG dependency edges."""
+    from myrm_agent_harness.toolkits.kanban.protocols import (
+        PlanRevisionSpec,
+        TaskRevisionItem,
+    )
+
+    if body.board_id != board_id:
+        raise HTTPException(400, "Path board_id does not match request body board_id")
+
+    svc = get_kanban_service()
+    board = await svc.get_board(board_id)
+    if board is None:
+        raise HTTPException(404, f"Board {board_id} not found")
+
+    items = [
+        TaskRevisionItem(
+            action=c.action,
+            task_id=c.task_id,
+            title=c.title,
+            description=c.description,
+            priority=c.priority,
+            agent_id=c.agent_id,
+            model_override=c.model_override,
+            extra_skill_ids=tuple(c.extra_skill_ids),
+            depends_on=tuple(c.depends_on),
+        )
+        for c in body.task_changes
+    ]
+    add_edges = [(e[0], e[1]) for e in body.add_edges if len(e) == 2]
+    remove_edges = [(e[0], e[1]) for e in body.remove_edges if len(e) == 2]
+
+    spec = PlanRevisionSpec(
+        board_id=board_id,
+        rationale=body.rationale,
+        task_changes=tuple(items),
+        add_edges=tuple(add_edges),
+        remove_edges=tuple(remove_edges),
+        author=body.author,
+    )
+
+    outcome = await svc.revise_plan(spec)
+    if not outcome.ok:
+        raise HTTPException(400, f"Plan revision rejected: {outcome.reason}")
+
+    return PlanRevisionResponse(
+        ok=outcome.ok,
+        board_id=outcome.board_id,
+        reason=outcome.reason,
+        added_task_ids=list(outcome.added_task_ids),
+        updated_task_ids=list(outcome.updated_task_ids),
+        removed_task_ids=list(outcome.removed_task_ids),
+        added_edges=[list(e) for e in outcome.added_edges],
+        removed_edges=[list(e) for e in outcome.removed_edges],
+        persisted=outcome.persisted,
+    )
+

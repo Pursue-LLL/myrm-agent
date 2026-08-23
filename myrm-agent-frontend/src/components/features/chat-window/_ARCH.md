@@ -79,6 +79,9 @@
 | `SubagentTree.tsx`      | 组件 | 子代理树视图：`SubagentTreeNode` 递归节点（展开/折叠、状态图标、cost/tokens/model/进度/耗时、验证徽章 `subagent-verification-badge`（PASS/FAIL + findings 展开）、steer/cancel/重新发起/审批跳转、overtime/stale 告警、teammate 消息、stream、取消确认弹窗）+ 聚合徽章 + role/scope 格式化；依赖 `SubagentStream`                                                                                                                                                                | ✅    |
 | `SubagentGantt.tsx`     | 组件 | 子代理迷你甘特图：基于 startedAt/duration 的并行时间条（状态色条、相对缩放），少于 2 个时间跨度的节点时隐藏；折叠开关 `subagent-gantt-toggle`、容器 `subagent-gantt` 供 E2E 选择                                                                                                                                                                                                                                                                                                 | ✅    |
 | `SubagentStream.tsx`    | 组件 | 子代理状态图标（12 态 STATUS_ICON_MAP）与实时流条目展示（NodeStream/StreamLine：tool/progress/thinking/error 字形 + 耗时 + 滚动跟随）                                                                                                                                                                                                                                                                                                                                            | ✅    |
+| `StageTaskCountStrip.tsx` | 组件 | 阶段级任务计数实时微条（Scope / Fan-out / Verify / Synthesize 四阶段任务统计与上游阻塞指示） | ✅ |
+| `SubagentInsightsView.tsx` | 组件 | 子代理多维度统计与洞察视图（跨智能体类型耗时/成本基准、离群异常高亮与 LoopGuard 治理建议） | ✅ |
+| `SubagentDetailDrawer.tsx` | 组件 | 子代理单任务深度检查抽屉（Overview / Journal 逐步回放 / Tool Calls / Teammate 跨节点通信） | ✅ |
 
 ## goals/
 

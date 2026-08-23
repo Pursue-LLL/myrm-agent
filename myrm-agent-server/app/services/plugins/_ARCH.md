@@ -8,6 +8,7 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
+| `__init__.py` | 包入口 | 统一导出插件服务模块公开 API | ✅ |
 | `import_service.py` | 门面 | 插件导入编排门面：ZIP 解析包装（archive security → 结构化错误）、预览构建（含同名冲突标记）、confirm 落盘编排（同名技能原位升级 + MCP 落盘 + bundled 文件持久化）、`list_installed_plugins`（按 plugin_name 溯源分组列出已导入插件，含每个 server 的 `enabled` 状态 `server_meta`，供插件管理 UI 展示启用状态）、`uninstall_plugin`（卸载：删 MCP 条目 + 解绑 Agent + 删文件）、`_load_existing_skill_ids` 冲突 SSOT，并 re-export 会话/模型/持久化符号 | ✅ |
 | `_models.py` | 模型 | `PluginImportSession` / `PluginConfirmItem` 业务层 DTO | ✅ |
 | `_staging.py` | 存储 | `PluginStaging` 导入会话持久化（pickle + 24h TTL 清理） | ✅ |

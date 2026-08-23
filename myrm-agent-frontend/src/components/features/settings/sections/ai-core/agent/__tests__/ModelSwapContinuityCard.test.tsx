@@ -4,17 +4,19 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ModelSwapContinuityCard } from '../ModelSwapContinuityCard';
 import type { AgentCapabilitiesTabProps } from '../AgentCapabilitiesTab';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) {
-      let str = key;
-      for (const [k, v] of Object.entries(params)) {
-        str += `:${k}=${v}`;
-      }
-      return str;
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params) {
+    let str = key;
+    for (const [k, v] of Object.entries(params)) {
+      str += `:${k}=${v}`;
     }
-    return key;
-  },
+    return str;
+  }
+  return key;
+};
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/llm-config', () => ({

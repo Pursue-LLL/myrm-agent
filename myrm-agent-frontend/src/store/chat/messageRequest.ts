@@ -802,6 +802,7 @@ export const createMessageRequest = async (
         dialog_policy: agentConfig?.dialogPolicy,
         session_recording: agentConfig?.sessionRecording,
         auto_restore_domains: agentConfig?.autoRestoreDomains ?? [],
+        orchestration_mode: state.isWorkflowMode ? 'orchestrated' : (agentConfig?.orchestrationMode ?? 'standard'),
         ...(kanbanDefaultBoardId && { kanban_default_board_id: kanbanDefaultBoardId }),
       },
     }),

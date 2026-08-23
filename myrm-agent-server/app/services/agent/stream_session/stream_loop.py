@@ -225,17 +225,25 @@ async def iter_agent_stream_chunks(
             ).to_sse_chunk()
 
     stream: AsyncIterable[str | dict[str, object]]
+    use_workflow_requested = (
+        session.request.use_workflow
+        or (
+            session.request.agent_config is not None
+            and session.request.agent_config.orchestration_mode == "orchestrated"
+        )
+    )
     if session.request.action_mode == "deep_research":
         stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
-    elif (session.request.use_workflow or session.request.workflow_template_id) and not should_bypass_dw_for_admission(session):
+    elif (use_workflow_requested or session.request.workflow_template_id) and not should_bypass_dw_for_admission(session):
         from app.services.agent.stream_session.stream_lane_factory import (
             create_dynamic_workflow_stream,
         )
 
         logger.info(
-            "Dynamic Workflow Engine activated for message_id=%s template_id=%s",
+            "Dynamic Workflow Engine activated for message_id=%s template_id=%s orchestration_mode=%s",
             session.params.message_id,
             session.request.workflow_template_id,
+            session.request.agent_config.orchestration_mode if session.request.agent_config else None,
         )
         stream = create_dynamic_workflow_stream(
             session.params,
@@ -247,7 +255,7 @@ async def iter_agent_stream_chunks(
         )
     elif (
         session.request.resume_value is None
-        and not session.request.use_workflow
+        and not use_workflow_requested
         and not session.request.workflow_template_id
         and should_auto_escalate_workflow_for_session(session)
     ):

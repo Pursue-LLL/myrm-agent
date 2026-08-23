@@ -2435,3 +2435,72 @@ class TestSyntheticRun:
         assert len(runs) == 1
         assert "token_usage" in runs[0]
         assert "cost_usd" in runs[0]
+
+    def test_replan_endpoint_atomic_execution(self, client: TestClient) -> None:
+        """Test POST /boards/{board_id}/replan endpoint."""
+        board = _create_board(client, "ReplanApiBoard")
+        bid = str(board["board_id"])
+        t1 = str(_create_task(client, bid, "Step1")["task_id"])
+
+        replan_payload = {
+            "board_id": bid,
+            "rationale": "Add post-processing step",
+            "task_changes": [
+                {
+                    "action": "add",
+                    "task_id": "step2_id",
+                    "title": "Step 2 Post Process",
+                    "description": "Clean artifacts",
+                    "depends_on": [t1],
+                },
+                {
+                    "action": "update",
+                    "task_id": t1,
+                    "title": "Step 1 Renamed",
+                },
+            ],
+            "add_edges": [[t1, "step2_id"]],
+            "remove_edges": [],
+            "author": "api_test",
+        }
+
+        resp = client.post(f"/api/v1/kanban/boards/{bid}/replan", json=replan_payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["board_id"] == bid
+        assert "step2_id" in data["added_task_ids"]
+        assert t1 in data["updated_task_ids"]
+
+        # Verify task fetched
+        t2_resp = client.get("/api/v1/kanban/tasks/step2_id")
+        assert t2_resp.status_code == 200
+        assert t2_resp.json()["title"] == "Step 2 Post Process"
+        assert t2_resp.json()["status"] == "backlog"
+
+    def test_replan_completed_task_rejection(self, client: TestClient) -> None:
+        """Test replan cannot tamper with completed tasks."""
+        board = _create_board(client, "ReplanTamperBoard")
+        bid = str(board["board_id"])
+        t1 = str(_create_task(client, bid, "DoneStep")["task_id"])
+
+        # Move t1 to completed
+        client.post(f"/api/v1/kanban/tasks/{t1}/move", json={"status": "completed"})
+
+        replan_payload = {
+            "board_id": bid,
+            "rationale": "Attempt to remove completed task",
+            "task_changes": [
+                {
+                    "action": "remove",
+                    "task_id": t1,
+                }
+            ],
+            "add_edges": [],
+            "remove_edges": [],
+        }
+
+        resp = client.post(f"/api/v1/kanban/boards/{bid}/replan", json=replan_payload)
+        assert resp.status_code == 400
+        assert "Cannot modify task" in resp.json()["detail"]
+

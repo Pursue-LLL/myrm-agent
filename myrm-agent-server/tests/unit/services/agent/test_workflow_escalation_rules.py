@@ -136,6 +136,16 @@ class TestShouldSuggestWorkflow:
         assert should_suggest_workflow(query, routing_tier="reasoning") is True
 
 
+    def test_agent_config_request_orchestration_mode(self) -> None:
+        from app.services.agent.params.models import AgentConfigRequest
+
+        cfg = AgentConfigRequest(orchestration_mode="orchestrated")
+        assert cfg.orchestration_mode == "orchestrated"
+
+        cfg_default = AgentConfigRequest()
+        assert cfg_default.orchestration_mode is None
+
+
 class TestExtractText:
     """Tests for the multimodal text extraction helper."""
 

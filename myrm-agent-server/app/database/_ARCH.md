@@ -19,7 +19,7 @@
 | `connection.py` | ✅ 核心 | 数据库连接管理（异步会话工厂）；`get_db` 提供的会话生命周期与单次 HTTP 请求一致；`init_database` 在 `run_migrations` 前执行 fail-closed pre-migration backup，并在初始化后经由 `validate_schema_gate_async` 执行 Fail-Closed Schema Gate 门禁校验 |
 | `factory.py` | ✅ 核心 | SQLite 数据库引擎和会话工厂创建。`PRAGMA foreign_keys=ON` + WAL + 异步连接池（`SQLITE_POOL_SIZE` 默认 5 / `max_overflow` 默认 10，dev stack 注入 8/8）+ `PRAGMA busy_timeout`（`get_sqlite_busy_timeout_ms()` / `SQLITE_BUSY_TIMEOUT_MS`，dev stack 注入 15s）+ mmap。事务策略（`register_sqlite_transaction_events`）：`begin` 事件发普通 `BEGIN`（deferred，WAL 快照读无锁），`before_cursor_execute` 检测 DML/DDL，**纯写事务首条语句升级为 `BEGIN IMMEDIATE`**（空事务 COMMIT 后重入，写锁等待由 SQLite busy handler 在 aiosqlite worker 线程完成，**不阻塞 asyncio 事件循环**），**读-改-写事务保持 deferred 快照**（防丢失更新；并发写冲突时由 busy handler 转 503 让客户端重试）。早期实现曾对每个事务（含读）无条件 `BEGIN IMMEDIATE`，导致并行 E2E 读请求也抢写锁、`database is locked` 风暴；更早还用 `time.sleep` 重试，会在写竞争时冻结事件循环导致 API 全线变慢。Sandbox 模式下 `settings.database.sqlite_path` 指向 CP 挂载卷 |
 | `migrations.py` | ✅ 核心 | 数据库迁移引擎集成。使用 Harness 层的 `StatefulMigrationEngine` 执行版本化 SQL 迁移。支持精准计时 (`duration_ms`)、基线平滑升级 (Baseline)、慢查询捕获和结构化失败报告。状态持久化在 `_schema_migrations` 和 `_schema_indexes` 表中 |
-| `allowlist_store.py` | ✅ 核心 | DBAllowlistStore — allowlist database persistence (AllowlistStore Protocol). All methods accept `user_id` param per protocol. Provides load/save/remove operations with UUID primary keys |
+| `allowlist_store.py` | ✅ 核心 | DBAllowlistStore — allowlist database persistence (AllowlistStore Protocol). All methods accept `user_id` and optional `agent_id` param per protocol for hosted MCP scope isolation. Provides load/save/remove operations with UUID primary keys |
 | `dto.py` | ✅ 核心 | 数据传输对象（DTO）定义 |
 
 ---

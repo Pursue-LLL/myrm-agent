@@ -67,6 +67,10 @@ class AgentConfigRequest(BaseModel):
         description="Browser session recording mode (off/on_failure/always)",
     )
     auto_restore_domains: list[str] = []
+    orchestration_mode: str | None = Field(
+        default=None,
+        description="Explicit orchestration mode ('standard' for Direct-FC or 'orchestrated' for PTC Dynamic Workflow)",
+    )
     kanban_default_board_id: str | None = Field(
         default=None,
         description="Chat session target kanban board for LLM tool default_board_id",

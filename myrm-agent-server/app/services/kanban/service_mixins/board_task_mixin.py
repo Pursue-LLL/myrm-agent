@@ -20,6 +20,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from myrm_agent_harness.toolkits.kanban.protocols import (
+    PlanRevisionOutcome,
+    PlanRevisionSpec,
+)
 from myrm_agent_harness.toolkits.kanban.types import (
     BlockKind,
     BoardSettings,
@@ -50,6 +54,9 @@ from app.services.kanban.dependency_ops import (
 )
 from app.services.kanban.dependency_ops import (
     remove_dependency as run_remove_dependency,
+)
+from app.services.kanban.replan_ops import (
+    revise_plan as run_revise_plan,
 )
 from app.services.kanban.move_orchestrator import (
     cancel_task_execution as run_cancel_task_execution,
@@ -308,3 +315,12 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             reason=reason,
             wake_dispatcher=self._wake_dispatcher,
         )
+
+    async def revise_plan(self, spec: PlanRevisionSpec) -> PlanRevisionOutcome:
+        return await run_revise_plan(
+            self._store,
+            self._dispatchers,
+            spec,
+            wake_dispatcher=self._wake_dispatcher,
+        )
+

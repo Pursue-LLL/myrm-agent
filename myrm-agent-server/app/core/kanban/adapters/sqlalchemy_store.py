@@ -594,9 +594,6 @@ class SqlAlchemyKanbanStore:
                     )
                     session.add(task_to_model(new_task))
                     added_tids.append(tid)
-                    for pid in deps:
-                        edge_m = KanbanTaskEdgeModel(parent_task_id=pid, child_task_id=tid)
-                        session.add(edge_m)
 
                 elif item.action == "update" and item.task_id:
                     m = await session.get(KanbanTaskModel, item.task_id)
@@ -631,6 +628,25 @@ class SqlAlchemyKanbanStore:
                         )
                         removed_tids.append(m.id)
 
+            # Flush tasks before adding edges to ensure foreign keys resolve
+            await session.flush()
+
+            # Add implicit edges from depends_on in added tasks
+            for item in spec.task_changes:
+                if item.action == "add" and item.depends_on:
+                    child_tid = item.task_id or ""
+                    for pid in item.depends_on:
+                        edge_exist = await session.execute(
+                            select(KanbanTaskEdgeModel).where(
+                                KanbanTaskEdgeModel.parent_task_id == pid,
+                                KanbanTaskEdgeModel.child_task_id == child_tid,
+                            )
+                        )
+                        if edge_exist.scalar_one_or_none() is None:
+                            session.add(KanbanTaskEdgeModel(parent_task_id=pid, child_task_id=child_tid))
+
+            await session.flush()
+
             # Explicit remove edges
             for p_id, c_id in spec.remove_edges:
                 await session.execute(
@@ -650,6 +666,9 @@ class SqlAlchemyKanbanStore:
                 )
                 if edge_exist.scalar_one_or_none() is None:
                     session.add(KanbanTaskEdgeModel(parent_task_id=p_id, child_task_id=c_id))
+
+            await session.flush()
+
 
             # Audit events
             for tid in added_tids + updated_tids + removed_tids:

@@ -689,3 +689,49 @@ export async function instantiatePipeline(
     body: JSON.stringify(data),
   });
 }
+
+// ==================== Formal Replanner (DAG Revision) ====================
+
+export interface PlanRevisionItem {
+  action: 'add' | 'update' | 'remove';
+  task_id?: string;
+  title?: string;
+  description?: string;
+  priority?: TaskPriority;
+  agent_id?: string;
+  model_override?: string;
+  extra_skill_ids?: string[];
+  depends_on?: string[];
+}
+
+export interface PlanRevisionRequest {
+  board_id: string;
+  rationale: string;
+  task_changes: PlanRevisionItem[];
+  add_edges?: [string, string][];
+  remove_edges?: [string, string][];
+  author?: string;
+}
+
+export interface PlanRevisionResult {
+  ok: boolean;
+  board_id: string;
+  reason: string;
+  added_task_ids: string[];
+  updated_task_ids: string[];
+  removed_task_ids: string[];
+  added_edges: [string, string][];
+  removed_edges: [string, string][];
+  persisted: boolean;
+}
+
+export async function reviseBoardPlan(
+  boardId: string,
+  data: PlanRevisionRequest,
+): Promise<PlanRevisionResult> {
+  return apiRequest(`/kanban/boards/${boardId}/replan`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+

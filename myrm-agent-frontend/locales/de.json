@@ -2644,9 +2644,6 @@
           "empty": "Keine benutzerdefinierten Quellen konfiguriert",
           "emptyDesc": "Fügen Sie einen .well-known/skills-Endpunkt hinzu, um private Fähigkeiten zu entdecken",
           "alreadyExists": "Quelle existiert bereits"
-        },
-        "detail": {
-          "noDescription": "Keine Beschreibung vorhanden."
         }
       },
       "market": {
@@ -4288,6 +4285,24 @@
         "downloadCta": "Zur Download-Seite gehen"
       }
     },
+    "lifecycleWebhook": {
+      "title": "Lebenszyklus-Outbound-Webhooks",
+      "description": "Senden Sie HMAC-SHA256-signierte HTTP-POST-Benachrichtigungen an externe Systeme (Slack/Teams/Zapier/Eigene APIs), wenn Agent-Sitzungen abgeschlossen werden, fehlschlagen, Genehmigungen erfordern oder Kanban-Aufgaben aktualisiert werden.",
+      "endpointsTitle": "Webhook-Endpunkte",
+      "addEndpoint": "Webhook hinzufügen",
+      "newEndpoint": "Neuen Webhook-Endpunkt konfigurieren",
+      "endpointName": "Endpunktname",
+      "payloadUrl": "Payload-URL",
+      "signingSecret": "HMAC-Signatur-Geheimnis (Optional)",
+      "generateRandom": "Zufällig generieren",
+      "subscribedEvents": "Abonnierte Ereignisse",
+      "saveEndpoint": "Endpunkt speichern",
+      "saving": "Speichern...",
+      "cancel": "Abbrechen",
+      "testPing": "Verbindungstest",
+      "noEndpoints": "Keine Outbound-Webhooks konfiguriert",
+      "noEndpointsDesc": "Konfigurieren Sie ausgehende Webhooks, um Status- und Lebenszyklusereignisse des Agenten in Echtzeit an externe Workflows zu senden."
+    },
     "integrationCatalog": {
       "title": "Service-Katalog",
       "description": "Durchsuchen und verbinden Sie Drittanbieterdienste. Ein-Klick-Einrichtung für beliebte Integrationen über MCP oder OpenAPI.",
@@ -4958,7 +4973,7 @@
         "recoverySteps": "Wiederherstellungsschritte",
         "securityLabels": "Sicherheitskennzeichnungen",
         "securityFlag": "Sicherheit",
-        "memoryEvents": "Kontextinjektionen und Gedächtnis",
+        "memoryEvents": "Kontextinjektion & Speicher",
         "influenceCount": "Beeinflusste Runden: {count}"
       },
       "replay": {
@@ -4993,8 +5008,6 @@
         "scrubSnapHint": "Loslassen, um zum nächsten Ereignis einzurasten",
         "securityLabels": "Sicherheitskennzeichnungen",
         "securityFlag": "Sicherheit",
-        "memoryEvents": "Kontextinjektion und Speicher",
-        "influenceCount": "Einflussrunden: {count}",
         "marker": {
           "tool": "Werkzeug",
           "llm": "LLM",
@@ -12089,6 +12102,20 @@
     "reclaimReassignLabel": "Agent neu zuweisen (optional)",
     "reclaimSuccess": "Aufgabe erfolgreich zurückgefordert",
     "reclaimFailed": "Aufgabe konnte nicht zurückgefordert werden",
+    "replanTitle": "Überprüfung der DAG-Planüberarbeitung",
+    "replanDescription": "Überprüfen Sie vorgeschlagene Änderungen am Aufgabengraph. Alle Änderungen werden auf Zyklenfreiheit geprüft und atomar angewendet.",
+    "replanAdded": "Hinzuzufügende Aufgaben",
+    "replanUpdated": "Zu aktualisierende Aufgaben",
+    "replanRemoved": "Zu entfernende Aufgaben",
+    "replanRationaleLabel": "Überarbeitungsgrund / Auslöser",
+    "replanRationalePlaceholder": "z. B. Fehlende Downstream-API-Datenabhängigkeiten festgestellt",
+    "replanRationaleRequired": "Ein Grund für die Planüberarbeitung ist erforderlich",
+    "replanChangesList": "Detaillierte Diff-Änderungen",
+    "replanNoChanges": "Keine Aufgabenänderungen vorgeschlagen",
+    "replanInvariantGuaranteed": "Abgeschlossene und in Prüfung befindliche Aufgaben sind streng gesperrt und werden nicht verändert. Die Zyklenfreiheit des DAG wird beim Commit validiert.",
+    "replanApply": "Planüberarbeitung anwenden",
+    "replanAppliedSuccess": "Planüberarbeitung erfolgreich angewendet",
+    "replanFailed": "Planüberarbeitung fehlgeschlagen",
     "confirm": "Bestätigen",
     "retries": "Wiederholungen",
     "status": {
@@ -12352,6 +12379,20 @@
     "openDetailsHint": "Für weitere Details doppelklicken Sie auf die Karte oder klicken Sie auf das Anhangssymbol",
     "viewAttachmentsHint": "Anhänge anzeigen",
     "pipelineWizardSelectMode": "Wählen Sie den Workflow-Modus",
+    "replanTitle": "DAG-Planüberarbeitungsprüfung",
+    "replanDescription": "Überprüfen Sie vorgeschlagene Änderungen am Aufgabengraph. Alle Änderungen werden auf Zyklenfreiheit validiert und atomar angewendet.",
+    "replanAdded": "Hinzuzufügende Aufgaben",
+    "replanUpdated": "Zu aktualisierende Aufgaben",
+    "replanRemoved": "Zu entfernende Aufgaben",
+    "replanRationaleLabel": "Überarbeitungsbegründung / Auslösergrund",
+    "replanRationalePlaceholder": "z. B. Fehlende API-Schema-Abhängigkeiten entdeckt",
+    "replanRationaleRequired": "Begründung für die Planüberarbeitung ist erforderlich",
+    "replanChangesList": "Detaillierte Diff-Änderungen",
+    "replanNoChanges": "Keine Aufgabenänderungen vorgeschlagen",
+    "replanInvariantGuaranteed": "Abgeschlossene und in Überprüfung befindliche Aufgaben sind streng geschützt und werden nicht geändert. DAG-Zyklenfreiheit wird bei der Übernahme validiert.",
+    "replanApply": "Planüberarbeitung anwenden",
+    "replanAppliedSuccess": "Planüberarbeitung erfolgreich angewendet",
+    "replanFailed": "Planüberarbeitung fehlgeschlagen",
     "approve": "Genehmigen",
     "approveSuccess": "Aufgabe genehmigt und abgeschlossen",
     "approveError": "Genehmigung der Aufgabe fehlgeschlagen",
