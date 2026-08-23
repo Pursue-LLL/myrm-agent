@@ -15,15 +15,6 @@ import logging
 import time
 from typing import Sequence
 
-from myrm_agent_harness.backends.skills.scanning.dependency_extractor import (
-    DeclaredDependency,
-)
-from myrm_agent_harness.backends.skills.scanning.osv_scanner import query_osv_batch
-from myrm_agent_harness.backends.skills.scanning.scanner import ScanSeverity
-from myrm_agent_harness.backends.skills.scanning.security_advisories import (
-    match_known_advisories,
-)
-from myrm_agent_harness.backends.skills.scanning.vuln_cache import get_vuln_cache
 from myrm_agent_harness.observability.diagnostics.protocols import (
     DiagnosticProtocol,
     HealthReport,

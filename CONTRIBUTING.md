@@ -129,7 +129,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `plugins` · `progression` · `risk` · `security` · `skill_optimization` · `skills` · `statistics` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
+`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `plugins` · `progression` · `risk` · `security` · `skill_optimization` · `skills` · `statistics` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 
@@ -160,7 +160,6 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `openai_compat/` | `services/agent/` streaming + `services/config/` |
 | `remote_access/` | `app/remote_access/` (pair tokens, tunnel, mobile hub gate) |
 | `voice/` · `stt/` · `tts/` · `media/` | `core/media/`, `services/agent/`, `app/tasks/` |
-| `cron/` | `core/cron/` + `services/kanban/` dispatch |
 | `tasks/` | `app/tasks/` executors |
 | `mcp/` | `services/connect/` MCP endpoint + `services/agent/` platform config |
 | `external_agents/` | harness ACP subscription auth (CLI login SSE) |

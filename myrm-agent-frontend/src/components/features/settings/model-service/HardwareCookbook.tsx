@@ -575,75 +575,42 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                                 }
                               />
                             </div>
-                            rec.est_tok_per_sec >= 20
-                              ? 'text-green-600 dark:text-green-400'
-                              : rec.est_tok_per_sec >= 8
-                                ? 'text-yellow-600 dark:text-yellow-400'
-                                : 'text-red-600 dark:text-red-400'
-                          }`}
-                        >
-                          ~{rec.est_tok_per_sec} tok/s
-                        </span>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
-                    <div className="flex flex-col items-end gap-1 min-w-[100px]">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium">Fit Score:</span>
-                        <span className={`text-sm font-bold ${getFitLevelColor(rec.fit_level).split(' ')[0]}`}>
-                          {rec.fit_score}%
-                        </span>
-                      </div>
-                      <Progress
-                        value={rec.fit_score}
-                        className="h-1.5 w-24"
-                        indicatorClassName={
-                          rec.fit_level === 'perfect' || rec.fit_level === 'good'
-                            ? 'bg-green-500'
-                            : rec.fit_level === 'fair'
-                              ? 'bg-yellow-500'
-                              : 'bg-red-500'
-                        }
-                      />
-                    </div>
-
-                    {isDownloading ? (
-                      <div className="flex flex-col items-end gap-1 w-full sm:w-[150px]">
-                        <div className="flex items-center justify-between w-full">
-                          <span
-                            className="text-[10px] text-muted-foreground truncate max-w-[120px]"
-                            title={downloadProgress?.status || t('downloading')}
-                          >
-                            {downloadProgress?.status || t('downloading')}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={handleCancelDownload}
-                            title={t('cancel')}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <Progress value={progressPercent} className="h-2 w-full" />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {rec.is_installed && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            disabled={isDeleting}
-                            onClick={() => handleDelete(rec.model_id)}
-                            title={t('delete')}
-                          >
-                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                          </Button>
-                        )}
+                            {isDownloading ? (
+                              <div className="flex flex-col items-end gap-1 w-full sm:w-[150px]">
+                                <div className="flex items-center justify-between w-full">
+                                  <span
+                                    className="text-[10px] text-muted-foreground truncate max-w-[120px]"
+                                    title={downloadProgress?.status || t('downloading')}
+                                  >
+                                    {downloadProgress?.status || t('downloading')}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-4 w-4 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={handleCancelDownload}
+                                    title={t('cancel')}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                <Progress value={progressPercent} className="h-2 w-full" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {rec.is_installed && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    disabled={isDeleting}
+                                    onClick={() => handleDelete(rec.model_id)}
+                                    title={t('delete')}
+                                  >
+                                    {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                  </Button>
+                                )}
                                 <Button
                                   size="sm"
                                   variant={rec.is_installed ? 'secondary' : idx === 0 ? 'default' : 'outline'}
@@ -661,19 +628,19 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                                       : undefined
                                   }
                                 >
-                          {rec.is_installed ? (
-                            t('installed')
-                          ) : (
-                            <>
-                              <Download className="w-3.5 h-3.5 mr-1.5" />
-                              {!hasEnoughDisk ? t('diskFull') : t('apply')}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                                  {rec.is_installed ? (
+                                    t('installed')
+                                  ) : (
+                                    <>
+                                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                                      {!hasEnoughDisk ? t('diskFull') : t('apply')}
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
               );
             })}
           </div>
