@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 SharedContextTargetType = Literal["agent", "channel", "cron", "conversation", "task"]
 SharedContextStatus = Literal["active", "archived"]
+SharedContextVisibility = Literal["private", "team", "restricted"]
 SharedContextProposalStatus = Literal["pending", "approved", "rejected"]
 SharedContextMemoryType = Literal["semantic", "episodic"]
 SharedContextMemoryHealthStatus = Literal["ready", "not_configured", "unreachable"]
@@ -32,6 +33,10 @@ class SharedContextItem(BaseModel):
     name: str
     description: str
     status: SharedContextStatus
+    visibility: SharedContextVisibility = "team"
+    access_count: int = 0
+    last_accessed_at: datetime | None = None
+    assigned_agent_ids: list[str] = Field(default_factory=list)
     policy: dict[str, object] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
@@ -64,6 +69,7 @@ class CreateSharedContextRequest(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=120)
     description: str | None = Field(None, max_length=2000)
+    visibility: SharedContextVisibility = Field(default="team")
     policy: dict[str, object] | None = None
 
 
@@ -73,6 +79,7 @@ class UpdateSharedContextRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=120)
     description: str | None = Field(None, max_length=2000)
     status: SharedContextStatus | None = None
+    visibility: SharedContextVisibility | None = None
     policy: dict[str, object] | None = None
 
 

@@ -39,6 +39,8 @@ import type {
   CronJob,
   CronJobsListResponse,
   CronRunsListResponse,
+  PrerequisiteCheckRequest,
+  PrerequisiteCheckResponse,
   UpdateCronJobRequest,
   UsageStatsResponse,
 } from './cron.types';
@@ -186,3 +188,14 @@ export async function fillBlueprint(
     }),
   });
 }
+
+export async function checkCronPrerequisite(
+  data: PrerequisiteCheckRequest,
+): Promise<PrerequisiteCheckResponse> {
+  return apiRequest('/cron/prerequisite-check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+

@@ -517,8 +517,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const openConfirmDialog = useMemoryStore((s) => s.openConfirmDialog);
   const memoryT = useTranslations('memory');
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'trace'>('chat');
-  const recoveryT = useTranslations('recovery');
   useEffect(() => {
     const prev = prevPendingCountRef.current;
     prevPendingCountRef.current = pendingCount;

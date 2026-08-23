@@ -12641,7 +12641,21 @@
       "actionDispatching": "待機中の実行エージェントにキューイング",
       "actionBacklog": "優先度を設定して実行をスケジュール",
       "actionDone": "タスクは正常に完了しました"
-    }
+    },
+    "replanTitle": "DAG 計画変更レビュー",
+    "replanDescription": "タスク依存関係グラフの変更提案をレビューします。変更は非巡回性が検証され、コミット時にアトミックに適用されます。",
+    "replanAdded": "追加予定のタスク",
+    "replanUpdated": "更新予定のタスク",
+    "replanRemoved": "削除予定のタスク",
+    "replanRationaleLabel": "改訂の理由 / トリガー",
+    "replanRationalePlaceholder": "例：APIスキーマの依存関係の欠落が判明したため",
+    "replanRationaleRequired": "計画変更には理由の入力が必要です",
+    "replanChangesList": "変更差分詳細",
+    "replanNoChanges": "変更提案はありません",
+    "replanInvariantGuaranteed": "完了およびレビュー中のタスクは保護され、変更されません。DAG の非巡回性はコミット時に保証されます。",
+    "replanApply": "計画改訂を適用",
+    "replanAppliedSuccess": "計画改訂が正常に適用されました",
+    "replanFailed": "計画改訂の適用に失敗しました"
   },
   "channels": {
     "sectionTitle": "メッセージチャネル",

@@ -17,6 +17,9 @@ class _ForceShellClient:
     def recover_mux_transport(self) -> None:
         self.recover_calls += 1
 
+    def reset_after_orphan(self) -> None:
+        self.recover_calls += 1
+
 
 class _ForceShellChat:
     def __init__(self) -> None:

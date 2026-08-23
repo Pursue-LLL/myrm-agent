@@ -36,6 +36,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | ├─ `instantiator.py` | ✅ 核心 | Pipeline 模板实例化；依赖父任务时继承 `source_chat_id`；`repeat_for_item_skills` 按平台注入 `extra_skill_ids` | ✅ |
 | └─ `spec_io.py` | ✅ 核心 | Pipeline frontmatter 解析；`TaskSeed.repeat_for_item_skills` 按 repeat 项注入技能 | ✅ |
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定；`update_board` 在 settings 变更时热刷新运行中 dispatcher（`refresh_board`） | ❌ |
+| `replan_ops.py` | ✅ 核心 | Plan Revision 业务编排：单事务原子修订、自动取消/熔断 RUNNING worker、级联 promote 解锁子任务与 SSE 广播 | ✅ |
 | `task_ops.py` | ✅ 核心 | Task add/update/delete；update 对 `require_approval` 有状态守卫（IN_REVIEW/COMPLETED/FAILED/ARCHIVED 禁改，仅活动状态 TRIAGE/BACKLOG/READY/RUNNING/BLOCKED 可改，避免审批流程开始后语义矛盾） | ❌ |
 | `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止）；COMPLETED 触发 worktree merge（失败追加 `MERGE_CONFLICT` 事件，payload 含 `conflicts` 文件列表）、ARCHIVED 触发 safe cleanup（dirty worktree 保留） | ❌ |
 | `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents、error 清空）、reject→READY（reason 回写 error、retry_count 重置），优先委托 dispatcher，fallback 走 store 原子 CAS 流转 + 统一 action（task_completed/task_rejected）+ 完成/驳回通知补发（emit_task_rejected）；非 IN_REVIEW 幂等 no-op | ✅ |

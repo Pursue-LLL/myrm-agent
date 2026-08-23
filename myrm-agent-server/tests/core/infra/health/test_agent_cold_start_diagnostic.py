@@ -25,9 +25,15 @@ async def test_agent_cold_start_diagnostic_fully_ready() -> None:
     mock_cache.warm_entry_count = 2
 
     with (
-        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=mock_configs),
+        ),
         patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
-        patch("app.services.agent.execution_cache.get_execution_cache", return_value=mock_cache),
+        patch(
+            "app.services.agent.execution_cache.get_execution_cache",
+            return_value=mock_cache,
+        ),
         patch("app.database.connection.get_session") as mock_get_session,
     ):
         mock_session_ctx = MagicMock()
@@ -61,15 +67,23 @@ async def test_agent_cold_start_diagnostic_cold_cache_ready() -> None:
     """Test AgentColdStartDiagnostic when cache is cold (0 warm units) but other components are ready."""
     diagnostic = AgentColdStartDiagnostic()
 
-    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet"))
+    mock_configs = SimpleNamespace(
+        model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet")
+    )
 
     mock_cache = MagicMock()
     mock_cache.warm_entry_count = 0
 
     with (
-        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=mock_configs),
+        ),
         patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
-        patch("app.services.agent.execution_cache.get_execution_cache", return_value=mock_cache),
+        patch(
+            "app.services.agent.execution_cache.get_execution_cache",
+            return_value=mock_cache,
+        ),
         patch("app.database.connection.get_session") as mock_get_session,
     ):
         mock_session_ctx = MagicMock()
@@ -103,9 +117,15 @@ async def test_agent_cold_start_diagnostic_unconfigured_model() -> None:
     mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model=""))
 
     with (
-        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=mock_configs),
+        ),
         patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
-        patch("app.services.agent.execution_cache.get_execution_cache", side_effect=Exception("no cache")),
+        patch(
+            "app.services.agent.execution_cache.get_execution_cache",
+            side_effect=Exception("no cache"),
+        ),
         patch("app.database.connection.get_session") as mock_get_session,
     ):
         mock_session_ctx = MagicMock()
@@ -136,9 +156,14 @@ async def test_agent_cold_start_diagnostic_storage_degraded() -> None:
     mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="test-gpt-4o"))
 
     with (
-        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=mock_configs),
+        ),
         patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
-        patch("app.database.connection.get_session", side_effect=Exception("DB locked")),
+        patch(
+            "app.database.connection.get_session", side_effect=Exception("DB locked")
+        ),
     ):
         report = await diagnostic.check_health()
 
@@ -187,7 +212,9 @@ async def test_dlq_diagnostic_healthy_and_pending_redelivery() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
+    with patch(
+        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
+    ):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "pass"
@@ -214,7 +241,9 @@ async def test_dlq_diagnostic_pending_backlog_warning() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
+    with patch(
+        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
+    ):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "warn"
@@ -240,13 +269,92 @@ async def test_dlq_diagnostic_critical_failures() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
+    with patch(
+        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
+    ):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "fail"
         assert report.code == "ERR_DLQ_CRITICAL"
         assert report.meta_data is not None
         assert report.meta_data["failed_count"] == 120
+        assert report.fix_suggestion is not None
+
+
+@pytest.mark.asyncio
+async def test_supply_chain_diagnostic_clean() -> None:
+    """Test SupplyChainDiagnostic when all dependencies are healthy."""
+    from app.core.infra.health.server_diagnostics import SupplyChainDiagnostic
+
+    diagnostic = SupplyChainDiagnostic()
+
+    mock_dist = MagicMock()
+    mock_dist.metadata = {"Name": "pydantic"}
+    mock_dist.version = "2.10.0"
+
+    with (
+        patch("importlib.metadata.distributions", return_value=[mock_dist]),
+        patch(
+            "app.core.infra.health.server_diagnostics.match_known_advisories",
+            return_value=[],
+        ),
+        patch(
+            "app.core.infra.health.server_diagnostics.query_osv_batch",
+            AsyncMock(return_value=[]),
+        ),
+    ):
+        report = await diagnostic.check_health()
+        assert report.component_name == "SupplyChainSecurity"
+        assert report.status == "pass"
+        assert report.code == "OK_SUPPLY_CHAIN_HEALTHY"
+        assert report.meta_data is not None
+        assert report.meta_data["packages_scanned_count"] == 1
+        assert report.meta_data["critical_vuln_count"] == 0
+        assert report.fix_suggestion is None
+
+
+@pytest.mark.asyncio
+async def test_supply_chain_diagnostic_critical_finding() -> None:
+    """Test SupplyChainDiagnostic when a critical malicious package is found."""
+    from myrm_agent_harness.backends.skills.scanning.scanner import ScanSeverity
+    from myrm_agent_harness.backends.skills.scanning.security_advisories import (
+        AdvisoryFinding,
+    )
+    from app.core.infra.health.server_diagnostics import SupplyChainDiagnostic
+
+    diagnostic = SupplyChainDiagnostic()
+
+    mock_dist = MagicMock()
+    mock_dist.metadata = {"Name": "malicious-pkg"}
+    mock_dist.version = "1.0.0"
+
+    crit_finding = AdvisoryFinding(
+        advisory_id="MAL-2026-001",
+        package_name="malicious-pkg",
+        ecosystem="PyPI",
+        severity=ScanSeverity.CRITICAL,
+        title="Token Stealer Malware",
+        description="Extracts environment tokens",
+        matched_version="1.0.0",
+    )
+
+    with (
+        patch("importlib.metadata.distributions", return_value=[mock_dist]),
+        patch(
+            "app.core.infra.health.server_diagnostics.match_known_advisories",
+            return_value=[crit_finding],
+        ),
+        patch(
+            "app.core.infra.health.server_diagnostics.query_osv_batch",
+            AsyncMock(return_value=[]),
+        ),
+    ):
+        report = await diagnostic.check_health()
+        assert report.component_name == "SupplyChainSecurity"
+        assert report.status == "fail"
+        assert report.code == "ERR_SUPPLY_CHAIN_CRITICAL_MALWARE"
+        assert report.meta_data is not None
+        assert report.meta_data["critical_vuln_count"] == 1
         assert report.fix_suggestion is not None
 
 

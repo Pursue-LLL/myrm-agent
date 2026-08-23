@@ -32,12 +32,14 @@ from app.database.models import (
 )
 
 SharedContextStatus = Literal["active", "archived"]
+SharedContextVisibility = Literal["private", "team", "restricted"]
 SharedContextTargetType = Literal["agent", "channel", "cron", "conversation", "task", "project"]
 SharedContextProposalStatus = Literal["pending", "approved", "rejected"]
 SharedContextMemoryType = Literal["semantic", "episodic"]
 
 _VALID_TARGET_TYPES: set[str] = {"agent", "channel", "cron", "conversation", "task", "project"}
 _VALID_CONTEXT_STATUSES: set[str] = {"active", "archived"}
+_VALID_VISIBILITIES: set[str] = {"private", "team", "restricted"}
 _VALID_PROPOSAL_STATUSES: set[str] = {"pending", "approved", "rejected"}
 _VALID_MEMORY_TYPES: set[str] = {"semantic", "episodic"}
 _IDEMPOTENT_PROPOSAL_SOURCE_TYPES: frozenset[str] = frozenset({"goal_completion", "correction_propagation"})
@@ -98,6 +100,12 @@ def _validate_status(status: str) -> SharedContextStatus:
     return cast(SharedContextStatus, status)
 
 
+def _validate_visibility(visibility: str) -> SharedContextVisibility:
+    if visibility not in _VALID_VISIBILITIES:
+        raise ValueError(f"Invalid shared context visibility: {visibility}")
+    return cast(SharedContextVisibility, visibility)
+
+
 def _validate_target_type(target_type: str) -> SharedContextTargetType:
     if target_type not in _VALID_TARGET_TYPES:
         raise ValueError(f"Invalid shared context binding target type: {target_type}")
@@ -138,6 +146,7 @@ class SharedContextService:
         *,
         name: str,
         description: str | None = None,
+        visibility: SharedContextVisibility = "team",
         policy: dict[str, object] | None = None,
     ) -> SharedContextModel:
         context_id = nanoid(size=16)
@@ -147,6 +156,9 @@ class SharedContextService:
             name=_normalize_required(name, field_name="name", max_length=120),
             description=_normalize_optional(description, max_length=2000),
             status="active",
+            visibility=_validate_visibility(visibility),
+            access_count=0,
+            last_accessed_at=None,
             policy=dict(policy or _DEFAULT_POLICY),
         )
         self._session.add(context)
@@ -165,6 +177,9 @@ class SharedContextService:
             name="Legacy Team Memory",
             description="One-way migration target for legacy team-visible memories.",
             status="active",
+            visibility="team",
+            access_count=0,
+            last_accessed_at=None,
             policy={**_DEFAULT_POLICY, "migration_source": "legacy_team_memory"},
         )
         self._session.add(context)
@@ -179,6 +194,7 @@ class SharedContextService:
         name: str | None = None,
         description: str | None = None,
         status: SharedContextStatus | None = None,
+        visibility: SharedContextVisibility | None = None,
         policy: dict[str, object] | None = None,
     ) -> SharedContextModel | None:
         context = await self.get_context(context_id)
@@ -190,11 +206,28 @@ class SharedContextService:
             context.description = _normalize_optional(description, max_length=2000)
         if status is not None:
             context.status = _validate_status(status)
+        if visibility is not None:
+            context.visibility = _validate_visibility(visibility)
         if policy is not None:
             context.policy = dict(policy)
         await self._session.commit()
         await self._session.refresh(context)
         return context
+
+    async def record_context_access(self, context_ids: Sequence[str]) -> None:
+        """Audit access touch for given context IDs."""
+        if not context_ids:
+            return
+        now = datetime.now(UTC)
+        stmt = (
+            select(SharedContextModel)
+            .where(SharedContextModel.id.in_(context_ids))
+        )
+        result = await self._session.execute(stmt)
+        for ctx in result.scalars().all():
+            ctx.access_count = (ctx.access_count or 0) + 1
+            ctx.last_accessed_at = now
+        await self._session.commit()
 
     async def archive_context(self, context_id: str) -> SharedContextModel | None:
         return await self.update_context(context_id, status="archived")
@@ -279,6 +312,8 @@ class SharedContextService:
     async def resolve_active_context_ids(
         self,
         targets: Sequence[tuple[SharedContextTargetType, str]],
+        *,
+        record_access: bool = True,
     ) -> list[str]:
         normalized_targets = [
             (_validate_target_type(target_type), target_id.strip()) for target_type, target_id in targets if target_id.strip()
@@ -311,7 +346,10 @@ class SharedContextService:
                 binding.created_at or datetime.min,
             )
         )
-        return list(dict.fromkeys(binding.context_id for binding in bindings))
+        context_ids = list(dict.fromkeys(binding.context_id for binding in bindings))
+        if record_access and context_ids:
+            await self.record_context_access(context_ids)
+        return context_ids
 
     async def find_write_proposal_by_source(
         self,

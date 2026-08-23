@@ -27,7 +27,13 @@ from datetime import datetime
 from typing import Literal
 
 from myrm_agent_harness.infra.incremental.types import MonitorType, ResetReason
-from myrm_agent_harness.toolkits.cron import JobStatus, JobType, RunStatus, ScheduleKind, SessionTarget
+from myrm_agent_harness.toolkits.cron import (
+    JobStatus,
+    JobType,
+    RunStatus,
+    ScheduleKind,
+    SessionTarget,
+)
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
@@ -131,7 +137,9 @@ class WebhookTriggerCreate(BaseModel):
 class TriggerConfigCreate(BaseModel):
     webhooks: list[WebhookTriggerCreate] = Field(default_factory=list, max_length=5)
     events: list[EventTriggerCreate] = Field(default_factory=list, max_length=10)
-    system_events: list[SystemEventTriggerCreate] = Field(default_factory=list, max_length=10)
+    system_events: list[SystemEventTriggerCreate] = Field(
+        default_factory=list, max_length=10
+    )
 
 
 class CronJobCreate(BaseModel):
@@ -171,10 +179,18 @@ class CronJobCreate(BaseModel):
     monitor_config: MonitorConfigCreate | None = None
     context_from: list[str] = Field(default_factory=list, max_length=10)
     pre_condition_script: str | None = Field(
-        default=None, max_length=10000, description="Python script to evaluate before running the job"
+        default=None,
+        max_length=10000,
+        description="Python script to evaluate before running the job",
     )
     acceptance_criteria: list[dict[str, object]] | None = Field(
-        default=None, max_length=20, description="Structured acceptance criteria for post-run verification"
+        default=None,
+        max_length=20,
+        description="Structured acceptance criteria for post-run verification",
+    )
+    override_prerequisite: bool = Field(
+        default=False,
+        description="Explicit override flag for manual success prerequisite gate",
     )
 
     @field_validator("name", mode="before")
@@ -223,10 +239,14 @@ class CronJobUpdate(BaseModel):
     monitor_config: MonitorConfigCreate | None = None
     context_from: list[str] | None = None
     pre_condition_script: str | None = Field(
-        default=None, max_length=10000, description="Python script to evaluate before running the job"
+        default=None,
+        max_length=10000,
+        description="Python script to evaluate before running the job",
     )
     acceptance_criteria: list[dict[str, object]] | None = Field(
-        default=None, max_length=20, description="Structured acceptance criteria for post-run verification"
+        default=None,
+        max_length=20,
+        description="Structured acceptance criteria for post-run verification",
     )
     workflow_template_id: str | None = Field(default=None, max_length=64)
     workflow_template_args: dict[str, str] | None = None
@@ -498,3 +518,28 @@ class HeartbeatStatusResponse(BaseModel):
     last_status: str | None = None
     next_run_at: datetime | None = None
     fire_count: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Prerequisite stats schemas
+# ---------------------------------------------------------------------------
+
+
+class PrerequisiteCheckRequest(BaseModel):
+    prompt: str | None = None
+    agent_id: str | None = None
+    workflow_template_id: str | None = None
+    command: str | None = None
+    tools_allowed: list[str] | None = None
+    chat_id: str | None = None
+    threshold: int = 2
+
+
+class PrerequisiteCheckResponse(BaseModel):
+    fingerprint: str
+    manual_success_count: int
+    threshold: int
+    is_satisfied: bool
+    chat_verified_count: int
+    kanban_verified_count: int
+    override_allowed: bool = True

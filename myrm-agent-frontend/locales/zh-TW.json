@@ -12631,7 +12631,21 @@
       "actionDispatching": "排隊等待空閒執行器派發",
       "actionBacklog": "排定優先順序並安排執行",
       "actionDone": "任務已成功執行完畢"
-    }
+    },
+    "replanTitle": "DAG 規劃修訂審查",
+    "replanDescription": "審查對任務依賴圖提出的修改。所有變更將在提交時進行無環性驗證並單事務原子生效。",
+    "replanAdded": "待新增任務",
+    "replanUpdated": "待更新任務",
+    "replanRemoved": "待移除任務",
+    "replanRationaleLabel": "修訂原因 / 觸發理由",
+    "replanRationalePlaceholder": "例如：發現缺失的下游 API 資料依賴",
+    "replanRationaleRequired": "必須填寫規劃修訂原因",
+    "replanChangesList": "變更明細 Diff",
+    "replanNoChanges": "沒有提議的任務修改",
+    "replanInvariantGuaranteed": "已完成與審核中的任務處於嚴格唯讀保護狀態，不會被篡改。提交時保證 DAG 無環。",
+    "replanApply": "應用規劃修訂",
+    "replanAppliedSuccess": "規劃修訂已成功原子應用",
+    "replanFailed": "規劃修訂應用失敗"
   },
   "channels": {
     "sectionTitle": "訊息通道",

@@ -246,6 +246,57 @@ _ALWAYS_AVAILABLE_TOOLS: list[RealtimeToolDef] = [
             "required": ["task_id", "instruction"],
         },
     ),
+    RealtimeToolDef(
+        name="set_reminder",
+        description="Schedule a reminder task for a future time. Call when the user asks to be reminded of something after a duration (e.g. in 10 minutes) or at a specific time. When the time arrives, the system will announce it via voice.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "What to remind the user about (e.g. 'drink water', 'join the meeting')",
+                },
+                "minutes_later": {
+                    "type": "number",
+                    "description": "Relative time in minutes from now until the reminder fires (e.g. 10 for 'in 10 minutes', 0.5 for 'in 30 seconds'). Preferred over absolute time.",
+                },
+                "schedule_time": {
+                    "type": "string",
+                    "description": "Optional ISO 8601 absolute datetime string (e.g. '2026-08-21T15:30:00Z') if exact time is specified.",
+                },
+            },
+            "required": ["content"],
+        },
+    ),
+    RealtimeToolDef(
+        name="cancel_reminder",
+        description="Cancel a scheduled reminder. Can specify reminder_id or search by reminder content/name.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "reminder_id": {
+                    "type": "string",
+                    "description": "ID of the reminder job to cancel (if known)",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Name or keyword of the reminder to cancel (e.g. 'drink water')",
+                },
+                "cancel_latest": {
+                    "type": "boolean",
+                    "description": "If true, cancel the most recently created active reminder",
+                },
+            },
+        },
+    ),
+    RealtimeToolDef(
+        name="list_reminders",
+        description="List all active scheduled reminders for the user.",
+        parameters={
+            "type": "object",
+            "properties": {},
+        },
+    ),
 ]
 
 

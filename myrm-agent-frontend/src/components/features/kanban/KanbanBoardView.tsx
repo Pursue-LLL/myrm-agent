@@ -19,7 +19,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
-import { Layers, Sparkles, Users, UserCheck, Bot } from 'lucide-react';
+import { Layers, Sparkles, Users, UserCheck, Bot, GitCompare } from 'lucide-react';
 import {
   deriveTaskDecisionFrame,
   filterTasksByResponsibility,
@@ -44,6 +44,7 @@ import KanbanTaskCard from './KanbanTaskCard';
 import KanbanTaskDrawer from './KanbanTaskDrawer';
 import KanbanInlineAddForm from './KanbanInlineAddForm';
 import KanbanBulkActionBar from './KanbanBulkActionBar';
+import KanbanReplanDialog from './KanbanReplanDialog';
 import { KanbanDropColumn } from './KanbanDndComponents';
 import { useKanbanDnD } from './useKanbanDnD';
 import { useKanbanAddTask } from './useKanbanAddTask';
@@ -104,6 +105,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const concurrencyLimit = summaryData?.board?.settings?.max_concurrent_tasks ?? 0;
   const concurrencyFull = concurrencyLimit > 0 && (summary.running ?? 0) >= concurrencyLimit;
   const [edges, setEdges] = useState<TaskDependency[]>([]);
+  const [replanOpen, setReplanOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'board' | 'graph' | 'activity'>(() => {
     if (typeof window === 'undefined') {
       return 'board';
@@ -577,6 +579,14 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
             </button>
           )}
           <button
+            onClick={() => setReplanOpen(true)}
+            className="text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors inline-flex items-center gap-1"
+            title={t('replanTitle')}
+          >
+            <GitCompare className="w-3 h-3" />
+            {t('replanTitle')}
+          </button>
+          <button
             onClick={toggleLaneByProfile}
             className={cn(
               'text-xs px-2.5 py-1 rounded-full transition-colors inline-flex items-center gap-1',
@@ -882,6 +892,18 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         open={pipelineWizardOpen}
         onClose={() => setPipelineWizardOpen(false)}
         onCreated={() => {
+          fetchTasks();
+          fetchSummary();
+          fetchEdges();
+        }}
+      />
+
+      <KanbanReplanDialog
+        board={board}
+        open={replanOpen}
+        onOpenChange={setReplanOpen}
+        proposedChanges={[]}
+        onApplied={() => {
           fetchTasks();
           fetchSummary();
           fetchEdges();

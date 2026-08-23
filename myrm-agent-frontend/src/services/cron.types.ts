@@ -275,6 +275,7 @@ export interface CreateCronJobRequest {
   tools_allowed?: string[];
   workflow_template_id?: string;
   workflow_template_args?: Record<string, string>;
+  override_prerequisite?: boolean;
 }
 
 export interface UpdateCronJobRequest {
@@ -360,3 +361,24 @@ export interface BlueprintFillResponse {
   pre_condition_script?: string | null;
   command?: string | null;
 }
+
+export interface PrerequisiteCheckRequest {
+  prompt?: string;
+  agent_id?: string;
+  workflow_template_id?: string;
+  command?: string;
+  tools_allowed?: string[];
+  chat_id?: string;
+  threshold?: number;
+}
+
+export interface PrerequisiteCheckResponse {
+  fingerprint: string;
+  manual_success_count: number;
+  threshold: number;
+  is_satisfied: boolean;
+  chat_verified_count: number;
+  kanban_verified_count: number;
+  override_allowed: boolean;
+}
+

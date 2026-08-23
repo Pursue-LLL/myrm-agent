@@ -24,18 +24,28 @@ from app.api.memory.shared_context_schemas import (
     SharedContextProposalStatus,
     SharedContextStatus,
     SharedContextTargetType,
+    SharedContextVisibility,
     SharedContextWriteProposalItem,
 )
 from app.database.models import SharedContextBindingModel, SharedContextModel, SharedContextWriteProposalModel
 
 
-def context_to_item(context: SharedContextModel) -> SharedContextItem:
+def context_to_item(
+    context: SharedContextModel,
+    *,
+    assigned_agent_ids: list[str] | None = None,
+) -> SharedContextItem:
     return SharedContextItem(
         id=context.id,
         namespace=context.namespace,
         name=context.name,
         description=context.description,
         status=cast(SharedContextStatus, context.status),
+        visibility=cast(SharedContextVisibility, getattr(context, "visibility", "team")),
+        access_count=getattr(context, "access_count", 0),
+        last_accessed_at=getattr(context, "last_accessed_at", None),
+        assigned_agent_ids=assigned_agent_ids
+        or [b.target_id for b in (context.bindings or []) if getattr(b, "target_type", None) == "agent"],
         policy=context.policy,
         created_at=context.created_at,
         updated_at=context.updated_at,

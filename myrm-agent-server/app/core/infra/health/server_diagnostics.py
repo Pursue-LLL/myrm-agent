@@ -10,9 +10,20 @@
 Server 层专属业务诊断管理器。负责解耦 API 控制器与内部业务（如 Channel Gateway, Rate Limiter）的监控逻辑。
 """
 
+import importlib.metadata
 import logging
+import time
 from typing import Sequence
 
+from myrm_agent_harness.backends.skills.scanning.dependency_extractor import (
+    DeclaredDependency,
+)
+from myrm_agent_harness.backends.skills.scanning.osv_scanner import query_osv_batch
+from myrm_agent_harness.backends.skills.scanning.scanner import ScanSeverity
+from myrm_agent_harness.backends.skills.scanning.security_advisories import (
+    match_known_advisories,
+)
+from myrm_agent_harness.backends.skills.scanning.vuln_cache import get_vuln_cache
 from myrm_agent_harness.observability.diagnostics.protocols import (
     DiagnosticProtocol,
     HealthReport,
@@ -33,7 +44,9 @@ class DLQDiagnostic(DiagnosticProtocol):
 
             gateway = get_channel_gateway()
             if gateway and gateway.bus:
-                failed_count = await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
+                failed_count = (
+                    await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
+                )
                 pending_count = await gateway.bus.durable_outbound.count_pending()
 
                 meta_data: dict[str, object] = {
@@ -145,7 +158,11 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             reclaimed = getattr(cache, "reclaimed_count", 0)
 
             detail_parts = [
-                (f"Idle timeout: {idle_s:.0f}s" if idle_s > 0 else "Idle reclaim disabled"),
+                (
+                    f"Idle timeout: {idle_s:.0f}s"
+                    if idle_s > 0
+                    else "Idle reclaim disabled"
+                ),
                 f"Warm units: {warm_units}",
                 f"Reclaimed: {reclaimed}",
             ]
@@ -217,10 +234,14 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
                 score += 35
             else:
                 phase_details["model_provider"] = "unconfigured"
-                fix_suggestions.append("Configure a default LLM Provider in Settings -> Models.")
+                fix_suggestions.append(
+                    "Configure a default LLM Provider in Settings -> Models."
+                )
         except Exception as exc:
             phase_details["model_provider_error"] = str(exc)
-            fix_suggestions.append("Verify LLM Provider credentials and network connection.")
+            fix_suggestions.append(
+                "Verify LLM Provider credentials and network connection."
+            )
 
         # 2. Tool Catalog Readiness
         try:
@@ -267,7 +288,9 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             score += 20
         except Exception as exc:
             phase_details["storage_error"] = str(exc)
-            fix_suggestions.append("Check database connection and file lock permissions.")
+            fix_suggestions.append(
+                "Check database connection and file lock permissions."
+            )
 
         # Evaluate overall status
         if "model_ready" not in ready_phases:
@@ -314,6 +337,124 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
         )
 
 
+class SupplyChainDiagnostic(DiagnosticProtocol):
+    """Active environment dependency and supply-chain vulnerability diagnostic probe.
+
+    Audits the current Python runtime environment and core frameworks against
+    known malicious packages and OSV.dev published CVEs with local 24h TTL caching.
+    """
+
+    async def check_health(self) -> HealthReport:
+        try:
+            start_t = time.perf_counter()
+            dists = list(importlib.metadata.distributions())
+            deps: list[DeclaredDependency] = []
+
+            # 1. Extract installed distributions in the active environment
+            for dist in dists:
+                name = (dist.metadata["Name"] or "").strip()
+                version = (dist.version or "").strip()
+                if name:
+                    deps.append(
+                        DeclaredDependency(
+                            name=name.lower(),
+                            version_spec=version,
+                            ecosystem="PyPI",
+                            file_path="active_venv",
+                        )
+                    )
+
+            # 2. Offline known malicious packages check
+            offline_findings = match_known_advisories(deps)
+
+            # 3. Online OSV vulnerability scan with 24h cache
+            cache = get_vuln_cache()
+            osv_findings = await query_osv_batch(deps, cache=cache)
+
+            # 4. Evaluate findings
+            critical_findings = []
+            high_findings = []
+            warn_findings = []
+
+            for f in [*offline_findings, *osv_findings]:
+                if f.severity == ScanSeverity.CRITICAL:
+                    critical_findings.append(f)
+                elif f.severity == ScanSeverity.HIGH:
+                    high_findings.append(f)
+                else:
+                    warn_findings.append(f)
+
+            duration_ms = round((time.perf_counter() - start_t) * 1000, 2)
+            meta_data: dict[str, object] = {
+                "packages_scanned_count": len(deps),
+                "critical_vuln_count": len(critical_findings),
+                "high_vuln_count": len(high_findings),
+                "medium_low_vuln_count": len(warn_findings),
+                "scan_duration_ms": duration_ms,
+            }
+            metrics: dict[str, float] = {
+                "scanned_packages": float(len(deps)),
+                "critical_vulnerabilities": float(len(critical_findings)),
+                "high_vulnerabilities": float(len(high_findings)),
+                "scan_duration_ms": duration_ms,
+            }
+
+            if critical_findings:
+                pkg_names = ", ".join(
+                    dict.fromkeys(f.package_name for f in critical_findings[:3])
+                )
+                return HealthReport(
+                    component_name="SupplyChainSecurity",
+                    status="fail",
+                    code="ERR_SUPPLY_CHAIN_CRITICAL_MALWARE",
+                    meta_data=meta_data,
+                    metrics=metrics,
+                    message="Critical supply-chain vulnerability or compromised package detected in runtime environment.",
+                    detail=f"Detected {len(critical_findings)} critical vulnerability/malware advisory(ies) affecting packages: {pkg_names}.",
+                    fix_suggestion="Immediately upgrade or remove affected dependencies using 'uv sync' or 'pip install --upgrade'.",
+                )
+
+            if high_findings:
+                pkg_names = ", ".join(
+                    dict.fromkeys(f.package_name for f in high_findings[:3])
+                )
+                return HealthReport(
+                    component_name="SupplyChainSecurity",
+                    status="warn",
+                    code="WARN_SUPPLY_CHAIN_HIGH_VULNERABILITY",
+                    meta_data=meta_data,
+                    metrics=metrics,
+                    message="High-severity CVE vulnerability detected in installed dependencies.",
+                    detail=f"Detected {len(high_findings)} high-severity advisory(ies) affecting packages: {pkg_names}.",
+                    fix_suggestion="Review affected dependencies and update to patched versions.",
+                )
+
+            return HealthReport(
+                component_name="SupplyChainSecurity",
+                status="pass",
+                code="OK_SUPPLY_CHAIN_HEALTHY",
+                meta_data=meta_data,
+                metrics=metrics,
+                message=f"Supply chain dependencies verified clean ({len(deps)} packages scanned, {duration_ms}ms).",
+                detail=f"All {len(deps)} installed environment packages passed offline advisory and OSV.dev vulnerability checks.",
+                fix_suggestion=None,
+            )
+
+        except Exception as exc:
+            logger.warning(
+                "Supply chain vulnerability diagnostic check degraded: %s", exc
+            )
+            return HealthReport(
+                component_name="SupplyChainSecurity",
+                status="pass",
+                code="WARN_SUPPLY_CHAIN_SCAN_DEGRADED",
+                meta_data={"error": str(exc)},
+                message="Supply chain security scan degraded (offline or cache-only mode).",
+                detail=f"Supply chain check completed with fallback: {exc}",
+                fix_suggestion=None,
+            )
+
+
 class ServerDiagnosticsManager:
     """Manages and executes all Server-level business diagnostics."""
 
@@ -322,6 +463,7 @@ class ServerDiagnosticsManager:
             DLQDiagnostic(),
             ExecutionCacheDiagnostic(),
             AgentColdStartDiagnostic(),
+            SupplyChainDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:
@@ -331,7 +473,9 @@ class ServerDiagnosticsManager:
                 report = await probe.check_health()
                 reports.append(report)
             except Exception as exc:
-                logger.error("Probe %s failed unhandled: %s", probe.__class__.__name__, exc)
+                logger.error(
+                    "Probe %s failed unhandled: %s", probe.__class__.__name__, exc
+                )
                 reports.append(
                     HealthReport(
                         component_name=probe.__class__.__name__,

@@ -20,7 +20,9 @@ from app.api.webhook.schemas import (
 from app.database.connection import get_session
 from app.database.models.lifecycle_webhook import LifecycleWebhookModel
 from app.services.hosting.ssrf_guard import SSRFValidationError, validate_webhook_url
-from app.services.webhook.lifecycle_webhook_service import LifecycleOutboundWebhookService
+from app.services.webhook.lifecycle_webhook_service import (
+    LifecycleOutboundWebhookService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,9 @@ router = APIRouter(prefix="/lifecycle-webhooks", tags=["lifecycle-webhooks"])
 async def list_lifecycle_webhooks() -> list[LifecycleWebhookResponse]:
     """List all configured lifecycle webhooks."""
     async with get_session() as session:
-        stmt = select(LifecycleWebhookModel).order_by(LifecycleWebhookModel.created_at.desc())
+        stmt = select(LifecycleWebhookModel).order_by(
+            LifecycleWebhookModel.created_at.desc()
+        )
         res = await session.execute(stmt)
         models = res.scalars().all()
         return [
@@ -54,8 +58,12 @@ async def list_lifecycle_webhooks() -> list[LifecycleWebhookResponse]:
         ]
 
 
-@router.post("", response_model=LifecycleWebhookResponse, status_code=status.HTTP_201_CREATED)
-async def create_lifecycle_webhook(body: LifecycleWebhookCreate) -> LifecycleWebhookResponse:
+@router.post(
+    "", response_model=LifecycleWebhookResponse, status_code=status.HTTP_201_CREATED
+)
+async def create_lifecycle_webhook(
+    body: LifecycleWebhookCreate,
+) -> LifecycleWebhookResponse:
     """Create a new outbound lifecycle webhook endpoint."""
     try:
         validate_webhook_url(body.url, allow_http=True)
@@ -114,7 +122,9 @@ async def update_lifecycle_webhook(
     async with get_session() as session:
         m = await session.get(LifecycleWebhookModel, webhook_id)
         if not m:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
+            )
 
         if body.name is not None:
             m.name = body.name
@@ -157,7 +167,9 @@ async def delete_lifecycle_webhook(webhook_id: str) -> None:
     async with get_session() as session:
         m = await session.get(LifecycleWebhookModel, webhook_id)
         if not m:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found"
+            )
         await session.delete(m)
         await session.commit()
 
@@ -166,7 +178,9 @@ async def delete_lifecycle_webhook(webhook_id: str) -> None:
 async def ping_lifecycle_webhook(body: WebhookPingRequest) -> WebhookPingResponse:
     """Test immediate connectivity and signature dispatch to target webhook URL."""
     svc = LifecycleOutboundWebhookService.get_instance()
-    res = await svc.ping_webhook(url=body.url, secret=body.secret, timeout=body.timeout_seconds)
+    res = await svc.ping_webhook(
+        url=body.url, secret=body.secret, timeout=body.timeout_seconds
+    )
     return WebhookPingResponse(
         success=res.success,
         status_code=res.status_code,

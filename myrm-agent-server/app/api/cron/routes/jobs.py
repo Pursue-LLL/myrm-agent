@@ -36,6 +36,8 @@ from app.api.cron.schemas import (
     CronJobUpdate,
     DeliveryTestRequest,
     DeliveryTestResponse,
+    PrerequisiteCheckRequest,
+    PrerequisiteCheckResponse,
 )
 from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
@@ -86,10 +88,41 @@ async def list_jobs(
     )
 
 
+@router.post("/prerequisite-check", response_model=PrerequisiteCheckResponse)
+async def check_prerequisite(
+    body: PrerequisiteCheckRequest,
+) -> PrerequisiteCheckResponse:
+    """Check manual success prerequisite stats for a workflow before creating cron."""
+    from app.services.cron.prerequisite_service import CronPrerequisiteService
+
+    stats = await CronPrerequisiteService.get_prerequisite_stats(
+        prompt=body.prompt,
+        agent_id=body.agent_id,
+        workflow_template_id=body.workflow_template_id,
+        command=body.command,
+        tools_allowed=body.tools_allowed,
+        chat_id=body.chat_id,
+        threshold=body.threshold,
+    )
+    return PrerequisiteCheckResponse(
+        fingerprint=stats.fingerprint,
+        manual_success_count=stats.manual_success_count,
+        threshold=stats.threshold,
+        is_satisfied=stats.is_satisfied,
+        chat_verified_count=stats.chat_verified_count,
+        kanban_verified_count=stats.kanban_verified_count,
+        override_allowed=stats.override_allowed,
+    )
+
+
 @router.post("/", response_model=CronJobResponse, status_code=201)
 async def create_job(body: CronJobCreate) -> CronJobResponse:
-    from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
-    from app.services.workflow_templates.validation import validate_cron_workflow_template_binding
+    from app.platform_utils.sandbox.entitlements.entitlement_guard import (
+        EntitlementGuardError,
+    )
+    from app.services.workflow_templates.validation import (
+        validate_cron_workflow_template_binding,
+    )
 
     mgr = _h._get_manager()
     try:
@@ -109,10 +142,16 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
             agent_id=body.agent_id,
             command=body.command,
             delivery=_h._delivery_from_request(body.delivery),
-            failure_delivery=_h._delivery_from_request(body.failure_delivery) if body.failure_delivery else None,
+            failure_delivery=(
+                _h._delivery_from_request(body.failure_delivery)
+                if body.failure_delivery
+                else None
+            ),
             failure_alert=_h._failure_alert_from_request(body.failure_alert),
             active_hours=_h._active_hours_from_request(body.active_hours),
-            required_capabilities=tuple(body.required_capabilities) if body.required_capabilities else (),
+            required_capabilities=(
+                tuple(body.required_capabilities) if body.required_capabilities else ()
+            ),
             tools_allowed=tools_allowed,
             allowed_roots=tuple(body.allowed_roots) if body.allowed_roots else (),
             triggers=_h._trigger_config_from_request(body.triggers),
@@ -130,7 +169,9 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
             monitor_config=_h._monitor_config_from_request(body.monitor_config),
             context_from=tuple(body.context_from) if body.context_from else (),
             pre_condition_script=body.pre_condition_script,
-            acceptance_criteria=tuple(body.acceptance_criteria) if body.acceptance_criteria else (),
+            acceptance_criteria=(
+                tuple(body.acceptance_criteria) if body.acceptance_criteria else ()
+            ),
             workflow_template_id=body.workflow_template_id,
             workflow_template_args=body.workflow_template_args,
         )
@@ -156,7 +197,9 @@ async def get_job(job_id: str) -> CronJobResponse:
 async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
     from myrm_agent_harness.toolkits.cron.types import CronJobPatch
 
-    from app.services.workflow_templates.validation import validate_cron_workflow_template_binding
+    from app.services.workflow_templates.validation import (
+        validate_cron_workflow_template_binding,
+    )
 
     mgr = _h._get_manager()
     try:
@@ -165,7 +208,10 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
                 body.workflow_template_id,
                 body.workflow_template_args,
             )
-        elif "workflow_template_args" in body.model_fields_set and body.workflow_template_args is not None:
+        elif (
+            "workflow_template_args" in body.model_fields_set
+            and body.workflow_template_args is not None
+        ):
             existing = await mgr.get_job(job_id, USER_ID)
             if existing and existing.workflow_template_id:
                 validate_cron_workflow_template_binding(
@@ -185,12 +231,26 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
         if body.delivery or body.failure_delivery or body.failure_alert is not None:
             existing = await mgr.get_job(job_id, USER_ID)
             delivery_secret = existing.delivery.secret if existing else None
-            failure_delivery_secret = existing.failure_delivery.secret if existing and existing.failure_delivery else None
+            failure_delivery_secret = (
+                existing.failure_delivery.secret
+                if existing and existing.failure_delivery
+                else None
+            )
             failure_alert_secret: str | None = None
-            if existing and existing.failure_alert and not isinstance(existing.failure_alert, bool):
+            if (
+                existing
+                and existing.failure_alert
+                and not isinstance(existing.failure_alert, bool)
+            ):
                 fa_delivery = existing.failure_alert.delivery
                 failure_alert_secret = fa_delivery.secret if fa_delivery else None
-            delivery_patch = _h._delivery_from_request(body.delivery, existing_secret=delivery_secret) if body.delivery else None
+            delivery_patch = (
+                _h._delivery_from_request(
+                    body.delivery, existing_secret=delivery_secret
+                )
+                if body.delivery
+                else None
+            )
             failure_delivery_patch = (
                 _h._delivery_from_request(
                     body.failure_delivery,
@@ -217,45 +277,79 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             command=body.command,
             delivery=delivery_patch,
             failure_delivery=failure_delivery_patch,
-            clear_failure_delivery=body.failure_delivery is None and "failure_delivery" in body.model_fields_set,
+            clear_failure_delivery=body.failure_delivery is None
+            and "failure_delivery" in body.model_fields_set,
             failure_alert=failure_alert_patch,
-            clear_failure_alert=body.failure_alert is None and "failure_alert" in body.model_fields_set,
-            active_hours=_h._active_hours_from_request(body.active_hours) if body.active_hours else None,
-            clear_active_hours=body.active_hours is None and "active_hours" in body.model_fields_set,
-            required_capabilities=tuple(body.required_capabilities) if body.required_capabilities is not None else None,
+            clear_failure_alert=body.failure_alert is None
+            and "failure_alert" in body.model_fields_set,
+            active_hours=(
+                _h._active_hours_from_request(body.active_hours)
+                if body.active_hours
+                else None
+            ),
+            clear_active_hours=body.active_hours is None
+            and "active_hours" in body.model_fields_set,
+            required_capabilities=(
+                tuple(body.required_capabilities)
+                if body.required_capabilities is not None
+                else None
+            ),
             tools_allowed=tools_allowed,
             clear_tools_allowed=clear_tools_allowed,
-            allowed_roots=tuple(body.allowed_roots) if body.allowed_roots is not None else None,
-            triggers=_h._trigger_config_from_request(body.triggers) if body.triggers else None,
-            clear_triggers=body.triggers is None and "triggers" in body.model_fields_set,
+            allowed_roots=(
+                tuple(body.allowed_roots) if body.allowed_roots is not None else None
+            ),
+            triggers=(
+                _h._trigger_config_from_request(body.triggers)
+                if body.triggers
+                else None
+            ),
+            clear_triggers=body.triggers is None
+            and "triggers" in body.model_fields_set,
             max_retries=body.max_retries,
             retry_backoff_ms=body.retry_backoff_ms,
             timeout_seconds=body.timeout_seconds,
             misfire_grace_seconds=body.misfire_grace_seconds,
             cooldown_seconds=body.cooldown_seconds,
             max_fires=body.max_fires,
-            clear_max_fires=body.max_fires is None and "max_fires" in body.model_fields_set,
+            clear_max_fires=body.max_fires is None
+            and "max_fires" in body.model_fields_set,
             expires_at=body.expires_at,
-            clear_expires_at=body.expires_at is None and "expires_at" in body.model_fields_set,
+            clear_expires_at=body.expires_at is None
+            and "expires_at" in body.model_fields_set,
             session_target=body.session_target,
             chat_id=body.chat_id,
             clear_chat_id=body.chat_id is None and "chat_id" in body.model_fields_set,
             delete_after_run=body.delete_after_run,
             run_retention_days=body.run_retention_days,
             deduplicate=body.deduplicate,
-            monitor_config=_h._monitor_config_from_request(body.monitor_config) if body.monitor_config else None,
-            clear_monitor_config=body.monitor_config is None and "monitor_config" in body.model_fields_set,
-            context_from=tuple(body.context_from) if body.context_from is not None else None,
+            monitor_config=(
+                _h._monitor_config_from_request(body.monitor_config)
+                if body.monitor_config
+                else None
+            ),
+            clear_monitor_config=body.monitor_config is None
+            and "monitor_config" in body.model_fields_set,
+            context_from=(
+                tuple(body.context_from) if body.context_from is not None else None
+            ),
             clear_context_from=body.context_from is None
             and "context_from" in body.model_fields_set
             or (body.context_from is not None and len(body.context_from) == 0),
             pre_condition_script=body.pre_condition_script,
-            clear_pre_condition_script=body.pre_condition_script is None and "pre_condition_script" in body.model_fields_set,
-            acceptance_criteria=tuple(body.acceptance_criteria) if body.acceptance_criteria else None,
-            clear_acceptance_criteria=body.acceptance_criteria is None and "acceptance_criteria" in body.model_fields_set,
+            clear_pre_condition_script=body.pre_condition_script is None
+            and "pre_condition_script" in body.model_fields_set,
+            acceptance_criteria=(
+                tuple(body.acceptance_criteria) if body.acceptance_criteria else None
+            ),
+            clear_acceptance_criteria=body.acceptance_criteria is None
+            and "acceptance_criteria" in body.model_fields_set,
             workflow_template_id=body.workflow_template_id,
             workflow_template_args=body.workflow_template_args,
-            clear_workflow_template=(body.workflow_template_id is None and "workflow_template_id" in body.model_fields_set),
+            clear_workflow_template=(
+                body.workflow_template_id is None
+                and "workflow_template_id" in body.model_fields_set
+            ),
         )
         job = await mgr.update_job(job_id, USER_ID, patch)
     except ValueError as e:
@@ -277,7 +371,9 @@ async def delete_job(job_id: str) -> None:
 
 @router.post("/{job_id}/duplicate", response_model=CronJobResponse, status_code=201)
 async def duplicate_job(job_id: str) -> CronJobResponse:
-    from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
+    from app.platform_utils.sandbox.entitlements.entitlement_guard import (
+        EntitlementGuardError,
+    )
 
     mgr = _h._get_manager()
     try:
@@ -337,5 +433,7 @@ async def reset_baseline(job_id: str) -> dict[str, bool]:
     mgr = _h._get_manager()
     reset = await mgr.reset_monitor_baseline(job_id, USER_ID)
     if not reset:
-        raise HTTPException(status_code=404, detail="Job not found or no monitor baseline")
+        raise HTTPException(
+            status_code=404, detail="Job not found or no monitor baseline"
+        )
     return {"reset": True}

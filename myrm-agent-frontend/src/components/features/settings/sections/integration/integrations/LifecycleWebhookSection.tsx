@@ -65,7 +65,7 @@ export const LifecycleWebhookSection = memo(() => {
     try {
       setLoading(true);
       const data = await listLifecycleWebhooks();
-      setWebhooks(data);
+      setWebhooks(Array.isArray(data) ? data : []);
     } catch {
       setWebhooks([]);
     } finally {

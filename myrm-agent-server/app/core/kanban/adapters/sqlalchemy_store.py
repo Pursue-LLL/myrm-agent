@@ -208,7 +208,12 @@ class SqlAlchemyKanbanStore:
             if agent_id is not None:
                 stmt = stmt.where(KanbanTaskModel.agent_id == agent_id)
             if source_chat_id is not None:
-                stmt = stmt.where(KanbanTaskModel.metadata_json[KANBAN_SOURCE_CHAT_METADATA_KEY].as_string() == source_chat_id)
+                stmt = stmt.where(
+                    KanbanTaskModel.metadata_json[
+                        KANBAN_SOURCE_CHAT_METADATA_KEY
+                    ].as_string()
+                    == source_chat_id
+                )
             stmt = stmt.order_by(KanbanTaskModel.created_at)
             stmt = stmt.offset(offset)
             if limit is not None:
@@ -223,7 +228,11 @@ class SqlAlchemyKanbanStore:
         status: TaskStatus | None = None,
     ) -> int:
         async with get_session() as session:
-            stmt = select(sqlfunc.count()).select_from(KanbanTaskModel).where(KanbanTaskModel.board_id == board_id)
+            stmt = (
+                select(sqlfunc.count())
+                .select_from(KanbanTaskModel)
+                .where(KanbanTaskModel.board_id == board_id)
+            )
             if status is not None:
                 stmt = stmt.where(KanbanTaskModel.status == status.value)
             result = await session.execute(stmt)
@@ -243,7 +252,9 @@ class SqlAlchemyKanbanStore:
             return {}
 
         async with get_session() as session:
-            stats: dict[str, TaskCardStats] = {tid: TaskCardStats(0, 0, 0, 0) for tid in task_ids}
+            stats: dict[str, TaskCardStats] = {
+                tid: TaskCardStats(0, 0, 0, 0) for tid in task_ids
+            }
 
             dep_stmt = (
                 select(
@@ -265,7 +276,9 @@ class SqlAlchemyKanbanStore:
                 .group_by(KanbanTaskEdgeModel.parent_task_id)
             )
             child_total_result = await session.execute(child_total_stmt)
-            child_map: dict[str, tuple[int, int]] = {row[0]: (row[1], 0) for row in child_total_result.all()}
+            child_map: dict[str, tuple[int, int]] = {
+                row[0]: (row[1], 0) for row in child_total_result.all()
+            }
 
             child_done_stmt = (
                 select(
@@ -299,7 +312,9 @@ class SqlAlchemyKanbanStore:
                 .group_by(KanbanTaskEventModel.task_id)
             )
             comment_result = await session.execute(comment_stmt)
-            comment_map: dict[str, int] = {row[0]: row[1] for row in comment_result.all()}
+            comment_map: dict[str, int] = {
+                row[0]: row[1] for row in comment_result.all()
+            }
 
             for tid in task_ids:
                 dc = dep_map.get(tid, 0)
@@ -359,7 +374,9 @@ class SqlAlchemyKanbanStore:
                 oldest = oldest.replace(tzinfo=UTC)
             return int((now - oldest).total_seconds())
 
-    async def count_stale_running_tasks(self, board_id: str, timeout_seconds: int) -> int:
+    async def count_stale_running_tasks(
+        self, board_id: str, timeout_seconds: int
+    ) -> int:
         """Count RUNNING tasks whose heartbeat is older than timeout (zombie candidates)."""
         zombies = await self.list_zombie_tasks(board_id, timeout_seconds)
         return len(zombies)
@@ -421,7 +438,9 @@ class SqlAlchemyKanbanStore:
 
     async def add_edge(self, parent_task_id: str, child_task_id: str) -> TaskEdge:
         if await self._would_create_cycle(parent_task_id, child_task_id):
-            raise ValueError(f"Adding edge {parent_task_id} -> {child_task_id} would create a cycle")
+            raise ValueError(
+                f"Adding edge {parent_task_id} -> {child_task_id} would create a cycle"
+            )
         async with get_session() as session:
             existing = await session.execute(
                 select(KanbanTaskEdgeModel).where(
@@ -430,7 +449,9 @@ class SqlAlchemyKanbanStore:
                 )
             )
             if existing.scalar_one_or_none() is not None:
-                return TaskEdge(parent_task_id=parent_task_id, child_task_id=child_task_id)
+                return TaskEdge(
+                    parent_task_id=parent_task_id, child_task_id=child_task_id
+                )
 
             m = KanbanTaskEdgeModel(
                 parent_task_id=parent_task_id,
@@ -452,13 +473,17 @@ class SqlAlchemyKanbanStore:
 
     async def list_parents(self, task_id: str) -> list[str]:
         async with get_session() as session:
-            stmt = select(KanbanTaskEdgeModel.parent_task_id).where(KanbanTaskEdgeModel.child_task_id == task_id)
+            stmt = select(KanbanTaskEdgeModel.parent_task_id).where(
+                KanbanTaskEdgeModel.child_task_id == task_id
+            )
             result = await session.execute(stmt)
             return list(result.scalars().all())
 
     async def list_children(self, task_id: str) -> list[str]:
         async with get_session() as session:
-            stmt = select(KanbanTaskEdgeModel.child_task_id).where(KanbanTaskEdgeModel.parent_task_id == task_id)
+            stmt = select(KanbanTaskEdgeModel.child_task_id).where(
+                KanbanTaskEdgeModel.parent_task_id == task_id
+            )
             result = await session.execute(stmt)
             return list(result.scalars().all())
 
@@ -477,7 +502,10 @@ class SqlAlchemyKanbanStore:
                 .where(KanbanTaskModel.board_id == board_id)
             )
             result = await session.execute(stmt)
-            return [TaskEdge(parent_task_id=row[0], child_task_id=row[1]) for row in result.all()]
+            return [
+                TaskEdge(parent_task_id=row[0], child_task_id=row[1])
+                for row in result.all()
+            ]
 
     async def are_dependencies_met(self, task_id: str) -> bool:
         async with get_session() as session:
@@ -486,7 +514,9 @@ class SqlAlchemyKanbanStore:
                     exists().where(
                         KanbanTaskEdgeModel.child_task_id == task_id,
                         KanbanTaskEdgeModel.parent_task_id == KanbanTaskModel.id,
-                        KanbanTaskModel.status.notin_([s.value for s in _TERMINAL_STATUSES]),
+                        KanbanTaskModel.status.notin_(
+                            [s.value for s in _TERMINAL_STATUSES]
+                        ),
                     )
                 )
             )
@@ -522,16 +552,29 @@ class SqlAlchemyKanbanStore:
                 .where(KanbanTaskModel.board_id == spec.board_id)
             )
             existing_edges_res = await session.execute(edge_stmt)
-            shadow_edges: list[tuple[str, str]] = [(r[0], r[1]) for r in existing_edges_res.all()]
+            shadow_edges: list[tuple[str, str]] = [
+                (r[0], r[1]) for r in existing_edges_res.all()
+            ]
 
             # Remove specified edges
             for p_id, c_id in spec.remove_edges:
-                shadow_edges = [e for e in shadow_edges if not (e[0] == p_id and e[1] == c_id)]
+                shadow_edges = [
+                    e for e in shadow_edges if not (e[0] == p_id and e[1] == c_id)
+                ]
 
             # Clean cascade edges for removed tasks
-            removed_task_ids_set = {item.task_id for item in spec.task_changes if item.action == "remove" and item.task_id}
+            removed_task_ids_set = {
+                item.task_id
+                for item in spec.task_changes
+                if item.action == "remove" and item.task_id
+            }
             if removed_task_ids_set:
-                shadow_edges = [e for e in shadow_edges if e[0] not in removed_task_ids_set and e[1] not in removed_task_ids_set]
+                shadow_edges = [
+                    e
+                    for e in shadow_edges
+                    if e[0] not in removed_task_ids_set
+                    and e[1] not in removed_task_ids_set
+                ]
 
             # Add new edges
             for p_id, c_id in spec.add_edges:
@@ -643,7 +686,11 @@ class SqlAlchemyKanbanStore:
                             )
                         )
                         if edge_exist.scalar_one_or_none() is None:
-                            session.add(KanbanTaskEdgeModel(parent_task_id=pid, child_task_id=child_tid))
+                            session.add(
+                                KanbanTaskEdgeModel(
+                                    parent_task_id=pid, child_task_id=child_tid
+                                )
+                            )
 
             await session.flush()
 
@@ -665,10 +712,11 @@ class SqlAlchemyKanbanStore:
                     )
                 )
                 if edge_exist.scalar_one_or_none() is None:
-                    session.add(KanbanTaskEdgeModel(parent_task_id=p_id, child_task_id=c_id))
+                    session.add(
+                        KanbanTaskEdgeModel(parent_task_id=p_id, child_task_id=c_id)
+                    )
 
             await session.flush()
-
 
             # Audit events
             for tid in added_tids + updated_tids + removed_tids:
@@ -706,7 +754,11 @@ class SqlAlchemyKanbanStore:
     async def clear_agent_references(self, agent_id: str) -> int:
         """Set agent_id to NULL on all tasks referencing the given agent."""
         async with get_session() as session:
-            stmt = update(KanbanTaskModel).where(KanbanTaskModel.agent_id == agent_id).values(agent_id=None)
+            stmt = (
+                update(KanbanTaskModel)
+                .where(KanbanTaskModel.agent_id == agent_id)
+                .values(agent_id=None)
+            )
             result = await session.execute(stmt)
             await session.commit()
             return _exec_rowcount(result)
@@ -808,7 +860,9 @@ class SqlAlchemyKanbanStore:
             await session.execute(stmt)
             await session.commit()
 
-    async def list_zombie_tasks(self, board_id: str, timeout_seconds: int) -> list[KanbanTask]:
+    async def list_zombie_tasks(
+        self, board_id: str, timeout_seconds: int
+    ) -> list[KanbanTask]:
         from datetime import timedelta
 
         cutoff = datetime.now(UTC) - timedelta(seconds=timeout_seconds)
@@ -906,7 +960,11 @@ class SqlAlchemyKanbanStore:
 
     async def list_runs(self, task_id: str) -> list[TaskRun]:
         async with get_session() as session:
-            stmt = select(KanbanTaskRunModel).where(KanbanTaskRunModel.task_id == task_id).order_by(KanbanTaskRunModel.started_at)
+            stmt = (
+                select(KanbanTaskRunModel)
+                .where(KanbanTaskRunModel.task_id == task_id)
+                .order_by(KanbanTaskRunModel.started_at)
+            )
             result = await session.execute(stmt)
             return [self._run_model_to_domain(m) for m in result.scalars().all()]
 
@@ -939,7 +997,9 @@ class SqlAlchemyKanbanStore:
         since_id: int | None = None,
     ) -> list[TaskEvent]:
         async with get_session() as session:
-            stmt = select(KanbanTaskEventModel).where(KanbanTaskEventModel.task_id == task_id)
+            stmt = select(KanbanTaskEventModel).where(
+                KanbanTaskEventModel.task_id == task_id
+            )
             if since_id is not None:
                 stmt = stmt.where(KanbanTaskEventModel.id > since_id)
             stmt = stmt.order_by(KanbanTaskEventModel.id)
@@ -973,7 +1033,9 @@ class SqlAlchemyKanbanStore:
                     KanbanTaskModel.title.label("task_title"),
                     KanbanTaskModel.agent_id.label("task_assignee"),
                 )
-                .join(KanbanTaskModel, KanbanTaskModel.id == KanbanTaskEventModel.task_id)
+                .join(
+                    KanbanTaskModel, KanbanTaskModel.id == KanbanTaskEventModel.task_id
+                )
                 .where(KanbanTaskModel.board_id == board_id)
             )
             if kinds:

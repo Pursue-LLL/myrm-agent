@@ -95,7 +95,15 @@ const MOCK_CATALOG: CatalogResponse = {
 describe('IntegrationCatalogSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiRequest.mockResolvedValue(MOCK_CATALOG);
+    mockApiRequest.mockImplementation((url: string) => {
+      if (url === '/integrations/catalog') {
+        return Promise.resolve(MOCK_CATALOG);
+      }
+      if (url === '/lifecycle-webhooks') {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve({});
+    });
   });
 
   afterEach(() => {

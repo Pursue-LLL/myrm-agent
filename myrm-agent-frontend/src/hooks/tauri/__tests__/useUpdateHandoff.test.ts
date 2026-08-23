@@ -174,5 +174,41 @@ describe('useUpdateHandoff', () => {
 
       expect(result.current.result).toBeNull();
     });
+
+    it('does nothing when not running in Tauri runtime', async () => {
+      const deployMode = await import('@/lib/deploy-mode');
+      vi.spyOn(deployMode, 'isTauriRuntime').mockReturnValue(false);
+
+      saveUpdateHandoff('0.1.39', '0.1.40');
+      const onSuccess = vi.fn();
+      const onFailure = vi.fn();
+
+      const { result } = renderHook(() => useUpdateHandoff({ onSuccess, onFailure }));
+
+      expect(result.current.result).toBeNull();
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(onFailure).not.toHaveBeenCalled();
+      // In web mode, storage is left untouched by the hook
+      expect(readUpdateHandoff()).not.toBeNull();
+    });
+
+    it('handles getAppVersion rejection or failure gracefully', async () => {
+      saveUpdateHandoff('0.1.39', '0.1.40');
+      mockGetVersion.mockRejectedValue(new Error('IPC disconnected'));
+
+      const onSuccess = vi.fn();
+      const onFailure = vi.fn();
+
+      const { result } = renderHook(() => useUpdateHandoff({ onSuccess, onFailure }));
+
+      // Wait a moment for async execution
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(result.current.result).toBeNull();
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(onFailure).not.toHaveBeenCalled();
+      // Storage should still have been cleared to avoid loop
+      expect(readUpdateHandoff()).toBeNull();
+    });
   });
 });

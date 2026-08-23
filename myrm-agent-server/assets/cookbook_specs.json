@@ -5,7 +5,11 @@
     "description": "极速响应，适合简单任务和低配机器",
     "req_vram_gb": 1.5,
     "params_b": 0.5,
-    "disk_size_gb": 0.4
+    "disk_size_gb": 0.4,
+    "num_layers": 24,
+    "kv_heads": 2,
+    "head_dim": 64,
+    "min_rung": 1
   },
   {
     "id": "ollama/qwen2.5:3b",
@@ -13,7 +17,11 @@
     "description": "速度与能力的良好平衡，适合主流轻薄本",
     "req_vram_gb": 3.0,
     "params_b": 3.0,
-    "disk_size_gb": 1.9
+    "disk_size_gb": 1.9,
+    "num_layers": 36,
+    "kv_heads": 2,
+    "head_dim": 128,
+    "min_rung": 1
   },
   {
     "id": "ollama/qwen3:8b",
@@ -21,7 +29,11 @@
     "description": "最新一代通用模型，思考/非思考双模式，适合主流开发机",
     "req_vram_gb": 6.0,
     "params_b": 8.0,
-    "disk_size_gb": 4.9
+    "disk_size_gb": 4.9,
+    "num_layers": 32,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "min_rung": 2
   },
   {
     "id": "ollama/llama3.1:8b",
@@ -29,7 +41,11 @@
     "description": "Meta 经典通用模型，128K 上下文，适合主流开发机",
     "req_vram_gb": 6.0,
     "params_b": 8.0,
-    "disk_size_gb": 4.7
+    "disk_size_gb": 4.7,
+    "num_layers": 32,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "min_rung": 2
   },
   {
     "id": "ollama/qwen2.5:14b",
@@ -37,7 +53,11 @@
     "description": "极强的推理能力，适合高配工作站",
     "req_vram_gb": 10.0,
     "params_b": 14.0,
-    "disk_size_gb": 9.0
+    "disk_size_gb": 9.0,
+    "num_layers": 48,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "min_rung": 3
   },
   {
     "id": "ollama/deepseek-r1:32b",
@@ -46,7 +66,11 @@
     "req_vram_gb": 22.0,
     "params_b": 32.0,
     "active_params_b": 7.0,
-    "disk_size_gb": 20.0
+    "disk_size_gb": 20.0,
+    "num_layers": 64,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "min_rung": 4
   },
   {
     "id": "ollama/llama3.3:70b",
@@ -54,6 +78,10 @@
     "description": "Meta 最新 70B 旗舰，超越 Llama 3.1 70B，仅限顶级工作站",
     "req_vram_gb": 40.0,
     "params_b": 70.0,
-    "disk_size_gb": 43.0
+    "disk_size_gb": 43.0,
+    "num_layers": 80,
+    "kv_heads": 8,
+    "head_dim": 128,
+    "min_rung": 5
   }
 ]

@@ -981,7 +981,9 @@ async def _force_chat_shell(chat: McpChatSession, *, label: str) -> None:
                 )
             else:
                 try:
-                    await asyncio.to_thread(chat._client.reset_after_orphan)
+                    reset_fn = getattr(chat._client, "reset_after_orphan", None)
+                    if callable(reset_fn):
+                        await asyncio.to_thread(reset_fn)
                 except (RuntimeError, TimeoutError, OSError) as recover_exc:
                     progress(f"force chat shell recover skipped (non-fatal): {recover_exc}")
                 await _await_with_wall_timeout(
