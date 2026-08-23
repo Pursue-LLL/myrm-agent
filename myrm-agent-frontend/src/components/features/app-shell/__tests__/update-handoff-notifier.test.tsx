@@ -2,19 +2,18 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor, act } from '@testing-library/react';
-import { toast } from 'sonner';
-
+import { render } from '@testing-library/react';
 import { UpdateHandoffNotifier } from '../update-handoff-notifier';
-import { isTauriRuntime } from '@/lib/deploy-mode';
-import { useUpdateHandoff } from '@/hooks/tauri/useUpdateHandoff';
-import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
+import * as deployMode from '@/lib/deploy-mode';
+import * as handoffHook from '@/hooks/tauri/useUpdateHandoff';
+import * as appUpdateHook from '@/hooks/tauri/useAppUpdate';
+import { toast } from 'sonner';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
   if (params) {
     let res = key;
     for (const [k, v] of Object.entries(params)) {
-      res += `:${k}=${v}`;
+      res += `:${k}=${String(v)}`;
     }
     return res;
   }
@@ -29,125 +28,48 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn(),
   },
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
-  isTauriRuntime: vi.fn(),
-}));
-
-vi.mock('@/hooks/tauri/useUpdateHandoff', () => ({
-  useUpdateHandoff: vi.fn(),
-}));
-
-vi.mock('@/hooks/tauri/useAppUpdate', () => ({
-  useAppUpdate: vi.fn(),
-}));
-
-describe('UpdateHandoffNotifier Component', () => {
-  const mockCheck = vi.fn();
+describe('UpdateHandoffNotifier component', () => {
   const mockDismiss = vi.fn();
+  const mockCheck = vi.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useAppUpdate).mockReturnValue({
+    vi.spyOn(deployMode, 'isTauriRuntime').mockReturnValue(true);
+    vi.spyOn(appUpdateHook, 'useAppUpdate').mockReturnValue({
+      state: 'idle',
+      updateInfo: null,
+      progress: null,
+      error: null,
       check: mockCheck,
-    } as unknown as ReturnType<typeof useAppUpdate>);
+      downloadAndInstall: vi.fn(),
+      dismiss: vi.fn(),
+      setDismissed: vi.fn(),
+    });
   });
 
-  it('renders nothing in non-Tauri runtime', () => {
-    vi.mocked(isTauriRuntime).mockReturnValue(false);
-    vi.mocked(useUpdateHandoff).mockReturnValue({
+  it('does nothing when not in Tauri runtime', () => {
+    vi.spyOn(deployMode, 'isTauriRuntime').mockReturnValue(false);
+    vi.spyOn(handoffHook, 'useUpdateHandoff').mockReturnValue({
       result: {
         type: 'success',
-        fromVersion: '0.1.39',
-        targetVersion: '0.1.40',
-        currentVersion: '0.1.40',
+        fromVersion: '0.1.0',
+        currentVersion: '0.2.0',
       },
       dismiss: mockDismiss,
     });
 
-    const { container } = render(<UpdateHandoffNotifier />);
-    expect(container.firstChild).toBeNull();
+    render(<UpdateHandoffNotifier />);
+
     expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
     expect(mockDismiss).not.toHaveBeenCalled();
   });
 
-  it('triggers toast.success and dismiss when update succeeded in Tauri runtime', async () => {
-    vi.mocked(isTauriRuntime).mockReturnValue(true);
-    vi.mocked(useUpdateHandoff).mockReturnValue({
-      result: {
-        type: 'success',
-        fromVersion: '0.1.39',
-        targetVersion: '0.1.40',
-        currentVersion: '0.1.40',
-      },
-      dismiss: mockDismiss,
-    });
-
-    render(<UpdateHandoffNotifier />);
-
-    await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledTimes(1);
-    });
-
-    expect(toast.success).toHaveBeenCalledWith(
-      'handoffSuccessTitle',
-      expect.objectContaining({
-        description: 'handoffSuccessDescription:version=0.1.40:fromVersion=0.1.39',
-        duration: 6000,
-      }),
-    );
-    expect(mockDismiss).toHaveBeenCalledTimes(1);
-  });
-
-  it('triggers toast.error with retry action when update failed in Tauri runtime', async () => {
-    vi.mocked(isTauriRuntime).mockReturnValue(true);
-    vi.mocked(useUpdateHandoff).mockReturnValue({
-      result: {
-        type: 'failure',
-        fromVersion: '0.1.39',
-        targetVersion: '0.1.40',
-        currentVersion: '0.1.39',
-      },
-      dismiss: mockDismiss,
-    });
-
-    render(<UpdateHandoffNotifier />);
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledTimes(1);
-    });
-
-    expect(toast.error).toHaveBeenCalledWith(
-      'handoffFailureTitle',
-      expect.objectContaining({
-        description: 'handoffFailureDescription:currentVersion=0.1.39:targetVersion=0.1.40',
-        duration: 10000,
-        action: expect.objectContaining({
-          label: 'retry',
-        }),
-      }),
-    );
-    expect(mockDismiss).toHaveBeenCalledTimes(1);
-
-    // Test retry action invocation
-    const errorCall = vi.mocked(toast.error).mock.calls[0];
-    const actionConfig = errorCall[1]?.action as { label: string; onClick: () => void };
-    expect(actionConfig).toBeDefined();
-
-    act(() => {
-      actionConfig.onClick();
-    });
-
-    expect(mockCheck).toHaveBeenCalledTimes(1);
-  });
-
   it('does nothing when result is null', () => {
-    vi.mocked(isTauriRuntime).mockReturnValue(true);
-    vi.mocked(useUpdateHandoff).mockReturnValue({
+    vi.spyOn(handoffHook, 'useUpdateHandoff').mockReturnValue({
       result: null,
       dismiss: mockDismiss,
     });
@@ -157,5 +79,58 @@ describe('UpdateHandoffNotifier Component', () => {
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
     expect(mockDismiss).not.toHaveBeenCalled();
+  });
+
+  it('triggers success toast and dismisses when result is success', () => {
+    vi.spyOn(handoffHook, 'useUpdateHandoff').mockReturnValue({
+      result: {
+        type: 'success',
+        fromVersion: '0.1.0',
+        currentVersion: '0.2.0',
+      },
+      dismiss: mockDismiss,
+    });
+
+    render(<UpdateHandoffNotifier />);
+
+    expect(toast.success).toHaveBeenCalledWith(
+      'handoffSuccessTitle',
+      expect.objectContaining({
+        description: 'handoffSuccessDescription:version=0.2.0:fromVersion=0.1.0',
+        duration: 6000,
+      })
+    );
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers error toast with retry action when result is failure', () => {
+    vi.spyOn(handoffHook, 'useUpdateHandoff').mockReturnValue({
+      result: {
+        type: 'failure',
+        targetVersion: '0.3.0',
+        currentVersion: '0.1.0',
+      },
+      dismiss: mockDismiss,
+    });
+
+    render(<UpdateHandoffNotifier />);
+
+    expect(toast.error).toHaveBeenCalledWith(
+      'handoffFailureTitle',
+      expect.objectContaining({
+        description: 'handoffFailureDescription:currentVersion=0.1.0:targetVersion=0.3.0',
+        duration: 10000,
+        action: expect.objectContaining({
+          label: 'retry',
+        }),
+      })
+    );
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+
+    // Test clicking retry action
+    const errorCall = vi.mocked(toast.error).mock.calls[0];
+    const options = errorCall[1] as { action: { onClick: () => void } };
+    options.action.onClick();
+    expect(mockCheck).toHaveBeenCalledTimes(1);
   });
 });

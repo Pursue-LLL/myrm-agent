@@ -10,7 +10,7 @@
 
 **Agent Security net_fetch**：`agent_bridge.py` 与 `realtime.py`（tool-exec 代理）均通过 `resolve_enable_web_fetch(profile.security_overrides)` 设置 `enable_web_fetch`，与 Web/Channel/Cron 入口一致。
 
-**Background work**：`run_background_task` / `cancel_background_task` / `get_background_tasks_status` / `steer_background_task` 四个后台任务工具在 OpenAI Realtime 和 Gemini Live 中均注册为 always-available。工具执行统一经 `realtime-tool-exec` 端点短路处理，经 `ChannelBackgroundTaskHandler` 操作 Kanban；`run_background_task` 要求 `chat_id` 非空，否则返回 error；完成通知见 `webui_voice_work_notifier.py`。
+**Background work & Reminders**：`run_background_task` / `cancel_background_task` / `get_background_tasks_status` / `steer_background_task` 四个后台任务工具，以及 `set_reminder` / `cancel_reminder` / `list_reminders` 三个提醒工具在 OpenAI Realtime 和 Gemini Live 中均注册为 always-available。工具执行统一经 `realtime-tool-exec` 端点短路处理，分别委托 `ChannelBackgroundTaskHandler` 操作 Kanban 及 `CronManager`（JobType.REMINDER）操作 Cron SSOT；`run_background_task` 要求 `chat_id` 非空，否则返回 error；完成/到期通知由 `webui_voice_work_notifier.py` 与 `CronPushPoller` 闭环。
 
 **测试**：`tests/api/voice/test_voice_memory_context.py`（SSOT 矩阵）、`tests/api/voice/test_voice_memory_acl_api_integration.py`（HTTP token/tool-exec）、`tests/e2e/test_voice_memory_acl_chrome_e2e.py`（Settings UI → `personalSettings` READ E2E）。
 
@@ -20,9 +20,10 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `voice_memory_context.py` | 核心 | Voice memory ACL SSOT（settings + profile → flags） | ✅ |
-| `tool_catalog.py` | 核心 | Realtime 工具声明唯一归属：通用工具 catalog / always-available 集 + `build_realtime_tools` 聚合（内置 catalog + 后台任务 + memory ACL）；共享 `memory_search_tool` 声明（Realtime + Gemini）；Gemini 自身 catalog 留在 `gemini_live.py`（`GeminiFunctionDeclaration` schema） | ✅ |
+| `tool_catalog.py` | 核心 | Realtime 工具声明唯一归属：通用工具 catalog / always-available 集（后台任务 + 提醒工具） + `build_realtime_tools` 聚合（内置 catalog + always-available + memory ACL）；共享 `memory_search_tool` 声明（Realtime + Gemini）；Gemini 自身 catalog 留在 `gemini_live.py`（`GeminiFunctionDeclaration` schema） | ✅ |
 | `agent_bridge.py` | 模块 | Voice STT→Agent bridge；语音 Fast-Lane 快车道直出（<1.5s 问候/简单问答）+ 15s Supervisor 长任务超时平缓脱困（自动移交 Kanban 后台持久化任务并在完工后主动播报）；merge profile `system_prompt` + **`profile_output_suffixes`**；`enable_web_fetch` 由 profile `net_fetch` 门控；`_consume_agent_stream` 注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
-| `gemini_live.py` | 模块 | Gemini Live token/WS；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`** | ✅ |
-| `realtime.py` | 模块 | OpenAI Realtime token；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`**；工具声明 import 自 `tool_catalog`；tool-exec 路由入口 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，统一覆盖 background lifecycle 委托与 Agent 代理）；tool-exec Agent 代理注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
+| `gemini_live.py` | 模块 | Gemini Live token/WS；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`**；always-available 包含后台任务 + 原生提醒工具 | ✅ |
+| `realtime.py` | 模块 | OpenAI Realtime token；session `instructions` 含 profile `system_prompt` + **`profile_output_suffixes`**；工具声明 import 自 `tool_catalog`；tool-exec 路由入口 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，统一覆盖 background lifecycle / reminder 委托与 Agent 代理）；tool-exec Agent 代理注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
 | `realtime_background.py` | 模块 | Background task lifecycle handlers（run/cancel/status/steer）短路 Kanban；由 `realtime.py` tool-exec 路由调用 | ✅ |
+| `realtime_reminder.py` | 模块 | Voice native reminder lifecycle handlers（set/cancel/list）短路 CronManager SSOT；由 `realtime.py` tool-exec 路由调用 | ✅ |
 | `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint；type:config 用 `is_safe_session_id` 校验 `chat_id`，非法拒绝连接 | ✅ |

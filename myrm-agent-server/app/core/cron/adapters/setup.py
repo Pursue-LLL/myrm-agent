@@ -76,10 +76,17 @@ def get_cron_manager() -> EntitlementGuardedCronManager:
     return _manager
 
 
-async def _push_callback(user_id: str, job_name: str, text: str, level: str) -> None:
+async def _push_callback(
+    user_id: str,
+    job_name: str,
+    text: str,
+    level: str,
+    *,
+    chat_id: str | None = None,
+) -> None:
     from app.core.cron.push_store import PushLevel, push
 
-    await push(user_id, job_name, text, PushLevel(level))
+    await push(user_id, job_name, text, PushLevel(level), chat_id=chat_id)
 
 
 def _build_scheduler() -> CronScheduler:

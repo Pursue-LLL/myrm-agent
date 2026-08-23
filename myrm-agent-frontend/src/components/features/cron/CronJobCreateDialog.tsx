@@ -33,7 +33,7 @@ import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { apiRequest } from '@/lib/api';
-import type { CronSchedule } from '@/services/cron';
+import { checkCronPrerequisite, type CronSchedule, type PrerequisiteCheckResponse } from '@/services/cron';
 import {
   estimateCronMonthlyExecutions,
   estimateIntervalMonthlyExecutions,
@@ -50,6 +50,7 @@ import { CRON_PRESETS, humanizeSchedule, type CronBlueprint } from './cron-bluep
 import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
 import { CronJobAuditPanel } from './CronJobAuditPanel';
+import { CronPrerequisiteCard } from './CronPrerequisiteCard';
 import { fetchWorkflowTemplates, type WorkflowTemplateSummary } from '@/services/workflowTemplates';
 import WorkflowTemplateArgsDialog from '@/components/features/settings/sections/ai-tools/WorkflowTemplateArgsDialog';
 
@@ -107,6 +108,9 @@ export default function CronJobCreateDialog({
   const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateSummary[]>([]);
   const [workflowTemplateArgs, setWorkflowTemplateArgs] = useState<Record<string, string> | null>(null);
   const [workflowArgsDialogOpen, setWorkflowArgsDialogOpen] = useState(false);
+  const [prerequisiteStats, setPrerequisiteStats] = useState<PrerequisiteCheckResponse | null>(null);
+  const [prerequisiteLoading, setPrerequisiteLoading] = useState(false);
+  const [overridePrerequisite, setOverridePrerequisite] = useState(false);
 
   const selectedWorkflowTemplate = useMemo(
     () => workflowTemplates.find((template) => template.template_id === workflowTemplateId) ?? null,
@@ -133,6 +137,40 @@ export default function CronJobCreateDialog({
         .catch(() => setWorkflowTemplates([]));
     }
   }, [open, uiMode]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const activePrompt = uiMode === 'agent' || uiMode === 'reminder' ? prompt : '';
+      const activeCmd = uiMode === 'shell' ? command : uiMode === 'script' ? scriptCode : '';
+      if (!activePrompt && !activeCmd) {
+        setPrerequisiteStats(null);
+        return;
+      }
+      setPrerequisiteLoading(true);
+      void checkCronPrerequisite({
+        prompt: activePrompt || undefined,
+        command: activeCmd || undefined,
+        agent_id: agentId !== '__default__' ? agentId : undefined,
+        workflow_template_id: workflowTemplateId !== '__none__' ? workflowTemplateId : undefined,
+        chat_id: presetChatId || selectedChatId || undefined,
+      })
+        .then((res) => {
+          setPrerequisiteStats(res);
+        })
+        .catch(() => {
+          setPrerequisiteStats(null);
+        })
+        .finally(() => {
+          setPrerequisiteLoading(false);
+        });
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [open, uiMode, prompt, command, scriptCode, agentId, workflowTemplateId, presetChatId, selectedChatId]);
+
 
   useEffect(() => {
     if (open) {
@@ -179,6 +217,9 @@ export default function CronJobCreateDialog({
     setWorkflowTemplateId('__none__');
     setWorkflowTemplateArgs(null);
     setWorkflowArgsDialogOpen(false);
+    setPrerequisiteStats(null);
+    setPrerequisiteLoading(false);
+    setOverridePrerequisite(false);
   }, [presetChatId]);
 
   const schedule = useMemo((): CronSchedule | null => {
@@ -306,6 +347,10 @@ export default function CronJobCreateDialog({
           }));
         }
 
+        if (overridePrerequisite) {
+          payload.override_prerequisite = true;
+        }
+
         const job = await createJob(payload);
         try {
           const auditJob = await prepareJobForSettingsAudit(job);
@@ -336,6 +381,7 @@ export default function CronJobCreateDialog({
       deliveryChannel,
       deliveryTarget,
       acceptanceCriteria,
+      overridePrerequisite,
       createJob,
       t,
     ],
@@ -848,6 +894,16 @@ export default function CronJobCreateDialog({
                       <p className="text-[11px] text-muted-foreground">{t('acceptanceCriteriaHint')}</p>
                     )}
                   </div>
+                )}
+
+                {/* Prerequisite Gate Card */}
+                {contentValid && (
+                  <CronPrerequisiteCard
+                    stats={prerequisiteStats}
+                    loading={prerequisiteLoading}
+                    override={overridePrerequisite}
+                    onOverrideChange={setOverridePrerequisite}
+                  />
                 )}
 
                 {/* Submit */}

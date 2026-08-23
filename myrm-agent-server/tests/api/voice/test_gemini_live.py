@@ -93,6 +93,9 @@ _BACKGROUND_TOOL_NAMES = frozenset(
         "get_background_tasks_status",
         "cancel_background_task",
         "steer_background_task",
+        "set_reminder",
+        "cancel_reminder",
+        "list_reminders",
     }
 )
 
@@ -102,7 +105,7 @@ class TestBuildGeminiTools:
         tools = _build_gemini_tools((), _MEMORY_ONLY)
         names = {t.name for t in tools}
         assert _BACKGROUND_TOOL_NAMES <= names
-        assert len(tools) == 4
+        assert len(tools) == 7
 
     def test_adds_known_tools(self) -> None:
         tools = _build_gemini_tools(("web_search", "memory"), _ALL_MEMORY)
@@ -110,18 +113,19 @@ class TestBuildGeminiTools:
         assert "run_background_task" in names
         assert "web_search" in names
         assert "memory_search_tool" in names
-        assert len(tools) == 6
+        assert "set_reminder" in names
+        assert len(tools) == 9
 
     def test_ignores_unknown_tools(self) -> None:
         tools = _build_gemini_tools(("web_search", "nonexistent_tool"), _MEMORY_ONLY)
-        assert len(tools) == 5
+        assert len(tools) == 8
 
     def test_all_catalog_tools(self) -> None:
         tools = _build_gemini_tools(
             ("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"),
             _ALL_MEMORY,
         )
-        assert len(tools) == 10
+        assert len(tools) == 13
 
 
 @pytest.mark.asyncio
@@ -148,7 +152,7 @@ async def test_create_gemini_live_token_success() -> None:
     assert "key=AIza-test-key" in result.ws_url
     assert result.model == "gemini-2.5-flash-preview-native-audio-dialog"
     assert result.instructions == "You are a helpful voice assistant."
-    assert len(result.tools) == 5
+    assert len(result.tools) == 8
 
 
 @pytest.mark.asyncio
@@ -210,4 +214,4 @@ async def test_create_gemini_live_token_no_profile() -> None:
 
     assert result.ws_url.startswith("wss://")
     assert result.instructions is None
-    assert len(result.tools) == 4
+    assert len(result.tools) == 7

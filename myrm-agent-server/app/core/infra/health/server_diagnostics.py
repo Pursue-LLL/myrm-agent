@@ -337,124 +337,6 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
         )
 
 
-class SupplyChainDiagnostic(DiagnosticProtocol):
-    """Active environment dependency and supply-chain vulnerability diagnostic probe.
-
-    Audits the current Python runtime environment and core frameworks against
-    known malicious packages and OSV.dev published CVEs with local 24h TTL caching.
-    """
-
-    async def check_health(self) -> HealthReport:
-        try:
-            start_t = time.perf_counter()
-            dists = list(importlib.metadata.distributions())
-            deps: list[DeclaredDependency] = []
-
-            # 1. Extract installed distributions in the active environment
-            for dist in dists:
-                name = (dist.metadata["Name"] or "").strip()
-                version = (dist.version or "").strip()
-                if name:
-                    deps.append(
-                        DeclaredDependency(
-                            name=name.lower(),
-                            version_spec=version,
-                            ecosystem="PyPI",
-                            file_path="active_venv",
-                        )
-                    )
-
-            # 2. Offline known malicious packages check
-            offline_findings = match_known_advisories(deps)
-
-            # 3. Online OSV vulnerability scan with 24h cache
-            cache = get_vuln_cache()
-            osv_findings = await query_osv_batch(deps, cache=cache)
-
-            # 4. Evaluate findings
-            critical_findings = []
-            high_findings = []
-            warn_findings = []
-
-            for f in [*offline_findings, *osv_findings]:
-                if f.severity == ScanSeverity.CRITICAL:
-                    critical_findings.append(f)
-                elif f.severity == ScanSeverity.HIGH:
-                    high_findings.append(f)
-                else:
-                    warn_findings.append(f)
-
-            duration_ms = round((time.perf_counter() - start_t) * 1000, 2)
-            meta_data: dict[str, object] = {
-                "packages_scanned_count": len(deps),
-                "critical_vuln_count": len(critical_findings),
-                "high_vuln_count": len(high_findings),
-                "medium_low_vuln_count": len(warn_findings),
-                "scan_duration_ms": duration_ms,
-            }
-            metrics: dict[str, float] = {
-                "scanned_packages": float(len(deps)),
-                "critical_vulnerabilities": float(len(critical_findings)),
-                "high_vulnerabilities": float(len(high_findings)),
-                "scan_duration_ms": duration_ms,
-            }
-
-            if critical_findings:
-                pkg_names = ", ".join(
-                    dict.fromkeys(f.package_name for f in critical_findings[:3])
-                )
-                return HealthReport(
-                    component_name="SupplyChainSecurity",
-                    status="fail",
-                    code="ERR_SUPPLY_CHAIN_CRITICAL_MALWARE",
-                    meta_data=meta_data,
-                    metrics=metrics,
-                    message="Critical supply-chain vulnerability or compromised package detected in runtime environment.",
-                    detail=f"Detected {len(critical_findings)} critical vulnerability/malware advisory(ies) affecting packages: {pkg_names}.",
-                    fix_suggestion="Immediately upgrade or remove affected dependencies using 'uv sync' or 'pip install --upgrade'.",
-                )
-
-            if high_findings:
-                pkg_names = ", ".join(
-                    dict.fromkeys(f.package_name for f in high_findings[:3])
-                )
-                return HealthReport(
-                    component_name="SupplyChainSecurity",
-                    status="warn",
-                    code="WARN_SUPPLY_CHAIN_HIGH_VULNERABILITY",
-                    meta_data=meta_data,
-                    metrics=metrics,
-                    message="High-severity CVE vulnerability detected in installed dependencies.",
-                    detail=f"Detected {len(high_findings)} high-severity advisory(ies) affecting packages: {pkg_names}.",
-                    fix_suggestion="Review affected dependencies and update to patched versions.",
-                )
-
-            return HealthReport(
-                component_name="SupplyChainSecurity",
-                status="pass",
-                code="OK_SUPPLY_CHAIN_HEALTHY",
-                meta_data=meta_data,
-                metrics=metrics,
-                message=f"Supply chain dependencies verified clean ({len(deps)} packages scanned, {duration_ms}ms).",
-                detail=f"All {len(deps)} installed environment packages passed offline advisory and OSV.dev vulnerability checks.",
-                fix_suggestion=None,
-            )
-
-        except Exception as exc:
-            logger.warning(
-                "Supply chain vulnerability diagnostic check degraded: %s", exc
-            )
-            return HealthReport(
-                component_name="SupplyChainSecurity",
-                status="pass",
-                code="WARN_SUPPLY_CHAIN_SCAN_DEGRADED",
-                meta_data={"error": str(exc)},
-                message="Supply chain security scan degraded (offline or cache-only mode).",
-                detail=f"Supply chain check completed with fallback: {exc}",
-                fix_suggestion=None,
-            )
-
-
 class ServerDiagnosticsManager:
     """Manages and executes all Server-level business diagnostics."""
 
@@ -463,7 +345,6 @@ class ServerDiagnosticsManager:
             DLQDiagnostic(),
             ExecutionCacheDiagnostic(),
             AgentColdStartDiagnostic(),
-            SupplyChainDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

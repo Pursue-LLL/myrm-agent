@@ -36,6 +36,9 @@ _RUN_BACKGROUND_TASK_NAME = "run_background_task"
 _CANCEL_BACKGROUND_TASK_NAME = "cancel_background_task"
 _GET_BACKGROUND_TASKS_STATUS_NAME = "get_background_tasks_status"
 _STEER_BACKGROUND_TASK_NAME = "steer_background_task"
+_SET_REMINDER_NAME = "set_reminder"
+_CANCEL_REMINDER_NAME = "cancel_reminder"
+_LIST_REMINDERS_NAME = "list_reminders"
 
 
 def _build_voice_inbound_msg(req: RealtimeToolExecRequest) -> "InboundMessage":
@@ -164,9 +167,165 @@ async def _execute_run_background_task(req: RealtimeToolExecRequest) -> Realtime
     return RealtimeToolExecResponse(result=json.dumps(payload))
 
 
+async def _execute_set_reminder(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
+    """Schedule a reminder directly via CronManager SSOT."""
+    from datetime import datetime, timedelta, timezone
+    from myrm_agent_harness.toolkits.cron.types import DeliveryConfig, JobType, Schedule, ScheduleKind
+    from app.core.cron.adapters.setup import get_cron_manager
+
+    content = str(req.arguments.get("content", "")).strip()
+    if not content:
+        return RealtimeToolExecResponse(result=None, error="Reminder content is required")
+
+    minutes_val = req.arguments.get("minutes_later")
+    schedule_time_val = req.arguments.get("schedule_time")
+
+    now = datetime.now(timezone.utc)
+    run_at: datetime | None = None
+
+    if minutes_val is not None:
+        try:
+            delta_minutes = float(minutes_val)
+            if delta_minutes <= 0:
+                delta_minutes = 1.0
+            run_at = now + timedelta(minutes=delta_minutes)
+        except (ValueError, TypeError):
+            pass
+
+    if run_at is None and schedule_time_val:
+        try:
+            iso_str = str(schedule_time_val).strip()
+            parsed = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            run_at = parsed
+        except (ValueError, TypeError):
+            pass
+
+    if run_at is None:
+        # Default fallback: 5 minutes later
+        run_at = now + timedelta(minutes=5)
+
+    name = f"Voice Reminder: {content[:40]}"
+    mgr = get_cron_manager()
+
+    try:
+        job = await mgr.create_job(
+            user_id="default",
+            name=name,
+            job_type=JobType.REMINDER,
+            schedule=Schedule(kind=ScheduleKind.ONCE, run_at=run_at),
+            prompt=content,
+            chat_id=req.chat_id,
+            delivery=DeliveryConfig(channel="chat"),
+        )
+        return RealtimeToolExecResponse(
+            result=json.dumps(
+                {
+                    "success": True,
+                    "job_id": job.id,
+                    "name": job.name,
+                    "content": content,
+                    "scheduled_at": run_at.isoformat(),
+                    "message": f"Reminder set for {run_at.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+                }
+            )
+        )
+    except Exception as exc:
+        logger.exception("Failed to create voice reminder cron job: %s", exc)
+        return RealtimeToolExecResponse(result=None, error=f"Failed to create reminder: {exc}")
+
+
+async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
+    """Cancel a scheduled reminder via CronManager."""
+    from app.core.cron.adapters.setup import get_cron_manager
+    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    reminder_id = str(req.arguments.get("reminder_id", "")).strip()
+    content_query = str(req.arguments.get("content", "")).strip().lower()
+    cancel_latest = bool(req.arguments.get("cancel_latest", False))
+
+    mgr = get_cron_manager()
+    try:
+        jobs = await mgr.list_jobs("default")
+        active_reminders = [
+            j for j in jobs
+            if j.status == JobStatus.ACTIVE and j.job_type == JobType.REMINDER
+        ]
+
+        target_job = None
+        if reminder_id:
+            for j in active_reminders:
+                if j.id == reminder_id:
+                    target_job = j
+                    break
+        elif content_query:
+            for j in active_reminders:
+                if content_query in j.name.lower() or (j.prompt and content_query in j.prompt.lower()):
+                    target_job = j
+                    break
+        elif cancel_latest and active_reminders:
+            target_job = active_reminders[-1]
+
+        if not target_job:
+            return RealtimeToolExecResponse(
+                result=json.dumps(
+                    {
+                        "cancelled": False,
+                        "message": "No matching active reminder found.",
+                        "active_count": len(active_reminders),
+                    }
+                )
+            )
+
+        success = await mgr.delete_job("default", target_job.id)
+        return RealtimeToolExecResponse(
+            result=json.dumps(
+                {
+                    "cancelled": success,
+                    "job_id": target_job.id,
+                    "name": target_job.name,
+                    "message": f"Reminder '{target_job.name}' cancelled.",
+                }
+            )
+        )
+    except Exception as exc:
+        logger.exception("Failed to cancel voice reminder cron job: %s", exc)
+        return RealtimeToolExecResponse(result=None, error=f"Failed to cancel reminder: {exc}")
+
+
+async def _execute_list_reminders(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
+    """List active reminders via CronManager."""
+    from app.core.cron.adapters.setup import get_cron_manager
+    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    mgr = get_cron_manager()
+    try:
+        jobs = await mgr.list_jobs("default")
+        active_reminders = [
+            {
+                "id": j.id,
+                "name": j.name,
+                "content": j.prompt or "",
+                "next_run_at": j.next_run_at.isoformat() if j.next_run_at else None,
+            }
+            for j in jobs
+            if j.status == JobStatus.ACTIVE and j.job_type == JobType.REMINDER
+        ]
+        return RealtimeToolExecResponse(
+            result=json.dumps({"reminders": active_reminders, "count": len(active_reminders)})
+        )
+    except Exception as exc:
+        logger.exception("Failed to list voice reminder cron jobs: %s", exc)
+        return RealtimeToolExecResponse(result=None, error=f"Failed to list reminders: {exc}")
+
+
 BACKGROUND_TOOL_HANDLERS: dict[str, Callable[[RealtimeToolExecRequest], Awaitable[RealtimeToolExecResponse]]] = {
     _RUN_BACKGROUND_TASK_NAME: _execute_run_background_task,
     _CANCEL_BACKGROUND_TASK_NAME: _execute_cancel_background_task,
     _GET_BACKGROUND_TASKS_STATUS_NAME: _execute_get_background_tasks_status,
     _STEER_BACKGROUND_TASK_NAME: _execute_steer_background_task,
+    _SET_REMINDER_NAME: _execute_set_reminder,
+    _CANCEL_REMINDER_NAME: _execute_cancel_reminder,
+    _LIST_REMINDERS_NAME: _execute_list_reminders,
 }

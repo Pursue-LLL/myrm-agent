@@ -29,7 +29,11 @@ from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.agent.goals.verification.base import VerificationResult
+from myrm_agent_harness.agent.goals.verification.base import (
+    ReviewComment,
+    ReviewSeverity,
+    VerificationResult,
+)
 from myrm_agent_harness.agent.goals.verification.shell import ShellCriterion
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
@@ -135,10 +139,16 @@ class KanbanCompletionVerifier:
             criterion = ShellCriterion(command=command, timeout_seconds=timeout)
             vr = await criterion.verify()
             if not vr.passed:
+                comment = ReviewComment(
+                    severity=ReviewSeverity.CRITICAL,
+                    message=f"Command failed: {command}",
+                    fix_suggestion=f"Check terminal output and fix the root cause before retrying `{command}`",
+                )
                 return VerificationResult(
                     passed=False,
                     reason=f"Shell verification failed: {command}",
                     error_logs=vr.error_logs,
+                    comments=[comment],
                 )
         return None
 
@@ -161,7 +171,9 @@ class KanbanCompletionVerifier:
             f"Acceptance criteria:\n{criteria}\n\n"
             "Judge whether the agent's result satisfies ALL acceptance criteria.\n"
             "Reply ONLY with JSON: "
-            '{"done": true/false, "reason": "one-sentence rationale"}'
+            '{"done": true/false, "reason": "one-sentence rationale", '
+            '"comments": [{"severity": "critical"|"warning"|"info", "message": "description", '
+            '"target_path": "optional/file.ext", "line_range": "optional 10-20", "fix_suggestion": "optional advice"}]}'
         )
         user_content = f"Agent's result:\n{_trim_result_for_judge(result)}"
 
@@ -173,7 +185,7 @@ class KanbanCompletionVerifier:
                     {"role": "user", "content": user_content},
                 ],
                 temperature=0.0,
-                max_tokens=256,
+                max_tokens=512,
                 timeout=30,
                 **llm_kwargs,
             )
@@ -182,17 +194,43 @@ class KanbanCompletionVerifier:
 
             parsed = parse_judge_json(raw)
             if parsed is not None:
-                done = parsed.get("done", False)
+                done = bool(parsed.get("done", False))
                 reason = str(parsed.get("reason", ""))
-                if done:
-                    return VerificationResult(passed=True, reason=reason)
-                return VerificationResult(passed=False, reason=reason)
+                raw_comments = parsed.get("comments")
+                comments: list[ReviewComment] = []
+                if isinstance(raw_comments, list):
+                    for rc in raw_comments:
+                        if isinstance(rc, dict):
+                            comments.append(ReviewComment.from_dict(rc))
+
+                # If judge rejected but gave no comments, generate a fallback critical comment
+                if not done and not comments and reason:
+                    comments.append(
+                        ReviewComment(
+                            severity=ReviewSeverity.CRITICAL,
+                            message=reason,
+                        )
+                    )
+
+                return VerificationResult(passed=done, reason=reason, comments=comments)
 
             lower = raw.lower()
-            is_pass = lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower
-            if is_pass:
-                return VerificationResult(passed=True, reason=raw)
-            return VerificationResult(passed=False, reason=raw)
+            is_pass = (
+                lower.startswith("pass")
+                or '"done": true' in lower
+                or '"done":true' in lower
+            )
+            comments_fallback: list[ReviewComment] = []
+            if not is_pass and raw:
+                comments_fallback.append(
+                    ReviewComment(
+                        severity=ReviewSeverity.CRITICAL,
+                        message=raw[:200],
+                    )
+                )
+            return VerificationResult(
+                passed=is_pass, reason=raw, comments=comments_fallback
+            )
 
         except Exception as exc:
             logger.error("Kanban completion verification failed: %s", exc)
@@ -200,4 +238,10 @@ class KanbanCompletionVerifier:
                 passed=False,
                 reason="Verification judge call failed",
                 error_logs=str(exc),
+                comments=[
+                    ReviewComment(
+                        severity=ReviewSeverity.CRITICAL,
+                        message=f"Verification judge call failed: {exc}",
+                    )
+                ],
             )

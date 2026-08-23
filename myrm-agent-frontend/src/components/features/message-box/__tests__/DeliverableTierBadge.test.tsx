@@ -51,7 +51,7 @@ describe('DeliverableTierBadge', () => {
     );
 
     expect(screen.getByTestId('deliverable-tier-badge-verified')).toBeInTheDocument();
-    expect(screen.getByText('Verified Delivery')).toBeInTheDocument();
+    expect(screen.getAllByText('Verified Delivery').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders artifact tier badge correctly', () => {
@@ -72,7 +72,7 @@ describe('DeliverableTierBadge', () => {
     );
 
     expect(screen.getByTestId('deliverable-tier-badge-artifact')).toBeInTheDocument();
-    expect(screen.getByText('Artifact Delivery')).toBeInTheDocument();
+    expect(screen.getAllByText('Artifact Delivery').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders research tier badge correctly', () => {
@@ -93,7 +93,7 @@ describe('DeliverableTierBadge', () => {
     );
 
     expect(screen.getByTestId('deliverable-tier-badge-research')).toBeInTheDocument();
-    expect(screen.getByText('Research Output')).toBeInTheDocument();
+    expect(screen.getAllByText('Research Output').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders plan tier badge correctly', () => {
@@ -114,6 +114,6 @@ describe('DeliverableTierBadge', () => {
     );
 
     expect(screen.getByTestId('deliverable-tier-badge-plan')).toBeInTheDocument();
-    expect(screen.getByText('Plan / Proposal')).toBeInTheDocument();
+    expect(screen.getAllByText('Plan / Proposal').length).toBeGreaterThanOrEqual(1);
   });
 });

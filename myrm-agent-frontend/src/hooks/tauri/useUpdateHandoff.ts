@@ -158,7 +158,12 @@ export function useUpdateHandoff(options: UseUpdateHandoffOptions = {}): UseUpda
       // Always clear localStorage immediately to avoid repeated prompts on subsequent reloads
       clearUpdateHandoff();
 
-      const currentVersion = await getAppVersion();
+      let currentVersion: string | null = null;
+      try {
+        currentVersion = await getAppVersion();
+      } catch {
+        return;
+      }
       if (!currentVersion) {
         return;
       }

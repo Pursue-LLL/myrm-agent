@@ -163,7 +163,10 @@ class TestBuildRealtimeTools:
         assert "get_background_tasks_status" in names
         assert "cancel_background_task" in names
         assert "steer_background_task" in names
-        assert len(tools) == 4
+        assert "set_reminder" in names
+        assert "cancel_reminder" in names
+        assert "list_reminders" in names
+        assert len(tools) == 7
 
     def test_adds_known_tools(self) -> None:
         tools = build_realtime_tools(("web_search", "memory"), _ALL_MEMORY)
@@ -171,7 +174,7 @@ class TestBuildRealtimeTools:
         assert "run_background_task" in names
         assert "web_search" in names
         assert "memory_search_tool" in names
-        assert len(tools) == 6
+        assert len(tools) == 9
 
     def test_memory_tool_omits_sessions_when_opt_in_off(self) -> None:
         tools = build_realtime_tools(("memory",), _MEMORY_ONLY)
@@ -195,14 +198,14 @@ class TestBuildRealtimeTools:
 
     def test_ignores_unknown_tools(self) -> None:
         tools = build_realtime_tools(("web_search", "nonexistent_tool"), _MEMORY_ONLY)
-        assert len(tools) == 5
+        assert len(tools) == 8
 
     def test_all_catalog_tools(self) -> None:
         tools = build_realtime_tools(
             ("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"),
             _ALL_MEMORY,
         )
-        assert len(tools) == 10
+        assert len(tools) == 13
 
     def test_render_ui_not_exposed_even_when_profile_enabled(self) -> None:
         """Voice Realtime has no inline A2UI surface — catalog omits render_ui (see gemini_live)."""
@@ -312,8 +315,9 @@ async def test_create_realtime_token_no_profile_returns_default_tools() -> None:
     ):
         result = await create_realtime_token(RealtimeTokenRequest())
 
-    assert len(result.tools) == 4
+    assert len(result.tools) == 7
     assert any(t.name == "run_background_task" for t in result.tools)
+    assert any(t.name == "set_reminder" for t in result.tools)
     assert result.instructions is None
     assert result.voice == "verse"
 
@@ -1151,3 +1155,141 @@ async def test_steer_background_task_missing_args() -> None:
     )
     assert result.error is not None
     assert "instruction" in result.error.lower()
+
+
+# ── set_reminder / cancel_reminder / list_reminders tool tests ─────────
+
+
+@pytest.mark.asyncio
+async def test_set_reminder_minutes_later_success() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    mock_mgr = MagicMock()
+    mock_job = MagicMock()
+    mock_job.id = "job-reminder-123"
+    mock_job.name = "Voice Reminder: Drink water"
+    mock_mgr.create_job = AsyncMock(return_value=mock_job)
+
+    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_mgr):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="set_reminder",
+                arguments={"content": "Drink water", "minutes_later": 10},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["success"] is True
+    assert payload["job_id"] == "job-reminder-123"
+    assert "Drink water" in payload["name"]
+    assert mock_mgr.create_job.call_count == 1
+    call_kwargs = mock_mgr.create_job.call_args.kwargs
+    assert call_kwargs["prompt"] == "Drink water"
+    assert call_kwargs["chat_id"] == "chat-1"
+
+
+@pytest.mark.asyncio
+async def test_set_reminder_missing_content() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+
+    result = await execute_realtime_tool(
+        RealtimeToolExecRequest(
+            tool_name="set_reminder",
+            arguments={"minutes_later": 5},
+            chat_id="chat-1",
+        )
+    )
+    assert result.error is not None
+    assert "content is required" in result.error.lower()
+
+
+@pytest.mark.asyncio
+async def test_cancel_reminder_by_id_success() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    mock_mgr = MagicMock()
+    mock_job = MagicMock()
+    mock_job.id = "rem-1"
+    mock_job.name = "Voice Reminder: Meeting"
+    mock_job.prompt = "Meeting"
+    mock_job.status = JobStatus.ACTIVE
+    mock_job.job_type = JobType.REMINDER
+
+    mock_mgr.list_jobs = AsyncMock(return_value=[mock_job])
+    mock_mgr.delete_job = AsyncMock(return_value=True)
+
+    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_mgr):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="cancel_reminder",
+                arguments={"reminder_id": "rem-1"},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["cancelled"] is True
+    assert payload["job_id"] == "rem-1"
+    assert mock_mgr.delete_job.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cancel_reminder_not_found() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    mock_mgr = MagicMock()
+    mock_mgr.list_jobs = AsyncMock(return_value=[])
+
+    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_mgr):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="cancel_reminder",
+                arguments={"content": "Nonexistent reminder"},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["cancelled"] is False
+    assert "No matching" in payload["message"]
+
+
+@pytest.mark.asyncio
+async def test_list_reminders_success() -> None:
+    from app.api.voice.realtime import execute_realtime_tool
+    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+    from datetime import datetime, timezone
+
+    mock_mgr = MagicMock()
+    mock_job = MagicMock()
+    mock_job.id = "rem-1"
+    mock_job.name = "Voice Reminder: Stretch"
+    mock_job.prompt = "Stretch"
+    mock_job.status = JobStatus.ACTIVE
+    mock_job.job_type = JobType.REMINDER
+    mock_job.next_run_at = datetime(2026, 8, 21, 16, 0, tzinfo=timezone.utc)
+
+    mock_mgr.list_jobs = AsyncMock(return_value=[mock_job])
+
+    with patch("app.core.cron.adapters.setup.get_cron_manager", return_value=mock_mgr):
+        result = await execute_realtime_tool(
+            RealtimeToolExecRequest(
+                tool_name="list_reminders",
+                arguments={},
+                chat_id="chat-1",
+            )
+        )
+
+    assert result.error is None
+    payload = json.loads(str(result.result))
+    assert payload["count"] == 1
+    assert len(payload["reminders"]) == 1
+    assert payload["reminders"][0]["id"] == "rem-1"
+    assert payload["reminders"][0]["content"] == "Stretch"
+

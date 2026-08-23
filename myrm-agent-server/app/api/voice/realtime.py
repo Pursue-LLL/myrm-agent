@@ -225,10 +225,15 @@ async def execute_realtime_tool(
         raise validation_error(f"Invalid chat_id: {req.chat_id!r}")
 
     from app.api.voice.realtime_background import BACKGROUND_TOOL_HANDLERS
+    from app.api.voice.realtime_reminder import REMINDER_TOOL_HANDLERS
 
     bg_handler = BACKGROUND_TOOL_HANDLERS.get(req.tool_name)
     if bg_handler is not None:
         return await bg_handler(req)
+
+    reminder_handler = REMINDER_TOOL_HANDLERS.get(req.tool_name)
+    if reminder_handler is not None:
+        return await reminder_handler(req)
 
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.services.agent.streaming import ai_agent_service_stream

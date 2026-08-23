@@ -282,83 +282,6 @@ async def test_dlq_diagnostic_critical_failures() -> None:
 
 
 @pytest.mark.asyncio
-async def test_supply_chain_diagnostic_clean() -> None:
-    """Test SupplyChainDiagnostic when all dependencies are healthy."""
-    from app.core.infra.health.server_diagnostics import SupplyChainDiagnostic
-
-    diagnostic = SupplyChainDiagnostic()
-
-    mock_dist = MagicMock()
-    mock_dist.metadata = {"Name": "pydantic"}
-    mock_dist.version = "2.10.0"
-
-    with (
-        patch("importlib.metadata.distributions", return_value=[mock_dist]),
-        patch(
-            "app.core.infra.health.server_diagnostics.match_known_advisories",
-            return_value=[],
-        ),
-        patch(
-            "app.core.infra.health.server_diagnostics.query_osv_batch",
-            AsyncMock(return_value=[]),
-        ),
-    ):
-        report = await diagnostic.check_health()
-        assert report.component_name == "SupplyChainSecurity"
-        assert report.status == "pass"
-        assert report.code == "OK_SUPPLY_CHAIN_HEALTHY"
-        assert report.meta_data is not None
-        assert report.meta_data["packages_scanned_count"] == 1
-        assert report.meta_data["critical_vuln_count"] == 0
-        assert report.fix_suggestion is None
-
-
-@pytest.mark.asyncio
-async def test_supply_chain_diagnostic_critical_finding() -> None:
-    """Test SupplyChainDiagnostic when a critical malicious package is found."""
-    from myrm_agent_harness.backends.skills.scanning.scanner import ScanSeverity
-    from myrm_agent_harness.backends.skills.scanning.security_advisories import (
-        AdvisoryFinding,
-    )
-    from app.core.infra.health.server_diagnostics import SupplyChainDiagnostic
-
-    diagnostic = SupplyChainDiagnostic()
-
-    mock_dist = MagicMock()
-    mock_dist.metadata = {"Name": "malicious-pkg"}
-    mock_dist.version = "1.0.0"
-
-    crit_finding = AdvisoryFinding(
-        advisory_id="MAL-2026-001",
-        package_name="malicious-pkg",
-        ecosystem="PyPI",
-        severity=ScanSeverity.CRITICAL,
-        title="Token Stealer Malware",
-        description="Extracts environment tokens",
-        matched_version="1.0.0",
-    )
-
-    with (
-        patch("importlib.metadata.distributions", return_value=[mock_dist]),
-        patch(
-            "app.core.infra.health.server_diagnostics.match_known_advisories",
-            return_value=[crit_finding],
-        ),
-        patch(
-            "app.core.infra.health.server_diagnostics.query_osv_batch",
-            AsyncMock(return_value=[]),
-        ),
-    ):
-        report = await diagnostic.check_health()
-        assert report.component_name == "SupplyChainSecurity"
-        assert report.status == "fail"
-        assert report.code == "ERR_SUPPLY_CHAIN_CRITICAL_MALWARE"
-        assert report.meta_data is not None
-        assert report.meta_data["critical_vuln_count"] == 1
-        assert report.fix_suggestion is not None
-
-
-@pytest.mark.asyncio
 async def test_doctor_api_endpoint_integrates_cold_start() -> None:
     """Test GET /api/v1/health/doctor endpoint returns AgentColdStart report."""
     app = build_minimal_app(preset="health")
@@ -375,3 +298,7 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
         assert "AgentColdStart" in server_components
         assert "ExecutionCache" in server_components
         assert "DLQ" in server_components
+
+        harness_components = [item["component_name"] for item in data["harness"]]
+        assert "SupplyChainSecurity" in harness_components
+

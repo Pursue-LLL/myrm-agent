@@ -21,6 +21,8 @@ import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
 import type { AgentListItem } from '@/services/agent';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
+import { ReviewCommentThread } from './ReviewCommentThread';
+import type { AcceptanceResultItem } from './ReviewCommentThread';
 
 interface TaskDetailsSectionProps {
   task: KanbanTask;
@@ -421,37 +423,17 @@ export function TaskDetailsSection({
         )}
       </div>
 
-      {/* Acceptance results */}
+      {/* Acceptance results & Review Comment Thread */}
       {Array.isArray(task.metadata?.acceptance_results) && task.metadata.acceptance_results.length > 0 && (
         <div className="mt-1.5 rounded border border-border/80 bg-muted/20 px-2 py-1.5 space-y-1">
           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             {t('acceptanceResults')}
           </span>
-          <div className="space-y-1 mt-0.5">
-            {(task.metadata.acceptance_results as Array<{ label?: string; passed?: boolean; reason?: string }>).map(
-              (item, idx) => (
-                <div key={idx} className="flex items-start gap-1.5 text-xs">
-                  <span
-                    className={cn(
-                      'mt-0.5 inline-block w-2 h-2 rounded-full shrink-0',
-                      item.passed ? 'bg-emerald-500' : 'bg-destructive',
-                    )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-medium text-foreground/90">
-                      {item.label || `${t('completionCriteria')} #${idx + 1}`}
-                      <span className={cn('ml-1.5 text-[10px]', item.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')}>
-                        ({item.passed ? t('acceptancePassed') : t('acceptanceFailed')})
-                      </span>
-                    </p>
-                    {item.reason && (
-                      <p className="text-[10px] text-muted-foreground/80 mt-0.5 break-words">{item.reason}</p>
-                    )}
-                  </div>
-                </div>
-              ),
-            )}
-          </div>
+          <ReviewCommentThread
+            results={task.metadata.acceptance_results as AcceptanceResultItem[]}
+            t={t}
+            className="mt-1"
+          />
         </div>
       )}
 

@@ -6,12 +6,48 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 # Import the router directly instead of the whole app to avoid FastAPI app initialization issues in tests
-from app.api.integrations.hardware import _estimate_tok_per_sec
+from app.api.integrations.hardware import (
+    _estimate_tok_per_sec,
+    calculate_kv_cache_vram_gb,
+    derive_hardware_rung,
+)
 from app.api.integrations.hardware import router as hardware_router
 from app.config.deploy_mode import DeployMode
 
 app = FastAPI()
 app.include_router(hardware_router, prefix="/api/v1/integrations/hardware")
+
+# --- calculate_kv_cache_vram_gb unit tests ---
+
+
+def test_calculate_kv_cache_vram_gb():
+    # 32 layers, 8 kv_heads, 128 head_dim, 65536 ctx, fp16 (2.0 B)
+    # 2 * 32 * 8 * 128 * 65536 * 2.0 = 8,589,934,592 Bytes = 8.00 GB
+    val_fp16 = calculate_kv_cache_vram_gb(32, 8, 128, 65536, 2.0)
+    assert val_fp16 == 8.0
+
+    # Q8 (1.0 B) -> 4.00 GB
+    val_q8 = calculate_kv_cache_vram_gb(32, 8, 128, 65536, 1.0)
+    assert val_q8 == 4.0
+
+    # Q4 (0.5 B) -> 2.00 GB
+    val_q4 = calculate_kv_cache_vram_gb(32, 8, 128, 65536, 0.5)
+    assert val_q4 == 2.0
+
+    # Edge cases
+    assert calculate_kv_cache_vram_gb(0, 8, 128) == 0.0
+    assert calculate_kv_cache_vram_gb(32, 0, 128) == 0.0
+    assert calculate_kv_cache_vram_gb(32, 8, 0) == 0.0
+    assert calculate_kv_cache_vram_gb(32, 8, 128, context_length=-10) == 0.0
+
+
+def test_derive_hardware_rung():
+    assert derive_hardware_rung(8.0)[0] == 1
+    assert derive_hardware_rung(16.0)[0] == 2
+    assert derive_hardware_rung(24.0)[0] == 3
+    assert derive_hardware_rung(64.0)[0] == 4
+    assert derive_hardware_rung(128.0)[0] == 5
+
 
 # --- _estimate_tok_per_sec unit tests ---
 
@@ -183,6 +219,8 @@ async def test_hardware_recommendations_local_mode():
                         assert data["data"]["free_disk_gb"] == 100.0
                         assert data["data"]["is_unified_memory"] is True
                         assert data["data"]["ollama_running"] is True
+                        assert data["data"]["current_rung"] == 3  # 28GB available VRAM -> Rung 3
+                        assert "High-end" in data["data"]["rung_name"]
 
                         recs = data["data"]["recommendations"]
                         assert len(recs) == 2
@@ -192,6 +230,9 @@ async def test_hardware_recommendations_local_mode():
                         assert recs[0]["fit_level"] == "perfect"
                         assert recs[0]["is_installed"] is True
                         assert recs[0]["disk_size_gb"] == 0.4
+                        assert recs[0]["min_rung"] == 1
+                        assert "kv_fp16_64k_gb" in recs[0]
+                        assert "total_vram_64k_fp16_gb" in recs[0]
                         # M1 Max (400 GBps, apple) + 0.5B params -> high tok/s
                         assert recs[0]["est_tok_per_sec"] is not None
                         assert recs[0]["est_tok_per_sec"] > 100

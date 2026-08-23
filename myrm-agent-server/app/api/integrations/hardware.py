@@ -91,12 +91,23 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.request("DELETE", "http://localhost:11434/api/delete", json={"name": request.model_name})
+            response = await client.request(
+                "DELETE",
+                "http://localhost:11434/api/delete",
+                json={"name": request.model_name},
+            )
             if response.status_code == 200:
                 return success_response(data={"success": True})
             else:
-                logger.warning("Ollama delete failed (status %s): %s", response.status_code, response.text)
-                raise HTTPException(status_code=response.status_code, detail="Ollama model deletion failed")
+                logger.warning(
+                    "Ollama delete failed (status %s): %s",
+                    response.status_code,
+                    response.text,
+                )
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail="Ollama model deletion failed",
+                )
     except HTTPException:
         raise
     except Exception as e:
@@ -116,10 +127,14 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
         try:
             async with httpx.AsyncClient(timeout=300.0) as client:
                 async with client.stream(
-                    "POST", "http://localhost:11434/api/pull", json={"name": request.model_name}
+                    "POST",
+                    "http://localhost:11434/api/pull",
+                    json={"name": request.model_name},
                 ) as response:
                     if response.status_code != 200:
-                        yield f'{{"error": "Ollama returned status {response.status_code}"}}\n'.encode("utf-8")
+                        yield f'{{"error": "Ollama returned status {response.status_code}"}}\n'.encode(
+                            "utf-8"
+                        )
                         return
                     async for chunk in response.aiter_bytes():
                         yield chunk
@@ -151,11 +166,50 @@ def _estimate_tok_per_sec(
     if bandwidth_gbps is None or bandwidth_gbps <= 0 or params_b <= 0:
         return None
     # MoE models: inference cost scales with active parameters, not total
-    effective_b = active_params_b if (active_params_b and active_params_b > 0) else params_b
+    effective_b = (
+        active_params_b if (active_params_b and active_params_b > 0) else params_b
+    )
     raw = (bandwidth_gbps * 1e9) / (effective_b * 1e9 * _Q4_K_M_BYTES_PER_WEIGHT)
     vendor_factor = _VENDOR_FACTOR.get(vendor, _VENDOR_FACTOR["unknown"])
     # Return integer tok/s — sub-1 precision is noise given ~15% estimation error
     return max(1, round(raw * _EFFICIENCY * vendor_factor))
+
+
+def calculate_kv_cache_vram_gb(
+    num_layers: int,
+    kv_heads: int,
+    head_dim: int,
+    context_length: int = 65536,
+    bytes_per_elem: float = 2.0,
+) -> float:
+    """Calculate VRAM consumed by KV Cache for a given context length in GB.
+
+    Formula: 2 * num_layers * kv_heads * head_dim * context_length * bytes_per_elem / (1024^3)
+    """
+    if num_layers <= 0 or kv_heads <= 0 or head_dim <= 0 or context_length <= 0:
+        return 0.0
+    raw_bytes = 2 * num_layers * kv_heads * head_dim * context_length * bytes_per_elem
+    return round(raw_bytes / (1024**3), 2)
+
+
+def derive_hardware_rung(available_vram_gb: float) -> tuple[int, str]:
+    """Map available VRAM to a Reference Ladder Rung (1 to 5).
+
+    Rung 1 (Entry): < 10GB (e.g. 8GB RAM / 6GB GPU) -> 0.5B - 3B models
+    Rung 2 (Mainstream): 10 - 20GB (e.g. 16GB RAM / 12-16GB GPU) -> 8B models (64k ready)
+    Rung 3 (High-end): 20 - 40GB (e.g. 32GB RAM / 24GB GPU) -> 14B models (64k ready)
+    Rung 4 (Workstation): 40 - 80GB (e.g. 64GB RAM / 48GB GPU) -> 32B models (64k ready)
+    Rung 5 (Flagship): >= 80GB (e.g. 128GB+ RAM / Multi-GPU) -> 70B+ models (64k ready)
+    """
+    if available_vram_gb < 10.0:
+        return 1, "Entry (< 10GB)"
+    if available_vram_gb < 20.0:
+        return 2, "Mainstream (10-20GB)"
+    if available_vram_gb < 40.0:
+        return 3, "High-end (20-40GB)"
+    if available_vram_gb < 80.0:
+        return 4, "Workstation (40-80GB)"
+    return 5, "Flagship (80GB+)"
 
 
 class HardwareRecommendationResponse(BaseModel):
@@ -169,27 +223,38 @@ class HardwareRecommendationResponse(BaseModel):
     has_gpu: bool | None = Field(default=None, description="是否有GPU")
     gpu_name: str | None = Field(default=None, description="GPU名称")
     gpu_vram_gb: float | None = Field(default=None, description="GPU显存(GB)")
-    is_unified_memory: bool | None = Field(default=None, description="是否为统一内存(如Apple Silicon)")
+    is_unified_memory: bool | None = Field(
+        default=None, description="是否为统一内存(如Apple Silicon)"
+    )
+    available_vram_gb: float | None = Field(default=None, description="可用显存(GB)")
+    current_rung: int | None = Field(default=None, description="硬件梯队Rung等级 (1-5)")
+    rung_name: str | None = Field(default=None, description="梯队名称")
 
     ollama_running: bool = Field(default=False, description="本地 Ollama 是否正在运行")
-    recommendations: list[dict[str, object]] = Field(default_factory=list, description="推荐模型列表")
+    recommendations: list[dict[str, object]] = Field(
+        default_factory=list, description="推荐模型列表"
+    )
 
 
 @router.get("/recommendations", response_model=StandardSuccessResponse)
 async def get_hardware_recommendations() -> JSONResponse:
     """
-    获取基于本地硬件的模型推荐 (Fit Score)
+    获取基于本地硬件的模型推荐 (Fit Score) 与 64K 上下文 KV Cache 显存透视
 
     在 SaaS 模式下，或硬件检测失败时，返回 hardware_detected=False
     """
     from app.config.deploy_mode import DeployMode, get_deploy_mode
 
     if get_deploy_mode() == DeployMode.SANDBOX:
-        return success_response(data=HardwareRecommendationResponse(hardware_detected=False).model_dump())
+        return success_response(
+            data=HardwareRecommendationResponse(hardware_detected=False).model_dump()
+        )
 
     profile = await _get_cached_hardware_profile()
     if not profile:
-        return success_response(data=HardwareRecommendationResponse(hardware_detected=False).model_dump())
+        return success_response(
+            data=HardwareRecommendationResponse(hardware_detected=False).model_dump()
+        )
 
     model_specs = await get_dynamic_model_specs()
     is_ollama_running, installed_models = await _get_ollama_status()
@@ -202,6 +267,7 @@ async def get_hardware_recommendations() -> JSONResponse:
     else:
         available_vram = getattr(profile, "total_ram_gb", 0.0) * 0.5
 
+    current_rung, rung_name = derive_hardware_rung(available_vram)
     bandwidth_gbps: float | None = getattr(profile, "memory_bandwidth_gbps", None)
     gpu_vendor: str = getattr(profile, "gpu_vendor", "unknown") or "unknown"
 
@@ -209,29 +275,61 @@ async def get_hardware_recommendations() -> JSONResponse:
     for spec in model_specs:
         req_vram = float(spec["req_vram_gb"])
         params_b = float(spec.get("params_b", 0.0))
-        active_params_b: float | None = float(spec["active_params_b"]) if spec.get("active_params_b") else None
+        active_params_b: float | None = (
+            float(spec["active_params_b"]) if spec.get("active_params_b") else None
+        )
         model_id = spec["id"]
+        min_rung = int(spec.get("min_rung", 1))
+
+        # 64K Context KV Cache VRAM calculations
+        num_layers = int(spec.get("num_layers", 32))
+        kv_heads = int(spec.get("kv_heads", 8))
+        head_dim = int(spec.get("head_dim", 128))
+
+        kv_fp16_64k = calculate_kv_cache_vram_gb(
+            num_layers, kv_heads, head_dim, context_length=65536, bytes_per_elem=2.0
+        )
+        kv_q8_64k = calculate_kv_cache_vram_gb(
+            num_layers, kv_heads, head_dim, context_length=65536, bytes_per_elem=1.0
+        )
+        kv_q4_64k = calculate_kv_cache_vram_gb(
+            num_layers, kv_heads, head_dim, context_length=65536, bytes_per_elem=0.5
+        )
+
+        total_vram_64k_fp16 = round(req_vram + kv_fp16_64k, 2)
+        total_vram_64k_q8 = round(req_vram + kv_q8_64k, 2)
 
         ollama_model_name = model_id.split("/")[-1] if "/" in model_id else model_id
         is_installed = ollama_model_name in installed_models
 
-        if available_vram >= req_vram:
-            ratio = available_vram / req_vram
-            if ratio >= 2.0:
+        # Evaluation considering 64k context total memory load
+        if available_vram >= total_vram_64k_fp16:
+            ratio = available_vram / total_vram_64k_fp16
+            if ratio >= 1.6:
                 score = 95
                 fit_level = "perfect"
-            elif ratio >= 1.5:
-                score = 85
+            elif ratio >= 1.2:
+                score = 88
                 fit_level = "good"
             else:
-                score = 75
-                fit_level = "fair"
+                score = 78
+                fit_level = "good"
+        elif available_vram >= total_vram_64k_q8:
+            score = 72
+            fit_level = "fair"
+        elif available_vram >= req_vram:
+            score = 55
+            fit_level = "fair"
         else:
             ratio = available_vram / req_vram
-            score = int(ratio * 50)
+            score = int(ratio * 40)
             fit_level = "poor"
 
-        est_tok_per_sec = _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor, active_params_b) if params_b > 0 else None
+        est_tok_per_sec = (
+            _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor, active_params_b)
+            if params_b > 0
+            else None
+        )
 
         recommendations.append(
             {
@@ -241,6 +339,15 @@ async def get_hardware_recommendations() -> JSONResponse:
                 "req_vram_gb": req_vram,
                 "params_b": params_b,
                 "disk_size_gb": spec.get("disk_size_gb"),
+                "min_rung": min_rung,
+                "num_layers": num_layers,
+                "kv_heads": kv_heads,
+                "head_dim": head_dim,
+                "kv_fp16_64k_gb": kv_fp16_64k,
+                "kv_q8_64k_gb": kv_q8_64k,
+                "kv_q4_64k_gb": kv_q4_64k,
+                "total_vram_64k_fp16_gb": total_vram_64k_fp16,
+                "total_vram_64k_q8_gb": total_vram_64k_q8,
                 "fit_score": score,
                 "fit_level": fit_level,
                 "is_installed": is_installed,
@@ -249,8 +356,6 @@ async def get_hardware_recommendations() -> JSONResponse:
         )
 
     # Three-level sort: fit level (best first) → params_b desc → est_tok_per_sec desc.
-    # Within the same fit level, recommend the most capable (largest) model first,
-    # then break remaining ties by raw throughput speed.
     recommendations.sort(
         key=lambda x: (
             _FIT_PRIORITY.get(str(x["fit_level"]), 0),
@@ -265,11 +370,22 @@ async def get_hardware_recommendations() -> JSONResponse:
         os_type=getattr(profile, "os_type", None),
         cpu_arch=getattr(profile, "cpu_arch", None),
         total_ram_gb=round(getattr(profile, "total_ram_gb", 0.0), 1),
-        free_disk_gb=round(getattr(profile, "free_disk_gb", 0.0), 1) if getattr(profile, "free_disk_gb", None) else None,
+        free_disk_gb=(
+            round(getattr(profile, "free_disk_gb", 0.0), 1)
+            if getattr(profile, "free_disk_gb", None)
+            else None
+        ),
         has_gpu=getattr(profile, "has_gpu", False),
         gpu_name=getattr(profile, "gpu_name", None),
-        gpu_vram_gb=round(getattr(profile, "gpu_vram_gb", 0.0), 1) if getattr(profile, "gpu_vram_gb", None) else None,
+        gpu_vram_gb=(
+            round(getattr(profile, "gpu_vram_gb", 0.0), 1)
+            if getattr(profile, "gpu_vram_gb", None)
+            else None
+        ),
         is_unified_memory=getattr(profile, "is_unified_memory", False),
+        available_vram_gb=round(available_vram, 1),
+        current_rung=current_rung,
+        rung_name=rung_name,
         ollama_running=is_ollama_running,
         recommendations=recommendations,
     )

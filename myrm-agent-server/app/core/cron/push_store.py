@@ -32,6 +32,7 @@ class PushMessage:
     level: PushLevel
     job_name: str
     ts: float
+    chat_id: str | None = None
 
 
 _messages: list[PushMessage] = []
@@ -43,6 +44,8 @@ async def push(
     job_name: str,
     text: str,
     level: PushLevel = PushLevel.INFO,
+    *,
+    chat_id: str | None = None,
 ) -> None:
     """Append a notification message for a specific user."""
     if not text or not user_id:
@@ -54,6 +57,7 @@ async def push(
         level=level,
         job_name=job_name,
         ts=time.time(),
+        chat_id=chat_id,
     )
     async with _lock:
         _messages.append(msg)
@@ -73,6 +77,24 @@ async def push(
                     "text": msg.text,
                     "level": msg.level,
                     "job_name": msg.job_name,
+                    "chat_id": msg.chat_id,
+                },
+            )
+        )
+        resolved_chat_id = msg.chat_id or (user_id if user_id != "default" else "")
+        bus.publish(
+            AppEvent(
+                event_type=AppEventType.SYSTEM_NOTIFICATION,
+                data={
+                    "title": f"Reminder: {msg.job_name}",
+                    "message": msg.text,
+                    "meta_data": {
+                        "kind": "voice_background_task_done",
+                        "chat_id": resolved_chat_id,
+                        "task_id": msg.id,
+                        "status": "success" if msg.level == PushLevel.SUCCESS else "info",
+                        "source": "cron_reminder",
+                    },
                 },
             )
         )

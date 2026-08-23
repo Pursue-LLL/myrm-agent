@@ -56,7 +56,9 @@ _VOICE_SYSTEM_SUFFIX = (
     "You are in a live voice conversation. Keep responses concise, "
     "conversational, and natural. Do NOT use markdown formatting, "
     "bullet points, headers, or code blocks — the user will hear "
-    "your reply spoken aloud. Summarize tool results in plain spoken language."
+    "your reply spoken aloud. Summarize tool results in plain spoken language. "
+    "If the user asks to be reminded of something, schedule it using the reminder/cron tool "
+    "and give a brief, friendly verbal confirmation."
 )
 _WORKING_HINT_ZH = "正在处理中，请稍等"
 _WORKING_HINT_EN = "Let me look into that"

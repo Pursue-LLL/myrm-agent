@@ -127,6 +127,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const [routeHydrationEpoch, setRouteHydrationEpoch] = useState(0);
   const [activeTab, setActiveTab] = useState<'chat' | 'trace'>('chat');
   const recoveryT = useTranslations('recovery');
+  const prevPendingCountRef = useRef<number>(-1);
 
   useEffect(() => {
     if (!id) {

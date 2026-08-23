@@ -41,7 +41,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/store/useChatStore', () => ({
   __esModule: true,
-  default: (selector: (state: any) => any) => {
+    default: (selector: (state: unknown) => unknown) => {
     const state = {
       actionMode: 'agent',
       setInputMessage: mockSetInputMessage,
@@ -52,7 +52,7 @@ vi.mock('@/store/useChatStore', () => ({
 }));
 
 vi.mock('@/store/useProgressionStore', () => ({
-  useProgressionStore: (selector: (state: any) => any) => {
+  useProgressionStore: (selector: (state: unknown) => unknown) => {
     const state = {
       currentLevel: 1,
     };

@@ -162,7 +162,7 @@ class TestSpecialtyRoutingSSEChunkEmission:
             generate_cancellable_stream,
         )
         from app.services.agent.streaming_support.stream_collector import (
-            StreamEventCollector,
+            StreamContentCollector,
         )
 
         params = GeneralAgentParams(
@@ -171,31 +171,47 @@ class TestSpecialtyRoutingSSEChunkEmission:
             query="def solve(): pass",
             model_cfg=ModelConfig(model="claude-3-7-sonnet", api_key="sk-test"),
         )
+        fake_request = AgentRequest(
+            message_id="msg-spec-123",
+            chat_id="chat-spec-456",
+            query="def solve(): pass",
+            model_selection=get_model_selection(),
+        )
+        monitor_mock = AsyncMock()
+        monitor_mock.start = AsyncMock()
         session = AgentStreamSession(
+            request=fake_request,
+            http_request=None,  # type: ignore[arg-type]
             params=params,
-            collector=StreamEventCollector(
-                message_id="msg-spec-123", chat_id="chat-spec-456"
-            ),
+            cancel_token=None,  # type: ignore[arg-type]
+            steering_token=None,
             routing_tier="code",
+            archive_restore_results=[],
+            research_model_cfg=None,
+            registry=None,
+            collector=StreamContentCollector(chat_id="chat-spec-456"),
+            monitor=monitor_mock,
+            is_long_running_task=False,
+            goal_provider=None,
+            extra_context={},
             routing_specialty="code",
         )
 
-        with patch(
-            "app.services.agent.stream_session.stream_chunks.iter_agent_stream_chunks"
-        ) as mock_iter:
-
+        with (
+            patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=None),
+            patch("app.services.agent.stream_session.migration_readiness_preflight.resolve_and_build_migration_readiness_gap_sse_event", new_callable=AsyncMock, return_value=(None, None)),
+            patch("app.services.agent.stream_session.stream_chunks.iter_agent_stream_chunks") as mock_iter,
+            patch("app.services.agent.stream_session.stream_chunks.finalize_agent_stream_session"),
+        ):
             async def _empty_iter(*args, **kwargs):
                 if False:
                     yield ""
 
             mock_iter.side_effect = _empty_iter
 
-            with patch(
-                "app.services.agent.stream_session.stream_chunks.finalize_agent_stream_session"
-            ):
-                chunks = []
-                async for chunk in generate_cancellable_stream(session):
-                    chunks.append(chunk)
+            chunks = []
+            async for chunk in generate_cancellable_stream(session):
+                chunks.append(chunk)
 
         # First chunk should be routing_decision
         routing_chunks = [c for c in chunks if "routing_decision" in c]

@@ -29,8 +29,6 @@ class AgentStreamSession:
     cancel_token: CancellationToken
     steering_token: SteeringToken | None
     routing_tier: str | None
-    routing_specialty: str | None = field(default=None)
-    context_warnings: list[str] = field(default_factory=list)
     archive_restore_results: list[object]
     research_model_cfg: ModelConfig | None
     registry: object
@@ -39,6 +37,8 @@ class AgentStreamSession:
     is_long_running_task: bool
     goal_provider: object | None
     extra_context: dict[str, object]
+    routing_specialty: str | None = field(default=None)
+    context_warnings: list[str] = field(default_factory=list)
     stream_started_at_monotonic: float = field(default=0.0)
     stream_ttft_ms: int | None = field(default=None)
     durable_registered: bool = field(default=False)
