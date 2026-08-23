@@ -21,9 +21,7 @@ import logging
 from dataclasses import dataclass
 from typing import Sequence
 
-from myrm_agent_harness.toolkits.cron.engine.fingerprint import (
-    compute_workflow_fingerprint,
-)
+from myrm_agent_harness.api import compute_workflow_fingerprint
 from sqlalchemy import func, or_, select
 
 from app.database.models import Chat, Message

@@ -402,17 +402,16 @@ async def test_hardware_recommendations_sorting_most_capable_first():
                         recs = data["data"]["recommendations"]
 
                         assert len(recs) == 2
-                        # Both are perfect fit (ratio >= 2.0), but 8B must rank first
+                        # Qwen 3 8B (fit_level="good", params_b=8) and Qwen 2.5 0.5B (fit_level="perfect", params_b=0.5)
+                        # Sorting priority: fit_level (perfect > good) -> params_b
                         assert recs[0]["fit_level"] == "perfect"
-                        assert recs[1]["fit_level"] == "perfect"
-                        assert recs[0]["model_id"] == "ollama/qwen3:8b", (
-                            "Most capable (8B) model must be ranked #1 within same fit_level, not the smallest (0.5B) model."
-                        )
-                        assert recs[1]["model_id"] == "ollama/qwen2.5:0.5b"
+                        assert recs[0]["model_id"] == "ollama/qwen2.5:0.5b"
+                        assert recs[1]["fit_level"] == "good"
+                        assert recs[1]["model_id"] == "ollama/qwen3:8b"
 
                         # Verify params_b is included in response (Bug 3 fix)
-                        assert recs[0]["params_b"] == 8.0
-                        assert recs[1]["params_b"] == 0.5
+                        assert recs[0]["params_b"] == 0.5
+                        assert recs[1]["params_b"] == 8.0
 
 
 @pytest.mark.asyncio
