@@ -102,6 +102,9 @@ class SharedContextModel(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
+    visibility: Mapped[str] = mapped_column(String(20), nullable=False, default="team", index=True)
+    access_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     policy: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -78,7 +78,7 @@ describe('KanbanReplanDialog', () => {
   it('submits revision and invokes onApplied on success', async () => {
     const onOpenChange = vi.fn();
     const onApplied = vi.fn();
-    vi.mocked(kanbanService.reviseBoardPlan).mockResolvedValueOnce({
+    (kanbanService.reviseBoardPlan as unknown as { mockResolvedValueOnce: (val: unknown) => void }).mockResolvedValueOnce({
       ok: true,
       board_id: 'board-123',
       reason: 'applied',
