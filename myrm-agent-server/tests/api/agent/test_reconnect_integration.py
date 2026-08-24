@@ -79,7 +79,7 @@ async def _collect_stream_text(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_agent_stream_disconnect_and_reconnect(app) -> None:
+async def test_agent_stream_disconnect_and_reconnect(app, db_session) -> None:
     """Mid-stream disconnect then Last-Event-ID reconnect replays buffered events."""
     chat_id = f"test-reconnect-{uuid.uuid4().hex[:8]}"
     message_id = f"msg-{uuid.uuid4().hex[:8]}"
@@ -223,6 +223,11 @@ async def test_agent_stream_early_busy_skips_second_persist(app) -> None:
                 pass
 
     try:
+        def _on_reserve(chat_id_arg: str, **_kwargs: object) -> None:
+            if chat_id_arg == chat_id:
+                session_registered.set()
+
+        gateway.on_session_reserved = _on_reserve
         with (
             patch(
                 "app.services.agent.streaming.AgentFactory.create_general_agent",
@@ -276,6 +281,7 @@ async def test_agent_stream_early_busy_skips_second_persist(app) -> None:
                 await asyncio.wait_for(first_task, timeout=30.0)
     finally:
         release_first_stream.set()
+        gateway.on_session_reserved = None
         gateway._active_sessions = original_sessions
         if "first_task" in locals() and not first_task.done():
             first_task.cancel()

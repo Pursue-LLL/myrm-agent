@@ -189,24 +189,25 @@ def is_directory_grant_allowed_for_deployment(
     sandbox_active: bool,
 ) -> bool:
     """Gate directory grants by deployment mode (cloud volume vs local desktop)."""
-    from myrm_agent_harness.agent.security.path_security import is_dangerous_path
+    from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate import (
+        MountMode,
+        MountSpec,
+        validate_mount_spec,
+    )
 
-    if is_dangerous_path(grant_path):
-        return False
-    if not _is_cloud_volume_deployment():
-        return True
+    allowed_boundaries = ()
+    if _is_cloud_volume_deployment():
+        from myrm_agent_harness.runtime.execution_paths import PERSISTENT_ROOT
 
-    from myrm_agent_harness.runtime.execution_paths import PERSISTENT_ROOT
+        persistent_root = os.path.realpath(PERSISTENT_ROOT)
+        boundaries = [persistent_root]
+        if workspace_dir:
+            boundaries.append(os.path.realpath(os.path.expanduser(workspace_dir)))
+        allowed_boundaries = tuple(boundaries)
 
-    persistent_root = os.path.realpath(PERSISTENT_ROOT)
-    normalized = os.path.realpath(grant_path)
-    if _is_subpath(normalized, persistent_root):
-        return True
-    if workspace_dir:
-        workspace_norm = os.path.realpath(os.path.expanduser(workspace_dir))
-        if _is_subpath(normalized, workspace_norm):
-            return True
-    return False
+    spec = MountSpec(source_path=grant_path, mode=MountMode.RW)
+    result = validate_mount_spec(spec, allowed_boundaries=allowed_boundaries)
+    return result.is_valid
 
 
 def _apply_validated_grant(

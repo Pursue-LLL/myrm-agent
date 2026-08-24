@@ -432,6 +432,12 @@ class AgentGateway:
             agent_id=agent_id,
             reserved_only=True,
         )
+        callback = getattr(self, "on_session_reserved", None)
+        if callable(callback):
+            try:
+                callback(session_id, active_message_id=active_message_id, agent_type=agent_type, agent_id=agent_id)
+            except Exception:
+                logger.debug("on_session_reserved callback failed", exc_info=True)
 
     def release_session(self, session_id: str) -> None:
         """Release a pre-reserved session that never reached execute_stream."""
