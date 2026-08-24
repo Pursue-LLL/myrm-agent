@@ -110,19 +110,21 @@ export const SubagentInsightsView: React.FC<SubagentInsightsViewProps> = ({ node
     const suggestions: string[] = [];
 
     if (anomalies.some((a) => a.node.stale)) {
-      suggestions.push('LoopGuard: Detected stalled subagents. Consider steering prompt to narrow task scope or cancelling.');
+      suggestions.push(
+        'LoopGuard: Detected stalled subagents. Consider steering prompt to narrow task scope or cancelling.',
+      );
     }
 
     const failedVerifications = visibleNodes.filter((n) => n.verification && !n.verification.passed);
     if (failedVerifications.length > 0) {
       suggestions.push(
-        `LoopGuard: ${failedVerifications.length} task(s) failed adversarial verification. Review findings before concluding synthesis.`
+        `LoopGuard: ${failedVerifications.length} task(s) failed adversarial verification. Review findings before concluding synthesis.`,
       );
     }
 
     if (visibleNodes.length > 15) {
       suggestions.push(
-        'Topology: High fan-out detected (>15 agents). Ensure synthesis stage pools outputs to prevent context token overflow.'
+        'Topology: High fan-out detected (>15 agents). Ensure synthesis stage pools outputs to prevent context token overflow.',
       );
     }
 

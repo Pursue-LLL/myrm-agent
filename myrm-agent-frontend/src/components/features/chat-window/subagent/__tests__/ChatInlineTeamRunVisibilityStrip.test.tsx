@@ -42,19 +42,20 @@ describe('ChatInlineTeamRunVisibilityStrip', () => {
   });
 
   it('renders null when all subagents are completed initially without active transition', () => {
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: '1', status: 'completed' }),
-      makeNode({ task_id: '2', status: 'completed' }),
-    ]);
+    useSubagentStore
+      .getState()
+      .setNodes([makeNode({ task_id: '1', status: 'completed' }), makeNode({ task_id: '2', status: 'completed' })]);
     const { container } = render(<ChatInlineTeamRunVisibilityStrip />);
     expect(container.firstChild).toBeNull();
   });
 
   it('renders visibility strip when active subagents exist (including pending & verifying)', () => {
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: '1', status: 'running', agent_type: 'coder', last_tool: 'bash', progress: 40 }),
-      makeNode({ task_id: '2', status: 'pending', agent_type: 'auditor', progress: 0 }),
-    ]);
+    useSubagentStore
+      .getState()
+      .setNodes([
+        makeNode({ task_id: '1', status: 'running', agent_type: 'coder', last_tool: 'bash', progress: 40 }),
+        makeNode({ task_id: '2', status: 'pending', agent_type: 'auditor', progress: 0 }),
+      ]);
 
     render(<ChatInlineTeamRunVisibilityStrip />);
     const strip = screen.getByTestId('chat-inline-team-run-visibility-strip');
@@ -68,30 +69,36 @@ describe('ChatInlineTeamRunVisibilityStrip', () => {
   });
 
   it('preempts status with highest priority for pending_approval', () => {
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: '1', status: 'running', agent_type: 'coder', last_tool: 'bash' }),
-      makeNode({ task_id: '2', status: 'pending_approval', agent_type: 'deployer' }),
-    ]);
+    useSubagentStore
+      .getState()
+      .setNodes([
+        makeNode({ task_id: '1', status: 'running', agent_type: 'coder', last_tool: 'bash' }),
+        makeNode({ task_id: '2', status: 'pending_approval', agent_type: 'deployer' }),
+      ]);
 
     render(<ChatInlineTeamRunVisibilityStrip />);
     expect(screen.getByText('inlineStripPendingApprovalAlert:1')).toBeDefined();
   });
 
   it('preempts status with stale alert when node is stalled', () => {
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: '1', status: 'running', agent_type: 'coder', last_tool: 'bash' }),
-      makeNode({ task_id: '2', status: 'running', agent_type: 'scraper', stale: true }),
-    ]);
+    useSubagentStore
+      .getState()
+      .setNodes([
+        makeNode({ task_id: '1', status: 'running', agent_type: 'coder', last_tool: 'bash' }),
+        makeNode({ task_id: '2', status: 'running', agent_type: 'scraper', stale: true }),
+      ]);
 
     render(<ChatInlineTeamRunVisibilityStrip />);
     expect(screen.getByText('inlineStripStaleAlert:1')).toBeDefined();
   });
 
   it('triggers onOpenDashboard with specific taskId when avatar is clicked', () => {
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: 'node-alpha', status: 'running', agent_type: 'alpha' }),
-      makeNode({ task_id: 'node-beta', status: 'running', agent_type: 'beta' }),
-    ]);
+    useSubagentStore
+      .getState()
+      .setNodes([
+        makeNode({ task_id: 'node-alpha', status: 'running', agent_type: 'alpha' }),
+        makeNode({ task_id: 'node-beta', status: 'running', agent_type: 'beta' }),
+      ]);
 
     const handleOpen = vi.fn();
     render(<ChatInlineTeamRunVisibilityStrip onOpenDashboard={handleOpen} />);
@@ -104,18 +111,14 @@ describe('ChatInlineTeamRunVisibilityStrip', () => {
   it('renders completed graceful exit buffer when transitioning from active to all completed', () => {
     vi.useFakeTimers();
 
-    useSubagentStore.getState().setNodes([
-      makeNode({ task_id: '1', status: 'running' }),
-    ]);
+    useSubagentStore.getState().setNodes([makeNode({ task_id: '1', status: 'running' })]);
 
     const { rerender } = render(<ChatInlineTeamRunVisibilityStrip />);
     expect(screen.getByText('inlineStripActiveSummary:1')).toBeDefined();
 
     // Transition to all completed
     act(() => {
-      useSubagentStore.getState().setNodes([
-        makeNode({ task_id: '1', status: 'completed' }),
-      ]);
+      useSubagentStore.getState().setNodes([makeNode({ task_id: '1', status: 'completed' })]);
       rerender(<ChatInlineTeamRunVisibilityStrip />);
     });
 

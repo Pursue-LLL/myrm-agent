@@ -15,14 +15,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  AlertTriangle,
-  RotateCcw,
-  Download,
-  CheckCircle2,
-  XCircle,
-  ShieldAlert,
-} from 'lucide-react';
+import { AlertTriangle, RotateCcw, Download, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -135,13 +128,9 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
         <AlertDialogHeader>
           <div className="flex items-center gap-2 text-amber-500">
             <ShieldAlert className="h-5 w-5" />
-            <AlertDialogTitle className="text-base font-semibold">
-              {t('title')}
-            </AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-semibold">{t('title')}</AlertDialogTitle>
           </div>
-          <AlertDialogDescription className="text-xs text-muted-foreground">
-            {t('description')}
-          </AlertDialogDescription>
+          <AlertDialogDescription className="text-xs text-muted-foreground">{t('description')}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="my-3 space-y-3">
@@ -149,11 +138,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
             <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-2">
               <div className="flex items-center justify-between font-medium">
                 <span>{t('probeStatus')}</span>
-                <span
-                  className={
-                    report.is_healthy ? 'text-emerald-500' : 'text-amber-500'
-                  }
-                >
+                <span className={report.is_healthy ? 'text-emerald-500' : 'text-amber-500'}>
                   {report.is_healthy ? t('allHealthy') : t('quarantinedFound')}
                 </span>
               </div>
@@ -170,11 +155,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
                         <div className="font-semibold">
                           [{c.component_type}] {c.component_id}
                         </div>
-                        {c.error_message && (
-                          <div className="text-muted-foreground">
-                            {c.error_message}
-                          </div>
-                        )}
+                        {c.error_message && <div className="text-muted-foreground">{c.error_message}</div>}
                       </div>
                     </div>
                   ))}
@@ -201,12 +182,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
           </Button>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="text-xs"
-            >
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-xs">
               {t('ignoreAndContinue')}
             </Button>
             {report?.has_last_known_good && (

@@ -2,7 +2,20 @@
 
 import { memo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, ShieldCheck, Zap, Wrench, Copy, Check } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Send,
+  CircleX,
+  Coins,
+  ShieldAlert,
+  ShieldCheck,
+  Zap,
+  Wrench,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
@@ -106,7 +119,6 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
     toast.success(t('traceCopied'));
     setTimeout(() => setCopied(false), 2000);
   };
-
 
   return (
     <div className="flex gap-3">
@@ -277,7 +289,10 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                   </div>
                   <div className="space-y-1">
                     {run.metadata.progressSteps.map((step, idx) => (
-                      <div key={idx} className="flex items-center gap-1.5 text-[10px] bg-background/30 rounded px-1.5 py-1">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1.5 text-[10px] bg-background/30 rounded px-1.5 py-1"
+                      >
                         <span
                           className={cn(
                             'h-1.5 w-1.5 rounded-full shrink-0',

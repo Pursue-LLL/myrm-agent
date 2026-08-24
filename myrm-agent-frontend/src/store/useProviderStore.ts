@@ -809,33 +809,25 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     if (isMatch(defaultModelConfig.codeModel?.primary)) {
       defaultModelConfig = {
         ...defaultModelConfig,
-        codeModel: defaultModelConfig.codeModel
-          ? { ...defaultModelConfig.codeModel, primary: null }
-          : null,
+        codeModel: defaultModelConfig.codeModel ? { ...defaultModelConfig.codeModel, primary: null } : null,
       };
     }
     if (isMatch(defaultModelConfig.codeModel?.fallback)) {
       defaultModelConfig = {
         ...defaultModelConfig,
-        codeModel: defaultModelConfig.codeModel
-          ? { ...defaultModelConfig.codeModel, fallback: null }
-          : null,
+        codeModel: defaultModelConfig.codeModel ? { ...defaultModelConfig.codeModel, fallback: null } : null,
       };
     }
     if (isMatch(defaultModelConfig.longDocModel?.primary)) {
       defaultModelConfig = {
         ...defaultModelConfig,
-        longDocModel: defaultModelConfig.longDocModel
-          ? { ...defaultModelConfig.longDocModel, primary: null }
-          : null,
+        longDocModel: defaultModelConfig.longDocModel ? { ...defaultModelConfig.longDocModel, primary: null } : null,
       };
     }
     if (isMatch(defaultModelConfig.longDocModel?.fallback)) {
       defaultModelConfig = {
         ...defaultModelConfig,
-        longDocModel: defaultModelConfig.longDocModel
-          ? { ...defaultModelConfig.longDocModel, fallback: null }
-          : null,
+        longDocModel: defaultModelConfig.longDocModel ? { ...defaultModelConfig.longDocModel, fallback: null } : null,
       };
     }
     if (defaultModelConfig.routingConfig) {

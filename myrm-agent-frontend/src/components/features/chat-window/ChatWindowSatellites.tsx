@@ -75,9 +75,10 @@ const SessionRevertButton = dynamic(() => import('@/components/features/message-
 const SubagentPromptButton = dynamic(() => import('./SubagentPromptButton'), { ssr: false });
 
 const StartupRecoveryDialog = dynamic(
-  () => import('@/components/features/agent-recovery/StartupRecoveryDialog').then((module) => ({
-    default: module.StartupRecoveryDialog,
-  })),
+  () =>
+    import('@/components/features/agent-recovery/StartupRecoveryDialog').then((module) => ({
+      default: module.StartupRecoveryDialog,
+    })),
   { ssr: false },
 );
 

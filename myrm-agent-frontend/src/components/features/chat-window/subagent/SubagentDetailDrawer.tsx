@@ -26,13 +26,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { ScrollArea } from '@/components/primitives/scroll-area';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/primitives/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
 import { Badge } from '@/components/primitives/badge';
 import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/utils/subagentTree';
 import type { SubagentNode, StreamEntry, TeammateMessageEntry } from '@/store/chat/useSubagentStore';
@@ -47,12 +41,7 @@ interface SubagentDetailDrawerProps {
 
 type TabType = 'overview' | 'journal' | 'tool_calls' | 'messages' | 'replay';
 
-export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({
-  node,
-  open,
-  onOpenChange,
-  chatId,
-}) => {
+export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node, open, onOpenChange, chatId }) => {
   const t = useTranslations('subagentDashboard');
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [replayStepIndex, setReplayStepIndex] = useState<number>(0);
@@ -117,7 +106,9 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({
           <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">
             <div>
               <span className="text-[10px] block opacity-70">Duration</span>
-              <span className="font-semibold text-foreground">{node.duration_seconds ? `${node.duration_seconds}s` : '—'}</span>
+              <span className="font-semibold text-foreground">
+                {node.duration_seconds ? `${node.duration_seconds}s` : '—'}
+              </span>
             </div>
             <div>
               <span className="text-[10px] block opacity-70">Tokens</span>
@@ -129,7 +120,9 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({
             </div>
             <div>
               <span className="text-[10px] block opacity-70">Model</span>
-              <span className="font-semibold text-foreground truncate block">{node.effective_model || 'Inherited'}</span>
+              <span className="font-semibold text-foreground truncate block">
+                {node.effective_model || 'Inherited'}
+              </span>
             </div>
           </div>
 
@@ -154,7 +147,9 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({
             <button
               onClick={() => setActiveTab('tool_calls')}
               className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                activeTab === 'tool_calls' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                activeTab === 'tool_calls'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               Tools ({toolEntries.length})
@@ -203,7 +198,11 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({
                 >
                   <div className="flex items-center justify-between font-bold mb-1">
                     <div className="flex items-center gap-1.5">
-                      {node.verification.passed ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                      {node.verification.passed ? (
+                        <ShieldCheck className="w-4 h-4" />
+                      ) : (
+                        <ShieldAlert className="w-4 h-4" />
+                      )}
                       <span>Independent Verification: {node.verification.passed ? 'PASSED' : 'FAILED'}</span>
                     </div>
                     <span>
@@ -254,11 +253,15 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({
                   </div>
                   <div className="p-2.5 rounded-lg border bg-muted/20">
                     <span className="text-muted-foreground text-[10px] block">Role / Scope</span>
-                    <span className="font-mono text-[11px] truncate block">{node.role || node.control_scope || 'Standard Leaf'}</span>
+                    <span className="font-mono text-[11px] truncate block">
+                      {node.role || node.control_scope || 'Standard Leaf'}
+                    </span>
                   </div>
                   <div className="p-2.5 rounded-lg border bg-muted/20">
                     <span className="text-muted-foreground text-[10px] block">Progress Status</span>
-                    <span className="font-mono text-[11px] truncate block">{node.progress}% ({node.status})</span>
+                    <span className="font-mono text-[11px] truncate block">
+                      {node.progress}% ({node.status})
+                    </span>
                   </div>
                 </div>
               </div>
@@ -287,7 +290,9 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({
                         <span className="font-semibold capitalize text-[10px] text-primary">{entry.kind}</span>
                         {entry.durationMs && (
                           <span className="text-[10px] text-muted-foreground font-mono">
-                            {entry.durationMs < 1000 ? `${entry.durationMs}ms` : `${(entry.durationMs / 1000).toFixed(1)}s`}
+                            {entry.durationMs < 1000
+                              ? `${entry.durationMs}ms`
+                              : `${(entry.durationMs / 1000).toFixed(1)}s`}
                           </span>
                         )}
                       </div>

@@ -76,7 +76,13 @@ export function ModelSwapContinuityCard({ editor, effectiveModelSlug }: ModelSwa
         promptMode: 'Lean / Full',
       };
     }
-    if (slug.includes('gpt') || slug.includes('codex') || slug.includes('openai') || slug.includes('o1') || slug.includes('o3')) {
+    if (
+      slug.includes('gpt') ||
+      slug.includes('codex') ||
+      slug.includes('openai') ||
+      slug.includes('o1') ||
+      slug.includes('o3')
+    ) {
       return {
         family: 'OpenAI GPT/Codex',
         discipline: t('disciplineGpt'),

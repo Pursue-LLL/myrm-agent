@@ -6,11 +6,11 @@
 
 | 文件                                 | 地位 | 职责                                                                                                                                                                              | I/O/P |
 | ------------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| KanbanBoardView.tsx                  | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理 + 责任矩阵决策过滤选择器；stats bar running 显示 `count/limit` 并发占用）                                                                  | ✅    |
+| KanbanBoardView.tsx                  | 核心 | 看板主视图（列布局 + DnD 上下文 + tab 切换 + Agent 泳道状态管理 + 责任矩阵决策过滤选择器；stats bar running 显示 `count/limit` 并发占用）                                         | ✅    |
 | KanbanDndComponents.tsx              | 核心 | DnD 渲染（KanbanDropColumn + DraggableTaskCard + Running 泳道 + Drawer 入口）                                                                                                     | ✅    |
 | useKanbanDnD.ts                      | 核心 | 拖拽状态管理 hook（传感器/事件/破坏性确认）                                                                                                                                       | ✅    |
 | useKanbanAddTask.ts                  | 辅助 | 任务内联创建表单状态 hook（含 agent/model override 状态）                                                                                                                         | ✅    |
-| KanbanTaskCard.tsx                   | 核心 | 单任务卡片渲染（首屏决策帧要素/推荐动作微条/状态/进度/操作菜单；附件 badge 点击打开 Drawer）                                                                                                                  | ✅    |
+| KanbanTaskCard.tsx                   | 核心 | 单任务卡片渲染（首屏决策帧要素/推荐动作微条/状态/进度/操作菜单；附件 badge 点击打开 Drawer）                                                                                      | ✅    |
 | KanbanTaskDrawer.tsx                 | 辅助 | 任务详情抽屉面板入口（编排 hook 与子组件）                                                                                                                                        | ✅    |
 | useKanbanTaskDrawer.ts               | 辅助 | 抽屉面板状态管理 hook（数据加载/操作处理/计算属性）                                                                                                                               | ✅    |
 | resolveTaskDepInfos.ts               | 辅助 | 任务依赖图节点标题解析（本地列表 + 远程 fallback）                                                                                                                                | ✅    |

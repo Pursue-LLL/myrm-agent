@@ -156,17 +156,23 @@ const Chat = ({
   const scrollToMessageRef = useRef<((index: number) => void) | null>(null);
 
   // 使用滚动位置保存/恢复 Hook（支持双模态流式跟随与视口镜像）
-  const { saveScrollPosition, restoreScrollPosition, getScrollMirrorSnapshot, userScrolledRef, isFollowingBottomRef, saveTimerRef } =
-    useScrollPositionRestore({
-      id: chatId,
-      enabled: true,
-      onRestore: (entry) => {
-        setIsUserScrolledUp(entry.isUserScrolledUp);
-        if (!entry.isUserScrolledUp) {
-          setHasNewMessage(false);
-        }
-      },
-    });
+  const {
+    saveScrollPosition,
+    restoreScrollPosition,
+    getScrollMirrorSnapshot,
+    userScrolledRef,
+    isFollowingBottomRef,
+    saveTimerRef,
+  } = useScrollPositionRestore({
+    id: chatId,
+    enabled: true,
+    onRestore: (entry) => {
+      setIsUserScrolledUp(entry.isUserScrolledUp);
+      if (!entry.isUserScrolledUp) {
+        setHasNewMessage(false);
+      }
+    },
+  });
 
   const handleJumpToMessage = useCallback(
     (messageIndex: number) => {
@@ -184,7 +190,11 @@ const Chat = ({
       if (el) {
         userScrolledRef.current = true;
         setIsUserScrolledUp(true);
-        saveScrollPosition({ isFollowingBottom: false, isUserScrolledUp: true, anchorMessageId: String(msg.messageId) });
+        saveScrollPosition({
+          isFollowingBottom: false,
+          isUserScrolledUp: true,
+          anchorMessageId: String(msg.messageId),
+        });
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     },

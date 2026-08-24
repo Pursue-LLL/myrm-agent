@@ -41,7 +41,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/store/useChatStore', () => ({
   __esModule: true,
-    default: (selector: (state: unknown) => unknown) => {
+  default: (selector: (state: unknown) => unknown) => {
     const state = {
       actionMode: 'agent',
       setInputMessage: mockSetInputMessage,
@@ -76,7 +76,7 @@ describe('SamplePrompts with Context-Aware Life Operator', () => {
 
   it('switches time slots and updates displayed prompts when clicking tabs', () => {
     render(<SamplePrompts />);
-    
+
     // Click Afternoon tab
     fireEvent.click(screen.getByText('Afternoon Sprint'));
     expect(screen.getByText('Afternoon Sprint 0')).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe('SamplePrompts with Context-Aware Life Operator', () => {
 
   it('injects structured prompt into chat store input message when prompt chip clicked', () => {
     render(<SamplePrompts />);
-    
+
     // Click Afternoon tab
     fireEvent.click(screen.getByText('Afternoon Sprint'));
     const chip = screen.getByText('Afternoon Sprint 0');

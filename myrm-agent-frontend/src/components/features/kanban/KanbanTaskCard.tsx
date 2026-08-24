@@ -21,7 +21,18 @@ import {
   removeDependency,
   getTask,
 } from '@/services/kanban';
-import { Clock, ExternalLink, GitBranch, Paperclip, Sparkles, User, ShieldAlert, ShieldCheck, UserCheck, Bot } from 'lucide-react';
+import {
+  Clock,
+  ExternalLink,
+  GitBranch,
+  Paperclip,
+  Sparkles,
+  User,
+  ShieldAlert,
+  ShieldCheck,
+  UserCheck,
+  Bot,
+} from 'lucide-react';
 import { deriveTaskDecisionFrame } from '@/lib/kanban/kanbanDecisionFrame';
 import {
   NEXT_STATUSES,
@@ -296,15 +307,11 @@ export default function KanbanTaskCard({
           <p
             className={cn(
               'text-[10px] mt-1 truncate font-medium',
-              decisionFrame.hasAttention
-                ? 'text-amber-600 dark:text-amber-400'
-                : 'text-muted-foreground',
+              decisionFrame.hasAttention ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
             )}
-            title={
-              t(decisionFrame.recommendedActionKey, {
-                defaultValue: decisionFrame.recommendedActionFallback,
-              })
-            }
+            title={t(decisionFrame.recommendedActionKey, {
+              defaultValue: decisionFrame.recommendedActionFallback,
+            })}
           >
             {t(decisionFrame.recommendedActionKey, {
               defaultValue: decisionFrame.recommendedActionFallback,

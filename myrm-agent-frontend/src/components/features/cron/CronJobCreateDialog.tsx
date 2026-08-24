@@ -171,7 +171,6 @@ export default function CronJobCreateDialog({
     return () => clearTimeout(timer);
   }, [open, uiMode, prompt, command, scriptCode, agentId, workflowTemplateId, presetChatId, selectedChatId]);
 
-
   useEffect(() => {
     if (open) {
       fetchAgents();

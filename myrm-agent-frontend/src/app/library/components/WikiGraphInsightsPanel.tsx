@@ -128,31 +128,33 @@ export default function WikiGraphInsightsPanel({ agentId, onSelectNode }: WikiGr
               <p className="text-xs text-muted-foreground">{t('emptyConnections')}</p>
             ) : (
               <ul className="space-y-1.5">
-                {insights.unexpected_connections.slice(0, 6).map((item: WikiUnexpectedConnectionItem, index: number) => (
-                  <li
-                    key={`conn-${index}`}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 transition-colors hover:bg-muted/60"
-                  >
-                    <div className="min-w-0 flex-1 truncate text-xs">
-                      <span
-                        className="cursor-pointer font-medium text-foreground hover:underline"
-                        onClick={() => onSelectNode?.(item.source)}
-                      >
-                        {item.source}
+                {insights.unexpected_connections
+                  .slice(0, 6)
+                  .map((item: WikiUnexpectedConnectionItem, index: number) => (
+                    <li
+                      key={`conn-${index}`}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 transition-colors hover:bg-muted/60"
+                    >
+                      <div className="min-w-0 flex-1 truncate text-xs">
+                        <span
+                          className="cursor-pointer font-medium text-foreground hover:underline"
+                          onClick={() => onSelectNode?.(item.source)}
+                        >
+                          {item.source}
+                        </span>
+                        <span className="mx-1 text-muted-foreground">↔</span>
+                        <span
+                          className="cursor-pointer font-medium text-foreground hover:underline"
+                          onClick={() => onSelectNode?.(item.target)}
+                        >
+                          {item.target}
+                        </span>
+                      </div>
+                      <span className="shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                        w={item.weight}
                       </span>
-                      <span className="mx-1 text-muted-foreground">↔</span>
-                      <span
-                        className="cursor-pointer font-medium text-foreground hover:underline"
-                        onClick={() => onSelectNode?.(item.target)}
-                      >
-                        {item.target}
-                      </span>
-                    </div>
-                    <span className="shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                      w={item.weight}
-                    </span>
-                  </li>
-                ))}
+                    </li>
+                  ))}
               </ul>
             )}
           </section>

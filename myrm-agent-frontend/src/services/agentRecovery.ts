@@ -49,25 +49,19 @@ export interface ProfileRecoveryDiagnostics {
   }>;
 }
 
-export const fetchProfileRecoveryHealth = async (
-  agentId: string,
-): Promise<ProfileRecoveryHealthReport> => {
+export const fetchProfileRecoveryHealth = async (agentId: string): Promise<ProfileRecoveryHealthReport> => {
   const data = (await apiRequest(`/user-agents/agents/${agentId}/recovery/health`)) as ProfileRecoveryHealthReport;
   return data;
 };
 
-export const rollbackProfileToLastKnownGood = async (
-  agentId: string,
-): Promise<boolean> => {
+export const rollbackProfileToLastKnownGood = async (agentId: string): Promise<boolean> => {
   const data = (await apiRequest(`/user-agents/agents/${agentId}/recovery/rollback`, {
     method: 'POST',
   })) as { rolled_back: boolean };
   return Boolean(data.rolled_back);
 };
 
-export const exportProfileRecoveryDiagnostics = async (
-  agentId: string,
-): Promise<ProfileRecoveryDiagnostics> => {
+export const exportProfileRecoveryDiagnostics = async (agentId: string): Promise<ProfileRecoveryDiagnostics> => {
   const data = (await apiRequest(`/user-agents/agents/${agentId}/recovery/diagnostics`)) as {
     diagnostics: ProfileRecoveryDiagnostics;
   };

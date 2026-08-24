@@ -98,7 +98,7 @@ describe('UpdateHandoffNotifier component', () => {
       expect.objectContaining({
         description: 'handoffSuccessDescription:version=0.2.0:fromVersion=0.1.0',
         duration: 6000,
-      })
+      }),
     );
     expect(mockDismiss).toHaveBeenCalledTimes(1);
   });
@@ -123,7 +123,7 @@ describe('UpdateHandoffNotifier component', () => {
         action: expect.objectContaining({
           label: 'retry',
         }),
-      })
+      }),
     );
     expect(mockDismiss).toHaveBeenCalledTimes(1);
 

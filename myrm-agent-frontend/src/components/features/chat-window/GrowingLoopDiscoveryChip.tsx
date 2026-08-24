@@ -74,9 +74,7 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
           <Sparkles className="h-3.5 w-3.5 animate-pulse text-primary" />
         </div>
         <div className="flex items-center gap-2 truncate text-xs">
-          <span className="font-semibold text-foreground truncate">
-            {t('growsWithYou')}
-          </span>
+          <span className="font-semibold text-foreground truncate">{t('growsWithYou')}</span>
           <span className="hidden sm:inline text-muted-foreground font-normal truncate">
             · {t('stats', { memories: memoriesCount, skills: skillsCount })}
           </span>

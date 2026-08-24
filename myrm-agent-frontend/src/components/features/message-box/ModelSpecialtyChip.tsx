@@ -2,7 +2,14 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { IconBrain, IconCode, IconCpu, IconFileText, IconImage, IconZap } from '@/components/features/icons/PremiumIcons';
+import {
+  IconBrain,
+  IconCode,
+  IconCpu,
+  IconFileText,
+  IconImage,
+  IconZap,
+} from '@/components/features/icons/PremiumIcons';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';
 
 interface ModelSpecialtyChipProps {

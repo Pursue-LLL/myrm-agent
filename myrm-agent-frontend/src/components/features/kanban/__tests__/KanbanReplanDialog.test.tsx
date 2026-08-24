@@ -59,12 +59,7 @@ describe('KanbanReplanDialog', () => {
 
   it('renders diff changes and badges correctly', () => {
     render(
-      <KanbanReplanDialog
-        board={mockBoard}
-        open={true}
-        onOpenChange={vi.fn()}
-        proposedChanges={proposedChanges}
-      />
+      <KanbanReplanDialog board={mockBoard} open={true} onOpenChange={vi.fn()} proposedChanges={proposedChanges} />,
     );
 
     expect(screen.getByText('Analyze Root Cause')).toBeInTheDocument();
@@ -78,7 +73,9 @@ describe('KanbanReplanDialog', () => {
   it('submits revision and invokes onApplied on success', async () => {
     const onOpenChange = vi.fn();
     const onApplied = vi.fn();
-    (kanbanService.reviseBoardPlan as unknown as { mockResolvedValueOnce: (val: unknown) => void }).mockResolvedValueOnce({
+    (
+      kanbanService.reviseBoardPlan as unknown as { mockResolvedValueOnce: (val: unknown) => void }
+    ).mockResolvedValueOnce({
       ok: true,
       board_id: 'board-123',
       reason: 'applied',
@@ -98,7 +95,7 @@ describe('KanbanReplanDialog', () => {
         proposedChanges={proposedChanges}
         defaultRationale="Discovered new defect path"
         onApplied={onApplied}
-      />
+      />,
     );
 
     const applyButton = screen.getByRole('button', { name: /replanApply/i });
@@ -111,7 +108,7 @@ describe('KanbanReplanDialog', () => {
           board_id: 'board-123',
           rationale: 'Discovered new defect path',
           task_changes: proposedChanges,
-        })
+        }),
       );
       expect(onOpenChange).toHaveBeenCalledWith(false);
       expect(onApplied).toHaveBeenCalled();

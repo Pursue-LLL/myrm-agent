@@ -173,7 +173,12 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
   ];
 
   return (
-    <Card className={cn('relative overflow-hidden border-border/70 bg-gradient-to-b from-card/90 to-card/60 shadow-sm backdrop-blur-sm', className)}>
+    <Card
+      className={cn(
+        'relative overflow-hidden border-border/70 bg-gradient-to-b from-card/90 to-card/60 shadow-sm backdrop-blur-sm',
+        className,
+      )}
+    >
       <CardHeader className="pb-3 pt-4 px-4 md:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
@@ -181,9 +186,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
               <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
                 <Brain className="h-5 w-5" />
               </div>
-              <CardTitle className="text-base md:text-lg font-semibold tracking-tight">
-                {t('title')}
-              </CardTitle>
+              <CardTitle className="text-base md:text-lg font-semibold tracking-tight">{t('title')}</CardTitle>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 {t(data.overall_status === 'optimal' ? 'optimal' : 'warning')}
@@ -244,12 +247,17 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
                     <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
                   </h4>
                   <p className="text-[11px] font-medium text-muted-foreground mt-0.5 line-clamp-1">{ring.stage}</p>
-                  <p className="text-[11px] text-muted-foreground/75 mt-1.5 leading-relaxed line-clamp-2">{ring.desc}</p>
+                  <p className="text-[11px] text-muted-foreground/75 mt-1.5 leading-relaxed line-clamp-2">
+                    {ring.desc}
+                  </p>
                 </div>
 
                 <div className="mt-3 pt-2.5 border-t border-border/40 space-y-1">
                   {ring.metrics.map((m, mIdx) => (
-                    <div key={mIdx} className="text-[11px] text-foreground/90 font-medium flex items-center justify-between">
+                    <div
+                      key={mIdx}
+                      className="text-[11px] text-foreground/90 font-medium flex items-center justify-between"
+                    >
                       <span className="truncate">{m}</span>
                     </div>
                   ))}

@@ -64,12 +64,7 @@ const SEVERITY_CONFIG: Record<
   },
 };
 
-export function ReviewCommentThread({
-  results,
-  t,
-  onInitiateFix,
-  className,
-}: ReviewCommentThreadProps) {
+export function ReviewCommentThread({ results, t, onInitiateFix, className }: ReviewCommentThreadProps) {
   const [selectedSeverity, setSelectedSeverity] = useState<ReviewSeverityType | 'all'>('all');
   const [expandedSuggestions, setExpandedSuggestions] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -101,9 +96,7 @@ export function ReviewCommentThread({
   const infoTotal = allComments.filter((c) => c.severity === 'info').length;
 
   const filteredComments =
-    selectedSeverity === 'all'
-      ? allComments
-      : allComments.filter((c) => c.severity === selectedSeverity);
+    selectedSeverity === 'all' ? allComments : allComments.filter((c) => c.severity === selectedSeverity);
 
   const toggleSuggestion = (key: string) => {
     setExpandedSuggestions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -127,7 +120,7 @@ export function ReviewCommentThread({
             <span
               className={cn(
                 'mt-0.5 inline-block w-2 h-2 rounded-full shrink-0',
-                item.passed ? 'bg-emerald-500' : 'bg-destructive'
+                item.passed ? 'bg-emerald-500' : 'bg-destructive',
               )}
             />
             <div className="min-w-0 flex-1">
@@ -138,14 +131,12 @@ export function ReviewCommentThread({
                 <span
                   className={cn(
                     'text-[10px] shrink-0 font-medium',
-                    item.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
+                    item.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive',
                   )}
                 >
                   {item.passed ? t('acceptancePassed') : t('acceptanceFailed')}
                   {typeof item.duration_ms === 'number' && (
-                    <span className="text-muted-foreground/60 ml-1 font-mono text-[9px]">
-                      {item.duration_ms}ms
-                    </span>
+                    <span className="text-muted-foreground/60 ml-1 font-mono text-[9px]">{item.duration_ms}ms</span>
                   )}
                 </span>
               </div>
@@ -170,7 +161,7 @@ export function ReviewCommentThread({
                   'text-[9px] px-1.5 py-0.5 rounded-full border transition-colors',
                   selectedSeverity === 'all'
                     ? 'bg-foreground/10 font-semibold border-foreground/30 text-foreground'
-                    : 'text-muted-foreground border-transparent hover:bg-muted'
+                    : 'text-muted-foreground border-transparent hover:bg-muted',
                 )}
               >
                 {t('reviewFilterAll')} ({allComments.length})
@@ -183,7 +174,7 @@ export function ReviewCommentThread({
                     'text-[9px] px-1.5 py-0.5 rounded-full border transition-colors',
                     selectedSeverity === 'critical'
                       ? 'bg-destructive/15 text-destructive font-semibold border-destructive/40'
-                      : 'text-destructive/80 border-transparent hover:bg-destructive/10'
+                      : 'text-destructive/80 border-transparent hover:bg-destructive/10',
                   )}
                 >
                   {t('reviewSeverityCritical')} ({criticalTotal})
@@ -197,7 +188,7 @@ export function ReviewCommentThread({
                     'text-[9px] px-1.5 py-0.5 rounded-full border transition-colors',
                     selectedSeverity === 'warning'
                       ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold border-amber-500/40'
-                      : 'text-amber-600/80 dark:text-amber-400/80 border-transparent hover:bg-amber-500/10'
+                      : 'text-amber-600/80 dark:text-amber-400/80 border-transparent hover:bg-amber-500/10',
                   )}
                 >
                   {t('reviewSeverityWarning')} ({warningTotal})
@@ -211,7 +202,7 @@ export function ReviewCommentThread({
                     'text-[9px] px-1.5 py-0.5 rounded-full border transition-colors',
                     selectedSeverity === 'info'
                       ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold border-blue-500/40'
-                      : 'text-blue-600/80 dark:text-blue-400/80 border-transparent hover:bg-blue-500/10'
+                      : 'text-blue-600/80 dark:text-blue-400/80 border-transparent hover:bg-blue-500/10',
                   )}
                 >
                   {t('reviewSeverityInfo')} ({infoTotal})
@@ -235,7 +226,7 @@ export function ReviewCommentThread({
                   className={cn(
                     'rounded border px-2 py-1.5 text-xs space-y-1 transition-all',
                     config.border,
-                    config.badgeBg
+                    config.badgeBg,
                   )}
                 >
                   <div className="flex items-start justify-between gap-1">
@@ -245,7 +236,7 @@ export function ReviewCommentThread({
                         className={cn(
                           'text-[9px] uppercase font-bold px-1 py-0.2 rounded',
                           config.badgeText,
-                          'bg-background/80'
+                          'bg-background/80',
                         )}
                       >
                         {t(config.labelKey)}
@@ -269,9 +260,7 @@ export function ReviewCommentThread({
                     )}
                   </div>
 
-                  <p className="text-[11px] text-foreground/90 break-words leading-relaxed pl-5">
-                    {comment.message}
-                  </p>
+                  <p className="text-[11px] text-foreground/90 break-words leading-relaxed pl-5">{comment.message}</p>
 
                   {/* Fix Suggestion Foldable Card */}
                   {comment.fix_suggestion && (
@@ -281,20 +270,14 @@ export function ReviewCommentThread({
                         onClick={() => toggleSuggestion(itemKey)}
                         className="flex items-center gap-1 text-[10px] text-primary/80 hover:text-primary transition-colors font-medium"
                       >
-                        {isExpanded ? (
-                          <ChevronDown className="w-3 h-3" />
-                        ) : (
-                          <ChevronRight className="w-3 h-3" />
-                        )}
+                        {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                         <span>{t('reviewFixSuggestion')}</span>
                       </button>
 
                       {isExpanded && (
                         <div className="mt-1 rounded border border-border/60 bg-background/80 p-1.5 text-[10px] text-muted-foreground space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="font-mono text-[9px] text-primary/70">
-                              {t('reviewAdviceSnippet')}
-                            </span>
+                            <span className="font-mono text-[9px] text-primary/70">{t('reviewAdviceSnippet')}</span>
                             <button
                               type="button"
                               onClick={() => handleCopy(comment.fix_suggestion || '', itemKey)}

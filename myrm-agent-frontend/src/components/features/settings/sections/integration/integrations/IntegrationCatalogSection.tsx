@@ -154,12 +154,12 @@ const IntegrationCatalogSection = memo(() => {
           <div className="text-muted-foreground py-12 text-center text-sm">{t('noResults')}</div>
         )}
 
-      {/* Custom integration link & Lifecycle Outbound Webhooks */}
-      <div className="border-border mt-6 border-t pt-4">
-        <p className="text-muted-foreground text-sm">{t('customIntegrationHint')}</p>
-      </div>
+        {/* Custom integration link & Lifecycle Outbound Webhooks */}
+        <div className="border-border mt-6 border-t pt-4">
+          <p className="text-muted-foreground text-sm">{t('customIntegrationHint')}</p>
+        </div>
 
-      <LifecycleWebhookSection />
+        <LifecycleWebhookSection />
       </SettingsSection>
 
       {/* Connect Dialog */}

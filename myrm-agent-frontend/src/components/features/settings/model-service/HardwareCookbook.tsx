@@ -3,7 +3,19 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Cpu, HardDrive, Monitor, AlertTriangle, Download, Loader2, X, Trash2, Sliders, Layers, Sparkles } from 'lucide-react';
+import {
+  Cpu,
+  HardDrive,
+  Monitor,
+  AlertTriangle,
+  Download,
+  Loader2,
+  X,
+  Trash2,
+  Sliders,
+  Layers,
+  Sparkles,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -243,7 +255,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   };
 
   // 当前有效 VRAM（若开启模拟器则采用模拟值）
-  const effectiveVram = isSimulatorOpen ? simulatedVram : (profile?.available_vram_gb || 8);
+  const effectiveVram = isSimulatorOpen ? simulatedVram : profile?.available_vram_gb || 8;
   const activeRung = useMemo(() => getRungByVram(effectiveVram), [effectiveVram]);
 
   // 动态计算模拟显存适配后的推荐与评分
@@ -251,10 +263,14 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
     if (!profile?.recommendations) return [];
     return profile.recommendations.map((rec) => {
       const weightGb = rec.req_vram_gb;
-      const kvFp16Gb = rec.kv_fp16_64k_gb || calculateKvCacheVramGb(rec.num_layers || 32, rec.kv_heads || 8, rec.head_dim || 128, 65536, 2.0);
-      const kvQ8Gb = rec.kv_q8_64k_gb || calculateKvCacheVramGb(rec.num_layers || 32, rec.kv_heads || 8, rec.head_dim || 128, 65536, 1.0);
-      const totalNeeded64k = rec.total_vram_64k_fp16_gb || (weightGb + kvFp16Gb);
-      const totalNeeded64kQ8 = rec.total_vram_64k_q8_gb || (weightGb + kvQ8Gb);
+      const kvFp16Gb =
+        rec.kv_fp16_64k_gb ||
+        calculateKvCacheVramGb(rec.num_layers || 32, rec.kv_heads || 8, rec.head_dim || 128, 65536, 2.0);
+      const kvQ8Gb =
+        rec.kv_q8_64k_gb ||
+        calculateKvCacheVramGb(rec.num_layers || 32, rec.kv_heads || 8, rec.head_dim || 128, 65536, 1.0);
+      const totalNeeded64k = rec.total_vram_64k_fp16_gb || weightGb + kvFp16Gb;
+      const totalNeeded64kQ8 = rec.total_vram_64k_q8_gb || weightGb + kvQ8Gb;
 
       if (!isSimulatorOpen) {
         return {
@@ -490,157 +506,163 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
             </Alert>
           )}
 
-                  <div className="grid gap-3">
-                    {simulatedRecommendations.map((rec, idx) => {
-                      const isDownloading = downloadingModel === rec.model_id;
-                      const isDeleting = deletingModel === rec.model_id;
-                      const progressPercent =
-                        isDownloading && downloadProgress?.total && downloadProgress?.completed
-                          ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
-                          : 0;
+          <div className="grid gap-3">
+            {simulatedRecommendations.map((rec, idx) => {
+              const isDownloading = downloadingModel === rec.model_id;
+              const isDeleting = deletingModel === rec.model_id;
+              const progressPercent =
+                isDownloading && downloadProgress?.total && downloadProgress?.completed
+                  ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
+                  : 0;
 
-                      // 预估模型大小 (GB)
-                      const estimatedDiskGb = rec.disk_size_gb || rec.req_vram_gb * 0.8;
-                      const hasEnoughDisk = profile.free_disk_gb ? profile.free_disk_gb > estimatedDiskGb : true;
+              // 预估模型大小 (GB)
+              const estimatedDiskGb = rec.disk_size_gb || rec.req_vram_gb * 0.8;
+              const hasEnoughDisk = profile.free_disk_gb ? profile.free_disk_gb > estimatedDiskGb : true;
 
-                      return (
-                        <div
-                          key={rec.model_id}
-                          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg border transition-all ${
-                            idx === 0 ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-background hover:bg-muted/50'
+              return (
+                <div
+                  key={rec.model_id}
+                  className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg border transition-all ${
+                    idx === 0 ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-background hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="space-y-2 flex-1 pr-4 w-full">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{rec.name}</span>
+                      {idx === 0 && (
+                        <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0 h-5">
+                          {t('bestFit')}
+                        </Badge>
+                      )}
+                      {rec.min_rung && (
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          Rung {rec.min_rung}+
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{rec.description}</p>
+
+                    {/* 64K 上下文显存三色透视细分条 */}
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500" />
+                        <span>
+                          {t('weightVram')}: {rec.weightGb} GB
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span>
+                          {t('kvVram')}: {rec.kvQ8Gb}G(Q8) / {rec.kvFp16Gb}G(FP16)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-foreground/90 font-medium">
+                        <span>
+                          {t('vram64kFp16')}: ~{rec.totalNeeded64k} GB
+                        </span>
+                      </div>
+                      {rec.est_tok_per_sec != null && (
+                        <span
+                          className={`font-medium tabular-nums ${
+                            rec.est_tok_per_sec >= 20
+                              ? 'text-green-600 dark:text-green-400'
+                              : rec.est_tok_per_sec >= 8
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : 'text-red-600 dark:text-red-400'
                           }`}
                         >
-                          <div className="space-y-2 flex-1 pr-4 w-full">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">{rec.name}</span>
-                              {idx === 0 && (
-                                <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0 h-5">
-                                  {t('bestFit')}
-                                </Badge>
-                              )}
-                              {rec.min_rung && (
-                                <Badge variant="outline" className="text-[10px] h-5">
-                                  Rung {rec.min_rung}+
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground line-clamp-1">{rec.description}</p>
+                          ~{rec.est_tok_per_sec} tok/s
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                            {/* 64K 上下文显存三色透视细分条 */}
-                            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                                <span>{t('weightVram')}: {rec.weightGb} GB</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                <span>{t('kvVram')}: {rec.kvQ8Gb}G(Q8) / {rec.kvFp16Gb}G(FP16)</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-foreground/90 font-medium">
-                                <span>{t('vram64kFp16')}: ~{rec.totalNeeded64k} GB</span>
-                              </div>
-                              {rec.est_tok_per_sec != null && (
-                                <span
-                                  className={`font-medium tabular-nums ${
-                                    rec.est_tok_per_sec >= 20
-                                      ? 'text-green-600 dark:text-green-400'
-                                      : rec.est_tok_per_sec >= 8
-                                        ? 'text-yellow-600 dark:text-yellow-400'
-                                        : 'text-red-600 dark:text-red-400'
-                                  }`}
-                                >
-                                  ~{rec.est_tok_per_sec} tok/s
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
+                    <div className="flex flex-col items-end gap-1 min-w-[100px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium">Fit Score:</span>
+                        <span className={`text-sm font-bold ${getFitLevelColor(rec.effectiveFitLevel).split(' ')[0]}`}>
+                          {rec.effectiveFitScore}%
+                        </span>
+                      </div>
+                      <Progress
+                        value={rec.effectiveFitScore}
+                        className="h-1.5 w-24"
+                        indicatorClassName={
+                          rec.effectiveFitLevel === 'perfect' || rec.effectiveFitLevel === 'good'
+                            ? 'bg-green-500'
+                            : rec.effectiveFitLevel === 'fair'
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                        }
+                      />
+                    </div>
 
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
-                            <div className="flex flex-col items-end gap-1 min-w-[100px]">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium">Fit Score:</span>
-                                <span className={`text-sm font-bold ${getFitLevelColor(rec.effectiveFitLevel).split(' ')[0]}`}>
-                                  {rec.effectiveFitScore}%
-                                </span>
-                              </div>
-                              <Progress
-                                value={rec.effectiveFitScore}
-                                className="h-1.5 w-24"
-                                indicatorClassName={
-                                  rec.effectiveFitLevel === 'perfect' || rec.effectiveFitLevel === 'good'
-                                    ? 'bg-green-500'
-                                    : rec.effectiveFitLevel === 'fair'
-                                      ? 'bg-yellow-500'
-                                      : 'bg-red-500'
-                                }
-                              />
-                            </div>
-
-                            {isDownloading ? (
-                              <div className="flex flex-col items-end gap-1 w-full sm:w-[150px]">
-                                <div className="flex items-center justify-between w-full">
-                                  <span
-                                    className="text-[10px] text-muted-foreground truncate max-w-[120px]"
-                                    title={downloadProgress?.status || t('downloading')}
-                                  >
-                                    {downloadProgress?.status || t('downloading')}
-                                  </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-4 w-4 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                    onClick={handleCancelDownload}
-                                    title={t('cancel')}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                                <Progress value={progressPercent} className="h-2 w-full" />
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                {rec.is_installed && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                    disabled={isDeleting}
-                                    onClick={() => handleDelete(rec.model_id)}
-                                    title={t('delete')}
-                                  >
-                                    {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant={rec.is_installed ? 'secondary' : idx === 0 ? 'default' : 'outline'}
-                                  className="shrink-0 min-w-[100px]"
-                                  disabled={
-                                    rec.effectiveFitLevel === 'poor' ||
-                                    profile.ollama_running === false ||
-                                    downloadingModel !== null ||
-                                    (!rec.is_installed && !hasEnoughDisk)
-                                  }
-                                  onClick={() => (rec.is_installed ? onApplyModel(rec.model_id) : handleDownload(rec.model_id))}
-                                  title={
-                                    !rec.is_installed && !hasEnoughDisk
-                                      ? t('notEnoughDisk', { required: estimatedDiskGb.toFixed(1) })
-                                      : undefined
-                                  }
-                                >
-                                  {rec.is_installed ? (
-                                    t('installed')
-                                  ) : (
-                                    <>
-                                      <Download className="w-3.5 h-3.5 mr-1.5" />
-                                      {!hasEnoughDisk ? t('diskFull') : t('apply')}
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
+                    {isDownloading ? (
+                      <div className="flex flex-col items-end gap-1 w-full sm:w-[150px]">
+                        <div className="flex items-center justify-between w-full">
+                          <span
+                            className="text-[10px] text-muted-foreground truncate max-w-[120px]"
+                            title={downloadProgress?.status || t('downloading')}
+                          >
+                            {downloadProgress?.status || t('downloading')}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={handleCancelDownload}
+                            title={t('cancel')}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
                         </div>
+                        <Progress value={progressPercent} className="h-2 w-full" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {rec.is_installed && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            disabled={isDeleting}
+                            onClick={() => handleDelete(rec.model_id)}
+                            title={t('delete')}
+                          >
+                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant={rec.is_installed ? 'secondary' : idx === 0 ? 'default' : 'outline'}
+                          className="shrink-0 min-w-[100px]"
+                          disabled={
+                            rec.effectiveFitLevel === 'poor' ||
+                            profile.ollama_running === false ||
+                            downloadingModel !== null ||
+                            (!rec.is_installed && !hasEnoughDisk)
+                          }
+                          onClick={() => (rec.is_installed ? onApplyModel(rec.model_id) : handleDownload(rec.model_id))}
+                          title={
+                            !rec.is_installed && !hasEnoughDisk
+                              ? t('notEnoughDisk', { required: estimatedDiskGb.toFixed(1) })
+                              : undefined
+                          }
+                        >
+                          {rec.is_installed ? (
+                            t('installed')
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5 mr-1.5" />
+                              {!hasEnoughDisk ? t('diskFull') : t('apply')}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>

@@ -189,13 +189,10 @@ export async function fillBlueprint(
   });
 }
 
-export async function checkCronPrerequisite(
-  data: PrerequisiteCheckRequest,
-): Promise<PrerequisiteCheckResponse> {
+export async function checkCronPrerequisite(data: PrerequisiteCheckRequest): Promise<PrerequisiteCheckResponse> {
   return apiRequest('/cron/prerequisite-check', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 }
-

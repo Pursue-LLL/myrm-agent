@@ -58,26 +58,24 @@ describe('LifecycleWebhookSection - Full Flow', () => {
   });
 
   it('opens creation form and creates a new webhook with random secret and custom events', async () => {
-    (webhookService.listLifecycleWebhooks as any)
-      .mockResolvedValueOnce(mockWebhooks)
-      .mockResolvedValueOnce([
-        ...mockWebhooks,
-        {
-          id: 'wh-2',
-          name: 'Alert Bot',
-          url: 'https://feishu.example.com/hook',
-          secret: 'whsec_random123',
-          events: ['session_completed', 'session_failed', 'approval_required', 'goal_terminal'],
-          agent_id: null,
-          is_active: true,
-          timeout_seconds: 10,
-          last_delivery_at: null,
-          last_delivery_status: null,
-          last_error: null,
-          created_at: '2026-08-22T00:00:00Z',
-          updated_at: '2026-08-22T00:00:00Z',
-        },
-      ]);
+    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks).mockResolvedValueOnce([
+      ...mockWebhooks,
+      {
+        id: 'wh-2',
+        name: 'Alert Bot',
+        url: 'https://feishu.example.com/hook',
+        secret: 'whsec_random123',
+        events: ['session_completed', 'session_failed', 'approval_required', 'goal_terminal'],
+        agent_id: null,
+        is_active: true,
+        timeout_seconds: 10,
+        last_delivery_at: null,
+        last_delivery_status: null,
+        last_error: null,
+        created_at: '2026-08-22T00:00:00Z',
+        updated_at: '2026-08-22T00:00:00Z',
+      },
+    ]);
     (webhookService.createLifecycleWebhook as any).mockResolvedValueOnce({
       id: 'wh-2',
       name: 'Alert Bot',

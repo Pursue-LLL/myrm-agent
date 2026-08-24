@@ -610,14 +610,10 @@ export interface MemoryRecallBoundaryData {
   total_approved: number;
 }
 
-export const getMemoryRecallBoundary = async (
-  agentId?: string,
-  taskId?: string,
-): Promise<MemoryRecallBoundaryData> => {
+export const getMemoryRecallBoundary = async (agentId?: string, taskId?: string): Promise<MemoryRecallBoundaryData> => {
   const params = new URLSearchParams();
   if (agentId) params.set('agent_id', agentId);
   if (taskId) params.set('task_id', taskId);
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest<MemoryRecallBoundaryData>(`/memory/command-center/recall-boundary${query}`);
 };
-

@@ -4,10 +4,7 @@ import React, { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Shield, Database, Sparkles, AlertTriangle, CheckCircle, RefreshCw, Pin, Layers, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  getMemoryRecallBoundary,
-  type MemoryRecallBoundaryData,
-} from '@/services/memory/commandCenter';
+import { getMemoryRecallBoundary, type MemoryRecallBoundaryData } from '@/services/memory/commandCenter';
 
 interface MemoryRecallBoundaryPanelProps {
   agentId?: string;
@@ -15,11 +12,7 @@ interface MemoryRecallBoundaryPanelProps {
   className?: string;
 }
 
-export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
-  agentId,
-  taskId,
-  className,
-}) => {
+export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({ agentId, taskId, className }) => {
   const t = useTranslations('memoryRecallBoundary');
   const [data, setData] = useState<MemoryRecallBoundaryData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,7 +47,12 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
 
   if (error || !data) {
     return (
-      <div className={cn('p-6 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive space-y-3', className)}>
+      <div
+        className={cn(
+          'p-6 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive space-y-3',
+          className,
+        )}
+      >
         <p className="text-sm font-medium">{error || 'Unable to load recall boundary'}</p>
         <button
           type="button"
@@ -137,7 +135,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
                 </span>
               )}
             </span>
-            <span>{t('policyWrite')}: {data.write_policy}</span>
+            <span>
+              {t('policyWrite')}: {data.write_policy}
+            </span>
           </div>
         </div>
       </div>
@@ -149,7 +149,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
           onClick={() => setActiveTab('candidates')}
           className={cn(
             'flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5',
-            activeTab === 'candidates' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            activeTab === 'candidates'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <Sparkles className="h-3.5 w-3.5 text-amber-500" />
@@ -160,7 +162,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
           onClick={() => setActiveTab('approved')}
           className={cn(
             'flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5',
-            activeTab === 'approved' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            activeTab === 'approved'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
@@ -171,7 +175,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
           onClick={() => setActiveTab('partitions')}
           className={cn(
             'flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5',
-            activeTab === 'partitions' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            activeTab === 'partitions'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <Layers className="h-3.5 w-3.5 text-indigo-500" />
@@ -182,7 +188,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
           onClick={() => setActiveTab('scopes')}
           className={cn(
             'flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5',
-            activeTab === 'scopes' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            activeTab === 'scopes'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <Shield className="h-3.5 w-3.5 text-blue-500" />
@@ -215,7 +223,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
                   </div>
                   <p className="text-xs text-foreground/90 leading-relaxed font-sans">{cand.content_preview}</p>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/30">
-                    <span>{t('source')}: {cand.source}</span>
+                    <span>
+                      {t('source')}: {cand.source}
+                    </span>
                     <span className="text-amber-500 font-medium">{t('candidateReviewDesc')}</span>
                   </div>
                 </div>
@@ -262,7 +272,9 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
                   <p className="text-xs text-foreground/90 leading-relaxed font-sans">{appr.content_preview}</p>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/30">
                     <span>scope: {appr.namespace}</span>
-                    <span className="font-mono">imp: {appr.importance.toFixed(2)} · hits: {appr.access_count}</span>
+                    <span className="font-mono">
+                      imp: {appr.importance.toFixed(2)} · hits: {appr.access_count}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -288,8 +300,12 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
               <span>{t('partitionWorkingMemory')}</span>
               <span className="text-primary font-mono">{data.partitions.working_memory_count} items</span>
             </h4>
-            <p className="text-[11px] text-muted-foreground">Task digests, active dialogue history, and running context.</p>
-            <div className="text-[11px] font-mono text-muted-foreground/80">{data.partitions.working_memory_chars} chars</div>
+            <p className="text-[11px] text-muted-foreground">
+              Task digests, active dialogue history, and running context.
+            </p>
+            <div className="text-[11px] font-mono text-muted-foreground/80">
+              {data.partitions.working_memory_chars} chars
+            </div>
           </div>
 
           <div className="p-4 rounded-xl border border-border/60 bg-card/60 space-y-2">
@@ -297,8 +313,12 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
               <span>{t('partitionOperatingInstructions')}</span>
               <span className="text-primary font-mono">{data.partitions.operating_instructions_count} items</span>
             </h4>
-            <p className="text-[11px] text-muted-foreground">Procedural rules, tool failure rules, and operational guidelines.</p>
-            <div className="text-[11px] font-mono text-muted-foreground/80">{data.partitions.operating_instructions_chars} chars</div>
+            <p className="text-[11px] text-muted-foreground">
+              Procedural rules, tool failure rules, and operational guidelines.
+            </p>
+            <div className="text-[11px] font-mono text-muted-foreground/80">
+              {data.partitions.operating_instructions_chars} chars
+            </div>
           </div>
 
           <div className="p-4 rounded-xl border border-border/60 bg-card/60 space-y-2">
@@ -306,8 +326,12 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
               <span>{t('partitionRetrievableEvidence')}</span>
               <span className="text-primary font-mono">{data.partitions.retrievable_evidence_count} items</span>
             </h4>
-            <p className="text-[11px] text-muted-foreground">Semantic facts, episodic experiences, and knowledge claims.</p>
-            <div className="text-[11px] font-mono text-muted-foreground/80">{data.partitions.retrievable_evidence_chars} chars</div>
+            <p className="text-[11px] text-muted-foreground">
+              Semantic facts, episodic experiences, and knowledge claims.
+            </p>
+            <div className="text-[11px] font-mono text-muted-foreground/80">
+              {data.partitions.retrievable_evidence_chars} chars
+            </div>
           </div>
         </div>
       )}
@@ -336,10 +360,14 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
                   </div>
                   <p className="text-[11px] text-muted-foreground">{sc.description}</p>
                 </div>
-                <span className={cn(
-                  'px-2 py-0.5 text-[10px] font-medium rounded-full shrink-0',
-                  sc.is_active ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-muted text-muted-foreground',
-                )}>
+                <span
+                  className={cn(
+                    'px-2 py-0.5 text-[10px] font-medium rounded-full shrink-0',
+                    sc.is_active
+                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                      : 'bg-muted text-muted-foreground',
+                  )}
+                >
                   {sc.is_active ? 'Active Scope' : 'Restricted'}
                 </span>
               </div>

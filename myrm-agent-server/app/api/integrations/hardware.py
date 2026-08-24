@@ -21,6 +21,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.api.integrations.hardware_calculator import (
+    _FIT_PRIORITY,
+    calculate_kv_cache_vram_gb,
+    derive_hardware_rung,
+    estimate_tok_per_sec,
+)
 from app.api.integrations.model_specs import get_dynamic_model_specs
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
@@ -30,28 +36,6 @@ logger = logging.getLogger(__name__)
 
 _HARDWARE_PROFILE_CACHE: tuple[float, object] | None = None
 _HARDWARE_PROFILE_LOCK = asyncio.Lock()
-
-# Bytes per weight for Q4_K_M quantization (dominant Ollama default format).
-# GGUF spec: 4-bit quant ≈ 0.5 B/W + K-quant overhead → 0.5625 B/W.
-_Q4_K_M_BYTES_PER_WEIGHT: float = 0.5625
-
-# Empirical efficiency: real-world throughput vs. theoretical peak bandwidth.
-# Accounts for KV cache I/O, CPU-GPU sync, tokenizer, and framework overhead.
-_EFFICIENCY: float = 0.55
-
-# Vendor-specific calibration from community benchmark data.
-# Apple's tight memory controller yields ~82% of theoretical; AMD ROCm and
-# Intel Arc carry higher driver overhead than NVIDIA CUDA.
-_VENDOR_FACTOR: dict[str, float] = {
-    "apple": 0.82,
-    "nvidia": 1.00,
-    "amd": 0.78,
-    "intel": 0.65,
-    "unknown": 0.60,
-}
-
-# Numeric priority for each fit level used in multi-key recommendation sort.
-_FIT_PRIORITY: dict[str, int] = {"perfect": 3, "good": 2, "fair": 1, "poor": 0}
 
 
 async def _get_cached_hardware_profile() -> object | None:
@@ -157,73 +141,6 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
             yield b'{"error": "Ollama model pull failed"}\n'
 
     return StreamingResponse(_stream_pull(), media_type="application/x-ndjson")
-
-
-def _estimate_tok_per_sec(
-    bandwidth_gbps: float | None,
-    params_b: float,
-    vendor: str,
-    active_params_b: float | None = None,
-) -> int | None:
-    """Estimate inference throughput (tokens/s) for a Q4_K_M quantized LLM.
-
-    Formula:  tok/s = (bandwidth_GBps * 1e9) / (effective_b * 1e9 * bytes_per_weight)
-                       * efficiency * vendor_factor
-
-    For MoE models (e.g. DeepSeek R1 32B which activates ~7B weights per token),
-    pass ``active_params_b`` to use the number of *active* weights instead of the
-    total model size.  VRAM/disk sizing still uses full ``params_b``; only the
-    inference throughput estimate uses active weights.
-
-    Returns None when bandwidth is unavailable (GPU not in lookup table).
-    """
-    if bandwidth_gbps is None or bandwidth_gbps <= 0 or params_b <= 0:
-        return None
-    # MoE models: inference cost scales with active parameters, not total
-    effective_b = (
-        active_params_b if (active_params_b and active_params_b > 0) else params_b
-    )
-    raw = (bandwidth_gbps * 1e9) / (effective_b * 1e9 * _Q4_K_M_BYTES_PER_WEIGHT)
-    vendor_factor = _VENDOR_FACTOR.get(vendor, _VENDOR_FACTOR["unknown"])
-    # Return integer tok/s — sub-1 precision is noise given ~15% estimation error
-    return max(1, round(raw * _EFFICIENCY * vendor_factor))
-
-
-def calculate_kv_cache_vram_gb(
-    num_layers: int,
-    kv_heads: int,
-    head_dim: int,
-    context_length: int = 65536,
-    bytes_per_elem: float = 2.0,
-) -> float:
-    """Calculate VRAM consumed by KV Cache for a given context length in GB.
-
-    Formula: 2 * num_layers * kv_heads * head_dim * context_length * bytes_per_elem / (1024^3)
-    """
-    if num_layers <= 0 or kv_heads <= 0 or head_dim <= 0 or context_length <= 0:
-        return 0.0
-    raw_bytes = 2 * num_layers * kv_heads * head_dim * context_length * bytes_per_elem
-    return round(raw_bytes / (1024**3), 2)
-
-
-def derive_hardware_rung(available_vram_gb: float) -> tuple[int, str]:
-    """Map available VRAM to a Reference Ladder Rung (1 to 5).
-
-    Rung 1 (Entry): < 10GB (e.g. 8GB RAM / 6GB GPU) -> 0.5B - 3B models
-    Rung 2 (Mainstream): 10 - 20GB (e.g. 16GB RAM / 12-16GB GPU) -> 8B models (64k ready)
-    Rung 3 (High-end): 20 - 40GB (e.g. 32GB RAM / 24GB GPU) -> 14B models (64k ready)
-    Rung 4 (Workstation): 40 - 80GB (e.g. 64GB RAM / 48GB GPU) -> 32B models (64k ready)
-    Rung 5 (Flagship): >= 80GB (e.g. 128GB+ RAM / Multi-GPU) -> 70B+ models (64k ready)
-    """
-    if available_vram_gb < 10.0:
-        return 1, "Entry (< 10GB)"
-    if available_vram_gb < 20.0:
-        return 2, "Mainstream (10-20GB)"
-    if available_vram_gb < 40.0:
-        return 3, "High-end (20-40GB)"
-    if available_vram_gb < 80.0:
-        return 4, "Workstation (40-80GB)"
-    return 5, "Flagship (80GB+)"
 
 
 class HardwareRecommendationResponse(BaseModel):
@@ -340,7 +257,7 @@ async def get_hardware_recommendations() -> JSONResponse:
             fit_level = "poor"
 
         est_tok_per_sec = (
-            _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor, active_params_b)
+            estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor, active_params_b)
             if params_b > 0
             else None
         )

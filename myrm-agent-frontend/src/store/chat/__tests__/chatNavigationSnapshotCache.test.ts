@@ -188,4 +188,3 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
     expect(paneMerged.activeMoaPresetId).toBe('preset-deep-seek');
   });
 });
-

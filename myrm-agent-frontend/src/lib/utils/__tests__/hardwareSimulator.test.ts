@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  HARDWARE_RUNGS,
-  calculateKvCacheVramGb,
-  getRungByVram,
-} from '../hardwareSimulator';
+import { HARDWARE_RUNGS, calculateKvCacheVramGb, getRungByVram } from '../hardwareSimulator';
 
 describe('hardwareSimulator utilities', () => {
   it('should define 5 hardware rungs with valid ranges and models', () => {

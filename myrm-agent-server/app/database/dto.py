@@ -7,7 +7,7 @@ from myrm_agent_harness.toolkits.memory.config import (
     MemoryScopeLevel,
     MemoryWritePolicy,
 )
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.services.agent.builtin_specs.builtin_tool_validation import OptionalBuiltinTools
 
@@ -175,8 +175,7 @@ class MessageResponse(MessageBase):
     siblingCount: int = Field(0, description="Total siblings in group")
     siblingIndex: int = Field(0, description="Current message index in sibling group (1-based)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChatBase(BaseModel):
@@ -240,8 +239,7 @@ class ChatListItem(BaseModel):
     updated_at: datetime = Field(..., description="更新时间")
     deletedAt: datetime | None = Field(None, description="Soft-delete timestamp (trash)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChatDetail(BaseModel):
@@ -267,8 +265,7 @@ class ChatDetail(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UpdateSummaryRequest(BaseModel):
@@ -651,8 +648,7 @@ class AgentResponse(AgentBase):
     created_at: datetime | None = Field(None, description="创建时间")
     updated_at: datetime | None = Field(None, description="更新时间")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AgentProfileSnapshotItem(BaseModel):
@@ -683,5 +679,4 @@ class AgentListItem(BaseModel):
     created_at: datetime | None = Field(None, description="创建时间")
     updated_at: datetime | None = Field(None, description="更新时间")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

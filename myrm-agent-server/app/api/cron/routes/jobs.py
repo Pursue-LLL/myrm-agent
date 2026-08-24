@@ -38,7 +38,7 @@ router = APIRouter()
 USER_ID = "default"
 
 
-@router.get("", response_model=list[CronJobResponse])
+@router.get("/", response_model=list[CronJobResponse])
 async def list_jobs(
     agent_id: str | None = Query(None, description="Filter by agent ID"),
     chat_id: str | None = Query(None, description="Filter by chat ID"),
@@ -60,8 +60,9 @@ async def get_job(job_id: str) -> CronJobResponse:
     return _h._to_response(job)
 
 
-@router.post("", response_model=CronJobResponse, status_code=201)
+@router.post("/", response_model=CronJobResponse, status_code=201)
 async def create_job(
+
     body: CronJobCreateRequest,
     force: bool = Query(False, description="Bypass manual execution verification gate"),
 ) -> CronJobResponse:

@@ -851,4 +851,3 @@ export interface LearningLoopFiveRingStatusResponse {
 export async function getLearningLoopStatus(days = 30): Promise<LearningLoopFiveRingStatusResponse> {
   return apiRequest<LearningLoopFiveRingStatusResponse>(`/statistics/learning-loop/status?days=${days}`);
 }
-

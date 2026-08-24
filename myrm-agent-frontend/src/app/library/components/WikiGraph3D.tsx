@@ -175,52 +175,57 @@ export default function WikiGraph3D({
     fetchGraph();
   }, [refreshTrigger, agentId, t]);
 
-  const handleNodeClick = useCallback(async (node: unknown) => {
-    const graphNode = node as GraphNode;
-    try {
-      const center = graphNode.id || graphNode.name;
-      if (!center) {
-        return;
-      }
+  const handleNodeClick = useCallback(
+    async (node: unknown) => {
+      const graphNode = node as GraphNode;
+      try {
+        const center = graphNode.id || graphNode.name;
+        if (!center) {
+          return;
+        }
 
-      const response = await fetch(
-        getApiUrl(buildWikiApiPath(`/wiki/graph?center_node=${encodeURIComponent(center)}&depth=1&limit=50`, agentId)),
-      );
-      if (response.ok) {
-        const newApi: ApiResponse = await response.json();
-        const newData = apiToForceGraph(newApi);
-        setData((prev) => {
-          if (!prev) {
-            return newData;
-          }
+        const response = await fetch(
+          getApiUrl(
+            buildWikiApiPath(`/wiki/graph?center_node=${encodeURIComponent(center)}&depth=1&limit=50`, agentId),
+          ),
+        );
+        if (response.ok) {
+          const newApi: ApiResponse = await response.json();
+          const newData = apiToForceGraph(newApi);
+          setData((prev) => {
+            if (!prev) {
+              return newData;
+            }
 
-          const nodeMap = new Map(prev.nodes.map((n) => [n.id, n]));
-          newData.nodes.forEach((n) => nodeMap.set(n.id, n));
+            const nodeMap = new Map(prev.nodes.map((n) => [n.id, n]));
+            newData.nodes.forEach((n) => nodeMap.set(n.id, n));
 
-          const linkMap = new Map(
-            prev.links.map((l) => {
+            const linkMap = new Map(
+              prev.links.map((l) => {
+                const s = getLinkNodeId(l.source);
+                const tgt = getLinkNodeId(l.target);
+                return [`${s}-${tgt}`, { ...l, source: s, target: tgt }];
+              }),
+            );
+
+            newData.links.forEach((l) => {
               const s = getLinkNodeId(l.source);
               const tgt = getLinkNodeId(l.target);
-              return [`${s}-${tgt}`, { ...l, source: s, target: tgt }];
-            }),
-          );
+              linkMap.set(`${s}-${tgt}`, { ...l, source: s, target: tgt });
+            });
 
-          newData.links.forEach((l) => {
-            const s = getLinkNodeId(l.source);
-            const tgt = getLinkNodeId(l.target);
-            linkMap.set(`${s}-${tgt}`, { ...l, source: s, target: tgt });
+            return {
+              nodes: Array.from(nodeMap.values()),
+              links: Array.from(linkMap.values()),
+            };
           });
-
-          return {
-            nodes: Array.from(nodeMap.values()),
-            links: Array.from(linkMap.values()),
-          };
-        });
+        }
+      } catch (err) {
+        console.error('Failed to fetch neighborhood:', err);
       }
-    } catch (err) {
-      console.error('Failed to fetch neighborhood:', err);
-    }
-  }, [agentId]);
+    },
+    [agentId],
+  );
 
   useEffect(() => {
     const updateDimensions = () => {

@@ -78,9 +78,7 @@ export default function KanbanReplanDialog({
       });
 
       if (result.ok) {
-        toast.success(
-          t('replanAppliedSuccess') || 'Plan revision applied successfully',
-        );
+        toast.success(t('replanAppliedSuccess') || 'Plan revision applied successfully');
         onOpenChange(false);
         onApplied?.();
       } else {
@@ -157,10 +155,7 @@ export default function KanbanReplanDialog({
                 </div>
               ) : (
                 proposedChanges.map((change, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-2 p-2 rounded border bg-background text-xs"
-                  >
+                  <div key={idx} className="flex items-start gap-2 p-2 rounded border bg-background text-xs">
                     {change.action === 'add' && (
                       <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                         ADD
@@ -177,13 +172,9 @@ export default function KanbanReplanDialog({
                       </span>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">
-                        {change.title || change.task_id || 'Untitled'}
-                      </div>
+                      <div className="font-medium truncate">{change.title || change.task_id || 'Untitled'}</div>
                       {change.description && (
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {change.description}
-                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate">{change.description}</div>
                       )}
                       {change.depends_on && change.depends_on.length > 0 && (
                         <div className="text-[10px] text-muted-foreground mt-0.5">

@@ -8,18 +8,7 @@ import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Skeleton } from '@/components/primitives/skeleton';
-import {
-  Webhook,
-  Plus,
-  Trash2,
-  RefreshCw,
-  Send,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Shield,
-  Key,
-} from 'lucide-react';
+import { Webhook, Plus, Trash2, RefreshCw, Send, CheckCircle2, AlertCircle, Clock, Shield, Key } from 'lucide-react';
 import SettingsSection from '../../SettingsSection';
 import {
   listLifecycleWebhooks,
@@ -149,9 +138,7 @@ export const LifecycleWebhookSection = memo(() => {
   };
 
   const toggleEventSelection = (eventId: string) => {
-    setSelectedEvents((prev) =>
-      prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId],
-    );
+    setSelectedEvents((prev) => (prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId]));
   };
 
   return (
@@ -291,10 +278,7 @@ export const LifecycleWebhookSection = memo(() => {
                     <p className="text-xs font-mono text-muted-foreground truncate max-w-lg">{hook.url}</p>
                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
                       {hook.events.map((ev) => (
-                        <span
-                          key={ev}
-                          className="text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded"
-                        >
+                        <span key={ev} className="text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded">
                           {ev}
                         </span>
                       ))}

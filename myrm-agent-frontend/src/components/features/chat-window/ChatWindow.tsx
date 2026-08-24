@@ -631,7 +631,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                     <Chat
                       loading={loading}
                       messageAppeared={messageAppeared}
-                      messagesOverride={chatMessagesForRender.length > messages.length ? chatMessagesForRender : undefined}
+                      messagesOverride={
+                        chatMessagesForRender.length > messages.length ? chatMessagesForRender : undefined
+                      }
                     />
                   </div>
                 </>

@@ -53,7 +53,7 @@ export function calculateKvCacheVramGb(
   kvHeads: number,
   headDim: number,
   contextLength = 65536,
-  bytesPerElem = 2.0
+  bytesPerElem = 2.0,
 ): number {
   if (numLayers <= 0 || kvHeads <= 0 || headDim <= 0 || contextLength <= 0) {
     return 0;

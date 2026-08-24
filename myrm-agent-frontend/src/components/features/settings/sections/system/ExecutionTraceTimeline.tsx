@@ -286,11 +286,16 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
                 <span className="font-medium text-foreground">{me.title || me.phase}</span>
                 {me.influence_count > 0 && (
                   <span className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
-                    {t('influenceCount', { count: me.influence_count, defaultMessage: `Influenced turns: ${me.influence_count}` })}
+                    {t('influenceCount', {
+                      count: me.influence_count,
+                      defaultMessage: `Influenced turns: ${me.influence_count}`,
+                    })}
                   </span>
                 )}
               </div>
-              {me.summary && <p className="text-muted-foreground text-[11px] leading-relaxed line-clamp-2">{me.summary}</p>}
+              {me.summary && (
+                <p className="text-muted-foreground text-[11px] leading-relaxed line-clamp-2">{me.summary}</p>
+              )}
             </div>
           ))}
         </div>

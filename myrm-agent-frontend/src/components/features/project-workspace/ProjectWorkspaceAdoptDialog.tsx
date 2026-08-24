@@ -76,30 +76,33 @@ export default function ProjectWorkspaceAdoptDialog({
     }
   }, [open, initialPath]);
 
-  const loadDirectory = useCallback(async (path?: string) => {
-    const gen = ++loadGenRef.current;
-    setLoading(true);
-    try {
-      const data = await browseDirectories(path);
-      if (gen !== loadGenRef.current) return;
-      setCurrentPath(data.current_path);
-      setParentPath(data.parent_path);
-      setEntries(data.entries ?? []);
-      setFilterQuery('');
-      const extracted = data.current_path.split(/[/\\]/).filter(Boolean).pop() || '';
-      setProjectName((prev) => (prev ? prev : extracted));
-    } catch {
-      if (gen !== loadGenRef.current) return;
-      toast({
-        title: t('loadFailed'),
-        variant: 'destructive',
-      });
-    } finally {
-      if (gen === loadGenRef.current) {
-        setLoading(false);
+  const loadDirectory = useCallback(
+    async (path?: string) => {
+      const gen = ++loadGenRef.current;
+      setLoading(true);
+      try {
+        const data = await browseDirectories(path);
+        if (gen !== loadGenRef.current) return;
+        setCurrentPath(data.current_path);
+        setParentPath(data.parent_path);
+        setEntries(data.entries ?? []);
+        setFilterQuery('');
+        const extracted = data.current_path.split(/[/\\]/).filter(Boolean).pop() || '';
+        setProjectName((prev) => (prev ? prev : extracted));
+      } catch {
+        if (gen !== loadGenRef.current) return;
+        toast({
+          title: t('loadFailed'),
+          variant: 'destructive',
+        });
+      } finally {
+        if (gen === loadGenRef.current) {
+          setLoading(false);
+        }
       }
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   const handleNativePick = useCallback(async () => {
     if (!isTauriEnvironment()) return;
@@ -136,10 +139,7 @@ export default function ProjectWorkspaceAdoptDialog({
     if (!currentPath.trim()) return;
     setSubmitting(true);
     try {
-      const project = await adoptProject(
-        currentPath.trim(),
-        projectName.trim() || undefined,
-      );
+      const project = await adoptProject(currentPath.trim(), projectName.trim() || undefined);
       addRecentDir(currentPath.trim());
       if (chatId) {
         setWorkspaceDir(currentPath.trim());
@@ -168,7 +168,9 @@ export default function ProjectWorkspaceAdoptDialog({
   if (!open) return null;
 
   return (
-    <div className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm', className)}>
+    <div
+      className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm', className)}
+    >
       <div className="w-full max-w-md rounded-xl border bg-background p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -288,10 +290,7 @@ export default function ProjectWorkspaceAdoptDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button
-            onClick={() => void handleAdopt()}
-            disabled={submitting || !currentPath.trim()}
-          >
+          <Button onClick={() => void handleAdopt()} disabled={submitting || !currentPath.trim()}>
             {submitting ? '正在接纳...' : '立即接纳项目'}
           </Button>
         </div>

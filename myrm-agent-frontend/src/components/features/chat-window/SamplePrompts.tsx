@@ -198,7 +198,15 @@ const SamplePrompts = React.memo(() => {
     }
 
     return stablePick(pool, DISPLAY_COUNT, pickSeed);
-  }, [mode, t, agentConfig?.agentId, agentConfig?.presetId, agentConfig?.suggestionPrompts, currentLevel, effectiveSlot]);
+  }, [
+    mode,
+    t,
+    agentConfig?.agentId,
+    agentConfig?.presetId,
+    agentConfig?.suggestionPrompts,
+    currentLevel,
+    effectiveSlot,
+  ]);
 
   const handleSelectSlot = useCallback((slot: ActiveFilter) => {
     setSelectedSlot(slot);
@@ -232,9 +240,7 @@ const SamplePrompts = React.memo(() => {
               >
                 <Icon className={cn('w-3.5 h-3.5', isActive ? 'text-primary' : 'text-muted-foreground')} />
                 <span>{label}</span>
-                {id === currentTimeSlot && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                )}
+                {id === currentTimeSlot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
               </button>
             );
           })}

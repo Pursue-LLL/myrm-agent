@@ -177,7 +177,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
             }
           }}
         >
-          <FolderOpen className={cn("h-3.5 w-3.5", !currentDir && "text-amber-500/80")} />
+          <FolderOpen className={cn('h-3.5 w-3.5', !currentDir && 'text-amber-500/80')} />
           {displayPath ? (
             <span className="max-w-[120px] truncate">{displayPath}</span>
           ) : (

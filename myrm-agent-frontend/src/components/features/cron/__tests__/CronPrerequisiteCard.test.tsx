@@ -4,20 +4,14 @@ import { CronPrerequisiteCard } from '../CronPrerequisiteCard';
 import React from 'react';
 
 // Mock next-intl useTranslations
+const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 describe('CronPrerequisiteCard', () => {
   it('renders loading state correctly', () => {
-    render(
-      <CronPrerequisiteCard
-        stats={null}
-        loading={true}
-        override={false}
-        onOverrideChange={() => {}}
-      />
-    );
+    render(<CronPrerequisiteCard stats={null} loading={true} override={false} onOverrideChange={() => {}} />);
     expect(screen.getByText('checkingPrerequisite')).toBeDefined();
   });
 
@@ -36,7 +30,7 @@ describe('CronPrerequisiteCard', () => {
         loading={false}
         override={false}
         onOverrideChange={() => {}}
-      />
+      />,
     );
     expect(screen.getByText('satisfiedTitle')).toBeDefined();
   });
@@ -56,7 +50,7 @@ describe('CronPrerequisiteCard', () => {
         loading={false}
         override={false}
         onOverrideChange={() => {}}
-      />
+      />,
     );
     expect(screen.getByText('unmetTitle')).toBeDefined();
     expect(screen.getByText('explicitOverrideLabel')).toBeDefined();

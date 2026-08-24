@@ -17,7 +17,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowUpDown, Filter, Gauge, ListTree, Loader2, Network, PauseCircle, PlayCircle, StopCircle } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Filter,
+  Gauge,
+  ListTree,
+  Loader2,
+  Network,
+  PauseCircle,
+  PlayCircle,
+  StopCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithTimeout } from '@/lib/api';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';

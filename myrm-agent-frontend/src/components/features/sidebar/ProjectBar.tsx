@@ -305,12 +305,7 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
         />
       )}
 
-      {adoptDialogOpen && (
-        <ProjectWorkspaceAdoptDialog
-          open={adoptDialogOpen}
-          onOpenChange={setAdoptDialogOpen}
-        />
-      )}
+      {adoptDialogOpen && <ProjectWorkspaceAdoptDialog open={adoptDialogOpen} onOpenChange={setAdoptDialogOpen} />}
     </div>
   );
 }

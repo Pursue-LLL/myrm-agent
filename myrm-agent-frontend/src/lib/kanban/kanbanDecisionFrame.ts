@@ -29,11 +29,7 @@ export interface DecisionFrame {
 
 function hasKanbanCompletionIntent(metadata: Record<string, unknown> | null | undefined): boolean {
   if (!metadata) return false;
-  return Boolean(
-    metadata.completion_intent ??
-    metadata.verification_requested ??
-    metadata.requires_review
-  );
+  return Boolean(metadata.completion_intent ?? metadata.verification_requested ?? metadata.requires_review);
 }
 
 /**
@@ -62,7 +58,9 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: isHumanBlock ? 'human' : 'system',
       recommendedActionKey: isHumanBlock ? 'decisionFrame.actionUnblockHuman' : 'decisionFrame.actionCheckBlock',
-      recommendedActionFallback: isHumanBlock ? 'Resolve blocker / grant approval' : 'Waiting for dependency or schedule',
+      recommendedActionFallback: isHumanBlock
+        ? 'Resolve blocker / grant approval'
+        : 'Waiting for dependency or schedule',
       safetyTier: isHumanBlock ? 'hitl_guarded' : 'neutral',
       responsibility: isHumanBlock ? 'needs_action' : 'autonomous',
       hasAttention: isHumanBlock,
@@ -153,10 +151,7 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
 /**
  * 根据责任过滤筛选任务列表
  */
-export function filterTasksByResponsibility(
-  tasks: KanbanTask[],
-  filter: ResponsibilityFilter
-): KanbanTask[] {
+export function filterTasksByResponsibility(tasks: KanbanTask[], filter: ResponsibilityFilter): KanbanTask[] {
   if (filter === 'all') return tasks;
   return tasks.filter((task) => {
     const frame = deriveTaskDecisionFrame(task);

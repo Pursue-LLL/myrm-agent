@@ -381,4 +381,3 @@ export interface PrerequisiteCheckResponse {
   kanban_verified_count: number;
   override_allowed: boolean;
 }
-

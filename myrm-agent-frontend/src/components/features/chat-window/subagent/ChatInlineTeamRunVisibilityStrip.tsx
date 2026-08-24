@@ -61,7 +61,10 @@ export function ChatInlineTeamRunVisibilityStrip({
   useEffect(() => {
     const prevActive = prevActiveCountRef.current;
     if (prevActive > 0 && activeCount === 0 && totalCount > 0) {
-      const allDone = nodeList.every((n) => n.status === 'completed' || n.status === 'failed' || n.status === 'timed_out' || n.status === 'cancelled');
+      const allDone = nodeList.every(
+        (n) =>
+          n.status === 'completed' || n.status === 'failed' || n.status === 'timed_out' || n.status === 'cancelled',
+      );
       if (allDone) {
         setPrevCompletedTotal(totalCount);
         setShowCompletedBuffer(true);
@@ -306,11 +309,7 @@ export function ChatInlineTeamRunVisibilityStrip({
           <div
             className={cn(
               'h-full transition-all duration-300 ease-out',
-              alertLevel === 'approval'
-                ? 'bg-amber-500'
-                : alertLevel === 'stale'
-                  ? 'bg-yellow-500'
-                  : 'bg-primary',
+              alertLevel === 'approval' ? 'bg-amber-500' : alertLevel === 'stale' ? 'bg-yellow-500' : 'bg-primary',
             )}
             style={{ width: `${averageProgress}%` }}
           />

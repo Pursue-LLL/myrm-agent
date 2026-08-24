@@ -598,9 +598,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
           onConnectClick={() => setConnectWizardOpen(true)}
         />
       )}
-      {activeSection === 'boundary' && (
-        <MemoryRecallBoundaryPanel />
-      )}
+      {activeSection === 'boundary' && <MemoryRecallBoundaryPanel />}
       <RollbackPreviewDialog
         open={rollbackDialogOpen}
         preview={rollbackPreview}

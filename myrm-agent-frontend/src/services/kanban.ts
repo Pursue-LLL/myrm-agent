@@ -725,13 +725,9 @@ export interface PlanRevisionResult {
   persisted: boolean;
 }
 
-export async function reviseBoardPlan(
-  boardId: string,
-  data: PlanRevisionRequest,
-): Promise<PlanRevisionResult> {
+export async function reviseBoardPlan(boardId: string, data: PlanRevisionRequest): Promise<PlanRevisionResult> {
   return apiRequest(`/kanban/boards/${boardId}/replan`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
-

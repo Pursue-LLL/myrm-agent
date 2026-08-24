@@ -12091,6 +12091,7 @@
     "cancel": "Abbrechen",
     "save": "Speichern",
     "edit": "Bearbeiten",
+    "copy": "Kopieren",
     "boardUpdated": "Vorstand aktualisiert",
     "updateBoardError": "Das Board konnte nicht aktualisiert werden",
     "maxConcurrentTasks": "Maximal gleichzeitige Aufgaben",
