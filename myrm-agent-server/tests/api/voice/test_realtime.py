@@ -1207,8 +1207,9 @@ async def test_set_reminder_missing_content() -> None:
 
 @pytest.mark.asyncio
 async def test_cancel_reminder_by_id_success() -> None:
-    from app.api.voice.realtime import execute_realtime_tool
     from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    from app.api.voice.realtime import execute_realtime_tool
 
     mock_mgr = MagicMock()
     mock_job = MagicMock()
@@ -1239,8 +1240,8 @@ async def test_cancel_reminder_by_id_success() -> None:
 
 @pytest.mark.asyncio
 async def test_cancel_reminder_not_found() -> None:
+
     from app.api.voice.realtime import execute_realtime_tool
-    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
 
     mock_mgr = MagicMock()
     mock_mgr.list_jobs = AsyncMock(return_value=[])
@@ -1262,9 +1263,11 @@ async def test_cancel_reminder_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_reminders_success() -> None:
-    from app.api.voice.realtime import execute_realtime_tool
-    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
     from datetime import datetime, timezone
+
+    from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    from app.api.voice.realtime import execute_realtime_tool
 
     mock_mgr = MagicMock()
     mock_job = MagicMock()

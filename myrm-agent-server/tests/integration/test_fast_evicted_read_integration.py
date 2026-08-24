@@ -211,7 +211,7 @@ async def test_converter_fast_request_wires_spill_and_uploads_on_agent(
         "app.core.channel_bridge.config_loader.load_user_configs",
         mock_load,
     ):
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
     assert params.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
     assert params.enable_shell_tools is False

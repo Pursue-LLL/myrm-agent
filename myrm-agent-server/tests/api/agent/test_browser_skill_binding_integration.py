@@ -32,7 +32,7 @@ class TestBrowserSkillBindingIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
         assert params.enable_browser is True
         assert BROWSER_AUTOMATION_SKILL_ID not in params.agent_skill_ids
 
@@ -49,7 +49,7 @@ class TestBrowserSkillBindingIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
         assert params.prompt_mode == "search"
 
         agent = AgentFactory.create_general_agent(params)
@@ -63,7 +63,7 @@ class TestBrowserSkillBindingIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
         params.channel_name = "cron"
         params.prompt_mode = "full"
 

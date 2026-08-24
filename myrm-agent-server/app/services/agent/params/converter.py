@@ -291,7 +291,7 @@ async def convert_to_general_agent_params(
 
     if routing_tier is None and (request.light_model_selection or request.reasoning_model_selection):
         try:
-            from myrm_agent_harness.api import route_task
+            from myrm_agent_harness.toolkits.llms.routing.complexity_router import route_task
 
             light_model_cfg = None
             if request.light_model_selection:

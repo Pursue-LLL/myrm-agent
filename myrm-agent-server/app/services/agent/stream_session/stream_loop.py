@@ -689,7 +689,7 @@ async def iter_agent_stream_chunks(
 
             yield sse_chunk
     except Exception as stream_err:
-        from myrm_agent_harness.core.security.missing_semantics import (
+        from myrm_agent_harness.api import (
             MissingSemanticsBlockedError,
         )
 

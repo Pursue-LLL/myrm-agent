@@ -34,7 +34,6 @@ from app.services.agent.stream_session.chat_history_bootstrap import stream_text
 from app.services.agent.stream_session.reconnect import try_stream_reconnect
 from app.services.agent.stream_session.risk_gate import check_stream_risk
 from app.services.agent.stream_session.session_reservation import ChatSessionReservation
-from app.services.agent.streaming_support.sse_helpers import ApprovalTimeoutScheduler
 from app.services.agent.stream_session.stream_busy import agent_busy_streaming_response
 from app.services.agent.stream_session.stream_lane_factory import (
     archive_restore_error_response,

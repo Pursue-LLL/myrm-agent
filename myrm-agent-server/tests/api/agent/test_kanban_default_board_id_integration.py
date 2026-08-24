@@ -42,7 +42,7 @@ class TestKanbanDefaultBoardIdConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
         assert params.kanban_default_board_id == "board-preferred"
 
     @pytest.mark.asyncio
@@ -51,7 +51,7 @@ class TestKanbanDefaultBoardIdConverterIntegration:
 
         request = AgentRequest(**base_request)
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
         assert params.kanban_default_board_id is None
 
 

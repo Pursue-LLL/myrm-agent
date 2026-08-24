@@ -30,7 +30,7 @@ class TestToolMountConverterIntegration:
         base_request["agent_config"] = {"enabledBuiltinTools": ["web_search"]}
         request = AgentRequest(**base_request)
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
         assert params.file_access_mode == FileAccessMode.FULL
         assert params.enable_shell_tools is True
@@ -46,7 +46,7 @@ class TestToolMountConverterIntegration:
         base_request["agent_config"] = {"enabledBuiltinTools": ["web_search", "browser"]}
         request = AgentRequest(**base_request)
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
         assert params.file_access_mode == FileAccessMode.SPILL_AND_UPLOADS
         assert params.enable_shell_tools is False

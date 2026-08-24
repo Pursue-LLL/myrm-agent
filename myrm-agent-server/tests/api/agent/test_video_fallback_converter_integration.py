@@ -93,7 +93,7 @@ class TestVideoFallbackConverterIntegration:
             "app.core.channel_bridge.config_loader.load_user_configs",
             new=AsyncMock(return_value=_mock_user_configs()),
         ):
-            params, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
         assert params.video_fallback_model_cfgs is not None
         assert len(params.video_fallback_model_cfgs) >= 1
@@ -108,7 +108,7 @@ class TestVideoFallbackConverterIntegration:
             "app.core.channel_bridge.config_loader.load_user_configs",
             new=AsyncMock(return_value=_mock_user_configs()),
         ):
-            params, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
         agent = AgentFactory.create_general_agent(params)
         assert agent.video_fallback_model_cfgs is not None

@@ -20,9 +20,12 @@ manageable. All handlers return RealtimeToolExecResponse directly.
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING
 
 from app.api.voice.realtime import RealtimeToolExecRequest, RealtimeToolExecResponse
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -170,7 +173,9 @@ async def _execute_run_background_task(req: RealtimeToolExecRequest) -> Realtime
 async def _execute_set_reminder(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
     """Schedule a reminder directly via CronManager SSOT."""
     from datetime import datetime, timedelta, timezone
+
     from myrm_agent_harness.toolkits.cron.types import DeliveryConfig, JobType, Schedule, ScheduleKind
+
     from app.core.cron.adapters.setup import get_cron_manager
 
     content = str(req.arguments.get("content", "")).strip()
@@ -238,8 +243,9 @@ async def _execute_set_reminder(req: RealtimeToolExecRequest) -> RealtimeToolExe
 
 async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
     """Cancel a scheduled reminder via CronManager."""
-    from app.core.cron.adapters.setup import get_cron_manager
     from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    from app.core.cron.adapters.setup import get_cron_manager
 
     reminder_id = str(req.arguments.get("reminder_id", "")).strip()
     content_query = str(req.arguments.get("content", "")).strip().lower()
@@ -296,8 +302,9 @@ async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeTool
 
 async def _execute_list_reminders(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
     """List active reminders via CronManager."""
-    from app.core.cron.adapters.setup import get_cron_manager
     from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType
+
+    from app.core.cron.adapters.setup import get_cron_manager
 
     mgr = get_cron_manager()
     try:

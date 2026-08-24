@@ -154,12 +154,13 @@ class TestSpecialtyRoutingSSEChunkEmission:
     @pytest.mark.asyncio
     async def test_specialty_in_routing_decision_sse_event(self) -> None:
         import json
+
         from app.ai_agents.agents import GeneralAgentParams
-        from app.services.agent.stream_session.stream_session_types import (
-            AgentStreamSession,
-        )
         from app.services.agent.stream_session.stream_chunks import (
             generate_cancellable_stream,
+        )
+        from app.services.agent.stream_session.stream_session_types import (
+            AgentStreamSession,
         )
         from app.services.agent.streaming_support.stream_collector import (
             StreamContentCollector,

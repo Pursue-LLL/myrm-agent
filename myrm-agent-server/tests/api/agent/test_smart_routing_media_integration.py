@@ -64,7 +64,7 @@ async def _run_converter(query: str | list[dict[str, object]]) -> str | None:
     ):
         from app.services.agent.params.converter import convert_to_general_agent_params
 
-        _, routing_tier, _, _ = await convert_to_general_agent_params(request, [])
+        _, routing_tier, _, _, _ = await convert_to_general_agent_params(request, [])
     return routing_tier
 
 
@@ -103,7 +103,7 @@ class TestSmartRoutingMediaRealPipeline:
         ):
             from app.services.agent.params.converter import convert_to_general_agent_params
 
-            _, routing_tier, _, _ = await convert_to_general_agent_params(request, [])
+            _, routing_tier, _, _, _ = await convert_to_general_agent_params(request, [])
         assert routing_tier is None
 
     @pytest.mark.asyncio
@@ -130,7 +130,7 @@ class TestSmartRoutingMediaRealPipeline:
         ):
             from app.services.agent.params.converter import convert_to_general_agent_params
 
-            _, routing_tier, _, _ = await convert_to_general_agent_params(request, [])
+            _, routing_tier, _, _, _ = await convert_to_general_agent_params(request, [])
         # complaint-up 会对上一档 SIMPLE 记一次真实 misroute（O6 只跳过 REASONING），
         # 测试后清理全局 penalty 以免污染后续 SIMPLE 判定。
         from myrm_agent_harness.toolkits.llms.routing.complexity_router import (

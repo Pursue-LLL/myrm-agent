@@ -32,6 +32,7 @@ from app.api.voice.realtime import RealtimeToolExecRequest, RealtimeToolExecResp
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
     from myrm_agent_harness.toolkits.cron.manager import CronManager
 
 logger = logging.getLogger(__name__)

@@ -132,7 +132,7 @@ async def test_project_bind_file_write_persists_to_bound_directory(
     ):
         from app.services.agent.params.converter import convert_to_general_agent_params
 
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
     assert params.declared_allowed_roots == (str(vault.resolve()),)
 

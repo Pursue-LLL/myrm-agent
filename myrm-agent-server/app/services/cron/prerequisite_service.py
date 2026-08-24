@@ -24,7 +24,7 @@ from typing import Sequence
 from myrm_agent_harness.api import compute_workflow_fingerprint
 from sqlalchemy import func, or_, select
 
-from app.database.models import Chat, Message
+from app.database.models import Message
 from app.database.models.kanban import KanbanTaskModel
 from app.database.repositories.uow import UnitOfWork
 

@@ -10,7 +10,6 @@
 Server 层专属业务诊断管理器。负责解耦 API 控制器与内部业务（如 Channel Gateway, Rate Limiter）的监控逻辑。
 """
 
-import importlib.metadata
 import logging
 import time
 from typing import Sequence
@@ -204,7 +203,6 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
 
     async def check_health(self) -> HealthReport:
         import asyncio
-        import time
 
         ready_phases: list[str] = []
         phase_details: dict[str, object] = {}

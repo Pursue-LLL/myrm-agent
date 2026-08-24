@@ -46,7 +46,7 @@ async def test_request_explicit_false_overrides_persisted_true() -> None:
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(return_value=mock_configs),
     ):
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
     assert params.privacy_deep_scan is False
 
@@ -61,7 +61,7 @@ async def test_request_unspecified_falls_back_to_persisted_true() -> None:
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(return_value=mock_configs),
     ):
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
     assert params.privacy_deep_scan is True
 
@@ -76,7 +76,7 @@ async def test_request_unspecified_and_no_persisted_setting_defaults_false() -> 
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(return_value=mock_configs),
     ):
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
     assert params.privacy_deep_scan is False
 
@@ -91,6 +91,6 @@ async def test_request_unspecified_and_persisted_false_stays_false() -> None:
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(return_value=mock_configs),
     ):
-        params, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
     assert params.privacy_deep_scan is False

@@ -57,7 +57,7 @@ class TestEconomyDeliverableConverterIntegration:
                 AsyncMock(return_value=mock_configs),
             ),
         ):
-            params, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
 
         assert params.user_instructions is not None
         assert "<deliverable_discipline>" in params.user_instructions
