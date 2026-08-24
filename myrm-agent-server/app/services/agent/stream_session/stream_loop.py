@@ -450,7 +450,8 @@ async def iter_agent_stream_chunks(
                             "time_used_seconds": active_goal.time_used_seconds,
                             "turns_used": active_goal.turns_used,
                             "constraints": active_goal.constraints or [],
-                            "acceptance_criteria": active_goal.acceptance_criteria or [],
+                            "acceptance_criteria": active_goal.acceptance_criteria
+                            or [],
                             "budget": {
                                 "max_tokens": active_goal.budget.max_tokens,
                                 "max_usd": active_goal.budget.max_usd,
@@ -494,12 +495,16 @@ async def iter_agent_stream_chunks(
                                     },
                                 )
                             except Exception as e:
-                                logger.error(f"Failed to create system notification: {e}")
+                                logger.error(
+                                    f"Failed to create system notification: {e}"
+                                )
 
                             break
 
             if isinstance(chunk, str):
-                sse_chunk = chunk if chunk.startswith("data: ") else f"data: {chunk}\n\n"
+                sse_chunk = (
+                    chunk if chunk.startswith("data: ") else f"data: {chunk}\n\n"
+                )
             else:
                 try:
                     # Forward rate_limit_warning directly
@@ -526,7 +531,9 @@ async def iter_agent_stream_chunks(
                         )
 
                         _inject_wu_consumed(chunk)
-                        _inject_message_end_memory_insights(chunk=chunk, session=session)
+                        _inject_message_end_memory_insights(
+                            chunk=chunk, session=session
+                        )
                         if isinstance(session.extra_context, dict):
                             if "turn_prewarm_hit" in session.extra_context:
                                 chunk["turn_prewarm_hit"] = session.extra_context[
@@ -541,7 +548,9 @@ async def iter_agent_stream_chunks(
                                 GoalRegistry,
                             )
 
-                            provider = GoalRegistry.get_provider(session.request.chat_id)
+                            provider = GoalRegistry.get_provider(
+                                session.request.chat_id
+                            )
                             if provider:
                                 latest = await provider.get_latest_goal(
                                     session.request.chat_id
@@ -576,7 +585,9 @@ async def iter_agent_stream_chunks(
                                     chunk["goal_status"] = goal_payload
                                     if latest.status.value == "budget_limited":
                                         # 1. Yield a message chunk to the chat
-                                        warning_msg = "\n\n**预算已耗尽，任务自动暂停。**"
+                                        warning_msg = (
+                                            "\n\n**预算已耗尽，任务自动暂停。**"
+                                        )
                                         yield SSEEnvelope.from_any(
                                             {
                                                 "type": "message",
@@ -611,7 +622,9 @@ async def iter_agent_stream_chunks(
                     envelope = SSEEnvelope.from_any(chunk)
                     sse_chunk = envelope.to_sse_chunk()
                 except Exception as e:
-                    logger.error("SSEEnvelope serialization failed: %s", e, exc_info=True)
+                    logger.error(
+                        "SSEEnvelope serialization failed: %s", e, exc_info=True
+                    )
                     sse_chunk = f"data: {str(chunk)}\n\n"
 
             session.collector.feed_sse(sse_chunk)
@@ -649,7 +662,9 @@ async def iter_agent_stream_chunks(
                             "decision": decision,
                             "messageId": session.params.message_id,
                         }
-                        yield SSEEnvelope.from_any(approval_processed_event).to_sse_chunk()
+                        yield SSEEnvelope.from_any(
+                            approval_processed_event
+                        ).to_sse_chunk()
                     except Exception as e:
                         logger.error(
                             f"Failed to process intercepted approval: {e}",
@@ -667,7 +682,9 @@ async def iter_agent_stream_chunks(
                 try:
                     session_factory = get_session_factory()
                     async with session_factory() as _db:
-                        result = await ChatService.undo_last_turn(session.request.chat_id)
+                        result = await ChatService.undo_last_turn(
+                            session.request.chat_id
+                        )
                         if result.success and result.deleted_count > 0:
                             logger.warning(
                                 "🧹 Compression exhausted: removed %d message(s) from chat %s to prevent death loop",

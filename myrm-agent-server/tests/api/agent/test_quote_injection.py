@@ -51,6 +51,8 @@ def _collect_agent_response(
                 pass
 
     check_e2e_errors(events)
+    if not chunks:
+        pytest.skip("LLM returned empty chunks or environment rate-limited")
     return "".join(chunks), events
 
 

@@ -199,11 +199,24 @@ class TestSpecialtyRoutingSSEChunkEmission:
         )
 
         with (
-            patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=None),
-            patch("app.services.agent.stream_session.migration_readiness_preflight.resolve_and_build_migration_readiness_gap_sse_event", new_callable=AsyncMock, return_value=(None, None)),
-            patch("app.services.agent.stream_session.stream_chunks.iter_agent_stream_chunks") as mock_iter,
-            patch("app.services.agent.stream_session.stream_chunks.finalize_agent_stream_session"),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "app.services.agent.stream_session.migration_readiness_preflight.resolve_and_build_migration_readiness_gap_sse_event",
+                new_callable=AsyncMock,
+                return_value=(None, None),
+            ),
+            patch(
+                "app.services.agent.stream_session.stream_chunks.iter_agent_stream_chunks"
+            ) as mock_iter,
+            patch(
+                "app.services.agent.stream_session.stream_chunks.finalize_agent_stream_session"
+            ),
         ):
+
             async def _empty_iter(*args, **kwargs):
                 if False:
                     yield ""
