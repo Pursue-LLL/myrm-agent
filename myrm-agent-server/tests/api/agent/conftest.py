@@ -410,3 +410,43 @@ def _reset_agent_test_singletons():
     set_checkpointer(MemorySaver())
     yield
     _clear_agent_test_process_state()
+
+
+def _reset_deploy_caches() -> None:
+    from app.config.computer_use_deploy import clear_vnc_entitlement_cache
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    clear_vnc_entitlement_cache()
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+
+@pytest.fixture
+def sandbox_no_visual_desktop(monkeypatch: pytest.MonkeyPatch) -> None:
+    _reset_deploy_caches()
+    monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    monkeypatch.delenv("VISUAL_DESKTOP", raising=False)
+    yield
+    _reset_deploy_caches()
+
+
+@pytest.fixture
+def sandbox_with_visual_desktop(monkeypatch: pytest.MonkeyPatch) -> None:
+    _reset_deploy_caches()
+    monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    monkeypatch.setenv("VISUAL_DESKTOP", "1")
+    yield
+    _reset_deploy_caches()
+
+
+@pytest.fixture
+def local_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
+    _reset_deploy_caches()
+    monkeypatch.setenv("DEPLOY_MODE", "local")
+    monkeypatch.delenv("VISUAL_DESKTOP", raising=False)
+    yield
+    _reset_deploy_caches()
+
