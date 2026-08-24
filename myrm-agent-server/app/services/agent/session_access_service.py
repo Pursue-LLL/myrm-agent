@@ -189,7 +189,7 @@ def is_directory_grant_allowed_for_deployment(
     sandbox_active: bool,
 ) -> bool:
     """Gate directory grants by deployment mode (cloud volume vs local desktop)."""
-    from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate import (
+    from myrm_agent_harness.api.hooks import (
         MountMode,
         MountSpec,
         validate_mount_spec,

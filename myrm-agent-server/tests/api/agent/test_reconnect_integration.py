@@ -163,7 +163,7 @@ async def test_agent_stream_disconnect_and_reconnect(app, db_session) -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_agent_stream_early_busy_skips_second_persist(app) -> None:
+async def test_agent_stream_early_busy_skips_second_persist(app, db_session) -> None:
     """Second turn on active chat is rejected at reserve before creating another user row."""
     from app.services.agent.gateway import get_agent_gateway
     from app.services.chat.chat_service import ChatService
