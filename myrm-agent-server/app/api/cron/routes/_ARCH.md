@@ -11,7 +11,8 @@ Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 | `__init__.py` | 入口 | Cron job REST endpoints. | ✅ |
 | `heartbeat.py` | 模块 | Heartbeat REST endpoints. Supports `agent_id` binding for Agent Profile inheritance. | ✅ |
 | `helpers.py` | 模块 | Cron 响应映射；`workflow_template_display_name` 与 execution gate 同规则 enrich | — |
-| `jobs.py` | 模块 | Cron job CRUD REST endpoints. `GET /` 支持 `chat_id` 过滤；`POST /prerequisite-check` 手动成功验证门禁统计；create/update/PATCH 校验 DW 模板绑定（`workflow_templates/validation.py`）；webhook delivery secret 创建生成/更新保留；`POST /{job_id}/test-delivery` 复用投递链路做一键测试 | ✅ |
+| `jobs.py` | 模块 | Cron job CRUD REST endpoints. `GET /` 支持 `chat_id` 过滤；create/update/PATCH 校验 DW 模板绑定（`workflow_templates/validation.py`）；webhook delivery secret 创建生成/更新保留；`POST /{job_id}/test-delivery` 复用投递链路做一键测试 | ✅ |
+| `prerequisite.py` | 模块 | `POST /prerequisite-check` — 定时任务创建前手动成功验证门禁统计查询端点 | ✅ |
 | `push_messages.py` | 模块 | Poll for recent cron push notifications (local single-user mode). | ✅ |
 | `runs.py` | 模块 | Cron run history REST endpoints. | ✅ |
 | `stats.py` | 模块 | Cron usage statistics REST endpoint. | ✅ |

@@ -353,45 +353,92 @@ async def iter_agent_stream_chunks(
     estimated_tokens = 0
     last_reported_tokens = 0
     accumulated_cost_usd = 0.0
-    async for chunk in stream:
-        if isinstance(chunk, dict):
-            if chunk.get("type") == "reasoning" and _is_reasoning_hidden(session):
-                continue
-            _capture_stream_ttft_if_needed(session=session, chunk=chunk)
+    try:
+        async for chunk in stream:
+            if isinstance(chunk, dict):
+                if chunk.get("type") == "reasoning" and _is_reasoning_hidden(session):
+                    continue
+                _capture_stream_ttft_if_needed(session=session, chunk=chunk)
 
-        if session.cancel_token.is_cancelled:
-            logger.warning(
-                "Agent cancelled: message_id=%s, reason=%s",
-                session.params.message_id,
-                session.cancel_token.cancel_reason,
+            if session.cancel_token.is_cancelled:
+                logger.warning(
+                    "Agent cancelled: message_id=%s, reason=%s",
+                    session.params.message_id,
+                    session.cancel_token.cancel_reason,
+                )
+                # Cooperative cleanup: ``npm install`` / ``webpack --watch``
+                # backgrounded by the agent must not outlive the cancelled
+                # chat or they keep eating RAM/CPU/sandbox quota. Mirrors
+                # ``hermes-agent`` ``process_registry.kill_all(task_id=...)``
+                # called from its cleanup hook.
+                if session.request.chat_id:
+                    try:
+                        from myrm_agent_harness.api.hooks import (
+                            get_background_registry,
+                        )
+
+                        await get_background_registry().kill_session_jobs(
+                            session.request.chat_id
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to kill background jobs for cancelled session %s: %s",
+                            session.request.chat_id,
+                            exc,
+                        )
+                cancel_event = {
+                    "type": "agent_cancelled",
+                    "messageId": session.params.message_id,
+                    "data": {"reason": str(session.cancel_token.cancel_reason)},
+                }
+                yield SSEEnvelope.from_any(cancel_event).to_sse_chunk()
+                break
+    except Exception as stream_err:
+        from myrm_agent_harness.core.security.missing_semantics import (
+            MissingSemanticsBlockedError,
+        )
+
+        if isinstance(stream_err, MissingSemanticsBlockedError):
+            logger.error(
+                "MissingSemanticsBlockedError intercepted in stream_loop: code=%s, category=%s, msg=%s",
+                stream_err.contract.error_code,
+                stream_err.contract.category.value,
+                stream_err,
             )
-            # Cooperative cleanup: ``npm install`` / ``webpack --watch``
-            # backgrounded by the agent must not outlive the cancelled
-            # chat or they keep eating RAM/CPU/sandbox quota. Mirrors
-            # ``hermes-agent`` ``process_registry.kill_all(task_id=...)``
-            # called from its cleanup hook.
-            if session.request.chat_id:
-                try:
-                    from myrm_agent_harness.api.hooks import (
-                        get_background_registry,
-                    )
-
-                    await get_background_registry().kill_session_jobs(
-                        session.request.chat_id
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "Failed to kill background jobs for cancelled session %s: %s",
-                        session.request.chat_id,
-                        exc,
-                    )
-            cancel_event = {
-                "type": "agent_cancelled",
+            blocked_payload = {
+                "type": "missing_semantics_blocked",
                 "messageId": session.params.message_id,
-                "data": {"reason": str(session.cancel_token.cancel_reason)},
+                "error_code": stream_err.contract.error_code,
+                "category": stream_err.contract.category.value,
+                "policy": stream_err.contract.policy.value,
+                "message": stream_err.contract.user_message,
+                "remediation_hint": stream_err.contract.remediation_hint,
+                "detail": stream_err.detail,
             }
-            yield SSEEnvelope.from_any(cancel_event).to_sse_chunk()
-            break
+            yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
+            error_message = (
+                f"\n\n🛑 **执行已被安全门禁阻断 (MissingSemantics Gate)**\n\n"
+                f"- **错误代号**: `{stream_err.contract.error_code}`\n"
+                f"- **门禁策略**: `{stream_err.contract.policy.value}` (严禁静默降级/裸跑)\n"
+                f"- **缺失组件**: {stream_err.contract.user_message}\n"
+                f"- **修复建议**: {stream_err.contract.remediation_hint}\n"
+            )
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message",
+                    "messageId": session.params.message_id,
+                    "data": error_message,
+                }
+            ).to_sse_chunk()
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message_end",
+                    "messageId": session.params.message_id,
+                    "completion_status": "missing_semantics_blocked",
+                }
+            ).to_sse_chunk()
+            return
+        raise
 
         if isinstance(chunk, dict) and chunk.get("type") == "message":
             text = chunk.get("data", "")

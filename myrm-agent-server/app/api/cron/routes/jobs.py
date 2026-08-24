@@ -88,33 +88,6 @@ async def list_jobs(
     )
 
 
-@router.post("/prerequisite-check", response_model=PrerequisiteCheckResponse)
-async def check_prerequisite(
-    body: PrerequisiteCheckRequest,
-) -> PrerequisiteCheckResponse:
-    """Check manual success prerequisite stats for a workflow before creating cron."""
-    from app.services.cron.prerequisite_service import CronPrerequisiteService
-
-    stats = await CronPrerequisiteService.get_prerequisite_stats(
-        prompt=body.prompt,
-        agent_id=body.agent_id,
-        workflow_template_id=body.workflow_template_id,
-        command=body.command,
-        tools_allowed=body.tools_allowed,
-        chat_id=body.chat_id,
-        threshold=body.threshold,
-    )
-    return PrerequisiteCheckResponse(
-        fingerprint=stats.fingerprint,
-        manual_success_count=stats.manual_success_count,
-        threshold=stats.threshold,
-        is_satisfied=stats.is_satisfied,
-        chat_verified_count=stats.chat_verified_count,
-        kanban_verified_count=stats.kanban_verified_count,
-        override_allowed=stats.override_allowed,
-    )
-
-
 @router.post("/", response_model=CronJobResponse, status_code=201)
 async def create_job(body: CronJobCreate) -> CronJobResponse:
     from app.platform_utils.sandbox.entitlements.entitlement_guard import (
