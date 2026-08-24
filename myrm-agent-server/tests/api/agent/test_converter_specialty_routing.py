@@ -218,7 +218,7 @@ class TestSpecialtyRoutingSSEChunkEmission:
         routing_chunks = [c for c in chunks if "routing_decision" in c]
         assert len(routing_chunks) == 1
         lines = routing_chunks[0].strip().split("\n")
-        data_line = next(l for l in lines if l.startswith("data: "))
+        data_line = next(line for line in lines if line.startswith("data: "))
         event_data = json.loads(data_line[6:])
         assert event_data["type"] == "routing_decision"
         assert event_data["messageId"] == "msg-spec-123"
