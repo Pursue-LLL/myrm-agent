@@ -11,4 +11,3 @@ __all__ = [
     "CronPrerequisiteStats",
     "DEFAULT_PREREQUISITE_THRESHOLD",
 ]
-

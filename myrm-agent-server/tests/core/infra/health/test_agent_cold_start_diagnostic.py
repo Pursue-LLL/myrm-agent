@@ -301,4 +301,3 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
 
         harness_components = [item["component_name"] for item in data["harness"]]
         assert "SupplyChainSecurity" in harness_components
-

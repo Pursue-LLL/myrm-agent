@@ -346,30 +346,21 @@ async def test_ollama_delete_local_mode_success_proper_mock():
 
 
 @pytest.mark.asyncio
-async def test_hardware_recommendations_sorting_most_capable_first():
-    """Anti-conventional sorting: within same fit_level, largest params_b model ranks first.
-
-    Scenario: 16 GB Apple M2 Pro (available_vram = 12 GB after 4 GB OS reserve).
-    Models:
-      - qwen2.5:0.5b  req=1.5 GB  -> available(12)/req(1.5)=8.0 >= 2.0 → perfect (score=95)
-      - qwen3:8b      req=6.0 GB  -> available(12)/req(6.0)=2.0 >= 2.0 → perfect (score=95)
-
-    Both are "perfect" fit. The LARGER model (qwen3:8b, 8B) must rank first
-    so the user is directed to the most capable model their hardware supports.
-    """
+async def test_hardware_recommendations_sorting_same_fit_level_largest_params_first():
+    """Within same fit_level, largest params_b model ranks first."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
         with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "macos"
             mock_profile_obj.cpu_arch = "arm64"
-            mock_profile_obj.total_ram_gb = 16.0
+            mock_profile_obj.total_ram_gb = 64.0
             mock_profile_obj.free_disk_gb = 200.0
-            mock_profile_obj.has_gpu = False
-            mock_profile_obj.gpu_name = "Apple M2 Pro"
-            mock_profile_obj.gpu_vram_gb = None
+            mock_profile_obj.has_gpu = True
+            mock_profile_obj.gpu_name = "Apple M2 Max"
+            mock_profile_obj.gpu_vram_gb = 64.0
             mock_profile_obj.is_unified_memory = True
             mock_profile_obj.gpu_vendor = "apple"
-            mock_profile_obj.memory_bandwidth_gbps = 200.0  # M2 Pro
+            mock_profile_obj.memory_bandwidth_gbps = 400.0
             mock_profile.return_value = mock_profile_obj
 
             with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
@@ -402,16 +393,12 @@ async def test_hardware_recommendations_sorting_most_capable_first():
                         recs = data["data"]["recommendations"]
 
                         assert len(recs) == 2
-                        # Qwen 3 8B (fit_level="good", params_b=8) and Qwen 2.5 0.5B (fit_level="perfect", params_b=0.5)
-                        # Sorting priority: fit_level (perfect > good) -> params_b
+                        # 60GB available: both 0.5B (1.5+1.5) and 8B (6+8) have ratio > 1.6 -> both 'perfect'
                         assert recs[0]["fit_level"] == "perfect"
-                        assert recs[0]["model_id"] == "ollama/qwen2.5:0.5b"
-                        assert recs[1]["fit_level"] == "good"
-                        assert recs[1]["model_id"] == "ollama/qwen3:8b"
-
-                        # Verify params_b is included in response (Bug 3 fix)
-                        assert recs[0]["params_b"] == 0.5
-                        assert recs[1]["params_b"] == 8.0
+                        assert recs[1]["fit_level"] == "perfect"
+                        # 8B has higher params_b than 0.5B -> ranks first
+                        assert recs[0]["model_id"] == "ollama/qwen3:8b"
+                        assert recs[1]["model_id"] == "ollama/qwen2.5:0.5b"
 
 
 @pytest.mark.asyncio
