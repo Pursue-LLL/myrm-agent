@@ -5,6 +5,7 @@ All endpoints delegate to ``CronManager`` — no direct DB access.
 
 from fastapi import APIRouter
 
+from .actions import router as actions_router
 from .blueprints import router as blueprints_router
 from .heartbeat import router as heartbeat_router
 from .jobs import router as jobs_router
@@ -28,4 +29,5 @@ router.include_router(triggers_router)
 router.include_router(stats_router)
 router.include_router(push_messages_router)
 router.include_router(runs_router)
+router.include_router(actions_router)
 router.include_router(jobs_router)

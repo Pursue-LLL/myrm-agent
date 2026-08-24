@@ -12313,6 +12313,7 @@
     "cancel": "取消",
     "save": "儲存",
     "edit": "編輯",
+    "copy": "複製",
     "boardUpdated": "看板已更新",
     "updateBoardError": "更新看板失敗",
     "maxConcurrentTasks": "最大併發任務數",

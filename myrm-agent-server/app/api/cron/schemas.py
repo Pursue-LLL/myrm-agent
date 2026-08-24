@@ -543,3 +543,11 @@ class PrerequisiteCheckResponse(BaseModel):
     chat_verified_count: int
     kanban_verified_count: int
     override_allowed: bool = True
+
+
+# Aliases for request schemas
+CronJobCreateRequest = CronJobCreate
+CronJobUpdateRequest = CronJobUpdate
+CronJobPatchRequest = CronJobUpdate
+
+

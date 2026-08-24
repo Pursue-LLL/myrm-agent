@@ -12118,6 +12118,7 @@
     "cancel": "취소",
     "save": "저장",
     "edit": "편집",
+    "copy": "복사",
     "boardUpdated": "보드가 업데이트되었습니다",
     "updateBoardError": "보드 업데이트 실패",
     "maxConcurrentTasks": "최대 동시 작업",

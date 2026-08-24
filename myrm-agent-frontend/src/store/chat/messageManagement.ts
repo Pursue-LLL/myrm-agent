@@ -375,7 +375,9 @@ export const loadOlderMessages = async (actions: ChatActionsMethods): Promise<vo
 
     actions.setMessages((s) => {
       if (s.chatId === state.chatId) {
-        s.messages = [...olderMessages, ...s.messages];
+        const existingIds = new Set(s.messages.map((m) => m.id));
+        const uniqueOlder = olderMessages.filter((m) => !existingIds.has(m.id));
+        s.messages = [...uniqueOlder, ...s.messages];
         s.hasMoreMessages = page.has_more;
         s.nextCursor = page.next_cursor;
         s.loadingOlder = false;

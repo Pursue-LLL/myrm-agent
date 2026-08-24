@@ -12391,6 +12391,7 @@
     "cancel": "Cancel",
     "save": "Save",
     "edit": "Edit",
+    "copy": "Copy",
     "boardUpdated": "Board updated",
     "updateBoardError": "Failed to update board",
     "maxConcurrentTasks": "Max concurrent tasks",

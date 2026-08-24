@@ -630,3 +630,40 @@ class TestCronChatIdFilter:
         assert len(data["items"]) == 1
         assert data["items"][0]["chat_id"] == "chat-a"
         assert data["items"][0]["name"] == "job-a"
+
+
+class TestCronPrerequisiteGateApi:
+    """Validate POST /cron/prerequisite-check endpoint behavior."""
+
+    def test_prerequisite_check_endpoint(self, client: TestClient) -> None:
+        payload = {
+            "prompt": "Daily market report generation",
+            "agent_id": "research-agent",
+            "threshold": 2,
+        }
+        with patch("app.services.cron.prerequisite_service.CronPrerequisiteService.get_prerequisite_stats") as mock_stats:
+            from app.services.cron.prerequisite_service import CronPrerequisiteStats
+
+            async def _fake_stats(*args, **kwargs):
+                return CronPrerequisiteStats(
+                    fingerprint="mock_hash_12345",
+                    manual_success_count=3,
+                    threshold=2,
+                    is_satisfied=True,
+                    chat_verified_count=2,
+                    kanban_verified_count=1,
+                    override_allowed=True,
+                )
+
+            mock_stats.side_effect = _fake_stats
+            resp = client.post("/cron/prerequisite-check", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["fingerprint"] == "mock_hash_12345"
+            assert data["manual_success_count"] == 3
+            assert data["threshold"] == 2
+            assert data["is_satisfied"] is True
+            assert data["chat_verified_count"] == 2
+            assert data["kanban_verified_count"] == 1
+            assert data["override_allowed"] is True
+

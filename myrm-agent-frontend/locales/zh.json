@@ -12390,6 +12390,7 @@
     "cancel": "取消",
     "save": "保存",
     "edit": "编辑",
+    "copy": "复制",
     "boardUpdated": "看板已更新",
     "updateBoardError": "更新看板失败",
     "maxConcurrentTasks": "最大并发任务数",

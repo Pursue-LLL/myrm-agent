@@ -1,3 +1,17 @@
+"""
+[INPUT]
+- myrm_agent_harness.runtime.maintenance::detect_hardware_profile (POS: 跨平台硬件探针能力)
+- app.api.integrations.model_specs::get_dynamic_model_specs (POS: Ollama 模型规格数据源)
+
+[OUTPUT]
+- get_hardware_recommendations: 获取基于硬件的 64K 上下文 KV Cache 显存透视、Reference Ladder 段位与模型推荐
+- pull_ollama_model: 代理 Ollama 模型拉取并流式返回进度
+- delete_ollama_model: 代理 Ollama 本地模型删除
+
+[POS]
+硬件推荐与本地模型管理 API。为前端 Settings Hardware Cookbook 提供硬件检测、64K KV 显存透视与 Ollama 本地模型管理能力。
+"""
+
 import asyncio
 import logging
 import time
