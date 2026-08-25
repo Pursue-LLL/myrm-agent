@@ -7,6 +7,7 @@ import { isSandbox, showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import {
   User,
+  LayoutDashboard,
   Sliders,
   Palette,
   Server,
@@ -50,6 +51,7 @@ const groupConfig: Record<SettingsGroup, { labelKey: string; order: number }> = 
 
 export type SettingsTab =
   | 'account'
+  | 'workbench'
   | 'preferences'
   | 'theme-studio'
   | 'personalization'
@@ -109,6 +111,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   // 个人与偏好
   { id: 'account', icon: User, labelKey: 'account', group: 'personal' },
+  { id: 'workbench', icon: LayoutDashboard, labelKey: 'workbench', group: 'personal' },
   { id: 'preferences', icon: Sliders, labelKey: 'preferences', group: 'personal' },
   { id: 'theme-studio', icon: Sparkles, labelKey: 'themeStudio', group: 'personal' },
   { id: 'personalization', icon: Palette, labelKey: 'personalization', group: 'personal' },

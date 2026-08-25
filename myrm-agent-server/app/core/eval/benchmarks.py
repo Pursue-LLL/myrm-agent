@@ -35,10 +35,11 @@ from myrm_agent_harness.eval import (
     list_benchmarks,
 )
 
-# Importing browse_comp registers its BenchmarkSpec in the framework registry
+# Importing browse_comp and operational_assurance registers their BenchmarkSpec in the framework registry
 # (module-level side effect); the catalog/run guards below rely on that
 # registration even on a cold process that never listed the catalog first.
 from app.core.eval import browse_comp as _browse_comp_registry  # noqa: F401
+from app.core.eval import operational_assurance as _operational_assurance_registry  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,10 @@ def list_benchmark_sources() -> list[dict[str, object]]:
         source = spec.to_dict()
         if spec.id == "browsecomp":
             source = {**source, **list_browse_comp_source()}
+        elif spec.id == "operational-assurance":
+            from app.core.eval.operational_assurance import list_operational_assurance_source
+
+            source = {**source, **list_operational_assurance_source()}
         sources.append(
             {
                 **source,
@@ -129,6 +134,13 @@ def ensure_benchmark_source(
                 progress_callback=progress_callback,
                 should_abort=should_abort,
             )
+        )
+    if benchmark_id == "operational-assurance":
+        from app.core.eval.operational_assurance import ensure_operational_assurance_source
+
+        return ensure_operational_assurance_source(
+            progress_callback=progress_callback,
+            should_abort=should_abort,
         )
     raise ValueError(f"Unknown benchmark: {benchmark_id}")
 

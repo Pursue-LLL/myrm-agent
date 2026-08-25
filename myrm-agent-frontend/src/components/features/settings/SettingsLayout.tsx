@@ -20,6 +20,9 @@ import { trySettingsSubviewBack } from './settingsSubviewBack';
 const AccountSection = dynamic(() => import('./sections/personal/AccountSection'), {
   loading: () => <SettingsSkeleton />,
 });
+const WorkbenchSection = dynamic(() => import('./sections/personal/WorkbenchRetentionSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 const PreferencesSection = dynamic(() => import('./sections/personal/PreferencesSection'), {
   loading: () => <SettingsSkeleton />,
 });
@@ -123,6 +126,7 @@ const DEFAULT_TAB: SettingsTab = 'account';
 
 const BASE_TABS: SettingsTab[] = [
   'account',
+  'workbench',
   'preferences',
   'theme-studio',
   'personalization',
@@ -192,6 +196,7 @@ const DEPRECATED_TAB_MAP: Record<string, { parent: SettingsTab; sub?: string }> 
 // Section 组件映射表
 const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   account: AccountSection,
+  workbench: WorkbenchSection,
   preferences: PreferencesSection,
   'theme-studio': ThemeStudioSettingsSection,
   personalization: PersonalizationSection,
