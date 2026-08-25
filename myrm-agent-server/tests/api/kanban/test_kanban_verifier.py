@@ -453,6 +453,65 @@ class TestKanbanCompletionVerifier:
         assert result.passed is True
 
 
+    @pytest.mark.asyncio
+    @patch("app.core.kanban.verifier.ShellCriterion")
+    async def test_shell_criteria_failure_produces_structured_comment(self, mock_shell_cls: AsyncMock) -> None:
+        from myrm_agent_harness.agent.goals.verification.base import ReviewSeverity, VerificationResult
+
+        mock_instance = AsyncMock()
+        mock_instance.verify.return_value = VerificationResult(
+            passed=False,
+            reason="file not found",
+            error_logs="exit code 1",
+        )
+        mock_shell_cls.return_value = mock_instance
+
+        task = _make_task()
+        task.metadata["completion_criteria"] = [
+            {"type": "shell", "command": "test -f /missing.csv"},
+        ]
+        verifier = KanbanCompletionVerifier()
+        result = await verifier.verify(task, "done")
+        assert result.passed is False
+        assert len(result.comments) == 1
+        assert result.comments[0].severity == ReviewSeverity.CRITICAL
+        assert "Command failed: test -f /missing.csv" in result.comments[0].message
+        assert result.comments[0].fix_suggestion is not None
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        new_callable=AsyncMock,
+        return_value={},
+    )
+    @patch("litellm.acompletion", new_callable=AsyncMock)
+    async def test_semantic_judge_produces_structured_comments(
+        self,
+        mock_llm: AsyncMock,
+        _mock_cfg: AsyncMock,
+    ) -> None:
+        from myrm_agent_harness.agent.goals.verification.base import ReviewSeverity
+
+        mock_llm.return_value = _mock_llm_response(
+            '{"done": false, "reason": "Missing error handling", "comments": ['
+            '{"severity": "critical", "message": "Unhandled exception in verifier", "target_path": "app/main.py", "line_range": "20-30", "fix_suggestion": "Wrap in try-except"},'
+            '{"severity": "warning", "message": "Variable unused", "target_path": "app/main.py"}'
+            ']}'
+        )
+
+        task = _make_task(criteria="Handle all exceptions")
+        verifier = KanbanCompletionVerifier()
+        result = await verifier.verify(task, "I did the job")
+        assert result.passed is False
+        assert result.reason == "Missing error handling"
+        assert len(result.comments) == 2
+        assert result.comments[0].severity == ReviewSeverity.CRITICAL
+        assert result.comments[0].target_path == "app/main.py"
+        assert result.comments[0].line_range == "20-30"
+        assert result.comments[0].fix_suggestion == "Wrap in try-except"
+        assert result.comments[1].severity == ReviewSeverity.WARNING
+
+
 # --------------- _trim_result_for_judge tests ---------------
 
 

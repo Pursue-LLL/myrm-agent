@@ -15,6 +15,7 @@ AI Agents 共享中间件。为 GeneralAgent 提供可复用的 LangGraph Agent 
 | 文件 | 地位 | 职责|
 |------|------|------|
 | `user_instructions_middleware.py` | ✅ 核心 | 用户指令注入（首次 LLM 调用，标记检测去重，优化缓存） |
+| `project_scoped_context_middleware.py` | ✅ 核心 | 项目作用域上下文注入（向 LLM 注入 `<project_scoped_workspace>` 及 AST 探索指引） |
 | `project_roadmap_middleware.py` | ✅ 核心 | 项目路线图注入（从 DB 加载 project milestones，首次 LLM 调用注入 `<project_roadmap>` SystemMessage） |
 | `widget_capability_middleware.py` | ✅ 辅助 | Widget 能力声明注入；naked 模式跳过 |
 

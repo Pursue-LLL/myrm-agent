@@ -11,7 +11,6 @@
 - SQLiteHealthChecker: SQLite健康检查器
 - BrowserHealthChecker: 浏览器池健康检查器
 - ServerDiagnosticsManager: Server 业务级探针聚合管理器
-- SupplyChainDiagnostic: 运行期环境依赖供应链安全探针
 - run_all_health_checks: 运行所有健康检查
 - run_server_diagnostics: 运行所有 Server 业务级健康探针
 
@@ -27,7 +26,6 @@ from app.core.infra.health.server_diagnostics import (
     DLQDiagnostic,
     ExecutionCacheDiagnostic,
     ServerDiagnosticsManager,
-    SupplyChainDiagnostic,
     run_server_diagnostics,
 )
 from app.core.infra.health.sqlite import SQLiteHealthChecker
@@ -40,7 +38,6 @@ __all__ = [
     "QdrantHealthChecker",
     "SQLiteHealthChecker",
     "ServerDiagnosticsManager",
-    "SupplyChainDiagnostic",
     "run_all_health_checks",
     "run_server_diagnostics",
 ]

@@ -10,12 +10,14 @@ from myrm_agent_harness.agent.middlewares.memory_context.memory_context_middlewa
 )
 
 from .project_roadmap_middleware import project_roadmap_middleware
+from .project_scoped_context_middleware import project_scoped_workspace_middleware
 from .user_instructions_middleware import user_instructions_middleware
 from .widget_capability_middleware import widget_capability_middleware
 
 __all__ = [
     "memory_context_middleware",
     "project_roadmap_middleware",
+    "project_scoped_workspace_middleware",
     "user_instructions_middleware",
     "widget_capability_middleware",
 ]

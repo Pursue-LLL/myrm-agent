@@ -163,6 +163,38 @@ async def create_dynamic_workflow_stream(
 
     approval_gate = _auto_approve_gate if unattended else _dw_approval_gate
 
+    async def _dw_ask_gate(
+        question: str,
+        options: list[str],
+        timeout_seconds: int,
+        default_action: str,
+    ) -> str | None:
+        from app.services.agent.streaming import PhaseWaiter
+
+        ask_key = f"human_gate:{message_id}"
+        waiter = PhaseWaiter.register(ask_key)
+        logger.info(
+            "Dynamic Workflow mid-run human_ask waiting: message_id=%s question=%s",
+            message_id,
+            question[:60],
+        )
+        raw_answer = await waiter.wait_for_answer()
+        if raw_answer is None:
+            return default_action or None
+        if isinstance(raw_answer, str):
+            return raw_answer
+        return str(raw_answer)
+
+    async def _auto_ask_gate(
+        _question: str,
+        _options: list[str],
+        _timeout_seconds: int,
+        default_action: str,
+    ) -> str | None:
+        return default_action or None
+
+    ask_gate = _auto_ask_gate if unattended else _dw_ask_gate
+
     from app.services.context.context_assembly import ContextAssemblyService
 
     harness_root = ContextAssemblyService.build_facade(ensure_layout=False).harness_path()
@@ -177,6 +209,7 @@ async def create_dynamic_workflow_stream(
             cancel_token=cancel_token,
             catalog=catalog,
             approval_gate=approval_gate,
+            ask_gate=ask_gate,
             resume_value=resume_value,
             pinned_template_id=workflow_template_id,
             template_args=workflow_template_args,

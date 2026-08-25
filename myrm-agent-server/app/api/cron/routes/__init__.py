@@ -16,6 +16,21 @@ from .scheduler_health import router as scheduler_health_router
 from .stats import router as stats_router
 from .triggers import router as triggers_router
 
+__all__ = [
+    "actions_router",
+    "blueprints_router",
+    "heartbeat_router",
+    "jobs_router",
+    "prerequisite_router",
+    "push_messages_router",
+    "router",
+    "runs_router",
+    "scheduler_health_router",
+    "stats_router",
+    "triggers_router",
+]
+
+
 router = APIRouter()
 
 # Fixed-path routers MUST be registered before jobs_router,
