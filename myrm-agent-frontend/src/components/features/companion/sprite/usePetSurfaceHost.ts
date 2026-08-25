@@ -142,6 +142,26 @@ export function usePetSurfaceHost({ enabled, isTauri, petSize, payloadBase }: Us
         case 'clear-unread':
           clearUnread();
           break;
+        case 'voice-toggle': {
+          window.dispatchEvent(new CustomEvent('myrm-voice-toggle'));
+          break;
+        }
+        case 'voice-interrupt': {
+          window.dispatchEvent(new CustomEvent('myrm-voice-interrupt'));
+          break;
+        }
+        case 'voice-replay': {
+          window.dispatchEvent(new CustomEvent('myrm-voice-replay'));
+          break;
+        }
+        case 'voice-ptt-start': {
+          window.dispatchEvent(new CustomEvent('voice-ptt-start'));
+          break;
+        }
+        case 'voice-ptt-stop': {
+          window.dispatchEvent(new CustomEvent('voice-ptt-stop'));
+          break;
+        }
         case 'bounds':
           storePetSurfaceBounds(control.bounds);
           break;

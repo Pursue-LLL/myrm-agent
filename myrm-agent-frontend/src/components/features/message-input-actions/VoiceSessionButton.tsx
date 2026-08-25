@@ -179,6 +179,51 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     }
   }, [voice]);
 
+  // Handle remote voice toggle / interrupt / replay events from Pet Surface
+  useEffect(() => {
+    const handleRemoteToggle = () => {
+      handleToggle();
+    };
+    const handleRemoteInterrupt = () => {
+      if (voice.isActive) {
+        voice.interruptTTS();
+      }
+    };
+    const handleRemoteReplay = () => {
+      import('@/hooks/voice/useTTS').then(({ getLastSpokenText }) => {
+        const last = getLastSpokenText();
+        if (last) {
+          voice.speakResponse(last);
+        }
+      });
+    };
+
+    window.addEventListener('myrm-voice-toggle', handleRemoteToggle);
+    window.addEventListener('myrm-voice-interrupt', handleRemoteInterrupt);
+    window.addEventListener('myrm-voice-replay', handleRemoteReplay);
+
+    return () => {
+      window.removeEventListener('myrm-voice-toggle', handleRemoteToggle);
+      window.removeEventListener('myrm-voice-interrupt', handleRemoteInterrupt);
+      window.removeEventListener('myrm-voice-replay', handleRemoteReplay);
+    };
+  }, [handleToggle, voice]);
+
+  // Sync voice state to pet surface
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent('myrm-voice-state-update', {
+        detail: {
+          voiceState: voice.sessionState === 'inactive' ? 'idle' : voice.sessionState,
+          audioLevel: voice.audioLevel,
+        },
+      }),
+    );
+  }, [voice.sessionState, voice.audioLevel]);
+
   if (!voiceEnabled) {
     return null;
   }

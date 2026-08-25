@@ -14904,7 +14904,15 @@
     "tabDiff": "变更（{count}）",
     "tabMessages": "消息",
     "loadingMessages": "加载消息中...",
-    "noMessages": "暂无消息"
+    "noMessages": "暂无消息",
+    "copyDiff": "复制差异",
+    "copied": "已复制",
+    "expandLongDiff": "展开剩余 {count} 行",
+    "collapseLongDiff": "折叠超长差异",
+    "workspacePath": "工作区目录",
+    "workspacePathEmpty": "工作区路径不能为空",
+    "workspacePathInvalidChars": "工作区路径包含无效控制字符",
+    "workspacePathMustBeAbsolute": "工作区路径必须为绝对路径或以 ~ 开头"
   },
   "growthDashboard": {
     "title": "成长仪表盘",

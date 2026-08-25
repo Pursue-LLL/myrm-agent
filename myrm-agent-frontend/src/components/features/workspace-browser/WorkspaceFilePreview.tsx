@@ -21,7 +21,7 @@
  */
 
 import React, { memo, useEffect, useState, useCallback, useRef } from 'react';
-import { X, Download, RefreshCw, FileText, AlertTriangle, Pencil, Save, Eye } from 'lucide-react';
+import { X, Download, RefreshCw, FileText, AlertTriangle, Pencil, Save, Eye, GitCommit } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -33,6 +33,7 @@ import {
   type FileEntry,
 } from '@/services/chat';
 import { getPreviewKind, RichMediaFilePreview, type PreviewKind } from './RichMediaFilePreview';
+import { InlineWorkspaceDiff } from './InlineWorkspaceDiff';
 
 interface WorkspaceFilePreviewProps {
   file: FileEntry;

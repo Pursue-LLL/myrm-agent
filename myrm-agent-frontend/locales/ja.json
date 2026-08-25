@@ -14890,7 +14890,15 @@
     "tabDiff": "差分（{count}）",
     "tabMessages": "メッセージ",
     "loadingMessages": "読み込みメッセージ中...",
-    "noMessages": "メッセージはまだありません"
+    "noMessages": "メッセージはまだありません",
+    "copyDiff": "差分をコピー",
+    "copied": "コピー完了",
+    "expandLongDiff": "残り {count} 行を展開",
+    "collapseLongDiff": "長い差分を折りたたむ",
+    "workspacePath": "ワークスペースパス",
+    "workspacePathEmpty": "ワークスペースパスを空にすることはできません",
+    "workspacePathInvalidChars": "ワークスペースパスに無効な制御文字が含まれています",
+    "workspacePathMustBeAbsolute": "ワークスペースパスは絶対パスまたは ~ で始まる必要があります"
   },
   "growthDashboard": {
     "title": "成長ダッシュボード",

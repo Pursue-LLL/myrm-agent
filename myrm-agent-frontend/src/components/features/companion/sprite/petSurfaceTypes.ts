@@ -38,6 +38,7 @@ export type PetSurfaceControl =
   | { type: 'clear-unread' }
   | { type: 'voice-toggle' }
   | { type: 'voice-interrupt' }
+  | { type: 'voice-replay' }
   | { type: 'voice-ptt-start' }
   | { type: 'voice-ptt-stop' }
   | { type: 'bounds'; bounds: PetSurfaceBounds };

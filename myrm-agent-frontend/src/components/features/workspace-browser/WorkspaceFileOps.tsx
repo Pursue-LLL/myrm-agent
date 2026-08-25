@@ -51,13 +51,14 @@ interface ContextMenuProps {
   onDelete: (node: FileEntry) => void;
   onMove: (node: FileEntry) => void;
   onOrganize?: (node: FileEntry) => void;
+  onSetProjectRoot?: (node: FileEntry) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Context menu
 // ---------------------------------------------------------------------------
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ state, onClose, onRename, onDelete, onMove, onOrganize }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({ state, onClose, onRename, onDelete, onMove, onOrganize, onSetProjectRoot }) => {
   const t = useTranslations('workspace');
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: state.x, y: state.y });
@@ -87,6 +88,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ state, onClose, onRena
   }, [state.x, state.y]);
 
   const items = [
+    ...(state.node.type === 'directory' && onSetProjectRoot
+      ? [{ icon: FolderOpen, label: t('setProjectRoot'), action: () => onSetProjectRoot(state.node) }]
+      : []),
     ...(state.node.type === 'directory' && onOrganize
       ? [{ icon: FolderOpen, label: t('organizeFolder'), action: () => onOrganize(state.node) }]
       : []),

@@ -14855,7 +14855,15 @@
     "tabDiff": "變更（{count}）",
     "tabMessages": "訊息",
     "loadingMessages": "載入訊息中...",
-    "noMessages": "暫無訊息"
+    "noMessages": "暫無訊息",
+    "copyDiff": "複製差異",
+    "copied": "已複製",
+    "expandLongDiff": "展開剩餘 {count} 行",
+    "collapseLongDiff": "折疊超長差異",
+    "workspacePath": "工作區目錄",
+    "workspacePathEmpty": "工作區路徑不能為空",
+    "workspacePathInvalidChars": "工作區路徑包含無效控制字元",
+    "workspacePathMustBeAbsolute": "工作區路徑必須為絕對路徑或以 ~ 開頭"
   },
   "growthDashboard": {
     "title": "成長儀表盤",

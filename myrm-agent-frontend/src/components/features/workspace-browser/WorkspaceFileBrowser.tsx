@@ -259,6 +259,17 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
       [workspacePath, t],
     );
 
+    const handleSetProjectRoot = useCallback(
+      (file: FileEntry) => {
+        const relativePath = file.path.startsWith(workspacePath)
+          ? file.path.slice(workspacePath.length).replace(/^\//, '') || '.'
+          : file.name;
+        useChatStore.getState().setInputMessage(t('scopedPrompt', { path: relativePath }));
+        toast.success(t('projectRootSet', { path: relativePath }));
+      },
+      [workspacePath, t],
+    );
+
     const handleMention = useCallback(
       (file: FileEntry) => {
         const relativePath = file.path.startsWith(workspacePath)
@@ -368,6 +379,7 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
               onDelete={(node) => ops.setDeletingNode(node)}
               onMove={(node) => ops.setMovingNode(node)}
               onOrganize={handleOrganize}
+              onSetProjectRoot={handleSetProjectRoot}
             />
           )}
         </AnimatePresence>
