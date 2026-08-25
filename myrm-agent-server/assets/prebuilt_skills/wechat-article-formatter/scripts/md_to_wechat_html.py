@@ -10,36 +10,24 @@ import sys
 from pathlib import Path
 
 _BLOCK_INLINE_STYLES: dict[str, str] = {
-    "h1": (
-        "font-size: 22px; font-weight: 700; line-height: 1.4; margin: 28px 0 16px; "
-        "color: #1a1a1a; text-align: center;"
-    ),
+    "h1": ("font-size: 22px; font-weight: 700; line-height: 1.4; margin: 28px 0 16px; color: #1a1a1a; text-align: center;"),
     "h2": (
         "font-size: 18px; font-weight: 700; line-height: 1.4; margin: 24px 0 12px; "
         "color: #1a1a1a; border-left: 4px solid #07c160; padding-left: 12px;"
     ),
-    "h3": (
-        "font-size: 16px; font-weight: 600; line-height: 1.4; margin: 18px 0 8px; "
-        "color: #2a2a2a;"
-    ),
+    "h3": ("font-size: 16px; font-weight: 600; line-height: 1.4; margin: 18px 0 8px; color: #2a2a2a;"),
     "p": "margin: 12px 0; text-align: justify;",
-    "blockquote": (
-        "margin: 16px 0; padding: 10px 14px; background: #f6f6f6; "
-        "border-left: 4px solid #d9d9d9; color: #666;"
-    ),
+    "blockquote": ("margin: 16px 0; padding: 10px 14px; background: #f6f6f6; border-left: 4px solid #d9d9d9; color: #666;"),
     "pre": (
         "background: #282c34; color: #abb2bf; padding: 14px; border-radius: 8px; "
         "overflow-x: auto; margin: 16px 0; line-height: 1.5;"
     ),
     "table": "width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;",
     "th": (
-        "border: 1px solid #e5e5e5; padding: 8px 12px; text-align: left; "
-        "background: #f7f7f7; font-weight: 600; color: #1a1a1a;"
+        "border: 1px solid #e5e5e5; padding: 8px 12px; text-align: left; background: #f7f7f7; font-weight: 600; color: #1a1a1a;"
     ),
     "td": "border: 1px solid #e5e5e5; padding: 8px 12px; text-align: left;",
-    "img": (
-        "max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 6px;"
-    ),
+    "img": ("max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 6px;"),
 }
 
 _WECHAT_BASE_CSS = """
@@ -116,9 +104,7 @@ def _inject_block_inline_styles(html: str) -> str:
             style_match = re.search(r'\bstyle=(["\'])(.*?)\1', attrs, re.IGNORECASE)
             if style_match:
                 merged = _merge_style_attr(style_match.group(2), style)
-                new_attrs = (
-                    f'{attrs[: style_match.start()]}style="{merged}"{attrs[style_match.end() :]}'
-                )
+                new_attrs = f'{attrs[: style_match.start()]}style="{merged}"{attrs[style_match.end() :]}'
             else:
                 if attrs:
                     new_attrs = f'{attrs} style="{style}"'
@@ -133,6 +119,7 @@ def _inject_block_inline_styles(html: str) -> str:
 def _ensure_markdown() -> bool:
     try:
         import markdown  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -235,8 +222,7 @@ def convert_markdown_to_wechat_html(source: Path, output: Path) -> None:
             body = _convert_basic(text)
     else:
         print(
-            "WARNING: markdown/pygments not installed; using basic converter. "
-            "Install: uv sync --extra wechat-formatter",
+            "WARNING: markdown/pygments not installed; using basic converter. Install: uv sync --extra wechat-formatter",
             file=sys.stderr,
         )
         body = _convert_basic(text)
@@ -244,7 +230,7 @@ def convert_markdown_to_wechat_html(source: Path, output: Path) -> None:
     body = _inject_block_inline_styles(body)
     body = _rewrite_relative_images(body, source.parent)
     doc = (
-        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n"
+        '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n'
         f"<style>{_WECHAT_CSS}</style>\n</head>\n<body>\n{body}\n</body>\n</html>\n"
     )
     output.parent.mkdir(parents=True, exist_ok=True)

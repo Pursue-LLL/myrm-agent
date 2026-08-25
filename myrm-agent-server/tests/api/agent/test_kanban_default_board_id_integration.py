@@ -33,9 +33,7 @@ class TestKanbanDefaultBoardIdRequestParsing:
 
 class TestKanbanDefaultBoardIdConverterIntegration:
     @pytest.mark.asyncio
-    async def test_kanban_default_board_id_from_agent_config(
-        self, base_request: dict
-    ) -> None:
+    async def test_kanban_default_board_id_from_agent_config(self, base_request: dict) -> None:
         from app.services.agent.params.converter import convert_to_general_agent_params
 
         base_request["agent_config"] = {
@@ -48,9 +46,7 @@ class TestKanbanDefaultBoardIdConverterIntegration:
         assert params.kanban_default_board_id == "board-preferred"
 
     @pytest.mark.asyncio
-    async def test_kanban_default_board_id_none_by_default(
-        self, base_request: dict
-    ) -> None:
+    async def test_kanban_default_board_id_none_by_default(self, base_request: dict) -> None:
         from app.services.agent.params.converter import convert_to_general_agent_params
 
         request = AgentRequest(**base_request)
@@ -72,9 +68,7 @@ class TestKanbanDefaultBoardIdSetupIntegration:
 
         store = InMemoryKanbanStore()
         await store.save_board(KanbanBoard(board_id="board-newest", name="New"))
-        await store.save_board(
-            KanbanBoard(board_id="board-preferred", name="Preferred")
-        )
+        await store.save_board(KanbanBoard(board_id="board-preferred", name="Preferred"))
 
         kanban_svc = MagicMock()
         kanban_svc.store = store
@@ -87,9 +81,7 @@ class TestKanbanDefaultBoardIdSetupIntegration:
 
         captured: dict[str, object] = {}
 
-        def fake_create_kanban_tools(
-            store_arg: object, dispatcher: object, **kwargs: object
-        ) -> list[object]:
+        def fake_create_kanban_tools(store_arg: object, dispatcher: object, **kwargs: object) -> list[object]:
             captured.update(kwargs)
             return []
 

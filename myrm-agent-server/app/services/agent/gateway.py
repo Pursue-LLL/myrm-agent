@@ -182,9 +182,7 @@ class AgentGateway:
         if user_events:
             for event in user_events.values():
                 event.set()
-            logger.info(
-                "Interrupt signal sent for sandbox (%d agents)", len(user_events)
-            )
+            logger.info("Interrupt signal sent for sandbox (%d agents)", len(user_events))
             return True
         logger.debug("No active agent to interrupt for sandbox user")
         return False
@@ -219,9 +217,7 @@ class AgentGateway:
             return self._config.max_per_user
         return max(0, sem._value)
 
-    def get_active_browser_session(
-        self, session_id: str | None = None
-    ) -> object | None:
+    def get_active_browser_session(self, session_id: str | None = None) -> object | None:
         """Get BrowserSession for a specific chat/session id.
 
         Args:
@@ -249,9 +245,7 @@ class AgentGateway:
                 return session
         return None
 
-    def get_active_desktop_session(
-        self, session_id: str | None = None
-    ) -> object | None:
+    def get_active_desktop_session(self, session_id: str | None = None) -> object | None:
         """Get the DesktopSession from any currently active agent, if available.
 
         Args:
@@ -334,9 +328,7 @@ class AgentGateway:
             logger.info("[Drain] Already draining, skipping duplicate drain request")
             return
         self._draining = True
-        effective_timeout = (
-            timeout if timeout is not None else self._DRAIN_TIMEOUT_DEFAULT
-        )
+        effective_timeout = timeout if timeout is not None else self._DRAIN_TIMEOUT_DEFAULT
         active = len(self._active_sessions)
         if active == 0:
             logger.info("[Drain] No active sessions, drain complete immediately")
@@ -429,9 +421,7 @@ class AgentGateway:
             AgentBusyError: Session is already active.
         """
         if self._draining:
-            raise AgentDrainingError(
-                "Gateway is draining, not accepting new executions"
-            )
+            raise AgentDrainingError("Gateway is draining, not accepting new executions")
         if session_id in self._active_sessions:
             raise AgentBusyError(f"Session {session_id} is already active")
         self._active_sessions.add(session_id)
@@ -479,9 +469,7 @@ class AgentGateway:
         """Return True when an agent execution is in-flight for the session."""
         return session_id in self._active_sessions
 
-    def _resolve_effective_timeout(
-        self, *, goal_active: bool, fission_active: bool
-    ) -> float:
+    def _resolve_effective_timeout(self, *, goal_active: bool, fission_active: bool) -> float:
         """Resolve execution timeout by tier (goal > fission > default).
 
         - goal_active: 长时任务禁用常规超时。
@@ -530,9 +518,7 @@ class AgentGateway:
             AgentBusyError: Session is already active.
         """
         if self._draining:
-            raise AgentDrainingError(
-                "Gateway is draining, not accepting new executions"
-            )
+            raise AgentDrainingError("Gateway is draining, not accepting new executions")
 
         if session_id:
             if session_id in self._active_sessions:
@@ -610,9 +596,7 @@ class AgentGateway:
                 WorkspaceMultiplexer,
             )
 
-            WorkspaceMultiplexer.get().publish_session_status(
-                session_id, "generating", agent_type
-            )
+            WorkspaceMultiplexer.get().publish_session_status(session_id, "generating", agent_type)
 
         interrupt_event = asyncio.Event()
         event_key = session_id or f"_anon_{id(interrupt_event)}"
@@ -631,9 +615,7 @@ class AgentGateway:
                 return scrub_sensitive_info(data)
             return data
 
-        effective_timeout = self._resolve_effective_timeout(
-            goal_active=goal_active, fission_active=fission_active
-        )
+        effective_timeout = self._resolve_effective_timeout(goal_active=goal_active, fission_active=fission_active)
 
         try:
             async with asyncio.timeout(effective_timeout):
@@ -651,9 +633,7 @@ class AgentGateway:
                         yield {"payload": scrubbed}
         except TimeoutError:
             status = "timeout"
-            raise AgentExecutionTimeout(
-                f"Execution timeout ({effective_timeout:.0f}s)"
-            ) from None
+            raise AgentExecutionTimeout(f"Execution timeout ({effective_timeout:.0f}s)") from None
         except GeneratorExit:
             status = "cancelled"
             raise
@@ -676,18 +656,14 @@ class AgentGateway:
                         try:
                             await close_fn()
                         except Exception as exc:
-                            logger.debug(
-                                "Desktop session close error (non-fatal): %s", exc
-                            )
+                            logger.debug("Desktop session close error (non-fatal): %s", exc)
                 self._active_sessions.discard(session_id)
                 self._session_info.pop(session_id, None)
                 from app.services.agent.streaming_support.multiplexer import (
                     WorkspaceMultiplexer,
                 )
 
-                WorkspaceMultiplexer.get().publish_session_status(
-                    session_id, "idle", agent_type
-                )
+                WorkspaceMultiplexer.get().publish_session_status(session_id, "idle", agent_type)
             user_sem.release()
             self._global_sem.release()
             logger.info(

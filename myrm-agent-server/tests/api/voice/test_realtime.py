@@ -1295,4 +1295,3 @@ async def test_list_reminders_success() -> None:
     assert len(payload["reminders"]) == 1
     assert payload["reminders"][0]["id"] == "rem-1"
     assert payload["reminders"][0]["content"] == "Stretch"
-

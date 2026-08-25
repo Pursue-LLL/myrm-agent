@@ -48,9 +48,7 @@ async def test_iter_agent_stream_chunks_intercepts_missing_semantics_blocked() -
         user_message="Sandbox container isolation provider is unavailable",
         remediation_hint="Ensure the Docker/Sandbox daemon is running.",
     )
-    blocked_exc = MissingSemanticsBlockedError(
-        contract=contract, detail="Docker offline"
-    )
+    blocked_exc = MissingSemanticsBlockedError(contract=contract, detail="Docker offline")
 
     async def _failing_stream(*args, **kwargs):
         raise blocked_exc
@@ -66,8 +64,5 @@ async def test_iter_agent_stream_chunks_intercepts_missing_semantics_blocked() -
 
         assert any("missing_semantics_blocked" in c for c in chunks)
         assert any("ERR_MISSING_SANDBOX_ISOLATION" in c for c in chunks)
-        assert any(
-            "Docker offline" in c or "Sandbox container isolation provider" in c
-            for c in chunks
-        )
+        assert any("Docker offline" in c or "Sandbox container isolation provider" in c for c in chunks)
         assert any("fail_closed" in c for c in chunks)

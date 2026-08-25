@@ -53,9 +53,6 @@ def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
         yield test_app
 
 
-
-
-
 @pytest.fixture
 def client(app: FastAPI) -> TestClient:
     return TestClient(app)
@@ -671,4 +668,3 @@ class TestCronPrerequisiteGateApi:
             assert data["chat_verified_count"] == 2
             assert data["kanban_verified_count"] == 1
             assert data["override_allowed"] is True
-

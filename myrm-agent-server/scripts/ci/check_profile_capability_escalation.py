@@ -79,9 +79,7 @@ def check_builtin_security_profiles() -> list[str]:
                 ):
                     action = perms.get(dangerous)
                     if action != "deny":
-                        violations.append(
-                            f"Profile 'readonly': '{dangerous}' must be 'deny', got '{action}'"
-                        )
+                        violations.append(f"Profile 'readonly': '{dangerous}' must be 'deny', got '{action}'")
                 if config.get("yoloModeEnabled") is True:
                     violations.append("Profile 'readonly': yoloModeEnabled must be False")
 
@@ -92,9 +90,7 @@ def check_builtin_security_profiles() -> list[str]:
                 for sensitive in ("shell_exec", "code_interpreter", "mcp_invoke"):
                     action = perms.get(sensitive)
                     if action == "allow":
-                        violations.append(
-                            f"Profile 'workspace': '{sensitive}' must not be 'allow'"
-                        )
+                        violations.append(f"Profile 'workspace': '{sensitive}' must not be 'allow'")
                 if config.get("yoloModeEnabled") is True:
                     violations.append("Profile 'workspace': yoloModeEnabled must be False")
 

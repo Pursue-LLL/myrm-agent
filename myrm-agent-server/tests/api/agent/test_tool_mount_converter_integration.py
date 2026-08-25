@@ -26,9 +26,7 @@ class TestToolMountConverterIntegration:
     """Web chat request → converter → GeneralAgentParams must apply mount SSOT."""
 
     @pytest.mark.asyncio
-    async def test_general_chat_enables_file_and_shell_meta_tools(
-        self, base_request: dict[str, object]
-    ) -> None:
+    async def test_general_chat_enables_file_and_shell_meta_tools(self, base_request: dict[str, object]) -> None:
         base_request["agent_config"] = {"enabledBuiltinTools": ["web_search"]}
         request = AgentRequest(**base_request)
 
@@ -43,13 +41,9 @@ class TestToolMountConverterIntegration:
         assert agent.enable_shell_tools is True
 
     @pytest.mark.asyncio
-    async def test_fast_search_disables_file_and_shell_meta_tools(
-        self, base_request: dict[str, object]
-    ) -> None:
+    async def test_fast_search_disables_file_and_shell_meta_tools(self, base_request: dict[str, object]) -> None:
         base_request["action_mode"] = "fast"
-        base_request["agent_config"] = {
-            "enabledBuiltinTools": ["web_search", "browser"]
-        }
+        base_request["agent_config"] = {"enabledBuiltinTools": ["web_search", "browser"]}
         request = AgentRequest(**base_request)
 
         params, _, _, _, _ = await convert_to_general_agent_params(request, [])

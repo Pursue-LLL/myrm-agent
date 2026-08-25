@@ -137,9 +137,7 @@ class WebhookTriggerCreate(BaseModel):
 class TriggerConfigCreate(BaseModel):
     webhooks: list[WebhookTriggerCreate] = Field(default_factory=list, max_length=5)
     events: list[EventTriggerCreate] = Field(default_factory=list, max_length=10)
-    system_events: list[SystemEventTriggerCreate] = Field(
-        default_factory=list, max_length=10
-    )
+    system_events: list[SystemEventTriggerCreate] = Field(default_factory=list, max_length=10)
 
 
 class CronJobCreate(BaseModel):
@@ -543,7 +541,3 @@ class PrerequisiteCheckResponse(BaseModel):
     chat_verified_count: int
     kanban_verified_count: int
     override_allowed: bool = True
-
-
-
-

@@ -282,4 +282,3 @@ async def revise_board_plan(
         removed_edges=[list(e) for e in outcome.removed_edges],
         persisted=outcome.persisted,
     )
-

@@ -34,9 +34,7 @@ class DLQDiagnostic(DiagnosticProtocol):
 
             gateway = get_channel_gateway()
             if gateway and gateway.bus:
-                failed_count = (
-                    await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
-                )
+                failed_count = await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
                 pending_count = await gateway.bus.durable_outbound.count_pending()
 
                 meta_data: dict[str, object] = {
@@ -148,11 +146,7 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             reclaimed = getattr(cache, "reclaimed_count", 0)
 
             detail_parts = [
-                (
-                    f"Idle timeout: {idle_s:.0f}s"
-                    if idle_s > 0
-                    else "Idle reclaim disabled"
-                ),
+                (f"Idle timeout: {idle_s:.0f}s" if idle_s > 0 else "Idle reclaim disabled"),
                 f"Warm units: {warm_units}",
                 f"Reclaimed: {reclaimed}",
             ]
@@ -223,14 +217,10 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
                 score += 35
             else:
                 phase_details["model_provider"] = "unconfigured"
-                fix_suggestions.append(
-                    "Configure a default LLM Provider in Settings -> Models."
-                )
+                fix_suggestions.append("Configure a default LLM Provider in Settings -> Models.")
         except Exception as exc:
             phase_details["model_provider_error"] = str(exc)
-            fix_suggestions.append(
-                "Verify LLM Provider credentials and network connection."
-            )
+            fix_suggestions.append("Verify LLM Provider credentials and network connection.")
 
         # 2. Tool Catalog Readiness
         try:
@@ -277,9 +267,7 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             score += 20
         except Exception as exc:
             phase_details["storage_error"] = str(exc)
-            fix_suggestions.append(
-                "Check database connection and file lock permissions."
-            )
+            fix_suggestions.append("Check database connection and file lock permissions.")
 
         # Evaluate overall status
         if "model_ready" not in ready_phases:
@@ -343,9 +331,7 @@ class ServerDiagnosticsManager:
                 report = await probe.check_health()
                 reports.append(report)
             except Exception as exc:
-                logger.error(
-                    "Probe %s failed unhandled: %s", probe.__class__.__name__, exc
-                )
+                logger.error("Probe %s failed unhandled: %s", probe.__class__.__name__, exc)
                 reports.append(
                     HealthReport(
                         component_name=probe.__class__.__name__,

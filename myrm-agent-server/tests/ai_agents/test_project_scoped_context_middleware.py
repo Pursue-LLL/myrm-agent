@@ -1,12 +1,12 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from langchain_core.messages import HumanMessage, SystemMessage
+
+import pytest
 from langchain.agents.middleware import ModelRequest, ModelResponse
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.ai_agents.agent_middlewares.project_scoped_context_middleware import (
-    project_scoped_workspace_middleware,
-    _has_scoped_workspace_injected,
     _build_scoped_workspace_snippet,
+    project_scoped_workspace_middleware,
 )
 
 

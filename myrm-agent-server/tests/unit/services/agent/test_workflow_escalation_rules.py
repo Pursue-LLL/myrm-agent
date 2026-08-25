@@ -135,7 +135,6 @@ class TestShouldSuggestWorkflow:
         query = "分别调研美国、日本、欧洲的AI监管政策，各自的特点和对企业的影响，并行分析后给出总结"
         assert should_suggest_workflow(query, routing_tier="reasoning") is True
 
-
     def test_agent_config_request_orchestration_mode(self) -> None:
         from app.services.agent.params.models import AgentConfigRequest
 

@@ -37,9 +37,7 @@ def configure_test_logging() -> None:
     console_handler.setFormatter(formatter)
     root_logger.setLevel(logging.WARNING)
     root_logger.addHandler(console_handler)
-    logging.getLogger("myrm_agent_harness.toolkits.llms.utils.logger").setLevel(
-        logging.WARNING
-    )
+    logging.getLogger("myrm_agent_harness.toolkits.llms.utils.logger").setLevel(logging.WARNING)
 
 
 configure_test_logging()
@@ -169,34 +167,22 @@ def app() -> FastAPI:
     pass
 
     general_agent_module = import_module("app.api.agents.general_agent")
-    app.include_router(
-        general_agent_module.router, prefix="/api/v1/agents", tags=["agents"]
-    )
+    app.include_router(general_agent_module.router, prefix="/api/v1/agents", tags=["agents"])
 
     agent_management_module = import_module("app.api.agents.agent")
-    app.include_router(
-        agent_management_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(agent_management_module.router, prefix="/api/agents", tags=["agent-management"])
 
     agent_extras_module = import_module("app.api.agents.agent_extras")
-    app.include_router(
-        agent_extras_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(agent_extras_module.router, prefix="/api/agents", tags=["agent-management"])
 
     agent_portability_module = import_module("app.api.agents.agent_portability")
-    app.include_router(
-        agent_portability_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(agent_portability_module.router, prefix="/api/agents", tags=["agent-management"])
 
     generate_prompt_module = import_module("app.api.agents.generate_prompt")
-    app.include_router(
-        generate_prompt_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(generate_prompt_module.router, prefix="/api/agents", tags=["agent-management"])
 
     agent_history_module = import_module("app.api.agents.agent_history")
-    app.include_router(
-        agent_history_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(agent_history_module.router, prefix="/api/agents", tags=["agent-management"])
 
     memory_module = import_module("app.api.memory.router")
     app.include_router(memory_module.router, prefix="/api/v1/memory", tags=["memory"])
@@ -210,9 +196,7 @@ def app() -> FastAPI:
 
     # Add files router for vault endpoints tests
     vault_module = import_module("app.api.files.vault_api")
-    app.include_router(
-        vault_module.router, prefix="/api/v1/files/vault", tags=["files-vault"]
-    )
+    app.include_router(vault_module.router, prefix="/api/v1/files/vault", tags=["files-vault"])
 
     artifact_api_module = import_module("app.api.files.artifact_api")
     app.include_router(
@@ -225,9 +209,7 @@ def app() -> FastAPI:
     app.include_router(goals_module.router, prefix="/api/v1", tags=["goals"])
 
     templates_module = import_module("app.api.agents.templates")
-    app.include_router(
-        templates_module.router, prefix="/api/v1/agents", tags=["agent-templates"]
-    )
+    app.include_router(templates_module.router, prefix="/api/v1/agents", tags=["agent-templates"])
 
     kanban_module = import_module("app.api.kanban.router")
     app.include_router(kanban_module.router, prefix="/api/v1")
@@ -301,9 +283,7 @@ async def setup_test_database(tmp_path: Path):
             mock_get_session_factory,
         ),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
-        patch(
-            "app.services.budget.enforcer.get_session_factory", mock_get_session_factory
-        ),
+        patch("app.services.budget.enforcer.get_session_factory", mock_get_session_factory),
         patch(
             "app.services.memory.shared_context.shared_context.get_session",
             mock_get_session,

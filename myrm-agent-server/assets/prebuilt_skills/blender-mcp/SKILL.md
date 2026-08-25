@@ -113,7 +113,7 @@ Four tools compose the entire interface:
 ### Clear scene
 
 ```python
-bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
 ```
 
@@ -161,12 +161,12 @@ bpy.context.scene.camera = cam
 ### Lighting
 
 ```python
-bpy.ops.object.light_add(type='SUN', location=(5, 5, 10))
+bpy.ops.object.light_add(type="SUN", location=(5, 5, 10))
 sun = bpy.context.active_object
 sun.data.energy = 3.0
 sun.data.color = (1.0, 0.95, 0.9)
 
-bpy.ops.object.light_add(type='POINT', location=(-3, 2, 4))
+bpy.ops.object.light_add(type="POINT", location=(-3, 2, 4))
 point = bpy.context.active_object
 point.data.energy = 100
 point.data.color = (0.8, 0.9, 1.0)
@@ -180,12 +180,12 @@ world.use_nodes = True
 nodes = world.node_tree.nodes
 links = world.node_tree.links
 nodes.clear()
-bg = nodes.new('ShaderNodeBackground')
-env = nodes.new('ShaderNodeTexEnvironment')
+bg = nodes.new("ShaderNodeBackground")
+env = nodes.new("ShaderNodeTexEnvironment")
 env.image = bpy.data.images.load("/path/to/hdri.hdr")
-output = nodes.new('ShaderNodeOutputWorld')
-links.new(env.outputs['Color'], bg.inputs['Color'])
-links.new(bg.outputs['Background'], output.inputs['Surface'])
+output = nodes.new("ShaderNodeOutputWorld")
+links.new(env.outputs["Color"], bg.inputs["Color"])
+links.new(bg.outputs["Background"], output.inputs["Surface"])
 ```
 
 ### Render to file
@@ -193,7 +193,7 @@ links.new(bg.outputs['Background'], output.inputs['Surface'])
 ```python
 scene = bpy.context.scene
 scene.render.filepath = "/tmp/render.png"
-scene.render.engine = 'CYCLES'
+scene.render.engine = "CYCLES"
 scene.render.resolution_x = 1920
 scene.render.resolution_y = 1080
 scene.cycles.samples = 128
@@ -204,11 +204,11 @@ bpy.ops.render.render(write_still=True)
 
 ```python
 obj = bpy.context.active_object
-mod = obj.modifiers.new(name="Subsurf", type='SUBSURF')
+mod = obj.modifiers.new(name="Subsurf", type="SUBSURF")
 mod.levels = 2
 mod.render_levels = 3
 
-mod = obj.modifiers.new(name="Solidify", type='SOLIDIFY')
+mod = obj.modifiers.new(name="Solidify", type="SOLIDIFY")
 mod.thickness = 0.05
 ```
 
@@ -216,11 +216,7 @@ mod.thickness = 0.05
 
 ```python
 bpy.ops.export_scene.fbx(
-    filepath="/tmp/model.fbx",
-    use_selection=True,
-    apply_scale_options='FBX_SCALE_ALL',
-    axis_forward='-Y',
-    axis_up='Z'
+    filepath="/tmp/model.fbx", use_selection=True, apply_scale_options="FBX_SCALE_ALL", axis_forward="-Y", axis_up="Z"
 )
 ```
 

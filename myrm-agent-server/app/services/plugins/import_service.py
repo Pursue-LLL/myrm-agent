@@ -521,8 +521,9 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
     purged_cron_jobs = 0
     paused_cron_jobs = 0
     try:
-        from app.core.cron.adapters.setup import get_cron_manager
         from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobStatus
+
+        from app.core.cron.adapters.setup import get_cron_manager
 
         mgr = get_cron_manager()
         all_jobs = await mgr.list_jobs("default", limit=200)

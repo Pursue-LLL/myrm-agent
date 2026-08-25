@@ -215,11 +215,7 @@ class KanbanCompletionVerifier:
                 return VerificationResult(passed=done, reason=reason, comments=comments)
 
             lower = raw.lower()
-            is_pass = (
-                lower.startswith("pass")
-                or '"done": true' in lower
-                or '"done":true' in lower
-            )
+            is_pass = lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower
             comments_fallback: list[ReviewComment] = []
             if not is_pass and raw:
                 comments_fallback.append(
@@ -228,9 +224,7 @@ class KanbanCompletionVerifier:
                         message=raw[:200],
                     )
                 )
-            return VerificationResult(
-                passed=is_pass, reason=raw, comments=comments_fallback
-            )
+            return VerificationResult(passed=is_pass, reason=raw, comments=comments_fallback)
 
         except Exception as exc:
             logger.error("Kanban completion verification failed: %s", exc)

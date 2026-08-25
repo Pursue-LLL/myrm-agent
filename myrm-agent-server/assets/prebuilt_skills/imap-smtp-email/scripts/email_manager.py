@@ -68,8 +68,7 @@ def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
     try:
         conn.xatom(
             "ID",
-            '("name" "myrm-agent" "version" "1" '
-            '"vendor" "myrm" "support-email" "noreply@myrm.sh")',
+            '("name" "myrm-agent" "version" "1" "vendor" "myrm" "support-email" "noreply@myrm.sh")',
         )
     except Exception:
         pass
@@ -270,10 +269,12 @@ def cmd_read(args: argparse.Namespace) -> None:
                 if "attachment" in disp:
                     filename = part.get_filename() or "attachment"
                     filename = _decode_header(filename)
-                    attachments.append({
-                        "filename": filename,
-                        "content_type": part.get_content_type(),
-                    })
+                    attachments.append(
+                        {
+                            "filename": filename,
+                            "content_type": part.get_content_type(),
+                        }
+                    )
         summary["attachments"] = attachments
 
         print(json.dumps(summary, ensure_ascii=False, indent=2))
@@ -408,12 +409,16 @@ def cmd_reply(args: argparse.Namespace) -> None:
                 server.starttls()
                 server.login(user, password)
                 server.send_message(msg)
-        print(json.dumps({
-            "status": "sent",
-            "message_id": msg_id,
-            "to": reply_addr,
-            "subject": subject,
-        }))
+        print(
+            json.dumps(
+                {
+                    "status": "sent",
+                    "message_id": msg_id,
+                    "to": reply_addr,
+                    "subject": subject,
+                }
+            )
+        )
     except smtplib.SMTPAuthenticationError as exc:
         _fail(f"SMTP authentication failed: {exc}")
     except (smtplib.SMTPException, OSError) as exc:

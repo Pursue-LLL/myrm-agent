@@ -93,10 +93,7 @@ Tables require special handling to preserve structure:
 ```python
 # Extract as list of dictionaries (rows with column headers as keys)
 # Example output:
-[
-    {"Name": "Alice", "Role": "Engineer", "Team": "Backend"},
-    {"Name": "Bob", "Role": "Designer", "Team": "Frontend"}
-]
+[{"Name": "Alice", "Role": "Engineer", "Team": "Backend"}, {"Name": "Bob", "Role": "Designer", "Team": "Frontend"}]
 ```
 
 ### Key-Value Pairs
@@ -105,11 +102,7 @@ Common in forms, spec sheets, and configuration documents:
 
 ```python
 # Extract as dictionary
-{
-    "Document ID": "DOC-2024-001",
-    "Status": "Approved",
-    "Effective Date": "2024-01-15"
-}
+{"Document ID": "DOC-2024-001", "Status": "Approved", "Effective Date": "2024-01-15"}
 ```
 
 ## Phase 4: Transform

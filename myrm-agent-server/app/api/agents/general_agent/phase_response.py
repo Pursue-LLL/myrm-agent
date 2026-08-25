@@ -115,4 +115,3 @@ async def human_gate_response(
         len(request.answer),
     )
     return success_response(data={"status": "resolved"})
-

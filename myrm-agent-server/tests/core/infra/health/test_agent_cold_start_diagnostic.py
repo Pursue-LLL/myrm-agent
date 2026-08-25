@@ -67,9 +67,7 @@ async def test_agent_cold_start_diagnostic_cold_cache_ready() -> None:
     """Test AgentColdStartDiagnostic when cache is cold (0 warm units) but other components are ready."""
     diagnostic = AgentColdStartDiagnostic()
 
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet")
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet"))
 
     mock_cache = MagicMock()
     mock_cache.warm_entry_count = 0
@@ -161,9 +159,7 @@ async def test_agent_cold_start_diagnostic_storage_degraded() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
-        patch(
-            "app.database.connection.get_session", side_effect=Exception("DB locked")
-        ),
+        patch("app.database.connection.get_session", side_effect=Exception("DB locked")),
     ):
         report = await diagnostic.check_health()
 
@@ -212,9 +208,7 @@ async def test_dlq_diagnostic_healthy_and_pending_redelivery() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch(
-        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
-    ):
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "pass"
@@ -241,9 +235,7 @@ async def test_dlq_diagnostic_pending_backlog_warning() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch(
-        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
-    ):
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "warn"
@@ -269,9 +261,7 @@ async def test_dlq_diagnostic_critical_failures() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch(
-        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
-    ):
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "fail"

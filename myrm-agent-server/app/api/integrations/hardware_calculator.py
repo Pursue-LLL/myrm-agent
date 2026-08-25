@@ -41,9 +41,7 @@ def estimate_tok_per_sec(
     """Estimate inference throughput (tokens/s) for a Q4_K_M quantized LLM."""
     if bandwidth_gbps is None or bandwidth_gbps <= 0 or params_b <= 0:
         return None
-    effective_b = (
-        active_params_b if (active_params_b and active_params_b > 0) else params_b
-    )
+    effective_b = active_params_b if (active_params_b and active_params_b > 0) else params_b
     raw = (bandwidth_gbps * 1e9) / (effective_b * 1e9 * _Q4_K_M_BYTES_PER_WEIGHT)
     vendor_factor = _VENDOR_FACTOR.get(vendor, _VENDOR_FACTOR["unknown"])
     return max(1, round(raw * _EFFICIENCY * vendor_factor))

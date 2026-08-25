@@ -219,10 +219,7 @@ class SharedContextService:
         if not context_ids:
             return
         now = datetime.now(UTC)
-        stmt = (
-            select(SharedContextModel)
-            .where(SharedContextModel.id.in_(context_ids))
-        )
+        stmt = select(SharedContextModel).where(SharedContextModel.id.in_(context_ids))
         result = await self._session.execute(stmt)
         for ctx in result.scalars().all():
             ctx.access_count = (ctx.access_count or 0) + 1

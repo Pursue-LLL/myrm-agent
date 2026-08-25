@@ -452,7 +452,6 @@ class TestKanbanCompletionVerifier:
         result = await verifier.verify(task, "done")
         assert result.passed is True
 
-
     @pytest.mark.asyncio
     @patch("app.core.kanban.verifier.ShellCriterion")
     async def test_shell_criteria_failure_produces_structured_comment(self, mock_shell_cls: AsyncMock) -> None:
@@ -496,7 +495,7 @@ class TestKanbanCompletionVerifier:
             '{"done": false, "reason": "Missing error handling", "comments": ['
             '{"severity": "critical", "message": "Unhandled exception in verifier", "target_path": "app/main.py", "line_range": "20-30", "fix_suggestion": "Wrap in try-except"},'
             '{"severity": "warning", "message": "Variable unused", "target_path": "app/main.py"}'
-            ']}'
+            "]}"
         )
 
         task = _make_task(criteria="Handle all exceptions")

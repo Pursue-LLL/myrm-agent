@@ -22,25 +22,38 @@ Example (12-column colonnade, ONE round-trip):
 ```python
 import json, math
 
+
 def add_cylinder(actor_ref, name, radius, height, x, y, z):
     return execute_tool(
         "editor_toolset.toolsets.primitive.PrimitiveTools.add_cylinder",
-        json.dumps({"actor": actor_ref, "name": name, "radius": radius,
-                    "height": height,
-                    "local_transform": {"location": {"x": x, "y": y, "z": z}}}))
+        json.dumps(
+            {
+                "actor": actor_ref,
+                "name": name,
+                "radius": radius,
+                "height": height,
+                "local_transform": {"location": {"x": x, "y": y, "z": z}},
+            }
+        ),
+    )
+
 
 def run():
     spawn = execute_tool(
         "editor_toolset.toolsets.scene.SceneTools.add_to_scene_from_class",
-        json.dumps({"actor_type": {"refPath": "/Script/Engine.Actor"},
-                    "name": "Colonnade",
-                    "xform": {"location": {"x": 0, "y": 0, "z": 0}}}))
+        json.dumps(
+            {
+                "actor_type": {"refPath": "/Script/Engine.Actor"},
+                "name": "Colonnade",
+                "xform": {"location": {"x": 0, "y": 0, "z": 0}},
+            }
+        ),
+    )
     host = spawn["returnValue"]
     n, ring_r = 12, 900.0
     for i in range(n):
         a = 2.0 * math.pi * i / n
-        add_cylinder(host, "Shaft_%02d" % i, 40, 360,
-                     ring_r * math.cos(a), ring_r * math.sin(a), 210)
+        add_cylinder(host, "Shaft_%02d" % i, 40, 360, ring_r * math.cos(a), ring_r * math.sin(a), 210)
     return {"colonnade": host["refPath"], "columns": n}
 ```
 

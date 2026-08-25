@@ -738,4 +738,3 @@ class PlanRevisionResponse(BaseModel):
     added_edges: list[list[str]] = []
     removed_edges: list[list[str]] = []
     persisted: bool = False
-

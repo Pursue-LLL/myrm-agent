@@ -56,6 +56,7 @@ Good analysis tells a story with data. Bad analysis dumps numbers without contex
 
 ```python
 import pandas as pd
+
 df = pd.read_csv("data.csv")  # or read_excel, read_json, etc.
 ```
 

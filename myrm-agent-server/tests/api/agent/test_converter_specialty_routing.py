@@ -37,9 +37,7 @@ def base_request_data() -> dict[str, object]:
     }
 
 
-async def _fake_resolve(
-    selection: ModelSelection, providers: dict[str, object] | None
-) -> ModelConfig:
+async def _fake_resolve(selection: ModelSelection, providers: dict[str, object] | None) -> ModelConfig:
     return ModelConfig(
         model=selection.model or "default-model",
         api_key=_DUMMY_KEY,
@@ -50,9 +48,7 @@ class TestTaskSpecialtyRoutingIntegration:
     """Converter correctly resolves specialty model slots and routes matching tasks."""
 
     @pytest.mark.asyncio
-    async def test_code_specialty_routing_applied(
-        self, base_request_data: dict[str, object]
-    ) -> None:
+    async def test_code_specialty_routing_applied(self, base_request_data: dict[str, object]) -> None:
         request = AgentRequest(**base_request_data)
 
         with (
@@ -70,9 +66,7 @@ class TestTaskSpecialtyRoutingIntegration:
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, specialty, warnings, _ = (
-                await convert_to_general_agent_params(request, [])
-            )
+            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
 
         assert params.model_cfg.model == "claude-3-7-sonnet-20250219"
         assert params.fallback_model_cfg.model == "deepseek-coder"
@@ -80,12 +74,8 @@ class TestTaskSpecialtyRoutingIntegration:
         assert specialty == "code"
 
     @pytest.mark.asyncio
-    async def test_long_doc_specialty_routing_applied(
-        self, base_request_data: dict[str, object]
-    ) -> None:
-        base_request_data["query"] = (
-            "请帮我总结这份全文长文档与整份报告内容: " + "word " * 500
-        )
+    async def test_long_doc_specialty_routing_applied(self, base_request_data: dict[str, object]) -> None:
+        base_request_data["query"] = "请帮我总结这份全文长文档与整份报告内容: " + "word " * 500
         request = AgentRequest(**base_request_data)
 
         with (
@@ -103,9 +93,7 @@ class TestTaskSpecialtyRoutingIntegration:
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, specialty, warnings, _ = (
-                await convert_to_general_agent_params(request, [])
-            )
+            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
 
         assert params.model_cfg.model == "gemini-1.5-pro"
         assert routing_tier == "long_doc"
@@ -120,9 +108,7 @@ class TestTaskSpecialtyRoutingIntegration:
         del base_request_data["fallback_code_model_selection"]
         del base_request_data["long_doc_model_selection"]
         base_request_data["light_model_selection"] = _selection("openai", "gpt-4o-mini")
-        base_request_data["reasoning_model_selection"] = _selection(
-            "deepseek", "deepseek-reasoner"
-        )
+        base_request_data["reasoning_model_selection"] = _selection("deepseek", "deepseek-reasoner")
         request = AgentRequest(**base_request_data)
 
         with (
@@ -140,9 +126,7 @@ class TestTaskSpecialtyRoutingIntegration:
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, specialty, warnings, _ = (
-                await convert_to_general_agent_params(request, [])
-            )
+            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
 
         # Should fall open to complexity router
         assert routing_tier in ("standard", "reasoning", "simple")
@@ -209,12 +193,8 @@ class TestSpecialtyRoutingSSEChunkEmission:
                 new_callable=AsyncMock,
                 return_value=(None, None),
             ),
-            patch(
-                "app.services.agent.stream_session.stream_chunks.iter_agent_stream_chunks"
-            ) as mock_iter,
-            patch(
-                "app.services.agent.stream_session.stream_chunks.finalize_agent_stream_session"
-            ),
+            patch("app.services.agent.stream_session.stream_chunks.iter_agent_stream_chunks") as mock_iter,
+            patch("app.services.agent.stream_session.stream_chunks.finalize_agent_stream_session"),
         ):
 
             async def _empty_iter(*args, **kwargs):

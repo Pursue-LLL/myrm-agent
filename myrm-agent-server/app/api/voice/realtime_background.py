@@ -254,10 +254,7 @@ async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeTool
     mgr = get_cron_manager()
     try:
         jobs = await mgr.list_jobs("default")
-        active_reminders = [
-            j for j in jobs
-            if j.status == JobStatus.ACTIVE and j.job_type == JobType.REMINDER
-        ]
+        active_reminders = [j for j in jobs if j.status == JobStatus.ACTIVE and j.job_type == JobType.REMINDER]
 
         target_job = None
         if reminder_id:
@@ -319,9 +316,7 @@ async def _execute_list_reminders(req: RealtimeToolExecRequest) -> RealtimeToolE
             for j in jobs
             if j.status == JobStatus.ACTIVE and j.job_type == JobType.REMINDER
         ]
-        return RealtimeToolExecResponse(
-            result=json.dumps({"reminders": active_reminders, "count": len(active_reminders)})
-        )
+        return RealtimeToolExecResponse(result=json.dumps({"reminders": active_reminders, "count": len(active_reminders)}))
     except Exception as exc:
         logger.exception("Failed to list voice reminder cron jobs: %s", exc)
         return RealtimeToolExecResponse(result=None, error=f"Failed to list reminders: {exc}")

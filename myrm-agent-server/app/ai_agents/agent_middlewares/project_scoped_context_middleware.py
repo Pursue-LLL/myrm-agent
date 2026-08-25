@@ -74,11 +74,7 @@ class ProjectScopedWorkspaceMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         context = getattr(request, "context", {}) or {}
-        project_dir = (
-            context.get("project_dir")
-            or context.get("active_project_root")
-            or context.get("workspace_dir")
-        )
+        project_dir = context.get("project_dir") or context.get("active_project_root") or context.get("workspace_dir")
 
         if not project_dir or _has_scoped_workspace_injected(request.messages):
             return await handler(request)

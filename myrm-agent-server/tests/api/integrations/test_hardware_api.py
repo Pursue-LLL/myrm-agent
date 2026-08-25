@@ -168,12 +168,8 @@ def test_estimate_tok_per_sec_negative_params_returns_none():
 @pytest.mark.asyncio
 async def test_hardware_recommendations_sandbox_mode():
     """Test that recommendations return hardware_detected=False in SANDBOX mode"""
-    with patch(
-        "app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.get("/api/v1/integrations/hardware/recommendations")
             assert response.status_code == 200
             data = response.json()
@@ -185,9 +181,7 @@ async def test_hardware_recommendations_sandbox_mode():
 async def test_hardware_recommendations_local_mode():
     """Test recommendations in local mode with mocked hardware profile"""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch(
-            "app.api.integrations.hardware._get_cached_hardware_profile"
-        ) as mock_profile:
+        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "macos"
             mock_profile_obj.cpu_arch = "arm64"
@@ -201,14 +195,10 @@ async def test_hardware_recommendations_local_mode():
             mock_profile_obj.memory_bandwidth_gbps = 400.0  # M1 Max bandwidth
             mock_profile.return_value = mock_profile_obj
 
-            with patch(
-                "app.api.integrations.hardware._get_ollama_status"
-            ) as mock_ollama:
+            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, ["qwen2.5:0.5b"])
 
-                with patch(
-                    "app.api.integrations.hardware.get_dynamic_model_specs"
-                ) as mock_specs:
+                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen2.5:0.5b",
@@ -228,12 +218,8 @@ async def test_hardware_recommendations_local_mode():
                         },
                     ]
 
-                    async with AsyncClient(
-                        transport=ASGITransport(app=app), base_url="http://test"
-                    ) as ac:
-                        response = await ac.get(
-                            "/api/v1/integrations/hardware/recommendations"
-                        )
+                    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                        response = await ac.get("/api/v1/integrations/hardware/recommendations")
                         assert response.status_code == 200
                         data = response.json()
                         assert data["code"] == 0
@@ -243,9 +229,7 @@ async def test_hardware_recommendations_local_mode():
                         assert data["data"]["free_disk_gb"] == 100.0
                         assert data["data"]["is_unified_memory"] is True
                         assert data["data"]["ollama_running"] is True
-                        assert (
-                            data["data"]["current_rung"] == 3
-                        )  # 28GB available VRAM -> Rung 3
+                        assert data["data"]["current_rung"] == 3  # 28GB available VRAM -> Rung 3
                         assert "High-end" in data["data"]["rung_name"]
 
                         recs = data["data"]["recommendations"]
@@ -276,9 +260,7 @@ async def test_hardware_recommendations_local_mode():
 async def test_hardware_recommendations_no_bandwidth():
     """When GPU bandwidth is unknown, est_tok_per_sec should be None for all models."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch(
-            "app.api.integrations.hardware._get_cached_hardware_profile"
-        ) as mock_profile:
+        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "windows"
             mock_profile_obj.cpu_arch = "AMD64"
@@ -289,19 +271,13 @@ async def test_hardware_recommendations_no_bandwidth():
             mock_profile_obj.gpu_vram_gb = 8.0
             mock_profile_obj.is_unified_memory = False
             mock_profile_obj.gpu_vendor = "unknown"
-            mock_profile_obj.memory_bandwidth_gbps = (
-                None  # Unknown GPU, no bandwidth data
-            )
+            mock_profile_obj.memory_bandwidth_gbps = None  # Unknown GPU, no bandwidth data
             mock_profile.return_value = mock_profile_obj
 
-            with patch(
-                "app.api.integrations.hardware._get_ollama_status"
-            ) as mock_ollama:
+            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, [])
 
-                with patch(
-                    "app.api.integrations.hardware.get_dynamic_model_specs"
-                ) as mock_specs:
+                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen2.5:0.5b",
@@ -313,12 +289,8 @@ async def test_hardware_recommendations_no_bandwidth():
                         }
                     ]
 
-                    async with AsyncClient(
-                        transport=ASGITransport(app=app), base_url="http://test"
-                    ) as ac:
-                        response = await ac.get(
-                            "/api/v1/integrations/hardware/recommendations"
-                        )
+                    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                        response = await ac.get("/api/v1/integrations/hardware/recommendations")
                         assert response.status_code == 200
                         data = response.json()
                         assert data["code"] == 0
@@ -331,12 +303,8 @@ async def test_hardware_recommendations_no_bandwidth():
 @pytest.mark.asyncio
 async def test_ollama_delete_sandbox_mode():
     """Test that DELETE /hardware/ollama/models is forbidden in SANDBOX mode"""
-    with patch(
-        "app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.request(
                 "DELETE",
                 "/api/v1/integrations/hardware/ollama/models",
@@ -349,16 +317,12 @@ async def test_ollama_delete_sandbox_mode():
 async def test_ollama_delete_local_mode_success():
     """Test successful DELETE /hardware/ollama/models in local mode"""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch(
-            "app.api.integrations.hardware.httpx.AsyncClient.request"
-        ) as mock_request:
+        with patch("app.api.integrations.hardware.httpx.AsyncClient.request") as mock_request:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_request.return_value = mock_response
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as ac:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 response = await ac.request(
                     "DELETE",
                     "/api/v1/integrations/hardware/ollama/models",
@@ -390,9 +354,7 @@ async def test_ollama_delete_local_mode_success_proper_mock():
             "app.api.integrations.hardware.httpx.AsyncClient.request",
             new=mock_request_func,
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as ac:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 response = await ac.request(
                     "DELETE",
                     "/api/v1/integrations/hardware/ollama/models",
@@ -408,9 +370,7 @@ async def test_ollama_delete_local_mode_success_proper_mock():
 async def test_hardware_recommendations_sorting_same_fit_level_largest_params_first():
     """Within same fit_level, largest params_b model ranks first."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch(
-            "app.api.integrations.hardware._get_cached_hardware_profile"
-        ) as mock_profile:
+        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "macos"
             mock_profile_obj.cpu_arch = "arm64"
@@ -424,14 +384,10 @@ async def test_hardware_recommendations_sorting_same_fit_level_largest_params_fi
             mock_profile_obj.memory_bandwidth_gbps = 400.0
             mock_profile.return_value = mock_profile_obj
 
-            with patch(
-                "app.api.integrations.hardware._get_ollama_status"
-            ) as mock_ollama:
+            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (False, [])
 
-                with patch(
-                    "app.api.integrations.hardware.get_dynamic_model_specs"
-                ) as mock_specs:
+                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen2.5:0.5b",
@@ -451,12 +407,8 @@ async def test_hardware_recommendations_sorting_same_fit_level_largest_params_fi
                         },
                     ]
 
-                    async with AsyncClient(
-                        transport=ASGITransport(app=app), base_url="http://test"
-                    ) as ac:
-                        response = await ac.get(
-                            "/api/v1/integrations/hardware/recommendations"
-                        )
+                    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                        response = await ac.get("/api/v1/integrations/hardware/recommendations")
                         assert response.status_code == 200
                         data = response.json()
                         recs = data["data"]["recommendations"]
@@ -479,9 +431,7 @@ async def test_hardware_recommendations_moe_tps_uses_active_params():
       With active_params_b=7:   ~141 tok/s (accurate, user sees GREEN/fast)
     """
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch(
-            "app.api.integrations.hardware._get_cached_hardware_profile"
-        ) as mock_profile:
+        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "windows"
             mock_profile_obj.cpu_arch = "AMD64"
@@ -495,14 +445,10 @@ async def test_hardware_recommendations_moe_tps_uses_active_params():
             mock_profile_obj.memory_bandwidth_gbps = 1008.0  # RTX 4090
             mock_profile.return_value = mock_profile_obj
 
-            with patch(
-                "app.api.integrations.hardware._get_ollama_status"
-            ) as mock_ollama:
+            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, ["deepseek-r1:32b"])
 
-                with patch(
-                    "app.api.integrations.hardware.get_dynamic_model_specs"
-                ) as mock_specs:
+                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/deepseek-r1:32b",
@@ -515,12 +461,8 @@ async def test_hardware_recommendations_moe_tps_uses_active_params():
                         }
                     ]
 
-                    async with AsyncClient(
-                        transport=ASGITransport(app=app), base_url="http://test"
-                    ) as ac:
-                        response = await ac.get(
-                            "/api/v1/integrations/hardware/recommendations"
-                        )
+                    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                        response = await ac.get("/api/v1/integrations/hardware/recommendations")
                         assert response.status_code == 200
                         data = response.json()
                         recs = data["data"]["recommendations"]
@@ -542,9 +484,7 @@ async def test_hardware_recommendations_moe_tps_uses_active_params():
 async def test_hardware_recommendations_params_b_in_response():
     """params_b must be present in every recommendation item (required for sorting)."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch(
-            "app.api.integrations.hardware._get_cached_hardware_profile"
-        ) as mock_profile:
+        with patch("app.api.integrations.hardware._get_cached_hardware_profile") as mock_profile:
             mock_profile_obj = MagicMock()
             mock_profile_obj.os_type = "linux"
             mock_profile_obj.cpu_arch = "x86_64"
@@ -558,14 +498,10 @@ async def test_hardware_recommendations_params_b_in_response():
             mock_profile_obj.memory_bandwidth_gbps = 760.0  # RTX 3080
             mock_profile.return_value = mock_profile_obj
 
-            with patch(
-                "app.api.integrations.hardware._get_ollama_status"
-            ) as mock_ollama:
+            with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (False, [])
 
-                with patch(
-                    "app.api.integrations.hardware.get_dynamic_model_specs"
-                ) as mock_specs:
+                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen3:8b",
@@ -585,20 +521,14 @@ async def test_hardware_recommendations_params_b_in_response():
                         },
                     ]
 
-                    async with AsyncClient(
-                        transport=ASGITransport(app=app), base_url="http://test"
-                    ) as ac:
-                        response = await ac.get(
-                            "/api/v1/integrations/hardware/recommendations"
-                        )
+                    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                        response = await ac.get("/api/v1/integrations/hardware/recommendations")
                         assert response.status_code == 200
                         data = response.json()
                         recs = data["data"]["recommendations"]
 
                         for rec in recs:
-                            assert (
-                                "params_b" in rec
-                            ), f"params_b missing from {rec['model_id']}"
+                            assert "params_b" in rec, f"params_b missing from {rec['model_id']}"
                             assert isinstance(rec["params_b"], (int, float))
                             assert rec["params_b"] > 0
 
@@ -606,13 +536,7 @@ async def test_hardware_recommendations_params_b_in_response():
 @pytest.mark.asyncio
 async def test_ollama_pull_sandbox_mode():
     """Test that POST /hardware/ollama/pull is forbidden in SANDBOX mode"""
-    with patch(
-        "app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
-            response = await ac.post(
-                "/api/v1/integrations/hardware/ollama/pull", json={"model_name": "test"}
-            )
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post("/api/v1/integrations/hardware/ollama/pull", json={"model_name": "test"})
             assert response.status_code == 403

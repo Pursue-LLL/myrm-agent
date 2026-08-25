@@ -149,9 +149,7 @@ async def test_fast_evicted_file_read_reads_real_spill_on_disk(
         read_tool = create_file_read_tool(path_policy="evicted_uploaded")
         result = await read_tool.ainvoke(
             {"paths": [rel], "mode": "all"},
-            config=RunnableConfig(
-                configurable={"chat_id": chat_id, "supports_vision": False}
-            ),
+            config=RunnableConfig(configurable={"chat_id": chat_id, "supports_vision": False}),
         )
     finally:
         reset_executor(exec_token)
@@ -180,9 +178,7 @@ async def test_fast_evicted_file_read_blocks_workspace_source_on_disk(
         with pytest.raises(ToolError, match="blocked"):
             await read_tool.ainvoke(
                 {"paths": ["secret.txt"], "mode": "all"},
-                config=RunnableConfig(
-                    configurable={"chat_id": chat_id, "supports_vision": False}
-                ),
+                config=RunnableConfig(configurable={"chat_id": chat_id, "supports_vision": False}),
             )
     finally:
         reset_executor(exec_token)
@@ -246,9 +242,7 @@ async def test_fast_evicted_file_read_allows_uploaded_path_on_disk(
         read_tool = create_file_read_tool(path_policy="evicted_uploaded")
         result = await read_tool.ainvoke(
             {"paths": ["_uploaded/report.md"], "mode": "all"},
-            config=RunnableConfig(
-                configurable={"chat_id": chat_id, "supports_vision": False}
-            ),
+            config=RunnableConfig(configurable={"chat_id": chat_id, "supports_vision": False}),
         )
     finally:
         reset_executor(exec_token)
@@ -304,9 +298,7 @@ async def test_failed_bash_stdout_evicted_and_readable_via_file_read(
         ):
             await bash_tool.ainvoke(
                 {
-                    "command": (
-                        'python3 -c "import sys; [print(i) for i in range(2000)]; 1/0"'
-                    ),
+                    "command": ('python3 -c "import sys; [print(i) for i in range(2000)]; 1/0"'),
                     "reason": "integration verify failed bash stdout eviction",
                 },
                 config=config,
@@ -322,9 +314,7 @@ async def test_failed_bash_stdout_evicted_and_readable_via_file_read(
         read_tool = create_file_read_tool(path_policy="evicted_uploaded")
         read = await read_tool.ainvoke(
             {"paths": [rel], "mode": "all"},
-            config=RunnableConfig(
-                configurable={"chat_id": chat_id, "supports_vision": False}
-            ),
+            config=RunnableConfig(configurable={"chat_id": chat_id, "supports_vision": False}),
         )
         result = read if isinstance(read, str) else str(read)
     finally:
@@ -383,9 +373,7 @@ async def test_failed_bash_stderr_evicted_and_readable_via_file_read(
         ):
             await bash_tool.ainvoke(
                 {
-                    "command": (
-                        'python3 -c "import sys; [print(i, file=sys.stderr) for i in range(2000)]; 1/0"'
-                    ),
+                    "command": ('python3 -c "import sys; [print(i, file=sys.stderr) for i in range(2000)]; 1/0"'),
                     "reason": "integration verify failed bash stderr eviction",
                 },
                 config=config,
@@ -402,9 +390,7 @@ async def test_failed_bash_stderr_evicted_and_readable_via_file_read(
         read_tool = create_file_read_tool(path_policy="evicted_uploaded")
         read = await read_tool.ainvoke(
             {"paths": [rel], "mode": "all"},
-            config=RunnableConfig(
-                configurable={"chat_id": chat_id, "supports_vision": False}
-            ),
+            config=RunnableConfig(configurable={"chat_id": chat_id, "supports_vision": False}),
         )
         result = read if isinstance(read, str) else str(read)
     finally:

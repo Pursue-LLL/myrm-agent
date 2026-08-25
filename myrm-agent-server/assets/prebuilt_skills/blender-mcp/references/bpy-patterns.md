@@ -10,8 +10,8 @@ physics, particles, and workflow patterns for complex scenes.
 ```python
 obj_a = bpy.data.objects["Base"]
 obj_b = bpy.data.objects["Cutter"]
-mod = obj_a.modifiers.new(name="Boolean", type='BOOLEAN')
-mod.operation = 'DIFFERENCE'
+mod = obj_a.modifiers.new(name="Boolean", type="BOOLEAN")
+mod.operation = "DIFFERENCE"
 mod.object = obj_b
 bpy.context.view_layer.objects.active = obj_a
 bpy.ops.object.modifier_apply(modifier="Boolean")
@@ -42,13 +42,13 @@ bm.free()
 bpy.ops.mesh.primitive_torus_add(major_radius=0.5, minor_radius=0.1)
 link = bpy.context.active_object
 
-mod = link.modifiers.new("Array", 'ARRAY')
+mod = link.modifiers.new("Array", "ARRAY")
 mod.count = 20
 mod.relative_offset_displace = (1.1, 0, 0)
 
 bpy.ops.curve.primitive_bezier_curve_add()
 curve = bpy.context.active_object
-mod2 = link.modifiers.new("Curve", 'CURVE')
+mod2 = link.modifiers.new("Curve", "CURVE")
 mod2.object = curve
 ```
 
@@ -57,11 +57,11 @@ mod2.object = curve
 ```python
 bpy.ops.mesh.primitive_plane_add(size=10)
 plane = bpy.context.active_object
-bpy.ops.object.modifier_add(type='SUBSURF')
+bpy.ops.object.modifier_add(type="SUBSURF")
 plane.modifiers["Subdivision"].levels = 6
 
-mod = plane.modifiers.new("Displace", 'DISPLACE')
-tex = bpy.data.textures.new("DispTex", type='CLOUDS')
+mod = plane.modifiers.new("Displace", "DISPLACE")
+tex = bpy.data.textures.new("DispTex", type="CLOUDS")
 tex.noise_scale = 1.5
 mod.texture = tex
 mod.strength = 0.5
@@ -79,7 +79,7 @@ bsdf = nodes.get("Principled BSDF")
 bsdf.inputs["Transmission Weight"].default_value = 1.0
 bsdf.inputs["Roughness"].default_value = 0.0
 bsdf.inputs["IOR"].default_value = 1.45
-mat.blend_method = 'HASHED'  # EEVEE transparency
+mat.blend_method = "HASHED"  # EEVEE transparency
 ```
 
 ### Emission/glow
@@ -101,17 +101,17 @@ mat.use_nodes = True
 nodes = mat.node_tree.nodes
 links = mat.node_tree.links
 
-noise = nodes.new('ShaderNodeTexNoise')
-noise.inputs['Scale'].default_value = 5.0
-noise.inputs['Detail'].default_value = 8.0
+noise = nodes.new("ShaderNodeTexNoise")
+noise.inputs["Scale"].default_value = 5.0
+noise.inputs["Detail"].default_value = 8.0
 
-ramp = nodes.new('ShaderNodeValToRGB')
+ramp = nodes.new("ShaderNodeValToRGB")
 ramp.color_ramp.elements[0].color = (0.1, 0.05, 0.02, 1)
 ramp.color_ramp.elements[1].color = (0.6, 0.4, 0.2, 1)
 
 bsdf = nodes.get("Principled BSDF")
-links.new(noise.outputs['Fac'], ramp.inputs['Fac'])
-links.new(ramp.outputs['Color'], bsdf.inputs['Base Color'])
+links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
+links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
 ```
 
 ## Physics & Particles
@@ -121,12 +121,12 @@ links.new(ramp.outputs['Color'], bsdf.inputs['Base Color'])
 ```python
 obj = bpy.data.objects["Cube"]
 bpy.context.view_layer.objects.active = obj
-bpy.ops.rigidbody.object_add(type='ACTIVE')
+bpy.ops.rigidbody.object_add(type="ACTIVE")
 obj.rigid_body.mass = 5.0
 
 ground = bpy.data.objects["Ground"]
 bpy.context.view_layer.objects.active = ground
-bpy.ops.rigidbody.object_add(type='PASSIVE')
+bpy.ops.rigidbody.object_add(type="PASSIVE")
 ```
 
 ### Particle system (rain/snow)
@@ -138,8 +138,8 @@ bpy.ops.object.particle_system_add()
 ps = obj.particle_systems[0].settings
 ps.count = 1000
 ps.lifetime = 50
-ps.emit_from = 'FACE'
-ps.physics_type = 'NEWTON'
+ps.emit_from = "FACE"
+ps.physics_type = "NEWTON"
 ps.normal_factor = -5.0  # downward
 ```
 
@@ -162,7 +162,7 @@ pivot.keyframe_insert(data_path="rotation_euler", frame=120)
 
 for fc in pivot.animation_data.action.fcurves:
     for kp in fc.keyframe_points:
-        kp.interpolation = 'LINEAR'
+        kp.interpolation = "LINEAR"
 ```
 
 ## Render Settings
@@ -171,8 +171,8 @@ for fc in pivot.animation_data.action.fcurves:
 
 ```python
 scene = bpy.context.scene
-scene.render.engine = 'CYCLES'
-scene.cycles.device = 'GPU'
+scene.render.engine = "CYCLES"
+scene.cycles.device = "GPU"
 scene.cycles.samples = 256
 scene.cycles.use_denoising = True
 scene.render.resolution_x = 1920
@@ -184,7 +184,7 @@ scene.render.film_transparent = True  # transparent background
 
 ```python
 scene = bpy.context.scene
-scene.render.engine = 'BLENDER_EEVEE_NEXT'
+scene.render.engine = "BLENDER_EEVEE_NEXT"
 scene.eevee.taa_render_samples = 64
 scene.render.resolution_x = 1920
 scene.render.resolution_y = 1080

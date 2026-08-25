@@ -103,4 +103,3 @@ class TestHumanGateResponseEndpoint:
         )
         assert resp.status_code == 200
         assert waiter.is_resolved
-

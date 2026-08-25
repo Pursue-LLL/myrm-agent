@@ -323,4 +323,3 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             spec,
             wake_dispatcher=self._wake_dispatcher,
         )
-

@@ -34,9 +34,7 @@ def _collect_agent_response(
     events: list[dict[str, object]] = []
     chunks: list[str] = []
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_body
-    ) as resp:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as resp:
         if resp.status_code != 200:
             resp.read()
             pytest.fail(f"HTTP {resp.status_code}: {resp.text}")
@@ -85,12 +83,8 @@ class TestQuoteInjection:
             quote=f"这段文字中包含一个特殊单词：{magic_word}，请记住它。",
         )
         if not answer:
-            pytest.skip(
-                "LLM returned empty response (model may be rate-limited or unavailable)"
-            )
-        assert (
-            magic_word in answer
-        ), f"LLM 应该在回复中包含引用中的特殊单词 '{magic_word}'，但实际回复: {answer[:200]}"
+            pytest.skip("LLM returned empty response (model may be rate-limited or unavailable)")
+        assert magic_word in answer, f"LLM 应该在回复中包含引用中的特殊单词 '{magic_word}'，但实际回复: {answer[:200]}"
 
     def test_no_quote_still_works(self, client: TestClient) -> None:
         """不带 quote 时正常工作（回归测试）"""

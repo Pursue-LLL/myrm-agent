@@ -104,9 +104,7 @@ class CronPrerequisiteService:
                     ),
                 )
                 if agent_id:
-                    kanban_stmt = kanban_stmt.where(
-                        KanbanTaskModel.agent_id == agent_id
-                    )
+                    kanban_stmt = kanban_stmt.where(KanbanTaskModel.agent_id == agent_id)
                 k_res = await db.execute(kanban_stmt)
                 kanban_verified += k_res.scalar_one() or 0
 

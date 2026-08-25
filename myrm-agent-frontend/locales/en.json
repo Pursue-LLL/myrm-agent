@@ -14930,7 +14930,15 @@
     "tabDiff": "Diff ({count})",
     "tabMessages": "Messages",
     "loadingMessages": "Loading messages...",
-    "noMessages": "No messages yet"
+    "noMessages": "No messages yet",
+    "copyDiff": "Copy diff",
+    "copied": "Copied",
+    "expandLongDiff": "Show {count} more lines",
+    "collapseLongDiff": "Collapse long diff",
+    "workspacePath": "Workspace Path",
+    "workspacePathEmpty": "Workspace path cannot be empty",
+    "workspacePathInvalidChars": "Workspace path contains invalid control characters",
+    "workspacePathMustBeAbsolute": "Workspace path must be an absolute path or start with ~"
   },
   "growthDashboard": {
     "title": "Growth Dashboard",

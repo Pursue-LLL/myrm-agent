@@ -103,6 +103,7 @@ Python toolsets (recommended):
 import unreal
 import toolset_registry
 
+
 @unreal.uclass()
 class MyTools(unreal.ToolsetDefinition):
     """Toolset description for the agent."""

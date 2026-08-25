@@ -2503,4 +2503,3 @@ class TestSyntheticRun:
         resp = client.post(f"/api/v1/kanban/boards/{bid}/replan", json=replan_payload)
         assert resp.status_code == 400
         assert "Cannot modify task" in resp.json()["detail"]
-

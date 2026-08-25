@@ -43,4 +43,3 @@ async def test_prerequisite_service_edge_cases():
     )
     assert len(stats_tools.fingerprint) == 64
     assert stats_tools.threshold == DEFAULT_PREREQUISITE_THRESHOLD
-

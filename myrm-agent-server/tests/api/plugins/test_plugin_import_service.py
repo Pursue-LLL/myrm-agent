@@ -1230,6 +1230,9 @@ class TestListAndUninstallPlugins:
             "plugin_name": "demo-plugin",
             "removed_servers": 1,
             "unbound_agents": 1,
+            "evicted_tools": 0,
+            "purged_cron_jobs": 0,
+            "paused_cron_jobs": 0,
             "removed_files": False,
         }
         # Only the plugin's server is removed; user-mcp survives.
@@ -1304,7 +1307,6 @@ class TestListAndUninstallPlugins:
 
     async def test_uninstall_performs_4d_eviction(self, tmp_path: Path) -> None:
         """Verify uninstall executes full 4D capability eviction pipeline."""
-        from app.services.plugins.import_service import uninstall_plugin
         from myrm_agent_harness.core.security.tool_registry.registry import (
             MCPAnnotations,
             SafetyMetadata,
@@ -1312,14 +1314,14 @@ class TestListAndUninstallPlugins:
             register_ptc_safety_metadata,
         )
 
+        from app.services.plugins.import_service import uninstall_plugin
+
         plugin_name = "test-evict-plugin"
         server_name = "test-evict-server"
         tool_name = "test_evict_tool"
 
         # Setup registered PTC tool
-        register_ptc_safety_metadata(
-            plugin_name, tool_name, SafetyMetadata(), MCPAnnotations()
-        )
+        register_ptc_safety_metadata(plugin_name, tool_name, SafetyMetadata(), MCPAnnotations())
         assert get_ptc_safety_metadata(plugin_name, tool_name) is not None
 
         config_service = SimpleNamespace(
@@ -1373,4 +1375,3 @@ class TestListAndUninstallPlugins:
         assert res["removed_files"] is True
         # Tool metadata is now completely gone from memory
         assert get_ptc_safety_metadata(plugin_name, tool_name) is None
-

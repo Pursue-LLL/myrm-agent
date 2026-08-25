@@ -150,6 +150,7 @@ for table in doc.tables:
                     if donor is not None:
                         new_run._element.insert(0, deepcopy(donor._element.find(qn("w:rPr"))))
 
+
 def find_donor_run(row):
     """Find the first run with formatting in the same row."""
     for c in row.cells:
@@ -244,17 +245,19 @@ from openpyxl.styles import Font, Alignment, Border, Side, PatternFill, numbers
 
 header_font = Font(bold=True, size=11, color="FFFFFF")
 header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
-currency_format = '#,##0.00'
-pct_format = '0.0%'
+currency_format = "#,##0.00"
+pct_format = "0.0%"
 thin_border = Border(
-    left=Side(style='thin'), right=Side(style='thin'),
-    top=Side(style='thin'), bottom=Side(style='thin'),
+    left=Side(style="thin"),
+    right=Side(style="thin"),
+    top=Side(style="thin"),
+    bottom=Side(style="thin"),
 )
 
 for cell in ws[1]:
     cell.font = header_font
     cell.fill = header_fill
-    cell.alignment = Alignment(horizontal='center')
+    cell.alignment = Alignment(horizontal="center")
 ```
 
 #### Data Validation and Charts
@@ -292,13 +295,13 @@ Before writing any data, scan the workbook to understand its structure:
 ```python
 from openpyxl import load_workbook
 
-wb = load_workbook('template.xlsx')
+wb = load_workbook("template.xlsx")
 
 formula_cells = set()
 for ws in wb.worksheets:
     for row in ws.iter_rows():
         for cell in row:
-            if isinstance(cell.value, str) and cell.value.startswith('='):
+            if isinstance(cell.value, str) and cell.value.startswith("="):
                 formula_cells.add(f"{ws.title}!{cell.coordinate}")
 ```
 
@@ -309,10 +312,10 @@ If no color marks exist, treat any cell whose value starts with `=` as a formula
 
 ```python
 # CORRECT — write to a non-formula cell
-ws['B2'] = 5000000
+ws["B2"] = 5000000
 
 # WRONG — overwrites a SUM formula with a hardcoded number
-ws['B10'] = 10000000  # B10 was =SUM(B2:B9)
+ws["B10"] = 10000000  # B10 was =SUM(B2:B9)
 ```
 
 ##### Step 3: Verify formula integrity after writing
@@ -324,14 +327,14 @@ post_edit_formulas = set()
 for ws in wb.worksheets:
     for row in ws.iter_rows():
         for cell in row:
-            if isinstance(cell.value, str) and cell.value.startswith('='):
+            if isinstance(cell.value, str) and cell.value.startswith("="):
                 post_edit_formulas.add(f"{ws.title}!{cell.coordinate}")
 
 lost = formula_cells - post_edit_formulas
 if lost:
     raise RuntimeError(f"Formulas lost in cells: {lost}")
 
-wb.save('output.xlsx')
+wb.save("output.xlsx")
 ```
 
 If formulas were lost, do **not** deliver the file. Investigate, fix, and retry.
@@ -405,12 +408,15 @@ from pptx.enum.chart import XL_CHART_TYPE
 from pptx.util import Inches
 
 chart_data = CategoryChartData()
-chart_data.categories = ['Q1', 'Q2', 'Q3', 'Q4']
-chart_data.add_series('Revenue', (120, 135, 148, 162))
+chart_data.categories = ["Q1", "Q2", "Q3", "Q4"]
+chart_data.add_series("Revenue", (120, 135, 148, 162))
 
 chart_frame = slide.shapes.add_chart(
     XL_CHART_TYPE.COLUMN_CLUSTERED,
-    Inches(1), Inches(2), Inches(8), Inches(4.5),
+    Inches(1),
+    Inches(2),
+    Inches(8),
+    Inches(4.5),
     chart_data,
 )
 ```
@@ -444,16 +450,16 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 doc = Document()
 
-style = doc.styles['Normal']
-style.font.name = 'Calibri'
+style = doc.styles["Normal"]
+style.font.name = "Calibri"
 style.font.size = Pt(11)
 style.paragraph_format.space_after = Pt(6)
 
-doc.add_heading('Quarterly Business Review', level=0)
-doc.add_paragraph('Prepared by Analytics Team | Q2 2026')
+doc.add_heading("Quarterly Business Review", level=0)
+doc.add_paragraph("Prepared by Analytics Team | Q2 2026")
 
-doc.add_heading('Executive Summary', level=1)
-doc.add_paragraph('Revenue grew 15% quarter-over-quarter...')
+doc.add_heading("Executive Summary", level=1)
+doc.add_paragraph("Revenue grew 15% quarter-over-quarter...")
 ```
 
 #### Formatting Standards
@@ -468,10 +474,10 @@ doc.add_paragraph('Revenue grew 15% quarter-over-quarter...')
 #### Table Formatting
 
 ```python
-table = doc.add_table(rows=4, cols=3, style='Light Grid Accent 1')
-table.rows[0].cells[0].text = 'Metric'
-table.rows[0].cells[1].text = 'Q1'
-table.rows[0].cells[2].text = 'Q2'
+table = doc.add_table(rows=4, cols=3, style="Light Grid Accent 1")
+table.rows[0].cells[0].text = "Metric"
+table.rows[0].cells[1].text = "Q1"
+table.rows[0].cells[2].text = "Q2"
 
 for cell in table.rows[0].cells:
     cell.paragraphs[0].runs[0].font.bold = True
@@ -524,19 +530,19 @@ section.left_margin = Cm(2.8)
 section.right_margin = Cm(2.6)
 
 # Normal style — FangSong_GB2312, 16pt, 28pt fixed line spacing
-style = doc.styles['Normal']
-style.font.name = '仿宋_GB2312'
+style = doc.styles["Normal"]
+style.font.name = "仿宋_GB2312"
 style.font.size = Pt(16)
-style.element.rPr.rFonts.set(qn('w:eastAsia'), '仿宋_GB2312')
+style.element.rPr.rFonts.set(qn("w:eastAsia"), "仿宋_GB2312")
 style.paragraph_format.line_spacing = Pt(28)
 style.paragraph_format.line_spacing_rule = 4  # EXACTLY
 
 # Title
 title_para = doc.add_paragraph()
 title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = title_para.add_run('关于XX的通知')
-run.font.name = '小标宋体'
-run.element.rPr.rFonts.set(qn('w:eastAsia'), '小标宋体')
+run = title_para.add_run("关于XX的通知")
+run.font.name = "小标宋体"
+run.element.rPr.rFonts.set(qn("w:eastAsia"), "小标宋体")
 run.font.size = Pt(22)
 run.font.bold = True
 ```
@@ -588,9 +594,9 @@ section.bottom_margin = Cm(2.54)
 section.left_margin = Cm(3.17)
 section.right_margin = Cm(3.17)
 
-style = doc.styles['Normal']
-style.font.name = 'Times New Roman'
-style.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+style = doc.styles["Normal"]
+style.font.name = "Times New Roman"
+style.element.rPr.rFonts.set(qn("w:eastAsia"), "宋体")
 style.font.size = Pt(12)
 style.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
 ```
@@ -607,6 +613,7 @@ After generating:
 
 ```python
 import os
+
 filepath = "./output/report.xlsx"
 size = os.path.getsize(filepath)
 print(f"Created: {filepath} ({size:,} bytes)")

@@ -210,6 +210,7 @@ await server.connect(transport);
 
 ```python
 import os
+
 API_KEY = os.environ.get("SERVICE_API_KEY", "")
 if not API_KEY:
     raise ValueError("Set SERVICE_API_KEY environment variable")
@@ -235,12 +236,13 @@ async def list_all(cursor: str | None = None, limit: int = 50) -> dict:
 import asyncio
 import httpx
 
+
 async def request_with_retry(client: httpx.AsyncClient, method: str, url: str, **kwargs) -> httpx.Response:
     """HTTP request with exponential backoff on rate limits."""
     for attempt in range(3):
         resp = await client.request(method, url, **kwargs)
         if resp.status_code == 429:
-            wait = 2 ** attempt
+            wait = 2**attempt
             await asyncio.sleep(wait)
             continue
         resp.raise_for_status()
@@ -261,6 +263,7 @@ import asyncio
 import subprocess
 import json
 
+
 async def verify_server(command: list[str]):
     """Verify MCP server starts and responds to initialize."""
     proc = await asyncio.create_subprocess_exec(
@@ -270,11 +273,21 @@ async def verify_server(command: list[str]):
         stderr=asyncio.subprocess.PIPE,
     )
 
-    init_request = json.dumps({
-        "jsonrpc": "2.0", "id": 1, "method": "initialize",
-        "params": {"protocolVersion": "2024-11-05",
-                   "capabilities": {}, "clientInfo": {"name": "verify", "version": "1.0"}}
-    }) + "\n"
+    init_request = (
+        json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "verify", "version": "1.0"},
+                },
+            }
+        )
+        + "\n"
+    )
 
     proc.stdin.write(init_request.encode())
     await proc.stdin.drain()
@@ -298,6 +311,7 @@ async def verify_server(command: list[str]):
 
     proc.terminate()
     print("PASS: Server verified successfully")
+
 
 # Usage: asyncio.run(verify_server(["python", "server.py"]))
 ```

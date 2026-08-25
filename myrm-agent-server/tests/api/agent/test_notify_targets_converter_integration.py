@@ -36,17 +36,13 @@ def _resolved_with_notify() -> ResolvedAgentProfile:
         enabled_builtin_tools=("web_search",),
         system_prompt="You are a notifier.",
         model="openai/gpt-4o-mini",
-        notify_targets=(
-            {"channel": "telegram", "recipient_id": "chat_1", "label": "Alerts"},
-        ),
+        notify_targets=({"channel": "telegram", "recipient_id": "chat_1", "label": "Alerts"},),
     )
 
 
 class TestNotifyTargetsConverterIntegration:
     @pytest.mark.asyncio
-    async def test_notify_targets_propagate_in_normal_mode(
-        self, base_request: dict
-    ) -> None:
+    async def test_notify_targets_propagate_in_normal_mode(self, base_request: dict) -> None:
         from app.services.agent.params.converter import convert_to_general_agent_params
 
         mock_resolver = AsyncMock()
@@ -63,9 +59,7 @@ class TestNotifyTargetsConverterIntegration:
             params, _, _, _, _ = await convert_to_general_agent_params(request, [])
             mock_resolver.resolve.assert_awaited_once_with("notify-agent-1")
 
-        assert params.notify_targets == (
-            {"channel": "telegram", "recipient_id": "chat_1", "label": "Alerts"},
-        )
+        assert params.notify_targets == ({"channel": "telegram", "recipient_id": "chat_1", "label": "Alerts"},)
 
     @pytest.mark.asyncio
     async def test_fast_search_clears_notify_targets(self, base_request: dict) -> None:

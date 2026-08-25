@@ -43,7 +43,7 @@ Fix pattern:
 ```python
 bpy.context.view_layer.objects.active = obj
 obj.select_set(True)
-bpy.ops.object.mode_set(mode='OBJECT')
+bpy.ops.object.mode_set(mode="OBJECT")
 ```
 
 Prefer `bpy.data.*` direct manipulation when possible — it doesn't require
@@ -77,7 +77,7 @@ obj.data.materials.append(mat)
 For complex rotations, prefer quaternions or set rotation mode:
 
 ```python
-obj.rotation_mode = 'QUATERNION'
+obj.rotation_mode = "QUATERNION"
 obj.rotation_quaternion = (w, x, y, z)
 ```
 
@@ -85,6 +85,7 @@ Or use matrices for compound transforms:
 
 ```python
 from mathutils import Matrix, Euler
+
 mat_rot = Euler((x, y, z)).to_matrix().to_4x4()
 obj.matrix_world = mat_rot
 ```
@@ -117,8 +118,8 @@ material verification, ensure viewport is in Material Preview or Rendered mode:
 
 ```python
 for area in bpy.context.screen.areas:
-    if area.type == 'VIEW_3D':
-        area.spaces[0].shading.type = 'MATERIAL'
+    if area.type == "VIEW_3D":
+        area.spaces[0].shading.type = "MATERIAL"
         break
 ```
 

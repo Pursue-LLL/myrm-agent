@@ -53,7 +53,9 @@ def _parse_target_run_at(arguments: dict[str, Any]) -> datetime | None:
     now = datetime.now(UTC)
 
     # 1. Check relative minutes (minutes_later / minutes_from_now)
-    minutes_raw = arguments.get("minutes_later") if arguments.get("minutes_later") is not None else arguments.get("minutes_from_now")
+    minutes_raw = (
+        arguments.get("minutes_later") if arguments.get("minutes_later") is not None else arguments.get("minutes_from_now")
+    )
     if minutes_raw is not None:
         try:
             minutes_val = float(minutes_raw)
@@ -74,9 +76,7 @@ def _parse_target_run_at(arguments: dict[str, Any]) -> datetime | None:
 
     # 3. Check ISO target timestamp (schedule_time / target_time / run_at)
     target_iso = str(
-        arguments.get("schedule_time", "")
-        or arguments.get("target_time", "")
-        or arguments.get("run_at", "")
+        arguments.get("schedule_time", "") or arguments.get("target_time", "") or arguments.get("run_at", "")
     ).strip()
     if target_iso:
         try:
@@ -99,12 +99,7 @@ def _parse_target_run_at(arguments: dict[str, Any]) -> datetime | None:
 async def execute_set_reminder(req: RealtimeToolExecRequest) -> RealtimeToolExecResponse:
     """Create a single-shot reminder cron job."""
     args = req.arguments
-    title = str(
-        args.get("content", "")
-        or args.get("title", "")
-        or args.get("prompt", "")
-        or args.get("task", "")
-    ).strip()
+    title = str(args.get("content", "") or args.get("title", "") or args.get("prompt", "") or args.get("task", "")).strip()
     if not title:
         return RealtimeToolExecResponse(result=None, error="content is required")
 

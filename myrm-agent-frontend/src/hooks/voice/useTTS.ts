@@ -446,7 +446,16 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
     [state, pause, resume, speak],
   );
 
-  return { state, speak, pause, resume, stop, toggle, supported: true };
+  const replayLast = useCallback((): boolean => {
+    const last = getLastSpokenText();
+    if (!last) {
+      return false;
+    }
+    speak(last);
+    return true;
+  }, [speak]);
+
+  return { state, speak, replayLast, pause, resume, stop, toggle, supported: true };
 }
 
 // ---------------------------------------------------------------------------

@@ -38,15 +38,9 @@ async def _cleanup() -> Iterator[None]:
     async def _remove() -> None:
         async with session_factory() as session:
             for key in ("orgMcpServers", "providers"):
-                row = (
-                    await session.execute(
-                        select(UserConfig).where(UserConfig.config_key == key)
-                    )
-                ).scalar_one_or_none()
+                row = (await session.execute(select(UserConfig).where(UserConfig.config_key == key))).scalar_one_or_none()
                 if row:
-                    await session.execute(
-                        delete(UserConfig).where(UserConfig.config_key == key)
-                    )
+                    await session.execute(delete(UserConfig).where(UserConfig.config_key == key))
             await session.commit()
         invalidate_user_configs_cache()
 
@@ -61,11 +55,7 @@ async def _seed_providers() -> None:
     basic_key = os.environ.get("BASIC_API_KEY", "test-key")
     basic_url = os.environ.get("BASIC_BASE_URL", "https://apihub.agnes-ai.com/v1")
     providers_dict = {
-        "defaultModelConfig": {
-            "baseModel": {
-                "primary": {"providerId": "test-provider", "model": basic_model}
-            }
-        },
+        "defaultModelConfig": {"baseModel": {"primary": {"providerId": "test-provider", "model": basic_model}}},
         "providers": [
             {
                 "id": "test-provider",
@@ -139,8 +129,6 @@ async def test_org_mcp_reaches_agent_params(_cleanup: None) -> None:
         action_mode="agent",
         model_selection={"providerId": "test-provider", "model": "agnes-2.5-flash"},
     )
-    params, routing, specialty, warnings, archive = (
-        await convert_to_general_agent_params(request, [["user", "hello"]])
-    )
+    params, routing, specialty, warnings, archive = await convert_to_general_agent_params(request, [["user", "hello"]])
     mcp_names = [(c.name, c.type) for c in (params.mcp_cfg or [])]
     assert ("org-probe", "stdio") in mcp_names

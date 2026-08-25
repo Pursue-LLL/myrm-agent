@@ -317,26 +317,19 @@ api/ → services/ → ai_agents/ → core/
 from myrm_agent_harness.utils.errors import ToolError
 
 # 简单用法
-raise ToolError(
-    message="Container exited with code 255",
-    user_hint="Check if the return value is JSON serializable"
-)
+raise ToolError(message="Container exited with code 255", user_hint="Check if the return value is JSON serializable")
 
 # 完整用法（诊断信息 + 修复建议）
 raise ToolError(
     message="Container exited with code 255",
     user_hint="You may have used a return value with an unclear structure.",
-    diagnostic_info={
-        "error_category": "execution_failure",
-        "exit_code": 255,
-        "last_output": "..."
-    },
+    diagnostic_info={"error_category": "execution_failure", "exit_code": 255, "last_output": "..."},
     recovery_suggestions=[
         "Check if the return value is JSON serializable",
         "Verify the command syntax is correct",
-        "Try running the command with simpler arguments"
+        "Try running the command with simpler arguments",
     ],
-    error_code="SANDBOX_EXIT_255"
+    error_code="SANDBOX_EXIT_255",
 )
 ```
 

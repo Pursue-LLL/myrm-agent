@@ -47,9 +47,7 @@ class TestToolGatewayConverterIntegration:
 
         assert params.tool_gateway_config is not None
         assert params.tool_gateway_config["use_gateway"] is True
-        assert (
-            params.tool_gateway_config["gateway_url"] == "https://cp.example/tool-relay"
-        )
+        assert params.tool_gateway_config["gateway_url"] == "https://cp.example/tool-relay"
         assert params.tool_gateway_config["auth_token"] == "sandbox-vk"
 
     @pytest.mark.asyncio
