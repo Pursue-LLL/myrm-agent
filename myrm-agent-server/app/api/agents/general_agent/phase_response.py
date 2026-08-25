@@ -38,6 +38,15 @@ class PlanConfirmRequest(BaseModel):
         populate_by_name = True
 
 
+class HumanGateResponseRequest(BaseModel):
+    message_id: str
+    answer: str
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
 @router.post("/clarify-response")
 async def clarify_response(
     request: ClarifyResponseRequest,
@@ -85,3 +94,25 @@ async def plan_confirm_response(
         request.action,
     )
     return success_response(data={"status": "resolved", "action": request.action})
+
+
+@router.post("/human-gate-response")
+async def human_gate_response(
+    request: HumanGateResponseRequest,
+) -> JSONResponse:
+    """Resolve a pending Dynamic Workflow mid-run human_ask gate."""
+    from app.core.utils.response_utils import error_response, success_response
+
+    ask_key = f"human_gate:{request.message_id}"
+    waiter = PhaseWaiter.get(ask_key)
+    if waiter is None:
+        return error_response("No pending human gate for this message", code=404)
+
+    waiter.resolve(request.answer)
+    logger.info(
+        "Human gate resolved: message_id=%s, answer_len=%d",
+        request.message_id,
+        len(request.answer),
+    )
+    return success_response(data={"status": "resolved"})
+

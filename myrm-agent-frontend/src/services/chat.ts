@@ -1071,6 +1071,19 @@ export const submitPlanConfirmResponse = async (
 };
 
 /**
+ * Submit user's answer to a Dynamic Workflow mid-run human gate.
+ */
+export const submitHumanGateResponse = async (
+  messageId: string,
+  answer: string,
+): Promise<void> => {
+  await apiRequest('/agents/human-gate-response', {
+    method: 'POST',
+    body: JSON.stringify({ messageId, answer }),
+  });
+};
+
+/**
  * Resume a General Agent plan confirmation interrupt via the main SSE stream.
  * Uses the same resume_value mechanism as tool approval.
  */
