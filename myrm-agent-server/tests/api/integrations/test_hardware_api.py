@@ -10,6 +10,8 @@ from app.api.integrations.hardware import router as hardware_router
 from app.api.integrations.hardware_calculator import (
     calculate_kv_cache_vram_gb,
     derive_hardware_rung,
+)
+from app.api.integrations.hardware_calculator import (
     estimate_tok_per_sec as _estimate_tok_per_sec,
 )
 from app.config.deploy_mode import DeployMode
