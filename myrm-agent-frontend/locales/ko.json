@@ -104,6 +104,7 @@
     },
     "menu": {
       "account": "계정",
+      "workbench": "내 워크벤치",
       "preferences": "기본 설정",
       "personalization": "개인화",
       "agents": "에이전트",
@@ -167,6 +168,68 @@
       "theme-studio": "테마 스튜디오",
       "themeStudio": "테마 스튜디오",
       "compoundingPlaybook": "복리 루프"
+    },
+    "workbench": {
+      "badge": "자산 보존 및 플랫폼 중립성",
+      "title": "내 워크벤치",
+      "description": "현재 워크스페이스에 축적된 모든 핵심 자산을 실시간으로 집계합니다. Myrm은 개방적이고 중립적인 아키텍처를 채택하여 모든 자산이 표준 형식으로 영구 저장되며, 언제든지 무손실 마이그레이션 및 내보내기가 가능합니다.",
+      "refresh": "자산 새로고침",
+      "assetMatrixTitle": "핵심 자산 보존 개요",
+      "assets": {
+        "memory": {
+          "title": "메모리 보관소 (Memory Vault)",
+          "score": "건강도 {score}%",
+          "desc": "에이전트의 추론 및 의사결정을 지원하는 사용자 선호도, 장기 경험 및 대화 통찰력."
+        },
+        "wiki": {
+          "title": "Wiki 지식 베이스 (Knowledge Base)",
+          "rawCount": "{count}개 소스 파일",
+          "desc": "정밀한 검색과 문맥 확장을 제공하는 구조화된 개념 인덱스 및 도메인 지식."
+        },
+        "skills": {
+          "title": "스킬 라이브러리 (Skills Library)",
+          "evolutions": "{count}회 자가 진화",
+          "desc": "개방형 표준 프로토콜을 완전히 준수하는 프로덕션 레벨 재사용 도구 및 자가 진화 스크립트."
+        },
+        "rules": {
+          "title": "작업공간 규칙 (Workspace Rules)",
+          "chars": "{count}자",
+          "desc": "에이전트의 결정론적이고 엄격한 동작을 보장하는 코딩 규칙, 아키텍처 가이드라인 및 실행 원칙."
+        },
+        "cron": {
+          "title": "예약 작업 (Cron Workflows)",
+          "runs": "이번 주 {count}회 실행",
+          "desc": "자동 점검, 정기 데이터 정리 및 정기 보고서 백그라운드 파이프라인."
+        },
+        "storage": {
+          "title": "영구 스토리지 (Volume / Disk)",
+          "desc": "로컬 작업 디렉터리 또는 전용 영구 볼륨으로, 모든 데이터의 소유권은 온전히 귀하에게 있습니다."
+        }
+      },
+      "sovereignty": {
+        "title": "데이터 주권 및 중립 플랫폼의 이점",
+        "subtitle": "독점적인 폐쇄형 생태계 종속에서 벗어나세요. 공급업체 락인 없이 모든 자산이 투명하고 자유롭게 이전 가능합니다.",
+        "exportConfig": "워크스페이스 설정 내보내기",
+        "exportMemory": "메모리 자산 백업",
+        "points": {
+          "decouplingTitle": "모델과 자산의 분리",
+          "decouplingDesc": "Claude, DeepSeek, GPT, Gemini 등 모든 대형 모델로 언제든지 핫스왑할 수 있으며 기존 자산과 스킬은 100% 유지됩니다.",
+          "standardTitle": "개방형 표준 스토리지",
+          "standardDesc": "모든 Wiki, Markdown 규칙 및 SQLite 메모리는 개방형 표준 사양을 기반으로 저장되어 독점 포맷 종속을 방지합니다.",
+          "zeroLockinTitle": "종속 없는 빠른 마이그레이션",
+          "zeroLockinDesc": "완벽한 가져오기/내보내기 툴체인을 통해 워크스페이스의 모든 구성과 지식 베이스를 클릭 한 번으로 패키징할 수 있습니다."
+        }
+      },
+      "deployHonest": {
+        "title": "영구 스토리지 아키텍처 안내",
+        "tauriSubtitle": "현재 데스크톱 클라이언트 (Tauri) 환경에서 실행 중입니다. 모든 자산은 로컬 파일 시스템에 직접 저장됩니다.",
+        "sandboxSubtitle": "현재 클라우드 전용 샌드박스 환경에서 실행 중입니다. 전용 영구 스토리지 볼륨 (Persistent Volume)이 제공되어 재시작 시에도 데이터가 유지됩니다.",
+        "localSubtitle": "현재 로컬 자체 호스팅 서버 환경에서 실행 중입니다. 데이터는 로컬 마운트 디렉터리에 저장됩니다.",
+        "dataPathLabel": "데이터 영구 저장 경로",
+        "tauriDetail": "데스크톱 모드에서는 모든 SQLite 데이터베이스, Wiki 인덱스 및 스킬 파일이 시스템 사용자 디렉터리에 저장되어 완전한 오프라인 사용이 가능합니다.",
+        "sandboxDetail": "각 사용자 샌드박스에는 공유 멀티테넌트 스토리지가 아닌 전용 비공개 볼륨이 할당되어 엄격한 프라이버시를 보장하며 언제든지 다운로드할 수 있습니다.",
+        "localDetail": "서버는 외부 클라우드 의존성 없이 로컬 디스크 및 SQLite 인스턴스를 직접 읽고 쓰므로 최고의 데이터 보안을 제공합니다."
+      }
     },
     "commands": {
       "title": "슬래시 명령",
@@ -4250,6 +4313,68 @@
           "medium": "중간 위험",
           "high": "높은 위험"
         }
+      }
+    },
+    "workbench": {
+      "badge": "개인 작업 공간 및 데이터 주권",
+      "title": "데이터 주권 및 가치 축적",
+      "description": "모든 메모리, 지식 베이스 Wiki, 스킬, 규칙 및 예약된 작업이 개인 작업 공간에 안전하게 저장됩니다. 벤더 종속 없이 AI 자산을 100% 소유합니다.",
+      "refresh": "새로고침",
+      "assetMatrixTitle": "AI 자산 포트폴리오",
+      "assets": {
+        "memory": {
+          "title": "장기 메모리",
+          "score": "건강도: {score}%",
+          "desc": "세션 간 메모리, 선호도 및 개인화된 습관."
+        },
+        "wiki": {
+          "title": "지식 베이스 (Wiki)",
+          "rawCount": "{count}개 원본 문서",
+          "desc": "통합된 개념을 갖춘 구조화된 지식 네트워크."
+        },
+        "skills": {
+          "title": "습득한 스킬",
+          "evolutions": "{count}회 진화",
+          "desc": "커스텀 도구, 자동화 워크플로 및 루틴."
+        },
+        "rules": {
+          "title": "작업 공간 규칙",
+          "chars": "{count}자",
+          "desc": "시스템 지침 및 도메인 행동 제약 조건."
+        },
+        "cron": {
+          "title": "자동화 작업",
+          "runs": "{count}회 실행",
+          "desc": "예약된 작업, 능동적 감시 및 백그라운드 작업."
+        },
+        "storage": {
+          "title": "로컬 스토리지",
+          "desc": "개인 볼륨 디스크 사용량."
+        }
+      },
+      "sovereignty": {
+        "title": "데이터 주권 및 이동성",
+        "subtitle": "AI 작업 공간은 개방형 표준을 기반으로 독립적으로 실행되며 완벽한 내보내기를 지원합니다.",
+        "exportConfig": "전체 설정 내보내기",
+        "exportMemory": "메모리 내보내기",
+        "points": {
+          "decouplingTitle": "디커플링 아키텍처",
+          "decouplingDesc": "모델 계산과 비즈니스 지식의 분리로 지속적인 업그레이드를 보장합니다.",
+          "standardTitle": "개방형 형식",
+          "standardDesc": "모든 메모리와 스킬은 투명한 스키마를 따르며 플랫폼 간 호환됩니다.",
+          "zeroLockinTitle": "벤더 종속 제로",
+          "zeroLockinDesc": "컨텍스트 손실 없이 언제든지 모델 제공자나 로컬 하드웨어를 전환할 수 있습니다."
+        }
+      },
+      "deployHonest": {
+        "title": "스토리지 아키텍처",
+        "tauriSubtitle": "로컬 파일에 대한 전체 액세스 권한을 가진 네이티브 데스크톱 앱으로 실행 중.",
+        "sandboxSubtitle": "영구 볼륨이 있는 전용 격리 클라우드 샌드박스 내에서 실행 중.",
+        "localSubtitle": "로컬 자체 호스팅 WebUI 모드로 실행 중.",
+        "dataPathLabel": "활성 데이터 디렉터리",
+        "tauriDetail": "애플리케이션 상태와 데이터베이스가 개인 컴퓨터에서 직접 관리됩니다.",
+        "sandboxDetail": "데이터는 사용자별로 엄격하게 격리된 개인 샌드박스 볼륨에 보관됩니다.",
+        "localDetail": "데이터가 로컬 홈 작업 공간의 디스크에 유지됩니다."
       }
     },
     "lockedUse": {
@@ -14736,7 +14861,9 @@
       "sampleLimitPlaceholder": "전체",
       "sampleLimitTitle": "선택적 샘플 수——이만큼의 태스크만 실행합니다 (비움 = 전체 벤치마크)",
       "sampled": "샘플",
-      "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)"
+      "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)",
+      "operationalAssurance": "운영 보증 감사",
+      "operationalAssuranceDesc": "권한 거부, 도구 타임아웃, 복구, 샌드박스 고갈, 스킬 충돌, 만료된 증거 등 6대 장애 도메인을 포괄하는 결정론적 감사 스위트입니다."
     },
     "memoryAb": {
       "started": "메모리 A/B 평가가 시작되었습니다",

@@ -74,6 +74,8 @@ class AppEventType(StrEnum):
     POST_TOOL_CALL = "post_tool_call"
     SUBAGENT_SPAWNED = "subagent_spawned"
     SUBAGENT_MERGED = "subagent_merged"
+    SANDBOX_PERSIST_TRIGGERED = "sandbox_persist_triggered"
+    SANDBOX_PERSIST_COMPLETED = "sandbox_persist_completed"
 
 
 @dataclass(frozen=True, slots=True)

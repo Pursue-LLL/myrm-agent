@@ -79,9 +79,33 @@ class OllamaDeleteRequest(BaseModel):
     model_name: str = Field(..., description="Ollama 模型名称，例如 qwen2.5:0.5b")
 
 
+async def _ensure_agentic_modelfile(model_name: str, num_ctx: int = 64000) -> bool:
+    """在 Ollama 中为拉取的模型自动派生 num_ctx=64000 的 -agentic 别名 Modelfile"""
+    agentic_name = f"{model_name}-agentic"
+    modelfile_content = f"FROM {model_name}\nPARAMETER num_ctx {num_ctx}\n"
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "http://localhost:11434/api/create",
+                json={"name": agentic_name, "modelfile": modelfile_content, "stream": False},
+            )
+            if resp.status_code == 200:
+                logger.info("Successfully created 64k agentic model: %s", agentic_name)
+                return True
+            logger.warning(
+                "Failed to create agentic model %s (status %s): %s",
+                agentic_name,
+                resp.status_code,
+                resp.text,
+            )
+    except Exception as e:
+        logger.warning("Error creating agentic model %s: %s", agentic_name, e)
+    return False
+
+
 @router.delete("/ollama/models")
 async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
-    """代理 Ollama 的 /api/delete 接口"""
+    """代理 Ollama 的 /api/delete 接口，联动删除对应的 -agentic 衍生模型"""
     from app.config.deploy_mode import DeployMode, get_deploy_mode
 
     if get_deploy_mode() == DeployMode.SANDBOX:
@@ -94,6 +118,17 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
                 "http://localhost:11434/api/delete",
                 json={"name": request.model_name},
             )
+            # 若删除了基础模型，顺带尝试清理其 agentic 别名衍生模型
+            agentic_name = f"{request.model_name}-agentic"
+            try:
+                await client.request(
+                    "DELETE",
+                    "http://localhost:11434/api/delete",
+                    json={"name": agentic_name},
+                )
+            except Exception:
+                pass
+
             if response.status_code == 200:
                 return success_response(data={"success": True})
             else:
@@ -115,15 +150,16 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
 
 @router.post("/ollama/pull")
 async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
-    """代理 Ollama 的 /api/pull 接口，返回流式进度"""
+    """代理 Ollama 的 /api/pull 接口，返回流式进度，并在拉取成功后自动派生 64K agentic Modelfile"""
     from app.config.deploy_mode import DeployMode, get_deploy_mode
 
     if get_deploy_mode() == DeployMode.SANDBOX:
         raise HTTPException(status_code=403, detail="Not available in SaaS mode")
 
     async def _stream_pull():
+        pull_succeeded = False
         try:
-            async with httpx.AsyncClient(timeout=300.0) as client:
+            async with httpx.AsyncClient(timeout=600.0) as client:
                 async with client.stream(
                     "POST",
                     "http://localhost:11434/api/pull",
@@ -133,10 +169,22 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
                         yield f'{{"error": "Ollama returned status {response.status_code}"}}\n'.encode("utf-8")
                         return
                     async for chunk in response.aiter_bytes():
+                        if b'"status":"success"' in chunk:
+                            pull_succeeded = True
                         yield chunk
         except Exception as e:
             logger.error("Ollama model pull failed: %s", e)
             yield b'{"error": "Ollama model pull failed"}\n'
+            return
+
+        # 若拉取成功，自动派生 64k agentic modelfile
+        if pull_succeeded:
+            try:
+                created = await _ensure_agentic_modelfile(request.model_name, num_ctx=64000)
+                if created:
+                    yield f'{{"status": "agentic_modelfile_created", "agentic_model": "{request.model_name}-agentic"}}\n'.encode("utf-8")
+            except Exception as e:
+                logger.warning("Failed to auto-create agentic modelfile for %s: %s", request.model_name, e)
 
     return StreamingResponse(_stream_pull(), media_type="application/x-ndjson")
 

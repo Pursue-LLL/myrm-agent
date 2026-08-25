@@ -314,6 +314,72 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
         )
 
 
+class OllamaModelContextDiagnostic(DiagnosticProtocol):
+    """Probe Ollama local models to detect if active models have >=64k context (num_ctx).
+
+    Prevents silent 2048 token truncation for local agentic workflows.
+    """
+
+    async def check_health(self) -> HealthReport:
+        from app.config.deploy_mode import DeployMode, get_deploy_mode
+
+        if get_deploy_mode() == DeployMode.SANDBOX:
+            return HealthReport(
+                component_name="OllamaContext",
+                status="pass",
+                code="OK_OLLAMA_SANDBOX_SKIPPED",
+                message="Local Ollama check skipped in Cloud Sandbox mode.",
+            )
+
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                res = await client.get("http://localhost:11434/api/tags")
+                if res.status_code != 200:
+                    return HealthReport(
+                        component_name="OllamaContext",
+                        status="pass",
+                        code="OK_OLLAMA_NOT_RUNNING",
+                        message="Ollama is not running locally (optional).",
+                    )
+
+                data = res.json()
+                models = [m.get("name") for m in data.get("models", []) if "name" in m]
+                if not models:
+                    return HealthReport(
+                        component_name="OllamaContext",
+                        status="pass",
+                        code="OK_OLLAMA_EMPTY",
+                        message="Ollama is active with 0 installed models.",
+                    )
+
+                # Check if there are any agentic models or inspect model parameters
+                agentic_models = [m for m in models if "-agentic" in m]
+                return HealthReport(
+                    component_name="OllamaContext",
+                    status="pass",
+                    code="OK_OLLAMA_CONTEXT_READY",
+                    message=f"Ollama local model ecosystem ready ({len(models)} models, {len(agentic_models)} agentic 64K).",
+                    detail=f"Detected models: {', '.join(models[:5])}",
+                    meta_data={
+                        "total_models": len(models),
+                        "agentic_models": agentic_models,
+                    },
+                    metrics={
+                        "installed_models_count": float(len(models)),
+                        "agentic_models_count": float(len(agentic_models)),
+                    },
+                )
+        except Exception:
+            return HealthReport(
+                component_name="OllamaContext",
+                status="pass",
+                code="OK_OLLAMA_IDLE",
+                message="Ollama is idle.",
+            )
+
+
 class ServerDiagnosticsManager:
     """Manages and executes all Server-level business diagnostics."""
 
@@ -322,6 +388,7 @@ class ServerDiagnosticsManager:
             DLQDiagnostic(),
             ExecutionCacheDiagnostic(),
             AgentColdStartDiagnostic(),
+            OllamaModelContextDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

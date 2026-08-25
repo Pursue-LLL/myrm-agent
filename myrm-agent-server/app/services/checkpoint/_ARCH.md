@@ -9,3 +9,4 @@
 | 文件 | 职责 | I/O/P |
 |------|------|-------|
 | `snapshot_service.py` | `SnapshotInterceptor` — 业务编排层，委托 harness 工厂进行实际存储；`get_snapshot_interceptor()` 提供进程级单例，保证 per-turn 去重缓存跨 agent 创建存活；去重缓存上限 `_MAX_CACHED_TURNS=512` 防长进程内存增长 | ✅ |
+| `persistence_service.py` | `SandboxPersistenceService` — 事件驱动增量持久化编排，集成 Harness 3 级 Fail-Closed 隐私阶梯与异步序列化防抖 | ✅ |

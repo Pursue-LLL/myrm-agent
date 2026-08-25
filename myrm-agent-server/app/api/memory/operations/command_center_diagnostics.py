@@ -53,14 +53,16 @@ def _diagnostic_action_status(
     return "failed"
 
 
-def _history_status(status: str, metadata: dict[str, object]) -> Literal["healthy", "degraded", "failed"]:
-    explicit = str(metadata.get("status") or "").lower()
-    if explicit in {"healthy", "degraded", "failed"}:
+def _history_status(status: str, metadata: dict[str, object]) -> Literal["ready", "warning", "critical", "missing"]:
+    explicit = str(metadata.get("diagnostic_status") or metadata.get("status") or "").lower()
+    if explicit in {"ready", "warning", "critical", "missing"}:
         return explicit  # type: ignore[return-value]
+    if status in {"ready", "warning", "critical", "missing"}:
+        return status  # type: ignore[return-value]
     if status == "success":
         failed_count = int(metadata.get("failed_count") or 0)
-        return "degraded" if failed_count > 0 else "healthy"
-    return "failed"
+        return "warning" if failed_count > 0 else "ready"
+    return "critical"
 
 
 def _diagnostic_history_item(

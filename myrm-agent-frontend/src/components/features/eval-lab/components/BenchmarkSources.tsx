@@ -10,6 +10,7 @@ import {
   BrainCircuit,
   AlertTriangle,
   Layers,
+  ShieldCheck,
 } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -214,7 +215,11 @@ export default function BenchmarkSources({
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-2">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Boxes className="w-4 h-4 text-muted-foreground" />
+                      {source.benchmark_id === 'operational-assurance' ? (
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <Boxes className="w-4 h-4 text-muted-foreground" />
+                      )}
                       {source.name}
                     </CardTitle>
                     <div className="flex items-center gap-1.5">

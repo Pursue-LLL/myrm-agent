@@ -104,6 +104,7 @@
     },
     "menu": {
       "account": "Konto",
+      "workbench": "Meine Werkbank",
       "preferences": "Einstellungen",
       "personalization": "Personalisierung",
       "agents": "Agenten",
@@ -167,6 +168,68 @@
       "theme-studio": "Theme-Studio",
       "themeStudio": "Theme-Studio",
       "compoundingPlaybook": "Compounding-Loop"
+    },
+    "workbench": {
+      "badge": "Asset-Erhalt & Plattformneutralität",
+      "title": "Meine Werkbank",
+      "description": "Echtzeit-Aggregation aller Kern-Assets Ihres aktuellen Arbeitsbereichs. Myrm nutzt eine offene, neutrale Architektur: Alle Daten werden in Standardformaten persistiert und können jederzeit verlustfrei migriert oder exportiert werden.",
+      "refresh": "Assets aktualisieren",
+      "assetMatrixTitle": "Übersicht über den Asset-Erhalt",
+      "assets": {
+        "memory": {
+          "title": "Gedächtnistresor (Memory Vault)",
+          "score": "Integrität {score}%",
+          "desc": "Benutzerpräferenzen, Langzeiterfahrungen und Gesprächserkenntnisse zur Stärkung der Agentenentscheidungen."
+        },
+        "wiki": {
+          "title": "Wiki-Wissensdatenbank (Knowledge Base)",
+          "rawCount": "{count} Quelldateien",
+          "desc": "Strukturierter Konzeptindex und Fachwissen für präzises Retrieval und Kontextanreicherung."
+        },
+        "skills": {
+          "title": "Fähigkeiten-Bibliothek (Skills Library)",
+          "evolutions": "{count} Selbstevolutionen",
+          "desc": "Produktionsreife wiederverwendbare Werkzeuge und selbstanpassende Skripte nach offenen Standards."
+        },
+        "rules": {
+          "title": "Arbeitsbereichsregeln (Workspace Rules)",
+          "chars": "{count} Zeichen",
+          "desc": "Programmierrichtlinien, Architekturgrenzen und Ausführungsdisziplin für deterministisches Verhalten."
+        },
+        "cron": {
+          "title": "Geplante Workflows (Cron Workflows)",
+          "runs": "{count} Ausführungen diese Woche",
+          "desc": "Automatisierte Inspektionen, periodische Datenbereinigung und Hintergrundberichte."
+        },
+        "storage": {
+          "title": "Persistenter Speicher (Volume / Disk)",
+          "desc": "Lokales Arbeitsverzeichnis oder dediziertes Volume – alle Daten verbleiben vollständig in Ihrem Besitz."
+        }
+      },
+      "sovereignty": {
+        "title": "Datensouveränität & neutrale Plattformvorteile",
+        "subtitle": "Befreien Sie sich von proprietären geschlossenen Ökosystemen. Kein Vendor Lock-in, alle Daten transparent und portabel.",
+        "exportConfig": "Arbeitsbereichs-Konfiguration exportieren",
+        "exportMemory": "Gedächtnisdaten sichern",
+        "points": {
+          "decouplingTitle": "Entkopplung von Modell und Asset",
+          "decouplingDesc": "Wechseln Sie nahtlos zwischen Claude, DeepSeek, GPT und Gemini – 100% Ihrer Assets und Fähigkeiten bleiben erhalten.",
+          "standardTitle": "Offene Standardspeicherung",
+          "standardDesc": "Alle Wiki-Seiten, Markdown-Regeln und SQLite-Gedächtnisse basieren auf offenen Spezifikationen.",
+          "zeroLockinTitle": "Null Bindung & Schnelle Migration",
+          "zeroLockinDesc": "Vollständige Export-Werkzeuge ermöglichen das Verpacken von Konfigurationen und Wissensbasen mit einem Klick."
+        }
+      },
+      "deployHonest": {
+        "title": "Transparenz der Speicherarchitektur",
+        "tauriSubtitle": "Ausführung im Desktop-Client (Tauri). Alle Daten werden direkt auf Ihrem lokalen Dateisystem gespeichert.",
+        "sandboxSubtitle": "Ausführung in einer isolierten Cloud-Sandbox mit dediziertem Persistent Volume. Daten bleiben bei Neustarts erhalten.",
+        "localSubtitle": "Ausführung auf einem selbst gehosteten lokalen Server. Daten werden in Ihrem lokalen Mount-Verzeichnis gespeichert.",
+        "dataPathLabel": "Pfad des persistenten Datenspeichers",
+        "tauriDetail": "Im Desktop-Modus verbleiben alle SQLite-Datenbanken, Wiki-Indizes und Fähigkeiten im lokalen Benutzerverzeichnis mit voller Offline-Funktionalität.",
+        "sandboxDetail": "Jede Sandbox erhält ein dediziertes privates Volume (kein geteilter Multi-Tenant-Speicher), was strikte Privatsphäre gewährleistet.",
+        "localDetail": "Der Server liest und schreibt direkt auf lokale Festplatten und SQLite-Instanzen ohne externe Cloud-Abhängigkeiten."
+      }
     },
     "commands": {
       "title": "Slash-Befehle",
@@ -4247,6 +4310,68 @@
           "medium": "Mittleres Risiko",
           "high": "Hohes Risiko"
         }
+      }
+    },
+    "workbench": {
+      "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
+      "title": "Datensouveränität & Wertschöpfung",
+      "description": "Alle Ihre Erinnerungen, Wissensdatenbank-Wikis, Fähigkeiten, Regeln und geplanten Aufgaben werden sicher in Ihrem privaten Arbeitsbereich gespeichert. Sie besitzen 100% Ihrer KI-Assets ohne Vendor-Lock-in.",
+      "refresh": "Aktualisieren",
+      "assetMatrixTitle": "KI-Asset-Portfolio",
+      "assets": {
+        "memory": {
+          "title": "Langzeitgedächtnis",
+          "score": "Zustand: {score}%",
+          "desc": "Sitzungsübergreifende Erinnerungen, Präferenzen und personalisierte Gewohnheiten."
+        },
+        "wiki": {
+          "title": "Wissensdatenbank (Wiki)",
+          "rawCount": "{count} Quelldokumente",
+          "desc": "Strukturiertes Wissensnetzwerk mit synthetisierten Konzepten."
+        },
+        "skills": {
+          "title": "Erworbene Fähigkeiten",
+          "evolutions": "{count} Evolutionen",
+          "desc": "Benutzerdefinierte Werkzeuge, automatisierte Workflows und Routinen."
+        },
+        "rules": {
+          "title": "Arbeitsbereichsregeln",
+          "chars": "{count} Zeichen",
+          "desc": "Systemanweisungen und Verhaltensregeln für Fachbereiche."
+        },
+        "cron": {
+          "title": "Automatisierte Aufgaben",
+          "runs": "{count} Ausführungen",
+          "desc": "Geplante Aufgaben, proaktive Überwachung und Hintergrundjobs."
+        },
+        "storage": {
+          "title": "Lokaler Speicher",
+          "desc": "Speicherbedarf des privaten Volumes auf der Festplatte."
+        }
+      },
+      "sovereignty": {
+        "title": "Datensouveränität & Portabilität",
+        "subtitle": "Ihr KI-Arbeitsbereich läuft unabhängig auf offenen Standards mit vollständigen Exportfunktionen.",
+        "exportConfig": "Vollständige Konfiguration exportieren",
+        "exportMemory": "Erinnerungen exportieren",
+        "points": {
+          "decouplingTitle": "Entkoppelte Architektur",
+          "decouplingDesc": "Die Trennung von Modellberechnung und Fachwissen gewährleistet reibungslose Upgrades.",
+          "standardTitle": "Offene Formate",
+          "standardDesc": "Alle Erinnerungen und Fähigkeiten folgen transparenten Schemata, die plattformübergreifend kompatibel sind.",
+          "zeroLockinTitle": "Kein Vendor-Lock-in",
+          "zeroLockinDesc": "Wechseln Sie jederzeit den Modellanbieter oder die lokale Hardware, ohne den Kontext zu verlieren."
+        }
+      },
+      "deployHonest": {
+        "title": "Speicherarchitektur",
+        "tauriSubtitle": "Wird als native Desktop-Anwendung mit vollem lokalem Dateizugriff ausgeführt.",
+        "sandboxSubtitle": "Wird in einer dedizierten, isolierten Cloud-Sandbox mit persistentem Volume ausgeführt.",
+        "localSubtitle": "Wird im lokalen, selbst gehosteten WebUI-Modus ausgeführt.",
+        "dataPathLabel": "Aktives Datenverzeichnis",
+        "tauriDetail": "Anwendungsstatus und Datenbank werden direkt auf Ihrem persönlichen Computer verwaltet.",
+        "sandboxDetail": "Daten werden in Ihrem privaten Sandbox-Volume gespeichert, strikt pro Benutzer isoliert.",
+        "localDetail": "Daten werden auf der Festplatte unter Ihrem lokalen Arbeitsbereich gespeichert."
       }
     },
     "lockedUse": {
@@ -14709,7 +14834,9 @@
       "sampleLimitPlaceholder": "Alle",
       "sampleLimitTitle": "Optionale Stichprobengröße — nur so viele Aufgaben ausführen (leer = voller Benchmark)",
       "sampled": "Stichprobe",
-      "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)"
+      "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)",
+      "operationalAssurance": "Betriebssicherheitsaudit",
+      "operationalAssuranceDesc": "Deterministische Testsuite für 6 Fehlerbereiche: Berechtigungsverweigerung, Tool-Timeout, Wiederherstellung, Sandbox-Erschöpfung, Skill-Konflikte und abgelaufene Nachweise."
     },
     "memoryAb": {
       "started": "Memory-A/B-Auswertung gestartet",

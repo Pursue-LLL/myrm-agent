@@ -242,6 +242,68 @@
     "advisorSelectionDefaultQuestion": "解释选中内容"
   },
   "settings": {
+    "workbench": {
+      "badge": "个人工作台与数据主权",
+      "title": "数据主权与价值沉淀",
+      "description": "您的所有记忆、知识库 Wiki、技能、规则与定时任务均安全保存在私有工作区中。您拥有 100% 的 AI 资产所有权，无任何厂商锁定。",
+      "refresh": "刷新",
+      "assetMatrixTitle": "AI 资产概览",
+      "assets": {
+        "memory": {
+          "title": "长期记忆",
+          "score": "健康度：{score}%",
+          "desc": "跨会话记忆、偏好及个性化习惯沉淀。"
+        },
+        "wiki": {
+          "title": "知识库 (Wiki)",
+          "rawCount": "{count} 份原始源文档",
+          "desc": "结构化知识网络与合成概念库。"
+        },
+        "skills": {
+          "title": "已习得技能",
+          "evolutions": "{count} 次进化",
+          "desc": "自定义工具、自动化工作流与惯例。"
+        },
+        "rules": {
+          "title": "工作区规则",
+          "chars": "{count} 字符",
+          "desc": "系统指令与领域行为约束规范。"
+        },
+        "cron": {
+          "title": "自动化任务",
+          "runs": "{count} 次运行",
+          "desc": "定时任务、主动巡检及后台作业。"
+        },
+        "storage": {
+          "title": "本地存储",
+          "desc": "私有卷磁盘占用与状态。"
+        }
+      },
+      "sovereignty": {
+        "title": "数据主权与可迁移性",
+        "subtitle": "您的 AI 工作区基于开放标准独立运行，支持全量导出与随时迁移。",
+        "exportConfig": "导出完整配置",
+        "exportMemory": "导出记忆数据",
+        "points": {
+          "decouplingTitle": "解耦架构",
+          "decouplingDesc": "模型计算与业务知识分离，确保持续升级无阻碍。",
+          "standardTitle": "开放格式",
+          "standardDesc": "所有记忆与技能遵循透明规范，跨平台兼容。",
+          "zeroLockinTitle": "零厂商绑定",
+          "zeroLockinDesc": "可随时切换模型供应商或本地硬件，上下文资产永不丢失。"
+        }
+      },
+      "deployHonest": {
+        "title": "存储架构说明",
+        "tauriSubtitle": "当前运行为原生桌面端应用，拥有完整的本地文件访问能力。",
+        "sandboxSubtitle": "当前运行于专属隔离云沙箱实例中，配有持久化私有卷。",
+        "localSubtitle": "当前运行于本地自托管 WebUI 模式。",
+        "dataPathLabel": "当前数据存储路径",
+        "tauriDetail": "应用状态与数据库直接存放在您的个人计算机磁盘中。",
+        "sandboxDetail": "数据保存在私有沙箱持久卷中，单用户单实例物理隔离。",
+        "localDetail": "数据持久化存储于您本地主目录的工作区中。"
+      }
+    },
     "lockedUse": {
       "title": "计算机使用 / 锁定使用",
       "layer1Title": "保持屏幕常亮",
@@ -317,6 +379,7 @@
     },
     "menu": {
       "account": "账户",
+      "workbench": "我的工作台",
       "preferences": "偏好设置",
       "themeStudio": "主题工作室",
       "theme-studio": "主题工作室",
@@ -379,6 +442,68 @@
         "knowledge": "知识与数据",
         "integration": "通信与集成",
         "system": "系统与安全"
+      }
+    },
+    "workbench": {
+      "badge": "资产留存 & 平台中立",
+      "title": "我的工作台",
+      "description": "实时聚合您在当前工作空间沉淀的所有核心资产。Myrm 采用开放中立架构，所有资产均以标准化格式持久化存储，支持随时无损迁移与导出。",
+      "refresh": "刷新资产",
+      "assetMatrixTitle": "核心资产留存全景",
+      "assets": {
+        "memory": {
+          "title": "记忆库 (Memory Vault)",
+          "score": "健康度 {score}%",
+          "desc": "用户偏好、长期经验与对话洞察，持续赋能智能体决策与推理。"
+        },
+        "wiki": {
+          "title": "Wiki 知识库 (Knowledge Base)",
+          "rawCount": "{count} 份源文件",
+          "desc": "结构化概念索引与业务领域知识，提供高精度检索与上下文增强。"
+        },
+        "skills": {
+          "title": "技能库 (Skills Library)",
+          "evolutions": "{count} 次自进化",
+          "desc": "生产级可复用工具与自进化脚本，完全遵循开放标准协议。"
+        },
+        "rules": {
+          "title": "项目规则 (Workspace Rules)",
+          "chars": "{count} 字符",
+          "desc": "代码规范、架构红线与执行纪律，确保智能体行为严谨可控。"
+        },
+        "cron": {
+          "title": "定时任务 (Cron Workflows)",
+          "runs": "本周执行 {count} 次",
+          "desc": "自动化巡检、周期数据清洗与周期报表后台常驻任务流。"
+        },
+        "storage": {
+          "title": "持久化存储 (Volume / Disk)",
+          "desc": "本地工作目录或持久化卷，所有资产归属权完全属于您自身。"
+        }
+      },
+      "sovereignty": {
+        "title": "数据主权与中立平台优势",
+        "subtitle": "打破专有闭源生态绑定。无需担心供应商锁定，一切资产透明可控、随取随走。",
+        "exportConfig": "导出工作区配置",
+        "exportMemory": "备份记忆资产",
+        "points": {
+          "decouplingTitle": "模型与资产解耦",
+          "decouplingDesc": "随时无缝热切换 Claude、DeepSeek、GPT、Gemini 等任意大模型，历史资产与技能 100% 保持连续可用。",
+          "standardTitle": "开放标准存储",
+          "standardDesc": "所有 Wiki、Markdown 规则与 SQLite 记忆均基于开源透明规范，拒绝专有格式黑盒捆绑。",
+          "zeroLockinTitle": "零锁定与极速迁移",
+          "zeroLockinDesc": "完整的导入导出工具链，一键打包工作区所有配置与长期知识库，自由流转至任意环境。"
+        }
+      },
+      "deployHonest": {
+        "title": "持久化存储机制说明",
+        "tauriSubtitle": "当前运行于桌面客户端 (Tauri) 环境，所有资产直接落盘在您的本地计算机存储目录。",
+        "sandboxSubtitle": "当前运行于云端独立沙箱环境，配备专属持久化存储卷 (Persistent Volume)，实例重启数据不丢失。",
+        "localSubtitle": "当前运行于本地自托管服务端环境，数据保存在本地部署的持久化挂载目录。",
+        "dataPathLabel": "数据持久化存储路径",
+        "tauriDetail": "桌面模式下所有 SQLite 数据库、Wiki 索引与技能文件均存储在当前系统用户目录下，具备完全本地离线可用性。",
+        "sandboxDetail": "每个用户沙箱分配专属独立 Volume，非共享多租户存储，严密隔离并保障数据隐私，随时可通过导出功能打包下载。",
+        "localDetail": "服务直接读写本地文件系统与本地 SQLite 实例，无需任何外部网络依赖，数据安全性最高。"
       }
     },
     "memoryCenter": {
@@ -15470,7 +15595,9 @@
       "sampleLimitPlaceholder": "全部",
       "sampleLimitTitle": "可选的样本数——只运行这么多道题（留空 = 全量基准）",
       "sampled": "抽样",
-      "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）"
+      "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
+      "operationalAssurance": "运行保障审计",
+      "operationalAssuranceDesc": "针对权限拒绝、工具超时、发布恢复、沙箱枯竭、Skill 冲突、证据过期 6 大企业级故障场景进行确定性审计评测。"
     },
     "memoryAb": {
       "started": "记忆 A/B 评测已开始",

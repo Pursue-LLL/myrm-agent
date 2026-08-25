@@ -242,6 +242,68 @@
     "advisorSelectionDefaultQuestion": "Explain this selection"
   },
   "settings": {
+    "workbench": {
+      "badge": "Personal Workbench & Data Sovereignty",
+      "title": "Data Sovereignty & Value Accumulation",
+      "description": "All your memories, knowledge wiki, skills, rules, and schedules are stored securely in your private workspace. You own 100% of your AI assets with zero vendor lock-in.",
+      "refresh": "Refresh",
+      "assetMatrixTitle": "AI Asset Portfolio",
+      "assets": {
+        "memory": {
+          "title": "Long-term Memory",
+          "score": "Health: {score}%",
+          "desc": "Cross-session memories, preferences, and personalized habits."
+        },
+        "wiki": {
+          "title": "Knowledge Base (Wiki)",
+          "rawCount": "{count} raw sources",
+          "desc": "Structured knowledge network with synthesized concepts."
+        },
+        "skills": {
+          "title": "Acquired Skills",
+          "evolutions": "{count} evolutions",
+          "desc": "Custom tools, workflows, and automated routines."
+        },
+        "rules": {
+          "title": "Workspace Rules",
+          "chars": "{count} characters",
+          "desc": "System instructions and domain behavioral constraints."
+        },
+        "cron": {
+          "title": "Automated Jobs",
+          "runs": "{count} runs",
+          "desc": "Scheduled tasks, proactive watchdogs, and background jobs."
+        },
+        "storage": {
+          "title": "Local Storage",
+          "desc": "Private volume footprint on disk."
+        }
+      },
+      "sovereignty": {
+        "title": "Data Sovereignty & Portability",
+        "subtitle": "Your AI workspace runs independently on open standards with complete export capabilities.",
+        "exportConfig": "Export Full Config",
+        "exportMemory": "Export Memories",
+        "points": {
+          "decouplingTitle": "Decoupled Architecture",
+          "decouplingDesc": "Separation of model execution from business knowledge ensures continuous upgrades.",
+          "standardTitle": "Open Formats",
+          "standardDesc": "All memories and skills follow transparent schemas compatible across platforms.",
+          "zeroLockinTitle": "Zero Vendor Lock-in",
+          "zeroLockinDesc": "Switch model providers or local hardware at any time without losing context."
+        }
+      },
+      "deployHonest": {
+        "title": "Storage Architecture",
+        "tauriSubtitle": "Running as a native desktop application with full local file access.",
+        "sandboxSubtitle": "Running inside a dedicated isolated cloud container with persistent volume.",
+        "localSubtitle": "Running in local self-hosted WebUI mode.",
+        "dataPathLabel": "Active Data Directory",
+        "tauriDetail": "Application state and database are managed directly on your personal computer.",
+        "sandboxDetail": "Data is retained in your private sandbox volume, strictly isolated per user.",
+        "localDetail": "Data is persisted to disk under your local home workspace."
+      }
+    },
     "lockedUse": {
       "title": "Computer Use / Locked Use",
       "layer1Title": "Display Keep-Awake",
@@ -317,6 +379,7 @@
     },
     "menu": {
       "account": "Account",
+      "workbench": "My Workbench",
       "preferences": "Preferences",
       "themeStudio": "Theme Studio",
       "theme-studio": "Theme Studio",
@@ -379,6 +442,68 @@
         "knowledge": "Knowledge & Data",
         "integration": "Communications & Integrations",
         "system": "Security & System"
+      }
+    },
+    "workbench": {
+      "badge": "Asset Retention & Platform Neutrality",
+      "title": "My Workbench",
+      "description": "Real-time aggregation of all core assets accumulated in your current workspace. Myrm employs an open, neutral architecture where all assets are stored in standard formats, ready for lossless migration and export anytime.",
+      "refresh": "Refresh Assets",
+      "assetMatrixTitle": "Core Asset Retention Overview",
+      "assets": {
+        "memory": {
+          "title": "Memory Vault",
+          "score": "Health {score}%",
+          "desc": "User preferences, long-term experience, and conversational insights empowering agent reasoning."
+        },
+        "wiki": {
+          "title": "Wiki Knowledge Base",
+          "rawCount": "{count} raw files",
+          "desc": "Structured concept index and domain knowledge providing precise retrieval and context augmentation."
+        },
+        "skills": {
+          "title": "Skills Library",
+          "evolutions": "{count} evolutions",
+          "desc": "Production-grade reusable tools and self-evolving scripts strictly adhering to open standards."
+        },
+        "rules": {
+          "title": "Workspace Rules",
+          "chars": "{count} chars",
+          "desc": "Coding conventions, architecture redlines, and discipline ensuring deterministic agent execution."
+        },
+        "cron": {
+          "title": "Cron Workflows",
+          "runs": "{count} runs this week",
+          "desc": "Automated inspections, periodic data curation, and scheduled reporting background pipelines."
+        },
+        "storage": {
+          "title": "Persistent Storage (Volume / Disk)",
+          "desc": "Local workspace or dedicated volume where 100% data ownership remains entirely yours."
+        }
+      },
+      "sovereignty": {
+        "title": "Data Sovereignty & Neutral Platform Advantage",
+        "subtitle": "Break free from proprietary closed ecosystems. Zero vendor lock-in, all assets transparent and portable.",
+        "exportConfig": "Export Workspace Config",
+        "exportMemory": "Backup Memories",
+        "points": {
+          "decouplingTitle": "Model & Asset Decoupling",
+          "decouplingDesc": "Hot-swap between Claude, DeepSeek, GPT, Gemini freely while 100% of your assets and skills remain intact.",
+          "standardTitle": "Open Standard Storage",
+          "standardDesc": "All Wiki pages, Markdown rules, and SQLite memories are stored in open specs, avoiding proprietary lock-in.",
+          "zeroLockinTitle": "Zero Lock-in & Fast Migration",
+          "zeroLockinDesc": "Comprehensive export toolchains allow single-click packaging of workspace configs and knowledge bases."
+        }
+      },
+      "deployHonest": {
+        "title": "Persistent Storage Architecture",
+        "tauriSubtitle": "Running on Desktop Client (Tauri). All assets are directly persisted to your local filesystem.",
+        "sandboxSubtitle": "Running in Cloud Sandbox with dedicated Persistent Volume. Data persists across container restarts.",
+        "localSubtitle": "Running in Self-Hosted Server mode. Data is stored in your local persistent mount directory.",
+        "dataPathLabel": "Persistent Data Directory",
+        "tauriDetail": "In desktop mode, all SQLite databases, Wiki indices, and skill files reside in your local user directory with full offline capability.",
+        "sandboxDetail": "Each user sandbox gets a dedicated private Volume (not shared multi-tenant storage), ensuring strict privacy with one-click export.",
+        "localDetail": "Server reads/writes directly to local disk and SQLite instances with zero external cloud dependencies for maximum privacy."
       }
     },
     "memoryCenter": {
@@ -15496,7 +15621,9 @@
       "sampleLimitPlaceholder": "All",
       "sampleLimitTitle": "Optional sample size — run only this many tasks (empty = full benchmark)",
       "sampled": "sampled",
-      "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)"
+      "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
+      "operationalAssurance": "Operational Assurance Audit",
+      "operationalAssuranceDesc": "Deterministic audit suite covering permission denial, tool timeout, recovery, sandbox exhaustion, skill conflict, and expired evidence across 6 fault domains."
     },
     "memoryAb": {
       "started": "Memory A/B evaluation started",

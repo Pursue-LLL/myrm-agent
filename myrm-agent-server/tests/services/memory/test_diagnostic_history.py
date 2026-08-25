@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from app.api.memory.operations.command_center import _diagnostic_history_item
+from app.api.memory.operations.command_center_diagnostics import _diagnostic_history_item
 from app.database.models.memory import MemoryOperationEventModel
 from app.schemas.memory.command_center import (
     MemoryCommandBenchmarkSummary,

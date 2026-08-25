@@ -169,6 +169,7 @@ def build_benchmark_cases(
     import random
 
     from app.core.eval.browse_comp import build_browse_comp_cases
+    from app.core.eval.operational_assurance import build_operational_assurance_benchmark_cases
     from app.core.eval.wb_bench import build_wb_bench_cases
 
     if benchmark_id.startswith(WB_BENCH_PREFIX):
@@ -180,6 +181,11 @@ def build_benchmark_cases(
         )
     elif benchmark_id == "browsecomp":
         cases, seed_map = build_browse_comp_cases(
+            progress_callback=progress_callback,
+            should_abort=should_abort,
+        )
+    elif benchmark_id == "operational-assurance":
+        cases, seed_map = build_operational_assurance_benchmark_cases(
             progress_callback=progress_callback,
             should_abort=should_abort,
         )
