@@ -142,12 +142,22 @@ export interface CronProgressStep {
 export type MonitorContractErrorCode = 'invalid_json_like_output';
 export type MonitorFailureCountSource = 'persistent_state' | 'memory_fallback';
 
+export interface ConnectorFailureDetail {
+  category: string;
+  target: string;
+  status_code?: number | null;
+  message?: string;
+  duration_ms?: number | null;
+  timestamp?: string;
+}
+
 export interface CronRunMetadata {
   verification?: CronRunVerification;
   progressSteps?: CronProgressStep[];
   monitor_contract_error?: MonitorContractErrorCode | string;
   monitor_failure_count?: number;
   monitor_failure_count_source?: MonitorFailureCountSource | string;
+  connector_failure?: ConnectorFailureDetail;
 }
 
 export interface CronRun {
@@ -380,4 +390,27 @@ export interface PrerequisiteCheckResponse {
   chat_verified_count: number;
   kanban_verified_count: number;
   override_allowed: boolean;
+}
+
+export interface ConnectorHealthItem {
+  target: string;
+  channel: string;
+  status: 'healthy' | 'degraded' | 'down';
+  total_deliveries: number;
+  failed_deliveries: number;
+  consecutive_failures: number;
+  last_status_code?: number | null;
+  last_error_category?: string | null;
+  last_error_message?: string | null;
+  last_delivery_at?: string | null;
+  last_failed_at?: string | null;
+  fix_suggestion?: string | null;
+  bound_job_ids: string[];
+}
+
+export interface ConnectorsHealthListResponse {
+  items: ConnectorHealthItem[];
+  total: number;
+  degraded_count: number;
+  down_count: number;
 }

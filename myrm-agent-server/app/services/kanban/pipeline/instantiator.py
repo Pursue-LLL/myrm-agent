@@ -223,3 +223,82 @@ async def instantiate_pipeline(
         edges=created_edges,
         role_agent_mapping=role_agent_map,
     )
+
+
+def estimate_pipeline_plan(
+    skill_id: str,
+    answers: dict[str, str],
+    variant_id: str | None = None,
+    user_tier: str = "standard",
+) -> dict[str, object]:
+    """Calculate pre-run task DAG expansion, token scale, and WU estimation for a pipeline."""
+    spec = get_pipeline_skill(skill_id)
+    if spec is None:
+        raise ValueError(f"Pipeline skill not found: {skill_id}")
+
+    seeds_to_use: list[TaskSeed] | None = None
+    if variant_id:
+        if spec.task_graph_variants:
+            for variant in spec.task_graph_variants:
+                if variant.id == variant_id:
+                    seeds_to_use = variant.seeds
+                    break
+        if seeds_to_use is None:
+            raise HTTPException(status_code=400, detail=f"Invalid variant_id: {variant_id}")
+    else:
+        seeds_to_use = spec.task_graph_seed
+        if not seeds_to_use and spec.task_graph_variants:
+            seeds_to_use = spec.task_graph_variants[0].seeds
+
+    if not seeds_to_use:
+        raise HTTPException(status_code=400, detail="No tasks defined in template")
+
+    total_tasks = 0
+    max_fan_out = 1
+    has_fan_out = False
+    all_required_skills: set[str] = set()
+
+    for role in spec.role_templates:
+        all_required_skills.update(role.required_skills)
+
+    for seed in seeds_to_use:
+        if seed.repeat_for:
+            has_fan_out = True
+            items = _split_repeat_items(answers.get(seed.repeat_for, ""))
+            count = len(items) if items else 1
+            total_tasks += count
+            if count > max_fan_out:
+                max_fan_out = count
+        else:
+            total_tasks += 1
+
+    # Base token heuristics: 1500 prompt tokens + 800 completion tokens per task
+    avg_prompt = 1500
+    avg_completion = 800
+    total_prompt_tokens = total_tasks * avg_prompt
+    total_completion_tokens = total_tasks * avg_completion
+
+    # Heuristic WU computation (aligned with burn_table)
+    tier_mult = 10.0 if user_tier == "frontier" else (1.0 if user_tier == "lite" else 3.0)
+    base_per_task_wu = (10 + (avg_prompt * 0.001 * tier_mult) + (avg_completion * 0.003 * tier_mult) + (3.0 * 5.0) + (len(all_required_skills) * 2))
+    base_total_wu = max(1, int(base_per_task_wu * total_tasks))
+    min_wu = max(1, int(base_total_wu * 0.75))
+    max_wu = max(min_wu, int(base_total_wu * 1.35))
+
+    tier_mismatch_warning = (user_tier == "frontier" and total_tasks <= 5 and len(all_required_skills) <= 2)
+    recommended_tier = "standard" if tier_mismatch_warning else user_tier
+
+    return {
+        "task_count": total_tasks,
+        "skill_count": len(all_required_skills),
+        "estimated_prompt_tokens": total_prompt_tokens,
+        "estimated_completion_tokens": total_completion_tokens,
+        "min_estimated_wu": min_wu,
+        "max_estimated_wu": max_wu,
+        "base_estimated_wu": base_total_wu,
+        "recommended_tier": recommended_tier,
+        "tier_mismatch_warning": tier_mismatch_warning,
+        "is_fan_out": has_fan_out,
+        "fan_out_factor": max_fan_out,
+    }
+

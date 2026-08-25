@@ -217,7 +217,6 @@
     "batchDirectory.tableStatus",
     "settings.modelService.cookbook.vram64kFp16",
     "settings.modelService.cookbook.kvVram",
-    "settings.modelService.cookbook.agenticBadge",
     "settings.shares.table.link"
   ]
 }

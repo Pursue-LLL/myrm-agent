@@ -323,9 +323,31 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               </pre>
             )}
             {run.delivery_error && (
-              <p className="text-[10px] text-destructive">
-                {t('deliveryError')}: {run.delivery_error}
-              </p>
+              <div className="space-y-1">
+                <p className="text-[10px] text-destructive">
+                  {t('deliveryError')}: {run.delivery_error}
+                </p>
+                {run.metadata?.connector_failure && (
+                  <div className="flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-1.5">
+                    <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    <div className="space-y-0.5 text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-destructive">
+                          {t('connectorDegradedBadge')}
+                        </span>
+                        <span className="font-mono text-[10px] text-muted-foreground bg-background/50 px-1 py-0.5 rounded">
+                          {run.metadata.connector_failure.category}
+                        </span>
+                      </div>
+                      {run.metadata.connector_failure.target && (
+                        <p className="text-muted-foreground font-mono text-[10px] truncate">
+                          {run.metadata.connector_failure.target}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             {securityDenied && (
               <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">

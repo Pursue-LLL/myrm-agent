@@ -8,6 +8,7 @@ from app.services.agent.moa_preset_resolver import (
     MOA_PRESET_REVIEW_ID,
     apply_moa_preset_activation,
     is_moa_preset_configured,
+    resolve_effective_moa_preset_id,
 )
 
 
@@ -183,3 +184,101 @@ def test_is_moa_preset_configured_strict_when_presets_key_exists() -> None:
         },
     }
     assert is_moa_preset_configured(params) is False
+
+
+def test_resolve_effective_moa_preset_explicit_takes_precedence() -> None:
+    params = _sample_engine_params()
+    # Explicit request should be honored regardless of routing tier or auto flags
+    assert (
+        resolve_effective_moa_preset_id(
+            engine_params=params,
+            requested_preset_id=MOA_PRESET_FAST_ID,
+            routing_tier="simple",
+            auto_moa_reasoning=False,
+        )
+        == MOA_PRESET_FAST_ID
+    )
+
+
+def test_resolve_effective_moa_preset_auto_on_reasoning_tier() -> None:
+    params = _sample_engine_params()
+    # Reasoning tier with auto_moa_reasoning enabled activates default/review preset
+    assert (
+        resolve_effective_moa_preset_id(
+            engine_params=params,
+            requested_preset_id=None,
+            routing_tier="reasoning",
+            auto_moa_reasoning=True,
+        )
+        == MOA_PRESET_REVIEW_ID
+    )
+    # Simple or standard tier does not activate
+    assert (
+        resolve_effective_moa_preset_id(
+            engine_params=params,
+            requested_preset_id=None,
+            routing_tier="simple",
+            auto_moa_reasoning=True,
+        )
+        is None
+    )
+    assert (
+        resolve_effective_moa_preset_id(
+            engine_params=params,
+            requested_preset_id=None,
+            routing_tier="standard",
+            auto_moa_reasoning=True,
+        )
+        is None
+    )
+
+
+def test_resolve_effective_moa_preset_agent_profile_override() -> None:
+    params = {
+        "moa_overlay": {
+            "enabled": True,
+            "auto_on_reasoning": True,
+            "reference_model_selections": [
+                {"providerId": "openai", "model": "gpt-4o"},
+            ],
+        },
+    }
+    # Profile has auto_on_reasoning: True, even if request auto_moa_reasoning is False
+    assert (
+        resolve_effective_moa_preset_id(
+            engine_params=params,
+            requested_preset_id=None,
+            routing_tier="reasoning",
+            auto_moa_reasoning=False,
+        )
+        == MOA_PRESET_REVIEW_ID
+    )
+
+
+def test_resolve_effective_moa_preset_fallback_to_default_when_review_empty() -> None:
+    params = {
+        "moa_overlay": {
+            "enabled": True,
+            "presets": {
+                MOA_PRESET_DEFAULT_ID: {
+                    "reference_model_selections": [
+                        {"providerId": "openai", "model": "gpt-4o-mini"},
+                    ],
+                },
+                MOA_PRESET_REVIEW_ID: {
+                    "reference_model_selections": [],
+                },
+            },
+        },
+    }
+    # Review is empty, should fall back to default preset which has refs
+    assert (
+        resolve_effective_moa_preset_id(
+            engine_params=params,
+            requested_preset_id=None,
+            routing_tier="reasoning",
+            auto_moa_reasoning=True,
+        )
+        == MOA_PRESET_DEFAULT_ID
+    )
+

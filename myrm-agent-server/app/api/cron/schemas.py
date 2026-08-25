@@ -541,3 +541,31 @@ class PrerequisiteCheckResponse(BaseModel):
     chat_verified_count: int
     kanban_verified_count: int
     override_allowed: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Connector health schemas
+# ---------------------------------------------------------------------------
+
+
+class ConnectorHealthResponse(BaseModel):
+    target: str
+    channel: str
+    status: str
+    total_deliveries: int
+    failed_deliveries: int
+    consecutive_failures: int
+    last_status_code: int | None = None
+    last_error_category: str | None = None
+    last_error_message: str | None = None
+    last_delivery_at: datetime | None = None
+    last_failed_at: datetime | None = None
+    fix_suggestion: str | None = None
+    bound_job_ids: list[str] = Field(default_factory=list)
+
+
+class ConnectorsHealthListResponse(BaseModel):
+    items: list[ConnectorHealthResponse]
+    total: int
+    degraded_count: int
+    down_count: int

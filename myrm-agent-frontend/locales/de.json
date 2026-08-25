@@ -1310,11 +1310,7 @@
         "ollamaNotRunningTitle": "Ollama läuft nicht",
         "ollamaNotRunningDesc": "Bitte installieren und starten Sie Ollama, um lokale Modelle herunterzuladen und zu verwenden.",
         "warningTitle": "Hardware-Begrenzungswarnung",
-        "warningDesc": "Einige Modelle benötigen mehr VRAM als verfügbar. Erzwungenes Ausführen kann Systeminstabilität oder Out-of-Memory-Fehler (OOM) verursachen.",
-        "agenticBadge": "64K Agentic",
-        "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
-        "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
-        "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben."
+        "warningDesc": "Einige Modelle benötigen mehr VRAM als verfügbar. Erzwungenes Ausführen kann Systeminstabilität oder Out-of-Memory-Fehler (OOM) verursachen."
       }
     },
     "defaultModel": {
@@ -11768,6 +11764,20 @@
     "verificationError": "Fehler überprüfen",
     "verificationSummary": "Lieferbericht",
     "securityDeniedHint": "Einige Tools wurden durch Sicherheitsrichtlinien abgelehnt. Konfigurieren Sie die erforderlichen Berechtigungen im Capability Fence oben.",
+    "connectorDegradedBadge": "Connector beeinträchtigt",
+    "connectorFixSuggestion": "Fehlerbehebungsvorschlag",
+    "connectorHealthStatus": "Connector-Integrität",
+    "connectorStatusHealthy": "Fehlerfrei",
+    "connectorStatusDegraded": "Beeinträchtigt",
+    "connectorStatusDown": "Ausgefallen",
+    "connectorCategoryAuth": "Authentifizierung fehlgeschlagen (401/403)",
+    "connectorCategoryClient": "Client-Anfragefehler (4xx)",
+    "connectorCategoryServer": "Serverfehler (5xx)",
+    "connectorCategoryTimeout": "Netzwerk-Timeout",
+    "connectorCategoryNetwork": "Netzwerk nicht erreichbar",
+    "connectorCategoryPayload": "Vertrags-/Nutzlastfehler",
+    "connectorCategoryProcess": "Prozess beendet",
+    "connectorCategoryUnknown": "Unbekannter Fehler",
     "capability": {
       "web_search_tool": "Suchmaschine",
       "net_fetch": "Webseite lesen",

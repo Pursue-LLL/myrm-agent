@@ -217,3 +217,61 @@ class TestSpecialtyRoutingSSEChunkEmission:
         assert event_data["messageId"] == "msg-spec-123"
         assert event_data["data"]["tier"] == "code"
         assert event_data["data"]["specialty"] == "code"
+
+
+class TestAutoMoAOverlayGateConverter:
+    """Verifies that convert_to_general_agent_params activates MoA overlay when routed to REASONING."""
+
+    @pytest.mark.asyncio
+    async def test_auto_moa_activation_on_reasoning_tier(
+        self, base_request_data: dict[str, object]
+    ) -> None:
+        del base_request_data["code_model_selection"]
+        del base_request_data["fallback_code_model_selection"]
+        del base_request_data["long_doc_model_selection"]
+        base_request_data["light_model_selection"] = _selection("openai", "gpt-4o-mini")
+        base_request_data["reasoning_model_selection"] = _selection("deepseek", "deepseek-reasoner")
+        base_request_data["auto_moa_reasoning"] = True
+        base_request_data["engine_params"] = {
+            "moa_overlay": {
+                "enabled": True,
+                "presets": {
+                    "review": {
+                        "reference_model_selections": [
+                            {"providerId": "anthropic", "model": "claude-3-5-sonnet"},
+                        ],
+                    },
+                },
+            },
+        }
+        # A complex query that triggers reasoning
+        base_request_data["query"] = "Prove that there are infinitely many primes and analyze the asymptotic bounds."
+        request = AgentRequest(**base_request_data)
+
+        with (
+            patch(
+                "app.services.agent.params.converter._resolve_model_config",
+                new=_fake_resolve,
+            ),
+            patch(
+                "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+        ):
+            from app.services.agent.params.converter import (
+                convert_to_general_agent_params,
+            )
+
+            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
+
+        assert routing_tier == "reasoning"
+        assert params.engine_params is not None
+        overlay = params.engine_params.get("moa_overlay")
+        assert isinstance(overlay, dict)
+        assert overlay.get("enabled") is True
+        assert overlay.get("reference_reasoning_effort") == "high"
+        refs = overlay.get("reference_model_selections")
+        assert isinstance(refs, list)
+        assert refs[0]["model"] == "claude-3-5-sonnet"
+

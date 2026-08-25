@@ -701,6 +701,31 @@ class PipelineInstantiateResponse(BaseModel):
     role_agent_mapping: dict[str, str | None] = {}
 
 
+class PipelineEstimateRequest(BaseModel):
+    """Request body for pre-run estimation of a pipeline template."""
+
+    skill_id: str = Field(..., min_length=1)
+    answers: dict[str, str] = Field(default_factory=dict)
+    variant_id: str | None = Field(None)
+
+
+class PipelineEstimateResponse(BaseModel):
+    """Pre-run execution and resource estimate for a pipeline template."""
+
+    task_count: int = Field(ge=1)
+    skill_count: int = Field(ge=0)
+    estimated_prompt_tokens: int = Field(ge=0)
+    estimated_completion_tokens: int = Field(ge=0)
+    min_estimated_wu: int = Field(ge=1)
+    max_estimated_wu: int = Field(ge=1)
+    base_estimated_wu: int = Field(ge=1)
+    recommended_tier: str = "standard"
+    tier_mismatch_warning: bool = False
+    is_fan_out: bool = False
+    fan_out_factor: int = Field(default=1, ge=1)
+
+
+
 class PlanRevisionItemRequest(BaseModel):
     """A single task change in a plan revision."""
 

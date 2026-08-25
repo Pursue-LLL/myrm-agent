@@ -672,12 +672,36 @@ export interface PipelineInstantiateResult {
   role_agent_mapping: Record<string, string | null>;
 }
 
+export interface PipelineEstimateResult {
+  task_count: number;
+  skill_count: number;
+  estimated_prompt_tokens: number;
+  estimated_completion_tokens: number;
+  min_estimated_wu: number;
+  max_estimated_wu: number;
+  base_estimated_wu: number;
+  recommended_tier: string;
+  tier_mismatch_warning: boolean;
+  is_fan_out: boolean;
+  fan_out_factor: number;
+}
+
 export async function listPipelines(): Promise<{ items: PipelineTemplate[]; total: number }> {
   return apiRequest('/kanban/pipelines');
 }
 
 export async function getPipelineDetail(skillId: string): Promise<PipelineTemplateDetail> {
   return apiRequest(`/kanban/pipelines/${skillId}`);
+}
+
+export async function estimatePipeline(
+  boardId: string,
+  data: { skill_id: string; answers: Record<string, string>; variant_id?: string },
+): Promise<PipelineEstimateResult> {
+  return apiRequest(`/kanban/boards/${boardId}/pipeline/estimate`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 export async function instantiatePipeline(

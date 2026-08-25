@@ -539,6 +539,13 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                           Rung {rec.min_rung}+
                         </Badge>
                       )}
+                      <Badge
+                        variant="secondary"
+                        className="bg-primary/10 text-primary border-primary/20 text-[10px] h-5 cursor-help"
+                        title={t('agenticTooltip')}
+                      >
+                        {t('agenticBadge')}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-1">{rec.description}</p>
 
@@ -674,6 +681,12 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
               <AlertDescription className="text-xs mt-1">{t('warningDesc')}</AlertDescription>
             </Alert>
           )}
+
+          {/* 24/7 常驻与 GPU 释放最佳实践指引 */}
+          <div className="mt-4 p-3.5 bg-muted/40 rounded-lg border border-border/40 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground/90">{t('keepAliveTipTitle')}：</span>
+            <span>{t('keepAliveTipDesc')}</span>
+          </div>
         </div>
       </CardContent>
     </Card>

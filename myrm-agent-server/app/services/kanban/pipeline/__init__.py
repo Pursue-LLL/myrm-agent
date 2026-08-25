@@ -6,6 +6,7 @@ instantiator 为确定性模板实例化（零 LLM 调用）。
 """
 
 from app.services.kanban.pipeline.instantiator import (
+    estimate_pipeline_plan,
     get_pipeline_skill,
     instantiate_pipeline,
     list_pipeline_skills,
@@ -32,6 +33,7 @@ __all__ = [
     "SEEDS_DIR",
     "TaskGraphVariant",
     "TaskSeed",
+    "estimate_pipeline_plan",
     "get_pipeline_skill",
     "instantiate_pipeline",
     "list_pipeline_skills",

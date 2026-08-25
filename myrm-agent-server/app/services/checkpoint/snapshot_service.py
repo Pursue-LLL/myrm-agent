@@ -4,6 +4,7 @@
 myrm_agent_harness.agent.file_snapshot::create_file_snapshot_store (POS: Factory for snapshot store.)
 myrm_agent_harness.agent.file_snapshot::FileSnapshotProtocol (POS: Protocol for snapshot operations.)
 myrm_agent_harness.agent.file_snapshot.types::SnapshotTrigger (POS: Snapshot trigger enum.)
+myrm_agent_harness.api::PrivacyFailClosedLadder (POS: 3-level privacy ladder.)
 myrm_agent_harness.toolkits.code_execution.interceptor::ExecutionInterceptor (POS: Protocol for intercepting code execution actions.)
 
 [OUTPUT]
@@ -23,7 +24,7 @@ from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
 from myrm_agent_harness.agent.file_snapshot.external_effect_detector import detect_external_effects
 from myrm_agent_harness.agent.file_snapshot.protocols import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
-from myrm_agent_harness.core.security.guards.privacy_ladder import (
+from myrm_agent_harness.api import (
     PrivacyFailClosedLadder,
     PrivacyFailClosedViolationError,
     PrivacyScope,

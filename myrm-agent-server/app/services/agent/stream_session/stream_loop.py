@@ -627,8 +627,6 @@ async def iter_agent_stream_chunks(
     except Exception as stream_err:
         from myrm_agent_harness.api import (
             MissingSemanticsBlockedError,
-        )
-        from myrm_agent_harness.core.security.guards.privacy_ladder import (
             PrivacyFailClosedViolationError,
         )
 

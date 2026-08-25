@@ -7,6 +7,7 @@
 [OUTPUT]
 - ``apply_moa_preset_activation``: returns engine_params with overlay enabled only for active preset
 - ``resolve_preset_reference_selections``: refs for a preset id (strict per-preset when ``presets`` exists)
+- ``resolve_effective_moa_preset_id``: resolves active preset accounting for REASONING tier auto-gate
 
 [POS]
 Business-layer resolver. Profile ``moa_overlay.enabled`` means preset is configured and
@@ -180,3 +181,52 @@ def apply_moa_preset_activation(
 
     params["moa_overlay"] = overlay_copy
     return params
+
+
+def resolve_effective_moa_preset_id(
+    engine_params: dict[str, object] | None,
+    requested_preset_id: str | None = None,
+    routing_tier: str | None = None,
+    auto_moa_reasoning: bool = False,
+    auto_moa_preset_id: str | None = None,
+) -> str | None:
+    """Resolve effective MoA preset id to activate for the current turn.
+
+    1. If user explicitly requested a valid preset in the model picker, honor it.
+    2. If auto_moa_reasoning is True (or agent profile moa_overlay.auto_on_reasoning is True)
+       and the task was routed to REASONING tier, automatically select an appropriate MoA preset
+       (preferring auto_moa_preset_id, 'review', or 'default' with configured reference models).
+    3. Otherwise, return None (single-model execution).
+    """
+    if requested_preset_id is not None and requested_preset_id in VALID_MOA_PRESET_IDS:
+        return requested_preset_id
+
+    overlay = _moa_overlay_block(engine_params)
+    if overlay is None:
+        return None
+
+    # Check per-agent override or request-level flag
+    agent_auto = overlay.get("auto_on_reasoning")
+    is_auto_enabled = bool(agent_auto if isinstance(agent_auto, bool) else auto_moa_reasoning)
+
+    # Check if routing tier is REASONING
+    is_reasoning_tier = routing_tier in ("reasoning", "REASONING")
+
+    if is_auto_enabled and is_reasoning_tier and is_moa_preset_configured(engine_params):
+        candidate_preset = (
+            auto_moa_preset_id
+            if (auto_moa_preset_id is not None and auto_moa_preset_id in VALID_MOA_PRESET_IDS)
+            else MOA_PRESET_REVIEW_ID
+        )
+        if len(resolve_preset_reference_selections(overlay, candidate_preset)) > 0:
+            return candidate_preset
+        # Fallback to default if candidate has no refs
+        if len(resolve_preset_reference_selections(overlay, MOA_PRESET_DEFAULT_ID)) > 0:
+            return MOA_PRESET_DEFAULT_ID
+        # Fallback to fast if default has no refs
+        if len(resolve_preset_reference_selections(overlay, MOA_PRESET_FAST_ID)) > 0:
+            return MOA_PRESET_FAST_ID
+        return candidate_preset
+
+    return None
+

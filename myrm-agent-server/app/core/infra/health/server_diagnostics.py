@@ -107,6 +107,7 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
     async def check_health(self) -> HealthReport:
         try:
             import os
+
             from app.services.agent.execution_cache import get_execution_cache
 
             rss_mb: float | None = None

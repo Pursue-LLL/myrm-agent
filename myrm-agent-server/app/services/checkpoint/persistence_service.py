@@ -1,7 +1,7 @@
 """Event-driven cloud sandbox incremental persistence service with 3-level fail-closed privacy ladder.
 
 [INPUT]
-- myrm_agent_harness.core.security.privacy::PrivacyLadderValidator (POS: 3-level fail-closed privacy validator)
+- myrm_agent_harness.api::PrivacyLadderValidator (POS: 3-level fail-closed privacy validator)
 - app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: SSE & in-process event bus)
 - app.platform_utils.sandbox.storage::S3StorageBackend (POS: S3/R2 storage backend)
 
@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.core.security.privacy import (
+from myrm_agent_harness.api import (
     PrivacyLadderValidator,
     PrivacyScanVerdict,
 )

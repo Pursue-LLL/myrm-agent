@@ -304,6 +304,15 @@ class AgentRequest(BaseModel):
             "Enables advisor overlay when the agent profile has a matching configured preset."
         ),
     )
+    auto_moa_reasoning: bool = Field(
+        default=False,
+        description="When True and routing tier is REASONING, automatically activate MoA advisor overlay.",
+    )
+    auto_moa_preset_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Target MoA preset id to activate when auto_moa_reasoning triggers (defaults to 'review').",
+    )
 
     resume_value: dict[str, object] | None = None
     sibling_group_id: str | None = None

@@ -5,6 +5,9 @@ export type {
   BlueprintDef,
   BlueprintFillResponse,
   BlueprintSlotDef,
+  ConnectorFailureDetail,
+  ConnectorHealthItem,
+  ConnectorsHealthListResponse,
   CreateCronJobRequest,
   CronDelivery,
   CronJob,
@@ -195,4 +198,15 @@ export async function checkCronPrerequisite(data: PrerequisiteCheckRequest): Pro
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+}
+
+export async function getConnectorsHealth(params?: {
+  window_hours?: number;
+}): Promise<ConnectorsHealthListResponse> {
+  const query = new URLSearchParams();
+  if (params?.window_hours) {
+    query.set('window_hours', String(params.window_hours));
+  }
+  const qs = query.toString();
+  return apiRequest(`/cron/connectors/health${qs ? `?${qs}` : ''}`);
 }

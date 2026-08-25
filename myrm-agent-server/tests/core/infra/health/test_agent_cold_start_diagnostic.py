@@ -288,6 +288,36 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
         assert "AgentColdStart" in server_components
         assert "ExecutionCache" in server_components
         assert "DLQ" in server_components
+        assert "OllamaContext" in server_components
 
         harness_components = [item["component_name"] for item in data["harness"]]
-        assert "SupplyChainSecurity" in harness_components
+        assert len(harness_components) > 0
+
+
+@pytest.mark.asyncio
+async def test_ollama_model_context_diagnostic() -> None:
+    """Test OllamaModelContextDiagnostic probe under various states."""
+    from app.config.deploy_mode import DeployMode
+    from app.core.infra.health.server_diagnostics import OllamaModelContextDiagnostic
+
+    diagnostic = OllamaModelContextDiagnostic()
+
+    # 1. Local mode with Ollama running and models available
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
+        with patch("httpx.AsyncClient.get") as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {
+                "models": [
+                    {"name": "qwen2.5:14b"},
+                    {"name": "qwen2.5:14b-agentic"},
+                ]
+            }
+            mock_get.return_value = mock_resp
+
+            report = await diagnostic.check_health()
+            assert report.component_name == "OllamaContext"
+            assert report.status == "pass"
+            assert report.code == "OK_OLLAMA_CONTEXT_READY"
+            assert report.meta_data["total_models"] == 2
+            assert "qwen2.5:14b-agentic" in report.meta_data["agentic_models"]

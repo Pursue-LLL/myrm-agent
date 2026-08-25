@@ -18,6 +18,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.api.kanban.schemas import (
+    PipelineEstimateRequest,
+    PipelineEstimateResponse,
     PipelineInstantiateRequest,
     PipelineInstantiateResponse,
     PipelineQuestionGroupResponse,
@@ -145,3 +147,30 @@ async def instantiate_pipeline(
         edges=[[parent, child] for parent, child in result.edges],
         role_agent_mapping=result.role_agent_mapping,
     )
+
+
+@pipeline_router.post(
+    "/boards/{board_id}/pipeline/estimate",
+    response_model=PipelineEstimateResponse,
+)
+async def estimate_pipeline(
+    board_id: str,
+    body: PipelineEstimateRequest,
+) -> PipelineEstimateResponse:
+    """Pre-run estimation of tasks, tokens, and WU burn for a pipeline template."""
+    from app.services.kanban.pipeline import estimate_pipeline_plan
+
+    try:
+        data = estimate_pipeline_plan(
+            skill_id=body.skill_id,
+            answers=body.answers,
+            variant_id=body.variant_id,
+        )
+        return PipelineEstimateResponse(**data)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(500, f"Failed to compute estimate: {exc}") from exc
+

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, Webhook, MessageSquare, BellOff, Send } from 'lucide-react';
+import { AlertTriangle, Webhook, MessageSquare, BellOff, Send, Activity } from 'lucide-react';
 import { WebhookGuide } from './WebhookGuide';
 import { EditorToggle } from './EditorToggle';
 import { Button } from '@/components/primitives/button';
@@ -205,7 +205,28 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
 
   return (
     <div className="rounded-lg border bg-card px-3 py-2.5 space-y-2">
-      <span className="text-xs font-medium text-muted-foreground block mb-1">{t('deliveryLabel')}</span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground block">{t('deliveryLabel')}</span>
+        {job.delivery?.target && (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium',
+              job.consecutive_failures >= 3
+                ? 'bg-destructive/10 text-destructive border-destructive/20'
+                : job.consecutive_failures > 0
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                  : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+            )}
+          >
+            <Activity className="h-2.5 w-2.5" />
+            {job.consecutive_failures >= 3
+              ? t('connectorStatusDown')
+              : job.consecutive_failures > 0
+                ? t('connectorStatusDegraded')
+                : t('connectorStatusHealthy')}
+          </span>
+        )}
+      </div>
       <ChannelToggleGroup
         value={localChannel}
         onValueChange={handleChannelChange}
