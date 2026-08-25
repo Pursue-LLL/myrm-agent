@@ -43,11 +43,13 @@ USER_ID = "default"
 
 @router.get("", response_model=CronJobsListResponse)
 async def list_jobs(
+
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     search: str | None = Query(None, max_length=200),
     chat_id: str | None = Query(None, max_length=255),
 ) -> CronJobsListResponse:
+
 
     mgr = _h._get_manager()
     name_filter = search.strip() if search else None
@@ -83,6 +85,8 @@ async def list_jobs(
 
 @router.post("", response_model=CronJobResponse, status_code=201)
 async def create_job(body: CronJobCreate) -> CronJobResponse:
+
+
 
     from app.platform_utils.sandbox.entitlements.entitlement_guard import (
         EntitlementGuardError,

@@ -45,9 +45,17 @@ def test_calculate_kv_cache_vram_gb():
 
 def test_derive_hardware_rung():
     assert derive_hardware_rung(8.0)[0] == 1
+    assert derive_hardware_rung(9.9)[0] == 1
+    assert derive_hardware_rung(10.0)[0] == 2
     assert derive_hardware_rung(16.0)[0] == 2
+    assert derive_hardware_rung(19.9)[0] == 2
+    assert derive_hardware_rung(20.0)[0] == 3
     assert derive_hardware_rung(24.0)[0] == 3
+    assert derive_hardware_rung(39.9)[0] == 3
+    assert derive_hardware_rung(40.0)[0] == 4
     assert derive_hardware_rung(64.0)[0] == 4
+    assert derive_hardware_rung(79.9)[0] == 4
+    assert derive_hardware_rung(80.0)[0] == 5
     assert derive_hardware_rung(128.0)[0] == 5
 
 

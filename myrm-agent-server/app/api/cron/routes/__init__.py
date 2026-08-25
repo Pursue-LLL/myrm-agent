@@ -30,5 +30,6 @@ router.include_router(stats_router)
 router.include_router(push_messages_router)
 router.include_router(runs_router)
 router.include_router(actions_router)
-router.include_router(jobs_router, prefix="")
+router.include_router(jobs_router)
+
 

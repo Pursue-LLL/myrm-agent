@@ -31,9 +31,17 @@ describe('hardwareSimulator utilities', () => {
 
   it('should map available VRAM to the appropriate Reference Ladder rung', () => {
     expect(getRungByVram(6).rung).toBe(1);
+    expect(getRungByVram(9.9).rung).toBe(1);
+    expect(getRungByVram(10.0).rung).toBe(2);
     expect(getRungByVram(16).rung).toBe(2);
+    expect(getRungByVram(19.9).rung).toBe(2);
+    expect(getRungByVram(20.0).rung).toBe(3);
     expect(getRungByVram(24).rung).toBe(3);
+    expect(getRungByVram(39.9).rung).toBe(3);
+    expect(getRungByVram(40.0).rung).toBe(4);
     expect(getRungByVram(64).rung).toBe(4);
+    expect(getRungByVram(79.9).rung).toBe(4);
+    expect(getRungByVram(80.0).rung).toBe(5);
     expect(getRungByVram(128).rung).toBe(5);
   });
 });
