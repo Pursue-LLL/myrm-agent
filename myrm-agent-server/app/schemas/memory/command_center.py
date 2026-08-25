@@ -389,7 +389,7 @@ class MemoryCommandPlaneSummary(BaseModel):
     sandbox_isolation: Literal["local_or_per_user_sandbox"]
 
 
-MemoryCommandMigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi"]
+MemoryCommandMigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi", "plur"]
 
 
 class MemoryCommandMigrationSourceManifestItem(BaseModel):

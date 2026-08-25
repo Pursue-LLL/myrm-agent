@@ -51,6 +51,8 @@ class SandboxPersistenceService:
         self._storage_backend = storage_backend
         self._session_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._is_subscribed: bool = False
+        self._queue: asyncio.Queue[AppEvent] | None = None
+        self._listener_task: asyncio.Task[None] | None = None
 
     def bind_storage_backend(self, backend: "S3StorageBackend") -> None:
         """Bind or update the cloud storage backend."""
@@ -61,8 +63,19 @@ class SandboxPersistenceService:
         if self._is_subscribed:
             return
         bus = get_event_bus()
-        bus.subscribe(self._handle_app_event)
+        self._queue = bus.subscribe()
         self._is_subscribed = True
+        self._listener_task = asyncio.create_task(self._listen_loop())
+
+    async def _listen_loop(self) -> None:
+        while True:
+            try:
+                event = await self._queue.get()
+                await self._handle_app_event(event)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("Error in sandbox persistence event listener: %s", e)
 
     async def _handle_app_event(self, event: AppEvent) -> None:
         if event.event_type == AppEventType.SANDBOX_PERSIST_TRIGGERED:

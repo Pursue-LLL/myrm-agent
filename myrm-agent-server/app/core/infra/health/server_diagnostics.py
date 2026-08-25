@@ -36,15 +36,8 @@ class DLQDiagnostic(DiagnosticProtocol):
             if gateway and gateway.bus:
                 failed_count = await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
                 pending_count = await gateway.bus.durable_outbound.count_pending()
-
-                meta_data: dict[str, object] = {
-                    "failed_count": failed_count,
-                    "pending_outbound_count": pending_count,
-                }
-                metrics: dict[str, float] = {
-                    "dlq_failed_count": float(failed_count),
-                    "pending_outbound_count": float(pending_count),
-                }
+                meta_data = {"failed_count": failed_count, "pending_outbound_count": pending_count}
+                metrics = {"dlq_failed_count": float(failed_count), "pending_outbound_count": float(pending_count)}
 
                 if failed_count > 100 or pending_count > 200:
                     return HealthReport(
@@ -94,7 +87,6 @@ class DLQDiagnostic(DiagnosticProtocol):
                     detail=", ".join(detail_parts) + ".",
                 )
 
-            # Not initialized yet or unavailable
             return HealthReport(
                 component_name="DLQ",
                 status="warn",

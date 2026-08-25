@@ -1805,7 +1805,11 @@
         "ollamaNotRunningTitle": "Ollama 未运行",
         "ollamaNotRunningDesc": "请先安装并启动 Ollama，才能一键下载和使用本地模型。",
         "warningTitle": "硬件限制警告",
-        "warningDesc": "部分模型需要的显存超过了您当前的可用显存。强制运行可能会导致系统卡顿或显存溢出 (OOM) 错误。"
+        "warningDesc": "部分模型需要的显存超过了您当前的可用显存。强制运行可能会导致系统卡顿或显存溢出 (OOM) 错误。",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "已自动派生 64K 上下文 Modelfile，为工具调用与长程记忆提供生产级支持",
+        "keepAliveTipTitle": "24/7 常驻与 GPU 释放指南",
+        "keepAliveTipDesc": "若用于后台渠道或定时任务，可在 Ollama 中保持模型常驻；若进行大算力训练或生图，可卸载释放显存。"
       },
       "importFromModelsDev": "从 models.dev 导入",
       "getModels": "获取模型",

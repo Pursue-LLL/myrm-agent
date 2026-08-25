@@ -268,7 +268,7 @@
           "decouplingTitle": "解耦架構",
           "decouplingDesc": "模型計算與業務知識分離，確保持續升級無阻礙。",
           "standardTitle": "開放格式",
-          "standardDesc": "所有記憶與技能遵循透明規範，跨平臺兼容。",
+          "standardDesc": "所有記憶與技能遵循透明規範，跨平臺相容。",
           "zeroLockinTitle": "零廠商綁定",
           "zeroLockinDesc": "可隨時切換模型供應商或本地硬體，上下文資產永不丟失。"
         }
@@ -280,7 +280,7 @@
         "localSubtitle": "當前運行於本地自託管 WebUI 模式。",
         "dataPathLabel": "當前數據儲存路徑",
         "tauriDetail": "應用狀態與數據庫直接存放在您的個人計算機磁碟中。",
-        "sandboxDetail": "數據保存在私有沙箱持久卷中，單用戶單實例物理隔離。",
+        "sandboxDetail": "數據儲存在私有沙箱持久卷中，單用戶單實例物理隔離。",
         "localDetail": "數據持久化儲存於您本地主目錄的工作區中。"
       }
     },

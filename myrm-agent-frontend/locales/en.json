@@ -1805,7 +1805,11 @@
         "ollamaNotRunningTitle": "Ollama Not Running",
         "ollamaNotRunningDesc": "Please install and start Ollama to download and use local models.",
         "warningTitle": "Hardware Limitation Warning",
-        "warningDesc": "Some models require more VRAM than available. Forcing them to run may cause system instability or Out of Memory (OOM) errors."
+        "warningDesc": "Some models require more VRAM than available. Forcing them to run may cause system instability or Out of Memory (OOM) errors.",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "Auto-derived 64K context Modelfile for full agentic tool & memory workloads",
+        "keepAliveTipTitle": "24/7 Keep-Alive & GPU Drain Guide",
+        "keepAliveTipDesc": "Keep models resident for 24/7 bots or unload to free VRAM for heavy training/rendering."
       },
       "importFromModelsDev": "Import from models.dev",
       "getModels": "Get Models",
