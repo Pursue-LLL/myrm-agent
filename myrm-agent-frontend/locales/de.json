@@ -1310,7 +1310,11 @@
         "ollamaNotRunningTitle": "Ollama läuft nicht",
         "ollamaNotRunningDesc": "Bitte installieren und starten Sie Ollama, um lokale Modelle herunterzuladen und zu verwenden.",
         "warningTitle": "Hardware-Begrenzungswarnung",
-        "warningDesc": "Einige Modelle benötigen mehr VRAM als verfügbar. Erzwungenes Ausführen kann Systeminstabilität oder Out-of-Memory-Fehler (OOM) verursachen."
+        "warningDesc": "Einige Modelle benötigen mehr VRAM als verfügbar. Erzwungenes Ausführen kann Systeminstabilität oder Out-of-Memory-Fehler (OOM) verursachen.",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
+        "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
+        "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben."
       }
     },
     "defaultModel": {

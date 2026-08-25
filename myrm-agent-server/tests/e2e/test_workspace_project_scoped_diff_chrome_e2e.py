@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import sys
+
 import pytest
 
 _LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
@@ -25,7 +26,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,
     ensure_desktop_viewport,
-    get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
     prepare_e2e_ui_session,

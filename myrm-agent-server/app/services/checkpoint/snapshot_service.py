@@ -23,6 +23,11 @@ from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
 from myrm_agent_harness.agent.file_snapshot.external_effect_detector import detect_external_effects
 from myrm_agent_harness.agent.file_snapshot.protocols import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
+from myrm_agent_harness.core.security.guards.privacy_ladder import (
+    PrivacyFailClosedLadder,
+    PrivacyFailClosedViolationError,
+    PrivacyScope,
+)
 from myrm_agent_harness.toolkits.code_execution.interceptor import ExecutionInterceptor
 
 logger = logging.getLogger(__name__)
@@ -109,6 +114,32 @@ class SnapshotInterceptor(ExecutionInterceptor):
             effects = detect_external_effects(command)
             if effects:
                 metadata["external_effects"] = effects
+
+        # Fail-closed privacy ladder evaluation before snapshotting
+        target_file = str(payload.get("path") or workspace_path)
+        content_preview = payload.get("content")
+        scope = PrivacyScope(workspace_root=workspace_path)
+        verdict = PrivacyFailClosedLadder.evaluate(
+            target_path=target_file,
+            content=str(content_preview) if content_preview is not None else None,
+            scope=scope,
+        )
+        if not verdict.is_allowed:
+            logger.warning(
+                "[SnapshotInterceptor] Privacy ladder blocked snapshot on %s (level=%s, type=%s): %s",
+                target_file,
+                verdict.level,
+                verdict.violation_type,
+                verdict.reason,
+            )
+            # Fail-closed: if workspace escaped or dangerous system path, raise error to abort destructive action
+            if verdict.violation_type in (
+                "workspace_boundary_escaped",
+                "dangerous_system_path",
+                "blocked_device",
+            ):
+                raise PrivacyFailClosedViolationError(verdict, target_path=target_file)
+            return
 
         snapshot_task = asyncio.create_task(
             self._safe_snapshot_with_lock(workspace_path, action_type, chat_id, agent_id, turn_id, cache_key, metadata)

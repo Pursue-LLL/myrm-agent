@@ -1310,7 +1310,11 @@
         "ollamaNotRunningTitle": "Ollama가 실행 중이 아닙니다",
         "ollamaNotRunningDesc": "로컬 모델을 다운로드하고 사용하려면 Ollama를 설치하고 시작하세요.",
         "warningTitle": "하드웨어 제한 경고",
-        "warningDesc": "일부 모델은 사용 가능한 VRAM보다 더 많은 VRAM이 필요합니다. 강제 실행하면 시스템 불안정 또는 메모리 부족(OOM) 오류가 발생할 수 있습니다."
+        "warningDesc": "일부 모델은 사용 가능한 VRAM보다 더 많은 VRAM이 필요합니다. 강제 실행하면 시스템 불안정 또는 메모리 부족(OOM) 오류가 발생할 수 있습니다.",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "도구 호출 및 장기 기억을 위한 64K 컨텍스트 Modelfile 자동 파생",
+        "keepAliveTipTitle": "24/7 상주 및 GPU 메모리 해제 가이드",
+        "keepAliveTipDesc": "백그라운드 봇의 경우 상주를 유지하고, 대규모 훈련이나 렌더링 시에는 언로드하여 VRAM을 해제하세요."
       }
     },
     "defaultModel": {

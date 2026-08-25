@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-
 from myrm_agent_harness.eval import OperationalAssuranceCategory
+
 from app.core.eval.benchmarks import (
     build_benchmark_cases,
     ensure_benchmark_source,
@@ -12,11 +11,7 @@ from app.core.eval.benchmarks import (
     list_benchmark_sources,
 )
 from app.core.eval.operational_assurance import (
-    OPERATIONAL_ASSURANCE_SPEC,
-    build_operational_assurance_benchmark_cases,
     build_operational_assurance_cases,
-    ensure_operational_assurance_source,
-    list_operational_assurance_source,
 )
 
 

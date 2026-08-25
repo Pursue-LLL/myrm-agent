@@ -359,7 +359,7 @@
     },
     "menu": {
       "account": "賬戶",
-      "workbench": "我的工作台",
+      "workbench": "我的工作臺",
       "preferences": "偏好設定",
       "personalization": "個性化",
       "agents": "智慧體",
@@ -1785,7 +1785,11 @@
         "ollamaNotRunningTitle": "Ollama 未執行",
         "ollamaNotRunningDesc": "請先安裝並啟動 Ollama，才能一鍵下載和使用本地模型。",
         "warningTitle": "硬體限制警告",
-        "warningDesc": "部分模型需要的視訊記憶體超過了您當前的可用視訊記憶體。強制執行可能會導致系統卡頓或視訊記憶體溢位 (OOM) 錯誤。"
+        "warningDesc": "部分模型需要的視訊記憶體超過了您當前的可用視訊記憶體。強制執行可能會導致系統卡頓或視訊記憶體溢位 (OOM) 錯誤。",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "已自動衍生 64K 上下文 Modelfile，為工具呼叫與長程記憶提供生產級支援",
+        "keepAliveTipTitle": "24/7 常駐與 GPU 釋放指南",
+        "keepAliveTipDesc": "若用於後台渠道或定時任務，可在 Ollama 中保持模型常駐；若進行大算力訓練或生圖，可卸載釋放視訊記憶體。"
       },
       "importFromModelsDev": "從 models.dev 匯入",
       "getModels": "獲取模型",

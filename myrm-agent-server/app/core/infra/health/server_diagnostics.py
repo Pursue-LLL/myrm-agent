@@ -23,10 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class DLQDiagnostic(DiagnosticProtocol):
-    """Dead Letter Queue and Durable Outbound delivery diagnostic probe.
-
-    Evaluates both in-flight / persisted pending outbound deliveries and DLQ failed message counts.
-    """
+    """Dead Letter Queue and Durable Outbound delivery diagnostic probe."""
 
     async def check_health(self) -> HealthReport:
         try:
@@ -110,27 +107,14 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
     async def check_health(self) -> HealthReport:
         try:
             import os
-
             from app.services.agent.execution_cache import get_execution_cache
 
             rss_mb: float | None = None
             try:
                 import psutil
-
-                process = psutil.Process(os.getpid())
-                rss_mb = round(process.memory_info().rss / (1024 * 1024), 1)
+                rss_mb = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
             except Exception:
-                try:
-                    import resource
-
-                    # ru_maxrss is in KB on Linux, bytes on macOS
-                    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-                    import sys
-
-                    scale = 1024.0 * 1024.0 if sys.platform == "darwin" else 1024.0
-                    rss_mb = round(usage / scale, 1)
-                except Exception:
-                    pass
+                pass
 
             cache = get_execution_cache()
             idle_s = getattr(cache, "idle_seconds", 1800.0)
@@ -153,16 +137,17 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             if rss_mb is not None:
                 meta["process_rss_mb"] = rss_mb
 
+            msg = (
+                f"Execution cache active ({rss_mb} MB RSS, {warm_units} warm units)"
+                if rss_mb is not None
+                else f"Execution cache active ({warm_units} warm units)"
+            )
             return HealthReport(
                 component_name="ExecutionCache",
                 status="pass",
                 code="OK_EXECUTION_CACHE_ACTIVE",
                 meta_data=meta,
-                message=(
-                    f"Execution cache active ({rss_mb} MB RSS, {warm_units} warm units)"
-                    if rss_mb is not None
-                    else f"Execution cache active ({warm_units} warm units)"
-                ),
+                message=msg,
                 detail=", ".join(detail_parts),
             )
         except Exception as e:
@@ -238,7 +223,7 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
                 ready_phases.append("cache_warm")
                 score += 20
             else:
-                score += 10  # Cold cache is acceptable on startup
+                score += 10
         except Exception as exc:
             phase_details["cache_error"] = str(exc)
 
@@ -261,22 +246,15 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             phase_details["storage_error"] = str(exc)
             fix_suggestions.append("Check database connection and file lock permissions.")
 
-        # Evaluate overall status
         if "model_ready" not in ready_phases:
-            status = "warn"
-            code = "WARN_AGENT_MODEL_UNCONFIGURED"
-            message = "Agent model provider is not configured."
+            status, code, message = "warn", "WARN_AGENT_MODEL_UNCONFIGURED", "Agent model provider is not configured."
         elif "storage_healthy" not in ready_phases:
-            status = "warn"
-            code = "WARN_AGENT_STORAGE_UNHEALTHY"
-            message = "Agent storage connectivity is degraded."
+            status, code, message = "warn", "WARN_AGENT_STORAGE_UNHEALTHY", "Agent storage connectivity is degraded."
         elif "cache_warm" in ready_phases:
-            status = "pass"
-            code = "OK_AGENT_WARM_PATH_WARM"
+            status, code = "pass", "OK_AGENT_WARM_PATH_WARM"
             message = f"Agent warm-path fully primed (score: {score}/100, storage: {storage_latency_ms}ms)"
         else:
-            status = "pass"
-            code = "OK_AGENT_WARM_PATH_COLD_READY"
+            status, code = "pass", "OK_AGENT_WARM_PATH_COLD_READY"
             message = f"Agent warm-path ready (score: {score}/100, cold cache, storage: {storage_latency_ms}ms)"
 
         detail_items = [f"Phases: {', '.join(ready_phases)}", f"Score: {score}/100"]
@@ -299,10 +277,7 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             message=message,
             detail="; ".join(detail_items),
             fix_suggestion="; ".join(fix_suggestions) if fix_suggestions else None,
-            metrics={
-                "warm_path_score": float(score),
-                "storage_latency_ms": storage_latency_ms or 0.0,
-            },
+            metrics={"warm_path_score": float(score), "storage_latency_ms": storage_latency_ms or 0.0},
         )
 
 

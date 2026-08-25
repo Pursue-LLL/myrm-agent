@@ -628,6 +628,48 @@ async def iter_agent_stream_chunks(
         from myrm_agent_harness.api import (
             MissingSemanticsBlockedError,
         )
+        from myrm_agent_harness.core.security.guards.privacy_ladder import (
+            PrivacyFailClosedViolationError,
+        )
+
+        if isinstance(stream_err, PrivacyFailClosedViolationError):
+            logger.error(
+                "PrivacyFailClosedViolationError intercepted in stream_loop: level=%s, type=%s, target=%s",
+                stream_err.verdict.level,
+                stream_err.verdict.violation_type,
+                stream_err.target_path,
+            )
+            blocked_payload = {
+                "type": "privacy_ladder_blocked",
+                "messageId": session.params.message_id,
+                "level": stream_err.verdict.level.value if stream_err.verdict.level else "unknown",
+                "violation_type": stream_err.verdict.violation_type.value if stream_err.verdict.violation_type else "unknown",
+                "reason": stream_err.verdict.reason,
+                "target_path": stream_err.target_path,
+            }
+            yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
+            error_message = (
+                f"\n\n🛑 **执行已被隐私安全门禁阻断 (Privacy Fail-Closed Ladder)**\n\n"
+                f"- **违规层级**: `{stream_err.verdict.level}`\n"
+                f"- **违规类型**: `{stream_err.verdict.violation_type}`\n"
+                f"- **阻断原因**: {stream_err.verdict.reason}\n"
+                f"- **目标路径**: `{stream_err.target_path}`\n"
+            )
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message",
+                    "messageId": session.params.message_id,
+                    "data": error_message,
+                }
+            ).to_sse_chunk()
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message_end",
+                    "messageId": session.params.message_id,
+                    "completion_status": "privacy_ladder_blocked",
+                }
+            ).to_sse_chunk()
+            return
 
         if isinstance(stream_err, MissingSemanticsBlockedError):
             logger.error(

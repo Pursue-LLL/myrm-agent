@@ -1785,7 +1785,11 @@
         "ollamaNotRunningTitle": "Ollama 未実行",
         "ollamaNotRunningDesc": "まず Ollama をインストールして起動してください。ローカルモデルをダウンロードして使用できます。",
         "warningTitle": "ハードウェア制限の警告",
-        "warningDesc": "一部のモデルは利用可能な VRAM を超えるメモリを必要とします。強制実行するとシステムが不安定になったり、メモリ不足 (OOM) エラーが発生する可能性があります。"
+        "warningDesc": "一部のモデルは利用可能な VRAM を超えるメモリを必要とします。強制実行するとシステムが不安定になったり、メモリ不足 (OOM) エラーが発生する可能性があります。",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "64K コンテキスト Modelfile を自動派生し、ツール呼び出しと長期記憶を本番レベルでサポート",
+        "keepAliveTipTitle": "24/7 常駐と GPU 解放ガイド",
+        "keepAliveTipDesc": "バックグラウンドや定期タスク用には常駐を維持し、重い学習や画像生成時にはアンロードして VRAM を解放できます。"
       },
       "importFromModelsDev": "から models.dev インポート",
       "getModels": "モデルを取得",
