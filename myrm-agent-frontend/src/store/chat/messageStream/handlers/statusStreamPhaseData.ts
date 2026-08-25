@@ -83,6 +83,39 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
     });
   }
 
+  if (sd.phase === 'human_gate') {
+    actions.setMessages((state) => {
+      const idx = H.findAssistantMessageIndex(state.messages, messageId);
+      if (idx === -1) {
+        return;
+      }
+      if (sd.status === 'waiting') {
+        const question = typeof sd.question === 'string' ? (sd.question as string) : '';
+        const options = Array.isArray(sd.options)
+          ? (sd.options as string[]).filter((opt): opt is string => typeof opt === 'string')
+          : [];
+        const timeoutSeconds = typeof sd.timeout_seconds === 'number' ? (sd.timeout_seconds as number) : 300;
+        const defaultAction = typeof sd.default_action === 'string' ? (sd.default_action as string) : '';
+        const source = typeof sd.source === 'string' ? (sd.source as string) : 'dynamic_workflow';
+
+        state.messages[idx].humanGate = {
+          question,
+          options,
+          timeoutSeconds,
+          defaultAction,
+          status: 'waiting',
+          source,
+        };
+      } else if (sd.status === 'resolved') {
+        if (state.messages[idx].humanGate) {
+          state.messages[idx].humanGate!.status = 'resolved';
+          state.messages[idx].humanGate!.answer = typeof sd.answer === 'string' ? (sd.answer as string) : '';
+          state.messages[idx].humanGate!.timedOut = Boolean(sd.timed_out);
+        }
+      }
+    });
+  }
+
   if (sd.phase === 'explore' && sd.status === 'complete' && sd.has_context) {
     actions.setMessages((state) => {
       const idx = H.findAssistantMessageIndex(state.messages, messageId);

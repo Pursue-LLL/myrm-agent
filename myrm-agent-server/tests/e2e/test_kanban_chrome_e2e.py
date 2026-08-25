@@ -1994,18 +1994,19 @@ def test_kanban_drawer_review_comment_thread_render() -> None:
         )
         try:
             _open_kanban_board(client, page, board_id, board_name)
-            wait_for_state(
+            card_clicked = wait_for_state(
                 client,
                 page,
                 f"""(() => {{
-                  const card = document.querySelector('[data-testid="kanban-task-card-{task_id}"]')
-                    || Array.from(document.querySelectorAll('div, p, span')).find(el => (el.textContent || '').includes({task_title!r}));
+                  const card = document.getElementById({json.dumps(f"kanban-task-{task_id}")})
+                    || Array.from(document.querySelectorAll('[id^="kanban-task-"]')).find(el => (el.textContent || '').includes({task_title!r}));
                   if (!card) return {{ ready: false }};
                   card.click();
                   return {{ ready: true }};
                 }})()""",
                 timeout_sec=30.0,
             )
+            assert card_clicked.get("ready") is True
 
             review_state = wait_for_state(
                 client,

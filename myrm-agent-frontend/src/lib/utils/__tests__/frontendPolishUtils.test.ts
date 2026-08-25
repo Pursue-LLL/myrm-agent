@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { isImeComposing } from '../imeUtils';
 import { parseTitleIndex, disambiguateChatTitle } from '../titleUtils';
-import { isAbsolutePath, normalizePath, normalizeDisplayPath, formatPathForDisplay } from '../pathValidation';
+import { isAbsolutePath, normalizePath, normalizeDisplayPath, formatPathForDisplay, validateWorkspacePath } from '../pathValidation';
 import { resolveSkillDescription } from '../skillUtils';
 import { isRecord, asRecord, safeGet } from '../typeUtils';
 
@@ -72,6 +72,72 @@ describe('Frontend Polish Utilities Suite', () => {
       const formatted = formatPathForDisplay(longPath, 25);
       expect(formatted).toContain('...');
       expect(formatted.length).toBeLessThanOrEqual(25);
+    });
+
+    it('validates and normalizes workspace paths including ~, POSIX, Windows and UNC', () => {
+      // 1. Empty / whitespace
+      expect(validateWorkspacePath('')).toEqual({
+        valid: false,
+        normalizedPath: '',
+        errorKey: 'workspacePathEmpty',
+      });
+      expect(validateWorkspacePath('   ')).toEqual({
+        valid: false,
+        normalizedPath: '',
+        errorKey: 'workspacePathEmpty',
+      });
+
+      // 2. Invalid control chars
+      expect(validateWorkspacePath('/path/with\nnewline')).toEqual({
+        valid: false,
+        normalizedPath: '',
+        errorKey: 'workspacePathInvalidChars',
+      });
+      expect(validateWorkspacePath('/path/with\x00null')).toEqual({
+        valid: false,
+        normalizedPath: '',
+        errorKey: 'workspacePathInvalidChars',
+      });
+
+      // 3. Home directory paths ~
+      expect(validateWorkspacePath('~')).toEqual({
+        valid: true,
+        normalizedPath: '~',
+      });
+      expect(validateWorkspacePath('~/projects/my-app')).toEqual({
+        valid: true,
+        normalizedPath: '~/projects/my-app',
+      });
+      expect(validateWorkspacePath('~\\projects\\my-app\\')).toEqual({
+        valid: true,
+        normalizedPath: '~/projects/my-app',
+      });
+
+      // 4. Absolute POSIX & Windows & UNC
+      expect(validateWorkspacePath('/var/www/project/')).toEqual({
+        valid: true,
+        normalizedPath: '/var/www/project',
+      });
+      expect(validateWorkspacePath('c:\\Users\\Dev\\Repo\\')).toEqual({
+        valid: true,
+        normalizedPath: 'C:/Users/Dev/Repo',
+      });
+      expect(validateWorkspacePath('\\\\nas-server\\share\\repo\\')).toEqual({
+        valid: true,
+        normalizedPath: '//nas-server/share/repo',
+      });
+
+      // 5. Relative paths (invalid)
+      expect(validateWorkspacePath('relative/path/project')).toEqual({
+        valid: false,
+        normalizedPath: '',
+        errorKey: 'workspacePathMustBeAbsolute',
+      });
+      expect(validateWorkspacePath('./subfolder')).toEqual({
+        valid: false,
+        normalizedPath: '',
+        errorKey: 'workspacePathMustBeAbsolute',
+      });
     });
   });
 

@@ -134,6 +134,16 @@ export type Message = {
     remainingBudgetUsd?: number;
     costStatus?: string;
   };
+  humanGate?: {
+    question: string;
+    options: string[];
+    timeoutSeconds: number;
+    defaultAction: string;
+    status: 'waiting' | 'resolved';
+    answer?: string;
+    timedOut?: boolean;
+    source?: string;
+  };
   workflowSuggestion?: {
     status: 'suggested' | 'accepted' | 'dismissed';
   };

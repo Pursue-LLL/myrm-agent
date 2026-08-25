@@ -47,6 +47,7 @@ import ToolCallApproval from './ToolCallApproval';
 import ClarificationInput from './ClarificationInput';
 import DirectoryApprovalInput from './DirectoryApprovalInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
+import { HumanGateCard } from './HumanGateCard';
 import WorkflowSuggestionCard from './WorkflowSuggestionCard';
 import MessageActionBar from './MessageActionBar';
 import { useCLIAgentStore } from '@/store/useCLIAgentStore';
@@ -810,6 +811,19 @@ const MessageBox = ({
                 estimatedCostUsd={message.planConfirmation.estimatedCostUsd}
                 remainingBudgetUsd={message.planConfirmation.remainingBudgetUsd}
                 costStatus={message.planConfirmation.costStatus}
+              />
+            )}
+
+            {message.humanGate && (
+              <HumanGateCard
+                messageId={message.messageId}
+                question={message.humanGate.question}
+                options={message.humanGate.options}
+                timeoutSeconds={message.humanGate.timeoutSeconds}
+                defaultAction={message.humanGate.defaultAction}
+                status={message.humanGate.status}
+                answer={message.humanGate.answer}
+                timedOut={message.humanGate.timedOut}
               />
             )}
 
