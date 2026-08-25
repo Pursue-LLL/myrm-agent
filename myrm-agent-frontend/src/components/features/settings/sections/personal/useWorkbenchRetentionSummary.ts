@@ -135,10 +135,10 @@ export function useWorkbenchRetentionSummary(): UseWorkbenchRetentionSummaryResu
       skillsStatus: growthResult.status === 'fulfilled' ? 'ok' : 'unavailable',
 
       // Workspace Rules
-      totalRules: rules?.rules.length ?? 0,
+      totalRules: rules?.rules?.length ?? 0,
       totalRuleChars: rules?.total_chars ?? 0,
       workspaceRoot: rules?.workspace_root ?? '',
-      rulesStatus: rulesResult.status === 'fulfilled' ? 'ok' : 'unavailable',
+      rulesStatus: rulesResult.status === 'fulfilled' && rules?.rules ? 'ok' : 'unavailable',
 
       // Cron
       cronJobsCount: cron?.items?.length ?? 0,

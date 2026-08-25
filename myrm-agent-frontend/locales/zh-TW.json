@@ -225,8 +225,8 @@
     "workbench": {
       "badge": "個人工作臺與數據主權",
       "title": "數據主權與價值沉澱",
-      "description": "您的所有記憶、知識庫 Wiki、技能、規則與定時任務均安全保存在私有工作區中。您擁有 100% 的 AI 資產所有權，無任何廠商鎖定。",
-      "refresh": "刷新",
+      "description": "您的所有記憶、知識庫 Wiki、技能、規則與定時任務均安全儲存在私有工作區中。您擁有 100% 的 AI 資產所有權，無任何廠商鎖定。",
+      "refresh": "重新整理",
       "assetMatrixTitle": "AI 資產概覽",
       "assets": {
         "memory": {
