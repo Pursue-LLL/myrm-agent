@@ -507,9 +507,7 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
     # D2: Tool Registry memory eviction
     evicted_tools = 0
     try:
-        from myrm_agent_harness.core.security.tool_registry.registry import (
-            evict_skill_safety_metadata,
-        )
+        from myrm_agent_harness.api import evict_skill_safety_metadata
 
         evicted_tools += evict_skill_safety_metadata(plugin_name)
         for sname in server_names:

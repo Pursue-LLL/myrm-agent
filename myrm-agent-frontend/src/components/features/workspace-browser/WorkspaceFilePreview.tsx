@@ -179,6 +179,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
     const [error, setError] = useState<string | null>(null);
     const [editing, setEditing] = useState(false);
     const [dirty, setDirty] = useState(false);
+    const [showDiff, setShowDiff] = useState(false);
 
     const previewKind = getPreviewKind(file.name);
     // Unknown extensions defer to the backend is_text flag: binary files render
@@ -287,17 +288,28 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {!isRichMedia && content !== null && !loading && (
-              <button
-                onClick={toggleEdit}
-                className={cn('p-1 rounded hover:bg-muted transition-colors', editing && 'bg-muted')}
-                title={editing ? t('viewMode') : t('editMode')}
-              >
-                {editing ? (
-                  <Eye className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Pencil className="h-4 w-4 text-muted-foreground" />
+              <>
+                {dirty && (
+                  <button
+                    onClick={() => setShowDiff((prev) => !prev)}
+                    className={cn('p-1 rounded hover:bg-muted transition-colors', showDiff && 'bg-muted')}
+                    title={t('diffView')}
+                  >
+                    <GitCommit className="h-4 w-4 text-emerald-500" />
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={toggleEdit}
+                  className={cn('p-1 rounded hover:bg-muted transition-colors', editing && 'bg-muted')}
+                  title={editing ? t('viewMode') : t('editMode')}
+                >
+                  {editing ? (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Pencil className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              </>
             )}
             {editing && dirty && (
               <button
@@ -333,6 +345,14 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
               <AlertTriangle className="h-6 w-6 mb-2 text-destructive" />
               <span className="text-sm text-center">{error}</span>
             </div>
+          ) : showDiff && content !== null ? (
+            <InlineWorkspaceDiff
+              file={file}
+              workspace={workspace}
+              originalContent={content}
+              modifiedContent={editContent}
+              onClose={() => setShowDiff(false)}
+            />
           ) : isRichMedia ? (
             previewKind !== 'svg' || content !== null ? (
               <RichMediaFilePreview

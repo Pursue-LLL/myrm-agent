@@ -6416,6 +6416,10 @@
     "discardConfirm": "你有未儲存的修改，確定要放棄嗎？",
     "organizeFolder": "AI 整理此目錄",
     "organizePrompt": "使用 workspace-auto-organizer 技能整理「{path}」下的檔案，生成 organize-plan.json 供我審閱後執行。",
+    "setProjectRoot": "設為專案根目錄",
+    "projectRootSet": "已將專案根目錄設為「{path}」",
+    "scopedPrompt": "聚焦於「{path}」專案目錄。請先探查其程式碼大綱與結構符號。",
+    "diffView": "差異對比",
     "previewLoadError": "預覽載入失敗",
     "unsupportedPreview": "暫不支援預覽此檔案類型，請下載查看。"
   },

@@ -15444,7 +15444,15 @@
     "tabDiff": "차이 ({count})",
     "tabMessages": "메시지",
     "loadingMessages": "메시지 로딩 중...",
-    "noMessages": "아직 메시지가 없습니다"
+    "noMessages": "아직 메시지가 없습니다",
+    "copyDiff": "차이 복사",
+    "copied": "복사됨",
+    "expandLongDiff": "나머지 {count}개 라인 확장",
+    "collapseLongDiff": "긴 차이 접기",
+    "workspacePath": "작업 공간 경로",
+    "workspacePathEmpty": "작업 공간 경로는 비워둘 수 없습니다",
+    "workspacePathInvalidChars": "작업 공간 경로에 유효하지 않은 제어 문자가 포함되어 있습니다",
+    "workspacePathMustBeAbsolute": "작업 공간 경로는 절대 경로이거나 ~ 로 시작해야 합니다"
   },
   "growthDashboard": {
     "title": "성장 대시보드",

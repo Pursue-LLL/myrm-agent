@@ -6416,6 +6416,10 @@
     "discardConfirm": "未保存の変更があります。破棄しますか？",
     "organizeFolder": "AIでフォルダを整理",
     "organizePrompt": "workspace-auto-organizerスキルを使用して「{path}」配下のファイルを整理してください。レビュー用にorganize-plan.jsonを作成してください。",
+    "setProjectRoot": "プロジェクトルートに設定",
+    "projectRootSet": "プロジェクトルートを「{path}」に設定しました",
+    "scopedPrompt": "「{path}」プロジェクトに焦点を当ててください。まずコード構造とシンボルを調査してください。",
+    "diffView": "差分比較",
     "previewLoadError": "プレビューの読み込みに失敗しました",
     "unsupportedPreview": "このファイル形式はプレビューできません。ダウンロードしてご覧ください。"
   },

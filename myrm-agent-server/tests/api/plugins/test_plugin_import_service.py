@@ -1307,7 +1307,7 @@ class TestListAndUninstallPlugins:
 
     async def test_uninstall_performs_4d_eviction(self, tmp_path: Path) -> None:
         """Verify uninstall executes full 4D capability eviction pipeline."""
-        from myrm_agent_harness.core.security.tool_registry.registry import (
+        from myrm_agent_harness.api import (
             MCPAnnotations,
             SafetyMetadata,
             get_ptc_safety_metadata,

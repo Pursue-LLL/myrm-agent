@@ -15417,7 +15417,15 @@
     "tabDiff": "Differenz ({count})",
     "tabMessages": "Nachrichten",
     "loadingMessages": "Nachrichten werden geladen...",
-    "noMessages": "Noch keine Nachrichten"
+    "noMessages": "Noch keine Nachrichten",
+    "copyDiff": "Diff kopieren",
+    "copied": "Kopiert",
+    "expandLongDiff": "Verbleibende {count} Zeilen anzeigen",
+    "collapseLongDiff": "Langes Diff einklappen",
+    "workspacePath": "Arbeitsbereichspfad",
+    "workspacePathEmpty": "Arbeitsbereichspfad darf nicht leer sein",
+    "workspacePathInvalidChars": "Arbeitsbereichspfad enthält ungültige Steuerzeichen",
+    "workspacePathMustBeAbsolute": "Arbeitsbereichspfad muss ein absoluter Pfad sein oder mit ~ beginnen"
   },
   "growthDashboard": {
     "title": "Wachstums-Dashboard",
