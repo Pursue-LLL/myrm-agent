@@ -26,7 +26,9 @@ class TestBrowserSkillBindingIntegration:
     """Web chat request → params → Factory must attach peripheral browser-automation skill."""
 
     @pytest.mark.asyncio
-    async def test_converter_does_not_bind_skill_factory_does(self, base_request: dict[str, object]) -> None:
+    async def test_converter_does_not_bind_skill_factory_does(
+        self, base_request: dict[str, object]
+    ) -> None:
         base_request["agent_config"] = {
             "enabledBuiltinTools": ["web_search", "browser"],
         }
@@ -42,7 +44,9 @@ class TestBrowserSkillBindingIntegration:
         assert agent.skill_configs[BROWSER_AUTOMATION_SKILL_ID]["is_core"] is False
 
     @pytest.mark.asyncio
-    async def test_fast_search_skips_browser_skill_bind(self, base_request: dict[str, object]) -> None:
+    async def test_fast_search_skips_browser_skill_bind(
+        self, base_request: dict[str, object]
+    ) -> None:
         base_request["action_mode"] = "fast"
         base_request["agent_config"] = {
             "enabledBuiltinTools": ["web_search", "browser"],
@@ -56,7 +60,9 @@ class TestBrowserSkillBindingIntegration:
         assert BROWSER_AUTOMATION_SKILL_ID not in agent.skill_ids
 
     @pytest.mark.asyncio
-    async def test_cron_channel_params_bind_via_factory(self, base_request: dict[str, object]) -> None:
+    async def test_cron_channel_params_bind_via_factory(
+        self, base_request: dict[str, object]
+    ) -> None:
         """Cron runner builds params then Factory — skill bind must still apply."""
         base_request["agent_config"] = {
             "enabledBuiltinTools": ["web_search", "browser"],

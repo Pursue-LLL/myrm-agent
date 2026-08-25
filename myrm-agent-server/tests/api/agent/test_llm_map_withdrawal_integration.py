@@ -17,7 +17,9 @@ from tests.api.agent.utils import get_model_selection
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         yield client
 
 
@@ -43,28 +45,44 @@ def _resolved_with_legacy_llm_map() -> ResolvedAgentProfile:
 
 
 class TestLlmMapWithdrawalTemplatesIntegration:
-    def test_templates_exclude_batch_processing_assistant(self, client: TestClient) -> None:
+    def test_templates_exclude_batch_processing_assistant(
+        self, client: TestClient
+    ) -> None:
         response = client.get("/api/v1/agents/templates")
         assert response.status_code == 200
         templates = response.json()["data"]
         template_ids = {t["id"] for t in templates}
         assert "batch_processing_assistant" not in template_ids
 
-    def test_no_template_references_llm_map_builtin_tool(self, client: TestClient) -> None:
+    def test_no_template_references_llm_map_builtin_tool(
+        self, client: TestClient
+    ) -> None:
         response = client.get("/api/v1/agents/templates")
         assert response.status_code == 200
         for template in response.json()["data"]:
             tools = template.get("enabled_builtin_tools") or []
-            assert "llm_map" not in tools, f"template {template.get('id')} still lists llm_map"
+            assert (
+                "llm_map" not in tools
+            ), f"template {template.get('id')} still lists llm_map"
 
-    def test_instantiate_batch_processing_template_returns_404(self, client: TestClient) -> None:
-        response = client.post("/api/v1/agents/instantiate-template/batch_processing_assistant")
+    def test_instantiate_batch_processing_template_returns_404(
+        self, client: TestClient
+    ) -> None:
+        response = client.post(
+            "/api/v1/agents/instantiate-template/batch_processing_assistant"
+        )
         assert response.status_code == 404
 
 
 class TestLlmMapWithdrawalProductSurfaceIntegration:
     def test_general_agent_factory_has_no_enable_llm_map_wiring(self) -> None:
-        factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
+        factory_path = (
+            Path(__file__).resolve().parents[3]
+            / "app"
+            / "ai_agents"
+            / "general_agent"
+            / "factory.py"
+        )
         text = factory_path.read_text(encoding="utf-8")
         assert "enable_llm_map" not in text
 
@@ -76,7 +94,9 @@ class TestLlmMapWithdrawalProductSurfaceIntegration:
 
 class TestLlmMapWithdrawalConverterIntegration:
     @pytest.mark.asyncio
-    async def test_converter_ignores_legacy_llm_map_in_profile_tools(self, base_request: dict) -> None:
+    async def test_converter_ignores_legacy_llm_map_in_profile_tools(
+        self, base_request: dict
+    ) -> None:
         from app.services.agent.params.converter import convert_to_general_agent_params
         from app.services.agent.params.models import AgentRequest
 
@@ -98,7 +118,9 @@ class TestLlmMapWithdrawalConverterIntegration:
         assert not hasattr(params, "enable_llm_map")
 
     @pytest.mark.asyncio
-    async def test_agent_config_request_rejects_unknown_builtin_tool_id(self, base_request: dict) -> None:
+    async def test_agent_config_request_rejects_unknown_builtin_tool_id(
+        self, base_request: dict
+    ) -> None:
         from app.services.agent.params.models import AgentRequest
 
         base_request["action_mode"] = "agent"
@@ -109,7 +131,9 @@ class TestLlmMapWithdrawalConverterIntegration:
             AgentRequest(**base_request)
 
     @pytest.mark.asyncio
-    async def test_agent_config_valid_tools_does_not_set_enable_llm_map(self, base_request: dict) -> None:
+    async def test_agent_config_valid_tools_does_not_set_enable_llm_map(
+        self, base_request: dict
+    ) -> None:
         from app.services.agent.params.converter import convert_to_general_agent_params
         from app.services.agent.params.models import AgentRequest
 
@@ -135,7 +159,9 @@ class TestLlmMapWithdrawalConverterIntegration:
 class TestLlmMapWithdrawalAgentCrudE2E:
     """DB may retain stale llm_map in enabled_builtin_tools; CRUD must remain usable."""
 
-    async def test_legacy_llm_map_metadata_persists_in_crud(self, async_client: AsyncClient) -> None:
+    async def test_legacy_llm_map_metadata_persists_in_crud(
+        self, async_client: AsyncClient
+    ) -> None:
         legacy_tools = ["web_search", "memory", "llm_map", "file_ops"]
         create_payload = {
             "name": "Legacy LlmMap Ghost Agent",

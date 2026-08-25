@@ -127,9 +127,13 @@ async def test_agent_stream_disconnect_and_reconnect(app, db_session) -> None:
                 transport=httpx.ASGITransport(app=app),
                 base_url="http://testserver",
             ) as client:
-                first_task = asyncio.create_task(_collect_stream_text(client, payload, max_chunks=3))
+                first_task = asyncio.create_task(
+                    _collect_stream_text(client, payload, max_chunks=3)
+                )
                 first_chunks, _ = await asyncio.wait_for(first_task, timeout=30.0)
-                assert len(first_chunks) >= 3, f"Expected >=3 chunks, got {len(first_chunks)}"
+                assert (
+                    len(first_chunks) >= 3
+                ), f"Expected >=3 chunks, got {len(first_chunks)}"
 
                 last_event_id = _extract_last_event_id(first_chunks)
                 assert last_event_id, f"No Last-Event-ID in chunks: {first_chunks}"
@@ -143,7 +147,10 @@ async def test_agent_stream_disconnect_and_reconnect(app, db_session) -> None:
                     headers=headers,
                 )
                 assert reconnect_chunks, "Reconnect returned no SSE chunks"
-                assert any("chunk-" in chunk or "message" in chunk for chunk in reconnect_chunks), reconnect_raw
+                assert any(
+                    "chunk-" in chunk or "message" in chunk
+                    for chunk in reconnect_chunks
+                ), reconnect_raw
 
                 combined_text = reconnect_raw
                 assert (
@@ -223,6 +230,7 @@ async def test_agent_stream_early_busy_skips_second_persist(app, db_session) -> 
                 pass
 
     try:
+
         def _on_reserve(chat_id_arg: str, **_kwargs: object) -> None:
             if chat_id_arg == chat_id:
                 session_registered.set()
@@ -273,7 +281,9 @@ async def test_agent_stream_early_busy_skips_second_persist(app, db_session) -> 
                 assert "AgentBusyError" in busy_text
 
                 messages = await ChatService.get_all_messages(chat_id)
-                user_messages = [message for message in messages if message.role == "user"]
+                user_messages = [
+                    message for message in messages if message.role == "user"
+                ]
                 assert len(user_messages) == 1
                 assert user_messages[0].id == first_message_id
 

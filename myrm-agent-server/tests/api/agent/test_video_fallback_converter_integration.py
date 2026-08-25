@@ -11,7 +11,11 @@ from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.types import ModelConfig
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest
-from tests.api.agent.utils import _infer_provider_id, _strip_provider_prefix, get_model_selection
+from tests.api.agent.utils import (
+    _infer_provider_id,
+    _strip_provider_prefix,
+    get_model_selection,
+)
 from tests.support.test_secrets import resolve_test_env
 
 
@@ -86,7 +90,9 @@ class TestVideoFallbackConverterIntegration:
     """P0 evidence chain: converter must emit video_fallback_model_cfgs into agent runtime."""
 
     @pytest.mark.asyncio
-    async def test_converter_propagates_video_fallback_to_general_agent_params(self, base_request: dict[str, object]) -> None:
+    async def test_converter_propagates_video_fallback_to_general_agent_params(
+        self, base_request: dict[str, object]
+    ) -> None:
         request = AgentRequest(**base_request)
 
         with patch(
@@ -101,7 +107,9 @@ class TestVideoFallbackConverterIntegration:
         assert params.video_fallback_model_cfgs[0].supports_video is True
 
     @pytest.mark.asyncio
-    async def test_agent_factory_preserves_video_fallback_on_instance(self, base_request: dict[str, object]) -> None:
+    async def test_agent_factory_preserves_video_fallback_on_instance(
+        self, base_request: dict[str, object]
+    ) -> None:
         request = AgentRequest(**base_request)
 
         with patch(
@@ -119,5 +127,7 @@ class TestVideoFallbackConverterIntegration:
             chat_history=[],
             effective_chat_id="test-chat-video-fallback",
         )
-        assert context.get("video_fallback_model_cfgs") == agent.video_fallback_model_cfgs
+        assert (
+            context.get("video_fallback_model_cfgs") == agent.video_fallback_model_cfgs
+        )
         assert "supports_video" in context

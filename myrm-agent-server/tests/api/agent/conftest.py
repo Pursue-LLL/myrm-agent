@@ -37,7 +37,9 @@ def configure_test_logging() -> None:
     console_handler.setFormatter(formatter)
     root_logger.setLevel(logging.WARNING)
     root_logger.addHandler(console_handler)
-    logging.getLogger("myrm_agent_harness.toolkits.llms.utils.logger").setLevel(logging.WARNING)
+    logging.getLogger("myrm_agent_harness.toolkits.llms.utils.logger").setLevel(
+        logging.WARNING
+    )
 
 
 configure_test_logging()
@@ -167,22 +169,34 @@ def app() -> FastAPI:
     pass
 
     general_agent_module = import_module("app.api.agents.general_agent")
-    app.include_router(general_agent_module.router, prefix="/api/v1/agents", tags=["agents"])
+    app.include_router(
+        general_agent_module.router, prefix="/api/v1/agents", tags=["agents"]
+    )
 
     agent_management_module = import_module("app.api.agents.agent")
-    app.include_router(agent_management_module.router, prefix="/api/agents", tags=["agent-management"])
+    app.include_router(
+        agent_management_module.router, prefix="/api/agents", tags=["agent-management"]
+    )
 
     agent_extras_module = import_module("app.api.agents.agent_extras")
-    app.include_router(agent_extras_module.router, prefix="/api/agents", tags=["agent-management"])
+    app.include_router(
+        agent_extras_module.router, prefix="/api/agents", tags=["agent-management"]
+    )
 
     agent_portability_module = import_module("app.api.agents.agent_portability")
-    app.include_router(agent_portability_module.router, prefix="/api/agents", tags=["agent-management"])
+    app.include_router(
+        agent_portability_module.router, prefix="/api/agents", tags=["agent-management"]
+    )
 
     generate_prompt_module = import_module("app.api.agents.generate_prompt")
-    app.include_router(generate_prompt_module.router, prefix="/api/agents", tags=["agent-management"])
+    app.include_router(
+        generate_prompt_module.router, prefix="/api/agents", tags=["agent-management"]
+    )
 
     agent_history_module = import_module("app.api.agents.agent_history")
-    app.include_router(agent_history_module.router, prefix="/api/agents", tags=["agent-management"])
+    app.include_router(
+        agent_history_module.router, prefix="/api/agents", tags=["agent-management"]
+    )
 
     memory_module = import_module("app.api.memory.router")
     app.include_router(memory_module.router, prefix="/api/v1/memory", tags=["memory"])
@@ -196,16 +210,24 @@ def app() -> FastAPI:
 
     # Add files router for vault endpoints tests
     vault_module = import_module("app.api.files.vault_api")
-    app.include_router(vault_module.router, prefix="/api/v1/files/vault", tags=["files-vault"])
+    app.include_router(
+        vault_module.router, prefix="/api/v1/files/vault", tags=["files-vault"]
+    )
 
     artifact_api_module = import_module("app.api.files.artifact_api")
-    app.include_router(artifact_api_module.router, prefix="/api/v1/files/artifacts", tags=["files-artifacts"])
+    app.include_router(
+        artifact_api_module.router,
+        prefix="/api/v1/files/artifacts",
+        tags=["files-artifacts"],
+    )
 
     goals_module = import_module("app.api.goals.router")
     app.include_router(goals_module.router, prefix="/api/v1", tags=["goals"])
 
     templates_module = import_module("app.api.agents.templates")
-    app.include_router(templates_module.router, prefix="/api/v1/agents", tags=["agent-templates"])
+    app.include_router(
+        templates_module.router, prefix="/api/v1/agents", tags=["agent-templates"]
+    )
 
     kanban_module = import_module("app.api.kanban.router")
     app.include_router(kanban_module.router, prefix="/api/v1")
@@ -238,7 +260,9 @@ async def setup_test_database(tmp_path: Path):
     db_file = tmp_path / "test_agent.db"
     os.environ["TEST_AGENT_DB_PATH"] = str(db_file)
     engine = create_async_engine(
-        f"sqlite+aiosqlite:///{db_file}", poolclass=StaticPool, connect_args={"check_same_thread": False}
+        f"sqlite+aiosqlite:///{db_file}",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -246,7 +270,9 @@ async def setup_test_database(tmp_path: Path):
         # Create raw SQL tables (FTS5)
         from sqlalchemy import text
 
-        from app.database.repositories.conversation_recall import CONVERSATION_RECALL_SCHEMA_SQL
+        from app.database.repositories.conversation_recall import (
+            CONVERSATION_RECALL_SCHEMA_SQL,
+        )
 
         for sql in CONVERSATION_RECALL_SCHEMA_SQL:
             await conn.execute(text(sql))
@@ -275,7 +301,9 @@ async def setup_test_database(tmp_path: Path):
             mock_get_session_factory,
         ),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
-        patch("app.services.budget.enforcer.get_session_factory", mock_get_session_factory),
+        patch(
+            "app.services.budget.enforcer.get_session_factory", mock_get_session_factory
+        ),
         patch(
             "app.services.memory.shared_context.shared_context.get_session",
             mock_get_session,
@@ -372,10 +400,15 @@ def setup_random_mcp_port():
 def _clear_agent_test_process_state() -> None:
     import asyncio
 
-    from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+    from myrm_agent_harness.agent.middlewares.approval.scheduler import (
+        ApprovalTimeoutScheduler,
+    )
 
     from app.core.memory.adapters.setup import shutdown_cached_memory_managers
-    from app.platform_utils import _reset_checkpointer_for_testing, _reset_quota_manager_for_testing
+    from app.platform_utils import (
+        _reset_checkpointer_for_testing,
+        _reset_quota_manager_for_testing,
+    )
     from app.services.agent.execution_cache.prewarm.coordinator import (
         _reset_turn_prewarm_coordinator_for_testing,
     )
@@ -449,4 +482,3 @@ def local_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("VISUAL_DESKTOP", raising=False)
     yield
     _reset_deploy_caches()
-

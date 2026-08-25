@@ -29,7 +29,9 @@ class TestEconomyDeliverableConverterIntegration:
     """Web chat request → converter must merge economy system_prompt into user_instructions."""
 
     @pytest.mark.asyncio
-    async def test_economy_agent_injects_deliverable_discipline(self, base_request: dict[str, object]) -> None:
+    async def test_economy_agent_injects_deliverable_discipline(
+        self, base_request: dict[str, object]
+    ) -> None:
         request = AgentRequest(**base_request)
 
         mock_profile = ResolvedAgentProfile(

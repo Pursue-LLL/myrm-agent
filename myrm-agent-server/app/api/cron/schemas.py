@@ -545,9 +545,5 @@ class PrerequisiteCheckResponse(BaseModel):
     override_allowed: bool = True
 
 
-# Aliases for request schemas
-CronJobCreateRequest = CronJobCreate
-CronJobUpdateRequest = CronJobUpdate
-CronJobPatchRequest = CronJobUpdate
 
 
