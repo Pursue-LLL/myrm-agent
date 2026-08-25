@@ -1938,3 +1938,100 @@ def test_kanban_task_skill_drawer_edit_and_clear() -> None:
                 else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
             )
             client.evaluate(page, restore, timeout_sec=5.0)
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_kanban_drawer_review_comment_thread_render() -> None:
+    """Validate that Kanban Task Drawer renders structured ReviewCommentThread elements."""
+    marker = str(time.time_ns())
+    board_name = f"ReviewBoard {marker}"
+    task_title = f"ReviewTask {marker}"
+    api_url = get_e2e_api_url()
+    board = _http_json_write("POST", f"{api_url}/api/v1/kanban/boards", {"name": board_name})
+    board_id = str(board["board_id"])
+
+    task_payload = {
+        "title": task_title,
+        "description": "E2E verification review thread test",
+        "completion_criteria": "Assert all criteria pass",
+        "metadata": {
+            "acceptance_results": [
+                {
+                    "label": "Shell Acceptance Gate",
+                    "passed": False,
+                    "reason": "Test suite failed with 1 error",
+                    "duration_ms": 142,
+                    "comments": [
+                        {
+                            "id": "e2e-rev-1",
+                            "severity": "critical",
+                            "message": "Critical syntax error detected in service",
+                            "target_path": "app/service.py",
+                            "line_range": "45-50",
+                            "fix_suggestion": "Add missing colon after if condition",
+                        },
+                        {
+                            "id": "e2e-rev-2",
+                            "severity": "warning",
+                            "message": "Performance warning: slow DB lookup",
+                            "target_path": "app/service.py",
+                        },
+                    ],
+                }
+            ]
+        },
+    }
+    task = _http_json_write("POST", f"{api_url}/api/v1/kanban/boards/{board_id}/tasks", task_payload)
+    task_id = str(task["task_id"])
+
+    with open_settings_subroute("/settings/kanban") as (client, page):
+        previous_board = client.evaluate(
+            page,
+            "localStorage.getItem('kanban_last_board_id')",
+            timeout_sec=5.0,
+        )
+        try:
+            _open_kanban_board(client, page, board_id, board_name)
+            wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const card = document.querySelector('[data-testid="kanban-task-card-{task_id}"]')
+                    || Array.from(document.querySelectorAll('div, p, span')).find(el => (el.textContent || '').includes({task_title!r}));
+                  if (!card) return {{ ready: false }};
+                  card.click();
+                  return {{ ready: true }};
+                }})()""",
+                timeout_sec=30.0,
+            )
+
+            review_state = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const drawer = document.querySelector('[data-testid="kanban-task-drawer"]')
+                    || document.querySelector('[role="dialog"]');
+                  if (!drawer) return { ready: false, reason: 'no-drawer' };
+                  const box = drawer.querySelector('[data-testid="review-comment-box"]');
+                  const text = drawer.textContent || '';
+                  const hasCrit = text.includes('Critical syntax error detected in service');
+                  const hasPath = text.includes('app/service.py:45-50');
+                  return {
+                    ready: !!box && hasCrit && hasPath,
+                    hasBox: !!box,
+                    hasCrit,
+                    hasPath,
+                  };
+                })()""",
+                timeout_sec=30.0,
+            )
+            assert review_state.get("ready") is True, f"Review comment thread not properly rendered in Drawer: {review_state}"
+        finally:
+            restore = (
+                "localStorage.removeItem('kanban_last_board_id')"
+                if previous_board is None
+                else f"localStorage.setItem('kanban_last_board_id', {json.dumps(str(previous_board))})"
+            )
+            client.evaluate(page, restore, timeout_sec=5.0)

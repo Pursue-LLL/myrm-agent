@@ -6220,6 +6220,10 @@
     "discardConfirm": "Es gibt ungespeicherte Änderungen. Verwerfen?",
     "organizeFolder": "KI-Ordner organisieren",
     "organizePrompt": "Organisieren Sie Dateien unter „{path}“ mit der Fähigkeit „Workspace-Auto-Organizer“. Schreiben Sie eine „organize-plan.json“ für meine Rezension.",
+    "setProjectRoot": "Als Projektstammverzeichnis festlegen",
+    "projectRootSet": "Projektstammverzeichnis auf „{path}“ festgelegt",
+    "scopedPrompt": "Konzentrieren Sie sich auf das Projekt unter „{path}“. Bitte untersuchen Sie zuerst die Codestruktur und Symbole.",
+    "diffView": "Diff-Ansicht",
     "previewLoadError": "Vorschau konnte nicht geladen werden",
     "unsupportedPreview": "Dieser Dateityp kann nicht in der Vorschau angezeigt werden. Bitte herunterladen."
   },

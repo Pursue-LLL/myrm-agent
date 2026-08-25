@@ -10,7 +10,7 @@ GeneralAgent 流式对话、重连与离线 durable 任务 HTTP 层。上级文�
 |------|------|------|-------|
 | `__init__.py` | 入口 | General Agent package. | ✅ |
 | `active_sessions.py` | 模块 | attach SSE；pair auth 时校验 `require_mobile_pair_chat_access` | ✅ |
-| `phase_response.py` | 模块 | Deep Research 阶段响应端点：`/clarify-response`（澄清）+ `/plan-confirm-response`（计划确认 HITL，支持 confirm/edit/skip） | ✅ |
+| `phase_response.py` | 模块 | 阶段响应端点：`/clarify-response`（澄清）+ `/plan-confirm-response`（计划确认 HITL，支持 confirm/edit/skip）+ `/human-gate-response`（Dynamic Workflow 中途人机门控） | ✅ |
 | `media_config.py` | 模块 | 媒体生成配置连通性测试 | ✅ |
 | `streaming.py` | 模块 | agent-stream / steer / redirect / **chat cancel（interrupt + registry）** / message cancel（desktop）；pair auth 时校验 scoped chat 绑定 | ✅ |
 | `prewarm.py` | 模块 | `POST/DELETE /chats/{chat_id}/prewarm` — turn1 冷启动 proactive warm | ✅ |

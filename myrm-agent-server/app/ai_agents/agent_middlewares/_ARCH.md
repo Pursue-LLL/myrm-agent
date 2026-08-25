@@ -35,6 +35,7 @@ AI Agents 共享中间件。为 GeneralAgent 提供可复用的 LangGraph Agent 
 ```
 System Prompt (固定, 跨用户缓存)              ← KV Cache ✅
 user_instructions (用户指令, 同用户稳定)        ← KV Cache ✅
+project_scoped_workspace (项目作用域边界, 同项目稳定) ← KV Cache ✅
 workspace_context (工作区规则, 同workspace稳定) ← KV Cache ✅
 project_roadmap (项目路线图, 同项目稳定)       ← KV Cache ✅
 Stable `<user_memory_context>` (System, 同用户稳定) ← KV Cache ✅；可选 Learned(`<<<UNTRUSTED_DATA>>>` Human advisory)

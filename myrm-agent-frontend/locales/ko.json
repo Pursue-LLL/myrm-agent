@@ -6223,6 +6223,10 @@
     "discardConfirm": "저장하지 않은 변경 사항이 있습니다. 취소하시겠습니까?",
     "organizeFolder": "AI 폴더 정리",
     "organizePrompt": "workspace-auto-organizer 스킬을 사용하여 \"{path}\" 아래 파일을 정리하세요. 검토를 위해 organize-plan.json을 작성해 주세요.",
+    "setProjectRoot": "프로젝트 루트로 설정",
+    "projectRootSet": "프로젝트 루트가 \"{path}\"(으)로 설정되었습니다",
+    "scopedPrompt": "\"{path}\" 프로젝트에 집중하세요. 먼저 코드 구조와 심볼을 탐색해 주세요.",
+    "diffView": "차이 비교",
     "previewLoadError": "미리보기 로드 실패",
     "unsupportedPreview": "이 파일 형식은 미리보기를 지원하지 않습니다. 다운로드하여 확인하세요."
   },
