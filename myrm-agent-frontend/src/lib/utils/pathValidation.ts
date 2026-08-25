@@ -128,3 +128,62 @@ export const formatPathForDisplay = (path: string, maxLength = 36): string => {
 
   return `${first}/.../${last}`.slice(0, maxLength - 3) + '...';
 };
+
+export interface WorkspacePathValidationResult {
+  valid: boolean;
+  normalizedPath: string;
+  errorKey?: string;
+}
+
+/**
+ * 验证并规范化工作区路径 (Project Directory)
+ * 支持 POSIX 绝对路径、Windows 盘符、Windows UNC 以及 ~ 开头的家目录
+ *
+ * @param rawPath 用户输入的工作区路径
+ * @returns 校验结果及规范化后的路径
+ */
+export const validateWorkspacePath = (rawPath: string): WorkspacePathValidationResult => {
+  if (!rawPath || !rawPath.trim()) {
+    return {
+      valid: false,
+      normalizedPath: '',
+      errorKey: 'workspacePathEmpty',
+    };
+  }
+
+  const trimmed = rawPath.trim();
+
+  // 1. 检查是否存在非法控制字符（如换行、回车、Tab 或 NULL）
+  if (/[\x00-\x1F\x7F]/.test(trimmed)) {
+    return {
+      valid: false,
+      normalizedPath: '',
+      errorKey: 'workspacePathInvalidChars',
+    };
+  }
+
+  // 2. ~ 用户家目录路径 (例如 ~/my-project 或 ~user/project)
+  if (trimmed === '~' || trimmed.startsWith('~/') || trimmed.startsWith('~\\')) {
+    const displayNormalized = normalizeDisplayPath(trimmed);
+    return {
+      valid: true,
+      normalizedPath: displayNormalized,
+    };
+  }
+
+  // 3. 校验是否为绝对路径 (POSIX / Windows / UNC)
+  if (!isAbsolutePath(trimmed)) {
+    return {
+      valid: false,
+      normalizedPath: '',
+      errorKey: 'workspacePathMustBeAbsolute',
+    };
+  }
+
+  const displayNormalized = normalizeDisplayPath(trimmed);
+  return {
+    valid: true,
+    normalizedPath: displayNormalized,
+  };
+};
+

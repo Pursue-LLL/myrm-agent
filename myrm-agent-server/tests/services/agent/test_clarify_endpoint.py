@@ -81,3 +81,26 @@ class TestClarifyResponseEndpoint:
         )
         assert resp.status_code == 200
         assert waiter.is_resolved
+
+
+class TestHumanGateResponseEndpoint:
+    def test_no_pending_waiter_returns_404(self, client: TestClient):
+        resp = client.post(
+            "/api/v1/agents/human-gate-response",
+            json={"messageId": "nonexistent_gate", "answer": "approved"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("code") == 404 or "No pending" in str(body)
+
+    def test_resolve_pending_human_gate(self, client: TestClient):
+        waiter = PhaseWaiter.register("human_gate:msg-gate-1")
+        assert not waiter.is_resolved
+
+        resp = client.post(
+            "/api/v1/agents/human-gate-response",
+            json={"messageId": "msg-gate-1", "answer": "approved_by_user"},
+        )
+        assert resp.status_code == 200
+        assert waiter.is_resolved
+

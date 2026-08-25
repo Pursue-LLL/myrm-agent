@@ -9,6 +9,28 @@ import { stripMarkdown } from '@/lib/utils/messageUtils';
 export type TTSState = 'idle' | 'playing' | 'paused' | 'loading';
 export type TTSMode = 'browser' | 'api';
 
+const MAX_SPOKEN_HISTORY = 3;
+let globalLastSpokenHistory: string[] = [];
+
+export function recordSpokenText(text: string): void {
+  const cleaned = stripMarkdown(text).trim();
+  if (!cleaned) {
+    return;
+  }
+  globalLastSpokenHistory = [cleaned, ...globalLastSpokenHistory.filter((item) => item !== cleaned)].slice(
+    0,
+    MAX_SPOKEN_HISTORY,
+  );
+}
+
+export function getLastSpokenText(): string | null {
+  return globalLastSpokenHistory[0] ?? null;
+}
+
+export function getSpokenHistory(): readonly string[] {
+  return globalLastSpokenHistory;
+}
+
 interface UseTTSOptions {
   rate?: number;
   lang?: string;
@@ -19,6 +41,7 @@ interface UseTTSOptions {
 interface UseTTSReturn {
   state: TTSState;
   speak: (text: string) => void;
+  replayLast: () => boolean;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -88,6 +111,8 @@ function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
         utterance.lang = lang;
       }
 
+      recordSpokenText(cleaned);
+
       utterance.onstart = () => setState('playing');
       utterance.onend = () => {
         utteranceRef.current = null;
@@ -133,7 +158,16 @@ function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
     [state, pause, resume, speak],
   );
 
-  return { state, speak, pause, resume, stop, toggle, supported };
+  const replayLast = useCallback((): boolean => {
+    const last = getLastSpokenText();
+    if (!last) {
+      return false;
+    }
+    speak(last);
+    return true;
+  }, [speak]);
+
+  return { state, speak, replayLast, pause, resume, stop, toggle, supported };
 }
 
 // ---------------------------------------------------------------------------
@@ -360,6 +394,7 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
       setState('loading');
       const controller = new AbortController();
       abortRef.current = controller;
+      recordSpokenText(cleaned);
 
       try {
         if (MSE_SUPPORTED) {

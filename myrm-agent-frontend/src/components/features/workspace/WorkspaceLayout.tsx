@@ -114,7 +114,11 @@ export default function WorkspaceLayout() {
       {/* Right: Review Panel */}
       {panes.length > 0 && (
         <div className="w-[400px] border-l border-border/50 hidden lg:flex flex-col">
-          <ReviewPanel sessionId={activePane?.chatId ?? null} onSendFeedback={handleSendFeedback} />
+          <ReviewPanel
+            sessionId={activePane?.chatId ?? null}
+            workspacePath={activePane?.snapshot?.agentConfig?.projectDir ?? null}
+            onSendFeedback={handleSendFeedback}
+          />
         </div>
       )}
     </div>

@@ -1269,6 +1269,9 @@ class TestListAndUninstallPlugins:
             "plugin_name": "nope",
             "removed_servers": 0,
             "unbound_agents": 0,
+            "evicted_tools": 0,
+            "purged_cron_jobs": 0,
+            "paused_cron_jobs": 0,
             "removed_files": False,
         }
         config_service.set.assert_not_awaited()
@@ -1283,6 +1286,9 @@ class TestListAndUninstallPlugins:
             "plugin_name": "../important_dir",
             "removed_servers": 0,
             "unbound_agents": 0,
+            "evicted_tools": 0,
+            "purged_cron_jobs": 0,
+            "paused_cron_jobs": 0,
             "removed_files": False,
         }
 
@@ -1295,3 +1301,76 @@ class TestListAndUninstallPlugins:
         (victim / "file.txt").write_text("keep")
         assert remove_plugin_files("../important_dir", tmp_path) is False
         assert (victim / "file.txt").exists()
+
+    async def test_uninstall_performs_4d_eviction(self, tmp_path: Path) -> None:
+        """Verify uninstall executes full 4D capability eviction pipeline."""
+        from app.services.plugins.import_service import uninstall_plugin
+        from myrm_agent_harness.core.security.tool_registry.registry import (
+            MCPAnnotations,
+            SafetyMetadata,
+            get_ptc_safety_metadata,
+            register_ptc_safety_metadata,
+        )
+
+        plugin_name = "test-evict-plugin"
+        server_name = "test-evict-server"
+        tool_name = "test_evict_tool"
+
+        # Setup registered PTC tool
+        register_ptc_safety_metadata(
+            plugin_name, tool_name, SafetyMetadata(), MCPAnnotations()
+        )
+        assert get_ptc_safety_metadata(plugin_name, tool_name) is not None
+
+        config_service = SimpleNamespace(
+            get=AsyncMock(
+                return_value=SimpleNamespace(
+                    value={
+                        "mcpConfigs": [
+                            {
+                                "name": server_name,
+                                "command": "/bin/test",
+                                "extra_params": {"plugin_name": plugin_name},
+                            }
+                        ]
+                    }
+                )
+            ),
+            set=AsyncMock(),
+        )
+
+        mock_cron_manager = SimpleNamespace(
+            list_jobs=AsyncMock(return_value=[]),
+            delete_job=AsyncMock(return_value=True),
+            update_job=AsyncMock(return_value=None),
+        )
+
+        with (
+            patch("app.services.config.service.config_service", config_service),
+            patch(
+                "app.services.plugins._mcp_persist._unbind_plugin_from_agents",
+                AsyncMock(return_value=1),
+            ),
+            patch(
+                "app.core.cron.adapters.setup.get_cron_manager",
+                return_value=mock_cron_manager,
+            ),
+            patch(
+                "app.core.skills.store.evolution_store.get_evolution_skill_store_db_path",
+                return_value=tmp_path / "skills.db",
+            ),
+            patch(
+                "app.services.plugins._plugin_files.remove_plugin_files",
+                return_value=True,
+            ),
+        ):
+            res = await uninstall_plugin(plugin_name)
+
+        assert res["plugin_name"] == plugin_name
+        assert res["removed_servers"] == 1
+        assert res["unbound_agents"] == 1
+        assert res["evicted_tools"] >= 1
+        assert res["removed_files"] is True
+        # Tool metadata is now completely gone from memory
+        assert get_ptc_safety_metadata(plugin_name, tool_name) is None
+

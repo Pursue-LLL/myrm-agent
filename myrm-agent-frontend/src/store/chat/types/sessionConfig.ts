@@ -74,6 +74,8 @@ export interface AgentConfig {
   defaultSecurityPreset?: 'hitl' | 'accept_edits' | 'explore' | null;
   /** 编排模式（standard: Direct-FC / orchestrated: Dynamic Workflow PTC 批量并发编排） */
   orchestrationMode?: OrchestrationMode;
+  /** 会话绑定项目根目录 (Project Directory) */
+  projectDir?: string | null;
 }
 
 // 已选模型配置

@@ -13,7 +13,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _WEBHOOK_SETTINGS_CHECK_JS = """(async () => {
-  const res = await fetch('/api/lifecycle-webhooks', { cache: 'no-store' });
+  const res = await fetch('/api/v1/lifecycle-webhooks', { cache: 'no-store' });
   if (!res.ok) {
     return { ok: false, status: res.status };
   }
@@ -33,12 +33,7 @@ def test_lifecycle_webhook_settings_chrome_e2e() -> None:
     prepare_e2e_ui_session(get_e2e_api_url())
 
     warm_ui_route("/settings/integrationCatalog")
-    with open_settings_subroute(
-        "/settings/integrationCatalog",
-        timeout_ms=90_000,
-        subroute_state_js=_WEBHOOK_SETTINGS_CHECK_JS,
-        state_predicate=lambda s: bool(isinstance(s, dict) and s.get("ok") is True),
-    ) as (client, page):
+    with open_settings_subroute("/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
         browser_body = client.evaluate(page, _WEBHOOK_SETTINGS_CHECK_JS)
         assert browser_body.get("ok") is True, browser_body

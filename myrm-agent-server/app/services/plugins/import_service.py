@@ -466,11 +466,13 @@ def _plugin_dir_exists(plugin_name: str) -> bool:
 
 
 async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
-    """Uninstall a plugin: remove its MCP servers, agent bindings, and files.
+    """Uninstall a plugin: remove its MCP servers, agent bindings, tools, cron jobs, and files.
 
-    Removes every global mcpServers entry imported by ``plugin_name``, drops the
-    same server names from every agent's ``mcp_ids``, and deletes the plugin's
-    bundled-file + data directories. Returns a summary of what was removed.
+    Performs complete 4-Dimensional Runtime Capability Eviction:
+    1. MCP Server process/config teardown & Agent binding revocation
+    2. Tool Registry memory eviction (O(1) thread-safe unregistration)
+    3. Associated Cron jobs cascade cleanup (managed jobs deleted, workflows auto-paused)
+    4. Physical bundle & data directory removal + audit log
     """
     from ._plugin_files import is_safe_plugin_name
 
@@ -480,6 +482,9 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
             "plugin_name": plugin_name,
             "removed_servers": 0,
             "unbound_agents": 0,
+            "evicted_tools": 0,
+            "purged_cron_jobs": 0,
+            "paused_cron_jobs": 0,
             "removed_files": False,
         }
 
@@ -495,8 +500,58 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
             server_names = [str(s) for s in item["servers"]]
             break
 
+    # D1: MCP Servers removal and Agent unbinding
     removed_servers = await _remove_plugin_mcp_servers(plugin_name)
     unbound_agents = await _unbind_plugin_from_agents(server_names)
+
+    # D2: Tool Registry memory eviction
+    evicted_tools = 0
+    try:
+        from myrm_agent_harness.core.security.tool_registry.registry import (
+            evict_skill_safety_metadata,
+        )
+
+        evicted_tools += evict_skill_safety_metadata(plugin_name)
+        for sname in server_names:
+            evicted_tools += evict_skill_safety_metadata(sname)
+    except Exception as exc:
+        logger.warning("Failed to evict tool registry metadata for '%s': %s", plugin_name, exc)
+
+    # D3: Associated Cron jobs cascade cleanup (dual-track)
+    purged_cron_jobs = 0
+    paused_cron_jobs = 0
+    try:
+        from app.core.cron.adapters.setup import get_cron_manager
+        from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobStatus
+
+        mgr = get_cron_manager()
+        all_jobs = await mgr.list_jobs("default", limit=200)
+        target_names = {plugin_name.lower(), *[s.lower() for s in server_names]}
+
+        for job in all_jobs:
+            # Check if this job is managed directly by or references the plugin/servers
+            job_name_lower = job.name.lower()
+            job_prompt_lower = (job.prompt or "").lower()
+            is_plugin_job = any(tn in job_name_lower for tn in target_names)
+            is_referencing_job = any(tn in job_prompt_lower for tn in target_names)
+
+            if is_plugin_job:
+                deleted = await mgr.delete_job(job.id, "default")
+                if deleted:
+                    purged_cron_jobs += 1
+            elif is_referencing_job and job.status == JobStatus.ACTIVE:
+                await mgr.update_job(
+                    job.id,
+                    "default",
+                    CronJobPatch(
+                        status=JobStatus.PAUSED,
+                    ),
+                )
+                paused_cron_jobs += 1
+    except Exception as exc:
+        logger.warning("Failed to cascade-clean cron jobs for '%s': %s", plugin_name, exc)
+
+    # D4: Physical files removal
     removed_files = False
     try:
         from app.core.skills.store.evolution_store import get_evolution_skill_store_db_path
@@ -508,9 +563,23 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
     except Exception as exc:
         logger.warning("Failed to remove plugin files for '%s': %s", plugin_name, exc)
 
+    logger.info(
+        "Plugin %s evicted: %d servers, %d agents unbound, %d tools evicted, %d cron deleted, %d cron paused, files=%s",
+        plugin_name,
+        removed_servers,
+        unbound_agents,
+        evicted_tools,
+        purged_cron_jobs,
+        paused_cron_jobs,
+        removed_files,
+    )
+
     return {
         "plugin_name": plugin_name,
         "removed_servers": removed_servers,
         "unbound_agents": unbound_agents,
+        "evicted_tools": evicted_tools,
+        "purged_cron_jobs": purged_cron_jobs,
+        "paused_cron_jobs": paused_cron_jobs,
         "removed_files": removed_files,
     }
