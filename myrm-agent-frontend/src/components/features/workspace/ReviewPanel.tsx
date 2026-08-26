@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/lib/utils/pathValidation::formatPathForDisplay (POS: 全平台路径规范、工作区校验与展示截断)
+ * - @/lib/utils/imeUtils::isImeComposing (POS: 输入法组合输入状态检测)
+ * - @/services/chat::getMessages (POS: 会话历史消息加载服务)
+ *
+ * [OUTPUT]
+ * - ReviewPanel: 变更审阅与会话反馈侧栏组件
+ *
+ * [POS]
+ * 工作区审阅面板。负责展示会话文件差异对比（含大文件 Diff 折叠与片段复制）、会话绑定的工作区路径徽章及交互式消息反馈。
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileEdit, ChevronDown, ChevronRight, RefreshCw, MessageSquare, MessagesSquare, User, Bot, Copy, Check, ChevronUp } from 'lucide-react';

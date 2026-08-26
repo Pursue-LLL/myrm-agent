@@ -1,8 +1,16 @@
 /**
- * 路径验证与跨平台展示规范化工具函数
+ * [INPUT]
+ * - 无外部依赖（纯函数工具集）
  *
- * 完整支持 POSIX (/usr/local), Windows 本地盘符 (C:\, C:/),
- * 以及 Windows 网络共享 UNC 路径 (\\server\share, //server/share)。
+ * [OUTPUT]
+ * - isAbsolutePath: 跨平台绝对路径判断
+ * - normalizePath: 路径分隔符统一为正斜杠并规范化
+ * - normalizeDisplayPath: Windows 盘符与正斜杠展示规范化
+ * - formatPathForDisplay: 智能居中省略与前缀路径展示截断
+ * - validateWorkspacePath: 工作区路径输入校验、~ 用户目录展开与非法字符防护
+ *
+ * [POS]
+ * 全平台路径规范、工作区校验与展示截断。支持 POSIX、Windows 本地盘符与 Windows UNC 共享路径的识别、校验与安全规范化。
  */
 
 /**

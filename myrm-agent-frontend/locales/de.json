@@ -14754,13 +14754,13 @@
     "pageDescription": "Testfälle verwalten und isolierte Sandbox-Evaluierungen durchführen, um die Agent-Leistung automatisch zu verifizieren",
     "tabs": {
       "cases": "Fall-Editor (JSONL)",
+      "sources": "Datensatzquellen",
       "report": "Evaluierungsbericht",
-      "history": "Verlaufstrends (A/B-Test)",
-      "diff": "Diff-Ansicht",
       "matrix": "Matrixvergleich",
       "memoryAb": "Speicher A/B",
       "skillAb": "Fähigkeiten-A/B",
-      "sources": "Datensatzquellen"
+      "history": "Verlaufstrends (A/B-Test)",
+      "diff": "Diff-Ansicht"
     },
     "progress": "Fortschritt",
     "save": "Speichern",
