@@ -123,6 +123,7 @@ class OrchestratorChromeClient:
         return (
             "inspected target navigated or closed" in lowered
             or "navigated or closed" in lowered
+            or "promise was collected" in lowered
             or self._is_missing_session_context(message)
         )
 

@@ -36,6 +36,8 @@ from app.core.infra.health.agent_diagnostics import (
     AgentPromptCacheAlignmentDiagnostic,
     AgentStepBudgetDiagnostic,
     OllamaModelContextDiagnostic,
+)
+from app.core.infra.health.skill_diagnostics import (
     SkillHoardingHealthDiagnostic,
 )
 

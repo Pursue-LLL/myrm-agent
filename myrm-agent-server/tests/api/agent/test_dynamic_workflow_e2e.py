@@ -152,3 +152,34 @@ def test_dynamic_workflow_deterministic_id(client: TestClient):
 
     assert wf_id is not None, "No workflow_id found in workflow_init status event"
     assert wf_id == expected_wf
+
+
+def test_dynamic_workflow_verification_modes_integration(client: TestClient):
+    """Verify DW orchestration script with auditor_blind and multi_skeptic spawns."""
+    import uuid
+
+    chat_id = f"dw_verif_chat_{uuid.uuid4().hex[:8]}"
+    message_id = f"dw_verif_msg_{uuid.uuid4().hex[:8]}"
+    payload = {
+        "query": (
+            "Write a Python orchestration script: "
+            "1. Spawn sub-agent with task_id='task_audit', agent_type='generalPurpose', "
+            "task_description='Echo AUDIT_PASS', verification_mode='auditor_blind'. "
+            "2. Print the outcome."
+        ),
+        "use_workflow": True,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "user_instructions": "Be fast and concise.",
+        "model_selection": get_model_selection(),
+    }
+
+    events = _collect_workflow_events(client, payload, auto_confirm_message_id=message_id)
+    assert len(events) > 0, "Should have received workflow events"
+    check_e2e_errors(events)
+
+    status_events = [d for d in events if d.get("type") == "status"]
+    step_keys = [d.get("step_key") for d in status_events if d.get("step_key")]
+    assert "workflow_init" in step_keys
+    assert "workflow_execution" in step_keys
+

@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { AlertCircle, CheckCircle2, Clock, Eye, RefreshCw, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Eye, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
 
 import { formatMib } from '../components/format';
 import { type DownloadProgress, type EvalProgress, type ReportItem } from '../hooks/useCasesEval';
@@ -231,8 +231,39 @@ export default function ReportTab({
                         {c.scores.distinct_sources != null && ` · ${c.scores.distinct_sources} sources`}
                       </span>
                     )}
-                    {(c.limit_reached || (c.blocked_count ?? 0) > 0 || (c.tool_call_details?.length ?? 0) > 0) && (
+                    {(c.limit_reached ||
+                      (c.blocked_count ?? 0) > 0 ||
+                      (c.tool_call_details?.length ?? 0) > 0 ||
+                      c.canary_verified !== undefined ||
+                      c.contamination_audit?.cheat_detected) && (
                       <span className="flex items-center gap-1 mt-1 flex-wrap">
+                        {c.canary_verified === true && (
+                          <span
+                            className="inline-flex items-center gap-0.5 px-1 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold"
+                            title={t('report.canaryVerified')}
+                          >
+                            <ShieldCheck className="w-2.5 h-2.5" />
+                            Canary
+                          </span>
+                        )}
+                        {c.canary_verified === false && (
+                          <span
+                            className="inline-flex items-center gap-0.5 px-1 rounded bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-semibold"
+                            title={t('report.canaryLeak')}
+                          >
+                            <ShieldAlert className="w-2.5 h-2.5" />
+                            Canary Leak
+                          </span>
+                        )}
+                        {c.contamination_audit?.cheat_detected && (
+                          <span
+                            className="inline-flex items-center gap-0.5 px-1 rounded bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-semibold"
+                            title={t('report.contaminationViolationTitle')}
+                          >
+                            <ShieldAlert className="w-2.5 h-2.5" />
+                            {t('report.contaminationViolation')}
+                          </span>
+                        )}
                         {c.limit_reached && (
                           <span
                             className="px-1 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-semibold"
@@ -263,6 +294,20 @@ export default function ReportTab({
                   <td className="px-4 py-3">{c.usage?.total_tokens || 0}</td>
                   <td className="px-4 py-3">{c.time_secs ? c.time_secs.toFixed(2) : '-'}s</td>
                   <td className="px-4 py-3">
+                    {c.contamination_audit?.violations && c.contamination_audit.violations.length > 0 && (
+                      <div className="mb-1.5 p-1.5 rounded bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
+                        <div className="flex items-center gap-1 font-semibold text-[11px]">
+                          <ShieldAlert className="w-3 h-3" />
+                          <span>{t('report.contaminationViolation')}:</span>
+                        </div>
+                        {c.contamination_audit.violations.map((v, vIdx) => (
+                          <div key={vIdx} className="text-[10px] mt-0.5 truncate max-w-[300px]" title={v.details}>
+                            {v.tool_name ? `[${v.tool_name}] ` : ''}
+                            {v.details}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {c.details ? (
                       <div className="flex flex-col items-start gap-1">
                         <p className="max-w-[320px] truncate text-xs text-muted-foreground" title={String(c.details)}>

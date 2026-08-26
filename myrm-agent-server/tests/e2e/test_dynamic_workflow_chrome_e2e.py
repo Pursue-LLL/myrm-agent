@@ -35,12 +35,12 @@ _BRIDGE_READY_JS = """(() => ({
     typeof window.__MYRM_E2E_CHAT__?.ensureChatSession === 'function',
 }))()"""
 
-_PREPARE_DW_TURN_JS = """(async () => {
+_PREPARE_DW_TURN_JS = """(() => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) {
     return { ok: false, err: 'no-bridge' };
   }
-  await bridge.ensureChatSession?.({ preserveActionMode: true });
+  bridge.ensureChatSession?.({ preserveActionMode: true });
   bridge.setWorkflowMode?.(true);
   return {
     ok: bridge.isWorkflowMode?.() === true,

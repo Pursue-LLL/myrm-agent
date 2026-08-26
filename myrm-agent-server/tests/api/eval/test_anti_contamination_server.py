@@ -30,6 +30,15 @@ def test_executor_benchmark_mode_auto_injects_canary_into_blocked_terms():
     assert "secret_term_123" in executor_custom._blocked_terms
     assert CANARY_GUID in executor_custom._blocked_terms
 
+    # 4. Benchmark mode with custom canary_token appends both CANARY_GUID and custom token
+    executor_dynamic_canary = LocalEvalExecutor(
+        benchmark_mode=True,
+        canary_token="custom-canary-token-999",
+    )
+    assert executor_dynamic_canary._blocked_terms is not None
+    assert CANARY_GUID in executor_dynamic_canary._blocked_terms
+    assert "custom-canary-token-999" in executor_dynamic_canary._blocked_terms
+
 
 def test_benchmark_sources_canary_protection_metadata():
     sources = list_benchmark_sources()
