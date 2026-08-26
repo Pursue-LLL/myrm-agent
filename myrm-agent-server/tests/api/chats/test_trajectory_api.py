@@ -18,7 +18,10 @@ def client() -> TestClient:
 
 
 def test_get_session_trajectory_not_found(client: TestClient) -> None:
-    with patch("app.services.chat.chat_service.ChatService.get_chat_metadata", new_callable=AsyncMock) as mock_meta:
+    with patch(
+        "app.services.chat.chat_service.ChatService.get_chat_metadata",
+        new_callable=AsyncMock,
+    ) as mock_meta:
         mock_meta.return_value = None
         resp = client.get("/api/v1/chats/non-existent-session-id/trajectory")
         assert resp.status_code == 404
@@ -55,8 +58,14 @@ def test_get_session_trajectory_success(client: TestClient) -> None:
     )
 
     with (
-        patch("app.services.chat.chat_service.ChatService.get_chat_metadata", new_callable=AsyncMock) as mock_meta,
-        patch("app.services.chat.chat_service.ChatService.get_messages_paginated", new_callable=AsyncMock) as mock_msgs,
+        patch(
+            "app.services.chat.chat_service.ChatService.get_chat_metadata",
+            new_callable=AsyncMock,
+        ) as mock_meta,
+        patch(
+            "app.services.chat.chat_service.ChatService.get_messages_paginated",
+            new_callable=AsyncMock,
+        ) as mock_msgs,
     ):
         mock_meta.return_value = mock_chat
         mock_msgs.return_value = ([mock_msg1, mock_msg2], False)

@@ -114,12 +114,20 @@ async def run_skill_ab_background(
 
     # 1. Resolve benchmark cases and configs
     from app.core.eval.benchmarks import build_benchmark_cases
-    from app.core.eval.model_config import _resolve_agent_model_label, _resolve_judge_config
+    from app.core.eval.model_config import (
+        _resolve_agent_model_label,
+        _resolve_judge_config,
+    )
 
     try:
-        cases, judge_config, max_tool_calls, max_iterations, blocked_hostnames, blocked_terms = await build_benchmark_cases(
-            benchmark_id, progress_state=_skill_ab_state
-        )
+        (
+            cases,
+            judge_config,
+            max_tool_calls,
+            max_iterations,
+            blocked_hostnames,
+            blocked_terms,
+        ) = await build_benchmark_cases(benchmark_id, progress_state=_skill_ab_state)
     except Exception as exc:
         _skill_ab_state["is_running"] = False
         _skill_ab_state["error"] = f"Failed to load benchmark: {exc}"
@@ -233,11 +241,15 @@ async def run_skill_ab_background(
 
         token_savings = 0.0
         if ref_arm.total_tokens > 0:
-            token_savings = (ref_arm.total_tokens - cand_m.total_tokens) / ref_arm.total_tokens
+            token_savings = (
+                ref_arm.total_tokens - cand_m.total_tokens
+            ) / ref_arm.total_tokens
 
         step_red = 0.0
         if ref_arm.avg_tool_calls > 0:
-            step_red = (ref_arm.avg_tool_calls - cand_m.avg_tool_calls) / ref_arm.avg_tool_calls
+            step_red = (
+                ref_arm.avg_tool_calls - cand_m.avg_tool_calls
+            ) / ref_arm.avg_tool_calls
 
         verdict = "INCONCLUSIVE"
         if succ_delta > 0.05:
@@ -293,7 +305,9 @@ async def run_skill_ab_background(
         _active_skill_ab_runner = None
 
 
-def get_latest_skill_ab_report(reports_dir: Path | None = None) -> dict[str, object] | None:
+def get_latest_skill_ab_report(
+    reports_dir: Path | None = None,
+) -> dict[str, object] | None:
     """Return the most recent Skill A/B report."""
     if reports_dir is None:
         reports_dir = DEFAULT_SKILL_AB_REPORTS_DIR
@@ -307,7 +321,9 @@ def get_latest_skill_ab_report(reports_dir: Path | None = None) -> dict[str, obj
         return None
 
 
-def get_skill_ab_report_history(reports_dir: Path | None = None) -> list[dict[str, object]]:
+def get_skill_ab_report_history(
+    reports_dir: Path | None = None,
+) -> list[dict[str, object]]:
     """Return all historical Skill A/B report summaries."""
     if reports_dir is None:
         reports_dir = DEFAULT_SKILL_AB_REPORTS_DIR

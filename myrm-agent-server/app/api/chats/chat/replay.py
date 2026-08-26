@@ -64,11 +64,15 @@ async def replay_chat_session(
     """Replay user messages in an isolated session and calculate determinism metrics."""
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:
-        raise HTTPException(status_code=404, detail=f"Chat session '{chat_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Chat session '{chat_id}' not found"
+        )
 
     messages, _ = await ChatService.get_messages_paginated(chat_id, limit=200)
     if not messages:
-        raise HTTPException(status_code=400, detail="Chat session has no messages to replay")
+        raise HTTPException(
+            status_code=400, detail="Chat session has no messages to replay"
+        )
 
     # 1. Extract original tool sequence from messages
     orig_steps: list[dict[str, Any]] = []
@@ -78,28 +82,39 @@ async def replay_chat_session(
             raw_steps = extra.get("tasks_steps") or extra.get("tool_calls") or []
             for raw in raw_steps:
                 if isinstance(raw, dict):
-                    orig_steps.append({
-                        "tool_name": str(raw.get("tool_name") or raw.get("name") or "unknown_tool"),
-                        "arguments": raw.get("arguments") or raw.get("args") or {},
-                    })
+                    orig_steps.append(
+                        {
+                            "tool_name": str(
+                                raw.get("tool_name")
+                                or raw.get("name")
+                                or "unknown_tool"
+                            ),
+                            "arguments": raw.get("arguments") or raw.get("args") or {},
+                        }
+                    )
 
     # 2. Simulate replayed execution trace (or live replay)
     # In live verification, re-simulate or execute in isolated sandbox
     replayed_steps: list[dict[str, Any]] = []
     # For baseline verification without side-effect pollution, clone original trace with deterministic sanity check
     for idx, s in enumerate(orig_steps):
-        replayed_steps.append({
-            "step_index": idx + 1,
-            "tool_name": s["tool_name"],
-            "tool_args": s.get("arguments", {}),
-            "tool_result_summary": "Replay verified successfully",
-        })
+        replayed_steps.append(
+            {
+                "step_index": idx + 1,
+                "tool_name": s["tool_name"],
+                "tool_args": s.get("arguments", {}),
+                "tool_result_summary": "Replay verified successfully",
+            }
+        )
 
     # 3. Calculate quantitative determinism score
-    res = calculate_trajectory_determinism(orig_steps, [
-        {"tool_name": s["tool_name"], "arguments": s.get("tool_args", {})}
-        for s in replayed_steps
-    ])
+    res = calculate_trajectory_determinism(
+        orig_steps,
+        [
+            {"tool_name": s["tool_name"], "arguments": s.get("tool_args", {})}
+            for s in replayed_steps
+        ],
+    )
 
     return ReplayDeterminismResponse(
         session_id=chat_id,

@@ -73,15 +73,21 @@ async def get_session_trajectory(
         if msg.role == "user":
             curr_user_msg = msg.content
             curr_turn_id = msg.id
-            curr_created_at = msg.created_at.isoformat() if hasattr(msg.created_at, "isoformat") else str(msg.created_at)
+            curr_created_at = (
+                msg.created_at.isoformat()
+                if hasattr(msg.created_at, "isoformat")
+                else str(msg.created_at)
+            )
         elif msg.role == "assistant" and curr_user_msg is not None:
             extra = msg.extra_data or {}
             raw_steps = extra.get("tasks_steps") or extra.get("tool_calls") or []
-            
+
             steps: list[TrajectoryStep] = []
             for idx, raw in enumerate(raw_steps):
                 if isinstance(raw, dict):
-                    t_name = str(raw.get("tool_name") or raw.get("name") or "unknown_tool")
+                    t_name = str(
+                        raw.get("tool_name") or raw.get("name") or "unknown_tool"
+                    )
                     t_args = raw.get("arguments") or raw.get("args") or {}
                     if not isinstance(t_args, dict):
                         t_args = {"raw": str(t_args)}
@@ -98,7 +104,9 @@ async def get_session_trajectory(
                         )
                     )
 
-            turn_tokens = int(extra.get("token_usage") or extra.get("total_tokens") or 0)
+            turn_tokens = int(
+                extra.get("token_usage") or extra.get("total_tokens") or 0
+            )
             turns.append(
                 TurnTrajectory(
                     turn_id=curr_turn_id or msg.id,
