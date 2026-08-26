@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from myrm_agent_harness.agent.errors import ToolErrorCategory
+from myrm_agent_harness.eval.canary import CANARY_GUID
 from myrm_agent_harness.eval.protocols import AgentResponse
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
@@ -78,7 +79,10 @@ class LocalEvalExecutor:
         # substrings rejected in web_search queries. Installed only when the
         # caller resolves them from the benchmark spec — never for normal runs.
         self._blocked_hostnames = blocked_hostnames
-        self._blocked_terms = blocked_terms
+        effective_blocked_terms = list(blocked_terms) if blocked_terms is not None else []
+        if benchmark_mode and CANARY_GUID not in effective_blocked_terms:
+            effective_blocked_terms.append(CANARY_GUID)
+        self._blocked_terms = tuple(effective_blocked_terms) if effective_blocked_terms else None
         # Builtin-tool whitelist a benchmark may declare to be runnable in
         # benchmark_mode (e.g. BrowseComp requires web_search). Default empty:
         # a plain benchmark run keeps the CORE file/shell baseline only.

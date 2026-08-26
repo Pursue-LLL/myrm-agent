@@ -47,6 +47,11 @@ from app.core.eval.service import (
     run_eval_suite_background,
 )
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
+from myrm_agent_harness.eval import (
+    CANARY_GUID,
+    EvalCanaryGate,
+    embed_canary_header,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -257,3 +262,34 @@ async def get_eval_metrics() -> dict[str, object]:
         "total_ms": summary.get("total_ms"),
     }
     return {"status": "success", "metrics": metrics}
+
+
+class CanaryEmbedRequest(BaseModel):
+    content: str
+
+
+@router.get("/anti-contamination/audit")
+async def audit_anti_contamination(dataset_id: str | None = None) -> dict[str, object]:
+    """Audit benchmark datasets against anti-contamination canary standards."""
+    raw_content = get_eval_cases(dataset_id)
+    scan_result = EvalCanaryGate.audit_dataset(raw_content)
+    return {
+        "status": "success",
+        "dataset_id": dataset_id or "default",
+        "is_protected": scan_result.is_protected,
+        "canary_found": scan_result.canary_found,
+        "canary_guid": CANARY_GUID,
+        "violations": scan_result.violations,
+        "metadata": scan_result.metadata,
+    }
+
+
+@router.post("/anti-contamination/embed-canary")
+async def embed_canary(request: CanaryEmbedRequest) -> dict[str, object]:
+    """Prepend standard anti-contamination canary header to raw dataset content."""
+    protected_content = embed_canary_header(request.content)
+    return {
+        "status": "success",
+        "protected_content": protected_content,
+        "canary_guid": CANARY_GUID,
+    }
