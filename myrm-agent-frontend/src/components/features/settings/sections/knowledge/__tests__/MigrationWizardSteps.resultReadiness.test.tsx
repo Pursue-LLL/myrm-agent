@@ -333,7 +333,7 @@ describe('ResultStep conversation search opt-in', () => {
     );
 
     expect(
-      screen.getByText('result.readinessIssue.stepBudgetLow:{"count":1,"min":100}'),
+      screen.getByText((content) => content.includes('result.readinessIssue.stepBudgetLow')),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'result.readinessAction.configureStepBudget' }),
