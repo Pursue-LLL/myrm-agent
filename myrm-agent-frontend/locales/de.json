@@ -14958,6 +14958,23 @@
       "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)",
       "abortedBadge": "abgebrochen"
     },
+    "skillAb": {
+      "title": "Skill-A/B-Evaluierungsprotokoll",
+      "description": "Vergleichende 3-Arm-Evaluierung (Ohne Skill, Baseline, Kandidat) unter strikter Sandbox-Isolation.",
+      "candidateSkillLabel": "Kandidaten-Skill-ID",
+      "baselineSkillLabel": "Baseline-Skill-ID",
+      "candidateRequired": "Bitte eine Kandidaten-Skill-ID eingeben",
+      "startEval": "Skill-A/B starten",
+      "evaluating": "3 Arme werden evaluiert...",
+      "started": "Skill-A/B-Evaluierung gestartet",
+      "verdict": "Gesamturteil",
+      "armNoSkill": "Ohne Skill (Baseline)",
+      "armBaseline": "Baseline-Version",
+      "armCandidate": "Kandidaten-Version",
+      "avgSteps": "Durchschnittliche Schritte",
+      "tokens": "Token-Verbrauch",
+      "latency": "Durchschnittliche Latenz"
+    },
     "layers": {
       "button": "Layer-Eval",
       "started": "Layered-Evaluation gestartet",
