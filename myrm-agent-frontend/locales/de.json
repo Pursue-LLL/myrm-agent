@@ -14742,6 +14742,13 @@
       "checkpoint": "Kontrollpunkt"
     }
   },
+  "trajectoryDiff": {
+    "title": "Sitzungsübergreifender Trajektorien-Diff",
+    "compareWith": "Mit Sitzung vergleichen",
+    "selectSessionPlaceholder": "Historische Sitzung zum Vergleichen auswählen...",
+    "divergenceDetected": "Ausführungsdivergenz bei Schritt #{step} erkannt",
+    "noSessionSelected": "Wählen Sie oben eine Sitzung aus, um den Trajektorienvergleich zu starten"
+  },
   "evalLab": {
     "pageTitle": "Eval-Labor",
     "pageDescription": "Testfälle verwalten und isolierte Sandbox-Evaluierungen durchführen, um die Agent-Leistung automatisch zu verifizieren",

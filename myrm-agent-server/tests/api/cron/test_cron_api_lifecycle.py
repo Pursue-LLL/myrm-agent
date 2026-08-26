@@ -43,12 +43,32 @@ def cron_manager() -> CronManager:
 @pytest.fixture
 def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
     from app.api.cron.routes import (
+        actions_router,
+        blueprints_router,
+        connector_health_router,
+        heartbeat_router,
         helpers,
-        router,
+        jobs_router,
+        prerequisite_router,
+        push_messages_router,
+        runs_router,
+        scheduler_health_router,
+        stats_router,
+        triggers_router,
     )
 
     test_app = FastAPI()
-    test_app.include_router(router, prefix="/cron")
+    test_app.include_router(blueprints_router, prefix="/cron")
+    test_app.include_router(connector_health_router, prefix="/cron")
+    test_app.include_router(heartbeat_router, prefix="/cron")
+    test_app.include_router(prerequisite_router, prefix="/cron")
+    test_app.include_router(scheduler_health_router, prefix="/cron")
+    test_app.include_router(triggers_router, prefix="/cron")
+    test_app.include_router(stats_router, prefix="/cron")
+    test_app.include_router(push_messages_router, prefix="/cron")
+    test_app.include_router(runs_router, prefix="/cron")
+    test_app.include_router(actions_router, prefix="/cron")
+    test_app.include_router(jobs_router, prefix="/cron")
 
     with patch.object(helpers, "_get_manager", return_value=cron_manager):
         yield test_app
