@@ -44,8 +44,10 @@ import {
 import { PetState, PetStateMachine, stepKeyToPetEvent } from './PetStateMachine';
 import { resolvePetSheetRow } from './petStateMapping';
 import { isTauriEnv } from './petSurfaceBridge';
+import PetVoiceOrbGlow from './PetVoiceOrbGlow';
 import SpriteRenderer from './SpriteRenderer';
 import { usePetSurfaceHost } from './usePetSurfaceHost';
+import type { PetSurfaceVoiceState } from './petSurfaceTypes';
 
 import type { SpriteLoadState } from './SpriteEngine';
 
@@ -91,6 +93,26 @@ const PetOverlay = memo(function PetOverlay() {
     y: 0,
   });
   const [isDragging, setIsDragging] = useState(false);
+  const [voicePayload, setVoicePayload] = useState<{ voiceState?: PetSurfaceVoiceState; audioLevel?: number }>({});
+
+  useEffect(() => {
+    let lastAudioPush = 0;
+    const handleVoiceUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<{ voiceState?: PetSurfaceVoiceState; audioLevel?: number }>).detail;
+      if (!detail) return;
+      const now = Date.now();
+      if (detail.voiceState === 'idle' || now - lastAudioPush >= 100) {
+        lastAudioPush = now;
+        setVoicePayload({
+          voiceState: detail.voiceState,
+          audioLevel: detail.audioLevel,
+        });
+      }
+    };
+
+    window.addEventListener('myrm-voice-state-update', handleVoiceUpdate);
+    return () => window.removeEventListener('myrm-voice-state-update', handleVoiceUpdate);
+  }, []);
 
   const stateMachineRef = useRef<PetStateMachine | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number; moved: boolean } | null>(null);
@@ -320,6 +342,11 @@ const PetOverlay = memo(function PetOverlay() {
         onPointerCancel={handlePointerUp}
         onContextMenu={handleContextMenu}
       >
+        <PetVoiceOrbGlow
+          voiceState={voicePayload.voiceState}
+          audioLevel={voicePayload.audioLevel}
+          size={petSize}
+        />
         <SpriteRenderer
           sheetUrl={sheetUrl}
           row={resolvedRow}

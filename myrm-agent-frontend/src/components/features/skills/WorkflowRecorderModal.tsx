@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Video,
@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileCode,
-  Layers,
   ArrowRight,
   Plus,
   Trash2,

@@ -21,14 +21,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from myrm_agent_harness.backends.skills.workflow_compiler import (
-    WorkflowIntentPlan,
-    WorkflowPlanStep,
-    WorkflowSkillCompiler,
-)
-from myrm_agent_harness.toolkits.computer_use.recording import (
+from myrm_agent_harness.api import (
     DesktopRecordedEvent,
     SynthesizedSkillDraft,
+    WorkflowIntentPlan,
+    WorkflowSkillCompiler,
     synthesize_desktop_skill_draft,
 )
 from pydantic import BaseModel, Field
@@ -280,7 +277,6 @@ async def analyze_desktop_plan(request: AnalyzeDesktopPlanRequest) -> AnalyzeDes
             title = f"Interact with {elem} in {app_name}"
             desc = f"Perform {ev.action} on '{elem}' (Window: {ev.window_title or 'active'})."
         elif ev.action in ("input", "type"):
-            val = ev.value or ""
             var_key = f"input_val_{step_idx}"
             variables[var_key] = f"Input value for {ev.element_title or 'form field'}"
             title = f"Input value into {ev.element_title or 'field'} in {app_name}"

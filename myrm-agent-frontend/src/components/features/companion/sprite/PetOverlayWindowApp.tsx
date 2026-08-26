@@ -4,7 +4,7 @@
  * Popped-out pet surface window — puppet UI driven by main-window SSOT events.
  */
 
-import { Mail, SendHorizontal } from 'lucide-react';
+import { Mail, Mic, MicOff, SendHorizontal, Volume2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -234,6 +234,28 @@ export default function PetOverlayWindowApp() {
     void focusPetSurfaceMainWindow();
   }, []);
 
+  const handleVoiceClick = useCallback(() => {
+    if (state?.voiceState === 'speaking') {
+      void emitPetSurfaceControl({ type: 'voice-interrupt' });
+    } else {
+      void emitPetSurfaceControl({ type: 'voice-toggle' });
+    }
+  }, [state?.voiceState]);
+
+  const handleVoicePointerDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (state?.voiceState === 'idle') {
+      void emitPetSurfaceControl({ type: 'voice-ptt-start' });
+    }
+  }, [state?.voiceState]);
+
+  const handleVoicePointerUp = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (state?.voiceState === 'listening') {
+      void emitPetSurfaceControl({ type: 'voice-ptt-stop' });
+    }
+  }, [state?.voiceState]);
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -290,6 +312,29 @@ export default function PetOverlayWindowApp() {
           size={state.petSize}
         />
         <PetStatusBubble petState={petState} />
+        {/* Voice Orb Action Button */}
+        <button
+          type="button"
+          onClick={handleVoiceClick}
+          onPointerDown={handleVoicePointerDown}
+          onPointerUp={handleVoicePointerUp}
+          className={cn(
+            'absolute -left-1 -top-1 z-10 rounded-full border p-1 shadow-md transition-all duration-200',
+            state.voiceState === 'listening' && 'bg-blue-500 text-white border-blue-400 animate-pulse',
+            state.voiceState === 'speaking' && 'bg-emerald-500 text-white border-emerald-400',
+            state.voiceState === 'processing' && 'bg-purple-500 text-white border-purple-400 animate-spin',
+            (!state.voiceState || state.voiceState === 'idle') && 'bg-popover text-muted-foreground hover:text-foreground',
+          )}
+          aria-label={state.voiceState === 'speaking' ? 'Interrupt Voice' : 'Voice Interaction'}
+        >
+          {state.voiceState === 'speaking' ? (
+            <Volume2 className="h-3.5 w-3.5" />
+          ) : state.voiceState === 'listening' ? (
+            <Mic className="h-3.5 w-3.5" />
+          ) : (
+            <MicOff className="h-3.5 w-3.5" />
+          )}
+        </button>
         {unread && (
           <button
             type="button"

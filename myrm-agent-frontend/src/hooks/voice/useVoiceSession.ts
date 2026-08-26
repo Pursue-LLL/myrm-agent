@@ -613,9 +613,60 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     };
   }, []);
 
+  // External event bus listeners (from Tauri Pet companion or global shortcuts)
+  useEffect(() => {
+    const handleToggle = () => {
+      if (sessionActiveRef.current) {
+        stopSession();
+      } else {
+        startSession();
+      }
+    };
+
+    const handleInterrupt = () => {
+      interruptTTS();
+    };
+
+    const handleReplay = () => {
+      replayLastTTS();
+    };
+
+    window.addEventListener('myrm-voice-toggle', handleToggle);
+    window.addEventListener('myrm-voice-interrupt', handleInterrupt);
+    window.addEventListener('myrm-voice-replay', handleReplay);
+
+    return () => {
+      window.removeEventListener('myrm-voice-toggle', handleToggle);
+      window.removeEventListener('myrm-voice-interrupt', handleInterrupt);
+      window.removeEventListener('myrm-voice-replay', handleReplay);
+    };
+  }, [startSession, stopSession, interruptTTS, replayLastTTS]);
+
   const isRealtime = mode === 'openai_realtime';
   const isGeminiLive = mode === 'gemini_live';
   const isAgentBridge = mode === 'agent_bridge';
+  const currentAudioLevel = isAgentBridge ? agentBridge.audioLevel : speech.audioLevel;
+
+  // Broadcast unified voice state for satellites / companion / Pet overlay
+  useEffect(() => {
+    const mappedState =
+      sessionState === 'inactive'
+        ? 'idle'
+        : sessionState === 'speaking'
+          ? 'speaking'
+          : sessionState === 'processing'
+            ? 'processing'
+            : 'listening';
+
+    window.dispatchEvent(
+      new CustomEvent('myrm-voice-state-update', {
+        detail: {
+          voiceState: mappedState,
+          audioLevel: currentAudioLevel,
+        },
+      }),
+    );
+  }, [sessionState, currentAudioLevel]);
 
   return {
     sessionState,
