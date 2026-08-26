@@ -117,6 +117,21 @@ describe('PetStateMachine', () => {
     expect(currentState).toBe(PetState.WAITING);
   });
 
+  it('voiceState speaking triggers WAVE animation and listening triggers REVIEWING', () => {
+    sm.setVoiceState('speaking');
+    expect(currentState).toBe(PetState.WAVE);
+
+    sm.setVoiceState('listening');
+    expect(currentState).toBe(PetState.REVIEWING);
+
+    sm.setVoiceState('processing');
+    expect(currentState).toBe(PetState.RUNNING);
+
+    sm.setVoiceState('idle');
+    vi.advanceTimersByTime(200);
+    expect(currentState).toBe(PetState.IDLE);
+  });
+
   it('reset forces idle and clears sticky', () => {
     sm.ingest({ state: PetState.RUNNING, mode: 'sticky' });
     sm.reset();

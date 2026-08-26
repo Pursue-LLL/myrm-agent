@@ -15413,6 +15413,7 @@
       "report": "Eval Report",
       "matrix": "Matrix Comparison",
       "memoryAb": "Memory A/B",
+      "skillAb": "Skill A/B",
       "history": "History Trends (A/B Test)",
       "diff": "Diff View"
     },
@@ -15618,6 +15619,23 @@
       "sampled": "sampled",
       "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
       "abortedBadge": "aborted"
+    },
+    "skillAb": {
+      "title": "Skill A/B Evaluation Protocol",
+      "description": "Comparative 3-arm evaluation across No-Skill, Baseline, and Candidate versions under strict sandbox isolation.",
+      "candidateSkillLabel": "Candidate Skill ID",
+      "baselineSkillLabel": "Baseline Skill ID",
+      "candidateRequired": "Please enter a Candidate Skill ID",
+      "startEval": "Start Skill A/B",
+      "evaluating": "Evaluating 3 Arms...",
+      "started": "Skill A/B evaluation started",
+      "verdict": "Verdict",
+      "armNoSkill": "No Skill (Baseline)",
+      "armBaseline": "Baseline Version",
+      "armCandidate": "Candidate Version",
+      "avgSteps": "Avg Steps",
+      "tokens": "Token Usage",
+      "latency": "Avg Latency"
     },
     "layers": {
       "button": "Layer Eval",

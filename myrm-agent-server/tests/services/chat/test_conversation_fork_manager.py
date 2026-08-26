@@ -1167,8 +1167,76 @@ async def test_fork_conversation_batch_cloning_and_lineage_trace(
     assert fork_info_c.depth == 2
 
 
+@pytest.mark.asyncio
+async def test_fork_conversation_empty_or_zero_index_and_cycle_prevention(
+    db_session, test_user, monkeypatch
+) -> None:
+    """Verify edge cases: fork at index 0, cycle prevention guard, and root fallback."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    # 1. Root conversation with single message
+    root_id = str(uuid4())
+    root_chat = Chat(id=root_id, title="Single Root")
+    db_session.add(root_chat)
+
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        Message(
+            id=str(uuid4()),
+            chat_id=root_id,
+            role="user",
+            content="Only Message",
+            sent_at=now,
+            sent_timezone="UTC",
+        )
+    )
+    await db_session.commit()
+
+    # Fork at index 0
+    res_fork = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=root_id,
+        message_index=0,
+    )
+    assert res_fork.success and res_fork.new_chat_id is not None
+    forked_id = res_fork.new_chat_id
+
+    # Verify fork info
+    fork_info = await ConversationForkManager.get_fork_info(db_session, forked_id)
+    assert fork_info.parent_chat_id == root_id
+    assert fork_info.root_chat_id == root_id
+    assert fork_info.depth == 1
+    assert fork_info.fork_point == 0
+
+    # 2. Cycle prevention simulation (manually inject parent pointing to child to simulate dirty data)
+    cycle_parent_id = str(uuid4())
+    cycle_child_id = str(uuid4())
+    db_session.add(Chat(id=cycle_parent_id, title="Cycle Parent"))
+    db_session.add(Chat(id=cycle_child_id, title="Cycle Child"))
+    # parent -> child, child -> parent
+    db_session.add(ConversationFork(child_chat_id=cycle_child_id, parent_chat_id=cycle_parent_id, fork_message_index=0))
+    db_session.add(ConversationFork(child_chat_id=cycle_parent_id, parent_chat_id=cycle_child_id, fork_message_index=0))
+    await db_session.commit()
+
+    # Querying should terminate cleanly without infinite recursion
+    cycle_info = await ConversationForkManager.get_fork_info(db_session, cycle_child_id)
+    assert cycle_info.parent_chat_id == cycle_parent_id
+    assert cycle_info.depth == 2  # child -> parent -> (terminates on visited)
+
+
 @pytest.fixture
 def test_user():
+
 
     """Provide a test user ID (single-user architecture, no User model)."""
     from types import SimpleNamespace

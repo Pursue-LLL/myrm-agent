@@ -72,6 +72,33 @@ describe('petSurfaceBridge', () => {
     );
   });
 
+  it('emitPetSurfaceState correctly emits voiceState and audioLevel payload', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(emitTo).mockResolvedValue(undefined);
+
+    await emitPetSurfaceState({
+      sheetUrl: 'https://example.com/sheet.webp',
+      sheetRows: 9,
+      petSize: 64,
+      petState: PetState.WAVE,
+      blockedOnUser: false,
+      loading: false,
+      unread: false,
+      activeChatId: 'chat-1',
+      voiceState: 'speaking',
+      audioLevel: 0.65,
+    });
+
+    expect(emitTo).toHaveBeenCalledWith(
+      'pet-surface',
+      'pet-surface-state',
+      expect.objectContaining({
+        voiceState: 'speaking',
+        audioLevel: 0.65,
+      }),
+    );
+  });
+
   it('no-ops when not in Tauri', async () => {
     vi.mocked(isTauriEnvironment).mockReturnValue(false);
 

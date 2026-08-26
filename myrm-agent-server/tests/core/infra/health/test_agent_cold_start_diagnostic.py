@@ -289,6 +289,7 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
         assert "ExecutionCache" in server_components
         assert "DLQ" in server_components
         assert "OllamaContext" in server_components
+        assert "AgentStepBudget" in server_components
 
         harness_components = [item["component_name"] for item in data["harness"]]
         assert len(harness_components) > 0
@@ -357,4 +358,64 @@ async def test_ollama_model_context_diagnostic() -> None:
             assert report.component_name == "OllamaContext"
             assert report.status == "pass"
             assert report.code == "INFO_OLLAMA_UNREACHABLE"
+
+
+@pytest.mark.asyncio
+async def test_agent_step_budget_diagnostic() -> None:
+    """Test AgentStepBudgetDiagnostic probe for normal and low-budget agents."""
+    from app.core.infra.health.server_diagnostics import AgentStepBudgetDiagnostic
+
+    diagnostic = AgentStepBudgetDiagnostic()
+
+    # 1. When all agents have >= 100 max_iterations (or None/unlimited)
+    agent_ok_1 = SimpleNamespace(id="ag_1", name="Research Agent", max_iterations=100, is_active=True)
+    agent_ok_2 = SimpleNamespace(id="ag_2", name="Code Agent", max_iterations=None, is_active=True)
+
+    with patch("app.database.connection.get_session") as mock_get_session:
+        mock_session_ctx = MagicMock()
+        mock_session = MagicMock()
+
+        mock_res = MagicMock()
+        mock_res.scalars.return_value.all.return_value = [agent_ok_1, agent_ok_2]
+
+        async def _fake_execute(*args, **kwargs):
+            return mock_res
+
+        mock_session.execute = _fake_execute
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_ctx.__aexit__.return_value = None
+        mock_get_session.return_value = mock_session_ctx
+
+        report = await diagnostic.check_health()
+        assert report.component_name == "AgentStepBudget"
+        assert report.status == "pass"
+        assert report.code == "OK_AGENT_STEP_BUDGET_READY"
+        assert report.metrics["low_budget_agent_count"] == 0.0
+        assert report.metrics["total_active_agents"] == 2.0
+
+    # 2. When an agent has low step budget (< 100, e.g., 30 steps)
+    agent_low = SimpleNamespace(id="ag_low", name="Legacy Agent", max_iterations=30, is_active=True)
+
+    with patch("app.database.connection.get_session") as mock_get_session:
+        mock_session_ctx = MagicMock()
+        mock_session = MagicMock()
+
+        mock_res = MagicMock()
+        mock_res.scalars.return_value.all.return_value = [agent_ok_1, agent_low]
+
+        async def _fake_execute(*args, **kwargs):
+            return mock_res
+
+        mock_session.execute = _fake_execute
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_ctx.__aexit__.return_value = None
+        mock_get_session.return_value = mock_session_ctx
+
+        report = await diagnostic.check_health()
+        assert report.component_name == "AgentStepBudget"
+        assert report.status == "warn"
+        assert report.code == "WARN_AGENT_STEP_BUDGET_LOW"
+        assert report.metrics["low_budget_agent_count"] == 1.0
+        assert report.fix_suggestion is not None
+        assert "Legacy Agent" in report.detail
 

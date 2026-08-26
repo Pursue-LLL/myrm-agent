@@ -15594,6 +15594,23 @@
       "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
       "abortedBadge": "已中止"
     },
+    "skillAb": {
+      "title": "技能 A/B 评测工坊 (Skill A/B Protocol)",
+      "description": "严格在隔离沙箱中对比「无技能」、「基准技能」与「候选技能」三臂表现，测量成功率、调用步数及 Token 消耗变动。",
+      "candidateSkillLabel": "候选技能 (Candidate Skill ID)",
+      "baselineSkillLabel": "基准技能 (Baseline Skill ID)",
+      "candidateRequired": "请输入候选技能 ID",
+      "startEval": "启动 Skill A/B 评测",
+      "evaluating": "三臂评测中...",
+      "started": "Skill A/B 评测已启动",
+      "verdict": "综合裁决",
+      "armNoSkill": "无技能基线 (No Skill)",
+      "armBaseline": "基准技能版本 (Baseline)",
+      "armCandidate": "候选技能版本 (Candidate)",
+      "avgSteps": "平均调用步数",
+      "tokens": "Token 消耗",
+      "latency": "平均延迟"
+    },
     "layers": {
       "button": "分层评测",
       "started": "分层评测已开始",
