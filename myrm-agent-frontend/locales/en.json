@@ -17,6 +17,15 @@
     "dualTabChat": "Chat",
     "dualTabTrace": "Trace"
   },
+  "replayAction": {
+    "tooltip": "Replay session in an isolated environment and verify determinism",
+    "replayButton": "Verify Replay",
+    "replaying": "Verifying Replay...",
+    "replaySuccessDeterministic": "Replay complete: High Deterministic Match ({score}%)",
+    "replaySuccessDrift": "Replay complete: Trajectory Drift Detected ({score}%)",
+    "replayFailed": "Replay verification failed",
+    "badgeTitle": "Click to inspect trajectory differences"
+  },
   "emptyState": {
     "defaultTitle": "No Data",
     "defaultDescription": "This list is currently empty or no items have been generated yet",
@@ -17259,5 +17268,14 @@
     "pinned": "Pinned",
     "viewDetails": "View Details",
     "refresh": "Refresh Boundary"
+  },
+  "replayAction": {
+    "replaySuccessDeterministic": "Replay verified: {score}% deterministic",
+    "replaySuccessDrift": "Replay completed with drift: {score}% determinism",
+    "replayFailed": "Replay failed",
+    "tooltip": "Replay execution determinism and compare trajectory",
+    "replaying": "Replaying...",
+    "replayButton": "Replay",
+    "badgeTitle": "Determinism Score: {score}%"
   }
 }

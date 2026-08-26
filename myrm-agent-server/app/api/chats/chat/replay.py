@@ -4,7 +4,7 @@
 - fastapi::APIRouter, Depends, HTTPException
 - app.services.chat.chat_service::ChatService
 - app.database.connection::get_db
-- myrm_agent_harness.eval.assertions::calculate_trajectory_determinism
+- myrm_agent_harness.api::calculate_trajectory_determinism
 
 [OUTPUT]
 - router: Mounted under /chats/{chat_id}/replay
@@ -16,7 +16,7 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from myrm_agent_harness.eval.assertions import calculate_trajectory_determinism
+from myrm_agent_harness.api import calculate_trajectory_determinism
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 

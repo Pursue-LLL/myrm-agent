@@ -14781,13 +14781,13 @@
     "pageDescription": "테스트 케이스를 관리하고 샌드박스 환경에서 격리 평가를 실행하여 에이전트 성능을 자동 검증",
     "tabs": {
       "cases": "케이스 에디터 (JSONL)",
+      "sources": "데이터셋 소스",
       "report": "평가 보고서",
-      "history": "히스토리 트렌드 (A/B Test)",
-      "diff": "비교 뷰 (Diff)",
       "matrix": "매트릭스 비교",
       "memoryAb": "메모리 A/B",
       "skillAb": "스킬 A/B (Skill A/B)",
-      "sources": "데이터셋 소스"
+      "history": "히스토리 트렌드 (A/B Test)",
+      "diff": "비교 뷰 (Diff)"
     },
     "progress": "진행",
     "save": "저장",
