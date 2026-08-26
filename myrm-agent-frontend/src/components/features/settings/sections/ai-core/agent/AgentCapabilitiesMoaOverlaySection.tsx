@@ -194,26 +194,36 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
                   />
                 </div>
               )}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">{t('agent.moaOverlayPrivacy')}</label>
-                <Select
-                  value={(overlay.privacy_filter as string) || 'off'}
-                  onValueChange={(v) => setOverlay({ privacy_filter: v })}
-                >
-                  <SelectTrigger className="w-full mt-1 h-9 rounded-lg text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRIVACY_OPTIONS.map(({ value, labelKey }) => (
-                      <SelectItem key={value} value={value}>
-                        {t(`agent.${labelKey}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{t('agent.moaOverlayPrivacy')}</label>
+              <Select
+                value={(overlay.privacy_filter as string) || 'off'}
+                onValueChange={(v) => setOverlay({ privacy_filter: v })}
+              >
+                <SelectTrigger className="w-full mt-1 h-9 rounded-lg text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIVACY_OPTIONS.map(({ value, labelKey }) => (
+                    <SelectItem key={value} value={value}>
+                      {t(`agent.${labelKey}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-border/30">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-foreground">{t('agent.moaOverlayAutoReasoningTitle')}</label>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{t('agent.moaOverlayAutoReasoningDesc')}</p>
+            </div>
+            <Switch
+              checked={overlay.auto_on_reasoning !== false}
+              onCheckedChange={(checked) => setOverlay({ auto_on_reasoning: checked })}
+            />
+          </div>
+        </div>
         </>
       )}
     </div>

@@ -237,3 +237,38 @@ async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> N
         child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
         assert child.workspace_dir == "/project", "Child should use original repo root, not parent's sandbox worktree"
         assert child.sandbox_base_dir is None, "Child should have no active sandbox"
+
+
+async def test_fork_info_endpoint_returns_root_and_depth(async_client: httpx.AsyncClient) -> None:
+    """Verify /api/v1/chats/{chat_id}/fork-info returns root_chat_id and depth."""
+    from app.database.models import Chat
+    from app.platform_utils import get_session_factory
+
+    root_id = str(uuid.uuid4())
+    await _create_chat_with_messages(root_id, 4)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        # 1. Fork B from Root
+        resp_b = await async_client.post(
+            f"/api/v1/chats/{root_id}/fork",
+            json={"message_index": 2},
+        )
+        assert resp_b.status_code == 200
+        b_id = resp_b.json()["data"]["new_chat_id"]
+
+        # 2. Fork C from B
+        resp_c = await async_client.post(
+            f"/api/v1/chats/{b_id}/fork",
+            json={"message_index": 1},
+        )
+        assert resp_c.status_code == 200
+        c_id = resp_c.json()["data"]["new_chat_id"]
+
+        # 3. Query fork-info for C
+        info_c_resp = await async_client.get(f"/api/v1/chats/{c_id}/fork-info")
+        assert info_c_resp.status_code == 200
+        info_c = info_c_resp.json()["data"]
+        assert info_c["parent_chat_id"] == b_id
+        assert info_c["root_chat_id"] == root_id
+        assert info_c["depth"] == 2
+

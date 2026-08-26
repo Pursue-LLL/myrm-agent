@@ -1079,8 +1079,97 @@ async def test_delete_fork_lineage_counts_children(db_session, test_user, monkey
     assert count == 2
 
 
+@pytest.mark.asyncio
+async def test_fork_conversation_batch_cloning_and_lineage_trace(
+    db_session, test_user, monkeypatch
+) -> None:
+    """Verify batch cloning of messages and multi-depth lineage root/depth tracing."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    # 1. Root conversation A with 10 messages
+    root_id = str(uuid4())
+    root_chat = Chat(id=root_id, title="Root A")
+    db_session.add(root_chat)
+
+    now = datetime.now(timezone.utc)
+    for i in range(10):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=root_id,
+                role="user" if i % 2 == 0 else "assistant",
+                content=f"Root Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    # 2. Fork B from Root A (message_index=5 -> 6 messages cloned in batch)
+    res_b = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=root_id,
+        message_index=5,
+        new_title="Branch B",
+    )
+    assert res_b.success and res_b.new_chat_id is not None
+    chat_b_id = res_b.new_chat_id
+
+    # Verify B has 6 messages cloned
+    stmt_b_msgs = select(Message).where(Message.chat_id == chat_b_id)
+    res_b_msgs = await db_session.execute(stmt_b_msgs)
+    b_messages = res_b_msgs.scalars().all()
+    assert len(b_messages) == 6
+
+    # Verify B lineage: parent=A, root=A, depth=1
+    fork_info_b = await ConversationForkManager.get_fork_info(db_session, chat_b_id)
+    assert fork_info_b.parent_chat_id == root_id
+    assert fork_info_b.root_chat_id == root_id
+    assert fork_info_b.depth == 1
+
+    # 3. Add extra messages to B and Fork C from B (multi-generation fork)
+    for j in range(2):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_b_id,
+                role="user",
+                content=f"B Message {j}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+    await db_session.commit()
+
+    res_c = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_b_id,
+        message_index=7,
+        new_title="Branch C",
+    )
+    assert res_c.success and res_c.new_chat_id is not None
+    chat_c_id = res_c.new_chat_id
+
+    # Verify C lineage: parent=B, root=A, depth=2
+    fork_info_c = await ConversationForkManager.get_fork_info(db_session, chat_c_id)
+    assert fork_info_c.parent_chat_id == chat_b_id
+    assert fork_info_c.root_chat_id == root_id
+    assert fork_info_c.depth == 2
+
+
 @pytest.fixture
 def test_user():
+
     """Provide a test user ID (single-user architecture, no User model)."""
     from types import SimpleNamespace
 

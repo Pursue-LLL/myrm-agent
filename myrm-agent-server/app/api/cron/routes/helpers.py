@@ -374,4 +374,15 @@ async def _run_test_delivery(
         await test_delivery.deliver(test_job, result)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Test delivery failed: {exc}") from exc
+
+    # Test-to-heal: If test succeeded on the job's active delivery and it was degraded/down, reset consecutive failures
+    if body is None or (not body.delivery and not body.failure_delivery):
+        if job.consecutive_failures > 0 or job.last_error:
+            from myrm_agent_harness.toolkits.cron.types import CronJobPatch
+            await mgr.update_job(
+                job.id,
+                job.user_id,
+                CronJobPatch(consecutive_failures=0, clear_last_error=True),
+            )
+
     return DeliveryTestResponse(delivered=True)

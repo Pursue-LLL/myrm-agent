@@ -242,68 +242,6 @@
     "advisorSelectionDefaultQuestion": "Explain this selection"
   },
   "settings": {
-    "workbench": {
-      "badge": "Personal Workbench & Data Sovereignty",
-      "title": "Data Sovereignty & Value Accumulation",
-      "description": "All your memories, knowledge wiki, skills, rules, and schedules are stored securely in your private workspace. You own 100% of your AI assets with zero vendor lock-in.",
-      "refresh": "Refresh",
-      "assetMatrixTitle": "AI Asset Portfolio",
-      "assets": {
-        "memory": {
-          "title": "Long-term Memory",
-          "score": "Health: {score}%",
-          "desc": "Cross-session memories, preferences, and personalized habits."
-        },
-        "wiki": {
-          "title": "Knowledge Base (Wiki)",
-          "rawCount": "{count} raw sources",
-          "desc": "Structured knowledge network with synthesized concepts."
-        },
-        "skills": {
-          "title": "Acquired Skills",
-          "evolutions": "{count} evolutions",
-          "desc": "Custom tools, workflows, and automated routines."
-        },
-        "rules": {
-          "title": "Workspace Rules",
-          "chars": "{count} characters",
-          "desc": "System instructions and domain behavioral constraints."
-        },
-        "cron": {
-          "title": "Automated Jobs",
-          "runs": "{count} runs",
-          "desc": "Scheduled tasks, proactive watchdogs, and background jobs."
-        },
-        "storage": {
-          "title": "Local Storage",
-          "desc": "Private volume footprint on disk."
-        }
-      },
-      "sovereignty": {
-        "title": "Data Sovereignty & Portability",
-        "subtitle": "Your AI workspace runs independently on open standards with complete export capabilities.",
-        "exportConfig": "Export Full Config",
-        "exportMemory": "Export Memories",
-        "points": {
-          "decouplingTitle": "Decoupled Architecture",
-          "decouplingDesc": "Separation of model execution from business knowledge ensures continuous upgrades.",
-          "standardTitle": "Open Formats",
-          "standardDesc": "All memories and skills follow transparent schemas compatible across platforms.",
-          "zeroLockinTitle": "Zero Vendor Lock-in",
-          "zeroLockinDesc": "Switch model providers or local hardware at any time without losing context."
-        }
-      },
-      "deployHonest": {
-        "title": "Storage Architecture",
-        "tauriSubtitle": "Running as a native desktop application with full local file access.",
-        "sandboxSubtitle": "Running inside a dedicated isolated cloud container with persistent volume.",
-        "localSubtitle": "Running in local self-hosted WebUI mode.",
-        "dataPathLabel": "Active Data Directory",
-        "tauriDetail": "Application state and database are managed directly on your personal computer.",
-        "sandboxDetail": "Data is retained in your private sandbox volume, strictly isolated per user.",
-        "localDetail": "Data is persisted to disk under your local home workspace."
-      }
-    },
     "lockedUse": {
       "title": "Computer Use / Locked Use",
       "layer1Title": "Display Keep-Awake",
@@ -1805,7 +1743,11 @@
         "ollamaNotRunningTitle": "Ollama Not Running",
         "ollamaNotRunningDesc": "Please install and start Ollama to download and use local models.",
         "warningTitle": "Hardware Limitation Warning",
-        "warningDesc": "Some models require more VRAM than available. Forcing them to run may cause system instability or Out of Memory (OOM) errors."
+        "warningDesc": "Some models require more VRAM than available. Forcing them to run may cause system instability or Out of Memory (OOM) errors.",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "Automatically derived 64K context modelfile for production-ready tool calling and long-term memory",
+        "keepAliveTipTitle": "24/7 Keep-Alive & GPU Drain Guide",
+        "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks."
       },
       "importFromModelsDev": "Import from models.dev",
       "getModels": "Get Models",
@@ -1959,6 +1901,8 @@
         "reasoningModel": "Reasoning Model",
         "reasoningModelDescription": "Model for complex reasoning tasks (e.g., mathematical proofs, system architecture design). Supports enabling thinking mode via model parameters.",
         "selectReasoningModel": "Select Reasoning Model",
+        "autoMoaReasoning": "Auto MoA Overlay on REASONING Tier",
+        "autoMoaReasoningDescription": "When smart routing classifies a task as REASONING tier, automatically activate MoA parallel advisors to cross-validate results. Simple/standard tasks stay single-model to save tokens.",
         "specialtyRouting": "Specialty Routing",
         "specialtyRoutingDescription": "Automatically detect coding or long-document tasks and route them to models with targeted expertise",
         "codeModel": "Coding Specialty Model",
@@ -3922,6 +3866,10 @@
           "release": {
             "label": "Release SOP",
             "text": "Our release/publish SOP — versioning checklist, verification steps, and rollback procedure."
+          },
+          "book": {
+            "label": "Book / PDF / Doc Corpus",
+            "text": "Ingest this book/paper stack/doc corpus into an expansive knowledge-base skill: a lean SKILL.md index plus per-chapter references/ files loaded on demand via skill_select_tool."
           }
         }
       },
@@ -6890,6 +6838,8 @@
     "moaOverlayPrivacyOff": "Off",
     "moaOverlayPrivacyDisplay": "Display only (UI redaction)",
     "moaOverlayPrivacyFull": "Full (UI + prompt redaction)",
+    "moaOverlayAutoReasoningTitle": "Auto-Activate on Reasoning Tier",
+    "moaOverlayAutoReasoningDesc": "Automatically consult MoA advisors when smart routing classifies task as REASONING tier; normal tasks retain single-model fast execution.",
     "moaOverlayNoModels": "No reference models selected — overlay will be skipped (no fallback)",
     "consensusPrivacy": "Reference Privacy Filter",
     "consensusAggTemp": "Aggregator Temperature",
@@ -8393,7 +8343,8 @@
         "failed": "Failed to save workflow template",
         "fieldsRequired": "Display name and template slug are required"
       },
-      "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest."
+      "truncated": "Response was truncated due to length limit. Continue the conversation to get the rest.",
+      "cancelled": "Generation stopped. Partial response retained in context."
     },
     "toolImage": {
       "screenshotLabel": "Remote Desktop Screenshot"
@@ -10564,6 +10515,7 @@
           "voiceFeatureDisabled": "Voice interaction is off. Enable it in Voice settings if you used speech features in Hermes.",
           "consensusFeatureDisabled": "Multi-model consensus is off. Enable it in Agent settings for higher-quality answers.",
           "moaOverlaySetupHint": "Enable MoA overlay in Agent settings, then pick a preset from the chat model picker for multi-model advice.",
+          "stepBudgetLow": "Detected low step limit ({count} agent(s) < {min} steps), which may cause early stoppage in complex reasoning tasks.",
           "generic": "Readiness check requires attention: {code}"
         },
         "readinessAction": {
@@ -10573,7 +10525,8 @@
           "reviewMigrationRules": "Review migration rules",
           "configureVoice": "Open voice settings",
           "configureConsensus": "Open agent settings",
-          "configureMoaOverlay": "Open agent settings"
+          "configureMoaOverlay": "Open agent settings",
+          "configureStepBudget": "Adjust step budget"
         },
         "rollbackIncludesInstructions": "Rollback restores memories and imported instructions",
         "startChat": "Chat with this agent",
@@ -12848,6 +12801,12 @@
     "pipelineWizardCreate": "Create pipeline",
     "pipelineWizardCreating": "Creating...",
     "pipelineCreated": "Created {count} tasks from pipeline template",
+    "pipelineEstimateTitle": "Resource & Cost Estimate",
+    "pipelineEstimateWu": "Est. ~{min} to {max} WU",
+    "pipelineEstimateTokens": "Est. Context: {prompt} in / {completion} out",
+    "pipelineRemainingAfter": "Remaining after run",
+    "pipelineInsufficientBalance": "Current balance is insufficient for full pipeline execution",
+    "pipelineEconomyRecommendation": "Formatting/summary workload on a high-tier model detected. Switching to Standard/Lite can save 70%+ WU!",
     "pipelineError": "Failed to create pipeline",
     "pipelineNoTemplates": "No pipeline templates available",
     "pipelineLoadError": "Failed to load pipeline templates",

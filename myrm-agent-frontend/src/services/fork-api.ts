@@ -34,6 +34,8 @@ export interface ForkInfoResponse {
   data: {
     parent_chat_id: string | null;
     fork_point: number | null;
+    root_chat_id?: string | null;
+    depth?: number;
     children: Array<{
       chat_id: string;
       title: string;

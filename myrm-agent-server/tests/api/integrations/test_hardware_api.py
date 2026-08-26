@@ -602,3 +602,38 @@ async def test_ollama_delete_cleans_agentic_model():
                 # Base model deletion + agentic model cleanup call
                 assert mock_client.request.call_count == 2
 
+
+@pytest.mark.asyncio
+async def test_ollama_pull_failure_does_not_create_agentic_modelfile():
+    """Edge case: Ollama pull failure stream should NOT trigger _ensure_agentic_modelfile."""
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
+        with patch("app.api.integrations.hardware._ensure_agentic_modelfile") as mock_ensure:
+            async def mock_stream_bytes():
+                yield b'{"status": "pulling layer"}\n'
+                yield b'{"error": "model not found"}\n'
+
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.aiter_bytes = mock_stream_bytes
+
+            mock_client_instance = AsyncMock()
+            mock_stream_ctx = MagicMock()
+            mock_stream_ctx.__aenter__ = AsyncMock(return_value=mock_resp)
+            mock_stream_ctx.__aexit__ = AsyncMock(return_value=None)
+            mock_client_instance.stream = MagicMock(return_value=mock_stream_ctx)
+
+            with patch("httpx.AsyncClient", return_value=mock_client_instance):
+                mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+                mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+
+                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                    response = await ac.post(
+                        "/api/v1/integrations/hardware/ollama/pull",
+                        json={"model_name": "non_existent_model"},
+                    )
+                    assert response.status_code == 200
+                    chunks = [line for line in response.text.split("\n") if line]
+                    assert not any("agentic_modelfile_created" in c for c in chunks)
+                    mock_ensure.assert_not_called()
+
+

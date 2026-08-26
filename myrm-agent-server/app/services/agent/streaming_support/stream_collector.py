@@ -600,6 +600,7 @@ class StreamContentCollector:
             if detail is not None:
                 payload_3["detail"] = detail
             self._set_stop_reason(payload_3)
+            self._completion_status = "cancelled"
         elif event_type == "error":
             raw_error = event.get("error")
             error_message = ""

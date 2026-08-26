@@ -33,7 +33,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | ├─ `rules.py` | ✅ 核心 | 5 条诊断规则（滞留/失败/阻塞/死依赖/triage）+ 阈值与 helpers | ❌ |
 | └─ `cycle_rules.py` | ✅ 核心 | 循环阻塞 / IN_REVIEW 审批滞留 2 条诊断规则 | ❌ |
 | `pipeline/` | ✅ 子包 | Pipeline 模板域（聚合出口见其 `__init__.py`） | - |
-| ├─ `instantiator.py` | ✅ 核心 | Pipeline 模板实例化；依赖父任务时继承 `source_chat_id`；`repeat_for_item_skills` 按平台注入 `extra_skill_ids` | ✅ |
+| ├─ `instantiator.py` | ✅ 核心 | Pipeline 模板实例化与 DAG 预估（`estimate_pipeline_plan`）；依赖父任务时继承 `source_chat_id`；`repeat_for_item_skills` 按平台注入 `extra_skill_ids` | ✅ |
 | └─ `spec_io.py` | ✅ 核心 | Pipeline frontmatter 解析；`TaskSeed.repeat_for_item_skills` 按 repeat 项注入技能 | ✅ |
 | `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定；`update_board` 在 settings 变更时热刷新运行中 dispatcher（`refresh_board`） | ❌ |
 | `replan_ops.py` | ✅ 核心 | Plan Revision 业务编排：单事务原子修订、自动取消/熔断 RUNNING worker、级联 promote 解锁子任务与 SSE 广播 | ✅ |

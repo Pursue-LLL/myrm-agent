@@ -5,6 +5,7 @@ import uuid
 import pytest
 from starlette.testclient import TestClient
 
+from myrm_agent_harness.core.features import init_features
 from tests.api.agent.utils import get_model_selection
 
 
@@ -18,7 +19,12 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
     2. The agent correctly works to satisfy the criteria and updates the status to complete.
     3. The gatekeeper verifies the outcome.
     """
-    if not os.getenv("BASIC_API_KEY") and not os.getenv("OPENAI_API_KEY") and not os.getenv("ANTHROPIC_API_KEY"):
+    init_features(overrides={"goals_system": True})
+    if (
+        not os.getenv("BASIC_API_KEY")
+        and not os.getenv("OPENAI_API_KEY")
+        and not os.getenv("ANTHROPIC_API_KEY")
+    ):
         pytest.skip("Skipping real model E2E test due to missing API keys.")
 
     chat_id = f"test_goal_e2e_{uuid.uuid4().hex[:8]}"
@@ -36,14 +42,22 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
         "goal": {
             "objective": "Just complete the goal",
             "maxTokens": 100000,
-            "acceptance_criteria": [{"type": "shell", "command": "echo 'Hello World'", "timeout_seconds": 60}],
+            "acceptance_criteria": [
+                {
+                    "type": "shell",
+                    "command": "echo 'Hello World'",
+                    "timeout_seconds": 60,
+                }
+            ],
         },
     }
 
     full_response = ""
     tool_calls = []
 
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
+    with client.stream(
+        "POST", "/api/v1/agents/agent-stream", json=request_data
+    ) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
@@ -69,4 +83,6 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
     goal_data = status_response.json().get("goal")
 
     assert goal_data is not None, "Goal should exist"
-    assert goal_data["status"] == "complete", f"Goal should be marked complete, but got {goal_data['status']}"
+    assert (
+        goal_data["status"] == "complete"
+    ), f"Goal should be marked complete, but got {goal_data['status']}"

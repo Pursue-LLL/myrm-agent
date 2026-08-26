@@ -6,9 +6,9 @@
 - app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 
 [OUTPUT]
-- ConversationForkManager: Fork conversation + query fork info
+- ConversationForkManager: Fork conversation + query fork info + multi-generational lineage trace
 - ForkCreateResult: Fork operation result NamedTuple
-- ForkInfoResponse: Fork info query result NamedTuple
+- ForkInfoResponse: Fork info query result NamedTuple with root_chat_id and depth
 
 [POS]
 Conversation forking service layer. Manages checkpoint-based conversation
@@ -59,6 +59,9 @@ class ForkInfoResponse(NamedTuple):
     parent_chat_id: str | None
     fork_point: int | None
     children: list[ForkChildInfo]
+    root_chat_id: str | None = None
+    depth: int = 0
+
 
 
 class ConversationForkManager:
@@ -206,26 +209,37 @@ class ConversationForkManager:
         )
         db.add(new_chat)
 
-        # 4. Clone messages up to fork point into new chat
-        msgs_stmt = select(Message).where(Message.chat_id == parent_chat_id).order_by(Message.created_at).limit(message_index + 1)
+        # 4. Clone messages up to fork point into new chat in batch
+        msgs_stmt = (
+            select(Message)
+            .where(Message.chat_id == parent_chat_id)
+            .order_by(Message.created_at)
+            .limit(message_index + 1)
+        )
         msgs_result = await db.execute(msgs_stmt)
         parent_messages = msgs_result.scalars().all()
 
         id_mapping: dict[str, str] = {}
+        cloned_messages: list[Message] = []
         for msg in parent_messages:
             new_msg_id = str(uuid4())
             id_mapping[msg.id] = new_msg_id
-            cloned_msg = Message(
-                id=new_msg_id,
-                chat_id=new_chat_id,
-                role=msg.role,
-                content=msg.content,
-                sent_at=msg.sent_at,
-                sent_timezone=msg.sent_timezone,
-                extra_data=msg.extra_data,
-                created_at=msg.created_at,
+            cloned_messages.append(
+                Message(
+                    id=new_msg_id,
+                    chat_id=new_chat_id,
+                    role=msg.role,
+                    content=msg.content,
+                    sent_at=msg.sent_at,
+                    sent_timezone=msg.sent_timezone,
+                    extra_data=msg.extra_data,
+                    created_at=msg.created_at,
+                )
             )
-            db.add(cloned_msg)
+
+        if cloned_messages:
+            db.add_all(cloned_messages)
+
 
         # Remap compacted_before_id or clear compaction if fork point is before compaction boundary
         if new_chat.compacted_before_id:
@@ -358,6 +372,20 @@ class ConversationForkManager:
             parent_chat_id = fork_record.parent_chat_id
             fork_point = fork_record.fork_message_index
 
+        # 1. Query parent fork and trace root ancestor lineage
+        curr_parent_id = fork_record.parent_chat_id if fork_record else None
+        root_chat_id: str | None = curr_parent_id
+        depth = 0
+        visited: set[str] = {chat_id}
+
+        while curr_parent_id and curr_parent_id not in visited:
+            visited.add(curr_parent_id)
+            depth += 1
+            root_chat_id = curr_parent_id
+            anc_stmt = select(ConversationFork.parent_chat_id).where(ConversationFork.child_chat_id == curr_parent_id)
+            anc_result = await db.execute(anc_stmt)
+            curr_parent_id = anc_result.scalar_one_or_none()
+
         # 2. Query child forks
         children_stmt = (
             select(ConversationFork, Chat)
@@ -382,7 +410,10 @@ class ConversationForkManager:
             parent_chat_id=parent_chat_id,
             fork_point=fork_point,
             children=children_list,
+            root_chat_id=root_chat_id,
+            depth=depth,
         )
+
 
     @staticmethod
     async def delete_fork_lineage(

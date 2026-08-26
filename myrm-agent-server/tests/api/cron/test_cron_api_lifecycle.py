@@ -42,10 +42,17 @@ def cron_manager() -> CronManager:
 
 @pytest.fixture
 def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
-    from app.api.cron.routes import actions_router, helpers, jobs_router, prerequisite_router
+    from app.api.cron.routes import (
+        actions_router,
+        connector_health_router,
+        helpers,
+        jobs_router,
+        prerequisite_router,
+    )
 
     test_app = FastAPI()
     test_app.include_router(actions_router, prefix="/cron")
+    test_app.include_router(connector_health_router, prefix="/cron")
     test_app.include_router(prerequisite_router, prefix="/cron")
     test_app.include_router(jobs_router, prefix="/cron")
 
@@ -668,3 +675,45 @@ class TestCronPrerequisiteGateApi:
             assert data["chat_verified_count"] == 2
             assert data["kanban_verified_count"] == 1
             assert data["override_allowed"] is True
+
+
+class TestCronConnectorHealthApi:
+    """Validate GET /cron/connectors/health endpoint behavior."""
+
+    def test_connectors_health_endpoint(self, client: TestClient) -> None:
+        from app.services.cron.connector_health_service import ConnectorHealthSummary
+
+        mock_item = ConnectorHealthSummary(
+            target="https://api.example.com/webhook",
+            channel="webhook",
+            status="degraded",
+            total_deliveries=10,
+            failed_deliveries=2,
+            consecutive_failures=2,
+            last_status_code=502,
+            last_error_category="http_server_error",
+            last_error_message="502 Bad Gateway",
+            fix_suggestion="Check server logs.",
+            bound_job_ids=["job-1"],
+        )
+
+        with patch("app.services.cron.connector_health_service.ConnectorHealthService.get_all_connectors_health") as mock_health:
+            async def _fake_health(*args, **kwargs):
+                return [mock_item]
+
+            mock_health.side_effect = _fake_health
+            resp = client.get("/cron/connectors/health?window_hours=12")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["total"] == 1
+            assert data["degraded_count"] == 1
+            assert data["down_count"] == 0
+            assert len(data["items"]) == 1
+            item = data["items"][0]
+            assert item["target"] == "https://api.example.com/webhook"
+            assert item["channel"] == "webhook"
+            assert item["status"] == "degraded"
+            assert item["last_error_category"] == "http_server_error"
+            assert item["fix_suggestion"] == "Check server logs."
+            assert item["bound_job_ids"] == ["job-1"]
+

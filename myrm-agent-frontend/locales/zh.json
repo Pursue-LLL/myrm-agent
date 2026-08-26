@@ -242,68 +242,6 @@
     "advisorSelectionDefaultQuestion": "解释选中内容"
   },
   "settings": {
-    "workbench": {
-      "badge": "个人工作台与数据主权",
-      "title": "数据主权与价值沉淀",
-      "description": "您的所有记忆、知识库 Wiki、技能、规则与定时任务均安全保存在私有工作区中。您拥有 100% 的 AI 资产所有权，无任何厂商锁定。",
-      "refresh": "刷新",
-      "assetMatrixTitle": "AI 资产概览",
-      "assets": {
-        "memory": {
-          "title": "长期记忆",
-          "score": "健康度：{score}%",
-          "desc": "跨会话记忆、偏好及个性化习惯沉淀。"
-        },
-        "wiki": {
-          "title": "知识库 (Wiki)",
-          "rawCount": "{count} 份原始源文档",
-          "desc": "结构化知识网络与合成概念库。"
-        },
-        "skills": {
-          "title": "已习得技能",
-          "evolutions": "{count} 次进化",
-          "desc": "自定义工具、自动化工作流与惯例。"
-        },
-        "rules": {
-          "title": "工作区规则",
-          "chars": "{count} 字符",
-          "desc": "系统指令与领域行为约束规范。"
-        },
-        "cron": {
-          "title": "自动化任务",
-          "runs": "{count} 次运行",
-          "desc": "定时任务、主动巡检及后台作业。"
-        },
-        "storage": {
-          "title": "本地存储",
-          "desc": "私有卷磁盘占用与状态。"
-        }
-      },
-      "sovereignty": {
-        "title": "数据主权与可迁移性",
-        "subtitle": "您的 AI 工作区基于开放标准独立运行，支持全量导出与随时迁移。",
-        "exportConfig": "导出完整配置",
-        "exportMemory": "导出记忆数据",
-        "points": {
-          "decouplingTitle": "解耦架构",
-          "decouplingDesc": "模型计算与业务知识分离，确保持续升级无阻碍。",
-          "standardTitle": "开放格式",
-          "standardDesc": "所有记忆与技能遵循透明规范，跨平台兼容。",
-          "zeroLockinTitle": "零厂商绑定",
-          "zeroLockinDesc": "可随时切换模型供应商或本地硬件，上下文资产永不丢失。"
-        }
-      },
-      "deployHonest": {
-        "title": "存储架构说明",
-        "tauriSubtitle": "当前运行为原生桌面端应用，拥有完整的本地文件访问能力。",
-        "sandboxSubtitle": "当前运行于专属隔离云沙箱实例中，配有持久化私有卷。",
-        "localSubtitle": "当前运行于本地自托管 WebUI 模式。",
-        "dataPathLabel": "当前数据存储路径",
-        "tauriDetail": "应用状态与数据库直接存放在您的个人计算机磁盘中。",
-        "sandboxDetail": "数据保存在私有沙箱持久卷中，单用户单实例物理隔离。",
-        "localDetail": "数据持久化存储于您本地主目录的工作区中。"
-      }
-    },
     "lockedUse": {
       "title": "计算机使用 / 锁定使用",
       "layer1Title": "保持屏幕常亮",
@@ -1805,7 +1743,11 @@
         "ollamaNotRunningTitle": "Ollama 未运行",
         "ollamaNotRunningDesc": "请先安装并启动 Ollama，才能一键下载和使用本地模型。",
         "warningTitle": "硬件限制警告",
-        "warningDesc": "部分模型需要的显存超过了您当前的可用显存。强制运行可能会导致系统卡顿或显存溢出 (OOM) 错误。"
+        "warningDesc": "部分模型需要的显存超过了您当前的可用显存。强制运行可能会导致系统卡顿或显存溢出 (OOM) 错误。",
+        "agenticBadge": "64K Agentic 增强",
+        "agenticTooltip": "自动生成的 64K 上下文 modelfile，满足生产级工具调用与长期记忆需求",
+        "keepAliveTipTitle": "全天候常驻与显存释放指南",
+        "keepAliveTipDesc": "将模型保留在显存中以支持全天候后台机器人，或在重负载任务时释放显存。"
       },
       "importFromModelsDev": "从 models.dev 导入",
       "getModels": "获取模型",
@@ -1959,6 +1901,8 @@
         "reasoningModel": "推理模型",
         "reasoningModelDescription": "用于复杂推理任务的模型（如数学证明、系统架构设计）。支持通过模型参数开启思考模式。",
         "selectReasoningModel": "选择推理模型",
+        "autoMoaReasoning": "REASONING 档位自动触发 MoA 顾问叠加",
+        "autoMoaReasoningDescription": "当智能路由判定任务为复杂推理（REASONING 档位）时，自动触发 MoA 多模型并行顾问咨询与交叉检验；常规任务保持单模型以节约 Token 与延迟。",
         "specialtyRouting": "专长路由",
         "specialtyRoutingDescription": "自动识别代码编写或超长文档任务，分流至具备针对性专长的高性能模型",
         "codeModel": "代码专长模型",
@@ -3922,6 +3866,10 @@
           "release": {
             "label": "发布 SOP",
             "text": "我们的发布/上线 SOP——版本检查清单、验证步骤与回滚流程。"
+          },
+          "book": {
+            "label": "书籍 / PDF / 大文档集",
+            "text": "将这本专业书/论文集/长篇文档集沉淀为拓展型知识库技能：骨干精简 SKILL.md 索引，配合按章节拆分的 references/ 细分知识，在需要时按需通过 skill_select_tool 加载。"
           }
         }
       },
@@ -6894,6 +6842,8 @@
     "moaOverlayPrivacyOff": "关闭",
     "moaOverlayPrivacyDisplay": "仅展示脱敏",
     "moaOverlayPrivacyFull": "完整脱敏（展示 + 注入）",
+    "moaOverlayAutoReasoningTitle": "深度推理自动激活 (Auto MoA Gate)",
+    "moaOverlayAutoReasoningDesc": "当智能路由判定任务为深度推理 (REASONING) 档位时，自动调用 MoA 顾问多模型交叉审查；日常任务保持单模型极速响应。",
     "moaOverlayNoModels": "未选择参考模型 — 叠加层将被跳过（不会回退主模型）",
     "consensusPrivacy": "参考模型隐私过滤",
     "consensusAggTemp": "聚合模型温度",
@@ -8392,7 +8342,8 @@
         "failed": "保存工作流模板失败",
         "fieldsRequired": "请填写显示名称和模板 slug"
       },
-      "truncated": "回复因长度限制被截断，继续对话可获取完整内容。"
+      "truncated": "回复因长度限制被截断，继续对话可获取完整内容。",
+      "cancelled": "本次回复已停止生成，部分内容已保留在上下文中。"
     },
     "toolImage": {
       "screenshotLabel": "远程桌面截屏"
@@ -10567,6 +10518,7 @@
           "voiceFeatureDisabled": "语音交互功能未开启。若你在 Hermes 中使用过语音，请前往语音设置开启。",
           "consensusFeatureDisabled": "多模型合议未开启。可在智能体设置中开启以获得更高质量回答。",
           "moaOverlaySetupHint": "请在智能体设置中开启 MoA 叠加，然后在聊天模型选择器中选择 preset 以使用多模型参谋。",
+          "stepBudgetLow": "检测到智能体最大执行步数较低（{count} 个智能体限制 < {min} 步），在长链路复杂任务中可能会提前截断。",
           "generic": "就绪检查需要处理：{code}"
         },
         "readinessAction": {
@@ -10576,7 +10528,8 @@
           "reviewMigrationRules": "查看迁移规则",
           "configureVoice": "打开语音设置",
           "configureConsensus": "打开智能体设置",
-          "configureMoaOverlay": "打开智能体设置"
+          "configureMoaOverlay": "打开智能体设置",
+          "configureStepBudget": "调整智能体步数"
         },
         "rollbackIncludesInstructions": "回滚将同时恢复记忆与已导入的指令",
         "startChat": "用此智能体开始对话",
@@ -12847,6 +12800,12 @@
     "pipelineWizardCreate": "创建流水线",
     "pipelineWizardCreating": "创建中...",
     "pipelineCreated": "已从模板创建 {count} 个任务",
+    "pipelineEstimateTitle": "资源与资费预估",
+    "pipelineEstimateWu": "预计消耗约 {min} ~ {max} WU",
+    "pipelineEstimateTokens": "预计上下文: {prompt} 输入 / {completion} 输出",
+    "pipelineRemainingAfter": "执行后结余",
+    "pipelineInsufficientBalance": "当前余额不足以支撑完整流水线运行",
+    "pipelineEconomyRecommendation": "当前为基础格式化/排版任务，检测到使用高倍率模型。建议选择 Standard/Lite 模型执行，可节省 70%+ 消耗！",
     "pipelineError": "创建流水线失败",
     "pipelineNoTemplates": "暂无可用的流水线模板",
     "pipelineLoadError": "加载流水线模板失败",
@@ -15428,6 +15387,7 @@
       "report": "评测报告",
       "matrix": "矩阵对比",
       "memoryAb": "记忆 A/B",
+      "skillAb": "技能 A/B (Skill A/B)",
       "history": "历史趋势 (A/B Test)",
       "diff": "对比视图 (Diff)"
     },

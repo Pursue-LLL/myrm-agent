@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { applyThemePreinitFromLocalStorage, THEME_PREINIT_STORAGE_KEY } from '@/theme-engine/preinit';
 
 import PetStatusBubble from './PetStatusBubble';
+import PetVoiceOrbGlow from './PetVoiceOrbGlow';
 import {
   emitPetSurfaceControl,
   focusPetSurfaceMainWindow,
@@ -199,16 +200,22 @@ export default function PetOverlayWindowApp() {
       if (clickTimerRef.current) {
         clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
-        void togglePetSurfaceMainWindow();
+        // 双击手势：若伴侣在说话则打断，否则尝试重播末句 TTS (F13 DoD)
+        if (state?.voiceState === 'speaking') {
+          void emitPetSurfaceControl({ type: 'voice-interrupt' });
+        } else {
+          void emitPetSurfaceControl({ type: 'voice-replay' });
+        }
         return;
       }
 
       clickTimerRef.current = setTimeout(() => {
         clickTimerRef.current = null;
-        openComposer();
+        // 单击手势：无打字时切换主窗口，长按进入 composer
+        void togglePetSurfaceMainWindow();
       }, DOUBLE_CLICK_MS);
     },
-    [openComposer],
+    [state?.voiceState],
   );
 
   const handleSubmit = useCallback(() => {
@@ -268,6 +275,11 @@ export default function PetOverlayWindowApp() {
       )}
 
       <div ref={containerRef} className="relative" style={{ width: state.petSize, height: state.petSize }}>
+        <PetVoiceOrbGlow
+          voiceState={state.voiceState}
+          audioLevel={state.audioLevel}
+          size={state.petSize}
+        />
         <PetStatusBubble petState={petState} />
         {unread && (
           <button

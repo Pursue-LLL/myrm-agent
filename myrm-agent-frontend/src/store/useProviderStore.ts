@@ -84,6 +84,7 @@ interface ProviderState {
   setRoutingLightModelFallback: (selection: SingleModelSelection | null) => void;
   setRoutingReasoningModel: (selection: SingleModelSelection | null) => void;
   setRoutingReasoningModelFallback: (selection: SingleModelSelection | null) => void;
+  setAutoMoaReasoning: (enabled: boolean) => void;
   setVisionFallbackModel: (selection: SingleModelSelection | null) => void;
   setVisionFallbackModelFallback: (selection: SingleModelSelection | null) => void;
   setVideoFallbackModel: (selection: SingleModelSelection | null) => void;
@@ -588,6 +589,27 @@ const useProviderStore = create<ProviderState>((set, get) => ({
         enabled: existing?.enabled ?? false,
         lightModel: existing?.lightModel ?? emptySlot,
         reasoningModel: { ...(existing?.reasoningModel ?? emptySlot), fallback: selection },
+        autoMoaReasoning: existing?.autoMoaReasoning,
+        autoMoaPresetId: existing?.autoMoaPresetId,
+      },
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setAutoMoaReasoning: (enabled) => {
+    const current = get().defaultModelConfig;
+    const existing = current.routingConfig;
+    const emptySlot = { primary: null, fallback: null };
+    const config: DefaultModelConfig = {
+      ...current,
+      routingConfig: {
+        enabled: existing?.enabled ?? false,
+        lightModel: existing?.lightModel ?? emptySlot,
+        reasoningModel: existing?.reasoningModel ?? emptySlot,
+        autoMoaReasoning: enabled,
+        autoMoaPresetId: existing?.autoMoaPresetId,
       },
     };
     const { providers, customModelInfo } = get();

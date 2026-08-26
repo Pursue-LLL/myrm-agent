@@ -28,9 +28,9 @@ import { composeLearnSlashMessage } from '@/lib/skills/composeLearnSlashMessage'
 import { submitLearnMessage } from '@/lib/skills/submitLearnMessage';
 import { cn } from '@/lib/utils/classnameUtils';
 
-type LearnScenarioId = 'sdk' | 'deploy' | 'debug' | 'writing' | 'release';
+type LearnScenarioId = 'sdk' | 'deploy' | 'debug' | 'writing' | 'release' | 'book';
 
-const SCENARIO_IDS: LearnScenarioId[] = ['sdk', 'deploy', 'debug', 'writing', 'release'];
+const SCENARIO_IDS: LearnScenarioId[] = ['sdk', 'deploy', 'debug', 'writing', 'release', 'book'];
 
 const SCENARIO_REQUIRES_CHAT: ReadonlySet<LearnScenarioId> = new Set(['deploy']);
 

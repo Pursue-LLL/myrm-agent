@@ -61,13 +61,15 @@ interface UseVoiceSessionOptions {
   onAgentTurnChange?: (state: 'thinking' | 'done', turnId: string) => void;
 }
 
-interface UseVoiceSessionReturn {
+  interface UseVoiceSessionReturn {
   sessionState: VoiceSessionState;
   isActive: boolean;
   startSession: () => void;
   stopSession: () => void;
   interruptTTS: () => void;
   speakResponse: (text: string, options?: { queue?: boolean }) => void;
+  replayLastTTS: () => void;
+  lastSpokenText: string | null;
   interimText: string;
   audioLevel: number;
   cameraState: ReturnType<typeof useCameraInput>['cameraState'];
@@ -141,21 +143,37 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   // Barge-in detection state
   const bargeInStartRef = useRef(0);
 
+  // F13 DoD: Last spoken TTS text cache for quick replay
+  const lastSpokenTextRef = useRef<string | null>(null);
+
   const { classify } = useVisionIntent();
 
   // PTT 屏幕上下文：Rust 端在 PTT 按下时异步截图后发射 voice-ptt-context DOM 事件
   const pttScreenContextRef = useRef<PttScreenContext | null>(null);
+  const pttPendingPromiseRef = useRef<{ resolve: (ctx: PttScreenContext | null) => void } | null>(null);
 
   useEffect(() => {
+    const handlePttStart = () => {
+      pttScreenContextRef.current = null;
+    };
+
     const handlePttContext = (e: Event) => {
       const detail = (e as CustomEvent<PttScreenContext>).detail;
       if (detail?.screenshot || detail?.extractedText) {
         pttScreenContextRef.current = detail;
+        if (pttPendingPromiseRef.current) {
+          pttPendingPromiseRef.current.resolve(detail);
+          pttPendingPromiseRef.current = null;
+        }
       }
     };
 
+    window.addEventListener('voice-ptt-start', handlePttStart);
     window.addEventListener('voice-ptt-context', handlePttContext);
-    return () => window.removeEventListener('voice-ptt-context', handlePttContext);
+    return () => {
+      window.removeEventListener('voice-ptt-start', handlePttStart);
+      window.removeEventListener('voice-ptt-context', handlePttContext);
+    };
   }, []);
 
   const tts = useTTS({ mode: ttsMode, provider: ttsProvider });
@@ -236,7 +254,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   });
 
   const handleTranscript = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!sessionActiveRef.current || !autoSend) {
         return;
       }
@@ -263,9 +281,25 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
         }
       }
 
-      // PTT 屏幕上下文：Rust 端在 PTT 按下时截取的屏幕截图 + AX 文本
-      const pttCtx = pttScreenContextRef.current;
+      // PTT 屏幕上下文汇聚屏障锁（Barrier Sync）：
+      // 若当前处于 PTT 模式且截图仍在传输，等待最多 250ms 汇聚窗口
+      let pttCtx = pttScreenContextRef.current;
+      if (!pttCtx && speechMode === 'push-to-talk') {
+        pttCtx = await new Promise<PttScreenContext | null>((resolve) => {
+          const timer = setTimeout(() => {
+            pttPendingPromiseRef.current = null;
+            resolve(null);
+          }, 250);
+          pttPendingPromiseRef.current = {
+            resolve: (ctx) => {
+              clearTimeout(timer);
+              resolve(ctx);
+            },
+          };
+        });
+      }
       pttScreenContextRef.current = null;
+
       if (pttCtx && Date.now() - pttCtx.timestamp < 30_000) {
         if (pttCtx.screenshot) {
           const screenFrame: VisualFrame = {
@@ -292,7 +326,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       onSendMessage?.(finalText, visionFrames);
     },
-    [autoSend, fullDuplex, tts, cameraEnabled, camera, classify, onSendMessage, mode],
+    [autoSend, fullDuplex, tts, cameraEnabled, camera, classify, onSendMessage, mode, speechMode],
   );
 
   const handleInterimTranscript = useCallback(() => {
@@ -361,6 +395,8 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
         return;
       }
 
+      lastSpokenTextRef.current = text;
+
       const segments = extractSpeakableSegments(text);
       if (segments.length === 0) {
         return;
@@ -388,6 +424,13 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     },
     [speech, speakNext, fullDuplex],
   );
+
+  const replayLastTTS = useCallback(() => {
+    if (!lastSpokenTextRef.current) {
+      return;
+    }
+    speakResponse(lastSpokenTextRef.current);
+  }, [speakResponse]);
 
   useEffect(() => {
     if (tts.state === 'idle' && isSpeakingRef.current) {
@@ -580,6 +623,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     startSession,
     stopSession,
     interruptTTS,
+    speakResponse,
+    replayLastTTS,
+    lastSpokenText: lastSpokenTextRef.current,
     interimText: isRealtime
       ? realtimeVoice.interimText
       : isGeminiLive
@@ -593,7 +639,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     videoRef: camera.videoRef,
     toggleFacing: camera.toggleFacing,
     ttsState: tts.state,
-    speakResponse,
     agentResponseText: isRealtime
       ? realtimeVoice.responseText
       : isGeminiLive

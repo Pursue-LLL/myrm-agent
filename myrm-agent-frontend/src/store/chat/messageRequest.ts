@@ -559,6 +559,20 @@ export const getFallbackLongDocModelSelection = (): ModelSelection | null => {
   return resolveSelectionToModelSelection(defaultModelConfig?.longDocModel?.fallback);
 };
 
+export const getAutoMoaReasoning = (agentConfig?: AgentConfig | null): boolean => {
+  const agentOverlay = agentConfig?.engineParams?.moa_overlay as Record<string, unknown> | undefined;
+  if (typeof agentOverlay?.auto_on_reasoning === 'boolean') {
+    return agentOverlay.auto_on_reasoning;
+  }
+  const { defaultModelConfig } = useProviderStore.getState();
+  return Boolean(defaultModelConfig?.routingConfig?.autoMoaReasoning);
+};
+
+export const getAutoMoaPresetId = (agentConfig?: AgentConfig | null): string | undefined => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return defaultModelConfig?.routingConfig?.autoMoaPresetId;
+};
+
 /**
  * 检查聊天模型配置是否完整（与 Server model_resolver 对齐，无 env fallback）。
  */
@@ -809,6 +823,13 @@ export const createMessageRequest = async (
     ...(isAgentMode &&
       activeMoaPresetId && {
         active_moa_preset_id: activeMoaPresetId,
+      }),
+    ...(isAgentMode &&
+      getAutoMoaReasoning(agentConfig) && {
+        auto_moa_reasoning: true,
+        ...(getAutoMoaPresetId(agentConfig) && {
+          auto_moa_preset_id: getAutoMoaPresetId(agentConfig),
+        }),
       }),
     ...(isAgentMode &&
       agentConfig?.forceDelegateAgent && {

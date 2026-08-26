@@ -282,3 +282,35 @@ def test_resolve_effective_moa_preset_fallback_to_default_when_review_empty() ->
         == MOA_PRESET_DEFAULT_ID
     )
 
+
+def test_resolve_effective_moa_preset_respects_auto_moa_preset_id() -> None:
+    params = {
+        "moa_overlay": {
+            "enabled": True,
+            "presets": {
+                MOA_PRESET_FAST_ID: {
+                    "reference_model_selections": [
+                        {"providerId": "openai", "model": "gpt-4o-mini"},
+                    ],
+                },
+                MOA_PRESET_REVIEW_ID: {
+                    "reference_model_selections": [
+                        {"providerId": "anthropic", "model": "claude-3-5-sonnet"},
+                    ],
+                },
+            },
+        },
+    }
+    # Explicit auto target preset id requested
+    assert (
+        resolve_effective_moa_preset_id(
+            engine_params=params,
+            requested_preset_id=None,
+            routing_tier="reasoning",
+            auto_moa_reasoning=True,
+            auto_moa_preset_id=MOA_PRESET_FAST_ID,
+        )
+        == MOA_PRESET_FAST_ID
+    )
+
+

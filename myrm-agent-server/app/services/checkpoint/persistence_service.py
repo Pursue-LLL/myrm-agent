@@ -24,8 +24,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api import (
+    IntegritySealer,
+    IntegrityStatus,
     PrivacyLadderValidator,
     PrivacyScanVerdict,
+    SEAL_FILENAME,
 )
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -42,6 +45,19 @@ class PersistenceSyncReport:
     synced_files: list[str]
     blocked_files: list[tuple[str, str]]
     ignored_files: list[str]
+    is_sealed: bool = False
+    manifest_file: str | None = None
+
+
+@dataclass(frozen=True)
+class RestoreVerificationReport:
+    session_id: str
+    is_valid: bool
+    status: IntegrityStatus
+    corrupted_files: list[str]
+    missing_files: list[str]
+    quarantined: bool
+    reason: str = ""
 
 
 class SandboxPersistenceService:
@@ -118,6 +134,7 @@ class SandboxPersistenceService:
             synced: list[str] = []
             blocked: list[tuple[str, str]] = []
             ignored: list[str] = []
+            synced_payloads: dict[str, bytes] = {}
 
             for target in paths_to_evaluate:
                 eval_res = validator.evaluate_path(target)
@@ -143,14 +160,36 @@ class SandboxPersistenceService:
                         storage_key = f"sessions/{session_id}/{rel_path}"
                         await self._storage_backend.write(storage_key, content)
                         synced.append(rel_path)
+                        synced_payloads[rel_path] = content
                     except Exception as e:
                         logger.error("Failed to persist file '%s' to storage: %s", rel_path, e)
+
+            # --- ATOMIC INTEGRITY SEALING ---
+            is_sealed = False
+            manifest_key: str | None = None
+            if self._storage_backend and synced_payloads:
+                try:
+                    manifest = IntegritySealer.create_seal_manifest(
+                        session_id=session_id,
+                        files_data=synced_payloads,
+                    )
+                    manifest_key = f"sessions/{session_id}/{SEAL_FILENAME}"
+                    await self._storage_backend.write(
+                        manifest_key,
+                        manifest.to_json().encode("utf-8"),
+                    )
+                    is_sealed = True
+                    logger.info("Sandbox checkpoint successfully sealed for session '%s'", session_id)
+                except Exception as e:
+                    logger.error("Failed to write seal manifest for session '%s': %s", session_id, e)
 
             report = PersistenceSyncReport(
                 session_id=session_id,
                 synced_files=synced,
                 blocked_files=blocked,
                 ignored_files=ignored,
+                is_sealed=is_sealed,
+                manifest_file=manifest_key,
             )
 
             # Emit completion event
@@ -162,11 +201,96 @@ class SandboxPersistenceService:
                         "session_id": session_id,
                         "synced_count": len(synced),
                         "blocked_count": len(blocked),
+                        "is_sealed": is_sealed,
                     },
                 )
             )
 
             return report
+
+    async def verify_and_quarantine_session(
+        self,
+        session_id: str,
+        workspace_root: Path,
+    ) -> RestoreVerificationReport:
+        """Verify the integrity of a restored session workspace and quarantine corrupted artifacts."""
+        if not self._storage_backend:
+            return RestoreVerificationReport(
+                session_id=session_id,
+                is_valid=True,
+                status=IntegrityStatus.VALID,
+                corrupted_files=[],
+                missing_files=[],
+                quarantined=False,
+                reason="No storage backend configured; skipped integrity verification",
+            )
+
+        manifest_key = f"sessions/{session_id}/{SEAL_FILENAME}"
+        manifest_data: bytes | None = None
+        try:
+            if await self._storage_backend.exists(manifest_key):
+                manifest_data = await self._storage_backend.read(manifest_key)
+        except Exception as e:
+            logger.warning("Error reading seal manifest for session '%s': %s", session_id, e)
+
+        if manifest_data is None:
+            return RestoreVerificationReport(
+                session_id=session_id,
+                is_valid=False,
+                status=IntegrityStatus.MISSING_MANIFEST,
+                corrupted_files=[],
+                missing_files=[],
+                quarantined=False,
+                reason="No seal manifest found (torn write or unsealed persistence)",
+            )
+
+        # Collect local workspace files matching candidate paths
+        local_files: dict[str, bytes] = {}
+        if workspace_root.exists() and workspace_root.is_dir():
+            for item in workspace_root.rglob("*"):
+                if item.is_file():
+                    try:
+                        rel = str(item.relative_to(workspace_root))
+                        if rel != SEAL_FILENAME:
+                            local_files[rel] = item.read_bytes()
+                    except Exception as e:
+                        logger.warning("Error reading local workspace file '%s': %s", item, e)
+
+        verify_res = IntegritySealer.verify_manifest_and_files(
+            manifest_json=manifest_data.decode("utf-8"),
+            files_data=local_files,
+        )
+
+        quarantined = False
+        if not verify_res.is_valid:
+            # Trigger quarantine: move corrupted files to quarantine/
+            quarantine_dir = workspace_root / "quarantine" / f"corrupted_{session_id}"
+            try:
+                quarantine_dir.mkdir(parents=True, exist_ok=True)
+                for cf in verify_res.corrupted_files:
+                    corrupted_path = workspace_root / cf
+                    if corrupted_path.exists():
+                        target_dst = quarantine_dir / cf
+                        target_dst.parent.mkdir(parents=True, exist_ok=True)
+                        corrupted_path.rename(target_dst)
+                quarantined = True
+                logger.warning(
+                    "Quarantined corrupted files for session '%s' to '%s'",
+                    session_id,
+                    quarantine_dir,
+                )
+            except Exception as e:
+                logger.error("Failed to quarantine corrupted session files: %s", e)
+
+        return RestoreVerificationReport(
+            session_id=session_id,
+            is_valid=verify_res.is_valid,
+            status=verify_res.status,
+            corrupted_files=verify_res.corrupted_files,
+            missing_files=verify_res.missing_files,
+            quarantined=quarantined,
+            reason=verify_res.reason,
+        )
 
 
 _persistence_singleton: SandboxPersistenceService | None = None

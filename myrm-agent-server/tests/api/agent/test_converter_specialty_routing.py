@@ -244,8 +244,9 @@ class TestAutoMoAOverlayGateConverter:
                 },
             },
         }
-        # A complex query that triggers reasoning
-        base_request_data["query"] = "Prove that there are infinitely many primes and analyze the asymptotic bounds."
+        base_request_data["action_mode"] = "agent"
+        # A mathematical proof query with math symbols and keywords to trigger reasoning tier
+        base_request_data["query"] = r"Please prove the following theorem step by step: \sum_{k=1}^n k = \frac{n(n+1)}{2}"
         request = AgentRequest(**base_request_data)
 
         with (

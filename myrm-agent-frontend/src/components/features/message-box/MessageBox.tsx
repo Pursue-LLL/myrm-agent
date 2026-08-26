@@ -883,6 +883,12 @@ const MessageBox = ({
                 <span className="text-amber-700 dark:text-amber-300">{t('message.truncated')}</span>
               </div>
             )}
+            {!(isLast && loading) && message.completionStatus === 'cancelled' && (
+              <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-muted/40 border border-border/50 rounded-lg text-sm text-muted-foreground">
+                <Ban className="w-4 h-4 text-muted-foreground/70 shrink-0" />
+                <span>{t('message.cancelled')}</span>
+              </div>
+            )}
             {!(isLast && loading) && message.completionStatus === 'filtered' && (
               <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-sm">
                 <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />

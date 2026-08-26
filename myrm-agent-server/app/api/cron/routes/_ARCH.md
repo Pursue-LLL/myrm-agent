@@ -10,6 +10,8 @@ Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 |------|------|------|-------|
 | `__init__.py` | 入口 | Cron job REST endpoints. | ✅ |
 | `actions.py` | 模块 | Cron 任务生命周期动作端点（duplicate/pause/resume/trigger/test-delivery/reset-baseline） | ✅ |
+| `blueprints.py` | 模块 | `GET/POST /blueprints` — 五语系（en/zh/ja/de/ko）蓝图目录与 fill；委托 `core.cron.blueprints` SSOT | ✅ |
+| `connector_health.py` | 模块 | `GET /connectors/health` — 连接器健康聚合与降级状态查询端点 | ✅ |
 | `heartbeat.py` | 模块 | Heartbeat REST endpoints. Supports `agent_id` binding for Agent Profile inheritance. | ✅ |
 | `helpers.py` | 模块 | Cron 响应映射；`workflow_template_display_name` 与 execution gate 同规则 enrich | — |
 | `jobs.py` | 模块 | Cron job CRUD REST endpoints. `GET /` 支持 `chat_id` 过滤；create/update/PATCH 校验 DW 模板绑定（`workflow_templates/validation.py`）；webhook delivery secret 创建生成/更新保留；`POST /{job_id}/test-delivery` 复用投递链路做一键测试 | ✅ |

@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Layers, ChevronRight, ChevronLeft, Loader2, X } from 'lucide-react';
+import { Layers, ChevronRight, ChevronLeft, Loader2, X, Zap, Sparkles, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { PipelineTemplate, PipelineTemplateDetail, PipelineQuestionGroup } from '@/services/kanban';
-import { listPipelines, getPipelineDetail, instantiatePipeline } from '@/services/kanban';
+import type { PipelineTemplate, PipelineTemplateDetail, PipelineQuestionGroup, PipelineEstimateResult } from '@/services/kanban';
+import { listPipelines, getPipelineDetail, instantiatePipeline, estimatePipeline } from '@/services/kanban';
+import { useEntitlements } from '@/hooks/billing/useEntitlements';
+import { isSandbox } from '@/lib/deploy-mode';
 
 interface KanbanPipelineWizardProps {
   boardId: string;
@@ -27,6 +29,35 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
   const [currentGroupIdx, setCurrentGroupIdx] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [estimate, setEstimate] = useState<PipelineEstimateResult | null>(null);
+  const { entitlements } = useEntitlements();
+  const inSandbox = isSandbox();
+
+  useEffect(() => {
+    if (!open || !selectedTemplate || step !== 'configure') {
+      return;
+    }
+    let isCancelled = false;
+    estimatePipeline(boardId, {
+      skill_id: selectedTemplate.skill_id,
+      answers,
+      variant_id: selectedVariantId,
+    })
+      .then((res) => {
+        if (!isCancelled) {
+          setEstimate(res);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setEstimate(null);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open, selectedTemplate, answers, selectedVariantId, boardId, step]);
 
   useEffect(() => {
     if (!open) {
@@ -162,7 +193,49 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
             )}
 
           {step === 'configure' && currentGroup && (
-            <QuestionGroupForm group={currentGroup} answers={answers} onAnswer={updateAnswer} />
+            <div className="space-y-4">
+              <QuestionGroupForm group={currentGroup} answers={answers} onAnswer={updateAnswer} />
+
+              {/* Estimate and Economy Recommendation Chip Bar */}
+              {estimate && (
+                <div className="mt-4 p-3 rounded-lg border border-border/80 bg-muted/30 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-medium text-foreground">
+                      <Zap className="w-3.5 h-3.5 text-primary" />
+                      <span>{t('pipelineEstimateTitle')}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px]">
+                        {t('pipelineTaskCount', { count: estimate.task_count })}
+                      </span>
+                    </div>
+
+                    {inSandbox && entitlements ? (
+                      <div className="text-right">
+                        <span className="font-semibold text-primary font-mono">
+                          {t('pipelineEstimateWu', { min: estimate.min_estimated_wu, max: estimate.max_estimated_wu })}
+                        </span>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {t('pipelineRemainingAfter')}: ~{Math.max(0, entitlements.balance_wu - estimate.base_estimated_wu).toLocaleString()} WU
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-right font-mono text-[10px] text-muted-foreground">
+                        {t('pipelineEstimateTokens', {
+                          prompt: estimate.estimated_prompt_tokens.toLocaleString(),
+                          completion: estimate.estimated_completion_tokens.toLocaleString(),
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {estimate.tier_mismatch_warning && (
+                    <div className="flex items-start gap-1.5 p-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] leading-tight">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>{t('pipelineEconomyRecommendation')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {step === 'creating' && (

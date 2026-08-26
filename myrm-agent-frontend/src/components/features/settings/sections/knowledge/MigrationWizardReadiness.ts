@@ -63,6 +63,11 @@ export function formatReadinessIssue(issue: MemoryImportReadinessIssue, t: Migra
       return t('result.readinessIssue.consensusFeatureDisabled');
     case 'moa_overlay_setup_hint':
       return t('result.readinessIssue.moaOverlaySetupHint');
+    case 'step_budget_low':
+      return t('result.readinessIssue.stepBudgetLow', {
+        count: Number(issue.params.count ?? 1),
+        min: Number(issue.params.min_steps ?? 100),
+      });
     default:
       return t('result.readinessIssue.generic', { code: issue.code });
   }
@@ -104,6 +109,8 @@ function resolveReadinessActionLabel(code: string, t: MigrationWizardTranslation
       return t('result.readinessAction.configureConsensus');
     case 'moa_overlay_setup_hint':
       return t('result.readinessAction.configureMoaOverlay');
+    case 'step_budget_low':
+      return t('result.readinessAction.configureStepBudget');
     default:
       return t('result.readinessAction.openMemoryCenter');
   }

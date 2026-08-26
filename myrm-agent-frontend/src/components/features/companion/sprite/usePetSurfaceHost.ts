@@ -47,16 +47,40 @@ export function usePetSurfaceHost({ enabled, isTauri, petSize, payloadBase }: Us
   const poppedOut = isTauri && surfaceMode === 'popped-out';
   const { unread, clearUnread } = usePetSurfaceUnread(poppedOut);
 
+  const [voicePayload, setVoicePayload] = useState<{ voiceState?: PetSurfaceStatePayload['voiceState']; audioLevel?: number }>({});
+
+  useEffect(() => {
+    let lastAudioPush = 0;
+    const handleVoiceUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<{ voiceState?: PetSurfaceStatePayload['voiceState']; audioLevel?: number }>).detail;
+      if (!detail) return;
+
+      const now = Date.now();
+      // 100ms 节流音量电平推送，避免高频 IPC 序列化性能浪费
+      if (detail.voiceState === 'idle' || now - lastAudioPush >= 100) {
+        lastAudioPush = now;
+        setVoicePayload({
+          voiceState: detail.voiceState,
+          audioLevel: detail.audioLevel !== undefined ? Math.round(detail.audioLevel * 100) / 100 : 0,
+        });
+      }
+    };
+
+    window.addEventListener('myrm-voice-state-update', handleVoiceUpdate);
+    return () => window.removeEventListener('myrm-voice-state-update', handleVoiceUpdate);
+  }, []);
+
   const buildSurfacePayload = useCallback((): PetSurfaceStatePayload | null => {
     if (!payloadBase.sheetUrl) {
       return null;
     }
     return {
       ...payloadBase,
+      ...voicePayload,
       unread,
       activeChatId: chatId ?? null,
     };
-  }, [payloadBase, unread, chatId]);
+  }, [payloadBase, voicePayload, unread, chatId]);
 
   const pushSurfaceState = useCallback(() => {
     const payload = buildSurfacePayload();

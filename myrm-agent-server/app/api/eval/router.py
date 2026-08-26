@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from app.api.eval.benchmarks_router import router as benchmarks_router
 from app.api.eval.matrix_router import router as matrix_router
 from app.api.eval.memory_ab_router import router as memory_ab_router
+from app.api.eval.skill_ab_router import router as skill_ab_router
 from app.api.eval.streaming import stream_status_events
 from app.core.eval.capture import capture_case_from_chat
 from app.core.eval.datasets import (
@@ -53,6 +54,7 @@ router = APIRouter(prefix="/eval", tags=["eval"])
 
 router.include_router(matrix_router)
 router.include_router(memory_ab_router)
+router.include_router(skill_ab_router)
 router.include_router(benchmarks_router)
 
 

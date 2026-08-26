@@ -92,83 +92,6 @@
     }
   },
   "settings": {
-    "title": "설정",
-    "autoSaveFailed": "자동 저장에 실패했습니다. 떠나기 전에 수동으로 저장하세요.",
-    "common": {
-      "edit": "편집",
-      "delete": "삭제",
-      "cancel": "취소",
-      "save": "저장",
-      "confirm": "확인",
-      "providerDisabledWarning": "이 모델의 제공자가 비활성화되어 있습니다. 다른 모델을 선택하세요."
-    },
-    "menu": {
-      "account": "계정",
-      "workbench": "내 워크벤치",
-      "preferences": "기본 설정",
-      "personalization": "개인화",
-      "agents": "에이전트",
-      "models": "모델 서비스",
-      "defaultModel": "기본 모델",
-      "retrieval": "검색 서비스",
-      "search": "검색 서비스",
-      "mcp": "MCP",
-      "skills": "스킬",
-      "skillQuality": "스킬 품질",
-      "evolutionPending": "진화 대기",
-      "evolutionRejection": "진화 거부 로그",
-      "credentials": "자격 증명",
-      "hosting": "호스팅 대상",
-      "wiki": "위키",
-      "mediaGeneration": "미디어 생성",
-      "commands": "슬래시 명령",
-      "cron": "예약 작업",
-      "kanban": "칸반 보드",
-      "security": "보안 정책",
-      "riskRules": "위험 규칙",
-      "shares": "공유 링크",
-      "channels": "채널",
-      "voice": "음성",
-      "developer": "개발자",
-      "importExport": "가져오기 / 내보내기",
-      "companion": "컴패니언",
-      "usageStatistics": "사용 통계",
-      "system": "시스템",
-      "about": "정보",
-      "checkpoint": "체크포인트",
-      "integrationCatalog": "서비스 카탈로그",
-      "searchPlaceholder": "설정 검색...",
-      "noResults": "일치하는 결과가 없습니다",
-      "group": {
-        "personal": "개인",
-        "ai-core": "AI 핵심",
-        "ai-tools": "AI 도구",
-        "knowledge": "지식",
-        "integration": "통합",
-        "system": "시스템"
-      },
-      "toolStability": "도구 안정성",
-      "toolQuality": "실행 품질",
-      "eval": "평가",
-      "memory": "메모리 관리",
-      "brandStudio": "브랜드 스타일",
-      "channelRouting": "채널 라우팅",
-      "openaiApi": "에이전트 API",
-      "integrationMemory": "통합 메모리",
-      "extensionBridge": "브라우저 확장",
-      "connect": "외부 에이전트",
-      "workspaceRules": "작업공간 규칙",
-      "enterprise": "엔터프라이즈",
-      "memory-backup": "메모리 백업",
-      "memory-team-hub": "팀 자산",
-      "memory-cloud-backup": "클라우드 동기화",
-      "memory-migration": "마이그레이션",
-      "experimentalFeatures": "실험 기능",
-      "dlq": "데드 레터 큐",
-      "theme-studio": "테마 스튜디오",
-      "themeStudio": "테마 스튜디오",
-      "compoundingPlaybook": "복리 루프"
-    },
     "workbench": {
       "badge": "자산 보존 및 플랫폼 중립성",
       "title": "내 워크벤치",
@@ -1310,7 +1233,11 @@
         "ollamaNotRunningTitle": "Ollama가 실행 중이 아닙니다",
         "ollamaNotRunningDesc": "로컬 모델을 다운로드하고 사용하려면 Ollama를 설치하고 시작하세요.",
         "warningTitle": "하드웨어 제한 경고",
-        "warningDesc": "일부 모델은 사용 가능한 VRAM보다 더 많은 VRAM이 필요합니다. 강제 실행하면 시스템 불안정 또는 메모리 부족(OOM) 오류가 발생할 수 있습니다."
+        "warningDesc": "일부 모델은 사용 가능한 VRAM보다 더 많은 VRAM이 필요합니다. 강제 실행하면 시스템 불안정 또는 메모리 부족(OOM) 오류가 발생할 수 있습니다.",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "도구 호출 및 장기 기억을 위한 64K 컨텍스트 Modelfile 자동 파생",
+        "keepAliveTipTitle": "24/7 상주 및 GPU 메모리 해제 가이드",
+        "keepAliveTipDesc": "백그라운드 봇의 경우 상주를 유지하고, 대규모 훈련이나 렌더링 시에는 언로드하여 VRAM을 해제하세요."
       }
     },
     "defaultModel": {
@@ -1394,6 +1321,8 @@
         "reasoningModel": "추론 모델",
         "reasoningModelDescription": "복잡한 추론 작업용 모델 (예: 수학 증명, 시스템 아키텍처 설계). 모델 매개변수를 통한 사고 모드 활성화 지원.",
         "selectReasoningModel": "추론 모델 선택",
+        "autoMoaReasoning": "REASONING 계층에서 MoA 어드바이저 자동 트리거",
+        "autoMoaReasoningDescription": "스마트 라우팅이 작업을 복잡한 추론(REASONING 계층)으로 분류할 때, MoA 다중 모델 병렬 어드바이저 자문 및 교차 검증을 자동으로 실행합니다. 일반 작업은 단일 모델을 유지하여 토큰과 지연 시간을 절약합니다.",
         "specialtyRouting": "전문 라우팅",
         "specialtyRoutingDescription": "코드 작성 또는 장문 문서 작업을 자동으로 감지하여 전문화된 고성능 모델로 라우팅합니다",
         "codeModel": "코드 전문 모델",
@@ -3435,6 +3364,10 @@
           "release": {
             "label": "릴리스 SOP",
             "text": "우리의 릴리스/배포 SOP — 버전 관리 체크리스트, 검증 단계, 롤백 절차."
+          },
+          "book": {
+            "label": "도서 / PDF / 대규모 문서군",
+            "text": "이 책/논문/대규모 문서를 확장형 지식베이스 스킬로 전환: 간결한 SKILL.md 색인 및 필요 시 skill_select_tool을 통해 온디맨드로 로드되는 챕터별 references/ 파일 구성."
           }
         }
       },
@@ -7300,6 +7233,8 @@
     "moaOverlayPrivacyOff": "끔",
     "moaOverlayPrivacyDisplay": "표시만 (UI 편집)",
     "moaOverlayPrivacyFull": "전체 (UI + 프롬프트 편집)",
+    "moaOverlayAutoReasoningTitle": "추론 작업 시 자동 활성화 (Auto MoA Gate)",
+    "moaOverlayAutoReasoningDesc": "스마트 라우팅이 REASONING으로 판정한 경우 MoA 자문단을 자동 호출하여 다중 모델 교차 검토를 수행합니다. 일반 작업은 단일 모델로 신속하게 응답합니다.",
     "moaOverlayNoModels": "참조 모델이 선택되지 않음 — 오버레이가 건너뛰어집니다 (대체 없음)",
     "consensusPrivacy": "참조 개인정보 필터",
     "consensusPrivacyOff": "끔",
@@ -7910,7 +7845,8 @@
         "failed": "워크플로우 템플릿 저장 실패",
         "fieldsRequired": "표시 이름과 템플릿 슬러그는 필수입니다"
       },
-      "truncated": "응답이 길이 제한으로 인해 잘렸습니다. 대화를 계속하면 나머지를 받을 수 있습니다."
+      "truncated": "응답이 길이 제한으로 인해 잘렸습니다. 대화를 계속하면 나머지를 받을 수 있습니다.",
+      "cancelled": "응답 생성이 중단되었습니다. 부분 내용이 컨텍스트에 유지됩니다."
     },
     "toolImage": {
       "screenshotLabel": "원격 데스크톱 스크린샷"
@@ -10438,6 +10374,7 @@
           "voiceFeatureDisabled": "음성 상호작용이 꺼져 있습니다. Hermes에서 음성 기능을 사용했다면 음성 설정에서 활성화하세요.",
           "consensusFeatureDisabled": "다중 모델 컨센서스가 꺼져 있습니다. 더 높은 품질의 답변을 위해 에이전트 설정에서 활성화하세요.",
           "moaOverlaySetupHint": "에이전트 설정에서 MoA 오버레이를 활성화한 다음 채팅 모델 선택기에서 프리셋을 선택하여 다중 모델 조언을 받으세요.",
+          "stepBudgetLow": "에이전트 최대 실행 단계 수가 낮게 설정되었습니다 ({count}개 에이전트 < {min}단계). 복잡한 추론 작업 시 조기 중단될 수 있습니다.",
           "generic": "준비 상태 점검이 주의를 요합니다: {code}"
         },
         "readinessAction": {
@@ -10447,7 +10384,8 @@
           "reviewMigrationRules": "마이그레이션 규칙 검토",
           "configureVoice": "음성 설정 열기",
           "configureConsensus": "에이전트 설정 열기",
-          "configureMoaOverlay": "에이전트 설정 열기"
+          "configureMoaOverlay": "에이전트 설정 열기",
+          "configureStepBudget": "단계 한도 조정"
         },
         "startChatChecking": "준비 상태 확인 중...",
         "startChatRecheck": "준비 상태 재확인 및 시작",
@@ -12572,6 +12510,12 @@
     "pipelineWizardCreate": "파이프라인 만들기",
     "pipelineWizardCreating": "만드는 중...",
     "pipelineCreated": "파이프라인 템플릿에서 {count}개 작업 생성됨",
+    "pipelineEstimateTitle": "리소스 및 비용 견적",
+    "pipelineEstimateWu": "예상 소모 약 {min} ~ {max} WU",
+    "pipelineEstimateTokens": "예상 컨텍스트: {prompt} 입력 / {completion} 출력",
+    "pipelineRemainingAfter": "실행 후 잔액",
+    "pipelineInsufficientBalance": "현재 잔액으로 전체 파이프라인을 실행하기에 부족합니다",
+    "pipelineEconomyRecommendation": "기본 서식/요약 작업입니다. 고배율 모델이 감지되었습니다. Standard/Lite 모델로 전환하면 70% 이상의 소모를 절약할 수 있습니다!",
     "pipelineError": "파이프라인 생성 실패",
     "pipelineNoTemplates": "사용 가능한 파이프라인 템플릿이 없습니다",
     "pipelineLoadError": "파이프라인 템플릿 로드 실패",

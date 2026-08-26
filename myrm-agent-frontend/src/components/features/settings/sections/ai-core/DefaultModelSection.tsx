@@ -88,6 +88,7 @@ const DefaultModelSection = memo(() => {
       setRoutingLightModelFallback: state.setRoutingLightModelFallback,
       setRoutingReasoningModel: state.setRoutingReasoningModel,
       setRoutingReasoningModelFallback: state.setRoutingReasoningModelFallback,
+      setAutoMoaReasoning: state.setAutoMoaReasoning,
       setVisionFallbackModel: state.setVisionFallbackModel,
       setVisionFallbackModelFallback: state.setVisionFallbackModelFallback,
       setVideoFallbackModel: state.setVideoFallbackModel,
@@ -1082,6 +1083,41 @@ const DefaultModelSection = memo(() => {
                       providers={providers}
                       isModelRestricted={isModelRestricted}
                     />
+                  </div>
+
+                  {/* Auto MoA Overlay on REASONING Tier */}
+                  <div className="pt-3 border-t border-border/30">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-xs font-medium text-foreground">
+                          {t('smartRouting.autoMoaReasoning')}
+                        </span>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {t('smartRouting.autoMoaReasoningDescription')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={Boolean(defaultModelConfig.routingConfig?.autoMoaReasoning)}
+                        onClick={() =>
+                          setAutoMoaReasoning(!Boolean(defaultModelConfig.routingConfig?.autoMoaReasoning))
+                        }
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
+                          defaultModelConfig.routingConfig?.autoMoaReasoning
+                            ? 'bg-purple-500'
+                            : 'bg-muted-foreground/30'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            defaultModelConfig.routingConfig?.autoMoaReasoning
+                              ? 'translate-x-4'
+                              : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

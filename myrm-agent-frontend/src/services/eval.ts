@@ -34,6 +34,45 @@ export interface EvalCasesResponse {
   content: string;
 }
 
+export interface SkillABArmMetrics {
+  arm_name: string;
+  skill_id: string | null;
+  pass_count: number;
+  total_cases: number;
+  pass_rate: number;
+  avg_tool_calls: number;
+  total_tokens: number;
+  avg_latency_ms: number;
+}
+
+export interface SkillABReport {
+  dataset_id: string;
+  baseline_skill_id: string | null;
+  candidate_skill_id: string;
+  no_skill_metrics: SkillABArmMetrics;
+  baseline_metrics: SkillABArmMetrics;
+  candidate_metrics: SkillABArmMetrics;
+  success_rate_delta: number;
+  token_savings_pct: number;
+  step_reduction_pct: number;
+  verdict: 'IMPROVED' | 'REGRESSED' | 'EQUIVALENT' | 'INCONCLUSIVE';
+  created_at: string;
+  agent_model?: string;
+  judge_model?: string;
+}
+
+export interface SkillABStatusResponse {
+  is_running: boolean;
+  stage: string | null;
+  current_arm: string | null;
+  profile_progress: number;
+  profile_total: number;
+  case_completed: number;
+  case_total: number;
+  error: string | null;
+  abort_requested: boolean;
+}
+
 export const evalService = {
   /**
    * Get the current evaluation cases
@@ -82,5 +121,58 @@ export const evalService = {
    */
   async getLatestReport(): Promise<EvalReportResponse> {
     return apiRequest('/eval/reports/latest');
+  },
+
+  /**
+   * Start a three-arm Skill A/B evaluation
+   */
+  async runSkillAb(options: {
+    benchmark_id: string;
+    candidate_skill_id: string;
+    baseline_skill_id?: string | null;
+    limit?: number;
+  }): Promise<{ status: string }> {
+    return apiRequest('/eval/skill-ab/run', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+  },
+
+  /**
+   * Get the current status of the Skill A/B evaluation
+   */
+  async getSkillAbStatus(): Promise<SkillABStatusResponse> {
+    return apiRequest('/eval/skill-ab/status');
+  },
+
+  /**
+   * Abort the running Skill A/B evaluation
+   */
+  async abortSkillAb(): Promise<{ aborted: boolean }> {
+    return apiRequest('/eval/skill-ab/abort', {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Get the latest Skill A/B evaluation report
+   */
+  async getLatestSkillAbReport(): Promise<SkillABReport> {
+    return apiRequest('/eval/skill-ab/report/latest');
+  },
+
+  /**
+   * List historical Skill A/B reports
+   */
+  async listSkillAbReports(): Promise<Array<{
+    filename: string;
+    dataset_id: string;
+    candidate_skill_id: string;
+    baseline_skill_id?: string | null;
+    verdict: string;
+    success_rate_delta: number;
+    created_at: string;
+  }>> {
+    return apiRequest('/eval/skill-ab/reports');
   },
 };

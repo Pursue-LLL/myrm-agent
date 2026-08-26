@@ -325,6 +325,7 @@ async def yield_stream_exception_chunks(
     elif isinstance(exc, asyncio.CancelledError):
         logger.warning("Agent cancelled: message_id=%s", session.params.message_id)
         session.cancel_token.cancel(CancelReason.DISCONNECT)
+        session.collector._completion_status = "cancelled"
         if session.request.chat_id:
             try:
                 from myrm_agent_harness.api.hooks import (

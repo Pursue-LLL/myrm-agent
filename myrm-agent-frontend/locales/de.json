@@ -92,83 +92,6 @@
     }
   },
   "settings": {
-    "title": "Einstellungen",
-    "autoSaveFailed": "Automatisches Speichern fehlgeschlagen. Bitte speichern Sie manuell, bevor Sie fortfahren.",
-    "common": {
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "cancel": "Abbrechen",
-      "save": "Speichern",
-      "confirm": "Bestätigen",
-      "providerDisabledWarning": "Der Anbieter für dieses Modell ist deaktiviert. Bitte wählen Sie ein anderes Modell."
-    },
-    "menu": {
-      "account": "Konto",
-      "workbench": "Meine Werkbank",
-      "preferences": "Einstellungen",
-      "personalization": "Personalisierung",
-      "agents": "Agenten",
-      "models": "Modellservice",
-      "defaultModel": "Standardmodell",
-      "retrieval": "Abrufdienst",
-      "search": "Suchdienst",
-      "mcp": "MCP",
-      "skills": "Fähigkeiten",
-      "skillQuality": "Fähigkeitsqualität",
-      "evolutionPending": "Ausstehende Evolution",
-      "evolutionRejection": "Evolution Ablehnungsprotokoll",
-      "credentials": "Anmeldedaten",
-      "hosting": "Hosting-Ziele",
-      "wiki": "Wiki",
-      "mediaGeneration": "Mediengenerierung",
-      "commands": "Slash-Befehle",
-      "cron": "Geplante Aufgaben",
-      "kanban": "Kanban-Board",
-      "security": "Sicherheitsrichtlinie",
-      "riskRules": "Risikoregeln",
-      "shares": "Freigabelinks",
-      "channels": "Kanäle",
-      "voice": "Sprache",
-      "developer": "Entwickler",
-      "importExport": "Importieren / Exportieren",
-      "companion": "Companion",
-      "usageStatistics": "Nutzungsstatistiken",
-      "system": "Systemeinstellung",
-      "about": "Über",
-      "checkpoint": "Checkpoint",
-      "integrationCatalog": "Dienstkatalog",
-      "searchPlaceholder": "Einstellungen suchen...",
-      "noResults": "Keine Ergebnisse gefunden",
-      "group": {
-        "personal": "Persönlich",
-        "ai-core": "AI Kern",
-        "ai-tools": "AI Werkzeuge",
-        "knowledge": "Wissen",
-        "integration": "Integration",
-        "system": "System"
-      },
-      "toolStability": "Werkzeugstabilität",
-      "toolQuality": "Ausführungsqualität",
-      "eval": "Auswertung",
-      "memory": "Speicherverwaltung",
-      "brandStudio": "Markenstil",
-      "channelRouting": "Kanal-Routing",
-      "openaiApi": "API Access",
-      "integrationMemory": "Integrationsspeicher",
-      "extensionBridge": "Browser-Erweiterung",
-      "connect": "Externe Agenten",
-      "workspaceRules": "Arbeitsbereichsregeln",
-      "enterprise": "Unternehmen",
-      "memory-backup": "Speichersicherung",
-      "memory-team-hub": "Team-Assets",
-      "memory-cloud-backup": "Cloud-Sync",
-      "memory-migration": "Datenmigration",
-      "experimentalFeatures": "Experimentell",
-      "dlq": "Warteschlange für unzustellbare Nachrichten",
-      "theme-studio": "Theme-Studio",
-      "themeStudio": "Theme-Studio",
-      "compoundingPlaybook": "Compounding-Loop"
-    },
     "workbench": {
       "badge": "Asset-Erhalt & Plattformneutralität",
       "title": "Meine Werkbank",
@@ -1310,7 +1233,11 @@
         "ollamaNotRunningTitle": "Ollama läuft nicht",
         "ollamaNotRunningDesc": "Bitte installieren und starten Sie Ollama, um lokale Modelle herunterzuladen und zu verwenden.",
         "warningTitle": "Hardware-Begrenzungswarnung",
-        "warningDesc": "Einige Modelle benötigen mehr VRAM als verfügbar. Erzwungenes Ausführen kann Systeminstabilität oder Out-of-Memory-Fehler (OOM) verursachen."
+        "warningDesc": "Einige Modelle benötigen mehr VRAM als verfügbar. Erzwungenes Ausführen kann Systeminstabilität oder Out-of-Memory-Fehler (OOM) verursachen.",
+        "agenticBadge": "64K Agentic",
+        "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
+        "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
+        "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben."
       }
     },
     "defaultModel": {
@@ -1395,6 +1322,8 @@
         "reasoningModel": "Reasoning-Modell",
         "reasoningModelDescription": "Modell für komplexe Denkaufgaben (z. B. mathematische Beweise, Systemarchitektur-Design). Unterstützt das Aktivieren des Denkmodus über Modellparameter.",
         "selectReasoningModel": "Reasoning-Modell auswählen",
+        "autoMoaReasoning": "MoA-Berater-Overlay bei REASONING-Stufe automatisch auslösen",
+        "autoMoaReasoningDescription": "Wenn das intelligente Routing eine Aufgabe als REASONING-Stufe einstuft, werden automatisch parallele MoA-Berater konsultiert und die Ergebnisse gegengeprüft. Einfache Aufgaben bleiben Einzelmodelle, um Tokens und Latenz zu sparen.",
         "specialtyRouting": "Spezialisierungs-Routing",
         "specialtyRoutingDescription": "Erkennt Programmier- oder Langdokument-Aufgaben automatisch und leitet sie an spezialisierte Hochleistungsmodelle weiter",
         "codeModel": "Code-Spezialmodell",
@@ -3432,6 +3361,10 @@
           "release": {
             "label": "SOP freigeben",
             "text": "Our release/publish SOP — versioning checklist, verification steps, and rollback procedure."
+          },
+          "book": {
+            "label": "Buch / PDF / Dokumentkorpus",
+            "text": "Übertragen Sie dieses Buch/Papierstapel/Dokumentkorpus in eine Wissensdatenbank-Fähigkeit: ein kompakter SKILL.md-Index plus kapitelweise references/-Dateien, die bei Bedarf über skill_select_tool geladen werden."
           }
         }
       },
@@ -7273,6 +7206,8 @@
     "moaOverlayPrivacyOff": "Aus",
     "moaOverlayPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
     "moaOverlayPrivacyFull": "Vollständig (UI + Prompt-Schwärzung)",
+    "moaOverlayAutoReasoningTitle": "Automatische Aktivierung bei logischer Schlussfolgerung (Auto MoA Gate)",
+    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart-Routing die Aufgabe als REASONING einstuft. Normale Aufgaben behalten die schnelle Einzelmodell-Ausführung bei.",
     "moaOverlayNoModels": "No reference models selected — overlay will be skipped (no fallback)",
     "consensusPrivacy": "Referenz-Datenschutzfilter",
     "consensusPrivacyOff": "Aus",
@@ -7883,7 +7818,8 @@
         "failed": "Speichern der Workflow-Vorlage fehlgeschlagen",
         "fieldsRequired": "Anzeigename und Vorlagen-Slug sind erforderlich"
       },
-      "truncated": "Antwort wegen Längenlimit abgeschnitten. Setzen Sie das Gespräch fort, um den Rest zu erhalten."
+      "truncated": "Antwort wegen Längenlimit abgeschnitten. Setzen Sie das Gespräch fort, um den Rest zu erhalten.",
+      "cancelled": "Generierung gestoppt. Teilweise Antwort im Kontext beibehalten."
     },
     "toolImage": {
       "screenshotLabel": "Remote-Desktop-Screenshot"
@@ -12528,6 +12464,12 @@
     "pipelineWizardCreate": "Pipeline erstellen",
     "pipelineWizardCreating": "Erstellen...",
     "pipelineCreated": "{count}-Aufgaben aus der Pipeline-Vorlage erstellt",
+    "pipelineEstimateTitle": "Ressourcen- und Kostenschätzung",
+    "pipelineEstimateWu": "Geschätzter Verbrauch ca. {min} ~ {max} WU",
+    "pipelineEstimateTokens": "Geschätzter Kontext: {prompt} Eingabe / {completion} Ausgabe",
+    "pipelineRemainingAfter": "Guthaben nach Ausführung",
+    "pipelineInsufficientBalance": "Das aktuelle Guthaben reicht nicht aus, um die gesamte Pipeline auszuführen",
+    "pipelineEconomyRecommendation": "Grundlegende Formatierungs-/Zusammenfassungsaufgabe erkannt. Wechsel zu Standard/Lite kann über 70 % WU sparen!",
     "pipelineError": "Die Pipeline konnte nicht erstellt werden",
     "pipelineNoTemplates": "Keine Pipeline-Vorlagen verfügbar",
     "pipelineLoadError": "Pipeline-Vorlagen konnten nicht geladen werden",

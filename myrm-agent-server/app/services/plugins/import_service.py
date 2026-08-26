@@ -113,7 +113,11 @@ def parse_plugin_zip(zip_bytes: bytes) -> PluginParseResult:
         return AgentPluginParser().parse_zip(zip_bytes)
     except ArchiveSecurityError as exc:
         violation = classify_archive_security_issue(exc)
-        message = format_archive_security_user_message(violation) if violation is not None else str(exc)
+        message = (
+            format_archive_security_user_message(violation)
+            if violation is not None
+            else str(exc)
+        )
         error_code = violation.code.value if violation is not None else ""
         raise PluginArchiveSecurityError(message, error_code=error_code) from exc
     except zipfile.BadZipFile as exc:
@@ -176,7 +180,10 @@ def build_preview_result(
             "license": meta.license if meta else None,
             "keywords": list(meta.keywords) if meta else [],
         },
-        "skills": [_preview_skill(idx, skill, existing) for idx, skill in enumerate(result.skills)],
+        "skills": [
+            _preview_skill(idx, skill, existing)
+            for idx, skill in enumerate(result.skills)
+        ],
         "servers": [
             {
                 "name": server.name,
@@ -202,7 +209,9 @@ def build_preview_result(
     }
 
 
-def _preview_skill(idx: int, skill: PluginSkill, existing_names: set[str]) -> dict[str, object]:
+def _preview_skill(
+    idx: int, skill: PluginSkill, existing_names: set[str]
+) -> dict[str, object]:
     """Serialize one skill for the preview payload."""
     oversized = _skill_content_too_large(skill)
     return {
@@ -257,9 +266,13 @@ def _persist_plugin_files_if_needed(
     accepted = [
         decision
         for decision in server_decisions
-        if decision.resolution != "skip" and session.servers_by_key.get(decision.virtual_id) is not None
+        if decision.resolution != "skip"
+        and session.servers_by_key.get(decision.virtual_id) is not None
     ]
-    if not any(server_needs_bundled_files(session.servers_by_key[d.virtual_id]) for d in accepted):
+    if not any(
+        server_needs_bundled_files(session.servers_by_key[d.virtual_id])
+        for d in accepted
+    ):
         return None, None
 
     from app.core.skills.store.evolution_store import get_evolution_skill_store_db_path
@@ -291,9 +304,13 @@ async def confirm_plugin_import(
     the server can actually launch; the resulting ``plugin_root`` / ``data_root``
     are embedded into each entry's ``extra_params``.
     """
-    skill_records, skill_ids, skipped_skills = _collect_skill_records(session, skill_decisions, _load_existing_skill_ids())
+    skill_records, skill_ids, skipped_skills = _collect_skill_records(
+        session, skill_decisions, _load_existing_skill_ids()
+    )
     plugin_name = _plugin_name_of(session)
-    plugin_root, data_root = _persist_plugin_files_if_needed(session, server_decisions, plugin_name)
+    plugin_root, data_root = _persist_plugin_files_if_needed(
+        session, server_decisions, plugin_name
+    )
     server_configs, skipped_servers = _collect_server_configs(
         session,
         server_decisions,
@@ -312,7 +329,11 @@ async def confirm_plugin_import(
         # Only entries actually persisted (dedup skips existing names) drive the
         # secret guidance; a name-collision skip must not ask for new secrets.
         required_secret_keys = _collect_required_secret_keys(
-            [cfg for cfg in server_configs if str(cfg.get("name", "")) in persisted_names]
+            [
+                cfg
+                for cfg in server_configs
+                if str(cfg.get("name", "")) in persisted_names
+            ]
         )
     if bind_agent_id and (skill_ids or imported_server_names):
         await _bind_agent(
@@ -335,7 +356,9 @@ def _collect_skill_records(
     decisions: list[PluginConfirmItem],
     existing_ids: dict[str, str],
 ) -> tuple[list[SkillRecord], list[str], int]:
-    plugin_name = session.plugin_result.meta.name if session.plugin_result.meta else "plugin"
+    plugin_name = (
+        session.plugin_result.meta.name if session.plugin_result.meta else "plugin"
+    )
     records: list[SkillRecord] = []
     skill_ids: list[str] = []
     skipped = 0
@@ -452,7 +475,9 @@ async def list_installed_plugins() -> list[dict[str, object]]:
 def _plugin_dir_exists(plugin_name: str) -> bool:
     """True when the plugin's bundled-file directory exists on disk."""
     try:
-        from app.core.skills.store.evolution_store import get_evolution_skill_store_db_path
+        from app.core.skills.store.evolution_store import (
+            get_evolution_skill_store_db_path,
+        )
 
         from ._plugin_files import is_safe_plugin_name, plugin_dir_exists
 
@@ -513,7 +538,9 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
         for sname in server_names:
             evicted_tools += evict_skill_safety_metadata(sname)
     except Exception as exc:
-        logger.warning("Failed to evict tool registry metadata for '%s': %s", plugin_name, exc)
+        logger.warning(
+            "Failed to evict tool registry metadata for '%s': %s", plugin_name, exc
+        )
 
     # D3: Associated Cron jobs cascade cleanup (dual-track)
     purged_cron_jobs = 0
@@ -548,12 +575,16 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
                 )
                 paused_cron_jobs += 1
     except Exception as exc:
-        logger.warning("Failed to cascade-clean cron jobs for '%s': %s", plugin_name, exc)
+        logger.warning(
+            "Failed to cascade-clean cron jobs for '%s': %s", plugin_name, exc
+        )
 
     # D4: Physical files removal
     removed_files = False
     try:
-        from app.core.skills.store.evolution_store import get_evolution_skill_store_db_path
+        from app.core.skills.store.evolution_store import (
+            get_evolution_skill_store_db_path,
+        )
 
         from ._plugin_files import remove_plugin_files
 

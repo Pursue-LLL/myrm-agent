@@ -62,11 +62,14 @@ async def test_persist_session_turn_privacy_filtration(tmp_path: Path) -> None:
     ignored_names = [Path(p).name for p in report.ignored_files]
     assert "mod.pyc" in ignored_names
 
-    # Ensure storage.write was called only for allowed files
-    assert mock_storage.write.call_count == 2
+    # Ensure storage.write was called for allowed files + seal manifest
+    assert mock_storage.write.call_count == 3
     written_keys = [call[0][0] for call in mock_storage.write.call_args_list]
     assert "sessions/session_abc/chart.png" in written_keys
     assert "sessions/session_abc/report.xlsx" in written_keys
+    assert "sessions/session_abc/.seal.json" in written_keys
+    assert report.is_sealed is True
+    assert report.manifest_file == "sessions/session_abc/.seal.json"
 
 
 @pytest.mark.asyncio
@@ -97,3 +100,46 @@ async def test_event_driven_trigger_integration(tmp_path: Path) -> None:
     await asyncio.sleep(0.1)
 
     assert mock_storage.write.call_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_verify_and_quarantine_corrupted_session(tmp_path: Path) -> None:
+    workspace = tmp_path / "restore_workspace"
+    workspace.mkdir()
+
+    # Create workspace files
+    file_good = workspace / "doc.txt"
+    file_good.write_bytes(b"Good content")
+    file_bad = workspace / "bad_data.bin"
+    file_bad.write_bytes(b"Corrupted bytes")
+
+    # Generate a manifest expecting different content for bad_data.bin
+    from myrm_agent_harness.api import IntegritySealer, IntegrityStatus
+
+    valid_files = {
+        "doc.txt": b"Good content",
+        "bad_data.bin": b"Original untorn bytes",
+    }
+    manifest = IntegritySealer.create_seal_manifest("sess_restore", valid_files)
+
+    mock_storage = AsyncMock()
+    mock_storage.exists.return_value = True
+    mock_storage.read.return_value = manifest.to_json().encode("utf-8")
+
+    service = SandboxPersistenceService(storage_backend=mock_storage)
+
+    report = await service.verify_and_quarantine_session(
+        session_id="sess_restore",
+        workspace_root=workspace,
+    )
+
+    assert report.is_valid is False
+    assert report.status == IntegrityStatus.CORRUPTED
+    assert "bad_data.bin" in report.corrupted_files
+    assert report.quarantined is True
+
+    # Ensure corrupted file was moved to quarantine
+    quarantine_path = workspace / "quarantine" / "corrupted_sess_restore" / "bad_data.bin"
+    assert quarantine_path.exists()
+    assert not (workspace / "bad_data.bin").exists()
+    assert (workspace / "doc.txt").exists()

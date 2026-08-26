@@ -114,6 +114,7 @@ export class PetStateMachine {
   private stickyState: PetState | null = null;
   private transientUntil: number | null = null;
   private blockedOnUser = false;
+  private voiceActiveState: PetState | null = null;
   private lastHeartbeat: number = Date.now();
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private destroyed = false;
@@ -180,6 +181,23 @@ export class PetStateMachine {
     }
   }
 
+  /**
+   * Voice interaction state signal (listening/speaking).
+   * Maps speaking to WAVE/RUNNING and listening to REVIEWING.
+   */
+  setVoiceState(voiceState: 'idle' | 'listening' | 'processing' | 'speaking' | 'inactive') {
+    if (voiceState === 'speaking') {
+      this.voiceActiveState = PetState.WAVE;
+    } else if (voiceState === 'listening') {
+      this.voiceActiveState = PetState.REVIEWING;
+    } else if (voiceState === 'processing') {
+      this.voiceActiveState = PetState.RUNNING;
+    } else {
+      this.voiceActiveState = null;
+    }
+    this.tick();
+  }
+
   /** Force transition to idle. */
   reset() {
     this.stickyState = null;
@@ -207,6 +225,11 @@ export class PetStateMachine {
 
     if (this.blockedOnUser) {
       this.setState(PetState.WAITING);
+      return;
+    }
+
+    if (this.voiceActiveState !== null) {
+      this.setState(this.voiceActiveState);
       return;
     }
 

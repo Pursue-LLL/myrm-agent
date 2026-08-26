@@ -1785,7 +1785,11 @@
         "ollamaNotRunningTitle": "Ollama 未実行",
         "ollamaNotRunningDesc": "まず Ollama をインストールして起動してください。ローカルモデルをダウンロードして使用できます。",
         "warningTitle": "ハードウェア制限の警告",
-        "warningDesc": "一部のモデルは利用可能な VRAM を超えるメモリを必要とします。強制実行するとシステムが不安定になったり、メモリ不足 (OOM) エラーが発生する可能性があります。"
+        "warningDesc": "一部のモデルは利用可能な VRAM を超えるメモリを必要とします。強制実行するとシステムが不安定になったり、メモリ不足 (OOM) エラーが発生する可能性があります。",
+        "agenticBadge": "64K Agentic 強化",
+        "agenticTooltip": "本番環境レベルのツール呼び出しと長期記憶要件を満たす自動生成された 64K コンテキスト modelfile",
+        "keepAliveTipTitle": "24/7 常駐とメモリ解放ガイド",
+        "keepAliveTipDesc": "モデルをメモリに保持してバックグラウンドボットを常時稼働させるか、重いタスク時にメモリを解放します。"
       },
       "importFromModelsDev": "から models.dev インポート",
       "getModels": "モデルを取得",
@@ -1889,6 +1893,8 @@
         "reasoningModel": "推論モデル",
         "reasoningModelDescription": "複雑な推論タスク（数学の証明、システムアーキテクチャ設計など）向けのモデル。モデルパラメータによる思考モードをサポートします。",
         "selectReasoningModel": "推論モデルを選択",
+        "autoMoaReasoning": "REASONING層で自動的にMoAアドバイザーをトリガー",
+        "autoMoaReasoningDescription": "スマートルーティングが複雑な推論（REASONING層）と判定した場合、自動的にMoA複数モデル並行アドバイザー相談と相互検証を実行します。通常のタスクは単一モデルでトークンとレイテンシを節約します。",
         "specialtyRouting": "専門ルーティング",
         "specialtyRoutingDescription": "コーディングや長文ドキュメントタスクを自動識別し、特化した高性能モデルにルーティングします",
         "codeModel": "コード専門モデル",
@@ -3977,6 +3983,10 @@
           "release": {
             "label": "リリースSOP",
             "text": "リリース/公開のSOP — バージョニングチェックリスト、検証手順、ロールバック手順。"
+          },
+          "book": {
+            "label": "書籍 / PDF / ドキュメント集",
+            "text": "この書籍/論文集/大規模ドキュメントを拡張型ナレッジベーススキルに変換：骨幹の簡潔なSKILL.mdインデックスと、必要時にskill_select_tool経由でオンデマンド読み込みする章別references/ファイル群。"
           }
         }
       },
@@ -7490,6 +7500,8 @@
     "moaOverlayPrivacyOff": "オフ",
     "moaOverlayPrivacyDisplay": "表示のみ（UI編集）",
     "moaOverlayPrivacyFull": "フル（UI + プロンプト編集）",
+    "moaOverlayAutoReasoningTitle": "推論タスク時の自動有効化 (Auto MoA Gate)",
+    "moaOverlayAutoReasoningDesc": "スマートルーティングがREASONINGと判定した際、MoAアドバイザーを自動起動して相互レビューを実施。通常タスクは単一モデルで高速応答します。",
     "moaOverlayNoModels": "参照モデルが選択されていません — オーバーレイはスキップされます（フォールバックなし）",
     "consensusPrivacy": "参照機密フィルター",
     "consensusPrivacyOff": "オフ",
@@ -8246,7 +8258,8 @@
         "failed": "ワークフローテンプレートの保存に失敗しました",
         "fieldsRequired": "表示名とテンプレートスラッグが必要です"
       },
-      "truncated": "返信は長さ制限で切り捨てられました。会話を続けると完全な内容を取得できます。"
+      "truncated": "返信は長さ制限で切り捨てられました。会話を続けると完全な内容を取得できます。",
+      "cancelled": "今回の返信生成を停止しました。一部の内容はコンテキストに保持されています。"
     },
     "toolImage": {
       "screenshotLabel": "リモートデスクトップスクリーンショット"
@@ -10505,6 +10518,7 @@
           "voiceFeatureDisabled": "音声対話がオフです。Hermesで音声機能を使用していた場合は音声設定で有効にしてください。",
           "consensusFeatureDisabled": "複数モデルコンセンサスがオフです。より高品質な回答のためにエージェント設定で有効にしてください。",
           "moaOverlaySetupHint": "エージェント設定でMoAオーバーレイを有効にし、チャットモデルピッカーからプリセットを選択して複数モデルの助言を受けてください。",
+          "stepBudgetLow": "エージェントの最大ステップ数が低く設定されています（{count} 体 < {min} ステップ）。複雑な推論タスクで早期終了する可能性があります。",
           "generic": "準備チェックで対応が必要です: {code}"
         },
         "readinessAction": {
@@ -10514,7 +10528,8 @@
           "reviewMigrationRules": "マイグレーションルールをレビュー",
           "configureVoice": "音声設定を開く",
           "configureConsensus": "エージェント設定を開く",
-          "configureMoaOverlay": "エージェント設定を開く"
+          "configureMoaOverlay": "エージェント設定を開く",
+          "configureStepBudget": "ステップ上限を調整"
         },
         "startChatChecking": "準備を確認中…",
         "startChatRecheck": "準備を再確認して開始",
@@ -12794,6 +12809,12 @@
     "pipelineWizardCreate": "パイプラインを作成",
     "pipelineWizardCreating": "作成中...",
     "pipelineCreated": "パイプラインテンプレートから {count} 個のタスクを作成しました",
+    "pipelineEstimateTitle": "リソースとコストの見積もり",
+    "pipelineEstimateWu": "推定消費量 約 {min} 〜 {max} WU",
+    "pipelineEstimateTokens": "推定コンテキスト: 入力 {prompt} / 出力 {completion}",
+    "pipelineRemainingAfter": "実行後残高",
+    "pipelineInsufficientBalance": "現在の残高ではパイプライン全体の実行をサポートできません",
+    "pipelineEconomyRecommendation": "基本的なフォーマット/要約タスクです。高倍率モデルの使用が検出されました。Standard/Lite モデルに切り替えることで 70% 以上の消費を節約できます！",
     "pipelineError": "パイプラインの作成に失敗",
     "pipelineNoTemplates": "利用可能なパイプラインテンプレートがありません",
     "pipelineLoadError": "パイプラインテンプレートの読み込みに失敗",

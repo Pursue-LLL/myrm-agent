@@ -478,6 +478,8 @@ export interface RoutingConfig {
   enabled: boolean;
   lightModel: ModelSlot;
   reasoningModel: ModelSlot;
+  autoMoaReasoning?: boolean;
+  autoMoaPresetId?: 'default' | 'review' | 'fast';
 }
 
 // 默认模型配置

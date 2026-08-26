@@ -513,3 +513,28 @@ class TestInstantiatePipeline:
         )
         assert resp.status_code == 400
         assert "exceeds limit" in resp.json()["detail"]
+
+    def test_pipeline_estimate_endpoint(self, client: TestClient) -> None:
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/estimate",
+            json={
+                "skill_id": "content-distribution-pipeline",
+                "answers": {
+                    "source_content": "Test blog post text",
+                    "content_type": "Blog Post",
+                    "platforms": "Twitter / X,LinkedIn,WeChat (微信公众号)",
+                    "tone": "Professional",
+                },
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["task_count"] == 4  # 3 adapt + 1 review
+        assert data["base_estimated_wu"] > 0
+        assert data["min_estimated_wu"] <= data["base_estimated_wu"] <= data["max_estimated_wu"]
+        assert data["is_fan_out"] is True
+        assert data["fan_out_factor"] == 3
+

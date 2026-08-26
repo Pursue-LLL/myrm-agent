@@ -13,6 +13,7 @@ import ReportTab from './tabs/ReportTab';
 import MatrixTab from './tabs/MatrixTab';
 import MemoryAbTab from './tabs/MemoryAbTab';
 import HistoryTab from './tabs/HistoryTab';
+import SkillAbTab from './tabs/SkillAbTab';
 import { formatMib } from './components/format';
 import { useCasesEval, type EvalDataset, type EvalProfile } from './hooks/useCasesEval';
 import { useMatrixEval } from './hooks/useMatrixEval';
@@ -203,6 +204,7 @@ export default function EvalLabDashboard() {
               {(memoryAbEval.memoryAbReport || memoryAbEval.memoryAbRunning) && (
                 <TabsTrigger value="memory-ab">{t('tabs.memoryAb')}</TabsTrigger>
               )}
+              <TabsTrigger value="skill-ab">{t('tabs.skillAb')}</TabsTrigger>
               <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
               {casesEval.diffView && <TabsTrigger value="diff">{t('tabs.diff')}</TabsTrigger>}
             </TabsList>
@@ -379,6 +381,10 @@ export default function EvalLabDashboard() {
               armNames={armNames}
               onLoadReport={memoryAbEval.loadReport}
             />
+          </TabsContent>
+
+          <TabsContent value="skill-ab" className="h-full p-6 overflow-y-auto">
+            <SkillAbTab datasetId={selectedDatasetId} />
           </TabsContent>
 
           <TabsContent value="history" className="h-full p-6 overflow-y-auto">

@@ -211,7 +211,7 @@
       "goalCleared": "目標已清除",
       "goalActionFailed": "目標命令執行失敗",
       "pet": "打開寵物圖鑑或管理精靈覆蓋層",
-      "petDisabled": "伴侶模式未啟用 — 請在設置中開啟",
+      "petDisabled": "伴侶模式未啟用 — 請在設定中開啟",
       "petOverlayEnabled": "寵物精靈覆蓋層已顯示",
       "petOverlayDisabled": "寵物精靈覆蓋層已隱藏",
       "petInstalled": "已安裝寵物：{name}",
@@ -1787,7 +1787,12 @@
         "ollamaNotRunningTitle": "Ollama 未執行",
         "ollamaNotRunningDesc": "請先安裝並啟動 Ollama，才能一鍵下載和使用本地模型。",
         "warningTitle": "硬體限制警告",
-        "warningDesc": "部分模型需要的視訊記憶體超過了您當前的可用視訊記憶體。強制執行可能會導致系統卡頓或視訊記憶體溢位 (OOM) 錯誤。"
+        "warningTitle": "硬體限制警告",
+        "warningDesc": "部分模型需要的視訊記憶體超過了您當前的可用視訊記憶體。強制執行可能會導致系統卡頓或視訊記憶體溢位 (OOM) 錯誤。",
+        "agenticBadge": "64K Agentic 增強",
+        "agenticTooltip": "自動產生的 64K 上下文 modelfile，滿足生產級工具呼叫與長期記憶需求",
+        "keepAliveTipTitle": "全天候常駐與顯存釋放指南",
+        "keepAliveTipDesc": "將模型保留在顯存中以支援全天候後台機器人，或在重負載任務時釋放顯存。"
       },
       "importFromModelsDev": "從 models.dev 匯入",
       "getModels": "獲取模型",
@@ -1891,6 +1896,8 @@
         "reasoningModel": "推理模型",
         "reasoningModelDescription": "用於複雜推理任務的模型（如數學證明、系統架構設計）。支援透過模型引數開啟思考模式。",
         "selectReasoningModel": "選擇推理模型",
+        "autoMoaReasoning": "REASONING 檔位自動觸發 MoA 顧問疊加",
+        "autoMoaReasoningDescription": "當智慧路由判定任務為複雜推理（REASONING 檔位）時，自動觸發 MoA 多模型並行顧問諮詢與交叉檢驗；常規任務保持單模型以節約 Token 與延遲。",
         "specialtyRouting": "專長路由",
         "specialtyRoutingDescription": "自動識別程式碼編寫或超長文件任務，分流至具備針對性專長的高性能模型",
         "codeModel": "程式碼專長模型",
@@ -3979,6 +3986,10 @@
           "release": {
             "label": "發布 SOP",
             "text": "我們的發布/上線 SOP——版本檢查清單、驗證步驟與回滾流程。"
+          },
+          "book": {
+            "label": "書籍 / PDF / 大文檔集",
+            "text": "將這本專業書/論文集/長篇文檔集沉澱為拓展型知識庫技能：骨幹精簡 SKILL.md 索引，配合按章節拆分的 references/ 細分知識，在需要時按需透過 skill_select_tool 載入。"
           }
         }
       },
@@ -7492,6 +7503,8 @@
     "moaOverlayPrivacyOff": "關閉",
     "moaOverlayPrivacyDisplay": "僅展示脫敏",
     "moaOverlayPrivacyFull": "完整脫敏（展示 + 注入）",
+    "moaOverlayAutoReasoningTitle": "深度推理自動啟用 (Auto MoA Gate)",
+    "moaOverlayAutoReasoningDesc": "當智慧路由判定任務為深度推理 (REASONING) 檔位時，自動調用 MoA 顧問多模型交叉審查；日常任務保持單模型極速響應。",
     "moaOverlayNoModels": "未選擇參考模型 — 疊加層將被跳過（不會回退主模型）",
     "consensusPrivacy": "參考模型隱私過濾",
     "consensusPrivacyOff": "關閉",
@@ -8266,7 +8279,8 @@
         "failed": "儲存工作流模板失敗",
         "fieldsRequired": "請填寫顯示名稱和模板 slug"
       },
-      "truncated": "回覆因長度限制被截斷，繼續對話可獲取完整內容。"
+      "truncated": "回覆因長度限制被截斷，繼續對話可獲取完整內容。",
+      "cancelled": "已停止生成。已生成的部分回覆已保留在對話上下文中。"
     },
     "toolImage": {
       "screenshotLabel": "遠端桌面截圖"
@@ -11992,6 +12006,20 @@
     "verificationSummary": "交付複核",
     "verificationRunOkReviewFailed": "任務已完成，交付複核未透過 — 展開檢視詳情。",
     "securityDeniedHint": "部分工具被安全策略拒絕，請在上方「能力圍欄」中配置所需工具許可權。",
+    "connectorDegradedBadge": "連接器異常",
+    "connectorFixSuggestion": "排障建議",
+    "connectorHealthStatus": "連接器健康",
+    "connectorStatusHealthy": "正常",
+    "connectorStatusDegraded": "亞健康",
+    "connectorStatusDown": "故障",
+    "connectorCategoryAuth": "鑑權失敗 (401/403)",
+    "connectorCategoryClient": "客戶端請求錯誤 (4xx)",
+    "connectorCategoryServer": "伺服端錯誤 (5xx)",
+    "connectorCategoryTimeout": "網路超時",
+    "connectorCategoryNetwork": "網路不可達",
+    "connectorCategoryPayload": "契約/載荷異常",
+    "connectorCategoryProcess": "程序退出",
+    "connectorCategoryUnknown": "未知錯誤",
     "monitorContractError": "輸出契約錯誤",
     "monitorContractErrorInvalidJson": "本次執行產出的結構化內容格式不合法，已跳過增量比對。",
     "monitorContractErrorGeneric": "本次執行產出未滿足監控契約格式要求。",
@@ -12772,6 +12800,12 @@
     "pipelineWizardCreate": "建立流水線",
     "pipelineWizardCreating": "建立中...",
     "pipelineCreated": "已從模板建立 {count} 個任務",
+    "pipelineEstimateTitle": "資源與資費預估",
+    "pipelineEstimateWu": "預計消耗約 {min} ~ {max} WU",
+    "pipelineEstimateTokens": "預計上下文: {prompt} 輸入 / {completion} 輸出",
+    "pipelineRemainingAfter": "執行後結餘",
+    "pipelineInsufficientBalance": "目前餘額不足以支撐完整流水線運行",
+    "pipelineEconomyRecommendation": "目前為基礎格式化/排版任務，檢測到使用高倍率模型。建議選擇 Standard/Lite 模型執行，可節省 70%+ 消耗！",
     "pipelineError": "建立流水線失敗",
     "pipelineNoTemplates": "暫無可用的流水線模板",
     "pipelineLoadError": "載入流水線模板失敗",

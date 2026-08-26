@@ -31,10 +31,18 @@ class DLQDiagnostic(DiagnosticProtocol):
 
             gateway = get_channel_gateway()
             if gateway and gateway.bus:
-                failed_count = await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
+                failed_count = (
+                    await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
+                )
                 pending_count = await gateway.bus.durable_outbound.count_pending()
-                meta_data = {"failed_count": failed_count, "pending_outbound_count": pending_count}
-                metrics = {"dlq_failed_count": float(failed_count), "pending_outbound_count": float(pending_count)}
+                meta_data = {
+                    "failed_count": failed_count,
+                    "pending_outbound_count": pending_count,
+                }
+                metrics = {
+                    "dlq_failed_count": float(failed_count),
+                    "pending_outbound_count": float(pending_count),
+                }
 
                 if failed_count > 100 or pending_count > 200:
                     return HealthReport(
@@ -113,7 +121,10 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             rss_mb: float | None = None
             try:
                 import psutil
-                rss_mb = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
+
+                rss_mb = round(
+                    psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1
+                )
             except Exception:
                 pass
 
@@ -123,7 +134,11 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             reclaimed = getattr(cache, "reclaimed_count", 0)
 
             detail_parts = [
-                (f"Idle timeout: {idle_s:.0f}s" if idle_s > 0 else "Idle reclaim disabled"),
+                (
+                    f"Idle timeout: {idle_s:.0f}s"
+                    if idle_s > 0
+                    else "Idle reclaim disabled"
+                ),
                 f"Warm units: {warm_units}",
                 f"Reclaimed: {reclaimed}",
             ]
@@ -195,10 +210,14 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
                 score += 35
             else:
                 phase_details["model_provider"] = "unconfigured"
-                fix_suggestions.append("Configure a default LLM Provider in Settings -> Models.")
+                fix_suggestions.append(
+                    "Configure a default LLM Provider in Settings -> Models."
+                )
         except Exception as exc:
             phase_details["model_provider_error"] = str(exc)
-            fix_suggestions.append("Verify LLM Provider credentials and network connection.")
+            fix_suggestions.append(
+                "Verify LLM Provider credentials and network connection."
+            )
 
         # 2. Tool Catalog Readiness
         try:
@@ -245,12 +264,22 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             score += 20
         except Exception as exc:
             phase_details["storage_error"] = str(exc)
-            fix_suggestions.append("Check database connection and file lock permissions.")
+            fix_suggestions.append(
+                "Check database connection and file lock permissions."
+            )
 
         if "model_ready" not in ready_phases:
-            status, code, message = "warn", "WARN_AGENT_MODEL_UNCONFIGURED", "Agent model provider is not configured."
+            status, code, message = (
+                "warn",
+                "WARN_AGENT_MODEL_UNCONFIGURED",
+                "Agent model provider is not configured.",
+            )
         elif "storage_healthy" not in ready_phases:
-            status, code, message = "warn", "WARN_AGENT_STORAGE_UNHEALTHY", "Agent storage connectivity is degraded."
+            status, code, message = (
+                "warn",
+                "WARN_AGENT_STORAGE_UNHEALTHY",
+                "Agent storage connectivity is degraded.",
+            )
         elif "cache_warm" in ready_phases:
             status, code = "pass", "OK_AGENT_WARM_PATH_WARM"
             message = f"Agent warm-path fully primed (score: {score}/100, storage: {storage_latency_ms}ms)"
@@ -278,7 +307,10 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             message=message,
             detail="; ".join(detail_items),
             fix_suggestion="; ".join(fix_suggestions) if fix_suggestions else None,
-            metrics={"warm_path_score": float(score), "storage_latency_ms": storage_latency_ms or 0.0},
+            metrics={
+                "warm_path_score": float(score),
+                "storage_latency_ms": storage_latency_ms or 0.0,
+            },
         )
 
 
@@ -324,6 +356,24 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
 
                 # Check if there are any agentic models or inspect model parameters
                 agentic_models = [m for m in models if "-agentic" in m]
+                if not agentic_models:
+                    return HealthReport(
+                        component_name="OllamaContext",
+                        status="warn",
+                        code="WARN_OLLAMA_NO_AGENTIC_MODELS",
+                        message=f"Ollama has {len(models)} installed models but none configured with 64K agentic Modelfile.",
+                        detail="Native Ollama models default to 2048 context. Use Settings -> Model Service (Hardware Cookbook) to derive 64K agentic models.",
+                        fix_suggestion="Pull models via Myrm UI or create Modelfile with PARAMETER num_ctx 64000.",
+                        meta_data={
+                            "total_models": len(models),
+                            "agentic_models": [],
+                        },
+                        metrics={
+                            "installed_models_count": float(len(models)),
+                            "agentic_models_count": 0.0,
+                        },
+                    )
+
                 return HealthReport(
                     component_name="OllamaContext",
                     status="pass",
@@ -343,8 +393,93 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
             return HealthReport(
                 component_name="OllamaContext",
                 status="pass",
-                code="OK_OLLAMA_IDLE",
-                message="Ollama is idle.",
+                code="INFO_OLLAMA_UNREACHABLE",
+                message="Ollama is unreachable or idle (optional).",
+            )
+
+
+class AgentStepBudgetDiagnostic(DiagnosticProtocol):
+    """Diagnose if active agents have sufficiently high step/recursion budgets.
+
+    Prevents unexpected truncation during complex multi-step reasoning tasks for users migrating from Hermes/Codex.
+    """
+
+    RECOMMENDED_MIN_STEPS: int = 100
+
+    async def check_health(self) -> HealthReport:
+        try:
+            from sqlalchemy import select
+            from app.database.connection import get_session
+            from app.database.models.agent import Agent
+
+            low_budget_agents: list[dict[str, object]] = []
+            total_active_agents: int = 0
+
+            async with get_session() as session:
+                stmt = select(Agent).where(Agent.is_active == True)  # noqa: E712
+                res = await session.execute(stmt)
+                agents = res.scalars().all()
+                total_active_agents = len(agents)
+
+                for ag in agents:
+                    budget = ag.max_iterations
+                    if budget is not None and budget < self.RECOMMENDED_MIN_STEPS:
+                        low_budget_agents.append(
+                            {
+                                "id": ag.id,
+                                "name": ag.name,
+                                "max_iterations": budget,
+                            }
+                        )
+
+            if low_budget_agents:
+                agent_names = [
+                    f"{a['name']} ({a['max_iterations']} steps)"
+                    for a in low_budget_agents[:3]
+                ]
+                summary_str = ", ".join(agent_names)
+                if len(low_budget_agents) > 3:
+                    summary_str += f" and {len(low_budget_agents) - 3} more"
+
+                return HealthReport(
+                    component_name="AgentStepBudget",
+                    status="warn",
+                    code="WARN_AGENT_STEP_BUDGET_LOW",
+                    message=f"{len(low_budget_agents)} Agent(s) have step limits below recommended {self.RECOMMENDED_MIN_STEPS} steps.",
+                    detail=f"Low budget agents: {summary_str}. May encounter early stoppage during complex tasks.",
+                    fix_suggestion="Update Agent settings to increase step budget (recommended >= 100 or unlimited).",
+                    meta_data={
+                        "low_budget_agents": low_budget_agents,
+                        "recommended_min_steps": self.RECOMMENDED_MIN_STEPS,
+                    },
+                    metrics={
+                        "low_budget_agent_count": float(len(low_budget_agents)),
+                        "total_active_agents": float(total_active_agents),
+                    },
+                )
+
+            return HealthReport(
+                component_name="AgentStepBudget",
+                status="pass",
+                code="OK_AGENT_STEP_BUDGET_READY",
+                message=f"All active Agent step budgets meet or exceed {self.RECOMMENDED_MIN_STEPS} steps.",
+                detail=f"Verified {total_active_agents} active Agent profile(s).",
+                meta_data={
+                    "total_active_agents": total_active_agents,
+                    "recommended_min_steps": self.RECOMMENDED_MIN_STEPS,
+                },
+                metrics={
+                    "low_budget_agent_count": 0.0,
+                    "total_active_agents": float(total_active_agents),
+                },
+            )
+        except Exception as exc:
+            logger.warning("Agent step budget health check failed: %s", exc)
+            return HealthReport(
+                component_name="AgentStepBudget",
+                status="pass",
+                code="OK_AGENT_STEP_BUDGET_SKIPPED",
+                message="Agent step budget check skipped or DB uninitialized.",
             )
 
 
@@ -357,6 +492,7 @@ class ServerDiagnosticsManager:
             ExecutionCacheDiagnostic(),
             AgentColdStartDiagnostic(),
             OllamaModelContextDiagnostic(),
+            AgentStepBudgetDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:
@@ -366,7 +502,9 @@ class ServerDiagnosticsManager:
                 report = await probe.check_health()
                 reports.append(report)
             except Exception as exc:
-                logger.error("Probe %s failed unhandled: %s", probe.__class__.__name__, exc)
+                logger.error(
+                    "Probe %s failed unhandled: %s", probe.__class__.__name__, exc
+                )
                 reports.append(
                     HealthReport(
                         component_name=probe.__class__.__name__,

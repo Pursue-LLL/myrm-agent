@@ -100,6 +100,23 @@ describe('SkillsLearnPanel', () => {
     expect(mockPush).toHaveBeenCalledWith('/bootstrapped-chat');
   });
 
+  it('applies book scenario text and submits correctly', async () => {
+    const user = userEvent.setup();
+    render(<SkillsLearnPanel />);
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.learn.panelTitle' }));
+    await user.click(screen.getByRole('button', { name: 'settings.skills.learn.scenarios.book.label' }));
+    await user.type(screen.getByLabelText('settings.skills.learn.directoryLabel'), '~/books/ddia.pdf');
+    await user.click(screen.getByRole('button', { name: 'settings.skills.learn.submit' }));
+
+    await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('local source: ~/books/ddia.pdf; settings.skills.learn.scenarios.book.text'),
+      );
+    });
+    expect(mockPush).toHaveBeenCalledWith('/chat-1');
+  });
+
   it('warns when deploy scenario is chosen without active chat', async () => {
     mockGetState.mockReturnValue({
       chatId: null,

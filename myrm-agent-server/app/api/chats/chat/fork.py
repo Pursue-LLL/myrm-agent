@@ -115,6 +115,8 @@ async def get_fork_info(
             data={
                 "parent_chat_id": fork_info.parent_chat_id,
                 "fork_point": fork_info.fork_point,
+                "root_chat_id": fork_info.root_chat_id,
+                "depth": fork_info.depth,
                 "children": [
                     {
                         "chat_id": child.chat_id,
@@ -125,6 +127,7 @@ async def get_fork_info(
                 ],
             }
         )
+
 
     except HTTPException:
         raise

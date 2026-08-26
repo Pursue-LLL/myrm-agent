@@ -297,8 +297,10 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
 @pytest.mark.asyncio
 async def test_ollama_model_context_diagnostic() -> None:
     """Test OllamaModelContextDiagnostic probe under various states."""
+    import httpx
     from app.config.deploy_mode import DeployMode
     from app.core.infra.health.server_diagnostics import OllamaModelContextDiagnostic
+
 
     diagnostic = OllamaModelContextDiagnostic()
 
@@ -321,3 +323,38 @@ async def test_ollama_model_context_diagnostic() -> None:
             assert report.code == "OK_OLLAMA_CONTEXT_READY"
             assert report.meta_data["total_models"] == 2
             assert "qwen2.5:14b-agentic" in report.meta_data["agentic_models"]
+
+    # 2. Local mode with Ollama running but NO agentic models created yet
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
+        with patch("httpx.AsyncClient.get") as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {
+                "models": [
+                    {"name": "qwen2.5:14b"},
+                ]
+            }
+            mock_get.return_value = mock_resp
+
+            report = await diagnostic.check_health()
+            assert report.component_name == "OllamaContext"
+            assert report.status == "warn"
+            assert report.code == "WARN_OLLAMA_NO_AGENTIC_MODELS"
+            assert report.fix_suggestion is not None
+
+    # 3. Sandbox mode skips Ollama probe
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX):
+        report = await diagnostic.check_health()
+        assert report.component_name == "OllamaContext"
+        assert report.status == "pass"
+        assert report.code == "OK_OLLAMA_SANDBOX_SKIPPED"
+
+
+    # 4. Local mode with Ollama unreachable (e.g. connection refused)
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
+        with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
+            report = await diagnostic.check_health()
+            assert report.component_name == "OllamaContext"
+            assert report.status == "pass"
+            assert report.code == "INFO_OLLAMA_UNREACHABLE"
+

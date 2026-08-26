@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | External integrations API module | ✅ |
 | `catalog.py` | 模块 | Integration Catalog API endpoints；透传 registry 归一化后的显式 `deployment_scope`（`local_tauri_only` / `all_modes`），透传 `post_connect_guide`。 | ✅ |
-| `hardware.py` | 模块 | 硬件推荐 API：检测本地硬件、计算 64K KV Cache 显存开销 (FP16/Q8/Q4)、划分 5 档 Reference Ladder 硬件段位、估算 Tokens/s 并生成 Ollama 模型适配度推荐，含 Ollama pull/delete 代理端点。 | ✅ |
+| `hardware.py` | 模块 | 硬件推荐 API：检测本地硬件、计算 64K KV Cache 显存开销 (FP16/Q8/Q4)、划分 5 档 Reference Ladder 硬件段位、估算 Tokens/s 并生成 Ollama 模型适配度推荐，含 Ollama pull 自动派生 64K agentic Modelfile 与 delete 联动清理端点。 | ✅ |
 | `hardware_calculator.py` | 模块 | 硬件指标与 64K KV Cache 显存测算纯函数工具模块。 | ✅ |
 | `im_contacts.py` | 模块 | Lightweight search users API for IM group management. | ✅ |
 | `integration_memory.py` | 模块 | REST API layer for Integration Memory. | ✅ |
