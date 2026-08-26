@@ -60,7 +60,7 @@ _CAPABILITIES_MOA_PROBE_JS = """(() => {
 def _create_agent_with_moa(api_url: str, name: str) -> str:
     res = http_json(
         "POST",
-        f"{api_url}/api/v1/agents",
+        f"{api_url}/api/v1/user-agents",
         body={
             "name": name,
             "system_prompt": "You are a helpful assistant.",
@@ -75,13 +75,16 @@ def _create_agent_with_moa(api_url: str, name: str) -> str:
             },
         },
     )
-    assert isinstance(res, dict) and res.get("id"), f"agent creation failed: {res}"
-    return str(res["id"])
+    assert isinstance(res, dict)
+    data = res.get("data") or {}
+    agent_id = data.get("id") or data.get("agent_id")
+    assert isinstance(agent_id, str) and agent_id, f"agent creation failed: {res}"
+    return agent_id
 
 
 def _delete_agent(api_url: str, agent_id: str) -> None:
     try:
-        http_json("DELETE", f"{api_url}/api/v1/agents/{agent_id}")
+        http_json("DELETE", f"{api_url}/api/v1/user-agents/{agent_id}")
     except Exception:
         pass
 
