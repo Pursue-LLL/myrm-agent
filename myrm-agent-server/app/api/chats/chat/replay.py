@@ -16,12 +16,12 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from myrm_agent_harness.eval.assertions import calculate_trajectory_determinism
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_db
 from app.services.chat.chat_service import ChatService
-from myrm_agent_harness.eval.assertions import calculate_trajectory_determinism
 
 router = APIRouter()
 

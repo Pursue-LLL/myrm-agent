@@ -14,6 +14,6 @@
 - `fileUtils.ts`：通用文件工具 — 扩展名分类（image/video/audio/pdf/document/text）、MIME 推断（getMimeType）、扩展名提取（getFileExtension）、文件名非法字符清理（sanitizeFilename）、Web/Tauri 展示 URL（getDisplayUrl）、base64 转换（fetchFileAsBase64DataURL）、SHA-256 哈希（computeFileHash）、「路径→内容」DEFLATE zip 打包（buildZipFromFiles）、文件下载（triggerDownload：Web a[download] / Tauri 系统保存对话框 + fs 写入）。
 - `imeUtils.ts`：输入法组合输入守卫 — `isImeComposing` 统一判断 `nativeEvent.isComposing`、`event.isComposing`、`key === 'Process'` 与 `keyCode === 229`，保障 Windows/macOS/iOS/Android 输入法候选词确认不误触发消息提交。
 - `titleUtils.ts`：会话标题消歧与序号自增 — `parseTitleIndex` 与 `disambiguateChatTitle` 纯函数，确保自动生成和重命名标题时保持全局列表唯一可辨（如自动追加 `(2)`、`(3)`）。
-- `pathValidation.ts`：全平台路径规范与展示截断 — 支持 POSIX、Windows 盘符、Windows UNC 共享路径识别与反斜杠/正斜杠归一化，提供 `formatPathForDisplay` 智能居中省略截断。
+- `pathValidation.ts`：全平台路径规范、工作区校验与展示截断 — 支持 POSIX、Windows 盘符、Windows UNC 共享路径识别与反斜杠/正斜杠归一化，提供 `validateWorkspacePath` 进行 ~ 波浪号路径解析与非法控制字符防护，以及 `formatPathForDisplay` 智能居中省略截断。
 - `skillUtils.ts`：Skill 多语言描述容灾守卫 — `resolveSkillDescription` 统一去除空串与空白，并在缺失时回退默认国际化文案，杜绝卡片与详情页空白。
 - `typeUtils.ts`：安全字典与类型守卫 — `isRecord`、`asRecord` 与 `safeGet`，彻底防止服务端 dict-like 异常或嵌套层级缺失导致的 WebUI 运行时白屏与崩溃。

@@ -39,6 +39,31 @@ export const getSessionTrajectory = async (chatId: string): Promise<SessionTraje
   return apiRequest(`/chats/${chatId}/trajectory`);
 };
 
+export interface ReplayDeterminismResponse {
+  session_id: string;
+  determinism_score: number;
+  tool_sequence_similarity: number;
+  tool_set_jaccard: number;
+  args_similarity: number;
+  original_tool_count: number;
+  replayed_tool_count: number;
+  drifted_tools: string[];
+  verdict: string;
+}
+
+/**
+ * 重放会话并计算确定性指标
+ */
+export const replayChatSession = async (
+  chatId: string,
+  mode: 'live' | 'mock' = 'live'
+): Promise<ReplayDeterminismResponse> => {
+  return apiRequest(`/chats/${chatId}/replay`, {
+    method: 'POST',
+    body: JSON.stringify({ mode }),
+  });
+};
+
 export interface ChatItem {
   id: string;
   title: string;
