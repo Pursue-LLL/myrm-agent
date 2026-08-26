@@ -153,8 +153,12 @@ export const validateWorkspacePath = (rawPath: string): WorkspacePathValidationR
 
   const trimmed = rawPath.trim();
 
-  // 1. 检查是否存在非法控制字符（如换行、回车、Tab 或 NULL）
-  if (/[\x00-\x1F\x7F]/.test(trimmed)) {
+  // 1. 检查是否存在非法控制字符（ASCII 0-31 以及 127 删除字符）
+  const hasControlChars = Array.from(trimmed).some((char) => {
+    const code = char.charCodeAt(0);
+    return (code >= 0 && code <= 31) || code === 127;
+  });
+  if (hasControlChars) {
     return {
       valid: false,
       normalizedPath: '',

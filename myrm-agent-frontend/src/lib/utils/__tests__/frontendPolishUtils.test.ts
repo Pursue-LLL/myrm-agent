@@ -5,31 +5,40 @@ import { isAbsolutePath, normalizePath, normalizeDisplayPath, formatPathForDispl
 import { resolveSkillDescription } from '../skillUtils';
 import { isRecord, asRecord, safeGet } from '../typeUtils';
 
+type ImeEventLike = {
+  key?: string;
+  keyCode?: number;
+  isComposing?: boolean;
+  nativeEvent?: {
+    isComposing?: boolean;
+  };
+};
+
 describe('Frontend Polish Utilities Suite', () => {
   describe('imeUtils - isImeComposing', () => {
     it('returns true when nativeEvent.isComposing is true', () => {
-      const event = { nativeEvent: { isComposing: true } };
-      expect(isImeComposing(event as any)).toBe(true);
+      const event: ImeEventLike = { nativeEvent: { isComposing: true } };
+      expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(true);
     });
 
     it('returns true when event.isComposing is true', () => {
-      const event = { isComposing: true };
-      expect(isImeComposing(event as any)).toBe(true);
+      const event: ImeEventLike = { isComposing: true };
+      expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(true);
     });
 
     it('returns true when event.key is Process', () => {
-      const event = { key: 'Process', isComposing: false };
-      expect(isImeComposing(event as any)).toBe(true);
+      const event: ImeEventLike = { key: 'Process', isComposing: false };
+      expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(true);
     });
 
     it('returns true when event.keyCode is 229', () => {
-      const event = { keyCode: 229, isComposing: false };
-      expect(isImeComposing(event as any)).toBe(true);
+      const event: ImeEventLike = { keyCode: 229, isComposing: false };
+      expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(true);
     });
 
     it('returns false for normal Enter press without IME composition', () => {
-      const event = { key: 'Enter', keyCode: 13, isComposing: false, nativeEvent: { isComposing: false } };
-      expect(isImeComposing(event as any)).toBe(false);
+      const event: ImeEventLike = { key: 'Enter', keyCode: 13, isComposing: false, nativeEvent: { isComposing: false } };
+      expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(false);
     });
   });
 

@@ -219,11 +219,13 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
             )}
           >
             <Activity className="h-2.5 w-2.5" />
-            {job.consecutive_failures >= 3
-              ? t('connectorStatusDown')
-              : job.consecutive_failures > 0
-                ? t('connectorStatusDegraded')
-                : t('connectorStatusHealthy')}
+            <span data-testid="connector-health-badge">
+              {job.consecutive_failures >= 3
+                ? t('connectorStatusDown')
+                : job.consecutive_failures > 0
+                  ? t('connectorStatusDegraded')
+                  : t('connectorStatusHealthy')}
+            </span>
           </span>
         )}
       </div>

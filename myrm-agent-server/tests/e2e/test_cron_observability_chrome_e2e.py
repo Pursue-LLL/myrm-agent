@@ -113,6 +113,14 @@ _CLEAR_BANNER_DISMISS_JS = """(() => {
 })()"""
 
 
+_CONNECTOR_HEALTH_BADGE_JS = """(() => {
+  const badge = document.querySelector('[data-testid="connector-health-badge"]');
+  const text = document.body?.innerText || '';
+  const hasHealthText = /Healthy|Degraded|Down|健康|降级|不可用/.test(text);
+  return { ready: hasHealthText || badge !== null, text: text.slice(0, 300) };
+})()"""
+
+
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.timeout(300)
 def test_cron_observability_ui_single_session() -> None:
@@ -153,6 +161,10 @@ def test_cron_observability_ui_single_session() -> None:
         assert isinstance(preview, dict)
         assert preview.get("ok") is True, preview
         assert preview.get("hasPreview") is True, preview
+
+        # Verify connector health presence when on settings/cron
+        conn_health = wait_for_state(client, page, _CONNECTOR_HEALTH_BADGE_JS, timeout_sec=30.0)
+        assert conn_health.get("ready") is True, conn_health
 
         ui_home = get_e2e_ui_url().rstrip("/") + "/"
         navigate_mcp_page(client, page, ui_home, timeout_ms=120_000)

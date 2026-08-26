@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ReviewPanel from '../ReviewPanel';
 
-const stableT = (key: string, params?: Record<string, any>) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
   const translations: Record<string, string> = {
     selectSessionToReview: 'Select an active session to review changes',
     tabDiff: 'Diff ({count})',
