@@ -15580,6 +15580,23 @@
       "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）",
       "abortedBadge": "中止"
     },
+    "skillAb": {
+      "title": "スキル A/B 評価プロトコル",
+      "description": "厳格なサンドボックス分離の下で、スキルなし、ベースライン、および候補バージョンの3アーム比較評価。",
+      "candidateSkillLabel": "候補スキル ID",
+      "baselineSkillLabel": "ベースラインスキル ID",
+      "candidateRequired": "候補スキル ID を入力してください",
+      "startEval": "スキル A/B 評価を開始",
+      "evaluating": "3アーム評価中...",
+      "started": "スキル A/B 評価を開始しました",
+      "verdict": "判定",
+      "armNoSkill": "スキルなし (ベースライン)",
+      "armBaseline": "ベースラインバージョン",
+      "armCandidate": "候補バージョン",
+      "avgSteps": "平均ステップ数",
+      "tokens": "Token 消費",
+      "latency": "平均レイテンシ"
+    },
     "layers": {
       "button": "レイヤー評価",
       "started": "レイヤー評価を開始しました",
