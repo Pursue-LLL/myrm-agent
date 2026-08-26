@@ -15369,12 +15369,13 @@
     "pageDescription": "テストケースを管理し、サンドボックス環境で隔離評価を実行して、エージェントのパフォーマンスを自動検証",
     "tabs": {
       "cases": "ケースエディタ (JSONL)",
+      "sources": "データセットソース",
       "report": "評価レポート",
-      "history": "履歴トレンド (A/B Test)",
-      "diff": "差分ビュー (Diff)",
       "matrix": "マトリックス比較",
       "memoryAb": "メモリ A/B",
-      "sources": "データセットソース"
+      "skillAb": "スキル A/B",
+      "history": "履歴トレンド (A/B Test)",
+      "diff": "差分ビュー (Diff)"
     },
     "progress": "進捗",
     "save": "保存",

@@ -15342,7 +15342,8 @@
       "diff": "對比檢視 (Diff)",
       "matrix": "矩陣對比",
       "sources": "資料集來源",
-      "memoryAb": "記憶 A/B"
+      "memoryAb": "記憶 A/B",
+      "skillAb": "技能 A/B (Skill A/B)"
     },
     "progress": "進度",
     "save": "儲存",
@@ -15546,6 +15547,23 @@
       "sampled": "抽樣",
       "sampledTitle": "本次執行隨機抽取了基準任務的一部分（結果可重現）",
       "abortedBadge": "已中止"
+    },
+    "skillAb": {
+      "title": "技能 A/B 評測工坊 (Skill A/B Protocol)",
+      "description": "嚴格在隔離沙箱中對比「無技能」、「基準技能」與「候選技能」三臂表現，測量成功率、呼叫步數及 Token 消耗變動。",
+      "candidateSkillLabel": "候選技能 (Candidate Skill ID)",
+      "baselineSkillLabel": "基準技能 (Baseline Skill ID)",
+      "candidateRequired": "請輸入候選技能 ID",
+      "startEval": "啟動 Skill A/B 評測",
+      "evaluating": "三臂評測中...",
+      "started": "Skill A/B 評測已啟動",
+      "verdict": "綜合裁決",
+      "armNoSkill": "無技能基準 (No Skill)",
+      "armBaseline": "基準技能版本 (Baseline)",
+      "armCandidate": "候選技能版本 (Candidate)",
+      "avgSteps": "平均呼叫步數",
+      "tokens": "Token 消耗",
+      "latency": "平均延遲"
     },
     "layers": {
       "button": "分層評測",

@@ -48,13 +48,11 @@ def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
         helpers,
         jobs_router,
         prerequisite_router,
+        router,
     )
 
     test_app = FastAPI()
-    test_app.include_router(actions_router, prefix="/cron")
-    test_app.include_router(connector_health_router, prefix="/cron")
-    test_app.include_router(prerequisite_router, prefix="/cron")
-    test_app.include_router(jobs_router, prefix="/cron")
+    test_app.include_router(router, prefix="/cron")
 
     with patch.object(helpers, "_get_manager", return_value=cron_manager):
         yield test_app

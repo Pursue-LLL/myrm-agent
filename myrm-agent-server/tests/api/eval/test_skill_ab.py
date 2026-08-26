@@ -14,12 +14,14 @@ from app.core.eval.skill_ab import (
     get_skill_ab_report_history,
     get_skill_ab_status,
 )
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    minimal_app = build_minimal_app(preset="eval")
+    return TestClient(minimal_app)
+
 
 
 def test_skill_ab_status_and_abort() -> None:
