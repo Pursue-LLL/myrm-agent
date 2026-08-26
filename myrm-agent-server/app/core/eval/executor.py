@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from myrm_agent_harness.agent.errors import ToolErrorCategory
-from myrm_agent_harness.eval.canary import CANARY_GUID
+from myrm_agent_harness.eval import CANARY_GUID
 from myrm_agent_harness.eval.protocols import AgentResponse
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
