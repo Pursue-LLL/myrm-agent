@@ -46,6 +46,20 @@ export interface ReportItem {
     actual_output?: string;
     limit_reached?: string | null;
     blocked_count?: number;
+    canary_verified?: boolean;
+    post_episode_passed?: boolean;
+    contamination_audit?: {
+      is_clean?: boolean;
+      cheat_detected?: boolean;
+      violations?: Array<{
+        violation_type: string;
+        details: string;
+        tool_name?: string;
+        target?: string;
+      }>;
+      scanned_tool_calls?: number;
+      details?: string;
+    };
     tool_call_details?: Array<{ tool_name?: string; step_key?: string }>;
     case?: {
       message?: string;

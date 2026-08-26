@@ -175,8 +175,8 @@ class TestGoalOutcomeMapping:
         mock_provider.get_latest_goal = AsyncMock(return_value=mock_goal)
 
         result = await runner._map_goal_outcome(task, mock_provider, (True, "Done"))
-        assert result[0] is True
-        assert "3 turns" in result[1]
+        assert hasattr(result, "is_success") and result.is_success
+        assert "3 turns" in result.message
         mock_store.save_task.assert_called_once()
         saved_task = mock_store.save_task.call_args[0][0]
         assert saved_task.metadata.get("acceptance_results") == [{"label": "test", "passed": True}]
@@ -203,9 +203,12 @@ class TestGoalOutcomeMapping:
         mock_provider.get_latest_goal = AsyncMock(return_value=mock_goal)
 
         result = await runner._map_goal_outcome(task, mock_provider, (False, ""))
-        assert result[0] is False
-        assert "Budget exhausted" in result[1]
-        assert "10 turns" in result[1]
+        assert hasattr(result, "is_blocked") and result.is_blocked
+        assert "Budget exhausted" in result.message
+        assert "10 turns" in result.message
+        mock_store.save_task.assert_called_once()
+        saved_task = mock_store.save_task.call_args[0][0]
+        assert saved_task.status == TaskStatus.BLOCKED
 
     @pytest.mark.asyncio
     async def test_paused_goal_maps_to_blocked_without_crash(self):
@@ -232,8 +235,8 @@ class TestGoalOutcomeMapping:
         mock_provider.get_latest_goal = AsyncMock(return_value=mock_goal)
 
         result = await runner._map_goal_outcome(task, mock_provider, (False, ""))
-        assert result[0] is False
-        assert "convergence" in result[1]
+        assert hasattr(result, "is_blocked") and result.is_blocked
+        assert "convergence" in result.message
         mock_store.save_task.assert_called_once()
         saved_task = mock_store.save_task.call_args[0][0]
         assert saved_task.status == TaskStatus.BLOCKED
@@ -266,8 +269,8 @@ class TestGoalOutcomeMapping:
         mock_provider.get_latest_goal = AsyncMock(return_value=mock_goal)
 
         result = await runner._map_goal_outcome(task, mock_provider, (False, ""))
-        assert result[0] is False
-        assert "Waiting on CI" in result[1]
+        assert hasattr(result, "is_blocked") and result.is_blocked
+        assert "Waiting on CI" in result.message
         mock_store.save_task.assert_called_once()
         saved_task = mock_store.save_task.call_args[0][0]
         assert saved_task.status == TaskStatus.BLOCKED
