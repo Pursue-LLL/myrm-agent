@@ -4,6 +4,7 @@
  * [INPUT]
  * @/services/chat::submitHumanGateResponse (POS: Dynamic Workflow human gate answer submission API)
  * @/store/chat/types::Message.humanGate (POS: human gate state)
+ * @/store/useChatStore (POS: optimistic state updates on resolution)
  *
  * [OUTPUT]
  * HumanGateCard: Renders mid-run human decision gate with options, free-form text, and countdown timer.
@@ -16,10 +17,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitHumanGateResponse } from '@/services/chat';
+import useChatStore from '@/store/useChatStore';
 import { cn } from '@/lib/utils';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 
-interface HumanGateCardProps {
+export interface HumanGateCardProps {
   messageId: string;
   question: string;
   options?: string[];
@@ -86,7 +88,7 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
   answer,
   timedOut,
 }) => {
-  const t = useTranslations('chat');
+  const t = useTranslations('chat.humanGate');
   const [inputText, setInputText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(timeoutSeconds);
@@ -109,6 +111,24 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
     return () => clearInterval(timer);
   }, [status, timeoutSeconds]);
 
+  const resolveOptionLabel = useCallback(
+    (opt: string) => {
+      switch (opt) {
+        case 'continue':
+          return t('actionContinue');
+        case 'stop':
+          return t('actionStop');
+        case 'extra_rounds':
+          return t('actionExtraRounds');
+        case 'instructions':
+          return t('actionInstructions');
+        default:
+          return opt;
+      }
+    },
+    [t],
+  );
+
   const handleResolve = useCallback(
     async (selectedAnswer: string) => {
       if (submitting || status !== 'waiting') {
@@ -117,13 +137,21 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
       setSubmitting(true);
       try {
         await submitHumanGateResponse(messageId, selectedAnswer);
+        useChatStore.getState().setMessages((state) => {
+          const msg = state.messages.find((m) => m.messageId === messageId);
+          if (msg?.humanGate) {
+            msg.humanGate.status = 'resolved';
+            msg.humanGate.answer = selectedAnswer;
+            msg.humanGate.timedOut = false;
+          }
+        });
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to submit response');
+        toast.error(err instanceof Error ? err.message : t('submitFailed'));
       } finally {
         setSubmitting(false);
       }
     },
-    [messageId, status, submitting],
+    [messageId, status, submitting, t],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -144,8 +172,8 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
         <div className="flex items-center gap-2 overflow-hidden">
           <CheckCircleIcon className="w-4 h-4 text-emerald-500 shrink-0" />
           <span className="truncate">
-            {timedOut ? 'Decision timed out (default applied):' : 'Decision confirmed:'}{' '}
-            <strong className="text-foreground">{answer || defaultAction || 'Completed'}</strong>
+            {timedOut ? t('timedOut') : t('confirmed')}{' '}
+            <strong className="text-foreground">{answer || defaultAction || t('completed')}</strong>
           </span>
         </div>
       </div>
@@ -153,11 +181,11 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
   }
 
   return (
-    <div className="my-3.5 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 shadow-sm backdrop-blur-sm">
+    <div className="my-3.5 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 shadow-xs backdrop-blur-xs">
       <div className="flex items-start justify-between gap-3 mb-2.5">
         <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium text-sm">
           <ShieldAlertIcon className="w-4 h-4 shrink-0" />
-          <span>Human Decision Required</span>
+          <span>{t('title')}</span>
         </div>
         {timeLeft > 0 && (
           <div className="flex items-center gap-1 text-xs text-amber-600/80 dark:text-amber-400/80 font-mono">
@@ -180,10 +208,10 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
               className={cn(
                 'px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-150',
                 'bg-background hover:bg-accent hover:text-accent-foreground border-border/80 shadow-xs',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
+                'disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer',
               )}
             >
-              {option}
+              {resolveOptionLabel(option)}
             </button>
           ))}
         </div>
@@ -196,18 +224,20 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={submitting}
-          placeholder={options.length > 0 ? 'Or enter custom response...' : 'Enter your decision / input...'}
+          placeholder={options.length > 0 ? t('customPlaceholder') : t('emptyPlaceholder')}
           className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden focus:ring-1 focus:ring-amber-500"
         />
         <button
           type="button"
           disabled={submitting || !inputText.trim()}
           onClick={() => handleResolve(inputText.trim())}
-          className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
-          Submit
+          {t('submit')}
         </button>
       </div>
     </div>
   );
 };
+
+export default React.memo(HumanGateCard);

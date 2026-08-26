@@ -3368,6 +3368,22 @@
         "safetyPromise": "スキルが削除されることはありません。最悪の場合でもアーカイブされるだけで、いつでもワンクリックで復元できます。",
         "title": "スキルキュレーター",
         "description": "スキルのライフサイクルを自動管理 — 未使用のスキルを非アクティブとしてマークし、長期間アイドルのものをアーカイブ",
+        "doctor": {
+          "titleAttention": "スキル健康診断：{count}件の異常を検出",
+          "titleHealthy": "スキル健康診断：状態良好",
+          "allHealthyDesc": "高頻度・低効率やスキルの蓄積問題は検出されませんでした。すべてのスキルが正常に動作しています。",
+          "typeWrongButFrequent": "高頻度低効率",
+          "typeHoarding": "スキル蓄積",
+          "typeStalePinned": "休眠ピン留め",
+          "actionUnpinArchive": "ピン解除してアーカイブ",
+          "actionArchive": "アーカイブ",
+          "actionReset": "統計リセット",
+          "actionResetTooltip": "このスキルの呼び出し回数と失敗率の統計をリセット",
+          "remediateSuccessTitle": "改善完了",
+          "remediateSuccessDesc": "スキル {name} を正常に改善しました",
+          "remediateFailedTitle": "改善失敗",
+          "remediateFailedDesc": "スキルの改善に失敗しました"
+        },
         "enabled": "キュレーターを有効化",
         "enabledDesc": "スキルのライフサイクルステータスを定期的にスキャンして管理します",
         "intervalHours": "スキャン間隔（時間）",
@@ -8382,6 +8398,20 @@
       "activate": "有効化",
       "dismiss": "閉じる",
       "activated": "次のメッセージでワークフローモードが有効化されました"
+    },
+    "humanGate": {
+      "title": "手動での意思決定が必要です",
+      "timedOut": "決定がタイムアウトしました（デフォルトを適用）：",
+      "confirmed": "決定が確認されました：",
+      "completed": "完了",
+      "customPlaceholder": "またはカスタム決定を入力...",
+      "emptyPlaceholder": "決定または指示を入力...",
+      "submit": "送信",
+      "submitFailed": "回答の送信に失敗しました。再試行してください",
+      "actionContinue": "続行",
+      "actionStop": "停止して保存",
+      "actionExtraRounds": "+10ラウンド追加",
+      "actionInstructions": "ガイダンスを提供"
     },
     "toolsPanel": {
       "title": "利用可能なツール",

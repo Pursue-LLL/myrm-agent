@@ -2931,6 +2931,22 @@
         "safetyPromise": "스킬은 절대 삭제되지 않습니다. 최악의 경우 보관 처리되며 언제든 복원할 수 있습니다.",
         "title": "스킬 큐레이터",
         "description": "스킬 수명주기를 자동으로 관리 — 사용하지 않는 스킬을 유휴로 표시하고, 오랫동안 사용하지 않은 스킬은 보관 처리합니다",
+        "doctor": {
+          "titleAttention": "스킬 건강 진단: {count}개 이상 감지",
+          "titleHealthy": "스킬 건강 진단: 양호",
+          "allHealthyDesc": "고빈도 저효율이나 스킬 축적 문제가 발견되지 않았습니다. 모든 스킬이 정상 작동 중입니다.",
+          "typeWrongButFrequent": "고빈도 저효율",
+          "typeHoarding": "스킬 축적",
+          "typeStalePinned": "휴면 고정",
+          "actionUnpinArchive": "고정 해제 및 보관",
+          "actionArchive": "보관",
+          "actionReset": "통계 초기화",
+          "actionResetTooltip": "이 스킬의 호출 횟수 및 실패율 통계를 초기화합니다",
+          "remediateSuccessTitle": "조치 완료",
+          "remediateSuccessDesc": "{name} 스킬이 성공적으로 조치되었습니다",
+          "remediateFailedTitle": "조치 실패",
+          "remediateFailedDesc": "스킬 조치에 실패했습니다"
+        },
         "enabled": "큐레이터 활성화",
         "enabledDesc": "주기적으로 스캔하여 스킬 수명주기 상태 관리",
         "intervalHours": "스캔 간격 (시간)",
@@ -8547,6 +8563,20 @@
       "activate": "활성화",
       "dismiss": "닫기",
       "activated": "다음 메시지에 워크플로 모드가 활성화되었습니다"
+    },
+    "humanGate": {
+      "title": "수동 의사결정 필요",
+      "timedOut": "결정 시간이 초과되었습니다 (기본값 적용):",
+      "confirmed": "결정 확인됨:",
+      "completed": "완료됨",
+      "customPlaceholder": "또는 사용자 지정 응답 입력...",
+      "emptyPlaceholder": "결정 또는 지시사항 입력...",
+      "submit": "제출",
+      "submitFailed": "응답 제출 실패. 다시 시도해 주세요.",
+      "actionContinue": "계속",
+      "actionStop": "중지 및 저장",
+      "actionExtraRounds": "+10 라운드",
+      "actionInstructions": "지침 제공"
     },
     "sessionSkills": {
       "tooltip": "세션 스킬",

@@ -701,6 +701,7 @@ __all__ = [
     "MonitoringSettings",
     "MessageFilterSettings",
     "MemoryBriefStatusTelemetrySettings",
+    "ExecutionCacheSettings",
     "SecuritySettings",
     "ServiceSettings",
     "StorageSettings",

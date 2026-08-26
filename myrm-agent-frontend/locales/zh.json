@@ -3388,6 +3388,22 @@
         "safetyPromise": "技能绝不会被自动删除。最坏情况仅为归档，您可以随时一键恢复。",
         "title": "技能管理器",
         "description": "自动管理技能生命周期 — 将未使用的技能标记为闲置，长期空闲的归档",
+        "doctor": {
+          "titleAttention": "技能健康体检：发现 {count} 个异常",
+          "titleHealthy": "技能健康体检：状态优良",
+          "allHealthyDesc": "未发现高频低效或技能囤积问题，所有技能运行正常。",
+          "typeWrongButFrequent": "高频低效",
+          "typeHoarding": "技能囤积",
+          "typeStalePinned": "闲置置顶",
+          "actionUnpinArchive": "解 Pin 归档",
+          "actionArchive": "一键归档",
+          "actionReset": "重置计数",
+          "actionResetTooltip": "重置该技能的调用次数与失败率统计",
+          "remediateSuccessTitle": "治理成功",
+          "remediateSuccessDesc": "已成功治理技能 {name}",
+          "remediateFailedTitle": "治理失败",
+          "remediateFailedDesc": "未能治理该技能"
+        },
         "enabled": "启用管理器",
         "enabledDesc": "定期扫描并管理技能生命周期状态",
         "intervalHours": "扫描间隔（小时）",
@@ -8528,6 +8544,20 @@
       "activate": "开启",
       "dismiss": "忽略",
       "activated": "工作流模式已为下条消息启用"
+    },
+    "humanGate": {
+      "title": "需要人工决策",
+      "timedOut": "决策已超时（已应用默认操作）：",
+      "confirmed": "决策已确认：",
+      "completed": "已完成",
+      "customPlaceholder": "或输入自定义回应...",
+      "emptyPlaceholder": "请输入您的决策 / 指令...",
+      "submit": "提交",
+      "submitFailed": "提交回应失败，请重试。",
+      "actionContinue": "继续",
+      "actionStop": "停止并保存",
+      "actionExtraRounds": "+10 轮次",
+      "actionInstructions": "提供指导"
     },
     "toolsPanel": {
       "title": "可用工具",

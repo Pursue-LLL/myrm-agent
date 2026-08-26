@@ -306,3 +306,62 @@ def test_consolidation_execute_with_results(client: TestClient):
     assert data["total_archived"] == 4
     assert data["net_reduction"] == 3
     assert data["agent_refs_updated"] == 1
+
+
+def test_get_skill_diagnostics(client: TestClient):
+    """GET /diagnostics should return skill health diagnosis report."""
+    async def mock_diagnostics():
+        return {
+            "total_skills": 10,
+            "active_skills": 8,
+            "stale_skills": 1,
+            "archived_skills": 1,
+            "pinned_skills": 2,
+            "findings": [
+                {
+                    "skill_name": "buggy_scraper",
+                    "finding_type": "wrong_but_frequent",
+                    "severity": "critical",
+                    "message": "Low success rate",
+                    "call_count": 25,
+                    "success_rate": 0.08,
+                    "pinned": True,
+                    "recommended_action": "unpin_and_archive",
+                    "details": {},
+                }
+            ],
+            "health_score": 75.0,
+        }
+
+    with patch("app.core.skills.curator.service.get_skill_diagnostics", side_effect=mock_diagnostics):
+        response = client.get("/api/v1/skills/curator/diagnostics")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_skills"] == 10
+    assert len(data["findings"]) == 1
+    assert data["findings"][0]["skill_name"] == "buggy_scraper"
+    assert data["health_score"] == 75.0
+
+
+def test_remediate_skill_success(client: TestClient):
+    """POST /remediate should successfully remediate a diagnosed finding."""
+    async def mock_remediate(skill_name: str, action: str):
+        return {
+            "success": True,
+            "skill_name": skill_name,
+            "action": action,
+            "new_status": "archived",
+            "pinned": False,
+            "call_count": 0,
+        }
+
+    with patch("app.core.skills.curator.service.remediate_skill_finding", side_effect=mock_remediate):
+        response = client.post(
+            "/api/v1/skills/curator/remediate",
+            json={"skill_name": "buggy_scraper", "action": "unpin_and_archive"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["new_status"] == "archived"
+

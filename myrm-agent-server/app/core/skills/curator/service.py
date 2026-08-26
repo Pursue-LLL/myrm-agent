@@ -30,8 +30,12 @@ from pathlib import Path
 from typing import Literal
 
 from myrm_agent_harness.agent.skills.curator import CuratorRunResult, SkillCurator
-from myrm_agent_harness.backends.skills.forgetting_strategy import CuratorConfig
+from myrm_agent_harness.backends.skills.forgetting_strategy import (
+    CuratorConfig,
+    evaluate_skill_health_findings,
+)
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
+from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
 from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
@@ -314,3 +318,63 @@ def stop_curator_background_task() -> None:
     if _background_task is not None and not _background_task.done():
         _background_task.cancel()
         _background_task = None
+
+
+async def get_skill_diagnostics() -> dict[str, object]:
+    """Evaluate full skill library health and return structured Doctor Findings."""
+    from myrm_agent_harness.backends.skills.local import LocalSkillBackend
+
+    config = get_curator_config()
+    all_skills = []
+    for p in DEFAULT_LOCAL_SKILL_PATHS:
+        expanded = Path(p).expanduser()
+        if not expanded.exists():
+            continue
+        backend = LocalSkillBackend(expanded, use_snapshot=False)
+        all_skills.extend(await backend.list_skills())
+
+    diagnosis = evaluate_skill_health_findings(all_skills, config)
+    return diagnosis.to_dict()
+
+
+async def remediate_skill_finding(skill_name: str, action: str) -> dict[str, object]:
+    """Execute remediation action for a diagnosed skill finding.
+
+    Supported actions:
+    - 'unpin_and_archive': Unpin the skill and transition lifecycle status to ARCHIVED.
+    - 'archive': Transition lifecycle status to ARCHIVED.
+    - 'reset_stats': Reset usage counters (call_count, success_count, failure_count) to 0.
+    """
+    skill_dir = resolve_skill_path(skill_name)
+    if not skill_dir:
+        return {"success": False, "error": f"Skill '{skill_name}' directory not found"}
+
+    collector = get_stats_collector()
+    stats = collector.get_stats(skill_name)
+    if stats is None:
+        stats = collector.get_or_create(skill_name)
+
+    if action == "unpin_and_archive":
+        stats.pinned = False
+        stats.lifecycle_status = SkillLifecycleStatus.ARCHIVED
+        collector.save_stats(skill_name, stats)
+    elif action == "archive":
+        stats.lifecycle_status = SkillLifecycleStatus.ARCHIVED
+        collector.save_stats(skill_name, stats)
+    elif action == "reset_stats":
+        stats.call_count = 0
+        stats.success_count = 0
+        stats.failure_count = 0
+        collector.save_stats(skill_name, stats)
+    else:
+        return {"success": False, "error": f"Unsupported remediation action: {action}"}
+
+    return {
+        "success": True,
+        "skill_name": skill_name,
+        "action": action,
+        "new_status": stats.lifecycle_status.value,
+        "pinned": stats.pinned,
+        "call_count": stats.call_count,
+    }
+

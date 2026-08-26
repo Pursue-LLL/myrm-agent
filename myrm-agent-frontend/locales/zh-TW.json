@@ -3371,6 +3371,22 @@
         "safetyPromise": "技能絕不會被自動刪除。最壞情況僅為歸檔，您可以隨時一鍵恢復。",
         "title": "技能管理器",
         "description": "自動管理技能生命週期 — 將未使用的技能標記為閒置，長期空閒的歸檔",
+        "doctor": {
+          "titleAttention": "技能健康體檢：發現 {count} 個異常",
+          "titleHealthy": "技能健康體檢：狀態優良",
+          "allHealthyDesc": "未發現高頻低效或技能囤積問題，所有技能運行正常。",
+          "typeWrongButFrequent": "高頻低效",
+          "typeHoarding": "技能囤積",
+          "typeStalePinned": "閒置置頂",
+          "actionUnpinArchive": "解 Pin 歸檔",
+          "actionArchive": "一鍵歸檔",
+          "actionReset": "重置計數",
+          "actionResetTooltip": "重置該技能的調用次數與失敗率統計",
+          "remediateSuccessTitle": "治理成功",
+          "remediateSuccessDesc": "已成功治理技能 {name}",
+          "remediateFailedTitle": "治理失敗",
+          "remediateFailedDesc": "未能治理該技能"
+        },
         "enabled": "啟用管理器",
         "enabledDesc": "定期掃描並管理技能生命週期狀態",
         "intervalHours": "掃描間隔（小時）",
@@ -8403,6 +8419,20 @@
       "activate": "開啟",
       "dismiss": "忽略",
       "activated": "工作流模式已為下條訊息啟用"
+    },
+    "humanGate": {
+      "title": "需要人工決策",
+      "timedOut": "決策已逾時（已套用預設動作）：",
+      "confirmed": "決策已確認：",
+      "completed": "已完成",
+      "customPlaceholder": "或輸入自訂決策/說明...",
+      "emptyPlaceholder": "輸入您的決策或說明...",
+      "submit": "提交",
+      "submitFailed": "提交決策失敗，請重試",
+      "actionContinue": "繼續執行",
+      "actionStop": "中止並儲存",
+      "actionExtraRounds": "追加10輪",
+      "actionInstructions": "注入糾偏指示"
     },
     "toolsPanel": {
       "title": "可用工具",

@@ -303,3 +303,61 @@ async def consolidation_execute() -> ConsolidationExecuteResponse:
 
     result = await run_consolidation_execute()
     return result
+
+
+class SkillDoctorFindingItem(BaseModel):
+    skill_name: str
+    finding_type: str
+    severity: str
+    message: str
+    call_count: int
+    success_rate: float
+    pinned: bool
+    recommended_action: str
+    details: dict[str, object] = {}
+
+
+class SkillDoctorDiagnosticsResponse(BaseModel):
+    total_skills: int
+    active_skills: int
+    stale_skills: int
+    archived_skills: int
+    pinned_skills: int
+    findings: list[SkillDoctorFindingItem]
+    health_score: float
+
+
+class SkillRemediationRequest(BaseModel):
+    skill_name: str
+    action: Literal["unpin_and_archive", "archive", "reset_stats"]
+
+
+class SkillRemediationResponse(BaseModel):
+    success: bool
+    skill_name: str | None = None
+    action: str | None = None
+    new_status: str | None = None
+    pinned: bool | None = None
+    call_count: int | None = None
+    error: str | None = None
+
+
+@router.get("/diagnostics", response_model=SkillDoctorDiagnosticsResponse)
+async def get_skill_diagnostics_endpoint() -> SkillDoctorDiagnosticsResponse:
+    """Get full skill library health report with actionable Doctor Findings."""
+    from app.core.skills.curator.service import get_skill_diagnostics
+
+    res = await get_skill_diagnostics()
+    return SkillDoctorDiagnosticsResponse(**res)  # type: ignore[arg-type]
+
+
+@router.post("/remediate", response_model=SkillRemediationResponse)
+async def remediate_skill_endpoint(req: SkillRemediationRequest) -> SkillRemediationResponse:
+    """Remediate a diagnosed skill finding (unpin, archive, reset stats)."""
+    from app.core.skills.curator.service import remediate_skill_finding
+
+    res = await remediate_skill_finding(req.skill_name, req.action)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=str(res.get("error", "Remediation failed")))
+    return SkillRemediationResponse(**res)  # type: ignore[arg-type]
+

@@ -3388,6 +3388,22 @@
         "safetyPromise": "Skills are never deleted. The worst case is archiving, and you can restore anytime.",
         "title": "Skill Curator",
         "description": "Automatically manages skill lifecycle — marks unused skills as stale and archives long-idle ones",
+        "doctor": {
+          "titleAttention": "Skill Health Doctor: {count} issues detected",
+          "titleHealthy": "Skill Health Doctor: Optimal",
+          "allHealthyDesc": "No wrong-but-frequent or hoarding bloat detected. All skills are healthy.",
+          "typeWrongButFrequent": "Wrong but Frequent",
+          "typeHoarding": "Library Bloat",
+          "typeStalePinned": "Stale Pinned",
+          "actionUnpinArchive": "Unpin & Archive",
+          "actionArchive": "Archive",
+          "actionReset": "Reset Stats",
+          "actionResetTooltip": "Reset call count and failure rate stats for this skill",
+          "remediateSuccessTitle": "Remediation Succeeded",
+          "remediateSuccessDesc": "Successfully remediated skill {name}",
+          "remediateFailedTitle": "Remediation Failed",
+          "remediateFailedDesc": "Could not remediate this skill"
+        },
         "enabled": "Enable Curator",
         "enabledDesc": "Periodically scan and manage skill lifecycle status",
         "intervalHours": "Scan Interval (hours)",
@@ -8529,6 +8545,20 @@
       "activate": "Enable",
       "dismiss": "Dismiss",
       "activated": "Workflow Mode activated for next message"
+    },
+    "humanGate": {
+      "title": "Human Decision Required",
+      "timedOut": "Decision timed out (default applied):",
+      "confirmed": "Decision confirmed:",
+      "completed": "Completed",
+      "customPlaceholder": "Or enter custom response...",
+      "emptyPlaceholder": "Enter your decision / input...",
+      "submit": "Submit",
+      "submitFailed": "Failed to submit response. Please try again.",
+      "actionContinue": "Continue",
+      "actionStop": "Stop & Save",
+      "actionExtraRounds": "+10 Rounds",
+      "actionInstructions": "Provide Guidance"
     },
     "toolsPanel": {
       "title": "Available Tools",

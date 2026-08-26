@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Play, Loader2, History, ChevronDown, ChevronRight, Combine } from 'lucide-react';
+import { Play, Loader2, History, ChevronDown, ChevronRight, Combine, ShieldAlert, ShieldCheck, AlertTriangle, RotateCcw, Archive } from 'lucide-react';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
@@ -17,10 +17,14 @@ import {
   getCuratorHistory,
   getConsolidationPreview,
   executeConsolidation,
+  getSkillDiagnostics,
+  remediateSkillFinding,
   type CuratorConfigResponse,
   type CuratorHistoryEntry,
   type ConsolidationPreviewResponse,
   type ConsolidationExecuteResponse,
+  type SkillDoctorDiagnosticsResponse,
+  type SkillDoctorFindingItem,
 } from '@/services/skill';
 
 function formatRelativeTime(isoTimestamp: string): string {
@@ -53,6 +57,21 @@ const CuratorSettingsPanel = memo(
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
     const [preview, setPreview] = useState<ConsolidationPreviewResponse | null>(null);
+    const [diagnostics, setDiagnostics] = useState<SkillDoctorDiagnosticsResponse | null>(null);
+    const [diagLoading, setDiagLoading] = useState(false);
+    const [remediatingSkill, setRemediatingSkill] = useState<string | null>(null);
+
+    const loadDiagnostics = useCallback(async () => {
+      setDiagLoading(true);
+      try {
+        const diag = await getSkillDiagnostics();
+        setDiagnostics(diag);
+      } catch {
+        setDiagnostics(null);
+      } finally {
+        setDiagLoading(false);
+      }
+    }, []);
 
     useEffect(() => {
       getCuratorConfig()
@@ -61,7 +80,41 @@ const CuratorSettingsPanel = memo(
           setIsLoading(false);
         })
         .catch(() => setIsLoading(false));
-    }, []);
+
+      loadDiagnostics();
+    }, [loadDiagnostics]);
+
+    const handleRemediate = useCallback(
+      async (skillName: string, action: 'unpin_and_archive' | 'archive' | 'reset_stats') => {
+        setRemediatingSkill(skillName);
+        try {
+          const res = await remediateSkillFinding(skillName, action);
+          if (res.success) {
+            toast({
+              title: t('doctor.remediateSuccessTitle'),
+              description: t('doctor.remediateSuccessDesc', { name: skillName }),
+            });
+            await loadDiagnostics();
+            onSweepComplete?.();
+          } else {
+            toast({
+              title: t('doctor.remediateFailedTitle'),
+              description: res.error || t('doctor.remediateFailedDesc'),
+              variant: 'destructive',
+            });
+          }
+        } catch (err: unknown) {
+          toast({
+            title: t('doctor.remediateFailedTitle'),
+            description: err instanceof Error ? err.message : t('doctor.remediateFailedDesc'),
+            variant: 'destructive',
+          });
+        } finally {
+          setRemediatingSkill(null);
+        }
+      },
+      [t, loadDiagnostics, onSweepComplete],
+    );
 
     const handleSave = useCallback(async () => {
       if (!config) {
@@ -179,6 +232,129 @@ const CuratorSettingsPanel = memo(
     return (
       <div className={className}>
         <div className="space-y-5">
+          {/* Skill Health Doctor Diagnostics Section */}
+          {diagnostics && (
+            <div
+              className={`p-3.5 rounded-lg border transition-all ${
+                diagnostics.findings.length > 0
+                  ? 'bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/30'
+                  : 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/20'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {diagnostics.findings.length > 0 ? (
+                    <ShieldAlert className="h-4 w-4 text-amber-500" />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  )}
+                  <span className="text-xs font-semibold">
+                    {diagnostics.findings.length > 0
+                      ? t('doctor.titleAttention', { count: diagnostics.findings.length })
+                      : t('doctor.titleHealthy')}
+                  </span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`text-[11px] font-mono px-2 py-0.5 ${
+                    diagnostics.health_score >= 85
+                      ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                      : 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                  }`}
+                >
+                  Score: {diagnostics.health_score}/100
+                </Badge>
+              </div>
+
+              {diagnostics.findings.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t('doctor.allHealthyDesc')}</p>
+              ) : (
+                <div className="space-y-2 mt-2.5">
+                  {diagnostics.findings.map((f, idx) => (
+                    <div
+                      key={`${f.skill_name}-${idx}`}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded bg-background/60 border border-border/60 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-foreground">{f.skill_name}</span>
+                          {f.pinned && (
+                            <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-muted">
+                              PINNED
+                            </Badge>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] h-4 px-1.5 ${
+                              f.severity === 'critical'
+                                ? 'border-destructive/40 text-destructive bg-destructive/10'
+                                : 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                            }`}
+                          >
+                            {f.finding_type === 'wrong_but_frequent'
+                              ? t('doctor.typeWrongButFrequent')
+                              : f.finding_type === 'hoarding_bloat'
+                              ? t('doctor.typeHoarding')
+                              : t('doctor.typeStalePinned')}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">{f.message}</p>
+                      </div>
+
+                      {f.skill_name !== '[Library Bloat]' && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {f.pinned && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={remediatingSkill === f.skill_name}
+                              onClick={() => handleRemediate(f.skill_name, 'unpin_and_archive')}
+                              className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
+                            >
+                              {remediatingSkill === f.skill_name ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Archive className="h-3 w-3 text-amber-500" />
+                              )}
+                              <span>{t('doctor.actionUnpinArchive')}</span>
+                            </Button>
+                          )}
+                          {!f.pinned && f.finding_type === 'wrong_but_frequent' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={remediatingSkill === f.skill_name}
+                              onClick={() => handleRemediate(f.skill_name, 'archive')}
+                              className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
+                            >
+                              {remediatingSkill === f.skill_name ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Archive className="h-3 w-3 text-amber-500" />
+                              )}
+                              <span>{t('doctor.actionArchive')}</span>
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={remediatingSkill === f.skill_name}
+                            onClick={() => handleRemediate(f.skill_name, 'reset_stats')}
+                            className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                            title={t('doctor.actionResetTooltip')}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            <span>{t('doctor.actionReset')}</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-sm font-medium">{t('title')}</h4>

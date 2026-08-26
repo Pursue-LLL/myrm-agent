@@ -694,6 +694,54 @@ export async function getCuratorHistory(limit: number = 10): Promise<CuratorHist
   return apiRequest<CuratorHistoryEntry[]>(`${SKILLS_API_PREFIX}/curator/history?limit=${limit}`);
 }
 
+// --- Skill Health Doctor Diagnostics API ---
+
+export interface SkillDoctorFindingItem {
+  skill_name: string;
+  finding_type: 'wrong_but_frequent' | 'hoarding_bloat' | 'stale_pinned';
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  call_count: number;
+  success_rate: number;
+  pinned: boolean;
+  recommended_action: 'unpin_and_archive' | 'archive' | 'reset_stats' | 'evolve';
+  details: Record<string, unknown>;
+}
+
+export interface SkillDoctorDiagnosticsResponse {
+  total_skills: number;
+  active_skills: number;
+  stale_skills: number;
+  archived_skills: number;
+  pinned_skills: number;
+  findings: SkillDoctorFindingItem[];
+  health_score: number;
+}
+
+export interface SkillRemediationResponse {
+  success: boolean;
+  skill_name?: string;
+  action?: string;
+  new_status?: string;
+  pinned?: boolean;
+  call_count?: number;
+  error?: string;
+}
+
+export async function getSkillDiagnostics(): Promise<SkillDoctorDiagnosticsResponse> {
+  return apiRequest<SkillDoctorDiagnosticsResponse>(`${SKILLS_API_PREFIX}/curator/diagnostics`);
+}
+
+export async function remediateSkillFinding(
+  skillName: string,
+  action: 'unpin_and_archive' | 'archive' | 'reset_stats',
+): Promise<SkillRemediationResponse> {
+  return apiRequest<SkillRemediationResponse>(`${SKILLS_API_PREFIX}/curator/remediate`, {
+    method: 'POST',
+    body: JSON.stringify({ skill_name: skillName, action }),
+  });
+}
+
 // --- Consolidation (Umbrella Merge) API ---
 
 export interface ConsolidationAction {

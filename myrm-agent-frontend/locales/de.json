@@ -2928,6 +2928,22 @@
         "safetyPromise": "Fähigkeiten werden nie gelöscht. Im schlimmsten Fall werden sie archiviert, und Sie können sie jederzeit wiederherstellen.",
         "title": "Fähigkeits-Kurator",
         "description": "Automatically manages skill lifecycle",
+        "doctor": {
+          "titleAttention": "Fähigkeiten-Diagnose: {count} Anomalien erkannt",
+          "titleHealthy": "Fähigkeiten-Diagnose: Einwandfrei",
+          "allHealthyDesc": "Keine toxischen oder übermäßigen Fähigkeiten gefunden. Alle Fähigkeiten laufen einwandfrei.",
+          "typeWrongButFrequent": "Häufig fehlerhaft",
+          "typeHoarding": "Fähigkeiten-Überlastung",
+          "typeStalePinned": "Inaktiv fixiert",
+          "actionUnpinArchive": "Lösen und archivieren",
+          "actionArchive": "Archivieren",
+          "actionReset": "Zähler zurücksetzen",
+          "actionResetTooltip": "Aufruf- und Fehlerratenstatistik für diese Fähigkeit zurücksetzen",
+          "remediateSuccessTitle": "Behebung erfolgreich",
+          "remediateSuccessDesc": "Fähigkeit {name} wurde erfolgreich bereinigt",
+          "remediateFailedTitle": "Behebung fehlgeschlagen",
+          "remediateFailedDesc": "Fähigkeit konnte nicht bereinigt werden"
+        },
         "enabled": "Kurator aktivieren",
         "enabledDesc": "Lebenszyklusstatus der Fähigkeiten periodisch scannen und verwalten",
         "intervalHours": "Scan-Intervall (Stunden)",
@@ -8520,6 +8536,20 @@
       "activate": "Aktivieren",
       "dismiss": "Verwerfen",
       "activated": "Workflow-Modus für nächste Nachricht aktiviert"
+    },
+    "humanGate": {
+      "title": "Menschliche Entscheidung erforderlich",
+      "timedOut": "Entscheidung abgelaufen (Standard angewendet):",
+      "confirmed": "Entscheidung bestätigt:",
+      "completed": "Abgeschlossen",
+      "customPlaceholder": "Oder benutzerdefinierte Antwort eingeben...",
+      "emptyPlaceholder": "Geben Sie Ihre Entscheidung / Anweisung ein...",
+      "submit": "Absenden",
+      "submitFailed": "Antwort konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.",
+      "actionContinue": "Fortsetzen",
+      "actionStop": "Stoppen & Speichern",
+      "actionExtraRounds": "+10 Runden",
+      "actionInstructions": "Anweisungen bereitstellen"
     },
     "sessionSkills": {
       "tooltip": "Sitzungs-Fähigkeiten",
