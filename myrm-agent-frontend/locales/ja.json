@@ -17,6 +17,15 @@
     "dualTabChat": "対話",
     "dualTabTrace": "実行トレース"
   },
+  "replayAction": {
+    "tooltip": "隔離環境でセッションを再生し決定性を検証",
+    "replayButton": "再生検証",
+    "replaying": "再生検証中...",
+    "replaySuccessDeterministic": "再生完了：高い決定性の一致 ({score}%)",
+    "replaySuccessDrift": "再生完了：軌跡のドリフトを検出 ({score}%)",
+    "replayFailed": "再生検証に失敗しました",
+    "badgeTitle": "クリックして軌跡の差分を確認"
+  },
   "emptyState": {
     "defaultTitle": "データがありません",
     "defaultDescription": "リストが空であるか、まだコンテンツが生成されていません",
@@ -17299,5 +17308,14 @@
     "pinned": "ピン留め",
     "viewDetails": "詳細を表示",
     "refresh": "境界を更新"
+  },
+  "replayAction": {
+    "replaySuccessDeterministic": "再実行検証完了：決定性 {score}%",
+    "replaySuccessDrift": "再実行完了（ドリフトあり）：決定性 {score}%",
+    "replayFailed": "再実行に失敗しました",
+    "tooltip": "実行決定性を再実行して軌跡を比較",
+    "replaying": "再実行中...",
+    "replayButton": "決定性再実行",
+    "badgeTitle": "決定性スコア：{score}%"
   }
 }

@@ -4,6 +4,7 @@
 - app.core.infra.health.agent_diagnostics::AgentColdStartDiagnostic (POS: Agent 预热探针)
 - app.core.infra.health.agent_diagnostics::OllamaModelContextDiagnostic (POS: Ollama 64K 上下文探针)
 - app.core.infra.health.agent_diagnostics::AgentStepBudgetDiagnostic (POS: Agent 步数预算探针)
+- app.core.infra.health.agent_diagnostics::AgentPromptCacheAlignmentDiagnostic (POS: Agent 前缀缓存对齐探针)
 
 [OUTPUT]
 - DLQDiagnostic: 死信队列与 Durable Outbound 发送诊断探针。
@@ -11,6 +12,7 @@
 - AgentColdStartDiagnostic: Agent 冷启动预热探针（别名重导出）。
 - OllamaModelContextDiagnostic: Ollama 64K 上下文探针（别名重导出）。
 - AgentStepBudgetDiagnostic: Agent 步数预算探针（别名重导出）。
+- AgentPromptCacheAlignmentDiagnostic: Agent 前缀缓存对齐探针（别名重导出）。
 - ServerDiagnosticsManager: 聚合各类 Server 业务级探针的管理器。
 - run_server_diagnostics: 供 API 路由直接调用的快捷方法，返回业务层健康度列表。
 
@@ -30,12 +32,14 @@ from myrm_agent_harness.observability.diagnostics.protocols import (
 
 from app.core.infra.health.agent_diagnostics import (
     AgentColdStartDiagnostic,
+    AgentPromptCacheAlignmentDiagnostic,
     AgentStepBudgetDiagnostic,
     OllamaModelContextDiagnostic,
 )
 
 __all__ = [
     "AgentColdStartDiagnostic",
+    "AgentPromptCacheAlignmentDiagnostic",
     "AgentStepBudgetDiagnostic",
     "DLQDiagnostic",
     "ExecutionCacheDiagnostic",
@@ -213,6 +217,7 @@ class ServerDiagnosticsManager:
             AgentColdStartDiagnostic(),
             OllamaModelContextDiagnostic(),
             AgentStepBudgetDiagnostic(),
+            AgentPromptCacheAlignmentDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

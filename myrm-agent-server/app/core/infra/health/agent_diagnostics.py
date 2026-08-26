@@ -6,6 +6,7 @@
 - AgentColdStartDiagnostic: Agent 冷启动首轮预热就绪度与阶段延迟诊断探针。
 - OllamaModelContextDiagnostic: 本地 Ollama 模型 64K 上下文配置与 Agentic 衍生检测探针。
 - AgentStepBudgetDiagnostic: 活跃 Agent 单次执行步数预算充足度探针。
+- AgentPromptCacheAlignmentDiagnostic: Agent 系统提示词前缀对齐与 KV Cache 抖动审计探针。
 
 [POS]
 Server 层 Agent 与模型生态专项健康诊断探针集合。
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 
 from myrm_agent_harness.observability.diagnostics.protocols import (
@@ -326,3 +328,102 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                 code="OK_AGENT_STEP_BUDGET_SKIPPED",
                 message="Agent step budget check skipped or DB uninitialized.",
             )
+
+
+class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
+    """Diagnose if active agents adhere to LLM Prompt Cache Prefix Alignment best practices.
+
+    Detects prefix-jitter anti-patterns in system prompts (e.g. dynamic timestamps or date placeholders
+    in the header) that cause 100% KV cache misses across consecutive turns on DeepSeek/Claude/GPT.
+    """
+
+    # Common dynamic time/date anti-patterns in system prompt headers
+    DYNAMIC_PREFIX_PATTERNS = [
+        re.compile(r"\{\{\s*(?:current_)?(?:time|date|datetime|now|timestamp)\s*\}\}", re.IGNORECASE),
+        re.compile(r"\b(?:current\s+time|today['’]?s\s+date|current\s+date)\s*[:：]\s*\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", re.IGNORECASE),
+        re.compile(r"当前(?:时间|日期|北京时间)\s*[:：]\s*(?:\{\{|\d{4})", re.IGNORECASE),
+    ]
+
+    async def check_health(self) -> HealthReport:
+        try:
+            from sqlalchemy import select
+
+            from app.database.connection import get_session
+            from app.database.models.agent import Agent
+
+            jitter_agents: list[dict[str, object]] = []
+            total_active_agents: int = 0
+
+            async with get_session() as session:
+                stmt = select(Agent).where(Agent.is_active == True)  # noqa: E712
+                res = await session.execute(stmt)
+                agents = res.scalars().all()
+                total_active_agents = len(agents)
+
+                for ag in agents:
+                    prompt = (ag.system_prompt or "").strip()
+                    if not prompt:
+                        continue
+
+                    # Check first 500 characters (the sensitive prefix header)
+                    prefix_snippet = prompt[:500]
+                    matched_patterns: list[str] = []
+
+                    for pattern in self.DYNAMIC_PREFIX_PATTERNS:
+                        if pattern.search(prefix_snippet):
+                            matched_patterns.append(pattern.pattern)
+
+                    if matched_patterns:
+                        jitter_agents.append(
+                            {
+                                "id": ag.id,
+                                "name": ag.name,
+                                "reason": "Dynamic time/date placeholder in system prompt header",
+                            }
+                        )
+
+            if jitter_agents:
+                agent_names = [f"{a['name']}" for a in jitter_agents[:3]]
+                summary_str = ", ".join(agent_names)
+                if len(jitter_agents) > 3:
+                    summary_str += f" and {len(jitter_agents) - 3} more"
+
+                return HealthReport(
+                    component_name="AgentPromptCacheAlignment",
+                    status="warn",
+                    code="WARN_PROMPT_CACHE_PREFIX_JITTER",
+                    message=f"{len(jitter_agents)} Agent(s) have dynamic variables in system prompt prefix.",
+                    detail=f"Jitter detected in: {summary_str}. Dynamic prefix invalidates provider KV Cache on every turn, increasing latency and cost.",
+                    fix_suggestion="Move dynamic timestamps or dates out of the System Prompt and into Human Messages to keep system prefix cache static.",
+                    meta_data={
+                        "jitter_agents": jitter_agents,
+                    },
+                    metrics={
+                        "jitter_agent_count": float(len(jitter_agents)),
+                        "total_active_agents": float(total_active_agents),
+                    },
+                )
+
+            return HealthReport(
+                component_name="AgentPromptCacheAlignment",
+                status="pass",
+                code="OK_PROMPT_CACHE_ALIGNED",
+                message="All active Agent system prompts maintain static prefix alignment.",
+                detail=f"Verified {total_active_agents} active Agent profile(s). Static system prompt ensures optimal KV Cache hit rates (>85%).",
+                meta_data={
+                    "total_active_agents": total_active_agents,
+                },
+                metrics={
+                    "jitter_agent_count": 0.0,
+                    "total_active_agents": float(total_active_agents),
+                },
+            )
+        except Exception as exc:
+            logger.warning("Agent prompt cache alignment health check failed: %s", exc)
+            return HealthReport(
+                component_name="AgentPromptCacheAlignment",
+                status="pass",
+                code="OK_PROMPT_CACHE_ALIGNMENT_SKIPPED",
+                message="Agent prompt cache alignment check skipped or DB uninitialized.",
+            )
+

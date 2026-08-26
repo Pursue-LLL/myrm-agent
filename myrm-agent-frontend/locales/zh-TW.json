@@ -17,6 +17,15 @@
     "dualTabChat": "對話",
     "dualTabTrace": "執行軌跡"
   },
+  "replayAction": {
+    "tooltip": "在隔離環境中重放會話並驗證確定性",
+    "replayButton": "重放驗證",
+    "replaying": "重放驗證中...",
+    "replaySuccessDeterministic": "重放完成：高度確定性吻合 ({score}%)",
+    "replaySuccessDrift": "重放完成：檢測到邏輯分支漂移 ({score}%)",
+    "replayFailed": "重放驗證失敗",
+    "badgeTitle": "點選對比執行軌跡差異"
+  },
   "emptyState": {
     "defaultTitle": "暫無資料",
     "defaultDescription": "當前列表為空或尚未生成任何內容",
@@ -17293,5 +17302,14 @@
     "pinned": "置頂",
     "viewDetails": "查看詳情",
     "refresh": "重新整理邊界"
+  },
+  "replayAction": {
+    "replaySuccessDeterministic": "重跑驗證完成：確定性達 {score}%",
+    "replaySuccessDrift": "重跑完成，存在漂移：確定性 {score}%",
+    "replayFailed": "重跑執行失敗",
+    "tooltip": "重跑執行確定性並對比軌跡",
+    "replaying": "重跑中...",
+    "replayButton": "確定性重跑",
+    "badgeTitle": "確定性得分：{score}%"
   }
 }
