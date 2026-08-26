@@ -43,7 +43,6 @@ from myrm_agent_harness.toolkits.kanban.context_builder import build_task_contex
 from myrm_agent_harness.toolkits.kanban.types import (
     BlockKind,
     KanbanTask,
-    TaskExecutionOutcome,
     TaskExecutionResult,
     TaskStatus,
     TaskTimeoutError,

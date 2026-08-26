@@ -60,7 +60,11 @@ def test_desktop_recorder_lifecycle_and_plan_compile(client: TestClient) -> None
     # 4. Analyze Plan (Intent + Ordered Steps)
     analyze_resp = client.post(
         "/api/v1/skills/desktop-recorder/analyze-plan",
-        json={"session_id": session_id, "skill_name": "Excel To Customs Sync", "intent_hint": "Automate Excel data sync to Customs"},
+        json={
+            "session_id": session_id,
+            "skill_name": "Excel To Customs Sync",
+            "intent_hint": "Automate Excel data sync to Customs",
+        },
     )
     assert analyze_resp.status_code == 200
     analyze_data = analyze_resp.json()

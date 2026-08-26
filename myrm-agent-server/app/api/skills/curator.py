@@ -352,12 +352,15 @@ async def get_skill_diagnostics_endpoint() -> SkillDoctorDiagnosticsResponse:
 
 
 @router.post("/remediate", response_model=SkillRemediationResponse)
-async def remediate_skill_endpoint(req: SkillRemediationRequest) -> SkillRemediationResponse:
+async def remediate_skill_endpoint(
+    req: SkillRemediationRequest,
+) -> SkillRemediationResponse:
     """Remediate a diagnosed skill finding (unpin, archive, reset stats)."""
     from app.core.skills.curator.service import remediate_skill_finding
 
     res = await remediate_skill_finding(req.skill_name, req.action)
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=str(res.get("error", "Remediation failed")))
+        raise HTTPException(
+            status_code=400, detail=str(res.get("error", "Remediation failed"))
+        )
     return SkillRemediationResponse(**res)  # type: ignore[arg-type]
-

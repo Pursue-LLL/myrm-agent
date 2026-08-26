@@ -24,6 +24,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
+
     from app.core.kanban.adapters import SqlAlchemyKanbanStore
 
 logger = logging.getLogger(__name__)

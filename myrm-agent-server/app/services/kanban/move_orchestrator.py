@@ -226,6 +226,7 @@ async def move_task(
         if saved.goal_mode:
             try:
                 from myrm_agent_harness.agent.goals.types import GoalStatus
+
                 from app.services.agent.goals.goal_registry import GoalRegistry
 
                 session_id = f"kanban:{task_id}"

@@ -14,7 +14,9 @@ _CURATOR_MODULE = None
 
 def _load_module_by_path(module_name: str, filename: str):
     """Load a module from app/api/skills/ without importing the package __init__."""
-    module_path = Path(__file__).resolve().parents[3] / "app" / "api" / "skills" / filename
+    module_path = (
+        Path(__file__).resolve().parents[3] / "app" / "api" / "skills" / filename
+    )
     spec = importlib.util.spec_from_file_location(module_name, module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load module from {module_path}")
@@ -58,13 +60,25 @@ def app() -> FastAPI:
     """Create minimal test app for skills API."""
     app = FastAPI(title="Skills Test App")
     drafts_module = _load_drafts_module()
-    app.include_router(drafts_module.router, prefix="/api/v1/skills", tags=["skills-drafts"])
+    app.include_router(
+        drafts_module.router, prefix="/api/v1/skills", tags=["skills-drafts"]
+    )
     curator_module = _load_curator_module()
-    app.include_router(curator_module.router, prefix="/api/v1/skills", tags=["skills-curator"])
+    app.include_router(
+        curator_module.router, prefix="/api/v1/skills", tags=["skills-curator"]
+    )
     sync_module = _load_module_by_path("app.api.skills.sync", "sync.py")
-    app.include_router(sync_module.router, prefix="/api/v1/skills", tags=["skills-sync"])
-    desktop_recorder_module = _load_module_by_path("app.api.skills.desktop_recorder", "desktop_recorder.py")
-    app.include_router(desktop_recorder_module.router, prefix="/api/v1/skills", tags=["skills-desktop-recorder"])
+    app.include_router(
+        sync_module.router, prefix="/api/v1/skills", tags=["skills-sync"]
+    )
+    desktop_recorder_module = _load_module_by_path(
+        "app.api.skills.desktop_recorder", "desktop_recorder.py"
+    )
+    app.include_router(
+        desktop_recorder_module.router,
+        prefix="/api/v1/skills",
+        tags=["skills-desktop-recorder"],
+    )
     from app.api.skills.evolution import router as evolution_router
     from app.api.skills.growth import router as skill_growth_router
 
@@ -116,7 +130,10 @@ async def setup_test_database():
         patch("app.services.approvals.registry.get_session", mock_get_session),
         patch("app.services.skills.growth.queries.get_session", mock_get_session),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),
-        patch("app.database.repositories.uow.get_session_factory", mock_get_session_factory),
+        patch(
+            "app.database.repositories.uow.get_session_factory",
+            mock_get_session_factory,
+        ),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
     ):
         yield

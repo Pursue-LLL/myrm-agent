@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.eval import (
     EvalRunner,
     JsonlReporter,
+    get_benchmark,
 )
 
 from app.core.eval.adaptive import AdaptiveEvalManager

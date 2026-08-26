@@ -13,6 +13,7 @@
 - OllamaModelContextDiagnostic: Ollama 64K 上下文探针（别名重导出）。
 - AgentStepBudgetDiagnostic: Agent 步数预算探针（别名重导出）。
 - AgentPromptCacheAlignmentDiagnostic: Agent 前缀缓存对齐探针（别名重导出）。
+- SkillHoardingHealthDiagnostic: 技能库囤积与错但高频低质技能诊断探针（别名重导出）。
 - ServerDiagnosticsManager: 聚合各类 Server 业务级探针的管理器。
 - run_server_diagnostics: 供 API 路由直接调用的快捷方法，返回业务层健康度列表。
 
@@ -35,6 +36,7 @@ from app.core.infra.health.agent_diagnostics import (
     AgentPromptCacheAlignmentDiagnostic,
     AgentStepBudgetDiagnostic,
     OllamaModelContextDiagnostic,
+    SkillHoardingHealthDiagnostic,
 )
 
 __all__ = [
@@ -45,6 +47,7 @@ __all__ = [
     "ExecutionCacheDiagnostic",
     "OllamaModelContextDiagnostic",
     "ServerDiagnosticsManager",
+    "SkillHoardingHealthDiagnostic",
     "run_server_diagnostics",
 ]
 
@@ -218,6 +221,7 @@ class ServerDiagnosticsManager:
             OllamaModelContextDiagnostic(),
             AgentStepBudgetDiagnostic(),
             AgentPromptCacheAlignmentDiagnostic(),
+            SkillHoardingHealthDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

@@ -59,7 +59,9 @@ _ACTIVE_SESSIONS: dict[str, RecordingSessionState] = {}
 
 class StartDesktopRecordingRequest(BaseModel):
     session_id: str = Field(..., description="Unique ID for this recording session")
-    app_scope: str = Field(default="all", description="Scope of application tracking (all or specific app)")
+    app_scope: str = Field(
+        default="all", description="Scope of application tracking (all or specific app)"
+    )
 
 
 class StartDesktopRecordingResponse(BaseModel):
@@ -155,9 +157,13 @@ class PublishDesktopSkillResponse(BaseModel):
 
 
 @router.post("/start", response_model=StartDesktopRecordingResponse)
-async def start_desktop_recording(request: StartDesktopRecordingRequest) -> StartDesktopRecordingResponse:
+async def start_desktop_recording(
+    request: StartDesktopRecordingRequest,
+) -> StartDesktopRecordingResponse:
     """Start a new desktop workflow recording session."""
-    session = RecordingSessionState(session_id=request.session_id, app_scope=request.app_scope)
+    session = RecordingSessionState(
+        session_id=request.session_id, app_scope=request.app_scope
+    )
     _ACTIVE_SESSIONS[request.session_id] = session
     logger.info("Started desktop skill recording session: %s", request.session_id)
     return StartDesktopRecordingResponse(
@@ -172,9 +178,14 @@ async def record_desktop_event(request: RecordDesktopEventRequest) -> dict[str, 
     """Append a recorded interaction event to the active session."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Recording session not found: {request.session_id}"
+        )
     if session.status != "recording":
-        raise HTTPException(status_code=400, detail=f"Recording session is not active: status is {session.status}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Recording session is not active: status is {session.status}",
+        )
 
     ev = DesktopRecordedEvent(
         seq=request.seq,
@@ -196,16 +207,24 @@ async def record_desktop_event(request: RecordDesktopEventRequest) -> dict[str, 
 
 
 @router.post("/stop", response_model=StopDesktopRecordingResponse)
-async def stop_desktop_recording(request: StopDesktopRecordingRequest) -> StopDesktopRecordingResponse:
+async def stop_desktop_recording(
+    request: StopDesktopRecordingRequest,
+) -> StopDesktopRecordingResponse:
     """Stop the recording session."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Recording session not found: {request.session_id}"
+        )
 
     session.status = "stopped"
     session.stopped_at = time.time()
     duration = session.stopped_at - session.started_at
-    logger.info("Stopped desktop skill recording session %s with %d events", session.session_id, len(session.events))
+    logger.info(
+        "Stopped desktop skill recording session %s with %d events",
+        session.session_id,
+        len(session.events),
+    )
 
     return StopDesktopRecordingResponse(
         session_id=session.session_id,
@@ -220,7 +239,9 @@ async def get_desktop_recording_session(session_id: str) -> dict[str, Any]:
     """Get the current recording session state and events."""
     session = _ACTIVE_SESSIONS.get(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail=f"Recording session not found: {session_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Recording session not found: {session_id}"
+        )
 
     return {
         "session_id": session.session_id,
@@ -234,13 +255,19 @@ async def get_desktop_recording_session(session_id: str) -> dict[str, Any]:
 
 
 @router.post("/synthesize")
-async def synthesize_desktop_skill(request: SynthesizeDesktopSkillRequest) -> dict[str, Any]:
+async def synthesize_desktop_skill(
+    request: SynthesizeDesktopSkillRequest,
+) -> dict[str, Any]:
     """Synthesize a structured skill draft from the recorded event trace."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Recording session not found: {request.session_id}"
+        )
     if not session.events:
-        raise HTTPException(status_code=400, detail="No events recorded in this session to synthesize.")
+        raise HTTPException(
+            status_code=400, detail="No events recorded in this session to synthesize."
+        )
 
     draft = synthesize_desktop_skill_draft(
         events=session.events,
@@ -252,13 +279,19 @@ async def synthesize_desktop_skill(request: SynthesizeDesktopSkillRequest) -> di
 
 
 @router.post("/analyze-plan", response_model=AnalyzeDesktopPlanResponse)
-async def analyze_desktop_plan(request: AnalyzeDesktopPlanRequest) -> AnalyzeDesktopPlanResponse:
+async def analyze_desktop_plan(
+    request: AnalyzeDesktopPlanRequest,
+) -> AnalyzeDesktopPlanResponse:
     """Analyze recorded session events into a structured Intent + Ordered Steps Plan."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Recording session not found: {request.session_id}"
+        )
     if not session.events:
-        raise HTTPException(status_code=400, detail="No events recorded in this session to analyze.")
+        raise HTTPException(
+            status_code=400, detail="No events recorded in this session to analyze."
+        )
 
     # Aggregate events into ordered semantic plan steps
     steps: list[WorkflowPlanStepSchema] = []
@@ -270,7 +303,11 @@ async def analyze_desktop_plan(request: AnalyzeDesktopPlanRequest) -> AnalyzeDes
         app_name = ev.app_name or "System"
         title = ""
         desc = ""
-        tool_hint = "browser_interact_tool" if "browser" in app_name.lower() or "chrome" in app_name.lower() else "shell_execute"
+        tool_hint = (
+            "browser_interact_tool"
+            if "browser" in app_name.lower() or "chrome" in app_name.lower()
+            else "shell_execute"
+        )
 
         if ev.action in ("click", "double_click"):
             elem = ev.element_title or ev.element_role or "target element"
@@ -297,7 +334,9 @@ async def analyze_desktop_plan(request: AnalyzeDesktopPlanRequest) -> AnalyzeDes
                 description=desc,
                 tool_hint=tool_hint,
                 target_app=app_name,
-                variables_used=[f"input_val_{step_idx}"] if ev.action in ("input", "type") else [],
+                variables_used=(
+                    [f"input_val_{step_idx}"] if ev.action in ("input", "type") else []
+                ),
             )
         )
         step_idx += 1
@@ -305,10 +344,17 @@ async def analyze_desktop_plan(request: AnalyzeDesktopPlanRequest) -> AnalyzeDes
     plan = WorkflowIntentPlanSchema(
         name=request.skill_name,
         description=f"Automated multi-app workflow for {request.skill_name}.",
-        intent=request.intent_hint or f"Automates recorded sequence across {len(set(e.app_name for e in session.events if e.app_name))} applications.",
+        intent=request.intent_hint
+        or f"Automates recorded sequence across {len(set(e.app_name for e in session.events if e.app_name))} applications.",
         steps=steps,
         variables=variables,
-        allowed_tools=["browser_navigate_tool", "browser_interact_tool", "shell_execute", "read_file", "write_file"],
+        allowed_tools=[
+            "browser_navigate_tool",
+            "browser_interact_tool",
+            "shell_execute",
+            "read_file",
+            "write_file",
+        ],
     )
 
     harness_plan = WorkflowIntentPlan.from_dict(plan.model_dump())
@@ -322,7 +368,9 @@ async def analyze_desktop_plan(request: AnalyzeDesktopPlanRequest) -> AnalyzeDes
 
 
 @router.post("/compile-plan", response_model=CompileDesktopPlanResponse)
-async def compile_desktop_plan(request: CompileDesktopPlanRequest) -> CompileDesktopPlanResponse:
+async def compile_desktop_plan(
+    request: CompileDesktopPlanRequest,
+) -> CompileDesktopPlanResponse:
     """Validate and compile a finalized WorkflowIntentPlan into clean SKILL.md markdown."""
     harness_plan = WorkflowIntentPlan.from_dict(request.plan.model_dump())
     validation_errors = WorkflowSkillCompiler.validate_plan(harness_plan)
@@ -335,17 +383,26 @@ async def compile_desktop_plan(request: CompileDesktopPlanRequest) -> CompileDes
 
 
 @router.post("/publish", response_model=PublishDesktopSkillResponse)
-async def publish_desktop_skill(request: PublishDesktopSkillRequest) -> PublishDesktopSkillResponse:
+async def publish_desktop_skill(
+    request: PublishDesktopSkillRequest,
+) -> PublishDesktopSkillResponse:
     """Publish the synthesized skill to the local skill store."""
     from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
     from app.core.skills.store.service import skills_service
 
     safe_name = re_sub_name(request.skill_name)
     if not safe_name:
-        raise HTTPException(status_code=400, detail="Invalid skill name. Must start with letter and contain alphanumerics.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid skill name. Must start with letter and contain alphanumerics.",
+        )
 
     config = await skills_service.user_config.get_config()
-    target_base = config.local_skill_paths[0] if config.local_skill_paths else DEFAULT_LOCAL_SKILL_PATHS[0]
+    target_base = (
+        config.local_skill_paths[0]
+        if config.local_skill_paths
+        else DEFAULT_LOCAL_SKILL_PATHS[0]
+    )
     target_dir = Path(target_base).expanduser() / safe_name
     target_dir.mkdir(parents=True, exist_ok=True)
 
