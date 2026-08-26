@@ -16,6 +16,7 @@ from .sandbox import router as sandbox_router
 from .share import router as share_router
 from .title import router as title_router
 from .trajectory import router as trajectory_router
+from .replay import router as replay_router
 from .trash import router as trash_router
 from .turn import router as turn_router
 
@@ -37,5 +38,6 @@ router.include_router(handoff_router)
 router.include_router(sandbox_router)
 router.include_router(share_router)
 router.include_router(trajectory_router)
+router.include_router(replay_router)
 
 __all__ = ["router"]
