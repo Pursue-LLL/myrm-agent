@@ -14769,6 +14769,13 @@
       "checkpoint": "체크포인트"
     }
   },
+  "trajectoryDiff": {
+    "title": "세션 간 실행 궤적 비교 (Trajectory Diff)",
+    "compareWith": "비교 대상 세션",
+    "selectSessionPlaceholder": "비교할 이전 세션을 선택하세요...",
+    "divergenceDetected": "{step}단계에서 실행 분기점 감지됨",
+    "noSessionSelected": "위에서 세션을 선택하여 나란히 궤적 비교를 시작하세요"
+  },
   "evalLab": {
     "pageTitle": "평가 실험실",
     "pageDescription": "테스트 케이스를 관리하고 샌드박스 환경에서 격리 평가를 실행하여 에이전트 성능을 자동 검증",
