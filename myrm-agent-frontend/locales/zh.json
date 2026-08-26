@@ -17272,9 +17272,9 @@
     "replaySuccessDeterministic": "复跑验证完成：确定性达 {score}%",
     "replaySuccessDrift": "复跑完成，存在漂移：确定性 {score}%",
     "replayFailed": "复跑执行失败",
-    "tooltip": "复跑执行确定性并对比轨迹",
-    "replaying": "复跑中...",
-    "replayButton": "确定性复跑",
-    "badgeTitle": "确定性得分：{score}%"
+    "tooltip": "在隔离环境中重放会话并验证确定性",
+    "replaying": "重放验证中...",
+    "replayButton": "重放验证",
+    "badgeTitle": "点击对比执行轨迹差异"
   }
 }

@@ -140,24 +140,19 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
         if "warm_execution_units" in phase_details:
             detail_items.append(f"Warm units: {phase_details['warm_execution_units']}")
 
-        meta_data: dict[str, object] = {
-            "warm_path_score": score,
-            "ready_phases": ready_phases,
-            "phase_details": phase_details,
-        }
-
         return HealthReport(
             component_name="AgentColdStart",
             status=status,
             code=code,
-            meta_data=meta_data,
+            meta_data={
+                "warm_path_score": score,
+                "ready_phases": ready_phases,
+                "phase_details": phase_details,
+            },
             message=message,
             detail="; ".join(detail_items),
             fix_suggestion="; ".join(fix_suggestions) if fix_suggestions else None,
-            metrics={
-                "warm_path_score": float(score),
-                "storage_latency_ms": storage_latency_ms or 0.0,
-            },
+            metrics={"warm_path_score": float(score), "storage_latency_ms": storage_latency_ms or 0.0},
         )
 
 
@@ -210,14 +205,8 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                         message=f"Ollama has {len(models)} installed models but none configured with 64K agentic Modelfile.",
                         detail="Native Ollama models default to 2048 context. Use Settings -> Model Service (Hardware Cookbook) to derive 64K agentic models.",
                         fix_suggestion="Pull models via Myrm UI or create Modelfile with PARAMETER num_ctx 64000.",
-                        meta_data={
-                            "total_models": len(models),
-                            "agentic_models": [],
-                        },
-                        metrics={
-                            "installed_models_count": float(len(models)),
-                            "agentic_models_count": 0.0,
-                        },
+                        meta_data={"total_models": len(models), "agentic_models": []},
+                        metrics={"installed_models_count": float(len(models)), "agentic_models_count": 0.0},
                     )
 
                 return HealthReport(
@@ -226,14 +215,8 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                     code="OK_OLLAMA_CONTEXT_READY",
                     message=f"Ollama local model ecosystem ready ({len(models)} models, {len(agentic_models)} agentic 64K).",
                     detail=f"Detected models: {', '.join(models[:5])}",
-                    meta_data={
-                        "total_models": len(models),
-                        "agentic_models": agentic_models,
-                    },
-                    metrics={
-                        "installed_models_count": float(len(models)),
-                        "agentic_models_count": float(len(agentic_models)),
-                    },
+                    meta_data={"total_models": len(models), "agentic_models": agentic_models},
+                    metrics={"installed_models_count": float(len(models)), "agentic_models_count": float(len(agentic_models))},
                 )
         except Exception:
             return HealthReport(
@@ -245,10 +228,7 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
 
 
 class AgentStepBudgetDiagnostic(DiagnosticProtocol):
-    """Diagnose if active agents have sufficiently high step/recursion budgets.
-
-    Prevents unexpected truncation during complex multi-step reasoning tasks for users migrating from Hermes/Codex.
-    """
+    """Diagnose if active agents have sufficiently high step/recursion budgets."""
 
     RECOMMENDED_MIN_STEPS: int = 100
 
@@ -271,19 +251,10 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                 for ag in agents:
                     budget = ag.max_iterations
                     if budget is not None and budget < self.RECOMMENDED_MIN_STEPS:
-                        low_budget_agents.append(
-                            {
-                                "id": ag.id,
-                                "name": ag.name,
-                                "max_iterations": budget,
-                            }
-                        )
+                        low_budget_agents.append({"id": ag.id, "name": ag.name, "max_iterations": budget})
 
             if low_budget_agents:
-                agent_names = [
-                    f"{a['name']} ({a['max_iterations']} steps)"
-                    for a in low_budget_agents[:3]
-                ]
+                agent_names = [f"{a['name']} ({a['max_iterations']} steps)" for a in low_budget_agents[:3]]
                 summary_str = ", ".join(agent_names)
                 if len(low_budget_agents) > 3:
                     summary_str += f" and {len(low_budget_agents) - 3} more"
@@ -295,14 +266,8 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                     message=f"{len(low_budget_agents)} Agent(s) have step limits below recommended {self.RECOMMENDED_MIN_STEPS} steps.",
                     detail=f"Low budget agents: {summary_str}. May encounter early stoppage during complex tasks.",
                     fix_suggestion="Update Agent settings to increase step budget (recommended >= 100 or unlimited).",
-                    meta_data={
-                        "low_budget_agents": low_budget_agents,
-                        "recommended_min_steps": self.RECOMMENDED_MIN_STEPS,
-                    },
-                    metrics={
-                        "low_budget_agent_count": float(len(low_budget_agents)),
-                        "total_active_agents": float(total_active_agents),
-                    },
+                    meta_data={"low_budget_agents": low_budget_agents, "recommended_min_steps": self.RECOMMENDED_MIN_STEPS},
+                    metrics={"low_budget_agent_count": float(len(low_budget_agents)), "total_active_agents": float(total_active_agents)},
                 )
 
             return HealthReport(
@@ -311,14 +276,8 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                 code="OK_AGENT_STEP_BUDGET_READY",
                 message=f"All active Agent step budgets meet or exceed {self.RECOMMENDED_MIN_STEPS} steps.",
                 detail=f"Verified {total_active_agents} active Agent profile(s).",
-                meta_data={
-                    "total_active_agents": total_active_agents,
-                    "recommended_min_steps": self.RECOMMENDED_MIN_STEPS,
-                },
-                metrics={
-                    "low_budget_agent_count": 0.0,
-                    "total_active_agents": float(total_active_agents),
-                },
+                meta_data={"total_active_agents": total_active_agents, "recommended_min_steps": self.RECOMMENDED_MIN_STEPS},
+                metrics={"low_budget_agent_count": 0.0, "total_active_agents": float(total_active_agents)},
             )
         except Exception as exc:
             logger.warning("Agent step budget health check failed: %s", exc)
@@ -331,13 +290,8 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
 
 
 class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
-    """Diagnose if active agents adhere to LLM Prompt Cache Prefix Alignment best practices.
+    """Diagnose if active agents adhere to LLM Prompt Cache Prefix Alignment best practices."""
 
-    Detects prefix-jitter anti-patterns in system prompts (e.g. dynamic timestamps or date placeholders
-    in the header) that cause 100% KV cache misses across consecutive turns on DeepSeek/Claude/GPT.
-    """
-
-    # Common dynamic time/date anti-patterns in system prompt headers
     DYNAMIC_PREFIX_PATTERNS = [
         re.compile(r"\{\{\s*(?:current_)?(?:time|date|datetime|now|timestamp)\s*\}\}", re.IGNORECASE),
         re.compile(r"\b(?:current\s+time|today['’]?s\s+date|current\s+date)\s*[:：]\s*\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", re.IGNORECASE),
@@ -365,22 +319,10 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                     if not prompt:
                         continue
 
-                    # Check first 500 characters (the sensitive prefix header)
                     prefix_snippet = prompt[:500]
-                    matched_patterns: list[str] = []
-
-                    for pattern in self.DYNAMIC_PREFIX_PATTERNS:
-                        if pattern.search(prefix_snippet):
-                            matched_patterns.append(pattern.pattern)
-
+                    matched_patterns = [p.pattern for p in self.DYNAMIC_PREFIX_PATTERNS if p.search(prefix_snippet)]
                     if matched_patterns:
-                        jitter_agents.append(
-                            {
-                                "id": ag.id,
-                                "name": ag.name,
-                                "reason": "Dynamic time/date placeholder in system prompt header",
-                            }
-                        )
+                        jitter_agents.append({"id": ag.id, "name": ag.name, "reason": "Dynamic time/date placeholder in system prompt header"})
 
             if jitter_agents:
                 agent_names = [f"{a['name']}" for a in jitter_agents[:3]]
@@ -395,13 +337,8 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                     message=f"{len(jitter_agents)} Agent(s) have dynamic variables in system prompt prefix.",
                     detail=f"Jitter detected in: {summary_str}. Dynamic prefix invalidates provider KV Cache on every turn, increasing latency and cost.",
                     fix_suggestion="Move dynamic timestamps or dates out of the System Prompt and into Human Messages to keep system prefix cache static.",
-                    meta_data={
-                        "jitter_agents": jitter_agents,
-                    },
-                    metrics={
-                        "jitter_agent_count": float(len(jitter_agents)),
-                        "total_active_agents": float(total_active_agents),
-                    },
+                    meta_data={"jitter_agents": jitter_agents},
+                    metrics={"jitter_agent_count": float(len(jitter_agents)), "total_active_agents": float(total_active_agents)},
                 )
 
             return HealthReport(
@@ -410,13 +347,8 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                 code="OK_PROMPT_CACHE_ALIGNED",
                 message="All active Agent system prompts maintain static prefix alignment.",
                 detail=f"Verified {total_active_agents} active Agent profile(s). Static system prompt ensures optimal KV Cache hit rates (>85%).",
-                meta_data={
-                    "total_active_agents": total_active_agents,
-                },
-                metrics={
-                    "jitter_agent_count": 0.0,
-                    "total_active_agents": float(total_active_agents),
-                },
+                meta_data={"total_active_agents": total_active_agents},
+                metrics={"jitter_agent_count": 0.0, "total_active_agents": float(total_active_agents)},
             )
         except Exception as exc:
             logger.warning("Agent prompt cache alignment health check failed: %s", exc)
@@ -426,4 +358,5 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                 code="OK_PROMPT_CACHE_ALIGNMENT_SKIPPED",
                 message="Agent prompt cache alignment check skipped or DB uninitialized.",
             )
+
 

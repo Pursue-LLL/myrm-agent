@@ -17,7 +17,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | health_snapshot.py | Core | `collect_health_snapshot()` for on-demand `/health/doctor` API. | ✅ |
 | health_alert_policy.py | Core | `publish_health_alerts()` with 300s dedup; fail-only critical components. | ✅ |
 | health_presenter.py | Core | Sandbox-aware `present_health_report()` for WebUI payloads. | ✅ |
-| agent_diagnostics.py | Core | Agent ecosystem diagnostic probes (AgentColdStart Warm-Path, OllamaModelContextDiagnostic 64K context audit, AgentStepBudgetDiagnostic step budget audit). | ✅ |
+| agent_diagnostics.py | Core | Agent ecosystem diagnostic probes (AgentColdStart Warm-Path, OllamaModelContextDiagnostic 64K context audit, AgentStepBudgetDiagnostic step budget audit, AgentPromptCacheAlignmentDiagnostic prefix cache jitter audit). | ✅ |
 | server_diagnostics.py | Core | Server business diagnostic probes (DLQ & Durable Outbound Redelivery, ExecutionCache & Process RSS) and probe runner manager. | ✅ |
 | qdrant.py | Core | Qdrant path verifier (Lock management is natively handled by Qdrant Rust engine with Server entrypoint Phantom-Kill). | ✅ |
 | sqlite.py | Core | SQLite health checker with PRAGMA quick_check integrity verification and backup-based recovery via SQLiteBackupManager. | ✅ |

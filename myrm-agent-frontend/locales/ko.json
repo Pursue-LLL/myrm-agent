@@ -17442,5 +17442,14 @@
     "pinned": "고정됨",
     "viewDetails": "세부 정보 보기",
     "refresh": "경계 새로고침"
+  },
+  "replayAction": {
+    "replaySuccessDeterministic": "재실행 검증 완료: 결정론적 일치도 {score}%",
+    "replaySuccessDrift": "재실행 완료 (드리프트 감지): 결정론적 일치도 {score}%",
+    "replayFailed": "재실행 실패",
+    "tooltip": "실행 결정론을 재실행하고 궤적을 비교합니다",
+    "replaying": "재실행 중...",
+    "replayButton": "결정론적 재실행",
+    "badgeTitle": "결정론 점수: {score}%"
   }
 }

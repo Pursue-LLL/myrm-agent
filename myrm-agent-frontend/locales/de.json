@@ -17415,5 +17415,14 @@
     "pinned": "Angeheftet",
     "viewDetails": "Details anzeigen",
     "refresh": "Grenze aktualisieren"
+  },
+  "replayAction": {
+    "replaySuccessDeterministic": "Wiederholung verifiziert: {score}% Determiniertheit",
+    "replaySuccessDrift": "Wiederholung mit Abweichung abgeschlossen: {score}% Determiniertheit",
+    "replayFailed": "Wiederholung fehlgeschlagen",
+    "tooltip": "Ausführungsdeterminiertheit wiederholen und Trajektorie vergleichen",
+    "replaying": "Wiederholung läuft...",
+    "replayButton": "Wiederholen",
+    "badgeTitle": "Determiniertheits-Score: {score}%"
   }
 }

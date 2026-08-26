@@ -17313,9 +17313,9 @@
     "replaySuccessDeterministic": "再実行検証完了：決定性 {score}%",
     "replaySuccessDrift": "再実行完了（ドリフトあり）：決定性 {score}%",
     "replayFailed": "再実行に失敗しました",
-    "tooltip": "実行決定性を再実行して軌跡を比較",
-    "replaying": "再実行中...",
-    "replayButton": "決定性再実行",
-    "badgeTitle": "決定性スコア：{score}%"
+    "tooltip": "隔離環境でセッションを再生し決定性を検証",
+    "replaying": "再生検証中...",
+    "replayButton": "再生検証",
+    "badgeTitle": "クリックして軌跡の差分を確認"
   }
 }

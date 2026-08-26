@@ -300,6 +300,7 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
         assert "DLQ" in server_components
         assert "OllamaContext" in server_components
         assert "AgentStepBudget" in server_components
+        assert "AgentPromptCacheAlignment" in server_components
 
         harness_components = [item["component_name"] for item in data["harness"]]
         assert len(harness_components) > 0
@@ -448,3 +449,87 @@ async def test_agent_step_budget_diagnostic() -> None:
         assert report.component_name == "AgentStepBudget"
         assert report.status == "pass"
         assert report.code == "OK_AGENT_STEP_BUDGET_SKIPPED"
+
+
+@pytest.mark.asyncio
+async def test_agent_prompt_cache_alignment_diagnostic() -> None:
+    """Test AgentPromptCacheAlignmentDiagnostic probe for static and jittery system prompts."""
+    from app.core.infra.health.server_diagnostics import AgentPromptCacheAlignmentDiagnostic
+
+    diagnostic = AgentPromptCacheAlignmentDiagnostic()
+
+    # 1. When all agents have static, cache-aligned system prompts
+    agent_ok_1 = SimpleNamespace(
+        id="ag_1",
+        name="Static Prompt Agent",
+        system_prompt="You are a senior software architect. Always adhere to clean code.",
+        is_active=True,
+    )
+    agent_ok_2 = SimpleNamespace(
+        id="ag_2",
+        name="Empty Prompt Agent",
+        system_prompt="",
+        is_active=True,
+    )
+
+    with patch("app.database.connection.get_session") as mock_get_session:
+        mock_session_ctx = MagicMock()
+        mock_session = MagicMock()
+        mock_res = MagicMock()
+        mock_res.scalars.return_value.all.return_value = [agent_ok_1, agent_ok_2]
+
+        async def _fake_execute(*args, **kwargs):
+            return mock_res
+
+        mock_session.execute = _fake_execute
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_ctx.__aexit__.return_value = None
+        mock_get_session.return_value = mock_session_ctx
+
+        report = await diagnostic.check_health()
+        assert report.component_name == "AgentPromptCacheAlignment"
+        assert report.status == "pass"
+        assert report.code == "OK_PROMPT_CACHE_ALIGNED"
+        assert report.metrics["jitter_agent_count"] == 0.0
+        assert report.metrics["total_active_agents"] == 2.0
+
+    # 2. When an agent has dynamic timestamp placeholder in system prompt header (Jitter Anti-Pattern)
+    agent_jitter = SimpleNamespace(
+        id="ag_jitter",
+        name="Jittery Agent",
+        system_prompt="Current Time: {{current_time}}\nYou are a helpful AI assistant.",
+        is_active=True,
+    )
+
+    with patch("app.database.connection.get_session") as mock_get_session:
+        mock_session_ctx = MagicMock()
+        mock_session = MagicMock()
+        mock_res = MagicMock()
+        mock_res.scalars.return_value.all.return_value = [agent_ok_1, agent_jitter]
+
+        async def _fake_execute(*args, **kwargs):
+            return mock_res
+
+        mock_session.execute = _fake_execute
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_ctx.__aexit__.return_value = None
+        mock_get_session.return_value = mock_session_ctx
+
+        report = await diagnostic.check_health()
+        assert report.component_name == "AgentPromptCacheAlignment"
+        assert report.status == "warn"
+        assert report.code == "WARN_PROMPT_CACHE_PREFIX_JITTER"
+        assert report.metrics["jitter_agent_count"] == 1.0
+        assert "Jittery Agent" in report.detail
+        assert report.fix_suggestion is not None
+
+    # 3. When database throws an exception
+    with patch(
+        "app.database.connection.get_session",
+        side_effect=RuntimeError("DB disconnected"),
+    ):
+        report = await diagnostic.check_health()
+        assert report.component_name == "AgentPromptCacheAlignment"
+        assert report.status == "pass"
+        assert report.code == "OK_PROMPT_CACHE_ALIGNMENT_SKIPPED"
+
