@@ -79,17 +79,32 @@ describe('WorkflowRecorderModal', () => {
       expect(screen.getByDisplayValue('Switch to Excel')).toBeInTheDocument();
     });
 
-    // 3. Click Compile & Preview
+    // 3. Test Add Step
+    const addBtn = screen.getByText('addStep');
+    fireEvent.click(addBtn);
+    expect(screen.getByDisplayValue('New Custom Action')).toBeInTheDocument();
+
+    // 4. Click Compile & Preview
     fireEvent.click(screen.getByText('compilePreview'));
     await waitFor(() => {
       expect(screen.getByText('previewTitle')).toBeInTheDocument();
     });
 
-    // 4. Click Publish Skill
+    // 5. Click Publish Skill
     fireEvent.click(screen.getByText('publishSkill'));
     await waitFor(() => {
       expect(screen.getByText('publishSuccessTitle')).toBeInTheDocument();
       expect(handlePublished).toHaveBeenCalledWith('Test Workflow Skill');
     });
+  });
+
+  it('does not render when isOpen is false', () => {
+    const { container } = render(
+      <WorkflowRecorderModal
+        isOpen={false}
+        onClose={vi.fn()}
+      />
+    );
+    expect(container.firstChild).toBeNull();
   });
 });
