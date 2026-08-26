@@ -3277,7 +3277,7 @@
         "createdAt": "作成時間",
         "updatedAt": "更新日時",
         "idleWarning": "30 日以上未使用です。フリーズまたはアーカイブを検討してください",
-        "archivedReason": "このスキルはアーカイブされています",
+        "archivedReason": "長期未使用のためアーカイブ済み",
         "usageStats": "{count} 回呼び出されました",
         "neverUsed": "未使用",
         "tokenCostTooltip": "コンテキストコスト：会話ごとに約 {count} tokens",
@@ -3347,7 +3347,6 @@
         "lifecycleActionFailed": "操作に失敗しました",
         "staleReason": "最終使用：{date}",
         "staleReasonNeverUsed": "作成以来未使用",
-        "archivedReason": "長期未使用のためアーカイブ済み",
         "updateAvailable": "更新",
         "updateAvailableReason": "上流に新しいバージョンがあります。ローカルの変更は保持されています。",
         "acceptUpstream": "更新を適用",
@@ -3435,11 +3434,12 @@
           "executeFailed": "マージ失敗",
           "confirmTitle": "マージを確認",
           "confirmDesc": "この操作により {count} 個のスキルが傘スキルに統合されます。アーカイブ済みスキルはいつでも復元できます。"
-        }
+        },
+        "recordWorkflowBtn": "ワークフロー録画"
       },
       "detail": {
         "title": "スキル詳細",
-        "noDescription": "スキルの説明はありません",
+        "noDescription": "説明はありません。",
         "close": "閉じる",
         "enable": "スキルを有効化",
         "disable": "スキルを無効化",
@@ -3496,8 +3496,7 @@
         "revealInManager": "表示",
         "cleanupInvalid": "クリーンアップ",
         "revealFailed": "パスの表示に失敗しました",
-        "export": "エクスポート",
-        "noDescription": "説明はありません。"
+        "export": "エクスポート"
       },
       "growth": {
         "title": "スキル成長",
@@ -8077,9 +8076,7 @@
       "noSessionStats": "パフォーマンスデータがありません",
       "modelBreakdown": "モデル別内訳",
       "performance": "パフォーマンス",
-      "toolBreakdown": "ツール別内訳",
-      "routingCode": "コード",
-      "routingLongDoc": "長文ドキュメント"
+      "toolBreakdown": "ツール別内訳"
     },
     "liveness": {
       "idle": "待機中",
@@ -8502,11 +8499,11 @@
       "time_night_3": "技術ブログのアウトラインとコア論点をまとめる"
     },
     "lifeOperator": {
-      "contextHeader": "時間帯に応じたライフ・ワークオペレーター",
-      "morning": "朝の重要事項",
+      "contextHeader": "時間帯別コンテキストオペレーター",
+      "morning": "朝のフォーカス",
       "afternoon": "午後のスプリント",
       "evening": "夜の振り返り",
-      "night": "深夜の集中",
+      "night": "深夜の集中作業",
       "all": "すべて探索"
     },
     "subagent": {
@@ -8662,14 +8659,6 @@
     "archiveRestore": {
       "invalidTitle": "アーカイブ復元に失敗しました",
       "invalidDescription": "アーカイブされたコンテキストを復元できませんでした: {error}"
-    },
-    "lifeOperator": {
-      "contextHeader": "時間帯別コンテキストオペレーター",
-      "morning": "朝のフォーカス",
-      "afternoon": "午後のスプリント",
-      "evening": "夜の振り返り",
-      "night": "深夜の集中作業",
-      "all": "すべて探索"
     }
   },
   "mode": {
@@ -12502,17 +12491,17 @@
     "reclaimReassignLabel": "エージェントに再割り当て（任意）",
     "reclaimSuccess": "タスクの回収に成功しました",
     "reclaimFailed": "タスクの回収に失敗しました",
-    "replanTitle": "DAG 計画改訂レビュー",
-    "replanDescription": "タスクグラフに対する提案された変更を確認します。すべての変更はコミット時に非循環性が検証され、単一トランザクションでアトミックに適用されます。",
+    "replanTitle": "DAG 計画変更レビュー",
+    "replanDescription": "タスク依存関係グラフの変更提案をレビューします。変更は非巡回性が検証され、コミット時にアトミックに適用されます。",
     "replanAdded": "追加予定のタスク",
     "replanUpdated": "更新予定のタスク",
     "replanRemoved": "削除予定のタスク",
-    "replanRationaleLabel": "改訂理由 / トリガー原因",
-    "replanRationalePlaceholder": "例: 下流 API のデータ依存関係の欠落を発見",
-    "replanRationaleRequired": "計画改訂の理由は必須です",
-    "replanChangesList": "変更明細 Diff",
-    "replanNoChanges": "提案されたタスクの変更はありません",
-    "replanInvariantGuaranteed": "完了およびレビュー中のタスクは厳格にロックされ、変更されません。コミット時に DAG の非循環性が保証されます。",
+    "replanRationaleLabel": "改訂の理由 / トリガー",
+    "replanRationalePlaceholder": "例：APIスキーマの依存関係の欠落が判明したため",
+    "replanRationaleRequired": "計画変更には理由の入力が必要です",
+    "replanChangesList": "変更差分詳細",
+    "replanNoChanges": "変更提案はありません",
+    "replanInvariantGuaranteed": "完了およびレビュー中のタスクは保護され、変更されません。DAG の非巡回性はコミット時に保証されます。",
     "replanApply": "計画改訂を適用",
     "replanAppliedSuccess": "計画改訂が正常に適用されました",
     "replanFailed": "計画改訂の適用に失敗しました",
@@ -12751,20 +12740,6 @@
     "decomposeError": "分解呼び出しに失敗しました — もう一度お試しください",
     "decomposeFailedDetail": "LLM 呼び出しが正常に完了しませんでした: {reason}",
     "decomposeApplied": "{count} 個の子タスクを作成しました",
-    "replanTitle": "DAG 計画変更レビュー",
-    "replanDescription": "タスク依存グラフに対する変更提案をレビューします。すべての変更は循環なし検証を経て単一トランザクションで適用されます。",
-    "replanAdded": "追加予定タスク",
-    "replanUpdated": "更新予定タスク",
-    "replanRemoved": "削除予定タスク",
-    "replanRationaleLabel": "変更理由 / トリガー要因",
-    "replanRationalePlaceholder": "例: 不足していた下流 API 依存関係の発見",
-    "replanRationaleRequired": "計画変更理由の入力は必須です",
-    "replanChangesList": "変更詳細 Diff",
-    "replanNoChanges": "提案されたタスク変更はありません",
-    "replanInvariantGuaranteed": "完了済みおよびレビュー中のタスクは厳格に保護され変更されません。適用時に DAG 循環なしが検証されます。",
-    "replanApply": "計画変更を適用",
-    "replanAppliedSuccess": "計画変更が正常に適用されました",
-    "replanFailed": "計画変更の適用に失敗しました",
     "decomposeNoFanout": "このタスクは分解する必要はありません。「仕様化」機能を使用してください。",
     "decomposeAssignee": "エージェント",
     "decomposeDefaultAssignee": "デフォルト",
@@ -12821,21 +12796,7 @@
       "actionDispatching": "待機中の実行エージェントにキューイング",
       "actionBacklog": "優先度を設定して実行をスケジュール",
       "actionDone": "タスクは正常に完了しました"
-    },
-    "replanTitle": "DAG 計画変更レビュー",
-    "replanDescription": "タスク依存関係グラフの変更提案をレビューします。変更は非巡回性が検証され、コミット時にアトミックに適用されます。",
-    "replanAdded": "追加予定のタスク",
-    "replanUpdated": "更新予定のタスク",
-    "replanRemoved": "削除予定のタスク",
-    "replanRationaleLabel": "改訂の理由 / トリガー",
-    "replanRationalePlaceholder": "例：APIスキーマの依存関係の欠落が判明したため",
-    "replanRationaleRequired": "計画変更には理由の入力が必要です",
-    "replanChangesList": "変更差分詳細",
-    "replanNoChanges": "変更提案はありません",
-    "replanInvariantGuaranteed": "完了およびレビュー中のタスクは保護され、変更されません。DAG の非巡回性はコミット時に保証されます。",
-    "replanApply": "計画改訂を適用",
-    "replanAppliedSuccess": "計画改訂が正常に適用されました",
-    "replanFailed": "計画改訂の適用に失敗しました"
+    }
   },
   "channels": {
     "sectionTitle": "メッセージチャネル",
@@ -15444,7 +15405,7 @@
     "evalStarted": "評価タスクを開始しました",
     "evalStartFailed": "評価タスクの開始に失敗",
     "benchmarksRunStarted": "ベンチマーク評価を開始しました",
-    "alreadyRunning": "評価は既に実行中です",
+    "alreadyRunning": "評価がすでに実行中です",
     "abortSent": "停止信号を送信しました。安全に終了しています...",
     "abortFailed": "停止信号の送信に失敗",
     "datasetCreated": "データセットを作成しました",
@@ -15572,8 +15533,6 @@
       "historyCurrent": "表示中",
       "historyView": "表示"
     },
-    "benchmarksRunStarted": "ベンチマーク評価を開始しました",
-    "alreadyRunning": "評価がすでに実行中です",
     "wbBench": {
       "title": "ベンチマークデータセット",
       "description": "公開エージェントベンチマーク（WorkBuddy Bench 各トラックや BrowseComp などのサードパーティ評価セット）を隔離されたサンドボックスでダウンロード・実行し、業界ベースラインと比較します。",
@@ -15699,6 +15658,37 @@
     "unlockFailed": "ロック解除に失敗しました"
   },
   "skills": {
+    "desktopRecording": {
+      "drawerTitle": "デスクトップワークフロー スキルレコーダー",
+      "close": "閉じる",
+      "currentStatus": "現在のステータス",
+      "status_idle": "録画準備完了",
+      "status_recording": "デスクトップ操作を記録中...",
+      "status_stopped": "記録停止",
+      "status_synthesizing": "AIがスキルを統合・要約中...",
+      "status_draft_ready": "スキル下書きレビュー準備完了",
+      "status_published": "スキル公開完了",
+      "btnStart": "記録開始",
+      "btnStop": "記録停止",
+      "btnReset": "リセット",
+      "skillNameLabel": "スキル名",
+      "skillNamePlaceholder": "例: erp_invoice_export_workflow",
+      "skillDescLabel": "説明と意図",
+      "skillDescPlaceholder": "このデスクトップワークフローの目的を簡単に説明してください...",
+      "btnSynthesize": "記録からスキルを生成",
+      "draftTitle": "生成されたスキルドラフト",
+      "toolLiftingActive": "ツールリフティング有効",
+      "parameterSlots": "検出された動的パラメータ",
+      "markdownEditorLabel": "SKILL.md ソースコード（編集可能）",
+      "btnPublish": "スキルストアに公開",
+      "publishing": "公開中...",
+      "publishSuccessTitle": "スキル公開成功",
+      "publishSuccessDesc": "新しいデスクトップワークフロースキルがエージェント全体で利用可能になりました。",
+      "btnNewRecord": "別のワークフローを記録",
+      "stepsHeading": "記録されたステップ ({count})",
+      "noStepsYet": "デスクトップ操作はまだ記録されていません。[記録開始] をクリックして操作を実行してください。",
+      "deleteStep": "ステップを削除"
+    },
     "migration": {
       "title": "から Hermes/OpenClaw インポート",
       "description": "他のプラットフォームのカスタムスキルと設定をシームレスに移行します。",
@@ -15840,6 +15830,25 @@
       "revokeTitle": "「{permission}」権限を取り消しますか（{skill}）",
       "expand": "権限詳細を展開",
       "collapse": "権限詳細を閉じる"
+    },
+    "workflowRecorder": {
+      "title": "デスクトップワークフロー録画とスキル生成",
+      "idleDesc": "マルチアプリタスクを1回録画すると、AIが意図と順序付きステップを自動的に再構成し、再利用可能なスキルを生成します。",
+      "workflowNameLabel": "スキル名",
+      "intentHintLabel": "意図ヒント（任意）",
+      "startRecording": "録画開始",
+      "recordingActive": "デスクトップ操作を録画中...",
+      "eventsCaptured": "{count} 件のイベントを記録",
+      "stopAndAnalyze": "録画終了と意図再構成",
+      "reviewStepsTitle": "再構成された実行手順と変数",
+      "addStep": "ステップ追加",
+      "compilePreview": "SKILL.md をコンパイルしてプレビュー",
+      "previewTitle": "生成された SKILL.md プレビュー",
+      "publishSkill": "ローカルスキルストアに公開",
+      "publishSuccessTitle": "スキルの公開に成功しました！",
+      "publishSuccessDesc": "スキル「{name}」がコンパイルされ、即座に利用可能になりました。",
+      "cancel": "キャンセル",
+      "close": "閉じる"
     }
   },
   "followUps": {

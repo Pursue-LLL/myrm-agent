@@ -7,6 +7,7 @@ from app.api.skills import (
     config,
     core,
     curator,
+    desktop_recorder,
     discovery,
     drafts,
     instances,
@@ -33,6 +34,7 @@ router.include_router(drafts.router, tags=["skills-drafts"])
 
 # curator MUST be before routers with /{skill_id} catch-all patterns
 router.include_router(curator.router, tags=["skills-curator"])
+router.include_router(desktop_recorder.router, tags=["skills-desktop-recorder"])
 
 # These routers have /{skill_id}/... patterns that could match /curator/...
 router.include_router(packaging.router, tags=["skills-packaging"])

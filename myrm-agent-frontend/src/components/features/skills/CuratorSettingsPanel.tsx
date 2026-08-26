@@ -2,7 +2,8 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Play, Loader2, History, ChevronDown, ChevronRight, Combine, ShieldAlert, ShieldCheck, AlertTriangle, RotateCcw, Archive } from 'lucide-react';
+import { Play, Loader2, History, ChevronDown, ChevronRight, Combine, ShieldAlert, ShieldCheck, AlertTriangle, RotateCcw, Archive, Video } from 'lucide-react';
+import { WorkflowRecorderModal } from './WorkflowRecorderModal';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
@@ -60,6 +61,7 @@ const CuratorSettingsPanel = memo(
     const [diagnostics, setDiagnostics] = useState<SkillDoctorDiagnosticsResponse | null>(null);
     const [diagLoading, setDiagLoading] = useState(false);
     const [remediatingSkill, setRemediatingSkill] = useState<string | null>(null);
+    const [recorderOpen, setRecorderOpen] = useState(false);
 
     const loadDiagnostics = useCallback(async () => {
       setDiagLoading(true);
@@ -363,8 +365,29 @@ const CuratorSettingsPanel = memo(
                 {t('safetyPromise')}
               </p>
             </div>
-            <Switch checked={config.enabled} onCheckedChange={(v) => updateField('enabled', v)} />
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRecorderOpen(true)}
+                className="h-8 gap-1.5 text-xs font-medium"
+              >
+                <Video className="h-3.5 w-3.5 text-primary" />
+                <span>{t('recordWorkflowBtn')}</span>
+              </Button>
+              <Switch checked={config.enabled} onCheckedChange={(v) => updateField('enabled', v)} />
+            </div>
           </div>
+
+          <WorkflowRecorderModal
+            isOpen={recorderOpen}
+            onClose={() => setRecorderOpen(false)}
+            onPublished={() => {
+              loadDiagnostics();
+              onSweepComplete?.();
+            }}
+          />
 
           {config.enabled && (
             <div className="space-y-4 pl-1">

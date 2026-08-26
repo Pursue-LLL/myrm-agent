@@ -3297,7 +3297,7 @@
         "createdAt": "创建时间",
         "updatedAt": "更新时间",
         "idleWarning": "近30天未被任何智能体调用，建议冻结或归档",
-        "archivedReason": "该技能已被归档",
+        "archivedReason": "因长期不活跃而归档",
         "usageStats": "已调用 {count} 次",
         "neverUsed": "从未调用",
         "tokenCostTooltip": "上下文开销：每次对话约 {count} tokens",
@@ -3367,7 +3367,6 @@
         "lifecycleActionFailed": "操作失败",
         "staleReason": "上次使用：{date}",
         "staleReasonNeverUsed": "创建后从未使用",
-        "archivedReason": "因长期不活跃而归档",
         "updateAvailable": "有更新",
         "updateAvailableReason": "上游有新版本可用。您的本地修改已被保留。",
         "acceptUpstream": "应用更新",
@@ -3455,7 +3454,8 @@
           "executeFailed": "合并失败",
           "confirmTitle": "确认合并",
           "confirmDesc": "此操作将把 {count} 个技能合并为伞形技能。归档的技能可随时恢复。"
-        }
+        },
+        "recordWorkflowBtn": "录制工作流"
       },
       "detail": {
         "title": "技能详情",
@@ -15711,6 +15711,37 @@
     "unlockFailed": "解锁失败"
   },
   "skills": {
+    "desktopRecording": {
+      "drawerTitle": "桌面工作流技能录制器",
+      "close": "关闭",
+      "currentStatus": "当前状态",
+      "status_idle": "准备就绪",
+      "status_recording": "正在录制桌面操作...",
+      "status_stopped": "录制已停止",
+      "status_synthesizing": "AI 正在提炼技能意图...",
+      "status_draft_ready": "技能草稿就绪，待审查",
+      "status_published": "技能已成功发布",
+      "btnStart": "开始录制",
+      "btnStop": "停止录制",
+      "btnReset": "重置",
+      "skillNameLabel": "技能名称",
+      "skillNamePlaceholder": "例如 erp_invoice_export_workflow",
+      "skillDescLabel": "描述与意图",
+      "skillDescPlaceholder": "简要描述该桌面工作流的业务目标...",
+      "btnSynthesize": "从录制提炼技能",
+      "draftTitle": "提炼生成的技能草稿",
+      "toolLiftingActive": "工具自动提升已生效",
+      "parameterSlots": "已识别动态参数插槽",
+      "markdownEditorLabel": "SKILL.md 源码（可在线编辑）",
+      "btnPublish": "发布到本地技能库",
+      "publishing": "正在发布...",
+      "publishSuccessTitle": "技能发布成功",
+      "publishSuccessDesc": "全新桌面工作流技能已就绪，可在各智能体中直接调用。",
+      "btnNewRecord": "录制新工作流",
+      "stepsHeading": "已捕获操作步骤 ({count})",
+      "noStepsYet": "暂未记录任何桌面交互。点击开始录制后在桌面演示您的工作流即可。",
+      "deleteStep": "删除此步骤"
+    },
     "migration": {
       "title": "从 Hermes/OpenClaw 导入",
       "description": "无缝迁移您在其他平台的自定义技能和配置。",
@@ -15852,6 +15883,25 @@
       "revokeTitle": "撤销「{permission}」权限（{skill}）",
       "expand": "展开权限详情",
       "collapse": "收起权限详情"
+    },
+    "workflowRecorder": {
+      "title": "桌面工作流录制与技能生成",
+      "idleDesc": "点击开始录制后，在电脑上演示一次跨应用操作，AI 将自动分析意图并提炼出可泛化复用的自动化技能。",
+      "workflowNameLabel": "技能名称",
+      "intentHintLabel": "意图提示（可选）",
+      "startRecording": "开始录制",
+      "recordingActive": "正在录制桌面工作流...",
+      "eventsCaptured": "已捕获 {count} 个交互事件",
+      "stopAndAnalyze": "结束录制并提炼意图",
+      "reviewStepsTitle": "AI 提炼的执行步骤与变量",
+      "addStep": "添加步骤",
+      "compilePreview": "编译并预览 SKILL.md",
+      "previewTitle": "编译生成的 SKILL.md 预览",
+      "publishSkill": "发布到本地技能库",
+      "publishSuccessTitle": "技能发布成功！",
+      "publishSuccessDesc": "已成功生成并发布技能「{name}」，各智能体已可即时调用。",
+      "cancel": "取消",
+      "close": "关闭"
     }
   },
   "followUps": {

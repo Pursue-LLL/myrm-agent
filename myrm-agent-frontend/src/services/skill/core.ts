@@ -885,3 +885,111 @@ export async function syncSkillPoolToAgents(skillId: string, targetAgentIds: str
     }),
   });
 }
+
+// --- Desktop Workflow Skill Recorder ---
+
+export interface WorkflowPlanStep {
+  step_id: string;
+  title: string;
+  description: string;
+  tool_hint?: string;
+  target_app?: string;
+  variables_used?: string[];
+}
+
+export interface WorkflowIntentPlan {
+  name: string;
+  description?: string;
+  intent?: string;
+  steps: WorkflowPlanStep[];
+  variables?: Record<string, string>;
+  allowed_tools?: string[];
+}
+
+export interface AnalyzeDesktopPlanResponse {
+  plan: WorkflowIntentPlan;
+  event_count: number;
+  validation_errors: string[];
+}
+
+export interface CompileDesktopPlanResponse {
+  markdown_content: string;
+  validation_errors: string[];
+}
+
+export interface PublishDesktopSkillResponse {
+  skill_id: string;
+  skill_name: string;
+  status: string;
+  file_path: string;
+}
+
+export async function startDesktopRecording(
+  sessionId: string,
+  appScope: string = 'all',
+): Promise<{ session_id: string; status: string; started_at: number }> {
+  return apiRequest(`${SKILLS_API_PREFIX}/desktop-recorder/start`, {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, app_scope: appScope }),
+  });
+}
+
+export async function stopDesktopRecording(
+  sessionId: string,
+): Promise<{ session_id: string; status: string; event_count: number; duration_seconds: number }> {
+  return apiRequest(`${SKILLS_API_PREFIX}/desktop-recorder/stop`, {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+
+export async function recordDesktopEvent(payload: {
+  session_id: string;
+  seq: number;
+  action: string;
+  app_name?: string;
+  window_title?: string;
+  element_title?: string;
+  value?: string;
+}): Promise<{ status: string; recorded_count: number }> {
+  return apiRequest(`${SKILLS_API_PREFIX}/desktop-recorder/event`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function analyzeDesktopPlan(
+  sessionId: string,
+  skillName: string = 'desktop-workflow-skill',
+  intentHint: string = '',
+): Promise<AnalyzeDesktopPlanResponse> {
+  return apiRequest<AnalyzeDesktopPlanResponse>(`${SKILLS_API_PREFIX}/desktop-recorder/analyze-plan`, {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, skill_name: skillName, intent_hint: intentHint }),
+  });
+}
+
+export async function compileDesktopPlan(plan: WorkflowIntentPlan): Promise<CompileDesktopPlanResponse> {
+  return apiRequest<CompileDesktopPlanResponse>(`${SKILLS_API_PREFIX}/desktop-recorder/compile-plan`, {
+    method: 'POST',
+    body: JSON.stringify({ plan }),
+  });
+}
+
+export async function publishDesktopSkill(
+  sessionId: string,
+  skillName: string,
+  markdownContent: string,
+  description: string = '',
+): Promise<PublishDesktopSkillResponse> {
+  return apiRequest<PublishDesktopSkillResponse>(`${SKILLS_API_PREFIX}/desktop-recorder/publish`, {
+    method: 'POST',
+    body: JSON.stringify({
+      session_id: sessionId,
+      skill_name: skillName,
+      markdown_content: markdownContent,
+      description,
+    }),
+  });
+}
+

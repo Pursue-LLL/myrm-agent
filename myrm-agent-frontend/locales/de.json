@@ -102,60 +102,60 @@
   },
   "settings": {
     "lockedUse": {
-      "title": "Computer-Nutzung / Gesperrte Nutzung",
-      "layer1Title": "Bildschirm-Aktivhaltung",
-      "layer1Desc": "Verhindert während CU-Sitzungen automatisch den Bildschirm-Ruhezustand, keine Konfiguration erforderlich",
+      "title": "Computernutzung / gesperrte Nutzung",
+      "layer1Title": "Wach halten anzeigen",
+      "layer1Desc": "Verhindert automatisch den Bildschirmschlaf während CU-Sitzungen, keine Konfiguration erforderlich",
       "layer1Badge": "Immer an",
-      "layer2Title": "Bildschirmentsperrung",
-      "layer2DescSupported": "Entsperrt den Bildschirm bei CU-Aufgaben vorübergehend automatisch, wenn er gesperrt ist",
-      "layer2DescUnsupported": "Automatische Entsperrung wird auf der aktuellen Plattform ({platform}) nicht unterstützt",
+      "layer2Title": "Bildschirm entsperren",
+      "layer2DescSupported": "Entsperrt den Bildschirm bei gesperrtem Zustand vorübergehend automatisch für CU-Aufgaben",
+      "layer2DescUnsupported": "Die automatische Entsperrung wird auf der aktuellen Plattform ({platform}) nicht unterstützt.",
       "passwordSaved": "Passwort im System-Schlüsselbund gespeichert",
       "deletePassword": "Gespeichertes Passwort löschen",
-      "inputPlaceholder": "System-Anmeldekennwort eingeben",
+      "inputPlaceholder": "System-Anmeldepasswort eingeben",
       "savePassword": "Im Schlüsselbund speichern",
-      "saving": "Speichern...",
+      "saving": "Sparen...",
       "cancel": "Abbrechen",
-      "securityNote": "Das Passwort wird sicher verschlüsselt im macOS-Schlüsselbund gespeichert (derselbe sichere Speicher wie bei Chrome und 1Password)",
+      "securityNote": "Das Passwort wird sicher im macOS-Schlüsselbund verschlüsselt (gleicher sicherer Speicher wie Chrome und 1Password)",
       "setPassword": "System-Anmeldepasswort festlegen",
       "toastSaved": "Passwort im Schlüsselbund gespeichert",
-      "toastSaveFailed": "Fehler beim Speichern des Passworts: {error}",
+      "toastSaveFailed": "Passwort konnte nicht gespeichert werden: {error}",
       "toastDeleted": "Passwort aus dem Schlüsselbund gelöscht",
       "toastDeleteFailed": "Fehler beim Löschen: {error}"
     },
     "desktopPermissions": {
-      "title": "Desktop-Automatisierungsbereitschaft",
+      "title": "Desktop-Automatisierung – Bereitschaft",
       "allReady": "Alle Funktionen bereit",
-      "actionRequired": "Konfiguration für Desktop-Automatisierung erforderlich",
+      "actionRequired": "Einrichtung für Desktop-Automatisierung erforderlich",
       "checking": "Umgebung prüfen...",
       "platform": "Plattform: {name}",
       "accessibility": "Eingabesteuerung",
-      "accessibilityDesc": "Tastatur- und Mausautomatisierungs-Tools verfügbar",
+      "accessibilityDesc": "Tastatur- und Mausautomatisierungswerkzeuge verfügbar",
       "screenRecording": "Bildschirmaufnahme",
-      "screenRecordingDesc": "Screenshot- und Bildschirmaufzeichnungs-Tools verfügbar",
-      "fixHints": "Lösungshinweise",
-      "checkFailed": "Desktop-Berechtigungen konnten nicht überprüft werden",
-      "copiedToClipboard": "Befehl in Zwischenablage kopiert",
+      "screenRecordingDesc": "Screenshot- und Bildschirmaufnahmewerkzeuge verfügbar",
+      "fixHints": "Behebung",
+      "checkFailed": "Desktop-Berechtigungen konnten nicht geprüft werden",
+      "copiedToClipboard": "Befehl in die Zwischenablage kopiert",
       "statusOk": "OK",
       "statusMissing": "Fehlt",
       "openSettings": "Einstellungen öffnen",
       "copyCommand": "Befehl kopieren",
       "trustedAppsTitle": "Immer vertrauenswürdige Apps",
-      "trustedAppsDesc": "Apps, die Sie während der Desktop-Steuerung dauerhaft zugelassen haben. Hier widerrufen.",
-      "trustedAppsEmpty": "Noch keine dauerhaft vertrauenswürdigen Apps.",
-      "trustedAppsLoadFailed": "Vertrauenswürdige Apps konnten nicht geladen werden",
-      "trustedAppsRetry": "Wiederholen",
+      "trustedAppsDesc": "Apps, die Sie während der Desktop-Steuerung dauerhaft zugelassen haben. Widerrufen Sie hier den Zugriff.",
+      "trustedAppsEmpty": "Noch keine immer vertrauenswürdigen Apps.",
+      "trustedAppsLoadFailed": "Immer vertrauenswürdige Apps konnten nicht geladen werden",
+      "trustedAppsRetry": "Erneut versuchen",
       "trustedAppsRevoke": "Widerrufen",
       "trustedAppsRevokeSuccess": "Vertrauenswürdige App entfernt",
-      "trustedAppsRevokeFailed": "Vertrauenswürdige App konnte nicht widerrufen werden"
+      "trustedAppsRevokeFailed": "Widerrufen der vertrauenswürdigen App fehlgeschlagen"
     },
     "rate_limits": {
-      "title": "Ratenbegrenzungs-Monitor",
-      "no_data": "Noch keine Ratenbegrenzungsdaten vorhanden. Senden Sie eine Anfrage, um das Tracking zu starten.",
+      "title": "Rate-Limit-Überwachung",
+      "no_data": "Noch keine Rate-Limit-Daten verfügbar. Senden Sie eine Anfrage, um die Verfolgung zu starten.",
       "requests_per_minute": "RPM",
       "requests_per_hour": "RPH",
       "tokens_per_minute": "TPM",
       "tokens_per_hour": "TPH",
-      "warning": "Ratenbegrenzungsauslastung für {provider} ({model}) liegt bei {pct}%. Der Agent verlangsamt sich möglicherweise."
+      "warning": "Die Ratenlimitnutzung für {provider} ({model}) liegt bei {pct} %. Der Agent wird möglicherweise langsamer."
     },
     "title": "Einstellungen",
     "autoSaveFailed": "Automatisches Speichern fehlgeschlagen. Bitte speichern Sie manuell, bevor Sie fortfahren.",
@@ -169,9 +169,9 @@
     },
     "communication": {
       "desc": {
-        "channels": "Verbinden und aktivieren Sie externe IM-, E-Mail-, SMS- und Unternehmensnachrichtenkanäle",
-        "routing": "Zuordnung von Chats und Kanälen zu bestimmten Agenten und gemeinsamen Kontextrichtlinien",
-        "voice": "Speech-to-Text (STT) und Text-to-Speech (TTS) Anbieter konfigurieren"
+        "channels": "Externe IM-, E-Mail-, SMS- und Unternehmens-Messaging-Kanäle verbinden und aktivieren",
+        "routing": "Chats und Kanäle bestimmten Agenten und Richtlinien für gemeinsamen Kontext zuordnen",
+        "voice": "Sprach-zu-Text- (STT) und Text-zu-Sprache-Anbieter (TTS) konfigurieren"
       }
     },
     "menu": {
@@ -242,65 +242,65 @@
       }
     },
     "workbench": {
-      "badge": "Asset-Erhalt & Plattformneutralität",
-      "title": "Meine Werkbank",
-      "description": "Echtzeit-Aggregation aller Kern-Assets Ihres aktuellen Arbeitsbereichs. Myrm nutzt eine offene, neutrale Architektur: Alle Daten werden in Standardformaten persistiert und können jederzeit verlustfrei migriert oder exportiert werden.",
-      "refresh": "Assets aktualisieren",
-      "assetMatrixTitle": "Übersicht über den Asset-Erhalt",
+      "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
+      "title": "Datensouveränität & Wertschöpfung",
+      "description": "Alle Ihre Erinnerungen, Wissensdatenbank-Wikis, Fähigkeiten, Regeln und geplanten Aufgaben werden sicher in Ihrem privaten Arbeitsbereich gespeichert. Sie besitzen 100% Ihrer KI-Assets ohne Vendor-Lock-in.",
+      "refresh": "Aktualisieren",
+      "assetMatrixTitle": "KI-Asset-Portfolio",
       "assets": {
         "memory": {
-          "title": "Gedächtnistresor (Memory Vault)",
-          "score": "Integrität {score}%",
-          "desc": "Benutzerpräferenzen, Langzeiterfahrungen und Gesprächserkenntnisse zur Stärkung der Agentenentscheidungen."
+          "title": "Langzeitgedächtnis",
+          "score": "Zustand: {score}%",
+          "desc": "Sitzungsübergreifende Erinnerungen, Präferenzen und personalisierte Gewohnheiten."
         },
         "wiki": {
-          "title": "Wiki-Wissensdatenbank (Knowledge Base)",
-          "rawCount": "{count} Quelldateien",
-          "desc": "Strukturierter Konzeptindex und Fachwissen für präzises Retrieval und Kontextanreicherung."
+          "title": "Wissensdatenbank (Wiki)",
+          "rawCount": "{count} Quelldokumente",
+          "desc": "Strukturiertes Wissensnetzwerk mit synthetisierten Konzepten."
         },
         "skills": {
-          "title": "Fähigkeiten-Bibliothek (Skills Library)",
-          "evolutions": "{count} Selbstevolutionen",
-          "desc": "Produktionsreife wiederverwendbare Werkzeuge und selbstanpassende Skripte nach offenen Standards."
+          "title": "Erworbene Fähigkeiten",
+          "evolutions": "{count} Evolutionen",
+          "desc": "Benutzerdefinierte Werkzeuge, automatisierte Workflows und Routinen."
         },
         "rules": {
-          "title": "Arbeitsbereichsregeln (Workspace Rules)",
+          "title": "Arbeitsbereichsregeln",
           "chars": "{count} Zeichen",
-          "desc": "Programmierrichtlinien, Architekturgrenzen und Ausführungsdisziplin für deterministisches Verhalten."
+          "desc": "Systemanweisungen und Verhaltensregeln für Fachbereiche."
         },
         "cron": {
-          "title": "Geplante Workflows (Cron Workflows)",
-          "runs": "{count} Ausführungen diese Woche",
-          "desc": "Automatisierte Inspektionen, periodische Datenbereinigung und Hintergrundberichte."
+          "title": "Automatisierte Aufgaben",
+          "runs": "{count} Ausführungen",
+          "desc": "Geplante Aufgaben, proaktive Überwachung und Hintergrundjobs."
         },
         "storage": {
-          "title": "Persistenter Speicher (Volume / Disk)",
-          "desc": "Lokales Arbeitsverzeichnis oder dediziertes Volume – alle Daten verbleiben vollständig in Ihrem Besitz."
+          "title": "Lokaler Speicher",
+          "desc": "Speicherbedarf des privaten Volumes auf der Festplatte."
         }
       },
       "sovereignty": {
-        "title": "Datensouveränität & neutrale Plattformvorteile",
-        "subtitle": "Befreien Sie sich von proprietären geschlossenen Ökosystemen. Kein Vendor Lock-in, alle Daten transparent und portabel.",
-        "exportConfig": "Arbeitsbereichs-Konfiguration exportieren",
-        "exportMemory": "Gedächtnisdaten sichern",
+        "title": "Datensouveränität & Portabilität",
+        "subtitle": "Ihr KI-Arbeitsbereich läuft unabhängig auf offenen Standards mit vollständigen Exportfunktionen.",
+        "exportConfig": "Vollständige Konfiguration exportieren",
+        "exportMemory": "Erinnerungen exportieren",
         "points": {
-          "decouplingTitle": "Entkopplung von Modell und Asset",
-          "decouplingDesc": "Wechseln Sie nahtlos zwischen Claude, DeepSeek, GPT und Gemini – 100% Ihrer Assets und Fähigkeiten bleiben erhalten.",
-          "standardTitle": "Offene Standardspeicherung",
-          "standardDesc": "Alle Wiki-Seiten, Markdown-Regeln und SQLite-Gedächtnisse basieren auf offenen Spezifikationen.",
-          "zeroLockinTitle": "Null Bindung & Schnelle Migration",
-          "zeroLockinDesc": "Vollständige Export-Werkzeuge ermöglichen das Verpacken von Konfigurationen und Wissensbasen mit einem Klick."
+          "decouplingTitle": "Entkoppelte Architektur",
+          "decouplingDesc": "Die Trennung von Modellberechnung und Fachwissen gewährleistet reibungslose Upgrades.",
+          "standardTitle": "Offene Formate",
+          "standardDesc": "Alle Erinnerungen und Fähigkeiten folgen transparenten Schemata, die plattformübergreifend kompatibel sind.",
+          "zeroLockinTitle": "Kein Vendor-Lock-in",
+          "zeroLockinDesc": "Wechseln Sie jederzeit den Modellanbieter oder die lokale Hardware, ohne den Kontext zu verlieren."
         }
       },
       "deployHonest": {
-        "title": "Transparenz der Speicherarchitektur",
-        "tauriSubtitle": "Ausführung im Desktop-Client (Tauri). Alle Daten werden direkt auf Ihrem lokalen Dateisystem gespeichert.",
-        "sandboxSubtitle": "Ausführung in einer isolierten Cloud-Sandbox mit dediziertem Persistent Volume. Daten bleiben bei Neustarts erhalten.",
-        "localSubtitle": "Ausführung auf einem selbst gehosteten lokalen Server. Daten werden in Ihrem lokalen Mount-Verzeichnis gespeichert.",
-        "dataPathLabel": "Pfad des persistenten Datenspeichers",
-        "tauriDetail": "Im Desktop-Modus verbleiben alle SQLite-Datenbanken, Wiki-Indizes und Fähigkeiten im lokalen Benutzerverzeichnis mit voller Offline-Funktionalität.",
-        "sandboxDetail": "Jede Sandbox erhält ein dediziertes privates Volume (kein geteilter Multi-Tenant-Speicher), was strikte Privatsphäre gewährleistet.",
-        "localDetail": "Der Server liest und schreibt direkt auf lokale Festplatten und SQLite-Instanzen ohne externe Cloud-Abhängigkeiten."
+        "title": "Speicherarchitektur",
+        "tauriSubtitle": "Wird als native Desktop-Anwendung mit vollem lokalem Dateizugriff ausgeführt.",
+        "sandboxSubtitle": "Wird in einer dedizierten, isolierten Cloud-Sandbox mit persistentem Volume ausgeführt.",
+        "localSubtitle": "Wird im lokalen, selbst gehosteten WebUI-Modus ausgeführt.",
+        "dataPathLabel": "Aktives Datenverzeichnis",
+        "tauriDetail": "Anwendungsstatus und Datenbank werden direkt auf Ihrem persönlichen Computer verwaltet.",
+        "sandboxDetail": "Daten werden in Ihrem privaten Sandbox-Volume gespeichert, strikt pro Benutzer isoliert.",
+        "localDetail": "Daten werden auf der Festplatte unter Ihrem lokalen Arbeitsbereich gespeichert."
       }
     },
     "commands": {
@@ -2831,11 +2831,11 @@
         "tags": "Schlagworte",
         "createdAt": "Erstellt",
         "updatedAt": "Aktualisiert",
-        "idleWarning": "Seit 30+ Tagen ungenutzt, erwägen Sie Einfrieren oder Archivieren",
-        "archivedReason": "Dieser Skill wurde archiviert",
-        "usageStats": "{count} Mal aufgerufen",
+        "idleWarning": "Seit 30+ Tagen ungenutzt, erwägen Sie Einfrieren oder Archivierung",
+        "archivedReason": "Wegen längerer Inaktivität archiviert",
+        "usageStats": "{count} Mal angerufen",
         "neverUsed": "Nie verwendet",
-        "tokenCostTooltip": "Kontextkosten: ~{count} Tokens pro Konversation",
+        "tokenCostTooltip": "Kontextkosten: ~{count} Token pro Konversation",
         "needsSetup": "Needs setup — missing dependencies or configuration",
         "ready": "Bereit",
         "securityScore": "Sicherheitsbewertung: {score}/100",
@@ -2885,7 +2885,6 @@
         "lifecycleActionFailed": "Aktion fehlgeschlagen",
         "staleReason": "Zuletzt verwendet: {date}",
         "staleReasonNeverUsed": "Seit Erstellung nie verwendet",
-        "archivedReason": "Wegen längerer Inaktivität archiviert",
         "updateAvailable": "Aktualisieren",
         "updateAvailableReason": "Eine neuere Version ist verfügbar. Ihre lokalen Änderungen wurden beibehalten.",
         "acceptUpstream": "Update anwenden",
@@ -2901,10 +2900,6 @@
         "confirmAction": "Fortfahren",
         "cancelAction": "Abbrechen",
         "manageInstances": "Instanzen verwalten",
-        "idleWarning": "Seit 30+ Tagen ungenutzt, erwägen Sie Einfrieren oder Archivierung",
-        "usageStats": "{count} Mal angerufen",
-        "neverUsed": "Nie verwendet",
-        "tokenCostTooltip": "Kontextkosten: ~{count} Token pro Konversation",
         "integrationOAuth": {
           "googleWorkspace": {
             "unavailable": "Connect Google Workspace in Settings → Integrations → Credentials",
@@ -2995,11 +2990,12 @@
           "executeFailed": "Konsolidierung fehlgeschlagen",
           "confirmTitle": "Konsolidierung bestätigen",
           "confirmDesc": "Dadurch werden {count} Fertigkeiten zu übergeordneten Fertigkeiten zusammengeführt. Archivierte Fähigkeiten können jederzeit wiederhergestellt werden."
-        }
+        },
+        "recordWorkflowBtn": "Workflow aufzeichnen"
       },
       "detail": {
         "title": "Fähigkeitsdetails",
-        "noDescription": "Keine Beschreibung angegeben",
+        "noDescription": "Keine Beschreibung vorhanden.",
         "close": "Schließen",
         "enable": "Fähigkeit aktivieren",
         "disable": "Fähigkeit deaktivieren",
@@ -3056,8 +3052,7 @@
         "revealInManager": "Anzeigen",
         "cleanupInvalid": "Bereinigen",
         "revealFailed": "Anzeigen des Pfads fehlgeschlagen",
-        "export": "Exportieren",
-        "noDescription": "Keine Beschreibung vorhanden."
+        "export": "Exportieren"
       },
       "upload": {
         "title": "Benutzerdefinierte Fähigkeit hochladen",
@@ -4410,98 +4405,6 @@
         }
       }
     },
-    "workbench": {
-      "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
-      "title": "Datensouveränität & Wertschöpfung",
-      "description": "Alle Ihre Erinnerungen, Wissensdatenbank-Wikis, Fähigkeiten, Regeln und geplanten Aufgaben werden sicher in Ihrem privaten Arbeitsbereich gespeichert. Sie besitzen 100% Ihrer KI-Assets ohne Vendor-Lock-in.",
-      "refresh": "Aktualisieren",
-      "assetMatrixTitle": "KI-Asset-Portfolio",
-      "assets": {
-        "memory": {
-          "title": "Langzeitgedächtnis",
-          "score": "Zustand: {score}%",
-          "desc": "Sitzungsübergreifende Erinnerungen, Präferenzen und personalisierte Gewohnheiten."
-        },
-        "wiki": {
-          "title": "Wissensdatenbank (Wiki)",
-          "rawCount": "{count} Quelldokumente",
-          "desc": "Strukturiertes Wissensnetzwerk mit synthetisierten Konzepten."
-        },
-        "skills": {
-          "title": "Erworbene Fähigkeiten",
-          "evolutions": "{count} Evolutionen",
-          "desc": "Benutzerdefinierte Werkzeuge, automatisierte Workflows und Routinen."
-        },
-        "rules": {
-          "title": "Arbeitsbereichsregeln",
-          "chars": "{count} Zeichen",
-          "desc": "Systemanweisungen und Verhaltensregeln für Fachbereiche."
-        },
-        "cron": {
-          "title": "Automatisierte Aufgaben",
-          "runs": "{count} Ausführungen",
-          "desc": "Geplante Aufgaben, proaktive Überwachung und Hintergrundjobs."
-        },
-        "storage": {
-          "title": "Lokaler Speicher",
-          "desc": "Speicherbedarf des privaten Volumes auf der Festplatte."
-        }
-      },
-      "sovereignty": {
-        "title": "Datensouveränität & Portabilität",
-        "subtitle": "Ihr KI-Arbeitsbereich läuft unabhängig auf offenen Standards mit vollständigen Exportfunktionen.",
-        "exportConfig": "Vollständige Konfiguration exportieren",
-        "exportMemory": "Erinnerungen exportieren",
-        "points": {
-          "decouplingTitle": "Entkoppelte Architektur",
-          "decouplingDesc": "Die Trennung von Modellberechnung und Fachwissen gewährleistet reibungslose Upgrades.",
-          "standardTitle": "Offene Formate",
-          "standardDesc": "Alle Erinnerungen und Fähigkeiten folgen transparenten Schemata, die plattformübergreifend kompatibel sind.",
-          "zeroLockinTitle": "Kein Vendor-Lock-in",
-          "zeroLockinDesc": "Wechseln Sie jederzeit den Modellanbieter oder die lokale Hardware, ohne den Kontext zu verlieren."
-        }
-      },
-      "deployHonest": {
-        "title": "Speicherarchitektur",
-        "tauriSubtitle": "Wird als native Desktop-Anwendung mit vollem lokalem Dateizugriff ausgeführt.",
-        "sandboxSubtitle": "Wird in einer dedizierten, isolierten Cloud-Sandbox mit persistentem Volume ausgeführt.",
-        "localSubtitle": "Wird im lokalen, selbst gehosteten WebUI-Modus ausgeführt.",
-        "dataPathLabel": "Aktives Datenverzeichnis",
-        "tauriDetail": "Anwendungsstatus und Datenbank werden direkt auf Ihrem persönlichen Computer verwaltet.",
-        "sandboxDetail": "Daten werden in Ihrem privaten Sandbox-Volume gespeichert, strikt pro Benutzer isoliert.",
-        "localDetail": "Daten werden auf der Festplatte unter Ihrem lokalen Arbeitsbereich gespeichert."
-      }
-    },
-    "lockedUse": {
-      "title": "Computernutzung / gesperrte Nutzung",
-      "layer1Title": "Wach halten anzeigen",
-      "layer1Desc": "Verhindert automatisch den Bildschirmschlaf während CU-Sitzungen, keine Konfiguration erforderlich",
-      "layer1Badge": "Immer an",
-      "layer2Title": "Bildschirm entsperren",
-      "layer2DescSupported": "Entsperrt den Bildschirm bei gesperrtem Zustand vorübergehend automatisch für CU-Aufgaben",
-      "layer2DescUnsupported": "Die automatische Entsperrung wird auf der aktuellen Plattform ({platform}) nicht unterstützt.",
-      "passwordSaved": "Passwort im System-Schlüsselbund gespeichert",
-      "deletePassword": "Gespeichertes Passwort löschen",
-      "inputPlaceholder": "System-Anmeldepasswort eingeben",
-      "savePassword": "Im Schlüsselbund speichern",
-      "saving": "Sparen...",
-      "cancel": "Abbrechen",
-      "securityNote": "Das Passwort wird sicher im macOS-Schlüsselbund verschlüsselt (gleicher sicherer Speicher wie Chrome und 1Password)",
-      "setPassword": "System-Anmeldepasswort festlegen",
-      "toastSaved": "Passwort im Schlüsselbund gespeichert",
-      "toastSaveFailed": "Passwort konnte nicht gespeichert werden: {error}",
-      "toastDeleted": "Passwort aus dem Schlüsselbund gelöscht",
-      "toastDeleteFailed": "Fehler beim Löschen: {error}"
-    },
-    "rate_limits": {
-      "title": "Rate-Limit-Überwachung",
-      "no_data": "Noch keine Rate-Limit-Daten verfügbar. Senden Sie eine Anfrage, um die Verfolgung zu starten.",
-      "requests_per_minute": "RPM",
-      "requests_per_hour": "RPH",
-      "tokens_per_minute": "TPM",
-      "tokens_per_hour": "TPH",
-      "warning": "Die Ratenlimitnutzung für {provider} ({model}) liegt bei {pct} %. Der Agent wird möglicherweise langsamer."
-    },
     "memoryCenter": {
       "tabs": {
         "followUps": "Folgeaktionen",
@@ -5382,39 +5285,6 @@
       "cleanupSuccess": "{count} abgelaufene Sitzungen entfernt",
       "cleanupFailed": "Bereinigung fehlgeschlagen",
       "encryptionNote": "Alle Sitzungen werden mit AES-256-GCM verschlüsselt gespeichert"
-    },
-    "desktopPermissions": {
-      "title": "Desktop-Automatisierung – Bereitschaft",
-      "allReady": "Alle Funktionen bereit",
-      "actionRequired": "Einrichtung für Desktop-Automatisierung erforderlich",
-      "checking": "Umgebung prüfen...",
-      "platform": "Plattform: {name}",
-      "accessibility": "Eingabesteuerung",
-      "accessibilityDesc": "Tastatur- und Mausautomatisierungswerkzeuge verfügbar",
-      "screenRecording": "Bildschirmaufnahme",
-      "screenRecordingDesc": "Screenshot- und Bildschirmaufnahmewerkzeuge verfügbar",
-      "fixHints": "Behebung",
-      "checkFailed": "Desktop-Berechtigungen konnten nicht geprüft werden",
-      "copiedToClipboard": "Befehl in die Zwischenablage kopiert",
-      "statusOk": "OK",
-      "statusMissing": "Fehlt",
-      "openSettings": "Einstellungen öffnen",
-      "copyCommand": "Befehl kopieren",
-      "trustedAppsTitle": "Immer vertrauenswürdige Apps",
-      "trustedAppsDesc": "Apps, die Sie während der Desktop-Steuerung dauerhaft zugelassen haben. Widerrufen Sie hier den Zugriff.",
-      "trustedAppsEmpty": "Noch keine immer vertrauenswürdigen Apps.",
-      "trustedAppsLoadFailed": "Immer vertrauenswürdige Apps konnten nicht geladen werden",
-      "trustedAppsRetry": "Erneut versuchen",
-      "trustedAppsRevoke": "Widerrufen",
-      "trustedAppsRevokeSuccess": "Vertrauenswürdige App entfernt",
-      "trustedAppsRevokeFailed": "Widerrufen der vertrauenswürdigen App fehlgeschlagen"
-    },
-    "communication": {
-      "desc": {
-        "channels": "Externe IM-, E-Mail-, SMS- und Unternehmens-Messaging-Kanäle verbinden und aktivieren",
-        "routing": "Chats und Kanäle bestimmten Agenten und Richtlinien für gemeinsamen Kontext zuordnen",
-        "voice": "Sprach-zu-Text- (STT) und Text-zu-Sprache-Anbieter (TTS) konfigurieren"
-      }
     },
     "extension": {
       "title": "Browser-Erweiterungsbrücke",
@@ -7817,7 +7687,7 @@
       "routingSimple": "Leicht",
       "routingStandard": "Standardmodus",
       "routingReasoning": "Argumentation",
-      "routingCode": "Code",
+      "routingCode": "Quellcode",
       "routingLongDoc": "Langes Dokument",
       "privacyLevel": "Datenschutz",
       "privacyS2": "Sensibel",
@@ -7852,9 +7722,7 @@
       "compatMedium": "Ausgewogen",
       "modelBreakdown": "Modellaufschlüsselung",
       "performance": "Leistung",
-      "toolBreakdown": "Tool-Aufschlüsselung",
-      "routingCode": "Quellcode",
-      "routingLongDoc": "Langes Dokument"
+      "toolBreakdown": "Tool-Aufschlüsselung"
     },
     "contextUsage": {
       "title": "Kontextnutzung",
@@ -12393,17 +12261,17 @@
     "reclaimReassignLabel": "Agent neu zuweisen (optional)",
     "reclaimSuccess": "Aufgabe erfolgreich zurückgefordert",
     "reclaimFailed": "Aufgabe konnte nicht zurückgefordert werden",
-    "replanTitle": "Überprüfung der DAG-Planüberarbeitung",
-    "replanDescription": "Überprüfen Sie vorgeschlagene Änderungen am Aufgabengraph. Alle Änderungen werden auf Zyklenfreiheit geprüft und atomar angewendet.",
+    "replanTitle": "DAG-Planüberarbeitungsprüfung",
+    "replanDescription": "Überprüfen Sie vorgeschlagene Änderungen am Aufgabengraph. Alle Änderungen werden auf Zyklenfreiheit validiert und atomar angewendet.",
     "replanAdded": "Hinzuzufügende Aufgaben",
     "replanUpdated": "Zu aktualisierende Aufgaben",
     "replanRemoved": "Zu entfernende Aufgaben",
-    "replanRationaleLabel": "Überarbeitungsgrund / Auslöser",
-    "replanRationalePlaceholder": "z. B. Fehlende Downstream-API-Datenabhängigkeiten festgestellt",
-    "replanRationaleRequired": "Ein Grund für die Planüberarbeitung ist erforderlich",
+    "replanRationaleLabel": "Überarbeitungsbegründung / Auslösergrund",
+    "replanRationalePlaceholder": "z. B. Fehlende API-Schema-Abhängigkeiten entdeckt",
+    "replanRationaleRequired": "Begründung für die Planüberarbeitung ist erforderlich",
     "replanChangesList": "Detaillierte Diff-Änderungen",
     "replanNoChanges": "Keine Aufgabenänderungen vorgeschlagen",
-    "replanInvariantGuaranteed": "Abgeschlossene und in Prüfung befindliche Aufgaben sind streng gesperrt und werden nicht verändert. Die Zyklenfreiheit des DAG wird beim Commit validiert.",
+    "replanInvariantGuaranteed": "Abgeschlossene und in Überprüfung befindliche Aufgaben sind streng geschützt und werden nicht geändert. DAG-Zyklenfreiheit wird bei der Übernahme validiert.",
     "replanApply": "Planüberarbeitung anwenden",
     "replanAppliedSuccess": "Planüberarbeitung erfolgreich angewendet",
     "replanFailed": "Planüberarbeitung fehlgeschlagen",
@@ -12684,20 +12552,6 @@
     "openDetailsHint": "Für weitere Details doppelklicken Sie auf die Karte oder klicken Sie auf das Anhangssymbol",
     "viewAttachmentsHint": "Anhänge anzeigen",
     "pipelineWizardSelectMode": "Wählen Sie den Workflow-Modus",
-    "replanTitle": "DAG-Planüberarbeitungsprüfung",
-    "replanDescription": "Überprüfen Sie vorgeschlagene Änderungen am Aufgabengraph. Alle Änderungen werden auf Zyklenfreiheit validiert und atomar angewendet.",
-    "replanAdded": "Hinzuzufügende Aufgaben",
-    "replanUpdated": "Zu aktualisierende Aufgaben",
-    "replanRemoved": "Zu entfernende Aufgaben",
-    "replanRationaleLabel": "Überarbeitungsbegründung / Auslösergrund",
-    "replanRationalePlaceholder": "z. B. Fehlende API-Schema-Abhängigkeiten entdeckt",
-    "replanRationaleRequired": "Begründung für die Planüberarbeitung ist erforderlich",
-    "replanChangesList": "Detaillierte Diff-Änderungen",
-    "replanNoChanges": "Keine Aufgabenänderungen vorgeschlagen",
-    "replanInvariantGuaranteed": "Abgeschlossene und in Überprüfung befindliche Aufgaben sind streng geschützt und werden nicht geändert. DAG-Zyklenfreiheit wird bei der Übernahme validiert.",
-    "replanApply": "Planüberarbeitung anwenden",
-    "replanAppliedSuccess": "Planüberarbeitung erfolgreich angewendet",
-    "replanFailed": "Planüberarbeitung fehlgeschlagen",
     "approve": "Genehmigen",
     "approveSuccess": "Aufgabe genehmigt und abgeschlossen",
     "approveError": "Genehmigung der Aufgabe fehlgeschlagen",
@@ -14950,8 +14804,6 @@
       "historyCurrent": "Ansehen",
       "historyView": "Ansehen"
     },
-    "benchmarksRunStarted": "Benchmark-Bewertung gestartet",
-    "alreadyRunning": "Eine Auswertung läuft bereits",
     "wbBench": {
       "title": "Benchmark-Datensätze",
       "description": "Laden Sie öffentliche Agent-Benchmarks (WorkBuddy Bench-Tracks und Drittanbieter-Suiten wie BrowseComp) herunter und führen Sie sie in isolierten Sandboxes aus, um Ihren Agent anhand der Branchenstandards zu bewerten.",
@@ -15077,6 +14929,37 @@
     "unlockFailed": "Entsperren fehlgeschlagen"
   },
   "skills": {
+    "desktopRecording": {
+      "drawerTitle": "Desktop-Workflow-Skill-Rekorder",
+      "close": "Schließen",
+      "currentStatus": "Aktueller Status",
+      "status_idle": "Bereit zur Aufnahme",
+      "status_recording": "Desktop-Aktivität wird aufgezeichnet...",
+      "status_stopped": "Aufnahme gestoppt",
+      "status_synthesizing": "Skill wird mit KI synthetisiert...",
+      "status_draft_ready": "Skill-Entwurf bereit zur Überprüfung",
+      "status_published": "Skill erfolgreich veröffentlicht",
+      "btnStart": "Aufnahme starten",
+      "btnStop": "Aufnahme stoppen",
+      "btnReset": "Zurücksetzen",
+      "skillNameLabel": "Skill-Name",
+      "skillNamePlaceholder": "z. B. erp_invoice_export_workflow",
+      "skillDescLabel": "Beschreibung & Absicht",
+      "skillDescPlaceholder": "Beschreiben Sie kurz das Geschäftsziel dieses Workflows...",
+      "btnSynthesize": "Skill aus Aufnahme synthetisieren",
+      "draftTitle": "Synthetisierter Skill-Entwurf",
+      "toolLiftingActive": "Tool-Lifting aktiv",
+      "parameterSlots": "Erkannte dynamische Parameter",
+      "markdownEditorLabel": "SKILL.md Quellcode (editierbar)",
+      "btnPublish": "Im Skill-Store veröffentlichen",
+      "publishing": "Wird veröffentlicht...",
+      "publishSuccessTitle": "Skill erfolgreich veröffentlicht",
+      "publishSuccessDesc": "Der neue Desktop-Workflow-Skill ist jetzt für alle Agenten verfügbar.",
+      "btnNewRecord": "Weiteren Workflow aufnehmen",
+      "stepsHeading": "Aufgezeichnete Interaktionsschritte ({count})",
+      "noStepsYet": "Noch keine Desktop-Interaktionen aufgezeichnet. Klicken Sie auf Aufnahme starten.",
+      "deleteStep": "Schritt löschen"
+    },
     "permissions": {
       "types": {
         "fileRead": {
@@ -15218,6 +15101,25 @@
       "innovate": "Innovieren (80 % erkunden, 15 % optimieren, 5 % reparieren)",
       "harden": "Härten (20 % Erkunden, 40 % Optimieren, 40 % Reparieren)",
       "repair_only": "Nur Reparatur (100 % Reparatur)"
+    },
+    "workflowRecorder": {
+      "title": "Desktop-Workflow-Recorder & Skill-Generator",
+      "idleDesc": "Zeichnen Sie eine Multi-App-Aufgabe einmal auf, und die KI rekonstruiert automatisch Absichten und geordnete Schritte zu einem Skill.",
+      "workflowNameLabel": "Skill-Name",
+      "intentHintLabel": "Absichtshinweis (Optional)",
+      "startRecording": "Aufnahme starten",
+      "recordingActive": "Desktop-Workflow-Aufnahme läuft...",
+      "eventsCaptured": "{count} Ereignisse erfasst",
+      "stopAndAnalyze": "Stoppen & Absicht analysieren",
+      "reviewStepsTitle": "Rekonstruierte Ausführungsschritte & Variablen",
+      "addStep": "Schritt hinzufügen",
+      "compilePreview": "SKILL.md kompilieren & vorschauen",
+      "previewTitle": "Kompilierte SKILL.md Vorschau",
+      "publishSkill": "In Skill-Bibliothek veröffentlichen",
+      "publishSuccessTitle": "Skill erfolgreich veröffentlicht!",
+      "publishSuccessDesc": "Skill \"{name}\" ist kompiliert und sofort einsatzbereit.",
+      "cancel": "Abbrechen",
+      "close": "Schließen"
     }
   },
   "Catchup": {

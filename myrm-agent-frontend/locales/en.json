@@ -3297,7 +3297,7 @@
         "createdAt": "Created",
         "updatedAt": "Updated",
         "idleWarning": "Unused for 30+ days, consider freezing or archiving",
-        "archivedReason": "This skill has been archived",
+        "archivedReason": "Archived due to prolonged inactivity",
         "usageStats": "Called {count} times",
         "neverUsed": "Never used",
         "tokenCostTooltip": "Context cost: ~{count} tokens per conversation",
@@ -3367,7 +3367,6 @@
         "lifecycleActionFailed": "Action failed",
         "staleReason": "Last used: {date}",
         "staleReasonNeverUsed": "Never used since creation",
-        "archivedReason": "Archived due to prolonged inactivity",
         "updateAvailable": "Update",
         "updateAvailableReason": "A newer version is available from upstream. Your local modifications have been preserved.",
         "acceptUpstream": "Apply Update",
@@ -3455,7 +3454,8 @@
           "executeFailed": "Consolidation failed",
           "confirmTitle": "Confirm Consolidation",
           "confirmDesc": "This will merge {count} skill(s) into umbrella skills. Archived skills can be restored anytime."
-        }
+        },
+        "recordWorkflowBtn": "Record Workflow"
       },
       "detail": {
         "title": "Skill Details",
@@ -8021,7 +8021,7 @@
     "readingWebpage": "Reading webpage",
     "searchingWeb": "Searching web",
     "thinking": "Thinking",
-    "reasoningModelDisabledWithImage": "When vision enhancement is enabled, images require vision model",
+    "reasoningModelDisabledWithImage": "Images require a vision model when vision enhancement is enabled",
     "newChatPlaceholder": "Type a message to start the conversation",
     "newChatDescription": "Start a new conversation and explore any topic",
     "uploadFile": "Upload file",
@@ -8733,7 +8733,6 @@
       "dismiss": "Maybe Later",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
     },
-    "reasoningModelDisabledWithImage": "Images require a vision model when vision enhancement is enabled",
     "retry": "Retry",
     "archiveRestore": {
       "invalidTitle": "Archive Restore Failed",
@@ -15737,6 +15736,37 @@
     "unlockFailed": "Failed to unlock vault"
   },
   "skills": {
+    "desktopRecording": {
+      "drawerTitle": "Desktop Workflow Skill Recorder",
+      "close": "Close",
+      "currentStatus": "Current Status",
+      "status_idle": "Ready to record",
+      "status_recording": "Recording desktop activity...",
+      "status_stopped": "Recording stopped",
+      "status_synthesizing": "Synthesizing skill with AI...",
+      "status_draft_ready": "Skill draft ready for review",
+      "status_published": "Skill published successfully",
+      "btnStart": "Start Recording",
+      "btnStop": "Stop Recording",
+      "btnReset": "Reset",
+      "skillNameLabel": "Skill Name",
+      "skillNamePlaceholder": "e.g. erp_invoice_export_workflow",
+      "skillDescLabel": "Description & Intent",
+      "skillDescPlaceholder": "Briefly describe the business goal of this desktop workflow...",
+      "btnSynthesize": "Synthesize Skill from Recording",
+      "draftTitle": "Synthesized Skill Draft",
+      "toolLiftingActive": "Tool Lifting Active",
+      "parameterSlots": "Detected Dynamic Parameters",
+      "markdownEditorLabel": "SKILL.md Source Code (Editable)",
+      "btnPublish": "Publish to Skill Store",
+      "publishing": "Publishing...",
+      "publishSuccessTitle": "Skill Published Successfully",
+      "publishSuccessDesc": "The new desktop workflow skill is now available across your agents.",
+      "btnNewRecord": "Record Another Workflow",
+      "stepsHeading": "Recorded Interaction Steps ({count})",
+      "noStepsYet": "No desktop interactions recorded yet. Click Start Recording and perform your workflow on desktop.",
+      "deleteStep": "Delete Step"
+    },
     "migration": {
       "title": "Import from Hermes / OpenClaw / Claude Code / Codex",
       "description": "Seamlessly migrate your custom skills and configurations from other platforms.",
@@ -15878,6 +15908,25 @@
       "revokeTitle": "Revoke \"{permission}\" permission from {skill}?",
       "expand": "Expand permissions",
       "collapse": "Collapse permissions"
+    },
+    "workflowRecorder": {
+      "title": "Desktop Workflow Skill Recorder",
+      "idleDesc": "Record yourself performing a multi-app task once, and AI will automatically reconstruct intent and ordered steps into a reusable skill.",
+      "workflowNameLabel": "Skill Name",
+      "intentHintLabel": "Intent Hint (Optional)",
+      "startRecording": "Start Recording",
+      "recordingActive": "Recording desktop workflow in progress...",
+      "eventsCaptured": "{count} events captured",
+      "stopAndAnalyze": "Stop & Reconstruct Intent",
+      "reviewStepsTitle": "Reconstructed Execution Steps & Variables",
+      "addStep": "Add Step",
+      "compilePreview": "Compile & Preview SKILL.md",
+      "previewTitle": "Compiled SKILL.md Preview",
+      "publishSkill": "Publish to Skill Store",
+      "publishSuccessTitle": "Skill Published Successfully!",
+      "publishSuccessDesc": "Skill \"{name}\" is compiled and ready for immediate use across agents.",
+      "cancel": "Cancel",
+      "close": "Close"
     }
   },
   "followUps": {
