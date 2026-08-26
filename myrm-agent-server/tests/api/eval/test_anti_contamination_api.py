@@ -6,12 +6,13 @@ import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.eval import CANARY_GUID
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    minimal_app = build_minimal_app(preset="eval")
+    return TestClient(minimal_app)
 
 
 def test_anti_contamination_audit_endpoint(client: TestClient) -> None:

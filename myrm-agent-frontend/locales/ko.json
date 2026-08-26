@@ -14836,6 +14836,9 @@
       "sampleLimitTitle": "선택적 샘플 수——이만큼의 태스크만 실행합니다 (비움 = 전체 벤치마크)",
       "sampled": "샘플",
       "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)",
+      "canaryProtected": "Canary 보호됨",
+      "canaryProtectedTitle": "데이터셋이 카나리아 서명 및 유출 방지 격리로 보호됩니다",
+      "antiContaminationAudited": "오염 방지 감사",
       "operationalAssurance": "운영 보증 감사",
       "operationalAssuranceDesc": "권한 거부, 도구 타임아웃, 복구, 샌드박스 고갈, 스킬 충돌, 만료된 증거 등 6대 장애 도메인을 포괄하는 결정론적 감사 스위트입니다."
     },

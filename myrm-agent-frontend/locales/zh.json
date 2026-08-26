@@ -15427,6 +15427,12 @@
     "noSessionSelected": "请在上方选择一个会话以开始双轨轨迹对比"
   },
   "evalLab": {
+    "antiContamination": {
+      "protectedBadge": "Anti-Contamination Protected (已受防污染保护)",
+      "unprotectedBadge": "未检测到 Canary 防污染标识",
+      "badgeDesc": "符合 SWE-bench / BIG-bench / WBBench 防污染规范，防止评测集渗入模型预训练语料库",
+      "injectCanaryBtn": "注入 Canary 防污染声明"
+    },
     "pageTitle": "评测实验室",
     "pageDescription": "管理测试用例并执行沙盒环境隔离评估，全自动化验证 Agent 表现",
     "tabs": {
@@ -15618,6 +15624,9 @@
       "sampleLimitTitle": "可选的样本数——只运行这么多道题（留空 = 全量基准）",
       "sampled": "抽样",
       "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
+      "canaryProtected": "Canary 保护",
+      "canaryProtectedTitle": "数据集受 Canary 金丝雀签名与防泄漏隔离保护",
+      "antiContaminationAudited": "防作弊审计",
       "operationalAssurance": "运行保障审计",
       "operationalAssuranceDesc": "针对权限拒绝、工具超时、发布恢复、沙箱枯竭、Skill 冲突、证据过期 6 大企业级故障场景进行确定性审计评测。"
     },

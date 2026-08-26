@@ -73,7 +73,41 @@ export interface SkillABStatusResponse {
   abort_requested: boolean;
 }
 
+export interface AntiContaminationAuditResponse {
+  status: string;
+  dataset_id: string;
+  is_protected: boolean;
+  canary_found: boolean;
+  canary_guid: string;
+  violations: string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface EmbedCanaryResponse {
+  status: string;
+  protected_content: string;
+  canary_guid: string;
+}
+
 export const evalService = {
+  /**
+   * Audit benchmark datasets against anti-contamination canary standards
+   */
+  async auditAntiContamination(datasetId?: string): Promise<AntiContaminationAuditResponse> {
+    const query = datasetId ? `?dataset_id=${encodeURIComponent(datasetId)}` : '';
+    return apiRequest(`/eval/anti-contamination/audit${query}`);
+  },
+
+  /**
+   * Embed standardized canary header into raw dataset content
+   */
+  async embedCanaryHeader(content: string): Promise<EmbedCanaryResponse> {
+    return apiRequest('/eval/anti-contamination/embed-canary', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+
   /**
    * Get the current evaluation cases
    */

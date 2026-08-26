@@ -15452,6 +15452,12 @@
     "noSessionSelected": "Select a session above to start side-by-side trajectory comparison"
   },
   "evalLab": {
+    "antiContamination": {
+      "protectedBadge": "Anti-Contamination Protected",
+      "unprotectedBadge": "Canary Signature Missing",
+      "badgeDesc": "Compliant with SWE-bench / BIG-bench / WBBench standards to prevent pretraining data contamination",
+      "injectCanaryBtn": "Inject Canary Header"
+    },
     "pageTitle": "Eval Lab",
     "pageDescription": "Manage test cases and run sandboxed evaluations to automatically verify agent performance",
     "tabs": {
@@ -15643,6 +15649,9 @@
       "sampleLimitTitle": "Optional sample size — run only this many tasks (empty = full benchmark)",
       "sampled": "sampled",
       "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
+      "canaryProtected": "Canary Protected",
+      "canaryProtectedTitle": "Dataset is secured by canary signature and anti-leakage isolation",
+      "antiContaminationAudited": "Anti-Contamination Audited",
       "operationalAssurance": "Operational Assurance Audit",
       "operationalAssuranceDesc": "Deterministic audit suite covering permission denial, tool timeout, recovery, sandbox exhaustion, skill conflict, and expired evidence across 6 fault domains."
     },

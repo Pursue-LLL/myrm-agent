@@ -43,6 +43,7 @@ OPERATIONAL_ASSURANCE_SPEC = BenchmarkSpec(
     required_tools=(),
     supports_memory_ab=True,
     supports_compaction_ab=True,
+    canary_protected=True,
     max_tool_calls=40,
     max_iterations=50,
     harness="myrm",

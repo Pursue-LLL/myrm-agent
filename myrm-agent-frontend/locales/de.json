@@ -14836,6 +14836,9 @@
       "sampleLimitTitle": "Optionale Stichprobengröße — nur so viele Aufgaben ausführen (leer = voller Benchmark)",
       "sampled": "Stichprobe",
       "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)",
+      "canaryProtected": "Canary-Geschützt",
+      "canaryProtectedTitle": "Datensatz ist durch Canary-Signatur und Anti-Leakage-Isolation geschützt",
+      "antiContaminationAudited": "Anti-Kontaminations-Audit",
       "operationalAssurance": "Betriebssicherheitsaudit",
       "operationalAssuranceDesc": "Deterministische Testsuite für 6 Fehlerbereiche: Berechtigungsverweigerung, Tool-Timeout, Wiederherstellung, Sandbox-Erschöpfung, Skill-Konflikte und abgelaufene Nachweise."
     },

@@ -84,6 +84,7 @@ BROWSECOMP_SPEC = BenchmarkSpec(
     scoring="llm_judge",
     required_tools=("web_search",),
     supports_memory_ab=True,
+    canary_protected=True,
     # Web research is multi-hop and exploratory: BrowseComp-Plus reports an
     # average of ~20 search calls on failed runs and >20 on strong models
     # (GPT-5/o3), with search+verify pipelines reaching ~75 tool calls on hard
