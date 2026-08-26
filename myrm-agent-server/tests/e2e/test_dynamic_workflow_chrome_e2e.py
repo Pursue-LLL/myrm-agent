@@ -90,7 +90,9 @@ _KICKOFF_DW_JS = f"""(async () => {{
 }})()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(

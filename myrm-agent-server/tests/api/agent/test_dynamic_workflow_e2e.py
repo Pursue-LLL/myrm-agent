@@ -55,7 +55,10 @@ def _collect_workflow_events(
                 if PhaseWaiter.get(plan_key) is not None:
                     client.post(
                         "/api/v1/agents/plan-confirm-response",
-                        json={"messageId": auto_confirm_message_id, "action": "confirm"},
+                        json={
+                            "messageId": auto_confirm_message_id,
+                            "action": "confirm",
+                        },
                     )
                     return
                 time.sleep(0.25)
@@ -100,11 +103,16 @@ def test_dynamic_workflow_e2e(client: TestClient):
     check_e2e_errors(collected_data)
 
     phase_events = [
-        phase for event in collected_data if (phase := _phase_payload(event)) is not None and phase.get("phase") == "plan_confirm"
+        phase
+        for event in collected_data
+        if (phase := _phase_payload(event)) is not None
+        and phase.get("phase") == "plan_confirm"
     ]
     if phase_events:
         waiting = [p for p in phase_events if p.get("status") == "waiting"]
-        assert waiting, "plan_confirm waiting event expected when script contains spawns"
+        assert (
+            waiting
+        ), "plan_confirm waiting event expected when script contains spawns"
         assert waiting[0].get("source") == "dynamic_workflow"
 
     status_events = [d for d in collected_data if d.get("type") == "status"]
@@ -118,7 +126,10 @@ def test_dynamic_workflow_e2e(client: TestClient):
     message_events = [d for d in collected_data if d.get("type") == "message"]
     assert content_events or message_events, "Missing final output event"
 
-    final_content = "".join(str(d.get("content", "") or d.get("data", "")) for d in content_events + message_events)
+    final_content = "".join(
+        str(d.get("content", "") or d.get("data", ""))
+        for d in content_events + message_events
+    )
     assert len(final_content) > 0, "Workflow should produce non-empty summarized output"
 
 
@@ -139,12 +150,18 @@ def test_dynamic_workflow_deterministic_id(client: TestClient):
     hash_input = f"{chat_id}:{message_id}".encode("utf-8")
     expected_wf = f"wf_{hashlib.md5(hash_input).hexdigest()[:12]}"
 
-    events = _collect_workflow_events(client, base_payload, auto_confirm_message_id=message_id)
+    events = _collect_workflow_events(
+        client, base_payload, auto_confirm_message_id=message_id
+    )
     check_e2e_errors(events)
 
     wf_id: str | None = None
     for event in events:
-        if event.get("type") == "status" and event.get("step_key") == "workflow_init" and event.get("status") == "success":
+        if (
+            event.get("type") == "status"
+            and event.get("step_key") == "workflow_init"
+            and event.get("status") == "success"
+        ):
             data = event.get("data", {})
             if isinstance(data, dict):
                 wf_id = data.get("workflow_id")
@@ -174,7 +191,9 @@ def test_dynamic_workflow_verification_modes_integration(client: TestClient):
         "model_selection": get_model_selection(),
     }
 
-    events = _collect_workflow_events(client, payload, auto_confirm_message_id=message_id)
+    events = _collect_workflow_events(
+        client, payload, auto_confirm_message_id=message_id
+    )
     assert len(events) > 0, "Should have received workflow events"
     check_e2e_errors(events)
 
@@ -182,4 +201,3 @@ def test_dynamic_workflow_verification_modes_integration(client: TestClient):
     step_keys = [d.get("step_key") for d in status_events if d.get("step_key")]
     assert "workflow_init" in step_keys
     assert "workflow_execution" in step_keys
-

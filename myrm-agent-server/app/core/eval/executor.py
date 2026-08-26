@@ -80,13 +80,17 @@ class LocalEvalExecutor:
         # substrings rejected in web_search queries. Installed only when the
         # caller resolves them from the benchmark spec — never for normal runs.
         self._blocked_hostnames = blocked_hostnames
-        effective_blocked_terms = list(blocked_terms) if blocked_terms is not None else []
+        effective_blocked_terms = (
+            list(blocked_terms) if blocked_terms is not None else []
+        )
         if benchmark_mode:
             if CANARY_GUID not in effective_blocked_terms:
                 effective_blocked_terms.append(CANARY_GUID)
             if canary_token and canary_token not in effective_blocked_terms:
                 effective_blocked_terms.append(canary_token)
-        self._blocked_terms = tuple(effective_blocked_terms) if effective_blocked_terms else None
+        self._blocked_terms = (
+            tuple(effective_blocked_terms) if effective_blocked_terms else None
+        )
         # Builtin-tool whitelist a benchmark may declare to be runnable in
         # benchmark_mode (e.g. BrowseComp requires web_search). Default empty:
         # a plain benchmark run keeps the CORE file/shell baseline only.
@@ -117,7 +121,9 @@ class LocalEvalExecutor:
         # semantics": benchmark runs disable memory for a fair, uncontaminated
         # baseline; interactive runs keep it on. Pass an explicit bool to
         # override (e.g. the memory-on arm of a memory A/B comparison).
-        self._enable_memory = enable_memory if enable_memory is not None else not benchmark_mode
+        self._enable_memory = (
+            enable_memory if enable_memory is not None else not benchmark_mode
+        )
         # Override memory storage root so eval never touches the user's real
         # memory volume (isolated temp dir created by the caller).
         self._memory_base_path = memory_base_path
@@ -138,11 +144,15 @@ class LocalEvalExecutor:
 
         # Initialize a sandbox executor for this session if needed by assertions
         # We use the local executor for testing purposes and bind it to the isolated workspace
-        self._sandbox_executors[self._session_id] = LocalExecutor(ExecutionConfig(), workspace_path=str(workspace_dir))
+        self._sandbox_executors[self._session_id] = LocalExecutor(
+            ExecutionConfig(), workspace_path=str(workspace_dir)
+        )
 
         return self._session_id
 
-    def get_sandbox_executor(self, session_id: str | None = None) -> CodeExecutor | None:
+    def get_sandbox_executor(
+        self, session_id: str | None = None
+    ) -> CodeExecutor | None:
         """Return the SandboxExecutor for evaluating state assertions."""
         if session_id and session_id in self._sandbox_executors:
             return self._sandbox_executors[session_id]
@@ -167,7 +177,9 @@ class LocalEvalExecutor:
         if count:
             logger.info("Removed %d eval workspace(s)", count)
 
-    async def execute(self, message: str, *, session_id: str | None = None) -> AgentResponse:
+    async def execute(
+        self, message: str, *, session_id: str | None = None
+    ) -> AgentResponse:
         """Execute a single eval case."""
         chat_id = session_id or self._session_id or f"eval_{uuid.uuid4().hex[:8]}"
 
@@ -199,7 +211,9 @@ class LocalEvalExecutor:
             configs.org_mcp_dict,
         )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
-        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
+            configs.providers_dict
+        )
         user_instructions = extract_user_instructions(configs.personal_settings_dict)
 
         agent_skill_ids = []
@@ -210,8 +224,12 @@ class LocalEvalExecutor:
         agent_engine_params = None
 
         agent_model_override: str | None = None
-        from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
-        from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
+        from app.services.agent.builtin_specs.builtin_tool_ids import (
+            DEFAULT_ENABLED_BUILTIN_TOOLS,
+        )
+        from app.services.agent.profile.profile_resolver import (
+            resolve_builtin_tool_flags,
+        )
         from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
 
         enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
@@ -220,16 +238,22 @@ class LocalEvalExecutor:
         memory_extraction_preset: str | None = None
 
         if self.profile_id:
-            from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
+            from app.services.agent.profile.profile_resolver import (
+                get_agent_profile_resolver,
+            )
 
             resolved = await get_agent_profile_resolver().resolve(self.profile_id)
             if resolved:
                 if resolved.system_prompt:
                     user_instructions = (
-                        f"{user_instructions}\n\n{resolved.system_prompt}" if user_instructions else resolved.system_prompt
+                        f"{user_instructions}\n\n{resolved.system_prompt}"
+                        if user_instructions
+                        else resolved.system_prompt
                     )
                 agent_skill_ids = list(resolved.skill_ids)
-                agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+                agent_subagent_ids = (
+                    list(resolved.subagent_ids) if resolved.subagent_ids else None
+                )
                 if resolved.security_overrides:
                     for _k, _v in resolved.security_overrides.items():
                         agent_security_raw[str(_k)] = _v
@@ -242,7 +266,9 @@ class LocalEvalExecutor:
                 raw_decay = resolved.memory_decay_profile
                 memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
                 raw_preset = resolved.memory_extraction_preset
-                memory_extraction_preset = raw_preset if isinstance(raw_preset, str) else None
+                memory_extraction_preset = (
+                    raw_preset if isinstance(raw_preset, str) else None
+                )
 
                 if mcp_configs:
                     from app.services.agent.params.mcp_selection import (
@@ -303,7 +329,9 @@ class LocalEvalExecutor:
                     conversation_id=chat_id,
                 )
             except Exception as e:
-                logger.warning("Failed to resolve shared memory contexts for eval run: %s", e)
+                logger.warning(
+                    "Failed to resolve shared memory contexts for eval run: %s", e
+                )
 
         from myrm_agent_harness.toolkits.retriever.embedding.factory import (
             EmbeddingConfig,
@@ -330,7 +358,9 @@ class LocalEvalExecutor:
                 configs.providers_dict,
                 model_override=agent_model_override,
             )
-            eval_model_cfg = enrich_model_context_window(eval_model_cfg, configs.providers_dict)
+            eval_model_cfg = enrich_model_context_window(
+                eval_model_cfg, configs.providers_dict
+            )
         else:
             eval_model_cfg = configs.model_cfg
 
@@ -353,7 +383,9 @@ class LocalEvalExecutor:
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
             channel_name="eval",
-            enable_web_search=("web_search" in self.benchmark_tools if self.benchmark_mode else True)
+            enable_web_search=(
+                "web_search" in self.benchmark_tools if self.benchmark_mode else True
+            )
             and configs.search_is_user_configured
             and await verify_search_service_available(configs.search_cfg),
             enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
@@ -376,7 +408,9 @@ class LocalEvalExecutor:
             memory_shared_context_ids=memory_shared_context_ids,
             enable_memory=self._enable_memory,
             memory_base_path=self._memory_base_path,
-            enable_conversation_search=resolve_conversation_search_enabled(configs.personal_settings_dict),
+            enable_conversation_search=resolve_conversation_search_enabled(
+                configs.personal_settings_dict
+            ),
             declared_allowed_roots=(str(workspace_dir),),
         )
 
@@ -412,7 +446,9 @@ class LocalEvalExecutor:
                 if event_type == "message" and isinstance(event.get("data"), str):
                     chunks.append(str(event["data"]))
                 elif event_type == "tasks_steps":
-                    tool_name = str(event.get("tool_name", "")) or str(event.get("step_key", ""))
+                    tool_name = str(event.get("tool_name", "")) or str(
+                        event.get("step_key", "")
+                    )
                     if tool_name:
                         tools_called.append(tool_name)
                     # Record a per-step summary (tool name + step data) so the
@@ -434,7 +470,10 @@ class LocalEvalExecutor:
                     if isinstance(raw_error_category, str) and raw_error_category:
                         step_detail["error_category"] = raw_error_category
                     tool_call_details.append(step_detail)
-                    if event.get("error_category") == ToolErrorCategory.BENCHMARK_BLOCKED.value:
+                    if (
+                        event.get("error_category")
+                        == ToolErrorCategory.BENCHMARK_BLOCKED.value
+                    ):
                         blocked_count += 1
                 elif event_type == "engine_limit_reached":
                     data = event.get("data")
@@ -459,7 +498,9 @@ class LocalEvalExecutor:
                         usage = data.get("usage")
                         if isinstance(usage, dict):
                             total_input_tokens += int(usage.get("prompt_tokens") or 0)
-                            total_output_tokens += int(usage.get("completion_tokens") or 0)
+                            total_output_tokens += int(
+                                usage.get("completion_tokens") or 0
+                            )
         finally:
             await finalize_agent_session(
                 agent,

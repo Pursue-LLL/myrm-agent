@@ -97,7 +97,9 @@ async def create_dynamic_workflow_stream(
     message_id = params.message_id or "default_msg"
 
     if workflow_template_id:
-        from app.services.workflow_templates.validation import validate_pinned_template_run
+        from app.services.workflow_templates.validation import (
+            validate_pinned_template_run,
+        )
 
         template_error = validate_pinned_template_run(
             workflow_template_id,
@@ -125,7 +127,9 @@ async def create_dynamic_workflow_stream(
     effective_chat_id = params.chat_id or agent_wrapper.chat_id or "default"
     base_agent = await build_general_agent(agent_wrapper, effective_chat_id)
 
-    history = await convert_chat_history(params.chat_history) if params.chat_history else []
+    history = (
+        await convert_chat_history(params.chat_history) if params.chat_history else []
+    )
 
     catalog = DatabaseSubagentCatalog(
         bound_agent_ids=list(params.subagent_ids or []),
@@ -204,7 +208,9 @@ async def create_dynamic_workflow_stream(
 
     from app.services.context.context_assembly import ContextAssemblyService
 
-    harness_root = ContextAssemblyService.build_facade(ensure_layout=False).harness_path()
+    harness_root = ContextAssemblyService.build_facade(
+        ensure_layout=False
+    ).harness_path()
 
     try:
         async for chunk in run_dynamic_workflow_stream(
@@ -225,7 +231,11 @@ async def create_dynamic_workflow_stream(
             if isinstance(chunk, dict) and chunk.get("type") == "message_end":
                 tracker = get_token_tracker()
                 if tracker:
-                    chunk["usage"] = tracker.usage.to_dict() if hasattr(tracker.usage, "to_dict") else {}
+                    chunk["usage"] = (
+                        tracker.usage.to_dict()
+                        if hasattr(tracker.usage, "to_dict")
+                        else {}
+                    )
                     chunk["cost_usd"] = round(tracker.total_cost_usd, 6)
                     _inject_wu_consumed(chunk)
             yield chunk
@@ -252,7 +262,9 @@ async def create_deep_research_stream(
     from app.core.agent.tool_description_locale import resolve_tool_description_locale
     from app.core.utils.chat_utils import convert_chat_history
 
-    llm = await llm_manager.get_llm_from_config(params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None))
+    llm = await llm_manager.get_llm_from_config(
+        params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None)
+    )
     tool_description_locale = resolve_tool_description_locale(
         agent_locale=params.locale,
         channel=params.channel_name,
@@ -270,7 +282,9 @@ async def create_deep_research_stream(
                 api_keys=getattr(research_model_cfg, "api_keys", None),
             )
         except Exception:
-            logger.warning("Failed to create research agent LLM, falling back to main LLM")
+            logger.warning(
+                "Failed to create research agent LLM, falling back to main LLM"
+            )
 
     raw_q = params.query
     if isinstance(raw_q, str) or isinstance(raw_q, list):
@@ -280,9 +294,13 @@ async def create_deep_research_stream(
     if text_query:
         text_query = cast(
             str,
-            apply_general_agent_pipeline_banner(text_query, channel_name=params.channel_name),
+            apply_general_agent_pipeline_banner(
+                text_query, channel_name=params.channel_name
+            ),
         )
-    chat_history = await convert_chat_history(params.chat_history) if params.chat_history else None
+    chat_history = (
+        await convert_chat_history(params.chat_history) if params.chat_history else None
+    )
 
     on_report_ready = _build_wiki_vault_callback(params) if params.enable_wiki else None
     on_explore = _build_explore_callback(params) if params.enable_wiki else None
@@ -407,7 +425,9 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
             if not content or len(content) < 200:
                 continue
 
-            safe_task = "".join(c if c.isalnum() or c in "-_" else "_" for c in task[:60]).strip("_")
+            safe_task = "".join(
+                c if c.isalnum() or c in "-_" else "_" for c in task[:60]
+            ).strip("_")
             relative_path = f"deep_research_{timestamp}_{idx}_{safe_task}.md"
 
             escaped_task = task.replace('"', '\\"')
@@ -455,7 +475,9 @@ def _build_wiki_vault_callback(params: GeneralAgentParams):
                 len(written_files),
             )
         except Exception as e:
-            logger.warning("[deep-research-vault] Failed to enqueue for compilation: %s", e)
+            logger.warning(
+                "[deep-research-vault] Failed to enqueue for compilation: %s", e
+            )
 
     return _vault_research_to_wiki
 
@@ -475,7 +497,9 @@ async def create_fast_lane_stream(
 
     from app.core.utils.chat_utils import convert_chat_history
 
-    llm = await llm_manager.get_llm_from_config(params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None))
+    llm = await llm_manager.get_llm_from_config(
+        params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None)
+    )
 
     system_prompt = "你是一个友好的AI助手，请简短、自然地回应用户的问候或简单对话。"
     if params.user_instructions:
@@ -492,7 +516,9 @@ async def create_fast_lane_stream(
             HumanMessage(
                 content=cast(
                     str,
-                    apply_general_agent_pipeline_banner(params.query, channel_name=params.channel_name),
+                    apply_general_agent_pipeline_banner(
+                        params.query, channel_name=params.channel_name
+                    ),
                 ),
             ),
         )
@@ -526,7 +552,9 @@ async def create_fast_lane_stream(
     try:
         # Enable stream_usage for token tracking if supported by the provider
         stream_kwargs = {}
-        if hasattr(llm, "bind_tools"):  # A simple heuristic to check if it's a modern chat model
+        if hasattr(
+            llm, "bind_tools"
+        ):  # A simple heuristic to check if it's a modern chat model
             stream_kwargs["stream_usage"] = True
 
         async for chunk in llm.astream(messages, **stream_kwargs):

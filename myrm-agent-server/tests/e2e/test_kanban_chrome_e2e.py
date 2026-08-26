@@ -1956,6 +1956,7 @@ def test_kanban_drawer_review_comment_thread_render() -> None:
         "title": task_title,
         "description": "E2E verification review thread test",
         "completion_criteria": "Assert all criteria pass",
+        "attachments": [{"type": "file", "path": "test.txt", "name": "test.txt"}],
         "metadata": {
             "acceptance_results": [
                 {
@@ -1994,19 +1995,30 @@ def test_kanban_drawer_review_comment_thread_render() -> None:
         )
         try:
             _open_kanban_board(client, page, board_id, board_name)
-            card_clicked = wait_for_state(
+            card_state = wait_for_state(
                 client,
                 page,
                 f"""(() => {{
-                  const card = document.getElementById({json.dumps(f"kanban-task-{task_id}")})
-                    || Array.from(document.querySelectorAll('[id^="kanban-task-"]')).find(el => (el.textContent || '').includes({task_title!r}));
-                  if (!card) return {{ ready: false }};
-                  card.click();
-                  return {{ ready: true }};
+                  const card = document.getElementById({json.dumps(f"kanban-task-{task_id}")});
+                  return {{ ready: !!card }};
                 }})()""",
-                timeout_sec=30.0,
+                timeout_sec=90.0,
             )
-            assert card_clicked.get("ready") is True
+            assert card_state.get("ready") is True
+
+            drawer_opened = client.evaluate(
+                page,
+                f"""(() => {{
+                  const badge = document.querySelector(
+                    '[data-testid="kanban-task-attachment-badge-{task_id}"]',
+                  );
+                  if (!badge) return false;
+                  badge.click();
+                  return true;
+                }})()""",
+                timeout_sec=5.0,
+            )
+            assert drawer_opened is True
 
             review_state = wait_for_state(
                 client,

@@ -426,7 +426,9 @@ class OrchestratorChromeClient:
                     continue
                 if self._is_terminal_tab_error(message) and attempt < 3:
                     try:
-                        from e2e_core.warm_shell_registry import shared_read_hot_path_decision
+                        from e2e_core.warm_shell_registry import (
+                            shared_read_hot_path_decision,
+                        )
 
                         if shared_read_hot_path_decision(url=url).eligible:
                             self._ensure_session_context()
@@ -534,7 +536,10 @@ def _spawn_ensure_orchestrator() -> None:
     """
     now = time.monotonic()
     global _orchestrator_watchdog_last_spawn_at
-    if now - _orchestrator_watchdog_last_spawn_at < ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC:
+    if (
+        now - _orchestrator_watchdog_last_spawn_at
+        < ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC
+    ):
         return
     _orchestrator_watchdog_last_spawn_at = now
     script = _monorepo_root() / "scripts/dev/ensure-browser-orchestrator.sh"
@@ -1275,7 +1280,9 @@ def open_app_route_page(
         client.bind_primary_page(page)
         if os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper() == "SHARED":
             from cdp_chat.support import get_open_page_api_url  # noqa: PLC0415
-            from e2e_core.warm_shell_registry import seal_platform_shell  # noqa: PLC0415
+            from e2e_core.warm_shell_registry import (
+                seal_platform_shell,
+            )  # noqa: PLC0415
 
             if get_open_page_api_url().rstrip("/") == "http://127.0.0.1:8080":
                 seal_platform_shell(
