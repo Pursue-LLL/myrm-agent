@@ -302,4 +302,41 @@ describe('ResultStep conversation search opt-in', () => {
     expect(screen.getByTestId('codex-wiki-completion-lane')).toBeTruthy();
     expect(screen.getByTestId('codex-completion-vault-hint')).toBeTruthy();
   });
+
+  it('renders step_budget_low issue warning and action link', () => {
+    render(
+      <ResultStep
+        result={{
+          ...baseResult,
+          readiness: {
+            status: 'warning',
+            issues: [
+              {
+                code: 'step_budget_low',
+                severity: 'warning',
+                params: { count: 1, min_steps: 100 },
+                settings_path: '/settings?tab=agent',
+              },
+            ],
+          },
+        }}
+        skillSubmitResult={null}
+        skillSubmitFailed={false}
+        secretsImportMessage={null}
+        rollingBack={false}
+        onRollback={() => undefined}
+        onRetrySkillSubmit={() => undefined}
+        retryingSkills={false}
+        onDone={() => undefined}
+        t={t}
+      />,
+    );
+
+    expect(
+      screen.getByText('result.readinessIssue.stepBudgetLow:{"count":1,"min":100}'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'result.readinessAction.configureStepBudget' }),
+    ).toHaveAttribute('href', '/settings?tab=agent');
+  });
 });

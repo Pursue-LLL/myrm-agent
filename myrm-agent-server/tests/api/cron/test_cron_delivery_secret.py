@@ -259,9 +259,11 @@ class TestTestDeliveryEndpoint:
 
     def test_test_to_heal_resets_consecutive_failures(self, client: TestClient, cron_manager: CronManager) -> None:
         """Successful test delivery on active degraded delivery immediately clears failure state."""
-        job = _create_webhook_job(client)
-        from myrm_agent_harness.toolkits.cron.types import CronJobPatch
         import asyncio
+
+        from myrm_agent_harness.toolkits.cron.types import CronJobPatch
+
+        job = _create_webhook_job(client)
         asyncio.run(cron_manager.update_job(
             job["id"],
             "default",
