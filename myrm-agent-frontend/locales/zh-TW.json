@@ -17302,14 +17302,5 @@
     "pinned": "置頂",
     "viewDetails": "查看詳情",
     "refresh": "重新整理邊界"
-  },
-  "replayAction": {
-    "replaySuccessDeterministic": "重跑驗證完成：確定性達 {score}%",
-    "replaySuccessDrift": "重跑完成，存在漂移：確定性 {score}%",
-    "replayFailed": "重跑執行失敗",
-    "tooltip": "在隔離環境中重放會話並驗證確定性",
-    "replaying": "重放驗證中...",
-    "replayButton": "重放驗證",
-    "badgeTitle": "點選對比執行軌跡差異"
   }
 }

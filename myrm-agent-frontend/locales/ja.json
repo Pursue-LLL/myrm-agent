@@ -17308,14 +17308,5 @@
     "pinned": "ピン留め",
     "viewDetails": "詳細を表示",
     "refresh": "境界を更新"
-  },
-  "replayAction": {
-    "replaySuccessDeterministic": "再実行検証完了：決定性 {score}%",
-    "replaySuccessDrift": "再実行完了（ドリフトあり）：決定性 {score}%",
-    "replayFailed": "再実行に失敗しました",
-    "tooltip": "隔離環境でセッションを再生し決定性を検証",
-    "replaying": "再生検証中...",
-    "replayButton": "再生検証",
-    "badgeTitle": "クリックして軌跡の差分を確認"
   }
 }
