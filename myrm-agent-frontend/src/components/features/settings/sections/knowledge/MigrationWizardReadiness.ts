@@ -68,6 +68,10 @@ export function formatReadinessIssue(issue: MemoryImportReadinessIssue, t: Migra
         count: Number(issue.params.count ?? 1),
         min: Number(issue.params.min_steps ?? 100),
       });
+    case 'prompt_cache_jitter':
+      return t('result.readinessIssue.promptCacheJitter', {
+        count: Number(issue.params.count ?? 1),
+      });
     default:
       return t('result.readinessIssue.generic', { code: issue.code });
   }
@@ -111,6 +115,8 @@ function resolveReadinessActionLabel(code: string, t: MigrationWizardTranslation
       return t('result.readinessAction.configureMoaOverlay');
     case 'step_budget_low':
       return t('result.readinessAction.configureStepBudget');
+    case 'prompt_cache_jitter':
+      return t('result.readinessAction.configurePromptCache');
     default:
       return t('result.readinessAction.openMemoryCenter');
   }
