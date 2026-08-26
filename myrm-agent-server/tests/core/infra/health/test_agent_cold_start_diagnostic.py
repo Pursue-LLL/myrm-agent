@@ -417,3 +417,11 @@ async def test_agent_step_budget_diagnostic() -> None:
         assert report.metrics["low_budget_agent_count"] == 1.0
         assert report.fix_suggestion is not None
         assert "Legacy Agent" in report.detail
+
+    # 3. When database throws an exception (e.g., table not created yet)
+    with patch("app.database.connection.get_session", side_effect=RuntimeError("DB disconnected")):
+        report = await diagnostic.check_health()
+        assert report.component_name == "AgentStepBudget"
+        assert report.status == "pass"
+        assert report.code == "OK_AGENT_STEP_BUDGET_SKIPPED"
+

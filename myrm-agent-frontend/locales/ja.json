@@ -15364,6 +15364,13 @@
       "checkpoint": "チェックポイント"
     }
   },
+  "trajectoryDiff": {
+    "title": "セッション間実行軌跡の比較 (Trajectory Diff)",
+    "compareWith": "比較対象セッション",
+    "selectSessionPlaceholder": "比較する過去のセッションを選択...",
+    "divergenceDetected": "ステップ #{step} で実行分岐を検出",
+    "noSessionSelected": "上でセッションを選択して並行軌跡比較を開始してください"
+  },
   "evalLab": {
     "pageTitle": "評価ラボ",
     "pageDescription": "テストケースを管理し、サンドボックス環境で隔離評価を実行して、エージェントのパフォーマンスを自動検証",
@@ -15474,7 +15481,6 @@
     "saveFromChatTitle": "評価ラボケースとして保存",
     "cancel": "キャンセル",
     "create": "作成",
-    "benchmarkMode": "ベンチマークモード",
     "matrixMode": "マトリックス",
     "runMatrix": "マトリックス評価",
     "matrixEvalStarted": "マトリックス評価を開始しました",

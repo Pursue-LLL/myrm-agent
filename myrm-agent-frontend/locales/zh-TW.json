@@ -15332,6 +15332,13 @@
       "checkpoint": "檢查點"
     }
   },
+  "trajectoryDiff": {
+    "title": "跨會話執行軌跡對比 (Cross-Session Trajectory Diff)",
+    "compareWith": "對比目標會話",
+    "selectSessionPlaceholder": "選擇一個歷史會話進行對比...",
+    "divergenceDetected": "在第 {step} 步檢測到執行分歧點 (Divergence)",
+    "noSessionSelected": "請在上方選擇一個會話以開始雙軌軌跡對比"
+  },
   "evalLab": {
     "pageTitle": "評測實驗室",
     "pageDescription": "管理測試用例並執行沙盒環境隔離評估，全自動化驗證 Agent 表現",
@@ -15360,8 +15367,11 @@
     "saveCasesSuccess": "評測用例儲存成功",
     "saveFailed": "儲存失敗",
     "saveFirst": "請先儲存未儲存的更改",
+    "benchmarkMode": "基準模式",
     "evalStarted": "評測任務已啟動",
     "evalStartFailed": "啟動評測任務失敗",
+    "benchmarksRunStarted": "基準評測已啟動",
+    "alreadyRunning": "已有評測正在執行中",
     "abortSent": "已傳送停止指令，正在安全退出...",
     "abortFailed": "傳送停止指令失敗",
     "datasetCreated": "資料集建立成功",
