@@ -130,6 +130,18 @@ const PetOverlay = memo(function PetOverlay() {
   }, [blockedOnUser]);
 
   useEffect(() => {
+    const handleVoiceUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<{ voiceState?: 'idle' | 'listening' | 'processing' | 'speaking' | 'inactive' }>).detail;
+      if (detail?.voiceState) {
+        stateMachineRef.current?.setVoiceState(detail.voiceState);
+      }
+    };
+
+    window.addEventListener('myrm-voice-state-update', handleVoiceUpdate);
+    return () => window.removeEventListener('myrm-voice-state-update', handleVoiceUpdate);
+  }, []);
+
+  useEffect(() => {
     const handleStatusEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (!detail?.step_key) {
