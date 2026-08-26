@@ -222,68 +222,6 @@
     }
   },
   "settings": {
-    "workbench": {
-      "badge": "個人工作臺與數據主權",
-      "title": "數據主權與價值沉澱",
-      "description": "您的所有記憶、知識庫 Wiki、技能、規則與定時任務均安全儲存在私有工作區中。您擁有 100% 的 AI 資產所有權，無任何廠商鎖定。",
-      "refresh": "重新整理",
-      "assetMatrixTitle": "AI 資產概覽",
-      "assets": {
-        "memory": {
-          "title": "長期記憶",
-          "score": "健康度：{score}%",
-          "desc": "跨會話記憶、偏好及個性化習慣沉澱。"
-        },
-        "wiki": {
-          "title": "知識庫 (Wiki)",
-          "rawCount": "{count} 份原始源檔案",
-          "desc": "私有知識庫、結構化文件與向量索引。"
-        },
-        "skills": {
-          "title": "自研技能",
-          "evolutions": "已自主演進 {count} 次",
-          "desc": "自定義工具封裝與持續進化的自動化腳本。"
-        },
-        "rules": {
-          "title": "規則約束",
-          "chars": "{count} 字符",
-          "desc": "行為準則、格式要求與工作區邊界。"
-        },
-        "cron": {
-          "title": "定時任務",
-          "runs": "累計執行 {count} 次",
-          "desc": "自動巡檢、定時摘要與周期性任務流水線。"
-        },
-        "storage": {
-          "title": "本地沙盒儲存",
-          "desc": "資料庫、向量庫與本地沙盒工件持久化目錄。"
-        }
-      },
-      "sovereignty": {
-        "title": "數據主權保障",
-        "subtitle": "無任何雲端鎖定，數據隨時導出與遷移",
-        "exportConfig": "導出完整配置",
-        "exportMemory": "導出記憶資產",
-        "points": {
-          "decouplingTitle": "代碼與邏輯完全解耦",
-          "decouplingDesc": "配置與記憶以標準格式沉澱，不綁定特定代碼或平臺。",
-          "standardTitle": "開放標準格式",
-          "standardDesc": "記憶與規則均以 Markdown / JSON 標準格式存儲，隨時可用於其他系統。",
-          "zeroLockinTitle": "零廠商鎖定 (Zero Lock-in)",
-          "zeroLockinDesc": "一鍵導出所有資產，可在本地、自建或任何相容環境無縫運行。"
-        }
-      },
-      "deployHonest": {
-        "title": "部署架構透傳",
-        "tauriSubtitle": "桌面原生部署",
-        "sandboxSubtitle": "沙盒容器部署",
-        "localSubtitle": "本地服務部署",
-        "dataPathLabel": "數據持久化路徑",
-        "tauriDetail": "所有資產持久化在本地用戶目錄，數據完全離線掌控。",
-        "sandboxDetail": "每個用戶擁有專屬獨立沙盒實例與持久化 Volume，互不干擾。",
-        "localDetail": "服務運行在本地環境，數據存儲在當前工作區私有數據目錄中。"
-      }
-    },
     "lockedUse": {
       "title": "電腦使用 / 鎖定使用",
       "layer1Title": "保持螢幕常亮",

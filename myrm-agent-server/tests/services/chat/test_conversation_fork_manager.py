@@ -1228,10 +1228,11 @@ async def test_fork_conversation_empty_or_zero_index_and_cycle_prevention(
     db_session.add(ConversationFork(child_chat_id=cycle_parent_id, parent_chat_id=cycle_child_id, fork_message_index=0))
     await db_session.commit()
 
-    # Querying should terminate cleanly without infinite recursion
+    # Querying should terminate cleanly without infinite recursion (child -> parent, depth=1 since parent's parent is child which is already in visited)
     cycle_info = await ConversationForkManager.get_fork_info(db_session, cycle_child_id)
     assert cycle_info.parent_chat_id == cycle_parent_id
-    assert cycle_info.depth == 2  # child -> parent -> (terminates on visited)
+    assert cycle_info.depth == 1
+
 
 
 @pytest.fixture

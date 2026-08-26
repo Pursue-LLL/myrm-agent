@@ -49,6 +49,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 
 | 路径                                                        | 职责                                                                                       |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `__tests__/MigrationWizardReadiness.test.ts`                | MigrationWizard 就绪状态与 issue code（含 step_budget_low 等）格式化及动作解析            |
 | `__tests__/MigrationWizardSteps.resultReadiness.test.tsx`   | ResultStep readiness 门禁、Migration readiness anchor、**conversation search opt-in 按钮** |
 | `__tests__/CodexWikiCompletionLane.test.tsx`                | Codex Wiki 补全泳道渲染                                                                    |
 | `__tests__/MemoryGuardianCard.test.tsx`                     | 记忆 Guardian 卡片状态展示                                                                 |

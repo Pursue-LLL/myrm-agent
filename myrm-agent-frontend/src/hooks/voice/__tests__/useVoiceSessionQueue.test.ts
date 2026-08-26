@@ -263,4 +263,20 @@ describe('useVoiceSession speakResponse queue insertion', () => {
 
     expect(geminiMock.connect).toHaveBeenCalledOnce();
   });
+
+  it('replayLastTTS triggers speech for last spoken text (F13 DoD)', () => {
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
+
+    act(() => {
+      result.current.startSession();
+      result.current.speakResponse('Important instruction.');
+    });
+    expect(ttsMock.speak).toHaveBeenLastCalledWith('Important instruction.');
+
+    act(() => {
+      result.current.replayLastTTS();
+    });
+    expect(ttsMock.speak).toHaveBeenCalledTimes(2);
+    expect(ttsMock.speak).toHaveBeenLastCalledWith('Important instruction.');
+  });
 });
