@@ -87,10 +87,9 @@ def _delete_agent(api_url: str, agent_id: str) -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="MUTATE",
+    execution_mode="SHARED",
+    access_scope="READ",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
