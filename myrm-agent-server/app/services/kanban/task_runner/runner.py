@@ -83,7 +83,9 @@ _WAIT_NOTE_ZH = "正在等待其他任务释放此工作目录…"
 __all__ = ["KanbanTaskRunner", "_ResolvedProfile", "_classify_content_type"]
 
 
-_PROTOCOL_VIOLATION_MSG = "Protocol violation: agent finished without calling kanban_complete(summary=...)"
+_PROTOCOL_VIOLATION_MSG = (
+    "Protocol violation: agent finished without calling kanban_complete(summary=...)"
+)
 
 
 class KanbanTaskRunner:
@@ -99,9 +101,7 @@ class KanbanTaskRunner:
         self._timeout_seconds = timeout_seconds
         self._workspace_locks: dict[str, asyncio.Lock] = {}
 
-    async def run(
-        self, task: KanbanTask
-    ) -> tuple[bool, str] | TaskExecutionResult:
+    async def run(self, task: KanbanTask) -> tuple[bool, str] | TaskExecutionResult:
         context = await build_task_context(self._store, task.task_id)
         profile = await resolve_agent_profile(task.agent_id)
         workspace_root = await resolve_workspace(self._store, task)
@@ -109,10 +109,16 @@ class KanbanTaskRunner:
         query_input = await build_multimodal_query(task, context)
 
         is_background_task = is_persistent_background(task.metadata)
-        default_timeout = _BACKGROUND_TASK_TIMEOUT_SECONDS if is_background_task else self._timeout_seconds
+        default_timeout = (
+            _BACKGROUND_TASK_TIMEOUT_SECONDS
+            if is_background_task
+            else self._timeout_seconds
+        )
         effective_timeout = task.max_runtime_seconds or default_timeout
 
-        goal_provider = await self._setup_goal_provider(task) if task.goal_mode else None
+        goal_provider = (
+            await self._setup_goal_provider(task) if task.goal_mode else None
+        )
 
         self._register_background_tokens(task)
         t0 = time.monotonic()
@@ -168,7 +174,9 @@ class KanbanTaskRunner:
         additions: list[str] = []
         if workspace_root:
             additions.append(f"Workspace root: {workspace_root}")
-        annotations = task.metadata.get("context_annotations") if task.metadata else None
+        annotations = (
+            task.metadata.get("context_annotations") if task.metadata else None
+        )
         if isinstance(annotations, list):
             additions.extend(str(item) for item in annotations if item)
         if not additions:
@@ -192,7 +200,9 @@ class KanbanTaskRunner:
                     SteeringToken(),
                 )
         except Exception:
-            logger.debug("Could not register background tokens for %s", task.task_id[:8])
+            logger.debug(
+                "Could not register background tokens for %s", task.task_id[:8]
+            )
 
     def _unregister_background_tokens(self, task: KanbanTask) -> None:
         if not is_persistent_background(task.metadata):
@@ -204,7 +214,9 @@ class KanbanTaskRunner:
             if handler:
                 handler.unregister_runtime_tokens(task.task_id)
         except Exception:
-            logger.debug("Could not unregister background tokens for %s", task.task_id[:8])
+            logger.debug(
+                "Could not unregister background tokens for %s", task.task_id[:8]
+            )
 
     @asynccontextmanager
     async def _workspace_lock(
@@ -314,9 +326,16 @@ class KanbanTaskRunner:
             return provider
 
         latest = await provider.get_latest_goal(session_id)
-        if latest and not latest.is_terminal and latest.status in (GoalStatus.PAUSED, GoalStatus.BUDGET_LIMITED, GoalStatus.WAIT):
+        if (
+            latest
+            and not latest.is_terminal
+            and latest.status
+            in (GoalStatus.PAUSED, GoalStatus.BUDGET_LIMITED, GoalStatus.WAIT)
+        ):
             await provider.resume_goal(latest.goal_id, reset_turns=False)
-            logger.info("Goal %s resumed for kanban task %s", latest.goal_id, task.task_id[:8])
+            logger.info(
+                "Goal %s resumed for kanban task %s", latest.goal_id, task.task_id[:8]
+            )
             return provider
 
         budget = GoalBudget(max_turns=task.goal_max_turns or 10)
@@ -373,12 +392,28 @@ class KanbanTaskRunner:
             if fresh is not None and has_completion_intent(fresh.metadata):
                 turns_info = f" ({goal.turns_used} turns)"
                 summary = fresh.result or agent_result[1] or "Goal completed"
-                return TaskExecutionResult.success(summary + turns_info, metadata_patch=meta_patch)
-            return TaskExecutionResult.failure(_PROTOCOL_VIOLATION_MSG, metadata_patch=meta_patch)
+                return TaskExecutionResult.success(
+                    summary + turns_info, metadata_patch=meta_patch
+                )
+            return TaskExecutionResult.failure(
+                _PROTOCOL_VIOLATION_MSG, metadata_patch=meta_patch
+            )
 
-        if goal.status in (GoalStatus.PAUSED, GoalStatus.NEEDS_HUMAN_REVIEW, GoalStatus.WAIT):
-            pause_reason = str(goal.metadata.get("pause_reason") or goal.metadata.get("wait_reason") or "needs review")
-            block_kind = BlockKind.EXTERNAL if goal.status == GoalStatus.WAIT else BlockKind.HUMAN
+        if goal.status in (
+            GoalStatus.PAUSED,
+            GoalStatus.NEEDS_HUMAN_REVIEW,
+            GoalStatus.WAIT,
+        ):
+            pause_reason = str(
+                goal.metadata.get("pause_reason")
+                or goal.metadata.get("wait_reason")
+                or "needs review"
+            )
+            block_kind = (
+                BlockKind.EXTERNAL
+                if goal.status == GoalStatus.WAIT
+                else BlockKind.HUMAN
+            )
             if fresh is not None:
                 fresh.status = TaskStatus.BLOCKED
                 fresh.blocked_reason = pause_reason
@@ -470,7 +505,9 @@ class KanbanTaskRunner:
         user_cfgs = await load_user_configs()
 
         board = await self._store.get_board(task.board_id) if task.board_id else None
-        zombie_timeout = board.settings.zombie_timeout_seconds if board and board.settings else 120
+        zombie_timeout = (
+            board.settings.zombie_timeout_seconds if board and board.settings else 120
+        )
 
         embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
@@ -505,14 +542,18 @@ class KanbanTaskRunner:
         model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
         model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
 
-        vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
-            user_cfgs.providers_dict,
-            main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+        vision_fallback_model_cfg, vision_fallback_model_cfgs = (
+            resolve_vision_fallback_chain_for_agent(
+                user_cfgs.providers_dict,
+                main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+            )
         )
 
         memory_shared_context_ids: list[str] = []
         try:
-            from app.services.memory.shared_context.shared_context import resolve_shared_context_ids
+            from app.services.memory.shared_context.shared_context import (
+                resolve_shared_context_ids,
+            )
 
             memory_shared_context_ids = await resolve_shared_context_ids(
                 agent_id=task.agent_id,
@@ -535,7 +576,9 @@ class KanbanTaskRunner:
             enabled_builtin_tools.append("kanban")
 
         task_user_instructions: str | None = profile.system_prompt if profile else None
-        agent_subagent_ids = list(profile.subagent_ids) if profile and profile.subagent_ids else None
+        agent_subagent_ids = (
+            list(profile.subagent_ids) if profile and profile.subagent_ids else None
+        )
         if profile and profile.agent_type == "team":
             from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
@@ -545,7 +588,9 @@ class KanbanTaskRunner:
                 dynamic_discovery=True,
             )
             task_user_instructions = (
-                f"{task_user_instructions}\n\n{leader_protocol}" if task_user_instructions else leader_protocol
+                f"{task_user_instructions}\n\n{leader_protocol}"
+                if task_user_instructions
+                else leader_protocol
             )
 
         if profile:
@@ -591,7 +636,8 @@ class KanbanTaskRunner:
             channel_name=_CHANNEL_NAME,
             declared_allowed_roots=declared_roots,
             enable_web_search=(
-                user_cfgs.search_is_user_configured and await verify_search_service_available(user_cfgs.search_cfg)
+                user_cfgs.search_is_user_configured
+                and await verify_search_service_available(user_cfgs.search_cfg)
             ),
             enable_web_fetch=resolve_enable_web_fetch(kanban_agent_security_raw),
             kanban_tool_mode="worker",
@@ -606,12 +652,20 @@ class KanbanTaskRunner:
             unattended_mode=True,
             enable_memory=resolve_memory_enabled(memory_settings),
             user_instructions=task_user_instructions,
-            agent_skill_ids=list(dict.fromkeys((*(profile.skill_ids if profile else []), *task.extra_skill_ids))),
-            subagent_ids=(list(profile.subagent_ids) if profile and profile.subagent_ids else None),
+            agent_skill_ids=list(
+                dict.fromkeys(
+                    (*(profile.skill_ids if profile else []), *task.extra_skill_ids)
+                )
+            ),
+            subagent_ids=(
+                list(profile.subagent_ids) if profile and profile.subagent_ids else None
+            ),
             max_iterations=profile.max_iterations if profile else None,
             memory_policy=profile.memory_policy if profile else None,
             memory_decay_profile=profile.memory_decay_profile if profile else None,
-            memory_extraction_preset=(profile.memory_extraction_preset if profile else None),
+            memory_extraction_preset=(
+                profile.memory_extraction_preset if profile else None
+            ),
             engine_params=profile.engine_params if profile else None,
             memory_shared_context_ids=memory_shared_context_ids,
             enable_conversation_search=resolve_conversation_search_enabled(
@@ -672,7 +726,9 @@ class KanbanTaskRunner:
                     agent,
                     context,
                     _open_stream,
-                    max_concurrent=max_parallel_from_engine_params(profile.engine_params if profile else None),
+                    max_concurrent=max_parallel_from_engine_params(
+                        profile.engine_params if profile else None
+                    ),
                 ):
                     acc.add(event)
 

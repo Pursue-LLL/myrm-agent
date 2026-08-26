@@ -7796,13 +7796,20 @@
       "busy": "Please wait for the current conversation to finish"
     },
     "fork": {
-      "title": "Fork Conversation",
-      "description": "Create a new conversation branch from message #{index}. The forked conversation will preserve the complete state at this point.",
-      "titleLabel": "New conversation title",
+      "title": "Fork & Independent Acceptance",
+      "description": "Create a new conversation branch from message #{index}, or initiate an independent adversarial acceptance task.",
+      "modeLabel": "Branch Mode",
+      "modeFullClone": "Regular Branch",
+      "modeFullCloneDesc": "Keep full history and thought context to explore new directions",
+      "modeAcceptance": "Independent Acceptance Task (Critic Verifier)",
+      "modeAcceptanceDesc": "Strip confirmation bias, inject critic verification directives, and enforce physical test proofs",
+      "acceptanceScopeLabel": "Audit Focus & Acceptance Criteria (Optional)",
+      "acceptanceScopePlaceholder": "e.g. Audit edge case handling, data consistency, and integration tests...",
+      "titleLabel": "New Conversation Title",
       "titlePlaceholder": "Enter title (optional)",
       "cancel": "Cancel",
-      "create": "Create Branch",
-      "creating": "Creating branch...",
+      "create": "Create Now",
+      "creating": "Creating...",
       "success": "Conversation forked successfully",
       "successDescription": "New branch created from message #{index}",
       "failed": "Fork failed",
@@ -15556,7 +15563,20 @@
       "multiTurn": "<Multi-turn>",
       "viewDiff": "View Diff",
       "noReport": "No eval report yet. Click \"Run Eval\" to start.",
-      "evalRunning": "Eval task in progress, please wait"
+      "evalRunning": "Eval task in progress, please wait",
+      "failureAnalysisTitle": "9-Class Trajectory Failure Root Causes & Pareto Distribution",
+      "totalFailuresCount": "{count} failure case(s) total",
+      "failureModes": {
+        "intent_misunderstanding": "Intent Misunderstanding",
+        "tool_selection_error": "Tool Selection Error",
+        "tool_argument_malformed": "Malformed Tool Arguments",
+        "hardcoded_tests": "Hardcoded Test Cheating",
+        "execution_timeout": "Execution / Sandbox Timeout",
+        "destructive_or_regressive": "Destructive / Regressive Changes",
+        "decontam_violation": "Decontamination Violation",
+        "context_overflow_or_budget": "Context / Budget Overflow",
+        "unhandled_runtime_exception": "Unhandled Runtime Exception"
+      }
     },
     "history": {
       "passRateTrend": "Pass Rate History Trend (Pass Rate %)",

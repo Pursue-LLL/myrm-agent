@@ -89,16 +89,21 @@ class ConversationForkManager:
         parent_chat_id: str,
         message_index: int,
         new_title: str | None = None,
+        fork_mode: str = "full_clone",
+        acceptance_scope: str | None = None,
     ) -> ForkCreateResult:
         """Fork conversation from specific message index.
 
-        Creates a new chat with complete checkpoint state at fork point.
+        Creates a new chat with complete checkpoint state at fork point,
+        or as an independent acceptance audit verifier.
 
         Args:
             db: Database session
             parent_chat_id: Parent conversation ID
             message_index: Message index to fork from (0-based)
             new_title: Optional custom title (auto-generated if None)
+            fork_mode: "full_clone" (default) or "acceptance_verifier"
+            acceptance_scope: Optional specific scope/criteria for acceptance audit
 
         Returns:
             ForkCreateResult with new_chat_id or error
@@ -150,6 +155,8 @@ class ConversationForkManager:
 
         # 3. Generate fork title and create new chat
         new_chat_id = str(uuid4())
+        is_acceptance_mode = (fork_mode == "acceptance_verifier")
+
         if not new_title:
             msg_stmt = (
                 select(Message)
@@ -161,7 +168,10 @@ class ConversationForkManager:
             msg_result = await db.execute(msg_stmt)
             fork_message = msg_result.scalar_one_or_none()
 
-            if fork_message and fork_message.content:
+            if is_acceptance_mode:
+                base_title = parent_chat.title or "Task"
+                new_title = f"[Audit] Acceptance: {base_title}"
+            elif fork_message and fork_message.content:
                 snippet = fork_message.content[:40].strip()
                 new_title = f"Branch: {snippet}{'...' if len(fork_message.content) > 40 else ''}"
             else:
@@ -228,6 +238,35 @@ class ConversationForkManager:
                     sent_timezone=msg.sent_timezone,
                     extra_data=msg.extra_data,
                     created_at=msg.created_at,
+                )
+            )
+
+        if is_acceptance_mode:
+            from datetime import UTC, datetime, timedelta
+
+            now_utc = datetime.now(UTC)
+            # Ensure audit prompt timestamp is strictly after the cloned messages so it appears last in chronological ordering
+            audit_created_at = (cloned_messages[-1].created_at + timedelta(milliseconds=10)) if cloned_messages and cloned_messages[-1].created_at else now_utc
+            scope_hint = f"\nSpecific Audit Scope: {acceptance_scope}" if acceptance_scope else ""
+            audit_instruction = (
+                "[INDEPENDENT ACCEPTANCE AUDIT INITIATED]\n"
+                "You are an adversarial Acceptance Verifier and Critic Agent. "
+                "Your objective is to strictly audit and verify the delivered artifacts and final outputs from the previous workflow.\n"
+                "- Strip confirmation bias: inspect workspace files, run automated test suites, verify data consistency, and validate boundary constraints.\n"
+                "- DO NOT accept self-asserted verbal claims. Require physical tool execution proofs (file reads, command runs, lint checks).\n"
+                f"- If any discrepancy, missing test, or hidden defect is found, report it with exact evidence.{scope_hint}"
+            )
+            audit_msg_id = str(uuid4())
+            cloned_messages.append(
+                Message(
+                    id=audit_msg_id,
+                    chat_id=new_chat_id,
+                    role="user",
+                    content=audit_instruction,
+                    sent_at=now_utc,
+                    sent_timezone="UTC",
+                    extra_data={"is_acceptance_audit_prompt": True},
+                    created_at=audit_created_at,
                 )
             )
 

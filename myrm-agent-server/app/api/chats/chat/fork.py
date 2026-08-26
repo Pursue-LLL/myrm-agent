@@ -18,6 +18,8 @@ router = APIRouter()
 class ForkConversationBody(BaseModel):
     message_index: int = Field(..., alias="message_index", description="0-based index, or -1 for last message")
     new_title: str | None = Field(None, alias="new_title")
+    fork_mode: str = Field("full_clone", alias="fork_mode", description="full_clone or acceptance_verifier")
+    acceptance_scope: str | None = Field(None, alias="acceptance_scope", description="Specific requirements or targets for acceptance audit")
 
     class Config:
         populate_by_name = True
@@ -61,6 +63,8 @@ async def fork_conversation(
             parent_chat_id=chat_id,
             message_index=message_index,
             new_title=new_title,
+            fork_mode=request.fork_mode,
+            acceptance_scope=request.acceptance_scope,
         )
 
         if not result.success:

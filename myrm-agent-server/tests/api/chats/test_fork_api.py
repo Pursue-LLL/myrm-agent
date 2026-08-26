@@ -269,3 +269,46 @@ async def test_fork_info_endpoint_returns_root_and_depth(async_client: httpx.Asy
         assert info_c["parent_chat_id"] == b_id
         assert info_c["root_chat_id"] == root_id
         assert info_c["depth"] == 2
+
+
+@pytest.mark.asyncio
+async def test_fork_acceptance_verifier_mode(async_client: httpx.AsyncClient) -> None:
+    """Verify forking with acceptance_verifier mode injects audit prompt and sets title."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=4)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={
+                "message_index": 3,
+                "fork_mode": "acceptance_verifier",
+                "acceptance_scope": "Verify all edge cases and ensure 100% tests pass.",
+            },
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    new_chat_id = data["new_chat_id"]
+
+    from sqlalchemy import select
+
+    from app.database.models import Chat, Message
+    from app.platform_utils import get_session_factory
+
+    factory = get_session_factory()
+    async with factory() as db:
+        child_chat = (await db.execute(select(Chat).where(Chat.id == new_chat_id))).scalar_one()
+        assert "[Audit] Acceptance:" in child_chat.title
+
+        messages = (
+            await db.execute(select(Message).where(Message.chat_id == new_chat_id).order_by(Message.created_at))
+        ).scalars().all()
+        # 4 cloned messages + 1 audit prompt message
+        assert len(messages) == 5
+        audit_msg = messages[-1]
+        assert audit_msg.role == "user"
+        assert "[INDEPENDENT ACCEPTANCE AUDIT INITIATED]" in audit_msg.content
+        assert "Verify all edge cases and ensure 100% tests pass." in audit_msg.content
+        assert audit_msg.extra_data.get("is_acceptance_audit_prompt") is True
+

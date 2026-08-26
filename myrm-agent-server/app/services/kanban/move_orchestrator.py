@@ -93,9 +93,16 @@ async def move_task(
     if task is None:
         return None
     if task.is_terminal and target_status != TaskStatus.ARCHIVED:
-        raise ValueError(f"Cannot move terminal task (status={task.status}) to {target_status}")
-    if task.status == TaskStatus.TRIAGE and target_status not in _TRIAGE_ALLOWED_TARGETS:
-        raise ValueError(f"TRIAGE task can only move to BACKLOG/READY/ARCHIVED, got {target_status}")
+        raise ValueError(
+            f"Cannot move terminal task (status={task.status}) to {target_status}"
+        )
+    if (
+        task.status == TaskStatus.TRIAGE
+        and target_status not in _TRIAGE_ALLOWED_TARGETS
+    ):
+        raise ValueError(
+            f"TRIAGE task can only move to BACKLOG/READY/ARCHIVED, got {target_status}"
+        )
     if target_status == TaskStatus.IN_REVIEW:
         raise ValueError(
             "IN_REVIEW is entered by the dispatcher when a require_approval task "
@@ -172,7 +179,9 @@ async def move_task(
                 )
                 break
 
-    needs_synthetic = old_status != TaskStatus.RUNNING and target_status in SYNTHETIC_RUN_TARGETS
+    needs_synthetic = (
+        old_status != TaskStatus.RUNNING and target_status in SYNTHETIC_RUN_TARGETS
+    )
     if needs_synthetic:
         synthetic_run_id = await synthesize_run(
             store,
@@ -241,10 +250,16 @@ async def move_task(
                     if latest_goal.status == GoalStatus.WAIT:
                         await provider.exit_wait(latest_goal.goal_id)
                     else:
-                        await provider.resume_goal(latest_goal.goal_id, reset_turns=False)
-                    logger.info("Goal %s resumed on kanban unblock", latest_goal.goal_id)
+                        await provider.resume_goal(
+                            latest_goal.goal_id, reset_turns=False
+                        )
+                    logger.info(
+                        "Goal %s resumed on kanban unblock", latest_goal.goal_id
+                    )
             except Exception as exc:
-                logger.warning("Could not resume goal for unblocked task %s: %s", task_id[:8], exc)
+                logger.warning(
+                    "Could not resume goal for unblocked task %s: %s", task_id[:8], exc
+                )
 
     if task.board_id in dispatchers:
         wake_dispatcher(task.board_id)
@@ -288,7 +303,9 @@ async def reclaim_task(
     if task is None:
         return None
     if task.status != TaskStatus.RUNNING:
-        raise ValueError(f"Cannot reclaim task in status '{task.status.value}'; only RUNNING tasks can be reclaimed")
+        raise ValueError(
+            f"Cannot reclaim task in status '{task.status.value}'; only RUNNING tasks can be reclaimed"
+        )
 
     dispatcher = dispatchers.get(task.board_id)
     if dispatcher:

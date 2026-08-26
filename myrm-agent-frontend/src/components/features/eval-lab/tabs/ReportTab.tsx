@@ -168,6 +168,41 @@ export default function ReportTab({
         </div>
       )}
 
+      {/* 9-Class Trajectory Failure Mode Analysis & Pareto Chart */}
+      {report.failure_analysis && report.failure_analysis.total_failures > 0 && (
+        <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-500" />
+              {t('report.failureAnalysisTitle')}
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {t('report.totalFailuresCount', { count: report.failure_analysis.total_failures })}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+            {Object.entries(report.failure_analysis.pareto_percentages).map(([mode, pct]) => {
+              const count = report.failure_analysis?.failure_distribution[mode] ?? 0;
+              return (
+                <div key={mode} className="p-2.5 rounded border bg-card flex flex-col justify-between gap-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-foreground truncate" title={mode}>
+                      {t(`report.failureModes.${mode}`) || mode}
+                    </span>
+                    <span className="font-bold text-amber-600 dark:text-amber-400">{pct}%</span>
+                  </div>
+                  <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-amber-500 h-full rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{count} cases</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3">
         <h3 className="text-lg font-medium">{t('report.executionDetails')}</h3>
         <div className="border rounded-lg overflow-x-auto">

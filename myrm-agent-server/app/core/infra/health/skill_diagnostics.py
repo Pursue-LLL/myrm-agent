@@ -62,7 +62,7 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
 
             for skill in all_skills:
                 stats = skill.usage_stats
-                is_active = (stats.lifecycle_status == SkillLifecycleStatus.ACTIVE)
+                is_active = stats.lifecycle_status == SkillLifecycleStatus.ACTIVE
                 if is_active:
                     active_skills.append(skill)
 
@@ -107,16 +107,18 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
                         else str(stats.lifecycle_status)
                     )
 
-                    wrong_but_frequent_skills.append({
-                        "skill_name": skill.name,
-                        "call_count": stats.call_count,
-                        "success_count": stats.success_count,
-                        "failure_count": stats.failure_count,
-                        "success_rate": round(stats.success_rate, 3),
-                        "lifecycle_status": lifecycle_str,
-                        "is_exempt_from_curator": is_exempt,
-                        "exemption_reasons": exemption_reasons,
-                    })
+                    wrong_but_frequent_skills.append(
+                        {
+                            "skill_name": skill.name,
+                            "call_count": stats.call_count,
+                            "success_count": stats.success_count,
+                            "failure_count": stats.failure_count,
+                            "success_rate": round(stats.success_rate, 3),
+                            "lifecycle_status": lifecycle_str,
+                            "is_exempt_from_curator": is_exempt,
+                            "exemption_reasons": exemption_reasons,
+                        }
+                    )
 
             active_count = len(active_skills)
             max_limit = config.max_skills
@@ -158,9 +160,13 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
             if active_count >= int(max_limit * 0.8) or wrong_count > 0:
                 issues: list[str] = []
                 if active_count >= int(max_limit * 0.8):
-                    issues.append(f"{active_count}/{max_limit} active skills (near capacity)")
+                    issues.append(
+                        f"{active_count}/{max_limit} active skills (near capacity)"
+                    )
                 if wrong_count > 0:
-                    issues.append(f"{wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate)")
+                    issues.append(
+                        f"{wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate)"
+                    )
 
                 detail_msg = f"Detected skill health issues: {', '.join(issues)}."
                 if protected_wrong_count > 0:

@@ -12,6 +12,8 @@ import { apiRequest } from '@/lib/api';
 export interface ForkConversationRequest {
   message_index: number;
   new_title?: string;
+  fork_mode?: 'full_clone' | 'acceptance_verifier';
+  acceptance_scope?: string;
 }
 
 /**
@@ -51,10 +53,17 @@ export async function forkConversation(
   chatId: string,
   messageIndex: number,
   newTitle?: string,
+  forkMode: 'full_clone' | 'acceptance_verifier' = 'full_clone',
+  acceptanceScope?: string,
 ): Promise<ForkConversationResponse> {
   return apiRequest<ForkConversationResponse>(`/chats/${chatId}/fork`, {
     method: 'POST',
-    body: JSON.stringify({ message_index: messageIndex, new_title: newTitle }),
+    body: JSON.stringify({
+      message_index: messageIndex,
+      new_title: newTitle,
+      fork_mode: forkMode,
+      acceptance_scope: acceptanceScope,
+    }),
   });
 }
 

@@ -67,6 +67,21 @@ export interface ReportItem {
       state_assertions?: unknown[];
     };
   }>;
+  failure_analysis?: {
+    total_failures: number;
+    failure_distribution: Record<string, number>;
+    pareto_percentages: Record<string, number>;
+    details: Array<{
+      case_index: number;
+      message: string;
+      failure_mode: string;
+      root_cause: string;
+      evidence_snippet: string;
+      suggested_remediation: string;
+      is_hardcoded_cheat: boolean;
+      is_destructive: boolean;
+    }>;
+  };
 }
 
 export interface EvalProgress {
