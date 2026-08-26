@@ -15449,8 +15449,6 @@
     "saveFromChatTitle": "一鍵儲存為評測實驗室用例",
     "cancel": "取消",
     "create": "建立",
-    "loadReportFailed": "加載報告失敗",
-    "benchmarkMode": "基準模式",
     "matrixMode": "矩陣對比",
     "runMatrix": "矩陣評測",
     "matrixEvalStarted": "矩陣評測已啟動",
