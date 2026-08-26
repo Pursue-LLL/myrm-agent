@@ -23,7 +23,6 @@ def client() -> TestClient:
     return TestClient(minimal_app)
 
 
-
 def test_skill_ab_status_and_abort() -> None:
     status = get_skill_ab_status()
     assert isinstance(status, dict)

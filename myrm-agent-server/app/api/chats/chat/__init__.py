@@ -39,4 +39,3 @@ router.include_router(share_router)
 router.include_router(trajectory_router)
 
 __all__ = ["router"]
-
