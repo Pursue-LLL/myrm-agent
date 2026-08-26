@@ -34,6 +34,7 @@ interface BenchmarkSource {
   local_size_bytes: number;
   scoring?: string;
   supports_memory_ab?: boolean;
+  canary_protected?: boolean;
   required_tools?: string[];
 }
 
@@ -233,6 +234,16 @@ export default function BenchmarkSources({
                           title={t('requiresWebSearchTitle')}
                         >
                           {t('requiresWebSearch')}
+                        </Badge>
+                      )}
+                      {source.canary_protected && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 flex items-center gap-1"
+                          title={t('canaryProtectedTitle')}
+                        >
+                          <ShieldCheck className="w-3 h-3" />
+                          {t('canaryProtected')}
                         </Badge>
                       )}
                       {source.is_downloaded ? (

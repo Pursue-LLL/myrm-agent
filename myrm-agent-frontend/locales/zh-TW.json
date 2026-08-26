@@ -15349,6 +15349,12 @@
     "noSessionSelected": "請在上方選擇一個會話以開始雙軌軌跡對比"
   },
   "evalLab": {
+    "antiContamination": {
+      "protectedBadge": "Anti-Contamination Protected (已受防污染保護)",
+      "unprotectedBadge": "未檢測到 Canary 防污染標識",
+      "badgeDesc": "符合 SWE-bench / BIG-bench / WBBench 防污染規範，防止評測集滲入模型預訓練語料庫",
+      "injectCanaryBtn": "注入 Canary 防污染聲明"
+    },
     "pageTitle": "評測實驗室",
     "pageDescription": "管理測試用例並執行沙盒環境隔離評估，全自動化驗證 Agent 表現",
     "tabs": {
@@ -15540,6 +15546,9 @@
       "sampleLimitTitle": "可選的樣本數——只執行這麼多道題（留空 = 全量基準）",
       "sampled": "抽樣",
       "sampledTitle": "本次執行隨機抽取了基準任務的一部分（結果可重現）",
+      "canaryProtected": "Canary 保護",
+      "canaryProtectedTitle": "資料集受 Canary 金絲雀簽名與防洩漏隔離保護",
+      "antiContaminationAudited": "防作弊審計",
       "operationalAssurance": "維運保障審計",
       "operationalAssuranceDesc": "針對權限拒絕、工具逾時、復原、沙盒枯竭、Skill 衝突、過期證據等 6 大故障領域進行確定性審計評測。"
     },

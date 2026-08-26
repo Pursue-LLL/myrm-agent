@@ -15374,6 +15374,12 @@
     "noSessionSelected": "上でセッションを選択して並行軌跡比較を開始してください"
   },
   "evalLab": {
+    "antiContamination": {
+      "protectedBadge": "汚染防止保護済み (Anti-Contamination Protected)",
+      "unprotectedBadge": "Canary署名未検出",
+      "badgeDesc": "SWE-bench / BIG-bench / WBBench 汚染防止標準に準拠し、事前学習データへの混入を防止",
+      "injectCanaryBtn": "Canaryヘッダーを挿入"
+    },
     "pageTitle": "評価ラボ",
     "pageDescription": "テストケースを管理し、サンドボックス環境で隔離評価を実行して、エージェントのパフォーマンスを自動検証",
     "tabs": {
