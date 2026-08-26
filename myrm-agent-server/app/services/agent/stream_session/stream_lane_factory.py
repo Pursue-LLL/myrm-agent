@@ -171,6 +171,13 @@ async def create_dynamic_workflow_stream(
     ) -> str | None:
         from app.services.agent.streaming import PhaseWaiter
 
+        if cancel_token is not None and cancel_token.is_cancelled:
+            logger.info(
+                "Dynamic Workflow human_ask cancelled before wait: message_id=%s",
+                message_id,
+            )
+            return default_action or None
+
         ask_key = f"human_gate:{message_id}"
         waiter = PhaseWaiter.register(ask_key)
         logger.info(

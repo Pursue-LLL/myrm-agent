@@ -1115,4 +1115,28 @@ describe('messageRequest - mention reference lifetime contract', () => {
       ],
     });
   });
+
+  it('attaches auto_moa_reasoning and auto_moa_preset_id when agentConfig auto_on_reasoning is enabled', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const customAgentConfig: AgentConfig = {
+      id: 'agent-moa',
+      name: 'MoA Agent',
+      engineParams: {
+        moa_overlay: {
+          auto_on_reasoning: true,
+        },
+      },
+    };
+
+    const state = { ...baseState, mentionReferences: [] };
+    await createMessageRequest('复杂数学定理证明', 'msg-moa-auto', state, customAgentConfig);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      auto_moa_reasoning: true,
+    });
+  });
 });

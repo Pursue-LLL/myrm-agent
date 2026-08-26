@@ -62,7 +62,9 @@ def _resolve_cron_workflow_template_display_name(
     if not normalized:
         return None
     from app.services.workflow_templates.service import get_template_store
-    from app.services.workflow_templates.validation import validate_cron_template_at_execution
+    from app.services.workflow_templates.validation import (
+        validate_cron_template_at_execution,
+    )
 
     if validate_cron_template_at_execution(normalized, template_args):
         return None
@@ -106,16 +108,24 @@ def _to_response(
         workflow_template_display_name=workflow_template_display_name,
         command=job.command,
         delivery=_delivery_to_response(job.delivery),
-        failure_delivery=_delivery_to_response(job.failure_delivery) if job.failure_delivery else None,
+        failure_delivery=(
+            _delivery_to_response(job.failure_delivery)
+            if job.failure_delivery
+            else None
+        ),
         failure_alert=_failure_alert_to_response(job.failure_alert),
         active_hours=_active_hours_to_response(job.active_hours),
-        required_capabilities=list(job.required_capabilities) if job.required_capabilities else [],
+        required_capabilities=(
+            list(job.required_capabilities) if job.required_capabilities else []
+        ),
         tools_allowed=list(job.tools_allowed) if job.tools_allowed else [],
         allowed_roots=list(job.allowed_roots) if job.allowed_roots else [],
         triggers=_trigger_config_to_response(job.triggers),
         context_from=list(job.context_from) if job.context_from else [],
         pre_condition_script=job.pre_condition_script,
-        acceptance_criteria=list(job.acceptance_criteria) if job.acceptance_criteria else None,
+        acceptance_criteria=(
+            list(job.acceptance_criteria) if job.acceptance_criteria else None
+        ),
         max_retries=job.max_retries,
         retry_backoff_ms=job.retry_backoff_ms,
         timeout_seconds=job.timeout_seconds,
@@ -169,7 +179,9 @@ def _active_hours_from_request(ah: ActiveHoursCreate | None) -> ActiveHours | No
     return ActiveHours(start=ah.start, end=ah.end, tz=ah.tz)
 
 
-def _monitor_config_to_response(mc: MonitorConfig | None, state: MonitorState | None = None) -> MonitorConfigResponse | None:
+def _monitor_config_to_response(
+    mc: MonitorConfig | None, state: MonitorState | None = None
+) -> MonitorConfigResponse | None:
     if mc is None:
         return None
 
@@ -182,7 +194,9 @@ def _monitor_config_to_response(mc: MonitorConfig | None, state: MonitorState | 
     )
 
 
-def _monitor_config_from_request(mc: MonitorConfigCreate | None) -> MonitorConfig | None:
+def _monitor_config_from_request(
+    mc: MonitorConfigCreate | None,
+) -> MonitorConfig | None:
     if mc is None:
         return None
 
@@ -213,7 +227,11 @@ def _delivery_from_request(
     if d.channel not in ("chat", "silent", "none") and not d.target:
         raise ValueError(f'Delivery target is required for channel "{d.channel}"')
     if d.channel == "webhook":
-        return DeliveryConfig(channel=d.channel, target=d.target, secret=existing_secret or _generate_webhook_secret())
+        return DeliveryConfig(
+            channel=d.channel,
+            target=d.target,
+            secret=existing_secret or _generate_webhook_secret(),
+        )
     return DeliveryConfig(channel=d.channel, target=d.target)
 
 
@@ -251,29 +269,50 @@ def _failure_alert_from_request(
         enabled=fa.enabled,
         after=fa.after,
         cooldown_seconds=fa.cooldown_seconds,
-        delivery=(_delivery_from_request(fa.delivery, existing_secret=existing_delivery_secret) if fa.delivery else None),
+        delivery=(
+            _delivery_from_request(
+                fa.delivery, existing_secret=existing_delivery_secret
+            )
+            if fa.delivery
+            else None
+        ),
     )
 
 
-def _trigger_config_to_response(tc: TriggerConfig | None) -> TriggerConfigResponse | None:
+def _trigger_config_to_response(
+    tc: TriggerConfig | None,
+) -> TriggerConfigResponse | None:
     if tc is None:
         return None
     return TriggerConfigResponse(
-        webhooks=[WebhookTriggerResponse(path=w.path, secret=w.secret) for w in tc.webhooks],
-        events=[EventTriggerResponse(pattern=e.pattern, channel=e.channel) for e in tc.events],
+        webhooks=[
+            WebhookTriggerResponse(path=w.path, secret=w.secret) for w in tc.webhooks
+        ],
+        events=[
+            EventTriggerResponse(pattern=e.pattern, channel=e.channel)
+            for e in tc.events
+        ],
         system_events=[
-            SystemEventTriggerResponse(source=s.source, event_type=s.event_type, filters=s.filters) for s in tc.system_events
+            SystemEventTriggerResponse(
+                source=s.source, event_type=s.event_type, filters=s.filters
+            )
+            for s in tc.system_events
         ],
     )
 
 
-def _trigger_config_from_request(tc: TriggerConfigCreate | None) -> TriggerConfig | None:
+def _trigger_config_from_request(
+    tc: TriggerConfigCreate | None,
+) -> TriggerConfig | None:
     if tc is None:
         return None
     webhooks = tuple(WebhookTrigger() for _ in tc.webhooks)
-    events = tuple(EventTrigger(pattern=e.pattern, channel=e.channel) for e in tc.events)
+    events = tuple(
+        EventTrigger(pattern=e.pattern, channel=e.channel) for e in tc.events
+    )
     system_events = tuple(
-        SystemEventTrigger(source=s.source, event_type=s.event_type, filters=s.filters) for s in tc.system_events
+        SystemEventTrigger(source=s.source, event_type=s.event_type, filters=s.filters)
+        for s in tc.system_events
     )
     if not webhooks and not events and not system_events:
         return None
@@ -291,7 +330,9 @@ def _build_schedule(s: ScheduleCreate) -> Schedule:
     )
 
 
-def _run_to_response(r: CronRunRecord, *, job_name: str | None = None) -> CronRunResponse:
+def _run_to_response(
+    r: CronRunRecord, *, job_name: str | None = None
+) -> CronRunResponse:
     return CronRunResponse(
         id=r.id,
         job_id=r.job_id,
@@ -341,10 +382,16 @@ async def _run_test_delivery(
 
     if body is not None and (body.delivery or body.failure_delivery):
         if body.delivery is not None:
-            config = _delivery_from_request(body.delivery, existing_secret=job.delivery.secret)
+            config = _delivery_from_request(
+                body.delivery, existing_secret=job.delivery.secret
+            )
         else:
-            existing_secret = job.failure_delivery.secret if job.failure_delivery else None
-            config = _delivery_from_request(body.failure_delivery, existing_secret=existing_secret)
+            existing_secret = (
+                job.failure_delivery.secret if job.failure_delivery else None
+            )
+            config = _delivery_from_request(
+                body.failure_delivery, existing_secret=existing_secret
+            )
     else:
         config = job.delivery
 
@@ -369,11 +416,17 @@ async def _run_test_delivery(
     )
     from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 
-    test_delivery = ChannelResultDelivery(webhook_delivery=WebhookDelivery(max_retries=0, connect_timeout=5, read_timeout=15))
+    test_delivery = ChannelResultDelivery(
+        webhook_delivery=WebhookDelivery(
+            max_retries=0, connect_timeout=5, read_timeout=15
+        )
+    )
     try:
         await test_delivery.deliver(test_job, result)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Test delivery failed: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"Test delivery failed: {exc}"
+        ) from exc
 
     # Test-to-heal: If test succeeded on the job's active delivery and it was degraded/down, reset consecutive failures
     if body is None or (not body.delivery and not body.failure_delivery):

@@ -191,4 +191,34 @@ describe('HumanGateCard', () => {
       expect(mockToastError).toHaveBeenCalledWith('Network error');
     });
   });
+
+  it('resets input and timer when question changes for multi-stage gates', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <HumanGateCard
+        messageId="msg-gate-1"
+        question="Question 1: Proceed?"
+        options={[]}
+        timeoutSeconds={300}
+        status="waiting"
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('Enter your decision / input...');
+    await user.type(input, 'partial draft');
+    expect((input as HTMLInputElement).value).toBe('partial draft');
+
+    rerender(
+      <HumanGateCard
+        messageId="msg-gate-1"
+        question="Question 2: Select tier?"
+        options={[]}
+        timeoutSeconds={300}
+        status="waiting"
+      />,
+    );
+
+    expect(screen.getByText('Question 2: Select tier?')).toBeDefined();
+    expect((screen.getByPlaceholderText('Enter your decision / input...') as HTMLInputElement).value).toBe('');
+  });
 });
