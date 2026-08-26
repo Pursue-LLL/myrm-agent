@@ -15404,6 +15404,13 @@
       "checkpoint": "Checkpoint"
     }
   },
+  "trajectoryDiff": {
+    "title": "Cross-Session Trajectory Diff",
+    "compareWith": "Compare with Session",
+    "selectSessionPlaceholder": "Select a historical session to compare...",
+    "divergenceDetected": "Execution divergence detected at Step #{step}",
+    "noSessionSelected": "Select a session above to start side-by-side trajectory comparison"
+  },
   "evalLab": {
     "pageTitle": "Eval Lab",
     "pageDescription": "Manage test cases and run sandboxed evaluations to automatically verify agent performance",

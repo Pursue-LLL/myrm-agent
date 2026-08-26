@@ -15378,6 +15378,13 @@
       "checkpoint": "检查点"
     }
   },
+  "trajectoryDiff": {
+    "title": "跨会话执行轨迹对比 (Cross-Session Trajectory Diff)",
+    "compareWith": "对比目标会话",
+    "selectSessionPlaceholder": "选择一个历史会话进行对比...",
+    "divergenceDetected": "在第 {step} 步检测到执行分歧点 (Divergence)",
+    "noSessionSelected": "请在上方选择一个会话以开始双轨轨迹对比"
+  },
   "evalLab": {
     "pageTitle": "评测实验室",
     "pageDescription": "管理测试用例并执行沙盒环境隔离评估，全自动化验证 Agent 表现",

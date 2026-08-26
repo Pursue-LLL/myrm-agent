@@ -15356,6 +15356,7 @@
     "createDatasetPrompt": "請輸入新資料集名稱 (支援英文字母、數字、下劃線):",
     "loading": "載入中...",
     "fetchCasesFailed": "獲取評測用例失敗",
+    "loadReportFailed": "載入報告失敗",
     "saveCasesSuccess": "評測用例儲存成功",
     "saveFailed": "儲存失敗",
     "saveFirst": "請先儲存未儲存的更改",

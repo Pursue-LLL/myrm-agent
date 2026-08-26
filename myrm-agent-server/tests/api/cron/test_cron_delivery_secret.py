@@ -256,3 +256,29 @@ class TestTestDeliveryEndpoint:
         sent_job = mock_delivery.deliver.await_args.args[0]
         assert sent_job.delivery.target == "https://alerts.example.com/f2"
         assert sent_job.delivery.secret == failure_secret
+
+    def test_test_to_heal_resets_consecutive_failures(self, client: TestClient, cron_manager: CronManager) -> None:
+        """Successful test delivery on active degraded delivery immediately clears failure state."""
+        job = _create_webhook_job(client)
+        from myrm_agent_harness.toolkits.cron.types import CronJobPatch
+        import asyncio
+        asyncio.run(cron_manager.update_job(
+            job["id"],
+            "default",
+            CronJobPatch(consecutive_failures=3, last_error="502 Bad Gateway"),
+        ))
+        degraded_job = client.get(f"/cron/{job['id']}").json()
+        assert degraded_job["consecutive_failures"] == 3
+
+        mock_delivery = AsyncMock()
+        with patch(
+            "app.core.cron.adapters.channel_delivery.ChannelResultDelivery",
+            return_value=mock_delivery,
+        ):
+            resp = client.post(f"/cron/{job['id']}/test-delivery")
+        assert resp.status_code == 200
+
+        healed_job = client.get(f"/cron/{job['id']}").json()
+        assert healed_job["consecutive_failures"] == 0
+        assert healed_job["last_error"] is None
+

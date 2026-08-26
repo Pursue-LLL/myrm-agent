@@ -14985,6 +14985,23 @@
       "sampledTitle": "이 실행은 벤치마크 태스크를 무작위로 추출했습니다 (재현 가능)",
       "abortedBadge": "중단됨"
     },
+    "skillAb": {
+      "title": "스킬 A/B 평가 프로토콜 (Skill A/B Protocol)",
+      "description": "격리된 샌드박스에서 스킬 없음, 기본 스킬, 후보 스킬의 3개 분기를 엄격하게 비교 평가하여 성공률, 호출 단계 및 토큰 소모량 변화를 측정합니다.",
+      "candidateSkillLabel": "후보 스킬 ID (Candidate Skill ID)",
+      "baselineSkillLabel": "기본 스킬 ID (Baseline Skill ID)",
+      "candidateRequired": "후보 스킬 ID를 입력하세요",
+      "startEval": "Skill A/B 평가 시작",
+      "evaluating": "3개 분기 평가 중...",
+      "started": "Skill A/B 평가가 시작되었습니다",
+      "verdict": "종합 판정",
+      "armNoSkill": "스킬 없음 기준선 (No Skill)",
+      "armBaseline": "기본 스킬 버전 (Baseline)",
+      "armCandidate": "후보 스킬 버전 (Candidate)",
+      "avgSteps": "평균 호출 단계",
+      "tokens": "토큰 소모량",
+      "latency": "평균 지연 시간"
+    },
     "layers": {
       "button": "레이어 평가",
       "started": "레이어 평가가 시작되었습니다",

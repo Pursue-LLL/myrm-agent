@@ -3,6 +3,42 @@ import type { ExportData } from '@/lib/utils/chatExport';
 import { Message, type ActionMode, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
 
+export interface TrajectoryStep {
+  step_index: number;
+  tool_name: string;
+  tool_args: Record<string, unknown>;
+  tool_result_summary: string | null;
+  is_error: boolean;
+  duration_ms: number;
+  tokens_used: number;
+}
+
+export interface TurnTrajectory {
+  turn_id: string;
+  user_prompt: string;
+  assistant_reply: string | null;
+  steps: TrajectoryStep[];
+  total_steps: number;
+  total_tokens: number;
+  created_at: string | null;
+}
+
+export interface SessionTrajectoryResponse {
+  session_id: string;
+  title: string | null;
+  turns: TurnTrajectory[];
+  total_turns: number;
+  total_tool_calls: number;
+  total_tokens: number;
+}
+
+/**
+ * 获取会话完整执行轨迹 (Trajectory)
+ */
+export const getSessionTrajectory = async (chatId: string): Promise<SessionTrajectoryResponse> => {
+  return apiRequest(`/chats/${chatId}/trajectory`);
+};
+
 export interface ChatItem {
   id: string;
   title: string;
