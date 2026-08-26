@@ -10528,6 +10528,7 @@
           "consensusFeatureDisabled": "多模型合议未开启。可在智能体设置中开启以获得更高质量回答。",
           "moaOverlaySetupHint": "请在智能体设置中开启 MoA 叠加，然后在聊天模型选择器中选择 preset 以使用多模型参谋。",
           "stepBudgetLow": "检测到智能体最大执行步数较低（{count} 个智能体限制 < {min} 步），在长链路复杂任务中可能会提前截断。",
+          "promptCacheJitter": "检测到 {count} 个智能体的系统提示词头部包含动态时间/日期变量，会导致大模型 Prompt Cache 击穿并增加调用延迟。",
           "generic": "就绪检查需要处理：{code}"
         },
         "readinessAction": {
@@ -10538,7 +10539,8 @@
           "configureVoice": "打开语音设置",
           "configureConsensus": "打开智能体设置",
           "configureMoaOverlay": "打开智能体设置",
-          "configureStepBudget": "调整智能体步数"
+          "configureStepBudget": "调整智能体步数",
+          "configurePromptCache": "优化提示词前缀"
         },
         "rollbackIncludesInstructions": "回滚将同时恢复记忆与已导入的指令",
         "startChat": "用此智能体开始对话",
