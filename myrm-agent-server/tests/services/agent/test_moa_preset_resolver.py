@@ -312,5 +312,3 @@ def test_resolve_effective_moa_preset_respects_auto_moa_preset_id() -> None:
         )
         == MOA_PRESET_FAST_ID
     )
-
-

@@ -182,7 +182,9 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
             try:
                 created = await _ensure_agentic_modelfile(request.model_name, num_ctx=64000)
                 if created:
-                    yield f'{{"status": "agentic_modelfile_created", "agentic_model": "{request.model_name}-agentic"}}\n'.encode("utf-8")
+                    yield f'{{"status": "agentic_modelfile_created", "agentic_model": "{request.model_name}-agentic"}}\n'.encode(
+                        "utf-8"
+                    )
             except Exception as e:
                 logger.warning("Failed to auto-create agentic modelfile for %s: %s", request.model_name, e)
 

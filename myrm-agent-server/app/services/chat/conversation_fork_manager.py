@@ -63,7 +63,6 @@ class ForkInfoResponse(NamedTuple):
     depth: int = 0
 
 
-
 class ConversationForkManager:
     """Conversation forking service.
 
@@ -210,12 +209,7 @@ class ConversationForkManager:
         db.add(new_chat)
 
         # 4. Clone messages up to fork point into new chat in batch
-        msgs_stmt = (
-            select(Message)
-            .where(Message.chat_id == parent_chat_id)
-            .order_by(Message.created_at)
-            .limit(message_index + 1)
-        )
+        msgs_stmt = select(Message).where(Message.chat_id == parent_chat_id).order_by(Message.created_at).limit(message_index + 1)
         msgs_result = await db.execute(msgs_stmt)
         parent_messages = msgs_result.scalars().all()
 
@@ -239,7 +233,6 @@ class ConversationForkManager:
 
         if cloned_messages:
             db.add_all(cloned_messages)
-
 
         # Remap compacted_before_id or clear compaction if fork point is before compaction boundary
         if new_chat.compacted_before_id:
@@ -413,7 +406,6 @@ class ConversationForkManager:
             root_chat_id=root_chat_id,
             depth=depth,
         )
-
 
     @staticmethod
     async def delete_fork_lineage(

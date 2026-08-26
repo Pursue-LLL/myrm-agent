@@ -223,9 +223,7 @@ class TestAutoMoAOverlayGateConverter:
     """Verifies that convert_to_general_agent_params activates MoA overlay when routed to REASONING."""
 
     @pytest.mark.asyncio
-    async def test_auto_moa_activation_on_reasoning_tier(
-        self, base_request_data: dict[str, object]
-    ) -> None:
+    async def test_auto_moa_activation_on_reasoning_tier(self, base_request_data: dict[str, object]) -> None:
         del base_request_data["code_model_selection"]
         del base_request_data["fallback_code_model_selection"]
         del base_request_data["long_doc_model_selection"]
@@ -275,4 +273,3 @@ class TestAutoMoAOverlayGateConverter:
         refs = overlay.get("reference_model_selections")
         assert isinstance(refs, list)
         assert refs[0]["model"] == "claude-3-5-sonnet"
-

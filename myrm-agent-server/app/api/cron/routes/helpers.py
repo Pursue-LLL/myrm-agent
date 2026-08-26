@@ -379,6 +379,7 @@ async def _run_test_delivery(
     if body is None or (not body.delivery and not body.failure_delivery):
         if job.consecutive_failures > 0 or job.last_error:
             from myrm_agent_harness.toolkits.cron.types import CronJobPatch
+
             await mgr.update_job(
                 job.id,
                 job.user_id,

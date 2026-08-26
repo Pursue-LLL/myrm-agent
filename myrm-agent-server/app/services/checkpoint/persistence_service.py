@@ -24,11 +24,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api import (
+    SEAL_FILENAME,
     IntegritySealer,
     IntegrityStatus,
     PrivacyLadderValidator,
     PrivacyScanVerdict,
-    SEAL_FILENAME,
 )
 
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus

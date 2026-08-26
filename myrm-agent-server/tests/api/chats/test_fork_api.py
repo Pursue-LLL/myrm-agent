@@ -241,8 +241,6 @@ async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> N
 
 async def test_fork_info_endpoint_returns_root_and_depth(async_client: httpx.AsyncClient) -> None:
     """Verify /api/v1/chats/{chat_id}/fork-info returns root_chat_id and depth."""
-    from app.database.models import Chat
-    from app.platform_utils import get_session_factory
 
     root_id = str(uuid.uuid4())
     await _create_chat_with_messages(root_id, 4)
@@ -271,4 +269,3 @@ async def test_fork_info_endpoint_returns_root_and_depth(async_client: httpx.Asy
         assert info_c["parent_chat_id"] == b_id
         assert info_c["root_chat_id"] == root_id
         assert info_c["depth"] == 2
-

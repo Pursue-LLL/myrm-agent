@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - ./petSurfaceTypes::PetSurfaceVoiceState (POS: IPC voice state type)
+ *
+ * [OUTPUT]
+ * - PetVoiceOrbGlow: Visual voice halo glow layer for pet companion
+ *
+ * [POS]
+ * Independent halo glow ripple layer for pet surface. Explicitly sets pointer-events: none
+ * to isolate from pixel-level alpha sampling and prevent mouse event interception.
+ */
+
 'use client';
 
 import { memo } from 'react';

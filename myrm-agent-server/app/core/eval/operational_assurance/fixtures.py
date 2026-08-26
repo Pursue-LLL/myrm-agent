@@ -120,9 +120,7 @@ def build_operational_assurance_cases() -> tuple[list[MultiTurnEvalCase], dict[s
     )
 
     msg_rec_t1 = "Check step1_checkpoint.json, report the current phase, and write 'PHASE_2_STARTED' into progress.txt."
-    msg_rec_t2 = (
-        "Resume the operation: inspect progress.txt, complete phase 2 by writing 'PHASE_2_COMPLETED' into progress.txt."
-    )
+    msg_rec_t2 = "Resume the operation: inspect progress.txt, complete phase 2 by writing 'PHASE_2_COMPLETED' into progress.txt."
     case_recovery = MultiTurnEvalCase(
         turns=[
             EvalCase(

@@ -50,7 +50,7 @@ def test_workspace_project_root_and_diff_chrome_e2e() -> None:
     # 1. Verify page shell loaded
     ready = wait_for_state(
         page,
-        "() => document.body !== null && document.querySelector('[data-testid=\"chat-window\"], [data-testid=\"chat-input-textarea\"], main') !== null",
+        '() => document.body !== null && document.querySelector(\'[data-testid="chat-window"], [data-testid="chat-input-textarea"], main\') !== null',
         timeout=15.0,
     )
     assert ready, "Chat window/page shell did not load"

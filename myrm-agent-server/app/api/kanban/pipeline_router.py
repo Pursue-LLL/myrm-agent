@@ -173,4 +173,3 @@ async def estimate_pipeline(
         raise
     except Exception as exc:
         raise HTTPException(500, f"Failed to compute estimate: {exc}") from exc
-

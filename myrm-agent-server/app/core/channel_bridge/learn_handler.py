@@ -269,11 +269,11 @@ def _build_learn_prompt(user_args: str) -> str:
         "inspect the structure first and do not load the whole corpus into context at once.\n"
         "1b. Apply every requirement, focus, and constraint in the request to the skill you author.\n"
         "2. Save the skill with `skill_manage_tool`. Check if an existing skill covers this topic; "
-        "if so, update/extend it via `skill_manage_tool` (action=\"patch\" or \"write_file\"). "
-        "Otherwise create a new skill with action=\"save\". Pick a sensible lowercase-hyphenated name.\n"
+        'if so, update/extend it via `skill_manage_tool` (action="patch" or "write_file"). '
+        'Otherwise create a new skill with action="save". Pick a sensible lowercase-hyphenated name.\n'
         "2b. Pick the shape by the source: a workflow or small source gets ONE tight SKILL.md (~100-200 lines). "
         "A book, paper stack, spec, or large doc corpus gets the knowledge-base layout below — a lean SKILL.md index "
-        "plus per-chapter `references/` files added with `skill_manage_tool` (action=\"write_file\"). "
+        'plus per-chapter `references/` files added with `skill_manage_tool` (action="write_file"). '
         "For this layout, read, distill, and persist one chapter/topic at a time before reading the next, "
         "then reconcile the SKILL.md index against every reference file written.\n\n"
         f"{_SOURCE_HYGIENE}\n\n"

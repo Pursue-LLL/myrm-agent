@@ -128,7 +128,6 @@ async def get_fork_info(
             }
         )
 
-
     except HTTPException:
         raise
     except Exception as e:

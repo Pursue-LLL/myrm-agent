@@ -1080,9 +1080,7 @@ async def test_delete_fork_lineage_counts_children(db_session, test_user, monkey
 
 
 @pytest.mark.asyncio
-async def test_fork_conversation_batch_cloning_and_lineage_trace(
-    db_session, test_user, monkeypatch
-) -> None:
+async def test_fork_conversation_batch_cloning_and_lineage_trace(db_session, test_user, monkeypatch) -> None:
     """Verify batch cloning of messages and multi-depth lineage root/depth tracing."""
     monkeypatch.setattr(
         "app.services.chat.conversation_fork_manager.get_checkpointer",
@@ -1168,9 +1166,7 @@ async def test_fork_conversation_batch_cloning_and_lineage_trace(
 
 
 @pytest.mark.asyncio
-async def test_fork_conversation_empty_or_zero_index_and_cycle_prevention(
-    db_session, test_user, monkeypatch
-) -> None:
+async def test_fork_conversation_empty_or_zero_index_and_cycle_prevention(db_session, test_user, monkeypatch) -> None:
     """Verify edge cases: fork at index 0, cycle prevention guard, and root fallback."""
     monkeypatch.setattr(
         "app.services.chat.conversation_fork_manager.get_checkpointer",
@@ -1234,11 +1230,8 @@ async def test_fork_conversation_empty_or_zero_index_and_cycle_prevention(
     assert cycle_info.depth == 1
 
 
-
 @pytest.fixture
 def test_user():
-
-
     """Provide a test user ID (single-user architecture, no User model)."""
     from types import SimpleNamespace
 

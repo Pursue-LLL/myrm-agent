@@ -235,13 +235,9 @@ class TaskUpdate(BaseModel):
 class TaskMoveRequest(BaseModel):
     status: str
     force: bool = False
-    block_kind: str | None = Field(
-        None, description="Block sub-type: human / scheduled / external"
-    )
+    block_kind: str | None = Field(None, description="Block sub-type: human / scheduled / external")
     blocked_reason: str | None = Field(None, max_length=1000)
-    scheduled_until: datetime | None = Field(
-        None, description="Auto-unblock time (ISO-8601) for scheduled blocks"
-    )
+    scheduled_until: datetime | None = Field(None, description="Auto-unblock time (ISO-8601) for scheduled blocks")
     result: str | None = Field(
         None,
         max_length=10000,
@@ -694,9 +690,7 @@ class PipelineInstantiateRequest(BaseModel):
 
     skill_id: str = Field(..., min_length=1)
     answers: dict[str, str] = Field(default_factory=dict)
-    variant_id: str | None = Field(
-        None, description="Optional variant ID to select a specific task graph."
-    )
+    variant_id: str | None = Field(None, description="Optional variant ID to select a specific task graph.")
 
 
 class PipelineInstantiateResponse(BaseModel):

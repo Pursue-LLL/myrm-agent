@@ -299,9 +299,9 @@ async def test_doctor_api_endpoint_integrates_cold_start() -> None:
 async def test_ollama_model_context_diagnostic() -> None:
     """Test OllamaModelContextDiagnostic probe under various states."""
     import httpx
+
     from app.config.deploy_mode import DeployMode
     from app.core.infra.health.server_diagnostics import OllamaModelContextDiagnostic
-
 
     diagnostic = OllamaModelContextDiagnostic()
 
@@ -349,7 +349,6 @@ async def test_ollama_model_context_diagnostic() -> None:
         assert report.component_name == "OllamaContext"
         assert report.status == "pass"
         assert report.code == "OK_OLLAMA_SANDBOX_SKIPPED"
-
 
     # 4. Local mode with Ollama unreachable (e.g. connection refused)
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
@@ -418,4 +417,3 @@ async def test_agent_step_budget_diagnostic() -> None:
         assert report.metrics["low_budget_agent_count"] == 1.0
         assert report.fix_suggestion is not None
         assert "Legacy Agent" in report.detail
-

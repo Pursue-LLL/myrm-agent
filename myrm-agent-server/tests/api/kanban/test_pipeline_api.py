@@ -537,4 +537,3 @@ class TestInstantiatePipeline:
         assert data["min_estimated_wu"] <= data["base_estimated_wu"] <= data["max_estimated_wu"]
         assert data["is_fan_out"] is True
         assert data["fan_out_factor"] == 3
-

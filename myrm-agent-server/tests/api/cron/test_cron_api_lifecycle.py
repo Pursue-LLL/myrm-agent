@@ -698,6 +698,7 @@ class TestCronConnectorHealthApi:
         )
 
         with patch("app.services.cron.connector_health_service.ConnectorHealthService.get_all_connectors_health") as mock_health:
+
             async def _fake_health(*args, **kwargs):
                 return [mock_item]
 
@@ -716,4 +717,3 @@ class TestCronConnectorHealthApi:
             assert item["last_error_category"] == "http_server_error"
             assert item["fix_suggestion"] == "Check server logs."
             assert item["bound_job_ids"] == ["job-1"]
-

@@ -21,7 +21,6 @@ All arms execute in isolated temporary sandboxes and aggregate 4D metrics.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import shutil
@@ -37,7 +36,6 @@ from myrm_agent_harness.eval import (
     SkillABReportData,
 )
 
-from app.core.eval.adaptive import AdaptiveEvalManager
 from app.core.eval.executor import LocalEvalExecutor
 from app.core.eval.reports import DEFAULT_REPORTS_DIR
 
@@ -119,8 +117,8 @@ async def run_skill_ab_background(
     from app.core.eval.model_config import _resolve_agent_model_label, _resolve_judge_config
 
     try:
-        cases, judge_config, max_tool_calls, max_iterations, blocked_hostnames, blocked_terms = (
-            await build_benchmark_cases(benchmark_id, progress_state=_skill_ab_state)
+        cases, judge_config, max_tool_calls, max_iterations, blocked_hostnames, blocked_terms = await build_benchmark_cases(
+            benchmark_id, progress_state=_skill_ab_state
         )
     except Exception as exc:
         _skill_ab_state["is_running"] = False
@@ -206,10 +204,10 @@ async def run_skill_ab_background(
             pass_c = arm_res.pass_count
             pass_r = arm_res.pass_rate
             turn_results = getattr(arm_res, "turn_results", []) or []
-            
+
             total_tool_calls = sum(len(t.response.tools_called) for t in turn_results)
             avg_tools = round(total_tool_calls / max(1, len(turn_results)), 2)
-            
+
             total_tokens = sum(t.response.token_usage for t in turn_results)
             total_lat = sum(t.timings.total_ms for t in turn_results)
             avg_lat = round(total_lat / max(1, len(turn_results)), 2)
@@ -232,7 +230,7 @@ async def run_skill_ab_background(
         # Delta computations (Candidate vs Baseline)
         ref_arm = base_m if baseline_skill_id else no_skill_m
         succ_delta = cand_m.pass_rate - ref_arm.pass_rate
-        
+
         token_savings = 0.0
         if ref_arm.total_tokens > 0:
             token_savings = (ref_arm.total_tokens - cand_m.total_tokens) / ref_arm.total_tokens

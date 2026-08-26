@@ -25,9 +25,7 @@ _WEBHOOK_SETTINGS_CHECK_JS = """(async () => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_lifecycle_webhook_settings_chrome_e2e() -> None:

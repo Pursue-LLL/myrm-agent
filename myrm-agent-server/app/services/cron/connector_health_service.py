@@ -146,9 +146,7 @@ class ConnectorHealthService:
                 recent_runs = list(runs_res.scalars().all())
 
                 total_deliveries = len(recent_runs)
-                failed_deliveries = sum(
-                    1 for r in recent_runs if r.delivery_status == "failed"
-                )
+                failed_deliveries = sum(1 for r in recent_runs if r.delivery_status == "failed")
 
                 # Determine consecutive delivery failures from most recent runs
                 consecutive_failures = 0
@@ -164,7 +162,11 @@ class ConnectorHealthService:
                         break
 
                 # Classification
-                last_err_msg = last_failed_run.delivery_error if last_failed_run else (info["last_error"] if isinstance(info["last_error"], str) else None)
+                last_err_msg = (
+                    last_failed_run.delivery_error
+                    if last_failed_run
+                    else (info["last_error"] if isinstance(info["last_error"], str) else None)
+                )
                 last_cat: ConnectorErrorCategory | None = None
                 fix_sug: str | None = None
 

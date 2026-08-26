@@ -280,12 +280,18 @@ def estimate_pipeline_plan(
 
     # Heuristic WU computation (aligned with burn_table)
     tier_mult = 10.0 if user_tier == "frontier" else (1.0 if user_tier == "lite" else 3.0)
-    base_per_task_wu = (10 + (avg_prompt * 0.001 * tier_mult) + (avg_completion * 0.003 * tier_mult) + (3.0 * 5.0) + (len(all_required_skills) * 2))
+    base_per_task_wu = (
+        10
+        + (avg_prompt * 0.001 * tier_mult)
+        + (avg_completion * 0.003 * tier_mult)
+        + (3.0 * 5.0)
+        + (len(all_required_skills) * 2)
+    )
     base_total_wu = max(1, int(base_per_task_wu * total_tasks))
     min_wu = max(1, int(base_total_wu * 0.75))
     max_wu = max(min_wu, int(base_total_wu * 1.35))
 
-    tier_mismatch_warning = (user_tier == "frontier" and total_tasks <= 5 and len(all_required_skills) <= 2)
+    tier_mismatch_warning = user_tier == "frontier" and total_tasks <= 5 and len(all_required_skills) <= 2
     recommended_tier = "standard" if tier_mismatch_warning else user_tier
 
     return {
@@ -301,4 +307,3 @@ def estimate_pipeline_plan(
         "is_fan_out": has_fan_out,
         "fan_out_factor": max_fan_out,
     }
-

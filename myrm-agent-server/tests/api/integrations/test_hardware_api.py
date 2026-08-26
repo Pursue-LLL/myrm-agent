@@ -608,6 +608,7 @@ async def test_ollama_pull_failure_does_not_create_agentic_modelfile():
     """Edge case: Ollama pull failure stream should NOT trigger _ensure_agentic_modelfile."""
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
         with patch("app.api.integrations.hardware._ensure_agentic_modelfile") as mock_ensure:
+
             async def mock_stream_bytes():
                 yield b'{"status": "pulling layer"}\n'
                 yield b'{"error": "model not found"}\n'
@@ -635,5 +636,3 @@ async def test_ollama_pull_failure_does_not_create_agentic_modelfile():
                     chunks = [line for line in response.text.split("\n") if line]
                     assert not any("agentic_modelfile_created" in c for c in chunks)
                     mock_ensure.assert_not_called()
-
-

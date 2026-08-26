@@ -84,9 +84,7 @@ class AppEvent:
 
     event_type: AppEventType
     data: dict[str, Any]
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 ServerEventBus = PubSubBus[AppEvent]

@@ -56,14 +56,10 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
                 score += 35
             else:
                 phase_details["model_provider"] = "unconfigured"
-                fix_suggestions.append(
-                    "Configure a default LLM Provider in Settings -> Models."
-                )
+                fix_suggestions.append("Configure a default LLM Provider in Settings -> Models.")
         except Exception as exc:
             phase_details["model_provider_error"] = str(exc)
-            fix_suggestions.append(
-                "Verify LLM Provider credentials and network connection."
-            )
+            fix_suggestions.append("Verify LLM Provider credentials and network connection.")
 
         # 2. Tool Catalog Readiness
         try:
@@ -109,9 +105,7 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             score += 20
         except Exception as exc:
             phase_details["storage_error"] = str(exc)
-            fix_suggestions.append(
-                "Check database connection and file lock permissions."
-            )
+            fix_suggestions.append("Check database connection and file lock permissions.")
 
         if "model_ready" not in ready_phases:
             status, code, message = (
@@ -278,10 +272,7 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                         )
 
             if low_budget_agents:
-                agent_names = [
-                    f"{a['name']} ({a['max_iterations']} steps)"
-                    for a in low_budget_agents[:3]
-                ]
+                agent_names = [f"{a['name']} ({a['max_iterations']} steps)" for a in low_budget_agents[:3]]
                 summary_str = ", ".join(agent_names)
                 if len(low_budget_agents) > 3:
                     summary_str += f" and {len(low_budget_agents) - 3} more"

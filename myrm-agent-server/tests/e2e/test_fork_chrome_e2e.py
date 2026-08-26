@@ -131,7 +131,6 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     assert info_data.get("root_chat_id") is not None
     assert isinstance(info_data.get("depth"), int) and info_data.get("depth") >= 1
 
-
     await asyncio.to_thread(
         client.navigate,
         page,

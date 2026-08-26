@@ -229,4 +229,3 @@ def resolve_effective_moa_preset_id(
         return candidate_preset
 
     return None
-

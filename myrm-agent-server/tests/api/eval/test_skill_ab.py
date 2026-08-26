@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +13,6 @@ from app.core.eval.skill_ab import (
     get_latest_skill_ab_report,
     get_skill_ab_report_history,
     get_skill_ab_status,
-    run_skill_ab_background,
 )
 from app.main import app
 

@@ -278,7 +278,7 @@
       "tokens_per_hour": "TPH",
       "warning": "{provider} ({model}) 速率限制已達 {pct}%。Agent 可能會放緩速度。"
     },
-    "title": "記憶歸檔",
+    "title": "設定",
     "autoSaveFailed": "自動儲存失敗，請手動儲存後再離開。",
     "common": {
       "providerDisabledWarning": "該模型所屬提供商已禁用，請重新選擇",

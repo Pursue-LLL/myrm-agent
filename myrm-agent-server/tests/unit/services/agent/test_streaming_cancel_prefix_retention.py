@@ -1,31 +1,36 @@
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage
+from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason
 
 from app.core.utils.chat_utils import convert_chat_history
-from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.agent.stream_session.stream_finalize import (
     finalize_agent_stream_session,
     yield_stream_exception_chunks,
 )
-from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
-from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason
+from app.services.agent.stream_session.stream_session_types import AgentStreamSession
+from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 
 @pytest.mark.asyncio
 async def test_stream_collector_agent_cancelled_event():
     collector = StreamContentCollector(chat_id="test_chat_1")
-    collector.feed_event({
-        "type": "message",
-        "data": "Hello world, I am generating something...",
-        "messageId": "msg_123",
-    })
-    collector.feed_event({
-        "type": "agent_cancelled",
-        "data": {"reason": "user_cancelled"},
-    })
+    collector.feed_event(
+        {
+            "type": "message",
+            "data": "Hello world, I am generating something...",
+            "messageId": "msg_123",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "agent_cancelled",
+            "data": {"reason": "user_cancelled"},
+        }
+    )
 
     extra_data = collector.extra_data
     assert extra_data is not None
@@ -43,15 +48,19 @@ async def test_stream_collector_agent_cancelled_event():
 @pytest.mark.asyncio
 async def test_stream_collector_cancelled_during_reasoning():
     collector = StreamContentCollector(chat_id="test_chat_reasoning")
-    collector.feed_event({
-        "type": "reasoning",
-        "data": "Thinking about how to solve this step by step...",
-        "messageId": "msg_reasoning_1",
-    })
-    collector.feed_event({
-        "type": "agent_cancelled",
-        "data": {"reason": "user_cancelled"},
-    })
+    collector.feed_event(
+        {
+            "type": "reasoning",
+            "data": "Thinking about how to solve this step by step...",
+            "messageId": "msg_reasoning_1",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "agent_cancelled",
+            "data": {"reason": "user_cancelled"},
+        }
+    )
 
     assert collector.content == ""
     assert collector.reasoning == "Thinking about how to solve this step by step..."
@@ -65,22 +74,28 @@ async def test_stream_collector_cancelled_during_reasoning():
 @pytest.mark.asyncio
 async def test_stream_collector_cancelled_with_tool_steps():
     collector = StreamContentCollector(chat_id="test_chat_tools")
-    collector.feed_event({
-        "type": "tasks_steps",
-        "step_key": "bash_code_execute_tool",
-        "tool_name": "bash_code_execute_tool",
-        "data": [{"text": "Running npm build..."}],
-        "status": "running",
-    })
-    collector.feed_event({
-        "type": "message",
-        "data": "Building the project now...",
-        "messageId": "msg_tool_1",
-    })
-    collector.feed_event({
-        "type": "agent_cancelled",
-        "data": {"reason": "user_cancelled"},
-    })
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "bash_code_execute_tool",
+            "tool_name": "bash_code_execute_tool",
+            "data": [{"text": "Running npm build..."}],
+            "status": "running",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "message",
+            "data": "Building the project now...",
+            "messageId": "msg_tool_1",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "agent_cancelled",
+            "data": {"reason": "user_cancelled"},
+        }
+    )
 
     extra_data = collector.extra_data
     assert extra_data is not None
@@ -92,15 +107,19 @@ async def test_stream_collector_cancelled_with_tool_steps():
 @pytest.mark.asyncio
 async def test_finalize_agent_stream_session_with_cancelled_turn():
     collector = StreamContentCollector(chat_id="test_chat_cancel")
-    collector.feed_event({
-        "type": "message",
-        "data": "Partial response before cancel",
-        "messageId": "msg_cancel_1",
-    })
-    collector.feed_event({
-        "type": "agent_cancelled",
-        "data": {"reason": "user_cancelled"},
-    })
+    collector.feed_event(
+        {
+            "type": "message",
+            "data": "Partial response before cancel",
+            "messageId": "msg_cancel_1",
+        }
+    )
+    collector.feed_event(
+        {
+            "type": "agent_cancelled",
+            "data": {"reason": "user_cancelled"},
+        }
+    )
 
     cancel_token = CancellationToken()
     cancel_token.cancel(CancelReason.USER_CANCELLED)
@@ -127,12 +146,19 @@ async def test_finalize_agent_stream_session_with_cancelled_turn():
     approval = ApprovalTimeoutHolder()
     clarification = ClarificationTimeoutHolder()
     from myrm_agent_harness.agent.security import user_credentials_ctx
+
     token_ctx = user_credentials_ctx.set(None)
 
-    with patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock) as mock_persist, \
-         patch("app.services.agent.stream_session.migration_readiness_anchor.record_migration_first_turn_outcome", new_callable=AsyncMock), \
-         patch("app.services.copilot.run_digest_store.RunDigestStore.end_run"):
-        
+    with (
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock
+        ) as mock_persist,
+        patch(
+            "app.services.agent.stream_session.migration_readiness_anchor.record_migration_first_turn_outcome",
+            new_callable=AsyncMock,
+        ),
+        patch("app.services.copilot.run_digest_store.RunDigestStore.end_run"),
+    ):
         await finalize_agent_stream_session(
             session=session,
             token_ctx=token_ctx,
@@ -152,11 +178,13 @@ async def test_finalize_agent_stream_session_with_cancelled_turn():
 @pytest.mark.asyncio
 async def test_yield_stream_exception_chunks_cancelled_error():
     collector = StreamContentCollector(chat_id="test_chat_exc")
-    collector.feed_event({
-        "type": "message",
-        "data": "Streaming chunk before disconnect",
-        "messageId": "msg_exc_1",
-    })
+    collector.feed_event(
+        {
+            "type": "message",
+            "data": "Streaming chunk before disconnect",
+            "messageId": "msg_exc_1",
+        }
+    )
 
     cancel_token = CancellationToken()
     session = MagicMock(spec=AgentStreamSession)
@@ -181,10 +209,14 @@ async def test_yield_stream_exception_chunks_cancelled_error():
 async def test_chat_utils_history_conversion_with_cancelled_turn():
     history = [
         ["human", "What is Python?", {}],
-        ["assistant", "Python is an interpreted...", {
-            "completionStatus": "cancelled",
-            "reasoning_content": "User wants a quick overview of Python...",
-        }],
+        [
+            "assistant",
+            "Python is an interpreted...",
+            {
+                "completionStatus": "cancelled",
+                "reasoning_content": "User wants a quick overview of Python...",
+            },
+        ],
     ]
 
     converted = await convert_chat_history(history)

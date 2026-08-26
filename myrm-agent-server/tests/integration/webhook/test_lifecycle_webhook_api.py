@@ -30,9 +30,7 @@ async def test_lifecycle_webhook_crud_and_ping(webhook_app: FastAPI):
         "socket.getaddrinfo",
         return_value=[(None, None, None, None, ("93.184.216.34", 0))],
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=webhook_app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=webhook_app), base_url="http://test") as client:
             # 1. List initial webhooks
             res = await client.get("/api/lifecycle-webhooks")
             assert res.status_code == 200
@@ -48,9 +46,7 @@ async def test_lifecycle_webhook_crud_and_ping(webhook_app: FastAPI):
                 "is_active": True,
                 "timeout_seconds": 10,
             }
-            create_res = await client.post(
-                "/api/lifecycle-webhooks", json=create_payload
-            )
+            create_res = await client.post("/api/lifecycle-webhooks", json=create_payload)
             assert create_res.status_code == 201
             data = create_res.json()
             webhook_id = data["id"]
@@ -60,9 +56,7 @@ async def test_lifecycle_webhook_crud_and_ping(webhook_app: FastAPI):
 
             # 3. Update webhook
             update_payload = {"is_active": False, "name": "Updated Hook"}
-            update_res = await client.put(
-                f"/api/lifecycle-webhooks/{webhook_id}", json=update_payload
-            )
+            update_res = await client.put(f"/api/lifecycle-webhooks/{webhook_id}", json=update_payload)
             assert update_res.status_code == 200
             assert update_res.json()["is_active"] is False
             assert update_res.json()["name"] == "Updated Hook"
@@ -72,9 +66,7 @@ async def test_lifecycle_webhook_crud_and_ping(webhook_app: FastAPI):
             assert delete_res.status_code == 204
 
     # 5. Ping endpoint SSRF validation (without mock, testing real 169.254.169.254 block)
-    async with AsyncClient(
-        transport=ASGITransport(app=webhook_app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=webhook_app), base_url="http://test") as client:
         ping_payload = {
             "url": "http://169.254.169.254/metadata",
             "secret": "whsec_test",

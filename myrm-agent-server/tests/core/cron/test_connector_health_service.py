@@ -54,6 +54,7 @@ async def test_connector_health_service_aggregation() -> None:
 
         # In SQLAlchemy AsyncSession.execute, scalars() is sync and returns a ScalarResult
         from unittest.mock import MagicMock
+
         sync_job_res = MagicMock()
         sync_job_res.scalars.return_value.all.return_value = [job]
 

@@ -278,7 +278,7 @@
       "tokens_per_hour": "TPH",
       "warning": "{provider} ({model}) のレート制限使用量が {pct}% に達しました。Agent の速度が低下する可能性があります。"
     },
-    "title": "メモリアーカイブ",
+    "title": "設定",
     "autoSaveFailed": "自動保存に失敗しました。移動する前に手動で保存してください。",
     "common": {
       "providerDisabledWarning": "このモデルのプロバイダーが無効です。別のモデルを選択してください。",
