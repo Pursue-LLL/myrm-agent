@@ -4,7 +4,7 @@ import React from 'react';
 import { DesktopRecordingDrawer } from '../DesktopRecordingDrawer';
 import { useDesktopRecordingStore } from '@/store/useDesktopRecordingStore';
 
-const stableT = (key: string, params?: Record<string, any>) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
   if (params && 'count' in params) {
     return `${key} (${params.count})`;
   }
@@ -42,15 +42,16 @@ describe('DesktopRecordingDrawer Component', () => {
     expect(screen.getByText('btnStart')).toBeInTheDocument();
   });
 
-  it('handles start and stop recording transitions', () => {
-    render(<DesktopRecordingDrawer />);
-    const startBtn = screen.getByText('btnStart');
-    fireEvent.click(startBtn);
+  it('renders recording state with stop button', () => {
+    useDesktopRecordingStore.setState({
+      isOpen: true,
+      status: 'recording',
+      sessionId: 'rec_123',
+    });
 
-    // State updated to recording
-    useDesktopRecordingStore.setState({ status: 'recording', sessionId: 'rec_123' });
     render(<DesktopRecordingDrawer />);
     expect(screen.getByText('btnStop')).toBeInTheDocument();
+    expect(screen.getByText('status_recording')).toBeInTheDocument();
   });
 
   it('displays recorded steps and permits deletion', () => {
