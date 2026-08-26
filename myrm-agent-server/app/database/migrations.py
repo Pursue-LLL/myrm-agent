@@ -966,6 +966,8 @@ INDEX_STATEMENTS = [
     )""",
     "CREATE INDEX IF NOT EXISTS ix_batch_directory_projects_board ON batch_directory_projects(board_id)",
     "CREATE INDEX IF NOT EXISTS ix_batch_directory_projects_status ON batch_directory_projects(status)",
+    "ALTER TABLE kanban_task_runs ADD COLUMN token_usage JSON",
+    "ALTER TABLE kanban_task_runs ADD COLUMN cost_usd FLOAT",
 ]
 
 
