@@ -11,14 +11,16 @@ source "${SERVER_ROOT}/scripts/ci/lib_harness_deps.sh"
 
 _run_pytest() {
   local pytest_args=(tests/architecture/ -m architecture --tb=short -n0)
-  if [[ -x "${SERVER_ROOT}/scripts/dev/run-pytest-safe.sh" && -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
-    bash "${SERVER_ROOT}/scripts/dev/run-pytest-safe.sh" "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"
+  local monorepo_safe="${SERVER_ROOT}/../../scripts/dev/run-pytest-safe.sh"
+  if [[ -x "${monorepo_safe}" && -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
+    bash "${monorepo_safe}" "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"
   elif [[ -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
     "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"
   else
     uv run pytest "${pytest_args[@]}"
   fi
 }
+
 
 
 _run_fractal_docs() {
