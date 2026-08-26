@@ -25,14 +25,17 @@ vi.mock('../usePetSurfaceUnread', () => ({
   usePetSurfaceUnread: vi.fn(() => ({ unread: false, clearUnread: vi.fn() })),
 }));
 
-vi.mock('@/store/useChatStore', () => ({
-  default: {
-    getState: vi.fn(() => ({ chatId: 'test-chat', sendMessage: vi.fn() })),
-    // Zustand selector mock
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    useChatStore: (selector: (state: any) => any) => selector({ chatId: 'test-chat' }),
-  },
-}));
+vi.mock('@/store/useChatStore', () => {
+  const mockState = { chatId: 'test-chat', sendMessage: vi.fn() };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hook = vi.fn((selector?: (s: any) => any) => (selector ? selector(mockState) : mockState));
+  Object.assign(hook, {
+    getState: () => mockState,
+    setState: vi.fn(),
+    subscribe: vi.fn(),
+  });
+  return { default: hook };
+});
 
 import { emitPetSurfaceState, listenPetSurfaceControl } from '../petSurfaceBridge';
 import { usePetSurfaceHost } from '../usePetSurfaceHost';

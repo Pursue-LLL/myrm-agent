@@ -37,6 +37,7 @@
 | `deriveBlockedOnUser.ts`                      | 核心 | 聚合 HITL store → blocked-on-user SSOT                                      |
 | `petStateMapping.ts`                          | 核心 | Codex/Legacy 行序 → resolvePetSheetRow()                                    |
 | `SpriteRenderer.tsx`                          | 核心 | SpriteEngine 的 React 封装（Canvas 生命周期、加载态降级占位、行数检测回调） |
+| `PetVoiceOrbGlow.tsx`                          | 辅助 | 独立分层光晕波纹层（pointer-events: none 穿透隔离，支持 Voice Orb 动效）     |
 | `PetOverlay.tsx`                              | 核心 | 可拖拽悬浮容器；Tauri 嵌入 + 外置双模；`ChatWindowSatellites` mount         |
 | `PetOverlayWindowApp.tsx`                     | 核心 | Tauri 外置傀儡窗 UI                                                         |
 | `usePetSurfaceHost.ts`                        | 核心 | 外置窗 IPC 生命周期                                                         |
