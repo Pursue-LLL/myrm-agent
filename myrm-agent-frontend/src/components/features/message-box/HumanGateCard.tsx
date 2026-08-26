@@ -97,6 +97,7 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
     if (status !== 'waiting') {
       return;
     }
+    setInputText('');
     setTimeLeft(timeoutSeconds);
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -109,7 +110,7 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [status, timeoutSeconds]);
+  }, [status, timeoutSeconds, question]);
 
   const resolveOptionLabel = useCallback(
     (opt: string) => {
@@ -137,6 +138,7 @@ export const HumanGateCard: React.FC<HumanGateCardProps> = ({
       setSubmitting(true);
       try {
         await submitHumanGateResponse(messageId, selectedAnswer);
+        setInputText('');
         useChatStore.getState().setMessages((state) => {
           const msg = state.messages.find((m) => m.messageId === messageId);
           if (msg?.humanGate) {
