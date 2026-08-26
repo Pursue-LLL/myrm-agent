@@ -234,6 +234,12 @@ export default function PetOverlayWindowApp() {
     void focusPetSurfaceMainWindow();
   }, []);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openComposer();
+  }, [openComposer]);
+
   if (!state?.sheetUrl) {
     return <div className="h-screen w-screen bg-transparent" />;
   }
@@ -242,7 +248,10 @@ export default function PetOverlayWindowApp() {
   const row = resolvePetSheetRow(petState, state.sheetRows);
 
   return (
-    <div className="relative flex h-screen w-screen flex-col items-center justify-end bg-transparent pb-2">
+    <div
+      className="relative flex h-screen w-screen flex-col items-center justify-end bg-transparent pb-2"
+      onContextMenu={handleContextMenu}
+    >
       {composerOpen && (
         <div className="mb-2 flex w-[90%] items-center gap-1 rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur-sm">
           <input

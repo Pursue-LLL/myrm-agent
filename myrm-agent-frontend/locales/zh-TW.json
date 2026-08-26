@@ -10461,7 +10461,7 @@
           "configureMcp": "檢查 MCP 設置",
           "reviewMigrationRules": "查看遷移規則",
           "configureVoice": "打開語音設置",
-          "configureConsensus": "打開智能体設置",
+          "configureConsensus": "打開智能體設定",
           "configureMoaOverlay": "打開智能體設置",
           "configureStepBudget": "調整智能體步數"
         },
