@@ -3,14 +3,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
-from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason
+from myrm_agent_harness.utils.runtime.cancellation import (
+    CancellationToken,
+    CancelReason,
+)
 
 from app.core.utils.chat_utils import convert_chat_history
 from app.services.agent.stream_session.stream_finalize import (
     finalize_agent_stream_session,
     yield_stream_exception_chunks,
 )
-from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
+from app.services.agent.stream_session.stream_loop import (
+    ApprovalTimeoutHolder,
+    ClarificationTimeoutHolder,
+)
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
@@ -68,7 +74,10 @@ async def test_stream_collector_cancelled_during_reasoning():
     extra_data = collector.extra_data
     assert extra_data is not None
     assert extra_data.get("completionStatus") == "cancelled"
-    assert extra_data.get("reasoning") == "Thinking about how to solve this step by step..."
+    assert (
+        extra_data.get("reasoning")
+        == "Thinking about how to solve this step by step..."
+    )
 
 
 @pytest.mark.asyncio
@@ -151,7 +160,8 @@ async def test_finalize_agent_stream_session_with_cancelled_turn():
 
     with (
         patch(
-            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            new_callable=AsyncMock,
         ) as mock_persist,
         patch(
             "app.services.agent.stream_session.migration_readiness_anchor.record_migration_first_turn_outcome",
@@ -196,9 +206,14 @@ async def test_yield_stream_exception_chunks_cancelled_error():
     session.cancel_token = cancel_token
     session.turn_capability_terminal_recorded = False
 
-    with patch("app.services.agent.stream_session.stream_finalize._record_turn_capability_failed_once", new_callable=AsyncMock):
+    with patch(
+        "app.services.agent.stream_session.stream_finalize._record_turn_capability_failed_once",
+        new_callable=AsyncMock,
+    ):
         chunks = []
-        async for chunk in yield_stream_exception_chunks(session, asyncio.CancelledError()):
+        async for chunk in yield_stream_exception_chunks(
+            session, asyncio.CancelledError()
+        ):
             chunks.append(chunk)
 
         assert cancel_token.is_cancelled
@@ -225,4 +240,7 @@ async def test_chat_utils_history_conversion_with_cancelled_turn():
     assert converted[0].content == "What is Python?"
     assert isinstance(converted[1], AIMessage)
     assert converted[1].content == "Python is an interpreted..."
-    assert converted[1].additional_kwargs.get("reasoning_content") == "User wants a quick overview of Python..."
+    assert (
+        converted[1].additional_kwargs.get("reasoning_content")
+        == "User wants a quick overview of Python..."
+    )

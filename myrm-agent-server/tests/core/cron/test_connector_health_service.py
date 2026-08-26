@@ -40,19 +40,6 @@ async def test_connector_health_service_aggregation() -> None:
     )
 
     with patch("app.services.cron.connector_health_service.UnitOfWork") as mock_uow_cls:
-        mock_uow = AsyncMock()
-        mock_session = AsyncMock()
-        mock_uow.session = mock_session
-        mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
-        mock_uow.__aexit__ = AsyncMock(return_value=None)
-        mock_uow_cls.return_value = mock_uow
-
-        mock_job_res = AsyncMock()
-        mock_scalars_job = AsyncMock()
-        mock_scalars_job.all = AsyncMock(return_value=[job])
-        mock_job_res.scalars = AsyncMock(return_value=mock_scalars_job)
-
-        # In SQLAlchemy AsyncSession.execute, scalars() is sync and returns a ScalarResult
         from unittest.mock import MagicMock
 
         sync_job_res = MagicMock()
@@ -61,7 +48,14 @@ async def test_connector_health_service_aggregation() -> None:
         sync_run_res = MagicMock()
         sync_run_res.scalars.return_value.all.return_value = [run1]
 
+        mock_session = AsyncMock()
         mock_session.execute = AsyncMock(side_effect=[sync_job_res, sync_run_res])
+
+        mock_uow = MagicMock()
+        mock_uow.session = mock_session
+        mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
+        mock_uow.__aexit__ = AsyncMock(return_value=None)
+        mock_uow_cls.return_value = mock_uow
 
         summaries = await ConnectorHealthService.get_all_connectors_health(window_hours=24)
 
