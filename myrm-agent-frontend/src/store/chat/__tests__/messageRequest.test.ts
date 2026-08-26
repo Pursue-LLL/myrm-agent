@@ -1131,8 +1131,8 @@ describe('messageRequest - mention reference lifetime contract', () => {
       },
     };
 
-    const state = { ...baseState, mentionReferences: [] };
-    await createMessageRequest('复杂数学定理证明', 'msg-moa-auto', state, customAgentConfig);
+    const state = { ...baseState, agentConfig: customAgentConfig, mentionReferences: [] };
+    await createMessageRequest('复杂数学定理证明', 'msg-moa-auto', state, null);
 
     const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
     expect(requestBody).toMatchObject({
