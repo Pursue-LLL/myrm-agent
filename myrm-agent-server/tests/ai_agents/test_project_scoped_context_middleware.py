@@ -13,7 +13,8 @@ from app.ai_agents.agent_middlewares.project_scoped_context_middleware import (
 def test_build_scoped_workspace_snippet():
     snippet = _build_scoped_workspace_snippet("my-service/backend")
     assert '<project_scoped_workspace path="my-service/backend">' in snippet
-    assert "ast_symbol_search_tool" in snippet
+    assert "grep_tool" in snippet
+    assert "glob_tool" in snippet
     assert "</project_scoped_workspace>" in snippet
 
 

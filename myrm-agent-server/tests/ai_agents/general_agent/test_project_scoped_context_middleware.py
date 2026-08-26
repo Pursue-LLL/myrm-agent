@@ -1,4 +1,4 @@
-"""Tests for project_scoped_context_middleware — cache-safe project boundary and AST search injection."""
+"""Tests for project_scoped_context_middleware — cache-safe project boundary and symbol search injection."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.ai_agents.agent_middlewares.project_scoped_context_middleware import (
     PROJECT_SCOPED_WORKSPACE_MARKER,
     ProjectScopedWorkspaceMiddleware,
-    _find_insert_idx,
+    _find_system_insert_idx,
     _has_scoped_workspace_injected,
 )
 
@@ -35,27 +35,27 @@ class TestHasScopedWorkspaceInjected:
         assert _has_scoped_workspace_injected([]) is False
 
 
-class TestFindInsertIdx:
+class TestFindSystemInsertIdx:
     def test_after_system_messages(self) -> None:
         messages = [
             SystemMessage(content="sys1"),
             SystemMessage(content="sys2"),
             HumanMessage(content="user query"),
         ]
-        assert _find_insert_idx(messages) == 2
+        assert _find_system_insert_idx(messages) == 2
 
     def test_all_system_messages(self) -> None:
         messages = [
             SystemMessage(content="sys1"),
             SystemMessage(content="sys2"),
         ]
-        assert _find_insert_idx(messages) == 2
+        assert _find_system_insert_idx(messages) == 2
 
     def test_no_system_messages(self) -> None:
         messages = [
             HumanMessage(content="user query"),
         ]
-        assert _find_insert_idx(messages) == 0
+        assert _find_system_insert_idx(messages) == 0
 
 
 class TestProjectScopedWorkspaceMiddleware:
@@ -83,7 +83,8 @@ class TestProjectScopedWorkspaceMiddleware:
         assert isinstance(injected, SystemMessage)
         assert PROJECT_SCOPED_WORKSPACE_MARKER in injected.content
         assert "services/auth" in injected.content
-        assert "ast_symbol_search_tool" in injected.content
+        assert "grep_tool" in injected.content
+        assert "glob_tool" in injected.content
 
     @pytest.mark.asyncio
     async def test_no_injection_when_no_project_dir(self) -> None:

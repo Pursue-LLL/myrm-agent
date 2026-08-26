@@ -10498,6 +10498,7 @@
           "consensusFeatureDisabled": "Der Multi-Modell-Konsens ist deaktiviert. Aktivieren Sie es in den Agenteneinstellungen, um Antworten mit höherer Qualität zu erhalten.",
           "moaOverlaySetupHint": "Aktivieren Sie die MoA-Überlagerung in den Agenteneinstellungen und wählen Sie dann eine Voreinstellung aus der Chat-Modellauswahl für Ratschläge zu mehreren Modellen aus.",
           "stepBudgetLow": "Niedriges Schrittlimit erkannt ({count} Agent(en) < {min} Schritte), was bei komplexen Aufgaben zu vorzeitigem Abbruch führen kann.",
+          "promptCacheJitter": "Dynamische Zeit-/Datumsvariablen im System-Prompt-Header erkannt ({count} Agent(en)), was zu LLM-Prompt-Cache-Fehlschlägen und hoher Latenz führt.",
           "generic": "Bereitschaftsprüfung erfordert Aufmerksamkeit: {code}"
         },
         "readinessAction": {
@@ -10508,7 +10509,8 @@
           "configureVoice": "Öffnen Sie die Spracheinstellungen",
           "configureConsensus": "Öffnen Sie die Agenteneinstellungen",
           "configureMoaOverlay": "Öffnen Sie die Agenteneinstellungen",
-          "configureStepBudget": "Schrittlimit anpassen"
+          "configureStepBudget": "Schrittlimit anpassen",
+          "configurePromptCache": "Prompt-Präfix optimieren"
         },
         "startChatChecking": "Bereitschaft prüfen...",
         "startChatRecheck": "Überprüfen Sie die Bereitschaft erneut und starten Sie",

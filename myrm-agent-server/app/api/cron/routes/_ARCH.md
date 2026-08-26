@@ -20,5 +20,4 @@ Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 | `runs.py` | 模块 | Cron run history REST endpoints. | ✅ |
 | `stats.py` | 模块 | Cron usage statistics REST endpoint. | ✅ |
 | `scheduler_health.py` | 模块 | Scheduler liveness endpoint (green/yellow/red). Delegates to harness CronScheduler.health(). | ✅ |
-| `blueprints.py` | 模块 | `GET/POST /blueprints` — 五语系（en/zh/ja/de/ko）蓝图目录与 fill；委托 `core.cron.blueprints` SSOT | ✅ |
 | `triggers.py` | 模块 | Cron trigger dispatch and integrity verification REST endpoints | ✅ |

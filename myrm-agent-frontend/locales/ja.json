@@ -10466,6 +10466,7 @@
           "consensusFeatureDisabled": "複数モデルコンセンサスがオフです。より高品質な回答のためにエージェント設定で有効にしてください。",
           "moaOverlaySetupHint": "エージェント設定でMoAオーバーレイを有効にし、チャットモデルピッカーからプリセットを選択して複数モデルの助言を受けてください。",
           "stepBudgetLow": "エージェントの最大ステップ数が低く設定されています（{count} 体 < {min} ステップ）。複雑な推論タスクで早期終了する可能性があります。",
+          "promptCacheJitter": "システムプロンプトの先頭に動的な日付/時刻変数が含まれるエージェントが検出されました（{count} 体）。LLMのPrompt Cacheミスと遅延増加の原因となります。",
           "generic": "準備チェックで対応が必要です: {code}"
         },
         "readinessAction": {
@@ -10476,7 +10477,8 @@
           "configureVoice": "音声設定を開く",
           "configureConsensus": "エージェント設定を開く",
           "configureMoaOverlay": "エージェント設定を開く",
-          "configureStepBudget": "ステップ上限を調整"
+          "configureStepBudget": "ステップ上限を調整",
+          "configurePromptCache": "プロンプト接頭辞を最適化"
         },
         "startChatChecking": "準備を確認中…",
         "startChatRecheck": "準備を再確認して開始",

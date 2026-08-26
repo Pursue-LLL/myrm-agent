@@ -2,7 +2,7 @@
 
 [INPUT] agent context["project_dir"] or context["active_project_root"]
 [OUTPUT] SystemMessage with <project_scoped_workspace> block injected into conversation
-[POS] 项目作用域工作区上下文注入中间件。向 Agent 注入当前工作目录/子项目根路径及代码探索最佳实践（优先使用 ast_symbol_search_tool / 精准增量编辑）。
+[POS] 项目作用域工作区上下文注入中间件。向 Agent 注入当前工作目录/子项目根路径及代码探索最佳实践（优先使用 grep_tool 与 glob_tool / 精准增量编辑）。
 
 Injection position:
 ```
@@ -47,7 +47,7 @@ def _build_scoped_workspace_snippet(project_dir: str) -> str:
         f"Active Project Scope: '{clean_dir}'\n"
         "Guidelines:\n"
         "- Base relative file operations and code searches within this scoped directory.\n"
-        "- Prefer using ast_symbol_search_tool for outline and symbol definitions before reading entire files.\n"
+        "- Prefer using grep_tool and glob_tool to target specific symbols before reading full contents.\n"
         "- Make precise incremental file modifications rather than rewriting large source files.\n"
         "</project_scoped_workspace>"
     )
@@ -74,7 +74,18 @@ class ProjectScopedWorkspaceMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         context = getattr(request, "context", {}) or {}
-        project_dir = context.get("project_dir") or context.get("active_project_root") or context.get("workspace_dir")
+        state = getattr(request, "state", {}) or {}
+        configurable = state.get("configurable", {}) if isinstance(state, dict) else {}
+
+        project_dir = (
+            context.get("project_dir")
+            or context.get("active_project_root")
+            or context.get("workspace_dir")
+            or configurable.get("project_dir")
+            or configurable.get("active_project_root")
+            or configurable.get("workspace_dir")
+            or (state.get("project_dir") if isinstance(state, dict) else None)
+        )
 
         if not project_dir or _has_scoped_workspace_injected(request.messages):
             return await handler(request)

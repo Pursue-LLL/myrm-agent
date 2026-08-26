@@ -10525,6 +10525,7 @@
           "consensusFeatureDisabled": "Multi-model consensus is off. Enable it in Agent settings for higher-quality answers.",
           "moaOverlaySetupHint": "Enable MoA overlay in Agent settings, then pick a preset from the chat model picker for multi-model advice.",
           "stepBudgetLow": "Detected low step limit ({count} agent(s) < {min} steps), which may cause early stoppage in complex reasoning tasks.",
+          "promptCacheJitter": "Detected dynamic time/date variables in system prompt header ({count} agent(s)), causing LLM cache misses and high latency.",
           "generic": "Readiness check requires attention: {code}"
         },
         "readinessAction": {
@@ -10535,7 +10536,8 @@
           "configureVoice": "Open voice settings",
           "configureConsensus": "Open agent settings",
           "configureMoaOverlay": "Open agent settings",
-          "configureStepBudget": "Adjust step budget"
+          "configureStepBudget": "Adjust step budget",
+          "configurePromptCache": "Optimize prompt prefix"
         },
         "rollbackIncludesInstructions": "Rollback restores memories and imported instructions",
         "startChat": "Chat with this agent",
