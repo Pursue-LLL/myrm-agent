@@ -133,4 +133,38 @@ describe('ReportTab trajectory disclosure', () => {
     expect(screen.queryByText(/evalLab\.report\.blocked/)).not.toBeInTheDocument();
     expect(screen.queryByText(/\d+×/)).not.toBeInTheDocument();
   });
+
+  it('renders canary verification and anti-contamination violation details', () => {
+    render(
+      <ReportTab
+        {...baseProps({
+          cases: [
+            {
+              passed: false,
+              actual_output: '',
+              canary_verified: true,
+              contamination_audit: {
+                cheat_detected: true,
+                violations: [
+                  {
+                    violation_type: 'hidden_path_accessed',
+                    details: 'Agent attempted to probe /hidden_tests/secret.py',
+                    tool_name: 'bash',
+                    target: '/hidden_tests/secret.py',
+                  },
+                ],
+              },
+              case: { message: 'cheat attempt case' },
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Canary')).toBeInTheDocument();
+    expect(screen.getByText('evalLab.report.contaminationViolation')).toBeInTheDocument();
+    expect(
+      screen.getByText('[bash] Agent attempted to probe /hidden_tests/secret.py'),
+    ).toBeInTheDocument();
+  });
 });
