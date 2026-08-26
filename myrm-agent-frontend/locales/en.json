@@ -17268,14 +17268,5 @@
     "pinned": "Pinned",
     "viewDetails": "View Details",
     "refresh": "Refresh Boundary"
-  },
-  "replayAction": {
-    "replaySuccessDeterministic": "Replay complete: High Deterministic Match ({score}%)",
-    "replaySuccessDrift": "Replay complete: Trajectory Drift Detected ({score}%)",
-    "replayFailed": "Replay verification failed",
-    "tooltip": "Replay session in an isolated environment and verify determinism",
-    "replaying": "Verifying Replay...",
-    "replayButton": "Verify Replay",
-    "badgeTitle": "Click to inspect trajectory differences"
   }
 }

@@ -17420,9 +17420,9 @@
     "replaySuccessDeterministic": "Wiederholung verifiziert: {score}% Determiniertheit",
     "replaySuccessDrift": "Wiederholung mit Abweichung abgeschlossen: {score}% Determiniertheit",
     "replayFailed": "Wiederholung fehlgeschlagen",
-    "tooltip": "Ausführungsdeterminiertheit wiederholen und Trajektorie vergleichen",
-    "replaying": "Wiederholung läuft...",
-    "replayButton": "Wiederholen",
-    "badgeTitle": "Determiniertheits-Score: {score}%"
+    "tooltip": "Sitzung in isolierter Umgebung wiedergeben und Determinismus prüfen",
+    "replaying": "Wiedergabe wird geprüft...",
+    "replayButton": "Wiedergabe prüfen",
+    "badgeTitle": "Klicken, um Trajektoriendifferenzen anzuzeigen"
   }
 }
