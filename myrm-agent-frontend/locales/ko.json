@@ -14645,6 +14645,12 @@
     "noSessionSelected": "위에서 세션을 선택하여 나란히 궤적 비교를 시작하세요"
   },
   "evalLab": {
+    "antiContamination": {
+      "protectedBadge": "오염 방지 보호됨 (Anti-Contamination Protected)",
+      "unprotectedBadge": "Canary 서명이 감지되지 않음",
+      "badgeDesc": "SWE-bench / BIG-bench / WBBench 오염 방지 표준 준수, 사전 학습 데이터 혼입 방지",
+      "injectCanaryBtn": "Canary 헤더 삽입"
+    },
     "pageTitle": "평가 실험실",
     "pageDescription": "테스트 케이스를 관리하고 샌드박스 환경에서 격리 평가를 실행하여 에이전트 성능을 자동 검증",
     "tabs": {

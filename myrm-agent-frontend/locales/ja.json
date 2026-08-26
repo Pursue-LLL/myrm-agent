@@ -15565,6 +15565,9 @@
       "sampleLimitTitle": "オプションのサンプル数——この数のタスクだけ実行します（空欄 = 全ベンチマーク）",
       "sampled": "サンプル",
       "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）",
+      "canaryProtected": "Canary 保護",
+      "canaryProtectedTitle": "データセットはカナリア署名と流出防止分離によって保護されています",
+      "antiContaminationAudited": "汚染防止監査",
       "operationalAssurance": "運用保証監査",
       "operationalAssuranceDesc": "権限拒否、ツールタイムアウト、復旧、サンドボックス枯渇、スキル競合、期限切れエビデンスの 6 つの障害領域をカバーする決定論的監査スイート。"
     },
