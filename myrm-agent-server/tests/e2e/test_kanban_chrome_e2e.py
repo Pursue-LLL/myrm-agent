@@ -1952,11 +1952,13 @@ def test_kanban_drawer_review_comment_thread_render() -> None:
     board = _http_json_write("POST", f"{api_url}/api/v1/kanban/boards", {"name": board_name})
     board_id = str(board["board_id"])
 
+    file_id = f"chrome-e2e-review-{marker}"
     task_payload = {
         "title": task_title,
         "description": "E2E verification review thread test",
         "completion_criteria": "Assert all criteria pass",
-        "attachments": [{"type": "file", "path": "test.txt", "name": "test.txt"}],
+        "initial_status": "ready",
+        "attachment_ids": [file_id],
         "metadata": {
             "acceptance_results": [
                 {
