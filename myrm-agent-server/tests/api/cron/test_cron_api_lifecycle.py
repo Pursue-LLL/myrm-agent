@@ -43,11 +43,7 @@ def cron_manager() -> CronManager:
 @pytest.fixture
 def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
     from app.api.cron.routes import (
-        actions_router,
-        connector_health_router,
         helpers,
-        jobs_router,
-        prerequisite_router,
         router,
     )
 
