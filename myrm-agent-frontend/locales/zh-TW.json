@@ -15350,10 +15350,10 @@
   },
   "evalLab": {
     "antiContamination": {
-      "protectedBadge": "Anti-Contamination Protected (已受防污染保護)",
-      "unprotectedBadge": "未檢測到 Canary 防污染標識",
-      "badgeDesc": "符合 SWE-bench / BIG-bench / WBBench 防污染規範，防止評測集滲入模型預訓練語料庫",
-      "injectCanaryBtn": "注入 Canary 防污染聲明"
+      "protectedBadge": "Anti-Contamination Protected (已受防汙染保護)",
+      "unprotectedBadge": "未檢測到 Canary 防汙染標識",
+      "badgeDesc": "符合 SWE-bench / BIG-bench / WBBench 防汙染規範，防止評測集滲入模型預訓練語料庫",
+      "injectCanaryBtn": "注入 Canary 防汙染聲明"
     },
     "pageTitle": "評測實驗室",
     "pageDescription": "管理測試用例並執行沙盒環境隔離評估，全自動化驗證 Agent 表現",

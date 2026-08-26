@@ -14,6 +14,11 @@ from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path
 from typing import TypeVar
 
+_SERVER_ROOT = Path(__file__).resolve().parent.parent
+_HARNESS_SRC = _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src"
+if _HARNESS_SRC.exists() and str(_HARNESS_SRC) not in sys.path:
+    sys.path.insert(0, str(_HARNESS_SRC))
+
 # Re-exported shared fixtures from sub-tree conftests. pytest 9 requires
 # pytest_plugins at the top-level conftest only; the referenced modules define
 # explicit-request fixtures (db_session/fts_db) and an artifact-upsert autouse
@@ -34,7 +39,6 @@ from tests.support.e2e_runtime_guard import (
 )
 from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_secrets
 
-_SERVER_ROOT = Path(__file__).resolve().parent.parent
 _DEV_LIB = _SERVER_ROOT.parent / "scripts" / "dev" / "lib"
 if str(_DEV_LIB) not in sys.path:
     sys.path.insert(0, str(_DEV_LIB))

@@ -172,7 +172,7 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["../../myrm-agent-harness/src", "."]
 addopts = "-m 'not e2e and not chrome_e2e and not performance' --timeout=300"
 markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",

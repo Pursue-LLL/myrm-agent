@@ -13,13 +13,13 @@ interface CasesTabProps {
   onDraftChange: (value: string) => void;
 }
 
-export default function CasesTab({ casesDraft, onDraftChange }: CasesTabProps) {
+export default function CasesTab({ casesDraft = '', onDraftChange }: CasesTabProps) {
   const t = useTranslations('evalLab');
-  const isCanaryProtected = casesDraft.includes(CANARY_GUID);
+  const isCanaryProtected = (casesDraft || '').includes(CANARY_GUID);
 
   const handleInjectCanary = () => {
     if (!isCanaryProtected) {
-      onDraftChange(CANARY_HEADER + casesDraft);
+      onDraftChange(CANARY_HEADER + (casesDraft || ''));
     }
   };
 
