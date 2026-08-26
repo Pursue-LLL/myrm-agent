@@ -296,6 +296,30 @@ async def move_task(
     elif target_status == TaskStatus.ARCHIVED and saved.branch:
         await cleanup_task_worktree(runner, saved)
 
+    if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
+        # If this is a goal-mode task, synchronize goal resumption in GoalRegistry
+        if saved.goal_mode:
+            try:
+                from myrm_agent_harness.agent.goals.types import GoalStatus
+                from app.services.agent.goals.goal_registry import GoalRegistry
+
+                session_id = f"kanban:{task_id}"
+                provider = GoalRegistry.get_or_create_provider(session_id)
+                latest_goal = await provider.get_latest_goal(session_id)
+                if latest_goal and latest_goal.status in (
+                    GoalStatus.PAUSED,
+                    GoalStatus.BUDGET_LIMITED,
+                    GoalStatus.WAIT,
+                    GoalStatus.NEEDS_HUMAN_REVIEW,
+                ):
+                    if latest_goal.status == GoalStatus.WAIT:
+                        await provider.exit_wait(latest_goal.goal_id)
+                    else:
+                        await provider.resume_goal(latest_goal.goal_id, reset_turns=False)
+                    logger.info("Goal %s resumed on kanban unblock", latest_goal.goal_id)
+            except Exception as exc:
+                logger.warning("Could not resume goal for unblocked task %s: %s", task_id[:8], exc)
+
     if task.board_id in dispatchers:
         wake_dispatcher(task.board_id)
     publish_kanban_event(

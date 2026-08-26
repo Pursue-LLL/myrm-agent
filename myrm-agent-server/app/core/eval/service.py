@@ -325,6 +325,7 @@ async def run_eval_suite(
     max_iterations: int | None = None,
     blocked_hostnames: tuple[str, ...] = (),
     blocked_terms: tuple[str, ...] = (),
+    canary_token: str | None = None,
 ) -> dict[str, object]:
     """Run the standard evaluation suite for a user.
 
@@ -393,6 +394,9 @@ async def run_eval_suite(
         prev = int(cur) if isinstance(cur, int) else 0
         _eval_state["completed"] = prev + 1
 
+    spec = get_benchmark(dataset_id or "")
+    effective_canary_token = canary_token or (spec.canary_token if spec else None)
+
     executor = LocalEvalExecutor(
         profile_id=profile_id,
         benchmark_mode=benchmark_mode,
@@ -402,6 +406,7 @@ async def run_eval_suite(
         max_iterations=max_iterations,
         blocked_hostnames=blocked_hostnames,
         blocked_terms=blocked_terms,
+        canary_token=effective_canary_token,
     )
     judge_config, judge_model_label = await _resolve_judge_config()
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)

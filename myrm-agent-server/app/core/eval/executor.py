@@ -66,6 +66,7 @@ class LocalEvalExecutor:
         max_iterations: int | None = None,
         blocked_hostnames: tuple[str, ...] | None = None,
         blocked_terms: tuple[str, ...] | None = None,
+        canary_token: str | None = None,
     ) -> None:
         self.profile_id = profile_id
         self.benchmark_mode = benchmark_mode
@@ -80,8 +81,11 @@ class LocalEvalExecutor:
         # caller resolves them from the benchmark spec — never for normal runs.
         self._blocked_hostnames = blocked_hostnames
         effective_blocked_terms = list(blocked_terms) if blocked_terms is not None else []
-        if benchmark_mode and CANARY_GUID not in effective_blocked_terms:
-            effective_blocked_terms.append(CANARY_GUID)
+        if benchmark_mode:
+            if CANARY_GUID not in effective_blocked_terms:
+                effective_blocked_terms.append(CANARY_GUID)
+            if canary_token and canary_token not in effective_blocked_terms:
+                effective_blocked_terms.append(canary_token)
         self._blocked_terms = tuple(effective_blocked_terms) if effective_blocked_terms else None
         # Builtin-tool whitelist a benchmark may declare to be runnable in
         # benchmark_mode (e.g. BrowseComp requires web_search). Default empty:

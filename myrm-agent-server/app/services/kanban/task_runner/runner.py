@@ -41,7 +41,10 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
 from myrm_agent_harness.toolkits.kanban.context_builder import build_task_context
 from myrm_agent_harness.toolkits.kanban.types import (
+    BlockKind,
     KanbanTask,
+    TaskExecutionOutcome,
+    TaskExecutionResult,
     TaskStatus,
     TaskTimeoutError,
     has_completion_intent,
@@ -97,7 +100,9 @@ class KanbanTaskRunner:
         self._timeout_seconds = timeout_seconds
         self._workspace_locks: dict[str, asyncio.Lock] = {}
 
-    async def run(self, task: KanbanTask) -> tuple[bool, str]:
+    async def run(
+        self, task: KanbanTask
+    ) -> tuple[bool, str] | TaskExecutionResult:
         context = await build_task_context(self._store, task.task_id)
         profile = await resolve_agent_profile(task.agent_id)
         workspace_root = await resolve_workspace(self._store, task)
@@ -125,7 +130,8 @@ class KanbanTaskRunner:
                     timeout=effective_timeout,
                 )
                 if goal_provider:
-                    result = await self._map_goal_outcome(task, goal_provider, result)
+                    mapped = await self._map_goal_outcome(task, goal_provider, result)
+                    return await self._resolve_run_outcome(task.task_id, mapped)
                 return await self._resolve_run_outcome(task.task_id, result)
             except asyncio.TimeoutError:
                 elapsed = time.monotonic() - t0
@@ -341,10 +347,9 @@ class KanbanTaskRunner:
         task: KanbanTask,
         goal_provider: GoalProvider,
         agent_result: tuple[bool, str],
-    ) -> tuple[bool, str]:
+    ) -> tuple[bool, str] | TaskExecutionResult:
         """Map Goal terminal status to Kanban result with SSOT persistence."""
         from myrm_agent_harness.agent.goals.types import GoalStatus
-        from myrm_agent_harness.toolkits.kanban.types import BlockKind, TaskStatus
 
         session_id = f"kanban:{task.task_id}"
         goal = await goal_provider.get_latest_goal(session_id)
@@ -353,6 +358,10 @@ class KanbanTaskRunner:
 
         acceptance_results = goal.metadata.get("acceptance_results")
         fresh = await self._store.get_task(task.task_id)
+
+        meta_patch: dict[str, object] = {}
+        if acceptance_results:
+            meta_patch["acceptance_results"] = acceptance_results
 
         if goal.status == GoalStatus.COMPLETE:
             if fresh is not None:
@@ -365,8 +374,8 @@ class KanbanTaskRunner:
             if fresh is not None and has_completion_intent(fresh.metadata):
                 turns_info = f" ({goal.turns_used} turns)"
                 summary = fresh.result or agent_result[1] or "Goal completed"
-                return True, summary + turns_info
-            return False, _PROTOCOL_VIOLATION_MSG
+                return TaskExecutionResult.success(summary + turns_info, metadata_patch=meta_patch)
+            return TaskExecutionResult.failure(_PROTOCOL_VIOLATION_MSG, metadata_patch=meta_patch)
 
         if goal.status in (GoalStatus.PAUSED, GoalStatus.NEEDS_HUMAN_REVIEW, GoalStatus.WAIT):
             pause_reason = str(goal.metadata.get("pause_reason") or goal.metadata.get("wait_reason") or "needs review")
@@ -380,30 +389,50 @@ class KanbanTaskRunner:
                     updated_meta["acceptance_results"] = acceptance_results
                 fresh.metadata = updated_meta
                 await self._store.save_task(fresh)
-            return False, f"Goal paused: {pause_reason}"
+            return TaskExecutionResult.blocked(
+                pause_reason,
+                block_kind=block_kind,
+                metadata_patch=meta_patch,
+            )
 
         if goal.status == GoalStatus.BUDGET_LIMITED:
-            if fresh is not None and acceptance_results:
+            pause_reason = f"Budget exhausted after {goal.turns_used} turns"
+            if fresh is not None:
+                fresh.status = TaskStatus.BLOCKED
+                fresh.blocked_reason = pause_reason
+                fresh.block_kind = BlockKind.HUMAN
                 updated_meta = dict(fresh.metadata)
-                updated_meta["acceptance_results"] = acceptance_results
+                if acceptance_results:
+                    updated_meta["acceptance_results"] = acceptance_results
                 fresh.metadata = updated_meta
                 await self._store.save_task(fresh)
-            return False, f"Budget exhausted after {goal.turns_used} turns"
+            return TaskExecutionResult.blocked(
+                pause_reason,
+                block_kind=BlockKind.HUMAN,
+                metadata_patch=meta_patch,
+            )
 
         return agent_result
 
     async def _resolve_run_outcome(
         self,
         task_id: str,
-        agent_result: tuple[bool, str],
-    ) -> tuple[bool, str]:
+        agent_result: tuple[bool, str] | TaskExecutionResult,
+    ) -> tuple[bool, str] | TaskExecutionResult:
         """Re-read task state after agent execution to enforce completion gate."""
+        if isinstance(agent_result, TaskExecutionResult):
+            return agent_result
+
         fresh = await self._store.get_task(task_id)
         if fresh is None:
             return False, "Task not found after execution"
 
         if fresh.status == TaskStatus.BLOCKED:
-            return False, fresh.blocked_reason or "Task blocked by agent"
+            return TaskExecutionResult.blocked(
+                fresh.blocked_reason or "Task blocked by agent",
+                block_kind=fresh.block_kind or BlockKind.HUMAN,
+                scheduled_until=fresh.scheduled_until,
+            )
 
         if has_completion_intent(fresh.metadata):
             summary = fresh.result or agent_result[1]
