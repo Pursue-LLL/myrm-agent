@@ -24,6 +24,11 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from fastapi.responses import StreamingResponse
+from myrm_agent_harness.eval import (
+    CANARY_GUID,
+    EvalCanaryGate,
+    embed_canary_header,
+)
 from pydantic import BaseModel
 
 from app.api.eval.benchmarks_router import router as benchmarks_router
@@ -47,11 +52,6 @@ from app.core.eval.service import (
     run_eval_suite_background,
 )
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
-from myrm_agent_harness.eval import (
-    CANARY_GUID,
-    EvalCanaryGate,
-    embed_canary_header,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -125,9 +125,7 @@ async def update_cases(
 
 
 @router.post("/cases/from-chat/{chat_id}")
-async def capture_case(
-    chat_id: str, dataset_id: str | None = None
-) -> dict[str, object]:
+async def capture_case(chat_id: str, dataset_id: str | None = None) -> dict[str, object]:
     """Capture a chat session and append it to evaluation cases."""
     success = await capture_case_from_chat(chat_id, dataset_id)
     if not success:
@@ -238,9 +236,7 @@ async def get_specific_report(filename: str) -> dict[str, object]:
         raise
     except Exception as exc:
         logger.error("Eval result retrieval failed: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Eval result retrieval failed"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Eval result retrieval failed") from exc
 
     return {"status": "error"}
 
