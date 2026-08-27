@@ -239,6 +239,35 @@ async def persist_skill_draft_record(
 
     # Persist via ApprovalRegistry
     eval_cases = result.get("eval_cases")
+    verification_proof = result.get("verification_proof")
+    if not isinstance(verification_proof, dict) and isinstance(raw_content, str) and raw_content.strip():
+        try:
+            from myrm_agent_harness.agent.skills.evolution.core.types import (
+                EvolutionType,
+                SkillLineage,
+                SkillRecord,
+            )
+            from myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator import (
+                SandboxValidator,
+            )
+
+            v_steps = result.get("verification_steps")
+            v_skill = SkillRecord(
+                skill_id=draft_name,
+                name=draft_name,
+                description=final_description,
+                content=raw_content,
+                path="",
+                lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, version=1),
+                verification_steps=v_steps if isinstance(v_steps, list) else [],
+            )
+            val = SandboxValidator()
+            proof = await val.verify_skill_capsule(v_skill)
+            verification_proof = proof.to_dict()
+        except Exception as exc:
+            logger.debug("Automatic capsule verification fallback skipped: %s", exc)
+            verification_proof = None
+
     payload = {
         "skill_name": draft_name,
         "description": final_description,
@@ -248,6 +277,7 @@ async def persist_skill_draft_record(
         "content": result.get("content"),
         "growth_status": status,
         "eval_cases": eval_cases if isinstance(eval_cases, list) else None,
+        "verification_proof": verification_proof,
     }
 
     approval_status = "PENDING"

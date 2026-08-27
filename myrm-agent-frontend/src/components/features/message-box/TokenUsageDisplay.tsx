@@ -553,31 +553,64 @@ export default function TokenUsageDisplay({
                       {formatModelName(modelName)}
                     </span>
                     {routingTier && (
-                      <span
-                        className={`text-[10px] px-1 py-0.5 rounded font-medium ${
-                          routingTier === 'simple'
-                            ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
-                            : routingTier === 'reasoning'
-                              ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
-                              : routingTier === 'code'
-                                ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400'
-                                : routingTier === 'long_doc'
-                                  ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
-                                  : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                        }`}
-                      >
-                        {t(
-                          routingTier === 'simple'
-                            ? 'routingSimple'
-                            : routingTier === 'reasoning'
-                              ? 'routingReasoning'
-                              : routingTier === 'code'
-                                ? 'routingCode'
-                                : routingTier === 'long_doc'
-                                  ? 'routingLongDoc'
-                                  : 'routingStandard',
-                        )}
-                      </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            data-testid="routing-tier-badge"
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-medium cursor-help transition-opacity hover:opacity-80 ${
+                              routingTier === 'simple'
+                                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
+                                : routingTier === 'reasoning'
+                                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
+                                  : routingTier === 'code'
+                                    ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400'
+                                    : routingTier === 'long_doc'
+                                      ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
+                                      : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                            }`}
+                          >
+                            {t(
+                              routingTier === 'simple'
+                                ? 'routingSimple'
+                                : routingTier === 'reasoning'
+                                  ? 'routingReasoning'
+                                  : routingTier === 'code'
+                                    ? 'routingCode'
+                                    : routingTier === 'long_doc'
+                                      ? 'routingLongDoc'
+                                      : 'routingStandard',
+                            )}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="center" className="max-w-[260px] text-xs p-2">
+                          <p className="font-medium mb-0.5">
+                            {t(
+                              routingTier === 'simple'
+                                ? 'routingSimple'
+                                : routingTier === 'reasoning'
+                                  ? 'routingReasoning'
+                                  : routingTier === 'code'
+                                    ? 'routingCode'
+                                    : routingTier === 'long_doc'
+                                      ? 'routingLongDoc'
+                                      : 'routingStandard',
+                            )}
+                          </p>
+                          <p className="text-muted-foreground text-[11px]">
+                            {t(
+                              routingTier === 'simple'
+                                ? 'routingSimpleTooltip'
+                                : routingTier === 'reasoning'
+                                  ? 'routingReasoningTooltip'
+                                  : routingTier === 'code'
+                                    ? 'routingCodeTooltip'
+                                    : routingTier === 'long_doc'
+                                      ? 'routingLongDocTooltip'
+                                      : 'routingStandardTooltip',
+                            )}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </div>

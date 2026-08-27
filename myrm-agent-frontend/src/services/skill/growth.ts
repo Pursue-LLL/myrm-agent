@@ -32,6 +32,16 @@ export interface RuntimeFailureEvidence {
   candidate_skill_names: string[];
 }
 
+export interface VerificationProofDto {
+  is_verified: boolean;
+  hollow_detected: boolean;
+  success_streak: number;
+  blast_radius?: { files: number; lines: number };
+  verification_summary?: string;
+  command_results?: Array<{ command?: string; success?: boolean; stdout?: string; stderr?: string }>;
+  verified_at?: string;
+}
+
 interface SkillGrowthCaseSummaryApiItem {
   id: string;
   source: SkillGrowthSource;
@@ -57,6 +67,7 @@ interface SkillGrowthCaseSummaryApiItem {
   has_skill_steps: boolean;
   created_at: string;
   impacted_dependents: string[];
+  verification_proof?: VerificationProofDto | null;
 }
 
 interface SkillGrowthCaseDetailApiItem extends SkillGrowthCaseSummaryApiItem {
@@ -146,6 +157,7 @@ export interface SkillGrowthCaseSummary {
   hasSkillSteps: boolean;
   createdAt: string;
   impactedDependents: string[];
+  verificationProof: VerificationProofDto | null;
 }
 
 export interface SkillGrowthCaseDetail extends SkillGrowthCaseSummary {
@@ -239,6 +251,7 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     hasSkillSteps: item.has_skill_steps,
     createdAt: item.created_at,
     impactedDependents: item.impacted_dependents ?? [],
+    verificationProof: item.verification_proof ?? null,
   };
 }
 

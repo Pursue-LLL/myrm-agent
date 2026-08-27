@@ -60,6 +60,7 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     has_skill_steps: bool = False
     created_at: str
     impacted_dependents: list[str] = Field(default_factory=list)
+    verification_proof: dict[str, object] | None = None
 
 
 class SkillGrowthCaseDetailResponse(SkillGrowthCaseSummaryResponse):
@@ -164,6 +165,7 @@ def _summary_response(
         has_skill_steps=item.has_skill_steps,
         created_at=item.created_at.isoformat(),
         impacted_dependents=impacted_dependents or [],
+        verification_proof=item.verification_proof,
     )
 
 

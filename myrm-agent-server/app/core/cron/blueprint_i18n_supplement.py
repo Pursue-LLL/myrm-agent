@@ -405,7 +405,24 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
                 "Wiki-Wartungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
                 "Bei keiner Änderung nur [SILENT]."
             ),
-            "ko": ("위키 유지보수 작업(router 모드). 서버 요약을 그대로 전달. 변경 없으면 [SILENT]만 반환."),
+            "ko": ("위키 유지보수 작업(router モード). 서버 요약을 그대로 전달. 변경 없으면 [SILENT]만 반환."),
+        },
+    },
+    "wiki_vault_weekly_health": {
+        "title": {
+            "ja": "Wiki 週次健全性チェック（リストのみ）",
+            "de": "Wöchentliche Wiki-Gesundheitsprüfung (Nur Liste)",
+            "ko": "위키 주간 건강 점검 (목록 전용)",
+        },
+        "description": {
+            "ja": "毎週日曜日に Wiki を読み取り専用で巡回し、壊れたリンクや古い情報の一覧を生成（自動変更なし）",
+            "de": "Wöchentliche schreibgeschützte Prüfung auf defekte Links und veraltete Quellen ohne automatische Änderungen",
+            "ko": "매주 일요일 읽기 전용으로 위키를 점검하여 깨진 링크/오래된 사실 목록 생성 (자동 수정 없음)",
+        },
+        "prompt_template": {
+            "ja": ("Wiki 健全性チェックジョブ（router モード、リストのみ）。サーバー生成のリストをそのまま配信。"),
+            "de": ("Wiki-Gesundheitsprüfungsjob (Router-Modus, nur Liste). Server-Liste direkt ausliefern."),
+            "ko": ("위키 건강 점검 작업(router 모드, 목록 전용). 서버 생성 목록을 그대로 전달."),
         },
     },
     "wiki_corpus_dedup": {

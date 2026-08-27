@@ -117,6 +117,7 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         or draft_name
     )
     proposed_content = _text(payload.get("patch_content")) or _text(payload.get("content"))
+    verification_proof = payload.get("verification_proof") if isinstance(payload.get("verification_proof"), dict) else None
     return SkillGrowthCaseDetailRead(
         id=f"draft:{record.id}",
         source=SkillGrowthCaseSource.DRAFT,
@@ -142,10 +143,14 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         chat_id=record.chat_id,
         form_metadata=_form_metadata(payload),
         created_at=record.created_at,
+        verification_proof=verification_proof,
     )
 
 
 def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDetailRead:
+    verification_proof = getattr(record, "verification_proof", None)
+    if not isinstance(verification_proof, dict) and hasattr(record, "payload") and isinstance(record.payload, dict):
+        verification_proof = record.payload.get("verification_proof")
     return SkillGrowthCaseDetailRead(
         id=f"evolution:{record.id}",
         source=SkillGrowthCaseSource.EVOLUTION,
@@ -171,6 +176,7 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         chat_id=record.chat_id,
         form_metadata=None,
         created_at=record.created_at,
+        verification_proof=verification_proof if isinstance(verification_proof, dict) else None,
     )
 
 
@@ -199,6 +205,7 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         has_trigger_condition=bool(detail.trigger_condition),
         has_skill_steps=bool(detail.skill_steps),
         created_at=detail.created_at,
+        verification_proof=detail.verification_proof,
     )
 
 

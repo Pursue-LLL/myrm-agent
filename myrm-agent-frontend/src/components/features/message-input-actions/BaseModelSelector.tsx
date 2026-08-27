@@ -24,6 +24,7 @@ import {
   resolveActiveModelSelection,
   resolveActiveFallbackSelection,
   resolveModelPickerTriggerDisplay,
+  isSmartRoutingConfigured,
 } from '@/lib/model-binding';
 import {
   listMoaPresetOptions,
@@ -39,6 +40,7 @@ type SingleModelSelection = { providerId: string; model: string };
 const BaseModelSelector = () => {
   const commonT = useTranslations('common');
   const moaPresetT = useTranslations('settings.defaultModel.moaPreset');
+  const defaultModelT = useTranslations('settings.defaultModel');
 
   const { agentConfig, actionMode, activeMoaPresetId, updateAgentConfig, setActiveMoaPresetId } = useChatStore(
     useShallow((state) => ({
@@ -139,12 +141,26 @@ const BaseModelSelector = () => {
     [actionMode, agentConfig, defaultModelConfig, providers, activeMoaPresetId],
   );
 
+  const isRoutingConfigured = useMemo(
+    () => isSmartRoutingConfigured(agentConfig, defaultModelConfig),
+    [agentConfig, defaultModelConfig],
+  );
+
+  const handleSelectSmartRouting = useCallback(() => {
+    if (actionMode === 'agent') {
+      updateAgentConfig({ modelSelection: null });
+    }
+  }, [actionMode, updateAgentConfig]);
+
   const currentModelName = useMemo(() => {
+    if (triggerDisplay.isSmartRouting) {
+      return defaultModelT('smartRouting.autoTitle');
+    }
     if (!triggerDisplay.modelName) {
       return commonT('notConfigured');
     }
     return triggerDisplay.modelName;
-  }, [triggerDisplay.modelName, commonT]);
+  }, [triggerDisplay.isSmartRouting, triggerDisplay.modelName, defaultModelT, commonT]);
 
   // 当前会话估算 tokens 与轮数（取最近一条 assistant 消息的 provider 真实数据）
   // estimatedTokens 来自服务端 prompt_tokens；turnCount 优先用服务端全量 human 数，
@@ -270,6 +286,9 @@ const BaseModelSelector = () => {
         moaPresets={moaPresets}
         activeMoaPresetId={activeMoaPresetId}
         onSelectMoaPreset={showMoaPresets ? setActiveMoaPresetId : undefined}
+        isSmartRoutingAvailable={isRoutingConfigured}
+        isSmartRoutingActive={triggerDisplay.isSmartRouting}
+        onSelectSmartRouting={handleSelectSmartRouting}
         estimatedTokens={estimatedTokens}
         compressStartRatio={compressStartRatio}
         promptMode={promptMode}
@@ -283,7 +302,9 @@ const BaseModelSelector = () => {
           >
             <div className="absolute inset-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-[10px] transition-colors duration-300" />
             <div className="relative z-10 flex h-8 min-h-8 items-center gap-1.5 px-2.5 py-0.5">
-              {currentSelection && isCurrentSelectionValid ? (
+              {triggerDisplay.isSmartRouting ? (
+                <span className="shrink-0 text-emerald-600 dark:text-emerald-400 font-bold text-xs">✨</span>
+              ) : currentSelection && isCurrentSelectionValid ? (
                 <ProviderIcon
                   providerId={currentSelection.providerId}
                   size={16}
@@ -298,11 +319,15 @@ const BaseModelSelector = () => {
               <span className="inline text-xs font-medium text-black/60 dark:text-white/60 group-hover:text-black dark:group-hover:text-white transition-colors duration-300 truncate max-w-[120px] sm:max-w-none">
                 {currentModelName}
               </span>
-              {moaChipLabel && (
+              {triggerDisplay.isSmartRouting ? (
+                <span className="shrink-0 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                  Auto
+                </span>
+              ) : moaChipLabel ? (
                 <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                   {moaChipLabel}
                 </span>
-              )}
+              ) : null}
               <ChevronDown
                 size={14}
                 className="text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white transition-colors duration-300"

@@ -56,6 +56,17 @@ export function ensureLocalBackendReady(): Promise<boolean> {
   return localBackendReadyGate;
 }
 
+/**
+ * Fast synchronous check for local backend readiness using the cached gate state.
+ * Returns true if not in local mode or if local backend was probed as ready.
+ */
+export function isLocalBackendReadyCached(): boolean {
+  if (typeof window === 'undefined' || !isLocalMode()) {
+    return true;
+  }
+  return cachedLocalBackendReady;
+}
+
 /** Invalidate transport and database readiness after a local request failure. */
 export function markLocalBackendUnreachable(): void {
   if (typeof window === 'undefined' || !isLocalMode()) {

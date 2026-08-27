@@ -60,6 +60,12 @@ interface ModelPickerPopoverProps {
   moaPresets?: MoaPresetOption[];
   activeMoaPresetId?: string | null;
   onSelectMoaPreset?: (presetId: string | null) => void;
+  /** 是否可用智能路由虚拟选项 */
+  isSmartRoutingAvailable?: boolean;
+  /** 当前是否激活智能路由 */
+  isSmartRoutingActive?: boolean;
+  /** 选中智能路由回调 */
+  onSelectSmartRouting?: () => void;
   /** 当前会话估算 tokens（聊天场景传入）；无值/<=0 时禁用压缩预检 */
   estimatedTokens?: number | null;
   /** agent 显式压缩起始比例（engineParams），缺省由 server 按目标模型 tier 推断 */
@@ -87,6 +93,9 @@ export default function ModelPickerPopover({
   moaPresets,
   activeMoaPresetId,
   onSelectMoaPreset,
+  isSmartRoutingAvailable = false,
+  isSmartRoutingActive = false,
+  onSelectSmartRouting,
   estimatedTokens,
   compressStartRatio,
   promptMode,
@@ -439,6 +448,43 @@ export default function ModelPickerPopover({
         </div>
         <TooltipProvider>
           <div className="max-h-80 overflow-y-auto">
+            {isSmartRoutingAvailable &&
+              activeSlot === 'primary' &&
+              (!search ||
+                t('smartRouting.title').toLowerCase().includes(search.toLowerCase()) ||
+                'auto smart routing 智能路由 自适应'.includes(search.toLowerCase())) && (
+                <div className="border-b border-border/50 bg-emerald-500/[0.03]">
+                  <button
+                    type="button"
+                    data-testid="smart-routing-option"
+                    onClick={() => {
+                      onSelectSmartRouting?.();
+                      setOpen(false);
+                    }}
+                    className={cn(
+                      'flex items-center w-full px-3 py-2.5 text-sm transition-colors gap-2.5 hover:bg-emerald-500/10 cursor-pointer',
+                      isSmartRoutingActive && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium',
+                    )}
+                  >
+                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-sm">
+                      ✨
+                    </span>
+                    <div className="flex flex-col text-left truncate flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate font-medium text-foreground">
+                          {t('smartRouting.autoTitle')}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                          {t('smartRouting.recommended')}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        {t('smartRouting.autoDescription')}
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              )}
             {hasMoaPresets && activeSlot === 'primary' && visibleMoaPresets.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-primary/10 sticky top-0 border-b border-border/50">

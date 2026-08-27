@@ -96,6 +96,81 @@ async def test_structural_maintain_persists_state() -> None:
     save_mock.assert_awaited_once()
 
 
+@pytest.mark.asyncio
+async def test_list_only_maintain_no_fix_and_generates_markdown_report() -> None:
+    from myrm_agent_harness.toolkits.wiki.core.types import LintIssue
+
+    mock_archiver = MagicMock()
+    mock_archiver._queue.get_stats.return_value = {"processing": 0}
+    mock_issue = LintIssue(
+        issue_type="broken_link",
+        severity="high",
+        location="concepts/service.md",
+        description="Broken link to missing-node",
+        action_kind="repair",
+        can_auto_fix=False,
+    )
+    mock_archiver._linter.scan = AsyncMock(return_value=([mock_issue], {}))
+    mock_archiver._linter.lint_and_maintain = AsyncMock()
+
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
+        with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
+            with patch(
+                "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
+                return_value=MagicMock(duplicate_groups_pending=0),
+            ):
+                with patch(
+                    "app.services.wiki.maintain.runner.save_wiki_maintain_state",
+                    new=AsyncMock(),
+                ) as save_mock:
+                    result = await run_wiki_maintain_job(
+                        llm=None,
+                        agent_id="agent-1",
+                        mode="list_only",
+                    )
+
+    mock_archiver._linter.scan.assert_awaited_once_with(
+        mode=MaintainMode.STRUCTURAL,
+        include_raw_security=False,
+    )
+    mock_archiver._linter.lint_and_maintain.assert_not_called()
+    assert result.mode == "list_only"
+    assert result.issues_found == 1
+    assert result.issues_fixed == 0
+    assert "Wiki 知识库健康周检报告" in result.summary_text
+    assert "严重断链: 1 处" in result.summary_text
+    assert "/settings/knowledge" in result.summary_text
+    save_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_list_only_maintain_all_green_report() -> None:
+    mock_archiver = MagicMock()
+    mock_archiver._queue.get_stats.return_value = {"processing": 0}
+    mock_archiver._linter.scan = AsyncMock(return_value=([], {}))
+
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
+        with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
+            with patch(
+                "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
+                return_value=MagicMock(duplicate_groups_pending=0),
+            ):
+                with patch(
+                    "app.services.wiki.maintain.runner.save_wiki_maintain_state",
+                    new=AsyncMock(),
+                ):
+                    result = await run_wiki_maintain_job(
+                        llm=None,
+                        agent_id="agent-1",
+                        mode="list_only",
+                    )
+
+    assert result.mode == "list_only"
+    assert result.issues_found == 0
+    assert "全库状态极佳" in result.summary_text
+    assert "/settings/knowledge" in result.summary_text
+
+
 def test_state_from_run_result_maps_fields() -> None:
     from app.services.wiki.maintain.state_store import state_from_run_result
 

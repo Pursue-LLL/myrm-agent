@@ -32,7 +32,70 @@ _COMPILE_BUSY_REASON = "compile_in_progress"
 _NO_LLM_REASON = "no_llm_configured"
 
 
+def _build_list_only_report(*, issues: list[object]) -> str:
+    from myrm_agent_harness.toolkits.wiki.core.types import LintIssue
+
+    lint_issues: list[LintIssue] = [item for item in issues if isinstance(item, LintIssue)]
+    if not lint_issues:
+        return (
+            "## 📋 Wiki 知识库健康周检报告\n\n"
+            "✅ **全库状态极佳**：未发现断链、陈旧事实或格式异常。\n\n"
+            "— [在知识库治理面板中查看详情](/settings/knowledge)"
+        )
+
+    broken_links = [i for i in lint_issues if i.issue_type in ("broken_link", "broken_wikilink")]
+    stale_files = [i for i in lint_issues if i.issue_type == "stale"]
+    invalid_types = [i for i in lint_issues if i.issue_type == "invalid_frontmatter_type"]
+    provenance_gaps = [i for i in lint_issues if i.issue_type == "provenance_gap"]
+    incomplete = [i for i in lint_issues if i.issue_type == "incomplete"]
+    other_issues = [
+        i for i in lint_issues
+        if i.issue_type not in (
+            "broken_link",
+            "broken_wikilink",
+            "stale",
+            "invalid_frontmatter_type",
+            "provenance_gap",
+            "incomplete",
+        )
+    ]
+
+    summary_counts: list[str] = []
+    if broken_links:
+        summary_counts.append(f"🔴 严重断链: {len(broken_links)} 处")
+    if stale_files:
+        summary_counts.append(f"🟡 事实陈旧: {len(stale_files)} 篇")
+    if invalid_types:
+        summary_counts.append(f"🟠 元数据异常: {len(invalid_types)} 篇")
+    if provenance_gaps:
+        summary_counts.append(f"⚪ 溯源缺失: {len(provenance_gaps)} 篇")
+    if incomplete:
+        summary_counts.append(f"⚪ 草稿/未完: {len(incomplete)} 篇")
+    if other_issues:
+        summary_counts.append(f"⚪ 其他项: {len(other_issues)} 篇")
+
+    lines = [
+        "## 📋 Wiki 知识库健康周检报告\n",
+        f"**总计发现 {len(lint_issues)} 项待优化项**（{ ' · '.join(summary_counts) }）\n",
+        "### 重点关注清单（Top 10）",
+    ]
+
+    for item in lint_issues[:10]:
+        icon = "🔴" if item.severity == "high" else ("🟡" if item.severity == "medium" else "⚪")
+        desc = item.description or item.issue_type
+        lines.append(f"- {icon} `{item.location}`: {desc}")
+
+    if len(lint_issues) > 10:
+        lines.append(f"\n*(其余 {len(lint_issues) - 10} 项已收拢)*")
+
+    lines.append("\n👉 [在知识库设置中查看全量诊断与治理](/settings/knowledge)")
+    return "\n".join(lines)
+
+
 def _build_summary_text(*, result: WikiMaintainRunResult) -> str:
+    if result.mode == "list_only":
+        return result.summary_text
+
     if result.skipped:
         if result.skipped_reason == _COMPILE_BUSY_REASON:
             return "[SILENT]"
@@ -59,11 +122,16 @@ async def run_wiki_maintain_job(
     *,
     llm: BaseChatModel | None,
     agent_id: str | None = None,
-    mode: MaintainMode = MaintainMode.STRUCTURAL,
+    mode: MaintainMode | str = MaintainMode.STRUCTURAL,
 ) -> WikiMaintainRunResult:
-    mode_literal = "structural" if mode == MaintainMode.STRUCTURAL else "full"
+    if isinstance(mode, str) and mode == "list_only":
+        mode_literal: WikiMaintainModeLiteral = "list_only"
+    elif mode == MaintainMode.FULL or mode == "full":
+        mode_literal = "full"
+    else:
+        mode_literal = "structural"
 
-    if llm is None:
+    if llm is None and mode_literal != "list_only":
         skipped = WikiMaintainRunResult(
             skipped=True,
             skipped_reason=_NO_LLM_REASON,
@@ -92,10 +160,6 @@ async def run_wiki_maintain_job(
         return skipped
 
     try:
-        lint_result = await archiver._linter.lint_and_maintain(mode=mode)
-        await run_wiki_asset_index(archiver)
-        await after_wiki_vault_mutation(archiver, "maintain")
-
         from myrm_agent_harness.toolkits.wiki.maintenance.issue_kind import (
             count_open_actions,
         )
@@ -105,6 +169,60 @@ async def run_wiki_maintain_job(
             persist_wiki_health_snapshot,
             report_from_lint_issues,
         )
+
+        if mode_literal == "list_only":
+            import time
+
+            start_t = time.perf_counter()
+            scanned_issues, _ = await archiver._linter.scan(
+                mode=MaintainMode.STRUCTURAL,
+                include_raw_security=False,
+            )
+            duration_ms = int((time.perf_counter() - start_t) * 1000)
+
+            dedup = get_wiki_dedup_stats(agent_id=agent_id)
+            health_report = report_from_lint_issues(
+                mode="structural",
+                issues=list(scanned_issues),
+                duplicate_groups_pending=dedup.duplicate_groups_pending,
+                synthesis_pending=archiver._pending_mgr.count_synthesis_pending(),
+            )
+            persist_wiki_health_snapshot(archiver._structure, health_report)
+
+            lint_issue_payloads = [
+                {
+                    "issue_type": item.issue_type,
+                    "severity": item.severity,
+                    "location": item.location,
+                    "description": item.description,
+                    "action_kind": item.action_kind,
+                    "suggested_fix": item.suggested_fix,
+                }
+                for item in scanned_issues[:200]
+            ]
+
+            summary_text = _build_list_only_report(issues=scanned_issues)
+
+            result = WikiMaintainRunResult(
+                mode="list_only",
+                issues_found=len(scanned_issues),
+                issues_fixed=0,
+                connections_discovered=0,
+                duration_ms=duration_ms,
+                open_actions_count=count_open_actions(scanned_issues),
+                raw_security_removed=0,
+                raw_security_removed_paths=[],
+                lint_issues=lint_issue_payloads,
+                summary_text=summary_text,
+            )
+            async with get_session() as db:
+                await save_wiki_maintain_state(db, state_from_run_result(result), agent_id=agent_id)
+            return result
+
+        maintain_enum = MaintainMode.FULL if mode_literal == "full" else MaintainMode.STRUCTURAL
+        lint_result = await archiver._linter.lint_and_maintain(mode=maintain_enum)
+        await run_wiki_asset_index(archiver)
+        await after_wiki_vault_mutation(archiver, "maintain")
 
         dedup = get_wiki_dedup_stats(agent_id=agent_id)
         health_report = report_from_lint_issues(

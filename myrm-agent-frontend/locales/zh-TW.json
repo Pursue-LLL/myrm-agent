@@ -7482,6 +7482,8 @@
     "busyInputRedirect": "糾偏中斷",
     "busyInputSteer": "糾偏等待",
     "busyInputQueue": "排隊等候",
+    "moaOverlayAutoReasoningTitle": "MOA 自動推理覆蓋",
+    "moaOverlayAutoReasoningDesc": "啟用此選項後，混合架構（MOA）將自動對複雜提示詞進行分層推理與評估。",
     "faq": {
       "tabTitle": "FAQ",
       "title": "FAQ 快速回復",
@@ -7525,9 +7527,7 @@
       "entryCreated": "FAQ條目已創建",
       "entryUpdated": "FAQ條目已更新",
       "entryDeleted": "FAQ條目已刪除"
-    },
-    "moaOverlayAutoReasoningTitle": "MOA 自動推理覆蓋",
-    "moaOverlayAutoReasoningDesc": "啟用此選項後，混合架構（MOA）將自動對複雜提示詞進行分層推理與評估。"
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -7991,6 +7991,24 @@
       "recent": "最近使用",
       "filter": "過濾目錄...",
       "unboundWarning": "未綁定目錄 (預設沙箱)"
+    },
+    "newTaskCard": {
+      "title": "新建任務工作上下文",
+      "modeLocal": "本地工作區",
+      "modeLocalDesc": "綁定本地資料夾，AI 在該目錄內執行分析與讀寫",
+      "modeCloud": "雲端沙箱",
+      "modeCloudDesc": "隔離沙箱環境，安全執行程式碼，不汙染本機",
+      "modeChat": "極速對話",
+      "modeChatDesc": "通用智能對話與快速問答，無須工作區",
+      "bindWorkspace": "選擇工作目錄",
+      "currentWorkspace": "當前目錄",
+      "noWorkspaceSelected": "未選擇工作目錄 (點擊綁定)",
+      "scaffoldBtn": "一鍵初始化辦公目錄",
+      "scaffoldTooltip": "在當前工作區生成標準化結構：00_原始資料、01_參考、02_生成結果、03_歷史版本",
+      "scaffoldSuccess": "標準化辦公目錄已就緒",
+      "scaffoldFailed": "初始化辦公目錄失敗",
+      "clearWorkspace": "解綁目錄",
+      "changeWorkspace": "更換目錄"
     },
     "enableBrowser": "開啟瀏覽器自動化",
     "disableBrowser": "關閉瀏覽器自動化",
@@ -13752,6 +13770,8 @@
     "ttsProvider": "TTS 服務商",
     "edgeTtsUnavailableTitle": "Edge TTS 不可用",
     "edgeTtsUnavailableDesc": "當前伺服器未啟用 Edge TTS。請切換其他服務商，或聯絡管理員啟用語音支援。",
+    "hostNotReadyTitle": "後端服務未就緒",
+    "hostNotReadyDesc": "後端服務連線中或未就緒，請檢查服務連線狀態後再試。",
     "ttsPlaybackFailedTitle": "朗讀失敗",
     "ttsPlaybackFailedDesc": "語音合成未產生音訊。請檢查語音設定或嘗試其他服務商。",
     "ttsApiKey": "API 金鑰",
@@ -15471,6 +15491,8 @@
       "evalRunning": "評測任務執行中，請耐心等待",
       "failureAnalysisTitle": "失敗模式歸因分析",
       "totalFailuresCount": "共 {count} 例失敗",
+      "difficultyShardTitle": "難度分片表現與通過率",
+      "fleetAttempts": "{count} 次獨立採樣嘗試",
       "failureModes": {
         "intent_misunderstanding": "用戶意圖理解偏差",
         "tool_selection_error": "工具選擇或路由錯誤",

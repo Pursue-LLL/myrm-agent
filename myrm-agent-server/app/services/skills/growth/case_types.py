@@ -66,6 +66,7 @@ class SkillGrowthCaseSummaryRead:
     has_trigger_condition: bool
     has_skill_steps: bool
     created_at: datetime
+    verification_proof: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -94,6 +95,7 @@ class SkillGrowthCaseDetailRead:
     chat_id: str | None
     form_metadata: SkillGrowthFormMetadataRead | None
     created_at: datetime
+    verification_proof: dict[str, Any] | None = None
 
 
 SkillGrowthCaseRead = SkillGrowthCaseDetailRead

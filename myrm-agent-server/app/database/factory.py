@@ -100,6 +100,8 @@ def set_sqlite_pragma(dbapi_conn: sqlite3.Connection, _connection_record: object
 
     cursor.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
     cursor.execute(f"PRAGMA synchronous={synchronous_mode}")
+    if not is_degraded:
+        cursor.execute("PRAGMA wal_autocheckpoint=1000")
     cursor.execute("PRAGMA cache_size=-64000")  # 64MB
     cursor.execute("PRAGMA temp_store=MEMORY")
     cursor.execute("PRAGMA mmap_size=268435456")  # 256MB

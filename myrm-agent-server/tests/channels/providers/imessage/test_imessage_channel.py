@@ -192,6 +192,22 @@ class TestIMessageDiagnostics:
         config_errors = [i for i in issues if i.severity == IssueSeverity.ERROR]
         assert len(config_errors) == 0
 
+    def test_running_private_api_disabled(self) -> None:
+        ch = _make_channel()
+        ch._status = ChannelStatus.RUNNING
+        ch._private_api_available = False
+        ch._helper_connected = False
+        issues = ch.collect_issues()
+        assert any("Private API is disabled" in i.message for i in issues)
+
+    def test_running_helper_disconnected(self) -> None:
+        ch = _make_channel()
+        ch._status = ChannelStatus.RUNNING
+        ch._private_api_available = True
+        ch._helper_connected = False
+        issues = ch.collect_issues()
+        assert any("Helper is disconnected" in i.message for i in issues)
+
 
 # ── Inbound: webhook ──────────────────────────────────────────
 
@@ -253,6 +269,43 @@ class TestIMessageInbound:
         await ch.handle_webhook(_msg_event(chat_guid="iMessage;+;chat123456"))
         assert len(emitted) == 1
         assert emitted[0].is_group is True
+        assert emitted[0].mentioned is False
+
+    @pytest.mark.asyncio
+    async def test_group_message_wake_word_mention(self) -> None:
+        ch = _make_channel()
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+
+        await ch.handle_webhook(_msg_event(text="@Myrm 帮我查天气", chat_guid="iMessage;+;chat123456"))
+        assert len(emitted) == 1
+        assert emitted[0].is_group is True
+        assert emitted[0].mentioned is True
+        assert emitted[0].content == "帮我查天气"
+
+    @pytest.mark.asyncio
+    async def test_group_message_custom_mention_patterns(self) -> None:
+        ch = IMessageChannel(api_url="http://localhost:1234", password="pass", mention_patterns=["^bot\\b"])
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+
+        await ch.handle_webhook(_msg_event(text="bot: run diagnostics", chat_guid="iMessage;+;chat123456"))
+        assert len(emitted) == 1
+        assert emitted[0].is_group is True
+        assert emitted[0].mentioned is True
+        assert emitted[0].content == "run diagnostics"
+
+    @pytest.mark.asyncio
+    async def test_dm_message_always_mentioned(self) -> None:
+        ch = _make_channel()
+        emitted: list[InboundMessage] = []
+        ch._emit_inbound = AsyncMock(side_effect=lambda msg: emitted.append(msg))  # type: ignore[assignment]
+
+        await ch.handle_webhook(_msg_event(text="hello in dm", chat_guid="iMessage;-;+1234567890"))
+        assert len(emitted) == 1
+        assert emitted[0].is_group is False
+        assert emitted[0].mentioned is True
+        assert emitted[0].content == "hello in dm"
 
     @pytest.mark.asyncio
     async def test_attachment_parsed(self) -> None:

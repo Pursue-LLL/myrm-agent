@@ -111,11 +111,51 @@ export function resolveActiveFallbackSelection(
 }
 
 /**
- * Model picker trigger display: primary model name plus optional session MoA preset chip.
+ * 判断当前是否处于智能路由 (Auto Smart Routing) 模式
+ */
+export function isSmartRoutingActive(
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+  defaultModelConfig: DefaultModelConfig,
+): boolean {
+  if (actionMode === 'fast') {
+    return false;
+  }
+  const isRoutingConfigured =
+    agentConfig?.routingConfig?.enabled !== undefined
+      ? Boolean(agentConfig.routingConfig.enabled)
+      : Boolean(defaultModelConfig?.routingConfig?.enabled);
+
+  if (!isRoutingConfigured) {
+    return false;
+  }
+  // 显式选择具体模型时覆盖智能路由
+  if (actionMode === 'agent' && agentConfig?.modelSelection) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * 判断系统是否已配置并支持智能路由
+ */
+export function isSmartRoutingConfigured(
+  agentConfig: AgentConfig | null,
+  defaultModelConfig: DefaultModelConfig,
+): boolean {
+  if (agentConfig?.routingConfig?.enabled !== undefined) {
+    return Boolean(agentConfig.routingConfig.enabled);
+  }
+  return Boolean(defaultModelConfig?.routingConfig?.enabled);
+}
+
+/**
+ * Model picker trigger display: primary model name plus optional session MoA preset chip and smart routing flag.
  */
 export interface ModelPickerTriggerDisplay {
   modelName: string | null;
   moaPresetId: string | null;
+  isSmartRouting: boolean;
 }
 
 export function resolveModelPickerTriggerDisplay(
@@ -125,6 +165,16 @@ export function resolveModelPickerTriggerDisplay(
   providers: ProviderConfig[],
   activeMoaPresetId: string | null,
 ): ModelPickerTriggerDisplay {
+  const isSmart = isSmartRoutingActive(actionMode, agentConfig, defaultModelConfig);
+  if (isSmart) {
+    const moaPresetId = actionMode === 'agent' && activeMoaPresetId ? activeMoaPresetId : null;
+    return {
+      modelName: null,
+      moaPresetId,
+      isSmartRouting: true,
+    };
+  }
+
   const selection = resolveActiveModelSelection(actionMode, agentConfig, defaultModelConfig, providers);
   let modelName: string | null = null;
   if (selection && isModelAvailable(selection, providers)) {
@@ -132,7 +182,7 @@ export function resolveModelPickerTriggerDisplay(
   }
 
   const moaPresetId = actionMode === 'agent' && activeMoaPresetId ? activeMoaPresetId : null;
-  return { modelName, moaPresetId };
+  return { modelName, moaPresetId, isSmartRouting: false };
 }
 
 /**

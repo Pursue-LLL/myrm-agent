@@ -323,6 +323,16 @@ async def build_general_agent(
 
         extraction_preset = auto_detect_preset(agent_wrapper.user_instructions or "").value
 
+    is_sandbox = (
+        agent_wrapper.enable_shell_tools
+        or agent_wrapper.enable_external_cli
+        or bool(agent_wrapper.sandbox_base_dir)
+        or any(
+            c in (getattr(agent_wrapper, "declared_capabilities", None) or ())
+            for c in ("sandbox", "code_execution", "terminal", "coding")
+        )
+    )
+
     memory_ext = ZeroCostMemoryExtension(
         enable_memory_auto_extraction=agent_wrapper.enable_memory_auto_extraction,
         is_subagent=getattr(agent_wrapper, "is_subagent", False),
@@ -331,6 +341,7 @@ async def build_general_agent(
         effective_chat_id=effective_chat_id,
         extractor_llm=agent_wrapper._lite_llm or llm,
         memory_extraction_preset=extraction_preset,
+        is_sandbox_capable=is_sandbox,
     )
     compress_eviction_cb = memory_ext.build_eviction_callback()
 

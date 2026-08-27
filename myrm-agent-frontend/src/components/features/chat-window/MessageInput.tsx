@@ -120,7 +120,12 @@ const mentionReferenceKey = (reference: {
 }) =>
   `${reference.type}:${reference.path ?? reference.fileId ?? reference.url ?? reference.label}:${reference.startLine ?? ''}:${reference.endLine ?? ''}`;
 
-const MessageInput = ({ loading }: { loading: boolean }) => {
+interface MessageInputProps {
+  loading: boolean;
+  hideWorkspacePicker?: boolean;
+}
+
+const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProps) => {
   const commonT = useTranslations('common');
   const chatT = useTranslations('chat');
   const commandsT = useTranslations('commands');
@@ -148,6 +153,9 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   }, [fetchProjects, projectsLoaded]);
 
   const hideChatWorkspacePicker = React.useMemo(() => {
+    if (hideWorkspacePicker) {
+      return true;
+    }
     if (!chatId) {
       return false;
     }
@@ -158,7 +166,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     }
     const project = projects.find((item) => item.id === projectId);
     return Boolean(project?.workspacePath?.trim());
-  }, [chatHistoryItems, chatId, projects]);
+  }, [hideWorkspacePicker, chatHistoryItems, chatId, projects]);
 
   const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
   const [isExpanded, setIsExpanded] = React.useState(false);

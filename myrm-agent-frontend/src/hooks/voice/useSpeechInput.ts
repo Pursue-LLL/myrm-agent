@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { apiRequest, ApiError, getWsUrl } from '@/lib/api';
+import { ensureLocalBackendReady, isLocalBackendReadyCached } from '@/lib/backend-health';
 import { getMobilePairToken } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
 
@@ -235,6 +236,13 @@ export function useSpeechInput({
     toast.error(tVoice('localSttUnavailableTitle'), {
       description: tVoice('localSttUnavailableDesc'),
     });
+  }, [tVoice]);
+
+  const notifyHostNotReady = useCallback(() => {
+    toast.error(tVoice('hostNotReadyTitle'), {
+      description: tVoice('hostNotReadyDesc'),
+    });
+    void ensureLocalBackendReady();
   }, [tVoice]);
 
   const handleSttErrorMessage = useCallback(
@@ -487,6 +495,15 @@ export function useSpeechInput({
       return;
     }
 
+    // VoiceModeHostReadyGate: Fast-fail if host backend is not ready (exempting browser Web Speech STT)
+    if (sttBackendRef.current !== 'browser' && !isLocalBackendReadyCached()) {
+      if (enableSounds) {
+        playTone(300, 150, 150);
+      }
+      notifyHostNotReady();
+      return;
+    }
+
     try {
       setState('recording');
       startTimeRef.current = Date.now();
@@ -529,6 +546,7 @@ export function useSpeechInput({
     startBrowserRecording,
     setupAudioAnalysis,
     stopRecording,
+    notifyHostNotReady,
   ]);
 
   const toggle = useCallback(() => {

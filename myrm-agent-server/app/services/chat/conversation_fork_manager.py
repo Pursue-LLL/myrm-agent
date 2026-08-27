@@ -79,8 +79,11 @@ class ConversationForkManager:
 
     @staticmethod
     async def get_last_message_index(db: AsyncSession, chat_id: str) -> int | None:
-        """Return the 0-based index of the last message, or None if empty."""
-        count_stmt = select(func.count(Message.id)).where(Message.chat_id == chat_id)
+        """Return the 0-based index of the last active message, or None if empty."""
+        count_stmt = select(func.count(Message.id)).where(
+            Message.chat_id == chat_id,
+            Message.is_active == True,  # noqa: E712
+        )
         result = await db.execute(count_stmt)
         total = result.scalar_one()
         return total - 1 if total > 0 else None
@@ -127,9 +130,10 @@ class ConversationForkManager:
                 error="Parent chat not found or access denied",
             )
 
-        # Validate message_index boundary.
+        # Validate message_index boundary against active messages.
         count_stmt = select(func.count(Message.id)).where(
-            Message.chat_id == parent_chat_id
+            Message.chat_id == parent_chat_id,
+            Message.is_active == True,  # noqa: E712
         )
         count_result = await db.execute(count_stmt)
         total_messages = count_result.scalar_one()
@@ -140,7 +144,7 @@ class ConversationForkManager:
                 new_chat_id=None,
                 parent_chat_id=parent_chat_id,
                 fork_point=message_index,
-                error=f"Invalid message_index: {message_index} (total messages: {total_messages})",
+                error=f"Invalid message_index: {message_index} (total active messages: {total_messages})",
             )
 
         # 2. Attempt to get checkpoint (optional — fork works with or without it)
@@ -166,7 +170,10 @@ class ConversationForkManager:
         if not new_title:
             msg_stmt = (
                 select(Message)
-                .where(Message.chat_id == parent_chat_id)
+                .where(
+                    Message.chat_id == parent_chat_id,
+                    Message.is_active == True,  # noqa: E712
+                )
                 .order_by(Message.created_at)
                 .offset(message_index)
                 .limit(1)
@@ -226,10 +233,13 @@ class ConversationForkManager:
         )
         db.add(new_chat)
 
-        # 4. Clone messages up to fork point into new chat in batch
+        # 4. Clone active messages up to fork point into new chat in batch
         msgs_stmt = (
             select(Message)
-            .where(Message.chat_id == parent_chat_id)
+            .where(
+                Message.chat_id == parent_chat_id,
+                Message.is_active == True,  # noqa: E712
+            )
             .order_by(Message.created_at)
             .limit(message_index + 1)
         )
@@ -251,6 +261,8 @@ class ConversationForkManager:
                     sent_timezone=msg.sent_timezone,
                     extra_data=msg.extra_data,
                     created_at=msg.created_at,
+                    sibling_group_id=None,
+                    is_active=True,
                 )
             )
 

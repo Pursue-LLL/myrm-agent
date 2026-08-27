@@ -2,7 +2,14 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconEye, IconEyeOff, IconLoader, IconWifi } from '@/components/features/icons/PremiumIcons';
+import {
+  IconEye,
+  IconEyeOff,
+  IconLoader,
+  IconMonitor,
+  IconShieldCheck,
+  IconWifi,
+} from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
@@ -11,7 +18,7 @@ import { getIMessageCredentials, saveIMessageCredentials, testIMessageConnection
 import { ConnectionBadge } from './ConnectionBadge';
 import { useChannelConfig } from './useChannelConfig';
 
-const EMPTY_CREDS: IMessageCredentials = { apiUrl: '', password: '', webhookUrl: '' };
+const EMPTY_CREDS: IMessageCredentials = { apiUrl: '', password: '', webhookUrl: '', mentionPatterns: '' };
 
 export function IMessageConfigCard() {
   const t = useTranslations('channels');
@@ -80,6 +87,38 @@ export function IMessageConfigCard() {
           onChange={(e) => handleChange('webhookUrl', e.target.value)}
         />
         <p className="text-xs text-muted-foreground">{t('imessageWebhookUrlHint')}</p>
+      </div>
+
+      <div className="space-y-2 max-w-md">
+        <Label htmlFor="imessage-mention-patterns">{t('imessageMentionPatterns')}</Label>
+        <Input
+          id="imessage-mention-patterns"
+          placeholder="^@?(?:Myrm|myrm|小助手|助手)\b"
+          value={creds.mentionPatterns ?? ''}
+          onChange={(e) => handleChange('mentionPatterns', e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">{t('imessageMentionPatternsHint')}</p>
+      </div>
+
+      <div className="rounded-lg border bg-muted/30 p-3.5 space-y-1.5 max-w-lg">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <IconShieldCheck className="h-4 w-4 text-primary shrink-0" />
+          <span>{t('imessageAppleWatchGuideTitle')}</span>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {t('imessageAppleWatchGuideDesc')}
+        </p>
+      </div>
+
+      <div className="rounded-lg border bg-muted/20 p-3.5 space-y-2 max-w-lg text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 font-medium text-foreground text-xs">
+          <IconMonitor className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span>{t('imessageDeployGuideTitle')}</span>
+        </div>
+        <ul className="list-disc list-inside space-y-1 pl-1">
+          <li>{t('imessageDeployGuideLocal')}</li>
+          <li>{t('imessageDeployGuideCloud')}</li>
+        </ul>
       </div>
 
       <div className="flex items-center gap-3 pt-2">

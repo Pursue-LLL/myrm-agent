@@ -38,6 +38,7 @@ from app.services.agent.profile.profile_builtin_tools import (
     BuiltinToolFlags,
     coerce_str_tuple,
     coerce_tool_selections,
+    is_sandbox_capable_tools,
     resolve_builtin_tool_flags,
 )
 
@@ -49,6 +50,7 @@ __all__ = [
     "DEFAULT_ENABLED_BUILTIN_TOOLS",
     "ResolvedAgentProfile",
     "get_agent_profile_resolver",
+    "is_sandbox_capable_tools",
     "resolve_builtin_tool_flags",
 ]
 
@@ -103,6 +105,11 @@ class ResolvedAgentProfile:
 
     cron_post_run_verify: bool = field(default=False, kw_only=True)
     """When true, cron runs verify worker output via adversarial reviewer after effectful tool use."""
+
+    @property
+    def is_sandbox_capable(self) -> bool:
+        """Whether this profile has sandbox/coding execution capabilities."""
+        return is_sandbox_capable_tools(self.enabled_builtin_tools)
 
 
 class AgentProfileResolver:

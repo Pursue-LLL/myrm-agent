@@ -67,7 +67,7 @@ export interface ReportItem {
       state_assertions?: unknown[];
     };
   }>;
-  failure_analysis?: {
+    failure_analysis?: {
     total_failures: number;
     failure_distribution: Record<string, number>;
     pareto_percentages: Record<string, number>;
@@ -81,6 +81,16 @@ export interface ReportItem {
       is_hardcoded_cheat: boolean;
       is_destructive: boolean;
     }>;
+  };
+  variance_metrics?: {
+    n_attempts: number;
+    mean_pass_rate: number;
+    std_dev: number;
+    margin_of_error_95: number;
+    pass_at_1: number;
+    pass_at_k: number;
+    attempt_pass_rates: number[];
+    difficulty_breakdown?: Record<string, { total_runs: number; pass_rate: number }>;
   };
 }
 

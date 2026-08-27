@@ -7,10 +7,16 @@ Stateless parsing logic for BlueBubbles webhook data.
 from __future__ import annotations
 
 from collections.abc import Callable
+import re
 
 from app.channels.types import InboundMessage, MediaAttachment
 
-from .helpers import TAPBACK_CODE_TO_EMOJI, mime_to_media_type
+from .helpers import (
+    TAPBACK_CODE_TO_EMOJI,
+    clean_mention_text,
+    compile_mention_patterns,
+    mime_to_media_type,
+)
 
 InboundBuilder = Callable[..., InboundMessage]
 
@@ -20,6 +26,7 @@ def parse_message(
     api_url: str,
     password: str,
     build_inbound: InboundBuilder,
+    mention_patterns: list[re.Pattern[str]] | None = None,
 ) -> InboundMessage | None:
     """Parse a BlueBubbles message payload into an InboundMessage."""
     if data.get("isFromMe", False):
@@ -42,7 +49,7 @@ def parse_message(
     if reaction_msg:
         return reaction_msg
 
-    content = str(data.get("text", "") or "")
+    raw_content = str(data.get("text", "") or "")
     reply_to = str(data.get("threadOriginatorGuid", "") or "")
 
     media_list: list[MediaAttachment] = []
@@ -66,15 +73,23 @@ def parse_message(
                 )
             )
 
-    if not content.strip() and not media_list:
+    if not raw_content.strip() and not media_list:
         return None
+
+    if is_group:
+        patterns = mention_patterns if mention_patterns is not None else compile_mention_patterns()
+        is_mentioned, cleaned_content = clean_mention_text(raw_content.strip(), patterns)
+        final_content = cleaned_content
+    else:
+        is_mentioned = True
+        final_content = raw_content.strip()
 
     return build_inbound(
         sender_id=sender,
-        content=content.strip(),
+        content=final_content,
         chat_id=chat_guid,
         is_group=is_group,
-        mentioned=False,
+        mentioned=is_mentioned,
         media=tuple(media_list),
         message_id=msg_guid,
         reply_to_id=reply_to or None,

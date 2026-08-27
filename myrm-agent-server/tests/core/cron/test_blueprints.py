@@ -170,6 +170,28 @@ class TestWikiMaintainBlueprint:
         assert result.command == "__wiki_maintain__:full"
 
 
+class TestWikiVaultWeeklyHealthBlueprint:
+    """Specific tests for the wiki_vault_weekly_health (list-only) blueprint."""
+
+    def test_exists_in_registry(self) -> None:
+        bp = get_blueprint("wiki_vault_weekly_health")
+        assert bp is not None
+        assert bp.id == "wiki_vault_weekly_health"
+
+    def test_fill_weekly_health_list_only(self) -> None:
+        result = fill_blueprint(
+            "wiki_vault_weekly_health",
+            {"time": "18:00", "day": "0"},
+            locale="zh",
+        )
+        assert result is not None
+        assert result.command == "__wiki_maintain__:list_only"
+        assert result.job_type == "router"
+        assert result.timeout_seconds == 600
+        assert result.schedule.kind == "cron"
+        assert result.schedule.expr == "0 18 * * 0"
+
+
 class TestFinancialMonitorBlueprints:
     """Specific tests for financial monitor simple/advanced blueprints."""
 

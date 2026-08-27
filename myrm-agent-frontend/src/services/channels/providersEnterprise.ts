@@ -177,6 +177,7 @@ export interface IMessageCredentials {
   apiUrl: string;
   password: string;
   webhookUrl?: string;
+  mentionPatterns?: string;
 }
 
 const imessageService = createChannelCredentialService<IMessageCredentials>(

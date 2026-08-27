@@ -7261,6 +7261,8 @@
     "busyInputRedirect": "리디렉션",
     "busyInputSteer": "방향 전환",
     "busyInputQueue": "대기열",
+    "moaOverlayAutoReasoningTitle": "추론 시 자동 MoA 오버레이",
+    "moaOverlayAutoReasoningDesc": "복잡한 추론 작업에서 다중 모델 MoA 어드바이저를 자동으로 병렬 활성화하여 상호 교차 검증을 수행합니다.",
     "browserConfig": "브라우저 구성",
     "browserConfigDesc": "브라우저 소스, 대화 상자, 세션 녹화 구성. 브라우저 도구가 활성화되면 안티봇 은닉은 자동 처리됩니다.",
     "dialogPolicy": {
@@ -8051,6 +8053,24 @@
       "recent": "최근",
       "filter": "디렉터리 필터...",
       "unboundWarning": "바인딩되지 않은 디렉터리 (기본 샌드박스)"
+    },
+    "newTaskCard": {
+      "title": "새 작업 컨텍스트",
+      "modeLocal": "로컬 작업 공간",
+      "modeLocalDesc": "로컬 폴더를 바인딩하여 AI가 파일 읽기/쓰기 및 분석을 수행합니다",
+      "modeCloud": "클라우드 샌드박스",
+      "modeCloudDesc": "격리된 샌드박스 환경에서 호스트 오염 없이 안전하게 코드를 실행합니다",
+      "modeChat": "빠른 대화",
+      "modeChatDesc": "작업 공간 설정 없이 일반 AI 대화 및 빠른 질의응답",
+      "bindWorkspace": "작업 디렉터리 선택",
+      "currentWorkspace": "현재 디렉터리",
+      "noWorkspaceSelected": "디렉터리 미선택 (클릭하여 바인딩)",
+      "scaffoldBtn": "표준 폴더 일괄 초기화",
+      "scaffoldTooltip": "현재 작업 공간에 표준 폴더 구조 생성: 00_원시자료, 01_참고, 02_생성결과, 03_히스토리버전",
+      "scaffoldSuccess": "표준 사무 폴더 초기화 완료",
+      "scaffoldFailed": "표준 사무 폴더 초기화 실패",
+      "clearWorkspace": "바인딩 해제",
+      "changeWorkspace": "변경"
     },
     "workingMemory": {
       "title": "활성 작업 메모리",

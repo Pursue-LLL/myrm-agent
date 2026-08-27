@@ -418,9 +418,26 @@ async def imessage_test_connection(
                 params={"password": body.password},
             )
             ok = resp.status_code == 200
+            if ok:
+                try:
+                    payload = resp.json()
+                    data = payload.get("data", {}) if isinstance(payload, dict) else {}
+                    if isinstance(data, dict):
+                        p_api = bool(data.get("private_api"))
+                        h_conn = bool(data.get("helper_connected"))
+                        message = (
+                            f"Connection successful (Private API: {'enabled' if p_api else 'disabled'}, "
+                            f"Helper: {'connected' if h_conn else 'disconnected'})"
+                        )
+                    else:
+                        message = "Connection successful"
+                except Exception:
+                    message = "Connection successful"
+            else:
+                message = f"HTTP {resp.status_code}"
             return ChannelTestResponse(
                 ok=ok,
-                message="Connection successful" if ok else f"HTTP {resp.status_code}",
+                message=message,
             )
     except Exception as e:
         return ChannelTestResponse(ok=False, message=str(e))

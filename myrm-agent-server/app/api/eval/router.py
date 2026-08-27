@@ -142,6 +142,9 @@ class RunEvalRequest(BaseModel):
     profile_id: str | None = None
     dataset_id: str | None = None
     benchmark_mode: bool = False
+    n_attempts: int = 1
+    resume: bool = False
+    difficulty_filter: str | None = None
 
 
 @router.post("/run")
@@ -158,11 +161,18 @@ async def run_evaluation(
     profile_id = request.profile_id if request else None
     dataset_id = request.dataset_id if request else None
     benchmark_mode = request.benchmark_mode if request else False
+    n_attempts = request.n_attempts if request else 1
+    resume = request.resume if request else False
+    difficulty_filter = request.difficulty_filter if request else None
+
     background_tasks.add_task(
         run_eval_suite_background,
         dataset_id=dataset_id,
         profile_id=profile_id,
         benchmark_mode=benchmark_mode,
+        n_attempts=n_attempts,
+        resume=resume,
+        difficulty_filter=difficulty_filter,
     )
     return {"status": "started"}
 

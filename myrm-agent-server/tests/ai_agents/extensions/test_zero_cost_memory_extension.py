@@ -81,6 +81,18 @@ class TestBuildEvictionCallback:
         )
         assert ext.build_eviction_callback() is None
 
+    def test_returns_none_for_sandbox_capable(self, mock_memory_manager, mock_extractor_llm):
+        ext = ZeroCostMemoryExtension(
+            enable_memory_auto_extraction=True,
+            is_subagent=False,
+            channel_name="default",
+            memory_manager=mock_memory_manager,
+            effective_chat_id="chat-123",
+            extractor_llm=mock_extractor_llm,
+            is_sandbox_capable=True,
+        )
+        assert ext.build_eviction_callback() is None
+
     def test_returns_callable_when_enabled(self, extension):
         cb = extension.build_eviction_callback()
         assert cb is not None

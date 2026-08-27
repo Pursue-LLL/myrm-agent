@@ -7261,6 +7261,8 @@
     "busyInputRedirect": "Umleiten",
     "busyInputSteer": "Steuern",
     "busyInputQueue": "Warteschlange",
+    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung für Argumentation",
+    "moaOverlayAutoReasoningDesc": "Aktiviert bei komplexen Argumentationsaufgaben automatisch parallele MoA-Berater zur gegenseitigen Überprüfung.",
     "browserConfig": "Browser-Konfiguration",
     "browserConfigDesc": "Browserquelle, Dialoge und Sitzungsaufzeichnung konfigurieren. Anti-Bot-Stealth wird automatisch gehandhabt, wenn das Browser-Tool aktiviert ist.",
     "dialogPolicy": {
@@ -8051,6 +8053,24 @@
       "recent": "Zuletzt verwendet",
       "filter": "Verzeichnisse filtern...",
       "unboundWarning": "Nicht gebundenes Verzeichnis (Standard-Sandbox)"
+    },
+    "newTaskCard": {
+      "title": "Neuer Aufgabenkontext",
+      "modeLocal": "Lokaler Arbeitsbereich",
+      "modeLocalDesc": "Lokalen Ordner binden, in dem die KI Dateien liest und erstellt",
+      "modeCloud": "Cloud-Sandbox",
+      "modeCloudDesc": "Isolierte Sandbox-Umgebung für sichere Code-Ausführung ohne Host-Verschmutzung",
+      "modeChat": "Schnellchat",
+      "modeChatDesc": "Allgemeine KI-Konversation und schnelle Antworten ohne Arbeitsbereich",
+      "bindWorkspace": "Arbeitsbereich auswählen",
+      "currentWorkspace": "Aktueller Arbeitsbereich",
+      "noWorkspaceSelected": "Kein Verzeichnis gewählt (Klicken zum Binden)",
+      "scaffoldBtn": "Standardordner initialisieren",
+      "scaffoldTooltip": "Erstellt Standardordner: 00_Rohdaten, 01_Referenz, 02_Ergebnisse, 03_Archiv",
+      "scaffoldSuccess": "Standard-Ordnerstruktur initialisiert",
+      "scaffoldFailed": "Initialisierung fehlgeschlagen",
+      "clearWorkspace": "Freigeben",
+      "changeWorkspace": "Ändern"
     },
     "workingMemory": {
       "title": "Aktives Arbeitsgedächtnis",

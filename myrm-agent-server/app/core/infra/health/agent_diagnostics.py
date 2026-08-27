@@ -71,10 +71,10 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
 
         # 3. Execution Cache Primed State
         try:
-            from app.services.agent.execution_unit_cache import get_execution_unit_cache
+            from app.services.agent.execution_cache import get_execution_cache
 
-            cache = get_execution_unit_cache()
-            warm_count = getattr(cache, "cached_units_count", 0)
+            cache = get_execution_cache()
+            warm_count = getattr(cache, "warm_entry_count", 0)
             phase_details["warm_execution_units"] = warm_count
             if warm_count > 0:
                 ready_phases.append("cache_warm")
@@ -225,6 +225,7 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
     """Diagnose if active agents have sufficiently high step/recursion budgets."""
 
     RECOMMENDED_MIN_STEPS: int = 100
+    EXEMPT_PROMPT_MODES: frozenset[str] = frozenset({"search"})
 
     async def check_health(self) -> HealthReport:
         try:
@@ -243,6 +244,8 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                 total_active_agents = len(agents)
 
                 for ag in agents:
+                    if getattr(ag, "prompt_mode", "") in self.EXEMPT_PROMPT_MODES:
+                        continue
                     budget = ag.max_iterations
                     if budget is not None and budget < self.RECOMMENDED_MIN_STEPS:
                         low_budget_agents.append(

@@ -47,6 +47,7 @@ from .helpers import (
     MEDIA_TIMEOUT,
     SEND_TIMEOUT,
     TAPBACK_MAP,
+    compile_mention_patterns,
     filename_from_url,
     quote_guid,
 )
@@ -69,6 +70,7 @@ class IMessageChannel(BaseChannel):
         api_url=credential_field("apiUrl", "IMESSAGE_API_URL"),
         password=credential_field("password", "IMESSAGE_PASSWORD"),
         webhook_url=credential_field("webhookUrl", "IMESSAGE_WEBHOOK_URL", required=False),
+        mention_patterns=credential_field("mentionPatterns", "IMESSAGE_MENTION_PATTERNS", required=False),
     )
     capabilities = ChannelCapabilities(
         text=True,
@@ -84,14 +86,29 @@ class IMessageChannel(BaseChannel):
         tool_summary_display=ToolSummaryDisplay.COMPACT,
     )
 
-    def __init__(self, api_url: str, password: str, webhook_url: str = "") -> None:
+    def __init__(
+        self,
+        api_url: str,
+        password: str,
+        webhook_url: str = "",
+        mention_patterns: tuple[str, ...] | list[str] | str | None = None,
+    ) -> None:
         super().__init__()
         self._api_url = api_url.rstrip("/")
         self._password = password
         self._webhook_url = webhook_url.strip() if webhook_url else ""
+        self._mention_patterns = compile_mention_patterns(mention_patterns)
         self._http = httpx.AsyncClient()
         self._private_api_available = False
         self._helper_connected = False
+
+    @property
+    def private_api_available(self) -> bool:
+        return self._private_api_available
+
+    @property
+    def helper_connected(self) -> bool:
+        return self._helper_connected
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 
@@ -254,7 +271,13 @@ class IMessageChannel(BaseChannel):
         return hmac.compare_digest(incoming, self._password)
 
     def _parse_message(self, data: dict[str, object]) -> InboundMessage | None:
-        return parse_message(data, self._api_url, self._password, self._build_inbound)
+        return parse_message(
+            data,
+            self._api_url,
+            self._password,
+            self._build_inbound,
+            mention_patterns=self._mention_patterns,
+        )
 
     # ── Outbound ──────────────────────────────────────────────────────
 
@@ -434,4 +457,21 @@ class IMessageChannel(BaseChannel):
                     message=self.health.last_error,
                 )
             )
+        if self._status == ChannelStatus.RUNNING:
+            if not self._private_api_available:
+                issues.append(
+                    ChannelIssue(
+                        kind=IssueKind.CONFIG,
+                        severity=IssueSeverity.WARNING,
+                        message="BlueBubbles Private API is disabled; reactions, typing, and read receipts are unavailable",
+                    )
+                )
+            elif not self._helper_connected:
+                issues.append(
+                    ChannelIssue(
+                        kind=IssueKind.RUNTIME,
+                        severity=IssueSeverity.WARNING,
+                        message="BlueBubbles Private API Helper is disconnected; advanced messaging features may be limited",
+                    )
+                )
         return issues

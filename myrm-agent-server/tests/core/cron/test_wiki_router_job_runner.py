@@ -43,7 +43,31 @@ def _router_job(*, command: str) -> CronJob:
 def test_parse_wiki_maintain_mode() -> None:
     assert parse_wiki_maintain_mode(f"{WIKI_MAINTAIN_COMMAND_PREFIX}:structural") == MaintainMode.STRUCTURAL
     assert parse_wiki_maintain_mode(f"{WIKI_MAINTAIN_COMMAND_PREFIX}:full") == MaintainMode.FULL
+    assert parse_wiki_maintain_mode(f"{WIKI_MAINTAIN_COMMAND_PREFIX}:list_only") == "list_only"
     assert parse_wiki_maintain_mode(WIKI_SOURCE_SYNC_COMMAND) is None
+
+
+@pytest.mark.asyncio
+async def test_run_maintain_list_only_report() -> None:
+    runner = WikiRouterJobRunner()
+    report_text = "## 📋 Wiki 知识库健康周检报告\n\n✅ **全库状态极佳**"
+    maintain_result = WikiMaintainRunResult(mode="list_only", summary_text=report_text)
+    with patch(
+        "app.services.wiki.maintain.run_wiki_maintain_job",
+        new=AsyncMock(return_value=maintain_result),
+    ) as run_mock:
+        with patch(
+            "app.services.agent.llm_access.get_optional_llm_for_user",
+            new=AsyncMock(return_value=MagicMock()),
+        ):
+            result = await runner.run(
+                _router_job(command=f"{WIKI_MAINTAIN_COMMAND_PREFIX}:list_only"),
+            )
+    run_mock.assert_awaited_once()
+    assert run_mock.await_args.kwargs["mode"] == "list_only"
+    assert result.success is True
+    assert "Wiki 知识库健康周检报告" in result.output
+    assert result.exit_code == 1
 
 
 @pytest.mark.asyncio

@@ -793,3 +793,22 @@ class TestCronConnectorHealthApi:
             assert s.fix_suggestion is not None
             assert "job_sync_1" in s.bound_job_ids
 
+    def test_prerequisite_check_endpoint(self, client: TestClient) -> None:
+        """Integration test for POST /cron/prerequisite-check endpoint."""
+        resp = client.post(
+            "/cron/prerequisite-check",
+            json={
+                "prompt": "Daily summary of AI news",
+                "agent_id": "test_agent",
+                "threshold": 2,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "fingerprint" in data
+        assert len(data["fingerprint"]) == 64
+        assert data["threshold"] == 2
+        assert "is_satisfied" in data
+        assert "manual_success_count" in data
+        assert data["override_allowed"] is True
+

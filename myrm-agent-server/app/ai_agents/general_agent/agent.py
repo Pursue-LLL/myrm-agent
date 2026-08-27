@@ -534,15 +534,19 @@ class GeneralAgent(ToolSetupMixin):
             finally:
                 self._browser_session = None
 
-        if self._executor is not None and self._current_chat_id is not None:
+        if self._executor is not None:
             try:
-                from myrm_agent_harness.runtime.context.offload import (
-                    cleanup_session_context_files,
-                )
+                if self._current_chat_id is not None:
+                    from myrm_agent_harness.runtime.context.offload import (
+                        cleanup_session_context_files,
+                    )
 
-                await cleanup_session_context_files(self._current_chat_id, self._executor)
+                    await cleanup_session_context_files(self._current_chat_id, self._executor)
+                await self._executor.close()
             except Exception as e:
-                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
+                logger.warning(f"⚠️ Executor cleanup failed for chat_id={self._current_chat_id}: {e}")
+            finally:
+                self._executor = None
 
         if self.agent is not None:
             try:

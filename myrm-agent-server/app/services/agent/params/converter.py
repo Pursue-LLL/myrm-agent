@@ -454,6 +454,7 @@ async def convert_to_general_agent_params(
 
     from app.services.agent.profile.profile_resolver import (
         DEFAULT_ENABLED_BUILTIN_TOOLS,
+        is_sandbox_capable_tools,
         resolve_builtin_tool_flags,
     )
     from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
@@ -1035,9 +1036,37 @@ async def convert_to_general_agent_params(
         session_recording=session_recording,
         kanban_default_board_id=kanban_default_board_id,
         enable_memory=request.enable_memory,
-        memory_require_confirmation=request.memory_require_confirmation,
+        memory_require_confirmation=(
+            True
+            if (
+                request.enable_memory
+                and is_sandbox_capable_tools(
+                    enabled_builtin_tools,
+                    has_sandbox_dir=bool(sandbox_base_dir),
+                    declared_capabilities=declared_caps,
+                )
+            )
+            else request.memory_require_confirmation
+        ),
         enable_memory_auto_extraction=(
-            False if request.incognito_mode else (request.enable_memory and request.enable_memory_auto_extraction)
+            False
+            if request.incognito_mode
+            else (
+                False
+                if (
+                    is_sandbox_capable_tools(
+                        enabled_builtin_tools,
+                        has_sandbox_dir=bool(sandbox_base_dir),
+                        declared_capabilities=declared_caps,
+                    )
+                    and (
+                        resolved is None
+                        or resolved.memory_policy is None
+                        or not getattr(resolved.memory_policy, "enable_auto_extraction", False)
+                    )
+                )
+                else (request.enable_memory and request.enable_memory_auto_extraction)
+            )
         ),
         enable_conversation_search=request.enable_conversation_search and not request.incognito_mode,
         incognito_mode=request.incognito_mode,

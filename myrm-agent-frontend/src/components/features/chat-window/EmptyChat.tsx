@@ -1,8 +1,9 @@
 import MessageInput from './MessageInput';
+import NewTaskWorkContextCard from './NewTaskWorkContextCard';
 import CompanionWidget from '../companion/CompanionWidget';
 import NoProviderBanner from './NoProviderBanner';
 import { useTranslations } from 'next-intl';
-import React from 'react';
+import React, { useMemo } from 'react';
 import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
 import SamplePrompts from './SamplePrompts';
 import ConversationRecallHint from './ConversationRecallHint';
@@ -11,11 +12,29 @@ import GrowingLoopDiscoveryChip from './GrowingLoopDiscoveryChip';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
+import useChatStore from '@/store/useChatStore';
+import useProviderStore from '@/store/useProviderStore';
+import { useShallow } from 'zustand/react/shallow';
+import { isSmartRoutingActive } from '@/lib/model-binding';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
   useChatTurnPrewarm({ autoOnMount: true });
+
+  const { actionMode, agentConfig } = useChatStore(
+    useShallow((s) => ({
+      actionMode: s.actionMode,
+      agentConfig: s.agentConfig,
+    })),
+  );
+
+  const defaultModelConfig = useProviderStore((s) => s.defaultModelConfig);
+
+  const isSmartRouting = useMemo(
+    () => isSmartRoutingActive(actionMode, agentConfig, defaultModelConfig),
+    [actionMode, agentConfig, defaultModelConfig],
+  );
 
   const title = t('researchBegins');
 
@@ -24,15 +43,26 @@ const EmptyChat = React.memo(() => {
       <div className="flex flex-col items-center max-w-screen-md lg:max-w-[820px] mx-auto px-4 pt-[20vh] pb-4 space-y-6">
         <h2 className="text-black/70 dark:text-white/70 text-3xl font-medium">{title}</h2>
         <NoProviderBanner />
-        <div className="flex justify-center w-full">
+        <div className="flex flex-col items-center gap-2 w-full">
           <WorkUnitBalanceBar />
+          {isSmartRouting && (
+            <div
+              data-testid="smart-routing-narrative-badge"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-medium border border-emerald-500/20 transition-colors"
+            >
+              <span className="text-xs">✨</span>
+              <span>{t('smartRoutingBadge')}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-end gap-2 w-full">
           {isCompanionEnabled && <CompanionWidget />}
           <div className="flex-1 min-w-0">
-            <MessageInput loading={false} />
+            <MessageInput loading={false} hideWorkspacePicker />
           </div>
         </div>
+
+        <NewTaskWorkContextCard />
 
         <MigrationDiscoveryBanner />
 

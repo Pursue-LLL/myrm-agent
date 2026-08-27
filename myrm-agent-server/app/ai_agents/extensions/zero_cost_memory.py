@@ -48,6 +48,7 @@ class ZeroCostMemoryExtension(AgentExtension):
         extractor_llm: BaseChatModel,
         *,
         memory_extraction_preset: str = "auto",
+        is_sandbox_capable: bool = False,
     ) -> None:
         self.enable_memory_auto_extraction = enable_memory_auto_extraction
         self.is_subagent = is_subagent
@@ -56,6 +57,7 @@ class ZeroCostMemoryExtension(AgentExtension):
         self.effective_chat_id = effective_chat_id
         self.extractor_llm = extractor_llm
         self.memory_extraction_preset = memory_extraction_preset
+        self.is_sandbox_capable = is_sandbox_capable
 
     @property
     def name(self) -> str:
@@ -72,6 +74,10 @@ class ZeroCostMemoryExtension(AgentExtension):
 
         if self.is_subagent or self.channel_name == "subagent":
             logger.info("🧠 [Zero-Cost Memory] Skipped for subagent to prevent global memory pollution.")
+            return None
+
+        if self.is_sandbox_capable:
+            logger.info("🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction for sandbox-capable agent to prevent transient code/terminal pollution.")
             return None
 
         from myrm_agent_harness.api.hooks import (

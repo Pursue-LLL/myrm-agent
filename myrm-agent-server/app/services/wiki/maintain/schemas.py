@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-WikiMaintainModeLiteral = Literal["structural", "full"]
+WikiMaintainModeLiteral = Literal["structural", "full", "list_only"]
 
 
 class WikiMaintainState(BaseModel):

@@ -457,7 +457,7 @@ class CustomAgentFactory:
                 )
 
         # --- 3. Max iterations ---
-        max_iterations = getattr(profile, "max_iterations", None) or config.max_turns
+        max_iterations = getattr(profile, "max_iterations", None) or 100
 
         # --- 4. Personality style suffix ---
         from app.ai_agents.personality_templates import (

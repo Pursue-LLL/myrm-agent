@@ -45,6 +45,7 @@ const CHANNEL_OPTIONS = [
   'line',
   'signal',
   'matrix',
+  'imessage',
 ];
 
 const STATUS_STYLES: Record<string, { className: string; key: string }> = {
@@ -81,6 +82,7 @@ const HINT_CHANNELS = [
   'teams',
   'line',
   'signal',
+  'imessage',
 ];
 
 function channelSpecificText(prefix: string, channel: string, t: (key: string) => string): string {

@@ -440,7 +440,33 @@ async def test_agent_step_budget_diagnostic() -> None:
         assert report.fix_suggestion is not None
         assert "Legacy Agent" in report.detail
 
-    # 3. When database throws an exception (e.g., table not created yet)
+    # 3. When an agent has low step budget but is an exempt lightweight mode (e.g. search mode)
+    agent_search = SimpleNamespace(
+        id="ag_search", name="Fast Search Agent", max_iterations=30, prompt_mode="search", is_active=True
+    )
+
+    with patch("app.database.connection.get_session") as mock_get_session:
+        mock_session_ctx = MagicMock()
+        mock_session = MagicMock()
+
+        mock_res = MagicMock()
+        mock_res.scalars.return_value.all.return_value = [agent_ok_1, agent_search]
+
+        async def _fake_execute(*args, **kwargs):
+            return mock_res
+
+        mock_session.execute = _fake_execute
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_ctx.__aexit__.return_value = None
+        mock_get_session.return_value = mock_session_ctx
+
+        report = await diagnostic.check_health()
+        assert report.component_name == "AgentStepBudget"
+        assert report.status == "pass"
+        assert report.code == "OK_AGENT_STEP_BUDGET_READY"
+        assert report.metrics["low_budget_agent_count"] == 0.0
+
+    # 4. When database throws an exception (e.g., table not created yet)
     with patch(
         "app.database.connection.get_session",
         side_effect=RuntimeError("DB disconnected"),

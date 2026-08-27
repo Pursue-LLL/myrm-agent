@@ -619,7 +619,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         ),
         category="marketing-growth",
         tags=("seo", "audit", "marketing", "website", "weekly"),
-        sort_order=16,
+        sort_order=17,
         default_required_capabilities=_CAP_RESEARCH,
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekday",
@@ -1023,6 +1023,46 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
+        id="wiki_vault_weekly_health",
+        icon="Activity",
+        title={"en": "Wiki Vault Weekly Health (List Only)", "zh": "知识库每周健康巡检（只列不修）"},
+        description={
+            "en": "Weekly zero-fix health check list for broken links, stale sources, and orphan notes",
+            "zh": "每周日定时只读巡检知识库，生成断链/过期事实/草稿体检清单，绝不擅自修改任何文件",
+        },
+        prompt_template={
+            "en": (
+                "Wiki vault health check job (router mode, list-only). The markdown health list is produced by the server; "
+                "deliver it directly to the user."
+            ),
+            "zh": ("知识库健康周检任务（router 模式，只列不修）。体检清单由服务端生成，请直接投递给用户。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="18:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="weekday",
+                default="0",
+                options=("0", "1", "2", "3", "4", "5", "6"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "health", "doctor", "list-only", "automation", "second-brain"),
+        sort_order=15,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=600,
+            command="__wiki_maintain__:list_only",
+        ),
+        _schedule_builder="time_weekday",
+    ),
+    CronBlueprint(
         id="wiki_corpus_dedup",
         icon="Copy",
         title={"en": "Wiki Corpus Dedup Scan", "zh": "知识库语料去重扫描"},
@@ -1049,7 +1089,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         ),
         category="productivity",
         tags=("wiki", "dedup", "hygiene", "automation", "second-brain"),
-        sort_order=15,
+        sort_order=16,
         default_required_capabilities=(),
         default_tools_allowed=(),
         job_defaults=BlueprintJobDefaults(

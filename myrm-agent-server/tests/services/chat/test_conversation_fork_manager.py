@@ -1230,6 +1230,134 @@ async def test_fork_conversation_empty_or_zero_index_and_cycle_prevention(db_ses
     assert cycle_info.depth == 1
 
 
+@pytest.mark.asyncio
+async def test_fork_conversation_filters_inactive_regenerated_messages(
+    db_session,
+    test_user,
+    monkeypatch,
+) -> None:
+    """Verify fork strictly filters out inactive/discarded sibling messages from regenerations."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    parent_id = str(uuid4())
+    parent_chat = Chat(id=parent_id, title="Chat with Regenerations")
+    db_session.add(parent_chat)
+
+    now = datetime.now(timezone.utc)
+    # Turn 0: User message (active)
+    msg_u0 = Message(
+        id=str(uuid4()),
+        chat_id=parent_id,
+        role="user",
+        content="Question 0",
+        sent_at=now,
+        sent_timezone="UTC",
+        is_active=True,
+    )
+    # Turn 0: Assistant attempt 1 (inactive, discarded)
+    msg_a0_old1 = Message(
+        id=str(uuid4()),
+        chat_id=parent_id,
+        role="assistant",
+        content="Attempt 1 (bad)",
+        sent_at=now,
+        sent_timezone="UTC",
+        sibling_group_id="sib_0",
+        is_active=False,
+    )
+    # Turn 0: Assistant attempt 2 (inactive, discarded)
+    msg_a0_old2 = Message(
+        id=str(uuid4()),
+        chat_id=parent_id,
+        role="assistant",
+        content="Attempt 2 (bad)",
+        sent_at=now,
+        sent_timezone="UTC",
+        sibling_group_id="sib_0",
+        is_active=False,
+    )
+    # Turn 0: Assistant attempt 3 (active, accepted)
+    msg_a0_active = Message(
+        id=str(uuid4()),
+        chat_id=parent_id,
+        role="assistant",
+        content="Attempt 3 (good)",
+        sent_at=now,
+        sent_timezone="UTC",
+        sibling_group_id="sib_0",
+        is_active=True,
+    )
+    # Turn 1: User message (active)
+    msg_u1 = Message(
+        id=str(uuid4()),
+        chat_id=parent_id,
+        role="user",
+        content="Question 1",
+        sent_at=now,
+        sent_timezone="UTC",
+        is_active=True,
+    )
+    # Turn 1: Assistant response (active)
+    msg_a1 = Message(
+        id=str(uuid4()),
+        chat_id=parent_id,
+        role="assistant",
+        content="Answer 1",
+        sent_at=now,
+        sent_timezone="UTC",
+        is_active=True,
+    )
+
+    db_session.add_all([msg_u0, msg_a0_old1, msg_a0_old2, msg_a0_active, msg_u1, msg_a1])
+    await db_session.commit()
+
+    # Total active messages in parent is 4 (u0, a0_active, u1, a1).
+    last_idx = await ConversationForkManager.get_last_message_index(db_session, parent_id)
+    assert last_idx == 3  # 0..3
+
+    # Fork at active index 1 (should include only u0 and a0_active, NOT old1 or old2)
+    res = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=parent_id,
+        message_index=1,
+    )
+    assert res.success is True
+    assert res.new_chat_id is not None
+    child_id = res.new_chat_id
+
+    # Verify messages in child chat
+    child_msgs_res = await db_session.execute(
+        select(Message).where(Message.chat_id == child_id).order_by(Message.created_at)
+    )
+    child_msgs = child_msgs_res.scalars().all()
+
+    assert len(child_msgs) == 2
+    assert child_msgs[0].content == "Question 0"
+    assert child_msgs[0].role == "user"
+    assert child_msgs[0].is_active is True
+    assert child_msgs[0].sibling_group_id is None
+
+    assert child_msgs[1].content == "Attempt 3 (good)"
+    assert child_msgs[1].role == "assistant"
+    assert child_msgs[1].is_active is True
+    assert child_msgs[1].sibling_group_id is None
+
+    # Verify attempt 1 and attempt 2 were NOT cloned into child chat
+    all_contents = [m.content for m in child_msgs]
+    assert "Attempt 1 (bad)" not in all_contents
+    assert "Attempt 2 (bad)" not in all_contents
+
+
 @pytest.fixture
 def test_user():
     """Provide a test user ID (single-user architecture, no User model)."""

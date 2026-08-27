@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getWsUrl } from '@/lib/api';
 import { buildToolApprovalRequest } from '@/lib/approval/buildToolApprovalRequest';
+import { ensureLocalBackendReady, isLocalBackendReadyCached } from '@/lib/backend-health';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
 export type AgentBridgeState =
@@ -147,6 +148,14 @@ export function useVoiceAgentBridge(options: UseVoiceAgentBridgeOptions): UseVoi
     if (!enabled) {
       return;
     }
+
+    if (!isLocalBackendReadyCached()) {
+      onError?.('Backend service is not ready');
+      setState('error');
+      void ensureLocalBackendReady();
+      return;
+    }
+
     cleanup();
 
     setState('connecting');

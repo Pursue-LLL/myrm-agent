@@ -139,8 +139,7 @@ def _load_completed_turn_results(reports_dir: Path) -> list[object]:
                     )
                     resp = AgentResponse(
                         answer=resp_data.get("answer", ""),
-                        tools_used=resp_data.get("tools_used", []),
-                        tool_calls_count=resp_data.get("tool_calls_count", 0),
+                        tools_called=resp_data.get("tools_called", resp_data.get("tools_used", [])),
                         cost=resp_data.get("cost", 0.0),
                         token_usage=resp_data.get("token_usage", {}),
                     )
@@ -183,6 +182,9 @@ async def run_eval_suite_background(
     profile_id: str | None = None,
     *,
     benchmark_mode: bool = False,
+    n_attempts: int = 1,
+    resume: bool = False,
+    difficulty_filter: str | None = None,
 ) -> None:
     """Run the evaluation suite in the background, updating global state."""
     global _eval_state
@@ -203,7 +205,13 @@ async def run_eval_suite_background(
 
     try:
         await run_eval_suite(
-            dataset_id, reports_dir, profile_id, benchmark_mode=benchmark_mode
+            dataset_id,
+            reports_dir,
+            profile_id,
+            benchmark_mode=benchmark_mode,
+            n_attempts=n_attempts,
+            resume=resume,
+            difficulty_filter=difficulty_filter,
         )
     except Exception as exc:
         logger.exception("Evaluation suite failed")
@@ -220,6 +228,9 @@ async def run_benchmark_background(
     benchmark_mode: bool = False,
     stage_label: str | None = None,
     limit: int | None = None,
+    n_attempts: int = 1,
+    resume: bool = False,
+    difficulty_filter: str | None = None,
 ) -> None:
     """Run an external benchmark (WBBench subset or registered third-party).
 
@@ -278,6 +289,9 @@ async def run_benchmark_background(
             max_iterations=max_iterations,
             blocked_hostnames=blocked_hostnames,
             blocked_terms=blocked_terms,
+            n_attempts=n_attempts,
+            resume=resume,
+            difficulty_filter=difficulty_filter,
         )
     except Exception as exc:
         if _eval_state.get("abort_requested"):
@@ -333,6 +347,9 @@ async def run_wb_bench_background(
     *,
     benchmark_mode: bool = False,
     limit: int | None = None,
+    n_attempts: int = 1,
+    resume: bool = False,
+    difficulty_filter: str | None = None,
 ) -> None:
     """Run a WorkBuddy Bench subset in the background (legacy-compatible handle).
 
@@ -345,6 +362,9 @@ async def run_wb_bench_background(
         benchmark_mode=benchmark_mode,
         stage_label=subset_id,
         limit=limit,
+        n_attempts=n_attempts,
+        resume=resume,
+        difficulty_filter=difficulty_filter,
     )
 
 
@@ -374,6 +394,9 @@ async def run_eval_suite(
     blocked_hostnames: tuple[str, ...] = (),
     blocked_terms: tuple[str, ...] = (),
     canary_token: str | None = None,
+    n_attempts: int = 1,
+    resume: bool = False,
+    difficulty_filter: str | None = None,
 ) -> dict[str, object]:
     """Run the standard evaluation suite for a user.
 
@@ -462,13 +485,6 @@ async def run_eval_suite(
     )
     judge_config, judge_model_label = await _resolve_judge_config()
     adaptive_manager = AdaptiveEvalManager(max_concurrency=3, idle_wait_seconds=3.0)
-    runner = EvalRunner(
-        executor,
-        max_concurrency=3,
-        on_case_complete=_on_case_complete,
-        yielding_strategy=adaptive_manager,
-        judge_config=judge_config,
-    )
 
     manifest = await _build_eval_manifest(
         profile_id=profile_id,
@@ -483,22 +499,59 @@ async def run_eval_suite(
     )
 
     logger.info(
-        "Starting evaluation suite with %d sessions (%d turns) (Adaptive Yielding Enabled)",
+        "Starting evaluation suite with %d sessions (%d turns) (n_attempts=%d, resume=%s, difficulty=%s)",
         len(cases),
         total_turns,
+        n_attempts,
+        resume,
+        difficulty_filter or "all",
     )
-    _active_runner = runner
-    try:
-        result = await runner.run_multi_turn(cases, manifest=manifest)
-    finally:
-        _active_runner = None
-        # Remove per-case session workspaces so eval never leaves throwaway
-        # directories behind (success, error, or abort all land here).  A
-        # cleanup failure must not mask the run's own outcome.
+
+    use_fleet = n_attempts > 1 or resume or (bool(difficulty_filter) and difficulty_filter.lower() != "all")
+
+    if use_fleet:
+        fleet_runner = FleetEvalRunner(
+            executor,
+            n_attempts=n_attempts,
+            max_concurrency=3,
+            on_case_complete=_on_case_complete,
+            yielding_strategy=adaptive_manager,
+            judge_config=judge_config,
+        )
+        _active_runner = fleet_runner
+        resume_turns = _load_completed_turn_results(reports_dir) if resume else None
         try:
-            await executor.cleanup()
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to clean eval workspaces: %s", exc)
+            fleet_res = await fleet_runner.run_multi_turn_fleet(
+                cases,
+                manifest=manifest,
+                resume_turn_results=resume_turns,
+                difficulty_filter=difficulty_filter,
+            )
+            result = fleet_res.primary_result
+            result.variance_metrics = fleet_res.variance_metrics
+        finally:
+            _active_runner = None
+            try:
+                await executor.cleanup()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to clean eval workspaces: %s", exc)
+    else:
+        runner = EvalRunner(
+            executor,
+            max_concurrency=3,
+            on_case_complete=_on_case_complete,
+            yielding_strategy=adaptive_manager,
+            judge_config=judge_config,
+        )
+        _active_runner = runner
+        try:
+            result = await runner.run_multi_turn(cases, manifest=manifest)
+        finally:
+            _active_runner = None
+            try:
+                await executor.cleanup()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to clean eval workspaces: %s", exc)
 
     # Save the report
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -531,6 +584,12 @@ async def run_eval_suite(
         "report_path": str(report_path),
         "decontam_active": bool(blocked_hostnames or blocked_terms),
         "manifest": manifest.to_dict(),
+        **(
+            {"variance_metrics": result.variance_metrics.to_dict()}
+            if getattr(result, "variance_metrics", None) is not None
+            and hasattr(result.variance_metrics, "to_dict")
+            else {}
+        ),
         **(
             {"avg_pass_rate": result.avg_pass_rate}
             if result.avg_pass_rate is not None

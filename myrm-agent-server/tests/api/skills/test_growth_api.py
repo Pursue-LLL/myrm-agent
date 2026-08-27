@@ -199,3 +199,40 @@ async def test_skill_growth_audit_reads_negative_ledger_events(
     assert stats_body["total_events"] == 2
     assert len(stats_body["by_status"]) == 2
     assert len(stats_body["top_skills"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_skill_growth_case_includes_verification_proof(
+    client: TestClient,
+    setup_database: None,
+) -> None:
+    proof_data = {
+        "is_verified": True,
+        "hollow_detected": False,
+        "success_streak": 3,
+        "blast_radius": {"files": 1, "lines": 25},
+        "verification_summary": "Passed sandbox execution and anti-hollow validation",
+    }
+    draft = await notify_skill_draft_created(
+        {
+            "has_value": True,
+            "user_id": f"growth_api_{uuid4().hex}",
+            "type": "skill_draft",
+            "skill_name": "verified-proof-draft",
+            "skill_description": "Skill draft with verified capsule proof",
+            "trigger_condition": "When running verified tasks",
+            "skill_steps": "1. Run\n2. Verify",
+            "verification_proof": proof_data,
+        }
+    )
+    assert draft is not None
+
+    response = client.get(f"/api/v1/skill-growth/cases/draft:{draft.id}")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["skill_name"] == "verified-proof-draft"
+    assert data["verification_proof"] is not None
+    assert data["verification_proof"]["is_verified"] is True
+    assert data["verification_proof"]["success_streak"] == 3
+    assert data["verification_proof"]["blast_radius"]["lines"] == 25
+

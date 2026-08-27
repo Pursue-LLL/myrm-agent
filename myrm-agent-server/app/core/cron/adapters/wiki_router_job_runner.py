@@ -26,7 +26,7 @@ WIKI_MAINTAIN_COMMAND_PREFIX = "__wiki_maintain__"
 WIKI_DEDUP_COMMAND = "__wiki_dedup__"
 
 
-def parse_wiki_maintain_mode(command: str | None) -> MaintainMode | None:
+def parse_wiki_maintain_mode(command: str | None) -> MaintainMode | str | None:
     if command is None:
         return None
     if command == WIKI_MAINTAIN_COMMAND_PREFIX:
@@ -35,6 +35,8 @@ def parse_wiki_maintain_mode(command: str | None) -> MaintainMode | None:
         return MaintainMode.STRUCTURAL
     if command == f"{WIKI_MAINTAIN_COMMAND_PREFIX}:full":
         return MaintainMode.FULL
+    if command == f"{WIKI_MAINTAIN_COMMAND_PREFIX}:list_only":
+        return "list_only"
     return None
 
 
@@ -77,7 +79,7 @@ class WikiRouterJobRunner:
         self,
         job: CronJob,
         *,
-        mode: MaintainMode,
+        mode: MaintainMode | str,
         context: str = "",
     ) -> JobResult:
         try:

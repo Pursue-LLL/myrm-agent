@@ -56,6 +56,9 @@ class BenchmarkRunRequest(BaseModel):
     profile_id: str | None = None
     benchmark_mode: bool = False
     limit: int | None = Field(default=None, ge=1)
+    n_attempts: int = 1
+    resume: bool = False
+    difficulty_filter: str | None = None
 
 
 class BenchmarkDownloadRequest(BaseModel):
@@ -159,6 +162,9 @@ async def run_benchmark(
         benchmark_mode=request.benchmark_mode,
         stage_label=request.benchmark_id,
         limit=request.limit,
+        n_attempts=request.n_attempts,
+        resume=request.resume,
+        difficulty_filter=request.difficulty_filter,
     )
     return {"status": "started"}
 

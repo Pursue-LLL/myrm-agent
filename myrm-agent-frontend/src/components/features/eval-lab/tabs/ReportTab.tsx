@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { AlertCircle, CheckCircle2, Clock, Eye, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Eye, Layers, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
 
 import { formatMib } from '../components/format';
 import { type DownloadProgress, type EvalProgress, type ReportItem } from '../hooks/useCasesEval';
@@ -73,6 +73,12 @@ export default function ReportTab({
           <span className={`text-3xl font-bold mt-1 ${successRate >= 80 ? 'text-green-500' : 'text-amber-500'}`}>
             {successRate}%
           </span>
+          {report.variance_metrics && report.variance_metrics.n_attempts > 1 && (
+            <span className="text-xs text-muted-foreground mt-0.5 font-mono">
+              ±{(report.variance_metrics.std_dev * 100).toFixed(1)}% (Pass@{report.variance_metrics.n_attempts}:{' '}
+              {Math.round(report.variance_metrics.pass_at_k * 100)}%)
+            </span>
+          )}
         </div>
         <div className="p-4 border rounded-lg bg-card flex flex-col items-center">
           <span className="text-sm text-muted-foreground">{t('report.avgTime')}</span>
@@ -199,9 +205,39 @@ export default function ReportTab({
                 </div>
               );
             })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+      {/* Fleet Difficulty Shard Breakdown */}
+      {report.variance_metrics?.difficulty_breakdown &&
+        Object.keys(report.variance_metrics.difficulty_breakdown).length > 0 && (
+          <div className="border rounded-lg p-4 bg-muted/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary" />
+                {t('report.difficultyShardTitle')}
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {t('report.fleetAttempts', { count: report.variance_metrics.n_attempts })}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {Object.entries(report.variance_metrics.difficulty_breakdown).map(([tier, stats]) => (
+                <div key={tier} className="p-3 rounded border bg-card flex flex-col justify-between gap-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold uppercase tracking-wider text-muted-foreground">{tier}</span>
+                    <span className="font-bold text-foreground">{(stats.pass_rate * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-primary h-full rounded-full" style={{ width: `${stats.pass_rate * 100}%` }} />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{stats.total_runs} runs</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       <div className="space-y-3">
         <h3 className="text-lg font-medium">{t('report.executionDetails')}</h3>

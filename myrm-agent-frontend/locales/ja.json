@@ -7482,6 +7482,8 @@
     "busyInputRedirect": "リダイレクト",
     "busyInputSteer": "ステア",
     "busyInputQueue": "キュー",
+    "moaOverlayAutoReasoningTitle": "推論時の自動 MoA オーバーレイ",
+    "moaOverlayAutoReasoningDesc": "複雑な推論タスクにおいて、複数の MoA アドバイザーを自動的に並行起動して相互検証を行います。",
     "faq": {
       "tabTitle": "FAQ",
       "title": "FAQクイック返信",
@@ -7994,6 +7996,24 @@
       "recent": "最近の使用",
       "filter": "ディレクトリを検索...",
       "unboundWarning": "未バインドディレクトリ（デフォルトサンドボックス）"
+    },
+    "newTaskCard": {
+      "title": "新規タスク作業コンテキスト",
+      "modeLocal": "ローカル作業領域",
+      "modeLocalDesc": "ローカルフォルダをバインドし、AI が直接ファイルの読み書きと分析を行います",
+      "modeCloud": "クラウドサンドボックス",
+      "modeCloudDesc": "分離されたサンドボックス環境で、ホストを汚染せず安全にコードを実行します",
+      "modeChat": "クイックチャット",
+      "modeChatDesc": "ワークスペース設定なしの一般的な AI 対話と迅速な Q&A",
+      "bindWorkspace": "作業ディレクトリを選択",
+      "currentWorkspace": "現在のディレクトリ",
+      "noWorkspaceSelected": "ディレクトリ未選択 (クリックしてバインド)",
+      "scaffoldBtn": "標準フォルダ一括初期化",
+      "scaffoldTooltip": "現在の作業領域に標準構造を生成: 00_元資料、01_参考、02_生成結果、03_履歴バージョン",
+      "scaffoldSuccess": "標準オフィスフォルダの初期化が完了しました",
+      "scaffoldFailed": "標準オフィスフォルダの初期化に失敗しました",
+      "clearWorkspace": "バインド解除",
+      "changeWorkspace": "変更"
     },
     "enableBrowser": "ブラウザ自動化を有効化",
     "disableBrowser": "ブラウザ自動化を無効化",
@@ -13750,6 +13770,8 @@
     "ttsProvider": "TTS サービス商",
     "edgeTtsUnavailableTitle": "Edge TTS を利用できません",
     "edgeTtsUnavailableDesc": "このサーバーでは Edge TTS が有効になっていません。別のプロバイダーに切り替えるか、管理者に音声サポートの有効化を依頼してください。",
+    "hostNotReadyTitle": "バックエンドサービスが準備できていません",
+    "hostNotReadyDesc": "バックエンドサービスに接続中またはオフラインです。サービス接続を確認して再試行してください。",
     "ttsPlaybackFailedTitle": "読み上げに失敗",
     "ttsPlaybackFailedDesc": "音声合成でオーディオが生成されませんでした。音声設定を確認するか、別のプロバイダーをお試しください。",
     "ttsApiKey": "APIキー",
@@ -13785,7 +13807,9 @@
     "saved": "音声設定を保存しました",
     "saveError": "音声設定の保存に失敗しました",
     "localSttUnavailableTitle": "ローカルのWhisper STTを利用できません",
-    "localSttUnavailableDesc": "管理者にサーバーへlocal-sttコンポーネントのインストールを依頼するか（uv sync --extra local-stt）、クラウドSTTプロバイダーに切り替えてください。"
+    "localSttUnavailableDesc": "管理者にサーバーへlocal-sttコンポーネントのインストールを依頼するか（uv sync --extra local-stt）、クラウドSTTプロバイダーに切り替えてください。",
+    "hostNotReadyTitle": "バックエンドサービスが準備できていません",
+    "hostNotReadyDesc": "バックエンドサービスに接続中またはオフラインです。サービス接続状態を確認してから再試行してください。"
   },
   "stt": {
     "startRecording": "音声入力",
@@ -15494,6 +15518,10 @@
       "evalRunning": "評価タスク実行中、しばらくお待ちください",
       "failureAnalysisTitle": "失敗モード要因分析",
       "totalFailuresCount": "合計 {count} 件の失敗",
+      "difficultyShardTitle": "難易度別シャード性能と合格率",
+      "fleetAttempts": "{count} 回の独立サンプリング試行",
+      "difficultyShardTitle": "難易度別シャード性能と通過率",
+      "fleetAttempts": "{count} 回の独立サンプリング試行",
       "failureModes": {
         "intent_misunderstanding": "ユーザー意図の誤解",
         "tool_selection_error": "ツールの選択またはルーティングエラー",

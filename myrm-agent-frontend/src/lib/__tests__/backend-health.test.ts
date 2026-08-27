@@ -200,4 +200,16 @@ describe('ensureLocalBackendReady', () => {
     expect(markPlatformUnreachable).toHaveBeenCalledTimes(1);
     expect(resetPlatformReadinessForTests).toHaveBeenCalled();
   });
+
+  it('returns synchronous cached readiness state via isLocalBackendReadyCached', async () => {
+    const { isLocalBackendReadyCached, markLocalBackendUnreachable, resetLocalBackendReadyGate } =
+      await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    expect(isLocalBackendReadyCached()).toBe(true);
+    markLocalBackendUnreachable();
+    expect(isLocalBackendReadyCached()).toBe(false);
+    resetLocalBackendReadyGate();
+    expect(isLocalBackendReadyCached()).toBe(true);
+  });
 });
