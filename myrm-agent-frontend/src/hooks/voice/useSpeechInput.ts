@@ -9,7 +9,7 @@ import { toast } from '@/lib/utils/toast';
 
 export type SpeechState = 'idle' | 'recording' | 'transcribing';
 export type SpeechMode = 'toggle' | 'push-to-talk';
-type SttBackend = 'server' | 'browser' | 'unknown';
+export type SttBackend = 'server' | 'browser' | 'unknown';
 
 interface TranscribeResult {
   text: string;
@@ -28,6 +28,7 @@ interface UseSpeechInputOptions {
   mode?: SpeechMode;
   enableSounds?: boolean;
   keyterms?: string[];
+  sttBackend?: SttBackend;
 }
 
 const PREFERRED_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
@@ -83,6 +84,7 @@ export function useSpeechInput({
   mode = 'toggle',
   enableSounds = false,
   keyterms,
+  sttBackend = 'unknown',
 }: UseSpeechInputOptions) {
   const tVoice = useTranslations('voice');
   const [state, setState] = useState<SpeechState>('idle');
@@ -90,7 +92,10 @@ export function useSpeechInput({
   const [audioLevel, setAudioLevel] = useState(0);
   const [interimText, setInterimText] = useState('');
 
-  const sttBackendRef = useRef<SttBackend>('unknown');
+  const sttBackendRef = useRef<SttBackend>(sttBackend);
+  useEffect(() => {
+    sttBackendRef.current = sttBackend;
+  }, [sttBackend]);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);

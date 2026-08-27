@@ -95,6 +95,7 @@ myrm_agent_harness.agent.plugins.parser
 myrm_agent_harness.agent.security
 myrm_agent_harness.agent.security.approval_flow
 myrm_agent_harness.agent.security.audit
+myrm_agent_harness.agent.security.batch_risk
 myrm_agent_harness.agent.security.channel_presets
 myrm_agent_harness.agent.security.config
 myrm_agent_harness.agent.security.detection.content_boundary

@@ -137,6 +137,41 @@ describe('VoiceModeHostReadyGate in useSpeechInput', () => {
     expect(toast.error).not.toHaveBeenCalled();
     expect(result.current.state).toBe('recording');
   });
+
+  it('allows startRecording when STT backend is browser Web Speech even if host is not ready', async () => {
+    mockIsLocalBackendReadyCached.mockReturnValue(false);
+
+    const onTranscript = vi.fn();
+    const onError = vi.fn();
+
+    const mockRecognition = {
+      start: vi.fn(),
+      stop: vi.fn(),
+      abort: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    // @ts-expect-error mock Web Speech constructor
+    window.SpeechRecognition = vi.fn().mockImplementation(function (this: unknown) {
+      return mockRecognition;
+    });
+
+    const { result } = renderHook(() =>
+      useSpeechInput({
+        onTranscript,
+        onError,
+        sttBackend: 'browser',
+      }),
+    );
+
+    await act(async () => {
+      result.current.toggle();
+    });
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(mockRecognition.start).toHaveBeenCalledTimes(1);
+    expect(result.current.state).toBe('recording');
+  });
 });
 
 describe('VoiceModeHostReadyGate in useVoiceAgentBridge', () => {

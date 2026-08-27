@@ -7079,6 +7079,8 @@
     "moaOverlayPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
     "moaOverlayPrivacyFull": "Vollständig (UI + Prompt-Schwärzung)",
     "moaOverlayNoModels": "Keine Referenzmodelle ausgewählt — Overlay wird übersprungen (kein Fallback)",
+    "moaOverlayAutoReasoningTitle": "Automatische Aktivierung bei Denkebene",
+    "moaOverlayAutoReasoningDesc": "MoA-Berater automatisch konsultieren, wenn Smart-Routing die Aufgabe als Denkebene einstuft; normale Aufgaben behalten schnelle Einzelmodell-Ausführung bei.",
     "consensusPrivacy": "Referenz-Datenschutzfilter",
     "consensusPrivacyOff": "Aus",
     "consensusPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
@@ -7332,8 +7334,8 @@
       "entryUpdated": "FAQ-Eintrag aktualisiert",
       "entryDeleted": "FAQ-Eintrag gelöscht"
     },
-    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung bei komplexem Schlussfolgern",
-    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart Routing eine Aufgabe als REASONING einstuft; Standardaufgaben bleiben bei schneller Einzelmodell-Ausführung."
+    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung bei Schlussfolgerungen",
+    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart Routing eine Aufgabe als REASONING einstuft."
   },
   "common": {
     "settings": "Einstellungen",

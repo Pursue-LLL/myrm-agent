@@ -6798,7 +6798,7 @@
     "moaOverlayPrivacyDisplay": "僅展示脫敏",
     "moaOverlayPrivacyFull": "完整脫敏（展示 + 注入）",
     "moaOverlayAutoReasoningTitle": "深度推理自動啟用 (Auto MoA Gate)",
-    "moaOverlayAutoReasoningDesc": "當智慧路由判定任務為深度推理 (REASONING) 檔位時，自動調用 MoA 顧問多模型交叉審查；日常任務保持單模型極速響應。",
+    "moaOverlayAutoReasoningDesc": "處理複雜邏輯或推理任務時，自動並發啟動多個顧問模型進行交叉審查。",
     "moaOverlayNoModels": "未選擇參考模型 — 疊加層將被跳過（不會回退主模型）",
     "consensusPrivacy": "參考模型隱私過濾",
     "consensusPrivacyOff": "關閉",

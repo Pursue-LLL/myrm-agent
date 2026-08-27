@@ -49,6 +49,8 @@ class ResolveApprovalRequest(BaseModel):
 class BatchResolveApprovalRequest(BaseModel):
     approval_ids: list[str]
     decision: str  # "approve" | "deny"
+    confirm_high_risk: bool = False
+    safe_only: bool = False
 
 
 class ApprovalRecordResponse(BaseModel):
@@ -169,14 +171,81 @@ async def resolve_approval(
 async def batch_resolve_approvals(
     req: BatchResolveApprovalRequest,
 ) -> ApprovalListResponse:
-    """Batch resolve multiple approvals and resume the agents."""
+    """Batch resolve multiple approvals and resume the agents with dual-insurance high-risk protection."""
+    from myrm_agent_harness.agent.security.batch_risk import (
+        BatchApprovalItem,
+        classify_batch_approval_risk,
+    )
+
+    if not req.approval_ids:
+        return ApprovalListResponse(approvals=[])
+
+    normalized_decision = "approve" if req.decision == "approve" else "deny"
+
+    # Pre-fetch records to evaluate batch risk
+    pending_records: list[ApprovalRecord] = []
+    for approval_id in req.approval_ids:
+        record = await ApprovalRegistry.get_approval(approval_id)
+        if record and record.status == "PENDING":
+            pending_records.append(record)
+
+    if not pending_records:
+        return ApprovalListResponse(approvals=[])
+
+    # Convert to BatchApprovalItem contract
+    batch_items = [
+        BatchApprovalItem(
+            item_id=r.id,
+            action_type=r.action_type,
+            tool_name=(r.payload.get("tool_calls", [{}])[0].get("name", r.action_type) if isinstance(r.payload.get("tool_calls"), list) and r.payload.get("tool_calls") else r.action_type),
+            severity=r.severity,
+            reason=r.reason,
+            payload=r.payload or {},
+        )
+        for r in pending_records
+    ]
+
+    risk_report = classify_batch_approval_risk(batch_items)
+
+    # If approving and batch contains high risk actions, enforce dual insurance
+    if normalized_decision == "approve" and risk_report.has_high_risk:
+        if not req.confirm_high_risk and not req.safe_only:
+            # Block batch approval and return 409 Conflict with structured risk detail
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "BATCH_HIGH_RISK_CONFIRMATION_REQUIRED",
+                    "message": "Batch contains high-risk actions. Explicit confirmation or safe-only resolution is required.",
+                    "has_high_risk": True,
+                    "high_risk_count": risk_report.high_risk_count,
+                    "safe_count": risk_report.safe_count,
+                    "high_risk_items": [
+                        {
+                            "item_id": item.item_id,
+                            "action_type": item.action_type,
+                            "tool_name": item.tool_name,
+                            "risk_level": item.risk_level.value,
+                            "risk_reason": item.risk_reason,
+                        }
+                        for item in risk_report.high_risk_items
+                    ],
+                    "safe_item_ids": list(risk_report.safe_item_ids),
+                },
+            )
+
+    # Determine which target approval IDs to resolve
+    if normalized_decision == "approve" and req.safe_only:
+        target_ids = list(risk_report.safe_item_ids)
+    else:
+        target_ids = req.approval_ids
+
     resolved_records = []
 
-    for approval_id in req.approval_ids:
+    for approval_id in target_ids:
         try:
             record = await ApprovalRegistry.resolve_approval(
                 approval_id=approval_id,
-                decision=req.decision,
+                decision=normalized_decision,
             )
             if not record:
                 continue
@@ -201,7 +270,7 @@ async def batch_resolve_approvals(
                                 "thread_id": record.thread_id,
                                 "chat_id": record.chat_id,
                                 "agent_id": record.agent_id,
-                                "decision": req.decision,
+                                "decision": normalized_decision,
                                 "edited_payload": None,
                             },
                         )
