@@ -15,16 +15,20 @@ def merge_remote_security_overlay(
     *,
     trust_zone: str | None,
     admission_path: str | None,
+    device_policy: dict[str, object] | None = None,
 ) -> dict[str, object] | None:
     """Tighten tool permissions when the HTTP request arrived via remote-exposed path."""
     ctx = RequestTrustContext.from_admission(
         trust_zone=trust_zone,
         admission_path=admission_path,
     )
-    if not ctx.restrict_destructive_tools:
-        return raw
-
     result: dict[str, object] = dict(raw or {})
+    if device_policy:
+        result["devicePolicy"] = device_policy
+
+    if not ctx.restrict_destructive_tools:
+        return result if device_policy else raw
+
     permissions_raw = result.get("permissions")
     permissions: dict[str, object] = dict(permissions_raw) if isinstance(permissions_raw, dict) else {}
     permissions.update(remote_exposed_permissions())
