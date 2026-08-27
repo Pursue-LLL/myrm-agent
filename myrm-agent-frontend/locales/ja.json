@@ -6793,8 +6793,6 @@
     "moaOverlayPrivacyOff": "オフ",
     "moaOverlayPrivacyDisplay": "表示のみ（UI編集）",
     "moaOverlayPrivacyFull": "フル（UI + プロンプト編集）",
-    "moaOverlayAutoReasoningTitle": "推論時の自動 MoA オーバーレイ",
-    "moaOverlayAutoReasoningDesc": "複雑な推論タスクにおいて、複数の MoA アドバイザーを自動的に並行起動して相互検証を行います。",
     "moaOverlayNoModels": "参照モデルが選択されていません — オーバーレイはスキップされます（フォールバックなし）",
     "consensusPrivacy": "参照機密フィルター",
     "consensusPrivacyOff": "オフ",
