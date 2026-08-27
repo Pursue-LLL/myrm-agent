@@ -7672,7 +7672,6 @@
     "loadHistoryError": "チャット履歴の読み込みに失敗しました",
     "retry": "再試行",
     "notConfigured": "未設定",
-    "searchHistory": "履歴を検索",
     "model": "モデル",
     "selectModel": "モデルを選択",
     "goalMode": "ゴールモード",

@@ -7449,7 +7449,6 @@
     "model": "Modell",
     "selectModel": "Wählen Sie Modell aus",
     "goalMode": "Zielmodus",
-    "forkBranch": "Gabelzweig",
     "enabled": "Ermöglicht",
     "remoteGateway": {
       "unreachable": "Der Remote-Server {host} ist nicht erreichbar. Überprüfen Sie die Serveradresse oder wechseln Sie zurück in den lokalen Modus.",

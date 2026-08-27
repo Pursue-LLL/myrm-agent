@@ -14783,6 +14783,7 @@
       "contextTitle": "Pet Sprite",
       "size": "Size",
       "resetPosition": "Reset Position",
+      "replayVoice": "Replay Last Voice",
       "hide": "Hide Pet",
       "enableLabel": "Sprite Overlay",
       "enableDesc": "Show an animated pet sprite on screen",

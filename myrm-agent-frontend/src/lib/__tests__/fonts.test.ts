@@ -57,9 +57,10 @@ describe('fonts module', () => {
       }
     });
 
-    it('falls back to inter stack for unknown id', () => {
-      const result = getFontStack('nonexistent' as FontId);
-      expect(result).toBe(FONT_CHOICES[0].stack);
+    it('falls back to custom font stack for custom string id', () => {
+      const result = getFontStack('JetBrains Mono');
+      expect(result).toContain('"JetBrains Mono"');
+      expect(result).toContain('var(--font-sans)');
     });
   });
 
