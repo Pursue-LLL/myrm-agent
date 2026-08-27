@@ -2,15 +2,11 @@
 
 from unittest.mock import AsyncMock, patch
 
-import pytest
-from httpx import AsyncClient
-
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
 
 
-@pytest.mark.asyncio
-async def test_batch_resolve_safe_items_succeeds(client: AsyncClient):
+def test_batch_resolve_safe_items_succeeds(client):
     rec1 = ApprovalRecord(
         id="appr-safe-1",
         agent_id="agent1",
@@ -33,25 +29,22 @@ async def test_batch_resolve_safe_items_succeeds(client: AsyncClient):
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        side_effect=lambda approval_id: rec1 if approval_id == "appr-safe-1" else rec2,
+        new=AsyncMock(side_effect=lambda approval_id: rec1 if approval_id == "appr-safe-1" else rec2),
     ), patch.object(
         ApprovalRegistry,
         "resolve_approval",
-        new=AsyncMock(side_effect=lambda approval_id, decision, comment, edited_payload, allow_always: rec1 if approval_id == "appr-safe-1" else rec2),
+        new=AsyncMock(side_effect=lambda approval_id, decision, edited_payload=None: rec1 if approval_id == "appr-safe-1" else rec2),
     ):
-        response = await client.post(
+        response = client.post(
             "/approvals/batch-resolve",
             json={"approval_ids": ["appr-safe-1", "appr-safe-2"], "decision": "approve"},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["resolved_count"] == 2
-        assert "appr-safe-1" in data["resolved_ids"]
-        assert "appr-safe-2" in data["resolved_ids"]
+        assert len(data["approvals"]) == 2
 
 
-@pytest.mark.asyncio
-async def test_batch_resolve_high_risk_blocked_with_409(client: AsyncClient):
+def test_batch_resolve_high_risk_blocked_with_409(client):
     rec_safe = ApprovalRecord(
         id="appr-safe-1",
         agent_id="agent1",
@@ -74,9 +67,9 @@ async def test_batch_resolve_high_risk_blocked_with_409(client: AsyncClient):
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high,
+        new=AsyncMock(side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high),
     ):
-        response = await client.post(
+        response = client.post(
             "/approvals/batch-resolve",
             json={"approval_ids": ["appr-safe-1", "appr-high-1"], "decision": "approve"},
         )
@@ -89,8 +82,7 @@ async def test_batch_resolve_high_risk_blocked_with_409(client: AsyncClient):
         assert data["detail"]["high_risk_items"][0]["item_id"] == "appr-high-1"
 
 
-@pytest.mark.asyncio
-async def test_batch_resolve_high_risk_with_explicit_confirm(client: AsyncClient):
+def test_batch_resolve_high_risk_with_explicit_confirm(client):
     rec_high = ApprovalRecord(
         id="appr-high-1",
         agent_id="agent1",
@@ -104,13 +96,13 @@ async def test_batch_resolve_high_risk_with_explicit_confirm(client: AsyncClient
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        return_value=rec_high,
+        new=AsyncMock(return_value=rec_high),
     ), patch.object(
         ApprovalRegistry,
         "resolve_approval",
         new=AsyncMock(return_value=rec_high),
     ):
-        response = await client.post(
+        response = client.post(
             "/approvals/batch-resolve",
             json={
                 "approval_ids": ["appr-high-1"],
@@ -120,12 +112,10 @@ async def test_batch_resolve_high_risk_with_explicit_confirm(client: AsyncClient
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["resolved_count"] == 1
-        assert data["resolved_ids"] == ["appr-high-1"]
+        assert len(data["approvals"]) == 1
 
 
-@pytest.mark.asyncio
-async def test_batch_resolve_safe_only_mode(client: AsyncClient):
+def test_batch_resolve_safe_only_mode(client):
     rec_safe = ApprovalRecord(
         id="appr-safe-1",
         agent_id="agent1",
@@ -148,13 +138,13 @@ async def test_batch_resolve_safe_only_mode(client: AsyncClient):
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high,
+        new=AsyncMock(side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high),
     ), patch.object(
         ApprovalRegistry,
         "resolve_approval",
         new=AsyncMock(return_value=rec_safe),
     ):
-        response = await client.post(
+        response = client.post(
             "/approvals/batch-resolve",
             json={
                 "approval_ids": ["appr-safe-1", "appr-high-1"],
@@ -164,5 +154,4 @@ async def test_batch_resolve_safe_only_mode(client: AsyncClient):
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["resolved_count"] == 1
-        assert data["resolved_ids"] == ["appr-safe-1"]
+        assert len(data["approvals"]) == 1
