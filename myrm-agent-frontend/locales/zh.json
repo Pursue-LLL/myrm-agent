@@ -14224,6 +14224,13 @@
     "batchCostRace": "竞速模式（先完成者胜出）",
     "batchCostTournament": "锦标赛模式（最优者胜出）",
     "highRiskDomAction": "检测到高风险浏览器操作",
+    "batchHighRisk": {
+      "dialogTitle": "高风险操作二次确认",
+      "dialogDesc": "批量审批队列中检测到 {highRiskCount} 项高风险/高破坏性操作（共 {total} 项）。为防止误操作，请仔细核对或选择仅放行安全项。",
+      "cancel": "取消",
+      "approveSafeOnly": "仅放行安全项 ({count})",
+      "confirmAll": "确认放行全部（含高危）"
+    },
     "targetElement": "目标元素",
     "action": "操作",
     "jsExpression": "JavaScript 表达式",
