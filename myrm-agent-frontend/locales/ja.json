@@ -14151,13 +14151,6 @@
     "batchCostRace": "レースモード（先中勝ち）",
     "batchCostTournament": "トーナメントモード（最優秀者勝ち）",
     "highRiskDomAction": "高リスクブラウザ操作が検出されました",
-    "batchHighRisk": {
-      "dialogTitle": "高リスク操作の二次確認",
-      "dialogDesc": "一括承認キュー内に {highRiskCount} 件の高リスク/破壊的操作が検出されました（合計 {total} 件）。誤操作を防ぐため、内容をご確認いただくか安全な項目のみを承認してください。",
-      "cancel": "キャンセル",
-      "approveSafeOnly": "安全な項目のみ承認 ({count})",
-      "confirmAll": "高リスクを含むすべてを承認"
-    },
     "targetElement": "ゴール元素",
     "action": "アクション",
     "jsExpression": "JavaScript 式",

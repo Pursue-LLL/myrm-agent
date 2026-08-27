@@ -13732,6 +13732,13 @@
   "toolApproval": {
     "title": "Genehmigung der Werkzeugausführung",
     "batchTitle": "Chargengenehmigung ({count}-Tools)",
+    "batchHighRisk": {
+      "dialogTitle": "Hochriskante Aktionen erkannt",
+      "dialogDesc": "{highRiskCount} hochriskante Aktion(en) unter {total} ausstehenden Aktion(en) erkannt. Bitte vor dem Fortfahren sorgfältig prüfen.",
+      "cancel": "Abbrechen",
+      "approveSafeOnly": "Nur sichere Aktionen genehmigen",
+      "confirmAll": "Alle bestätigen (einschließlich hohes Risiko)"
+    },
     "description": "Der Agent möchte die folgende(n) Aktion(en) ausführen. Prüfen und entscheiden: Genehmigen, Parameter bearbeiten oder mit Feedback ablehnen.",
     "subagentApprovalRequired": "Genehmigung von Subagentenaufgaben",
     "deployApprovalTitle": "Artefakt-Bereitstellung bestätigen",
