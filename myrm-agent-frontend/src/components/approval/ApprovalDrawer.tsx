@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import useApprovalStore from '@/store/useApprovalStore';
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/primitives/drawer';
 import { PolymorphicApprovalCard } from './PolymorphicApprovalCard';
+import { BatchHighRiskConfirmDialog } from './BatchHighRiskConfirmDialog';
 import { Button } from '@/components/primitives/button';
 import { toast } from '@/lib/utils/toast';
 import { API_BASE_URL } from '@/lib/api';
@@ -12,12 +13,15 @@ import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import { shouldResumeDrawerApproval } from '@/lib/approval/buildDrawerResumeValue';
 import { resumeDrawerApprovalStream } from '@/lib/approval/resumeDrawerApprovalStream';
 import { ApprovalExpiredError } from '@/lib/approval/resumeApprovalStream';
+import { classifyBatchApprovalRisk, type BatchRiskReport } from '@/lib/approval/batchRisk';
 
 export function ApprovalDrawer() {
   const tNotifications = useTranslations('notifications');
   const tToolApproval = useTranslations('toolApproval');
   const { isOpen, queue, closeApproval, closeApprovals, hideDrawer } = useApprovalStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingRiskReport, setPendingRiskReport] = useState<BatchRiskReport | null>(null);
+  const [isHighRiskDialogOpen, setIsHighRiskDialogOpen] = useState(false);
 
   const handleResolve = async (
     action: 'approve' | 'reject' | 'edit',
@@ -72,10 +76,16 @@ export function ApprovalDrawer() {
     }
   };
 
-  const handleBatchResolve = async (action: 'approve' | 'reject') => {
+  const executeBatchResolve = async (
+    action: 'approve' | 'reject',
+    options?: { confirmHighRisk?: boolean; safeOnly?: boolean; targetIds?: string[] },
+  ) => {
     setIsSubmitting(true);
     try {
-      const resumableApprovals = queue.filter((item) => shouldResumeDrawerApproval(item.action_type));
+      const targetIds = options?.targetIds ?? queue.map((a) => a.approval_id);
+      const targetApprovals = queue.filter((item) => targetIds.includes(item.approval_id));
+
+      const resumableApprovals = targetApprovals.filter((item) => shouldResumeDrawerApproval(item.action_type));
       for (const approval of resumableApprovals) {
         await resumeDrawerApprovalStream(
           approval,
@@ -85,19 +95,34 @@ export function ApprovalDrawer() {
         );
       }
 
-      const approvalIds = queue.map((a) => a.approval_id);
       const response = await fetch(`${API_BASE_URL}/approvals/batch-resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ approval_ids: approvalIds, decision: action }),
+        body: JSON.stringify({
+          approval_ids: targetIds,
+          decision: action,
+          confirm_high_risk: options?.confirmHighRisk ?? false,
+          safe_only: options?.safeOnly ?? false,
+        }),
       });
 
       if (!response.ok) {
+        if (response.status === 409) {
+          const errorData = await response.json().catch(() => ({}));
+          const report = classifyBatchApprovalRisk(queue);
+          setPendingRiskReport(report);
+          setIsHighRiskDialogOpen(true);
+          return;
+        }
         throw new Error(`Failed to batch resolve approvals: ${response.status}`);
       }
 
-      closeApprovals(approvalIds);
+      const data = await response.json().catch(() => ({}));
+      const resolvedIds = (data && Array.isArray(data.resolved_ids)) ? data.resolved_ids : targetIds;
+      closeApprovals(resolvedIds);
+      setIsHighRiskDialogOpen(false);
+      setPendingRiskReport(null);
     } catch (error) {
       console.error('Error batch resolving approvals:', error);
       if (error instanceof ApprovalExpiredError) {
@@ -110,6 +135,18 @@ export function ApprovalDrawer() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleBatchResolve = async (action: 'approve' | 'reject') => {
+    if (action === 'approve') {
+      const report = classifyBatchApprovalRisk(queue);
+      if (report.hasHighRisk) {
+        setPendingRiskReport(report);
+        setIsHighRiskDialogOpen(true);
+        return;
+      }
+    }
+    await executeBatchResolve(action);
   };
 
   if (queue.length === 0) {
@@ -159,6 +196,15 @@ export function ApprovalDrawer() {
           </div>
         </div>
       </DrawerContent>
+
+      <BatchHighRiskConfirmDialog
+        open={isHighRiskDialogOpen}
+        onOpenChange={setIsHighRiskDialogOpen}
+        report={pendingRiskReport}
+        isSubmitting={isSubmitting}
+        onConfirmAll={() => executeBatchResolve('approve', { confirmHighRisk: true })}
+        onApproveSafeOnly={() => executeBatchResolve('approve', { safeOnly: true })}
+      />
     </Drawer>
   );
 }

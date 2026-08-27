@@ -7354,7 +7354,7 @@
           "label": "自動批准編輯"
         },
         "explore": {
-          "label": "唯讀"
+          "label": "唯讀模式"
         }
       },
       "capabilitiesTitle": "能力限制",

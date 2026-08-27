@@ -7359,7 +7359,7 @@
       },
       "capabilitiesTitle": "能力制限",
       "capabilitiesDesc": "このエージェントが使用を許可される能力を選択します。選択された能力のみが利用可能です（グローバルポリシーとの共通部分）。",
-      "noCapabilities": "利用可能なツールがありません",
+      "noCapabilities": "無制限 — グローバルポリシーのすべての能力を継承。",
       "allowedRootsTitle": "追加のファイルパス",
       "allowedRootsDesc": "このエージェントがワークスペース外でアクセスできる追加パス。",
       "noAllowedRoots": "追加パスなし — ワークスペース内のみアクセス可能。",
