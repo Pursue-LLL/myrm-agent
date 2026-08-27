@@ -104,6 +104,37 @@ describe('useAppshotListener', () => {
         screenshot: 'base64data',
         windowTitle: 'Test Window',
         extractedText: 'Hello world',
+        selectedText: undefined,
+        timestamp: 1700000000000,
+      });
+    });
+
+    it('adds capture with selectedText when provided in payload', async () => {
+      await mountHook();
+      await vi.dynamicImportSettled();
+      await new Promise((r) => setTimeout(r, 50));
+
+      const handler = mockListeners.get('appshot-captured');
+      expect(handler).toBeDefined();
+
+      act(() => {
+        handler!({
+          payload: {
+            screenshot: 'base64data',
+            windowTitle: 'Test Window',
+            extractedText: 'Hello world full screen',
+            selectedText: 'selected snippet',
+            needsPermission: false,
+            timestamp: 1700000000000,
+          },
+        });
+      });
+
+      expect(mockAddCapture).toHaveBeenCalledWith({
+        screenshot: 'base64data',
+        windowTitle: 'Test Window',
+        extractedText: 'Hello world full screen',
+        selectedText: 'selected snippet',
         timestamp: 1700000000000,
       });
     });

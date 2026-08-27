@@ -96,6 +96,7 @@ describe('useVoicePttListener', () => {
       screenshot: 'base64data',
       windowTitle: 'VS Code',
       extractedText: 'some code',
+      selectedText: 'const x = 1;',
       timestamp: Date.now(),
     };
     mockListeners.get('voice-ptt-context')!({ payload });
@@ -103,6 +104,7 @@ describe('useVoicePttListener', () => {
     const dispatched = dispatchSpy.mock.calls.find((call) => (call[0] as CustomEvent).type === 'voice-ptt-context');
     expect(dispatched).toBeDefined();
     expect((dispatched![0] as CustomEvent).detail).toEqual(payload);
+    expect((dispatched![0] as CustomEvent).detail.selectedText).toBe('const x = 1;');
     expect((dispatched![0] as CustomEvent).cancelable).toBe(true);
 
     dispatchSpy.mockRestore();

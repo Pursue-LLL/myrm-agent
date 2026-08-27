@@ -159,7 +159,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
     const handlePttContext = (e: Event) => {
       const detail = (e as CustomEvent<PttScreenContext>).detail;
-      if (detail?.screenshot || detail?.extractedText) {
+      if (detail?.screenshot || detail?.extractedText || detail?.selectedText) {
         pttScreenContextRef.current = detail;
         if (pttPendingPromiseRef.current) {
           pttPendingPromiseRef.current.resolve(detail);
@@ -316,8 +316,10 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
         if (pttCtx.windowTitle) {
           contextParts.push(`[Active Window: ${pttCtx.windowTitle}]`);
         }
-        if (pttCtx.extractedText) {
-          contextParts.push(`[Screen Text: ${pttCtx.extractedText.slice(0, 2000)}]`);
+        if (pttCtx.selectedText && pttCtx.selectedText.trim()) {
+          contextParts.push(`[Selected Text: ${pttCtx.selectedText.trim().slice(0, 3000)}]`);
+        } else if (pttCtx.extractedText && pttCtx.extractedText.trim()) {
+          contextParts.push(`[Screen Text: ${pttCtx.extractedText.trim().slice(0, 2000)}]`);
         }
         if (contextParts.length > 0) {
           finalText = `${contextParts.join('\n')}\n\n${text}`;

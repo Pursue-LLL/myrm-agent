@@ -56,23 +56,17 @@ def _payload_dict(payload: object) -> dict[str, object]:
 
 
 def _text(value: object) -> str | None:
-    if isinstance(value, str) and value.strip():
-        return value
-    return None
+    return value if isinstance(value, str) and value.strip() else None
 
 
 def _float_value(value: object) -> float | None:
     if isinstance(value, bool):
         return None
-    if isinstance(value, int | float):
-        return float(value)
-    return None
+    return float(value) if isinstance(value, int | float) else None
 
 
 def _bool_value(value: object) -> bool | None:
-    if isinstance(value, bool):
-        return value
-    return None
+    return value if isinstance(value, bool) else None
 
 
 def _form_metadata(payload: dict[str, object]) -> SkillGrowthFormMetadataRead | None:
@@ -83,10 +77,7 @@ def _form_metadata(payload: dict[str, object]) -> SkillGrowthFormMetadataRead | 
     form_reasoning = _text(raw.get("form_reasoning"))
     if schedule_hint is None and form_reasoning is None:
         return None
-    return SkillGrowthFormMetadataRead(
-        schedule_hint=schedule_hint,
-        form_reasoning=form_reasoning,
-    )
+    return SkillGrowthFormMetadataRead(schedule_hint=schedule_hint, form_reasoning=form_reasoning)
 
 
 def _approval_growth_status(record: ApprovalRecord) -> SkillGrowthCaseStatus:
@@ -118,6 +109,8 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
     )
     proposed_content = _text(payload.get("patch_content")) or _text(payload.get("content"))
     verification_proof = payload.get("verification_proof") if isinstance(payload.get("verification_proof"), dict) else None
+    target_layer = _text(payload.get("target_layer")) or "prompt"
+    target_pathology = _text(payload.get("target_pathology")) or "unhandled_exception"
     return SkillGrowthCaseDetailRead(
         id=f"draft:{record.id}",
         source=SkillGrowthCaseSource.DRAFT,
@@ -144,13 +137,18 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         form_metadata=_form_metadata(payload),
         created_at=record.created_at,
         verification_proof=verification_proof,
+        target_layer=target_layer,
+        target_pathology=target_pathology,
     )
 
 
 def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDetailRead:
     verification_proof = getattr(record, "verification_proof", None)
-    if not isinstance(verification_proof, dict) and hasattr(record, "payload") and isinstance(record.payload, dict):
-        verification_proof = record.payload.get("verification_proof")
+    payload_dict = record.payload if hasattr(record, "payload") and isinstance(record.payload, dict) else {}
+    if not isinstance(verification_proof, dict):
+        verification_proof = payload_dict.get("verification_proof")
+    target_layer = _text(payload_dict.get("target_layer")) or "tool_code"
+    target_pathology = _text(payload_dict.get("target_pathology")) or "unhandled_exception"
     return SkillGrowthCaseDetailRead(
         id=f"evolution:{record.id}",
         source=SkillGrowthCaseSource.EVOLUTION,
@@ -177,6 +175,8 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         form_metadata=None,
         created_at=record.created_at,
         verification_proof=verification_proof if isinstance(verification_proof, dict) else None,
+        target_layer=target_layer,
+        target_pathology=target_pathology,
     )
 
 
@@ -206,6 +206,8 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         has_skill_steps=bool(detail.skill_steps),
         created_at=detail.created_at,
         verification_proof=detail.verification_proof,
+        target_layer=detail.target_layer,
+        target_pathology=detail.target_pathology,
     )
 
 

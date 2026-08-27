@@ -62,6 +62,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import ShareRulesDialog from '@/components/features/memory/dialogs/ShareRulesDialog';
 import WorkingStateCard from './WorkingStateCard';
+import MemoryScopeHierarchyCard from '@/components/features/memory/cards/MemoryScopeHierarchyCard';
 
 const MEMORY_TYPES: (MemoryType | null)[] = [
   null,
@@ -622,6 +623,7 @@ const MemorySection = memo(() => {
       ) : (
         <>
           <WorkingStateCard />
+          <MemoryScopeHierarchyCard />
           <MemoryCommandCenter />
           <MemoryStats />
           <TasteSummaryCard />

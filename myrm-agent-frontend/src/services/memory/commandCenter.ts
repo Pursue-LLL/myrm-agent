@@ -459,7 +459,8 @@ export interface MemoryCommandRepairActionRequest {
     | 'enable_vector_store'
     | 'configure_embedding'
     | 'review_retrieval_trace'
-    | 'restore_disciplined_defaults';
+    | 'restore_disciplined_defaults'
+    | 'elevate_mislayered_memories';
   mode?: 'dry_run' | 'execute';
 }
 

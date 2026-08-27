@@ -52,21 +52,22 @@ fn capture_screen_context_for_ptt(app: &AppHandle) {
         let timestamp = current_timestamp_ms();
 
         #[cfg(target_os = "macos")]
-        let (screenshot_b64, window_title, extracted_text, _, _selected) =
+        let (screenshot_b64, window_title, extracted_text, _, selected_text) =
             capture_macos::capture_appshot_macos();
 
         #[cfg(target_os = "windows")]
-        let (screenshot_b64, window_title, extracted_text, _, _selected) =
+        let (screenshot_b64, window_title, extracted_text, _, selected_text) =
             capture_windows::capture_appshot_windows();
 
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        let (screenshot_b64, window_title, extracted_text) =
-            (String::new(), String::new(), String::new());
+        let (screenshot_b64, window_title, extracted_text, selected_text) =
+            (String::new(), String::new(), String::new(), String::new());
 
         let payload = serde_json::json!({
             "screenshot": screenshot_b64,
             "windowTitle": window_title,
             "extractedText": extracted_text,
+            "selectedText": selected_text,
             "timestamp": timestamp,
         });
 
@@ -133,15 +134,15 @@ fn do_capture_and_emit(app: &AppHandle) {
     let timestamp = current_timestamp_ms();
 
     #[cfg(target_os = "macos")]
-    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) =
+    let (screenshot_b64, window_title, extracted_text, needs_permission, selected_text) =
         capture_macos::capture_appshot_macos();
 
     #[cfg(target_os = "windows")]
-    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) =
+    let (screenshot_b64, window_title, extracted_text, needs_permission, selected_text) =
         capture_windows::capture_appshot_windows();
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) = (
+    let (screenshot_b64, window_title, extracted_text, needs_permission, selected_text) = (
         String::new(),
         String::new(),
         String::new(),
@@ -153,6 +154,7 @@ fn do_capture_and_emit(app: &AppHandle) {
         "screenshot": screenshot_b64,
         "windowTitle": window_title,
         "extractedText": extracted_text,
+        "selectedText": selected_text,
         "needsPermission": needs_permission,
         "timestamp": timestamp,
     });

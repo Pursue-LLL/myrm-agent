@@ -60,6 +60,7 @@ const DefaultModelSection = memo(() => {
     setRoutingLightModelFallback,
     setRoutingReasoningModel,
     setRoutingReasoningModelFallback,
+    setAutoMoaReasoning,
     setVisionFallbackModel,
     setVisionFallbackModelFallback,
     setVideoFallbackModel,

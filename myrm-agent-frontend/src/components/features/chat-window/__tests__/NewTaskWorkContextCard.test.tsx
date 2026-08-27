@@ -140,4 +140,39 @@ describe('NewTaskWorkContextCard', () => {
       expect(toast).toHaveBeenCalledWith({ title: 'Working directory cleared' });
     });
   });
+
+  it('handles directory selection via Web popover browse', async () => {
+    render(<NewTaskWorkContextCard />);
+    const bindBtn = screen.getByText('No workspace selected (click to bind)').closest('button');
+    expect(bindBtn).toBeDefined();
+    fireEvent.click(bindBtn!);
+
+    await waitFor(() => {
+      expect(browseDirectories).toHaveBeenCalled();
+      expect(screen.getByText('project-a')).toBeDefined();
+    });
+
+    const projectA = screen.getByText('project-a');
+    fireEvent.click(projectA);
+
+    await waitFor(() => {
+      expect(mockState.setWorkspaceDir).toHaveBeenCalledWith('/home/user/workspace/project-a');
+    });
+  });
+
+  it('handles scaffold creation failure gracefully', async () => {
+    (mkdirInWorkspace as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Disk full'));
+    mockState.workspaceDir = '/home/user/my-project';
+    render(<NewTaskWorkContextCard />);
+
+    const scaffoldBtn = screen.getByText('Initialize Office Scaffold').closest('button');
+    fireEvent.click(scaffoldBtn!);
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to initialize office structure',
+        variant: 'destructive',
+      });
+    });
+  });
 });

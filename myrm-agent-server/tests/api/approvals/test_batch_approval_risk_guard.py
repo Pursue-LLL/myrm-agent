@@ -2,11 +2,24 @@
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from app.api.approvals.router import router as approvals_router
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
 
 
-def test_batch_resolve_safe_items_succeeds(client):
+@pytest.fixture
+def client() -> TestClient:
+    app = FastAPI()
+    app.include_router(approvals_router)
+    with TestClient(app) as c:
+        yield c
+
+
+def test_batch_resolve_safe_items_succeeds(client: TestClient):
     rec1 = ApprovalRecord(
         id="appr-safe-1",
         agent_id="agent1",

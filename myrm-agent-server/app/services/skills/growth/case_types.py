@@ -67,6 +67,8 @@ class SkillGrowthCaseSummaryRead:
     has_skill_steps: bool
     created_at: datetime
     verification_proof: dict[str, object] | None = None
+    target_layer: str | None = None
+    target_pathology: str | None = None
 
 
 @dataclass(slots=True)
@@ -96,6 +98,8 @@ class SkillGrowthCaseDetailRead:
     form_metadata: SkillGrowthFormMetadataRead | None
     created_at: datetime
     verification_proof: dict[str, object] | None = None
+    target_layer: str | None = None
+    target_pathology: str | None = None
 
 
 SkillGrowthCaseRead = SkillGrowthCaseDetailRead

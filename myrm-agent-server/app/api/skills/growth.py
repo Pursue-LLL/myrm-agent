@@ -61,6 +61,8 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     created_at: str
     impacted_dependents: list[str] = Field(default_factory=list)
     verification_proof: dict[str, object] | None = None
+    target_layer: str | None = None
+    target_pathology: str | None = None
 
 
 class SkillGrowthCaseDetailResponse(SkillGrowthCaseSummaryResponse):
@@ -166,6 +168,8 @@ def _summary_response(
         created_at=item.created_at.isoformat(),
         impacted_dependents=impacted_dependents or [],
         verification_proof=item.verification_proof,
+        target_layer=item.target_layer,
+        target_pathology=item.target_pathology,
     )
 
 

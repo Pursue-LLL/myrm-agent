@@ -15,6 +15,8 @@ import {
 import { useMemoryStore, type MemoryType } from '@/store/memory';
 import type { CreateMemoryRequest } from '@/services/memory';
 import MemoryTypeIcon from '../cards/MemoryTypeIcon';
+import MemoryScopePicker from '../cards/MemoryScopePicker';
+import type { MemoryScopeLevel } from '../cards/MemoryScopeHierarchyCard';
 import { toast } from '@/hooks/shared/useToast';
 
 interface MemoryCreateDialogProps {
@@ -26,6 +28,7 @@ const MEMORY_TYPES: MemoryType[] = ['profile', 'semantic', 'episodic', 'procedur
 
 interface FormState {
   memory_type: MemoryType;
+  scope_level: MemoryScopeLevel;
   content: string;
   importance: number;
   key: string;
@@ -37,6 +40,7 @@ interface FormState {
 
 const INITIAL_FORM: FormState = {
   memory_type: 'semantic',
+  scope_level: 'agent',
   content: '',
   importance: 0.5,
   key: '',
@@ -299,6 +303,12 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
               </div>
             </>
           )}
+
+          {/* Scope Level Picker */}
+          <MemoryScopePicker
+            value={form.scope_level}
+            onChange={(lvl) => updateField('scope_level', lvl)}
+          />
 
           {/* Importance slider */}
           <div className="space-y-2">

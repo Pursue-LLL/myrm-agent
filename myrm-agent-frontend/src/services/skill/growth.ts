@@ -68,6 +68,8 @@ interface SkillGrowthCaseSummaryApiItem {
   created_at: string;
   impacted_dependents: string[];
   verification_proof?: VerificationProofDto | null;
+  target_layer?: string | null;
+  target_pathology?: string | null;
 }
 
 interface SkillGrowthCaseDetailApiItem extends SkillGrowthCaseSummaryApiItem {
@@ -158,6 +160,8 @@ export interface SkillGrowthCaseSummary {
   createdAt: string;
   impactedDependents: string[];
   verificationProof: VerificationProofDto | null;
+  targetLayer?: string | null;
+  targetPathology?: string | null;
 }
 
 export interface SkillGrowthCaseDetail extends SkillGrowthCaseSummary {
@@ -252,6 +256,8 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     createdAt: item.created_at,
     impactedDependents: item.impacted_dependents ?? [],
     verificationProof: item.verification_proof ?? null,
+    targetLayer: item.target_layer ?? null,
+    targetPathology: item.target_pathology ?? null,
   };
 }
 

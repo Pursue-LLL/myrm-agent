@@ -27,6 +27,7 @@ interface AppshotPayload {
   screenshot: string;
   windowTitle: string;
   extractedText: string;
+  selectedText?: string;
   needsPermission: boolean;
   timestamp: number;
 }
@@ -78,6 +79,7 @@ export function useAppshotListener() {
         screenshot: payload.screenshot,
         windowTitle: payload.windowTitle,
         extractedText: payload.extractedText,
+        selectedText: payload.selectedText?.trim() ? payload.selectedText.trim() : undefined,
         timestamp: payload.timestamp,
       });
 

@@ -235,3 +235,5 @@ async def test_skill_growth_case_includes_verification_proof(
     assert data["verification_proof"]["is_verified"] is True
     assert data["verification_proof"]["success_streak"] == 3
     assert data["verification_proof"]["blast_radius"]["lines"] == 25
+    assert data["target_layer"] == "prompt"
+    assert data["target_pathology"] == "unhandled_exception"

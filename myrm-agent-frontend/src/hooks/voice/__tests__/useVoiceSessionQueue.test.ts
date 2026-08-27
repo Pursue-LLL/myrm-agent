@@ -59,20 +59,27 @@ vi.mock('../useTTS', () => ({
   }),
 }));
 
+let mockSpeechInputOptions: { onTranscript?: (text: string) => void } = {};
+
 vi.mock('../useSpeechInput', () => ({
-  useSpeechInput: () => ({
-    state: 'idle',
-    elapsed: 0,
-    audioLevel: 0,
-    interimText: '',
-    toggle: vi.fn(),
-    startRecording: speechMock.startRecording,
-    stopRecording: speechMock.stopRecording,
-    onPointerDown: vi.fn(),
-    onPointerUp: vi.fn(),
-    isSupported: true,
-    mode: 'toggle',
-  }),
+  useSpeechInput: (options?: { onTranscript?: (text: string) => void }) => {
+    if (options) {
+      mockSpeechInputOptions = options;
+    }
+    return {
+      state: 'idle',
+      elapsed: 0,
+      audioLevel: 0,
+      interimText: '',
+      toggle: vi.fn(),
+      startRecording: speechMock.startRecording,
+      stopRecording: speechMock.stopRecording,
+      onPointerDown: vi.fn(),
+      onPointerUp: vi.fn(),
+      isSupported: true,
+      mode: 'toggle',
+    };
+  },
 }));
 
 vi.mock('../../multimodal/useCameraInput', () => ({
@@ -278,5 +285,55 @@ describe('useVoiceSession speakResponse queue insertion', () => {
     });
     expect(ttsMock.speak).toHaveBeenCalledTimes(2);
     expect(ttsMock.speak).toHaveBeenLastCalledWith('Important instruction.');
+  });
+
+  it('formats context prioritizing selectedText over extractedText when voice-ptt-context is received', async () => {
+    const mockOnSendMessage = vi.fn();
+    const { result } = renderHook(() =>
+      useVoiceSession({
+        enabled: true,
+        mode: 'audio_only',
+        fullDuplex: true,
+        autoSend: true,
+        onSendMessage: mockOnSendMessage,
+      }),
+    );
+
+    act(() => {
+      result.current.startSession();
+    });
+
+    // Simulate voice-ptt-context event with selectedText
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('voice-ptt-context', {
+          detail: {
+            windowTitle: 'VS Code',
+            extractedText: 'entire document text here',
+            selectedText: 'function calculate() { return 42; }',
+            screenshot: '',
+            timestamp: Date.now(),
+          },
+        }),
+      );
+    });
+
+    // Trigger transcript handler directly via mock captured speech input options
+    await act(async () => {
+      await mockSpeechInputOptions.onTranscript?.('explain this code');
+    });
+
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('[Selected Text: function calculate() { return 42; }]'),
+      undefined,
+    );
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      expect.not.stringContaining('[Screen Text: entire document text here]'),
+      undefined,
+    );
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('[Active Window: VS Code]'),
+      undefined,
+    );
   });
 });

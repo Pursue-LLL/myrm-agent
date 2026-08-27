@@ -25,6 +25,7 @@ export interface PttScreenContext {
   screenshot: string;
   windowTitle: string;
   extractedText: string;
+  selectedText?: string;
   timestamp: number;
 }
 
