@@ -7874,6 +7874,26 @@
       "unknownError": "Unknown error occurred",
       "streamingBlocked": "Cannot fork while the agent is responding"
     },
+    "deliveryContracts": {
+      "title": "5-Contract Delivery Lifecycle",
+      "allSatisfied": "All Contracts Satisfied",
+      "refresh": "Refresh contract status",
+      "noSummary": "Phase in progress...",
+      "phases": {
+        "task_intent": "Task Intent Contract",
+        "scene_environment": "Scene Environment Contract",
+        "action_execution": "Action Execution Contract",
+        "delivery_artifact": "Delivery Artifact Contract",
+        "acceptance_verification": "Acceptance Verification Contract"
+      },
+      "status": {
+        "pending": "Pending",
+        "inProgress": "In Progress",
+        "satisfied": "Satisfied",
+        "violated": "Violated",
+        "waitingApproval": "Waiting Approval"
+      }
+    },
     "snapshot": {
       "createdTitle": "System snapshot created",
       "createdMessage": {
@@ -13978,6 +13998,8 @@
     "ttsProvider": "TTS Provider",
     "edgeTtsUnavailableTitle": "Edge TTS is not available",
     "edgeTtsUnavailableDesc": "This server does not have Edge TTS enabled. Switch to another provider, or ask your administrator to enable voice support.",
+    "piperUnavailableTitle": "Local Piper TTS is not available",
+    "piperUnavailableDesc": "Please install the voice-tts-local component on the server (uv sync --extra voice-tts-local), or switch to another TTS provider.",
     "localSttUnavailableTitle": "Local Whisper STT is not available",
     "localSttUnavailableDesc": "Ask your administrator to install the local-stt component on the server (uv sync --extra local-stt), or switch to a cloud STT provider.",
     "hostNotReadyTitle": "Backend service is not ready",

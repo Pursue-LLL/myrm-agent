@@ -29,7 +29,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from myrm_agent_harness.core.security.redact import redact_sensitive_text
+from myrm_agent_harness.api import redact_sensitive_text
 from myrm_agent_harness.observability.diagnostics.protocols import redact_health_report
 
 from app.config.deploy_mode import get_deploy_mode

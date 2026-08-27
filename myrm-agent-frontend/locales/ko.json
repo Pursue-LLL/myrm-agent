@@ -8192,6 +8192,26 @@
         "allowAlways": "이 앱 항상 허용"
       }
     },
+    "deliveryContracts": {
+      "title": "5가지 계약 배포 라이프사이클",
+      "allSatisfied": "모든 계약 충족됨",
+      "refresh": "계약 상태 새로고침",
+      "noSummary": "단계 실행 중...",
+      "phases": {
+        "task_intent": "작업 의도 계약",
+        "scene_environment": "현장 환경 계약",
+        "action_execution": "작업 실행 계약",
+        "delivery_artifact": "배포 산출물 계약",
+        "acceptance_verification": "인수 검증 계약"
+      },
+      "status": {
+        "pending": "대기 중",
+        "inProgress": "진행 중",
+        "satisfied": "충족됨",
+        "violated": "위반됨",
+        "waitingApproval": "승인 대기"
+      }
+    },
     "subagent": {
       "viewResults": "결과 보기"
     },

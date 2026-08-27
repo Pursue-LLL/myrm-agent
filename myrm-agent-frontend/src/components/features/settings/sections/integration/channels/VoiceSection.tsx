@@ -198,8 +198,11 @@ const VoiceSection = memo(() => {
 
   const isLocalStt = form.sttProvider === 'local';
   const needsSttApiKey = !isLocalStt;
-  const needsTtsApiKey = form.ttsProvider !== 'edge';
+  const isPiper = form.ttsProvider === 'piper';
+  const isVoicebox = form.ttsProvider === 'voicebox';
+  const needsTtsApiKey = form.ttsProvider !== 'edge' && !isPiper && !isVoicebox;
   const showEdgeTtsWarning = form.ttsProvider === 'edge' && edgeTtsAvailable === false;
+  const showPiperWarning = isPiper && localTtsAvailable === false;
   const showLocalSttWarning = isLocalStt && localSttAvailable === false;
 
   return (
@@ -221,6 +224,13 @@ const VoiceSection = memo(() => {
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
           <p className="font-medium">{t('edgeTtsUnavailableTitle')}</p>
           <p className="mt-1 text-xs opacity-90">{t('edgeTtsUnavailableDesc')}</p>
+        </div>
+      )}
+
+      {showPiperWarning && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          <p className="font-medium">{t('piperUnavailableTitle')}</p>
+          <p className="mt-1 text-xs opacity-90">{t('piperUnavailableDesc')}</p>
         </div>
       )}
 
@@ -374,10 +384,10 @@ const VoiceSection = memo(() => {
                 </FieldRow>
               )}
 
-              {form.ttsProvider === 'openai' && (
+              {(form.ttsProvider === 'openai' || form.ttsProvider === 'voicebox') && (
                 <FieldRow label={t('ttsBaseUrl')}>
                   <Input
-                    placeholder={t('ttsBaseUrlPlaceholder')}
+                    placeholder={form.ttsProvider === 'voicebox' ? 'http://127.0.0.1:8000' : t('ttsBaseUrlPlaceholder')}
                     value={form.ttsBaseUrl}
                     onChange={(e) => update({ ttsBaseUrl: e.target.value })}
                   />

@@ -3627,13 +3627,11 @@
         "cronCreated": "{name} の定期レビューをスケジュールしました",
         "verifiedBadge": "検証済み (Streak: {streak})",
         "hollowBlockedBadge": "空洞テストをブロックしました",
-        "targetLayer": "対象レイヤー: {layer}",
-        "targetPathology": "病理分類: {pathology}",
+        "targetLayer": "対象層: {layer}",
+        "targetPathology": "病理特性: {pathology}",
         "verificationProofTitle": "サンドボックスカプセル検証証明",
         "blastRadius": "影響範囲: {files} ファイル, {lines} 行",
-        "noVerificationProof": "サンドボックス検証証明はありません",
-        "targetLayer": "対象層: {layer}",
-        "targetPathology": "病理特性: {pathology}"
+        "noVerificationProof": "サンドボックス検証証明はありません"
       },
       "upload": {
         "title": "カスタムスキルをアップロード",
@@ -7493,51 +7491,6 @@
       "emptyTitle": "新しい洞察はありません",
       "emptyDesc": "バックグラウンドオブザーバーは最近このエージェントの新しい習慣や修正を抽出していません。"
     },
-    "mobileCommand": {
-      "title": "コマンドセンター",
-      "running": "実行中...",
-      "finished": "タスク完了",
-      "progress": "実行進捗",
-      "thinking": "最新の思考",
-      "result": "結果要約",
-      "viewFull": "完全な会話を表示",
-      "noStatus": "タスクステータスなし",
-      "stopTask": "タスクを停止",
-      "stopTaskSuccess": "タスクの停止をリクエストしました",
-      "stopTaskFailed": "ない実行中のタスク",
-      "pendingApprovals": "待承認操作",
-      "approve": "承認",
-      "reject": "拒否",
-      "approveAll": "すべて承認",
-      "quickCommand": "クイックコマンド",
-      "quickCommandPlaceholder": "新しい指示を送信...",
-      "steerPlaceholder": "エージェントを誘導...",
-      "send": "送信",
-      "verifications": "検収条件",
-      "livePreview": "ライブプレビュー",
-      "browser": "ブラウザ",
-      "desktop": "デスクトップ",
-      "artifacts": "成果物",
-      "advisorAsk": "アドバイザーに質問",
-      "advisorOpen": "サイドQ&A"
-    },
-    "readiness": {
-      "warning": "一部の設定で確認が必要です",
-      "blocked": "エージェントを実行できません — 修正が必要です",
-      "ready": "準備完了"
-    },
-    "idleCompact": {
-      "title": "アイドル後の自動圧縮",
-      "desc": "チャットがアイドル状態のとき、次の返信の前に古いメッセージを要約します。",
-      "minutes": "アイドル時間（分）",
-      "minutesDesc": "自動圧縮が実行されるまでに最後のメッセージから待機する時間。",
-      "hint": "デフォルトではオフ。手動圧縮や高トークン使用時の自動圧縮の代わりにはなりません。"
-    },
-    "busyInputMode": "実行中入力の挙動",
-    "busyInputModeDesc": "エージェントの作業中にメッセージを送信したときのデフォルト動作。",
-    "busyInputRedirect": "リダイレクト",
-    "busyInputSteer": "ステア",
-    "busyInputQueue": "キュー",
     "faq": {
       "tabTitle": "FAQ",
       "title": "FAQクイック返信",
@@ -7581,7 +7534,52 @@
       "entryCreated": "FAQエントリを作成しました",
       "entryUpdated": "FAQエントリを更新しました",
       "entryDeleted": "FAQエントリを削除しました"
-    }
+    },
+    "mobileCommand": {
+      "title": "コマンドセンター",
+      "running": "実行中...",
+      "finished": "タスク完了",
+      "progress": "実行進捗",
+      "thinking": "最新の思考",
+      "result": "結果要約",
+      "viewFull": "完全な会話を表示",
+      "noStatus": "タスクステータスなし",
+      "stopTask": "タスクを停止",
+      "stopTaskSuccess": "タスクの停止をリクエストしました",
+      "stopTaskFailed": "ない実行中のタスク",
+      "pendingApprovals": "待承認操作",
+      "approve": "承認",
+      "reject": "拒否",
+      "approveAll": "すべて承認",
+      "quickCommand": "クイックコマンド",
+      "quickCommandPlaceholder": "新しい指示を送信...",
+      "steerPlaceholder": "エージェントを誘導...",
+      "send": "送信",
+      "verifications": "検収条件",
+      "livePreview": "ライブプレビュー",
+      "browser": "ブラウザ",
+      "desktop": "デスクトップ",
+      "artifacts": "成果物",
+      "advisorAsk": "アドバイザーに質問",
+      "advisorOpen": "サイドQ&A"
+    },
+    "readiness": {
+      "warning": "警告",
+      "blocked": "ブロック中",
+      "ready": "準備完了"
+    },
+    "idleCompact": {
+      "title": "アイドル時の自動圧縮",
+      "desc": "指定したアイドル時間を経過後、自動的にセッションコンテキストを要約圧縮します。",
+      "minutes": "アイドル時間（分）",
+      "minutesDesc": "自動圧縮を実行するまでの待機時間（分）。",
+      "hint": "長時間のセッションにおけるトークン消費を抑えます。"
+    },
+    "busyInputMode": "ビジー入力動作",
+    "busyInputModeDesc": "エージェントがタスク実行中に新しいメッセージを受信した際の動作を設定します。",
+    "busyInputRedirect": "リダイレクト",
+    "busyInputSteer": "誘導（ステアリング）",
+    "busyInputQueue": "キューに追加"
   },
   "common": {
     "keyValueEditor": {
