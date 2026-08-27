@@ -13988,6 +13988,13 @@
   "toolApproval": {
     "title": "工具執行審批",
     "batchTitle": "批次審批 ({count} 個工具)",
+    "batchHighRisk": {
+      "dialogTitle": "偵測到高風險操作",
+      "dialogDesc": "在 {total} 個待審批操作中偵測到 {highRiskCount} 個高風險操作，請謹慎確認後再繼續。",
+      "cancel": "取消",
+      "approveSafeOnly": "僅批准安全操作",
+      "confirmAll": "全部確認（含高風險）"
+    },
     "description": "Agent 請求執行以下操作。你可以批准、編輯引數後執行、或拒絕並反饋。",
     "subagentApprovalRequired": "子智慧體任務需審批",
     "deployApprovalTitle": "Artifact 部署確認",

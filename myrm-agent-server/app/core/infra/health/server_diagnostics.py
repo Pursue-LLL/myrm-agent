@@ -66,7 +66,9 @@ class DLQDiagnostic(DiagnosticProtocol):
 
             gateway = get_channel_gateway()
             if gateway and gateway.bus:
-                failed_count = await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
+                failed_count = (
+                    await gateway.bus._dlq.get_failed_count() if gateway.bus._dlq else 0
+                )
                 pending_count = await gateway.bus.durable_outbound.count_pending()
                 meta_data = {
                     "failed_count": failed_count,
@@ -155,7 +157,9 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             try:
                 import psutil
 
-                rss_mb = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
+                rss_mb = round(
+                    psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1
+                )
             except Exception:
                 pass
 
@@ -165,7 +169,11 @@ class ExecutionCacheDiagnostic(DiagnosticProtocol):
             reclaimed = getattr(cache, "reclaimed_count", 0)
 
             detail_parts = [
-                (f"Idle timeout: {idle_s:.0f}s" if idle_s > 0 else "Idle reclaim disabled"),
+                (
+                    f"Idle timeout: {idle_s:.0f}s"
+                    if idle_s > 0
+                    else "Idle reclaim disabled"
+                ),
                 f"Warm units: {warm_units}",
                 f"Reclaimed: {reclaimed}",
             ]
@@ -225,7 +233,9 @@ class ServerDiagnosticsManager:
                 report = await probe.check_health()
                 reports.append(report)
             except Exception as exc:
-                logger.error("Probe %s failed unhandled: %s", probe.__class__.__name__, exc)
+                logger.error(
+                    "Probe %s failed unhandled: %s", probe.__class__.__name__, exc
+                )
                 reports.append(
                     HealthReport(
                         component_name=probe.__class__.__name__,

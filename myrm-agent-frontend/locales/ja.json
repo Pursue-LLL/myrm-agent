@@ -13992,7 +13992,7 @@
       "dialogTitle": "高リスクな操作が検出されました",
       "dialogDesc": "{total} 件の保留中の操作のうち {highRiskCount} 件の高リスク操作が検出されました。続行する前に慎重に確認してください。",
       "cancel": "キャンセル",
-      "approveSafeOnly": "安全な操作のみ承認",
+      "approveSafeOnly": "安全な操作のみ承認 ({count})",
       "confirmAll": "すべて承認（高リスク含む）"
     },
     "description": "エージェントが以下の操作を実行しようとしています。承認、パラメータを編集して実行、または拒否してフィードバックできます。",
