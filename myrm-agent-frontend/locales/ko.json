@@ -7410,7 +7410,7 @@
     "connectionFailed": "서버에 연결할 수 없습니다. 나중에 다시 시도하세요.",
     "configurationRequired": "메시지를 보내기 전에 구성이 필요합니다",
     "yes": "예",
-    "no": "No",
+    "no": "아니오",
     "configConflict": {
       "title": "구성 충돌 감지됨",
       "description": "\"{configLabel}\"이(가) 다른 기기에서 업데이트되었습니다",
@@ -7473,6 +7473,16 @@
     "loadHistoryError": "채팅 기록을 불러오지 못했습니다",
     "retry": "재시도",
     "notConfigured": "구성되지 않음",
+    "searchHistory": "검색 기록",
+    "model": "모델",
+    "selectModel": "모델 선택",
+    "goalMode": "목표 모드",
+    "forkBranch": "포크 브랜치",
+    "enabled": "활성화됨",
+    "remoteGateway": {
+      "unreachable": "원격 서버 {host}에 연결할 수 없습니다. 서버 주소를 확인하거나 로컬 모드로 전환하세요.",
+      "switchToLocal": "로컬 모드로 전환"
+    },
     "configLoadError": {
       "title": "구성을 불러오지 못했습니다",
       "description": "서비스에 연결할 수 없습니다. 백엔드가 실행 중인지 확인한 후 다시 시도해 주세요.",
@@ -7486,17 +7496,7 @@
       "description": "설정 상태가 갱신되는 동안에도 앱을 계속 사용할 수 있습니다.",
       "retry": "다시 확인"
     },
-    "searchHistory": "검색 기록",
-    "model": "모델",
-    "selectModel": "모델 선택",
-    "goalMode": "목표 모드",
-    "enabled": "활성화됨",
     "operationFailed": "작업 실패",
-    "forkBranch": "포크 브랜치",
-    "remoteGateway": {
-      "unreachable": "원격 서버 {host}에 연결할 수 없습니다. 서버 주소를 확인하거나 로컬 모드로 전환하세요.",
-      "switchToLocal": "로컬 모드로 전환"
-    },
     "crashRecovery": {
       "title": "서비스 사용 불가",
       "description": "여러 번 시도한 후에도 백엔드 서비스가 시작되지 않았습니다. 데이터는 디스크에 안전하게 저장되어 있습니다.",

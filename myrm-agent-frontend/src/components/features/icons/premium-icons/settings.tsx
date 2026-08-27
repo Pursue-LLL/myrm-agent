@@ -381,3 +381,15 @@ export const IconCalendar = ({ className }: IconProps) => (
     />
   </svg>
 );
+
+export const IconServer = ({ className }: IconProps) => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="1" y="2" width="13" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" />
+    <rect x="1" y="8.5" width="13" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" />
+    <circle cx="3.5" cy="4.25" r="0.75" fill="currentColor" />
+    <circle cx="3.5" cy="10.75" r="0.75" fill="currentColor" />
+    <line x1="11" y1="4.25" x2="12" y2="4.25" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    <line x1="11" y1="10.75" x2="12" y2="10.75" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+  </svg>
+);
+

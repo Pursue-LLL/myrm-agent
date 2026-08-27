@@ -14,9 +14,9 @@ from myrm_agent_harness.backends.skills.types import (
     SkillUsageStats,
 )
 
-from app.core.infra.health.agent_diagnostics import SkillHoardingHealthDiagnostic
 from app.core.infra.health.server_diagnostics import (
     ServerDiagnosticsManager,
+    SkillHoardingHealthDiagnostic,
     run_server_diagnostics,
 )
 

@@ -25,7 +25,7 @@ vi.mock('next-intl', () => ({
 
 describe('SystemFontPicker & getFontStack', () => {
   it('should generate correct CSS font stack for builtin and custom fonts', () => {
-    expect(getFontStack('inter')).toContain('Inter');
+    expect(getFontStack('inter')).toContain('--font-sans');
     expect(getFontStack('system')).toContain('ui-sans-serif');
     expect(getFontStack('JetBrains Mono')).toContain('"JetBrains Mono"');
     expect(getFontStack('Fira Code')).toContain('"Fira Code"');
@@ -50,18 +50,18 @@ describe('SystemFontPicker & getFontStack', () => {
     const input = screen.getByPlaceholderText('Or enter any local font name');
     const applyBtn = screen.getByText('Apply');
 
-    fireEvent.change(input, { target: { value: 'SF Mono' } });
+    fireEvent.change(input, { target: { value: 'SF Pro Text' } });
     fireEvent.click(applyBtn);
 
-    expect(onFontChange).toHaveBeenCalledWith('SF Mono');
+    expect(onFontChange).toHaveBeenCalledWith('SF Pro Text');
   });
 
   it('should show active custom font badge when custom font is selected', () => {
     const onFontChange = vi.fn();
-    render(<SystemFontPicker activeFontId="Monaco" onFontChange={onFontChange} />);
+    render(<SystemFontPicker activeFontId="SF Pro Text" onFontChange={onFontChange} />);
 
     expect(screen.getByText(/Active Custom Font/)).toBeInTheDocument();
-    expect(screen.getByText(/Monaco/)).toBeInTheDocument();
+    expect(screen.getByText(/SF Pro Text/)).toBeInTheDocument();
 
     const resetBtn = screen.getByText('Reset');
     fireEvent.click(resetBtn);
