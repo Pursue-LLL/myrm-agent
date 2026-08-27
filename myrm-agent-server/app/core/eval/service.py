@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.eval import (
     EvalRunner,
+    FleetEvalRunner,
     JsonlReporter,
     get_benchmark,
 )
@@ -113,7 +114,51 @@ def get_eval_status() -> dict[str, object]:
     return _eval_state.copy()
 
 
-_active_runner: EvalRunner | None = None
+def _load_completed_turn_results(reports_dir: Path) -> list[object]:
+    """Load previously completed turn results from latest.jsonl for resume."""
+    import json
+    latest_path = reports_dir / "latest.jsonl"
+    if not latest_path.exists():
+        return []
+    res = []
+    try:
+        from myrm_agent_harness.eval import AgentResponse, EvalCase, EvalTurnResult
+        with latest_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                data = json.loads(line)
+                if data.get("type") == "turn":
+                    case_data = data.get("case", {})
+                    resp_data = data.get("response", {})
+                    case = EvalCase(
+                        message=case_data.get("message", ""),
+                        expected_tools=case_data.get("expected_tools", []),
+                        metadata=case_data.get("metadata", {}),
+                    )
+                    resp = AgentResponse(
+                        answer=resp_data.get("answer", ""),
+                        tools_used=resp_data.get("tools_used", []),
+                        tool_calls_count=resp_data.get("tool_calls_count", 0),
+                        cost=resp_data.get("cost", 0.0),
+                        token_usage=resp_data.get("token_usage", {}),
+                    )
+                    turn_res = EvalTurnResult(
+                        case=case,
+                        response=resp,
+                        assertion_passed=data.get("passed"),
+                        assertion_details=data.get("assertion_details"),
+                        scores=data.get("scores", {}),
+                        error=data.get("error"),
+                    )
+                    res.append(turn_res)
+    except Exception as exc:
+        logger.warning("Failed to load completed turn results from %s: %s", latest_path, exc)
+    return res
+
+
+_active_runner: EvalRunner | FleetEvalRunner | None = None
 
 
 def abort_eval() -> bool:
