@@ -162,6 +162,13 @@ def _check_edge_tts_installed() -> bool:
     return is_edge_tts_available()
 
 
+def _check_local_tts_installed() -> bool:
+    """Check if fully offline local Piper TTS is importable."""
+    from app.channels.voice.tts import is_local_tts_available
+
+    return is_local_tts_available()
+
+
 def _get_tokenizer_backend() -> str:
     """Return the active tokenizer backend name (jieba or bigram_fallback)."""
     try:
@@ -209,6 +216,7 @@ async def system_info() -> dict[str, object]:
         "reranker": get_reranker_mode().value,
         "local_stt_available": _check_local_stt_installed(),
         "edge_tts_available": _check_edge_tts_installed(),
+        "local_tts_available": _check_local_tts_installed(),
         "tokenizer_backend": _get_tokenizer_backend(),
     }
 

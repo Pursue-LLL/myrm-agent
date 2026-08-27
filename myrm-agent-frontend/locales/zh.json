@@ -7874,6 +7874,26 @@
       "unknownError": "发生未知错误",
       "streamingBlocked": "Agent 回复中，无法创建分支"
     },
+    "deliveryContracts": {
+      "title": "五合同交付生命周期",
+      "allSatisfied": "全部契约已达成",
+      "refresh": "刷新契约状态",
+      "noSummary": "阶段执行中...",
+      "phases": {
+        "task_intent": "任务意图契约",
+        "scene_environment": "现场环境契约",
+        "action_execution": "动作执行契约",
+        "delivery_artifact": "交付物契约",
+        "acceptance_verification": "验收核验契约"
+      },
+      "status": {
+        "pending": "等待中",
+        "inProgress": "执行中",
+        "satisfied": "已达成",
+        "violated": "未通过",
+        "waitingApproval": "待审批"
+      }
+    },
     "snapshot": {
       "createdTitle": "已创建系统快照",
       "createdMessage": {
