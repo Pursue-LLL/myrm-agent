@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -25,7 +24,6 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     prepare_e2e_ui_session,
-    warm_ui_route,
 )
 from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 

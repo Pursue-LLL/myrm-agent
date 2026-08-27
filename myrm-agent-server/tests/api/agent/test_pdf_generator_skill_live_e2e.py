@@ -10,16 +10,13 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 import sys
 import tempfile
-import uuid
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from myrm_agent_harness.toolkits.storage.paths import get_skill_metadata_path
 from myrm_agent_harness.toolkits.storage.types import SkillType

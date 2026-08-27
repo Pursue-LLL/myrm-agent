@@ -487,6 +487,7 @@ async def build_general_agent(
 
     if agent_wrapper.prompt_mode == "search" and getattr(agent_wrapper, "search_depth", "normal") == "deep":
         from myrm_agent_harness.utils.locale import is_chinese
+
         from app.ai_agents.prompts.general_agent_prompt import (
             SEARCH_DEEP_SUFFIX,
             SEARCH_DEEP_SUFFIX_ZH,
