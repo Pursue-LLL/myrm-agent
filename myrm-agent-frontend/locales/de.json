@@ -7445,6 +7445,15 @@
     "loadHistoryError": "Der Chatverlauf konnte nicht geladen werden",
     "retry": "Wiederholen",
     "notConfigured": "Nicht konfiguriert",
+    "model": "Modell",
+    "selectModel": "Wählen Sie Modell aus",
+    "goalMode": "Zielmodus",
+    "forkBranch": "Gabelzweig",
+    "enabled": "Ermöglicht",
+    "remoteGateway": {
+      "unreachable": "Der Remote-Server {host} ist nicht erreichbar. Überprüfen Sie die Serveradresse oder wechseln Sie zurück in den lokalen Modus.",
+      "switchToLocal": "Wechseln Sie in den lokalen Modus"
+    },
     "configLoadError": {
       "title": "Konfiguration konnte nicht geladen werden",
       "description": "Verbindung zum Service nicht möglich. Bitte prüfen Sie, ob das Backend läuft, und versuchen Sie es erneut.",
@@ -7458,17 +7467,7 @@
       "description": "Sie können die App weiter nutzen, während der Konfigurationsstatus aktualisiert wird.",
       "retry": "Erneut prüfen"
     },
-    "searchHistory": "Suchverlauf",
-    "model": "Modell",
-    "selectModel": "Wählen Sie Modell aus",
-    "goalMode": "Zielmodus",
-    "enabled": "Ermöglicht",
     "operationFailed": "Vorgang fehlgeschlagen",
-    "forkBranch": "Gabelzweig",
-    "remoteGateway": {
-      "unreachable": "Der Remote-Server {host} ist nicht erreichbar. Überprüfen Sie die Serveradresse oder wechseln Sie zurück in den lokalen Modus.",
-      "switchToLocal": "Wechseln Sie in den lokalen Modus"
-    },
     "crashRecovery": {
       "title": "Dienst nicht verfügbar",
       "description": "Der Backend-Dienst konnte nach mehreren Versuchen nicht gestartet werden. Ihre Daten sind auf der Festplatte sicher.",

@@ -7674,6 +7674,16 @@
     "clickToVisitLink": "點選訪問連結",
     "agentBrowse": "Agent瀏覽",
     "agentBrowsePrompt": "請在瀏覽器中開啟並分析這個連結: {url}",
+    "relativeDate": {
+      "justNow": "剛剛",
+      "minutesAgo": "{count}分鐘前",
+      "hoursAgo": "{count}小時前",
+      "today": "今天",
+      "yesterday": "昨天",
+      "daysAgo": "{count}天前",
+      "weeksAgo": "{count}周前",
+      "monthsAgo": "{count}月前"
+    },
     "previous": "上一頁",
     "next": "下一頁",
     "loading": "載入中...",
