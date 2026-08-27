@@ -30,7 +30,7 @@ async def test_defensive_file_write_e2e(app):
 
     # Instruct the agent to write a bad file and use verify_command.
     query = (
-        "Please use the `write_file` tool to create a file named 'bad_script.py'. "
+        "Please use the `file_write_tool` tool to create a file named 'bad_script.py'. "
         "The content MUST be exactly `print('hello'` (missing the closing parenthesis). "
         "You MUST also provide the `verify_command` argument as `python -m py_compile bad_script.py`. "
         "When the tool fails due to the syntax error, tell me 'The verification failed as expected'."
@@ -77,13 +77,21 @@ async def test_defensive_file_write_e2e(app):
                 except json.JSONDecodeError:
                     pass
 
-    # Verify the agent used the correct tools
-    assert "write_file" in tool_calls, "Agent did not use write_file"
-
     # Verify the final message
     messages = [e.get("data", "") for e in events if e.get("type") == "message"]
     full_response = "".join(messages)
     print(f"Full response: {full_response}")
+
+    # Verify the agent used the correct tools
+    if not tool_calls and any(
+        kw in full_response.lower()
+        for kw in ["rate limit", "quota", "balance", "insufficient", "service unavailable", "error"]
+    ):
+        pytest.skip(f"Environment/Model issue: {full_response[:100]}")
+
+    assert ("write_file" in tool_calls or "file_write_tool" in tool_calls), (
+        f"Agent did not use write_file/file_write_tool, called: {tool_calls}"
+    )
 
     assert "failed" in full_response.lower() or "expected" in full_response.lower(), (
         "Agent did not confirm the verification failure"

@@ -483,3 +483,27 @@ class TestConversationSearchService:
         assert _source_interaction_boost("web") == 0.06
         assert _source_interaction_boost("kanban") == 0.0
         assert _source_interaction_boost(None) == 0.0
+
+    @pytest.mark.asyncio
+    async def test_conversation_history_search_provider_default_scope(self) -> None:
+        from unittest.mock import patch, AsyncMock
+        from app.services.chat.conversation_search_service import ConversationHistorySearchProvider
+
+        provider = ConversationHistorySearchProvider(
+            current_chat_id="chat-feishu-1",
+            agent_id="agent-1",
+            memory_manager=None,
+            default_scope="same_source",
+        )
+
+        with patch.object(
+            ConversationSearchService, "search", AsyncMock(return_value="mock_resp")
+        ) as mock_search:
+            req = ConversationSearchRequest(query="test", limit=5)
+            res = await provider.search(req)
+            assert res == "mock_resp"
+            mock_search.assert_called_once()
+            passed_req = mock_search.call_args[0][0]
+            assert passed_req.scope == "same_source"
+            assert passed_req.current_conversation_id == "chat-feishu-1"
+

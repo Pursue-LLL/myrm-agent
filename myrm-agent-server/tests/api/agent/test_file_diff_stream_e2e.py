@@ -32,13 +32,14 @@ async def test_file_diff_stream_e2e(app) -> None:
     test_file.write_text("line1\nline2\nline3\n")
 
     # The query asks the agent to modify the file (relative path is enough)
-    query = "Please replace 'line2' with 'modified_line2' in the file test_diff.txt. Do not do anything else."
+    query = "First use file_read_tool to read test_diff.txt, then replace 'line2' with 'modified_line2' in test_diff.txt using file_edit_tool. Do not do anything else."
 
     request_data = {
         "messageId": f"test-diff-msg-{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
         "query": query,
         "modelSelection": get_model_selection(),
+        "actionMode": "agent",
     }
 
     file_diff_events = []
@@ -59,6 +60,10 @@ async def test_file_diff_stream_e2e(app) -> None:
                     event = json.loads(data_str)
                     if event.get("type") == "file_diff":
                         file_diff_events.append(event)
+                    elif event.get("type") == "error":
+                        err_msg = str(event.get("error", ""))
+                        if any(kw in err_msg.lower() for kw in ["quota", "rate limit", "balance", "insufficient"]):
+                            pytest.skip(f"Environment/Model issue: {err_msg}")
                 except json.JSONDecodeError:
                     continue
 

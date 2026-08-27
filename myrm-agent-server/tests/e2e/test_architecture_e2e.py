@@ -97,7 +97,7 @@ async def test_architecture_features(ephemeral_server: str):
         manager_payload = {
             "name": "Manager",
             "description": "Delegates to the translator.",
-            "system_prompt": f"You are a manager. You MUST IMMEDIATELY call the `delegate_task_tool` to delegate the translation task to the agent with type '{translator_id}'. Pass the text to translate as the 'task' parameter, and set 'wait' to true. Do NOT search for skills. Do NOT translate it yourself. Just call the `delegate_task_tool`.",
+            "system_prompt": f"You are a manager. You MUST IMMEDIATELY call the `delegate_task_tool` to delegate the translation task to the agent with type '{translator_id}'. Pass the text to translate as the 'objective' parameter, and set 'wait' to true. Do NOT search for skills. Do NOT translate it yourself. Just call the `delegate_task_tool`.",
             "is_built_in": False,
         }
         resp = await client.post("/api/v1/user-agents", json=manager_payload)

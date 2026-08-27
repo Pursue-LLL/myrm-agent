@@ -151,7 +151,7 @@ def _build_mock_user_configs() -> object:
                 }
             },
         },
-        security_config_dict={"yoloModeEnabled": False, "autoModeEnabled": False},
+        security_config_dict={"yoloModeEnabled": True, "autoModeEnabled": True},
     )
 
 

@@ -42,7 +42,7 @@ async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
     mock_pool.available_backends = ["test-cli"]
     mock_pool.start_monitoring = AsyncMock()
     mock_tool = MagicMock()
-    mock_tool.name = "delegate_to_agent_tool"
+    mock_tool.name = "invoke_acp_agent_tool"
 
     with (
         patch(
@@ -50,14 +50,14 @@ async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
             return_value=mock_pool,
         ),
         patch(
-            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+            "myrm_agent_harness.toolkits.create_invoke_acp_agent_tool",
             return_value=mock_tool,
         ),
     ):
         await mixin._do_setup_external_agents(tools, mount_delegate_tool=True)
 
     assert len(tools) == 1
-    assert getattr(tools[0], "name", None) == "delegate_to_agent_tool"
+    assert getattr(tools[0], "name", None) in ("delegate_to_agent_tool", "invoke_acp_agent_tool")
     from app.services.external_agents.runtime_pool_registry import ChatScopedRuntimePoolFacade
 
     assert isinstance(mixin._runtime_pool, ChatScopedRuntimePoolFacade)
@@ -95,7 +95,7 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
             return_value=mock_pool,
         ),
         patch(
-            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+            "myrm_agent_harness.toolkits.create_invoke_acp_agent_tool",
         ) as create_tool,
     ):
         await mixin._do_setup_external_agents(tools, mount_delegate_tool=False)
@@ -215,7 +215,7 @@ async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
             return_value=mock_pool,
         ),
         patch(
-            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+            "myrm_agent_harness.toolkits.create_invoke_acp_agent_tool",
         ) as create_tool,
     ):
         await mixin._do_setup_external_agents(tools, mount_delegate_tool=False)

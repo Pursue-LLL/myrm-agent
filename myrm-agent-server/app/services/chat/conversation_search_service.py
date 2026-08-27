@@ -77,15 +77,20 @@ class ConversationHistorySearchProvider:
         current_chat_id: str | None,
         agent_id: str | None,
         memory_manager: MemoryManager | None,
+        default_scope: str | None = None,
     ) -> None:
         self._current_chat_id = current_chat_id
         self._agent_id = agent_id
         self._memory_manager = memory_manager
+        self._default_scope = default_scope
 
     async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
-        effective = request.model_copy(
-            update={"current_conversation_id": request.current_conversation_id or self._current_chat_id}
-        )
+        updates: dict[str, object] = {
+            "current_conversation_id": request.current_conversation_id or self._current_chat_id
+        }
+        if self._default_scope:
+            updates["scope"] = self._default_scope
+        effective = request.model_copy(update=updates)
         return await ConversationSearchService.search(
             effective,
             agent_id=self._agent_id,

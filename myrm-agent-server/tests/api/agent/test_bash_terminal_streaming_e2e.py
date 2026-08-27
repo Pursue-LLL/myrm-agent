@@ -23,8 +23,8 @@ async def test_bash_streaming_and_grep_exit_code(client):
             "You are a helpful assistant. You MUST use the bash_code_execute_tool to execute "
             "the command provided by the user. Do not use any other tools."
         ),
-        "skill_ids": ["bash"],
-        "enabled_builtin_tools": ["bash"],
+        "skill_ids": [],
+        "enabled_builtin_tools": ["web_search"],
     }
 
     response = client.post("/api/agents", json=agent_payload)

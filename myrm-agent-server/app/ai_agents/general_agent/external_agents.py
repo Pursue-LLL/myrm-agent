@@ -177,17 +177,17 @@ class ExternalAgentsMixin:
             self._runtime_pool = pool
 
             if mount_delegate_tool:
-                from myrm_agent_harness.toolkits import create_delegate_to_agent_tool
+                from myrm_agent_harness.toolkits import create_invoke_acp_agent_tool
 
                 chat_scope = _runtime_pool_scope_id(self)
-                delegate_tool = create_delegate_to_agent_tool(
+                delegate_tool = create_invoke_acp_agent_tool(
                     pool,
                     cwd=delegate_cwd,
                     session_scope=chat_scope,
                 )
                 tools.append(delegate_tool)
                 logger.info(
-                    "delegate_to_agent loaded (%d backends) [Turn1]",
+                    "invoke_acp_agent loaded (%d backends) [Turn1]",
                     len(pool.available_backends),
                 )
             else:
