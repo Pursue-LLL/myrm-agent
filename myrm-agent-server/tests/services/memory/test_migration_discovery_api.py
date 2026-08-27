@@ -63,6 +63,7 @@ class TestDiscoveryEndpointLocalMode:
             "chatgpt",
             "gbrain",
             "pi",
+            "plur",
         }
 
     def test_discover_with_hermes_data(self, client: TestClient, tmp_path: Path) -> None:
