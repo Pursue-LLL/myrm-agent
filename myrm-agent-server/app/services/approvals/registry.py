@@ -266,6 +266,14 @@ class ApprovalRegistry:
             return record
 
     @classmethod
+    async def get_approval(cls, approval_id: str) -> ApprovalRecord | None:
+        """Fetch an approval record by its ID."""
+        async with get_session() as db:
+            stmt = select(ApprovalRecord).where(ApprovalRecord.id == approval_id)
+            result = await db.execute(stmt)
+            return result.scalar_one_or_none()
+
+    @classmethod
     async def count_pending_for_chat(cls, chat_id: str) -> int:
         if not chat_id.strip():
             return 0

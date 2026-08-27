@@ -12,8 +12,8 @@ from app.services.approvals.registry import ApprovalRegistry
 @pytest.mark.asyncio
 async def test_batch_resolve_safe_items_succeeds(client: AsyncClient):
     rec1 = ApprovalRecord(
-        approval_id="appr-safe-1",
-        user_id="user1",
+        id="appr-safe-1",
+        agent_id="agent1",
         action_type="file_read",
         status="PENDING",
         severity="info",
@@ -21,8 +21,8 @@ async def test_batch_resolve_safe_items_succeeds(client: AsyncClient):
         payload={"tool_name": "read_file"},
     )
     rec2 = ApprovalRecord(
-        approval_id="appr-safe-2",
-        user_id="user1",
+        id="appr-safe-2",
+        agent_id="agent1",
         action_type="web_search",
         status="PENDING",
         severity="low",
@@ -53,8 +53,8 @@ async def test_batch_resolve_safe_items_succeeds(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_batch_resolve_high_risk_blocked_with_409(client: AsyncClient):
     rec_safe = ApprovalRecord(
-        approval_id="appr-safe-1",
-        user_id="user1",
+        id="appr-safe-1",
+        agent_id="agent1",
         action_type="file_read",
         status="PENDING",
         severity="info",
@@ -62,8 +62,8 @@ async def test_batch_resolve_high_risk_blocked_with_409(client: AsyncClient):
         payload={"tool_name": "read_file"},
     )
     rec_high = ApprovalRecord(
-        approval_id="appr-high-1",
-        user_id="user1",
+        id="appr-high-1",
+        agent_id="agent1",
         action_type="system_reboot",
         status="PENDING",
         severity="critical",
@@ -82,7 +82,7 @@ async def test_batch_resolve_high_risk_blocked_with_409(client: AsyncClient):
         )
         assert response.status_code == 409
         data = response.json()
-        assert data["detail"]["code"] == "HIGH_RISK_BATCH_CONFIRMATION_REQUIRED"
+        assert data["detail"]["error"] == "BATCH_HIGH_RISK_CONFIRMATION_REQUIRED"
         assert data["detail"]["high_risk_count"] == 1
         assert data["detail"]["safe_count"] == 1
         assert len(data["detail"]["high_risk_items"]) == 1
@@ -92,8 +92,8 @@ async def test_batch_resolve_high_risk_blocked_with_409(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_batch_resolve_high_risk_with_explicit_confirm(client: AsyncClient):
     rec_high = ApprovalRecord(
-        approval_id="appr-high-1",
-        user_id="user1",
+        id="appr-high-1",
+        agent_id="agent1",
         action_type="delete_file",
         status="PENDING",
         severity="high",
@@ -127,8 +127,8 @@ async def test_batch_resolve_high_risk_with_explicit_confirm(client: AsyncClient
 @pytest.mark.asyncio
 async def test_batch_resolve_safe_only_mode(client: AsyncClient):
     rec_safe = ApprovalRecord(
-        approval_id="appr-safe-1",
-        user_id="user1",
+        id="appr-safe-1",
+        agent_id="agent1",
         action_type="file_read",
         status="PENDING",
         severity="info",
@@ -136,8 +136,8 @@ async def test_batch_resolve_safe_only_mode(client: AsyncClient):
         payload={"tool_name": "read_file"},
     )
     rec_high = ApprovalRecord(
-        approval_id="appr-high-1",
-        user_id="user1",
+        id="appr-high-1",
+        agent_id="agent1",
         action_type="delete_file",
         status="PENDING",
         severity="high",
