@@ -3629,7 +3629,9 @@
         "hollowBlockedBadge": "空洞測試已攔截",
         "verificationProofTitle": "沙箱膠囊驗證憑證 (Verified Capsule Proof)",
         "blastRadius": "影響範圍: {files} 檔案, {lines} 行",
-        "noVerificationProof": "暫無沙箱實測驗證憑證"
+        "noVerificationProof": "暫無沙箱實測驗證憑證",
+        "targetLayer": "架構層：{layer}",
+        "targetPathology": "病理特徵：{pathology}"
       },
       "upload": {
         "title": "上傳自定義技能",
@@ -9469,21 +9471,45 @@
     "title": "記憶管理",
     "description": "管理 AI 從對話中學習到的記憶",
     "scopeHierarchy": {
-      "cardTitle": "記憶作用域層級",
-      "cardSubtitle": "跨會話、任務、智慧體與全域四層作用域管理記憶可見性",
-      "fourTiersBadge": "四級隔離",
-      "selected": "當前生效"
+      "cardTitle": "記憶作用域層級圖譜",
+      "cardSubtitle": "智能體長效知識的生命週期與邊界隔離視覺化管理",
+      "fourTiersBadge": "四級統一作用域",
+      "selected": "已選擇",
+      "task": {
+        "title": "任務作用域",
+        "tag": "TASK",
+        "lifecycle": "單次任務執行期",
+        "desc": "臨時工作集與中間推理推導，任務執行完成後自動釋放。"
+      },
+      "conversation": {
+        "title": "對話作用域",
+        "tag": "CONVERSATION",
+        "lifecycle": "當前對話會話期",
+        "desc": "對話工作上下文與會話目標，在當前完整對話生命週期內持續有效。"
+      },
+      "agent": {
+        "title": "智能體作用域",
+        "tag": "AGENT",
+        "lifecycle": "智能體專屬綁定",
+        "desc": "特定智能體的專屬技能、專屬指令、領域知識與業務習慣，跨對話生效。"
+      },
+      "global": {
+        "title": "全域作用域",
+        "tag": "GLOBAL",
+        "lifecycle": "通用永久有效",
+        "desc": "個人核心偏好、通用編碼習慣、語言風格與全域規範，對所有智能體永久生效。"
+      }
     },
     "scopePicker": {
-      "label": "記憶作用域",
-      "sessionLabel": "會話級",
-      "sessionHint": "僅限當前單次對話",
-      "taskLabel": "任務 / CWD",
-      "taskHint": "當前綁定的專案工作區",
-      "agentLabel": "智慧體級",
-      "agentHint": "當前智慧體專屬",
-      "globalLabel": "全域共享",
-      "globalHint": "跨所有對話與智慧體共享"
+      "label": "記憶作用域級別",
+      "taskLabel": "任務級",
+      "conversationLabel": "對話級",
+      "agentLabel": "智能體級",
+      "globalLabel": "全域級",
+      "taskHint": "僅在當前任務步驟內有效",
+      "conversationHint": "僅在當前對話會話內有效",
+      "agentHint": "隨當前智能體跨對話長期生效",
+      "globalHint": "對所有智能體與對話永久全域生效"
     },
     "pending": "待確認記憶",
     "pendingCount": "{count} 條待確認",
@@ -10946,48 +10972,7 @@
     "confidenceLow": "待核驗",
     "extractionReason": "提取依據",
     "validPermanent": "長期有效",
-    "manualReviewRequired": "需人工確認 · 永不自動覆蓋",
-    "scopeHierarchy": {
-      "cardTitle": "記憶作用域層級圖譜",
-      "cardSubtitle": "智能體長效知識的生命週期與邊界隔離視覺化管理",
-      "fourTiersBadge": "四級統一作用域",
-      "selected": "已選擇",
-      "task": {
-        "title": "任務作用域",
-        "tag": "TASK",
-        "lifecycle": "單次任務執行期",
-        "desc": "臨時工作集與中間推理推導，任務執行完成後自動釋放。"
-      },
-      "conversation": {
-        "title": "對話作用域",
-        "tag": "CONVERSATION",
-        "lifecycle": "當前對話會話期",
-        "desc": "對話工作上下文與會話目標，在當前完整對話生命週期內持續有效。"
-      },
-      "agent": {
-        "title": "智能體作用域",
-        "tag": "AGENT",
-        "lifecycle": "智能體專屬綁定",
-        "desc": "特定智能體的專屬技能、專屬指令、領域知識與業務習慣，跨對話生效。"
-      },
-      "global": {
-        "title": "全域作用域",
-        "tag": "GLOBAL",
-        "lifecycle": "通用永久有效",
-        "desc": "個人核心偏好、通用編碼習慣、語言風格與全域規範，對所有智能體永久生效。"
-      }
-    },
-    "scopePicker": {
-      "label": "記憶作用域級別",
-      "taskLabel": "任務級",
-      "conversationLabel": "對話級",
-      "agentLabel": "智能體級",
-      "globalLabel": "全域級",
-      "taskHint": "僅在當前任務步驟內有效",
-      "conversationHint": "僅在當前對話會話內有效",
-      "agentHint": "隨當前智能體跨對話長期生效",
-      "globalHint": "對所有智能體與對話永久全域生效"
-    }
+    "manualReviewRequired": "需人工確認 · 永不自動覆蓋"
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",

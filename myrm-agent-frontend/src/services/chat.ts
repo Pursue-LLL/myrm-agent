@@ -1407,3 +1407,27 @@ export const createChatShare = async (
 export const revokeChatShare = async (chatId: string): Promise<void> => {
   await apiRequest(`/chats/${chatId}/share`, { method: 'DELETE' });
 };
+
+// ── 5-Contract Delivery Status ────────────────────────────────────
+
+export interface PhaseContractRecord {
+  phase: string;
+  status: 'pending' | 'in_progress' | 'satisfied' | 'violated' | 'waiting_approval';
+  summary: string;
+  evidence?: string[];
+  progress_pct: number;
+  details?: Record<string, unknown>;
+}
+
+export interface FiveContractSnapshotResponse {
+  contracts: Record<string, PhaseContractRecord>;
+  current_phase: string;
+  overall_progress_pct: number;
+  is_fully_satisfied: boolean;
+  has_violations: boolean;
+}
+
+export const getChatDeliveryContracts = async (chatId: string): Promise<FiveContractSnapshotResponse> => {
+  return apiRequest<FiveContractSnapshotResponse>(`/chats/${chatId}/delivery-contracts`);
+};
+

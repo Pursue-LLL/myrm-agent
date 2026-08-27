@@ -45,6 +45,7 @@ _DEFAULT_BASE_URLS: dict[str, str] = {
     "elevenlabs": "https://api.elevenlabs.io",
     "fish_audio": "https://api.fish.audio/v1",
     "minimax": "https://api.minimax.io/v1",
+    "voicebox": "http://127.0.0.1:8000",
 }
 
 _DEFAULT_VOICES: dict[str, str] = {
@@ -53,17 +54,14 @@ _DEFAULT_VOICES: dict[str, str] = {
     "fish_audio": "7f92f8afb8ec43bf81429cc1c9199cb1",
     "minimax": "English_expressive_narrator",
     "edge": "en-US-MichelleNeural",
+    "piper": "en_US-lessac-medium",
+    "voicebox": "default",
 }
 
 
 def _resolve_base_url(config: VoiceConfig, provider: str) -> str:
-    """Resolve the API base URL: config override (OpenAI only) > provider default.
-
-    Custom base URL only applies to OpenAI provider since compatible endpoints
-    (Kokoro, LocalAI, Azure) all follow the OpenAI API contract.
-    Other providers have proprietary APIs with no compatible alternatives.
-    """
-    if provider == "openai" and config.tts_base_url:
+    """Resolve the API base URL: config override (OpenAI & Voicebox) > provider default."""
+    if provider in ("openai", "voicebox") and config.tts_base_url:
         return config.tts_base_url.rstrip("/")
     return _DEFAULT_BASE_URLS.get(provider, "")
 
@@ -73,6 +71,24 @@ _TTS_TIMEOUT = 30.0
 _STREAM_CHUNK_SIZE = 4096
 _EDGE_TTS_INSTALL_HINT = "uv sync --extra voice-tts"
 EDGE_TTS_INSTALL_HINT = _EDGE_TTS_INSTALL_HINT
+
+
+_PIPER_INSTALL_HINT = "uv sync --extra voice-tts-local"
+PIPER_INSTALL_HINT = _PIPER_INSTALL_HINT
+
+
+def is_piper_available() -> bool:
+    """Return whether the optional local Piper TTS engine is installed."""
+    try:
+        import piper  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def is_local_tts_available() -> bool:
+    """Return whether any fully offline local TTS provider (Piper) is available."""
+    return is_piper_available()
 
 
 def is_edge_tts_available() -> bool:
@@ -282,6 +298,22 @@ async def _synthesize_api(text: str, config: VoiceConfig, provider: str, output_
         if not audio_hex:
             raise ValueError("MiniMax TTS returned empty audio")
         return _write_temp(bytes.fromhex(audio_hex), ".mp3")
+
+    if provider == "voicebox":
+        base_url = _resolve_base_url(config, "voicebox")
+        url = f"{base_url}/tts"
+        body = {
+            "text": text,
+            "voice": config.tts_voice or _DEFAULT_VOICES["voicebox"],
+            "speed": config.tts_speed,
+        }
+        async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+            resp = await client.post(url, json=body)
+            resp.raise_for_status()
+            return _write_temp(resp.content, ".mp3")
+
+    if provider == "piper":
+        return await _synthesize_piper(text, config)
 
     logger.warning("TTS: unknown provider '%s', falling back to edge", provider)
     raise ValueError(f"Unknown provider: {provider}")

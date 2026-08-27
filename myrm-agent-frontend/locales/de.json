@@ -3379,7 +3379,9 @@
         "hollowBlockedBadge": "Hohltest blockiert",
         "verificationProofTitle": "Sandbox-Kapsel-Verifizierungsnachweis",
         "blastRadius": "Auswirkungsbereich: {files} Datei(en), {lines} Zeile(n)",
-        "noVerificationProof": "Kein Sandbox-Verifizierungsnachweis verfügbar"
+        "noVerificationProof": "Kein Sandbox-Verifizierungsnachweis verfügbar",
+        "targetLayer": "Schicht: {layer}",
+        "targetPathology": "Pathologie: {pathology}"
       },
       "draft": {
         "reviewPanelTitle": "Ausstehende Entwürfe",

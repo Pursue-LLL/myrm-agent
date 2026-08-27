@@ -3379,7 +3379,9 @@
         "hollowBlockedBadge": "빈 테스트 차단됨",
         "verificationProofTitle": "샌드박스 캡슐 검증 증명",
         "blastRadius": "영향 범위: {files}개 파일, {lines}줄",
-        "noVerificationProof": "샌드박스 검증 증명이 없습니다"
+        "noVerificationProof": "샌드박스 검증 증명이 없습니다",
+        "targetLayer": "대상 계층: {layer}",
+        "targetPathology": "병리 특성: {pathology}"
       },
       "draft": {
         "reviewPanelTitle": "대기 중인 초안",

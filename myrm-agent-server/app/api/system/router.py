@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from myrm_agent_harness.utils import get_local_ip
 from pydantic import BaseModel
 
@@ -230,7 +230,7 @@ async def export_support_debug_bundle(
 ) -> Response:
     """Generate and download a self-contained, fully redacted diagnostic ZIP bundle for support."""
     from datetime import datetime, timezone
-    from fastapi import Response
+
     from app.services.system.support_bundle_service import SupportBundleService
 
     try:

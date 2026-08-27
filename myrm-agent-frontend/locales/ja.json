@@ -3629,7 +3629,9 @@
         "hollowBlockedBadge": "空洞テストをブロックしました",
         "verificationProofTitle": "サンドボックスカプセル検証証明",
         "blastRadius": "影響範囲: {files} ファイル, {lines} 行",
-        "noVerificationProof": "サンドボックス検証証明はありません"
+        "noVerificationProof": "サンドボックス検証証明はありません",
+        "targetLayer": "対象層: {layer}",
+        "targetPathology": "病理特性: {pathology}"
       },
       "upload": {
         "title": "カスタムスキルをアップロード",
@@ -6837,9 +6839,9 @@
     "moaOverlayPrivacyOff": "オフ",
     "moaOverlayPrivacyDisplay": "表示のみ（UI編集）",
     "moaOverlayPrivacyFull": "フル（UI + プロンプト編集）",
-    "moaOverlayAutoReasoningTitle": "推論層での自動有効化",
-    "moaOverlayAutoReasoningDesc": "スマートルーティングがタスクを推論層と判定した際に、MoAアドバイザーを自動的に有効化します。通常のタスクは単一モデルによる高速実行を維持します。",
     "moaOverlayNoModels": "参照モデルが選択されていません — オーバーレイはスキップされます（フォールバックなし）",
+    "moaOverlayAutoReasoningTitle": "推論層での自動有効化",
+    "moaOverlayAutoReasoningDesc": "スマートルーティングがタスクを推論層（REASONING）と判定した際に、MoAアドバイザーを自動的に有効化します。通常のタスクは単一モデルによる高速実行を維持します。",
     "consensusPrivacy": "参照機密フィルター",
     "consensusPrivacyOff": "オフ",
     "consensusPrivacyDisplay": "表示のみ（UI編集）",

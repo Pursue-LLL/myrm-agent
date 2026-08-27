@@ -244,9 +244,9 @@ export default function SkillGrowthCaseCard({
             {item.targetLayer && (
               <Badge
                 variant="outline"
-                className="text-[11px] font-mono uppercase bg-indigo-50/50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
+                className="text-[11px] font-mono bg-indigo-50/50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
               >
-                Layer: {item.targetLayer}
+                {t('targetLayer', { layer: item.targetLayer })}
               </Badge>
             )}
             {item.targetPathology && (
@@ -254,7 +254,7 @@ export default function SkillGrowthCaseCard({
                 variant="outline"
                 className="text-[11px] font-mono bg-purple-50/50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border-purple-200 dark:border-purple-800"
               >
-                {item.targetPathology}
+                {t('targetPathology', { pathology: item.targetPathology })}
               </Badge>
             )}
             {item.verificationProof?.hollow_detected && (

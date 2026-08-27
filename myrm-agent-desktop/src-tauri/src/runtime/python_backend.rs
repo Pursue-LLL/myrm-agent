@@ -23,6 +23,7 @@ use uuid::Uuid;
 
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::setup_token::SetupTokenState;
+use crate::runtime::sidecar_version_manager::SidecarVersionManager;
 use crate::runtime::survivor_diag::{diagnose_and_reclaim_port, SurvivorDiagResult};
 use crate::runtime::TOXIC_ENV_VARS;
 use crate::utils::process_tree::kill_process_tree;
@@ -95,7 +96,7 @@ pub async fn start_backend_with_config(
 
     let is_dev = cfg!(debug_assertions);
 
-    let mut cmd = if is_dev {
+    let (mut cmd, target_version) = if is_dev {
         println!("🔧 Development mode: Using Python interpreter");
 
         let tauri_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
@@ -136,34 +137,42 @@ pub async fn start_backend_with_config(
 
         let mut cmd = Command::new(python_exe);
         cmd.arg(run_script).current_dir(&server_root);
-        cmd
+        (cmd, None)
     } else {
-        println!("📦 Production mode: Using packaged binary");
+        println!("📦 Production mode: Resolving Sidecar via SidecarVersionManager");
 
         let binary_name = if cfg!(target_os = "windows") {
             "binaries/myrmagent-backend.exe"
         } else {
             "binaries/myrmagent-backend"
         };
-        let sidecar_path = app
+        let factory_bundle_path = app
             .path()
             .resolve(binary_name, tauri::path::BaseDirectory::Resource)
             .map_err(|e| format!("Failed to resolve sidecar path: {}", e))?;
 
-        println!("📦 Sidecar path: {:?}", sidecar_path);
+        let app_data_dir = app
+            .path()
+            .app_data_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."));
 
-        let sidecar_len = std::fs::metadata(&sidecar_path)
+        let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
+        let (launch_binary, active_version) = version_manager.resolve_launch_binary();
+
+        println!("📦 Resolved launch Sidecar binary: {:?} (Version: {:?})", launch_binary, active_version);
+
+        let sidecar_len = std::fs::metadata(&launch_binary)
             .map(|meta| meta.len())
             .unwrap_or(0);
         if sidecar_len == 0 {
             return Err(format!(
                 "Backend sidecar binary is missing or empty at {:?}. \
                  Build it with: python myrm-agent-desktop/sidecar/build.py",
-                sidecar_path
+                launch_binary
             ));
         }
 
-        Command::new(sidecar_path)
+        (Command::new(launch_binary), active_version)
     };
 
     for var in TOXIC_ENV_VARS {
@@ -232,6 +241,26 @@ pub async fn start_backend_with_config(
         match check_health_with_port(config.port).await {
             Ok(true) => {
                 println!("✅ Backend is healthy after {} attempts", i + 1);
+
+                // 在发布模式下，标记该版本健康并晋升为 last_known_good
+                if !is_dev {
+                    let app_data_dir = app
+                        .path()
+                        .app_data_dir()
+                        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                    let binary_name = if cfg!(target_os = "windows") {
+                        "binaries/myrmagent-backend.exe"
+                    } else {
+                        "binaries/myrmagent-backend"
+                    };
+                    let factory_bundle_path = app
+                        .path()
+                        .resolve(binary_name, tauri::path::BaseDirectory::Resource)
+                        .unwrap_or_default();
+                    let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
+                    let _ = version_manager.mark_version_healthy(target_version.as_deref());
+                }
+
                 return Ok("Backend started and healthy".to_string());
             }
             _ => continue,
@@ -241,8 +270,33 @@ pub async fn start_backend_with_config(
     {
         let mut process_guard = backend.process.lock().unwrap();
         if let Some(mut child) = process_guard.take() {
+            let pid = child.id();
+            kill_process_tree(pid);
             let _ = child.kill();
         }
+    }
+
+    // 启动超时失败：如果是发布模式且指定了 target_version，自动触发坏版本拉黑与故障回滚
+    if !is_dev {
+        let app_data_dir = app
+            .path()
+            .app_data_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let binary_name = if cfg!(target_os = "windows") {
+            "binaries/myrmagent-backend.exe"
+        } else {
+            "binaries/myrmagent-backend"
+        };
+        let factory_bundle_path = app
+            .path()
+            .resolve(binary_name, tauri::path::BaseDirectory::Resource)
+            .unwrap_or_default();
+        let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
+        let (fallback_path, fallback_ver) = version_manager.mark_version_broken_and_rollback(target_version.as_deref());
+        println!(
+            "⚠️ Sidecar launch probe failed for version {:?}. Auto-rolled back to: {:?} (Target: {:?})",
+            target_version, fallback_ver, fallback_path
+        );
     }
 
     Err(format!(
