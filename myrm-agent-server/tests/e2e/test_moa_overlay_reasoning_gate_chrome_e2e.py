@@ -68,9 +68,7 @@ def _create_agent_with_moa(api_url: str, name: str) -> str:
                 "moa_overlay": {
                     "enabled": True,
                     "auto_on_reasoning": True,
-                    "reference_model_selections": [
-                        {"provider_id": "minimax", "model": "MiniMax-Text-01"}
-                    ],
+                    "reference_model_selections": [{"provider_id": "minimax", "model": "MiniMax-Text-01"}],
                 }
             },
         },

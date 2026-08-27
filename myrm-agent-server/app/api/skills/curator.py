@@ -360,7 +360,5 @@ async def remediate_skill_endpoint(
 
     res = await remediate_skill_finding(req.skill_name, req.action)
     if not res.get("success"):
-        raise HTTPException(
-            status_code=400, detail=str(res.get("error", "Remediation failed"))
-        )
+        raise HTTPException(status_code=400, detail=str(res.get("error", "Remediation failed")))
     return SkillRemediationResponse(**res)  # type: ignore[arg-type]

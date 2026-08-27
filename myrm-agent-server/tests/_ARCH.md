@@ -152,6 +152,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/chat/test_sandbox_worktree_integration.py` | 模块 | sandbox worktree 真实 git 集成（4 项）：clean merge 成功并入 main / dirty worktree auto-commit 后 merge 保数据 / safe cleanup 保留 dirty worktree（防丢数据）/ force cleanup 删除 dirty worktree（用户明确丢弃） |
 | `services/kanban/test_board_settings_roundtrip.py` | 模块 | BoardSettings 9 字段 ORM 往返完整性（三映射函数 + dataclass 字段覆盖守卫 + 旧库 ALTER 迁移默认值） |
 | `services/agent/test_agent_name_resolution.py` | 模块 | Agent 同名解析确定性单测（大小写归一 + 稳定排序 + 空名短路） |
+| `services/agent/test_sandbox_l3_write_gate.py` | 模块 | 沙箱/编码能力型智能体 L3 写入门控单测（`is_sandbox_capable_tools` 探测、Profile 属性、converter 默认禁用自动提取与启用待审队列、incognito 覆盖等） |
 | `api/agent/test_kanban_agent_stream_e2e.py` | 模块 | Live LLM agent-stream kanban add/list（`@pytest.mark.e2e`） |
 | `api/agent/test_bash_compressor_declarative_e2e.py` | 模块 | Declarative bash 压缩真实 LLM agent-stream e2e（`@pytest.mark.e2e`；TestClient 进程内；`.myrm/filters.yaml` replace+strip 生效断言；压缩断言仅针对 tool stdout，LLM 回复文本不受过滤器影响） |
 | `api/agent/test_bash_compressor_live_api_e2e.py` | 模块 | Declarative bash 压缩 live API e2e（`@pytest.mark.e2e`；`resolve_verify_api_base()` 私池 + provider seed + 后端 workspace 根解析；SSE 收集 + workspace 压缩回放） |

@@ -16,6 +16,7 @@ import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { isSmartRoutingActive } from '@/lib/model-binding';
+import { Sparkles } from 'lucide-react';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
@@ -50,7 +51,7 @@ const EmptyChat = React.memo(() => {
               data-testid="smart-routing-narrative-badge"
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-medium border border-emerald-500/20 transition-colors"
             >
-              <span className="text-xs">✨</span>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>{t('smartRoutingBadge')}</span>
             </div>
           )}

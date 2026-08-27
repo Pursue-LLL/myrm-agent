@@ -303,4 +303,3 @@ class TestPromptBilingualSupport:
         assert get_core_system_prompt(locale="en") is get_core_system_prompt(locale="en")
         assert get_core_system_prompt(locale="zh-CN") is get_core_system_prompt(locale="zh")
         assert get_core_system_prompt(locale="en") is not get_core_system_prompt(locale="zh-CN")
-

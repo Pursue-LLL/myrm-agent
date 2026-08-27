@@ -758,10 +758,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 channel=getattr(self, "channel_name", None),
             )
 
-            is_external_channel = bool(
-                getattr(self, "channel_name", None)
-                and getattr(self, "channel_name", None) != "web_chat"
-            )
+            is_external_channel = bool(getattr(self, "channel_name", None) and getattr(self, "channel_name", None) != "web_chat")
             search_policy = MemorySearchPolicy(
                 allow_wiki=bool(self.enable_wiki and not self.incognito_mode),
                 allow_sessions=bool(self.enable_conversation_search and not self.incognito_mode),

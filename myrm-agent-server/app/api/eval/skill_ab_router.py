@@ -45,9 +45,7 @@ async def run_skill_ab_evaluation(
     """Start a three-arm Skill A/B evaluation."""
     status = get_skill_ab_status()
     if status.get("is_running"):
-        raise HTTPException(
-            status_code=409, detail="A Skill A/B evaluation is already in progress."
-        )
+        raise HTTPException(status_code=409, detail="A Skill A/B evaluation is already in progress.")
 
     if not is_known_benchmark(request.benchmark_id):
         raise HTTPException(

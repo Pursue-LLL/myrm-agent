@@ -6,8 +6,8 @@ Stateless parsing logic for BlueBubbles webhook data.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import re
+from collections.abc import Callable
 
 from app.channels.types import InboundMessage, MediaAttachment
 

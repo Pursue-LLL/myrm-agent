@@ -264,11 +264,13 @@ class TestTestDeliveryEndpoint:
         from myrm_agent_harness.toolkits.cron.types import CronJobPatch
 
         job = _create_webhook_job(client)
-        asyncio.run(cron_manager.update_job(
-            job["id"],
-            "default",
-            CronJobPatch(consecutive_failures=3, last_error="502 Bad Gateway"),
-        ))
+        asyncio.run(
+            cron_manager.update_job(
+                job["id"],
+                "default",
+                CronJobPatch(consecutive_failures=3, last_error="502 Bad Gateway"),
+            )
+        )
         degraded_job = client.get(f"/cron/{job['id']}").json()
         assert degraded_job["consecutive_failures"] == 3
 
@@ -283,4 +285,3 @@ class TestTestDeliveryEndpoint:
         healed_job = client.get(f"/cron/{job['id']}").json()
         assert healed_job["consecutive_failures"] == 0
         assert healed_job["last_error"] is None
-

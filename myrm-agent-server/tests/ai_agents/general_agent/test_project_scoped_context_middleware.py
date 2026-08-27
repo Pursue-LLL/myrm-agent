@@ -19,9 +19,7 @@ from app.ai_agents.agent_middlewares.project_scoped_context_middleware import (
 class TestHasScopedWorkspaceInjected:
     def test_detects_existing_marker(self) -> None:
         messages = [
-            SystemMessage(
-                content=f"prefix {PROJECT_SCOPED_WORKSPACE_MARKER} path='/workspace/src'> rest"
-            ),
+            SystemMessage(content=f"prefix {PROJECT_SCOPED_WORKSPACE_MARKER} path='/workspace/src'> rest"),
         ]
         assert _has_scoped_workspace_injected(messages) is True
 
@@ -117,9 +115,7 @@ class TestProjectScopedWorkspaceMiddleware:
         req = ModelRequest(
             messages=[
                 SystemMessage(content="system prompt"),
-                SystemMessage(
-                    content=f"{PROJECT_SCOPED_WORKSPACE_MARKER} path='services/auth'>..."
-                ),
+                SystemMessage(content=f"{PROJECT_SCOPED_WORKSPACE_MARKER} path='services/auth'>..."),
                 HumanMessage(content="next turn query"),
             ],
             model=None,

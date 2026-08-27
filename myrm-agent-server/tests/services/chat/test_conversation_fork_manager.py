@@ -1336,9 +1336,7 @@ async def test_fork_conversation_filters_inactive_regenerated_messages(
     child_id = res.new_chat_id
 
     # Verify messages in child chat
-    child_msgs_res = await db_session.execute(
-        select(Message).where(Message.chat_id == child_id).order_by(Message.created_at)
-    )
+    child_msgs_res = await db_session.execute(select(Message).where(Message.chat_id == child_id).order_by(Message.created_at))
     child_msgs = child_msgs_res.scalars().all()
 
     assert len(child_msgs) == 2

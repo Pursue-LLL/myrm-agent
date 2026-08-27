@@ -485,10 +485,7 @@ async def build_general_agent(
     _apply_small_model_tuning(agent_wrapper)
 
     # 8. System prompt (core + CLI tool awareness)
-    effective_prompt_locale = (
-        getattr(agent_wrapper, "prompt_locale", None)
-        or getattr(agent_wrapper, "locale", None)
-    )
+    effective_prompt_locale = getattr(agent_wrapper, "prompt_locale", None) or getattr(agent_wrapper, "locale", None)
     system_prompt = get_core_system_prompt(
         mode=agent_wrapper.prompt_mode,
         enable_answer_tool=agent_wrapper.enable_answer_tool,

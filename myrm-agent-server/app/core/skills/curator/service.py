@@ -135,9 +135,7 @@ def resolve_skill_path(skill_name: str) -> Path | None:
     return None
 
 
-async def run_curator_sweep(
-    *, force: bool = False, trigger: Literal["manual", "background"] = "background"
-) -> CuratorRunResult:
+async def run_curator_sweep(*, force: bool = False, trigger: Literal["manual", "background"] = "background") -> CuratorRunResult:
     """Execute a curator sweep over all configured local skill paths.
 
     Uses an asyncio lock to prevent concurrent sweeps from the background

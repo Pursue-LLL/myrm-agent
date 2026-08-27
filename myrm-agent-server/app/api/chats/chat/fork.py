@@ -16,13 +16,9 @@ router = APIRouter()
 
 
 class ForkConversationBody(BaseModel):
-    message_index: int = Field(
-        ..., alias="message_index", description="0-based index, or -1 for last message"
-    )
+    message_index: int = Field(..., alias="message_index", description="0-based index, or -1 for last message")
     new_title: str | None = Field(None, alias="new_title")
-    fork_mode: str = Field(
-        "full_clone", alias="fork_mode", description="full_clone or acceptance_verifier"
-    )
+    fork_mode: str = Field("full_clone", alias="fork_mode", description="full_clone or acceptance_verifier")
     acceptance_scope: str | None = Field(
         None,
         alias="acceptance_scope",
@@ -62,9 +58,7 @@ async def fork_conversation(
             raise validation_error("message_index must be >= -1")
 
         if message_index == -1:
-            message_index = await ConversationForkManager.get_last_message_index(
-                db, chat_id
-            )
+            message_index = await ConversationForkManager.get_last_message_index(db, chat_id)
             if message_index is None:
                 raise validation_error("Chat has no messages to fork from")
 
@@ -83,10 +77,7 @@ async def fork_conversation(
                 raise not_found_error("Parent conversation")
             if "Invalid message_index" in error_msg or "only support" in error_msg:
                 raise validation_error(error_msg)
-            if (
-                "Checkpointer not initialized" in error_msg
-                or "No checkpoint found" in error_msg
-            ):
+            if "Checkpointer not initialized" in error_msg or "No checkpoint found" in error_msg:
                 raise validation_error(error_msg)
             raise internal_error(
                 operation="Fork conversation",

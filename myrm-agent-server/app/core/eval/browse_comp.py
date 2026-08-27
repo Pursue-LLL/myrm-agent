@@ -52,9 +52,7 @@ logger = logging.getLogger(__name__)
 BROWSECOMP_ROOT = Path(".myrm/browsecomp")
 BROWSECOMP_CSV = BROWSECOMP_ROOT / "browse_comp_test_set.csv"
 
-BROWSECOMP_URL = (
-    "https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv"
-)
+BROWSECOMP_URL = "https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv"
 DOWNLOAD_TIMEOUT_S = 120
 CHUNK_SIZE = 1024 * 256
 DOWNLOAD_MAX_RETRIES = 2
@@ -79,9 +77,7 @@ Reply EXACTLY with 'PASS' if the prediction is correct, or 'FAIL: <reason>' if i
 BROWSECOMP_SPEC = BenchmarkSpec(
     id="browsecomp",
     display_name="BrowseComp",
-    description=(
-        "OpenAI's web-research benchmark — answer difficult, multi-step research questions using the web."
-    ),
+    description=("OpenAI's web-research benchmark — answer difficult, multi-step research questions using the web."),
     download_url=BROWSECOMP_URL,
     task_count=BROWSECOMP_TASK_COUNT,
     approx_size_mb=1,
@@ -145,9 +141,7 @@ def list_browse_comp_source() -> dict[str, object]:
     return {
         **BROWSECOMP_SPEC.to_dict(),
         "is_downloaded": BROWSECOMP_CSV.is_file(),
-        "local_size_bytes": (
-            BROWSECOMP_CSV.stat().st_size if BROWSECOMP_CSV.is_file() else 0
-        ),
+        "local_size_bytes": (BROWSECOMP_CSV.stat().st_size if BROWSECOMP_CSV.is_file() else 0),
     }
 
 
@@ -205,9 +199,7 @@ async def ensure_browse_comp_source(
                     with tmp.open("wb") as f:
                         async for chunk in resp.aiter_bytes(CHUNK_SIZE):
                             if should_abort and should_abort():
-                                raise DownloadAbortedError(
-                                    "BrowseComp download aborted"
-                                )
+                                raise DownloadAbortedError("BrowseComp download aborted")
                             f.write(chunk)
                             downloaded += len(chunk)
                             if progress_callback:
@@ -235,9 +227,7 @@ async def ensure_browse_comp_source(
             import asyncio
 
             await asyncio.sleep(DOWNLOAD_BACKOFF_BASE_S * (2**attempt))
-    raise ValueError(
-        f"Failed to download BrowseComp CSV after {max_retries + 1} attempts: {last_error}"
-    )
+    raise ValueError(f"Failed to download BrowseComp CSV after {max_retries + 1} attempts: {last_error}")
 
 
 def _load_tasks() -> list[dict[str, str]]:
@@ -293,9 +283,7 @@ def build_browse_comp_cases(
 
     cases: list[MultiTurnEvalCase] = []
     for index, task in enumerate(_load_tasks(), start=1):
-        criteria = (
-            f"Question:\n{task['question']}\n\nReference Answer:\n{task['answer']}"
-        )
+        criteria = f"Question:\n{task['question']}\n\nReference Answer:\n{task['answer']}"
         semantic = SemanticAssertion(
             type="llm_judge",
             expected=criteria,

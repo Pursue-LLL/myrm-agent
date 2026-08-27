@@ -68,9 +68,7 @@ class TestDiscoveryEndpointLocalMode:
             "plur",
         }
 
-    def test_discover_with_hermes_data(
-        self, client: TestClient, tmp_path: Path
-    ) -> None:
+    def test_discover_with_hermes_data(self, client: TestClient, tmp_path: Path) -> None:
         hermes = tmp_path / ".hermes"
         hermes.mkdir()
         (hermes / "config.yaml").write_text("model: gpt-4o")
@@ -99,9 +97,7 @@ class TestDiscoveryEndpointLocalMode:
         assert src["confidence"] == "high"
         assert src["memory_count_estimate"] == 2
 
-    def test_discover_multiple_competitors(
-        self, client: TestClient, tmp_path: Path
-    ) -> None:
+    def test_discover_multiple_competitors(self, client: TestClient, tmp_path: Path) -> None:
         hermes = tmp_path / ".hermes"
         hermes.mkdir()
         (hermes / "config.yaml").write_text("m: 1")
@@ -173,9 +169,7 @@ class TestDiscoveryEndpointLocalMode:
             assert "kind" in f
             assert "size_bytes" in f
 
-    def test_discover_downgrades_authoritative_when_manifest_incomplete(
-        self, client: TestClient
-    ) -> None:
+    def test_discover_downgrades_authoritative_when_manifest_incomplete(self, client: TestClient) -> None:
         partial_manifest = [
             MigrationSourceManifestItemResponse(
                 id="hermes",

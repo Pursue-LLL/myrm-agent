@@ -91,7 +91,9 @@ class ZeroCostMemoryExtension(AgentExtension):
             return None
 
         if self.is_sandbox_capable:
-            logger.info("🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction for sandbox-capable agent to prevent transient code/terminal pollution.")
+            logger.info(
+                "🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction for sandbox-capable agent to prevent transient code/terminal pollution."
+            )
             return None
 
         from myrm_agent_harness.api.hooks import (

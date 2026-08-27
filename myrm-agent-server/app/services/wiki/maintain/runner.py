@@ -20,7 +20,10 @@ from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
 from app.database.connection import get_session
-from app.services.wiki.maintain.schemas import WikiMaintainRunResult
+from app.services.wiki.maintain.schemas import (
+    WikiMaintainModeLiteral,
+    WikiMaintainRunResult,
+)
 from app.services.wiki.maintain.state_store import (
     save_wiki_maintain_state,
     state_from_run_result,
@@ -49,8 +52,10 @@ def _build_list_only_report(*, issues: list[object]) -> str:
     provenance_gaps = [i for i in lint_issues if i.issue_type == "provenance_gap"]
     incomplete = [i for i in lint_issues if i.issue_type == "incomplete"]
     other_issues = [
-        i for i in lint_issues
-        if i.issue_type not in (
+        i
+        for i in lint_issues
+        if i.issue_type
+        not in (
             "broken_link",
             "broken_wikilink",
             "stale",
@@ -76,7 +81,7 @@ def _build_list_only_report(*, issues: list[object]) -> str:
 
     lines = [
         "## 📋 Wiki 知识库健康周检报告\n",
-        f"**总计发现 {len(lint_issues)} 项待优化项**（{ ' · '.join(summary_counts) }）\n",
+        f"**总计发现 {len(lint_issues)} 项待优化项**（{' · '.join(summary_counts)}）\n",
         "### 重点关注清单（Top 10）",
     ]
 

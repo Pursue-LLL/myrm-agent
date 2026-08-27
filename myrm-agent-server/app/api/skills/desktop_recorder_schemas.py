@@ -46,9 +46,7 @@ class RecordingSessionState:
 
 class StartDesktopRecordingRequest(BaseModel):
     session_id: str = Field(..., description="Unique ID for this recording session")
-    app_scope: str = Field(
-        default="all", description="Scope of application tracking (all or specific app)"
-    )
+    app_scope: str = Field(default="all", description="Scope of application tracking (all or specific app)")
 
 
 class StartDesktopRecordingResponse(BaseModel):

@@ -34,9 +34,7 @@ class _FakeSkill:
 async def test_skill_hoarding_diagnostic_healthy_pass(tmp_path: Path) -> None:
     """Test when skill catalog is within budget and all skills have good success rate."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(
-        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
-    )
+    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
 
     skills = [
         _FakeSkill(
@@ -52,9 +50,7 @@ async def test_skill_hoarding_diagnostic_healthy_pass(tmp_path: Path) -> None:
     ]
 
     with (
-        patch(
-            "app.core.skills.curator.service.get_curator_config", return_value=config
-        ),
+        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
         patch(
             "app.core.skills.curator.service.get_stats_collector",
             return_value=MagicMock(),
@@ -79,9 +75,7 @@ async def test_skill_hoarding_diagnostic_healthy_pass(tmp_path: Path) -> None:
 async def test_skill_hoarding_diagnostic_warning_near_capacity(tmp_path: Path) -> None:
     """Test warning status when active skills reach 80% capacity."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(
-        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
-    )
+    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
 
     skills = [
         _FakeSkill(
@@ -97,9 +91,7 @@ async def test_skill_hoarding_diagnostic_warning_near_capacity(tmp_path: Path) -
     ]
 
     with (
-        patch(
-            "app.core.skills.curator.service.get_curator_config", return_value=config
-        ),
+        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
         patch(
             "app.core.skills.curator.service.get_stats_collector",
             return_value=MagicMock(),
@@ -124,9 +116,7 @@ async def test_skill_hoarding_diagnostic_warning_wrong_but_frequent(
 ) -> None:
     """Test warning when a skill is frequently called but fails constantly."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(
-        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
-    )
+    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
 
     skills = [
         _FakeSkill(
@@ -150,9 +140,7 @@ async def test_skill_hoarding_diagnostic_warning_wrong_but_frequent(
     ]
 
     with (
-        patch(
-            "app.core.skills.curator.service.get_curator_config", return_value=config
-        ),
+        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
         patch(
             "app.core.skills.curator.service.get_stats_collector",
             return_value=MagicMock(),
@@ -182,9 +170,7 @@ async def test_skill_hoarding_diagnostic_critical_hoarding_limit_exceeded(
 ) -> None:
     """Test fail status when active skill count exceeds max_skills."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(
-        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
-    )
+    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
 
     skills = [
         _FakeSkill(
@@ -200,9 +186,7 @@ async def test_skill_hoarding_diagnostic_critical_hoarding_limit_exceeded(
     ]
 
     with (
-        patch(
-            "app.core.skills.curator.service.get_curator_config", return_value=config
-        ),
+        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
         patch(
             "app.core.skills.curator.service.get_stats_collector",
             return_value=MagicMock(),
@@ -248,9 +232,7 @@ async def test_skill_hoarding_diagnostic_critical_protected_wrong_skills(
     ]
 
     with (
-        patch(
-            "app.core.skills.curator.service.get_curator_config", return_value=config
-        ),
+        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
         patch(
             "app.core.skills.curator.service.get_stats_collector",
             return_value=MagicMock(),

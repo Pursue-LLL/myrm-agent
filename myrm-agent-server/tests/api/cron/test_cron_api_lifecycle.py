@@ -748,7 +748,10 @@ class TestCronConnectorHealthApi:
             job_type="agent",
             status="active",
             schedule={"kind": "interval", "interval_ms": 60000},
-            delivery={"channel": "webhook", "target": "https://api.example.com/hook?token=secret123"},
+            delivery={
+                "channel": "webhook",
+                "target": "https://api.example.com/hook?token=secret123",
+            },
             consecutive_failures=3,
             last_error="Webhook returned 502: Bad Gateway",
         )
@@ -780,15 +783,16 @@ class TestCronConnectorHealthApi:
             mock_uow.__aexit__ = AsyncMock(return_value=None)
             mock_uow_cls.return_value = mock_uow
 
-            summaries = asyncio.run(
-                ConnectorHealthService.get_all_connectors_health(window_hours=24)
-            )
+            summaries = asyncio.run(ConnectorHealthService.get_all_connectors_health(window_hours=24))
 
             assert len(summaries) == 1
             s = summaries[0]
             assert s.channel == "webhook"
             assert "secret123" not in s.target
-            assert s.status in (ConnectorHealthStatus.DEGRADED, ConnectorHealthStatus.DOWN)
+            assert s.status in (
+                ConnectorHealthStatus.DEGRADED,
+                ConnectorHealthStatus.DOWN,
+            )
             assert s.last_error_category == ConnectorErrorCategory.HTTP_SERVER_ERROR
             assert s.fix_suggestion is not None
             assert "job_sync_1" in s.bound_job_ids
@@ -811,4 +815,3 @@ class TestCronConnectorHealthApi:
         assert "is_satisfied" in data
         assert "manual_success_count" in data
         assert data["override_allowed"] is True
-

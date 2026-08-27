@@ -55,9 +55,7 @@ _E2E_TEST_ROOT = _TESTS_ROOT / "e2e"
 _LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
 _CHROME_PROFILE_FIELDS = frozenset({"execution_mode", "access_scope", "workload"})
 _CHROME_PROFILE_OPTIONAL_FIELDS = frozenset({"private_reason"})
-_CHROME_PROFILE_ALLOWED_FIELDS = (
-    _CHROME_PROFILE_FIELDS | _CHROME_PROFILE_OPTIONAL_FIELDS
-)
+_CHROME_PROFILE_ALLOWED_FIELDS = _CHROME_PROFILE_FIELDS | _CHROME_PROFILE_OPTIONAL_FIELDS
 _PRIVATE_REASONS = frozenset(
     {
         "live_shpoib",
@@ -184,9 +182,7 @@ def _chrome_e2e_timeout_failure(item: pytest.Item, rep: pytest.TestReport) -> bo
 
 
 @pytest.hookimpl(specname="pytest_runtest_makereport", hookwrapper=True)
-def pytest_runtest_makereport_signoff(
-    item: pytest.Item, call: pytest.CallInfo[None]
-) -> Iterator[None]:
+def pytest_runtest_makereport_signoff(item: pytest.Item, call: pytest.CallInfo[None]) -> Iterator[None]:
     """Release DB/MCP hygiene when a formal chrome_e2e item hits pytest-timeout."""
     outcome = yield
     rep = outcome.get_result()
@@ -202,15 +198,11 @@ def pytest_runtest_makereport_signoff(
     try:
         reap_chrome_e2e_session_hygiene()
     except Exception as exc:
-        _logger.warning(
-            "Failed to reap chrome E2E session hygiene after timeout: %s", exc
-        )
+        _logger.warning("Failed to reap chrome E2E session hygiene after timeout: %s", exc)
     try:
         _shutdown_test_session_resources()
     except Exception as exc:
-        _logger.warning(
-            "Failed to shutdown test session resources after timeout: %s", exc
-        )
+        _logger.warning("Failed to shutdown test session resources after timeout: %s", exc)
 
 
 def _chrome_e2e_marker_joined_argv(item: pytest.Item) -> str:
@@ -264,25 +256,15 @@ def _chrome_e2e_profile(
     access_scope = str(marker.kwargs["access_scope"]).strip().upper()
     workload = str(marker.kwargs["workload"]).strip().upper()
     private_reason_raw = marker.kwargs.get("private_reason")
-    private_reason = (
-        str(private_reason_raw).strip() if private_reason_raw is not None else None
-    )
+    private_reason = str(private_reason_raw).strip() if private_reason_raw is not None else None
     if execution_mode not in {"SHARED", "PRIVATE"}:
-        raise pytest.UsageError(
-            f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} execution_mode={execution_mode!r}"
-        )
+        raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} execution_mode={execution_mode!r}")
     if access_scope not in {"READ", "NAMESPACE_WRITE", "GLOBAL_WRITE"}:
-        raise pytest.UsageError(
-            f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} access_scope={access_scope!r}"
-        )
+        raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} access_scope={access_scope!r}")
     if workload not in {"STANDARD", "LIVE", "DESKTOP"}:
-        raise pytest.UsageError(
-            f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} workload={workload!r}"
-        )
+        raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} workload={workload!r}")
     if execution_mode == "SHARED" and access_scope == "GLOBAL_WRITE":
-        raise pytest.UsageError(
-            f"CHROME_E2E_PROFILE_UNSAFE: node={item.nodeid} SHARED+GLOBAL_WRITE is forbidden"
-        )
+        raise pytest.UsageError(f"CHROME_E2E_PROFILE_UNSAFE: node={item.nodeid} SHARED+GLOBAL_WRITE is forbidden")
     if execution_mode == "PRIVATE":
         if not private_reason:
             raise pytest.UsageError(
@@ -291,13 +273,9 @@ def _chrome_e2e_profile(
                 f"(one of {', '.join(sorted(_PRIVATE_REASONS))})"
             )
         if private_reason not in _PRIVATE_REASONS:
-            raise pytest.UsageError(
-                f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason={private_reason!r}"
-            )
+            raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason={private_reason!r}")
     elif private_reason is not None:
-        raise pytest.UsageError(
-            f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason only applies to PRIVATE"
-        )
+        raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason only applies to PRIVATE")
     return execution_mode, access_scope, workload
 
 
@@ -306,19 +284,14 @@ def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
     if floor is None:
         return
     # R43: always cap chrome_e2e to lane floor; per-item marks must not exceed SSOT.
-    item.own_markers = [
-        marker for marker in item.own_markers if marker.name != "timeout"
-    ]
+    item.own_markers = [marker for marker in item.own_markers if marker.name != "timeout"]
     item.add_marker(pytest.mark.timeout(floor))
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Align benchmark markers with the default memory-safe suite filter."""
     for item in items:
-        if (
-            item.get_closest_marker("benchmark") is not None
-            and item.get_closest_marker("performance") is None
-        ):
+        if item.get_closest_marker("benchmark") is not None and item.get_closest_marker("performance") is None:
             item.add_marker(pytest.mark.performance)
         if item.get_closest_marker("chrome_e2e") is not None:
             _chrome_e2e_profile(item)
@@ -336,10 +309,7 @@ def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:
         return True
     if request.node.get_closest_marker("integration") is not None:
         return True
-    return (
-        request.node.get_closest_marker("e2e") is not None
-        or request.node.get_closest_marker("chrome_e2e") is not None
-    )
+    return request.node.get_closest_marker("e2e") is not None or request.node.get_closest_marker("chrome_e2e") is not None
 
 
 @pytest.fixture(scope="session")
@@ -350,9 +320,7 @@ def test_secrets():
 
 # Ensure schema is created since TestClient bypasses lifespan
 _INIT_DB_LOCK = Path(tempfile.gettempdir()) / "myrm-server-pytest-init-db.lock"
-_LIVE_CHROME_E2E_LANES = frozenset(
-    {"READ", "LIVE_AGENT", "RESOURCE_WRITE", "GLOBAL_WRITE"}
-)
+_LIVE_CHROME_E2E_LANES = frozenset({"READ", "LIVE_AGENT", "RESOURCE_WRITE", "GLOBAL_WRITE"})
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -503,12 +471,9 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
             and os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip() == "1"
         ):
             return
-        shared_base = str(
-            getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080"
-        ).strip()
+        shared_base = str(getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080").strip()
         shared_healthy = any(
-            getattr(item, "source", "") == "shared"
-            and getattr(item, "health_ok", False)
+            getattr(item, "source", "") == "shared" and getattr(item, "health_ok", False)
             for item in getattr(ctx, "candidates", ())
         )
         try:
@@ -580,9 +545,7 @@ def _chrome_e2e_epoch_pin(
             and not outcome.detail.startswith("verify_seed_failed_defer_shared:")
             and not outcome.detail.startswith("verify_seed_failed_no_shared:")
         ):
-            pytest.fail(
-                f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}"
-            )
+            pytest.fail(f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}")
         if outcome.detail.startswith("verify_seed_failed_no_shared:"):
             pytest.skip(
                 f"E2E_EPOCH_PIN_DEFER_SKIP: shared backend unhealthy and verify seed failed; heal then retry: {outcome.detail}"
@@ -706,8 +669,7 @@ def _require_live_e2e_lease(
         try:
             # Item runtimes already run chrome-e2e-preflight with attach checks on their env.
             skip_attach_reprobe = chrome_e2e_skips_attach_health_reprobe(
-                chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip()
-                == "1",
+                chrome_attach=os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip() == "1",
                 api_only=os.environ.get("MYRM_E2E_API_ONLY", "").strip() == "1",
             )
             if _chrome_e2e_item_runtime is None and not skip_attach_reprobe:

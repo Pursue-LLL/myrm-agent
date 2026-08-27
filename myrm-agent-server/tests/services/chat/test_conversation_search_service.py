@@ -497,9 +497,7 @@ class TestConversationSearchService:
             default_scope="same_source",
         )
 
-        with patch.object(
-            ConversationSearchService, "search", AsyncMock(return_value="mock_resp")
-        ) as mock_search:
+        with patch.object(ConversationSearchService, "search", AsyncMock(return_value="mock_resp")) as mock_search:
             req = ConversationSearchRequest(query="test", limit=5)
             res = await provider.search(req)
             assert res == "mock_resp"
@@ -507,4 +505,3 @@ class TestConversationSearchService:
             passed_req = mock_search.call_args[0][0]
             assert passed_req.scope == "same_source"
             assert passed_req.current_conversation_id == "chat-feishu-1"
-

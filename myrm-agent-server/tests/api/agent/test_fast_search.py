@@ -92,7 +92,6 @@ class TestFastSearchPrompt:
         assert "你是一个求真务实的AI搜索助手" in prompt_zh
 
 
-
 class TestSearchDepthValidation:
     """search_depth 参数校验（无需 LLM）"""
 

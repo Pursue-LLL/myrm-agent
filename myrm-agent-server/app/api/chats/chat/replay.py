@@ -64,15 +64,11 @@ async def replay_chat_session(
     """Replay user messages in an isolated session and calculate determinism metrics."""
     chat = await ChatService.get_chat_metadata(chat_id)
     if not chat:
-        raise HTTPException(
-            status_code=404, detail=f"Chat session '{chat_id}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Chat session '{chat_id}' not found")
 
     messages, _ = await ChatService.get_messages_paginated(chat_id, limit=200)
     if not messages:
-        raise HTTPException(
-            status_code=400, detail="Chat session has no messages to replay"
-        )
+        raise HTTPException(status_code=400, detail="Chat session has no messages to replay")
 
     # 1. Extract original tool sequence from messages
     orig_steps: list[dict[str, Any]] = []
@@ -84,11 +80,7 @@ async def replay_chat_session(
                 if isinstance(raw, dict):
                     orig_steps.append(
                         {
-                            "tool_name": str(
-                                raw.get("tool_name")
-                                or raw.get("name")
-                                or "unknown_tool"
-                            ),
+                            "tool_name": str(raw.get("tool_name") or raw.get("name") or "unknown_tool"),
                             "arguments": raw.get("arguments") or raw.get("args") or {},
                         }
                     )
@@ -110,10 +102,7 @@ async def replay_chat_session(
     # 3. Calculate quantitative determinism score
     res = calculate_trajectory_determinism(
         orig_steps,
-        [
-            {"tool_name": s["tool_name"], "arguments": s.get("tool_args", {})}
-            for s in replayed_steps
-        ],
+        [{"tool_name": s["tool_name"], "arguments": s.get("tool_args", {})} for s in replayed_steps],
     )
 
     return ReplayDeterminismResponse(

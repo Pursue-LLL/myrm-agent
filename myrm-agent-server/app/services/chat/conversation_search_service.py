@@ -85,9 +85,7 @@ class ConversationHistorySearchProvider:
         self._default_scope = default_scope
 
     async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
-        updates: dict[str, object] = {
-            "current_conversation_id": request.current_conversation_id or self._current_chat_id
-        }
+        updates: dict[str, object] = {"current_conversation_id": request.current_conversation_id or self._current_chat_id}
         if self._default_scope:
             updates["scope"] = self._default_scope
         effective = request.model_copy(update=updates)

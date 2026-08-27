@@ -74,10 +74,7 @@ async def test_stream_collector_cancelled_during_reasoning():
     extra_data = collector.extra_data
     assert extra_data is not None
     assert extra_data.get("completionStatus") == "cancelled"
-    assert (
-        extra_data.get("reasoning")
-        == "Thinking about how to solve this step by step..."
-    )
+    assert extra_data.get("reasoning") == "Thinking about how to solve this step by step..."
 
 
 @pytest.mark.asyncio
@@ -211,9 +208,7 @@ async def test_yield_stream_exception_chunks_cancelled_error():
         new_callable=AsyncMock,
     ):
         chunks = []
-        async for chunk in yield_stream_exception_chunks(
-            session, asyncio.CancelledError()
-        ):
+        async for chunk in yield_stream_exception_chunks(session, asyncio.CancelledError()):
             chunks.append(chunk)
 
         assert cancel_token.is_cancelled
@@ -240,7 +235,4 @@ async def test_chat_utils_history_conversion_with_cancelled_turn():
     assert converted[0].content == "What is Python?"
     assert isinstance(converted[1], AIMessage)
     assert converted[1].content == "Python is an interpreted..."
-    assert (
-        converted[1].additional_kwargs.get("reasoning_content")
-        == "User wants a quick overview of Python..."
-    )
+    assert converted[1].additional_kwargs.get("reasoning_content") == "User wants a quick overview of Python..."

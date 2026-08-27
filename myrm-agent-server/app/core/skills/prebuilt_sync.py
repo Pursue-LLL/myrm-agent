@@ -184,9 +184,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
         skill_ids.append(skill_id)
 
         allowed_tools_list = (
-            [t.strip() for t in frontmatter.allowed_tools.split() if t.strip()]
-            if frontmatter.allowed_tools
-            else None
+            [t.strip() for t in frontmatter.allowed_tools.split() if t.strip()] if frontmatter.allowed_tools else None
         )
         skill = _build_skill_from_seed(
             skill_dir_name=skill_dir.name,

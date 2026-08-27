@@ -66,28 +66,17 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
                 if is_active:
                     active_skills.append(skill)
 
-                if (
-                    stats.call_count >= config.min_call_count_for_quality_check
-                    and stats.success_rate < config.min_success_rate
-                ):
+                if stats.call_count >= config.min_call_count_for_quality_check and stats.success_rate < config.min_success_rate:
                     is_pinned = bool(stats.pinned)
                     is_locked = bool(skill.evolution_locked)
-                    is_installed_protected = bool(
-                        config.protect_installed_skills
-                        and skill.trust == SkillTrust.INSTALLED
-                    )
+                    is_installed_protected = bool(config.protect_installed_skills and skill.trust == SkillTrust.INSTALLED)
                     is_system_protected = False
                     if config.protect_system_skills and skill.storage_path:
                         normalized = skill.storage_path.replace("\\", "/")
                         if "/prebuilt/" in normalized:
                             is_system_protected = True
 
-                    is_exempt = (
-                        is_pinned
-                        or is_locked
-                        or is_installed_protected
-                        or is_system_protected
-                    )
+                    is_exempt = is_pinned or is_locked or is_installed_protected or is_system_protected
                     if is_exempt:
                         protected_wrong_count += 1
 
@@ -102,9 +91,7 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
                         exemption_reasons.append("system_protected")
 
                     lifecycle_str = (
-                        stats.lifecycle_status.value
-                        if hasattr(stats.lifecycle_status, "value")
-                        else str(stats.lifecycle_status)
+                        stats.lifecycle_status.value if hasattr(stats.lifecycle_status, "value") else str(stats.lifecycle_status)
                     )
 
                     wrong_but_frequent_skills.append(
@@ -160,17 +147,15 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
             if active_count >= int(max_limit * 0.8) or wrong_count > 0:
                 issues: list[str] = []
                 if active_count >= int(max_limit * 0.8):
-                    issues.append(
-                        f"{active_count}/{max_limit} active skills (near capacity)"
-                    )
+                    issues.append(f"{active_count}/{max_limit} active skills (near capacity)")
                 if wrong_count > 0:
-                    issues.append(
-                        f"{wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate)"
-                    )
+                    issues.append(f"{wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate)")
 
                 detail_msg = f"Detected skill health issues: {', '.join(issues)}."
                 if protected_wrong_count > 0:
-                    detail_msg += f" Note: {protected_wrong_count} faulty skill(s) are pinned or protected and require manual review."
+                    detail_msg += (
+                        f" Note: {protected_wrong_count} faulty skill(s) are pinned or protected and require manual review."
+                    )
 
                 return HealthReport(
                     component_name="SkillEcosystem",

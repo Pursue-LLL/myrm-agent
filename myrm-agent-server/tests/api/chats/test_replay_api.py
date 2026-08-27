@@ -24,9 +24,7 @@ def test_replay_session_not_found(client: TestClient) -> None:
         new_callable=AsyncMock,
     ) as mock_get:
         mock_get.return_value = None
-        resp = client.post(
-            "/api/v1/chats/non-existent-chat-id/replay", json={"mode": "live"}
-        )
+        resp = client.post("/api/v1/chats/non-existent-chat-id/replay", json={"mode": "live"})
         assert resp.status_code == 404
 
 

@@ -8,9 +8,7 @@ from myrm_agent_harness.backends.skills.types import (
 )
 
 
-def test_curator_config_consolidation_default_false(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_curator_config_consolidation_default_false(client: TestClient, tmp_path: Path) -> None:
     """Fresh curator config must have consolidation_enabled=false."""
     import app.core.skills.curator.service as curator_service
 
@@ -32,17 +30,13 @@ def test_curator_config_get(client: TestClient):
 
 
 def test_curator_config_update(client: TestClient):
-    response = client.patch(
-        "/api/v1/skills/curator/config", json={"enabled": False, "interval_hours": 24}
-    )
+    response = client.patch("/api/v1/skills/curator/config", json={"enabled": False, "interval_hours": 24})
     assert response.status_code == 200
     data = response.json()
     assert data["enabled"] is False
     assert data["interval_hours"] == 24
 
-    response = client.patch(
-        "/api/v1/skills/curator/config", json={"enabled": True, "interval_hours": 168}
-    )
+    response = client.patch("/api/v1/skills/curator/config", json={"enabled": True, "interval_hours": 168})
     assert response.status_code == 200
 
 
@@ -123,9 +117,7 @@ def test_archive_pinned_skill_returns_409(client: TestClient):
 
     with (
         patch("app.api.skills.curator._resolve_skill_path", side_effect=_mock_resolve),
-        patch(
-            "app.api.skills.curator._get_stats_collector", return_value=mock_collector
-        ),
+        patch("app.api.skills.curator._get_stats_collector", return_value=mock_collector),
     ):
         response = client.patch(
             "/api/v1/skills/curator/test_skill/lifecycle",
@@ -143,9 +135,7 @@ def test_archive_unpinned_skill_succeeds(client: TestClient):
 
     with (
         patch("app.api.skills.curator._resolve_skill_path", side_effect=_mock_resolve),
-        patch(
-            "app.api.skills.curator._get_stats_collector", return_value=mock_collector
-        ),
+        patch("app.api.skills.curator._get_stats_collector", return_value=mock_collector),
     ):
         response = client.patch(
             "/api/v1/skills/curator/test_skill/lifecycle",
@@ -165,9 +155,7 @@ def test_pin_unpin_lifecycle(client: TestClient):
 
     with (
         patch("app.api.skills.curator._resolve_skill_path", side_effect=_mock_resolve),
-        patch(
-            "app.api.skills.curator._get_stats_collector", return_value=mock_collector
-        ),
+        patch("app.api.skills.curator._get_stats_collector", return_value=mock_collector),
     ):
         response = client.patch(
             "/api/v1/skills/curator/test_skill/lifecycle",
@@ -178,9 +166,7 @@ def test_pin_unpin_lifecycle(client: TestClient):
 
     with (
         patch("app.api.skills.curator._resolve_skill_path", side_effect=_mock_resolve),
-        patch(
-            "app.api.skills.curator._get_stats_collector", return_value=mock_collector
-        ),
+        patch("app.api.skills.curator._get_stats_collector", return_value=mock_collector),
     ):
         response = client.patch(
             "/api/v1/skills/curator/test_skill/lifecycle",
@@ -192,16 +178,12 @@ def test_pin_unpin_lifecycle(client: TestClient):
 
 def test_restore_archived_skill(client: TestClient):
     """Restore should transition an archived skill back to active."""
-    stats = SkillUsageStats(
-        pinned=False, lifecycle_status=SkillLifecycleStatus.ARCHIVED
-    )
+    stats = SkillUsageStats(pinned=False, lifecycle_status=SkillLifecycleStatus.ARCHIVED)
     mock_collector = _MockCollector(stats)
 
     with (
         patch("app.api.skills.curator._resolve_skill_path", side_effect=_mock_resolve),
-        patch(
-            "app.api.skills.curator._get_stats_collector", return_value=mock_collector
-        ),
+        patch("app.api.skills.curator._get_stats_collector", return_value=mock_collector),
     ):
         response = client.patch(
             "/api/v1/skills/curator/test_skill/lifecycle",

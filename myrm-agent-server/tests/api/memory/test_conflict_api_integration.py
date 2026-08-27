@@ -487,5 +487,3 @@ class TestResolveConflict:
         assert item["influence_explanation"] is None
         assert item["expected_valid_days"] is None
         assert item["tags"] == []
-
-

@@ -50,13 +50,7 @@ async def test_pdf_generator_skill_metadata_and_contract(temp_workspace_dir: Pat
     assert pdf_skill.category == "productivity"
 
     # 验证 allowed-tools 包含核心执行与文件工具
-    skill_file = (
-        Path(__file__).resolve().parents[3]
-        / "assets"
-        / "prebuilt_skills"
-        / "pdf-generator"
-        / "SKILL.md"
-    )
+    skill_file = Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills" / "pdf-generator" / "SKILL.md"
     assert skill_file.exists(), f"SKILL.md must exist at {skill_file}"
     raw_md = skill_file.read_text(encoding="utf-8")
     tool_match = re.search(r"^allowed-tools:\s*(.+)$", raw_md, re.MULTILINE)
@@ -200,13 +194,7 @@ generate_report("{report_pdf}")
 @pytest.mark.asyncio
 async def test_pdf_generator_skill_content_structure() -> None:
     """验证 pdf-generator SKILL.md 文档内引导提示词包含完整的 5 阶段指南与避坑规则。"""
-    skill_file = (
-        Path(__file__).resolve().parents[3]
-        / "assets"
-        / "prebuilt_skills"
-        / "pdf-generator"
-        / "SKILL.md"
-    )
+    skill_file = Path(__file__).resolve().parents[3] / "assets" / "prebuilt_skills" / "pdf-generator" / "SKILL.md"
     assert skill_file.exists(), f"SKILL.md must exist at {skill_file}"
     content = skill_file.read_text(encoding="utf-8")
 

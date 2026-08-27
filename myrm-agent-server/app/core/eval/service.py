@@ -117,12 +117,14 @@ def get_eval_status() -> dict[str, object]:
 def _load_completed_turn_results(reports_dir: Path) -> list[object]:
     """Load previously completed turn results from latest.jsonl for resume."""
     import json
+
     latest_path = reports_dir / "latest.jsonl"
     if not latest_path.exists():
         return []
     res = []
     try:
         from myrm_agent_harness.eval import AgentResponse, EvalCase, EvalTurnResult
+
         with latest_path.open("r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -439,9 +441,7 @@ async def run_eval_suite(
             cases_path.parent.mkdir(parents=True, exist_ok=True)
             with cases_path.open("w", encoding="utf-8") as f:
                 f.write('{"message": "Hello, world!"}\n')
-                f.write(
-                    '{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n'
-                )
+                f.write('{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n')
 
         from myrm_agent_harness.eval import load_multi_turn_cases
 
@@ -450,9 +450,7 @@ async def run_eval_suite(
         # Group cases by profile_id to maximize LLM Prompt Cache hits
         cases.sort(key=lambda c: str(c.metadata.get("profile_id", "default")))
         grouped_cases = []
-        for _, group in groupby(
-            cases, key=lambda c: str(c.metadata.get("profile_id", "default"))
-        ):
+        for _, group in groupby(cases, key=lambda c: str(c.metadata.get("profile_id", "default"))):
             grouped_cases.extend(list(group))
         cases = grouped_cases
 
@@ -586,13 +584,8 @@ async def run_eval_suite(
         "manifest": manifest.to_dict(),
         **(
             {"variance_metrics": result.variance_metrics.to_dict()}
-            if getattr(result, "variance_metrics", None) is not None
-            and hasattr(result.variance_metrics, "to_dict")
+            if getattr(result, "variance_metrics", None) is not None and hasattr(result.variance_metrics, "to_dict")
             else {}
         ),
-        **(
-            {"avg_pass_rate": result.avg_pass_rate}
-            if result.avg_pass_rate is not None
-            else {}
-        ),
+        **({"avg_pass_rate": result.avg_pass_rate} if result.avg_pass_rate is not None else {}),
     }

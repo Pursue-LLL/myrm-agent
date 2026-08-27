@@ -67,9 +67,7 @@ async def test_agent_cold_start_diagnostic_cold_cache_ready() -> None:
     """Test AgentColdStartDiagnostic when cache is cold (0 warm units) but other components are ready."""
     diagnostic = AgentColdStartDiagnostic()
 
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet")
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="test-claude-3-5-sonnet"))
 
     mock_cache = MagicMock()
     mock_cache.warm_entry_count = 0
@@ -161,9 +159,7 @@ async def test_agent_cold_start_diagnostic_storage_degraded() -> None:
             AsyncMock(return_value=mock_configs),
         ),
         patch("myrm_agent_harness.api.is_registered_action_tool", return_value=True),
-        patch(
-            "app.database.connection.get_session", side_effect=Exception("DB locked")
-        ),
+        patch("app.database.connection.get_session", side_effect=Exception("DB locked")),
     ):
         report = await diagnostic.check_health()
 
@@ -212,9 +208,7 @@ async def test_dlq_diagnostic_healthy_and_pending_redelivery() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch(
-        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
-    ):
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "pass"
@@ -241,9 +235,7 @@ async def test_dlq_diagnostic_pending_backlog_warning() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch(
-        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
-    ):
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "warn"
@@ -269,9 +261,7 @@ async def test_dlq_diagnostic_critical_failures() -> None:
     mock_gateway = MagicMock()
     mock_gateway.bus = mock_bus
 
-    with patch(
-        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
-    ):
+    with patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway):
         report = await diagnostic.check_health()
         assert report.component_name == "DLQ"
         assert report.status == "fail"
@@ -355,9 +345,7 @@ async def test_ollama_model_context_diagnostic() -> None:
             assert report.fix_suggestion is not None
 
     # 3. Sandbox mode skips Ollama probe
-    with patch(
-        "app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX
-    ):
+    with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.SANDBOX):
         report = await diagnostic.check_health()
         assert report.component_name == "OllamaContext"
         assert report.status == "pass"
@@ -383,12 +371,8 @@ async def test_agent_step_budget_diagnostic() -> None:
     diagnostic = AgentStepBudgetDiagnostic()
 
     # 1. When all agents have >= 100 max_iterations (or None/unlimited)
-    agent_ok_1 = SimpleNamespace(
-        id="ag_1", name="Research Agent", max_iterations=100, is_active=True
-    )
-    agent_ok_2 = SimpleNamespace(
-        id="ag_2", name="Code Agent", max_iterations=None, is_active=True
-    )
+    agent_ok_1 = SimpleNamespace(id="ag_1", name="Research Agent", max_iterations=100, is_active=True)
+    agent_ok_2 = SimpleNamespace(id="ag_2", name="Code Agent", max_iterations=None, is_active=True)
 
     with patch("app.database.connection.get_session") as mock_get_session:
         mock_session_ctx = MagicMock()
@@ -413,9 +397,7 @@ async def test_agent_step_budget_diagnostic() -> None:
         assert report.metrics["total_active_agents"] == 2.0
 
     # 2. When an agent has low step budget (< 100, e.g., 30 steps)
-    agent_low = SimpleNamespace(
-        id="ag_low", name="Legacy Agent", max_iterations=30, is_active=True
-    )
+    agent_low = SimpleNamespace(id="ag_low", name="Legacy Agent", max_iterations=30, is_active=True)
 
     with patch("app.database.connection.get_session") as mock_get_session:
         mock_session_ctx = MagicMock()
@@ -442,7 +424,11 @@ async def test_agent_step_budget_diagnostic() -> None:
 
     # 3. When an agent has low step budget but is an exempt lightweight mode (e.g. search mode)
     agent_search = SimpleNamespace(
-        id="ag_search", name="Fast Search Agent", max_iterations=30, prompt_mode="search", is_active=True
+        id="ag_search",
+        name="Fast Search Agent",
+        max_iterations=30,
+        prompt_mode="search",
+        is_active=True,
     )
 
     with patch("app.database.connection.get_session") as mock_get_session:
@@ -480,7 +466,9 @@ async def test_agent_step_budget_diagnostic() -> None:
 @pytest.mark.asyncio
 async def test_agent_prompt_cache_alignment_diagnostic() -> None:
     """Test AgentPromptCacheAlignmentDiagnostic probe for static and jittery system prompts."""
-    from app.core.infra.health.server_diagnostics import AgentPromptCacheAlignmentDiagnostic
+    from app.core.infra.health.server_diagnostics import (
+        AgentPromptCacheAlignmentDiagnostic,
+    )
 
     diagnostic = AgentPromptCacheAlignmentDiagnostic()
 
@@ -558,4 +546,3 @@ async def test_agent_prompt_cache_alignment_diagnostic() -> None:
         assert report.component_name == "AgentPromptCacheAlignment"
         assert report.status == "pass"
         assert report.code == "OK_PROMPT_CACHE_ALIGNMENT_SKIPPED"
-

@@ -42,7 +42,9 @@ async def get_connectors_health(
             failed_deliveries=s.failed_deliveries,
             consecutive_failures=s.consecutive_failures,
             last_status_code=s.last_status_code,
-            last_error_category=s.last_error_category.value if hasattr(s.last_error_category, "value") else (str(s.last_error_category) if s.last_error_category else None),
+            last_error_category=s.last_error_category.value
+            if hasattr(s.last_error_category, "value")
+            else (str(s.last_error_category) if s.last_error_category else None),
             last_error_message=s.last_error_message,
             last_delivery_at=s.last_delivery_at,
             last_failed_at=s.last_failed_at,
@@ -52,12 +54,8 @@ async def get_connectors_health(
         for s in summaries
     ]
 
-    degraded_count = sum(
-        1 for s in summaries if (s.status.value if hasattr(s.status, "value") else str(s.status)) == "degraded"
-    )
-    down_count = sum(
-        1 for s in summaries if (s.status.value if hasattr(s.status, "value") else str(s.status)) == "down"
-    )
+    degraded_count = sum(1 for s in summaries if (s.status.value if hasattr(s.status, "value") else str(s.status)) == "degraded")
+    down_count = sum(1 for s in summaries if (s.status.value if hasattr(s.status, "value") else str(s.status)) == "down")
 
     return ConnectorsHealthListResponse(
         items=items,

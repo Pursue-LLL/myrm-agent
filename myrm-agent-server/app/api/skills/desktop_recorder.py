@@ -58,9 +58,7 @@ async def start_desktop_recording(
     request: StartDesktopRecordingRequest,
 ) -> StartDesktopRecordingResponse:
     """Start a new desktop workflow recording session."""
-    session = RecordingSessionState(
-        session_id=request.session_id, app_scope=request.app_scope
-    )
+    session = RecordingSessionState(session_id=request.session_id, app_scope=request.app_scope)
     _ACTIVE_SESSIONS[request.session_id] = session
     logger.info("Started desktop skill recording session: %s", request.session_id)
     return StartDesktopRecordingResponse(
@@ -75,9 +73,7 @@ async def record_desktop_event(request: RecordDesktopEventRequest) -> dict[str, 
     """Append a recorded interaction event to the active session."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(
-            status_code=404, detail=f"Recording session not found: {request.session_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
     if session.status != "recording":
         raise HTTPException(
             status_code=400,
@@ -110,9 +106,7 @@ async def stop_desktop_recording(
     """Stop the recording session."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(
-            status_code=404, detail=f"Recording session not found: {request.session_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
 
     session.status = "stopped"
     session.stopped_at = time.time()
@@ -136,9 +130,7 @@ async def get_desktop_recording_session(session_id: str) -> dict[str, Any]:
     """Get the current recording session state and events."""
     session = _ACTIVE_SESSIONS.get(session_id)
     if not session:
-        raise HTTPException(
-            status_code=404, detail=f"Recording session not found: {session_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Recording session not found: {session_id}")
 
     return {
         "session_id": session.session_id,
@@ -158,13 +150,9 @@ async def synthesize_desktop_skill(
     """Synthesize a structured skill draft from the recorded event trace."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(
-            status_code=404, detail=f"Recording session not found: {request.session_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
     if not session.events:
-        raise HTTPException(
-            status_code=400, detail="No events recorded in this session to synthesize."
-        )
+        raise HTTPException(status_code=400, detail="No events recorded in this session to synthesize.")
 
     draft = synthesize_desktop_skill_draft(
         events=session.events,
@@ -182,13 +170,9 @@ async def analyze_desktop_plan(
     """Analyze recorded session events into a structured Intent + Ordered Steps Plan."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
-        raise HTTPException(
-            status_code=404, detail=f"Recording session not found: {request.session_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
     if not session.events:
-        raise HTTPException(
-            status_code=400, detail="No events recorded in this session to analyze."
-        )
+        raise HTTPException(status_code=400, detail="No events recorded in this session to analyze.")
 
     # Aggregate events into ordered semantic plan steps
     steps: list[WorkflowPlanStepSchema] = []
@@ -200,11 +184,7 @@ async def analyze_desktop_plan(
         app_name = ev.app_name or "System"
         title = ""
         desc = ""
-        tool_hint = (
-            "browser_interact_tool"
-            if "browser" in app_name.lower() or "chrome" in app_name.lower()
-            else "shell_execute"
-        )
+        tool_hint = "browser_interact_tool" if "browser" in app_name.lower() or "chrome" in app_name.lower() else "shell_execute"
 
         if ev.action in ("click", "double_click"):
             elem = ev.element_title or ev.element_role or "target element"
@@ -231,9 +211,7 @@ async def analyze_desktop_plan(
                 description=desc,
                 tool_hint=tool_hint,
                 target_app=app_name,
-                variables_used=(
-                    [f"input_val_{step_idx}"] if ev.action in ("input", "type") else []
-                ),
+                variables_used=([f"input_val_{step_idx}"] if ev.action in ("input", "type") else []),
             )
         )
         step_idx += 1
@@ -295,11 +273,7 @@ async def publish_desktop_skill(
         )
 
     config = await skills_service.user_config.get_config()
-    target_base = (
-        config.local_skill_paths[0]
-        if config.local_skill_paths
-        else DEFAULT_LOCAL_SKILL_PATHS[0]
-    )
+    target_base = config.local_skill_paths[0] if config.local_skill_paths else DEFAULT_LOCAL_SKILL_PATHS[0]
     target_dir = Path(target_base).expanduser() / safe_name
     target_dir.mkdir(parents=True, exist_ok=True)
 

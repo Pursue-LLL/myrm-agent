@@ -84,12 +84,11 @@ async def test_defensive_file_write_e2e(app):
 
     # Verify the agent used the correct tools
     if not tool_calls and any(
-        kw in full_response.lower()
-        for kw in ["rate limit", "quota", "balance", "insufficient", "service unavailable", "error"]
+        kw in full_response.lower() for kw in ["rate limit", "quota", "balance", "insufficient", "service unavailable", "error"]
     ):
         pytest.skip(f"Environment/Model issue: {full_response[:100]}")
 
-    assert ("write_file" in tool_calls or "file_write_tool" in tool_calls), (
+    assert "write_file" in tool_calls or "file_write_tool" in tool_calls, (
         f"Agent did not use write_file/file_write_tool, called: {tool_calls}"
     )
 

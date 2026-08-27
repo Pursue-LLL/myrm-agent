@@ -195,9 +195,7 @@ async def test_fork_with_custom_title(async_client: httpx.AsyncClient) -> None:
 
     factory = get_session_factory()
     async with factory() as db:
-        child = (
-            await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))
-        ).scalar_one()
+        child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
         assert child.title == "My Custom Branch"
 
 
@@ -249,12 +247,8 @@ async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> N
     assert data["new_chat_id"] is not None
 
     async with factory() as db:
-        child = (
-            await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))
-        ).scalar_one()
-        assert (
-            child.workspace_dir == "/project"
-        ), "Child should use original repo root, not parent's sandbox worktree"
+        child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
+        assert child.workspace_dir == "/project", "Child should use original repo root, not parent's sandbox worktree"
         assert child.sandbox_base_dir is None, "Child should have no active sandbox"
 
 
@@ -319,21 +313,11 @@ async def test_fork_acceptance_verifier_mode(async_client: httpx.AsyncClient) ->
 
     factory = get_session_factory()
     async with factory() as db:
-        child_chat = (
-            await db.execute(select(Chat).where(Chat.id == new_chat_id))
-        ).scalar_one()
+        child_chat = (await db.execute(select(Chat).where(Chat.id == new_chat_id))).scalar_one()
         assert "[Audit] Acceptance:" in child_chat.title
 
         messages = (
-            (
-                await db.execute(
-                    select(Message)
-                    .where(Message.chat_id == new_chat_id)
-                    .order_by(Message.created_at)
-                )
-            )
-            .scalars()
-            .all()
+            (await db.execute(select(Message).where(Message.chat_id == new_chat_id).order_by(Message.created_at))).scalars().all()
         )
         # 4 cloned messages + 1 audit prompt message
         assert len(messages) == 5

@@ -241,15 +241,11 @@ async def run_skill_ab_background(
 
         token_savings = 0.0
         if ref_arm.total_tokens > 0:
-            token_savings = (
-                ref_arm.total_tokens - cand_m.total_tokens
-            ) / ref_arm.total_tokens
+            token_savings = (ref_arm.total_tokens - cand_m.total_tokens) / ref_arm.total_tokens
 
         step_red = 0.0
         if ref_arm.avg_tool_calls > 0:
-            step_red = (
-                ref_arm.avg_tool_calls - cand_m.avg_tool_calls
-            ) / ref_arm.avg_tool_calls
+            step_red = (ref_arm.avg_tool_calls - cand_m.avg_tool_calls) / ref_arm.avg_tool_calls
 
         verdict = "INCONCLUSIVE"
         if succ_delta > 0.05:

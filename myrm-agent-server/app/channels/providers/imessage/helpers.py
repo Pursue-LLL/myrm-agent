@@ -6,8 +6,8 @@ Stateless utilities shared across the iMessage channel module.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 from urllib.parse import quote, urlparse
 
 from app.channels.types import MediaType
@@ -35,9 +35,7 @@ TAPBACK_CODE_TO_EMOJI: dict[int, str] = {
     2005: "\u2753",
 }
 
-DEFAULT_MENTION_PATTERNS: tuple[str, ...] = (
-    r"^@?(?:Myrm|myrm|小助手|助手)\b",
-)
+DEFAULT_MENTION_PATTERNS: tuple[str, ...] = (r"^@?(?:Myrm|myrm|小助手|助手)\b",)
 
 
 def compile_mention_patterns(
@@ -80,7 +78,7 @@ def clean_mention_text(
     for pat in compiled_patterns:
         m = pat.match(stripped_text)
         if m:
-            cleaned = stripped_text[m.end():].lstrip(" ,:-\t\n\r，：")
+            cleaned = stripped_text[m.end() :].lstrip(" ,:-\t\n\r，：")
             return True, cleaned if cleaned else text
     return False, text
 
