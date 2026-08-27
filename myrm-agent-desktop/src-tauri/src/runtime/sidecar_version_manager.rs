@@ -193,3 +193,115 @@ impl SidecarVersionManager {
         self.resolve_launch_binary()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+
+    fn setup_test_env(dir_name: &str) -> (tempfile::TempDir, PathBuf) {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let factory_binary = temp_dir.path().join("factory_backend");
+        let mut file = File::create(&factory_binary).expect("create factory binary");
+        file.write_all(b"factory-binary-content").expect("write factory binary");
+        (temp_dir, factory_binary)
+    }
+
+    #[test]
+    fn test_fallback_to_factory_when_manifest_empty() {
+        let (temp_dir, factory_binary) = setup_test_env("empty_manifest");
+        let manager = SidecarVersionManager::new(temp_dir.path(), &factory_binary);
+
+        let (launch_path, version) = manager.resolve_launch_binary();
+        assert_eq!(launch_path, factory_binary);
+        assert_eq!(version, None);
+    }
+
+    #[test]
+    fn test_resolve_current_version_success() {
+        let (temp_dir, factory_binary) = setup_test_env("current_version");
+        let manager = SidecarVersionManager::new(temp_dir.path(), &factory_binary);
+
+        let v1_dir = manager.versions_root().join("v1.0.0");
+        fs::create_dir_all(&v1_dir).expect("create v1 dir");
+        let binary_name = if cfg!(target_os = "windows") {
+            "myrmagent-backend.exe"
+        } else {
+            "myrmagent-backend"
+        };
+        let v1_binary = v1_dir.join(binary_name);
+        let mut f = File::create(&v1_binary).expect("create v1 binary");
+        f.write_all(b"v1-binary-content").expect("write v1 binary");
+
+        let manifest = SidecarVersionManifest {
+            current_version: Some("v1.0.0".to_string()),
+            last_known_good: None,
+            broken_versions: HashSet::new(),
+        };
+        manager.save_manifest(&manifest).expect("save manifest");
+
+        let (launch_path, version) = manager.resolve_launch_binary();
+        assert_eq!(launch_path, v1_binary);
+        assert_eq!(version.as_deref(), Some("v1.0.0"));
+    }
+
+    #[test]
+    fn test_rollback_to_last_known_good_when_current_broken() {
+        let (temp_dir, factory_binary) = setup_test_env("rollback_lkg");
+        let manager = SidecarVersionManager::new(temp_dir.path(), &factory_binary);
+
+        let binary_name = if cfg!(target_os = "windows") {
+            "myrmagent-backend.exe"
+        } else {
+            "myrmagent-backend"
+        };
+
+        // 创建 stable v1.0.0
+        let v1_dir = manager.versions_root().join("v1.0.0");
+        fs::create_dir_all(&v1_dir).expect("create v1 dir");
+        let v1_binary = v1_dir.join(binary_name);
+        let mut f1 = File::create(&v1_binary).expect("create v1 binary");
+        f1.write_all(b"v1-stable").expect("write v1");
+
+        // 创建 buggy v1.1.0
+        let v2_dir = manager.versions_root().join("v1.1.0");
+        fs::create_dir_all(&v2_dir).expect("create v2 dir");
+        let v2_binary = v2_dir.join(binary_name);
+        let mut f2 = File::create(&v2_binary).expect("create v2 binary");
+        f2.write_all(b"v2-buggy").expect("write v2");
+
+        let manifest = SidecarVersionManifest {
+            current_version: Some("v1.1.0".to_string()),
+            last_known_good: Some("v1.0.0".to_string()),
+            broken_versions: HashSet::new(),
+        };
+        manager.save_manifest(&manifest).expect("save manifest");
+
+        // 模拟 v1.1.0 启动探测失败，触发回滚
+        let (fallback_path, fallback_ver) = manager.mark_version_broken_and_rollback(Some("v1.1.0"));
+        assert_eq!(fallback_path, v1_binary);
+        assert_eq!(fallback_ver.as_deref(), Some("v1.0.0"));
+
+        let updated_manifest = manager.load_manifest();
+        assert!(updated_manifest.broken_versions.contains("v1.1.0"));
+        assert_eq!(updated_manifest.current_version.as_deref(), Some("v1.0.0"));
+    }
+
+    #[test]
+    fn test_double_fault_fallback_to_factory_binary() {
+        let (temp_dir, factory_binary) = setup_test_env("double_fault");
+        let manager = SidecarVersionManager::new(temp_dir.path(), &factory_binary);
+
+        let manifest = SidecarVersionManifest {
+            current_version: Some("v1.1.0".to_string()),
+            last_known_good: Some("v1.0.0".to_string()),
+            broken_versions: HashSet::from(["v1.0.0".to_string(), "v1.1.0".to_string()]),
+        };
+        manager.save_manifest(&manifest).expect("save manifest");
+
+        let (launch_path, version) = manager.resolve_launch_binary();
+        assert_eq!(launch_path, factory_binary);
+        assert_eq!(version, None);
+    }
+}

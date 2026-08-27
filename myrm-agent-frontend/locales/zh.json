@@ -8822,7 +8822,19 @@
     "routingStandardTooltip": "使用主力常规模型处理日常任务",
     "routingReasoningTooltip": "检测到复杂逻辑或多步推理，已自动调集强力深度推理算力",
     "routingCodeTooltip": "检测到代码编写、重构或 Debug 任务，已分流至代码专长模型",
-    "routingLongDocTooltip": "检测到长篇文档或超大上下文，已分流至长文档专长模型"
+    "routingLongDocTooltip": "检测到长篇文档或超大上下文，已分流至长文档专长模型",
+    "deliveryContracts": {
+      "title": "五大约束交付合约",
+      "allSatisfied": "全部交付合约已满足",
+      "refresh": "刷新合约状态",
+      "noSummary": "暂无可用的交付摘要",
+      "status": {
+        "satisfied": "已满足",
+        "violated": "违背",
+        "inProgress": "进行中",
+        "pending": "等待中"
+      }
+    }
   },
   "mode": {
     "fast": "快速搜索",

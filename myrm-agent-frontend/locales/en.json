@@ -8822,7 +8822,19 @@
     "routingStandardTooltip": "Processed by standard primary model for everyday tasks",
     "routingReasoningTooltip": "Complex logic or multi-step reasoning detected; scaled up to deep reasoning compute",
     "routingCodeTooltip": "Coding, refactoring, or debug task detected; routed to code specialty model",
-    "routingLongDocTooltip": "Long document or large context detected; routed to long-document specialty model"
+    "routingLongDocTooltip": "Long document or large context detected; routed to long-document specialty model",
+    "deliveryContracts": {
+      "title": "Five Delivery Contracts",
+      "allSatisfied": "All contracts satisfied",
+      "refresh": "Refresh status",
+      "noSummary": "No delivery summary available",
+      "status": {
+        "satisfied": "Satisfied",
+        "violated": "Violated",
+        "inProgress": "In Progress",
+        "pending": "Pending"
+      }
+    }
   },
   "mode": {
     "fast": "Fast Search",

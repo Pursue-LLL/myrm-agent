@@ -8544,7 +8544,19 @@
     "routingStandardTooltip": "Verarbeitung durch standardmäßiges Hauptmodell für alltägliche Aufgaben",
     "routingReasoningTooltip": "Komplexe Logik oder mehrstufiges Denken erkannt; automatische Zuweisung von Deep-Reasoning-Rechenleistung",
     "routingCodeTooltip": "Programmier-, Refactoring- oder Debug-Aufgabe erkannt; an Code-Spezialmodell weitergeleitet",
-    "routingLongDocTooltip": "Langes Dokument oder großer Kontext erkannt; an Langdokument-Spezialmodell weitergeleitet"
+    "routingLongDocTooltip": "Langes Dokument oder großer Kontext erkannt; an Langdokument-Spezialmodell weitergeleitet",
+    "deliveryContracts": {
+      "title": "Fünf Lieferverträge",
+      "allSatisfied": "Alle Verträge erfüllt",
+      "refresh": "Status aktualisieren",
+      "noSummary": "Keine Lieferungszusammenfassung verfügbar",
+      "status": {
+        "satisfied": "Erfüllt",
+        "violated": "Verletzt",
+        "inProgress": "In Bearbeitung",
+        "pending": "Ausstehend"
+      }
+    }
   },
   "mode": {
     "fast": "Schnellsuche",

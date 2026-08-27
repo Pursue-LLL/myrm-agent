@@ -319,6 +319,31 @@ async def _synthesize_api(text: str, config: VoiceConfig, provider: str, output_
     raise ValueError(f"Unknown provider: {provider}")
 
 
+async def _synthesize_piper(text: str, config: VoiceConfig) -> Path:
+    """Synthesize text using local Piper TTS."""
+    if not is_piper_available():
+        raise ImportError(f"piper is not installed. Install with: {_PIPER_INSTALL_HINT}")
+
+    import piper
+
+    voice_name = config.tts_voice or _DEFAULT_VOICES["piper"]
+    tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    tmp.close()
+    output_path = Path(tmp.name)
+
+    voice = piper.PiperVoice.load(voice_name)
+    with open(output_path, "wb") as f:
+        voice.synthesize(text, f)
+
+    file_size = output_path.stat().st_size
+    if file_size < 100:
+        output_path.unlink(missing_ok=True)
+        raise ValueError("Piper TTS produced empty audio")
+
+    logger.warning("TTS: piper ok (voice=%s, bytes=%d)", voice_name, file_size)
+    return output_path
+
+
 async def _synthesize_edge(text: str, config: VoiceConfig) -> Path:
     edge_tts = _import_edge_tts()
 
@@ -411,12 +436,42 @@ async def _stream_edge(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
             yield event["data"]
 
 
+async def _stream_voicebox(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    base_url = _resolve_base_url(config, "voicebox")
+    url = f"{base_url}/tts/stream"
+    body = {
+        "text": text,
+        "voice": config.tts_voice or _DEFAULT_VOICES["voicebox"],
+        "speed": config.tts_speed,
+    }
+    async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+        async with client.stream("POST", url, json=body) as resp:
+            resp.raise_for_status()
+            async for chunk in resp.aiter_bytes(_STREAM_CHUNK_SIZE):
+                yield chunk
+
+
+async def _stream_piper(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    """Stream Piper TTS synthesis chunks."""
+    if not is_piper_available():
+        raise ImportError(f"piper is not installed. Install with: {_PIPER_INSTALL_HINT}")
+
+    import piper
+
+    voice_name = config.tts_voice or _DEFAULT_VOICES["piper"]
+    voice = piper.PiperVoice.load(voice_name)
+    for chunk in voice.synthesize_stream_raw(text):
+        yield chunk
+
+
 _STREAM_PROVIDERS = {
     "openai": _stream_openai,
     "elevenlabs": _stream_elevenlabs,
     "fish_audio": _stream_fish_audio,
     "minimax": _stream_minimax,
     "edge": _stream_edge,
+    "voicebox": _stream_voicebox,
+    "piper": _stream_piper,
 }
 
 

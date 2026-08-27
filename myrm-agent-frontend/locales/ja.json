@@ -3627,6 +3627,8 @@
         "cronCreated": "{name} の定期レビューをスケジュールしました",
         "verifiedBadge": "検証済み (Streak: {streak})",
         "hollowBlockedBadge": "空洞テストをブロックしました",
+        "targetLayer": "対象レイヤー: {layer}",
+        "targetPathology": "病理分類: {pathology}",
         "verificationProofTitle": "サンドボックスカプセル検証証明",
         "blastRadius": "影響範囲: {files} ファイル, {lines} 行",
         "noVerificationProof": "サンドボックス検証証明はありません",
@@ -8744,7 +8746,19 @@
     "routingStandardTooltip": "標準のメインモデルで日常タスクを処理",
     "routingReasoningTooltip": "複雑な論理または推論タスクを検出し、高精度な深層推論モデルを自動割り当て",
     "routingCodeTooltip": "コーディング、リファクタリング、デバッグタスクを検出し、コード専門モデルにルーティング",
-    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング"
+    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング",
+    "deliveryContracts": {
+      "title": "5大デリバリー契約",
+      "allSatisfied": "すべての契約が満たされました",
+      "refresh": "状態を更新",
+      "noSummary": "利用可能なデリバリー概要がありません",
+      "status": {
+        "satisfied": "適合",
+        "violated": "違反",
+        "inProgress": "進行中",
+        "pending": "保留中"
+      }
+    }
   },
   "mode": {
     "fast": "高速検索",

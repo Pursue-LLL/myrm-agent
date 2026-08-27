@@ -8544,7 +8544,19 @@
     "routingStandardTooltip": "표준 기본 모델을 사용하여 일상적인 작업을 처리합니다",
     "routingReasoningTooltip": "복잡한 논리 또는 다단계 추론을 감지하여 고성능 심층 추론 모델로 자동 할당했습니다",
     "routingCodeTooltip": "코드 작성, 리팩토링 또는 디버그 작업을 감지하여 코드 전문 모델로 라우팅했습니다",
-    "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다"
+    "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다",
+    "deliveryContracts": {
+      "title": "5대 전달 계약",
+      "allSatisfied": "모든 계약 충족됨",
+      "refresh": "상태 새로고침",
+      "noSummary": "사용 가능한 전달 요약이 없습니다",
+      "status": {
+        "satisfied": "충족됨",
+        "violated": "위반됨",
+        "inProgress": "진행 중",
+        "pending": "대기 중"
+      }
+    }
   },
   "mode": {
     "fast": "빠른 검색",

@@ -8744,7 +8744,19 @@
     "routingStandardTooltip": "使用主力常規模型處理日常任務",
     "routingReasoningTooltip": "檢測到複雜邏輯或多步推理，已自動調集強力深度推理算力",
     "routingCodeTooltip": "檢測到代碼編寫、重構或 Debug 任務，已分流至代碼專長模型",
-    "routingLongDocTooltip": "檢測到長篇文檔或超大上下文，已分流至長文檔專長模型"
+    "routingLongDocTooltip": "檢測到長篇文檔或超大上下文，已分流至長文檔專長模型",
+    "deliveryContracts": {
+      "title": "五大約束交付合約",
+      "allSatisfied": "全部交付合約已滿足",
+      "refresh": "重新整理合約狀態",
+      "noSummary": "暫無可用的交付摘要",
+      "status": {
+        "satisfied": "已滿足",
+        "violated": "違背",
+        "inProgress": "進行中",
+        "pending": "等待中"
+      }
+    }
   },
   "mode": {
     "fast": "快速搜尋",
