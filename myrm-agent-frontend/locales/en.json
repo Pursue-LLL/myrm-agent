@@ -14066,6 +14066,13 @@
   "toolApproval": {
     "title": "Tool Execution Approval",
     "batchTitle": "Batch Approval ({count} tools)",
+    "batchHighRisk": {
+      "dialogTitle": "High-Risk Operations Confirmation",
+      "dialogDesc": "Detected {highRiskCount} high-risk / destructive operations in batch queue ({total} total). Please review carefully or choose to approve safe items only.",
+      "cancel": "Cancel",
+      "approveSafeOnly": "Approve Safe Only ({count})",
+      "confirmAll": "Confirm & Approve All (Including High-Risk)"
+    },
     "description": "The agent wants to execute the following action(s). Review and decide: approve, edit parameters, or reject with feedback.",
     "subagentApprovalRequired": "Subagent Task Approval",
     "deployApprovalTitle": "Confirm Artifact Deployment",
@@ -14224,6 +14231,13 @@
     "batchCostRace": "Race Mode (first wins)",
     "batchCostTournament": "Tournament Mode (best wins)",
     "highRiskDomAction": "High-Risk Browser Action Detected",
+    "batchHighRisk": {
+      "dialogTitle": "High-Risk Operations Confirmation",
+      "dialogDesc": "Detected {highRiskCount} high-risk / destructive operations in batch queue ({total} total). Please review carefully or choose to approve safe items only.",
+      "cancel": "Cancel",
+      "approveSafeOnly": "Approve Safe Only ({count})",
+      "confirmAll": "Confirm & Approve All (Including High-Risk)"
+    },
     "targetElement": "Target Element",
     "action": "Action",
     "jsExpression": "JavaScript Expression",
@@ -17434,5 +17448,41 @@
     "pinned": "Pinned",
     "viewDetails": "View Details",
     "refresh": "Refresh Boundary"
+  },
+  "evidenceStageHUD": {
+    "stages": {
+      "prepared": {
+        "label": "Prepared",
+        "ready": "Context and goal aligned",
+        "planDeclared": "{count} plan items declared"
+      },
+      "executing": {
+        "label": "Executing",
+        "running": "Tools executing in sandbox...",
+        "completed": "{count} tool calls completed"
+      },
+      "observed": {
+        "label": "Observed",
+        "evidenceCaptured": "{count} evidence items captured",
+        "pending": "Awaiting observed sandbox output"
+      },
+      "verified": {
+        "label": "Verified",
+        "passed": "{count} verify gates passed",
+        "failed": "Verify gates failed",
+        "unverified": "No verification run"
+      }
+    },
+    "expand": "Expand Evidence Snapshot",
+    "collapse": "Collapse Evidence Snapshot",
+    "drawer": {
+      "allEvidence": "Execution Evidence Snapshot",
+      "title_prepared": "Prepared: Plan & Criteria",
+      "title_executing": "Executing: Dispatched Tools",
+      "title_observed": "Observed: Sandbox Outputs",
+      "title_verified": "Verified: Gate Assertions",
+      "itemCount": "{count} evidence item(s)",
+      "empty": "No evidence details for this stage"
+    }
   }
 }

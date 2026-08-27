@@ -7079,8 +7079,8 @@
     "moaOverlayPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
     "moaOverlayPrivacyFull": "Vollständig (UI + Prompt-Schwärzung)",
     "moaOverlayNoModels": "Keine Referenzmodelle ausgewählt — Overlay wird übersprungen (kein Fallback)",
-    "moaOverlayAutoReasoningTitle": "Automatische Aktivierung bei Denkebene",
-    "moaOverlayAutoReasoningDesc": "MoA-Berater automatisch konsultieren, wenn Smart-Routing die Aufgabe als Denkebene einstuft; normale Aufgaben behalten schnelle Einzelmodell-Ausführung bei.",
+    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung bei Schlussfolgerungen",
+    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart Routing eine Aufgabe als REASONING einstuft.",
     "consensusPrivacy": "Referenz-Datenschutzfilter",
     "consensusPrivacyOff": "Aus",
     "consensusPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
@@ -7333,9 +7333,7 @@
       "entryCreated": "FAQ-Eintrag erstellt",
       "entryUpdated": "FAQ-Eintrag aktualisiert",
       "entryDeleted": "FAQ-Eintrag gelöscht"
-    },
-    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung bei Schlussfolgerungen",
-    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart Routing eine Aufgabe als REASONING einstuft."
+    }
   },
   "common": {
     "settings": "Einstellungen",
@@ -13890,6 +13888,13 @@
     "batchCostRace": "Race-Modus (Erster gewinnt)",
     "batchCostTournament": "Turnier-Modus (Bester gewinnt)",
     "highRiskDomAction": "Hochrisiko-Browseraktion erkannt",
+    "batchHighRisk": {
+      "dialogTitle": "Bestätigung von Hochrisiko-Aktionen",
+      "dialogDesc": "{highRiskCount} Hochrisiko- / destruktive Aktionen in der Batch-Genehmigungswarteschlange erkannt ({total} insgesamt). Bitte sorgfältig prüfen oder nur sichere Elemente genehmigen.",
+      "cancel": "Abbrechen",
+      "approveSafeOnly": "Nur sichere genehmigen ({count})",
+      "confirmAll": "Alle bestätigen (inkl. Hochrisiko)"
+    },
     "targetElement": "Zielelement",
     "action": "Aktion",
     "jsExpression": "JavaScript-Ausdruck",
@@ -17436,5 +17441,41 @@
     "pinned": "Angeheftet",
     "viewDetails": "Details anzeigen",
     "refresh": "Grenze aktualisieren"
+  },
+  "evidenceStageHUD": {
+    "stages": {
+      "prepared": {
+        "label": "Vorbereitet",
+        "ready": "Kontext und Ziel abgeglichen",
+        "planDeclared": "{count} Planelemente deklariert"
+      },
+      "executing": {
+        "label": "Ausführung",
+        "running": "Werkzeuge werden ausgeführt...",
+        "completed": "{count} Werkzeugaufrufe abgeschlossen"
+      },
+      "observed": {
+        "label": "Beobachtet",
+        "evidenceCaptured": "{count} Nachweise erfasst",
+        "pending": "Warte auf Sandbox-Ausgabe"
+      },
+      "verified": {
+        "label": "Verifiziert",
+        "passed": "{count} Verifizierungsgates bestanden",
+        "failed": "Verifizierung fehlgeschlagen",
+        "unverified": "Nicht verifiziert"
+      }
+    },
+    "expand": "Nachweis-Snapshot erweitern",
+    "collapse": "Nachweis-Snapshot einklappen",
+    "drawer": {
+      "allEvidence": "Ausführungsnachweis-Snapshot",
+      "title_prepared": "Vorbereitet: Plan & Kriterien",
+      "title_executing": "Ausführung: Aufgerufene Werkzeuge",
+      "title_observed": "Beobachtet: Sandbox-Ausgaben",
+      "title_verified": "Verifiziert: Gate-Prüfungen",
+      "itemCount": "{count} Nachweise",
+      "empty": "Keine Detailnachweise für diese Stufe"
+    }
   }
 }

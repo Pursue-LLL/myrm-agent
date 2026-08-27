@@ -34,6 +34,7 @@ import {
 import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
+import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStageHUD';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
 import UserMessage from './UserMessage';
 import MarkdownContent from './MarkdownContent';
@@ -598,7 +599,7 @@ const MessageBox = ({
           </div>
         )}
 
-        {/* 进度步骤 */}
+        {/* 进度步骤与执行阶段 HUD */}
         {(() => {
           const resolvedProgressSteps =
             message.progressSteps && message.progressSteps.length > 0
@@ -609,7 +610,12 @@ const MessageBox = ({
           if (!resolvedProgressSteps || resolvedProgressSteps.length === 0) {
             return null;
           }
-          return <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />;
+          return (
+            <div className="space-y-1.5">
+              <EvidenceStageHUD steps={resolvedProgressSteps} loading={loading} />
+              <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />
+            </div>
+          );
         })()}
 
         {message.consensusRefs && message.consensusRefs.length > 0 && (

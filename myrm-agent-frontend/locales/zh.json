@@ -14066,6 +14066,13 @@
   "toolApproval": {
     "title": "工具执行审批",
     "batchTitle": "批量审批 ({count} 个工具)",
+    "batchHighRisk": {
+      "dialogTitle": "高风险操作二次确认",
+      "dialogDesc": "批量审批队列中检测到 {highRiskCount} 项高风险/高破坏性操作（共 {total} 项）。为防止误操作，请仔细核对或选择仅放行安全项。",
+      "cancel": "取消",
+      "approveSafeOnly": "仅放行安全项 ({count})",
+      "confirmAll": "确认放行全部（含高危）"
+    },
     "description": "Agent 请求执行以下操作。你可以批准、编辑参数后执行、或拒绝并反馈。",
     "subagentApprovalRequired": "子智能体任务需审批",
     "deployApprovalTitle": "Artifact 部署确认",
@@ -14224,13 +14231,6 @@
     "batchCostRace": "竞速模式（先完成者胜出）",
     "batchCostTournament": "锦标赛模式（最优者胜出）",
     "highRiskDomAction": "检测到高风险浏览器操作",
-    "batchHighRisk": {
-      "dialogTitle": "高风险操作二次确认",
-      "dialogDesc": "批量审批队列中检测到 {highRiskCount} 项高风险/高破坏性操作（共 {total} 项）。为防止误操作，请仔细核对或选择仅放行安全项。",
-      "cancel": "取消",
-      "approveSafeOnly": "仅放行安全项 ({count})",
-      "confirmAll": "确认放行全部（含高危）"
-    },
     "targetElement": "目标元素",
     "action": "操作",
     "jsExpression": "JavaScript 表达式",
@@ -17441,5 +17441,41 @@
     "pinned": "置顶",
     "viewDetails": "查看详情",
     "refresh": "刷新边界"
+  },
+  "evidenceStageHUD": {
+    "stages": {
+      "prepared": {
+        "label": "规划准备",
+        "ready": "上下文与目标已对齐",
+        "planDeclared": "已声明 {count} 项执行计划"
+      },
+      "executing": {
+        "label": "沙箱执行",
+        "running": "工具正在执行中...",
+        "completed": "已调用 {count} 项工具"
+      },
+      "observed": {
+        "label": "观测证据",
+        "evidenceCaptured": "捕获 {count} 项真实证据",
+        "pending": "等待沙箱观测输出"
+      },
+      "verified": {
+        "label": "验证门禁",
+        "passed": "{count} 项门禁全部验证通过",
+        "failed": "验证门禁未完全通过",
+        "unverified": "未执行独立验证"
+      }
+    },
+    "expand": "展开证据快照",
+    "collapse": "收起证据快照",
+    "drawer": {
+      "allEvidence": "执行证据全景快照",
+      "title_prepared": "准备阶段：规划标准",
+      "title_executing": "执行阶段：调度工具",
+      "title_observed": "观测阶段：沙箱真实输出",
+      "title_verified": "验证阶段：独立测试断言",
+      "itemCount": "共 {count} 条证据",
+      "empty": "暂无该阶段的详细证据"
+    }
   }
 }

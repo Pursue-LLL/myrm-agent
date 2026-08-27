@@ -14144,6 +14144,13 @@
     "batchCostRace": "競速模式（先完成者勝出）",
     "batchCostTournament": "錦標賽模式（最優者勝出）",
     "highRiskDomAction": "檢測到高風險瀏覽器操作",
+    "batchHighRisk": {
+      "dialogTitle": "高風險操作二次確認",
+      "dialogDesc": "批次審批佇列中檢測到 {highRiskCount} 項高風險/高破壞性操作（共 {total} 項）。為防止誤操作，請仔細核對或選擇僅放行安全項。",
+      "cancel": "取消",
+      "approveSafeOnly": "僅放行安全項 ({count})",
+      "confirmAll": "確認放行全部（含高危）"
+    },
     "targetElement": "目標元素",
     "action": "操作",
     "jsExpression": "JavaScript 表示式",
@@ -17434,5 +17441,41 @@
     "pinned": "置頂",
     "viewDetails": "查看詳情",
     "refresh": "重新整理邊界"
+  },
+  "evidenceStageHUD": {
+    "stages": {
+      "prepared": {
+        "label": "規劃準備",
+        "ready": "上下文與目標已對齊",
+        "planDeclared": "已聲明 {count} 項執行計劃"
+      },
+      "executing": {
+        "label": "沙箱執行",
+        "running": "工具正在執行中...",
+        "completed": "已調用 {count} 項工具"
+      },
+      "observed": {
+        "label": "觀測證據",
+        "evidenceCaptured": "捕獲 {count} 項真實證據",
+        "pending": "等待沙箱觀測輸出"
+      },
+      "verified": {
+        "label": "驗證門禁",
+        "passed": "{count} 項門禁全部驗證通過",
+        "failed": "驗證門禁未完全通過",
+        "unverified": "未執行獨立驗證"
+      }
+    },
+    "expand": "展開證據快照",
+    "collapse": "收起證據快照",
+    "drawer": {
+      "allEvidence": "執行證據全景快照",
+      "title_prepared": "準備階段：規劃標準",
+      "title_executing": "執行階段：調度工具",
+      "title_observed": "觀測階段：沙箱真實輸出",
+      "title_verified": "驗證階段：獨立測試斷言",
+      "itemCount": "共 {count} 條證據",
+      "empty": "暫無該階段的詳細證據"
+    }
   }
 }

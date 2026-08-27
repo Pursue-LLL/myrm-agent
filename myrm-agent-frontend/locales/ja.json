@@ -13988,6 +13988,13 @@
   "toolApproval": {
     "title": "ツール実行承認",
     "batchTitle": "一括承認 ({count} 個ツール)",
+    "batchHighRisk": {
+      "dialogTitle": "高リスクな操作が検出されました",
+      "dialogDesc": "{total} 件の保留中の操作のうち {highRiskCount} 件の高リスク操作が検出されました。続行する前に慎重に確認してください。",
+      "cancel": "キャンセル",
+      "approveSafeOnly": "安全な操作のみ承認",
+      "confirmAll": "すべて承認（高リスク含む）"
+    },
     "description": "エージェントが以下の操作を実行しようとしています。承認、パラメータを編集して実行、または拒否してフィードバックできます。",
     "subagentApprovalRequired": "サブエージェントタスクの承認が必要",
     "deployApprovalTitle": "Artifact デプロイ確認",
@@ -14144,6 +14151,13 @@
     "batchCostRace": "レースモード（先中勝ち）",
     "batchCostTournament": "トーナメントモード（最優秀者勝ち）",
     "highRiskDomAction": "高リスクブラウザ操作が検出されました",
+    "batchHighRisk": {
+      "dialogTitle": "高リスク操作の二次確認",
+      "dialogDesc": "一括承認キュー内に {highRiskCount} 件の高リスク/破壊的操作が検出されました（合計 {total} 件）。誤操作を防ぐため、内容をご確認いただくか安全な項目のみを承認してください。",
+      "cancel": "キャンセル",
+      "approveSafeOnly": "安全な項目のみ承認 ({count})",
+      "confirmAll": "高リスクを含むすべてを承認"
+    },
     "targetElement": "ゴール元素",
     "action": "アクション",
     "jsExpression": "JavaScript 式",
@@ -17434,5 +17448,41 @@
     "pinned": "ピン留め",
     "viewDetails": "詳細を表示",
     "refresh": "境界を更新"
+  },
+  "evidenceStageHUD": {
+    "stages": {
+      "prepared": {
+        "label": "準備完了",
+        "ready": "コンテキストと目標が一致",
+        "planDeclared": "{count} 個の計画が宣言されました"
+      },
+      "executing": {
+        "label": "実行中",
+        "running": "ツールを実行中...",
+        "completed": "{count} 回のツール呼び出しが完了"
+      },
+      "observed": {
+        "label": "観測証拠",
+        "evidenceCaptured": "{count} 件の実証拠を捕捉",
+        "pending": "サンドボックス出力待機中"
+      },
+      "verified": {
+        "label": "検証ゲート",
+        "passed": "{count} 件の検証ゲート通過",
+        "failed": "検証ゲート不合格",
+        "unverified": "未検証"
+      }
+    },
+    "expand": "証拠スナップショットを展開",
+    "collapse": "証拠スナップショットを閉じる",
+    "drawer": {
+      "allEvidence": "実行証拠スナップショット",
+      "title_prepared": "準備：計画と基準",
+      "title_executing": "実行：ディスパッチされたツール",
+      "title_observed": "観測：サンドボックス出力",
+      "title_verified": "検証：ゲートアサーション",
+      "itemCount": "合計 {count} 件の証拠",
+      "empty": "この段階の詳細証拠はありません"
+    }
   }
 }
