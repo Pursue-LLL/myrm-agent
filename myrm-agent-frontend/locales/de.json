@@ -531,33 +531,33 @@
       "title": "Sicherheitsrichtlinie",
       "description": "Steuern, wie der KI-Agent Tool-Ausführungen behandelt. Konfigurieren Sie Berechtigungsregeln mit Last-Match-Wins-Semantik.",
       "dataFlow": {
-        "title": "Datenfluss- und Datenschutz-Offenlegung",
-        "description": "Verstehen Sie genau, wo Ihre Daten gespeichert sind und wann sie Ihre lokale Umgebung verlassen.",
-        "localDomain": "Lokale Speicherung & Verarbeitung",
-        "localDomainDesc": "Daten, die strikt auf Ihrem Gerät oder dedizierten persistenten Volume verbleiben.",
+        "title": "Datenfluss- und Grenztransparenz",
+        "description": "Visuelle Übersicht darüber, wo sich Ihre Daten befinden und wohin ausgehende Daten fließen.",
+        "localDomain": "Lokale private Domäne",
+        "localDomainDesc": "Private Daten verbleiben physisch in der lokalen Datenbank und dem persistenten Arbeitsbereich. Kein Cloud-Upload.",
         "badgeLocalOnly": "Nur lokal",
-        "localChatHistory": "Chat-Verläufe & Sitzungen",
-        "localChatHistoryDesc": "Gespeichert in der lokalen SQLite-Datenbank auf Ihrem Gerät.",
-        "localMemory": "Arbeits- & Langzeitgedächtnis",
-        "localMemoryDesc": "Vektoreinbettungen und Faktenwissen in lokalem Qdrant / SQLite gespeichert.",
-        "localWorkspace": "Arbeitsbereichsdateien & Artefakte",
-        "localWorkspaceDesc": "Ausschließlich in Ihrem gewählten lokalen Arbeitsbereichsordner gelesen und geschrieben.",
-        "localCredentials": "API-Schlüssel & Zugangsdaten",
-        "localCredentialsDesc": "Verschlüsselt in der lokalen Client-Datenbank gespeichert und niemals hochgeladen.",
-        "controlPlaneDomain": "Control-Plane-Koordination",
-        "controlPlaneDesc": "Unternehmens- / Hosted-Modus Metadaten-Routing.",
-        "controlPlaneStandalone": "Standalone- / Lokaler Modus",
-        "controlPlaneStandaloneDesc": "Keine Telemetrie oder Sitzungsdaten an zentrale Server gesendet.",
-        "egressDomain": "Externe Egress- & Drittanbieter-APIs",
-        "egressDesc": "Externe Dienste, die basierend auf Ihrer Konfiguration aktuell Prompts oder Tool-Aufrufe empfangen.",
-        "noEgress": "Kein aktiver externer Egress konfiguriert. Alle Operationen sind lokal.",
-        "llmCategory": "LLM-Inferenz-Anbieter",
+        "localChatHistory": "Chat-Verlauf & Protokolle",
+        "localChatHistoryDesc": "In lokaler SQLite-Datenbank gespeichert",
+        "localMemory": "Langzeitgedächtnis & Vektoren",
+        "localMemoryDesc": "Im lokalen Qdrant / SQLite-vec Speicher abgelegt",
+        "localWorkspace": "Arbeitsbereich-Dateien & Volume",
+        "localWorkspaceDesc": "Im lokalen persistenten Volume gespeichert",
+        "localCredentials": "Tresor & Anmeldedaten",
+        "localCredentialsDesc": "In lokal verschlüsseltem Speicher gesichert",
+        "controlPlaneDomain": "Control Plane- & Telemetriebereich",
+        "controlPlaneDesc": "Status der Infrastruktur-Metadatenübertragung.",
+        "controlPlaneStandalone": "Eigenständige / Lokale Bereitstellung",
+        "controlPlaneStandaloneDesc": "Direkte lokale Ausführung — 0 Cloud-Metadaten oder Telemetrie-Ausgänge.",
+        "egressDomain": "Ausgehender Datenverkehr von Drittanbietern",
+        "egressDesc": "Externe Ziele, die Anfragen basierend auf aktiven LLM-Providern und MCP-Servern empfangen.",
+        "noEgress": "Keine aktiven externen LLM- oder MCP-Integrationen.",
+        "llmCategory": "LLM-Anbieter",
+        "mcpCategory": "MCP-Server",
         "badgeLocalHost": "Lokaler Host",
         "badgeCloudApi": "Cloud-API",
-        "dataScopePrompt": "Prompts, Konversationskontext und Anhänge",
-        "actionManage": "Verwalten",
-        "mcpCategory": "Externe MCP-Server",
-        "dataScopeToolArgs": "Tool-Argumente und externe Funktionsnutzlasten"
+        "dataScopePrompt": "Gefilterter Prompt & Kontext",
+        "dataScopeToolArgs": "Werkzeug-Aufrufargumente & Nutzlast",
+        "actionManage": "Verwalten"
       },
       "modeAllow": "Erlauben",
       "modeAsk": "Genehmigung erforderlich",
@@ -1005,35 +1005,6 @@
         "enableLabel": "Fail-Closed-Blockierung aktivieren",
         "enableDesc": "When enabled, high-threat prompt injection patterns (score ≥ 0.7) will be blocked and replaced with a safe placeholder, preventing the LLM from processing malicious input.",
         "saved": "Prompt-Injection-Richtlinie gespeichert"
-      },
-      "dataFlow": {
-        "title": "Datenfluss- und Grenztransparenz",
-        "description": "Visuelle Übersicht darüber, wo sich Ihre Daten befinden und wohin ausgehende Daten fließen.",
-        "localDomain": "Lokale private Domäne",
-        "localDomainDesc": "Private Daten verbleiben physisch in der lokalen Datenbank und dem persistenten Arbeitsbereich. Kein Cloud-Upload.",
-        "badgeLocalOnly": "Nur lokal",
-        "localChatHistory": "Chat-Verlauf & Protokolle",
-        "localChatHistoryDesc": "In lokaler SQLite-Datenbank gespeichert",
-        "localMemory": "Langzeitgedächtnis & Vektoren",
-        "localMemoryDesc": "Im lokalen Qdrant / SQLite-vec Speicher abgelegt",
-        "localWorkspace": "Arbeitsbereich-Dateien & Volume",
-        "localWorkspaceDesc": "Im lokalen persistenten Volume gespeichert",
-        "localCredentials": "Tresor & Anmeldedaten",
-        "localCredentialsDesc": "In lokal verschlüsseltem Speicher gesichert",
-        "controlPlaneDomain": "Control Plane- & Telemetriebereich",
-        "controlPlaneDesc": "Status der Infrastruktur-Metadatenübertragung.",
-        "controlPlaneStandalone": "Eigenständige / Lokale Bereitstellung",
-        "controlPlaneStandaloneDesc": "Direkte lokale Ausführung — 0 Cloud-Metadaten oder Telemetrie-Ausgänge.",
-        "egressDomain": "Ausgehender Datenverkehr von Drittanbietern",
-        "egressDesc": "Externe Ziele, die Anfragen basierend auf aktiven LLM-Providern und MCP-Servern empfangen.",
-        "noEgress": "Keine aktiven externen LLM- oder MCP-Integrationen.",
-        "llmCategory": "LLM-Anbieter",
-        "mcpCategory": "MCP-Server",
-        "badgeLocalHost": "Lokaler Host",
-        "badgeCloudApi": "Cloud-API",
-        "dataScopePrompt": "Gefilterter Prompt & Kontext",
-        "dataScopeToolArgs": "Werkzeug-Aufrufargumente & Nutzlast",
-        "actionManage": "Verwalten"
       },
       "managedPolicy": {
         "lockedBadge": "Organisationsrichtlinie",
@@ -6280,6 +6251,21 @@
           "uninstallFailed": "Plugin konnte nicht deinstalliert werden"
         }
       }
+    },
+    "supportDebugBundle": {
+      "title": "Support- & Debug-Paket",
+      "description": "Bereinigte Systemdiagnoseprotokolle, Konfigurationszustände und Leistungsmetriken zur Fehlerbehebung exportieren.",
+      "privacyNoticeTitle": "Datenschutz & Schutz sensibler Daten",
+      "privacyNoticeDesc": "Alle Geheimnisse, Authentifizierungstoken und privaten Schlüssel werden vor dem Export automatisch bereinigt.",
+      "includeTraces": "Ausführungs-Traces einbinden",
+      "includeTracesDesc": "Letzte Aufgabenausführungsspannen und Unteragentenaufrufe beifügen.",
+      "includeProfiles": "Systemprofile einbinden",
+      "includeProfilesDesc": "Zusammenfassungen der CPU-, Speicher- und Ressourcenauslastung beifügen.",
+      "exporting": "Exportiere...",
+      "exportButton": "Diagnosepaket exportieren",
+      "exportSuccessTitle": "Paket exportiert",
+      "exportSuccessDesc": "Diagnosearchiv wurde erfolgreich erstellt und heruntergeladen.",
+      "exportFailedTitle": "Export fehlgeschlagen"
     }
   },
   "userMenu": {
@@ -7137,8 +7123,8 @@
     "moaOverlayPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
     "moaOverlayPrivacyFull": "Vollständig (UI + Prompt-Schwärzung)",
     "moaOverlayNoModels": "Keine Referenzmodelle ausgewählt — Overlay wird übersprungen (kein Fallback)",
-    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung bei Schlussfolgerungen",
-    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart Routing eine Aufgabe als REASONING einstuft.",
+    "moaOverlayAutoReasoningTitle": "Automatische Aktivierung bei Reasoning-Stufe",
+    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das intelligente Routing die Aufgabe der Stufe REASONING zuordnet; normale Aufgaben behalten die schnelle Einzelmodell-Ausführung bei.",
     "consensusPrivacy": "Referenz-Datenschutzfilter",
     "consensusPrivacyOff": "Aus",
     "consensusPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
@@ -9254,6 +9240,47 @@
   "memory": {
     "title": "Speicherverwaltung",
     "description": "Verwalten Sie Erinnerungen, die die KI aus Gesprächen gelernt hat",
+    "scopeHierarchy": {
+      "cardTitle": "Gedächtnisbereichs-Hierarchie",
+      "cardSubtitle": "Visuelle Verwaltung von Lebenszyklus & Isolationsgrenzen für Agentenwissen",
+      "fourTiersBadge": "4-Stufige Integrierte Bereiche",
+      "selected": "Ausgewählt",
+      "task": {
+        "title": "Aufgabenbereich",
+        "tag": "TASK",
+        "lifecycle": "Einzelne Aufgabenausführung",
+        "desc": "Flüchtiger Arbeitszustand und Zwischenschritte, die nach Abschluss freigegeben werden."
+      },
+      "conversation": {
+        "title": "Gesprächsbereich",
+        "tag": "CONVERSATION",
+        "lifecycle": "Aktuelle Chatsitzung",
+        "desc": "Dialogkontext und Sitzungsziele während der aktiven Konversation."
+      },
+      "agent": {
+        "title": "Agentenbereich",
+        "tag": "AGENT",
+        "lifecycle": "Agentenspezifisch",
+        "desc": "Spezialisierte Fähigkeiten, Anweisungen und Gewohnheiten dieses Agenten."
+      },
+      "global": {
+        "title": "Globaler Bereich",
+        "tag": "GLOBAL",
+        "lifecycle": "Universell & Dauerhaft",
+        "desc": "Kernpräferenzen, Codierstandards und Sprachstile über alle Agenten hinweg."
+      }
+    },
+    "scopePicker": {
+      "label": "Gedächtnisebene",
+      "taskLabel": "Aufgaben-Ebene",
+      "conversationLabel": "Gesprächs-Ebene",
+      "agentLabel": "Assistenten-Ebene",
+      "globalLabel": "Globale Ebene",
+      "taskHint": "Nur für die aktuelle Aufgabenausführung",
+      "conversationHint": "Nur für die aktuelle Chatsitzung",
+      "agentHint": "Bleibt über alle Chats mit diesem Agenten erhalten",
+      "globalHint": "Universelles Gedächtnis über alle Agenten und Sitzungen"
+    },
     "pending": "Ausstehende Erinnerungen",
     "pendingCount": "{count} ausstehend",
     "confirmTitle": "Neuer Speicher steht aus",
@@ -9977,6 +10004,10 @@
         "capacity_theater": {
           "label": "Kapazitätstheater & Speicherdisziplin",
           "evidence": "Prüft, ob der aktive Arbeitsspeicher Budgetgrenzen überschreitet oder unter übermäßiger Anhäufung leidet."
+        },
+        "memory_mislayer_governance": {
+          "label": "Gedächtnis-Fehlschichtungs-Wächter",
+          "evidence": "Erkennt globale Präferenzen, die fälschlicherweise in Sitzungsspeichern gefangen sind."
         }
       },
       "doctorRepairAction": {
@@ -9986,7 +10017,8 @@
         "run_diagnostics": "Führen Sie eine Diagnose durch",
         "run_health_refresh": "Gesundheits-Snapshot aktualisieren",
         "review_retrieval_trace": "Überprüfen Sie die Abrufverfolgung",
-        "restore_disciplined_defaults": "Disziplinierte Standardwerte wiederherstellen"
+        "restore_disciplined_defaults": "Disziplinierte Standardwerte wiederherstellen",
+        "elevate_mislayered_memories": "Fehlschichten hochstufen"
       },
       "doctorRepairRisk": {
         "safe": "Sicher",
@@ -10021,6 +10053,10 @@
         "review_retrieval_trace": {
           "dryRun": "Liest vorhandene Abruf-Trace-Metadaten, ohne abgerufene Speicherinhalte offenzulegen.",
           "expectedEffect": "Gibt an, in welcher Abrufphase keine Spuren- oder Rückrufbeweise mehr produziert wurden."
+        },
+        "elevate_mislayered_memories": {
+          "dryRun": "Durchsucht Sitzungsgedächtnisse nach universellen Mustern zur Hochstufung in Agenten/Global-Ebene.",
+          "expectedEffect": "Verhindert Präferenzverlust über Sitzungen hinweg."
         }
       },
       "waterfallDescription": {
@@ -13791,11 +13827,11 @@
     "title": "Genehmigung der Werkzeugausführung",
     "batchTitle": "Chargengenehmigung ({count}-Tools)",
     "batchHighRisk": {
-      "dialogTitle": "Hochriskante Aktionen erkannt",
-      "dialogDesc": "{highRiskCount} hochriskante Aktion(en) unter {total} ausstehenden Aktion(en) erkannt. Bitte vor dem Fortfahren sorgfältig prüfen.",
+      "dialogTitle": "Bestätigung von Hochrisiko-Aktionen",
+      "dialogDesc": "{highRiskCount} Hochrisiko- / destruktive Aktionen in der Batch-Genehmigungswarteschlange erkannt ({total} insgesamt). Bitte sorgfältig prüfen oder nur sichere Elemente genehmigen.",
       "cancel": "Abbrechen",
-      "approveSafeOnly": "Nur sichere Aktionen genehmigen",
-      "confirmAll": "Alle bestätigen (einschließlich hohes Risiko)"
+      "approveSafeOnly": "Nur sichere genehmigen ({count})",
+      "confirmAll": "Alle bestätigen (inkl. Hochrisiko)"
     },
     "description": "Der Agent möchte die folgende(n) Aktion(en) ausführen. Prüfen und entscheiden: Genehmigen, Parameter bearbeiten oder mit Feedback ablehnen.",
     "subagentApprovalRequired": "Genehmigung von Subagentenaufgaben",
@@ -13953,13 +13989,6 @@
     "batchCostRace": "Race-Modus (Erster gewinnt)",
     "batchCostTournament": "Turnier-Modus (Bester gewinnt)",
     "highRiskDomAction": "Hochrisiko-Browseraktion erkannt",
-    "batchHighRisk": {
-      "dialogTitle": "Bestätigung von Hochrisiko-Aktionen",
-      "dialogDesc": "{highRiskCount} Hochrisiko- / destruktive Aktionen in der Batch-Genehmigungswarteschlange erkannt ({total} insgesamt). Bitte sorgfältig prüfen oder nur sichere Elemente genehmigen.",
-      "cancel": "Abbrechen",
-      "approveSafeOnly": "Nur sichere genehmigen ({count})",
-      "confirmAll": "Alle bestätigen (inkl. Hochrisiko)"
-    },
     "targetElement": "Zielelement",
     "action": "Aktion",
     "jsExpression": "JavaScript-Ausdruck",

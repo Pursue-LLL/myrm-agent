@@ -24,6 +24,7 @@ pub mod port;
 pub mod process_registry;
 pub mod python_backend;
 pub mod setup_token;
+pub mod sidecar_version_manager;
 pub mod survivor_diag;
 pub mod watchdog;
 
@@ -38,6 +39,7 @@ pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_s
 pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
 pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
 pub use setup_token::SetupTokenState;
+pub use sidecar_version_manager::{SidecarVersionManager, SidecarVersionManifest};
 
 /// Host environment variables that must be stripped before spawning child processes.
 ///

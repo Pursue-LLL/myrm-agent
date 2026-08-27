@@ -216,3 +216,40 @@ async def recreate_sandbox_container() -> SandboxRecreateResponse:
             status_code=502,
             detail="Failed to reach control plane",
         ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Support Debug Bundle Export
+# ---------------------------------------------------------------------------
+
+
+@router.get("/debug-bundle")
+async def export_support_debug_bundle(
+    include_traces: bool = Query(True, description="Include recent redacted session event traces"),
+    include_profiles: bool = Query(True, description="Include sanitized active agent profile metadata"),
+) -> Response:
+    """Generate and download a self-contained, fully redacted diagnostic ZIP bundle for support."""
+    from datetime import datetime, timezone
+    from fastapi import Response
+    from app.services.system.support_bundle_service import SupportBundleService
+
+    try:
+        zip_bytes = await SupportBundleService.build_bundle_zip(
+            include_traces=include_traces,
+            include_profiles=include_profiles,
+        )
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        filename = f"myrm-support-debug-{timestamp}.zip"
+
+        return Response(
+            content=zip_bytes,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Bundle-Version": "1.0.0",
+            },
+        )
+    except Exception as exc:
+        logger.error("Failed to generate support debug bundle: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate support debug bundle") from exc
+

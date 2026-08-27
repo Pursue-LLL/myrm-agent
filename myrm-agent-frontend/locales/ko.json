@@ -531,33 +531,33 @@
       "title": "보안 정책",
       "description": "AI 에이전트가 도구 실행을 처리하는 방식을 제어합니다. 마지막 일치 우선 의미 체계로 권한 규칙을 구성하세요.",
       "dataFlow": {
-        "title": "데이터 흐름 및 개인정보 보호 공개",
-        "description": "데이터가 어디에 저장되고 언제 로컬 환경을 벗어나는지 명확히 이해하세요.",
-        "localDomain": "로컬 저장 및 처리",
-        "localDomainDesc": "귀하의 장치 또는 전용 영구 볼륨에 엄격하게 보관되는 데이터.",
+        "title": "데이터 흐름 및 경계 투명성",
+        "description": "데이터의 물리적 보관 위치와 외부 전송 대상을 시각적으로 확인할 수 있습니다.",
+        "localDomain": "로컬 프라이빗 도메인",
+        "localDomainDesc": "민감한 데이터는 로컬 데이터베이스와 영구 워크스페이스에 안전하게 보관되며 클라우드로 전송되지 않습니다.",
         "badgeLocalOnly": "로컬 전용",
-        "localChatHistory": "대화 기록 및 세션",
-        "localChatHistoryDesc": "장치의 로컬 SQLite 데이터베이스에 저장됩니다.",
-        "localMemory": "작업 및 장기 기억",
-        "localMemoryDesc": "임베딩 벡터와 팩트 지식은 로컬 Qdrant / SQLite에 저장됩니다.",
-        "localWorkspace": "작업 공간 파일 및 산출물",
-        "localWorkspaceDesc": "지정된 로컬 작업 공간 폴더 내에서만 읽고 씁니다.",
-        "localCredentials": "API 키 및 자격 증명",
-        "localCredentialsDesc": "로컬 클라이언트 데이터베이스에 암호화되어 저장되며 업로드되지 않습니다.",
-        "controlPlaneDomain": "컨트롤 플레인 조정",
-        "controlPlaneDesc": "엔터프라이즈/호스팅 모드 메타데이터 라우팅.",
-        "controlPlaneStandalone": "독립 실행형 / 로컬 모드",
-        "controlPlaneStandaloneDesc": "중앙 서버로 텔레메트리나 세션 데이터가 전송되지 않습니다.",
-        "egressDomain": "외부 송신 및 타사 API",
-        "egressDesc": "구성 설정에 따라 프롬프트나 도구 호출을 수신 중인 외부 서비스.",
-        "noEgress": "활성 외부 송신이 구성되지 않았습니다. 모든 작업은 로컬에서 수행됩니다.",
-        "llmCategory": "LLM 추론 제공자",
+        "localChatHistory": "대화 기록 및 로그",
+        "localChatHistoryDesc": "로컬 SQLite 데이터베이스에 저장됨",
+        "localMemory": "장기 기억 및 벡터 인덱스",
+        "localMemoryDesc": "로컬 Qdrant / SQLite-vec에 저장됨",
+        "localWorkspace": "워크스페이스 파일 및 볼륨",
+        "localWorkspaceDesc": "로컬 샌드박스 볼륨에 저장됨",
+        "localCredentials": "보안 금고 및 인증 정보",
+        "localCredentialsDesc": "로컬 암호화 저장소에 보관됨",
+        "controlPlaneDomain": "컨트롤 플레인 및 원격 측정 도메인",
+        "controlPlaneDesc": "인프라 메타데이터 통신 상태입니다.",
+        "controlPlaneStandalone": "독립 실행 / 로컬 배포",
+        "controlPlaneStandaloneDesc": "직접 로컬 실행 — 클라우드 원격 측정 또는 외부 메타데이터 전송 0건.",
+        "egressDomain": "타사 외부 전송",
+        "egressDesc": "활성화된 LLM 제공업체 및 연결된 MCP 서버를 기반으로 한 외부 전송 대상 목록입니다.",
+        "noEgress": "활성화된 외부 모델 또는 MCP 연결이 없습니다.",
+        "llmCategory": "LLM 제공업체",
+        "mcpCategory": "MCP 서버",
         "badgeLocalHost": "로컬 호스트",
         "badgeCloudApi": "클라우드 API",
-        "dataScopePrompt": "프롬프트, 대화 컨텍스트 및 첨부 파일",
-        "actionManage": "관리",
-        "mcpCategory": "외부 MCP 서버",
-        "dataScopeToolArgs": "도구 인수 및 외부 기능 페이로드"
+        "dataScopePrompt": "필터링된 프롬프트 및 대화 컨텍스트",
+        "dataScopeToolArgs": "도구 호출 매개변수 및 페이로드",
+        "actionManage": "설정 관리"
       },
       "modeAllow": "허용",
       "modeAsk": "승인 필요",
@@ -1005,35 +1005,6 @@
         "enableLabel": "실패 시 차단 활성화",
         "enableDesc": "활성화하면 고위협 프롬프트 인젝션 패턴(점수 ≥ 0.7)이 차단되고 안전한 자리 표시자로 교체되어 LLM이 악성 입력을 처리하지 못하게 합니다.",
         "saved": "프롬프트 인젝션 정책이 저장되었습니다"
-      },
-      "dataFlow": {
-        "title": "데이터 흐름 및 경계 투명성",
-        "description": "데이터의 물리적 보관 위치와 외부 전송 대상을 시각적으로 확인할 수 있습니다.",
-        "localDomain": "로컬 프라이빗 도메인",
-        "localDomainDesc": "민감한 데이터는 로컬 데이터베이스와 영구 워크스페이스에 안전하게 보관되며 클라우드로 전송되지 않습니다.",
-        "badgeLocalOnly": "로컬 전용",
-        "localChatHistory": "대화 기록 및 로그",
-        "localChatHistoryDesc": "로컬 SQLite 데이터베이스에 저장됨",
-        "localMemory": "장기 기억 및 벡터 인덱스",
-        "localMemoryDesc": "로컬 Qdrant / SQLite-vec에 저장됨",
-        "localWorkspace": "워크스페이스 파일 및 볼륨",
-        "localWorkspaceDesc": "로컬 샌드박스 볼륨에 저장됨",
-        "localCredentials": "보안 금고 및 인증 정보",
-        "localCredentialsDesc": "로컬 암호화 저장소에 보관됨",
-        "controlPlaneDomain": "컨트롤 플레인 및 원격 측정 도메인",
-        "controlPlaneDesc": "인프라 메타데이터 통신 상태입니다.",
-        "controlPlaneStandalone": "독립 실행 / 로컬 배포",
-        "controlPlaneStandaloneDesc": "직접 로컬 실행 — 클라우드 원격 측정 또는 외부 메타데이터 전송 0건.",
-        "egressDomain": "타사 외부 전송",
-        "egressDesc": "활성화된 LLM 제공업체 및 연결된 MCP 서버를 기반으로 한 외부 전송 대상 목록입니다.",
-        "noEgress": "활성화된 외부 모델 또는 MCP 연결이 없습니다.",
-        "llmCategory": "LLM 제공업체",
-        "mcpCategory": "MCP 서버",
-        "badgeLocalHost": "로컬 호스트",
-        "badgeCloudApi": "클라우드 API",
-        "dataScopePrompt": "필터링된 프롬프트 및 대화 컨텍스트",
-        "dataScopeToolArgs": "도구 호출 매개변수 및 페이로드",
-        "actionManage": "설정 관리"
       },
       "managedPolicy": {
         "lockedBadge": "조직 정책",
@@ -6280,6 +6251,21 @@
           "uninstallFailed": "플러그인 제거에 실패했습니다"
         }
       }
+    },
+    "supportDebugBundle": {
+      "title": "지원 및 디버그 번들",
+      "description": "문제 해결을 위해 마스킹 처리된 시스템 진단 로그, 활성 구성 스냅샷 및 성능 메트릭을 내보냅니다.",
+      "privacyNoticeTitle": "개인정보 및 기밀 데이터 보호",
+      "privacyNoticeDesc": "모든 보안 비밀, 인증 토큰 및 개인 키는 내보내기 전에 자동으로 비식별화 처리됩니다.",
+      "includeTraces": "실행 추적 포함",
+      "includeTracesDesc": "최근 작업 실행 스팬 및 하위 에이전트 호출 추적을 첨부합니다.",
+      "includeProfiles": "시스템 프로파일 포함",
+      "includeProfilesDesc": "CPU, 메모리 및 작업 리소스 프로파일링 요약을 첨부합니다.",
+      "exporting": "내보내는 중...",
+      "exportButton": "진단 번들 내보내기",
+      "exportSuccessTitle": "번들 내보내기 완료",
+      "exportSuccessDesc": "진단 번들 아카이브가 생성되어 성공적으로 다운로드되었습니다.",
+      "exportFailedTitle": "내보내기 실패"
     }
   },
   "userMenu": {
@@ -7136,9 +7122,9 @@
     "moaOverlayPrivacyOff": "끔",
     "moaOverlayPrivacyDisplay": "표시만 (UI 편집)",
     "moaOverlayPrivacyFull": "전체 (UI + 프롬프트 편집)",
-    "moaOverlayAutoReasoningTitle": "추론 계층에서 자동 활성화",
-    "moaOverlayAutoReasoningDesc": "스마트 라우팅이 작업을 추론 계층으로 분류할 때 MoA 자문단을 자동으로 활성화합니다. 일반 작업은 단일 모델로 빠르게 실행됩니다.",
     "moaOverlayNoModels": "참조 모델이 선택되지 않음 — 오버레이가 건너뛰어집니다 (대체 없음)",
+    "moaOverlayAutoReasoningTitle": "추론 계층에서 자동 활성화",
+    "moaOverlayAutoReasoningDesc": "스마트 라우팅이 작업을 추론 계층(REASONING)으로 분류할 때 MoA 자문단을 자동으로 활성화합니다. 일반 작업은 단일 모델로 빠르게 실행됩니다.",
     "consensusPrivacy": "참조 개인정보 필터",
     "consensusPrivacyOff": "끔",
     "consensusPrivacyDisplay": "표시만 (UI 편집)",
@@ -9976,6 +9962,10 @@
         "capacity_theater": {
           "label": "용량 극장 및 메모리 규율",
           "evidence": "활성 작업 메모리가 예산 상한을 초과하거나 과도한 누적 및 인과적 맹점이 있는지 확인합니다."
+        },
+        "memory_mislayer_governance": {
+          "label": "메모리 스코프 오배치 가드",
+          "evidence": "임시 대화 세션에 잘못 저장된 장기 전역 선호도를 감지합니다."
         }
       },
       "doctorRepairAction": {
@@ -9985,7 +9975,8 @@
         "run_diagnostics": "진단 실행",
         "run_health_refresh": "상태 스냅샷 새로고침",
         "review_retrieval_trace": "검색 추적 검토",
-        "restore_disciplined_defaults": "규율 있는 기본값 복원"
+        "restore_disciplined_defaults": "규율 있는 기본값 복원",
+        "elevate_mislayered_memories": "오배치 메모리 승격"
       },
       "doctorRepairRisk": {
         "safe": "안전",
@@ -10020,6 +10011,10 @@
         "review_retrieval_trace": {
           "dryRun": "검색된 메모리 콘텐츠를 노출하지 않고 기존 검색 추적 메타데이터를 읽습니다.",
           "expectedEffect": "어느 검색 단계에서 추적 또는 검색 증거 생성을 중단했는지 식별합니다."
+        },
+        "elevate_mislayered_memories": {
+          "dryRun": "대화 메모리에서 전역 선호도 패턴을 스캔하고 에이전트/글로벌 스코프로의 승격을 준비합니다.",
+          "expectedEffect": "세션 간 선호도 손실을 방지하고 장기 메모리로 안전하게 승격합니다."
         }
       },
       "waterfallDescription": {
@@ -10706,7 +10701,48 @@
     "confidenceLow": "확인 필요",
     "extractionReason": "추출 근거",
     "validPermanent": "영구적",
-    "manualReviewRequired": "수동 확인 필요 · 자동 덮어쓰기 없음"
+    "manualReviewRequired": "수동 확인 필요 · 자동 덮어쓰기 없음",
+    "scopeHierarchy": {
+      "cardTitle": "메모리 스코프 계층 구조",
+      "cardSubtitle": "에이전트 장기 지식의 수명 주기 및 경계 격리 시각화 관리",
+      "fourTiersBadge": "4단계 통합 스코프",
+      "selected": "선택됨",
+      "task": {
+        "title": "작업 스코프",
+        "tag": "TASK",
+        "lifecycle": "단일 작업 실행",
+        "desc": "작업 완료 시 자동 해제되는 임시 작업 상태 및 중간 추론."
+      },
+      "conversation": {
+        "title": "대화 스코프",
+        "tag": "CONVERSATION",
+        "lifecycle": "현재 채팅 세션",
+        "desc": "활성 대화 전체에서 유지되는 대화 작업 컨텍스트 및 세션 목표."
+      },
+      "agent": {
+        "title": "에이전트 스코프",
+        "tag": "AGENT",
+        "lifecycle": "전용 에이전트 바인딩",
+        "desc": "해당 에이전트에 바인딩된 전문 스킬, 지침 및 도메인 습관 (세션 간 유지)."
+      },
+      "global": {
+        "title": "글로벌 스코프",
+        "tag": "GLOBAL",
+        "lifecycle": "범용 및 영구 유효",
+        "desc": "모든 에이전트와 세션에 걸쳐 영구 적용되는 사용자 핵심 선호도 및 표준."
+      }
+    },
+    "scopePicker": {
+      "label": "메모리 스코프 레벨",
+      "taskLabel": "작업 스코프",
+      "conversationLabel": "대화 스코프",
+      "agentLabel": "에이전트 스코프",
+      "globalLabel": "글로벌 스코프",
+      "taskHint": "현재 작업 실행에만 유효",
+      "conversationHint": "현재 대화 세션에만 유효",
+      "agentHint": "이 에이전트의 모든 대화에 지속 적용",
+      "globalHint": "모든 에이전트 및 세션에 영구 적용"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
@@ -13791,11 +13827,11 @@
     "title": "도구 실행 승인",
     "batchTitle": "배치 승인 ({count}개 도구)",
     "batchHighRisk": {
-      "dialogTitle": "고위험 작업 감지됨",
-      "dialogDesc": "{total}개의 보류 중인 작업 중 {highRiskCount}개의 고위험 작업이 감지되었습니다. 계속하기 전에 신중히 검토하세요.",
+      "dialogTitle": "고위험 작업 2차 확인",
+      "dialogDesc": "일괄 승인 대기열에서 {highRiskCount}개의 고위험/파괴적 작업이 감지되었습니다(총 {total}개). 오작동을 방지하기 위해 신중히 확인하거나 안전한 항목만 승인하십시오.",
       "cancel": "취소",
-      "approveSafeOnly": "안전한 작업만 승인",
-      "confirmAll": "전체 확인 (고위험 포함)"
+      "approveSafeOnly": "안전한 항목만 승인 ({count})",
+      "confirmAll": "모두 승인 확인 (고위험 포함)"
     },
     "description": "에이전트가 다음 작업을 실행하려고 합니다. 검토 후 결정하세요: 승인, 매개변수 편집, 또는 피드백과 함께 거부.",
     "subagentApprovalRequired": "하위 에이전트 작업 승인",
@@ -13953,13 +13989,6 @@
     "batchCostRace": "레이스 모드 (선착순 승리)",
     "batchCostTournament": "토너먼트 모드 (최우수 승리)",
     "highRiskDomAction": "고위험 브라우저 작업이 감지되었습니다",
-    "batchHighRisk": {
-      "dialogTitle": "고위험 작업 2차 확인",
-      "dialogDesc": "일괄 승인 대기열에서 {highRiskCount}개의 고위험/파괴적 작업이 감지되었습니다(총 {total}개). 오작동을 방지하기 위해 신중히 확인하거나 안전한 항목만 승인하십시오.",
-      "cancel": "취소",
-      "approveSafeOnly": "안전한 항목만 승인 ({count})",
-      "confirmAll": "모두 승인 확인 (고위험 포함)"
-    },
     "targetElement": "대상 요소",
     "action": "작업",
     "jsExpression": "JavaScript 표현식",

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import ConfigImportExport from '../../ConfigImportExport';
 import SettingsSection from '../SettingsSection';
 import DatasetExportCard from './DatasetExportCard';
+import SupportDebugBundleCard from './SupportDebugBundleCard';
 
 const ImportExportSection = memo(() => {
   const t = useTranslations('settings');
@@ -14,6 +15,7 @@ const ImportExportSection = memo(() => {
       <SettingsSection title={t('configImportExport')}>
         <ConfigImportExport />
       </SettingsSection>
+      <SupportDebugBundleCard />
       <DatasetExportCard />
     </div>
   );

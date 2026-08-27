@@ -6401,6 +6401,21 @@
           "uninstallFailed": "卸载插件失败"
         }
       }
+    },
+    "supportDebugBundle": {
+      "title": "支持与调试诊断包",
+      "description": "导出经脱敏处理的系统诊断日志、运行配置快照与性能指标，用于故障排查与技术支持。",
+      "privacyNoticeTitle": "隐私与敏感数据保护",
+      "privacyNoticeDesc": "所有密钥、认证凭证与私人令牌在打包前均会自动执行不可逆脱敏过滤。",
+      "includeTraces": "包含执行调用链路 (Traces)",
+      "includeTracesDesc": "附带最近的任务执行跨度与子智能体调用轨迹数据。",
+      "includeProfiles": "包含系统性能剖析 (Profiles)",
+      "includeProfilesDesc": "附带 CPU、内存与任务资源调度的剖析快照摘要。",
+      "exporting": "正在导出...",
+      "exportButton": "导出诊断数据包",
+      "exportSuccessTitle": "诊断包导出成功",
+      "exportSuccessDesc": "系统诊断归档包已生成并已触发浏览器下载。",
+      "exportFailedTitle": "诊断包导出失败"
     }
   },
   "userMenu": {
@@ -9532,21 +9547,45 @@
     "title": "记忆管理",
     "description": "管理 AI 从对话中学习到的记忆",
     "scopeHierarchy": {
-      "cardTitle": "记忆作用域层级体系",
-      "cardSubtitle": "跨 Session、Task、Agent、Global 四层作用域管理记忆隔离与可见性",
-      "fourTiersBadge": "四层物理隔离",
-      "selected": "已激活"
+      "cardTitle": "记忆作用域层级图谱",
+      "cardSubtitle": "智能体长效知识的生命周期与边界隔离可视化管理",
+      "fourTiersBadge": "四级统一作用域",
+      "selected": "已选择",
+      "task": {
+        "title": "任务作用域",
+        "tag": "TASK",
+        "lifecycle": "单次任务执行期",
+        "desc": "临时工作集与中间推理推导，任务执行完成后自动释放。"
+      },
+      "conversation": {
+        "title": "会话作用域",
+        "tag": "CONVERSATION",
+        "lifecycle": "当前对话会话期",
+        "desc": "对话工作上下文与会话目标，在当前完整对话生命周期内持续有效。"
+      },
+      "agent": {
+        "title": "智能体作用域",
+        "tag": "AGENT",
+        "lifecycle": "智能体专属绑定",
+        "desc": "特定智能体的专属技能、专属指令、领域知识与业务习惯，跨会话生效。"
+      },
+      "global": {
+        "title": "全局作用域",
+        "tag": "GLOBAL",
+        "lifecycle": "通用永久有效",
+        "desc": "个人核心偏好、通用编码习惯、语言风格与全局规范，对所有智能体永久生效。"
+      }
     },
     "scopePicker": {
-      "label": "记忆作用域",
-      "sessionLabel": "会话级",
-      "sessionHint": "仅限当前会话对话可见",
-      "taskLabel": "任务/目录级",
-      "taskHint": "当前工程与工作区目录共享",
+      "label": "记忆作用域级别",
+      "taskLabel": "任务级",
+      "conversationLabel": "会话级",
       "agentLabel": "智能体级",
-      "agentHint": "当前专属智能体可见",
       "globalLabel": "全局级",
-      "globalHint": "跨所有对话与智能体共享"
+      "taskHint": "仅在当前任务步骤内有效",
+      "conversationHint": "仅在当前对话会话内有效",
+      "agentHint": "随当前智能体跨会话长期生效",
+      "globalHint": "对所有智能体与会话永久全局生效"
     },
     "pending": "待确认记忆",
     "pendingCount": "{count} 条待确认",
@@ -10075,6 +10114,10 @@
         "capacity_theater": {
           "label": "容量剧场与记忆纪律",
           "evidence": "检查活跃工作记忆是否超出预算上限或存在过度堆叠，避免因果盲区与 Token 账单浪费。"
+        },
+        "memory_mislayer_governance": {
+          "label": "记忆错层存入治理 (Mislayer Guard)",
+          "evidence": "自动检测被误存入临时会话中的长期通用偏好与编码规范，防止跨会话遗忘。"
         }
       },
       "doctorRepairAction": {
@@ -10084,7 +10127,8 @@
         "run_diagnostics": "运行诊断",
         "run_health_refresh": "刷新健康快照",
         "review_retrieval_trace": "查看检索轨迹",
-        "restore_disciplined_defaults": "恢复纪律默认"
+        "restore_disciplined_defaults": "恢复纪律默认",
+        "elevate_mislayered_memories": "一键提权错层记忆"
       },
       "doctorRepairRisk": {
         "safe": "安全",
@@ -10119,6 +10163,10 @@
         "review_retrieval_trace": {
           "dryRun": "只读取现有检索轨迹元数据，不展示召回到的记忆内容。",
           "expectedEffect": "定位哪个检索阶段停止产生轨迹或召回证据。"
+        },
+        "elevate_mislayered_memories": {
+          "dryRun": "扫描会话记忆中包含通用偏好特征的条目，准备提权至智能体或全局作用域。",
+          "expectedEffect": "消除跨会话偏好遗忘，将关键习惯安全提升至长效持久化域。"
         }
       },
       "waterfallDescription": {

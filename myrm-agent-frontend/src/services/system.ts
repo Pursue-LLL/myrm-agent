@@ -29,4 +29,19 @@ export const systemService = {
     const response = await fetch(`${normalized}/api/v1/health`, { method: 'GET' });
     return response.ok;
   },
+
+  /**
+   * Export technical support debug zip bundle.
+   */
+  getSupportDebugBundleUrl(options?: { includeTraces?: boolean; includeProfiles?: boolean }): string {
+    const params = new URLSearchParams();
+    if (options?.includeTraces !== undefined) {
+      params.set('include_traces', String(options.includeTraces));
+    }
+    if (options?.includeProfiles !== undefined) {
+      params.set('include_profiles', String(options.includeProfiles));
+    }
+    const qs = params.toString();
+    return `/api/v1/system/debug-bundle${qs ? `?${qs}` : ''}`;
+  },
 };

@@ -897,33 +897,33 @@
       "title": "安全策略",
       "description": "控制 AI 智慧體如何執行工具呼叫。配置許可權規則，採用 last-match-wins 語義。",
       "dataFlow": {
-        "title": "資料流向與隱私披露",
-        "description": "清晰瞭解您的資料儲存位置以及何時會離開本地環境。",
-        "localDomain": "本地儲存與處理",
-        "localDomainDesc": "嚴格保留在您的裝置或專屬持久化儲存空間上的資料。",
-        "badgeLocalOnly": "僅本地",
-        "localChatHistory": "對話記錄與會話",
-        "localChatHistoryDesc": "儲存在您裝置上的本地 SQLite 資料庫中。",
-        "localMemory": "工作記憶與長效記憶",
-        "localMemoryDesc": "向量嵌入與事實知識儲存在本地 Qdrant / SQLite 中。",
-        "localWorkspace": "工作區檔案與產物",
-        "localWorkspaceDesc": "僅在您指定綁定的本地工作區資料夾中讀寫。",
-        "localCredentials": "API 金鑰與憑據",
-        "localCredentialsDesc": "加密儲存在本地客戶端資料庫中，絕不上傳。",
-        "controlPlaneDomain": "控制平面協調",
-        "controlPlaneDesc": "企業/雲託管模式元資料路由。",
-        "controlPlaneStandalone": "單機 / 本地模式",
-        "controlPlaneStandaloneDesc": "不向任何中央伺服器傳送遙測或會話資料。",
-        "egressDomain": "外部出站與第三方 API",
-        "egressDesc": "根據您的配置，當前正在接收提示詞或工具呼叫的外部服務。",
-        "noEgress": "未配置活躍的外部出站服務，所有操作均在本地進行。",
-        "llmCategory": "大模型推理供應商",
-        "badgeLocalHost": "本地主機",
+        "title": "資料流向與邊界披露",
+        "description": "全景審視您的資料物理駐留邊界與出站流向。透明披露資料儲存、控制平面與第三方連接器。",
+        "localDomain": "本地私有資料邊界",
+        "localDomainDesc": "核心私有資料物理儲存在本地資料庫與持久化沙箱工作區中，永不主動上傳雲端。",
+        "badgeLocalOnly": "僅本地駐留",
+        "localChatHistory": "對話歷史與聊天記錄",
+        "localChatHistoryDesc": "儲存於本地 SQLite 資料庫",
+        "localMemory": "長期記憶與向量索引",
+        "localMemoryDesc": "儲存於本地嵌入式 Qdrant / SQLite-vec 庫",
+        "localWorkspace": "工作區代碼與持久卷",
+        "localWorkspaceDesc": "儲存在本地沙箱持久化掛載卷中",
+        "localCredentials": "憑證保險箱與安全金鑰",
+        "localCredentialsDesc": "儲存於本地加密持久化配置中",
+        "controlPlaneDomain": "控制平面與元資料邊界",
+        "controlPlaneDesc": "底層容器與基礎設施調度通信狀態。",
+        "controlPlaneStandalone": "單機 / 本地運行模式",
+        "controlPlaneStandaloneDesc": "直接本地執行 — 0 官方雲端遙測與元資料出站。",
+        "egressDomain": "第三方外部出站流向",
+        "egressDesc": "基於您當前啟用的模型供應商與 MCP 外掛程式動態聚合的資料出站目的地。",
+        "noEgress": "暫無已啟用的外部模型或 MCP 連接器。",
+        "llmCategory": "模型供應商",
+        "mcpCategory": "MCP 外掛程式",
+        "badgeLocalHost": "本地部署",
         "badgeCloudApi": "雲端 API",
-        "dataScopePrompt": "提示詞、會話上下文與附件",
-        "actionManage": "管理",
-        "mcpCategory": "外部 MCP 服務",
-        "dataScopeToolArgs": "工具呼叫引數與外部能力載荷"
+        "dataScopePrompt": "已脫敏提示詞與對話上下文",
+        "dataScopeToolArgs": "工具調用參數與執行載荷",
+        "actionManage": "配置管理"
       },
       "profile": {
         "title": "安全配置集",
@@ -1371,35 +1371,6 @@
         "enableLabel": "啟用 Fail-Closed 阻斷",
         "enableDesc": "開啟後，高威脅提示詞注入模式（評分 ≥ 0.7）將被阻斷並替換為安全佔位符，阻止 LLM 處理惡意輸入。",
         "saved": "提示詞注入策略已儲存"
-      },
-      "dataFlow": {
-        "title": "資料流向與邊界披露",
-        "description": "全景審視您的資料物理駐留邊界與出站流向。透明披露資料儲存、控制平面與第三方連接器。",
-        "localDomain": "本地私有資料邊界",
-        "localDomainDesc": "核心私有資料物理儲存在本地資料庫與持久化沙箱工作區中，永不主動上傳雲端。",
-        "badgeLocalOnly": "僅本地駐留",
-        "localChatHistory": "對話歷史與聊天記錄",
-        "localChatHistoryDesc": "儲存於本地 SQLite 資料庫",
-        "localMemory": "長期記憶與向量索引",
-        "localMemoryDesc": "儲存於本地嵌入式 Qdrant / SQLite-vec 庫",
-        "localWorkspace": "工作區代碼與持久卷",
-        "localWorkspaceDesc": "儲存在本地沙箱持久化掛載卷中",
-        "localCredentials": "憑證保險箱與安全金鑰",
-        "localCredentialsDesc": "儲存於本地加密持久化配置中",
-        "controlPlaneDomain": "控制平面與元資料邊界",
-        "controlPlaneDesc": "底層容器與基礎設施調度通信狀態。",
-        "controlPlaneStandalone": "單機 / 本地運行模式",
-        "controlPlaneStandaloneDesc": "直接本地執行 — 0 官方雲端遙測與元資料出站。",
-        "egressDomain": "第三方外部出站流向",
-        "egressDesc": "基於您當前啟用的模型供應商與 MCP 外掛程式動態聚合的資料出站目的地。",
-        "noEgress": "暫無已啟用的外部模型或 MCP 連接器。",
-        "llmCategory": "模型供應商",
-        "mcpCategory": "MCP 外掛程式",
-        "badgeLocalHost": "本地部署",
-        "badgeCloudApi": "雲端 API",
-        "dataScopePrompt": "已脫敏提示詞與對話上下文",
-        "dataScopeToolArgs": "工具調用參數與執行載荷",
-        "actionManage": "配置管理"
       },
       "managedPolicy": {
         "lockedBadge": "組織策略",
@@ -6410,6 +6381,21 @@
           "uninstallFailed": "卸載外掛失敗"
         }
       }
+    },
+    "supportDebugBundle": {
+      "title": "支援與偵錯診斷包",
+      "description": "匯出經脫敏處理的系統診斷日誌、運行配置快照與效能指標，用於故障排查與技術支援。",
+      "privacyNoticeTitle": "隱私與敏感資料保護",
+      "privacyNoticeDesc": "所有密鑰、認證憑證與私人權杖在打包前均會自動執行不可逆脫敏過濾。",
+      "includeTraces": "包含執行調用鏈路 (Traces)",
+      "includeTracesDesc": "附帶最近的任務執行跨度與子智能體調用軌跡資料。",
+      "includeProfiles": "包含系統效能剖析 (Profiles)",
+      "includeProfilesDesc": "附帶 CPU、記憶體與任務資源調度的剖析快照摘要。",
+      "exporting": "正在匯出...",
+      "exportButton": "匯出診斷資料包",
+      "exportSuccessTitle": "診斷包匯出成功",
+      "exportSuccessDesc": "系統診斷歸檔包已產生並已觸發瀏覽器下載。",
+      "exportFailedTitle": "診斷包匯出失敗"
     }
   },
   "userMenu": {
@@ -9482,6 +9468,23 @@
   "memory": {
     "title": "記憶管理",
     "description": "管理 AI 從對話中學習到的記憶",
+    "scopeHierarchy": {
+      "cardTitle": "記憶作用域層級",
+      "cardSubtitle": "跨會話、任務、智慧體與全域四層作用域管理記憶可見性",
+      "fourTiersBadge": "四級隔離",
+      "selected": "當前生效"
+    },
+    "scopePicker": {
+      "label": "記憶作用域",
+      "sessionLabel": "會話級",
+      "sessionHint": "僅限當前單次對話",
+      "taskLabel": "任務 / CWD",
+      "taskHint": "當前綁定的專案工作區",
+      "agentLabel": "智慧體級",
+      "agentHint": "當前智慧體專屬",
+      "globalLabel": "全域共享",
+      "globalHint": "跨所有對話與智慧體共享"
+    },
     "pending": "待確認記憶",
     "pendingCount": "{count} 條待確認",
     "confirmTitle": "新記憶待確認",
@@ -10007,6 +10010,10 @@
         "capacity_theater": {
           "label": "容量劇場與記憶紀律",
           "evidence": "檢查活躍工作記憶是否超出預算上限或存在過度堆疊，避免因果盲區與 Token 賬單浪費。"
+        },
+        "memory_mislayer_governance": {
+          "label": "記憶錯層存入治理 (Mislayer Guard)",
+          "evidence": "自動檢測被誤存入臨時對話中的長期通用偏好與編碼規範，防止跨對話遺忘。"
         }
       },
       "doctorRepairAction": {
@@ -10016,7 +10023,8 @@
         "run_diagnostics": "執行診斷",
         "run_health_refresh": "重新整理健康快照",
         "review_retrieval_trace": "檢視檢索軌跡",
-        "restore_disciplined_defaults": "恢復紀律預設"
+        "restore_disciplined_defaults": "恢復紀律預設",
+        "elevate_mislayered_memories": "一鍵提權錯層記憶"
       },
       "doctorRepairRisk": {
         "safe": "安全",
@@ -10051,6 +10059,10 @@
         "review_retrieval_trace": {
           "dryRun": "只讀取現有檢索軌跡後設資料，不展示召回到的記憶內容。",
           "expectedEffect": "定位哪個檢索階段停止產生軌跡或召回證據。"
+        },
+        "elevate_mislayered_memories": {
+          "dryRun": "掃描對話記憶中包含通用偏好特徵的條目，準備提權至智能體或全域作用域。",
+          "expectedEffect": "消除跨對話偏好遺忘，將關鍵習慣安全提升至長效持久化域。"
         }
       },
       "waterfallDescription": {
@@ -10934,7 +10946,48 @@
     "confidenceLow": "待核驗",
     "extractionReason": "提取依據",
     "validPermanent": "長期有效",
-    "manualReviewRequired": "需人工確認 · 永不自動覆蓋"
+    "manualReviewRequired": "需人工確認 · 永不自動覆蓋",
+    "scopeHierarchy": {
+      "cardTitle": "記憶作用域層級圖譜",
+      "cardSubtitle": "智能體長效知識的生命週期與邊界隔離視覺化管理",
+      "fourTiersBadge": "四級統一作用域",
+      "selected": "已選擇",
+      "task": {
+        "title": "任務作用域",
+        "tag": "TASK",
+        "lifecycle": "單次任務執行期",
+        "desc": "臨時工作集與中間推理推導，任務執行完成後自動釋放。"
+      },
+      "conversation": {
+        "title": "對話作用域",
+        "tag": "CONVERSATION",
+        "lifecycle": "當前對話會話期",
+        "desc": "對話工作上下文與會話目標，在當前完整對話生命週期內持續有效。"
+      },
+      "agent": {
+        "title": "智能體作用域",
+        "tag": "AGENT",
+        "lifecycle": "智能體專屬綁定",
+        "desc": "特定智能體的專屬技能、專屬指令、領域知識與業務習慣，跨對話生效。"
+      },
+      "global": {
+        "title": "全域作用域",
+        "tag": "GLOBAL",
+        "lifecycle": "通用永久有效",
+        "desc": "個人核心偏好、通用編碼習慣、語言風格與全域規範，對所有智能體永久生效。"
+      }
+    },
+    "scopePicker": {
+      "label": "記憶作用域級別",
+      "taskLabel": "任務級",
+      "conversationLabel": "對話級",
+      "agentLabel": "智能體級",
+      "globalLabel": "全域級",
+      "taskHint": "僅在當前任務步驟內有效",
+      "conversationHint": "僅在當前對話會話內有效",
+      "agentHint": "隨當前智能體跨對話長期生效",
+      "globalHint": "對所有智能體與對話永久全域生效"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -14047,11 +14100,11 @@
     "title": "工具執行審批",
     "batchTitle": "批次審批 ({count} 個工具)",
     "batchHighRisk": {
-      "dialogTitle": "偵測到高風險操作",
-      "dialogDesc": "在 {total} 個待審批操作中偵測到 {highRiskCount} 個高風險操作，請謹慎確認後再繼續。",
+      "dialogTitle": "高風險操作二次確認",
+      "dialogDesc": "批次審批佇列中檢測到 {highRiskCount} 項高風險/高破壞性操作（共 {total} 項）。為防止誤操作，請仔細核對或選擇僅放行安全項。",
       "cancel": "取消",
-      "approveSafeOnly": "僅批准安全操作",
-      "confirmAll": "全部確認（含高風險）"
+      "approveSafeOnly": "僅放行安全項 ({count})",
+      "confirmAll": "確認放行全部（含高危）"
     },
     "description": "Agent 請求執行以下操作。你可以批准、編輯引數後執行、或拒絕並反饋。",
     "subagentApprovalRequired": "子智慧體任務需審批",
@@ -14209,13 +14262,6 @@
     "batchCostRace": "競速模式（先完成者勝出）",
     "batchCostTournament": "錦標賽模式（最優者勝出）",
     "highRiskDomAction": "檢測到高風險瀏覽器操作",
-    "batchHighRisk": {
-      "dialogTitle": "高風險操作二次確認",
-      "dialogDesc": "批次審批佇列中檢測到 {highRiskCount} 項高風險/高破壞性操作（共 {total} 項）。為防止誤操作，請仔細核對或選擇僅放行安全項。",
-      "cancel": "取消",
-      "approveSafeOnly": "僅放行安全項 ({count})",
-      "confirmAll": "確認放行全部（含高危）"
-    },
     "targetElement": "目標元素",
     "action": "操作",
     "jsExpression": "JavaScript 表示式",

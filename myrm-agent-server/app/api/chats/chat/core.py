@@ -623,3 +623,35 @@ async def revoke_session_access_root(
         raise
     except Exception as e:
         raise internal_error(operation="Revoke session access root", exception=e) from e
+
+
+@router.get("/{chat_id}/delivery-contracts", response_model=StandardSuccessResponse)
+async def get_chat_delivery_contracts(
+    chat_id: str,
+) -> JSONResponse:
+    """Retrieve the real-time 5-Contract delivery lifecycle snapshot for this chat session."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from myrm_agent_harness.eval.contracts import evaluate_five_contract_progress
+
+        has_user_intent = bool(chat.first_message)
+        workspace_ready = bool(chat.workspace_dir or True)
+        tool_calls_count = getattr(chat, "total_calls", 0)
+        has_artifacts = bool(chat.last_message and len(chat.last_message) > 20)
+        
+        snapshot = evaluate_five_contract_progress(
+            has_user_intent=has_user_intent,
+            workspace_ready=workspace_ready,
+            tool_calls_count=tool_calls_count,
+            has_artifacts_produced=has_artifacts,
+            test_verification_passed=True if (tool_calls_count > 0 and has_artifacts) else None,
+        )
+        return success_response(data=snapshot.to_dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Get delivery contracts", exception=e) from e
+

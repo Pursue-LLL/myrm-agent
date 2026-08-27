@@ -326,3 +326,24 @@ async def test_fork_acceptance_verifier_mode(async_client: httpx.AsyncClient) ->
         assert "[INDEPENDENT ACCEPTANCE AUDIT INITIATED]" in audit_msg.content
         assert "Verify all edge cases and ensure 100% tests pass." in audit_msg.content
         assert audit_msg.extra_data.get("is_acceptance_audit_prompt") is True
+
+
+@pytest.mark.asyncio
+async def test_get_chat_delivery_contracts(async_client: httpx.AsyncClient) -> None:
+    """Verify GET /api/v1/chats/{chat_id}/delivery-contracts returns 5-phase status snapshot."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=3)
+
+    resp = await async_client.get(f"/api/v1/chats/{chat_id}/delivery-contracts")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert "contracts" in data
+    assert "current_phase" in data
+    assert "overall_progress_pct" in data
+    assert "task_intent" in data["contracts"]
+    assert "scene_environment" in data["contracts"]
+    assert "action_execution" in data["contracts"]
+    assert "delivery_artifact" in data["contracts"]
+    assert "acceptance_verification" in data["contracts"]
+    assert data["contracts"]["task_intent"]["status"] == "satisfied"
+

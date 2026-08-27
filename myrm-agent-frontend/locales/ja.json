@@ -897,33 +897,33 @@
       "title": "セキュリティポリシー",
       "description": "AI エージェントのツール実行を制御します。last-match-wins セマンティクスで権限ルールを設定します。",
       "dataFlow": {
-        "title": "データフローとプライバシー開示",
-        "description": "データがどこに保存され、いつローカル環境を離れるかを明確にします。",
-        "localDomain": "ローカル保存と処理",
-        "localDomainDesc": "デバイスまたは専用の永続ストレージボリューム内に厳格に保持されるデータ。",
+        "title": "データフローと境界の透明性",
+        "description": "データの物理的な配置場所と外部への送信先を視覚的に確認できます。",
+        "localDomain": "ローカルプライベート領域",
+        "localDomainDesc": "機密データはローカルデータベースと永続ワークスペースに保存され、外部にアップロードされません。",
         "badgeLocalOnly": "ローカルのみ",
-        "localChatHistory": "対話履歴とセッション",
-        "localChatHistoryDesc": "デバイス上のローカル SQLite データベースに保存されます。",
-        "localMemory": "作業メモリと長期記憶",
-        "localMemoryDesc": "埋め込みベクトルとファクト知識はローカルの Qdrant / SQLite に保存されます。",
-        "localWorkspace": "ワークスペースファイルと成果物",
-        "localWorkspaceDesc": "指定されたローカルワークスペースフォルダ内でのみ読み書きされます。",
-        "localCredentials": "API キーと認証情報",
-        "localCredentialsDesc": "ローカルクライアントデータベースに暗号化保存され、アップロードされません。",
-        "controlPlaneDomain": "コントロールプレーン連携",
-        "controlPlaneDesc": "エンタープライズ/ホステッドモードのメタデータルーティング。",
-        "controlPlaneStandalone": "スタンドアロン / ローカルモード",
-        "controlPlaneStandaloneDesc": "中央サーバーへのテレメトリやセッションデータの送信はありません。",
-        "egressDomain": "外部アウトバウンドとサードパーティ API",
-        "egressDesc": "設定に基づいて、プロンプトまたはツール呼び出しを受信している外部サービス。",
-        "noEgress": "外部アウトバウンドは設定されていません。すべての操作はローカルで実行されます。",
-        "llmCategory": "LLM 推論プロバイダー",
+        "localChatHistory": "チャット履歴・会話ログ",
+        "localChatHistoryDesc": "ローカル SQLite データベースに保存",
+        "localMemory": "長期記憶・ベクトルインデックス",
+        "localMemoryDesc": "ローカル Qdrant / SQLite-vec に保存",
+        "localWorkspace": "ワークスペースファイル・ボリューム",
+        "localWorkspaceDesc": "ローカルサンドボックスボリュームに保存",
+        "localCredentials": "保管庫・認証情報",
+        "localCredentialsDesc": "ローカル暗号化ストレージに保存",
+        "controlPlaneDomain": "コントロールプレーン・テレメトリ領域",
+        "controlPlaneDesc": "インフラストラクチャメタデータの通信状態。",
+        "controlPlaneStandalone": "スタンドアロン / ローカル実行",
+        "controlPlaneStandaloneDesc": "直接ローカル実行 — クラウドへのテレメトリ送信ゼロ。",
+        "egressDomain": "サードパーティへの外部送信",
+        "egressDesc": "有効化されている LLM プロバイダーおよび MCP サーバーに基づいた送信先一覧。",
+        "noEgress": "アクティブな外部接続はありません。",
+        "llmCategory": "LLM プロバイダー",
+        "mcpCategory": "MCP サーバー",
         "badgeLocalHost": "ローカルホスト",
         "badgeCloudApi": "クラウド API",
-        "dataScopePrompt": "プロンプト、会話コンテキスト、添付ファイル",
-        "actionManage": "管理",
-        "mcpCategory": "外部 MCP サーバー",
-        "dataScopeToolArgs": "ツール引数と外部ペイロード"
+        "dataScopePrompt": "フィルタリングされたプロンプトと会話",
+        "dataScopeToolArgs": "ツール実行パラメータとペイロード",
+        "actionManage": "設定管理"
       },
       "profile": {
         "title": "セキュリティ設定集",
@@ -1371,35 +1371,6 @@
         "enableLabel": "フェイルクローズドブロッキングを有効化",
         "enableDesc": "有効にすると、高リスクのプロンプトインジェクションパターン（スコア ≥ 0.7）をブロックし安全なプレースホルダーに置き換えて、LLMが悪意のある入力（プロンプト）を処理するのを防ぎます。",
         "saved": "プロンプトインジェクションポリシーを保存しました"
-      },
-      "dataFlow": {
-        "title": "データフローと境界の透明性",
-        "description": "データの物理的な配置場所と外部への送信先を視覚的に確認できます。",
-        "localDomain": "ローカルプライベート領域",
-        "localDomainDesc": "機密データはローカルデータベースと永続ワークスペースに保存され、外部にアップロードされません。",
-        "badgeLocalOnly": "ローカルのみ",
-        "localChatHistory": "チャット履歴・会話ログ",
-        "localChatHistoryDesc": "ローカル SQLite データベースに保存",
-        "localMemory": "長期記憶・ベクトルインデックス",
-        "localMemoryDesc": "ローカル Qdrant / SQLite-vec に保存",
-        "localWorkspace": "ワークスペースファイル・ボリューム",
-        "localWorkspaceDesc": "ローカルサンドボックスボリュームに保存",
-        "localCredentials": "保管庫・認証情報",
-        "localCredentialsDesc": "ローカル暗号化ストレージに保存",
-        "controlPlaneDomain": "コントロールプレーン・テレメトリ領域",
-        "controlPlaneDesc": "インフラストラクチャメタデータの通信状態。",
-        "controlPlaneStandalone": "スタンドアロン / ローカル実行",
-        "controlPlaneStandaloneDesc": "直接ローカル実行 — クラウドへのテレメトリ送信ゼロ。",
-        "egressDomain": "サードパーティへの外部送信",
-        "egressDesc": "有効化されている LLM プロバイダーおよび MCP サーバーに基づいた送信先一覧。",
-        "noEgress": "アクティブな外部接続はありません。",
-        "llmCategory": "LLM プロバイダー",
-        "mcpCategory": "MCP サーバー",
-        "badgeLocalHost": "ローカルホスト",
-        "badgeCloudApi": "クラウド API",
-        "dataScopePrompt": "フィルタリングされたプロンプトと会話",
-        "dataScopeToolArgs": "ツール実行パラメータとペイロード",
-        "actionManage": "設定管理"
       },
       "managedPolicy": {
         "lockedBadge": "組織ポリシー",
@@ -6410,6 +6381,21 @@
           "uninstallFailed": "プラグインのアンインストールに失敗しました"
         }
       }
+    },
+    "supportDebugBundle": {
+      "title": "サポート＆デバッグバンドル",
+      "description": "トラブルシューティング用に、サニタイズされたシステム診断ログ、設定スナップショット、パフォーマンス指標をエクスポートします。",
+      "privacyNoticeTitle": "プライバシーと機密データの保護",
+      "privacyNoticeDesc": "すべてのシークレット、認証トークン、プライベートキーはエクスポート前に自動的にマスク処理されます。",
+      "includeTraces": "実行トレースを含める",
+      "includeTracesDesc": "最近のタスク実行スパンとサブエージェント呼び出しトレースを添付します。",
+      "includeProfiles": "システムプロファイルを含める",
+      "includeProfilesDesc": "CPU、メモリ、タスク実行リソースのプロファイリング概要を添付します。",
+      "exporting": "エクスポート中...",
+      "exportButton": "診断バンドルをエクスポート",
+      "exportSuccessTitle": "エクスポート完了",
+      "exportSuccessDesc": "診断バンドルアーカイブが生成され、正常にダウンロードされました。",
+      "exportFailedTitle": "エクスポートに失敗しました"
     }
   },
   "userMenu": {
@@ -10004,6 +9990,10 @@
         "capacity_theater": {
           "label": "容量シアターとメモリ規律",
           "evidence": "アクティブな作業メモリが予算上限を超えていないか、過剰なスタックや因果盲目がないか検査します。"
+        },
+        "memory_mislayer_governance": {
+          "label": "メモリスコープ誤配置ガード",
+          "evidence": "一時的なセッションに誤って保存された長期的な全般設定を検出します。"
         }
       },
       "doctorRepairAction": {
@@ -10013,7 +10003,8 @@
         "run_diagnostics": "診断を実行",
         "run_health_refresh": "ヘルススナップショットを更新",
         "review_retrieval_trace": "検索トレースを確認",
-        "restore_disciplined_defaults": "規律あるデフォルトに戻す"
+        "restore_disciplined_defaults": "規律あるデフォルトに戻す",
+        "elevate_mislayered_memories": "誤配置メモリを昇格"
       },
       "doctorRepairRisk": {
         "safe": "セキュリティ",
@@ -10048,6 +10039,10 @@
         "review_retrieval_trace": {
           "dryRun": "検索が実行されていないこと、トレースが存在しないことを確認する読み取り専用チェック。",
           "expectedEffect": "検索が有効になると、トレースキャプチャが再開されます。"
+        },
+        "elevate_mislayered_memories": {
+          "dryRun": "セッションメモリ内の全般的習慣をスキャンし、エージェント/グローバルへの昇格を準備します。",
+          "expectedEffect": "セッションをまたぐ設定消失を防ぎ、安全に長期的メモリへ昇格します。"
         }
       },
       "waterfallDescription": {
@@ -10934,7 +10929,48 @@
     "confidenceLow": "要確認",
     "extractionReason": "抽出理由",
     "validPermanent": "無期限",
-    "manualReviewRequired": "手動確認が必要 · 自動上書きなし"
+    "manualReviewRequired": "手動確認が必要 · 自動上書きなし",
+    "scopeHierarchy": {
+      "cardTitle": "メモリスコープ階層マップ",
+      "cardSubtitle": "エージェントの長期知識のライフサイクルと境界分離の可視化管理",
+      "fourTiersBadge": "4層統合スコープ",
+      "selected": "選択中",
+      "task": {
+        "title": "タスクスコープ",
+        "tag": "TASK",
+        "lifecycle": "単一タスク実行期間",
+        "desc": "タスク完了時に自動解放される一時的なワーキングセットと中間推論。"
+      },
+      "conversation": {
+        "title": "会話スコープ",
+        "tag": "CONVERSATION",
+        "lifecycle": "現在のチャットセッション",
+        "desc": "アクティブな会話全体で有効なダイアログコンテキストと目標。"
+      },
+      "agent": {
+        "title": "エージェントスコープ",
+        "tag": "AGENT",
+        "lifecycle": "エージェント専用バインド",
+        "desc": "特定エージェントに紐づく専門スキル、指示、業務習慣（セッション横断）。"
+      },
+      "global": {
+        "title": "グローバルスコープ",
+        "tag": "GLOBAL",
+        "lifecycle": "全般・永続有効",
+        "desc": "すべてのエージェントとセッションで永続的に共有されるユーザー設定と規範。"
+      }
+    },
+    "scopePicker": {
+      "label": "メモリスコープレベル",
+      "taskLabel": "タスクスコープ",
+      "conversationLabel": "会話スコープ",
+      "agentLabel": "エージェントスコープ",
+      "globalLabel": "グローバルスコープ",
+      "taskHint": "現在のタスク実行のみ有効",
+      "conversationHint": "現在の会話セッションのみ有効",
+      "agentHint": "このエージェントの全会話で有効",
+      "globalHint": "すべてのエージェントとセッションで永続有効"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",

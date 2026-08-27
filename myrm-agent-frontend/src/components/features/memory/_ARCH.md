@@ -26,6 +26,8 @@
 | 文件                          | 地位 | 职责                                                                                    | I/O/P |
 | ----------------------------- | ---- | --------------------------------------------------------------------------------------- | ----- |
 | `MemoryCard.tsx`              | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数） | ✅    |
+| `MemoryScopeHierarchyCard.tsx`| 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）    | ✅    |
+| `MemoryScopePicker.tsx`       | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                      | ✅    |
 | `ConflictCard.tsx`            | 组件 | 冲突记忆卡                                                                              | ✅    |
 | `MemoryDetailSheet.tsx`       | 组件 | 记忆详情 Sheet（全文/metadata/来源）                                                    | ✅    |
 | `MemoryTypeIcon.tsx`          | 辅助 | 记忆类型 → 图标映射                                                                     | ✅    |
@@ -128,6 +130,7 @@
 | `__tests__/memoryLiveStream.test.ts`                | 记忆实时流测试                                                               | ✅    |
 | `__tests__/replayTimeline.test.ts`                  | 记忆回放时间线测试                                                           | ✅    |
 | `__tests__/SessionReplayPlayer.test.tsx`            | 回放播放器安全徽标渲染与 store selector 稳定性测试                           | ✅    |
+| `__tests__/MemoryScopeComponents.test.tsx`          | 记忆作用域层级卡片、选择器与 Doctor Mislayer Guard 诊断交互测试              | ✅    |
 
 ## 依赖
 

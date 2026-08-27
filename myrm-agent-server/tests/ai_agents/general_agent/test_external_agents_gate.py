@@ -286,7 +286,7 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
             return_value=mock_pool,
         ),
         patch(
-            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+            "myrm_agent_harness.toolkits.create_invoke_acp_agent_tool",
             return_value=mock_tool,
         ) as mock_create,
     ):
@@ -336,7 +336,7 @@ async def test_do_setup_passes_chat_scope_to_delegate_tool() -> None:
             side_effect=lambda pool, *_args: pool,
         ),
         patch(
-            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+            "myrm_agent_harness.toolkits.create_invoke_acp_agent_tool",
             return_value=mock_tool,
         ) as mock_create,
     ):
