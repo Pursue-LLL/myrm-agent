@@ -22,7 +22,8 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runne
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `mod.rs` | 核心 | 模块聚合、`TOXIC_ENV_VARS` 毒性环境变量黑名单、`suppress_console_window` | ✅ |
-| `python_backend.rs` | 核心 | Python Sidecar 启停与健康检查（30s 超时 `Err` 并终止子进程） | ✅ |
+| `sidecar_version_manager.rs` | 核心 | Sidecar 独立引擎版本状态机（versions.json、原子写入、三级降级链路与坏版本拉黑） | ✅ |
+| `python_backend.rs` | 核心 | Python Sidecar 启停、版本自适应解析、就绪探测与启动超时自动回滚自愈 | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启） | — |
 | `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启 | ✅ |
 | `agent_runner.rs` | 核心 | Agent Runner 路径解析与事件桥接 | ✅ |

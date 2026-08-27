@@ -85,6 +85,8 @@ const LOCAL_DEVICES = [
 
 const TTS_PROVIDERS = [
   { value: 'edge', label: 'Edge TTS (Free)' },
+  { value: 'piper', label: 'Piper TTS (Local Offline)' },
+  { value: 'voicebox', label: 'Voicebox (Loopback)' },
   { value: 'openai', label: 'OpenAI TTS' },
   { value: 'elevenlabs', label: 'ElevenLabs' },
   { value: 'fish_audio', label: 'Fish Audio' },
@@ -125,6 +127,7 @@ const VoiceSection = memo(() => {
   const [loading, setLoading] = useState(true);
   const [edgeTtsAvailable, setEdgeTtsAvailable] = useState<boolean | null>(null);
   const [localSttAvailable, setLocalSttAvailable] = useState<boolean | null>(null);
+  const [localTtsAvailable, setLocalTtsAvailable] = useState<boolean | null>(null);
   const [voiceMode, setVoiceMode] = useState('audio_only');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -132,14 +135,16 @@ const VoiceSection = memo(() => {
     loadVoiceConfig()
       .then(setForm)
       .finally(() => setLoading(false));
-    apiRequest<{ edge_tts_available?: boolean; local_stt_available?: boolean }>('/health/info')
+    apiRequest<{ edge_tts_available?: boolean; local_stt_available?: boolean; local_tts_available?: boolean }>('/health/info')
       .then((info) => {
         setEdgeTtsAvailable(info.edge_tts_available === true);
         setLocalSttAvailable(info.local_stt_available === true);
+        setLocalTtsAvailable(info.local_tts_available === true);
       })
       .catch(() => {
         setEdgeTtsAvailable(null);
         setLocalSttAvailable(null);
+        setLocalTtsAvailable(null);
       });
     setVoiceMode(localStorage.getItem('voiceSessionMode') || 'audio_only');
     return () => {

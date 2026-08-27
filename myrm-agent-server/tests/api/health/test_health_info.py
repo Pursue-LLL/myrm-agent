@@ -31,3 +31,5 @@ def test_system_info_returns_capabilities_booleans(client: TestClient) -> None:
     assert isinstance(body["local_stt_available"], bool)
     assert "edge_tts_available" in body
     assert isinstance(body["edge_tts_available"], bool)
+    assert "local_tts_available" in body
+    assert isinstance(body["local_tts_available"], bool)

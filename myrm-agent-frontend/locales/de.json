@@ -7254,88 +7254,6 @@
       "approveFailed": "Genehmigung fehlgeschlagen",
       "rejectFailed": "Ablehnung fehlgeschlagen"
     },
-    "mobileCommand": {
-      "title": "Kommandozentrale",
-      "running": "Läuft...",
-      "finished": "Aufgabe abgeschlossen",
-      "progress": "Ausführungsfortschritt",
-      "thinking": "Neuestes Denken",
-      "result": "Ergebniszusammenfassung",
-      "viewFull": "Vollständiges Gespräch anzeigen",
-      "noStatus": "Kein Aufgabenstatus",
-      "stopTask": "Aufgabe stoppen",
-      "stopTaskSuccess": "Aufgabenstopp angefordert",
-      "stopTaskFailed": "Keine laufende Aufgabe zum Stoppen",
-      "pendingApprovals": "Ausstehende Genehmigungen",
-      "approve": "Genehmigen",
-      "reject": "Ablehnen",
-      "approveAll": "Alle genehmigen",
-      "quickCommand": "Schnellbefehl",
-      "quickCommandPlaceholder": "Senden Sie eine neue Anweisung...",
-      "steerPlaceholder": "Den Agenten umleiten...",
-      "send": "Senden",
-      "verifications": "Akzeptanzkriterien",
-      "livePreview": "Live-Vorschau",
-      "browser": "Webbrowser",
-      "desktop": "Desktop-App",
-      "artifacts": "Liefergegenstände",
-      "advisorAsk": "Advisor fragen",
-      "advisorOpen": "Seiten-Q&A"
-    },
-    "readiness": {
-      "warning": "Einige Konfigurationen erfordern Aufmerksamkeit",
-      "blocked": "Agent cannot run — fix required",
-      "ready": "Bereit"
-    },
-    "aiBuilder": {
-      "placeholder": "Beschreiben Sie den Agenten, den Sie erstellen möchten, z. B. „Ein Assistent für tägliche Berichte“",
-      "generating": "KI generiert Konfiguration...",
-      "title": "Schnell mit KI erstellen",
-      "subtitle": "Beschreiben Sie Ihren Bedarf – die KI erstellt die vollständige Konfiguration",
-      "apply": "Anwenden",
-      "retry": "Erneut versuchen",
-      "error": "Generierung fehlgeschlagen, bitte erneut versuchen"
-    },
-    "workspacePolicy": "Subagent-Arbeitsbereichsrichtlinie",
-    "workspacePolicyDesc": "Subagent-Zugriff auf den übergeordneten Arbeitsbereich steuern",
-    "workspacePolicyOption": {
-      "INHERIT_REQUESTER": "Übergeordneten erben",
-      "ISOLATED_COPY": "Isolierte Kopie",
-      "READ_ONLY_SANDBOX": "Schreibgeschützte Sandbox"
-    },
-    "idleCompact": {
-      "title": "Nach Leerlauf automatisch komprimieren",
-      "desc": "Wenn ein Chat inaktiv ist, ältere Nachrichten vor der nächsten Antwort zusammenfassen.",
-      "minutes": "Leerlaufdauer (Minuten)",
-      "minutesDesc": "Wartezeit nach der letzten Nachricht, bevor Auto-Komprimierung läuft.",
-      "hint": "Standardmäßig aus. Ersetzt weder manuelle noch automatische Komprimierung bei hoher Token-Nutzung."
-    },
-    "busyInputMode": "Verhalten bei laufender Aufgabe",
-    "busyInputModeDesc": "Standardaktion, wenn Sie eine Nachricht senden, während der Agent arbeitet.",
-    "busyInputRedirect": "Umleiten",
-    "busyInputSteer": "Steuern",
-    "busyInputQueue": "Warteschlange",
-    "browserConfig": "Browser-Konfiguration",
-    "browserConfigDesc": "Browserquelle, Dialoge und Sitzungsaufzeichnung konfigurieren. Anti-Bot-Stealth wird automatisch gehandhabt, wenn das Browser-Tool aktiviert ist.",
-    "dialogPolicy": {
-      "label": "Dialogbehandlung"
-    },
-    "sessionRecording": {
-      "label": "Sitzungsaufzeichnung"
-    },
-    "notifyTargetsScopeHint": "Agent push only: the agent may notify these targets during a task. System alerts (OAuth, budget, pairing) use Settings → Notification Deliveries.",
-    "notifySelectRecipient": "Empfänger auswählen",
-    "notifyManualRecipient": "Enter ID manually…",
-    "noPairingsForNotify": "Koppeln Sie einen Kanal-Kontakt in den Kanaleinstellungen oder geben Sie manuell eine Empfänger-ID ein.",
-    "dismissRebindHint": "Schließen",
-    "allowDiscovery": {
-      "title": "Entdeckung und Delegation durch andere Agenten erlauben",
-      "description": "Wenn aktiviert, können andere Agenten diesen Agenten bei der automatischen Teambildung entdecken und aufrufen. Wenn deaktiviert, wird dieser Agent nicht automatisch entdeckt, kann aber weiterhin explizit mit @ referenziert werden."
-    },
-    "formalKoreanReplies": {
-      "title": "Formelle koreanische Antworten (합니다体)",
-      "description": "Antworten verwenden höfliches formelles Koreanisch (합니다체) für Geschäfts-E-Mails, Meeting-Notizen und Büro-Workflows."
-    },
     "faq": {
       "tabTitle": "FAQ",
       "title": "FAQ-Schnellantwort",
@@ -7379,6 +7297,34 @@
       "entryCreated": "FAQ-Eintrag erstellt",
       "entryUpdated": "FAQ-Eintrag aktualisiert",
       "entryDeleted": "FAQ-Eintrag gelöscht"
+    },
+    "mobileCommand": {
+      "title": "Kommandozentrale",
+      "running": "Läuft...",
+      "finished": "Aufgabe abgeschlossen",
+      "progress": "Ausführungsfortschritt",
+      "thinking": "Neuestes Denken",
+      "result": "Ergebniszusammenfassung",
+      "viewFull": "Vollständiges Gespräch anzeigen",
+      "noStatus": "Kein Aufgabenstatus",
+      "stopTask": "Aufgabe stoppen",
+      "stopTaskSuccess": "Aufgabenstopp angefordert",
+      "stopTaskFailed": "Keine laufende Aufgabe zum Stoppen",
+      "pendingApprovals": "Ausstehende Genehmigungen",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "approveAll": "Alle genehmigen",
+      "quickCommand": "Schnellbefehl",
+      "quickCommandPlaceholder": "Senden Sie eine neue Anweisung...",
+      "steerPlaceholder": "Den Agenten umleiten...",
+      "send": "Senden",
+      "verifications": "Akzeptanzkriterien",
+      "livePreview": "Live-Vorschau",
+      "browser": "Webbrowser",
+      "desktop": "Desktop-App",
+      "artifacts": "Liefergegenstände",
+      "advisorAsk": "Advisor fragen",
+      "advisorOpen": "Seiten-Q&A"
     }
   },
   "common": {
