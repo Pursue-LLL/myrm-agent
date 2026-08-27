@@ -458,7 +458,8 @@ export interface MemoryCommandRepairActionRequest {
     | 'review_storage_config'
     | 'enable_vector_store'
     | 'configure_embedding'
-    | 'review_retrieval_trace';
+    | 'review_retrieval_trace'
+    | 'restore_disciplined_defaults';
   mode?: 'dry_run' | 'execute';
 }
 

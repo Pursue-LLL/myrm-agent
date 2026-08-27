@@ -26,6 +26,8 @@
  */
 
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import { spawn } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 
@@ -44,7 +46,7 @@ const USER_DATA_DIR = getArg(
     '--user-data-dir',
     `${process.env.HOME}/Library/Application Support/Chrome-Pipe-Proxy`
 );
-const INITIAL_URL = getArg('--initial-url', '');
+const INITIAL_URL = getArg('--initial-url', 'about:blank');
 const FOREGROUND = process.env.MYRM_CHROME_AGENT_FOREGROUND === '1';
 const ALLOW_E2E_URLS = process.env.MYRM_CHROME_AGENT_ALLOW_E2E_URLS === '1';
 
@@ -96,6 +98,12 @@ function buildChromeLaunchArgs() {
         '--no-first-run',
         '--no-default-browser-check',
         '--disable-features=DialMediaRouteProvider',
+        // Silence crash recovery bubble & crash reports
+        '--disable-session-crashed-bubble',
+        '--disable-infobars',
+        '--hide-crash-restore-bubble',
+        '--disable-breakpad',
+        '--no-crash-upload',
         // Keep ChromeAgent alive when the last window closes (macOS Cmd+W).
         '--keep-alive-for-test',
         // E2E-parity render flags: occluded/offscreen windows must keep rAF
@@ -123,10 +131,32 @@ let chromeReadable = null;     // fd 4: Chrome → parent
 let chromeBuffer = Buffer.alloc(0);
 let restartTimer = null;
 
+function resetProfileCrashFlags() {
+    const candidateRelPaths = [
+        path.join('Default', 'Preferences'),
+        path.join('Profile 1', 'Preferences'),
+    ];
+    for (const rel of candidateRelPaths) {
+        const fullPath = path.join(USER_DATA_DIR, rel);
+        if (fs.existsSync(fullPath)) {
+            try {
+                const content = fs.readFileSync(fullPath, 'utf8');
+                const data = JSON.parse(content);
+                if (data && typeof data === 'object' && data.profile && typeof data.profile === 'object') {
+                    data.profile.exit_type = 'Normal';
+                    data.profile.exited_cleanly = true;
+                    fs.writeFileSync(fullPath, JSON.stringify(data));
+                }
+            } catch {}
+        }
+    }
+}
+
 function launchChrome() {
     if (chromeProcess) return;
     console.log(`[Proxy] Launching Chrome (--user-data-dir=${USER_DATA_DIR})`);
 
+    resetProfileCrashFlags();
     const chromeArgs = buildChromeLaunchArgs();
 
     chromeProcess = spawn(CHROME_PATH, chromeArgs, {

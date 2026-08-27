@@ -13,7 +13,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _WEBHOOK_SETTINGS_CHECK_JS = """(async () => {
-  const res = await fetch('/api/lifecycle-webhooks', { cache: 'no-store' });
+  const res = await fetch('/api/v1/lifecycle-webhooks', { cache: 'no-store' });
   if (!res.ok) {
     return { ok: false, status: res.status };
   }

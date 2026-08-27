@@ -18,6 +18,9 @@ import {
   BookOpen,
   Clock,
   Lock,
+  ShieldCheck,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import { Tag } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -136,7 +139,7 @@ const MemoryCard = memo<MemoryCardProps>(
 
         <div className="p-4">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <MemoryTypeIcon type={memoryType} size={18} showBackground showTooltip />
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{displayLabel}</span>
               {isDisabled && (
@@ -145,6 +148,39 @@ const MemoryCard = memo<MemoryCardProps>(
                 </span>
               )}
               {confirmed?.is_user_locked && <Lock size={12} className="text-amber-500" aria-label={t('locked')} />}
+              {isPending && 'confidence' in memory && memory.confidence !== undefined && memory.confidence !== null && (
+                (() => {
+                  const percent = Math.round(memory.confidence * 100);
+                  if (percent >= 85) {
+                    return (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <ShieldCheck size={10} />
+                        <span>{percent}%</span>
+                      </span>
+                    );
+                  }
+                  if (percent >= 60) {
+                    return (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <Sparkles size={10} />
+                        <span>{percent}%</span>
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border/50">
+                      <AlertCircle size={10} />
+                      <span>{percent}%</span>
+                    </span>
+                  );
+                })()
+              )}
+              {isPending && 'kind' in memory && memory.kind && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                  <Tag size={9} />
+                  <span>{memory.kind}</span>
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1">
@@ -214,8 +250,8 @@ const MemoryCard = memo<MemoryCardProps>(
             </div>
           </div>
 
-          {confirmed?.influence_explanation && (
-            <p className="text-[11px] text-muted-foreground/60 mb-2 italic">{confirmed.influence_explanation}</p>
+          {'influence_explanation' in memory && memory.influence_explanation && (
+            <p className="text-[11px] text-muted-foreground/60 mb-2 italic">{memory.influence_explanation}</p>
           )}
 
           {onClick ? (
@@ -317,22 +353,26 @@ const MemoryCard = memo<MemoryCardProps>(
             </div>
           )}
 
-          {confirmed?.tags && confirmed.tags.length > 0 && (
-            <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-              <Tag size={11} className="text-muted-foreground/60 shrink-0" />
-              {confirmed.tags.slice(0, 5).map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/60 text-[10px] font-medium text-muted-foreground"
-                >
-                  {tag}
-                </span>
-              ))}
-              {confirmed.tags.length > 5 && (
-                <span className="text-[10px] text-muted-foreground/50">+{confirmed.tags.length - 5}</span>
-              )}
-            </div>
-          )}
+          {(() => {
+            const tags = confirmed?.tags ?? ('tags' in memory && Array.isArray(memory.tags) ? memory.tags : []);
+            if (!tags || tags.length === 0) return null;
+            return (
+              <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                <Tag size={11} className="text-muted-foreground/60 shrink-0" />
+                {tags.slice(0, 5).map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/60 text-[10px] font-medium text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {tags.length > 5 && (
+                  <span className="text-[10px] text-muted-foreground/50">+{tags.length - 5}</span>
+                )}
+              </div>
+            );
+          })()}
 
           {memory.source_chat_id && (
             <div className="mt-3 pt-3 border-t border-border/50">

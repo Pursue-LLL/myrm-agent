@@ -3,7 +3,20 @@
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { Check, X, Pencil, MessageSquare } from 'lucide-react';
+import {
+  Check,
+  X,
+  Pencil,
+  MessageSquare,
+  Tag,
+  ShieldCheck,
+  Sparkles,
+  AlertCircle,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  ShieldAlert,
+} from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -27,6 +40,7 @@ const PendingMemoryDialog = memo(() => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showReasoning, setShowReasoning] = useState(true);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -160,8 +174,73 @@ const PendingMemoryDialog = memo(() => {
               )}
             </div>
 
+            {/* 结构化元数据胶囊条 */}
+            <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border/30 bg-background/30 text-[11px]">
+              {/* 置信度徽章 */}
+              {currentPendingMemory.confidence !== undefined && currentPendingMemory.confidence !== null && (
+                (() => {
+                  const percent = Math.round(currentPendingMemory.confidence * 100);
+                  if (percent >= 85) {
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <ShieldCheck size={11} />
+                        <span>{percent}% {t('confidenceHigh')}</span>
+                      </span>
+                    );
+                  }
+                  if (percent >= 60) {
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <Sparkles size={11} />
+                        <span>{percent}% {t('confidenceMedium')}</span>
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground border border-border/50">
+                      <AlertCircle size={11} />
+                      <span>{percent}% {t('confidenceLow')}</span>
+                    </span>
+                  );
+                })()
+              )}
+
+              {/* 类别标签 */}
+              {currentPendingMemory.kind && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary border border-primary/20">
+                  <Tag size={10} />
+                  <span>{currentPendingMemory.kind}</span>
+                </span>
+              )}
+
+              {/* 有效期 */}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-accent/60 text-muted-foreground border border-border/40">
+                <Clock size={10} />
+                <span>
+                  {currentPendingMemory.expected_valid_days
+                    ? `${currentPendingMemory.expected_valid_days}d`
+                    : t('validPermanent')}
+                </span>
+              </span>
+
+              {/* 冲突裁决策略 */}
+              {currentPendingMemory.is_conflict && (
+                currentPendingMemory.conflict_auto_resolve_at ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    <Clock size={10} />
+                    <span>{t('conflict.title')}</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-destructive/10 text-destructive border border-destructive/20">
+                    <ShieldAlert size={10} />
+                    <span>{t('manualReviewRequired')}</span>
+                  </span>
+                )
+              )}
+            </div>
+
             {/* 内容区域 */}
-            <div className="p-4">
+            <div className="p-4 space-y-3">
               {isEditing ? (
                 <textarea
                   ref={editInputRef}
@@ -178,6 +257,25 @@ const PendingMemoryDialog = memo(() => {
                 />
               ) : (
                 <p className="text-sm text-foreground leading-relaxed">{currentPendingMemory.content}</p>
+              )}
+
+              {/* 提取推理依据 */}
+              {currentPendingMemory.influence_explanation && (
+                <div className="pt-2 border-t border-border/40">
+                  <button
+                    type="button"
+                    onClick={() => setShowReasoning(!showReasoning)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+                  >
+                    {showReasoning ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    <span>{t('extractionReason')}</span>
+                  </button>
+                  {showReasoning && (
+                    <div className="mt-1.5 p-2.5 rounded-lg bg-background/60 border border-border/40 text-xs text-muted-foreground leading-relaxed">
+                      {currentPendingMemory.influence_explanation}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

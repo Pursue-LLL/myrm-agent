@@ -227,11 +227,13 @@ chrome_agent_write_plist() {
   <string>${log_file}</string>
   <key>StandardErrorPath</key>
   <string>${log_file}</string>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>HOME</key>
-    <string>$(real_user_home)</string>
-  </dict>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>HOME</key>
+      <string>$(real_user_home)</string>
+      <key>MYRM_CHROME_AGENT_FOREGROUND</key>
+      <string>${MYRM_CHROME_AGENT_FOREGROUND:-0}</string>
+    </dict>
 </dict>
 </plist>
 EOF

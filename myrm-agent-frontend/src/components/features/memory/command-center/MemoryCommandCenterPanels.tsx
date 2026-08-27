@@ -30,6 +30,7 @@ import type {
 } from '@/services/memory/commandCenter';
 import type { MemoryType } from '@/services/memory';
 import { MemoryAdvancedVerifyPanels } from './MemoryCommandCenterAdvancedPanels';
+import { type DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
 import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
 import { resolveReplaySessionId } from '../replay/memoryLiveStream';
 
@@ -64,7 +65,7 @@ type RecordStatus = (typeof RECORD_STATUSES)[number];
 type RuntimeStatus = (typeof RUNTIME_STATUSES)[number];
 type CoverageStatus = (typeof COVERAGE_STATUSES)[number];
 type MigrationAdapterStatus = (typeof MIGRATION_ADAPTER_STATUSES)[number];
-type DoctorAction = 'run_diagnostics' | 'run_health_refresh';
+type DoctorAction = DoctorExecutableAction;
 
 const formatTime = (value: string): string =>
   new Intl.DateTimeFormat(undefined, {

@@ -104,6 +104,13 @@ class PendingMemoryItem(BaseModel):
     conflict_importance: float | None = None
     conflict_auto_resolve_at: datetime | None = None
 
+    confidence: float | None = None
+    importance: float | None = None
+    kind: str | None = None
+    influence_explanation: str | None = None
+    expected_valid_days: int | None = None
+    tags: list[str] = Field(default_factory=list)
+
 
 class PendingMemoriesResponse(BaseModel):
     """Response for pending memories endpoint"""

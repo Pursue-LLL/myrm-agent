@@ -65,6 +65,11 @@ cmd_install() {
   fail "health check failed after install — see $(chrome_agent_log_file)"
 }
 
+cmd_stop() {
+  launchctl bootout "gui/$(id -u)/${CHROME_AGENT_LABEL}" 2>/dev/null || true
+  ok "stopped LaunchAgent service (plist preserved for next start)"
+}
+
 cmd_uninstall() {
   launchctl bootout "gui/$(id -u)/${CHROME_AGENT_LABEL}" 2>/dev/null || true
   rm -f "$(chrome_agent_plist_path)"
@@ -76,9 +81,10 @@ case "${1:-status}" in
   daemon) exec "${SCRIPT_DIR}/../install-chrome-agent-launchagent.sh" ;;
   login) exec "${SCRIPT_DIR}/../login-chrome-agent.sh" ;;
   status) cmd_status ;;
+  stop) cmd_stop ;;
   uninstall) cmd_uninstall ;;
   *)
-    echo "Usage: myrm-chrome-agent.sh {install|upgrade|daemon|login|status|uninstall}" >&2
+    echo "Usage: myrm-chrome-agent.sh {install|upgrade|daemon|login|status|stop|uninstall}" >&2
     exit 1
     ;;
 esac

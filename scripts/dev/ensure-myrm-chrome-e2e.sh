@@ -15,7 +15,7 @@ ok() {
   echo "MYRM_CHROME_E2E_OK: $*"
 }
 
-if myrm_chrome_e2e_launch_background; then
+if [[ "$(uname -s)" == "Darwin" ]]; then
   MYRM_CHROME_APP="$(myrm_chrome_e2e_default_app)"
   if [[ ! -d "${MYRM_CHROME_APP}" ]]; then
     fail "Chrome.app not found at ${MYRM_CHROME_APP} — set MYRM_CHROME_APP or MYRM_CHROME_BIN"
@@ -87,6 +87,12 @@ CHROME_LAUNCH_ARGS=(
   --remote-debugging-address=127.0.0.1
   --no-first-run
   --no-default-browser-check
+  # Silence crash recovery bubble & crash reports
+  --disable-session-crashed-bubble
+  --disable-infobars
+  --hide-crash-restore-bubble
+  --disable-breakpad
+  --no-crash-upload
   # Playwright-standard render flags: keep occluded/non-frontmost windows
   # rendering so E2E never needs Page.bringToFront (which steals macOS
   # focus from the user's active app) to unblock requestAnimationFrame.
@@ -97,15 +103,35 @@ CHROME_LAUNCH_ARGS=(
   --disable-renderer-backgrounding
   --disable-background-timer-throttling
 )
+
+# Reset crash flags in Preferences if present to suppress restore bubble
+python3 -c "
+import json, os
+for rel in ['Default/Preferences', 'Profile 1/Preferences']:
+    p = os.path.join('${MYRM_CHROME_E2E_DATA_DIR}', rel)
+    if os.path.isfile(p):
+        try:
+            with open(p, 'r') as f: data = json.load(f)
+            if isinstance(data, dict) and 'profile' in data and isinstance(data['profile'], dict):
+                data['profile']['exit_type'] = 'Normal'
+                data['profile']['exited_cleanly'] = True
+                with open(p, 'w') as f: json.dump(data, f)
+        except Exception: pass
+" 2>/dev/null || true
 if myrm_chrome_e2e_launch_background; then
   CHROME_LAUNCH_ARGS+=(--window-position=-24000,-24000)
 elif [[ "$(uname -s)" == "Linux" ]]; then
   CHROME_LAUNCH_ARGS+=(--window-position=-24000,-24000)
 fi
 CHROME_LAUNCH_ARGS+=("${START_URL}")
-if myrm_chrome_e2e_launch_background; then
-  echo "MYRM_CHROME_E2E_START: macOS background launch (about:blank; set MYRM_CHROME_E2E_FOREGROUND=1 to foreground)" >&2
-  open -gj -na "${MYRM_CHROME_APP}" --args "${CHROME_LAUNCH_ARGS[@]}"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if myrm_chrome_e2e_launch_background; then
+    echo "MYRM_CHROME_E2E_START: macOS background launch (about:blank; set MYRM_CHROME_E2E_FOREGROUND=1 to foreground)" >&2
+    open -gj -na "${MYRM_CHROME_APP}" --args "${CHROME_LAUNCH_ARGS[@]}"
+  else
+    echo "MYRM_CHROME_E2E_START: macOS foreground launch (${START_URL})" >&2
+    open -na "${MYRM_CHROME_APP}" --args "${CHROME_LAUNCH_ARGS[@]}"
+  fi
 else
   nohup "${MYRM_CHROME_BIN}" "${CHROME_LAUNCH_ARGS[@]}" >/dev/null 2>&1 &
 fi

@@ -267,8 +267,8 @@ class MemoryCommandCenterService:
                 id=item.id,
                 memory_type=item.memory_type,
                 content_preview=self._preview(item.content, limit=120),
-                confidence=float(item.confidence or 0.8),
-                source=item.source or "extraction",
+                confidence=float(item.confidence if item.confidence is not None else 0.8),
+                source=str((item.metadata_json or {}).get("source") or "extraction") if isinstance(item.metadata_json, dict) else "extraction",
                 created_at=item.created_at,
                 status="pending",
             )

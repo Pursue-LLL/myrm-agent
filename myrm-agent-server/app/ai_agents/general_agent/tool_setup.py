@@ -279,7 +279,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         )
 
         tool_description_locale = resolve_tool_description_locale(
-            agent_locale=getattr(self, "locale", None),
+            agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
             channel=getattr(self, "channel_name", None),
         )
 
@@ -754,7 +754,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             tool_description_locale = resolve_tool_description_locale(
-                agent_locale=getattr(self, "locale", None),
+                agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
                 channel=getattr(self, "channel_name", None),
             )
 

@@ -486,7 +486,8 @@ class TestConversationSearchService:
 
     @pytest.mark.asyncio
     async def test_conversation_history_search_provider_default_scope(self) -> None:
-        from unittest.mock import patch, AsyncMock
+        from unittest.mock import AsyncMock, patch
+
         from app.services.chat.conversation_search_service import ConversationHistorySearchProvider
 
         provider = ConversationHistorySearchProvider(

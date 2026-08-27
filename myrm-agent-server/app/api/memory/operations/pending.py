@@ -80,6 +80,18 @@ def _record_to_item(r: PendingRecord) -> PendingMemoryItem:
         status=r.status,
         created_at=r.created_at,
         resolved_at=r.resolved_at,
+        is_conflict=r.is_conflict,
+        conflict_old_memory_id=r.conflict_old_memory_id,
+        conflict_old_content=r.conflict_old_content,
+        conflict_accuracy_score=r.conflict_accuracy_score,
+        conflict_importance=r.conflict_importance,
+        conflict_auto_resolve_at=r.conflict_auto_resolve_at,
+        confidence=r.confidence,
+        importance=r.importance,
+        kind=r.kind,
+        influence_explanation=r.influence_explanation,
+        expected_valid_days=r.expected_valid_days,
+        tags=r.tags,
     )
 
 
@@ -285,6 +297,33 @@ async def get_pending_conflicts(
             conflict_accuracy_score=c.conflict_accuracy_score,
             conflict_importance=c.conflict_importance,
             conflict_auto_resolve_at=c.conflict_auto_resolve_at,
+            confidence=c.confidence,
+            importance=c.conflict_importance
+            or (
+                float(c.metadata_json.get("importance"))  # type: ignore[arg-type]
+                if c.metadata_json and isinstance(c.metadata_json.get("importance"), (int, float))
+                else None
+            ),
+            kind=(
+                str(c.metadata_json.get("projected_category") or c.metadata_json.get("kind"))
+                if c.metadata_json and (c.metadata_json.get("projected_category") or c.metadata_json.get("kind"))
+                else None
+            ),
+            influence_explanation=(
+                str(c.metadata_json.get("influence_explanation") or c.metadata_json.get("reasoning"))
+                if c.metadata_json and (c.metadata_json.get("influence_explanation") or c.metadata_json.get("reasoning"))
+                else None
+            ),
+            expected_valid_days=(
+                int(c.metadata_json.get("expected_valid_days"))  # type: ignore[arg-type]
+                if c.metadata_json and isinstance(c.metadata_json.get("expected_valid_days"), int)
+                else None
+            ),
+            tags=(
+                [str(t) for t in c.metadata_json.get("tags", []) if isinstance(t, (str, int))]  # type: ignore[union-attr]
+                if c.metadata_json and isinstance(c.metadata_json.get("tags"), list)
+                else []
+            ),
         )
         for c in conflicts
     ]

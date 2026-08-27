@@ -44,6 +44,7 @@ async def test_file_diff_stream_e2e(app) -> None:
 
     file_diff_events = []
 
+    all_events = []
     with TestClient(app) as client:
         with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
             assert response.status_code == 200
@@ -58,6 +59,7 @@ async def test_file_diff_stream_e2e(app) -> None:
 
                 try:
                     event = json.loads(data_str)
+                    all_events.append(event)
                     if event.get("type") == "file_diff":
                         file_diff_events.append(event)
                     elif event.get("type") == "error":
@@ -66,6 +68,12 @@ async def test_file_diff_stream_e2e(app) -> None:
                             pytest.skip(f"Environment/Model issue: {err_msg}")
                 except json.JSONDecodeError:
                     continue
+
+    if not file_diff_events:
+        print("\nAll captured events:", [e.get("type") for e in all_events])
+        for e in all_events:
+            if e.get("type") in ("message", "tasks_steps", "error"):
+                print(f"Event {e.get('type')}: {e}")
 
     # Verify that at least one file_diff event was emitted
     assert len(file_diff_events) > 0, "No file_diff event was emitted"

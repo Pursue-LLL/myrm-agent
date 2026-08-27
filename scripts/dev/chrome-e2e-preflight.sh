@@ -1150,7 +1150,7 @@ MUX_LOG_FILE="${MUX_STATE_DIR}/mux.log"
 MUX_START_LOCK_DIR="${MUX_STATE_DIR}/daemon.start.lock"
 MUX_SOCKET="${CDMCP_MUX_SOCKET:-${MUX_STATE_DIR}/cdmcp-mux.sock}"
 MUX_USING=0
-if [[ -f "${MUX_PID_FILE}" ]]; then
+if [[ -f "${MUX_PID_FILE}" || -f "${MUX_BIN}" ]]; then
   MUX_USING=1
 fi
 

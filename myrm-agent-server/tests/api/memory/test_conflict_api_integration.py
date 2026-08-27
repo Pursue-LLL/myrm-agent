@@ -412,3 +412,80 @@ class TestResolveConflict:
         assert data["total"] == 3
         ids = {item["id"] for item in data["items"]}
         assert ids == {"c1", "c2", "c3"}
+
+    def test_conflict_structured_metadata_fields(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Verify typed candidate structured metadata (confidence, kind, explanation, etc.) are projected."""
+        c = _make_conflict_record("c-meta", old_content="old premise")
+        c.confidence = 0.92
+        c.conflict_importance = 0.85
+        c.metadata_json = {
+            "kind": "communication_preference",
+            "influence_explanation": "User prefers concise python code",
+            "expected_valid_days": 30,
+            "tags": ["preference", "python"],
+        }
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [c]
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+            resp = client.get("/api/v1/memory/conflicts", headers=auth_headers)
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        item = data["items"][0]
+        assert item["confidence"] == 0.92
+        assert item["importance"] == 0.85
+        assert item["kind"] == "communication_preference"
+        assert item["influence_explanation"] == "User prefers concise python code"
+        assert item["expected_valid_days"] == 30
+        assert item["tags"] == ["preference", "python"]
+
+    def test_conflict_structured_metadata_null_fallbacks(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Verify fallback behavior when conflict record has empty/null metadata."""
+        c = _make_conflict_record("c-null", old_content="old premise")
+        c.confidence = None
+        c.conflict_importance = None
+        c.metadata_json = None
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [c]
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.api.memory.operations.pending.get_session", return_value=mock_session_ctx):
+            resp = client.get("/api/v1/memory/conflicts", headers=auth_headers)
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        item = data["items"][0]
+        assert item["confidence"] is None
+        assert item["importance"] is None
+        assert item["kind"] is None
+        assert item["influence_explanation"] is None
+        assert item["expected_valid_days"] is None
+        assert item["tags"] == []
+
+

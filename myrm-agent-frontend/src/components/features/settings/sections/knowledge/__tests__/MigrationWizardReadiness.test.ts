@@ -37,7 +37,6 @@ describe('MigrationWizardReadiness', () => {
     it('handles step_budget_low issue and action correctly', () => {
       const issue: MemoryImportReadinessIssue = {
         code: 'step_budget_low',
-        message: 'Step limit is low',
         severity: 'warning',
         settings_path: '/settings?tab=agent',
         params: { count: 2, min_steps: 100 },
@@ -56,7 +55,6 @@ describe('MigrationWizardReadiness', () => {
     it('handles generic issue fallback', () => {
       const issue: MemoryImportReadinessIssue = {
         code: 'unknown_issue_code',
-        message: 'Unknown',
         severity: 'warning',
         settings_path: '',
         params: {},

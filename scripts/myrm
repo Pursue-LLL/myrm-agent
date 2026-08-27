@@ -75,6 +75,10 @@ case "$COMMAND" in
     stop)
         DEV_STACK="${SCRIPT_DIR}/dev/dev-stack.sh"
         SUPERVISOR="${SCRIPT_DIR}/dev/stack-supervisor.sh"
+        CHROME_E2E_CLI="${SCRIPT_DIR}/dev/chrome-e2e/myrm-chrome-e2e.sh"
+        if [[ -f "${CHROME_E2E_CLI}" ]]; then
+            bash "${CHROME_E2E_CLI}" stop >/dev/null 2>&1 || true
+        fi
         if [[ -f "${DEV_STACK}" ]]; then
             bash "${DEV_STACK}" reset
             if [[ -f "${SUPERVISOR}" ]]; then
