@@ -398,6 +398,17 @@ const PetOverlay = memo(function PetOverlay() {
 
           <button
             type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('myrm-voice-replay'));
+              setContextMenu((prev) => ({ ...prev, visible: false }));
+            }}
+            className="w-full rounded px-2 py-1.5 text-left text-xs hover:bg-muted transition-colors"
+          >
+            {t('sprite.replayVoice')}
+          </button>
+
+          <button
+            type="button"
             onClick={handleHide}
             className="w-full rounded px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10 transition-colors"
           >

@@ -27,19 +27,19 @@ describe('fonts module', () => {
     });
 
     it('inter stack references --font-sans CSS variable', () => {
-      const inter = FONT_CHOICES.find((f) => f.id === 'inter')!;
-      expect(inter.stack).toContain('var(--font-sans)');
+      const inter = FONT_CHOICES.find((f) => f.id === 'inter');
+      expect(inter?.stack).toContain('var(--font-sans)');
     });
 
     it('system stack omits --font-sans (uses native fallbacks only)', () => {
-      const system = FONT_CHOICES.find((f) => f.id === 'system')!;
-      expect(system.stack).not.toContain('var(--font-');
-      expect(system.stack).toContain('ui-sans-serif');
+      const system = FONT_CHOICES.find((f) => f.id === 'system');
+      expect(system?.stack).not.toContain('var(--font-');
+      expect(system?.stack).toContain('ui-sans-serif');
     });
 
     it('atkinson stack starts with the correct font name', () => {
-      const atkinson = FONT_CHOICES.find((f) => f.id === 'atkinson')!;
-      expect(atkinson.stack).toMatch(/^"Atkinson Hyperlegible Next"/);
+      const atkinson = FONT_CHOICES.find((f) => f.id === 'atkinson');
+      expect(atkinson?.stack).toMatch(/^"Atkinson Hyperlegible Next"/);
     });
 
     it('all stacks include CJK fallbacks', () => {
