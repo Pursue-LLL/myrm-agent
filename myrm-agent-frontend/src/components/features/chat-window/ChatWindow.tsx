@@ -612,6 +612,13 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
               className="mx-1 mb-1"
             />
 
+            {/* 五合同交付生命周期进度面板 */}
+            {id && activeTab === 'chat' && (
+              <div className="px-4 py-1.5 shrink-0 max-w-3xl mx-auto w-full">
+                <FiveContractDeliveryStatusPanel chatId={id} />
+              </div>
+            )}
+
             {/* 待审批记忆徽章 */}
             <PendingMemoryBadge
               onClick={handlePendingMemoryClick}
