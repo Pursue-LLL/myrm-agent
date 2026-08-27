@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, patch
 
-from httpx import AsyncClient
 import pytest
+from httpx import AsyncClient
 
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
