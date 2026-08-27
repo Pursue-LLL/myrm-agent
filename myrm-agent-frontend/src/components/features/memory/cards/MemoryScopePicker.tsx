@@ -76,7 +76,7 @@ export const MemoryScopePicker = memo<MemoryScopePickerProps>(({
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-foreground">{t('scopePicker.label')}</label>
+        <label className="text-xs font-medium text-foreground">{t('scopePicker.label', { default: 'Memory Scope Level' })}</label>
         {showHint && (
           <span className="text-[11px] text-muted-foreground">
             {t(`scopePicker.${value}Hint`)}

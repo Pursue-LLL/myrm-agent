@@ -7256,6 +7256,50 @@
       "approveFailed": "승인 실패",
       "rejectFailed": "거부 실패"
     },
+    "faq": {
+      "tabTitle": "FAQ",
+      "title": "FAQ 빠른 응답",
+      "desc": "채널 즉시 응답을 위한 사전 구성된 질문-답변 쌍입니다. 일치하는 쿼리는 AI 에이전트를 거치지 않고 즉시 응답합니다.",
+      "enabled": "FAQ 빠른 응답 활성화",
+      "threshold": "일치 임계값",
+      "thresholdDesc": "일치에 필요한 최소 유사도 점수 (0.75–1.0).",
+      "minScoreGap": "점수 격차",
+      "minScoreGapDesc": "확실한 일치를 위한 1위와 2위 결과 간의 최소 점수 차이.",
+      "addEntry": "항목 추가",
+      "editEntry": "항목 편집",
+      "question": "질문",
+      "questionPlaceholder": "예: VPN에 어떻게 연결하나요?",
+      "answer": "답변",
+      "answerPlaceholder": "이 질문이 일치할 때 전송될 응답 입력...",
+      "tags": "태그",
+      "tagsPlaceholder": "선택 사항, 쉼표로 구분된 태그",
+      "save": "저장",
+      "cancel": "취소",
+      "delete": "삭제",
+      "deleteConfirm": "이 FAQ 항목을 삭제하시겠습니까?",
+      "import": "일괄 가져오기",
+      "importDesc": "JSON에서 FAQ 항목 가져오기. 형식: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importBtn": "가져오기",
+      "importSuccess": "{count}개 항목 가져옴",
+      "importFailed": "가져오기 실패",
+      "rebuildIndex": "인덱스 재구축",
+      "rebuildSuccess": "{count}개 항목으로 인덱스 재구축됨",
+      "rebuildFailed": "인덱스 재구축 실패",
+      "stats": "통계",
+      "statsTotal": "총 쿼리",
+      "statsHits": "적중",
+      "statsMisses": "미스",
+      "statsHitRate": "적중률",
+      "unmatched": "일치하지 않은 쿼리",
+      "unmatchedDesc": "어떤 FAQ 항목과도 일치하지 않은 최근 쿼리 — 새 FAQ 후보를 발견하는 데 사용하세요.",
+      "emptyTitle": "FAQ 항목이 아직 없습니다",
+      "emptyDesc": "채널 즉시 응답을 활성화하려면 질문-답변 쌍을 추가하세요.",
+      "saveSuccess": "FAQ 설정 저장됨",
+      "saveFailed": "FAQ 설정 저장 실패",
+      "entryCreated": "FAQ 항목 생성됨",
+      "entryUpdated": "FAQ 항목 업데이트됨",
+      "entryDeleted": "FAQ 항목 삭제됨"
+    },
     "mobileCommand": {
       "title": "커맨드 센터",
       "running": "실행 중...",
@@ -7340,6 +7384,19 @@
     }
   },
   "common": {
+    "keyValueEditor": {
+      "keyPlaceholder": "키",
+      "valuePlaceholder": "값"
+    },
+    "jsonEditor": {
+      "mustBeObject": "JSON 객체여야 합니다",
+      "invalidJson": "잘못된 JSON 형식"
+    },
+    "schemaForm": {
+      "resetDefaults": "기본값으로 재설정",
+      "requiredField": "이 필드는 필수입니다"
+    },
+    "subagentApprovalRequired": "하위 에이전트 작업 승인",
     "settings": "설정",
     "collapseMenu": "메뉴 접기",
     "search": "검색",
@@ -7429,19 +7486,6 @@
       "description": "설정 상태가 갱신되는 동안에도 앱을 계속 사용할 수 있습니다.",
       "retry": "다시 확인"
     },
-    "keyValueEditor": {
-      "keyPlaceholder": "키",
-      "valuePlaceholder": "값"
-    },
-    "jsonEditor": {
-      "mustBeObject": "JSON 객체여야 합니다",
-      "invalidJson": "잘못된 JSON 형식"
-    },
-    "schemaForm": {
-      "resetDefaults": "기본값으로 재설정",
-      "requiredField": "이 필드는 필수입니다"
-    },
-    "subagentApprovalRequired": "하위 에이전트 작업 승인",
     "searchHistory": "검색 기록",
     "model": "모델",
     "selectModel": "모델 선택",

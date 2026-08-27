@@ -6461,6 +6461,15 @@
     "editAgent": "Agent bearbeiten",
     "viewAgent": "Agent ansehen",
     "editDescription": "Passen Sie Name, Beschreibung und Fähigkeiten des Agenten an",
+    "aiBuilder": {
+      "placeholder": "Beschreiben Sie den Agenten, den Sie erstellen möchten, z. B. „Ein Assistent zum Verfassen von Tagesberichten“",
+      "generating": "KI generiert Konfiguration...",
+      "title": "Schnellerstellung mit KI",
+      "subtitle": "Beschreiben Sie Ihren Bedarf, die KI erstellt die vollständige Konfiguration",
+      "apply": "Anwenden",
+      "retry": "Wiederholen",
+      "error": "Generierung fehlgeschlagen, bitte erneut versuchen"
+    },
     "viewDescription": "Konfiguration dieses integrierten Agenten ansehen",
     "builtInReadonly": "Integriert (Schreibgeschützt)",
     "view": "Ansehen",
@@ -6528,9 +6537,24 @@
     "loginRequired": "Anmeldung erforderlich",
     "loginRequiredDesc": "Melden Sie sich an, um Agenten zu erstellen und zu verwalten",
     "cancel": "Abbrechen",
+    "workspacePolicy": "Subagent-Workspace-Richtlinie",
+    "workspacePolicyDesc": "Zugriff von Subagenten auf den übergeordneten Workspace steuern",
+    "workspacePolicyOption": {
+      "INHERIT_REQUESTER": "Übergeordneten erben",
+      "ISOLATED_COPY": "Isolierte Kopie",
+      "READ_ONLY_SANDBOX": "Schreibgeschützte Sandbox"
+    },
     "maxParallelFission": "Max. parallele Fission",
     "maxParallelFissionDesc": "Maximale gleichzeitige Subagenten bei Swarm Fission (Standard 3, max. 5)",
     "maxParallelFissionPlaceholder": "Standard 3",
+    "idleCompact": {
+      "title": "Automatische Komprimierung bei Inaktivität",
+      "desc": "Wenn ein Chat inaktiv ist, ältere Nachrichten vor der nächsten Antwort zusammenfassen."
+    },
+    "busyInputMode": {
+      "title": "Eingabemodus während der Ausführung",
+      "desc": "Steuern, wie Eingaben während der Agentenausführung verarbeitet werden (in die Warteschlange stellen oder sofort unterbrechen)."
+    },
     "delete": "Löschen",
     "edit": "Bearbeiten",
     "use": "Verwenden",
@@ -7253,9 +7277,98 @@
       "proposedRulesLabel": "Vorgeschlagener Kodex/Regeln",
       "approveFailed": "Genehmigung fehlgeschlagen",
       "rejectFailed": "Ablehnung fehlgeschlagen"
+    },
+    "faq": {
+      "tabTitle": "FAQ",
+      "title": "FAQ-Schnellantwort",
+      "desc": "Vorkonfigurierte Frage-Antwort-Paare für sofortige Kanalantworten. Übereinstimmende Anfragen umgehen den KI-Agenten und antworten sofort.",
+      "enabled": "FAQ-Schnellantwort aktivieren",
+      "threshold": "Match-Schwellenwert",
+      "thresholdDesc": "Minimum similarity score (0.75–1.0) required for a match.",
+      "minScoreGap": "Score-Abstand",
+      "minScoreGapDesc": "Mindest-Score-Differenz zwischen Ergebnis 1 und 2 für sicheres Matching.",
+      "addEntry": "Eintrag hinzufügen",
+      "editEntry": "Eintrag bearbeiten",
+      "question": "Frage",
+      "questionPlaceholder": "z. B. Wie verbinde ich mich mit VPN?",
+      "answer": "Antwort",
+      "answerPlaceholder": "Geben Sie die Antwort ein, die gesendet wird, wenn diese Frage übereinstimmt ...",
+      "tags": "Schlagworte",
+      "tagsPlaceholder": "Optionale Tags, kommagetrennt",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "deleteConfirm": "Diesen FAQ-Eintrag löschen?",
+      "import": "Massenimport",
+      "importDesc": "FAQ-Einträge aus JSON importieren. Format: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importBtn": "Importieren",
+      "importSuccess": "Importierte {count}-Einträge",
+      "importFailed": "Import fehlgeschlagen",
+      "rebuildIndex": "Index neu aufbauen",
+      "rebuildSuccess": "Index mit {count}-Einträgen neu erstellt",
+      "rebuildFailed": "Index-Neuaufbau fehlgeschlagen",
+      "stats": "Statistiken",
+      "statsTotal": "Anfragen gesamt",
+      "statsHits": "Treffer",
+      "statsMisses": "Fehltreffer",
+      "statsHitRate": "Trefferquote",
+      "unmatched": "Nicht zugeordnete Anfragen",
+      "unmatchedDesc": "Recent queries that didn't match any FAQ entry — use these to discover new FAQ candidates.",
+      "emptyTitle": "Noch keine FAQ-Einträge",
+      "emptyDesc": "Fügen Sie Frage-Antwort-Paare hinzu, um sofortige Kanalantworten zu aktivieren.",
+      "saveSuccess": "FAQ-Einstellungen gespeichert",
+      "saveFailed": "FAQ-Einstellungen konnten nicht gespeichert werden",
+      "entryCreated": "FAQ-Eintrag erstellt",
+      "entryUpdated": "FAQ-Eintrag aktualisiert",
+      "entryDeleted": "FAQ-Eintrag gelöscht"
+    },
+    "mobileCommand": {
+      "title": "Kommandozentrale",
+      "running": "Läuft...",
+      "finished": "Aufgabe abgeschlossen",
+      "progress": "Ausführungsfortschritt",
+      "thinking": "Neuestes Denken",
+      "result": "Ergebniszusammenfassung",
+      "viewFull": "Vollständiges Gespräch anzeigen",
+      "noStatus": "Kein Aufgabenstatus",
+      "stopTask": "Aufgabe stoppen",
+      "stopTaskSuccess": "Aufgabenstopp angefordert",
+      "stopTaskFailed": "Keine laufende Aufgabe zum Stoppen",
+      "pendingApprovals": "Ausstehende Genehmigungen",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "approveAll": "Alle genehmigen",
+      "quickCommand": "Schnellbefehl",
+      "quickCommandPlaceholder": "Senden Sie eine neue Anweisung...",
+      "steerPlaceholder": "Den Agenten umleiten...",
+      "send": "Senden",
+      "verifications": "Akzeptanzkriterien",
+      "livePreview": "Live-Vorschau",
+      "browser": "Webbrowser",
+      "desktop": "Desktop-App",
+      "artifacts": "Liefergegenstände",
+      "advisorAsk": "Advisor fragen",
+      "advisorOpen": "Seiten-Q&A"
+    },
+    "formalKoreanReplies": {
+      "title": "Formelle koreanische Antworten",
+      "description": "Antworten verwenden höfliches formelles Koreanisch (Hamnida-Stil) für geschäftliche E-Mails und Berichte."
     }
   },
   "common": {
+    "keyValueEditor": {
+      "keyPlaceholder": "Schlüssel",
+      "valuePlaceholder": "Wert"
+    },
+    "jsonEditor": {
+      "mustBeObject": "Muss ein JSON-Objekt sein",
+      "invalidJson": "Ungültiges JSON-Format"
+    },
+    "schemaForm": {
+      "resetDefaults": "Auf Standardeinstellungen zurücksetzen",
+      "requiredField": "Dieses Feld ist erforderlich"
+    },
+    "subagentApprovalRequired": "Genehmigung von Subagentenaufgaben",
     "settings": "Einstellungen",
     "collapseMenu": "Menü einklappen",
     "search": "Suchen",
@@ -7345,19 +7458,6 @@
       "description": "Sie können die App weiter nutzen, während der Konfigurationsstatus aktualisiert wird.",
       "retry": "Erneut prüfen"
     },
-    "keyValueEditor": {
-      "keyPlaceholder": "Schlüssel",
-      "valuePlaceholder": "Wert"
-    },
-    "jsonEditor": {
-      "mustBeObject": "Muss ein JSON-Objekt sein",
-      "invalidJson": "Ungültiges JSON-Format"
-    },
-    "schemaForm": {
-      "resetDefaults": "Auf Standardeinstellungen zurücksetzen",
-      "requiredField": "Dieses Feld ist erforderlich"
-    },
-    "subagentApprovalRequired": "Genehmigung von Subagentenaufgaben",
     "searchHistory": "Suchverlauf",
     "model": "Modell",
     "selectModel": "Wählen Sie Modell aus",
@@ -13578,6 +13678,10 @@
     "realtimeVoice": "Echtzeitstimme",
     "edgeTtsUnavailableTitle": "Edge TTS ist nicht verfügbar",
     "edgeTtsUnavailableDesc": "Auf diesem Server ist Edge TTS nicht aktiviert. Wechseln Sie zu einem anderen Anbieter oder bitten Sie Ihren Administrator, die Sprachunterstützung zu aktivieren.",
+    "piperUnavailableTitle": "Lokales Piper TTS ist nicht verfügbar",
+    "piperUnavailableDesc": "Bitte installieren Sie die Komponente voice-tts-local auf dem Server (uv sync --extra voice-tts-local) oder wechseln Sie zu einem anderen TTS-Anbieter.",
+    "piperUnavailableTitle": "Lokales Piper TTS ist nicht verfügbar",
+    "piperUnavailableDesc": "Bitte installieren Sie die voice-tts-local-Komponente auf dem Server (uv sync --extra voice-tts-local) oder wechseln Sie zu einem anderen TTS-Anbieter.",
     "localSttUnavailableTitle": "Local Whisper STT ist nicht verfügbar",
     "localSttUnavailableDesc": "Bitten Sie Ihren Administrator, die local-stt-Komponente auf dem Server zu installieren (uv sync --extra local-stt) oder wechseln Sie zu einem Cloud-STT-Anbieter.",
     "ttsPlaybackFailedTitle": "Das Vorlesen ist fehlgeschlagen",

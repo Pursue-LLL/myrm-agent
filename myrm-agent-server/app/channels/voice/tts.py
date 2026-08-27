@@ -1,12 +1,13 @@
 """Text-to-Speech synthesis for outbound Agent replies.
 
-Supports multiple providers with automatic fallback to Edge TTS when the
-optional ``voice-tts`` extra is installed:
+Supports multiple providers with automatic fallback to Edge TTS or Piper when available:
   1. OpenAI (gpt-4o-mini-tts)
   2. ElevenLabs (eleven_multilingual_v2)
   3. Fish Audio (s1 model, 2M+ community voices)
   4. MiniMax (speech-2.8-hd, cost-effective Asian language support)
   5. Edge TTS (Microsoft Neural, free, no API key)
+  6. Piper (local offline CPU ONNX neural TTS, zero-API)
+  7. Voicebox (local/remote loopback voice service)
 
 [INPUT]
 - channels.types::VoiceConfig, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
@@ -16,6 +17,8 @@ optional ``voice-tts`` extra is installed:
 - synthesize(): Text -> audio file path (Path)
 - synthesize_stream(): Text -> AsyncGenerator[bytes] (streaming audio)
 - is_edge_tts_available(): Whether optional Edge TTS (voice-tts extra) is installed
+- is_piper_available(): Whether optional local Piper TTS is installed
+- is_local_tts_available(): Whether any fully offline local TTS provider is available
 
 [POS]
 Outbound text-to-speech. Called by Router based on TTSMode when sending Agent replies.

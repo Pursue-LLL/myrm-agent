@@ -385,6 +385,45 @@ class TestSummarizeForTTS:
         assert result is None
 
 
+class TestSynthesizeOfflineLocal:
+    @pytest.mark.asyncio
+    async def test_voicebox_success(self) -> None:
+        audio_bytes = b"\xff\xfb\x90\x00" * 256
+
+        mock_resp = httpx.Response(
+            200,
+            content=audio_bytes,
+            request=httpx.Request("POST", "http://127.0.0.1:8000/tts"),
+        )
+
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp) as mock_post:
+            result = await synthesize("Hello from offline voicebox", _voice("voicebox"))
+
+        assert result is not None
+        assert result.read_bytes() == audio_bytes
+        mock_post.assert_called_once()
+        result.unlink(missing_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_piper_success(self) -> None:
+        mock_piper = MagicMock()
+        mock_voice = MagicMock()
+
+        def fake_synthesize(text: str, f: object) -> None:
+            if hasattr(f, "write"):
+                f.write(b"RIFF" + b"\x00" * 200)
+
+        mock_voice.synthesize.side_effect = fake_synthesize
+        mock_piper.PiperVoice.load.return_value = mock_voice
+
+        with patch.dict("sys.modules", {"piper": mock_piper}):
+            result = await synthesize("Hello from local piper engine", _voice("piper"))
+
+        assert result is not None
+        assert result.read_bytes().startswith(b"RIFF")
+        result.unlink(missing_ok=True)
+
+
 class TestWriteTemp:
     def test_creates_file_with_correct_suffix(self) -> None:
         path = _write_temp(b"test data", ".mp3")

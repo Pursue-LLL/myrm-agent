@@ -7797,23 +7797,15 @@
       "acceptanceScopePlaceholder": "例: エッジケース処理、データ整合性、E2Eテストの監査..."
     },
     "deliveryContracts": {
-      "title": "5つの契約デリバリーライフサイクル",
+      "title": "5大デリバリー契約",
       "allSatisfied": "すべての契約が満たされました",
-      "refresh": "契約状態を更新",
-      "noSummary": "フェーズ実行中...",
-      "phases": {
-        "task_intent": "タスク意図契約",
-        "scene_environment": "現場環境契約",
-        "action_execution": "アクション実行契約",
-        "delivery_artifact": "成果物契約",
-        "acceptance_verification": "検収検証契約"
-      },
+      "refresh": "状態を更新",
+      "noSummary": "利用可能なデリバリー概要がありません",
       "status": {
-        "pending": "待機中",
-        "inProgress": "実行中",
-        "satisfied": "充足",
-        "violated": "不合格",
-        "waitingApproval": "承認待ち"
+        "satisfied": "適合",
+        "violated": "違反",
+        "inProgress": "進行中",
+        "pending": "保留中"
       }
     },
     "deleteChat": {
@@ -8764,19 +8756,7 @@
     "routingStandardTooltip": "標準のメインモデルで日常タスクを処理",
     "routingReasoningTooltip": "複雑な論理または推論タスクを検出し、高精度な深層推論モデルを自動割り当て",
     "routingCodeTooltip": "コーディング、リファクタリング、デバッグタスクを検出し、コード専門モデルにルーティング",
-    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング",
-    "deliveryContracts": {
-      "title": "5大デリバリー契約",
-      "allSatisfied": "すべての契約が満たされました",
-      "refresh": "状態を更新",
-      "noSummary": "利用可能なデリバリー概要がありません",
-      "status": {
-        "satisfied": "適合",
-        "violated": "違反",
-        "inProgress": "進行中",
-        "pending": "保留中"
-      }
-    }
+    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング"
   },
   "mode": {
     "fast": "高速検索",

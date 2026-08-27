@@ -9,6 +9,7 @@ import { toast } from '@/lib/utils/toast';
 import useConfigStore from '@/store/useConfigStore';
 import ThemeProfilePicker from '@/components/features/theme/shared/ThemeProfilePicker';
 import ThemePackageImportSection from '@/components/features/theme/shared/ThemePackageImportSection';
+import SystemFontPicker from '@/components/features/theme/shared/SystemFontPicker';
 import {
   ART_WASH_MAX,
   ART_WASH_MIN,
@@ -277,23 +278,10 @@ const AppearancePanel = ({ className }: { className?: string }) => {
 
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-2">{t('font')}</p>
-        <div className="flex flex-wrap gap-2">
-          {FONT_CHOICES.map((font) => (
-            <button
-              key={font.id}
-              type="button"
-              onClick={() => handleFontChange(font.id)}
-              className={cn(
-                'px-3 py-2 rounded-lg text-sm border transition-all',
-                activeFontId === font.id
-                  ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border bg-secondary/40 text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {tFonts(font.id)}
-            </button>
-          ))}
-        </div>
+        <SystemFontPicker
+          activeFontId={activeFontId}
+          onFontChange={handleFontChange}
+        />
       </div>
       <button
         type="button"

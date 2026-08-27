@@ -86,15 +86,18 @@ class _LocalWhisperManager:
     """Process-level singleton for the faster-whisper model.
 
     Loads the model lazily on first transcription call and reuses it
-    across subsequent calls. Reloads when configuration changes.
+    across subsequent calls. Supports configurable idle unloading to free
+    VRAM/RAM when sharing hardware with local LLM instances.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, idle_unload_seconds: float = 30.0) -> None:
         self._model: object | None = None
         self._model_size: str = ""
         self._device: str = ""
         self._compute_type: str = ""
         self._lock = asyncio.Lock()
+        self._idle_unload_seconds = idle_unload_seconds
+        self._unload_timer: asyncio.TimerHandle | None = None
 
     def _resolve_device(self, requested: str) -> str:
         """Resolve 'auto' to actual device."""
@@ -113,9 +116,44 @@ class _LocalWhisperManager:
             return requested
         return "float16" if device == "cuda" else "int8"
 
+    def _schedule_unload(self) -> None:
+        """Schedule automatic model unloading after idle timeout."""
+        if self._idle_unload_seconds <= 0:
+            return
+        if self._unload_timer is not None:
+            self._unload_timer.cancel()
+        loop = asyncio.get_running_loop()
+        self._unload_timer = loop.call_later(self._idle_unload_seconds, self.unload)
+
+    def unload(self) -> None:
+        """Unload Whisper model from memory/VRAM immediately."""
+        if self._model is not None:
+            logger.info("STT: unloading local whisper model to free memory/VRAM")
+            self._model = None
+            self._model_size = ""
+            self._device = ""
+            self._compute_type = ""
+            import gc
+
+            gc.collect()
+            try:
+                import torch
+
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except ImportError:
+                pass
+        if self._unload_timer is not None:
+            self._unload_timer.cancel()
+            self._unload_timer = None
+
     async def get_model(self, config: VoiceConfig) -> object:
         """Get or load the WhisperModel, reloading if config changed."""
         async with self._lock:
+            if self._unload_timer is not None:
+                self._unload_timer.cancel()
+                self._unload_timer = None
+
             model_size = config.stt_local_model or "base"
             device = self._resolve_device(config.stt_local_device)
             compute_type = self._resolve_compute_type(config.stt_local_compute_type, device)
@@ -318,6 +356,7 @@ async def _transcribe_local(
         len(text),
         info.language,  # type: ignore[union-attr]
     )
+    _whisper_manager._schedule_unload()
     return STTResult(
         text=text,
         language=info.language,  # type: ignore[union-attr]

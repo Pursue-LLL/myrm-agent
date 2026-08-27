@@ -968,6 +968,9 @@ INDEX_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS ix_batch_directory_projects_status ON batch_directory_projects(status)",
     "ALTER TABLE kanban_task_runs ADD COLUMN token_usage JSON",
     "ALTER TABLE kanban_task_runs ADD COLUMN cost_usd FLOAT",
+    "ALTER TABLE shared_contexts ADD COLUMN visibility VARCHAR(20) NOT NULL DEFAULT 'team'",
+    "ALTER TABLE shared_contexts ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE shared_contexts ADD COLUMN last_accessed_at TIMESTAMP",
 ]
 
 

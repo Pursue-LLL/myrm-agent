@@ -6597,6 +6597,11 @@
     },
     "list": "智慧體列表",
     "create": "建立智慧體",
+    "readiness": {
+      "warning": "部分配置需要注意",
+      "blocked": "智慧體無法運行 — 需要修復",
+      "ready": "就緒"
+    },
     "newAgentName": "新智慧體",
     "nameRequired": "請輸入智慧體名稱",
     "empty": "還沒有智慧體",
@@ -6830,6 +6835,18 @@
     "consensusAggModelDesc": "綜合所有參考回覆。未設定時使用主模型。",
     "consensusNoModels": "未選擇參考模型 — 將回退至主模型",
     "consensusUsingPrimary": "使用主模型",
+    "idleCompact": {
+      "title": "Idle 後自動壓縮上下文",
+      "desc": "聊天長時間無新消息後，在下一條回覆前先摘要較早內容。",
+      "minutes": "Idle 時長（分鐘）",
+      "minutesDesc": "距最後一條消息超過該時長後，才可能在下次發消息前自動壓縮。",
+      "hint": "預設關閉。不影響手動「壓縮上下文」，也不影響 Token 用量較高時的自動壓縮。"
+    },
+    "busyInputMode": "忙時輸入行為",
+    "busyInputModeDesc": "Agent 工作時按 Enter 發送消息的預設動作。",
+    "busyInputRedirect": "糾偏中斷",
+    "busyInputSteer": "糾偏等待",
+    "busyInputQueue": "排隊等候",
     "moaOverlayTitle": "Agent 環顧問疊加",
     "moaOverlayDesc": "為聊天模型選擇器配置顧問參考模型。會話級啟用需在「多智能體混合」分組中選擇，默認不會每條消息都運行。",
     "moaOverlayPickerHint": "開啟後，該預設會出現在聊天模型選擇器中；需在會話裡點選才會運行顧問疊加。",
@@ -6845,6 +6862,8 @@
     "moaOverlayPrivacyOff": "關閉",
     "moaOverlayPrivacyDisplay": "僅展示脫敏",
     "moaOverlayPrivacyFull": "完整脫敏（展示 + 注入）",
+    "moaOverlayAutoReasoningTitle": "推理層級自動啟用 MoA 疊加",
+    "moaOverlayAutoReasoningDesc": "當智慧路由判定當前任務為深度推理（REASONING）層級時自動啟用 MoA 顧問團協作；常規任務保持單模型極速執行。",
     "moaOverlayNoModels": "未選擇參考模型 — 疊加層將被跳過（不會回退主模型）",
     "consensusPrivacy": "參考模型隱私過濾",
     "consensusPrivacyOff": "關閉",
@@ -7562,7 +7581,24 @@
       "artifacts": "交付物",
       "advisorAsk": "問顧問",
       "advisorOpen": "旁路問答"
-    }
+    },
+    "readiness": {
+      "warning": "警告",
+      "blocked": "已阻止",
+      "ready": "就緒"
+    },
+    "idleCompact": {
+      "title": "空閒後自動壓縮",
+      "desc": "對話空閒後，在下一次回復前先總結舊訊息。",
+      "minutes": "空閒時間（分鐘）",
+      "minutesDesc": "自動壓縮前自最後一條訊息起等待的時間。",
+      "hint": "預設關閉。不會替代手動壓縮或高 token 佔用時的自動壓縮。"
+    },
+    "busyInputMode": "忙碌時輸入行為",
+    "busyInputModeDesc": "智慧體執行任務時，傳送新訊息的預設處理方式。",
+    "busyInputRedirect": "重新定向",
+    "busyInputSteer": "糾偏",
+    "busyInputQueue": "排隊"
   },
   "common": {
     "keyValueEditor": {
@@ -7650,6 +7686,10 @@
     "goalMode": "目標模式",
     "forkBranch": "分支對話",
     "enabled": "已開啟",
+    "remoteGateway": {
+      "unreachable": "遠程伺服器 {host} 無法訪問，請檢查伺服器地址或切回本地模式。",
+      "switchToLocal": "切換為本地模式"
+    },
     "configLoadError": {
       "title": "配置載入失敗",
       "description": "無法連線到服務，請檢查後端是否正常執行後重試。",
@@ -7672,20 +7712,6 @@
       "retryStart": "重試啟動",
       "hint": "您的資料儲存在本地，不會丟失。如需重灌請先匯出備份。",
       "selectExportFolder": "選擇匯出目錄"
-    },
-    "relativeDate": {
-      "justNow": "剛剛",
-      "minutesAgo": "{count}分鐘前",
-      "hoursAgo": "{count}小時前",
-      "today": "今天",
-      "yesterday": "昨天",
-      "daysAgo": "{count}天前",
-      "weeksAgo": "{count}周前",
-      "monthsAgo": "{count}月前"
-    },
-    "remoteGateway": {
-      "unreachable": "遠程伺服器 {host} 無法訪問，請檢查伺服器地址或切回本地模式。",
-      "switchToLocal": "切換為本地模式"
     },
     "back": "返回",
     "noOptions": "沒有可用選項",
@@ -13883,6 +13909,8 @@
     "ttsProvider": "TTS 服務商",
     "edgeTtsUnavailableTitle": "Edge TTS 不可用",
     "edgeTtsUnavailableDesc": "當前伺服器未啟用 Edge TTS。請切換其他服務商，或聯絡管理員啟用語音支援。",
+    "piperUnavailableTitle": "本地 Piper TTS 不可用",
+    "piperUnavailableDesc": "請在伺服器端安裝 voice-tts-local 元件 (uv sync --extra voice-tts-local)，或切換至其他 TTS 服務商。",
     "piperUnavailableTitle": "本地 Piper 語音合成不可用",
     "piperUnavailableDesc": "請在伺服器安裝 local-tts 組件（uv sync --extra voice-tts-local），或切換至其他 TTS 服務商。",
     "hostNotReadyTitle": "後端服務未就緒",

@@ -4340,7 +4340,16 @@
     "fontOptions": {
       "inter": "Inter（默认）",
       "system": "系统字体",
-      "atkinson": "Atkinson Hyperlegible"
+      "atkinson": "Atkinson Hyperlegible",
+      "popularDeveloperFonts": "常用开发者字体",
+      "scanAllSystemFonts": "扫描本机已安装字体 (Local Font API)",
+      "scanningFonts": "正在扫描系统字体...",
+      "allInstalledFonts": "本机所有字体",
+      "selectFontPlaceholder": "从本机已安装字体中选择...",
+      "customFontPlaceholder": "或输入任意本机字体名（如 JetBrains Mono）",
+      "apply": "应用",
+      "activeCustomFont": "当前应用字体",
+      "resetToDefault": "恢复默认"
     },
     "font": "字体",
     "modelSettings": "模型设置",

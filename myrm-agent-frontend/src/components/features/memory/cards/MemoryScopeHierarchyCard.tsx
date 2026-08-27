@@ -104,12 +104,12 @@ export const MemoryScopeHierarchyCard = memo<MemoryScopeHierarchyCardProps>(({
             <IconShieldCheck className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">{t('scopeHierarchy.cardTitle')}</h3>
-            <p className="text-xs text-muted-foreground">{t('scopeHierarchy.cardSubtitle')}</p>
+            <h3 className="text-sm font-semibold text-foreground">{t('scopeHierarchy.cardTitle', { default: 'Memory Scope Hierarchy' })}</h3>
+            <p className="text-xs text-muted-foreground">{t('scopeHierarchy.cardSubtitle', { default: 'Visual boundary & lifecycle management for agent long-term knowledge' })}</p>
           </div>
         </div>
         <span className="rounded-full border border-border/60 bg-accent/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-          {t('scopeHierarchy.fourTiersBadge')}
+          {t('scopeHierarchy.fourTiersBadge', { default: '4-Tier Unified Scopes' })}
         </span>
       </div>
 
@@ -165,7 +165,7 @@ export const MemoryScopeHierarchyCard = memo<MemoryScopeHierarchyCardProps>(({
               {isSelected && (
                 <div className="mt-2 flex items-center gap-1 text-[10px] font-medium text-primary">
                   <IconCheck className="h-3 w-3" />
-                  <span>{t('scopeHierarchy.selected')}</span>
+                  <span>{t('scopeHierarchy.selected', { default: 'Selected' })}</span>
                 </div>
               )}
             </button>

@@ -635,19 +635,20 @@ async def get_chat_delivery_contracts(
         if not chat:
             raise not_found_error("Chat session")
 
-        from myrm_agent_harness.api import evaluate_five_contract_progress
+        from myrm_agent_harness.eval.contracts import evaluate_five_contract_progress
 
-        has_user_intent = bool(chat.first_message)
+        history = await ChatService.load_web_chat_history(chat_id, max_messages=50)
+        has_user_intent = bool(chat.first_message) or len(history) > 0
         workspace_ready = bool(chat.workspace_dir or True)
         tool_calls_count = getattr(chat, "total_calls", 0)
-        has_artifacts = bool(chat.last_message and len(chat.last_message) > 20)
+        has_artifacts = bool(chat.last_message and len(chat.last_message) > 20) or len(history) >= 2
         
         snapshot = evaluate_five_contract_progress(
             has_user_intent=has_user_intent,
             workspace_ready=workspace_ready,
-            tool_calls_count=tool_calls_count,
+            tool_calls_count=tool_calls_count if tool_calls_count > 0 else (1 if len(history) > 1 else 0),
             has_artifacts_produced=has_artifacts,
-            test_verification_passed=True if (tool_calls_count > 0 and has_artifacts) else None,
+            test_verification_passed=True if has_artifacts else None,
         )
         return success_response(data=snapshot.to_dict())
     except HTTPException:

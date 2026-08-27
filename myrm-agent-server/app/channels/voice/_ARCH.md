@@ -4,7 +4,7 @@
 Voice subsystem: STT transcription, TTS synthesis, and voice message routing.
 
 Supports 5 STT providers (local/openai/groq/deepgram/xai) with automatic fallback,
-and 5 TTS providers (edge/openai/elevenlabs/fish_audio/minimax) with Edge TTS free fallback.
+and 7 TTS providers (edge/piper/voicebox/openai/elevenlabs/fish_audio/minimax) with Edge/Piper local free fallback.
 Video attachments (.mp4/.webm) are transcribed via the same STT pipeline.
 
 ## File & Submodule Index

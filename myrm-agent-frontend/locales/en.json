@@ -4340,7 +4340,16 @@
     "fontOptions": {
       "inter": "Inter (Default)",
       "system": "System Font",
-      "atkinson": "Atkinson Hyperlegible"
+      "atkinson": "Atkinson Hyperlegible",
+      "popularDeveloperFonts": "Popular Developer Fonts",
+      "scanAllSystemFonts": "Scan Local Installed Fonts (Local Font API)",
+      "scanningFonts": "Scanning system fonts...",
+      "allInstalledFonts": "All Local Fonts",
+      "selectFontPlaceholder": "Select from local installed fonts...",
+      "customFontPlaceholder": "Or enter any local font name (e.g. JetBrains Mono)",
+      "apply": "Apply",
+      "activeCustomFont": "Active Custom Font",
+      "resetToDefault": "Reset"
     },
     "font": "Font",
     "modelSettings": "Model Settings",
