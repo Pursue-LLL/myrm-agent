@@ -40,11 +40,13 @@ class TestDiscoveryEndpointLocalMode:
         with patch(
             "app.api.migration.discovery.discover_external_sources",
             wraps=__import__(
-                "app.services.migration.source.source_discovery", fromlist=["discover_external_sources"]
+                "app.services.migration.source.source_discovery",
+                fromlist=["discover_external_sources"],
             ).discover_external_sources,
         ) as mock_discover:
             mock_discover.side_effect = lambda home_dir=None: __import__(
-                "app.services.migration.source.source_discovery", fromlist=["discover_external_sources"]
+                "app.services.migration.source.source_discovery",
+                fromlist=["discover_external_sources"],
             ).discover_external_sources(str(tmp_path))
 
             resp = client.get("/api/v1/migration/discover")
@@ -66,7 +68,9 @@ class TestDiscoveryEndpointLocalMode:
             "plur",
         }
 
-    def test_discover_with_hermes_data(self, client: TestClient, tmp_path: Path) -> None:
+    def test_discover_with_hermes_data(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
         hermes = tmp_path / ".hermes"
         hermes.mkdir()
         (hermes / "config.yaml").write_text("model: gpt-4o")
@@ -74,11 +78,16 @@ class TestDiscoveryEndpointLocalMode:
         mem.mkdir()
         (mem / "MEMORY.md").write_text("- User likes Python\n- Uses VS Code")
 
-        from app.services.migration.source.source_discovery import discover_external_sources
+        from app.services.migration.source.source_discovery import (
+            discover_external_sources,
+        )
 
         real_result = discover_external_sources(str(tmp_path))
 
-        with patch("app.api.migration.discovery.discover_external_sources", return_value=real_result):
+        with patch(
+            "app.api.migration.discovery.discover_external_sources",
+            return_value=real_result,
+        ):
             resp = client.get("/api/v1/migration/discover")
 
         assert resp.status_code == 200
@@ -90,7 +99,9 @@ class TestDiscoveryEndpointLocalMode:
         assert src["confidence"] == "high"
         assert src["memory_count_estimate"] == 2
 
-    def test_discover_multiple_competitors(self, client: TestClient, tmp_path: Path) -> None:
+    def test_discover_multiple_competitors(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
         hermes = tmp_path / ".hermes"
         hermes.mkdir()
         (hermes / "config.yaml").write_text("m: 1")
@@ -103,11 +114,16 @@ class TestDiscoveryEndpointLocalMode:
         (claude / "CLAUDE.md").write_text("- pref")
         (claude / "settings.json").write_text("{}")
 
-        from app.services.migration.source.source_discovery import discover_external_sources
+        from app.services.migration.source.source_discovery import (
+            discover_external_sources,
+        )
 
         real_result = discover_external_sources(str(tmp_path))
 
-        with patch("app.api.migration.discovery.discover_external_sources", return_value=real_result):
+        with patch(
+            "app.api.migration.discovery.discover_external_sources",
+            return_value=real_result,
+        ):
             resp = client.get("/api/v1/migration/discover")
 
         data = resp.json()
@@ -121,11 +137,16 @@ class TestDiscoveryEndpointLocalMode:
         (codex / "instructions.md").write_text("# Instructions")
         (codex / "config.json").write_text("{}")
 
-        from app.services.migration.source.source_discovery import discover_external_sources
+        from app.services.migration.source.source_discovery import (
+            discover_external_sources,
+        )
 
         real_result = discover_external_sources(str(tmp_path))
 
-        with patch("app.api.migration.discovery.discover_external_sources", return_value=real_result):
+        with patch(
+            "app.api.migration.discovery.discover_external_sources",
+            return_value=real_result,
+        ):
             resp = client.get("/api/v1/migration/discover")
 
         data = resp.json()
@@ -152,7 +173,9 @@ class TestDiscoveryEndpointLocalMode:
             assert "kind" in f
             assert "size_bytes" in f
 
-    def test_discover_downgrades_authoritative_when_manifest_incomplete(self, client: TestClient) -> None:
+    def test_discover_downgrades_authoritative_when_manifest_incomplete(
+        self, client: TestClient
+    ) -> None:
         partial_manifest = [
             MigrationSourceManifestItemResponse(
                 id="hermes",

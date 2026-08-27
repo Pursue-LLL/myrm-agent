@@ -7,18 +7,24 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.command_center.command_center_insights import (
+    MemoryCommandCenterInsights,
+)
 from app.services.memory.imports.import_sessions import (
     DRY_RUN_STATUS_CONFIRMED,
     DRY_RUN_STATUS_EXPIRED,
     DRY_RUN_STATUS_PENDING,
     DRY_RUN_STATUS_ROLLED_BACK,
 )
-from app.services.migration.source.source_manifest import migration_source_manifest_payload
+from app.services.migration.source.source_manifest import (
+    migration_source_manifest_payload,
+)
 
 
 @pytest.mark.asyncio
-async def test_build_migration_projects_source_manifest_and_authoritative_flag() -> None:
+async def test_build_migration_projects_source_manifest_and_authoritative_flag() -> (
+    None
+):
     ledger = MagicMock()
     ledger.migration_summary = AsyncMock(return_value=(4, 1, "partial"))
     ledger.latest_migration = AsyncMock(
@@ -62,12 +68,16 @@ async def test_build_migration_projects_source_manifest_and_authoritative_flag()
         "pi",
         "plur",
     }
-    chatgpt_entry = next(item for item in migration.source_manifest if item.id == "chatgpt")
+    chatgpt_entry = next(
+        item for item in migration.source_manifest if item.id == "chatgpt"
+    )
     assert chatgpt_entry.discover_modes == ["zip_upload"]
 
 
 @pytest.mark.asyncio
-async def test_build_migration_downgrades_authoritative_when_manifest_incomplete() -> None:
+async def test_build_migration_downgrades_authoritative_when_manifest_incomplete() -> (
+    None
+):
     ledger = MagicMock()
     ledger.migration_summary = AsyncMock(return_value=(0, 0, "not_tracked"))
     ledger.latest_migration = AsyncMock(return_value=None)
