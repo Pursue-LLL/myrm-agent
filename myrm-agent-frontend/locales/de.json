@@ -1480,7 +1480,10 @@
         "selectCodeModel": "Code-Spezialmodell auswählen",
         "longDocModel": "Langdokument-Spezialmodell",
         "longDocModelDescription": "Spezialisiertes Modell für große Kontexte, lange Berichte und Volltext-Zusammenfassungen (fällt auf das Standardmodell zurück, falls nicht konfiguriert)",
-        "selectLongDocModel": "Langdokument-Spezialmodell auswählen"
+        "selectLongDocModel": "Langdokument-Spezialmodell auswählen",
+        "autoTitle": "Smart-Routing · Adaptiv",
+        "autoDescription": "Leitet Aufgaben automatisch nach Komplexität und Fachgebiet weiter, optimiert Geschwindigkeit und Kosten",
+        "recommended": "Empfohlen / Auto"
       },
       "retrieval": {
         "embeddingModel": "Embedding-Modell",
@@ -3342,7 +3345,12 @@
           "title": "Vorgeschlagener Zeitplan"
         },
         "cronCreateFailed": "Terminierung der wiederkehrenden Überprüfung für {name} fehlgeschlagen",
-        "cronCreated": "Wiederkehrende Überprüfung für {name} geplant"
+        "cronCreated": "Wiederkehrende Überprüfung für {name} geplant",
+        "verifiedBadge": "Verifiziert (Streak: {streak})",
+        "hollowBlockedBadge": "Hohltest blockiert",
+        "verificationProofTitle": "Sandbox-Kapsel-Verifizierungsnachweis",
+        "blastRadius": "Auswirkungsbereich: {files} Datei(en), {lines} Zeile(n)",
+        "noVerificationProof": "Kein Sandbox-Verifizierungsnachweis verfügbar"
       },
       "draft": {
         "reviewPanelTitle": "Ausstehende Entwürfe",
@@ -7070,8 +7078,8 @@
     "moaOverlayPrivacyOff": "Aus",
     "moaOverlayPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
     "moaOverlayPrivacyFull": "Vollständig (UI + Prompt-Schwärzung)",
-    "moaOverlayAutoReasoningTitle": "Automatische Aktivierung bei logischer Schlussfolgerung (Auto MoA Gate)",
-    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart-Routing die Aufgabe als REASONING einstuft. Normale Aufgaben behalten die schnelle Einzelmodell-Ausführung bei.",
+    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung für Argumentation",
+    "moaOverlayAutoReasoningDesc": "Aktiviert bei komplexen Argumentationsaufgaben automatisch parallele MoA-Berater zur gegenseitigen Überprüfung.",
     "moaOverlayNoModels": "Keine Referenzmodelle ausgewählt — Overlay wird übersprungen (kein Fallback)",
     "consensusPrivacy": "Referenz-Datenschutzfilter",
     "consensusPrivacyOff": "Aus",
@@ -7261,8 +7269,6 @@
     "busyInputRedirect": "Umleiten",
     "busyInputSteer": "Steuern",
     "busyInputQueue": "Warteschlange",
-    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung für Argumentation",
-    "moaOverlayAutoReasoningDesc": "Aktiviert bei komplexen Argumentationsaufgaben automatisch parallele MoA-Berater zur gegenseitigen Überprüfung.",
     "browserConfig": "Browser-Konfiguration",
     "browserConfigDesc": "Browserquelle, Dialoge und Sitzungsaufzeichnung konfigurieren. Anti-Bot-Stealth wird automatisch gehandhabt, wenn das Browser-Tool aktiviert ist.",
     "dialogPolicy": {
@@ -8486,7 +8492,13 @@
       "evening": "Abend-Rückblick",
       "night": "Nächtliche Tiefenarbeit",
       "all": "Alle erkunden"
-    }
+    },
+    "smartRoutingBadge": "Integriertes Smart-Routing aktiv · Automatische Optimierung von Rechenleistung & Tokens",
+    "routingSimpleTooltip": "Automatisch an leichtes Hochgeschwindigkeitsmodell weitergeleitet, reagiert in Millisekunden und spart ~65% Rechenleistung",
+    "routingStandardTooltip": "Verarbeitung durch standardmäßiges Hauptmodell für alltägliche Aufgaben",
+    "routingReasoningTooltip": "Komplexe Logik oder mehrstufiges Denken erkannt; automatische Zuweisung von Deep-Reasoning-Rechenleistung",
+    "routingCodeTooltip": "Programmier-, Refactoring- oder Debug-Aufgabe erkannt; an Code-Spezialmodell weitergeleitet",
+    "routingLongDocTooltip": "Langes Dokument oder großer Kontext erkannt; an Langdokument-Spezialmodell weitergeleitet"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -13514,7 +13526,17 @@
     "onebotTriggerMention": "Nur Erwähnungen",
     "onebotTriggerPrefix": "Präfix",
     "optional": "optional",
-    "signalApiUrlHint": "Basis-URL der signald-REST-API, z. B. http://localhost:8080"
+    "signalApiUrlHint": "Basis-URL der signald-REST-API, z. B. http://localhost:8080",
+    "channelImessage": "iMessage",
+    "senderIdPlaceholderImessage": "Telefonnummer (+4915112345678) oder Apple-ID (user@example.com)",
+    "senderIdHintImessage": "Geben Sie die iMessage-Telefonnummer mit Ländervorwahl oder die Apple-ID-E-Mail-Adresse ein",
+    "imessageMentionPatterns": "Gruppen-Erwähnungs-Muster",
+    "imessageMentionPatternsHint": "Regex-Muster oder Signalwörter, um den Bot in Gruppenchats auszulösen (z. B. ^@?Myrm\\b)",
+    "imessageAppleWatchGuideTitle": "Apple Watch & iPhone Tapback-Genehmigung",
+    "imessageAppleWatchGuideDesc": "Wenn ein Agent eine Genehmigung anfordert, tippen Sie lange auf die iMessage-Nachricht auf Ihrer Apple Watch oder Ihrem iPhone und reagieren Sie mit 👍 (Genehmigen) oder 👎 (Ablehnen).",
+    "imessageDeployGuideTitle": "Bereitstellungsmodi",
+    "imessageDeployGuideLocal": "Lokal / Tauri: Direkt mit BlueBubbles auf Ihrem Mac verbinden (z. B. http://localhost:1234).",
+    "imessageDeployGuideCloud": "Cloud: Über Cloudflare Tunnel, Tailscale oder Ngrok mit Ihrem Mac BlueBubbles-Server verbinden."
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -13537,6 +13559,8 @@
     "ttsModeAlways": "Stets",
     "ttsModeInbound": "Nur per Spracheingabe antworten",
     "ttsProvider": "TTS-Anbieter",
+    "hostNotReadyTitle": "Backend-Dienst nicht bereit",
+    "hostNotReadyDesc": "Der Backend-Dienst verbindet sich oder ist offline. Bitte überprüfen Sie Ihre Dienstverbindung und versuchen Sie es erneut.",
     "ttsApiKey": "API Key",
     "ttsApiKeyPlaceholder": "Geben Sie den Schlüssel API ein (nicht erforderlich für Edge TTS)",
     "ttsBaseUrl": "API Basis URL",
@@ -13577,7 +13601,9 @@
     "ttsPlaybackFailedTitle": "Das Vorlesen ist fehlgeschlagen",
     "ttsPlaybackFailedDesc": "Die Sprachsynthese erzeugte kein Audio. Überprüfen Sie Ihre Spracheinstellungen oder versuchen Sie es mit einem anderen Anbieter.",
     "voiceModeGeminiLive": "Gemini Live (WebSocket, ~200 ms, Video)",
-    "geminiLiveModel": "Gemini Live-Modell"
+    "geminiLiveModel": "Gemini Live-Modell",
+    "hostNotReadyTitle": "Backend-Dienst ist nicht bereit",
+    "hostNotReadyDesc": "Der Backend-Dienst verbindet sich oder ist offline. Bitte überprüfen Sie den Dienststatus und versuchen Sie es erneut."
   },
   "stt": {
     "startRecording": "Spracheingabe",
@@ -14785,6 +14811,8 @@
       "evalRunning": "Evaluierungsaufgabe läuft, bitte warten",
       "failureAnalysisTitle": "Fehlermodus-Ursachenanalyse",
       "totalFailuresCount": "Insgesamt {count} Fehler",
+      "difficultyShardTitle": "Schwierigkeitsgrad-Shard-Leistung & Bestehensquote",
+      "fleetAttempts": "{count} unabhängige Stichprobenversuche",
       "failureModes": {
         "intent_misunderstanding": "Fehlinterpretation der Benutzerabsicht",
         "tool_selection_error": "Werkzeugauswahl- oder Routing-Fehler",
@@ -14795,7 +14823,9 @@
         "decontam_violation": "Evaluierungsdaten-Kontaminationsverletzung",
         "context_overflow_or_budget": "Kontextüberlauf oder Budget erschöpft",
         "unhandled_runtime_exception": "Unbehandelte Laufzeitausnahme"
-      }
+      },
+      "difficultyShardTitle": "Schwierigkeitsgrad-Shard-Leistung & Erfolgsquote",
+      "fleetAttempts": "{count} unabhängige Stichprobenversuche"
     },
     "history": {
       "passRateTrend": "Bestehensquote Verlaufstrend (Pass Rate %)",

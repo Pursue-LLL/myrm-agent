@@ -9,9 +9,9 @@ core.memory.adapters.policy::memory_policy_from_dict (POS: 记忆策略字典解
 
 [OUTPUT]
 DEFAULT_ENABLED_BUILTIN_TOOLS: 自 builtin_tool_ids 再导出，供各入口引用
-BuiltinToolFlags / resolve_builtin_tool_flags: 见 profile_builtin_tools（本模块 re-export）
+BuiltinToolFlags / resolve_builtin_tool_flags / is_sandbox_capable_tools: 见 profile_builtin_tools（本模块 re-export）
 tool_mount.resolve_agent_mount: General / Fast / Cron meta mount SSOT（见 tool_mount/_ARCH.md）
-ResolvedAgentProfile: 统一的智能体配置解析结果（含 auto_restore_domains 等运行时字段）
+ResolvedAgentProfile: 统一的智能体配置解析结果（含 is_sandbox_capable、auto_restore_domains 等运行时字段）
 AgentProfileResolver: 全局单例解析器（带 TTL 缓存）
 get_agent_profile_resolver: 获取全局单例
 

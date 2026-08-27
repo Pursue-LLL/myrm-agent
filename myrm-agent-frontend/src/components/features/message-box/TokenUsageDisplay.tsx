@@ -583,20 +583,7 @@ export default function TokenUsageDisplay({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" align="center" className="max-w-[260px] text-xs p-2">
-                          <p className="font-medium mb-0.5">
-                            {t(
-                              routingTier === 'simple'
-                                ? 'routingSimple'
-                                : routingTier === 'reasoning'
-                                  ? 'routingReasoning'
-                                  : routingTier === 'code'
-                                    ? 'routingCode'
-                                    : routingTier === 'long_doc'
-                                      ? 'routingLongDoc'
-                                      : 'routingStandard',
-                            )}
-                          </p>
-                          <p className="text-muted-foreground text-[11px]">
+                          <p className="text-muted-foreground text-[11px] leading-relaxed">
                             {t(
                               routingTier === 'simple'
                                 ? 'routingSimpleTooltip'

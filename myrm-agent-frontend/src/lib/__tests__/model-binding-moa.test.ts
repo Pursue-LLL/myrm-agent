@@ -36,10 +36,50 @@ describe('resolveModelPickerTriggerDisplay', () => {
     const display = resolveModelPickerTriggerDisplay('agent', agentConfig, defaultModelConfig, providers, 'default');
     expect(display.modelName).toBe('gpt-4o');
     expect(display.moaPresetId).toBe('default');
+    expect(display.isSmartRouting).toBe(false);
   });
 
   it('clears MoA chip outside agent mode', () => {
     const display = resolveModelPickerTriggerDisplay('fast', agentConfig, defaultModelConfig, providers, 'default');
     expect(display.moaPresetId).toBeNull();
+  });
+
+  it('activates smart routing when enabled and no explicit single model override is set', () => {
+    const routingDefaultModelConfig = {
+      ...defaultModelConfig,
+      routingConfig: { enabled: true },
+    } as DefaultModelConfig;
+
+    const autoAgentConfig = {
+      agentId: 'agent-1',
+      modelSelection: null,
+    } as unknown as AgentConfig;
+
+    const display = resolveModelPickerTriggerDisplay(
+      'agent',
+      autoAgentConfig,
+      routingDefaultModelConfig,
+      providers,
+      null,
+    );
+    expect(display.isSmartRouting).toBe(true);
+    expect(display.modelName).toBeNull();
+  });
+
+  it('overrides smart routing when single model is explicitly chosen', () => {
+    const routingDefaultModelConfig = {
+      ...defaultModelConfig,
+      routingConfig: { enabled: true },
+    } as DefaultModelConfig;
+
+    const display = resolveModelPickerTriggerDisplay(
+      'agent',
+      agentConfig,
+      routingDefaultModelConfig,
+      providers,
+      null,
+    );
+    expect(display.isSmartRouting).toBe(false);
+    expect(display.modelName).toBe('gpt-4o');
   });
 });

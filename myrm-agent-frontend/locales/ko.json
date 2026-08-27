@@ -1479,7 +1479,10 @@
         "selectCodeModel": "코드 전문 모델 선택",
         "longDocModel": "장문 문서 전문 모델",
         "longDocModelDescription": "대규모 컨텍스트 읽기, 긴 보고서 및 전체 요약에 특화된 모델 (미설정 시 기본 모델 사용)",
-        "selectLongDocModel": "장문 문서 전문 모델 선택"
+        "selectLongDocModel": "장문 문서 전문 모델 선택",
+        "autoTitle": "스마트 라우팅 · 자동 적응",
+        "autoDescription": "작업 복잡성과 전문 분야에 따라 모델을 자동 분기하여 속도와 비용을 최적화합니다",
+        "recommended": "추천 / Auto"
       },
       "retrieval": {
         "embeddingModel": "임베딩 모델",
@@ -3342,7 +3345,12 @@
           "title": "권장 일정"
         },
         "cronCreateFailed": "{name}에 대한 정기 검토를 예약하지 못했습니다",
-        "cronCreated": "{name}에 대한 정기 검토를 예약했습니다"
+        "cronCreated": "{name}에 대한 정기 검토를 예약했습니다",
+        "verifiedBadge": "인증됨 (Streak: {streak})",
+        "hollowBlockedBadge": "빈 테스트 차단됨",
+        "verificationProofTitle": "샌드박스 캡슐 검증 증명",
+        "blastRadius": "영향 범위: {files}개 파일, {lines}줄",
+        "noVerificationProof": "샌드박스 검증 증명이 없습니다"
       },
       "draft": {
         "reviewPanelTitle": "대기 중인 초안",
@@ -7070,8 +7078,8 @@
     "moaOverlayPrivacyOff": "끔",
     "moaOverlayPrivacyDisplay": "표시만 (UI 편집)",
     "moaOverlayPrivacyFull": "전체 (UI + 프롬프트 편집)",
-    "moaOverlayAutoReasoningTitle": "추론 작업 시 자동 활성화 (Auto MoA Gate)",
-    "moaOverlayAutoReasoningDesc": "스마트 라우팅이 REASONING으로 판정한 경우 MoA 자문단을 자동 호출하여 다중 모델 교차 검토를 수행합니다. 일반 작업은 단일 모델로 신속하게 응답합니다.",
+    "moaOverlayAutoReasoningTitle": "추론 시 자동 MoA 오버레이",
+    "moaOverlayAutoReasoningDesc": "복잡한 추론 작업에서 다중 모델 MoA 어드바이저를 자동으로 병렬 활성화하여 상호 교차 검증을 수행합니다.",
     "moaOverlayNoModels": "참조 모델이 선택되지 않음 — 오버레이가 건너뛰어집니다 (대체 없음)",
     "consensusPrivacy": "참조 개인정보 필터",
     "consensusPrivacyOff": "끔",
@@ -7261,8 +7269,6 @@
     "busyInputRedirect": "리디렉션",
     "busyInputSteer": "방향 전환",
     "busyInputQueue": "대기열",
-    "moaOverlayAutoReasoningTitle": "추론 시 자동 MoA 오버레이",
-    "moaOverlayAutoReasoningDesc": "복잡한 추론 작업에서 다중 모델 MoA 어드바이저를 자동으로 병렬 활성화하여 상호 교차 검증을 수행합니다.",
     "browserConfig": "브라우저 구성",
     "browserConfigDesc": "브라우저 소스, 대화 상자, 세션 녹화 구성. 브라우저 도구가 활성화되면 안티봇 은닉은 자동 처리됩니다.",
     "dialogPolicy": {
@@ -8486,7 +8492,13 @@
       "evening": "저녁 회고",
       "night": "심야 몰입",
       "all": "전체 탐색"
-    }
+    },
+    "smartRoutingBadge": "내장 스마트 라우팅 준비 완료 · 작업에 맞게 자동 분기 및 연산 절약",
+    "routingSimpleTooltip": "경량 고속 모델로 자동 라우팅되어 밀리초 단위로 응답하고 연산 비용을 약 65% 절감합니다",
+    "routingStandardTooltip": "표준 기본 모델을 사용하여 일상적인 작업을 처리합니다",
+    "routingReasoningTooltip": "복잡한 논리 또는 다단계 추론을 감지하여 고성능 심층 추론 모델로 자동 할당했습니다",
+    "routingCodeTooltip": "코드 작성, 리팩토링 또는 디버그 작업을 감지하여 코드 전문 모델로 라우팅했습니다",
+    "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -13514,7 +13526,17 @@
     "onebotTriggerMention": "멘션만",
     "onebotTriggerPrefix": "접두사",
     "optional": "선택 사항",
-    "signalApiUrlHint": "signald REST API의 기본 URL(예: http://localhost:8080)"
+    "signalApiUrlHint": "signald REST API의 기본 URL(예: http://localhost:8080)",
+    "channelImessage": "iMessage",
+    "senderIdPlaceholderImessage": "전화번호(+821012345678) 또는 Apple ID 이메일",
+    "senderIdHintImessage": "사용자의 iMessage 전화번호(국가 코드 포함) 또는 Apple ID 이메일 주소를 입력하세요",
+    "imessageMentionPatterns": "그룹 멘션 호출 단어 정규식",
+    "imessageMentionPatternsHint": "그룹 채팅에서 봇을 호출할 정규식 또는 키워드 (예: ^@?Myrm\\b)",
+    "imessageAppleWatchGuideTitle": "Apple Watch 및 iPhone 기본 Tapback 승인",
+    "imessageAppleWatchGuideDesc": "에이전트가 민감한 작업 승인을 요청할 때 Apple Watch 또는 iPhone에서 iMessage 말풍선을 길게 누르고 👍(승인) 또는 👎(거부)로 반응하여 즉각적인 인간 참여형 승인을 완료하세요.",
+    "imessageDeployGuideTitle": "배포 모드 가이드",
+    "imessageDeployGuideLocal": "로컬 / 데스크톱: Mac에서 실행 중인 BlueBubbles 서비스에 직접 연결합니다(예: http://localhost:1234).",
+    "imessageDeployGuideCloud": "클라우드: Cloudflare Tunnel, Tailscale 또는 Ngrok을 통해 Mac의 BlueBubbles 서버에 안전하게 연결합니다."
   },
   "voice": {
     "sectionTitle": "음성 설정",
@@ -13537,6 +13559,8 @@
     "ttsModeAlways": "항상",
     "ttsModeInbound": "음성에만 답장",
     "ttsProvider": "TTS 제공자",
+    "hostNotReadyTitle": "백엔드 서비스가 준비되지 않았습니다",
+    "hostNotReadyDesc": "백엔드 서비스에 연결 중이거나 오프라인 상태입니다. 서비스 연결 상태를 확인한 후 다시 시도하세요.",
     "ttsApiKey": "API 키",
     "ttsApiKeyPlaceholder": "API 키 입력 (Edge TTS에는 불필요)",
     "ttsBaseUrl": "API 기본 URL",
@@ -14785,6 +14809,8 @@
       "evalRunning": "평가 작업 실행 중, 잠시 기다려 주세요",
       "failureAnalysisTitle": "실패 모드 원인 분석",
       "totalFailuresCount": "총 {count}건 실패",
+      "difficultyShardTitle": "난이도별 샤드 성능 및 통과율",
+      "fleetAttempts": "{count}회 독립 샘플링 시도",
       "failureModes": {
         "intent_misunderstanding": "사용자 의도 이해 오류",
         "tool_selection_error": "도구 선택 또는 라우팅 오류",

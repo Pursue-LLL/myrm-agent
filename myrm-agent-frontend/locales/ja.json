@@ -1849,7 +1849,10 @@
         "selectCodeModel": "コード専門モデルを選択",
         "longDocModel": "長文ドキュメント専門モデル",
         "longDocModelDescription": "大規模コンテキスト閲覧、長文レポート、全文要約向けに最適化されたモデル（未設定時はデフォルトモデルを使用）",
-        "selectLongDocModel": "長文ドキュメント専門モデルを選択"
+        "selectLongDocModel": "長文ドキュメント専門モデルを選択",
+        "autoTitle": "スマートルーティング · 自動適応",
+        "autoDescription": "タスクの複雑さと専門性に応じてモデルを自動ルーティングし、高速化とコスト削減を実現",
+        "recommended": "推奨 / Auto"
       },
       "retrieval": {
         "embeddingModel": "エンベディングモデル",
@@ -3592,7 +3595,12 @@
           "description": "Agent が新しい経験を捕捉するか、改善をレビューした後、関連する記録がここに表示されます。"
         },
         "cronCreateFailed": "{name} の定期レビューをスケジュールできませんでした",
-        "cronCreated": "{name} の定期レビューをスケジュールしました"
+        "cronCreated": "{name} の定期レビューをスケジュールしました",
+        "verifiedBadge": "検証済み (Streak: {streak})",
+        "hollowBlockedBadge": "空洞テストをブロックしました",
+        "verificationProofTitle": "サンドボックスカプセル検証証明",
+        "blastRadius": "影響範囲: {files} ファイル, {lines} 行",
+        "noVerificationProof": "サンドボックス検証証明はありません"
       },
       "upload": {
         "title": "カスタムスキルをアップロード",
@@ -6785,8 +6793,8 @@
     "moaOverlayPrivacyOff": "オフ",
     "moaOverlayPrivacyDisplay": "表示のみ（UI編集）",
     "moaOverlayPrivacyFull": "フル（UI + プロンプト編集）",
-    "moaOverlayAutoReasoningTitle": "推論タスク時の自動有効化 (Auto MoA Gate)",
-    "moaOverlayAutoReasoningDesc": "スマートルーティングがREASONINGと判定した際、MoAアドバイザーを自動起動して相互レビューを実施。通常タスクは単一モデルで高速応答します。",
+    "moaOverlayAutoReasoningTitle": "推論時の自動 MoA オーバーレイ",
+    "moaOverlayAutoReasoningDesc": "複雑な推論タスクにおいて、複数の MoA アドバイザーを自動的に並行起動して相互検証を行います。",
     "moaOverlayNoModels": "参照モデルが選択されていません — オーバーレイはスキップされます（フォールバックなし）",
     "consensusPrivacy": "参照機密フィルター",
     "consensusPrivacyOff": "オフ",
@@ -7482,8 +7490,6 @@
     "busyInputRedirect": "リダイレクト",
     "busyInputSteer": "ステア",
     "busyInputQueue": "キュー",
-    "moaOverlayAutoReasoningTitle": "推論時の自動 MoA オーバーレイ",
-    "moaOverlayAutoReasoningDesc": "複雑な推論タスクにおいて、複数の MoA アドバイザーを自動的に並行起動して相互検証を行います。",
     "faq": {
       "tabTitle": "FAQ",
       "title": "FAQクイック返信",
@@ -8686,7 +8692,13 @@
     "archiveRestore": {
       "invalidTitle": "アーカイブ復元に失敗しました",
       "invalidDescription": "アーカイブされたコンテキストを復元できませんでした: {error}"
-    }
+    },
+    "smartRoutingBadge": "内蔵スマートルーティング準備完了 · タスクに応じて自動最適化",
+    "routingSimpleTooltip": "軽量・高速モデルに自動ルーティングされ、ミリ秒単位で応答し計算コストを約65%削減",
+    "routingStandardTooltip": "標準のメインモデルで日常タスクを処理",
+    "routingReasoningTooltip": "複雑な論理または推論タスクを検出し、高精度な深層推論モデルを自動割り当て",
+    "routingCodeTooltip": "コーディング、リファクタリング、デバッグタスクを検出し、コード専門モデルにルーティング",
+    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング"
   },
   "mode": {
     "fast": "高速検索",
@@ -13742,7 +13754,17 @@
     "onebotTriggerMention": "メンションのみ",
     "onebotTriggerPrefix": "プレフィックス",
     "optional": "任意",
-    "signalApiUrlHint": "signald REST API のベース URL（例: http://localhost:8080）"
+    "signalApiUrlHint": "signald REST API のベース URL（例: http://localhost:8080）",
+    "channelImessage": "iMessage",
+    "senderIdPlaceholderImessage": "電話番号（+819012345678）または Apple ID メール",
+    "senderIdHintImessage": "ユーザーの iMessage 電話番号（国番号付き）または Apple ID メールアドレスを入力してください",
+    "imessageMentionPatterns": "グループメンション起動キーワード",
+    "imessageMentionPatternsHint": "グループチャットでBotを呼び出す正規表現またはキーワード（例: ^@?Myrm\\b）",
+    "imessageAppleWatchGuideTitle": "Apple Watch と iPhone のネイティブ Tapback 承認",
+    "imessageAppleWatchGuideDesc": "エージェントが機密操作の承認を要求したとき、Apple Watch または iPhone でメッセージを長押しして 👍（承認）または 👎（拒否）をタップするだけで、即座にヒューマン・イン・ザ・ループ承認が完了します。",
+    "imessageDeployGuideTitle": "デプロイモードガイド",
+    "imessageDeployGuideLocal": "ローカル / デスクトップ: Mac で実行中の BlueBubbles サービスに直接接続します（例: http://localhost:1234）。",
+    "imessageDeployGuideCloud": "クラウド: Cloudflare Tunnel、Tailscale、または Ngrok 経由で Mac の BlueBubbles サーバーに安全に接続します。"
   },
   "voice": {
     "sectionTitle": "音声設定",
@@ -13771,7 +13793,7 @@
     "edgeTtsUnavailableTitle": "Edge TTS を利用できません",
     "edgeTtsUnavailableDesc": "このサーバーでは Edge TTS が有効になっていません。別のプロバイダーに切り替えるか、管理者に音声サポートの有効化を依頼してください。",
     "hostNotReadyTitle": "バックエンドサービスが準備できていません",
-    "hostNotReadyDesc": "バックエンドサービスに接続中またはオフラインです。サービス接続を確認して再試行してください。",
+    "hostNotReadyDesc": "バックエンドサービスに接続中またはオフラインです。サービス接続状態を確認してから再試行してください。",
     "ttsPlaybackFailedTitle": "読み上げに失敗",
     "ttsPlaybackFailedDesc": "音声合成でオーディオが生成されませんでした。音声設定を確認するか、別のプロバイダーをお試しください。",
     "ttsApiKey": "APIキー",
@@ -13807,9 +13829,7 @@
     "saved": "音声設定を保存しました",
     "saveError": "音声設定の保存に失敗しました",
     "localSttUnavailableTitle": "ローカルのWhisper STTを利用できません",
-    "localSttUnavailableDesc": "管理者にサーバーへlocal-sttコンポーネントのインストールを依頼するか（uv sync --extra local-stt）、クラウドSTTプロバイダーに切り替えてください。",
-    "hostNotReadyTitle": "バックエンドサービスが準備できていません",
-    "hostNotReadyDesc": "バックエンドサービスに接続中またはオフラインです。サービス接続状態を確認してから再試行してください。"
+    "localSttUnavailableDesc": "管理者にサーバーへlocal-sttコンポーネントのインストールを依頼するか（uv sync --extra local-stt）、クラウドSTTプロバイダーに切り替えてください。"
   },
   "stt": {
     "startRecording": "音声入力",
@@ -15518,8 +15538,6 @@
       "evalRunning": "評価タスク実行中、しばらくお待ちください",
       "failureAnalysisTitle": "失敗モード要因分析",
       "totalFailuresCount": "合計 {count} 件の失敗",
-      "difficultyShardTitle": "難易度別シャード性能と合格率",
-      "fleetAttempts": "{count} 回の独立サンプリング試行",
       "difficultyShardTitle": "難易度別シャード性能と通過率",
       "fleetAttempts": "{count} 回の独立サンプリング試行",
       "failureModes": {

@@ -26,5 +26,7 @@ iMessage bidirectional channel via BlueBubbles macOS HTTP API bridge.
 
 - Requires BlueBubbles server running on macOS with iMessage access
 - Webhook HMAC authentication for inbound messages
+- Group chat wake-word regex matching and prefix cleaning for Prompt Caching efficiency
 - Tapback reactions mapped to standard reaction enum
 - Multipart attachment upload for media messages
+- Private API helper connectivity diagnostics reported in channel health issues

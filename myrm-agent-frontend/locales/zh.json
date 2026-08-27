@@ -1919,7 +1919,10 @@
         "selectCodeModel": "选择代码专长模型",
         "longDocModel": "长文档专长模型",
         "longDocModelDescription": "针对超大上下文阅读、长篇报告与全文总结场景定向路由的模型（未配置则使用默认模型）",
-        "selectLongDocModel": "选择长文档专长模型"
+        "selectLongDocModel": "选择长文档专长模型",
+        "autoTitle": "智能路由 · 自适应",
+        "autoDescription": "按任务复杂度与专长自动分流模型，极致提速降本",
+        "recommended": "推荐 / Auto"
       },
       "retrieval": {
         "embeddingModel": "嵌入模型",
@@ -8767,7 +8770,13 @@
     "archiveRestore": {
       "invalidTitle": "归档恢复失败",
       "invalidDescription": "无法恢复归档上下文：{error}"
-    }
+    },
+    "smartRoutingBadge": "内置智能路由已就绪 · 自动按需分流并节省算力",
+    "routingSimpleTooltip": "已自动分流至轻量高速模型，毫秒响应并为您节约 ~65% 算力",
+    "routingStandardTooltip": "使用主力常规模型处理日常任务",
+    "routingReasoningTooltip": "检测到复杂逻辑或多步推理，已自动调集强力深度推理算力",
+    "routingCodeTooltip": "检测到代码编写、重构或 Debug 任务，已分流至代码专长模型",
+    "routingLongDocTooltip": "检测到长篇文档或超大上下文，已分流至长文档专长模型"
   },
   "mode": {
     "fast": "快速搜索",

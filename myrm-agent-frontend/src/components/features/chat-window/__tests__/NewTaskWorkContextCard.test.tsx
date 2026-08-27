@@ -28,8 +28,10 @@ const translations: Record<string, string> = {
   back: 'Back',
 };
 
+const stableT = (key: string) => translations[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => translations[key] ?? key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/services/chat', () => ({
@@ -125,7 +127,7 @@ describe('NewTaskWorkContextCard', () => {
     });
   });
 
-  it('allows unbinding workspace directory', () => {
+  it('allows unbinding workspace directory', async () => {
     mockState.workspaceDir = '/home/user/my-project';
     render(<NewTaskWorkContextCard />);
 
@@ -133,7 +135,9 @@ describe('NewTaskWorkContextCard', () => {
     expect(unbindBtn).toBeDefined();
     fireEvent.click(unbindBtn);
 
-    expect(mockState.setWorkspaceDir).toHaveBeenCalledWith(null);
-    expect(toast).toHaveBeenCalledWith({ title: 'Working directory cleared' });
+    await waitFor(() => {
+      expect(mockState.setWorkspaceDir).toHaveBeenCalledWith(null);
+      expect(toast).toHaveBeenCalledWith({ title: 'Working directory cleared' });
+    });
   });
 });

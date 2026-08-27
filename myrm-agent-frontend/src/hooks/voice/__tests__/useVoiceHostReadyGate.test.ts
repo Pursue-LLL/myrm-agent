@@ -12,16 +12,16 @@ vi.mock('@/lib/backend-health', () => ({
   ensureLocalBackendReady: () => mockEnsureLocalBackendReady(),
 }));
 
+const voiceTranslationsMap: Record<string, string> = {
+  hostNotReadyTitle: 'Backend service is not ready',
+  hostNotReadyDesc: 'The backend service is connecting or offline.',
+  localSttUnavailableTitle: 'Local Whisper STT is not available',
+  localSttUnavailableDesc: 'Local STT component is not installed.',
+};
+const stableVoiceT = (key: string) => voiceTranslationsMap[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      hostNotReadyTitle: 'Backend service is not ready',
-      hostNotReadyDesc: 'The backend service is connecting or offline.',
-      localSttUnavailableTitle: 'Local Whisper STT is not available',
-      localSttUnavailableDesc: 'Local STT component is not installed.',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableVoiceT,
 }));
 
 vi.mock('@/lib/utils/toast', () => ({

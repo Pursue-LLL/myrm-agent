@@ -1919,7 +1919,10 @@
         "selectCodeModel": "Select Coding Specialty Model",
         "longDocModel": "Long-Document Specialty Model",
         "longDocModelDescription": "Specialized model for large context reading, long reports, and full-text summaries (falls back to default if not configured)",
-        "selectLongDocModel": "Select Long-Document Specialty Model"
+        "selectLongDocModel": "Select Long-Document Specialty Model",
+        "autoTitle": "Smart Route · Adaptive",
+        "autoDescription": "Automatically routes tasks by complexity and specialty, optimizing speed & cost",
+        "recommended": "Recommended / Auto"
       },
       "retrieval": {
         "embeddingModel": "Embedding Model",
@@ -3568,6 +3571,11 @@
         "confidence": "Confidence {value}%",
         "testPassed": "Validation passed",
         "testFailed": "Validation failed",
+        "verifiedBadge": "Verified (Streak: {streak})",
+        "hollowBlockedBadge": "Hollow Test Blocked",
+        "verificationProofTitle": "Verified Capsule Proof",
+        "blastRadius": "Blast Radius: {files} file(s), {lines} line(s)",
+        "noVerificationProof": "No sandbox verification proof available",
         "impactedDependents": {
           "label": "{count} skill(s) depend on this",
           "tooltip": "Referenced by {count} skill(s); changes may affect them"
@@ -8762,7 +8770,13 @@
     "archiveRestore": {
       "invalidTitle": "Archive Restore Failed",
       "invalidDescription": "Could not restore archived context: {error}"
-    }
+    },
+    "smartRoutingBadge": "Built-in smart routing active · Automatically optimizes compute & tokens",
+    "routingSimpleTooltip": "Automatically routed to lightweight fast model, responding in milliseconds and saving ~65% compute",
+    "routingStandardTooltip": "Processed by standard primary model for everyday tasks",
+    "routingReasoningTooltip": "Complex logic or multi-step reasoning detected; scaled up to deep reasoning compute",
+    "routingCodeTooltip": "Coding, refactoring, or debug task detected; routed to code specialty model",
+    "routingLongDocTooltip": "Long document or large context detected; routed to long-document specialty model"
   },
   "mode": {
     "fast": "Fast Search",

@@ -1,3 +1,17 @@
+"""[INPUT]
+- myrm_agent_harness.agent.context_management.infra.schemas::EvictedToolCall (POS: 上下文裁剪淘汰工具调用模型)
+- myrm_agent_harness.agent.extensions.protocols::AgentExtension (POS: 智能体运行时扩展协议)
+- myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: 核心记忆管理器)
+
+[OUTPUT]
+- ZeroCostMemoryExtension: 基于上下文管道工具淘汰的零开销后台自动记忆提取扩展
+- EvictionCallback: 上下文裁剪淘汰回调函数类型
+
+[POS]
+零开销后台自动记忆提取扩展。在上下文管道清理历史工具调用时，异步调用轻量 LLM
+提取有效偏好与长期记忆，内置沙箱型智能体安全门控（阻断瞬态代码/终端日志污染 L3）。
+"""
+
 from __future__ import annotations
 
 import asyncio

@@ -32,6 +32,7 @@ EXPECTED_GENERAL_AGENT_PARAMS_DIRECT: frozenset[str] = frozenset(
 
 EXPECTED_GENERAL_AGENT_PARAMS_MODEL_VALIDATE: frozenset[str] = frozenset(
     {
+        "app/lifecycle/auto_continue.py",
         "app/lifecycle/system.py",
     }
 )

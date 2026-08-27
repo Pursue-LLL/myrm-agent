@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Loader2,
   ShieldAlert,
+  ShieldCheck,
   X,
 } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
@@ -231,6 +232,24 @@ export default function SkillGrowthCaseCard({
                 {t('impactedDependents.label', { count: item.impactedDependents.length })}
               </Badge>
             )}
+            {item.verificationProof?.is_verified && (
+              <Badge
+                variant="outline"
+                className="text-[11px] border-emerald-500/70 bg-emerald-50/50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 inline-flex items-center gap-1"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                {t('verifiedBadge', { streak: item.verificationProof.success_streak || 1 })}
+              </Badge>
+            )}
+            {item.verificationProof?.hollow_detected && (
+              <Badge
+                variant="outline"
+                className="text-[11px] border-rose-500/70 bg-rose-50/50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/20 dark:text-rose-300 inline-flex items-center gap-1"
+              >
+                <ShieldAlert className="h-3 w-3" />
+                {t('hollowBlockedBadge')}
+              </Badge>
+            )}
           </div>
           <p className={cn('text-muted-foreground', isSimple ? 'text-base font-medium text-foreground' : 'text-sm')}>
             {item.summary}
@@ -340,6 +359,30 @@ export default function SkillGrowthCaseCard({
           </div>
           {item.formMetadata.formReasoning && (
             <p className="mt-2 text-xs text-muted-foreground">{item.formMetadata.formReasoning}</p>
+          )}
+        </div>
+      )}
+
+      {item.verificationProof && (
+        <div className="mt-4 rounded-xl border border-emerald-300/50 bg-emerald-50/50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              {t('verificationProofTitle')}
+            </p>
+            {item.verificationProof.blast_radius && (
+              <span className="text-[11px] text-muted-foreground">
+                {t('blastRadius', {
+                  files: item.verificationProof.blast_radius.files ?? 1,
+                  lines: item.verificationProof.blast_radius.lines ?? 0,
+                })}
+              </span>
+            )}
+          </div>
+          {item.verificationProof.verification_summary && (
+            <p className="mt-1.5 text-xs text-foreground font-medium">
+              {item.verificationProof.verification_summary}
+            </p>
           )}
         </div>
       )}

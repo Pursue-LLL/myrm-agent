@@ -1849,7 +1849,10 @@
         "selectCodeModel": "選擇程式碼專長模型",
         "longDocModel": "長文件專長模型",
         "longDocModelDescription": "針對超大上下文閱讀、長篇報告與全文總結場景定向路由的模型（未配置則使用預設模型）",
-        "selectLongDocModel": "選擇長文件專長模型"
+        "selectLongDocModel": "選擇長文件專長模型",
+        "autoTitle": "智慧路由 · 自適應",
+        "autoDescription": "按任務複雜度與專長自動分流模型，極致提速降本",
+        "recommended": "推薦 / Auto"
       },
       "retrieval": {
         "embeddingModel": "嵌入模型",
@@ -3592,7 +3595,12 @@
           "description": "當 Agent 捕獲到新經驗、自動落地能力，或需要你稽核時，相關記錄會出現在這裡。"
         },
         "cronCreateFailed": "無法為 {name} 安排定期複查",
-        "cronCreated": "已為 {name} 安排定期複查"
+        "cronCreated": "已為 {name} 安排定期複查",
+        "verifiedBadge": "已認證 (Streak: {streak})",
+        "hollowBlockedBadge": "空洞測試已攔截",
+        "verificationProofTitle": "沙箱膠囊驗證憑證 (Verified Capsule Proof)",
+        "blastRadius": "影響範圍: {files} 檔案, {lines} 行",
+        "noVerificationProof": "暫無沙箱實測驗證憑證"
       },
       "upload": {
         "title": "上傳自定義技能",
@@ -7482,8 +7490,6 @@
     "busyInputRedirect": "糾偏中斷",
     "busyInputSteer": "糾偏等待",
     "busyInputQueue": "排隊等候",
-    "moaOverlayAutoReasoningTitle": "MOA 自動推理覆蓋",
-    "moaOverlayAutoReasoningDesc": "啟用此選項後，混合架構（MOA）將自動對複雜提示詞進行分層推理與評估。",
     "faq": {
       "tabTitle": "FAQ",
       "title": "FAQ 快速回復",
@@ -8686,7 +8692,13 @@
       "evening": "晚間複盤",
       "night": "深夜專注",
       "all": "全部探索"
-    }
+    },
+    "smartRoutingBadge": "內建智慧路由已就緒 · 自動按需分流並節省算力",
+    "routingSimpleTooltip": "已自動分流至輕量高速模型，毫秒響應並為您節約 ~65% 算力",
+    "routingStandardTooltip": "使用主力常規模型處理日常任務",
+    "routingReasoningTooltip": "檢測到複雜邏輯或多步推理，已自動調集強力深度推理算力",
+    "routingCodeTooltip": "檢測到代碼編寫、重構或 Debug 任務，已分流至代碼專長模型",
+    "routingLongDocTooltip": "檢測到長篇文檔或超大上下文，已分流至長文檔專長模型"
   },
   "mode": {
     "fast": "快速搜尋",
@@ -13742,7 +13754,17 @@
     "onebotTriggerMention": "僅提及",
     "onebotTriggerPrefix": "前綴",
     "optional": "選用",
-    "signalApiUrlHint": "signal REST API 的基礎位址，例如 http://localhost:8080"
+    "signalApiUrlHint": "signal REST API 的基礎位址，例如 http://localhost:8080",
+    "channelImessage": "iMessage",
+    "senderIdPlaceholderImessage": "手機號（+886912345678）或 Apple ID 郵箱",
+    "senderIdHintImessage": "輸入使用者的 iMessage 手機號（帶國碼）或 Apple ID 關聯郵箱",
+    "imessageMentionPatterns": "群聊喚醒詞正則",
+    "imessageMentionPatternsHint": "在群聊中喚醒 Bot 的正則或喚醒詞（預設：^@?Myrm\\b）",
+    "imessageAppleWatchGuideTitle": "Apple Watch 與 iPhone 原生 Tapback 審批",
+    "imessageAppleWatchGuideDesc": "當 Agent 請求敏感操作審批時，在 Apple Watch 或 iPhone 上長按該條 iMessage 訊息並點贊 👍（批准）或點踩 👎（拒絕），即可秒級完成人機協同審批。",
+    "imessageDeployGuideTitle": "部署模式指引",
+    "imessageDeployGuideLocal": "本地 / 桌面端：直接連線 Mac 本機常開的 BlueBubbles 服務（如 http://localhost:1234）。",
+    "imessageDeployGuideCloud": "雲端部署：透過 Cloudflare Tunnel、Tailscale 或 Ngrok 安全連線自建的 Mac iMessage 閘道器。"
   },
   "voice": {
     "sectionTitle": "語音設定",

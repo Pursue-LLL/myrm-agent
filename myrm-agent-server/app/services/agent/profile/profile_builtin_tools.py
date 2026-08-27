@@ -9,10 +9,11 @@
 [OUTPUT]
 - BuiltinToolFlags: enabled_builtin_tools → enable_xxx 标志 TypedDict
 - resolve_builtin_tool_flags: 统一映射函数（Web/Channel/Cron/Kanban/Eval/Voice 共用）
+- is_sandbox_capable_tools: 统一探测智能体是否具备沙箱/代码执行/终端等写入门控敏感能力
 
 [POS]
 将 `enabled_builtin_tools` 列表映射为 GeneralAgentParams 布尔标志的唯一入口，
-保证所有入口工具开关一致性。
+保证所有入口工具开关与能力探测（沙箱写入门控等）的一致性。
 """
 
 from __future__ import annotations
