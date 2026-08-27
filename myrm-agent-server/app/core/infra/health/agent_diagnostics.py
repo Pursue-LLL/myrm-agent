@@ -28,22 +28,12 @@ logger = logging.getLogger(__name__)
 
 
 class AgentColdStartDiagnostic(DiagnosticProtocol):
-    """Agent cold-start warm-path readiness and stage latency diagnostic probe.
-
-    Evaluates the readiness of the primary turn-1 execution warm path without consuming
-    any LLM tokens. Diagnoses 4 key dimensions:
-    1. Model Provider Configuration (credentials & client viability)
-    2. Tool Catalog / MCP Registry (lazy index cache status)
-    3. ExecutionCache Warm State (warm BuiltExecutionUnit count & idle status)
-    4. Storage / DB Liveness & Query Latency (SQLite microsecond-level ping)
-    """
+    """Agent cold-start warm-path readiness and stage latency diagnostic probe."""
 
     async def check_health(self) -> HealthReport:
         ready_phases: list[str] = []
         phase_details: dict[str, object] = {}
         score: int = 0
-        status: str = "pass"
-        code: str = "OK_AGENT_WARM_PATH_READY"
         fix_suggestions: list[str] = []
 
         # 1. Model Provider Readiness
@@ -58,14 +48,10 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
                 score += 35
             else:
                 phase_details["model_provider"] = "unconfigured"
-                fix_suggestions.append(
-                    "Configure a default LLM Provider in Settings -> Models."
-                )
+                fix_suggestions.append("Configure a default LLM Provider in Settings -> Models.")
         except Exception as exc:
             phase_details["model_provider_error"] = str(exc)
-            fix_suggestions.append(
-                "Verify LLM Provider credentials and network connection."
-            )
+            fix_suggestions.append("Verify LLM Provider credentials and network connection.")
 
         # 2. Tool Catalog Readiness
         try:
@@ -79,22 +65,23 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             phase_details["tools_error"] = str(exc)
             fix_suggestions.append("Check tool catalog plugin registration status.")
 
-        # 3. Execution Cache Warm State
+        # 3. Execution Cache Primed State
         try:
-            from app.services.agent.execution_cache import get_execution_cache
+            from app.services.agent.execution_unit_cache import get_execution_unit_cache
 
-            cache = get_execution_cache()
-            warm_units = getattr(cache, "warm_entry_count", 0)
-            phase_details["warm_execution_units"] = warm_units
-            if warm_units > 0:
+            cache = get_execution_unit_cache()
+            warm_count = getattr(cache, "cached_units_count", 0)
+            phase_details["warm_execution_units"] = warm_count
+            if warm_count > 0:
                 ready_phases.append("cache_warm")
                 score += 20
             else:
                 score += 10
-        except Exception as exc:
-            phase_details["cache_error"] = str(exc)
+        except Exception:
+            phase_details["warm_execution_units"] = 0
+            score += 10
 
-        # 4. Storage / DB Ping Latency
+        # 4. Storage Ping
         storage_latency_ms: float | None = None
         try:
             from sqlalchemy import text
@@ -111,22 +98,14 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             score += 20
         except Exception as exc:
             phase_details["storage_error"] = str(exc)
-            fix_suggestions.append(
-                "Check database connection and file lock permissions."
-            )
+            fix_suggestions.append("Check database connection and file lock permissions.")
 
         if "model_ready" not in ready_phases:
-            status, code, message = (
-                "warn",
-                "WARN_AGENT_MODEL_UNCONFIGURED",
-                "Agent model provider is not configured.",
-            )
+            status, code = "warn", "WARN_AGENT_MODEL_UNCONFIGURED"
+            message = "Agent model provider is not configured."
         elif "storage_healthy" not in ready_phases:
-            status, code, message = (
-                "warn",
-                "WARN_AGENT_STORAGE_UNHEALTHY",
-                "Agent storage connectivity is degraded.",
-            )
+            status, code = "warn", "WARN_AGENT_STORAGE_UNHEALTHY"
+            message = "Agent storage connectivity is degraded."
         elif "cache_warm" in ready_phases:
             status, code = "pass", "OK_AGENT_WARM_PATH_WARM"
             message = f"Agent warm-path fully primed (score: {score}/100, storage: {storage_latency_ms}ms)"
@@ -144,26 +123,16 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             component_name="AgentColdStart",
             status=status,
             code=code,
-            meta_data={
-                "warm_path_score": score,
-                "ready_phases": ready_phases,
-                "phase_details": phase_details,
-            },
+            meta_data={"warm_path_score": score, "ready_phases": ready_phases, "phase_details": phase_details},
             message=message,
             detail="; ".join(detail_items),
             fix_suggestion="; ".join(fix_suggestions) if fix_suggestions else None,
-            metrics={
-                "warm_path_score": float(score),
-                "storage_latency_ms": storage_latency_ms or 0.0,
-            },
+            metrics={"warm_path_score": float(score), "storage_latency_ms": storage_latency_ms or 0.0},
         )
 
 
 class OllamaModelContextDiagnostic(DiagnosticProtocol):
-    """Probe Ollama local models to detect if active models have >=64k context (num_ctx).
-
-    Prevents silent 2048 token truncation for local agentic workflows.
-    """
+    """Probe Ollama local models to detect if active models have >=64k context."""
 
     async def check_health(self) -> HealthReport:
         from app.config.deploy_mode import DeployMode, get_deploy_mode
@@ -209,10 +178,7 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                         detail="Native Ollama models default to 2048 context. Use Settings -> Model Service (Hardware Cookbook) to derive 64K agentic models.",
                         fix_suggestion="Pull models via Myrm UI or create Modelfile with PARAMETER num_ctx 64000.",
                         meta_data={"total_models": len(models), "agentic_models": []},
-                        metrics={
-                            "installed_models_count": float(len(models)),
-                            "agentic_models_count": 0.0,
-                        },
+                        metrics={"installed_models_count": float(len(models)), "agentic_models_count": 0.0},
                     )
 
                 return HealthReport(
@@ -221,14 +187,8 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                     code="OK_OLLAMA_CONTEXT_READY",
                     message=f"Ollama local model ecosystem ready ({len(models)} models, {len(agentic_models)} agentic 64K).",
                     detail=f"Detected models: {', '.join(models[:5])}",
-                    meta_data={
-                        "total_models": len(models),
-                        "agentic_models": agentic_models,
-                    },
-                    metrics={
-                        "installed_models_count": float(len(models)),
-                        "agentic_models_count": float(len(agentic_models)),
-                    },
+                    meta_data={"total_models": len(models), "agentic_models": agentic_models},
+                    metrics={"installed_models_count": float(len(models)), "agentic_models_count": float(len(agentic_models))},
                 )
         except Exception:
             return HealthReport(
@@ -263,15 +223,10 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                 for ag in agents:
                     budget = ag.max_iterations
                     if budget is not None and budget < self.RECOMMENDED_MIN_STEPS:
-                        low_budget_agents.append(
-                            {"id": ag.id, "name": ag.name, "max_iterations": budget}
-                        )
+                        low_budget_agents.append({"id": ag.id, "name": ag.name, "max_iterations": budget})
 
             if low_budget_agents:
-                agent_names = [
-                    f"{a['name']} ({a['max_iterations']} steps)"
-                    for a in low_budget_agents[:3]
-                ]
+                agent_names = [f"{a['name']} ({a['max_iterations']} steps)" for a in low_budget_agents[:3]]
                 summary_str = ", ".join(agent_names)
                 if len(low_budget_agents) > 3:
                     summary_str += f" and {len(low_budget_agents) - 3} more"
@@ -283,14 +238,8 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                     message=f"{len(low_budget_agents)} Agent(s) have step limits below recommended {self.RECOMMENDED_MIN_STEPS} steps.",
                     detail=f"Low budget agents: {summary_str}. May encounter early stoppage during complex tasks.",
                     fix_suggestion="Update Agent settings to increase step budget (recommended >= 100 or unlimited).",
-                    meta_data={
-                        "low_budget_agents": low_budget_agents,
-                        "recommended_min_steps": self.RECOMMENDED_MIN_STEPS,
-                    },
-                    metrics={
-                        "low_budget_agent_count": float(len(low_budget_agents)),
-                        "total_active_agents": float(total_active_agents),
-                    },
+                    meta_data={"low_budget_agents": low_budget_agents, "recommended_min_steps": self.RECOMMENDED_MIN_STEPS},
+                    metrics={"low_budget_agent_count": float(len(low_budget_agents)), "total_active_agents": float(total_active_agents)},
                 )
 
             return HealthReport(
@@ -299,14 +248,8 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                 code="OK_AGENT_STEP_BUDGET_READY",
                 message=f"All active Agent step budgets meet or exceed {self.RECOMMENDED_MIN_STEPS} steps.",
                 detail=f"Verified {total_active_agents} active Agent profile(s).",
-                meta_data={
-                    "total_active_agents": total_active_agents,
-                    "recommended_min_steps": self.RECOMMENDED_MIN_STEPS,
-                },
-                metrics={
-                    "low_budget_agent_count": 0.0,
-                    "total_active_agents": float(total_active_agents),
-                },
+                meta_data={"total_active_agents": total_active_agents, "recommended_min_steps": self.RECOMMENDED_MIN_STEPS},
+                metrics={"low_budget_agent_count": 0.0, "total_active_agents": float(total_active_agents)},
             )
         except Exception as exc:
             logger.warning("Agent step budget health check failed: %s", exc)
@@ -322,17 +265,9 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
     """Diagnose if active agents adhere to LLM Prompt Cache Prefix Alignment best practices."""
 
     DYNAMIC_PREFIX_PATTERNS = [
-        re.compile(
-            r"\{\{\s*(?:current_)?(?:time|date|datetime|now|timestamp)\s*\}\}",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"\b(?:current\s+time|today['’]?s\s+date|current\s+date)\s*[:：]\s*\d{4}[-/.]\d{1,2}[-/.]\d{1,2}",
-            re.IGNORECASE,
-        ),
-        re.compile(
-            r"当前(?:时间|日期|北京时间)\s*[:：]\s*(?:\{\{|\d{4})", re.IGNORECASE
-        ),
+        re.compile(r"\{\{\s*(?:current_)?(?:time|date|datetime|now|timestamp)\s*\}\}", re.IGNORECASE),
+        re.compile(r"\b(?:current\s+time|today['’]?s\s+date|current\s+date)\s*[:：]\s*\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", re.IGNORECASE),
+        re.compile(r"当前(?:时间|日期|北京时间)\s*[:：]\s*(?:\{\{|\d{4})", re.IGNORECASE),
     ]
 
     async def check_health(self) -> HealthReport:
@@ -357,19 +292,9 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                         continue
 
                     prefix_snippet = prompt[:500]
-                    matched_patterns = [
-                        p.pattern
-                        for p in self.DYNAMIC_PREFIX_PATTERNS
-                        if p.search(prefix_snippet)
-                    ]
+                    matched_patterns = [p.pattern for p in self.DYNAMIC_PREFIX_PATTERNS if p.search(prefix_snippet)]
                     if matched_patterns:
-                        jitter_agents.append(
-                            {
-                                "id": ag.id,
-                                "name": ag.name,
-                                "reason": "Dynamic time/date placeholder in system prompt header",
-                            }
-                        )
+                        jitter_agents.append({"id": ag.id, "name": ag.name, "reason": "Dynamic time/date placeholder in system prompt header"})
 
             if jitter_agents:
                 agent_names = [f"{a['name']}" for a in jitter_agents[:3]]
@@ -385,10 +310,7 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                     detail=f"Jitter detected in: {summary_str}. Dynamic prefix invalidates provider KV Cache on every turn, increasing latency and cost.",
                     fix_suggestion="Move dynamic timestamps or dates out of the System Prompt and into Human Messages to keep system prefix cache static.",
                     meta_data={"jitter_agents": jitter_agents},
-                    metrics={
-                        "jitter_agent_count": float(len(jitter_agents)),
-                        "total_active_agents": float(total_active_agents),
-                    },
+                    metrics={"jitter_agent_count": float(len(jitter_agents)), "total_active_agents": float(total_active_agents)},
                 )
 
             return HealthReport(
@@ -398,10 +320,7 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                 message="All active Agent system prompts maintain static prefix alignment.",
                 detail=f"Verified {total_active_agents} active Agent profile(s). Static system prompt ensures optimal KV Cache hit rates (>85%).",
                 meta_data={"total_active_agents": total_active_agents},
-                metrics={
-                    "jitter_agent_count": 0.0,
-                    "total_active_agents": float(total_active_agents),
-                },
+                metrics={"jitter_agent_count": 0.0, "total_active_agents": float(total_active_agents)},
             )
         except Exception as exc:
             logger.warning("Agent prompt cache alignment health check failed: %s", exc)
