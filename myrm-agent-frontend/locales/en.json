@@ -14231,13 +14231,6 @@
     "batchCostRace": "Race Mode (first wins)",
     "batchCostTournament": "Tournament Mode (best wins)",
     "highRiskDomAction": "High-Risk Browser Action Detected",
-    "batchHighRisk": {
-      "dialogTitle": "High-Risk Operations Confirmation",
-      "dialogDesc": "Detected {highRiskCount} high-risk / destructive operations in batch queue ({total} total). Please review carefully or choose to approve safe items only.",
-      "cancel": "Cancel",
-      "approveSafeOnly": "Approve Safe Only ({count})",
-      "confirmAll": "Confirm & Approve All (Including High-Risk)"
-    },
     "targetElement": "Target Element",
     "action": "Action",
     "jsExpression": "JavaScript Expression",
