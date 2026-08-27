@@ -15,7 +15,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileEdit, ChevronDown, ChevronRight, RefreshCw, MessageSquare, MessagesSquare, User, Bot, Copy, Check, ChevronUp } from 'lucide-react';
+import {
+  FileEdit,
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
+  MessageSquare,
+  MessagesSquare,
+  User,
+  Bot,
+  Copy,
+  Check,
+  ChevronUp,
+} from 'lucide-react';
 import { createPatch } from 'diff';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isImeComposing } from '@/lib/utils/imeUtils';
@@ -295,11 +307,7 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
                         title={t('copyDiff')}
                         className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0 ml-2"
                       >
-                        {copiedFile === diff.path ? (
-                          <Check size={13} className="text-green-500" />
-                        ) : (
-                          <Copy size={13} />
-                        )}
+                        {copiedFile === diff.path ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
                       </button>
                     )}
                   </div>

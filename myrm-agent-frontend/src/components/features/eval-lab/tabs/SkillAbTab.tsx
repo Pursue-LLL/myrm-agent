@@ -30,7 +30,7 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
         baseline_skill_id: baselineSkillId.trim() || null,
       });
       toast.success(t('skillAb.started'));
-      
+
       // Poll until completion
       const interval = setInterval(async () => {
         try {
@@ -68,9 +68,7 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-medium text-foreground mb-1 block">
-              {t('skillAb.candidateSkillLabel')}
-            </label>
+            <label className="text-xs font-medium text-foreground mb-1 block">{t('skillAb.candidateSkillLabel')}</label>
             <Input
               value={candidateSkillId}
               onChange={(e) => setCandidateSkillId(e.target.value)}
@@ -80,9 +78,7 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-foreground mb-1 block">
-              {t('skillAb.baselineSkillLabel')}
-            </label>
+            <label className="text-xs font-medium text-foreground mb-1 block">{t('skillAb.baselineSkillLabel')}</label>
             <Input
               value={baselineSkillId}
               onChange={(e) => setBaselineSkillId(e.target.value)}
@@ -113,7 +109,8 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
               </span>
             </div>
             <div className="text-muted-foreground font-mono">
-              Delta: {(report.success_rate_delta * 100).toFixed(1)}% | Savings: {(report.token_savings_pct * 100).toFixed(1)}%
+              Delta: {(report.success_rate_delta * 100).toFixed(1)}% | Savings:{' '}
+              {(report.token_savings_pct * 100).toFixed(1)}%
             </div>
           </div>
 
@@ -126,9 +123,15 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
                 {(report.no_skill_metrics.pass_rate * 100).toFixed(1)}%
               </div>
               <div className="text-[11px] text-muted-foreground space-y-1 pt-2 border-t border-border">
-                <div>{t('skillAb.avgSteps')}: {report.no_skill_metrics.avg_tool_calls}</div>
-                <div>{t('skillAb.tokens')}: {report.no_skill_metrics.total_tokens.toLocaleString()}</div>
-                <div>{t('skillAb.latency')}: {report.no_skill_metrics.avg_latency_ms.toFixed(0)}ms</div>
+                <div>
+                  {t('skillAb.avgSteps')}: {report.no_skill_metrics.avg_tool_calls}
+                </div>
+                <div>
+                  {t('skillAb.tokens')}: {report.no_skill_metrics.total_tokens.toLocaleString()}
+                </div>
+                <div>
+                  {t('skillAb.latency')}: {report.no_skill_metrics.avg_latency_ms.toFixed(0)}ms
+                </div>
               </div>
             </div>
 
@@ -141,9 +144,15 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
                 {(report.baseline_metrics.pass_rate * 100).toFixed(1)}%
               </div>
               <div className="text-[11px] text-muted-foreground space-y-1 pt-2 border-t border-border">
-                <div>{t('skillAb.avgSteps')}: {report.baseline_metrics.avg_tool_calls}</div>
-                <div>{t('skillAb.tokens')}: {report.baseline_metrics.total_tokens.toLocaleString()}</div>
-                <div>{t('skillAb.latency')}: {report.baseline_metrics.avg_latency_ms.toFixed(0)}ms</div>
+                <div>
+                  {t('skillAb.avgSteps')}: {report.baseline_metrics.avg_tool_calls}
+                </div>
+                <div>
+                  {t('skillAb.tokens')}: {report.baseline_metrics.total_tokens.toLocaleString()}
+                </div>
+                <div>
+                  {t('skillAb.latency')}: {report.baseline_metrics.avg_latency_ms.toFixed(0)}ms
+                </div>
               </div>
             </div>
 
@@ -156,9 +165,15 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
                 {(report.candidate_metrics.pass_rate * 100).toFixed(1)}%
               </div>
               <div className="text-[11px] text-muted-foreground space-y-1 pt-2 border-t border-primary/20">
-                <div>{t('skillAb.avgSteps')}: {report.candidate_metrics.avg_tool_calls}</div>
-                <div>{t('skillAb.tokens')}: {report.candidate_metrics.total_tokens.toLocaleString()}</div>
-                <div>{t('skillAb.latency')}: {report.candidate_metrics.avg_latency_ms.toFixed(0)}ms</div>
+                <div>
+                  {t('skillAb.avgSteps')}: {report.candidate_metrics.avg_tool_calls}
+                </div>
+                <div>
+                  {t('skillAb.tokens')}: {report.candidate_metrics.total_tokens.toLocaleString()}
+                </div>
+                <div>
+                  {t('skillAb.latency')}: {report.candidate_metrics.avg_latency_ms.toFixed(0)}ms
+                </div>
               </div>
             </div>
           </div>

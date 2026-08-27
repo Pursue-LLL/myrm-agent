@@ -22,11 +22,7 @@ interface FontData {
   postscriptName?: string;
 }
 
-export default function SystemFontPicker({
-  activeFontId,
-  onFontChange,
-  className,
-}: SystemFontPickerProps) {
+export default function SystemFontPicker({ activeFontId, onFontChange, className }: SystemFontPickerProps) {
   const t = useTranslations('settings.fontOptions');
   const [localFonts, setLocalFonts] = useState<string[]>([]);
   const [querying, setQuerying] = useState(false);
@@ -93,9 +89,7 @@ export default function SystemFontPicker({
 
       {/* 常用高分开发者字体预设 */}
       <div>
-        <p className="text-xs font-medium text-muted-foreground mb-1.5">
-          {t('popularDeveloperFonts')}
-        </p>
+        <p className="text-xs font-medium text-muted-foreground mb-1.5">{t('popularDeveloperFonts')}</p>
         <div className="flex flex-wrap gap-1.5">
           {POPULAR_SYSTEM_FONTS.map((fontName) => (
             <button
@@ -187,11 +181,7 @@ export default function SystemFontPicker({
               {activeFontId}
             </strong>
           </span>
-          <button
-            type="button"
-            onClick={() => onFontChange('inter')}
-            className="text-primary hover:underline"
-          >
+          <button type="button" onClick={() => onFontChange('inter')} className="text-primary hover:underline">
             {t('resetToDefault')}
           </button>
         </div>

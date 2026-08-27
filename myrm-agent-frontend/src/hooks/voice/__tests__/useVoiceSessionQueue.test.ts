@@ -331,9 +331,6 @@ describe('useVoiceSession speakResponse queue insertion', () => {
       expect.not.stringContaining('[Screen Text: entire document text here]'),
       undefined,
     );
-    expect(mockOnSendMessage).toHaveBeenCalledWith(
-      expect.stringContaining('[Active Window: VS Code]'),
-      undefined,
-    );
+    expect(mockOnSendMessage).toHaveBeenCalledWith(expect.stringContaining('[Active Window: VS Code]'), undefined);
   });
 });

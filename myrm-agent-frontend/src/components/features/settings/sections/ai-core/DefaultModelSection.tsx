@@ -1112,9 +1112,7 @@ const DefaultModelSection = memo(() => {
                       >
                         <span
                           className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                            defaultModelConfig.routingConfig?.autoMoaReasoning
-                              ? 'translate-x-4'
-                              : 'translate-x-1'
+                            defaultModelConfig.routingConfig?.autoMoaReasoning ? 'translate-x-4' : 'translate-x-1'
                           }`}
                         />
                       </button>

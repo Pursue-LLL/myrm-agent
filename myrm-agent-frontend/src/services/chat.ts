@@ -56,7 +56,7 @@ export interface ReplayDeterminismResponse {
  */
 export const replayChatSession = async (
   chatId: string,
-  mode: 'live' | 'mock' = 'live'
+  mode: 'live' | 'mock' = 'live',
 ): Promise<ReplayDeterminismResponse> => {
   return apiRequest(`/chats/${chatId}/replay`, {
     method: 'POST',
@@ -1136,10 +1136,7 @@ export const submitPlanConfirmResponse = async (
 /**
  * Submit user's answer to a Dynamic Workflow mid-run human gate.
  */
-export const submitHumanGateResponse = async (
-  messageId: string,
-  answer: string,
-): Promise<void> => {
+export const submitHumanGateResponse = async (messageId: string, answer: string): Promise<void> => {
   await apiRequest('/agents/human-gate-response', {
     method: 'POST',
     body: JSON.stringify({ messageId, answer }),
@@ -1430,4 +1427,3 @@ export interface FiveContractSnapshotResponse {
 export const getChatDeliveryContracts = async (chatId: string): Promise<FiveContractSnapshotResponse> => {
   return apiRequest<FiveContractSnapshotResponse>(`/chats/${chatId}/delivery-contracts`);
 };
-

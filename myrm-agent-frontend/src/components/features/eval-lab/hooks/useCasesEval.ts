@@ -67,7 +67,7 @@ export interface ReportItem {
       state_assertions?: unknown[];
     };
   }>;
-    failure_analysis?: {
+  failure_analysis?: {
     total_failures: number;
     failure_distribution: Record<string, number>;
     pareto_percentages: Record<string, number>;

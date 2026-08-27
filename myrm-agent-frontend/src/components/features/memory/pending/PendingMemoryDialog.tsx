@@ -177,14 +177,17 @@ const PendingMemoryDialog = memo(() => {
             {/* 结构化元数据胶囊条 */}
             <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-border/30 bg-background/30 text-[11px]">
               {/* 置信度徽章 */}
-              {currentPendingMemory.confidence !== undefined && currentPendingMemory.confidence !== null && (
+              {currentPendingMemory.confidence !== undefined &&
+                currentPendingMemory.confidence !== null &&
                 (() => {
                   const percent = Math.round(currentPendingMemory.confidence * 100);
                   if (percent >= 85) {
                     return (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                         <ShieldCheck size={11} />
-                        <span>{percent}% {t('confidenceHigh')}</span>
+                        <span>
+                          {percent}% {t('confidenceHigh')}
+                        </span>
                       </span>
                     );
                   }
@@ -192,18 +195,21 @@ const PendingMemoryDialog = memo(() => {
                     return (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                         <Sparkles size={11} />
-                        <span>{percent}% {t('confidenceMedium')}</span>
+                        <span>
+                          {percent}% {t('confidenceMedium')}
+                        </span>
                       </span>
                     );
                   }
                   return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground border border-border/50">
                       <AlertCircle size={11} />
-                      <span>{percent}% {t('confidenceLow')}</span>
+                      <span>
+                        {percent}% {t('confidenceLow')}
+                      </span>
                     </span>
                   );
-                })()
-              )}
+                })()}
 
               {/* 类别标签 */}
               {currentPendingMemory.kind && (
@@ -224,8 +230,8 @@ const PendingMemoryDialog = memo(() => {
               </span>
 
               {/* 冲突裁决策略 */}
-              {currentPendingMemory.is_conflict && (
-                currentPendingMemory.conflict_auto_resolve_at ? (
+              {currentPendingMemory.is_conflict &&
+                (currentPendingMemory.conflict_auto_resolve_at ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                     <Clock size={10} />
                     <span>{t('conflict.title')}</span>
@@ -235,8 +241,7 @@ const PendingMemoryDialog = memo(() => {
                     <ShieldAlert size={10} />
                     <span>{t('manualReviewRequired')}</span>
                   </span>
-                )
-              )}
+                ))}
             </div>
 
             {/* 内容区域 */}

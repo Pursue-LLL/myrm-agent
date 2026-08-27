@@ -23,17 +23,17 @@
 
 ### cards/
 
-| 文件                          | 地位 | 职责                                                                                    | I/O/P |
-| ----------------------------- | ---- | --------------------------------------------------------------------------------------- | ----- |
-| `MemoryCard.tsx`              | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数） | ✅    |
-| `MemoryScopeHierarchyCard.tsx`| 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）    | ✅    |
-| `MemoryScopePicker.tsx`       | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                      | ✅    |
-| `ConflictCard.tsx`            | 组件 | 冲突记忆卡                                                                              | ✅    |
-| `MemoryDetailSheet.tsx`       | 组件 | 记忆详情 Sheet（全文/metadata/来源）                                                    | ✅    |
-| `MemoryTypeIcon.tsx`          | 辅助 | 记忆类型 → 图标映射                                                                     | ✅    |
-| `MemoryStats.tsx`             | 组件 | 记忆数量/类型统计摘要                                                                   | ✅    |
-| `PreferenceStabilityCard.tsx` | 组件 | 偏好稳定性卡                                                                            | ✅    |
-| `TasteSummaryCard.tsx`        | 组件 | 口味摘要卡                                                                              | ✅    |
+| 文件                           | 地位 | 职责                                                                                    | I/O/P |
+| ------------------------------ | ---- | --------------------------------------------------------------------------------------- | ----- |
+| `MemoryCard.tsx`               | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数） | ✅    |
+| `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）   | ✅    |
+| `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                     | ✅    |
+| `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                              | ✅    |
+| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源）                                                    | ✅    |
+| `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                     | ✅    |
+| `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                   | ✅    |
+| `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                            | ✅    |
+| `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                              | ✅    |
 
 ### command-center/
 
@@ -84,8 +84,8 @@
 | 文件                      | 地位 | 职责                                                                                                                               | I/O/P |
 | ------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `PendingMemoryBadge.tsx`  | 组件 | 待审批记忆计数徽章（ChatWindow 顶栏入口，待审批与冲突总数均为 0 时隐藏；纯展示，新冲突通知由全局 memory_operation SSE toast 承担） | ✅    |
-| `PendingMemoryDialog.tsx` | 组件 | 待审批记忆审批弹窗（支持结构化元数据胶囊条、提取依据可折叠展示、编辑、批准、拒绝、来源跳转；连续审批：处理完自动显示下一条） | ✅    |
-| `PendingMemoryList.tsx`   | 组件 | 待审批记忆列表（含批量操作与结构化卡片展示，用于 MemorySection pending tab）                                                        | ✅    |
+| `PendingMemoryDialog.tsx` | 组件 | 待审批记忆审批弹窗（支持结构化元数据胶囊条、提取依据可折叠展示、编辑、批准、拒绝、来源跳转；连续审批：处理完自动显示下一条）       | ✅    |
+| `PendingMemoryList.tsx`   | 组件 | 待审批记忆列表（含批量操作与结构化卡片展示，用于 MemorySection pending tab）                                                       | ✅    |
 
 ### replay/
 

@@ -3,8 +3,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { FiveContractDeliveryStatusPanel } from '../FiveContractDeliveryStatusPanel';
 import * as chatService from '@/services/chat';
 
+const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 describe('FiveContractDeliveryStatusPanel', () => {

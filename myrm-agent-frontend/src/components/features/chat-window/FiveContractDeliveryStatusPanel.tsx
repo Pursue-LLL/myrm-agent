@@ -29,11 +29,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
-import {
-  getChatDeliveryContracts,
-  type FiveContractSnapshotResponse,
-  type PhaseContractRecord,
-} from '@/services/chat';
+import { getChatDeliveryContracts, type FiveContractSnapshotResponse, type PhaseContractRecord } from '@/services/chat';
 
 interface FiveContractDeliveryStatusPanelProps {
   chatId: string;
@@ -48,10 +44,7 @@ const PHASE_KEYS = [
   'acceptance_verification',
 ] as const;
 
-export function FiveContractDeliveryStatusPanel({
-  chatId,
-  className = '',
-}: FiveContractDeliveryStatusPanelProps) {
+export function FiveContractDeliveryStatusPanel({ chatId, className = '' }: FiveContractDeliveryStatusPanelProps) {
   const t = useTranslations('chat.deliveryContracts');
   const [snapshot, setSnapshot] = useState<FiveContractSnapshotResponse | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -91,19 +84,28 @@ export function FiveContractDeliveryStatusPanel({
     switch (status) {
       case 'satisfied':
         return (
-          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+          <Badge
+            variant="outline"
+            className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
+          >
             {t('status.satisfied')}
           </Badge>
         );
       case 'violated':
         return (
-          <Badge variant="outline" className="text-[10px] bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800">
+          <Badge
+            variant="outline"
+            className="text-[10px] bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
+          >
             {t('status.violated')}
           </Badge>
         );
       case 'in_progress':
         return (
-          <Badge variant="outline" className="text-[10px] bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800">
+          <Badge
+            variant="outline"
+            className="text-[10px] bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800"
+          >
             {t('status.inProgress')}
           </Badge>
         );
@@ -124,12 +126,8 @@ export function FiveContractDeliveryStatusPanel({
       <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/20 border-b">
         <div className="flex items-center gap-2">
           <Workflow className="w-4 h-4 text-primary shrink-0" />
-          <span className="text-xs font-semibold tracking-wide text-foreground">
-            {t('title')}
-          </span>
-          <span className="text-[11px] font-mono text-muted-foreground">
-            {snapshot.overall_progress_pct}%
-          </span>
+          <span className="text-xs font-semibold tracking-wide text-foreground">{t('title')}</span>
+          <span className="text-[11px] font-mono text-muted-foreground">{snapshot.overall_progress_pct}%</span>
           {snapshot.is_fully_satisfied && (
             <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
               <ShieldCheck className="w-3 h-3 mr-1 inline" />
@@ -175,27 +173,21 @@ export function FiveContractDeliveryStatusPanel({
                 isSatisfied
                   ? 'border-emerald-500/30 bg-emerald-500/5'
                   : isViolated
-                  ? 'border-rose-500/30 bg-rose-500/5'
-                  : isInProgress
-                  ? 'border-sky-500/30 bg-sky-500/5'
-                  : 'border-transparent bg-muted/10'
+                    ? 'border-rose-500/30 bg-rose-500/5'
+                    : isInProgress
+                      ? 'border-sky-500/30 bg-sky-500/5'
+                      : 'border-transparent bg-muted/10'
               }`}
             >
               <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
                 <span>0{idx + 1}</span>
                 {getStatusIcon(record?.status || 'pending')}
               </div>
-              <span className="text-[11px] font-medium truncate text-foreground">
-                {t(`phases.${key}`)}
-              </span>
+              <span className="text-[11px] font-medium truncate text-foreground">{t(`phases.${key}`)}</span>
               <div className="w-full bg-secondary h-1 rounded-full overflow-hidden mt-0.5">
                 <div
                   className={`h-full transition-all duration-300 ${
-                    isSatisfied
-                      ? 'bg-emerald-500'
-                      : isViolated
-                      ? 'bg-rose-500'
-                      : 'bg-primary'
+                    isSatisfied ? 'bg-emerald-500' : isViolated ? 'bg-rose-500' : 'bg-primary'
                   }`}
                   style={{ width: `${record?.progress_pct || 0}%` }}
                 />

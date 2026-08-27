@@ -147,7 +147,10 @@ export function ReviewCommentThread({ results, t, onInitiateFix, className }: Re
 
       {/* Review Comments Thread Section */}
       {allComments.length > 0 && (
-        <div data-testid="review-comment-box" className="rounded border border-border/70 bg-background/50 p-2 space-y-2">
+        <div
+          data-testid="review-comment-box"
+          className="rounded border border-border/70 bg-background/50 p-2 space-y-2"
+        >
           {/* Header & Filter Pills */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">

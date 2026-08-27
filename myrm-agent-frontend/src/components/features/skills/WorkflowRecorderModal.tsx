@@ -32,11 +32,7 @@ interface WorkflowRecorderModalProps {
   onPublished?: (skillName: string) => void;
 }
 
-export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({
-  isOpen,
-  onClose,
-  onPublished,
-}) => {
+export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ isOpen, onClose, onPublished }) => {
   const t = useTranslations('skills.workflowRecorder');
   const [step, setStep] = useState<'idle' | 'recording' | 'review' | 'preview' | 'published'>('idle');
   const [sessionId, setSessionId] = useState<string>('');
@@ -217,9 +213,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({
               </div>
               <div>
                 <h4 className="font-medium text-foreground">{t('recordingActive')}</h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('eventsCaptured', { count: eventCount })}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">{t('eventsCaptured', { count: eventCount })}</p>
               </div>
               {/* Quick simulation helper buttons for GUI testing */}
               <div className="flex flex-wrap gap-2 justify-center pt-2">

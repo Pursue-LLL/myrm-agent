@@ -38,9 +38,7 @@ export default function CasesTab({ casesDraft = '', onDraftChange }: CasesTabPro
               <span>{t('antiContamination.unprotectedBadge')}</span>
             </div>
           )}
-          <span className="text-muted-foreground hidden sm:inline">
-            {t('antiContamination.badgeDesc')}
-          </span>
+          <span className="text-muted-foreground hidden sm:inline">{t('antiContamination.badgeDesc')}</span>
         </div>
 
         {!isCanaryProtected && (

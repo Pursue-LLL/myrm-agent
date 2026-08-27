@@ -105,9 +105,7 @@ export function IMessageConfigCard() {
           <IconShieldCheck className="h-4 w-4 text-primary shrink-0" />
           <span>{t('imessageAppleWatchGuideTitle')}</span>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {t('imessageAppleWatchGuideDesc')}
-        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{t('imessageAppleWatchGuideDesc')}</p>
       </div>
 
       <div className="rounded-lg border bg-muted/20 p-3.5 space-y-2 max-w-lg text-xs text-muted-foreground">

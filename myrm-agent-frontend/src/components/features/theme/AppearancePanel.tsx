@@ -278,10 +278,7 @@ const AppearancePanel = ({ className }: { className?: string }) => {
 
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-2">{t('font')}</p>
-        <SystemFontPicker
-          activeFontId={activeFontId}
-          onFontChange={handleFontChange}
-        />
+        <SystemFontPicker activeFontId={activeFontId} onFontChange={handleFontChange} />
       </div>
       <button
         type="button"

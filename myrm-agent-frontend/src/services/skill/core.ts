@@ -992,4 +992,3 @@ export async function publishDesktopSkill(
     }),
   });
 }
-

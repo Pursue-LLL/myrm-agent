@@ -200,9 +200,7 @@ export async function checkCronPrerequisite(data: PrerequisiteCheckRequest): Pro
   });
 }
 
-export async function getConnectorsHealth(params?: {
-  window_hours?: number;
-}): Promise<ConnectorsHealthListResponse> {
+export async function getConnectorsHealth(params?: { window_hours?: number }): Promise<ConnectorsHealthListResponse> {
   const query = new URLSearchParams();
   if (params?.window_hours) {
     query.set('window_hours', String(params.window_hours));

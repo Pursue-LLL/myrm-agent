@@ -72,13 +72,7 @@ export default function ReplayAction({ chatId }: ReplayActionProps) {
         </div>
       )}
 
-      {diffOpen && (
-        <TrajectoryDiffModal
-          open={diffOpen}
-          currentSessionId={chatId}
-          onClose={() => setDiffOpen(false)}
-        />
-      )}
+      {diffOpen && <TrajectoryDiffModal open={diffOpen} currentSessionId={chatId} onClose={() => setDiffOpen(false)} />}
     </div>
   );
 }

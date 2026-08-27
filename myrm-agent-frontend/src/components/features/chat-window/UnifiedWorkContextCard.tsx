@@ -11,5 +11,9 @@
  * Thin export wrapper ensuring seamless imports under both UnifiedWorkContextCard and NewTaskWorkContextCard.
  */
 
-export { NewTaskWorkContextCard as default, NewTaskWorkContextCard, UnifiedWorkContextCard } from './NewTaskWorkContextCard';
+export {
+  NewTaskWorkContextCard as default,
+  NewTaskWorkContextCard,
+  UnifiedWorkContextCard,
+} from './NewTaskWorkContextCard';
 export type { NewTaskMode } from './NewTaskWorkContextCard';

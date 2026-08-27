@@ -65,10 +65,10 @@ describe('ReviewCommentThread', () => {
 
     // Severity filter buttons
     const filterButtons = screen.getAllByRole('button');
-    const allBtn = filterButtons.find(b => b.textContent?.includes('All'));
-    const critBtn = filterButtons.find(b => b.textContent?.includes('Critical'));
-    const warnBtn = filterButtons.find(b => b.textContent?.includes('Warning'));
-    const infoBtn = filterButtons.find(b => b.textContent?.includes('Info'));
+    const allBtn = filterButtons.find((b) => b.textContent?.includes('All'));
+    const critBtn = filterButtons.find((b) => b.textContent?.includes('Critical'));
+    const warnBtn = filterButtons.find((b) => b.textContent?.includes('Warning'));
+    const infoBtn = filterButtons.find((b) => b.textContent?.includes('Info'));
 
     expect(allBtn).toBeDefined();
     expect(critBtn).toBeDefined();

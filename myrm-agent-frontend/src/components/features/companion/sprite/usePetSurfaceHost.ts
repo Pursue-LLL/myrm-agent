@@ -47,12 +47,16 @@ export function usePetSurfaceHost({ enabled, isTauri, petSize, payloadBase }: Us
   const poppedOut = isTauri && surfaceMode === 'popped-out';
   const { unread, clearUnread } = usePetSurfaceUnread(poppedOut);
 
-  const [voicePayload, setVoicePayload] = useState<{ voiceState?: PetSurfaceStatePayload['voiceState']; audioLevel?: number }>({});
+  const [voicePayload, setVoicePayload] = useState<{
+    voiceState?: PetSurfaceStatePayload['voiceState'];
+    audioLevel?: number;
+  }>({});
 
   useEffect(() => {
     let lastAudioPush = 0;
     const handleVoiceUpdate = (e: Event) => {
-      const detail = (e as CustomEvent<{ voiceState?: PetSurfaceStatePayload['voiceState']; audioLevel?: number }>).detail;
+      const detail = (e as CustomEvent<{ voiceState?: PetSurfaceStatePayload['voiceState']; audioLevel?: number }>)
+        .detail;
       if (!detail) return;
 
       const now = Date.now();

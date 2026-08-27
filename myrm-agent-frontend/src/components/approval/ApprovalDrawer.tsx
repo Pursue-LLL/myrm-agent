@@ -119,7 +119,7 @@ export function ApprovalDrawer() {
       }
 
       const data = await response.json().catch(() => ({}));
-      const resolvedIds = (data && Array.isArray(data.resolved_ids)) ? data.resolved_ids : targetIds;
+      const resolvedIds = data && Array.isArray(data.resolved_ids) ? data.resolved_ids : targetIds;
       closeApprovals(resolvedIds);
       setIsHighRiskDialogOpen(false);
       setPendingRiskReport(null);

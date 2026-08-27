@@ -198,15 +198,17 @@ export const evalService = {
   /**
    * List historical Skill A/B reports
    */
-  async listSkillAbReports(): Promise<Array<{
-    filename: string;
-    dataset_id: string;
-    candidate_skill_id: string;
-    baseline_skill_id?: string | null;
-    verdict: string;
-    success_rate_delta: number;
-    created_at: string;
-  }>> {
+  async listSkillAbReports(): Promise<
+    Array<{
+      filename: string;
+      dataset_id: string;
+      candidate_skill_id: string;
+      baseline_skill_id?: string | null;
+      verdict: string;
+      success_rate_delta: number;
+      created_at: string;
+    }>
+  > {
     return apiRequest('/eval/skill-ab/reports');
   },
 };

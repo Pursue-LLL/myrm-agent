@@ -2,7 +2,20 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Play, Loader2, History, ChevronDown, ChevronRight, Combine, ShieldAlert, ShieldCheck, AlertTriangle, RotateCcw, Archive, Video } from 'lucide-react';
+import {
+  Play,
+  Loader2,
+  History,
+  ChevronDown,
+  ChevronRight,
+  Combine,
+  ShieldAlert,
+  ShieldCheck,
+  AlertTriangle,
+  RotateCcw,
+  Archive,
+  Video,
+} from 'lucide-react';
 import { WorkflowRecorderModal } from './WorkflowRecorderModal';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
@@ -296,8 +309,8 @@ const CuratorSettingsPanel = memo(
                             {f.finding_type === 'wrong_but_frequent'
                               ? t('doctor.typeWrongButFrequent')
                               : f.finding_type === 'hoarding_bloat'
-                              ? t('doctor.typeHoarding')
-                              : t('doctor.typeStalePinned')}
+                                ? t('doctor.typeHoarding')
+                                : t('doctor.typeStalePinned')}
                           </Badge>
                         </div>
                         <p className="text-[11px] text-muted-foreground">{f.message}</p>

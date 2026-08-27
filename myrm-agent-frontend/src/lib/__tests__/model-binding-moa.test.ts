@@ -72,13 +72,7 @@ describe('resolveModelPickerTriggerDisplay', () => {
       routingConfig: { enabled: true },
     } as DefaultModelConfig;
 
-    const display = resolveModelPickerTriggerDisplay(
-      'agent',
-      agentConfig,
-      routingDefaultModelConfig,
-      providers,
-      null,
-    );
+    const display = resolveModelPickerTriggerDisplay('agent', agentConfig, routingDefaultModelConfig, providers, null);
     expect(display.isSmartRouting).toBe(false);
     expect(display.modelName).toBe('gpt-4o');
   });

@@ -29,11 +29,7 @@ interface TrajectoryDiffModalProps {
   onClose: () => void;
 }
 
-export default function TrajectoryDiffModal({
-  open,
-  currentSessionId,
-  onClose,
-}: TrajectoryDiffModalProps) {
+export default function TrajectoryDiffModal({ open, currentSessionId, onClose }: TrajectoryDiffModalProps) {
   const t = useTranslations('trajectoryDiff');
   const [trajectoryA, setTrajectoryA] = useState<SessionTrajectoryResponse | null>(null);
   const [trajectoryB, setTrajectoryB] = useState<SessionTrajectoryResponse | null>(null);
@@ -150,8 +146,8 @@ export default function TrajectoryDiffModal({
                         isDiv
                           ? 'border-amber-500 bg-amber-500/10'
                           : step.is_error
-                          ? 'border-destructive/50 bg-destructive/5'
-                          : 'border-border/80 bg-card'
+                            ? 'border-destructive/50 bg-destructive/5'
+                            : 'border-border/80 bg-card'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -178,7 +174,9 @@ export default function TrajectoryDiffModal({
           {/* Right: Session B */}
           <div className="space-y-4 pl-2">
             <div className="flex items-center justify-between font-semibold text-xs text-foreground bg-muted/40 p-2 rounded">
-              <span>Session B ({trajectoryB?.title || (selectedSessionBId ? selectedSessionBId.slice(0, 8) : 'None')})</span>
+              <span>
+                Session B ({trajectoryB?.title || (selectedSessionBId ? selectedSessionBId.slice(0, 8) : 'None')})
+              </span>
               <span className="font-mono text-muted-foreground">
                 {trajectoryB?.total_tool_calls || 0} calls | {trajectoryB?.total_tokens.toLocaleString() || 0} tokens
               </span>
@@ -199,8 +197,8 @@ export default function TrajectoryDiffModal({
                           isDiv
                             ? 'border-amber-500 bg-amber-500/10'
                             : step.is_error
-                            ? 'border-destructive/50 bg-destructive/5'
-                            : 'border-border/80 bg-card'
+                              ? 'border-destructive/50 bg-destructive/5'
+                              : 'border-border/80 bg-card'
                         }`}
                       >
                         <div className="flex items-center justify-between">

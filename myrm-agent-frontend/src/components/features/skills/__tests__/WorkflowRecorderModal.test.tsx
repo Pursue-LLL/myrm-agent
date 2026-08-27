@@ -17,7 +17,9 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/services/skill/core', () => ({
   startDesktopRecording: vi.fn().mockResolvedValue({ session_id: 'rec-123', status: 'recording', started_at: 1000 }),
-  stopDesktopRecording: vi.fn().mockResolvedValue({ session_id: 'rec-123', status: 'stopped', event_count: 2, duration_seconds: 5 }),
+  stopDesktopRecording: vi
+    .fn()
+    .mockResolvedValue({ session_id: 'rec-123', status: 'stopped', event_count: 2, duration_seconds: 5 }),
   recordDesktopEvent: vi.fn().mockResolvedValue({ status: 'ok', recorded_count: 1 }),
   analyzeDesktopPlan: vi.fn().mockResolvedValue({
     plan: {
@@ -55,13 +57,7 @@ describe('WorkflowRecorderModal', () => {
     const handleClose = vi.fn();
     const handlePublished = vi.fn();
 
-    render(
-      <WorkflowRecorderModal
-        isOpen={true}
-        onClose={handleClose}
-        onPublished={handlePublished}
-      />
-    );
+    render(<WorkflowRecorderModal isOpen={true} onClose={handleClose} onPublished={handlePublished} />);
 
     expect(screen.getByText('title')).toBeInTheDocument();
     expect(screen.getByText('startRecording')).toBeInTheDocument();
@@ -99,12 +95,7 @@ describe('WorkflowRecorderModal', () => {
   });
 
   it('does not render when isOpen is false', () => {
-    const { container } = render(
-      <WorkflowRecorderModal
-        isOpen={false}
-        onClose={vi.fn()}
-      />
-    );
+    const { container } = render(<WorkflowRecorderModal isOpen={false} onClose={vi.fn()} />);
     expect(container.firstChild).toBeNull();
   });
 });

@@ -37,7 +37,8 @@ const mockTranslations: Record<string, string> = {
   'scopePicker.agentHint': 'Persists across all chats with this Agent',
   'scopePicker.globalHint': 'Universal memory across all agents and sessions',
   'commandCenter.doctorCheck.memory_mislayer_governance.label': 'Memory Scope Mislayer Guard',
-  'commandCenter.doctorCheck.memory_mislayer_governance.evidence': 'Scans for universal coding styles or global habits wrongly trapped in ephemeral session scopes.',
+  'commandCenter.doctorCheck.memory_mislayer_governance.evidence':
+    'Scans for universal coding styles or global habits wrongly trapped in ephemeral session scopes.',
   'commandCenter.doctorRepairAction.elevate_mislayered_memories': 'Elevate mislayered memories',
   'commandCenter.doctorRepairPlan.elevate_mislayered_memories.dryRun': 'Scans ephemeral conversation memories.',
   'commandCenter.doctorRepairPlan.elevate_mislayered_memories.expectedEffect': 'Prevents loss of critical preferences.',

@@ -198,4 +198,3 @@ export const validateWorkspacePath = (rawPath: string): WorkspacePathValidationR
     normalizedPath: displayNormalized,
   };
 };
-

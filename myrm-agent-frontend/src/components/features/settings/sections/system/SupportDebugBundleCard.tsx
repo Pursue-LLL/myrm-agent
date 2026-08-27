@@ -19,12 +19,7 @@ import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
-import {
-  IconDownload,
-  IconLoader,
-  IconShieldAlert,
-  IconWrench,
-} from '@/components/features/icons/PremiumIcons';
+import { IconDownload, IconLoader, IconShieldAlert, IconWrench } from '@/components/features/icons/PremiumIcons';
 import { toast } from '@/hooks/shared/useToast';
 import { systemService } from '@/services/system';
 

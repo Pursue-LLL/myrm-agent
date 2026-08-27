@@ -61,9 +61,7 @@ export function BatchHighRiskConfirmDialog({
             >
               <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
               <div className="flex flex-col flex-1 overflow-hidden">
-                <span className="font-semibold text-foreground truncate">
-                  {item.toolName || item.actionType}
-                </span>
+                <span className="font-semibold text-foreground truncate">{item.toolName || item.actionType}</span>
                 <span className="text-muted-foreground break-words">{item.riskReason}</span>
               </div>
             </div>
@@ -71,29 +69,17 @@ export function BatchHighRiskConfirmDialog({
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t('cancel')}
           </Button>
 
           {report.safeCount > 0 && (
-            <Button
-              variant="secondary"
-              onClick={onApproveSafeOnly}
-              disabled={isSubmitting}
-            >
+            <Button variant="secondary" onClick={onApproveSafeOnly} disabled={isSubmitting}>
               {t('approveSafeOnly', { count: report.safeCount })}
             </Button>
           )}
 
-          <Button
-            variant="destructive"
-            onClick={onConfirmAll}
-            disabled={isSubmitting}
-          >
+          <Button variant="destructive" onClick={onConfirmAll} disabled={isSubmitting}>
             {t('confirmAll')}
           </Button>
         </DialogFooter>

@@ -5,7 +5,12 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Layers, ChevronRight, ChevronLeft, Loader2, X, Zap, Sparkles, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { PipelineTemplate, PipelineTemplateDetail, PipelineQuestionGroup, PipelineEstimateResult } from '@/services/kanban';
+import type {
+  PipelineTemplate,
+  PipelineTemplateDetail,
+  PipelineQuestionGroup,
+  PipelineEstimateResult,
+} from '@/services/kanban';
 import { listPipelines, getPipelineDetail, instantiatePipeline, estimatePipeline } from '@/services/kanban';
 import { useEntitlements } from '@/hooks/billing/useEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
@@ -214,7 +219,8 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
                           {t('pipelineEstimateWu', { min: estimate.min_estimated_wu, max: estimate.max_estimated_wu })}
                         </span>
                         <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {t('pipelineRemainingAfter')}: ~{Math.max(0, entitlements.balance_wu - estimate.base_estimated_wu).toLocaleString()} WU
+                          {t('pipelineRemainingAfter')}: ~
+                          {Math.max(0, entitlements.balance_wu - estimate.base_estimated_wu).toLocaleString()} WU
                         </div>
                       </div>
                     ) : (

@@ -163,8 +163,6 @@ describe('ReportTab trajectory disclosure', () => {
 
     expect(screen.getByText('Canary')).toBeInTheDocument();
     expect(screen.getByText('evalLab.report.contaminationViolation')).toBeInTheDocument();
-    expect(
-      screen.getByText('[bash] Agent attempted to probe /hidden_tests/secret.py'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('[bash] Agent attempted to probe /hidden_tests/secret.py')).toBeInTheDocument();
   });
 });

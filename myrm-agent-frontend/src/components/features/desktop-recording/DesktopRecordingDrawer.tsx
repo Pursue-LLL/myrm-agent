@@ -101,9 +101,7 @@ export const DesktopRecordingDrawer: React.FC = () => {
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               {t('currentStatus')}
             </div>
-            <div className="text-base font-semibold text-foreground capitalize mt-0.5">
-              {t(`status_${status}`)}
-            </div>
+            <div className="text-base font-semibold text-foreground capitalize mt-0.5">{t(`status_${status}`)}</div>
           </div>
           <div className="flex items-center gap-2">
             {status === 'idle' && (
@@ -139,9 +137,7 @@ export const DesktopRecordingDrawer: React.FC = () => {
         {(status === 'stopped' || status === 'draft_ready') && (
           <div className="space-y-4 p-4 rounded-xl bg-card border border-border">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                {t('skillNameLabel')}
-              </label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">{t('skillNameLabel')}</label>
               <input
                 type="text"
                 value={skillName}
@@ -151,9 +147,7 @@ export const DesktopRecordingDrawer: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                {t('skillDescLabel')}
-              </label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">{t('skillDescLabel')}</label>
               <textarea
                 value={skillDesc}
                 onChange={(e) => setSkillDesc(e.target.value)}
@@ -209,9 +203,7 @@ export const DesktopRecordingDrawer: React.FC = () => {
 
             {/* Editable Markdown Area */}
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                {t('markdownEditorLabel')}
-              </label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">{t('markdownEditorLabel')}</label>
               <textarea
                 value={draft.markdown_content}
                 onChange={(e) => updateDraftMarkdown(e.target.value)}

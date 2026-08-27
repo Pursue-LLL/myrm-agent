@@ -58,7 +58,15 @@ interface ContextMenuProps {
 // Context menu
 // ---------------------------------------------------------------------------
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ state, onClose, onRename, onDelete, onMove, onOrganize, onSetProjectRoot }) => {
+export const ContextMenu: React.FC<ContextMenuProps> = ({
+  state,
+  onClose,
+  onRename,
+  onDelete,
+  onMove,
+  onOrganize,
+  onSetProjectRoot,
+}) => {
   const t = useTranslations('workspace');
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: state.x, y: state.y });

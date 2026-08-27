@@ -38,11 +38,7 @@ function createUnifiedDiffText(filename: string, oldText: string, newText: strin
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
 
-  const diffHeader = [
-    `--- a/${filename}`,
-    `+++ b/${filename}`,
-    `@@ -1,${oldLines.length} +1,${newLines.length} @@`,
-  ];
+  const diffHeader = [`--- a/${filename}`, `+++ b/${filename}`, `@@ -1,${oldLines.length} +1,${newLines.length} @@`];
 
   const body: string[] = [];
   const max = Math.max(oldLines.length, newLines.length);
@@ -91,22 +87,13 @@ export const InlineWorkspaceDiff: React.FC<InlineWorkspaceDiffProps> = memo(
               {t('diffView')}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-muted transition-colors"
-            title={t('close')}
-          >
+          <button onClick={onClose} className="p-1 rounded hover:bg-muted transition-colors" title={t('close')}>
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
 
         <div className="flex-1 overflow-auto p-2">
-          <DiffViewer
-            diff={generatedDiff}
-            filePath={file.path}
-            defaultViewMode="unified"
-            embedded
-          />
+          <DiffViewer diff={generatedDiff} filePath={file.path} defaultViewMode="unified" embedded />
         </div>
       </div>
     );

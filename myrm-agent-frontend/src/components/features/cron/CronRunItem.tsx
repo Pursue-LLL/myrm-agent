@@ -332,9 +332,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                     <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
                     <div className="space-y-0.5 text-[11px]">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-destructive">
-                          {t('connectorDegradedBadge')}
-                        </span>
+                        <span className="font-medium text-destructive">{t('connectorDegradedBadge')}</span>
                         <span className="font-mono text-[10px] text-muted-foreground bg-background/50 px-1 py-0.5 rounded">
                           {run.metadata.connector_failure.category}
                         </span>

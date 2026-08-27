@@ -174,18 +174,15 @@ export const useDesktopRecordingStore = create<DesktopRecordingState>((set, get)
     if (!sessionId || !draft) return null;
 
     try {
-      const response = await apiRequest<{ skill_id: string; status: string }>(
-        '/api/skills/desktop-recorder/publish',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            session_id: sessionId,
-            skill_name: skillName,
-            markdown_content: draft.markdown_content,
-            description: draft.description,
-          }),
-        }
-      );
+      const response = await apiRequest<{ skill_id: string; status: string }>('/api/skills/desktop-recorder/publish', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: sessionId,
+          skill_name: skillName,
+          markdown_content: draft.markdown_content,
+          description: draft.description,
+        }),
+      });
       set({ status: 'published', publishedSkillId: response.skill_id });
       return response.skill_id;
     } catch (err: unknown) {

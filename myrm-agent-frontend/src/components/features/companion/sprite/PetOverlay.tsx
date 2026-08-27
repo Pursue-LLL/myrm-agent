@@ -153,7 +153,8 @@ const PetOverlay = memo(function PetOverlay() {
 
   useEffect(() => {
     const handleVoiceUpdate = (e: Event) => {
-      const detail = (e as CustomEvent<{ voiceState?: 'idle' | 'listening' | 'processing' | 'speaking' | 'inactive' }>).detail;
+      const detail = (e as CustomEvent<{ voiceState?: 'idle' | 'listening' | 'processing' | 'speaking' | 'inactive' }>)
+        .detail;
       if (detail?.voiceState) {
         stateMachineRef.current?.setVoiceState(detail.voiceState);
       }
@@ -342,11 +343,7 @@ const PetOverlay = memo(function PetOverlay() {
         onPointerCancel={handlePointerUp}
         onContextMenu={handleContextMenu}
       >
-        <PetVoiceOrbGlow
-          voiceState={voicePayload.voiceState}
-          audioLevel={voicePayload.audioLevel}
-          size={petSize}
-        />
+        <PetVoiceOrbGlow voiceState={voicePayload.voiceState} audioLevel={voicePayload.audioLevel} size={petSize} />
         <SpriteRenderer
           sheetUrl={sheetUrl}
           row={resolvedRow}

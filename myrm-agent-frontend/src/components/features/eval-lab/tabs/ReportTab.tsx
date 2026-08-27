@@ -1,5 +1,15 @@
 import { useTranslations } from 'next-intl';
-import { AlertCircle, CheckCircle2, Clock, Eye, Layers, RefreshCw, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Eye,
+  Layers,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react';
 
 import { formatMib } from '../components/format';
 import { type DownloadProgress, type EvalProgress, type ReportItem } from '../hooks/useCasesEval';
@@ -205,9 +215,9 @@ export default function ReportTab({
                 </div>
               );
             })}
-            </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* Fleet Difficulty Shard Breakdown */}
       {report.variance_metrics?.difficulty_breakdown &&

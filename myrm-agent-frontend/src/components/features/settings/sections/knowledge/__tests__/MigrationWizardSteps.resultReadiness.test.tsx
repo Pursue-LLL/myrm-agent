@@ -332,11 +332,10 @@ describe('ResultStep conversation search opt-in', () => {
       />,
     );
 
-    expect(
-      screen.getByText((content) => content.includes('result.readinessIssue.stepBudgetLow')),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: 'result.readinessAction.configureStepBudget' }),
-    ).toHaveAttribute('href', '/settings?tab=agent');
+    expect(screen.getByText((content) => content.includes('result.readinessIssue.stepBudgetLow'))).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'result.readinessAction.configureStepBudget' })).toHaveAttribute(
+      'href',
+      '/settings?tab=agent',
+    );
   });
 });

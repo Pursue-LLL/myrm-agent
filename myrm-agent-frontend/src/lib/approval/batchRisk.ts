@@ -57,7 +57,12 @@ export function classifySingleApprovalRisk(item: ApprovalPayload): { riskLevel: 
   }
 
   // Check tool name
-  const toolName = (item.payload?.tool_name || item.payload?.tool_calls?.[0]?.name || item.action_type || '').toLowerCase();
+  const toolName = (
+    item.payload?.tool_name ||
+    item.payload?.tool_calls?.[0]?.name ||
+    item.action_type ||
+    ''
+  ).toLowerCase();
   if (['danger', 'destroy', 'drop_db', 'wipe'].some((k) => toolName.includes(k))) {
     return { riskLevel: 'high', reason: `High-risk tool name: ${toolName}` };
   }

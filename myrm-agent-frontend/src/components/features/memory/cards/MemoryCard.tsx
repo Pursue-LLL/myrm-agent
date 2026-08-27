@@ -148,7 +148,10 @@ const MemoryCard = memo<MemoryCardProps>(
                 </span>
               )}
               {confirmed?.is_user_locked && <Lock size={12} className="text-amber-500" aria-label={t('locked')} />}
-              {isPending && 'confidence' in memory && memory.confidence !== undefined && memory.confidence !== null && (
+              {isPending &&
+                'confidence' in memory &&
+                memory.confidence !== undefined &&
+                memory.confidence !== null &&
                 (() => {
                   const percent = Math.round(memory.confidence * 100);
                   if (percent >= 85) {
@@ -173,8 +176,7 @@ const MemoryCard = memo<MemoryCardProps>(
                       <span>{percent}%</span>
                     </span>
                   );
-                })()
-              )}
+                })()}
               {isPending && 'kind' in memory && memory.kind && (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
                   <Tag size={9} />
@@ -367,9 +369,7 @@ const MemoryCard = memo<MemoryCardProps>(
                     {tag}
                   </span>
                 ))}
-                {tags.length > 5 && (
-                  <span className="text-[10px] text-muted-foreground/50">+{tags.length - 5}</span>
-                )}
+                {tags.length > 5 && <span className="text-[10px] text-muted-foreground/50">+{tags.length - 5}</span>}
               </div>
             );
           })()}

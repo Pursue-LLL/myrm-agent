@@ -35,9 +35,7 @@ describe('CasesTab Anti-Contamination Guard', () => {
     expect(injectBtn).toBeInTheDocument();
 
     fireEvent.click(injectBtn);
-    expect(handleDraftChange).toHaveBeenCalledWith(
-      expect.stringContaining(CANARY_GUID),
-    );
+    expect(handleDraftChange).toHaveBeenCalledWith(expect.stringContaining(CANARY_GUID));
   });
 
   it('renders protected badge when canary GUID is present', () => {

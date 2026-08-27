@@ -3,24 +3,25 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import SystemFontPicker from '../SystemFontPicker';
 import { getFontStack } from '@/lib/fonts';
 
+const translationMap: Record<string, string> = {
+  inter: 'Inter (Default)',
+  system: 'System Font',
+  atkinson: 'Atkinson Hyperlegible',
+  popularDeveloperFonts: 'Popular Developer Fonts',
+  scanAllSystemFonts: 'Scan Local Installed Fonts',
+  scanningFonts: 'Scanning...',
+  allInstalledFonts: 'All Local Fonts',
+  selectFontPlaceholder: 'Select from local installed fonts...',
+  customFontPlaceholder: 'Or enter any local font name',
+  apply: 'Apply',
+  activeCustomFont: 'Active Custom Font',
+  resetToDefault: 'Reset',
+};
+
+const stableT = (key: string) => translationMap[key] || key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      inter: 'Inter (Default)',
-      system: 'System Font',
-      atkinson: 'Atkinson Hyperlegible',
-      popularDeveloperFonts: 'Popular Developer Fonts',
-      scanAllSystemFonts: 'Scan Local Installed Fonts',
-      scanningFonts: 'Scanning...',
-      allInstalledFonts: 'All Local Fonts',
-      selectFontPlaceholder: 'Select from local installed fonts...',
-      customFontPlaceholder: 'Or enter any local font name',
-      apply: 'Apply',
-      activeCustomFont: 'Active Custom Font',
-      resetToDefault: 'Reset',
-    };
-    return map[key] || key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('SystemFontPicker & getFontStack', () => {

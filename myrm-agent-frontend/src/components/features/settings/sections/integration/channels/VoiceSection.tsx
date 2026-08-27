@@ -135,7 +135,9 @@ const VoiceSection = memo(() => {
     loadVoiceConfig()
       .then(setForm)
       .finally(() => setLoading(false));
-    apiRequest<{ edge_tts_available?: boolean; local_stt_available?: boolean; local_tts_available?: boolean }>('/health/info')
+    apiRequest<{ edge_tts_available?: boolean; local_stt_available?: boolean; local_tts_available?: boolean }>(
+      '/health/info',
+    )
       .then((info) => {
         setEdgeTtsAvailable(info.edge_tts_available === true);
         setLocalSttAvailable(info.local_stt_available === true);

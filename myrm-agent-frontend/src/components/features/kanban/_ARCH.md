@@ -18,7 +18,7 @@
 | useKanbanTaskDrawerWorkflow.ts       | 辅助 | Promote / Move / Reclaim 工作流子 hook                                                                                                                                            | ✅    |
 | KanbanTaskDrawerHeader.tsx           | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                                                                                                                               | ✅    |
 | KanbanTaskDrawerDetails.tsx          | 辅助 | 抽屉详情（超时/技能/模型覆盖/审批开关/来源 Chat 与 Board 深链/ReviewCommentThread 接入）                                                                                          | ✅    |
-| ReviewCommentThread.tsx              | 辅助 | 验收标准通过/失败详情卡片与 Critical/Warning/Info 三级评审意见流展示（支持 severity 过滤、修复建议折叠展开、快捷复制与一键修复动作）                                             | ✅    |
+| ReviewCommentThread.tsx              | 辅助 | 验收标准通过/失败详情卡片与 Critical/Warning/Info 三级评审意见流展示（支持 severity 过滤、修复建议折叠展开、快捷复制与一键修复动作）                                              | ✅    |
 | KanbanSkillPicker.tsx                | 辅助 | 任务技能多选选择器（搜索 + 已选 chip + 未知 id 标记；数据源 useSkillStore，创建/详情共用）                                                                                        | ✅    |
 | KanbanTaskDrawerBodySections.tsx     | 辅助 | 抽屉附件与结果区段组件                                                                                                                                                            | ✅    |
 | KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                                                                                                                        | ✅    |

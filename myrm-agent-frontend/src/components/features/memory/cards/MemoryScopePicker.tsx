@@ -17,12 +17,7 @@ import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { MemoryScopeLevel } from './MemoryScopeHierarchyCard';
-import {
-  IconClock,
-  IconMessageSquare,
-  IconCpu,
-  IconGlobe,
-} from '@/components/features/icons/PremiumIcons';
+import { IconClock, IconMessageSquare, IconCpu, IconGlobe } from '@/components/features/icons/PremiumIcons';
 
 interface MemoryScopePickerProps {
   value: MemoryScopeLevel;
@@ -64,54 +59,48 @@ const SCOPE_OPTIONS: {
   },
 ];
 
-export const MemoryScopePicker = memo<MemoryScopePickerProps>(({
-  value,
-  onChange,
-  disabled = false,
-  className,
-  showHint = true,
-}) => {
-  const t = useTranslations('memory');
+export const MemoryScopePicker = memo<MemoryScopePickerProps>(
+  ({ value, onChange, disabled = false, className, showHint = true }) => {
+    const t = useTranslations('memory');
 
-  return (
-    <div className={cn('space-y-2', className)}>
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-foreground">{t('scopePicker.label', { default: 'Memory Scope Level' })}</label>
-        {showHint && (
-          <span className="text-[11px] text-muted-foreground">
-            {t(`scopePicker.${value}Hint`)}
-          </span>
-        )}
+    return (
+      <div className={cn('space-y-2', className)}>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-foreground">
+            {t('scopePicker.label', { default: 'Memory Scope Level' })}
+          </label>
+          {showHint && <span className="text-[11px] text-muted-foreground">{t(`scopePicker.${value}Hint`)}</span>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {SCOPE_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const isSelected = value === opt.level;
+
+            return (
+              <button
+                type="button"
+                key={opt.level}
+                disabled={disabled}
+                onClick={() => onChange(opt.level)}
+                className={cn(
+                  'flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all',
+                  disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary/40 hover:bg-accent/20',
+                  isSelected
+                    ? 'border-primary bg-primary/10 text-primary font-medium ring-1 ring-primary/20'
+                    : 'border-border/60 bg-background/50 text-muted-foreground',
+                )}
+              >
+                <Icon className={cn('h-3.5 w-3.5 shrink-0', isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                <div className="min-w-0 flex-1 truncate text-xs">{t(opt.labelKey)}</div>
+              </button>
+            );
+          })}
+        </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {SCOPE_OPTIONS.map((opt) => {
-          const Icon = opt.icon;
-          const isSelected = value === opt.level;
-
-          return (
-            <button
-              type="button"
-              key={opt.level}
-              disabled={disabled}
-              onClick={() => onChange(opt.level)}
-              className={cn(
-                'flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all',
-                disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary/40 hover:bg-accent/20',
-                isSelected
-                  ? 'border-primary bg-primary/10 text-primary font-medium ring-1 ring-primary/20'
-                  : 'border-border/60 bg-background/50 text-muted-foreground',
-              )}
-            >
-              <Icon className={cn('h-3.5 w-3.5 shrink-0', isSelected ? 'text-primary' : 'text-muted-foreground')} />
-              <div className="min-w-0 flex-1 truncate text-xs">{t(opt.labelKey)}</div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
+    );
+  },
+);
 
 MemoryScopePicker.displayName = 'MemoryScopePicker';
 

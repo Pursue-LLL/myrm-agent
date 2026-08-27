@@ -305,10 +305,7 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
           )}
 
           {/* Scope Level Picker */}
-          <MemoryScopePicker
-            value={form.scope_level}
-            onChange={(lvl) => updateField('scope_level', lvl)}
-          />
+          <MemoryScopePicker value={form.scope_level} onChange={(lvl) => updateField('scope_level', lvl)} />
 
           {/* Importance slider */}
           <div className="space-y-2">

@@ -392,4 +392,3 @@ export const IconServer = ({ className }: IconProps) => (
     <line x1="11" y1="10.75" x2="12" y2="10.75" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
   </svg>
 );
-

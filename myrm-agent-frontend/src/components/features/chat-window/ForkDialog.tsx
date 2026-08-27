@@ -61,7 +61,7 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
         messageIndex,
         title || undefined,
         forkMode,
-        forkMode === 'acceptance_verifier' ? (acceptanceScope || undefined) : undefined,
+        forkMode === 'acceptance_verifier' ? acceptanceScope || undefined : undefined,
       );
 
       if (response.success && response.data.new_chat_id) {
@@ -115,9 +115,7 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
                   <GitFork className="h-4 w-4 text-muted-foreground" />
                   {t('modeFullClone')}
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                  {t('modeFullCloneDesc')}
-                </p>
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{t('modeFullCloneDesc')}</p>
               </button>
 
               <button
@@ -133,9 +131,7 @@ export function ForkDialog({ open, onOpenChange, chatId, messageIndex }: ForkDia
                   <ShieldCheck className="h-4 w-4" />
                   {t('modeAcceptance')}
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                  {t('modeAcceptanceDesc')}
-                </p>
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{t('modeAcceptanceDesc')}</p>
               </button>
             </div>
           </div>

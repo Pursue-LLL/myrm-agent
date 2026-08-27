@@ -471,9 +471,7 @@ export default function ModelPickerPopover({
                     </span>
                     <div className="flex flex-col text-left truncate flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="truncate font-medium text-foreground">
-                          {t('smartRouting.autoTitle')}
-                        </span>
+                        <span className="truncate font-medium text-foreground">{t('smartRouting.autoTitle')}</span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
                           {t('smartRouting.recommended')}
                         </span>

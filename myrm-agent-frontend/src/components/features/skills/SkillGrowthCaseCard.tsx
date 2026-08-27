@@ -396,9 +396,7 @@ export default function SkillGrowthCaseCard({
             )}
           </div>
           {item.verificationProof.verification_summary && (
-            <p className="mt-1.5 text-xs text-foreground font-medium">
-              {item.verificationProof.verification_summary}
-            </p>
+            <p className="mt-1.5 text-xs text-foreground font-medium">{item.verificationProof.verification_summary}</p>
           )}
         </div>
       )}

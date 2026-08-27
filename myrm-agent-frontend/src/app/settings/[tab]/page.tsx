@@ -98,8 +98,6 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export const prefetch = 'partial';
-
 async function SettingsTabPage({ params }: PageProps) {
   const { tab } = await params;
 

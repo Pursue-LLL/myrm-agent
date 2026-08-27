@@ -242,25 +242,34 @@ export default function PetOverlayWindowApp() {
     }
   }, [state?.voiceState]);
 
-  const handleVoicePointerDown = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    if (state?.voiceState === 'idle') {
-      void emitPetSurfaceControl({ type: 'voice-ptt-start' });
-    }
-  }, [state?.voiceState]);
+  const handleVoicePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      if (state?.voiceState === 'idle') {
+        void emitPetSurfaceControl({ type: 'voice-ptt-start' });
+      }
+    },
+    [state?.voiceState],
+  );
 
-  const handleVoicePointerUp = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    if (state?.voiceState === 'listening') {
-      void emitPetSurfaceControl({ type: 'voice-ptt-stop' });
-    }
-  }, [state?.voiceState]);
+  const handleVoicePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      if (state?.voiceState === 'listening') {
+        void emitPetSurfaceControl({ type: 'voice-ptt-stop' });
+      }
+    },
+    [state?.voiceState],
+  );
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    openComposer();
-  }, [openComposer]);
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openComposer();
+    },
+    [openComposer],
+  );
 
   if (!state?.sheetUrl) {
     return <div className="h-screen w-screen bg-transparent" />;
@@ -306,11 +315,7 @@ export default function PetOverlayWindowApp() {
       )}
 
       <div ref={containerRef} className="relative" style={{ width: state.petSize, height: state.petSize }}>
-        <PetVoiceOrbGlow
-          voiceState={state.voiceState}
-          audioLevel={state.audioLevel}
-          size={state.petSize}
-        />
+        <PetVoiceOrbGlow voiceState={state.voiceState} audioLevel={state.audioLevel} size={state.petSize} />
         <PetStatusBubble petState={petState} />
         {/* Voice Orb Action Button */}
         <button
@@ -323,7 +328,8 @@ export default function PetOverlayWindowApp() {
             state.voiceState === 'listening' && 'bg-blue-500 text-white border-blue-400 animate-pulse',
             state.voiceState === 'speaking' && 'bg-emerald-500 text-white border-emerald-400',
             state.voiceState === 'processing' && 'bg-purple-500 text-white border-purple-400 animate-spin',
-            (!state.voiceState || state.voiceState === 'idle') && 'bg-popover text-muted-foreground hover:text-foreground',
+            (!state.voiceState || state.voiceState === 'idle') &&
+              'bg-popover text-muted-foreground hover:text-foreground',
           )}
           aria-label={state.voiceState === 'speaking' ? 'Interrupt Voice' : 'Voice Interaction'}
         >

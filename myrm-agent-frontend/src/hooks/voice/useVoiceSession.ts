@@ -61,7 +61,7 @@ interface UseVoiceSessionOptions {
   onAgentTurnChange?: (state: 'thinking' | 'done', turnId: string) => void;
 }
 
-  interface UseVoiceSessionReturn {
+interface UseVoiceSessionReturn {
   sessionState: VoiceSessionState;
   isActive: boolean;
   startSession: () => void;

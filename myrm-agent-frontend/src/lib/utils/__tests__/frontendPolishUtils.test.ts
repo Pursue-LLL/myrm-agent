@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { isImeComposing } from '../imeUtils';
 import { parseTitleIndex, disambiguateChatTitle } from '../titleUtils';
-import { isAbsolutePath, normalizePath, normalizeDisplayPath, formatPathForDisplay, validateWorkspacePath } from '../pathValidation';
+import {
+  isAbsolutePath,
+  normalizePath,
+  normalizeDisplayPath,
+  formatPathForDisplay,
+  validateWorkspacePath,
+} from '../pathValidation';
 import { resolveSkillDescription } from '../skillUtils';
 import { isRecord, asRecord, safeGet } from '../typeUtils';
 
@@ -37,7 +43,12 @@ describe('Frontend Polish Utilities Suite', () => {
     });
 
     it('returns false for normal Enter press without IME composition', () => {
-      const event: ImeEventLike = { key: 'Enter', keyCode: 13, isComposing: false, nativeEvent: { isComposing: false } };
+      const event: ImeEventLike = {
+        key: 'Enter',
+        keyCode: 13,
+        isComposing: false,
+        nativeEvent: { isComposing: false },
+      };
       expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(false);
     });
   });

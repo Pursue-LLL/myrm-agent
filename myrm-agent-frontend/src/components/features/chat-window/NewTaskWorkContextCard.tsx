@@ -73,20 +73,13 @@ function addRecentDir(dir: string): void {
   localStorage.setItem(RECENT_DIRS_KEY, JSON.stringify(updated));
 }
 
-const STANDARD_OFFICE_FOLDERS = [
-  '00_原始资料',
-  '01_参考',
-  '02_生成结果',
-  '03_历史版本',
-] as const;
+const STANDARD_OFFICE_FOLDERS = ['00_原始资料', '01_参考', '02_生成结果', '03_历史版本'] as const;
 
 interface NewTaskWorkContextCardProps {
   className?: string;
 }
 
-export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({
-  className,
-}: NewTaskWorkContextCardProps) {
+export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ className }: NewTaskWorkContextCardProps) {
   const t = useTranslations('chat.newTaskCard');
   const tDir = useTranslations('chat.workspaceDir');
 
@@ -334,10 +327,14 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({
                   onClick={handleOpenPicker}
                   className={cn(
                     'h-8 px-2.5 text-xs font-normal gap-1.5 max-w-full justify-start rounded-lg border-dashed',
-                    workspaceDir ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border text-muted-foreground',
+                    workspaceDir
+                      ? 'border-primary/40 bg-primary/5 text-foreground'
+                      : 'border-border text-muted-foreground',
                   )}
                 >
-                  <FolderOpen className={cn('h-3.5 w-3.5 shrink-0', workspaceDir ? 'text-primary' : 'text-muted-foreground')} />
+                  <FolderOpen
+                    className={cn('h-3.5 w-3.5 shrink-0', workspaceDir ? 'text-primary' : 'text-muted-foreground')}
+                  />
                   <span className="truncate max-w-[220px] sm:max-w-[320px]">
                     {workspaceDir ? shortenPath(workspaceDir) : t('noWorkspaceSelected')}
                   </span>
