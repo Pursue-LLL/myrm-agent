@@ -77,6 +77,7 @@ def _build_skill_from_seed(
     category: str | None,
     version: str | None,
     tags: list[str],
+    allowed_tools: list[str] | None = None,
 ) -> Skill:
     skill_id = frontmatter_name or skill_dir_name
     storage_path = f"skills/prebuilt/{skill_id}"
@@ -97,6 +98,7 @@ def _build_skill_from_seed(
         category=category,
         tags=tags,
         token_cost=token_cost,
+        allowed_tools=allowed_tools,
         trust="trusted",
         created_at=now,
         updated_at=now,
@@ -181,6 +183,11 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
         skill_id = frontmatter.name or skill_dir.name
         skill_ids.append(skill_id)
 
+        allowed_tools_list = (
+            [t.strip() for t in frontmatter.allowed_tools.split() if t.strip()]
+            if frontmatter.allowed_tools
+            else None
+        )
         skill = _build_skill_from_seed(
             skill_dir_name=skill_dir.name,
             content=source_content,
@@ -189,6 +196,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             category=frontmatter.category,
             version=frontmatter.version,
             tags=tags,
+            allowed_tools=allowed_tools_list,
         )
 
         skill_md_storage = get_skill_file_path(SkillType.PREBUILT, skill_id, SKILL_MD_FILE)

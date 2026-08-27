@@ -21,25 +21,25 @@ const { mockApproveMemory, mockRejectMemory, mockCloseConfirmDialog, mockState, 
   };
 });
 
+const stablePendingMemoryTranslations: Record<string, string> = {
+  confirmTitle: 'Confirm Memory',
+  confirmDescription: 'Do you want to store this memory?',
+  confidenceHigh: 'High',
+  confidenceMedium: 'Medium',
+  confidenceLow: 'Low',
+  extractionReason: 'Extraction Reasoning',
+  validPermanent: 'Permanent',
+  approve: 'Approve',
+  reject: 'Reject',
+  accept: 'Accept',
+  edit: 'Edit',
+  cancel: 'Cancel',
+  'types.semantic': 'Semantic Memory',
+};
+const stableT = (key: string) => stablePendingMemoryTranslations[key] || key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const translations: Record<string, string> = {
-      confirmTitle: 'Confirm Memory',
-      confirmDescription: 'Do you want to store this memory?',
-      confidenceHigh: 'High',
-      confidenceMedium: 'Medium',
-      confidenceLow: 'Low',
-      extractionReason: 'Extraction Reasoning',
-      validPermanent: 'Permanent',
-      approve: 'Approve',
-      reject: 'Reject',
-      accept: 'Accept',
-      edit: 'Edit',
-      cancel: 'Cancel',
-      'types.semantic': 'Semantic Memory',
-    };
-    return translations[key] || key;
-  },
+  useTranslations: () => stableT,
   useLocale: () => 'en',
 }));
 

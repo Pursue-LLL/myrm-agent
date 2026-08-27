@@ -1,34 +1,20 @@
 /**
- * [INPUT] 'next/font/google'::Inter, JetBrains_Mono (POS: Next.js self-hosted Google Fonts)
- * [OUTPUT] fontSans, fontMono: next/font instances (Inter / JetBrains Mono).
+ * [INPUT] System & Web font fallbacks (Turbopack standalone / local font tokens)
+ * [OUTPUT] fontSans, fontMono: CSS variable declarations for standard typography.
  * [OUTPUT] FONT_STORAGE_KEY, FontId, FONT_CHOICES, getFontStack, ensureFontLoaded.
  * [POS] 全局字体系统 SSOT。layout.tsx 导入实例用于 self-host 加载；
  *       AppearancePanel / ThemeProfileProvider 导入 FONT_CHOICES 实现运行时切换。
  */
-import { Inter, JetBrains_Mono } from 'next/font/google';
 
-export const fontSans = Inter({
-  subsets: ['latin', 'latin-ext'],
+export const fontSans = {
   variable: '--font-sans',
-  display: 'swap',
-  fallback: [
-    'ui-sans-serif',
-    '-apple-system',
-    'BlinkMacSystemFont',
-    'Segoe UI',
-    'PingFang SC',
-    'Noto Sans SC',
-    'Microsoft YaHei',
-    'sans-serif',
-  ],
-});
+  className: 'font-sans',
+};
 
-export const fontMono = JetBrains_Mono({
-  subsets: ['latin', 'latin-ext'],
+export const fontMono = {
   variable: '--font-mono',
-  display: 'swap',
-  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-});
+  className: 'font-mono',
+};
 
 export const FONT_STORAGE_KEY = 'myrm-font';
 

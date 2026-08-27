@@ -184,6 +184,7 @@ class GeneralAgentParams(BaseAgentParams):
     # None → app settings event_log_max_jsonl_line_bytes (harness FileEventLogBackend)
     event_log_max_jsonl_line_bytes: int | None = None
     locale: str | None = None
+    prompt_locale: str | None = None
     max_iterations: int | None = None
     memory_policy: AgentMemoryPolicy | None = None
     memory_decay_profile: str | None = None

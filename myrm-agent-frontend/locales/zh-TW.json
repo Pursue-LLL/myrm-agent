@@ -7525,7 +7525,9 @@
       "entryCreated": "FAQ條目已創建",
       "entryUpdated": "FAQ條目已更新",
       "entryDeleted": "FAQ條目已刪除"
-    }
+    },
+    "moaOverlayAutoReasoningTitle": "MOA 自動推理覆蓋",
+    "moaOverlayAutoReasoningDesc": "啟用此選項後，混合架構（MOA）將自動對複雜提示詞進行分層推理與評估。"
   },
   "common": {
     "keyValueEditor": {

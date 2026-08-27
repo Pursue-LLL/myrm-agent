@@ -56,6 +56,7 @@ class Skill:
 
     # DLP Protection
     allowed_domains: list[str] | None = None
+    allowed_tools: list[str] | None = None
 
     # Security scan summary
     security: SecurityScanSummary | None = None
@@ -118,6 +119,7 @@ class Skill:
             "user_invocable": self.user_invocable,
             "primary_env": self.primary_env,
             "allowed_domains": self.allowed_domains,
+            "allowed_tools": self.allowed_tools,
             "security": self.security.to_dict() if self.security else None,
             "evolution_locked": self.evolution_locked,
             "scope_agent_id": self.scope_agent_id,
@@ -167,6 +169,7 @@ class Skill:
             user_invocable=meta.user_invocable,
             primary_env=meta.primary_env,
             allowed_domains=meta.allowed_domains,
+            allowed_tools=meta.allowed_tools,
             security=meta.scan_summary,
             evolution_locked=meta.evolution_locked,
             scope_agent_id=meta.scope_agent_id,
@@ -209,6 +212,7 @@ class Skill:
             user_invocable=bool(data.get("user_invocable", True)),
             primary_env=_opt_str(data.get("primary_env")),
             allowed_domains=(_str_list(data.get("allowed_domains")) if data.get("allowed_domains") is not None else None),
+            allowed_tools=(_str_list(data.get("allowed_tools")) if data.get("allowed_tools") is not None else None),
             security=_parse_security_summary(data.get("security")),
             evolution_locked=bool(data.get("evolution_locked", False)),
             scope_agent_id=_opt_str(data.get("scope_agent_id")),

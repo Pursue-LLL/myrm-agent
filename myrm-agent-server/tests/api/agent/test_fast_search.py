@@ -80,6 +80,18 @@ class TestFastSearchPrompt:
         deep_prompt = get_fast_search_agent_prompt(search_depth="deep")
         assert search_prompt + SEARCH_DEEP_SUFFIX == deep_prompt
 
+    def test_bilingual_search_prompt(self):
+        from app.ai_agents.prompts.fast_search_agent_prompt import (
+            get_fast_search_agent_prompt,
+        )
+
+        prompt_en = get_fast_search_agent_prompt(locale="en")
+        assert "You are a pragmatic, truth-seeking AI search assistant" in prompt_en
+
+        prompt_zh = get_fast_search_agent_prompt(locale="zh-CN")
+        assert "你是一个求真务实的AI搜索助手" in prompt_zh
+
+
 
 class TestSearchDepthValidation:
     """search_depth 参数校验（无需 LLM）"""

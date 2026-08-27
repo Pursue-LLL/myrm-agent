@@ -474,16 +474,25 @@ async def build_general_agent(
     _apply_small_model_tuning(agent_wrapper)
 
     # 8. System prompt (core + CLI tool awareness)
+    effective_prompt_locale = (
+        getattr(agent_wrapper, "prompt_locale", None)
+        or getattr(agent_wrapper, "locale", None)
+    )
     system_prompt = get_core_system_prompt(
         mode=agent_wrapper.prompt_mode,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         enable_memory=agent_wrapper.enable_memory and not agent_wrapper.incognito_mode,
+        locale=effective_prompt_locale,
     )
 
     if agent_wrapper.prompt_mode == "search" and getattr(agent_wrapper, "search_depth", "normal") == "deep":
-        from app.ai_agents.prompts.general_agent_prompt import SEARCH_DEEP_SUFFIX
+        from myrm_agent_harness.utils.locale import is_chinese
+        from app.ai_agents.prompts.general_agent_prompt import (
+            SEARCH_DEEP_SUFFIX,
+            SEARCH_DEEP_SUFFIX_ZH,
+        )
 
-        system_prompt += SEARCH_DEEP_SUFFIX
+        system_prompt += SEARCH_DEEP_SUFFIX_ZH if is_chinese(effective_prompt_locale) else SEARCH_DEEP_SUFFIX
 
     if getattr(agent_wrapper, "unattended_mode", False):
         system_prompt += (
@@ -697,6 +706,7 @@ async def build_general_agent(
         max_iterations=agent_wrapper.max_iterations or 100,
         unattended=getattr(agent_wrapper, "unattended_mode", False),
         locale=agent_wrapper.locale,
+        prompt_locale=effective_prompt_locale,
         channel_name=agent_wrapper.channel_name,
         security_config=security_ext._build_security_config(),
         engine_params=normalized_engine_params,

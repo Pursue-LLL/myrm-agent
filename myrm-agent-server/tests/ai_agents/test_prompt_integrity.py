@@ -272,3 +272,35 @@ class TestDesktopControlRules:
         from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
 
         assert "window name" not in DESKTOP_CONTROL_RULES
+
+
+class TestPromptBilingualSupport:
+    """Validates full bilingual (EN/ZH) system prompt support with English default."""
+
+    def test_default_locale_is_english(self) -> None:
+        prompt = get_core_system_prompt()
+        assert "You are a powerful, pragmatic, and versatile AI assistant" in prompt
+        assert "Project-level constraints" in prompt
+        assert "<security_rules>" in prompt
+
+    def test_explicit_chinese_locale_switches_to_chinese(self) -> None:
+        prompt = get_core_system_prompt(locale="zh-CN")
+        assert "你是一个功能强大且求真务实的通用AI智能助手" in prompt
+        assert "用户通过 <user_instructions> 提供的项目级约束具有最高优先级" in prompt
+        assert "<security_rules>" in prompt
+
+    def test_citation_rules_bilingual(self) -> None:
+        from app.ai_agents.prompts.shared_rules import (
+            EXTERNAL_SOURCES_CITATION_RULES_EN,
+            EXTERNAL_SOURCES_CITATION_RULES_ZH,
+        )
+
+        assert get_citation_rules_if_needed(True, locale="en") == EXTERNAL_SOURCES_CITATION_RULES_EN
+        assert get_citation_rules_if_needed(True, locale="zh-CN") == EXTERNAL_SOURCES_CITATION_RULES_ZH
+        assert get_citation_rules_if_needed(False, locale="en") is None
+
+    def test_stability_across_locales(self) -> None:
+        assert get_core_system_prompt(locale="en") is get_core_system_prompt(locale="en")
+        assert get_core_system_prompt(locale="zh-CN") is get_core_system_prompt(locale="zh")
+        assert get_core_system_prompt(locale="en") is not get_core_system_prompt(locale="zh-CN")
+
