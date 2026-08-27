@@ -7078,8 +7078,6 @@
     "moaOverlayPrivacyOff": "끔",
     "moaOverlayPrivacyDisplay": "표시만 (UI 편집)",
     "moaOverlayPrivacyFull": "전체 (UI + 프롬프트 편집)",
-    "moaOverlayAutoReasoningTitle": "추론 시 자동 MoA 오버레이",
-    "moaOverlayAutoReasoningDesc": "복잡한 추론 작업에서 다중 모델 MoA 어드바이저를 자동으로 병렬 활성화하여 상호 교차 검증을 수행합니다.",
     "moaOverlayNoModels": "참조 모델이 선택되지 않음 — 오버레이가 건너뛰어집니다 (대체 없음)",
     "consensusPrivacy": "참조 개인정보 필터",
     "consensusPrivacyOff": "끔",
@@ -7333,7 +7331,9 @@
       "entryCreated": "FAQ 항목 생성됨",
       "entryUpdated": "FAQ 항목 업데이트됨",
       "entryDeleted": "FAQ 항목 삭제됨"
-    }
+    },
+    "moaOverlayAutoReasoningTitle": "추론 단계에서 MoA 오버레이 자동 활성화",
+    "moaOverlayAutoReasoningDesc": "스마트 라우팅이 작업을 REASONING 단계로 분류할 때 MoA 자문 모델을 자동으로 참조합니다; 일반 작업은 단일 모델 고속 실행을 유지합니다."
   },
   "common": {
     "settings": "설정",

@@ -7078,8 +7078,6 @@
     "moaOverlayPrivacyOff": "Aus",
     "moaOverlayPrivacyDisplay": "Nur Anzeige (UI-Schwärzung)",
     "moaOverlayPrivacyFull": "Vollständig (UI + Prompt-Schwärzung)",
-    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung für Argumentation",
-    "moaOverlayAutoReasoningDesc": "Aktiviert bei komplexen Argumentationsaufgaben automatisch parallele MoA-Berater zur gegenseitigen Überprüfung.",
     "moaOverlayNoModels": "Keine Referenzmodelle ausgewählt — Overlay wird übersprungen (kein Fallback)",
     "consensusPrivacy": "Referenz-Datenschutzfilter",
     "consensusPrivacyOff": "Aus",
@@ -7333,7 +7331,9 @@
       "entryCreated": "FAQ-Eintrag erstellt",
       "entryUpdated": "FAQ-Eintrag aktualisiert",
       "entryDeleted": "FAQ-Eintrag gelöscht"
-    }
+    },
+    "moaOverlayAutoReasoningTitle": "Automatische MoA-Überlagerung bei komplexem Schlussfolgern",
+    "moaOverlayAutoReasoningDesc": "Konsultiert automatisch MoA-Berater, wenn das Smart Routing eine Aufgabe als REASONING einstuft; Standardaufgaben bleiben bei schneller Einzelmodell-Ausführung."
   },
   "common": {
     "settings": "Einstellungen",
@@ -13559,8 +13559,8 @@
     "ttsModeAlways": "Stets",
     "ttsModeInbound": "Nur per Spracheingabe antworten",
     "ttsProvider": "TTS-Anbieter",
-    "hostNotReadyTitle": "Backend-Dienst nicht bereit",
-    "hostNotReadyDesc": "Der Backend-Dienst verbindet sich oder ist offline. Bitte überprüfen Sie Ihre Dienstverbindung und versuchen Sie es erneut.",
+    "hostNotReadyTitle": "Backend-Dienst ist nicht bereit",
+    "hostNotReadyDesc": "Der Backend-Dienst verbindet sich oder ist offline. Bitte überprüfen Sie den Dienststatus und versuchen Sie es erneut.",
     "ttsApiKey": "API Key",
     "ttsApiKeyPlaceholder": "Geben Sie den Schlüssel API ein (nicht erforderlich für Edge TTS)",
     "ttsBaseUrl": "API Basis URL",
@@ -13601,9 +13601,7 @@
     "ttsPlaybackFailedTitle": "Das Vorlesen ist fehlgeschlagen",
     "ttsPlaybackFailedDesc": "Die Sprachsynthese erzeugte kein Audio. Überprüfen Sie Ihre Spracheinstellungen oder versuchen Sie es mit einem anderen Anbieter.",
     "voiceModeGeminiLive": "Gemini Live (WebSocket, ~200 ms, Video)",
-    "geminiLiveModel": "Gemini Live-Modell",
-    "hostNotReadyTitle": "Backend-Dienst ist nicht bereit",
-    "hostNotReadyDesc": "Der Backend-Dienst verbindet sich oder ist offline. Bitte überprüfen Sie den Dienststatus und versuchen Sie es erneut."
+    "geminiLiveModel": "Gemini Live-Modell"
   },
   "stt": {
     "startRecording": "Spracheingabe",
@@ -14811,7 +14809,7 @@
       "evalRunning": "Evaluierungsaufgabe läuft, bitte warten",
       "failureAnalysisTitle": "Fehlermodus-Ursachenanalyse",
       "totalFailuresCount": "Insgesamt {count} Fehler",
-      "difficultyShardTitle": "Schwierigkeitsgrad-Shard-Leistung & Bestehensquote",
+      "difficultyShardTitle": "Schwierigkeitsgrad-Shard-Leistung & Erfolgsquote",
       "fleetAttempts": "{count} unabhängige Stichprobenversuche",
       "failureModes": {
         "intent_misunderstanding": "Fehlinterpretation der Benutzerabsicht",
@@ -14823,9 +14821,7 @@
         "decontam_violation": "Evaluierungsdaten-Kontaminationsverletzung",
         "context_overflow_or_budget": "Kontextüberlauf oder Budget erschöpft",
         "unhandled_runtime_exception": "Unbehandelte Laufzeitausnahme"
-      },
-      "difficultyShardTitle": "Schwierigkeitsgrad-Shard-Leistung & Erfolgsquote",
-      "fleetAttempts": "{count} unabhängige Stichprobenversuche"
+      }
     },
     "history": {
       "passRateTrend": "Bestehensquote Verlaufstrend (Pass Rate %)",
