@@ -153,6 +153,7 @@ class SqlTopicManager:
             reply_mode=reply_mode,
             draft_timeout_minutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=timeout_action,
+            personality_style=str(topic_cfg["personalityStyle"]) if topic_cfg.get("personalityStyle") else None,
         )
 
     async def bind_topic(
@@ -170,6 +171,7 @@ class SqlTopicManager:
         draft_timeout_action: DraftTimeoutAction | object = _UNSET,
         project_id: str | None | object = _UNSET,
         authorized_path: str | None | object = _UNSET,
+        personality_style: str | None | object = _UNSET,
     ) -> TopicContext:
         resolved_agent_id: str | None = None
         if agent_id is not _UNSET:
@@ -253,6 +255,12 @@ class SqlTopicManager:
         elif authorized_path is _UNSET:
             resolved_authorized_path = str(topic_entry["authorizedPath"]) if topic_entry.get("authorizedPath") else None
 
+        if personality_style is not _UNSET:
+            if personality_style:
+                topic_entry["personalityStyle"] = str(personality_style)
+            else:
+                topic_entry.pop("personalityStyle", None)
+
         await self._upsert_topic(channel, chat_id, storage_key, topic_entry)
 
         raw_reply_mode = str(topic_entry.get("replyMode", ReplyMode.AUTO.value))
@@ -275,6 +283,7 @@ class SqlTopicManager:
             reply_mode=effective_reply_mode,
             draft_timeout_minutes=int(topic_entry.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=effective_timeout_action,
+            personality_style=str(topic_entry["personalityStyle"]) if topic_entry.get("personalityStyle") else None,
         )
 
     def _is_expired(self, topic_cfg: dict[str, object]) -> bool:

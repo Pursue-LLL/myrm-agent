@@ -30,7 +30,9 @@ def merge_remote_security_overlay(
         return result if device_policy else raw
 
     permissions_raw = result.get("permissions")
-    permissions: dict[str, object] = dict(permissions_raw) if isinstance(permissions_raw, dict) else {}
+    permissions: dict[str, object] = (
+        dict(permissions_raw) if isinstance(permissions_raw, dict) else {}
+    )
     permissions.update(remote_exposed_permissions())
     result["permissions"] = permissions
     result["yoloModeEnabled"] = False

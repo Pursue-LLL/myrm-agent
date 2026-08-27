@@ -153,6 +153,9 @@ class RouterExecutionMixin:
                 )
                 logger.warning("AgentRouter: routing to agent %s via subcommand", route_agent_id)
 
+        if topic_ctx and topic_ctx.personality_style:
+            exec_msg.metadata["personality_style"] = topic_ctx.personality_style
+
         return _RouterExecutionContext(
             user_id=user_id,
             state_key=state_key,

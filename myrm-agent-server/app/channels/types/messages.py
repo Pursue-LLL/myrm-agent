@@ -517,6 +517,7 @@ class TopicContext:
     reply_mode: ReplyMode = ReplyMode.AUTO
     draft_timeout_minutes: int = 5
     draft_timeout_action: DraftTimeoutAction = DraftTimeoutAction.AUTO_REJECT
+    personality_style: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

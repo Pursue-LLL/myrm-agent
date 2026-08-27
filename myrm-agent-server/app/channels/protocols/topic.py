@@ -52,6 +52,7 @@ class TopicManager(Protocol):
         thread_id: str | None,
         *,
         agent_id: str | None = None,
+        personality_style: str | None = None,
     ) -> TopicContext:
         """Create or update a topic or channel binding.
 
