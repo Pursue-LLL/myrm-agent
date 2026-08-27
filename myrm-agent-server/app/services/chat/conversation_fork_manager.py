@@ -27,7 +27,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, ConversationFork, Message
-from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
+from app.services.chat.conversation_recall_index_service import (
+    ConversationRecallIndexService,
+)
 
 if TYPE_CHECKING:
     from langgraph.checkpoint.base import CheckpointTuple
@@ -126,7 +128,9 @@ class ConversationForkManager:
             )
 
         # Validate message_index boundary.
-        count_stmt = select(func.count(Message.id)).where(Message.chat_id == parent_chat_id)
+        count_stmt = select(func.count(Message.id)).where(
+            Message.chat_id == parent_chat_id
+        )
         count_result = await db.execute(count_stmt)
         total_messages = count_result.scalar_one()
 
@@ -144,7 +148,9 @@ class ConversationForkManager:
         checkpoint_tuple: CheckpointTuple | None = None
 
         if checkpointer and message_index == total_messages - 1:
-            parent_config: RunnableConfig = {"configurable": {"thread_id": parent_chat_id}}
+            parent_config: RunnableConfig = {
+                "configurable": {"thread_id": parent_chat_id}
+            }
             try:
                 checkpoint_tuple = await checkpointer.aget_tuple(parent_config)
                 if checkpoint_tuple and not checkpoint_tuple.checkpoint:
@@ -155,7 +161,7 @@ class ConversationForkManager:
 
         # 3. Generate fork title and create new chat
         new_chat_id = str(uuid4())
-        is_acceptance_mode = (fork_mode == "acceptance_verifier")
+        is_acceptance_mode = fork_mode == "acceptance_verifier"
 
         if not new_title:
             msg_stmt = (
@@ -185,7 +191,9 @@ class ConversationForkManager:
             fork_workspace_dir = parent_chat.sandbox_base_dir
         else:
             from app.services.chat.chat_service import ChatService
-            from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+            from app.services.chat.effective_workspace import (
+                resolve_effective_chat_workspace,
+            )
 
             parent_dto = await ChatService.get_chat_metadata(parent_chat_id)
             fork_workspace_dir = (
@@ -219,7 +227,12 @@ class ConversationForkManager:
         db.add(new_chat)
 
         # 4. Clone messages up to fork point into new chat in batch
-        msgs_stmt = select(Message).where(Message.chat_id == parent_chat_id).order_by(Message.created_at).limit(message_index + 1)
+        msgs_stmt = (
+            select(Message)
+            .where(Message.chat_id == parent_chat_id)
+            .order_by(Message.created_at)
+            .limit(message_index + 1)
+        )
         msgs_result = await db.execute(msgs_stmt)
         parent_messages = msgs_result.scalars().all()
 
@@ -246,8 +259,16 @@ class ConversationForkManager:
 
             now_utc = datetime.now(UTC)
             # Ensure audit prompt timestamp is strictly after the cloned messages so it appears last in chronological ordering
-            audit_created_at = (cloned_messages[-1].created_at + timedelta(milliseconds=10)) if cloned_messages and cloned_messages[-1].created_at else now_utc
-            scope_hint = f"\nSpecific Audit Scope: {acceptance_scope}" if acceptance_scope else ""
+            audit_created_at = (
+                (cloned_messages[-1].created_at + timedelta(milliseconds=10))
+                if cloned_messages and cloned_messages[-1].created_at
+                else now_utc
+            )
+            scope_hint = (
+                f"\nSpecific Audit Scope: {acceptance_scope}"
+                if acceptance_scope
+                else ""
+            )
             audit_instruction = (
                 "[INDEPENDENT ACCEPTANCE AUDIT INITIATED]\n"
                 "You are an adversarial Acceptance Verifier and Critic Agent. "
@@ -298,7 +319,9 @@ class ConversationForkManager:
                 raw_checkpoint_id = checkpoint_tuple.config.get("checkpoint_id")
                 if not raw_checkpoint_id:
                     raw_checkpoint_id = getattr(checkpoint_tuple, "checkpoint_ns", None)
-                fork_checkpoint_id = str(raw_checkpoint_id) if raw_checkpoint_id is not None else None
+                fork_checkpoint_id = (
+                    str(raw_checkpoint_id) if raw_checkpoint_id is not None else None
+                )
                 logger.debug(
                     "Forked checkpoint: %s -> %s (message_index=%d)",
                     parent_chat_id,
@@ -321,7 +344,9 @@ class ConversationForkManager:
         # Commit transaction.
         try:
             await db.commit()
-            logger.debug("Fork created successfully: %s (parent=%s)", new_chat_id, parent_chat_id)
+            logger.debug(
+                "Fork created successfully: %s (parent=%s)", new_chat_id, parent_chat_id
+            )
 
             from app.services.chat.session_continuity_service import (
                 ContinuitySyncError,
@@ -393,7 +418,9 @@ class ConversationForkManager:
 
         """
         # 1. Query if this chat is a fork
-        parent_stmt = select(ConversationFork).where(ConversationFork.child_chat_id == chat_id)
+        parent_stmt = select(ConversationFork).where(
+            ConversationFork.child_chat_id == chat_id
+        )
         parent_result = await db.execute(parent_stmt)
         fork_record = parent_result.scalar_one_or_none()
 
@@ -414,7 +441,9 @@ class ConversationForkManager:
             visited.add(curr_parent_id)
             depth += 1
             root_chat_id = curr_parent_id
-            anc_stmt = select(ConversationFork.parent_chat_id).where(ConversationFork.child_chat_id == curr_parent_id)
+            anc_stmt = select(ConversationFork.parent_chat_id).where(
+                ConversationFork.child_chat_id == curr_parent_id
+            )
             anc_result = await db.execute(anc_stmt)
             curr_parent_id = anc_result.scalar_one_or_none()
 
@@ -466,11 +495,17 @@ class ConversationForkManager:
 
         """
         # Count children before deletion (CASCADE will delete them)
-        count_stmt = select(func.count(ConversationFork.child_chat_id)).where(ConversationFork.parent_chat_id == chat_id)
+        count_stmt = select(func.count(ConversationFork.child_chat_id)).where(
+            ConversationFork.parent_chat_id == chat_id
+        )
         count_result = await db.execute(count_stmt)
         child_count = count_result.scalar_one()
 
         # Deletion handled by CASCADE constraint when parent chat is deleted
-        logger.debug("Fork lineage deletion triggered: chat_id=%s, children=%d", chat_id, child_count)
+        logger.debug(
+            "Fork lineage deletion triggered: chat_id=%s, children=%d",
+            chat_id,
+            child_count,
+        )
 
         return int(child_count)

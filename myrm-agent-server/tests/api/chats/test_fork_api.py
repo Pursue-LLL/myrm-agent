@@ -79,7 +79,9 @@ async def test_fork_with_valid_index(async_client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_fork_with_minus_one_resolves_to_last(async_client: httpx.AsyncClient) -> None:
+async def test_fork_with_minus_one_resolves_to_last(
+    async_client: httpx.AsyncClient,
+) -> None:
     """message_index=-1 resolves to last message index."""
     chat_id = str(uuid.uuid4())
     await _create_chat_with_messages(chat_id, message_count=8)
@@ -97,7 +99,9 @@ async def test_fork_with_minus_one_resolves_to_last(async_client: httpx.AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_fork_minus_one_empty_chat_returns_400(async_client: httpx.AsyncClient) -> None:
+async def test_fork_minus_one_empty_chat_returns_400(
+    async_client: httpx.AsyncClient,
+) -> None:
     """message_index=-1 on empty chat returns validation error."""
     from app.database.models.chat import Chat
     from app.platform_utils import get_session_factory
@@ -105,7 +109,14 @@ async def test_fork_minus_one_empty_chat_returns_400(async_client: httpx.AsyncCl
     chat_id = str(uuid.uuid4())
     factory = get_session_factory()
     async with factory() as db:
-        db.add(Chat(id=chat_id, title="Empty", created_at=datetime.now(UTC), updated_at=datetime.now(UTC)))
+        db.add(
+            Chat(
+                id=chat_id,
+                title="Empty",
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+        )
         await db.commit()
 
     with patch("app.platform_utils.get_checkpointer", return_value=None):
@@ -118,7 +129,9 @@ async def test_fork_minus_one_empty_chat_returns_400(async_client: httpx.AsyncCl
 
 
 @pytest.mark.asyncio
-async def test_fork_invalid_index_below_minus_one(async_client: httpx.AsyncClient) -> None:
+async def test_fork_invalid_index_below_minus_one(
+    async_client: httpx.AsyncClient,
+) -> None:
     """message_index < -1 returns validation error."""
     chat_id = str(uuid.uuid4())
     await _create_chat_with_messages(chat_id, message_count=3)
@@ -182,7 +195,9 @@ async def test_fork_with_custom_title(async_client: httpx.AsyncClient) -> None:
 
     factory = get_session_factory()
     async with factory() as db:
-        child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
+        child = (
+            await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))
+        ).scalar_one()
         assert child.title == "My Custom Branch"
 
 
@@ -234,12 +249,18 @@ async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> N
     assert data["new_chat_id"] is not None
 
     async with factory() as db:
-        child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
-        assert child.workspace_dir == "/project", "Child should use original repo root, not parent's sandbox worktree"
+        child = (
+            await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))
+        ).scalar_one()
+        assert (
+            child.workspace_dir == "/project"
+        ), "Child should use original repo root, not parent's sandbox worktree"
         assert child.sandbox_base_dir is None, "Child should have no active sandbox"
 
 
-async def test_fork_info_endpoint_returns_root_and_depth(async_client: httpx.AsyncClient) -> None:
+async def test_fork_info_endpoint_returns_root_and_depth(
+    async_client: httpx.AsyncClient,
+) -> None:
     """Verify /api/v1/chats/{chat_id}/fork-info returns root_chat_id and depth."""
 
     root_id = str(uuid.uuid4())
@@ -298,12 +319,22 @@ async def test_fork_acceptance_verifier_mode(async_client: httpx.AsyncClient) ->
 
     factory = get_session_factory()
     async with factory() as db:
-        child_chat = (await db.execute(select(Chat).where(Chat.id == new_chat_id))).scalar_one()
+        child_chat = (
+            await db.execute(select(Chat).where(Chat.id == new_chat_id))
+        ).scalar_one()
         assert "[Audit] Acceptance:" in child_chat.title
 
         messages = (
-            await db.execute(select(Message).where(Message.chat_id == new_chat_id).order_by(Message.created_at))
-        ).scalars().all()
+            (
+                await db.execute(
+                    select(Message)
+                    .where(Message.chat_id == new_chat_id)
+                    .order_by(Message.created_at)
+                )
+            )
+            .scalars()
+            .all()
+        )
         # 4 cloned messages + 1 audit prompt message
         assert len(messages) == 5
         audit_msg = messages[-1]
@@ -311,4 +342,3 @@ async def test_fork_acceptance_verifier_mode(async_client: httpx.AsyncClient) ->
         assert "[INDEPENDENT ACCEPTANCE AUDIT INITIATED]" in audit_msg.content
         assert "Verify all edge cases and ensure 100% tests pass." in audit_msg.content
         assert audit_msg.extra_data.get("is_acceptance_audit_prompt") is True
-

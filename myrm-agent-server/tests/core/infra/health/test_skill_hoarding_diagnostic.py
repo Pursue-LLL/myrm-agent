@@ -34,7 +34,9 @@ class _FakeSkill:
 async def test_skill_hoarding_diagnostic_healthy_pass(tmp_path: Path) -> None:
     """Test when skill catalog is within budget and all skills have good success rate."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
+    config = CuratorConfig(
+        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
+    )
 
     skills = [
         _FakeSkill(
@@ -50,10 +52,18 @@ async def test_skill_hoarding_diagnostic_healthy_pass(tmp_path: Path) -> None:
     ]
 
     with (
-        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
-        patch("app.core.skills.curator.service.get_stats_collector", return_value=MagicMock()),
+        patch(
+            "app.core.skills.curator.service.get_curator_config", return_value=config
+        ),
+        patch(
+            "app.core.skills.curator.service.get_stats_collector",
+            return_value=MagicMock(),
+        ),
         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)]),
-        patch("myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills", AsyncMock(return_value=skills)),
+        patch(
+            "myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills",
+            AsyncMock(return_value=skills),
+        ),
     ):
         report = await diagnostic.check_health()
         assert report.component_name == "SkillEcosystem"
@@ -69,7 +79,9 @@ async def test_skill_hoarding_diagnostic_healthy_pass(tmp_path: Path) -> None:
 async def test_skill_hoarding_diagnostic_warning_near_capacity(tmp_path: Path) -> None:
     """Test warning status when active skills reach 80% capacity."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
+    config = CuratorConfig(
+        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
+    )
 
     skills = [
         _FakeSkill(
@@ -85,10 +97,18 @@ async def test_skill_hoarding_diagnostic_warning_near_capacity(tmp_path: Path) -
     ]
 
     with (
-        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
-        patch("app.core.skills.curator.service.get_stats_collector", return_value=MagicMock()),
+        patch(
+            "app.core.skills.curator.service.get_curator_config", return_value=config
+        ),
+        patch(
+            "app.core.skills.curator.service.get_stats_collector",
+            return_value=MagicMock(),
+        ),
         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)]),
-        patch("myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills", AsyncMock(return_value=skills)),
+        patch(
+            "myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills",
+            AsyncMock(return_value=skills),
+        ),
     ):
         report = await diagnostic.check_health()
         assert report.component_name == "SkillEcosystem"
@@ -99,10 +119,14 @@ async def test_skill_hoarding_diagnostic_warning_near_capacity(tmp_path: Path) -
 
 
 @pytest.mark.asyncio
-async def test_skill_hoarding_diagnostic_warning_wrong_but_frequent(tmp_path: Path) -> None:
+async def test_skill_hoarding_diagnostic_warning_wrong_but_frequent(
+    tmp_path: Path,
+) -> None:
     """Test warning when a skill is frequently called but fails constantly."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
+    config = CuratorConfig(
+        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
+    )
 
     skills = [
         _FakeSkill(
@@ -126,10 +150,18 @@ async def test_skill_hoarding_diagnostic_warning_wrong_but_frequent(tmp_path: Pa
     ]
 
     with (
-        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
-        patch("app.core.skills.curator.service.get_stats_collector", return_value=MagicMock()),
+        patch(
+            "app.core.skills.curator.service.get_curator_config", return_value=config
+        ),
+        patch(
+            "app.core.skills.curator.service.get_stats_collector",
+            return_value=MagicMock(),
+        ),
         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)]),
-        patch("myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills", AsyncMock(return_value=skills)),
+        patch(
+            "myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills",
+            AsyncMock(return_value=skills),
+        ),
     ):
         report = await diagnostic.check_health()
         assert report.component_name == "SkillEcosystem"
@@ -145,10 +177,14 @@ async def test_skill_hoarding_diagnostic_warning_wrong_but_frequent(tmp_path: Pa
 
 
 @pytest.mark.asyncio
-async def test_skill_hoarding_diagnostic_critical_hoarding_limit_exceeded(tmp_path: Path) -> None:
+async def test_skill_hoarding_diagnostic_critical_hoarding_limit_exceeded(
+    tmp_path: Path,
+) -> None:
     """Test fail status when active skill count exceeds max_skills."""
     diagnostic = SkillHoardingHealthDiagnostic()
-    config = CuratorConfig(max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3)
+    config = CuratorConfig(
+        max_skills=50, min_call_count_for_quality_check=5, min_success_rate=0.3
+    )
 
     skills = [
         _FakeSkill(
@@ -164,10 +200,18 @@ async def test_skill_hoarding_diagnostic_critical_hoarding_limit_exceeded(tmp_pa
     ]
 
     with (
-        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
-        patch("app.core.skills.curator.service.get_stats_collector", return_value=MagicMock()),
+        patch(
+            "app.core.skills.curator.service.get_curator_config", return_value=config
+        ),
+        patch(
+            "app.core.skills.curator.service.get_stats_collector",
+            return_value=MagicMock(),
+        ),
         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)]),
-        patch("myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills", AsyncMock(return_value=skills)),
+        patch(
+            "myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills",
+            AsyncMock(return_value=skills),
+        ),
     ):
         report = await diagnostic.check_health()
         assert report.component_name == "SkillEcosystem"
@@ -177,7 +221,9 @@ async def test_skill_hoarding_diagnostic_critical_hoarding_limit_exceeded(tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_skill_hoarding_diagnostic_critical_protected_wrong_skills(tmp_path: Path) -> None:
+async def test_skill_hoarding_diagnostic_critical_protected_wrong_skills(
+    tmp_path: Path,
+) -> None:
     """Test fail status when >= 3 wrong-but-frequent skills are pinned/protected from auto-cleanup."""
     diagnostic = SkillHoardingHealthDiagnostic()
     config = CuratorConfig(
@@ -202,10 +248,18 @@ async def test_skill_hoarding_diagnostic_critical_protected_wrong_skills(tmp_pat
     ]
 
     with (
-        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
-        patch("app.core.skills.curator.service.get_stats_collector", return_value=MagicMock()),
+        patch(
+            "app.core.skills.curator.service.get_curator_config", return_value=config
+        ),
+        patch(
+            "app.core.skills.curator.service.get_stats_collector",
+            return_value=MagicMock(),
+        ),
         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(tmp_path)]),
-        patch("myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills", AsyncMock(return_value=skills)),
+        patch(
+            "myrm_agent_harness.backends.skills.local.LocalSkillBackend.list_skills",
+            AsyncMock(return_value=skills),
+        ),
     ):
         report = await diagnostic.check_health()
         assert report.component_name == "SkillEcosystem"
