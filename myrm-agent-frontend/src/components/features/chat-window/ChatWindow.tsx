@@ -27,6 +27,7 @@ import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import ExtensionTakeoverBanner from './ExtensionTakeoverBanner';
 import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
 import ChatWindowSatellites, { GoalControlPlane, GoalStatusCard, LifeStatusCapsule } from './ChatWindowSatellites';
+import { FiveContractDeliveryStatusPanel } from './FiveContractDeliveryStatusPanel';
 import { ParentChatLink } from './ParentChatLink';
 import { ChatCronLink } from './ChatCronLink';
 import SessionRevertButton from '../message-actions/SessionRevertButton';

@@ -13978,6 +13978,8 @@
     "ttsProvider": "TTS 服务商",
     "edgeTtsUnavailableTitle": "Edge TTS 不可用",
     "edgeTtsUnavailableDesc": "当前服务器未启用 Edge TTS。请切换其他服务商，或联系管理员启用语音支持。",
+    "piperUnavailableTitle": "本地 Piper TTS 不可用",
+    "piperUnavailableDesc": "请在服务端安装 voice-tts-local 组件 (uv sync --extra voice-tts-local)，或切换至其他 TTS 服务商。",
     "localSttUnavailableTitle": "本地 Whisper 语音识别不可用",
     "localSttUnavailableDesc": "请联系管理员在服务器安装 local-stt 组件（uv sync --extra local-stt），或切换至云端 STT 服务商。",
     "hostNotReadyTitle": "后端服务未就绪",

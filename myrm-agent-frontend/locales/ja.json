@@ -7796,6 +7796,26 @@
       "acceptanceScopeLabel": "検証の重点と受入基準（任意）",
       "acceptanceScopePlaceholder": "例: エッジケース処理、データ整合性、E2Eテストの監査..."
     },
+    "deliveryContracts": {
+      "title": "5つの契約デリバリーライフサイクル",
+      "allSatisfied": "すべての契約が満たされました",
+      "refresh": "契約状態を更新",
+      "noSummary": "フェーズ実行中...",
+      "phases": {
+        "task_intent": "タスク意図契約",
+        "scene_environment": "現場環境契約",
+        "action_execution": "アクション実行契約",
+        "delivery_artifact": "成果物契約",
+        "acceptance_verification": "検収検証契約"
+      },
+      "status": {
+        "pending": "待機中",
+        "inProgress": "実行中",
+        "satisfied": "充足",
+        "violated": "不合格",
+        "waitingApproval": "承認待ち"
+      }
+    },
     "deleteChat": {
       "title": "セッションを削除",
       "description": "この会話はゴミ箱に移されます。30 日以内に復元できます。",
@@ -13900,6 +13920,8 @@
     "ttsProvider": "TTS サービス商",
     "edgeTtsUnavailableTitle": "Edge TTS を利用できません",
     "edgeTtsUnavailableDesc": "このサーバーでは Edge TTS が有効になっていません。別のプロバイダーに切り替えるか、管理者に音声サポートの有効化を依頼してください。",
+    "piperUnavailableTitle": "ローカル Piper TTS を利用できません",
+    "piperUnavailableDesc": "サーバーに voice-tts-local コンポーネントをインストールする（uv sync --extra voice-tts-local）か、別の TTS プロバイダーに切り替えてください。",
     "hostNotReadyTitle": "バックエンドサービスが準備できていません",
     "hostNotReadyDesc": "バックエンドサービスに接続中またはオフラインです。サービス接続状態を確認してから再試行してください。",
     "ttsPlaybackFailedTitle": "読み上げに失敗",
