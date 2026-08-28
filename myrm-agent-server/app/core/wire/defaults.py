@@ -1,4 +1,13 @@
-"""Default model kwargs for wire-specific model families."""
+"""Default model kwargs for wire-specific model families.
+
+[POS]
+app.core.wire.defaults
+
+[INPUT]
+- model (str)
+- model_kwargs (dict)
+- wire_protocol (str)
+"""
 
 from __future__ import annotations
 

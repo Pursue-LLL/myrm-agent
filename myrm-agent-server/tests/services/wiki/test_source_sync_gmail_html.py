@@ -11,7 +11,7 @@ def test_html_body_to_markdown_uses_harness_converter() -> None:
     converter = MagicMock()
     converter.handle.return_value = "# Title\n\nBody"
     with patch(
-        "myrm_agent_harness.toolkits.web_fetch.html_to_markdown.HTML2Markdown",
+        "myrm_agent_harness.toolkits.web_fetch.processing.html_to_markdown.HTML2Markdown",
         return_value=converter,
     ):
         result = html_body_to_markdown("<h1>Title</h1><p>Body</p>")

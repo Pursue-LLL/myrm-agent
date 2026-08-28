@@ -530,7 +530,7 @@ class TestExtractVisionFallbackModelConfigs:
 
 @pytest.mark.asyncio
 async def test_verify_search_config_live_skips_e2e_probe_key() -> None:
-    from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+    from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig
 
     from app.services.integrations.search_verify import verify_search_config_live
 

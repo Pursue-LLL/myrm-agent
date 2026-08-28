@@ -72,7 +72,7 @@ def configure_logging() -> None:
         _suppress_library_logs("uvicorn.access", logging.ERROR)
     _suppress_library_logs("uvicorn.error", logging.WARNING)
 
-    logging.getLogger("app.tools.web_search.search_results_processor").setLevel(logging.INFO)
+    logging.getLogger("myrm_agent_harness.toolkits.web_search.processing.search_results_processor").setLevel(logging.INFO)
 
     # Production-visible memory monitoring (grep-friendly [MEMORY] logs)
     logging.getLogger("myrm_agent_harness.runtime.resource_monitor").setLevel(logging.INFO)

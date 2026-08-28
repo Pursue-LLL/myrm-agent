@@ -49,7 +49,9 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_muse_spark_responses_wire_two_turn_-f4d9a363-27629-90f8eeca/types/**/*.ts",
+    ".next-isolated-chrome-test_muse_spark_responses_wire_two_turn_-f4d9a363-27629-90f8eeca/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

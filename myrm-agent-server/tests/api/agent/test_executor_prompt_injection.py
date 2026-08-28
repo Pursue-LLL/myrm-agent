@@ -41,7 +41,7 @@ def mock_load_user_configs():
             new_callable=AsyncMock,
         ) as mock_verify:
             mock_verify.return_value = True
-            from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+            from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig
 
             from app.core.channel_bridge.config_loader import UserConfigs
             from app.core.types import ModelConfig

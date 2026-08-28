@@ -1,4 +1,13 @@
-"""Global model → wire protocol routing (business layer SSOT)."""
+"""Global model → wire protocol routing (business layer SSOT).
+
+[POS]
+app.core.wire.registry
+
+[INPUT]
+- model (str)
+- base_url (optional str)
+- provider_id (optional str)
+"""
 
 from __future__ import annotations
 

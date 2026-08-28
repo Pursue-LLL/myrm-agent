@@ -7,7 +7,7 @@ Authentication: xAI API key is read from session context (issuer=xai) at tool ex
 
 [INPUT]
 - httpx (POS: async HTTP client)
-- myrm_agent_harness.toolkits.web_search.common::SearchResult, Citation (POS: search result types)
+- myrm_agent_harness.toolkits.web_search.core.common::SearchResult, Citation (POS: search result types)
 
 [OUTPUT]
 - XSearchProvider: xAI Live Search API client
@@ -25,7 +25,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 import httpx
-from myrm_agent_harness.toolkits.web_search.common import Citation, SearchResult
+from myrm_agent_harness.toolkits.web_search.core.common import Citation, SearchResult
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)

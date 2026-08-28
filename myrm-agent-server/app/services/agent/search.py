@@ -3,7 +3,7 @@
 import logging
 from typing import cast
 
-from myrm_agent_harness.toolkits.web_search.common import SearchResult
+from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
 from myrm_agent_harness.toolkits.web_search.engine import SearchServiceConfig, WebSearchTools
 
 logger = logging.getLogger(__name__)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.web_search.constants import (
+from myrm_agent_harness.toolkits.web_search.probe.constants import (
     SEARXNG_DOCKER_SERVICE_URL,
     SEARXNG_HOST_URL,
     SEARXNG_PROBE_CANDIDATE_URLS,

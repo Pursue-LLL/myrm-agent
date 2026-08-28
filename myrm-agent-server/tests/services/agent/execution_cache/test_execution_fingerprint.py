@@ -564,7 +564,7 @@ def test_execution_fingerprint_changes_when_auto_restore_domains_change() -> Non
 def test_execution_fingerprint_changes_when_search_service_cfg_changes() -> None:
     """Search service backend is mounted at build time (tool_setup:342-345), so engine
     or base_url changes must bust the POOLED cache while api_key rotation must not."""
-    from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+    from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig
 
     wrapper = _base_wrapper()
     none_fp = compute_execution_fingerprint(wrapper)

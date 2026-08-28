@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig
 from pydantic import BaseModel, Field
 
 from app.core.integrations.search_catalog.registry import SearchProviderCatalogRegistry

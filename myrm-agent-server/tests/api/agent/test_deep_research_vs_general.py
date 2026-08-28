@@ -83,7 +83,7 @@ def _collect_general_agent_response(client: TestClient, query: str) -> dict[str,
 def _build_search_tools() -> list:
     """Build web search tools using env config, matching General Agent setup."""
     from myrm_agent_harness.toolkits import create_web_search_tool
-    from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+    from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig
 
     search_service = os.getenv("SEARCH_SERVICE", "tavily")
     api_key = os.getenv("TAVILY_API_KEY", "")

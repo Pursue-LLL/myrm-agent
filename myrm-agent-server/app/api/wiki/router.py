@@ -1969,7 +1969,7 @@ async def deep_research(
 ) -> OperationResult:
     """Research a topic via web search and ingest results into the wiki."""
     try:
-        from myrm_agent_harness.toolkits.web_search.web_searcher import WebSearcher
+        from myrm_agent_harness.toolkits.web_search.providers.web_searcher import WebSearcher
 
         from app.core.channel_bridge.config_loader import load_user_configs
         from app.core.channel_bridge.config_parsers import (

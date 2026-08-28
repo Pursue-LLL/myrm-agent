@@ -37,7 +37,7 @@ async def test_x_live_search_tool_uses_xai_credentials_from_context() -> None:
             "app.services.integrations.tools.x_live_search.XSearchProvider.search",
             new_callable=AsyncMock,
         ) as mock_search:
-            from myrm_agent_harness.toolkits.web_search.common import SearchResult
+            from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
 
             mock_search.return_value = SearchResult(
                 title="ok",

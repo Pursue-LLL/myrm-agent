@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.toolkits.web_search.constants import (
+from myrm_agent_harness.toolkits.web_search.probe.constants import (
     SEARXNG_DOCKER_SERVICE_URL,
     SEARXNG_HOST_URL,
 )

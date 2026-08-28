@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from myrm_agent_harness.toolkits.web_search.local_probe import probe_searxng_endpoints
+from myrm_agent_harness.toolkits.web_search.probe.local_probe import probe_searxng_endpoints
 
 from app.startup.local_search_bootstrap import try_start_local_search_profile
 

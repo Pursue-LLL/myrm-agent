@@ -1,4 +1,12 @@
-"""Apply wire routing and defaults to a resolved ModelConfig."""
+"""Apply wire routing and defaults to a resolved ModelConfig.
+
+[POS]
+app.core.wire.enrich
+
+[INPUT]
+- cfg (ModelConfig)
+- provider_id (optional str)
+"""
 
 from __future__ import annotations
 

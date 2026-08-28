@@ -129,7 +129,7 @@ def _turn_has_marker(state: dict[str, object], marker: str) -> bool:
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="LIVE",
-    private_reason="muse_spark_responses_wire",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(900)

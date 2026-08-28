@@ -120,7 +120,7 @@ def _html_to_markdown(html: str) -> str:
     """Convert email HTML body to clean Markdown for LLM consumption."""
     if not html:
         return ""
-    from myrm_agent_harness.toolkits.web_fetch.html_to_markdown import HTML2Markdown
+    from myrm_agent_harness.toolkits.web_fetch.processing.html_to_markdown import HTML2Markdown
 
     converter = HTML2Markdown()
     converter.update_params(ignore_images=True)

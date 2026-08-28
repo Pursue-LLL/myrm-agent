@@ -30,27 +30,41 @@ logger = logging.getLogger(__name__)
 class ImageToolInput(BaseModel):
     action: Literal["generate", "edit", "list"] = Field(
         default="generate",
-        description='Use "generate" to create images; "edit" to modify an image; "list" for models.',
+        description="Action to perform: 'generate' (create new images from text prompt), 'edit' (modify an existing image via image_url and prompt), 'list' (discover available models and capabilities).",
     )
     prompt: str = Field(
         default="",
-        description="Text description (required for generate/edit).",
+        description="Detailed text description of the image to generate or modification instructions for edit (required for generate/edit).",
     )
-    size: str | None = Field(default=None, description='Dimensions e.g. "1024x1024" or "16:9".')
-    quality: str | None = Field(default=None, description='"standard" or "hd".')
-    style: str | None = Field(default=None, description='"vivid" or "natural" (DALL-E 3).')
-    n: int = Field(default=1, ge=1, le=4, description="Number of images to generate.")
+    size: str | None = Field(
+        default=None,
+        description="Image dimensions or aspect ratio (e.g. '1024x1024', '1792x1024', '1024x1792', or '16:9').",
+    )
+    quality: str | None = Field(
+        default=None,
+        description="Image quality setting: 'standard' or 'hd'.",
+    )
+    style: str | None = Field(
+        default=None,
+        description="Visual rendering style for DALL-E 3: 'vivid' (hyper-real/dramatic) or 'natural' (realistic/photographic).",
+    )
+    n: int = Field(
+        default=1,
+        ge=1,
+        le=4,
+        description="Number of image variations to generate (1-4).",
+    )
     reference_image_urls: list[str] | None = Field(
         default=None,
-        description="Optional reference image URLs for style transfer or iterative edits.",
+        description="Optional reference image URLs for visual style transfer or multi-image guided generation.",
     )
     image_url: str | None = Field(
         default=None,
-        description="Source image URL for action=edit (HTTP/HTTPS).",
+        description="Source image URL to modify when action='edit' (HTTP/HTTPS URL).",
     )
     mask_url: str | None = Field(
         default=None,
-        description="Optional mask image URL for action=edit (transparent areas are edited).",
+        description="Optional mask image URL for inpainting when action='edit' (transparent areas will be regenerated).",
     )
 
 
@@ -152,7 +166,13 @@ def create_image_generation_tool(
         image_url: str | None = None,
         mask_url: str | None = None,
     ) -> str:
-        """Generate, edit, or list image generation models."""
+        """Generate, edit, or list image generation models.
+
+        Workflow:
+        1) To create new images, call with action='generate' and a descriptive prompt.
+        2) To modify an existing image, call with action='edit', image_url='<URL>', and prompt describing changes.
+        3) To inspect available providers/models, call with action='list'.
+        """
         if action == "list":
             return engine.list_models()
         if action == "edit":

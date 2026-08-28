@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import time
 
-from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
+from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig
 
 from app.core.integrations.search_catalog.registry import SearchProviderCatalogRegistry
 from app.services.agent.search import search_web_service

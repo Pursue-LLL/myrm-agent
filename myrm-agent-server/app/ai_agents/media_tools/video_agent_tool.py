@@ -27,19 +27,31 @@ logger = logging.getLogger(__name__)
 class VideoToolInput(BaseModel):
     action: Literal["generate", "status", "list"] = Field(
         default="generate",
-        description='Use "generate", "status", or "list".',
+        description="Action to perform: 'generate' (submit async video creation task), 'status' (query progress of task_id), 'list' (discover supported video models and providers).",
     )
-    prompt: str | None = Field(default=None, description="Text prompt (required for generate).")
-    provider: str | None = Field(default=None, description="Override provider.")
-    model: str | None = Field(default=None, description="Override model.")
-    duration_seconds: int | None = Field(default=None, description="Clip duration in seconds.")
-    aspect_ratio: str | None = Field(default=None, description='e.g. "16:9".')
-    resolution: str | None = Field(default=None, description='e.g. "720p".')
-    enable_audio: bool | None = Field(default=None, description="Enable audio track when supported.")
-    reference_images: list[str] | None = Field(default=None, description="Reference image URLs/paths.")
-    reference_videos: list[str] | None = Field(default=None, description="Reference video URLs/paths.")
-    force: bool = Field(default=False, description="Force new generation even if a task is active.")
-    task_id: str | None = Field(default=None, description='Task ID for action="status".')
+    prompt: str | None = Field(
+        default=None,
+        description="Detailed text prompt describing the video scene, motion, subject, and lighting (required for generate).",
+    )
+    provider: str | None = Field(default=None, description="Optional provider override (e.g. 'kling', 'luma', 'runway', 'minimax').")
+    model: str | None = Field(default=None, description="Optional model override.")
+    duration_seconds: int | None = Field(default=None, description="Target clip duration in seconds (e.g. 5 or 10).")
+    aspect_ratio: str | None = Field(default=None, description="Aspect ratio (e.g. '16:9', '9:16', '1:1').")
+    resolution: str | None = Field(default=None, description="Video resolution: '720p', '1080p', or '4k'.")
+    enable_audio: bool | None = Field(default=None, description="Whether to synthesize an audio/sound effects track when supported.")
+    reference_images: list[str] | None = Field(
+        default=None,
+        description="Optional image URLs or local paths for image-to-video (I2V) generation.",
+    )
+    reference_videos: list[str] | None = Field(
+        default=None,
+        description="Optional video URLs or local paths for video-to-video (V2V) transformation.",
+    )
+    force: bool = Field(default=False, description="Force enqueue a new generation even if an existing session task is active.")
+    task_id: str | None = Field(
+        default=None,
+        description="Task ID returned from a previous action='generate' call (required when action='status').",
+    )
 
 
 def _serialize_task(task: object) -> dict[str, object]:

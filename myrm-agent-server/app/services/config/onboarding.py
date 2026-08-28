@@ -330,7 +330,7 @@ async def probe_local_models() -> list[LocalProbeResult]:
 
 async def probe_local_search() -> list[dict[str, object]]:
     """Probe local/self-hosted and free cloud search backends."""
-    from myrm_agent_harness.toolkits.web_search.local_probe import probe_local_search_services
+    from myrm_agent_harness.toolkits.web_search.probe.local_probe import probe_local_search_services
 
     from app.core.channel_bridge.search_topology import get_searxng_probe_candidate_urls
 

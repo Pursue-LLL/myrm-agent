@@ -3,12 +3,12 @@
 import os
 
 import pytest
-from myrm_agent_harness.toolkits.web_search.exceptions import (
+from myrm_agent_harness.toolkits.web_search.core.exceptions import (
     AllQueriesFailedError,
     SearchAPIError,
 )
-from myrm_agent_harness.toolkits.web_search.metrics import WebSearchMetrics
-from myrm_agent_harness.toolkits.web_search.web_searcher import (
+from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
+from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
     SearchServiceConfig,
     WebSearcher,
 )
