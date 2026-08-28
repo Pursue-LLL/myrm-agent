@@ -2,7 +2,13 @@ import { bareHost, type EmbedDescriptor, type EmbedMatcher } from './types';
 
 export const twitter: EmbedMatcher = (url: URL): EmbedDescriptor | null => {
   const host = bareHost(url.hostname);
-  if (host !== 'twitter.com' && host !== 'x.com') {
+  if (
+    host !== 'twitter.com' &&
+    host !== 'x.com' &&
+    host !== 'vxtwitter.com' &&
+    host !== 'fxtwitter.com' &&
+    host !== 'fixupx.com'
+  ) {
     return null;
   }
 

@@ -18,7 +18,7 @@ from app.ai_agents.general_agent.external_agents import (
     _resolve_external_agent_cfgs,
     _runtime_pool_scope_id,
     needs_runtime_pool,
-    should_mount_delegate_tool,
+    should_mount_invoke_acp_agent_tool,
 )
 
 
@@ -222,14 +222,14 @@ async def test_do_setup_returns_early_without_configs() -> None:
         new_callable=AsyncMock,
         return_value=None,
     ):
-        await mixin._do_setup_external_agents([], mount_delegate_tool=True)
+        await mixin._do_setup_external_agents([], mount_invoke_acp_agent_tool=True)
     assert getattr(mixin, "_runtime_pool", None) is None
 
 
-def test_should_mount_delegate_tool_matrix() -> None:
-    assert should_mount_delegate_tool(agent_id="general", force_delegate_agent=None) is True
-    assert should_mount_delegate_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_delegate_agent=None) is False
-    assert should_mount_delegate_tool(agent_id="general", force_delegate_agent="claude") is False
+def test_should_mount_invoke_acp_agent_tool_matrix() -> None:
+    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_delegate_agent=None) is True
+    assert should_mount_invoke_acp_agent_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_delegate_agent=None) is False
+    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_delegate_agent="claude") is False
 
 
 def test_needs_runtime_pool_matrix() -> None:
@@ -278,7 +278,7 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
     mock_pool.available_backends = ["test-cli"]
     mock_pool.start_monitoring = AsyncMock()
     mock_tool = MagicMock()
-    mock_tool.name = "delegate_to_agent_tool"
+    mock_tool.name = "invoke_acp_agent_tool"
 
     with (
         patch(
@@ -293,7 +293,7 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
         tools: list[object] = []
         await mixin._do_setup_external_agents(
             tools,
-            mount_delegate_tool=True,
+            mount_invoke_acp_agent_tool=True,
             delegate_cwd="/workspace/root",
         )
 
@@ -318,7 +318,7 @@ async def test_do_setup_passes_chat_scope_to_delegate_tool() -> None:
     mock_pool.available_backends = ["test-cli"]
     mock_pool.start_monitoring = AsyncMock()
     mock_tool = MagicMock()
-    mock_tool.name = "delegate_to_agent_tool"
+    mock_tool.name = "invoke_acp_agent_tool"
     mock_registry = MagicMock()
     mock_registry.acquire = AsyncMock(return_value=mock_pool)
 
@@ -343,7 +343,7 @@ async def test_do_setup_passes_chat_scope_to_delegate_tool() -> None:
         tools: list[object] = []
         await mixin._do_setup_external_agents(
             tools,
-            mount_delegate_tool=True,
+            mount_invoke_acp_agent_tool=True,
             delegate_cwd="/workspace/chat-scope-1",
         )
 

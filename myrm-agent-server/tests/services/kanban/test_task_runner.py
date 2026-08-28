@@ -544,7 +544,11 @@ class TestResolveRunOutcome:
 
     @pytest.mark.asyncio
     async def test_blocked_task_returns_failure(self) -> None:
-        from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+        from myrm_agent_harness.toolkits.kanban.types import (
+            TaskExecutionOutcome,
+            TaskExecutionResult,
+            TaskStatus,
+        )
 
         task = KanbanTask(
             task_id="t-block",
@@ -557,10 +561,11 @@ class TestResolveRunOutcome:
         mock_store.get_task.return_value = task
         runner = KanbanTaskRunner(mock_store)
 
-        ok, msg = await runner._resolve_run_outcome("t-block", (True, "ignored"))
+        outcome = await runner._resolve_run_outcome("t-block", (True, "ignored"))
 
-        assert ok is False
-        assert msg == "Need API key"
+        assert isinstance(outcome, TaskExecutionResult)
+        assert outcome.outcome == TaskExecutionOutcome.BLOCKED
+        assert outcome.message == "Need API key"
 
     @pytest.mark.asyncio
     async def test_completion_intent_returns_summary(self) -> None:

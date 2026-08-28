@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - ExternalAgentsMixin: 外部 Agent 初始化与直接委托流式执行的 Mixin
-- should_mount_delegate_tool(): direct-only 路径是否跳过 delegate_to_agent 挂载
+- should_mount_invoke_acp_agent_tool(): direct-only 路径是否跳过 invoke_acp_agent_tool 挂载
 - needs_runtime_pool(): factory 是否 eager 初始化 RuntimePool（与 stream lazy path 对齐）
 - BUILTIN_CLI_VISUAL_AGENT_ID: CLI Visual 内置 Agent 标识
 - chat scope 路径：ChatRuntimePoolRegistry + ChatScopedRuntimePoolFacade 接线
@@ -48,7 +48,7 @@ _resolve_external_agent_cfgs = _runtime_cfg_helpers._resolve_external_agent_cfgs
 _register_backends_on_pool = _runtime_cfg_helpers._register_backends_on_pool
 
 
-def should_mount_delegate_tool(*, agent_id: str | None, force_delegate_agent: str | None) -> bool:
+def should_mount_invoke_acp_agent_tool(*, agent_id: str | None, force_delegate_agent: str | None) -> bool:
     """Return False when direct-delegate routing makes the LLM tool redundant."""
     if force_delegate_agent:
         return False
@@ -105,27 +105,27 @@ class ExternalAgentsMixin:
         self,
         tools: list[object],
         *,
-        mount_delegate_tool: bool | None = None,
+        mount_invoke_acp_agent_tool: bool | None = None,
         delegate_cwd: str | None = None,
     ) -> None:
         """Set up external agent delegation via RuntimePool.
 
         Parses external_agents_config (from UserConfig 'externalAgents'),
         registers each enabled agent as a RuntimeBackend, and optionally adds the
-        delegate_to_agent tool. In local mode, auto-discovers local CLI agents
+        invoke_acp_agent_tool tool. In local mode, auto-discovers local CLI agents
         when no explicit config is provided.
 
         Failures are caught and logged — they never block Agent initialization.
         """
-        if mount_delegate_tool is None:
-            mount_delegate_tool = should_mount_delegate_tool(
+        if mount_invoke_acp_agent_tool is None:
+            mount_invoke_acp_agent_tool = should_mount_invoke_acp_agent_tool(
                 agent_id=getattr(self, "agent_id", None),
                 force_delegate_agent=getattr(self, "force_delegate_agent", None),
             )
         try:
             await self._do_setup_external_agents(
                 tools,
-                mount_delegate_tool=mount_delegate_tool,
+                mount_invoke_acp_agent_tool=mount_invoke_acp_agent_tool,
                 delegate_cwd=delegate_cwd,
             )
         except Exception as e:
@@ -135,7 +135,7 @@ class ExternalAgentsMixin:
         self,
         tools: list[object],
         *,
-        mount_delegate_tool: bool = True,
+        mount_invoke_acp_agent_tool: bool = True,
         delegate_cwd: str | None = None,
     ) -> None:
         agent_cfgs = await _resolve_external_agent_cfgs(self.external_agents_config)
@@ -176,7 +176,7 @@ class ExternalAgentsMixin:
         if pool.available_backends:
             self._runtime_pool = pool
 
-            if mount_delegate_tool:
+            if mount_invoke_acp_agent_tool:
                 from myrm_agent_harness.toolkits import create_invoke_acp_agent_tool
 
                 chat_scope = _runtime_pool_scope_id(self)
@@ -206,7 +206,7 @@ class ExternalAgentsMixin:
             return
         try:
             tools: list[object] = []
-            await self._do_setup_external_agents(tools, mount_delegate_tool=False)
+            await self._do_setup_external_agents(tools, mount_invoke_acp_agent_tool=False)
         except Exception as e:
             logger.warning("RuntimePool init for direct delegate failed: %s", e)
 

@@ -206,10 +206,10 @@ async def build_general_agent(
 
     from app.ai_agents.general_agent.external_agents import (
         needs_runtime_pool,
-        should_mount_delegate_tool,
+        should_mount_invoke_acp_agent_tool,
     )
 
-    mount_delegate_tool = agent_wrapper.enable_external_cli and should_mount_delegate_tool(
+    mount_invoke_acp_agent_tool = agent_wrapper.enable_external_cli and should_mount_invoke_acp_agent_tool(
         agent_id=agent_wrapper.agent_id,
         force_delegate_agent=agent_wrapper.force_delegate_agent,
     )
@@ -221,7 +221,7 @@ async def build_general_agent(
     ):
         await agent_wrapper._setup_external_agents(
             tools,
-            mount_delegate_tool=mount_delegate_tool,
+            mount_invoke_acp_agent_tool=mount_invoke_acp_agent_tool,
             delegate_cwd=str(workspace_root) if workspace_root else None,
         )
 

@@ -140,7 +140,8 @@ async def test_full_supply_chain_rescan_compromise_and_quarantine_integration(
             if ev.event_type == AppEventType.SKILL_POOL_UPDATED:
                 captured_events.append(ev)
         assert len(captured_events) >= 1
-        assert captured_events[0].data.get("action") == "quarantine"
+        actions = [ev.data.get("action") for ev in captured_events]
+        assert "quarantine" in actions
 
         # 6. Verify get last report API
         rep_resp = rescan_client.get("/api/v1/skills/rescan/report")

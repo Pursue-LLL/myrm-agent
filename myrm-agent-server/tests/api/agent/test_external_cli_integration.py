@@ -63,14 +63,14 @@ def _external_cli_payload(chat_id: str, *, include_external_cli: bool) -> dict[s
 def test_agent_stream_external_cli_off_excludes_delegate_tool(
     client: TestClient,
 ) -> None:
-    """Writer-style profile without external_cli must not mount delegate_to_agent_tool Turn1."""
+    """Writer-style profile without external_cli must not mount invoke_acp_agent_tool Turn1."""
     chat_id = f"test_ext_cli_off_{uuid.uuid4().hex[:8]}"
     events = _collect_agent_stream(client, _external_cli_payload(chat_id, include_external_cli=False))
     check_e2e_errors(events)
 
     tool_names = _tool_names_from_snapshot(events)
     if tool_names:
-        assert "delegate_to_agent_tool" not in tool_names
+        assert "invoke_acp_agent_tool" not in tool_names
 
 
 @pytest.mark.e2e
@@ -81,14 +81,14 @@ def test_agent_stream_external_cli_off_excludes_delegate_tool(
 def test_agent_stream_external_cli_on_mounts_delegate_when_backends_exist(
     client: TestClient,
 ) -> None:
-    """external_cli ON + resolvable CLI backends must expose delegate_to_agent_tool Turn1."""
+    """external_cli ON + resolvable CLI backends must expose invoke_acp_agent_tool Turn1."""
     chat_id = f"test_ext_cli_on_{uuid.uuid4().hex[:8]}"
     events = _collect_agent_stream(client, _external_cli_payload(chat_id, include_external_cli=True))
     check_e2e_errors(events)
 
     tool_names = _tool_names_from_snapshot(events)
     if tool_names:
-        assert "delegate_to_agent_tool" in tool_names
+        assert "invoke_acp_agent_tool" in tool_names
 
 
 @pytest.mark.e2e
@@ -106,4 +106,4 @@ def test_agent_stream_external_cli_on_skips_delegate_without_backends(
 
     tool_names = _tool_names_from_snapshot(events)
     if tool_names:
-        assert "delegate_to_agent_tool" not in tool_names
+        assert "invoke_acp_agent_tool" not in tool_names

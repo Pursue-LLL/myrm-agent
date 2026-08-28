@@ -21,7 +21,7 @@ disallowed_tools:
   - file_edit_tool
   - skill_manage_tool
   - skill_market_tool
-  - delegate_to_agent_tool
+  - invoke_acp_agent_tool
 
 system_prompt: |
   You are an independent adversarial reviewer. Your sole purpose is to find defects.

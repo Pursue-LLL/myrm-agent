@@ -16,7 +16,7 @@ tools:
   - file_edit_tool
   - grep_tool
   - glob_tool
-  - delegate_to_agent_tool
+  - invoke_acp_agent_tool
 
 disallowed_tools:
   - skill_manage_tool

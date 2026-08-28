@@ -16,6 +16,7 @@ ORCHESTRATOR_TOOL_NAMES = frozenset(
         "kanban_unblock",
         "kanban_cancel_task",
         "kanban_retry_task",
+        "kanban_revise_plan",
     }
 )
 
@@ -75,7 +76,7 @@ async def test_setup_kanban_tools_chat_binds_three_orchestrator_tools(
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 5
+    assert len(tools) == 6
     assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
 
 

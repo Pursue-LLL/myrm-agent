@@ -2,7 +2,7 @@
 
 [INPUT] app.config.deploy_mode::is_local_mode (POS: LOCAL/TAURI vs SANDBOX deploy gate)
 [OUTPUT] is_external_cli_deploy_supported: whether external_cli may stay enabled for current deploy
-[POS] Product deploy gate for delegate_to_agent — cloud sandboxes cannot spawn host CLI processes.
+[POS] Product deploy gate for invoke_acp_agent_tool — cloud sandboxes cannot spawn host CLI processes.
 """
 
 from __future__ import annotations

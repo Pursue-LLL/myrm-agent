@@ -15,7 +15,7 @@
         "title": "외부 에이전트",
         "description": "작업 위임을 위한 외부 AI 에이전트(예: Claude Code, Codex CLI) 구성.",
         "empty": "구성된 외부 에이전트가 없습니다",
-        "agentToggleHint": "delegate_to_agent 를 호출해야 하는 에이전트는 에이전트 → 내장 도구 아래의 외부 CLI 도 켜세요.",
+        "agentToggleHint": "invoke_acp_agent_tool 를 호출해야 하는 에이전트는 에이전트 → 내장 도구 아래의 외부 CLI 도 켜세요.",
         "tauriAutoDetect": "Tauri 모드에서는 로컬에 설치된 CLI 에이전트가 자동으로 감지됩니다.",
         "add": "에이전트 추가",
         "edit": "편집",

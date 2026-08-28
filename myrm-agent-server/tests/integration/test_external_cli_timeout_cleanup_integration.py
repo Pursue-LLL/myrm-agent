@@ -59,7 +59,7 @@ async def test_real_cli_timeout_terminates_process_and_pool_reusable() -> None:
     """A timed-out turn must kill the spawned process and keep the pool alive."""
     chat_id = "live-int-timeout-cleanup"
     mixin = _new_mixin(chat_scope_id=chat_id)
-    await mixin._do_setup_external_agents([], mount_delegate_tool=False)
+    await mixin._do_setup_external_agents([], mount_invoke_acp_agent_tool=False)
 
     pool = mixin._runtime_pool
     assert isinstance(pool, ChatScopedRuntimePoolFacade)
@@ -78,7 +78,7 @@ async def test_real_cli_timeout_terminates_process_and_pool_reusable() -> None:
 
     # The same pool stays registered for the chat and spawns a fresh process.
     mixin_b = _new_mixin(chat_scope_id=chat_id)
-    await mixin_b._do_setup_external_agents([], mount_delegate_tool=False)
+    await mixin_b._do_setup_external_agents([], mount_invoke_acp_agent_tool=False)
     assert isinstance(mixin_b._runtime_pool, ChatScopedRuntimePoolFacade)
     assert mixin_b._runtime_pool._pool is raw_pool
 
