@@ -12728,11 +12728,11 @@
     "modelService": {
       "title": "Modellservice",
       "opencodeContributor": {
-        "badge": "OpenCode-Beitragender",
-        "providerSummary": "Kostenloses Modellkontingent für aktive Beitragende zu Open-Source-Coding-Ökosystemen.",
-        "modelSummary": "Dedizierter Kontingentzugriff über die OpenCode-Beitragenden-Stufe.",
-        "stepEnableConsent": "Stellen Sie sicher, dass die Einwilligung zur Telemetrieerfassung in den Anbietereinstellungen aktiviert ist.",
-        "stepOrUseStandard": "Konfigurieren Sie alternativ standardmäßige direkte API-Schlüssel, falls das Kontingent erschöpft ist."
+        "badge": "OpenCode-Mitwirkender",
+        "providerSummary": "Kostenloses Modellkontingent für aktive Mitwirkende im Open-Source-Coding-Ökosystem.",
+        "modelSummary": "Dedizierter Kontingentzugriff über die OpenCode-Mitwirkendenstufe.",
+        "stepEnableConsent": "Stellen Sie sicher, dass die Einwilligung zur Beitrags-Telemetrie in den Provider-Einstellungen aktiviert ist.",
+        "stepOrUseStandard": "Alternativ können Sie standardmäßige direkte API-Schlüssel konfigurieren, falls das Kontingent erschöpft ist."
       },
       "description": "Modellanbieter und API-Schlüssel konfigurieren",
       "addProvider": "Anbieter hinzufügen",
