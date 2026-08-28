@@ -25,6 +25,8 @@ import useProviderStore from '@/store/useProviderStore';
 import { checkModelReachability, ReachabilityResult } from '@/services/llm-config';
 import { BatchMigrateDialog } from './BatchMigrateDialog';
 import { Settings } from 'lucide-react';
+import OpenCodeContributorNotice from './OpenCodeContributorNotice';
+import { providerHasEnabledContributorModel } from './opencode-contributor-utils';
 
 interface ModelInfo {
   name: string;
@@ -421,6 +423,11 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
           </div>
         )}
       </div>
+
+      {provider.id === 'opencode_go' &&
+        providerHasEnabledContributorModel(provider.id, provider.enabledModels) && (
+          <OpenCodeContributorNotice variant="provider" />
+        )}
 
       {/* 模型管理 */}
       <div className="space-y-4">

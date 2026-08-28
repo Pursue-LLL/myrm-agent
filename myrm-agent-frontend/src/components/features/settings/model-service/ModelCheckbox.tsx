@@ -13,6 +13,8 @@ import { hasModelsDevSupport } from '@/services/models-dev';
 import { AddModelInput } from './AddModelInput';
 import { InlineModelInfo } from './InlineModelInfo';
 import { useModelCheckbox } from '@/hooks/ui/useModelCheckbox';
+import OpenCodeContributorNotice from './OpenCodeContributorNotice';
+import { isMuseSparkContributorModel } from './opencode-contributor-utils';
 
 interface ModelInfoItem {
   name: string;
@@ -117,6 +119,11 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
                       >
                         {model.name}
                       </span>
+                      {isMuseSparkContributorModel(model.name) && (
+                        <span className="flex-shrink-0 rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                          {t('opencodeContributor.badge')}
+                        </span>
+                      )}
                       {/* 验证状态指示器 */}
                       {status && (
                         <div
@@ -172,6 +179,9 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
                   </div>
 
                   {/* 第二行：模型信息 */}
+                  {isMuseSparkContributorModel(model.name) && model.isEnabled && (
+                    <OpenCodeContributorNotice variant="model" />
+                  )}
                   <InlineModelInfo providerId={providerId} modelName={model.name} isEnabled={model.isEnabled} />
                 </div>
               );

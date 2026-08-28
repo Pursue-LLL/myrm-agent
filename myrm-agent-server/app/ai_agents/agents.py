@@ -161,7 +161,7 @@ class GeneralAgentParams(BaseAgentParams):
     declared_capabilities: tuple[str, ...] = ()
     declared_allowed_roots: tuple[str, ...] = ()
     external_agents_config: list[dict[str, object]] | None = None
-    force_delegate_agent: str | None = None
+    force_external_agent: str | None = None
     image_generation: ImageGenerationParams | None = None
     video_generation: VideoGenerationParams | None = None
     tts: TTSParams | None = None
@@ -336,7 +336,7 @@ class AgentFactory:
             declared_capabilities=params.declared_capabilities,
             declared_allowed_roots=params.declared_allowed_roots,
             external_agents_config=params.external_agents_config,
-            force_delegate_agent=params.force_delegate_agent,
+            force_external_agent=params.force_external_agent,
             image_generation_params=params.image_generation,
             video_generation_params=params.video_generation,
             tts_params=params.tts,

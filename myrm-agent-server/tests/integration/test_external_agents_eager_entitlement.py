@@ -33,7 +33,7 @@ async def test_invoke_acp_agent_tool_mounts_in_tools_not_deferred() -> None:
     ]
     mixin.chat_id = "chat-1"
     mixin.agent_id = "general"
-    mixin.force_delegate_agent = None
+    mixin.force_external_agent = None
     mixin._runtime_pool_scope_id = "chat-1"
 
     tools: list[object] = []
@@ -80,7 +80,7 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
     ]
     mixin.chat_id = "chat-1"
     mixin.agent_id = "builtin-cli_visual"
-    mixin.force_delegate_agent = None
+    mixin.force_external_agent = None
     mixin._runtime_pool_scope_id = "chat-1"
 
     tools: list[object] = []
@@ -117,9 +117,9 @@ def test_should_mount_invoke_acp_agent_tool_matrix() -> None:
         should_mount_invoke_acp_agent_tool,
     )
 
-    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_delegate_agent=None) is True
-    assert should_mount_invoke_acp_agent_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_delegate_agent=None) is False
-    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_delegate_agent="claude") is False
+    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_external_agent=None) is True
+    assert should_mount_invoke_acp_agent_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_external_agent=None) is False
+    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_external_agent="claude") is False
 
 
 def test_needs_runtime_pool_matrix() -> None:
@@ -132,7 +132,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=False,
             agent_id="builtin-writer",
-            force_delegate_agent=None,
+            force_external_agent=None,
         )
         is False
     )
@@ -140,7 +140,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=True,
             agent_id="builtin-developer",
-            force_delegate_agent=None,
+            force_external_agent=None,
         )
         is True
     )
@@ -148,7 +148,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=False,
             agent_id=BUILTIN_CLI_VISUAL_AGENT_ID,
-            force_delegate_agent=None,
+            force_external_agent=None,
         )
         is True
     )
@@ -156,7 +156,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=False,
             agent_id="builtin-writer",
-            force_delegate_agent="claude",
+            force_external_agent="claude",
         )
         is True
     )
@@ -177,7 +177,7 @@ async def test_factory_gate_skips_setup_when_external_cli_off() -> None:
     if needs_runtime_pool(
         enable_external_cli=False,
         agent_id="builtin-writer",
-        force_delegate_agent=None,
+        force_external_agent=None,
     ):
         await mixin._setup_external_agents([], [], mount_invoke_acp_agent_tool=False)
 
@@ -200,7 +200,7 @@ async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
     ]
     mixin.chat_id = "chat-hr"
     mixin.agent_id = "builtin-hr"
-    mixin.force_delegate_agent = None
+    mixin.force_external_agent = None
     mixin._runtime_pool_scope_id = "chat-hr"
 
     tools: list[object] = []

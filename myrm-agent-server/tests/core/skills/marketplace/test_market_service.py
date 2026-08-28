@@ -177,7 +177,7 @@ async def test_install_forwards_without_progress_callback() -> None:
         res = await service.install("skill-1", "github")
 
     assert res is result
-    mock_base.install.assert_awaited_once_with("skill-1", "github")
+    mock_base.install.assert_awaited_once_with("skill-1", "github", allow_downgrade=False)
     # 不得把 progress_callback 作为额外 kwargs 传给底层（删除 SSE 进度发布后不再透传）。
     call_kwargs = mock_base.install.await_args.kwargs
     assert "progress_callback" not in call_kwargs
@@ -193,7 +193,7 @@ async def test_install_from_url_forwards_without_progress_callback() -> None:
         res = await service.install_from_url("https://github.com/test/repo")
 
     assert res is result
-    mock_base.install_from_url.assert_awaited_once_with("https://github.com/test/repo")
+    mock_base.install_from_url.assert_awaited_once_with("https://github.com/test/repo", allow_downgrade=False)
     call_kwargs = mock_base.install_from_url.await_args.kwargs
     assert "progress_callback" not in call_kwargs
 

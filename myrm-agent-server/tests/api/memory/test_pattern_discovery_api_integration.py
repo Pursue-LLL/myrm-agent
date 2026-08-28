@@ -6,7 +6,7 @@ Covers the full request chain for ``POST /trigger-pattern-discovery`` and
 - POST follows the real router -> memory_guardian delegate ->
   ``pattern_discovery_trigger.run_pattern_discovery_once`` chain.
 - WebUI default model is not configured in the test DB, so the real
-  ``build_platform_litellm_kwargs`` fast-path ends in a graceful skip —
+  ``load_platform_llm`` fast-path ends in a graceful skip —
   this is the exact behavior that revived the previously dead feature path.
 - With an injected harness result, the real ledger write is persisted and
   read back through ``GET /pattern-discoveries`` with a user-readable,
@@ -105,7 +105,7 @@ def test_trigger_pattern_discovery_skips_gracefully_without_platform_model(clien
     """POST follows the real chain; no platform model -> graceful skipped result.
 
     Critical path is unmocked: the route, delegate, LLM construction from
-    ``build_platform_litellm_kwargs`` and the empty config DB read are all real.
+    ``load_platform_llm`` and the empty config DB read are all real.
     """
     response = client.post("/api/v1/memory/guardian/trigger-pattern-discovery")
 

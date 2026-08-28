@@ -279,7 +279,7 @@ def test_execution_fingerprint_changes_when_force_delegate_changes() -> None:
         mcp_config=None,
     )
     none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.force_delegate_agent = "researcher"
+    wrapper.force_external_agent = "researcher"
     delegated_fp = compute_execution_fingerprint(wrapper)
     assert none_fp != delegated_fp
 

@@ -147,6 +147,7 @@ def _model_sig(model_cfg: ModelConfig | None) -> dict[str, object] | None:
         ),
         "temperature": model_cfg.temperature,
         "credential_pool_strategy": model_cfg.credential_pool_strategy,
+        "wire_protocol": model_cfg.wire_protocol,
     }
 
 
@@ -252,7 +253,7 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "providers_dict": _credential_free_json(agent_wrapper.providers_dict),
         "privacy_routing_raw": _credential_free_json(agent_wrapper.privacy_routing_raw),
         "jit_subagents": _stable_json(agent_wrapper.jit_subagents),
-        "force_delegate_agent": agent_wrapper.force_delegate_agent,
+        "force_external_agent": agent_wrapper.force_external_agent,
         # Org model policy revision busts POOLED cache after CP sandbox sync.
         "org_model_policy_revision": get_org_model_policy_revision(),
     }

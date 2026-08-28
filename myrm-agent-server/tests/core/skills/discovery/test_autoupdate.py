@@ -134,7 +134,7 @@ async def test_update_skill_delegates_to_quarantine_install() -> None:
         checker = SkillAutoUpdateChecker()
         await checker.update_skill(info, "user-1")
 
-    mock_install.assert_awaited_once_with(skill_id="id-a", source="github")
+    mock_install.assert_awaited_once_with(skill_id="id-a", source="github", allow_downgrade=False)
 
 
 def test_get_update_checker_singleton() -> None:

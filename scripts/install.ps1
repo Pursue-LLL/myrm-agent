@@ -130,7 +130,7 @@ function Verify-HarnessInstall {
     if (-not (Test-Path $py)) {
         throw "Missing $py after uv sync."
     }
-    & $py -c "from myrm_agent_harness.distribution.probe import assert_distribution_ready; assert_distribution_ready()"
+    & $py -c "from myrm_agent_harness.runtime.install_guard.probe import assert_distribution_ready; assert_distribution_ready()"
     if ($LASTEXITCODE -ne 0) {
         throw @"
 Harness distribution check failed / Harness 分发校验失败.

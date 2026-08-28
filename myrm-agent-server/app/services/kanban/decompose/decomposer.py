@@ -1,7 +1,7 @@
 """Kanban Task Decomposer — TRIAGE → child task graph via WebUI LLM.
 
 Implements the ``TaskDecomposer`` Protocol from the harness layer using the
-platform's WebUI-configured LiteLLM model.  Mirrors the design of
+platform's WebUI-configured wire-aware chat model via ``load_platform_llm``.  Mirrors the design of
 ``specify.specifier``: CJK-aware prompts, lenient JSON parsing, never-raise
 contract.
 
@@ -10,11 +10,10 @@ contract.
     DecomposeChildSpec (POS: Harness protocol for TRIAGE→child-graph.)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskStatus
 - app.services.kanban.llm_utils (POS: Shared LLM helpers.)
-- app.services.agent.platform_config::build_platform_litellm_kwargs
-- app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+- app.services.agent.platform_config::load_platform_llm
 
 [OUTPUT]
-- PlatformTaskDecomposer: Concrete TaskDecomposer using LiteLLM + WebUI config.
+- PlatformTaskDecomposer: Concrete TaskDecomposer using WebUI default model via load_platform_llm.
 
 [POS]
 Server-layer TaskDecomposer that bridges TRIAGE decomposition to the platform LLM.
@@ -30,7 +29,6 @@ from myrm_agent_harness.toolkits.kanban.protocols import (
 )
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
-from app.core.utils.chat_utils import extract_litellm_answer_text
 from app.services.kanban.decompose.prompts import (
     SYSTEM_PROMPT_EN,
     SYSTEM_PROMPT_ZH,
@@ -38,7 +36,7 @@ from app.services.kanban.decompose.prompts import (
 )
 from app.services.kanban.llm_utils import (
     extract_json_blob,
-    extract_usage,
+    extract_langchain_usage,
     has_cjk,
     truncate,
 )
@@ -116,9 +114,11 @@ class PlatformTaskDecomposer:
             )
 
         try:
-            from app.services.agent.platform_config import build_platform_litellm_kwargs
+            from langchain_core.messages import HumanMessage, SystemMessage
 
-            llm_kwargs = await build_platform_litellm_kwargs()
+            from app.services.agent.platform_config import load_platform_llm
+
+            llm = await load_platform_llm(streaming=False, temperature=self._temperature)
         except Exception as exc:
             logger.info("decompose: platform LLM unavailable for %s: %s", task.task_id[:8], exc)
             return DecomposeOutcome(
@@ -137,17 +137,8 @@ class PlatformTaskDecomposer:
         )
 
         try:
-            import litellm
-
-            response = await litellm.acompletion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_msg},
-                ],
-                temperature=self._temperature,
-                max_tokens=self._max_tokens,
-                timeout=self._timeout_seconds,
-                **llm_kwargs,
+            response = await llm.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=user_msg)],
             )
         except Exception as exc:
             logger.info("decompose: LLM call failed for %s: %s", task.task_id[:8], exc)
@@ -157,11 +148,10 @@ class PlatformTaskDecomposer:
                 reason=f"llm_error:{type(exc).__name__}",
             )
 
-        prompt_tokens, completion_tokens = extract_usage(response)
+        prompt_tokens, completion_tokens = extract_langchain_usage(response)
 
         try:
-            # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-            raw = extract_litellm_answer_text(response).strip()
+            raw = str(response.content or "").strip()
         except Exception:
             raw = ""
 

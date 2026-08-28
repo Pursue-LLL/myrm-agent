@@ -3,7 +3,7 @@
 [INPUT]
 app.api.dependencies::get_deploy_identity (POS: 全局依赖注入)
 app.core.channel_bridge.config_loader (POS: 用户模型配置加载)
-app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+app.core.utils.chat_utils::extract_answer_text (POS: LangChain 响应文本提取，含 reasoning 回退)
 app.database.connection::get_db (POS: 数据库会话工厂)
 app.database.models::Chat, Message (POS: 数据库 ORM 模型)
 app.services.companion.pet_store (POS: on-disk Petdex install store)
@@ -27,11 +27,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from langchain_core.messages import HumanMessage, SystemMessage
+
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_parsers import extract_lite_model_config
-from app.core.utils.chat_utils import extract_litellm_answer_text
+from app.core.utils.chat_utils import extract_answer_text
 from app.database.connection import get_db
 from app.database.models import Chat, Message
+from app.services.agent.platform_config import load_llm_from_model_config
 
 logger = logging.getLogger(__name__)
 
@@ -99,22 +102,21 @@ async def companion_react(
     if req.isBirthday:
         system_msg += " Today is your birthday — you're extra excited!"
 
-    try:
-        import litellm
+    model_kwargs = dict(model_cfg.model_kwargs or {})
+    model_kwargs["max_tokens"] = _MAX_REACTION_TOKENS
+    invoke_cfg = model_cfg.model_copy(
+        update={"temperature": 0.9, "model_kwargs": model_kwargs},
+    )
 
-        response = await litellm.acompletion(
-            model=model_cfg.model,
-            api_key=model_cfg.api_key,
-            base_url=model_cfg.base_url,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": f"Assistant said: {req.snippet}"},
+    try:
+        llm = await load_llm_from_model_config(invoke_cfg, streaming=False)
+        response = await llm.ainvoke(
+            [
+                SystemMessage(content=system_msg),
+                HumanMessage(content=f"Assistant said: {req.snippet}"),
             ],
-            max_tokens=_MAX_REACTION_TOKENS,
-            temperature=0.9,
         )
-        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-        text = extract_litellm_answer_text(response).strip().strip('"').strip("'")
+        text = extract_answer_text(response).strip().strip('"').strip("'")
         reaction = text.strip()
         if not reaction:
             raise HTTPException(status_code=204, detail="Empty reaction")

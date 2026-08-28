@@ -48,7 +48,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | `query_ops.py` | ✅ 核心 | Store 只读查询（含 `source_chat_id` / `project_id` 过滤）与 user comment | ❌ |
 | `kanban_attach_handler.py` | ✅ 核心 | Worker `kanban_attach` 回调：workspace 路径（相对路径与 `/workspace/...` 抽象路径按 resolve_workspace 基准解析，适配 worktree 隔离）+ HTTPS URL（SSRF guard）→ files vault + task attachment_ids | ✅ |
 | `decompose/` | ✅ 子包 | 分解域（聚合出口见其 `__init__.py`） | - |
-| ├─ `decomposer.py` | ✅ 核心 | PlatformTaskDecomposer（LiteLLM + WebUI config） | ✅ |
+| ├─ `decomposer.py` | ✅ 核心 | PlatformTaskDecomposer（`load_platform_llm` + WebUI config） | ✅ |
 | └─ `orchestrator.py` | ✅ 核心 | TRIAGE→子任务图编排；子任务继承父任务 `source_chat_id` 与 `model_override`，不继承 `require_approval`（审批门禁作用于聚合交付物）；子任务按 body 提取 `completion_criteria` | ✅ |
 | `specify/` | ✅ 子包 | 规范化域（聚合出口见其 `__init__.py`） | - |
 | ├─ `specifier.py` | ✅ 核心 | PlatformTaskSpecifier | ✅ |

@@ -32,6 +32,7 @@ from myrm_agent_harness.agent.config.parsers import (
     to_litellm_model,
 )
 from myrm_agent_harness.api import ConfigIncompleteError
+from app.core.wire.enrich import enrich_model_config
 
 if TYPE_CHECKING:
     from app.core.types import ModelConfig
@@ -230,13 +231,16 @@ def _fallback_model_from_providers(
                     pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
                     model_kwargs = _build_platform_headers(all_keys[0])
                     logger.debug("model_resolver: using default model %s", full_model)
-                    return ModelConfig(
-                        model=full_model,
-                        api_key=all_keys[0],
-                        base_url=api_url,
-                        api_keys=all_keys if len(all_keys) > 1 else None,
-                        credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
-                        model_kwargs=model_kwargs,
+                    return enrich_model_config(
+                        ModelConfig(
+                            model=full_model,
+                            api_key=all_keys[0],
+                            base_url=api_url,
+                            api_keys=all_keys if len(all_keys) > 1 else None,
+                            credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
+                            model_kwargs=model_kwargs,
+                        ),
+                        provider_id=pid,
                     )
 
     raise ConfigIncompleteError(
@@ -297,13 +301,16 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
         resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
         model_kwargs = _build_platform_headers(all_keys[0])
-        return ModelConfig(
-            model=resolved_model,
-            api_key=all_keys[0],
-            base_url=api_url,
-            api_keys=all_keys if len(all_keys) > 1 else None,
-            credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
-            model_kwargs=model_kwargs,
+        return enrich_model_config(
+            ModelConfig(
+                model=resolved_model,
+                api_key=all_keys[0],
+                base_url=api_url,
+                api_keys=all_keys if len(all_keys) > 1 else None,
+                credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
+                model_kwargs=model_kwargs,
+            ),
+            provider_id=pid,
         )
 
     return None

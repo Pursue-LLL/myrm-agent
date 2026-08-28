@@ -8,6 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives
 import { ProviderConfig, SingleModelSelection } from '@/store/config/providerTypes';
 import ProviderIcon from '../model-service/ProviderIcon';
 import CapabilityIcons from '@/components/features/app-shell/capability-icons';
+import OpenCodeContributorNotice from '../model-service/OpenCodeContributorNotice';
+import { shouldShowContributorNotice } from '../model-service/opencode-contributor-utils';
 import { fetchModelCapabilitiesBatch, type ModelCapabilities } from '@/services/llm-config';
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import useProviderStore from '@/store/useProviderStore';
@@ -131,6 +133,8 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
       setSearch('');
     };
 
+    const showContributorNotice = shouldShowContributorNotice(value);
+
     return (
       <div className="space-y-3">
         <label className="text-sm font-medium text-foreground block">{label}</label>
@@ -227,6 +231,7 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
             </div>
           </PopoverContent>
         </Popover>
+        {showContributorNotice && <OpenCodeContributorNotice variant="model" />}
       </div>
     );
   },

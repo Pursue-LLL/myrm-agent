@@ -51,7 +51,8 @@ class TestApplySessionPreset:
         assert result["permissions"]["file_write"] == "deny"
         assert result["permissions"]["file_edit"] == "deny"
         assert result["permissions"]["shell_exec"] == "deny"
-        assert result["permissions"]["delegate_agent"] == "allow"
+        assert result["permissions"]["spawn_subagent"] == "allow"
+        assert result["permissions"]["invoke_external_agent"] == "deny"
         assert "autoModeEnabled" not in result
 
     def test_base_none_with_accept_edits_creates_new_dict(self) -> None:
@@ -110,7 +111,8 @@ class TestPresetOverlaysStructure:
         permissions = overlay["permissions"]
         assert isinstance(permissions, dict)
         assert permissions["*"] == "allow"
-        assert permissions["delegate_agent"] == "allow"
+        assert permissions["spawn_subagent"] == "allow"
+        assert permissions["invoke_external_agent"] == "deny"
 
     def test_explore_overlay_does_not_enable_auto_mode(self) -> None:
         overlay = _PRESET_OVERLAYS["explore"]

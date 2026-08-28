@@ -55,30 +55,21 @@ def _make_report(*, skipped: bool = False, pattern_count: int = 1, no_patterns: 
 class TestBuildPlatformLLM:
     @pytest.mark.asyncio
     async def test_returns_chat_model_when_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        mock_llm = MagicMock()
         monkeypatch.setattr(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            AsyncMock(
-                return_value={
-                    "model": "gpt-4o",
-                    "api_key": "sk-test",
-                    "api_base": "https://api.test.com",
-                }
-            ),
+            "app.services.agent.platform_config.load_platform_llm",
+            AsyncMock(return_value=mock_llm),
         )
 
         llm = await pattern_discovery_trigger._build_platform_llm()
 
-        assert llm is not None
-        assert llm.model == "gpt-4o"
-        assert llm.api_key == "sk-test"
-        assert llm.api_base == "https://api.test.com"
-        assert llm.temperature == 0
+        assert llm is mock_llm
 
     @pytest.mark.asyncio
     async def test_returns_none_when_model_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            AsyncMock(return_value={"model": "", "api_key": "sk-test"}),
+            "app.services.agent.platform_config.load_platform_llm",
+            AsyncMock(side_effect=RuntimeError("no model configured")),
         )
 
         llm = await pattern_discovery_trigger._build_platform_llm()
@@ -88,8 +79,8 @@ class TestBuildPlatformLLM:
     @pytest.mark.asyncio
     async def test_returns_none_when_api_key_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            AsyncMock(return_value={"model": "gpt-4o", "api_key": ""}),
+            "app.services.agent.platform_config.load_platform_llm",
+            AsyncMock(side_effect=RuntimeError("missing api key")),
         )
 
         llm = await pattern_discovery_trigger._build_platform_llm()
@@ -98,11 +89,11 @@ class TestBuildPlatformLLM:
 
     @pytest.mark.asyncio
     async def test_returns_none_when_config_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def _raise() -> dict[str, object]:
+        async def _raise() -> MagicMock:
             raise RuntimeError("config incomplete")
 
         monkeypatch.setattr(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            "app.services.agent.platform_config.load_platform_llm",
             _raise,
         )
 

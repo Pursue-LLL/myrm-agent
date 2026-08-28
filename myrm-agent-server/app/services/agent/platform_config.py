@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - load_platform_model_config: WebUI 默认 LLM ModelConfig
-- build_platform_litellm_kwargs: LiteLLM 调用参数（无 env fallback）
+- load_llm_from_model_config: wire-aware ChatLiteLLM for any enriched ModelConfig
+- load_platform_llm: WebUI default model via load_llm_from_model_config
 - webui_model_preflight_warning: local/tauri 启动前 WebUI 模型缺失 warning（不阻塞）
 - resolve_xai_search_config: 从 providers 解析 xAI 凭据
 - require_platform_embedding_config: WebUI 检索设置中 embedding 配置结构检查（缺失即抛 ConfigIncompleteError）
@@ -22,10 +23,14 @@ import logging
 import os
 import sqlite3
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api.config import ConfigIncompleteError
 
 from app.core.types import ModelConfig
+
+if TYPE_CHECKING:
+    from langchain_core.language_models.chat_models import BaseChatModel
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +56,36 @@ async def load_platform_model_config() -> ModelConfig:
 
     configs = await load_user_configs()
     return configs.model_cfg
+
+
+async def load_llm_from_model_config(
+    cfg: ModelConfig,
+    *,
+    streaming: bool = False,
+    temperature: float | None = None,
+) -> "BaseChatModel":
+    """Build a wire-aware ChatLiteLLM from an enriched ModelConfig."""
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from myrm_agent_harness.toolkits.llms.core.manager import llm_manager
+
+    resolved = cfg
+    if temperature is not None:
+        resolved = cfg.model_copy(update={"temperature": temperature})
+    return await llm_manager.get_llm_from_config(
+        resolved,
+        streaming=streaming,
+        api_keys=getattr(resolved, "api_keys", None),
+    )
+
+
+async def load_platform_llm(
+    *,
+    streaming: bool = False,
+    temperature: float | None = None,
+) -> "BaseChatModel":
+    """WebUI default model as a wire-aware ChatLiteLLM via LLMManager."""
+    cfg = await load_platform_model_config()
+    return await load_llm_from_model_config(cfg, streaming=streaming, temperature=temperature)
 
 
 def webui_model_preflight_warning() -> str | None:
@@ -90,18 +125,6 @@ def webui_model_preflight_warning() -> str | None:
     if not api_key or not model:
         return "WebUI default model is incomplete (missing API key or model name). Configure Settings > Model Service."
     return None
-
-
-async def build_platform_litellm_kwargs() -> dict[str, object]:
-    """LiteLLM kwargs from WebUI default model (no env fallback)."""
-    cfg = await load_platform_model_config()
-    kwargs: dict[str, object] = {
-        "model": cfg.model,
-        "api_key": cfg.api_key,
-    }
-    if cfg.base_url:
-        kwargs["api_base"] = cfg.base_url
-    return kwargs
 
 
 async def load_platform_retrieval_configs() -> tuple[object | None, object | None]:

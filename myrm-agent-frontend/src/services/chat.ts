@@ -647,7 +647,7 @@ export interface StreamRequestBody {
   enable_memory_auto_extraction?: boolean;
   enable_advanced_retrieval?: boolean;
   agent_config?: AgentConfigPayload;
-  force_delegate_agent?: string;
+  force_external_agent?: string;
   privacy_enabled?: boolean;
   privacy_s2_action?: string;
   privacy_s3_action?: string;

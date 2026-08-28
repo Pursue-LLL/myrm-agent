@@ -28,6 +28,26 @@ class TestTruncate:
         assert result.endswith("\u2026")
 
 
+class TestExtractLangchainUsage:
+    def test_reads_token_usage_metadata(self) -> None:
+        from app.services.kanban.llm_utils import extract_langchain_usage
+
+        message = MagicMock()
+        message.response_metadata = {
+            "token_usage": {"prompt_tokens": 10, "completion_tokens": 20},
+        }
+        assert extract_langchain_usage(message) == (10, 20)
+
+    def test_reads_openai_style_usage_keys(self) -> None:
+        from app.services.kanban.llm_utils import extract_langchain_usage
+
+        message = MagicMock()
+        message.response_metadata = {
+            "usage": {"input_tokens": 5, "output_tokens": 7},
+        }
+        assert extract_langchain_usage(message) == (5, 7)
+
+
 class TestHasCjk:
     def test_english_only(self) -> None:
         assert has_cjk("Add a dark mode toggle") is False
@@ -93,15 +113,22 @@ def _make_triage_task(
     )
 
 
-def _make_llm_response(content: str, prompt_tokens: int = 100, completion_tokens: int = 200) -> MagicMock:
-    resp = MagicMock()
-    resp.choices = [MagicMock()]
-    resp.choices[0].message.content = content
-    usage = MagicMock()
-    usage.prompt_tokens = prompt_tokens
-    usage.completion_tokens = completion_tokens
-    resp.usage = usage
-    return resp
+def _mock_platform_llm(
+    content: str,
+    prompt_tokens: int = 100,
+    completion_tokens: int = 200,
+) -> MagicMock:
+    llm = MagicMock()
+    response = MagicMock()
+    response.content = content
+    response.response_metadata = {
+        "token_usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }
+    }
+    llm.ainvoke = AsyncMock(return_value=response)
+    return llm
 
 
 @pytest.mark.asyncio
@@ -123,7 +150,7 @@ async def test_specify_returns_unavailable_when_kwargs_fail() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
     with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
         side_effect=RuntimeError("no config"),
     ):
@@ -136,16 +163,11 @@ async def test_specify_returns_unavailable_when_kwargs_fail() -> None:
 async def test_specify_parses_valid_json_response() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
-    llm_resp = _make_llm_response(
-        '{"title": "Implement dark mode toggle", "body": "**Goal** Dark mode support"}',
-    )
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    content = '{"title": "Implement dark mode toggle", "body": "**Goal** Dark mode support"}'
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(content),
     ):
         outcome = await specifier.specify(task)
 
@@ -161,35 +183,28 @@ async def test_specify_parses_valid_json_response() -> None:
 async def test_specify_fallback_when_json_parse_fails() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
-    llm_resp = _make_llm_response("This is just plain text, no JSON here.")
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    plain = "This is just plain text, no JSON here."
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(plain),
     ):
         outcome = await specifier.specify(task)
 
     assert outcome.ok
     assert outcome.reason == "parse_failed_fallback"
     assert outcome.new_title is None
-    assert outcome.new_body == "This is just plain text, no JSON here."
+    assert outcome.new_body == plain
 
 
 @pytest.mark.asyncio
 async def test_specify_returns_empty_response() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
-    llm_resp = _make_llm_response("")
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(""),
     ):
         outcome = await specifier.specify(task)
 
@@ -201,17 +216,12 @@ async def test_specify_returns_empty_response() -> None:
 async def test_specify_handles_llm_exception() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            side_effect=TimeoutError("timeout"),
-        ),
+    failing_llm = MagicMock()
+    failing_llm.ainvoke = AsyncMock(side_effect=TimeoutError("timeout"))
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=failing_llm,
     ):
         outcome = await specifier.specify(task)
 
@@ -224,66 +234,62 @@ async def test_specify_handles_llm_exception() -> None:
 async def test_specify_picks_cjk_prompt_for_chinese_title() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task(title="给项目加个暗黑模式")
-    llm_resp = _make_llm_response('{"title": "实现暗黑模式切换", "body": "**Goal** 支持暗黑模式"}')
+    captured_messages: list[object] = []
 
-    captured_messages: list[dict[str, str]] = []
+    async def mock_ainvoke(messages: list[object], **kwargs: object) -> MagicMock:
+        captured_messages.extend(messages)
+        response = MagicMock()
+        response.content = '{"title": "实现暗黑模式切换", "body": "**Goal** 支持暗黑模式"}'
+        response.response_metadata = {"token_usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+        return response
 
-    async def mock_acompletion(**kwargs: object) -> MagicMock:
-        captured_messages.extend(kwargs.get("messages", []))  # type: ignore[arg-type]
-        return llm_resp
-
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", side_effect=mock_acompletion),
+    mock_llm = MagicMock()
+    mock_llm.ainvoke = mock_ainvoke
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=mock_llm,
     ):
         outcome = await specifier.specify(task)
 
     assert outcome.ok
-    assert any("看板任务规范化助手" in str(m.get("content", "")) for m in captured_messages)
+    assert any("看板任务规范化助手" in str(getattr(m, "content", "")) for m in captured_messages)
 
 
 @pytest.mark.asyncio
 async def test_specify_picks_english_prompt_for_english_title() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task(title="Add dark mode toggle")
-    llm_resp = _make_llm_response('{"title": "Implement dark mode", "body": "**Goal** ..."}')
+    captured_messages: list[object] = []
 
-    captured_messages: list[dict[str, str]] = []
+    async def mock_ainvoke(messages: list[object], **kwargs: object) -> MagicMock:
+        captured_messages.extend(messages)
+        response = MagicMock()
+        response.content = '{"title": "Implement dark mode", "body": "**Goal** ..."}'
+        response.response_metadata = {"token_usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+        return response
 
-    async def mock_acompletion(**kwargs: object) -> MagicMock:
-        captured_messages.extend(kwargs.get("messages", []))  # type: ignore[arg-type]
-        return llm_resp
-
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", side_effect=mock_acompletion),
+    mock_llm = MagicMock()
+    mock_llm.ainvoke = mock_ainvoke
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=mock_llm,
     ):
         outcome = await specifier.specify(task)
 
     assert outcome.ok
-    assert any("Kanban triage specifier" in str(m.get("content", "")) for m in captured_messages)
+    assert any("Kanban triage specifier" in str(getattr(m, "content", "")) for m in captured_messages)
 
 
 @pytest.mark.asyncio
 async def test_specify_missing_title_and_body() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
-    llm_resp = _make_llm_response('{"foo": "bar"}')
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm('{"foo": "bar"}'),
     ):
         outcome = await specifier.specify(task)
 

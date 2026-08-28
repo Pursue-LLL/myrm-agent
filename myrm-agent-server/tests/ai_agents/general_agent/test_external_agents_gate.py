@@ -227,9 +227,9 @@ async def test_do_setup_returns_early_without_configs() -> None:
 
 
 def test_should_mount_invoke_acp_agent_tool_matrix() -> None:
-    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_delegate_agent=None) is True
-    assert should_mount_invoke_acp_agent_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_delegate_agent=None) is False
-    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_delegate_agent="claude") is False
+    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_external_agent=None) is True
+    assert should_mount_invoke_acp_agent_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_external_agent=None) is False
+    assert should_mount_invoke_acp_agent_tool(agent_id="general", force_external_agent="claude") is False
 
 
 def test_needs_runtime_pool_matrix() -> None:
@@ -237,7 +237,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=False,
             agent_id="builtin-writer",
-            force_delegate_agent=None,
+            force_external_agent=None,
         )
         is False
     )
@@ -245,7 +245,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=True,
             agent_id="builtin-developer",
-            force_delegate_agent=None,
+            force_external_agent=None,
         )
         is True
     )
@@ -253,7 +253,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=False,
             agent_id=BUILTIN_CLI_VISUAL_AGENT_ID,
-            force_delegate_agent=None,
+            force_external_agent=None,
         )
         is True
     )
@@ -261,7 +261,7 @@ def test_needs_runtime_pool_matrix() -> None:
         needs_runtime_pool(
             enable_external_cli=False,
             agent_id="builtin-writer",
-            force_delegate_agent="claude",
+            force_external_agent="claude",
         )
         is True
     )
@@ -294,7 +294,7 @@ async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
         await mixin._do_setup_external_agents(
             tools,
             mount_invoke_acp_agent_tool=True,
-            delegate_cwd="/workspace/root",
+            external_agent_workdir="/workspace/root",
         )
 
     assert mixin._runtime_pool_ephemeral is True
@@ -344,7 +344,7 @@ async def test_do_setup_passes_chat_scope_to_delegate_tool() -> None:
         await mixin._do_setup_external_agents(
             tools,
             mount_invoke_acp_agent_tool=True,
-            delegate_cwd="/workspace/chat-scope-1",
+            external_agent_workdir="/workspace/chat-scope-1",
         )
 
     assert tools == [mock_tool]

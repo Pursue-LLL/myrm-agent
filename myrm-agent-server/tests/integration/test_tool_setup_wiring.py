@@ -283,8 +283,8 @@ async def test_cron_tools_turn1_eager_when_enabled() -> None:
     assert len(tools) == 1
 
 
-def test_memory_search_tool_description_hides_web_corpus() -> None:
-    """Verify the Server→Harness wiring: allow_web=False (default) hides corpus=web from description."""
+def test_memory_search_tool_description_excludes_web_corpus() -> None:
+    """memory_search_tool description must not advertise a web corpus."""
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.toolkits.memory.config import MemoryConfig

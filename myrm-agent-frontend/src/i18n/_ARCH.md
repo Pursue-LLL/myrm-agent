@@ -36,6 +36,8 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 ## 约束
 
 - UI 文案禁止硬编码；使用 `useTranslations` + `locales/`
+- `locales/{lang}.json` 必须是合法 JSON；`pretest` / `build` 首步 `i18n:split` 会对 SSOT 执行 `JSON.parse`
+- Security Profile 委派权限 UI 文案键（6 语言 parity 由 `verify:i18n` 强制）：`settings.securityPolicy.permissionTypes`、`settings.securityPolicy.delegationPermissionsGuide`（含 `bindingHint` 子智能体绑定导航）
 
 ## 首屏体积（prod `next start`，2026-07-13 实测）
 

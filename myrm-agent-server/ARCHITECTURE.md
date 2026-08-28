@@ -136,7 +136,7 @@
 ### 0.05 Agent 模型凭据（WebUI only）
 
 - **HTTP 装配**：`app/services/agent/params/` 解析 `ModelSelection` 与用户 Provider 行；缺失密钥时抛出 `ConfigIncompleteError`（**禁止** `BASIC_*`/`LITE_*` 进程 env 回退）。
-- **平台默认模型**：后台 judge/embedding 等读 WebUI via `platform_config.py`；`model_resolver._fallback_model_from_providers` 仅从 `defaultModelConfig` + `providers` 解析，无 env 回退。
+- **平台默认模型**：后台 judge/embedding/Advisor/Companion 等读 WebUI via `platform_config.py`（`load_platform_llm` / `load_llm_from_model_config` wire-aware）；`model_resolver._fallback_model_from_providers` 仅从 `defaultModelConfig` + `providers` 解析，无 env 回退。OpenCode Go wire 路由见 `app/core/wire/`（muse-spark `responses` wire 默认 `reasoning.encrypted_content` include；多轮 replay 在 harness `adapters/wire/`）。
 - **启动提示**：`pre_flight.py` 在 local/tauri 下对未配置 WebUI 默认模型输出 **warning**（不阻塞启动）。
 - **前端 gate**：`messageRequest.validateChatModelConfig` 发送前拦截无 provider / 无 defaultModel；`LocalCapabilitiesBanner` / `SearchSetupChip` / Settings `SearchSection` 一键激活本地模型与免费搜索（SearXNG `:8081` / DuckDuckGo）；`GET /config/onboarding/probe-local` 统一探测；deploy `docker compose --profile search` 自动启动 SearXNG。
 

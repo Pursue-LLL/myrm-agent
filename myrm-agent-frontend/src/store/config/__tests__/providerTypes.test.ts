@@ -14,6 +14,11 @@ describe('providerTypes defaults', () => {
     expect(BUILT_IN_PROVIDER_INFO.xiaomi_mimo.defaultApiUrl).toBe('https://api.xiaomimimo.com/v1');
   });
 
+  it('uses the OpenCode Go subscription API endpoint', () => {
+    expect(BUILT_IN_PROVIDER_INFO.opencode_go.defaultApiUrl).toBe('https://opencode.ai/zen/go/v1');
+    expect(getLiteLLMModelName('opencode_go', 'deepseek-v4-flash')).toBe('openai/deepseek-v4-flash');
+  });
+
   it('seeds initial Xiaomi provider config with the same endpoint', () => {
     const xiaomiProvider = getInitialProviders().find((provider) => provider.id === 'xiaomi_mimo');
 

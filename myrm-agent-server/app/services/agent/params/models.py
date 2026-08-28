@@ -265,7 +265,7 @@ class AgentRequest(BaseModel):
     search_depth: str = "normal"
     reasoning_display_mode: Literal["off", "collapsed", "inline"] | None = None
     locale: str | None = None
-    force_delegate_agent: str | None = None
+    force_external_agent: str | None = None
     privacy_enabled: bool = False
     privacy_s2_action: str = "redact"
     privacy_s3_action: str = "redact"

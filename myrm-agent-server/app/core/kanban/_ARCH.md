@@ -10,7 +10,7 @@ Kanban 持久化适配器层 + 完成验证器。实现 Harness `KanbanStore` �
 | 文件/目录 | 地位 | 职责 | I/O/P |
 |----------|------|------|-------|
 | `__init__.py` | 入口 | 空模块标记 | ❌ |
-| `verifier.py` | ✅ 核心 | CompletionVerifier 实现 — Hallucination Gate，分层验证：shell 硬指标（复用 harness ShellCriterion，零 LLM 成本）→ LLM semantic judge | ✅ |
+| `verifier.py` | ✅ 核心 | CompletionVerifier 实现 — Hallucination Gate，分层验证：shell 硬指标（复用 harness ShellCriterion，零 LLM 成本）→ semantic judge（`load_platform_llm` + langchain ainvoke + `extract_answer_text` reasoning 回退） | ✅ |
 | `adapters/` | ✅ 核心 | 持久化适配器子包 | — |
 | `adapters/__init__.py` | 入口 | 导出 SqlAlchemyKanbanStore | ✅ |
 | `adapters/sqlalchemy_store.py` | ✅ 核心 | KanbanStore 的 SQLAlchemy 实现（Board/Task/Run/Event/Edge CRUD、claim、heartbeat、zombie、count_stale_running_tasks、DFS cycle detection、batch_task_stats 批量卡片统计、list_board_edges 全量边查询、count_tasks_by_agent 多 agent 分布统计、oldest_ready_age_seconds 停滞检测、reset_stale_running_tasks Boot Recovery） | ✅ |
@@ -24,7 +24,7 @@ Kanban 持久化适配器层 + 完成验证器。实现 Harness `KanbanStore` �
 - `myrm_agent_harness/agent/goals/verification/shell`：ShellCriterion（sandbox 命令验证）
 - `app/database/models/kanban`：ORM 模型
 - `app/database/connection`：数据库会话管理
-- `litellm`：LLM judge 调用
+- `app/services/agent/platform_config`：`load_platform_llm` semantic judge
 
 ### 被依赖方
 - `app/services/kanban/`：KanbanService 使用 SqlAlchemyKanbanStore + KanbanCompletionVerifier

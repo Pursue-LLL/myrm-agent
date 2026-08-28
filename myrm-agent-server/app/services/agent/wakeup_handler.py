@@ -187,7 +187,7 @@ class ServerWakeupHandler:
                                     chat_id=params.chat_id,
                                     cancel_token=None,
                                     timezone=params.timezone,
-                                    force_delegate_agent=params.force_delegate_agent,
+                                    force_external_agent=params.force_external_agent,
                                     context=runtime_context,
                                 )
 

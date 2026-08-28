@@ -1,77 +1,65 @@
+"""Unit tests for Session Advisor wire-aware LLM path."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase, build_run_digest
 
+from app.core.types import ModelConfig
 from app.services.copilot.advisor_service import ask_advisor
-from app.services.copilot.run_digest_store import RunDigestStore
 
 
-def setup_method() -> None:
-    RunDigestStore._digests.clear()
-    RunDigestStore._sessions.clear()
+def _mock_llm(content: str) -> MagicMock:
+    llm = MagicMock()
+    response = MagicMock()
+    response.content = content
+    response.additional_kwargs = {}
+    llm.ainvoke = AsyncMock(return_value=response)
+    return llm
 
 
 @pytest.mark.asyncio
-async def test_tier0_status_question_zh() -> None:
-    digest = build_run_digest(
-        chat_id="chat-zh",
-        progress_steps=[{"tool_name": "grep", "step_key": "g1"}],
-        phase=RunDigestPhase.RUNNING,
-    )
-    RunDigestStore._digests["chat-zh"] = digest
-
+async def test_ask_advisor_tier0_status_without_llm() -> None:
     reply, tier = await ask_advisor(
-        chat_id="chat-zh",
+        chat_id="missing-chat",
         question="现在在干嘛？",
         accept_language="zh-CN",
     )
     assert tier == "tier0"
-    assert "步骤 1" in reply
+    assert reply
 
 
 @pytest.mark.asyncio
-async def test_tier0_status_question() -> None:
-    digest = build_run_digest(
-        chat_id="chat-1",
-        progress_steps=[{"tool_name": "grep", "step_key": "g1"}],
-        phase=RunDigestPhase.RUNNING,
-        elapsed_seconds=5,
-    )
-    RunDigestStore._digests["chat-1"] = digest
-
-    reply, tier = await ask_advisor(chat_id="chat-1", question="现在在干嘛？")
-    assert tier == "tier0"
-    assert "Step 1: grep" in reply
-
-
-@pytest.mark.asyncio
-async def test_tier1_when_no_status_pattern() -> None:
-    digest = build_run_digest(
-        chat_id="chat-2",
-        progress_steps=[],
-        phase=RunDigestPhase.IDLE,
-    )
-    RunDigestStore._digests["chat-2"] = digest
-
-    mock_response = MagicMock()
-    mock_response.choices = [MagicMock(message=MagicMock(content="Custom answer."))]
+async def test_ask_advisor_tier1_uses_load_llm_from_model_config() -> None:
+    mock_configs = MagicMock()
+    mock_configs.providers_dict = {"providers": []}
+    mock_configs.model_cfg = ModelConfig(model="openai/gpt-4o-mini", api_key="sk-test")
 
     with (
         patch(
             "app.services.copilot.advisor_service.load_user_configs",
-            new=AsyncMock(
-                return_value=MagicMock(
-                    providers_dict={"openai": {}},
-                    model_cfg=MagicMock(model="gpt-test", api_key="k", base_url=None),
-                )
-            ),
+            new=AsyncMock(return_value=mock_configs),
         ),
-        patch("litellm.acompletion", new=AsyncMock(return_value=mock_response)),
+        patch(
+            "app.services.copilot.advisor_service.extract_lite_model_config",
+            return_value=None,
+        ),
+        patch(
+            "app.services.copilot.advisor_service.load_llm_from_model_config",
+            new=AsyncMock(return_value=_mock_llm("The agent is summarizing files.")),
+        ) as load_llm,
     ):
-        reply, tier = await ask_advisor(chat_id="chat-2", question="Explain the last tool output")
+        reply, tier = await ask_advisor(
+            chat_id="chat-1",
+            question="What is the agent trying to accomplish right now?",
+            accept_language="en",
+        )
 
     assert tier == "tier1"
-    assert reply == "Custom answer."
+    assert "summarizing" in reply.lower()
+    load_llm.assert_awaited_once()
+    invoke_cfg = load_llm.await_args.args[0]
+    assert invoke_cfg.temperature == 0.2
+    assert invoke_cfg.model_kwargs is not None
+    assert invoke_cfg.model_kwargs.get("max_tokens") == 256

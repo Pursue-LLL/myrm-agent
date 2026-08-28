@@ -48,9 +48,9 @@ _resolve_external_agent_cfgs = _runtime_cfg_helpers._resolve_external_agent_cfgs
 _register_backends_on_pool = _runtime_cfg_helpers._register_backends_on_pool
 
 
-def should_mount_invoke_acp_agent_tool(*, agent_id: str | None, force_delegate_agent: str | None) -> bool:
+def should_mount_invoke_acp_agent_tool(*, agent_id: str | None, force_external_agent: str | None) -> bool:
     """Return False when direct-delegate routing makes the LLM tool redundant."""
-    if force_delegate_agent:
+    if force_external_agent:
         return False
     if agent_id == BUILTIN_CLI_VISUAL_AGENT_ID:
         return False
@@ -61,10 +61,10 @@ def needs_runtime_pool(
     *,
     enable_external_cli: bool,
     agent_id: str | None,
-    force_delegate_agent: str | None,
+    force_external_agent: str | None,
 ) -> bool:
     """Return True when factory should eagerly init RuntimePool (not lazy stream path)."""
-    if force_delegate_agent:
+    if force_external_agent:
         return True
     if agent_id == BUILTIN_CLI_VISUAL_AGENT_ID:
         return True
@@ -99,14 +99,14 @@ class ExternalAgentsMixin:
         _runtime_pool_ephemeral: bool
         chat_id: str | None
         agent_id: str | None
-        force_delegate_agent: str | None
+        force_external_agent: str | None
 
     async def _setup_external_agents(
         self,
         tools: list[object],
         *,
         mount_invoke_acp_agent_tool: bool | None = None,
-        delegate_cwd: str | None = None,
+        external_agent_workdir: str | None = None,
     ) -> None:
         """Set up external agent delegation via RuntimePool.
 
@@ -120,13 +120,13 @@ class ExternalAgentsMixin:
         if mount_invoke_acp_agent_tool is None:
             mount_invoke_acp_agent_tool = should_mount_invoke_acp_agent_tool(
                 agent_id=getattr(self, "agent_id", None),
-                force_delegate_agent=getattr(self, "force_delegate_agent", None),
+                force_external_agent=getattr(self, "force_external_agent", None),
             )
         try:
             await self._do_setup_external_agents(
                 tools,
                 mount_invoke_acp_agent_tool=mount_invoke_acp_agent_tool,
-                delegate_cwd=delegate_cwd,
+                external_agent_workdir=external_agent_workdir,
             )
         except Exception as e:
             logger.warning("External agent setup failed (degraded): %s", e)
@@ -136,7 +136,7 @@ class ExternalAgentsMixin:
         tools: list[object],
         *,
         mount_invoke_acp_agent_tool: bool = True,
-        delegate_cwd: str | None = None,
+        external_agent_workdir: str | None = None,
     ) -> None:
         agent_cfgs = await _resolve_external_agent_cfgs(self.external_agents_config)
         if not agent_cfgs:
@@ -182,7 +182,7 @@ class ExternalAgentsMixin:
                 chat_scope = _runtime_pool_scope_id(self)
                 delegate_tool = create_invoke_acp_agent_tool(
                     pool,
-                    cwd=delegate_cwd,
+                    cwd=external_agent_workdir,
                     session_scope=chat_scope,
                 )
                 tools.append(delegate_tool)

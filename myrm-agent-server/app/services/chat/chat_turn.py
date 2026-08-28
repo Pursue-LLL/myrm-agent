@@ -465,15 +465,18 @@ class _ChatTurnMixin(_ChatServiceBase):
         from myrm_agent_harness.toolkits.llms import llm_manager
 
         from app.core.types import ModelConfig
+        from app.core.wire.enrich import enrich_model_config
 
         model_kwargs = dict(title_model.model_kwargs or {})
         model_kwargs.setdefault("temperature", 0.3)
         model_kwargs.setdefault("max_tokens", 1024)
-        cfg = ModelConfig(
-            model=title_model.model,
-            api_key=title_model.api_key,
-            base_url=title_model.base_url,
-            model_kwargs=model_kwargs,
+        cfg = enrich_model_config(
+            ModelConfig(
+                model=title_model.model,
+                api_key=title_model.api_key,
+                base_url=title_model.base_url,
+                model_kwargs=model_kwargs,
+            )
         )
         llm = await llm_manager.get_llm_from_config(cfg, streaming=False)
         prompt = f"Summarize this conversation into a short title (5-15 characters). Reply strictly in the SAME LANGUAGE as the user input. Output ONLY the title:\n<user_input>\n{content[:200]}\n</user_input>"

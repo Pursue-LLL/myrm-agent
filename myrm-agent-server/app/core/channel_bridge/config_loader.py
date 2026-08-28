@@ -163,7 +163,6 @@ async def load_user_configs() -> UserConfigs:
                     select(UserConfig).where(
                         UserConfig.config_key.in_(
                             [
-                                "default_model",
                                 "defaultModelConfig",
                                 "searchServices",
                                 "retrieval",
@@ -232,14 +231,10 @@ async def load_user_configs() -> UserConfigs:
     if not isinstance(providers_dict, dict):
         providers_dict = {}
 
-    model_cfg_dict = config_map.get("default_model")
-    if model_cfg_dict:
-        model_cfg = ModelConfig.model_validate(model_cfg_dict)
-    else:
-        default_model_cfg = config_map.get("defaultModelConfig")
-        if isinstance(default_model_cfg, dict) and isinstance(providers_dict, dict):
-            providers_dict["defaultModelConfig"] = default_model_cfg
-        model_cfg = _fallback_model_from_providers(providers_dict, "sandbox")
+    default_model_cfg = config_map.get("defaultModelConfig")
+    if isinstance(default_model_cfg, dict) and isinstance(providers_dict, dict):
+        providers_dict["defaultModelConfig"] = default_model_cfg
+    model_cfg = _fallback_model_from_providers(providers_dict, "sandbox")
 
     search_services_raw = _coerce_config_dict(config_map.get("searchServices"))
     search_cfg = extract_active_search_config(search_services_raw)

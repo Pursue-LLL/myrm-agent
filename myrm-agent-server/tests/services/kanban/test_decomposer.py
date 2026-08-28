@@ -30,19 +30,22 @@ def _make_triage_task(
     )
 
 
-def _make_llm_response(
+def _mock_platform_llm(
     content: str,
     prompt_tokens: int = 100,
     completion_tokens: int = 200,
 ) -> MagicMock:
-    resp = MagicMock()
-    resp.choices = [MagicMock()]
-    resp.choices[0].message.content = content
-    usage = MagicMock()
-    usage.prompt_tokens = prompt_tokens
-    usage.completion_tokens = completion_tokens
-    resp.usage = usage
-    return resp
+    llm = MagicMock()
+    response = MagicMock()
+    response.content = content
+    response.response_metadata = {
+        "token_usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }
+    }
+    llm.ainvoke = AsyncMock(return_value=response)
+    return llm
 
 
 ROSTER = [
@@ -122,7 +125,7 @@ async def test_unavailable_when_kwargs_fail() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
     with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
         side_effect=RuntimeError("no config"),
     ):
@@ -136,14 +139,10 @@ async def test_fanout_true_parses_children() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
     content = '{"fanout": true, "rationale": "split", "tasks": [{"title": "T1", "body": "B1", "assignee": "coder", "parents": []}, {"title": "T2", "body": "B2", "assignee": "reviewer", "parents": [0]}]}'
-    llm_resp = _make_llm_response(content)
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(content),
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
@@ -163,14 +162,10 @@ async def test_fanout_false_returns_spec() -> None:
     content = (
         '{"fanout": false, "rationale": "single task", "title": "Refined title", "body": "Detailed body", "assignee": "coder"}'
     )
-    llm_resp = _make_llm_response(content)
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(content),
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
@@ -188,14 +183,10 @@ async def test_fanout_false_empty_title_body_returns_not_ok() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
     content = '{"fanout": false, "rationale": "cannot decompose"}'
-    llm_resp = _make_llm_response(content)
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(content),
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
@@ -210,14 +201,10 @@ async def test_fanout_false_invalid_assignee_falls_back() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
     content = '{"fanout": false, "rationale": "ok", "title": "T", "body": "B", "assignee": "nonexistent"}'
-    llm_resp = _make_llm_response(content)
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(content),
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
@@ -229,14 +216,10 @@ async def test_fanout_false_invalid_assignee_falls_back() -> None:
 async def test_malformed_json_returns_parse_failed() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
-    llm_resp = _make_llm_response("This is plain text, no JSON.")
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm("This is plain text, no JSON."),
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
@@ -249,14 +232,10 @@ async def test_empty_tasks_list_returns_not_ok() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
     content = '{"fanout": true, "rationale": "split", "tasks": []}'
-    llm_resp = _make_llm_response(content)
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=_mock_platform_llm(content),
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
@@ -268,17 +247,12 @@ async def test_empty_tasks_list_returns_not_ok() -> None:
 async def test_llm_error_returns_not_ok() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
-    with (
-        patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "gpt-4o"},
-        ),
-        patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("fail"),
-        ),
+    failing_llm = MagicMock()
+    failing_llm.ainvoke = AsyncMock(side_effect=ConnectionError("fail"))
+    with patch(
+        "app.services.agent.platform_config.load_platform_llm",
+        new_callable=AsyncMock,
+        return_value=failing_llm,
     ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 

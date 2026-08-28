@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Literal, Self
 
 from myrm_agent_harness.agent.config.llm import CustomModelDef
+from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.toolkits.mcp.config import MCPAuthProvider
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
@@ -47,6 +48,10 @@ class ModelConfig(BaseModel):
     custom_model_def: CustomModelDef | None = Field(
         default=None,
         description="Custom model definition for self-hosted endpoints (Ollama/LM Studio/vLLM)",
+    )
+    wire_protocol: WireProtocol = Field(
+        default=DEFAULT_WIRE_PROTOCOL,
+        description="HTTP wire transport: chat_completions, responses, or anthropic_messages",
     )
 
     api_keys: list[str] | None = Field(

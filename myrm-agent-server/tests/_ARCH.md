@@ -76,6 +76,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/skills/` | 模块 | 技能管道集成测试目录：prebuilt 同步契约（`test_prebuilt_skills_e2e.py`——含 `test_tdd_skill_v120_contract_guard` 断言 TDD v1.2.0 契约字段/正文标题/边界护栏措辞/references 段落 + batch import/curator/discovery 等 7 文件） + `test_skill_rescan_supply_chain_integration.py`（供应链重扫全链路集成：真实磁盘包提取、OSV缓存/已知通告、AdvisoryAck 确认治理、自动隔离下架与事件总线广播） |
 | `api/chats/test_citation_seed_fixture.py` | 模块 | citation fixture seed HTTP 单测（local-only，`/chats/test/seed-citation-fixture`） |
 | `api/chats/test_deliverable_seed_fixture.py` | 模块 | deliverable link fixture seed HTTP 单测（`/chats/test/seed-deliverable-link-fixture`） |
+| `core/wire/test_registry.py` | 模块 | OpenCode wire 路由 registry + enrich defaults（muse-spark `include` / reasoning effort）单测 |
+| `services/copilot/test_advisor_service.py` | 模块 | Session Advisor Tier-0/Tier-1 单测（`load_llm_from_model_config` wire-aware 路径 mock 契约） |
+| `api/companion/test_companion_react.py` | 模块 | Companion `/react` wire-aware LLM 单测（lite/default 模型 + `load_llm_from_model_config` mock 契约） |
 | `core/artifacts/test_processor_short_file_id.py` | 模块 | LocalArtifactProcessor 透传 `short_file_id` → artifacts SSE JSON |
 | `core/artifacts/test_processor_oversized_shareable.py` | 模块 | Local 超大可分享 reference-only persist + processor→deliverable 集成（sandboxes 路径、一次 resolve） |
 | `core/artifacts/test_processor_upsert_emit.py` | 模块 | upsert 失败不 emit / 部分 upsert 失败只 emit 成功项 |
@@ -171,7 +174,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_migration_readiness_preflight.py` | 模块 | migration readiness live preflight：`from_readiness` SSE + async `resolve_and_build_*`（warning→/settings/mcp） |
 | `services/agent/stream_session/test_migration_readiness_anchor_live_fallback.py` | 模块 | finalize 缺 preflight live 时再 resolve；resolve 失败不落 stale anchor |
 | `api/memory/test_import_readiness_recheck_api.py` | 模块 | `POST /memory/import/readiness-recheck` HTTP 集成测（200/404） |
-| `api/memory/test_pattern_discovery_api_integration.py` | 模块 | Pattern discovery API 真实 DB 集成（`@pytest.mark.integration`，关键路径禁 mock）：`POST /trigger-pattern-discovery` 无 WebUI 默认模型时真实 `build_platform_litellm_kwargs` 读库 → 优雅 skipped（死路径修复验证）；harness 结果注入时真实 ledger 落库 + `GET /pattern-discoveries` 读回（summary 用户可读、无 `duration_ms` 泄漏）；skipped report 不落库 |
+| `api/memory/test_pattern_discovery_api_integration.py` | 模块 | Pattern discovery API 真实 DB 集成（`@pytest.mark.integration`，关键路径禁 mock）：`POST /trigger-pattern-discovery` 无 WebUI 默认模型时真实 `load_platform_llm` 读库 → 优雅 skipped；harness 结果注入时真实 ledger 落库 + `GET /pattern-discoveries` 读回（summary 用户可读、无 `duration_ms` 泄漏）；skipped report 不落库 |
 | `api/memory/test_pattern_discovery_live_e2e.py` | 模块 | Pattern discovery 真实 LLM E2E（`@pytest.mark.e2e`，`-m e2e` 才收集）：mock harness manager 边界（免 embedding/Qdrant），真实 `ChatLiteLLM`（`.env.test` BASIC_*）走 `run_pattern_discovery` → `with_structured_output` → 校验产出有效 `DiscoveredPattern`；并覆盖不成熟门槛跳过。暴露并钉住 prompt/schema 字段对齐缺陷修复（`title`/`evidence_summary`/`actionable_suggestion` + `AliasChoices` 容错） |
 | `services/agent/stream_session/test_migration_readiness_anchor.py` | 模块 | migration readiness 首轮结果归类单测（success/failed/no_output） |
 | `services/agent/stream_session/test_migration_bound_project.py` | 模块 | migration vault bind 同窗 handoff：`persist` 后 `move_chat_to_project`；已有 project / resume 跳过 |

@@ -5,7 +5,7 @@
 - User question
 - Optional selection snippet
 - Accept-Language for Tier-1 reply language
-- core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+- core.utils.chat_utils::extract_answer_text (POS: LangChain 响应文本提取，含 reasoning 回退)
 
 [OUTPUT]
 - Advisor reply text (does not enter main agent transcript)
@@ -21,9 +21,12 @@ import re
 
 from myrm_agent_harness.utils.locale import normalize_locale
 
+from langchain_core.messages import HumanMessage, SystemMessage
+
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_parsers import extract_lite_model_config
-from app.core.utils.chat_utils import extract_litellm_answer_text
+from app.core.utils.chat_utils import extract_answer_text
+from app.services.agent.platform_config import load_llm_from_model_config
 from app.services.copilot.run_digest_store import RunDigestStore
 
 logger = logging.getLogger(__name__)
@@ -120,23 +123,21 @@ async def ask_advisor(
 
     filter_cfg = extract_lite_model_config(providers_dict)
     model_cfg = filter_cfg or configs.model_cfg
+    model_kwargs = dict(model_cfg.model_kwargs or {})
+    model_kwargs["max_tokens"] = 256
+    invoke_cfg = model_cfg.model_copy(
+        update={"temperature": 0.2, "model_kwargs": model_kwargs},
+    )
 
     try:
-        import litellm
-
-        response = await litellm.acompletion(
-            model=model_cfg.model,
-            api_key=model_cfg.api_key,
-            base_url=model_cfg.base_url,
-            messages=[
-                {"role": "system", "content": _advisor_system_prompt(locale)},
-                {"role": "user", "content": "\n".join(context_lines)},
+        llm = await load_llm_from_model_config(invoke_cfg, streaming=False)
+        response = await llm.ainvoke(
+            [
+                SystemMessage(content=_advisor_system_prompt(locale)),
+                HumanMessage(content="\n".join(context_lines)),
             ],
-            max_tokens=256,
-            temperature=0.2,
         )
-        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-        text = extract_litellm_answer_text(response).strip()
+        text = extract_answer_text(response).strip()
         if not text:
             if _is_zh(locale):
                 return ("无法根据当前运行上下文生成回答。", "tier1")

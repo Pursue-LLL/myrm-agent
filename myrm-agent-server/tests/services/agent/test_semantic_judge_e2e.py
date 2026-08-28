@@ -83,15 +83,12 @@ class TestSemanticJudgeE2E:
         )
 
         model_cfg = _platform_model_from_env()
+        from myrm_agent_harness.toolkits.llms.core.manager import llm_manager
+
+        real_llm = await llm_manager.get_llm_from_config(model_cfg, streaming=False, temperature=0.0)
         with patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new=AsyncMock(
-                return_value={
-                    "model": model_cfg.model,
-                    "api_key": model_cfg.api_key,
-                    **({"api_base": model_cfg.base_url} if model_cfg.base_url else {}),
-                }
-            ),
+            "app.services.agent.platform_config.load_platform_llm",
+            new=AsyncMock(return_value=real_llm),
         ):
             result = await manager.evaluate_semantic(criteria, agent_response)
 
@@ -113,15 +110,12 @@ class TestSemanticJudgeE2E:
         )
 
         model_cfg = _platform_model_from_env()
+        from myrm_agent_harness.toolkits.llms.core.manager import llm_manager
+
+        real_llm = await llm_manager.get_llm_from_config(model_cfg, streaming=False, temperature=0.0)
         with patch(
-            "app.services.agent.platform_config.build_platform_litellm_kwargs",
-            new=AsyncMock(
-                return_value={
-                    "model": model_cfg.model,
-                    "api_key": model_cfg.api_key,
-                    **({"api_base": model_cfg.base_url} if model_cfg.base_url else {}),
-                }
-            ),
+            "app.services.agent.platform_config.load_platform_llm",
+            new=AsyncMock(return_value=real_llm),
         ):
             result = await manager.evaluate_semantic(criteria, agent_response)
 

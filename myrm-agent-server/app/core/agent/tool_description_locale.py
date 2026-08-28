@@ -44,7 +44,7 @@ def resolve_tool_description_locale(
     user_locale: str | None = None,
     channel: str | None = None,
 ) -> str:
-    """Resolve locale for memory/web_search tool description SSOT."""
+    """Resolve locale for memory/web_search/web_fetch/cron tool description SSOT."""
     return resolve_agent_params_locale(
         explicit=agent_locale,
         personal_settings={"locale": user_locale} if user_locale else None,

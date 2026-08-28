@@ -7,6 +7,9 @@
 - app.services.memory.shared_context.shared_context::SharedContextService (POS: Shared Context 共享上下文服务)
 - app.services.memory.shared_context.shared_context_materializer::SharedContextProposalMaterializer (POS: Shared Context 写入物化服务)
 - app.services.event.app_event_bus::get_event_bus (POS: 应用级事件总线)
+- app.services.agent.platform_config::load_platform_llm (POS: WebUI 默认 wire-aware 对话模型)
+- app.core.utils.chat_utils::extract_answer_text (POS: LangChain 响应文本提取，含 reasoning 回退)
+- app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
 - GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider
@@ -26,7 +29,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.goals.manager import GoalManager
 
-from app.core.utils.chat_utils import extract_litellm_answer_text, parse_judge_json
+from app.core.utils.chat_utils import extract_answer_text, parse_judge_json
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
@@ -111,13 +114,13 @@ class ServerGoalManager(GoalManager):
     async def evaluate_semantic(
         self, criteria: str, content: str, context_messages: list[object] | None = None
     ) -> "VerificationResult":
-        from litellm import acompletion
+        from langchain_core.messages import HumanMessage, SystemMessage
         from myrm_agent_harness.agent.goals.verification.base import VerificationResult
 
-        from app.services.agent.platform_config import build_platform_litellm_kwargs
+        from app.services.agent.platform_config import load_platform_llm
 
         try:
-            llm_kwargs = await build_platform_litellm_kwargs()
+            llm = await load_platform_llm(streaming=False, temperature=0.0)
 
             requires_vision = False
             if context_messages:
@@ -164,36 +167,26 @@ class ServerGoalManager(GoalManager):
                                 e,
                             )
 
-            messages: list[dict[str, object]] = [
-                {"role": "system", "content": criteria},
-            ]
+            lc_messages: list[SystemMessage | HumanMessage] = [SystemMessage(content=criteria)]
 
             if screenshot_b64:
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
+                lc_messages.append(
+                    HumanMessage(
+                        content=[
                             {"type": "text", "text": content},
                             {
                                 "type": "image_url",
                                 "image_url": {"url": f"data:image/jpeg;base64,{screenshot_b64}"},
                             },
-                        ],
-                    }
+                        ]
+                    )
                 )
                 logger.info("Multimodal Evaluator triggered: Injected visual proof (screenshot) for goal evaluation.")
             else:
-                messages.append({"role": "user", "content": content})
+                lc_messages.append(HumanMessage(content=content))
 
-            response = await acompletion(
-                messages=messages,
-                temperature=0.0,
-                max_tokens=1024,
-                timeout=10,
-                **llm_kwargs,
-            )
-            # 统一提取：兼容 Anthropic 块列表 / reasoning 模型 content 空回退（含 think 剥离）
-            raw = extract_litellm_answer_text(response).strip()
+            response = await llm.ainvoke(lc_messages)
+            raw = extract_answer_text(response).strip()
 
             parsed = parse_judge_json(raw)
 

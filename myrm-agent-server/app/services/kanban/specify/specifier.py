@@ -1,19 +1,17 @@
 """Kanban Task Specifier — TRIAGE one-liner → structured spec via WebUI LLM.
 
 Implements the ``TaskSpecifier`` Protocol from the harness layer using the
-platform's WebUI-configured LiteLLM model (``build_platform_litellm_kwargs``),
+platform's WebUI-configured wire-aware chat model (``load_platform_llm``),
 so there's no second-set-of-credentials surface and no env fallback.
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.protocols::TaskSpecifier, SpecifyOutcome
     (POS: Harness protocol for TRIAGE→spec rewrite.)
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskStatus
-- app.services.agent.platform_config::build_platform_litellm_kwargs
-    (POS: WebUI-configured LLM kwargs, no env fallback.)
-- app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+- app.services.agent.platform_config::load_platform_llm
 
 [OUTPUT]
-- PlatformTaskSpecifier: Concrete TaskSpecifier using LiteLLM + WebUI config.
+- PlatformTaskSpecifier: Concrete TaskSpecifier using WebUI default model via load_platform_llm.
 - DEFAULT_SPECIFY_TIMEOUT_SECONDS: Module-level constant.
 
 [POS]
@@ -27,8 +25,7 @@ import logging
 from myrm_agent_harness.toolkits.kanban.protocols import SpecifyOutcome
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 
-from app.core.utils.chat_utils import extract_litellm_answer_text
-from app.services.kanban.llm_utils import extract_json_blob, extract_usage, has_cjk, truncate
+from app.services.kanban.llm_utils import extract_json_blob, extract_langchain_usage, has_cjk, truncate
 
 logger = logging.getLogger(__name__)
 
@@ -143,12 +140,14 @@ class PlatformTaskSpecifier:
             )
 
         try:
-            from app.services.agent.platform_config import build_platform_litellm_kwargs
+            from langchain_core.messages import HumanMessage, SystemMessage
 
-            llm_kwargs = await build_platform_litellm_kwargs()
+            from app.services.agent.platform_config import load_platform_llm
+
+            llm = await load_platform_llm(streaming=False, temperature=self._temperature)
         except Exception as exc:
             logger.info(
-                "specify: platform LLM kwargs unavailable for %s: %s",
+                "specify: platform LLM unavailable for %s: %s",
                 task.task_id[:8],
                 exc,
             )
@@ -167,17 +166,8 @@ class PlatformTaskSpecifier:
         )
 
         try:
-            import litellm
-
-            response = await litellm.acompletion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_msg},
-                ],
-                temperature=self._temperature,
-                max_tokens=self._max_tokens,
-                timeout=self._timeout_seconds,
-                **llm_kwargs,
+            response = await llm.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=user_msg)],
             )
         except Exception as exc:
             logger.info(
@@ -192,11 +182,10 @@ class PlatformTaskSpecifier:
                 persisted=False,
             )
 
-        prompt_tokens, completion_tokens = extract_usage(response)
+        prompt_tokens, completion_tokens = extract_langchain_usage(response)
 
         try:
-            # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-            raw = extract_litellm_answer_text(response).strip()
+            raw = str(response.content or "").strip()
         except Exception:
             raw = ""
 

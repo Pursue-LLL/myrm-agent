@@ -8,6 +8,7 @@ Provider / 模型服务配置 UI：增删 Provider、API Key、批量迁移与�
 | `ApiKeyManager.tsx` / `ApiUrlSelector.tsx`                                  | 凭证与端点                                                                                                 |
 | `ProviderOAuthSection.tsx`                                                  | Provider OAuth 订阅登录（PKCE / Device Code）                                                              |
 | `ModelCheckbox.tsx` / `ModelInfoCard.tsx` / `InlineModelInfo.tsx`           | 模型列表与信息                                                                                             |
+| `OpenCodeContributorNotice.tsx` / `opencode-contributor-utils.ts`           | OpenCode Go Contributor 模型 consent 提示（模型服务 / 默认模型 / 全局 ModelPicker）                        |
 | `AddModelInput.tsx` / `ModelImportDialog.tsx` / `BatchMigrateDialog.tsx`    | 模型导入与迁移                                                                                             |
 | `HardwareCookbook.tsx`                                                      | 硬件推荐文案                                                                                               |
 | `ProviderIcon.tsx`                                                          | 内置/自定义 Provider 头像（内置走 LobeHub static SVG 按需加载）                                            |

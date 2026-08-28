@@ -16,7 +16,9 @@ Verification strategy (layered):
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Domain entity)
 - myrm_agent_harness.agent.goals.verification.base::VerificationResult (POS: Result type)
 - myrm_agent_harness.agent.goals.verification.shell::ShellCriterion (POS: Sandbox shell verifier)
-- app.core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+- app.services.agent.platform_config::load_platform_llm (POS: WebUI 默认 wire-aware 对话模型)
+- app.core.utils.chat_utils::extract_answer_text (POS: LangChain 响应文本提取，含 reasoning 回退)
+- app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
 - KanbanCompletionVerifier: Server-side CompletionVerifier implementation.
@@ -37,7 +39,7 @@ from myrm_agent_harness.agent.goals.verification.base import (
 from myrm_agent_harness.agent.goals.verification.shell import ShellCriterion
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
-from app.core.utils.chat_utils import extract_litellm_answer_text, parse_judge_json
+from app.core.utils.chat_utils import extract_answer_text, parse_judge_json
 
 logger = logging.getLogger(__name__)
 
@@ -159,9 +161,9 @@ class KanbanCompletionVerifier:
         criteria: str,
     ) -> VerificationResult:
         """Run LLM judge to verify completion against criteria."""
-        from litellm import acompletion
+        from langchain_core.messages import HumanMessage, SystemMessage
 
-        from app.services.agent.platform_config import build_platform_litellm_kwargs
+        from app.services.agent.platform_config import load_platform_llm
 
         system_prompt = (
             "You are a strict judge evaluating whether an autonomous agent has "
@@ -178,19 +180,11 @@ class KanbanCompletionVerifier:
         user_content = f"Agent's result:\n{_trim_result_for_judge(result)}"
 
         try:
-            llm_kwargs = await build_platform_litellm_kwargs()
-            response = await acompletion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-                temperature=0.0,
-                max_tokens=512,
-                timeout=30,
-                **llm_kwargs,
+            llm = await load_platform_llm(streaming=False, temperature=0.0)
+            response = await llm.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=user_content)],
             )
-            # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-            raw = extract_litellm_answer_text(response).strip()
+            raw = extract_answer_text(response).strip()
 
             parsed = parse_judge_json(raw)
             if parsed is not None:

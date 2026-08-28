@@ -355,7 +355,7 @@ async def ai_agent_service_stream(
                 cancel_token=cancel_token,
                 steering_token=steering_token,
                 timezone=params.timezone,
-                force_delegate_agent=params.force_delegate_agent,
+                force_external_agent=params.force_external_agent,
                 context=extra_context,
             ):
                 if isinstance(event, dict):

@@ -502,6 +502,31 @@ class TestExtractVisionFallbackModelConfigs:
         assert configs[0].model == "openai/gpt-4o"
         assert configs[1].model == "deepseek/deepseek-chat"
 
+    def test_slot_fallback_chain_applies_wire_protocol_for_opencode(self) -> None:
+        from app.core.channel_bridge.config_parsers import extract_slot_fallback_chain
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "opencode_go",
+                    "isEnabled": True,
+                    "providerType": "openai",
+                    "apiUrl": "https://opencode.ai/zen/go/v1",
+                    "apiKey": "sk-opencode",
+                    "enabledModels": ["muse-spark-1.2-contributor"],
+                }
+            ],
+        }
+        slot = {
+            "fallbacks": [
+                {"providerId": "opencode_go", "model": "muse-spark-1.2-contributor"},
+            ]
+        }
+
+        configs = extract_slot_fallback_chain(slot, providers_dict)
+        assert len(configs) == 1
+        assert configs[0].wire_protocol == "responses"
+
 
 @pytest.mark.asyncio
 async def test_verify_search_config_live_skips_e2e_probe_key() -> None:

@@ -103,7 +103,7 @@ verify_harness_install() {
         log_error "Missing .venv python after uv sync."
         exit 1
     fi
-    if ! "${py}" -c "from myrm_agent_harness.distribution.probe import assert_distribution_ready; assert_distribution_ready()"; then
+    if ! "${py}" -c "from myrm_agent_harness.runtime.install_guard.probe import assert_distribution_ready; assert_distribution_ready()"; then
         log_error "Harness distribution check failed / Harness 分发校验失败."
         log_error "Run ./myrm setup from the repo root (or install the platform core wheel for this machine)."
         log_error "请在仓库根目录运行 ./myrm setup（或安装与本机匹配的平台 core 包）。"

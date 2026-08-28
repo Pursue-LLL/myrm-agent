@@ -33,6 +33,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _force_external_delegate_denial_reason(
+    agent_wrapper: "GeneralAgent",
+    force_external_agent: str,
+) -> str | None:
+    """Return denial reason when invoke_external_agent is blocked for direct delegate."""
+    from myrm_agent_harness.agent.security.config import parse_security_config
+    from myrm_agent_harness.agent.security.engine import evaluate_tool_call
+    from myrm_agent_harness.agent.security.types import PermissionAction
+
+    config = parse_security_config(agent_wrapper.security_config_raw)
+    if config is None:
+        return None
+    action, reason = evaluate_tool_call(
+        "invoke_external_agent",
+        {"agent": force_external_agent},
+        config,
+    )
+    if action != PermissionAction.ALLOW:
+        return reason or f"invoke_external_agent {action.value} by security policy"
+    return None
+
+
 async def execute_stream_pipeline(
     agent_wrapper: "GeneralAgent",
     query: object,
@@ -42,13 +64,13 @@ async def execute_stream_pipeline(
     cancel_token: "CancellationToken | None" = None,
     steering_token: "SteeringToken | None" = None,
     timezone: str | None = None,
-    force_delegate_agent: str | None = None,
+    force_external_agent: str | None = None,
     extra_context: dict[str, object] | None = None,
 ) -> AsyncGenerator[dict[str, object], None]:
     """Process query and stream results.
 
     Args:
-        force_delegate_agent: If set, bypass the LLM and route the query
+        force_external_agent: If set, bypass the LLM and route the query
             directly to the named external agent via RuntimePool.
     """
     message_id = message_id or str(uuid4())
@@ -66,21 +88,38 @@ async def execute_stream_pipeline(
     if chat_id:
         agent_wrapper._runtime_pool_scope_id = chat_id
 
-    if force_delegate_agent and agent_wrapper._runtime_pool is None:
+    if force_external_agent:
+        deny_reason = _force_external_delegate_denial_reason(
+            agent_wrapper,
+            force_external_agent,
+        )
+        if deny_reason:
+            logger.warning(
+                "Direct external delegate blocked by security policy: agent=%s reason=%s",
+                force_external_agent,
+                deny_reason,
+            )
+            yield {
+                "type": "error",
+                "data": f"External agent delegation denied: {deny_reason}",
+            }
+            return
+
+    if force_external_agent and agent_wrapper._runtime_pool is None:
         await agent_wrapper._ensure_runtime_pool()
 
-    if force_delegate_agent and agent_wrapper._runtime_pool is not None:
-        if force_delegate_agent in agent_wrapper._runtime_pool.available_backends:
+    if force_external_agent and agent_wrapper._runtime_pool is not None:
+        if force_external_agent in agent_wrapper._runtime_pool.available_backends:
             logger.warning(
                 "🔗 Direct routing to external agent: %s query='%s'",
-                force_delegate_agent,
+                force_external_agent,
                 query_preview,
             )
             for attempt in range(2):
                 started_streaming = False
                 try:
                     async for event in agent_wrapper._direct_delegate_stream(
-                        force_delegate_agent,
+                        force_external_agent,
                         query,
                         cancel_token=cancel_token,
                         chat_id=chat_id,
@@ -92,17 +131,17 @@ async def execute_stream_pipeline(
                     if started_streaming or attempt > 0:
                         logger.error(
                             "Direct delegate failed: %s",
-                            force_delegate_agent,
+                            force_external_agent,
                             exc_info=True,
                         )
                         yield {
                             "type": "error",
-                            "data": f"External agent '{force_delegate_agent}' execution failed",
+                            "data": f"External agent '{force_external_agent}' execution failed",
                         }
                         return
                     logger.warning(
                         "Direct delegate connection failed, retrying: %s",
-                        force_delegate_agent,
+                        force_external_agent,
                     )
             return
 

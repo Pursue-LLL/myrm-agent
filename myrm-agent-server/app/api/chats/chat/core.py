@@ -635,7 +635,7 @@ async def get_chat_delivery_contracts(
         if not chat:
             raise not_found_error("Chat session")
 
-        from myrm_agent_harness.eval.contracts import evaluate_five_contract_progress
+        from myrm_agent_harness.api import evaluate_five_contract_progress
 
         history = await ChatService.load_web_chat_history(chat_id, max_messages=50)
         has_user_intent = bool(chat.first_message) or len(history) > 0

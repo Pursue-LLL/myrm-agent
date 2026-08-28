@@ -819,6 +819,113 @@ describe('messageRequest - send preconditions', () => {
   });
 });
 
+describe('messageRequest - force external agent delegation', () => {
+  it('serializes force_external_agent when agentConfig.forceExternalAgent is set', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      chatId: 'chat-force-ext',
+      actionMode: 'agent',
+      agentConfig: { forceExternalAgent: 'echo-cli' } as AgentConfig,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+      searchDepth: 'normal' as const,
+    } as unknown as ChatActionsState;
+
+    await createMessageRequest('delegate to external cli', 'msg-force-ext', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      action_mode: 'agent',
+      force_external_agent: 'echo-cli',
+    });
+  });
+
+  it('omits force_external_agent when forceExternalAgent is unset', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const state = {
+      chatId: 'chat-no-force-ext',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+      searchDepth: 'normal' as const,
+    } as unknown as ChatActionsState;
+
+    await createMessageRequest('normal agent request', 'msg-no-force-ext', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).not.toHaveProperty('force_external_agent');
+  });
+});
+
 describe('messageRequest - active moa preset', () => {
   beforeEach(() => {
     useChatStore.setState({ activeMoaPresetId: null });

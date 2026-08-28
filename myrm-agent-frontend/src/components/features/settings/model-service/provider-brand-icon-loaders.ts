@@ -38,6 +38,7 @@ export const BUILT_IN_PROVIDER_SVG_SLUGS: Record<BuiltInProviderId, string> = {
   xiaomi_mimo: 'xiaomimimo',
   nvidia: 'nvidia-color',
   ai302: 'ai302-color',
+  opencode_go: 'opencode',
 };
 
 /**
@@ -71,6 +72,7 @@ export const BUILT_IN_PROVIDER_ICON_LOADERS: Record<BuiltInProviderId, ProviderB
   xiaomi_mimo: () => import('@lobehub/icons-static-svg/icons/xiaomimimo.svg'),
   nvidia: () => import('@lobehub/icons-static-svg/icons/nvidia-color.svg'),
   ai302: () => import('@lobehub/icons-static-svg/icons/ai302-color.svg'),
+  opencode_go: () => import('@lobehub/icons-static-svg/icons/opencode.svg'),
 };
 
 const iconUrlCache = new Map<BuiltInProviderId, string>();

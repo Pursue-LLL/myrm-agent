@@ -13,6 +13,7 @@ Builtin profiles (readonly, workspace, full_access) are seeded on first access.
 
 [POS]
 Server-layer profile persistence and lifecycle management.
+Builtin/custom profile ``config_json`` permissions are normalized on save and API read.
 """
 
 from __future__ import annotations
@@ -50,7 +51,8 @@ _BUILTIN_PROFILES: list[dict[str, object]] = [
                 "skill_manage": "deny",
                 "cron_manage": "deny",
                 "mcp_invoke": "ask",
-                "delegate_agent": "allow",
+                "spawn_subagent": "allow",
+                "invoke_external_agent": "deny",
             },
             "autoModeEnabled": False,
             "yoloModeEnabled": False,
@@ -70,7 +72,8 @@ _BUILTIN_PROFILES: list[dict[str, object]] = [
                 "browser_download": "ask",
                 "browser_fill": "ask",
                 "mcp_invoke": "ask",
-                "delegate_agent": "allow",
+                "spawn_subagent": "allow",
+                "invoke_external_agent": "ask",
             },
             "autoModeEnabled": False,
             "yoloModeEnabled": False,
@@ -92,7 +95,17 @@ _BUILTIN_PROFILES: list[dict[str, object]] = [
 
 def _serialize_config(config_dict: dict[str, object]) -> dict[str, object]:
     """Normalize config dict for JSON storage (ensure serializable)."""
-    return json.loads(json.dumps(config_dict, default=str))
+    from myrm_agent_harness.agent.security.config import normalize_delegate_permissions
+
+    result: dict[str, object] = json.loads(json.dumps(config_dict, default=str))
+    permissions_raw = result.get("permissions")
+    if isinstance(permissions_raw, dict):
+        typed_permissions: dict[str, str | dict[str, str]] = {}
+        for key, value in permissions_raw.items():
+            if isinstance(key, str) and (isinstance(value, str) or isinstance(value, dict)):
+                typed_permissions[key] = value
+        result["permissions"] = normalize_delegate_permissions(typed_permissions)
+    return result
 
 
 class ProfileManager:
@@ -230,28 +243,38 @@ class ProfileManager:
             for builtin in _BUILTIN_PROFILES:
                 key = str(builtin["profile_key"])
                 result = await session.execute(select(SecurityProfile).where(SecurityProfile.profile_key == key))
-                if result.scalar_one_or_none() is None:
+                existing = result.scalar_one_or_none()
+                seed_config = _serialize_config(dict(builtin["config_json"]))  # type: ignore[arg-type]
+                if existing is None:
                     profile = SecurityProfile(
                         id=str(uuid.uuid4()),
                         profile_key=key,
                         display_name=str(builtin["display_name"]),
                         description=str(builtin.get("description", "")),
-                        config_json=_serialize_config(dict(builtin["config_json"])),  # type: ignore[arg-type]
+                        config_json=seed_config,
                         is_builtin=True,
                         is_active=False,
                     )
                     session.add(profile)
+                elif existing.is_builtin:
+                    existing.display_name = str(builtin["display_name"])
+                    existing.description = str(builtin.get("description", ""))
+                    existing.config_json = seed_config
+                    existing.updated_at = datetime.now()
             await session.commit()
 
 
 def _to_dict(profile: SecurityProfile) -> dict[str, object]:
     """Convert ORM model to API-friendly dict."""
+    config_json = profile.config_json
+    if isinstance(config_json, dict):
+        config_json = _serialize_config(config_json)
     return {
         "id": profile.id,
         "profile_key": profile.profile_key,
         "display_name": profile.display_name,
         "description": profile.description,
-        "config_json": profile.config_json,
+        "config_json": config_json,
         "is_builtin": profile.is_builtin,
         "is_active": profile.is_active,
         "created_at": profile.created_at.isoformat() if profile.created_at else None,

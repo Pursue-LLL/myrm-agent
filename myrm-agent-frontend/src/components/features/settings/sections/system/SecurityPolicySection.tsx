@@ -35,6 +35,7 @@ import { useSecurityPolicy } from './useSecurityPolicy';
 const SecurityPolicySection = memo(() => {
   const t = useTranslations('settings.securityPolicy');
   const tCap = useTranslations('cron.capability');
+  const tPerm = useTranslations('settings.securityPolicy.permissionTypes');
 
   const policy = useSecurityPolicy(t);
 
@@ -160,6 +161,33 @@ const SecurityPolicySection = memo(() => {
           </Button>
         }
       >
+        <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2 mb-3">
+          <p className="text-xs font-medium text-foreground">
+            {t('delegationPermissionsGuide.title', { default: 'About delegation permissions' })}
+          </p>
+          <ul className="text-xs text-muted-foreground space-y-1.5 list-none pl-0">
+            <li>
+              <span className="font-medium text-foreground">{tPerm('spawn_subagent')}</span>
+              {' — '}
+              {t('delegationPermissionsGuide.internalDesc', {
+                default: 'Spins up a helper agent inside Myrm for research, audit, or parallel work.',
+              })}
+            </li>
+            <li>
+              <span className="font-medium text-foreground">{tPerm('invoke_external_agent')}</span>
+              {' — '}
+              {t('delegationPermissionsGuide.externalDesc', {
+                default: 'Runs Claude Code, Codex, or another CLI program on your computer.',
+              })}
+            </li>
+            <li className="text-muted-foreground/90">
+              {t('delegationPermissionsGuide.bindingHint', {
+                default:
+                  'To limit which custom agents a main agent can spawn, configure sub-agent bindings under Settings → Agents → Subagents.',
+              })}
+            </li>
+          </ul>
+        </div>
         {policy.rules.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">{t('noRules')}</p>
         ) : (
@@ -176,7 +204,7 @@ const SecurityPolicySection = memo(() => {
                   <SelectContent>
                     {KNOWN_PERMISSIONS.map((perm) => (
                       <SelectItem key={perm} value={perm}>
-                        {tCap(perm)}
+                        {tPerm(perm, { default: tCap(perm, { default: perm }) })}
                       </SelectItem>
                     ))}
                   </SelectContent>

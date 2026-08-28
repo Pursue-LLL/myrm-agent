@@ -228,8 +228,6 @@ def extract_lite_model_config(
     providers_dict: dict[str, object] | None,
 ) -> "ModelConfig | None":
     """Extract the filter/summary model config from the frontend's providers config."""
-    from app.core.types import ModelConfig
-
     if not providers_dict:
         return None
 
@@ -265,15 +263,11 @@ def extract_lite_model_config(
     if not api_key:
         return None
 
-    ptype = str(provider.get("providerType", "")) or None
-    full_model = _to_litellm_model(provider_id, model, ptype)
-    api_url = str(provider.get("apiUrl", "")) or None
-
-    from app.core.channel_bridge.model_resolver import enrich_model_context_window
-
-    return enrich_model_context_window(
-        ModelConfig(model=full_model, api_key=api_key, base_url=api_url),
-        providers_dict,
+    return _build_enriched_model_config(
+        provider_id=provider_id,
+        model=model,
+        provider=provider,
+        providers_dict=providers_dict,
     )
 
 
@@ -293,6 +287,49 @@ def _append_unique_model_config(
         return
     seen.add(key)
     configs.append(cfg)
+
+
+def _build_enriched_model_config(
+    *,
+    provider_id: str,
+    model: str,
+    provider: dict[str, object],
+    providers_dict: dict[str, object] | None,
+    selection_supports_vision: bool = False,
+    infer_video: bool = False,
+) -> "ModelConfig | None":
+    """Build ModelConfig with wire enrich + capabilities + context window."""
+    from app.core.types import ModelConfig
+    from app.core.channel_bridge.model_resolver import (
+        enrich_model_capabilities,
+        enrich_model_context_window,
+    )
+    from app.core.wire.enrich import enrich_model_config
+
+    api_key = _extract_active_key(provider)
+    if not api_key:
+        return None
+
+    ptype = str(provider.get("providerType", "")) or None
+    full_model = _to_litellm_model(provider_id, model, ptype)
+    oauth_base = provider.get("_oauthBaseUrl")
+    api_url_raw = oauth_base if oauth_base else provider.get("apiUrl") or provider.get("baseURL") or ""
+    api_url = str(api_url_raw).strip() or None
+
+    cfg = enrich_model_config(
+        ModelConfig(model=full_model, api_key=api_key, base_url=api_url),
+        provider_id=provider_id,
+    )
+    if providers_dict is not None:
+        cfg = enrich_model_capabilities(
+            cfg,
+            providers_dict,
+            selection_supports_vision=selection_supports_vision,
+        )
+        cfg = enrich_model_context_window(cfg, providers_dict)
+    if infer_video:
+        cfg = cfg.model_copy(update={"supports_video": _infer_supports_video(cfg.model, providers_dict)})
+    return cfg
 
 
 def _resolve_vision_fallback_primary_config(
@@ -339,22 +376,13 @@ def _resolve_vision_fallback_primary_config(
     if not api_key:
         return None
 
-    ptype = str(provider.get("providerType", "")) or None
-    full_model = _to_litellm_model(provider_id, model, ptype)
-    api_url = str(provider.get("apiUrl", "")) or None
-
-    from app.core.channel_bridge.model_resolver import (
-        enrich_model_capabilities,
-        enrich_model_context_window,
-    )
-
-    cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
-    cfg = enrich_model_capabilities(
-        cfg,
-        providers_dict,
+    return _build_enriched_model_config(
+        provider_id=provider_id,
+        model=model,
+        provider=provider,
+        providers_dict=providers_dict,
         selection_supports_vision=True,
     )
-    return enrich_model_context_window(cfg, providers_dict)
 
 
 def _resolve_base_primary_model_config(
@@ -398,18 +426,12 @@ def _resolve_base_primary_model_config(
     if not api_key:
         return None
 
-    ptype = str(provider.get("providerType", "")) or None
-    full_model = _to_litellm_model(provider_id, model, ptype)
-    api_url = str(provider.get("apiUrl", "")) or None
-
-    from app.core.channel_bridge.model_resolver import (
-        enrich_model_capabilities,
-        enrich_model_context_window,
+    return _build_enriched_model_config(
+        provider_id=provider_id,
+        model=model,
+        provider=provider,
+        providers_dict=providers_dict,
     )
-
-    cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
-    cfg = enrich_model_capabilities(cfg, providers_dict)
-    return enrich_model_context_window(cfg, providers_dict)
 
 
 def build_vision_fallback_config_chain(
@@ -422,11 +444,6 @@ def build_vision_fallback_config_chain(
 
     Order: primary vision fallback → vision slot fallback → vision-capable main agent model.
     """
-    from app.core.channel_bridge.model_resolver import (
-        enrich_model_capabilities,
-        enrich_model_context_window,
-    )
-
     configs: list[ModelConfig] = []
     seen: set[tuple[str, str | None]] = set()
 
@@ -438,15 +455,13 @@ def build_vision_fallback_config_chain(
         providers = providers_dict.get("providers")
         if isinstance(default_model_cfg, dict) and isinstance(providers, list):
             vision_slot = default_model_cfg.get("visionFallbackModel")
-            slot_fallback = _resolve_slot_fallback(vision_slot, providers)
-            if slot_fallback is not None:
-                slot_fallback = enrich_model_capabilities(
-                    slot_fallback,
-                    providers_dict,
-                    selection_supports_vision=True,
-                )
-                slot_fallback = enrich_model_context_window(slot_fallback, providers_dict)
-                _append_unique_model_config(configs, seen, slot_fallback)
+            slot_fallback = _resolve_slot_fallback(
+                vision_slot,
+                providers,
+                providers_dict=providers_dict,
+                selection_supports_vision=True,
+            )
+            _append_unique_model_config(configs, seen, slot_fallback)
 
     main_candidate = main_model_cfg or _resolve_base_primary_model_config(providers_dict)
     if main_candidate is not None and main_candidate.supports_vision:
@@ -567,23 +582,14 @@ def _resolve_video_fallback_primary_config(
     if not api_key:
         return None
 
-    ptype = str(provider.get("providerType", "")) or None
-    full_model = _to_litellm_model(provider_id, model, ptype)
-    api_url = str(provider.get("apiUrl", "")) or None
-
-    from app.core.channel_bridge.model_resolver import (
-        enrich_model_capabilities,
-        enrich_model_context_window,
-    )
-
-    cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
-    cfg = enrich_model_capabilities(
-        cfg,
-        providers_dict,
+    return _build_enriched_model_config(
+        provider_id=provider_id,
+        model=model,
+        provider=provider,
+        providers_dict=providers_dict,
         selection_supports_vision=True,
+        infer_video=True,
     )
-    cfg = cfg.model_copy(update={"supports_video": _infer_supports_video(cfg.model, providers_dict)})
-    return enrich_model_context_window(cfg, providers_dict)
 
 
 def build_video_fallback_config_chain(
@@ -592,11 +598,6 @@ def build_video_fallback_config_chain(
     primary_override: "ModelConfig | None" = None,
 ) -> list["ModelConfig"]:
     """Build ordered video auxiliary provider chain from videoFallbackModel slot."""
-    from app.core.channel_bridge.model_resolver import (
-        enrich_model_capabilities,
-        enrich_model_context_window,
-    )
-
     configs: list[ModelConfig] = []
     seen: set[tuple[str, str | None]] = set()
 
@@ -608,18 +609,14 @@ def build_video_fallback_config_chain(
         providers = providers_dict.get("providers")
         if isinstance(default_model_cfg, dict) and isinstance(providers, list):
             video_slot = default_model_cfg.get("videoFallbackModel")
-            slot_fallback = _resolve_slot_fallback(video_slot, providers)
-            if slot_fallback is not None:
-                slot_fallback = enrich_model_capabilities(
-                    slot_fallback,
-                    providers_dict,
-                    selection_supports_vision=True,
-                )
-                slot_fallback = enrich_model_context_window(slot_fallback, providers_dict)
-                slot_fallback = slot_fallback.model_copy(
-                    update={"supports_video": _infer_supports_video(slot_fallback.model, providers_dict)}
-                )
-                _append_unique_model_config(configs, seen, slot_fallback)
+            slot_fallback = _resolve_slot_fallback(
+                video_slot,
+                providers,
+                providers_dict=providers_dict,
+                selection_supports_vision=True,
+                infer_video=True,
+            )
+            _append_unique_model_config(configs, seen, slot_fallback)
 
     return configs
 
@@ -898,9 +895,6 @@ def extract_slot_fallback_chain(
     providers_dict: dict[str, object] | None,
 ) -> list["ModelConfig"]:
     """Resolve the ordered fallback selections within a ModelSlot to ModelConfig list."""
-    from app.core.channel_bridge.model_resolver import enrich_model_context_window
-    from app.core.types import ModelConfig
-
     if not isinstance(slot, dict) or not providers_dict:
         return []
 
@@ -933,15 +927,12 @@ def extract_slot_fallback_chain(
         if not provider:
             continue
 
-        api_key = _extract_active_key(provider)
-        if not api_key:
-            continue
-
-        ptype = str(provider.get("providerType", "")) or None
-        full_model = _to_litellm_model(provider_id, model, ptype)
-        api_url = str(provider.get("apiUrl", "")) or None
-        cfg = ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
-        cfg = enrich_model_context_window(cfg, providers_dict)
+        cfg = _build_enriched_model_config(
+            provider_id=provider_id,
+            model=model,
+            provider=provider,
+            providers_dict=providers_dict,
+        )
         _append_unique_model_config(configs, seen, cfg)
 
     return configs
@@ -950,10 +941,12 @@ def extract_slot_fallback_chain(
 def _resolve_slot_fallback(
     slot: object,
     providers: list[dict[str, object]],
+    *,
+    providers_dict: dict[str, object] | None = None,
+    selection_supports_vision: bool = False,
+    infer_video: bool = False,
 ) -> "ModelConfig | None":
     """Resolve the primary fallback selection within a ModelSlot to a ModelConfig."""
-    from app.core.types import ModelConfig
-
     if not isinstance(slot, dict):
         return None
 
@@ -981,14 +974,14 @@ def _resolve_slot_fallback(
     if not provider:
         return None
 
-    api_key = _extract_active_key(provider)
-    if not api_key:
-        return None
-
-    ptype = str(provider.get("providerType", "")) or None
-    full_model = _to_litellm_model(provider_id, model, ptype)
-    api_url = str(provider.get("apiUrl", "")) or None
-    return ModelConfig(model=full_model, api_key=api_key, base_url=api_url)
+    return _build_enriched_model_config(
+        provider_id=provider_id,
+        model=model,
+        provider=provider,
+        providers_dict=providers_dict,
+        selection_supports_vision=selection_supports_vision,
+        infer_video=infer_video,
+    )
 
 
 def _build_embedding_config(

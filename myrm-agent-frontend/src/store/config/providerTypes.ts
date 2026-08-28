@@ -107,6 +107,7 @@ export const BUILT_IN_PROVIDERS = [
   'xiaomi_mimo',
   'nvidia',
   'ai302',
+  'opencode_go',
 ] as const;
 
 export type BuiltInProviderId = (typeof BUILT_IN_PROVIDERS)[number];
@@ -312,6 +313,12 @@ export const BUILT_IN_PROVIDER_INFO: Record<BuiltInProviderId, ProviderInfo> = {
     isBuiltIn: true,
     defaultApiUrl: 'https://api.302.ai/v1',
   },
+  opencode_go: {
+    id: 'opencode_go',
+    name: 'OpenCode Go',
+    isBuiltIn: true,
+    defaultApiUrl: 'https://opencode.ai/zen/go/v1',
+  },
 };
 
 // 获取 LiteLLM 模型全名
@@ -458,6 +465,7 @@ export interface CustomModelInfo {
   supports_vision?: boolean;
   supports_function_calling?: boolean;
   supports_reasoning?: boolean;
+  /** Responses API wire (read-only metadata from import/heuristics). */
   supports_audio_input?: boolean;
   supports_video_input?: boolean;
   temperature?: number;

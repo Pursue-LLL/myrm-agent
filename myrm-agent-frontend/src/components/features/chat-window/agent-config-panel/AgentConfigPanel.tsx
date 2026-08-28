@@ -290,11 +290,11 @@ const DirectDelegateSelector = memo(() => {
     }
   }, []);
 
-  const selected = agentConfig?.forceDelegateAgent || '__off__';
+  const selected = agentConfig?.forceExternalAgent || '__off__';
 
   const handleChange = useCallback(
     (value: string) => {
-      updateAgentConfig({ forceDelegateAgent: value === '__off__' ? undefined : value });
+      updateAgentConfig({ forceExternalAgent: value === '__off__' ? undefined : value });
     },
     [updateAgentConfig],
   );

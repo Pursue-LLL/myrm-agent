@@ -211,18 +211,18 @@ async def build_general_agent(
 
     mount_invoke_acp_agent_tool = agent_wrapper.enable_external_cli and should_mount_invoke_acp_agent_tool(
         agent_id=agent_wrapper.agent_id,
-        force_delegate_agent=agent_wrapper.force_delegate_agent,
+        force_external_agent=agent_wrapper.force_external_agent,
     )
     agent_wrapper._runtime_pool_scope_id = effective_chat_id
     if needs_runtime_pool(
         enable_external_cli=agent_wrapper.enable_external_cli,
         agent_id=agent_wrapper.agent_id,
-        force_delegate_agent=agent_wrapper.force_delegate_agent,
+        force_external_agent=agent_wrapper.force_external_agent,
     ):
         await agent_wrapper._setup_external_agents(
             tools,
             mount_invoke_acp_agent_tool=mount_invoke_acp_agent_tool,
-            delegate_cwd=str(workspace_root) if workspace_root else None,
+            external_agent_workdir=str(workspace_root) if workspace_root else None,
         )
 
     from app.services.agent.goals.goal_registry import GoalRegistry

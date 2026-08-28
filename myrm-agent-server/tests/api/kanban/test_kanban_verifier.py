@@ -6,8 +6,7 @@ pass-through for tasks without criteria, error handling.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
@@ -55,8 +54,12 @@ class TestParseJudgeJson:
         assert parse_judge_json('{"result": true}') is None
 
     def test_unquoted_keys_repaired(self) -> None:
-        """无引号 key 由 json_repair 兜底修复（框架 utils.json_parsing 容错能力）。"""
-        result = parse_judge_json('{done: true, reason: "ok"}')
+        """json_repair tier salvages single-quoted keys when the optional dep is installed."""
+        from myrm_agent_harness.utils import json_parsing as jp
+
+        if jp._json_repair_loads is None:
+            pytest.skip("json_repair not installed in test environment")
+        result = parse_judge_json("{'done': true, 'reason': 'ok'}")
         assert result is not None
         assert result["done"] is True
         assert result["reason"] == "ok"
@@ -108,11 +111,13 @@ def _make_task(
     )
 
 
-def _mock_llm_response(content: str) -> SimpleNamespace:
-    """Build a mock LLM response matching litellm's response shape."""
-    return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
-    )
+def _mock_platform_llm(content: str) -> MagicMock:
+    """Build a wire-aware platform LLM mock (langchain ainvoke shape)."""
+    llm = MagicMock()
+    response = MagicMock()
+    response.content = content
+    llm.ainvoke = AsyncMock(return_value=response)
+    return llm
 
 
 class TestKanbanCompletionVerifier:
@@ -219,28 +224,22 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_empty_response_no_reasoning_fails(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=""))],
-        )
+    async def test_empty_response_no_reasoning_fails(self, mock_load_llm: AsyncMock) -> None:
+        mock_load_llm.return_value = _mock_platform_llm("")
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(_make_task(criteria="check"), "done")
         assert result.passed is False
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_judge_returns_done_true(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = _mock_llm_response(
+    async def test_judge_returns_done_true(self, mock_load_llm: AsyncMock) -> None:
+        mock_load_llm.return_value = _mock_platform_llm(
             '{"done": true, "reason": "All criteria met"}',
         )
         verifier = KanbanCompletionVerifier()
@@ -250,13 +249,11 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_judge_returns_done_false(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = _mock_llm_response(
+    async def test_judge_returns_done_false(self, mock_load_llm: AsyncMock) -> None:
+        mock_load_llm.return_value = _mock_platform_llm(
             '{"done": false, "reason": "Tests not run"}',
         )
         verifier = KanbanCompletionVerifier()
@@ -266,13 +263,11 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_judge_returns_json_in_code_block(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = _mock_llm_response(
+    async def test_judge_returns_json_in_code_block(self, mock_load_llm: AsyncMock) -> None:
+        mock_load_llm.return_value = _mock_platform_llm(
             '```json\n{"done": true, "reason": "confirmed"}\n```',
         )
         verifier = KanbanCompletionVerifier()
@@ -281,39 +276,35 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_judge_returns_unparseable_with_pass(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = _mock_llm_response("PASS - looks good to me")
+    async def test_judge_returns_unparseable_with_pass(self, mock_load_llm: AsyncMock) -> None:
+        mock_load_llm.return_value = _mock_platform_llm("PASS - looks good to me")
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(_make_task(criteria="check"), "done")
         assert result.passed is True
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_judge_returns_unparseable_text_fails(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = _mock_llm_response("The task is not complete.")
+    async def test_judge_returns_unparseable_text_fails(self, mock_load_llm: AsyncMock) -> None:
+        mock_load_llm.return_value = _mock_platform_llm("The task is not complete.")
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(_make_task(criteria="check"), "done")
         assert result.passed is False
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_llm_exception_returns_failure(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.side_effect = RuntimeError("API unavailable")
+    async def test_llm_exception_returns_failure(self, mock_load_llm: AsyncMock) -> None:
+        failing_llm = MagicMock()
+        failing_llm.ainvoke = AsyncMock(side_effect=RuntimeError("API unavailable"))
+        mock_load_llm.return_value = failing_llm
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(_make_task(criteria="check"), "done")
         assert result.passed is False
@@ -322,35 +313,23 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_judge_empty_response_uses_reasoning(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = SimpleNamespace(
-            choices=[
-                SimpleNamespace(
-                    message=SimpleNamespace(
-                        content="",
-                        reasoning_content='{"done": true, "reason": "ok from reasoning"}',
-                    ),
-                )
-            ],
-        )
+    async def test_judge_empty_response_uses_reasoning(self, mock_load_llm: AsyncMock) -> None:
+        """Empty AIMessage.content fails judge (no litellm reasoning_content fallback)."""
+        mock_load_llm.return_value = _mock_platform_llm("")
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(_make_task(criteria="check"), "done")
-        assert result.passed is True
+        assert result.passed is False
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_judge_done_string_normalized(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = _mock_llm_response(
+    async def test_judge_done_string_normalized(self, mock_load_llm: AsyncMock) -> None:
+        mock_load_llm.return_value = _mock_platform_llm(
             '{"done": "True", "reason": "string bool"}',
         )
         verifier = KanbanCompletionVerifier()
@@ -359,20 +338,30 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
-    async def test_result_truncated_to_3000_chars(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
-        mock_llm.return_value = _mock_llm_response('{"done": true, "reason": "ok"}')
+    async def test_result_truncated_to_3000_chars(self, mock_load_llm: AsyncMock) -> None:
+        captured_messages: list[object] = []
+
+        async def mock_ainvoke(messages: list[object], **kwargs: object) -> MagicMock:
+            captured_messages.extend(messages)
+            response = MagicMock()
+            response.content = '{"done": true, "reason": "ok"}'
+            return response
+
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = mock_ainvoke
+        mock_load_llm.return_value = mock_llm
+
         verifier = KanbanCompletionVerifier()
         long_result = "x" * 5000
         await verifier.verify(_make_task(criteria="check"), long_result)
 
-        call_args = mock_llm.call_args
-        user_msg = call_args.kwargs["messages"][1]["content"]
-        assert len(user_msg) < 3100
+        from langchain_core.messages import HumanMessage
+
+        user_msg = next(m for m in captured_messages if isinstance(m, HumanMessage))
+        assert len(str(user_msg.content)) < 3100
 
     @pytest.mark.asyncio
     @patch(
@@ -401,17 +390,14 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
     @patch("app.core.kanban.verifier.ShellCriterion")
     async def test_shell_pass_then_semantic(
         self,
         mock_shell_cls: AsyncMock,
-        mock_llm: AsyncMock,
-        _mock_cfg: AsyncMock,
+        mock_load_llm: AsyncMock,
     ) -> None:
         from myrm_agent_harness.agent.goals.verification.base import (
             VerificationResult as VR,
@@ -421,7 +407,8 @@ class TestKanbanCompletionVerifier:
         mock_instance.verify.return_value = VR(passed=True)
         mock_shell_cls.return_value = mock_instance
 
-        mock_llm.return_value = _mock_llm_response('{"done": true, "reason": "all good"}')
+        mock_llm = _mock_platform_llm('{"done": true, "reason": "all good"}')
+        mock_load_llm.return_value = mock_llm
 
         task = _make_task()
         task.metadata["completion_criteria"] = [
@@ -431,7 +418,7 @@ class TestKanbanCompletionVerifier:
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(task, "done")
         assert result.passed is True
-        mock_llm.assert_called_once()
+        mock_llm.ainvoke.assert_awaited_once()
 
     @pytest.mark.asyncio
     @patch("app.core.kanban.verifier.ShellCriterion")
@@ -479,19 +466,16 @@ class TestKanbanCompletionVerifier:
 
     @pytest.mark.asyncio
     @patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
+        "app.services.agent.platform_config.load_platform_llm",
         new_callable=AsyncMock,
-        return_value={},
     )
-    @patch("litellm.acompletion", new_callable=AsyncMock)
     async def test_semantic_judge_produces_structured_comments(
         self,
-        mock_llm: AsyncMock,
-        _mock_cfg: AsyncMock,
+        mock_load_llm: AsyncMock,
     ) -> None:
         from myrm_agent_harness.agent.goals.verification.base import ReviewSeverity
 
-        mock_llm.return_value = _mock_llm_response(
+        mock_load_llm.return_value = _mock_platform_llm(
             '{"done": false, "reason": "Missing error handling", "comments": ['
             '{"severity": "critical", "message": "Unhandled exception in verifier", "target_path": "app/main.py", "line_range": "20-30", "fix_suggestion": "Wrap in try-except"},'
             '{"severity": "warning", "message": "Variable unused", "target_path": "app/main.py"}'

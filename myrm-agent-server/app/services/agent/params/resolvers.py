@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from app.core.types import ModelConfig
+from app.core.wire.enrich import enrich_model_config
 
 from .models import ModelSelection
 from .providers import _find_provider_api_key
@@ -80,11 +81,14 @@ async def _resolve_model_config(
 
     full_model = _to_litellm_model(selection.provider_id, selection.model, provider_type)
 
-    return ModelConfig(
-        model=full_model,
-        api_key=all_keys[0],
-        base_url=api_url,
-        model_kwargs=selection.model_kwargs,
-        api_keys=all_keys if len(all_keys) > 1 else None,
-        credential_pool_strategy=selection.credential_pool_strategy,
+    return enrich_model_config(
+        ModelConfig(
+            model=full_model,
+            api_key=all_keys[0],
+            base_url=api_url,
+            model_kwargs=selection.model_kwargs,
+            api_keys=all_keys if len(all_keys) > 1 else None,
+            credential_pool_strategy=selection.credential_pool_strategy,
+        ),
+        provider_id=selection.provider_id,
     )

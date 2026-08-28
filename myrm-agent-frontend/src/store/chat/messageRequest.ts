@@ -832,8 +832,8 @@ export const createMessageRequest = async (
         }),
       }),
     ...(isAgentMode &&
-      agentConfig?.forceDelegateAgent && {
-        force_delegate_agent: agentConfig.forceDelegateAgent,
+      agentConfig?.forceExternalAgent && {
+        force_external_agent: agentConfig.forceExternalAgent,
       }),
     ...(isAgentMode && {
       security_preset: useChatStore.getState().securityPreset,

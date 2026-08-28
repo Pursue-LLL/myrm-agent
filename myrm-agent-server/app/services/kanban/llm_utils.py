@@ -59,6 +59,25 @@ def extract_usage(response: object) -> tuple[int | None, int | None]:
     return _coerce_int_or_none(prompt_raw), _coerce_int_or_none(completion_raw)
 
 
+def extract_langchain_usage(message: object) -> tuple[int | None, int | None]:
+    """Pull (prompt_tokens, completion_tokens) from a LangChain AIMessage."""
+    metadata = getattr(message, "response_metadata", None)
+    if not isinstance(metadata, dict):
+        return None, None
+    usage = metadata.get("token_usage")
+    if not isinstance(usage, dict):
+        usage = metadata.get("usage")
+    if not isinstance(usage, dict):
+        return None, None
+    prompt_raw = usage.get("prompt_tokens")
+    if prompt_raw is None:
+        prompt_raw = usage.get("input_tokens")
+    completion_raw = usage.get("completion_tokens")
+    if completion_raw is None:
+        completion_raw = usage.get("output_tokens")
+    return _coerce_int_or_none(prompt_raw), _coerce_int_or_none(completion_raw)
+
+
 def _coerce_int_or_none(v: object) -> int | None:
     if isinstance(v, bool):
         return None

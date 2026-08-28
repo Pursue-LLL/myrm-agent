@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
 - app.lifecycle.memory_guardian_ops::create_guardian_memory_manager (POS: guardian 上下文 MemoryManager 工厂)
-- app.services.agent.platform_config::build_platform_litellm_kwargs (POS: WebUI 默认对话模型）
+- app.services.agent.platform_config::load_platform_llm (POS: WebUI 默认对话模型，wire-aware）
 - app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
 
 [OUTPUT]
@@ -21,43 +21,29 @@ pattern discovery 的 LLM 依赖独立于维护预算策略）。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperationStatus
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.llms import ChatLiteLLM
+    from langchain_core.language_models.chat_models import BaseChatModel
     from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import PatternReport
 
 logger = logging.getLogger(__name__)
 
 
-async def _build_platform_llm() -> ChatLiteLLM | None:
-    """Construct a chat model from the WebUI default model for analysis.
+async def _build_platform_llm() -> "BaseChatModel | None":
+    """Construct a wire-aware chat model from the WebUI default model.
 
     Returns ``None`` when the default model is not configured or unreachable
-    so callers can skip gracefully instead of raising. Never falls back to
-    process environment variables (platform config is the only source).
+    so callers can skip gracefully instead of raising.
     """
-    from myrm_agent_harness.toolkits.llms import ChatLiteLLM  # type: ignore[attr-defined]
+    from langchain_core.language_models.chat_models import BaseChatModel
 
-    from app.services.agent.platform_config import build_platform_litellm_kwargs
+    from app.services.agent.platform_config import load_platform_llm
 
     try:
-        kwargs = await build_platform_litellm_kwargs()
-        model = cast(str | None, kwargs.get("model"))
-        api_key = cast(str | None, kwargs.get("api_key"))
-        if not model or not api_key:
-            logger.info("Pattern discovery: skipped (WebUI default model not configured)")
-            return None
-        return ChatLiteLLM(
-            model=model,
-            api_key=api_key,
-            api_base=cast(str | None, kwargs.get("api_base")),
-            temperature=0,
-            max_tokens=4096,
-            request_timeout=120.0,
-        )
+        return await load_platform_llm(streaming=False, temperature=0.0)
     except Exception as exc:
         logger.warning("Pattern discovery: failed to build platform LLM (non-fatal): %s", exc)
         return None

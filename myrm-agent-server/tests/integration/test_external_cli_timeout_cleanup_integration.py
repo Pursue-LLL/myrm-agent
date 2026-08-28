@@ -50,7 +50,7 @@ def _new_mixin(*, chat_scope_id: str) -> ExternalAgentsMixin:
     mixin._runtime_pool_from_registry = False
     mixin._runtime_pool_ephemeral = False
     mixin.agent_id = "general"
-    mixin.force_delegate_agent = None
+    mixin.force_external_agent = None
     return mixin
 
 

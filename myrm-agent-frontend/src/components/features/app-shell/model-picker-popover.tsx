@@ -21,6 +21,8 @@ import { useTranslations } from 'next-intl';
 import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
+import OpenCodeContributorNotice from '@/components/features/settings/model-service/OpenCodeContributorNotice';
+import { anySelectionNeedsContributorNotice } from '@/components/features/settings/model-service/opencode-contributor-utils';
 import CapabilityIcons from '@/components/features/app-shell/capability-icons';
 import {
   fetchModelCapabilitiesBatch,
@@ -336,6 +338,12 @@ export default function ModelPickerPopover({
     setOpen(false);
   };
 
+  const showContributorNotice = anySelectionNeedsContributorNotice([
+    currentSelection,
+    fallbackSelection,
+    safetyFallbackSelection,
+  ]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
@@ -613,6 +621,11 @@ export default function ModelPickerPopover({
             )}
           </div>
         </TooltipProvider>
+        {showContributorNotice && (
+          <div className="border-t border-border p-3">
+            <OpenCodeContributorNotice variant="model" />
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

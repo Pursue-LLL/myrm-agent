@@ -85,6 +85,7 @@ const MODELS_DEV_TO_APP_PROVIDER_MAP: Record<string, string> = {
   jina: 'jina_ai',
   nvidia: 'nvidia',
   '302ai': 'ai302',
+  'opencode-go': 'opencode_go',
 };
 
 /**
@@ -125,6 +126,7 @@ const URL_DOMAIN_TO_PROVIDER_MAP: Record<string, string> = {
   'api.minimaxi.com': 'minimax-coding-plan',
   'integrate.api.nvidia.com': 'nvidia',
   'api.302.ai': '302ai',
+  'opencode.ai': 'opencode-go',
 };
 
 /**

@@ -18,6 +18,8 @@ export const KNOWN_PERMISSIONS = [
   'browser_upload',
   'browser_download',
   'browser_session',
+  'spawn_subagent',
+  'invoke_external_agent',
 ] as const;
 
 export function flattenPermissions(

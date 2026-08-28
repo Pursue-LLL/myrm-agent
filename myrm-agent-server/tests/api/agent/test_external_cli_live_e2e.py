@@ -70,7 +70,7 @@ def test_live_direct_delegate_pong_via_force_delegate(
     client: TestClient,
     mock_load_user_configs,
 ) -> None:
-    """Direct delegate via force_delegate_agent uses UserConfig agent name (claude-code).
+    """Direct delegate via force_external_agent uses UserConfig agent name (claude-code).
 
     Requires a locally authenticated external CLI (claude code login or
     ANTHROPIC_API_KEY); unauthenticated or credential-broken environments are
@@ -131,7 +131,7 @@ def test_live_direct_delegate_pong_via_force_delegate(
         "chat_id": chat_id,
         "agent_id": "builtin-general",
         "action_mode": "agent",
-        "force_delegate_agent": "claude-code",
+        "force_external_agent": "claude-code",
         "agent_config": {"enabled_builtin_tools": ["external_cli"]},
         "model_selection": get_model_selection(),
         "timezone": "UTC",

@@ -54,7 +54,7 @@ export interface AgentConfig {
   modelSelection?: SingleModelSelection | null;
   fallbackModelSelection?: SingleModelSelection | null;
   safetyFallbackModelSelection?: SingleModelSelection | null;
-  forceDelegateAgent?: string;
+  forceExternalAgent?: string;
   enabledBuiltinTools?: BuiltinToolId[];
   browserSource?: string;
   dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
