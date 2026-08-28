@@ -19,9 +19,8 @@ from __future__ import annotations
 import logging
 import re
 
-from myrm_agent_harness.utils.locale import normalize_locale
-
 from langchain_core.messages import HumanMessage, SystemMessage
+from myrm_agent_harness.utils.locale import normalize_locale
 
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_parsers import extract_lite_model_config

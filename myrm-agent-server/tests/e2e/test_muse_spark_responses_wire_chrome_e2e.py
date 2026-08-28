@@ -132,7 +132,7 @@ def _turn_has_marker(state: dict[str, object], marker: str) -> bool:
     private_reason="live_shpoib",
 )
 @pytest.mark.integration
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 @pytest.mark.asyncio
 async def test_muse_spark_responses_wire_two_turn_tool_loop(
     e2e_resource_ledger: E2EResourceLedger,

@@ -6,9 +6,9 @@ import pytest
 
 from tests.support.chrome_allowlist_settings_e2e import SETTINGS_SECURITY_SHELL_READY_JS
 from tests.support.chrome_delegation_permissions_e2e import (
-    DELEGATION_PERMISSIONS_GUIDE_READY_JS,
-    DELEGATION_PERMISSION_TYPES_IN_RULES_JS,
     _DELEGATION_GUIDE_SCROLL_JS,
+    DELEGATION_PERMISSION_TYPES_IN_RULES_JS,
+    DELEGATION_PERMISSIONS_GUIDE_READY_JS,
 )
 from tests.support.chrome_mcp_e2e import (
     open_settings_subroute,

@@ -1,7 +1,7 @@
 """Server wire registry unit tests."""
 
-from app.core.wire.enrich import enrich_model_config
 from app.core.types import ModelConfig
+from app.core.wire.enrich import enrich_model_config
 from app.core.wire.registry import normalize_model_name_for_wire, resolve_wire_protocol
 
 _OPENCODE_BASE = "https://opencode.ai/zen/go/v1"

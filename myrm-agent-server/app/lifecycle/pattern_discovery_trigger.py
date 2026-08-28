@@ -38,7 +38,6 @@ async def _build_platform_llm() -> "BaseChatModel | None":
     Returns ``None`` when the default model is not configured or unreachable
     so callers can skip gracefully instead of raising.
     """
-    from langchain_core.language_models.chat_models import BaseChatModel
 
     from app.services.agent.platform_config import load_platform_llm
 

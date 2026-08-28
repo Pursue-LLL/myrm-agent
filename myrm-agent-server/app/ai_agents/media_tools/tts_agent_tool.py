@@ -30,7 +30,10 @@ ArtifactPushFn = Callable[[str, str, ArtifactType, str], None]
 class TTSInput(BaseModel):
     """Input schema for TTS tool."""
 
-    text: str = Field(..., description="The text to convert to speech. Should be plain text.")
+    text: str = Field(
+        ...,
+        description="The plain text content to synthesize into spoken audio.",
+    )
 
 
 class TTSTool(BaseTool):
@@ -38,8 +41,9 @@ class TTSTool(BaseTool):
 
     name: str = "tts_generate"
     description: str = (
-        "Generate speech (audio) from text. Use this when the user asks you to read something out loud "
-        "or generate a voice message."
+        "Generate natural spoken speech (audio) from text. "
+        "Use this when the user asks to read something out loud, synthesize voice narration, or generate a voice message. "
+        "Returns a persistent audio URL and an audio artifact."
     )
     args_schema: type[BaseModel] = TTSInput
 

@@ -150,7 +150,6 @@ async def load_user_configs() -> UserConfigs:
 
     from sqlalchemy import select
 
-    from app.core.types import ModelConfig
     from app.database.connection import get_session
     from app.database.models import UserConfig
 

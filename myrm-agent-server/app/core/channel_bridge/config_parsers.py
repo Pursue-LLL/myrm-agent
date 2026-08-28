@@ -299,11 +299,11 @@ def _build_enriched_model_config(
     infer_video: bool = False,
 ) -> "ModelConfig | None":
     """Build ModelConfig with wire enrich + capabilities + context window."""
-    from app.core.types import ModelConfig
     from app.core.channel_bridge.model_resolver import (
         enrich_model_capabilities,
         enrich_model_context_window,
     )
+    from app.core.types import ModelConfig
     from app.core.wire.enrich import enrich_model_config
 
     api_key = _extract_active_key(provider)
@@ -336,7 +336,6 @@ def _resolve_vision_fallback_primary_config(
     providers_dict: dict[str, object] | None,
 ) -> "ModelConfig | None":
     """Resolve visionFallbackModel primary selection to ModelConfig."""
-    from app.core.types import ModelConfig
 
     if not providers_dict:
         return None
@@ -389,7 +388,6 @@ def _resolve_base_primary_model_config(
     providers_dict: dict[str, object] | None,
 ) -> "ModelConfig | None":
     """Resolve defaultModelConfig.baseModel.primary without raising."""
-    from app.core.types import ModelConfig
 
     if not providers_dict:
         return None
@@ -542,7 +540,6 @@ def _resolve_video_fallback_primary_config(
     providers_dict: dict[str, object] | None,
 ) -> "ModelConfig | None":
     """Resolve videoFallbackModel primary selection to ModelConfig."""
-    from app.core.types import ModelConfig
 
     if not providers_dict:
         return None

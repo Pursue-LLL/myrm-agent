@@ -65,7 +65,6 @@ async def load_llm_from_model_config(
     temperature: float | None = None,
 ) -> "BaseChatModel":
     """Build a wire-aware ChatLiteLLM from an enriched ModelConfig."""
-    from langchain_core.language_models.chat_models import BaseChatModel
     from myrm_agent_harness.toolkits.llms.core.manager import llm_manager
 
     resolved = cfg

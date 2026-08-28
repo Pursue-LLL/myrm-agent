@@ -51,8 +51,8 @@ class _NotifyInput(BaseModel):
     attachments: list[str] = Field(
         description=(
             "Optional file attachments to include with the notification. "
-            "Each entry is a local file path (e.g. '/myrm/sandbox/report.pdf') "
-            "or a URL (e.g. 'https://example.com/image.png'). "
+            "Each entry is a workspace file path (relative or absolute, e.g. 'report.pdf' or '/myrm/sandbox/report.pdf') "
+            "or an HTTP/HTTPS URL (e.g. 'https://example.com/image.png'). "
             "Supported types: images, documents, audio, video."
         ),
         default_factory=list,

@@ -220,7 +220,13 @@ def create_video_generation_tool(
         force: bool = False,
         task_id: str | None = None,
     ) -> str:
-        """Generate, poll, or list video generation providers."""
+        """Generate, poll status of, or list video generation models.
+
+        Workflow:
+        1) Call action='generate' with prompt (and optional reference_images for I2V). This returns a task JSON with task_id.
+        2) Call action='status' with task_id to inspect progress and retrieve the final video URL upon completion.
+        3) Call action='list' to view available video models and providers.
+        """
         if action == "list":
             return await engine.execute(
                 "list",

@@ -32,6 +32,7 @@ from myrm_agent_harness.agent.config.parsers import (
     to_litellm_model,
 )
 from myrm_agent_harness.api import ConfigIncompleteError
+
 from app.core.wire.enrich import enrich_model_config
 
 if TYPE_CHECKING:
