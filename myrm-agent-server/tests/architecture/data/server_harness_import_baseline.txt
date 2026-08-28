@@ -210,6 +210,7 @@ myrm_agent_harness.core.artifacts.paths
 myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
 myrm_agent_harness.core.config.model_tier
+myrm_agent_harness.core.config.wire
 myrm_agent_harness.core.events
 myrm_agent_harness.core.events.types
 myrm_agent_harness.core.features
@@ -222,7 +223,6 @@ myrm_agent_harness.core.security.path_security
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
-myrm_agent_harness.eval.contracts
 myrm_agent_harness.eval.protocols
 myrm_agent_harness.infra.delivery.dead_letter
 myrm_agent_harness.infra.delivery.notification_ledger
@@ -345,6 +345,7 @@ myrm_agent_harness.toolkits.kanban.protocols
 myrm_agent_harness.toolkits.kanban.types
 myrm_agent_harness.toolkits.llms
 myrm_agent_harness.toolkits.llms.consensus.moa_overlay_types
+myrm_agent_harness.toolkits.llms.core.manager
 myrm_agent_harness.toolkits.llms.errors
 myrm_agent_harness.toolkits.llms.errors.classifier
 myrm_agent_harness.toolkits.llms.errors.resilient
@@ -439,8 +440,8 @@ myrm_agent_harness.toolkits.web_fetch.escalation.protocols
 myrm_agent_harness.toolkits.web_fetch.processing.html_to_markdown
 myrm_agent_harness.toolkits.web_search
 myrm_agent_harness.toolkits.web_search.core.common
-myrm_agent_harness.toolkits.web_search.probe.constants
 myrm_agent_harness.toolkits.web_search.engine
+myrm_agent_harness.toolkits.web_search.probe.constants
 myrm_agent_harness.toolkits.web_search.probe.local_probe
 myrm_agent_harness.toolkits.web_search.providers.web_searcher
 myrm_agent_harness.toolkits.wiki
