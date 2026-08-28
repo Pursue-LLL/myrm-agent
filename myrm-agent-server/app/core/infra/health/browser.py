@@ -27,16 +27,16 @@ try:
 except ImportError:
     psutil = None
 
+from myrm_agent_harness.api import (
+    cleanup_orphan_processes,
+    find_orphan_automation_processes,
+)
 from myrm_agent_harness.infra.health.health_checker import (
     HealthChecker,
     HealthCheckResult,
     HealthStatus,
     RecoveryResult,
     RecoveryStatus,
-)
-from myrm_agent_harness.api import (
-    cleanup_orphan_processes,
-    find_orphan_automation_processes,
 )
 
 logger = logging.getLogger(__name__)
