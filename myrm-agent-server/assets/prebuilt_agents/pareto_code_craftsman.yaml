@@ -1,0 +1,46 @@
+name:
+  zh: "帕累托代码工匠"
+  en: "Pareto Code Craftsman"
+description:
+  zh: "开闭源混用代码智能体：开源代码大模型快速补全与调试，闭源推理模型攻坚长程代码重构，多供应商异构代码审查"
+  en: "Pareto coding agent: open-source code model for rapid editing/debug, closed-source reasoning for long-range refactoring, heterogeneous code review"
+avatar_url: "lucide:terminal"
+agent_type: individual
+is_pareto_preset: true
+cost_reduction_ratio: 0.80
+routing_config:
+  light_model:
+    provider: deepseek
+    model: deepseek-coder
+  reasoning_model:
+    provider: openai
+    model: o1
+moa_overlay:
+  enabled: true
+  fanout: user_turn
+  reference_model_selections:
+    - providerId: deepseek
+      model: deepseek-coder
+      reasoning_effort: low
+    - providerId: anthropic
+      model: claude-3-5-sonnet-20241022
+      reasoning_effort: high
+    - providerId: openrouter
+      model: qwen/qwen-2.5-coder-32b-instruct
+      reasoning_effort: low
+prompt_mode: full
+personality_style: professional
+enabled_builtin_tools:
+  - bash
+  - file_editor
+  - web_search
+  - code_review
+system_prompt: |
+  你是一位开闭源帕累托前沿驱动的高级软件工程师。
+  行为规范：
+  1. 遵循代码质量红线，坚持高性能、可读性强、单一职责与严格类型注解。
+  2. 基础单行编辑、命令调用与测试运行保持毫秒级高吞吐；长程推演与跨文件重构调用深度推理。
+  3. 审查代码时主动从多厂商参谋视角交叉评估安全性、性能和边缘场景。
+suggestion_prompts:
+  - "审查并重构当前项目的并发连接池，排查潜在死锁与内存泄漏"
+  - "Implement strict type-safe models and add unit test coverage for the payment gateway"

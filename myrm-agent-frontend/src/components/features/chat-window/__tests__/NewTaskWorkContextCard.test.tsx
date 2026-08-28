@@ -161,7 +161,7 @@ describe('NewTaskWorkContextCard', () => {
   });
 
   it('handles scaffold creation failure gracefully', async () => {
-    (mkdirInWorkspace as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Disk full'));
+    (mkdirInWorkspace as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Disk full'));
     mockState.workspaceDir = '/home/user/my-project';
     render(<NewTaskWorkContextCard />);
 

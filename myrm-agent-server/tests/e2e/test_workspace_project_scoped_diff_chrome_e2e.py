@@ -51,16 +51,16 @@ def test_workspace_project_root_and_diff_chrome_e2e() -> None:
     api_base = get_e2e_api_url()
     prepare_e2e_ui_session(api_base)
     session = "ws_project_diff_e2e"
-    page = open_mcp_page(f"{get_e2e_ui_url()}/?chat={session}")
+    with open_mcp_page(f"{get_e2e_ui_url()}/?chat={session}") as (client, page):
+        ensure_desktop_viewport(client, page)
+        dismiss_blocking_modals(client, page)
+        wait_for_react_e2e_bridge(client, page)
 
-    ensure_desktop_viewport(page)
-    dismiss_blocking_modals(page)
-    wait_for_react_e2e_bridge(page)
-
-    # 1. Verify page shell loaded
-    ready = wait_for_state(
-        page,
-        '() => document.body !== null && document.querySelector(\'[data-testid="chat-window"], [data-testid="chat-input-textarea"], main\') !== null',
-        timeout=15.0,
-    )
-    assert ready, "Chat window/page shell did not load"
+        # 1. Verify page shell loaded
+        ready = wait_for_state(
+            client,
+            page,
+            '() => document.body !== null && document.querySelector(\'[data-testid="chat-window"], [data-testid="chat-input-textarea"], main\') !== null',
+            timeout_sec=15.0,
+        )
+        assert ready.get("ready") is True or ready is True, "Chat window/page shell did not load"

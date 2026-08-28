@@ -58,6 +58,7 @@ vi.mock('@/lib/model-binding', () => ({
   resolveActiveModelSelection: () => ({ providerId: 'p1', model: 'model-a' }),
   resolveActiveFallbackSelection: () => null,
   resolveModelPickerTriggerDisplay: () => ({ modelName: 'model-a', moaPresetId: null }),
+  isSmartRoutingConfigured: () => false,
 }));
 
 const mockPopoverProps = vi.hoisted(() => vi.fn());
