@@ -16,6 +16,7 @@ if __package__ in (None, ""):
     if _lib_root not in sys.path:
         sys.path.insert(0, _lib_root)
 
+from e2e_core.frontend_dev_pause import is_frontend_dev_paused
 from e2e_core.real_user_home import real_user_home
 
 _DEFAULT_DEBOUNCE_SEC = 60.0
@@ -136,6 +137,8 @@ def heal_shared_frontend_debounced(
     subprocess_timeout_sec: float = 60.0,
 ) -> bool:
     """Run frontend-only ensure at most once per debounce window across parallel pytest."""
+    if is_frontend_dev_paused():
+        return False
     if warm_ui_heal_recently_applied(debounce_sec=debounce_sec):
         return False
 
@@ -228,6 +231,8 @@ def heal_shared_frontend_attach(
     poll_sec: float = 5.0,
 ) -> str:
     """Single-writer attach frontend heal across parallel chrome_e2e ADMIT sessions."""
+    if is_frontend_dev_paused():
+        return "paused_skip"
     if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
         if _shared_ui_probe_ok():
             return "follower_ok"
@@ -254,6 +259,14 @@ def heal_shared_frontend_attach(
                 leader_pid, _leader_started = _read_attach_leader_meta()
                 leader_alive = _leader_process_alive(leader_pid)
                 elapsed = time.monotonic() - wait_started
+                if not leader_alive and leader_pid is not None:
+                    _clear_attach_leader_meta()
+                    print(
+                        "CHROME_E2E_HEAL_STALE_LEADER: attach frontend heal leader "
+                        f"pid={leader_pid} is dead — retry flock",
+                        file=sys.stderr,
+                    )
+                    continue
                 if attach_heal_leader_stale():
                     print(
                         "CHROME_E2E_HEAL_LEADER_STALE: attach frontend heal leader "
@@ -438,7 +451,7 @@ def main() -> int:
         root = Path(sys.argv[2]).resolve()
         outcome = heal_shared_frontend_attach(root)
         print(outcome)
-        return 0 if outcome in {"leader_ok", "follower_ok"} else 1
+        return 0 if outcome in {"leader_ok", "follower_ok", "paused_skip"} else 1
     if len(sys.argv) >= 2 and sys.argv[1] == "ui-heal":
         root = Path(sys.argv[2]).resolve() if len(sys.argv) >= 3 else Path.cwd()
         route = ""
@@ -454,6 +467,9 @@ def main() -> int:
         print("usage: warm_ui_heal.py <monorepo_root>", file=sys.stderr)
         return 2
     root = Path(sys.argv[1]).resolve()
+    if is_frontend_dev_paused():
+        print("paused_skip")
+        return 0
     ok = heal_shared_frontend_debounced(root)
     print("healed" if ok else "skipped")
     return 0 if ok else 1

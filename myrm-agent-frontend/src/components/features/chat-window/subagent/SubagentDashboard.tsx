@@ -204,6 +204,15 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     (taskId: string) => {
       const targetNode = useSubagentStore.getState().nodes[taskId];
       if (targetNode) {
+        setViewMode('tree');
+        requestAnimationFrame(() => {
+          const el = document.querySelector(`[data-subagent-tree-id="${taskId}"]`);
+          if (el instanceof HTMLElement) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg', 'transition-all');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-lg'), 2000);
+          }
+        });
         handleOpenDetail(targetNode);
       } else {
         setViewMode('tree');

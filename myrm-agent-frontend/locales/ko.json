@@ -12727,6 +12727,13 @@
     },
     "modelService": {
       "title": "모델 서비스",
+      "opencodeContributor": {
+        "badge": "OpenCode 기여자",
+        "providerSummary": "오픈 소스 코딩 생태계의 활성 기여자를 위한 무료 모델 할당량입니다.",
+        "modelSummary": "OpenCode 기여자 티어를 통해 제공되는 전용 할당량 접근 권한입니다.",
+        "stepEnableConsent": "제공자 설정에서 기여 텔레메트리 동의가 활성화되어 있는지 확인하세요.",
+        "stepOrUseStandard": "할당량이 소진된 경우 표준 직접 API 키를 구성하여 사용할 수도 있습니다."
+      },
       "description": "모델 제공자 및 API 키 구성",
       "addProvider": "제공자 추가",
       "removeProvider": "제공자 제거",
@@ -13161,7 +13168,14 @@
       },
       "preflightCompress": "압축될 수 있음",
       "preflightCompressDetail": "지금 전환하면 다음 메시지에서 컨텍스트가 압축될 수 있습니다(임계값: {threshold} tokens)",
-      "modelRestricted": "조직 정책에 의해 제한됨"
+      "modelRestricted": "조직 정책에 의해 제한됨",
+      "opencodeContributor": {
+        "badge": "OpenCode 기여자",
+        "providerSummary": "오픈소스 코딩 생태계에 활발히 기여하는 사용자에게 무료 모델 액세스를 제공합니다.",
+        "modelSummary": "OpenCode 기여자 등급을 통한 특별 할당량 액세스.",
+        "stepEnableConsent": "프로바이더 설정에서 기여 원격 측정 동의를 활성화하세요.",
+        "stepOrUseStandard": "할당량 한도에 도달하면 표준 직접 API 키를 구성하세요."
+      }
     },
     "modelCapabilities": {
       "vision": "비전",

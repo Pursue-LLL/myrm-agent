@@ -130,3 +130,17 @@ function stripIsolatedTsconfig(): void {
 }
 
 stripIsolatedTsconfig();
+
+function writeFrontendDevPause(): void {
+  const pauseSec = process.env.MYRM_FRONTEND_DEV_PAUSE_SEC?.trim() || '1800';
+  const pauseScript = join(import.meta.dir, '..', '..', 'scripts', 'dev', 'lib', 'e2e_core', 'frontend_dev_pause.py');
+  const result = spawnSync('python3', [pauseScript, 'write', '--seconds', pauseSec, '--reason', 'cleanup'], {
+    encoding: 'utf-8',
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) {
+    console.warn('⚠️  Could not write frontend dev pause stamp (Agent may respawn next dev)');
+  }
+}
+
+writeFrontendDevPause();

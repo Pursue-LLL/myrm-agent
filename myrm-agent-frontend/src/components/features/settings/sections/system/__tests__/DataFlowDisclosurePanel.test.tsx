@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { DataFlowDisclosurePanel } from './DataFlowDisclosurePanel';
+import { DataFlowDisclosurePanel } from '../DataFlowDisclosurePanel';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 

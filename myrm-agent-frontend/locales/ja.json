@@ -12754,6 +12754,13 @@
         "deleteFailed": "削除に失敗しました"
       },
       "title": "モデルサービス",
+      "opencodeContributor": {
+        "badge": "OpenCode 貢献者",
+        "providerSummary": "オープンソースコーディングエコシステムの活動的な貢献者向け無料モデル枠。",
+        "modelSummary": "OpenCode 貢献者枠を介した専用アクセス枠。",
+        "stepEnableConsent": "プロバイダー設定でコントリビューションテレメトリの同意が有効になっていることを確認してください。",
+        "stepOrUseStandard": "枠を使い切った場合は、通常の直接 API キーを設定して使用することも可能です。"
+      },
       "description": "モデルプロバイダーと API キーを設定",
       "addProvider": "プロバイダーを追加",
       "removeProvider": "プロバイダーを削除",
@@ -13161,6 +13168,13 @@
       },
       "preflightCompress": "圧縮される可能性があります",
       "preflightCompressDetail": "今切り替えると、次のメッセージでコンテキストが圧縮される可能性があります（しきい値: {threshold} トークン）",
+      "opencodeContributor": {
+        "badge": "OpenCode 貢献者",
+        "providerSummary": "オープンソースコーディングエコシステムの活動的な貢献者向け無料モデル枠。",
+        "modelSummary": "OpenCode 貢献者枠を介した専用アクセス枠。",
+        "stepEnableConsent": "プロバイダー設定でコントリビューションテレメトリの同意が有効になっていることを確認してください。",
+        "stepOrUseStandard": "枠を使い切った場合は、通常の直接 API キーを設定して使用することも可能です。"
+      },
       "modelRestricted": "組織ポリシーにより制限されています"
     },
     "modelCapabilities": {

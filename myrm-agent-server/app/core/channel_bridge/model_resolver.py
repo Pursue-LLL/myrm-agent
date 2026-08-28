@@ -216,6 +216,8 @@ def _fallback_model_from_providers(
     if isinstance(default_model_cfg, dict):
         base_model = default_model_cfg.get("baseModel") or {}
         base_selection = base_model.get("primary") or base_model.get("selection")
+        if not base_selection and default_model_cfg.get("providerId") and default_model_cfg.get("model"):
+            base_selection = default_model_cfg
         if base_selection and isinstance(base_selection, dict):
             pid = str(base_selection.get("providerId", ""))
             model = str(base_selection.get("model") or base_selection.get("modelId") or "")

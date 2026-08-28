@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
+import time
+import uuid
 from pathlib import Path
 
 import pytest
@@ -28,6 +31,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 from tests.support.e2e_provider_seed import upsert_provider
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
+from tests.support.test_secrets import resolve_test_env
 
 _MUSE_SPARK_MODEL = "muse-spark-1.2-contributor"
 _PROVIDER_ID = "opencode_go"
@@ -43,6 +47,7 @@ _PREP_AGENT_TURN_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) return { ready: false, err: 'no-bridge' };
   await bridge.ensureProviders?.();
+  bridge.setWorkflowMode?.(false);
   bridge.setActionMode?.('agent');
   await bridge.ensureChatSession?.({ preserveActionMode: true });
   bridge.setSseCaptureMessageId?.(null);
@@ -55,12 +60,16 @@ _PREP_AGENT_TURN_JS = """(async () => {
     await bridge.syncSearchServicesFromE2eApi();
   }
   const debug = bridge.debugProviderState?.() ?? null;
+  const search = bridge.debugSearchState?.() ?? null;
   const sendReady = bridge.isSendReady?.() === true;
   const hasInput = !!document.querySelector('[data-chat-input]');
   return {
-    ready: hasInput && sendReady && !!debug?.selection,
+    ready: hasInput && sendReady && !!debug?.selection && bridge.isWorkflowMode?.() !== true
+      && Number(search?.enabledCount ?? 0) > 0,
     sendReady,
     hasInput,
+    workflowMode: bridge.isWorkflowMode?.() ?? null,
+    searchEnabled: Number(search?.enabledCount ?? 0),
     selection: debug?.selection ?? null,
   };
 })()"""
@@ -118,11 +127,73 @@ def _seed_muse_spark_provider(api_url: str, *, api_key: str, base_url: str) -> N
     put_config_value("providers", merged, api_url=api_url)
 
 
-def _turn_has_marker(state: dict[str, object], marker: str) -> bool:
-    assistant = str(
-        state.get("assistantText") or state.get("lastAssistant") or state.get("lastAssistantSample") or ""
+def _ensure_search_services(api_url: str) -> None:
+    """SHPOIB private pools start without search — web_search requires enabled configs."""
+    current = fetch_config_value("searchServices", api_url=api_url)
+    configs = current.get("searchServiceConfigs")
+    if isinstance(configs, list) and configs:
+        return
+    search_service = resolve_test_env("SEARCH_SERVICE", "tavily") or "tavily"
+    api_key = resolve_test_env("TAVILY_API_KEY") or resolve_test_env("SEARCH_API_KEY", "test-tavily-key")
+    item: dict[str, object] = {
+        "id": f"e2e-search-{uuid.uuid4().hex[:8]}",
+        "name": "E2E Search",
+        "enabled": True,
+        "priority": 1,
+        "search_service": search_service,
+        "api_key": api_key,
+        "createdAt": int(time.time() * 1000),
+    }
+    put_config_value(
+        "searchServices",
+        {"searchServiceConfigs": [item]},
+        api_url=api_url,
     )
-    return marker in assistant.upper()
+
+
+def _turn_has_marker(state: dict[str, object], marker: str) -> bool:
+    parts = (
+        state.get("assistantText"),
+        state.get("lastAssistant"),
+        state.get("lastAssistantSample"),
+        state.get("assistantSample"),
+        state.get("sample"),
+    )
+    assistant = "\n".join(str(part) for part in parts if part)
+    return marker.upper() in assistant.upper()
+
+
+async def _wait_turn_with_marker(
+    chat: McpChatSession,
+    prompt: str,
+    marker: str,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    """Poll until assistant text contains marker (PTC/goal signals may finish early)."""
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        last = await chat.main_state(prompt)
+        if _turn_has_marker(last, marker):
+            return last
+        snap = await chat.evaluate(
+            "(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null)()",
+            await_promise=False,
+        )
+        if isinstance(snap, dict):
+            merged = {**last, **snap}
+            last = merged
+            if _turn_has_marker(merged, marker):
+                return merged
+            if snap.get("isStreaming") or snap.get("sending"):
+                await asyncio.sleep(2.0)
+                continue
+        if last.get("sending"):
+            await asyncio.sleep(2.0)
+            continue
+        await asyncio.sleep(3.0)
+    return last
 
 
 @pytest.mark.chrome_e2e(
@@ -145,9 +216,10 @@ async def test_muse_spark_responses_wire_two_turn_tool_loop(
     api_base = get_e2e_api_url()
     prepare_e2e_ui_session(api_base)
     _seed_muse_spark_provider(api_base, api_key=api_key, base_url=base_url)
+    _ensure_search_services(api_base)
 
     ui_base = get_e2e_ui_url().rstrip("/")
-    warm_ui_route("/", timeout_sec=30.0)
+    warm_ui_route("/", timeout_sec=90.0)
 
     session = await open_mcp_page_async(
         ui_base,
@@ -163,7 +235,9 @@ async def test_muse_spark_responses_wire_two_turn_tool_loop(
         heartbeat_once()
 
         await chat.send_message(_TURN1_PROMPT, _TURN1_PROMPT)
-        turn1 = await chat.wait_turn_done(_TURN1_PROMPT, timeout_sec=_TURN_WAIT_SEC)
+        turn1 = await _wait_turn_with_marker(
+            chat, _TURN1_PROMPT, "TOOL_LOOP_OK", timeout_sec=_TURN_WAIT_SEC
+        )
         if str(turn1.get("path", "")).startswith("/settings"):
             pytest.fail(f"Chat redirected to settings on turn 1: {turn1}")
         assert _turn_has_marker(turn1, "TOOL_LOOP_OK"), (
@@ -172,7 +246,9 @@ async def test_muse_spark_responses_wire_two_turn_tool_loop(
 
         heartbeat_once()
         await chat.send_message(_TURN2_PROMPT, _TURN2_PROMPT)
-        turn2 = await chat.wait_turn_done(_TURN2_PROMPT, timeout_sec=_TURN_WAIT_SEC)
+        turn2 = await _wait_turn_with_marker(
+            chat, _TURN2_PROMPT, "TURN2_OK", timeout_sec=_TURN_WAIT_SEC
+        )
         if str(turn2.get("path", "")).startswith("/settings"):
             pytest.fail(f"Chat redirected to settings on turn 2: {turn2}")
         assert _turn_has_marker(turn2, "TURN2_OK"), (

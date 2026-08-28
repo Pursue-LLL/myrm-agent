@@ -12981,6 +12981,13 @@
         "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
         "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
         "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben."
+      },
+      "opencodeContributor": {
+        "badge": "OpenCode-Beitragender",
+        "providerSummary": "Kostenloser Modellzugriff für aktive Mitwirkende an Open-Source-Programmier-Ökosystemen.",
+        "modelSummary": "Spezieller Kontingentzugriff über die OpenCode-Mitwirkendenstufe.",
+        "stepEnableConsent": "Stellen Sie sicher, dass die Einwilligung zur Beitrags-Telemetrie in den Anbietereinstellungen aktiviert ist.",
+        "stepOrUseStandard": "Konfigurieren Sie alternativ standardmäßige direkte API-Schlüssel, falls die Kontingente aufgebraucht sind."
       }
     },
     "defaultModel": {
@@ -13161,7 +13168,14 @@
       },
       "preflightCompress": "Wird ggf. komprimiert",
       "preflightCompressDetail": "Beim Wechsel wird der Kontext bei der nächsten Nachricht ggf. komprimiert (Schwellenwert: {threshold} Tokens)",
-      "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt"
+      "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt",
+      "opencodeContributor": {
+        "badge": "OpenCode-Mitwirkender",
+        "providerSummary": "Kostenloser Modellzugriff für aktive Mitwirkende an Open-Source-Coding-Ökosystemen.",
+        "modelSummary": "Spezieller Kontingentzugriff über die OpenCode-Mitwirkenden-Stufe.",
+        "stepEnableConsent": "Aktivieren Sie die Zustimmung zur Beitrags-Telemetrie in den Anbietereinstellungen.",
+        "stepOrUseStandard": "Alternativ Standard-API-Schlüssel konfigurieren, wenn Kontingentgrenzen erreicht sind."
+      }
     },
     "modelCapabilities": {
       "vision": "Bildverständnis",

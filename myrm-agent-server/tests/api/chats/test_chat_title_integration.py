@@ -19,8 +19,11 @@ def client(init_test_database) -> TestClient:
 def setup_test_config():
     from sqlalchemy import delete
 
+    from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.database.connection import get_session_factory
     from app.database.models.config import UserConfig
+
+    invalidate_user_configs_cache()
 
     async def _setup():
         session_factory = get_session_factory()
@@ -32,7 +35,13 @@ def setup_test_config():
             basic_url = os.environ.get("BASIC_BASE_URL", "")
 
             providers_dict = {
-                "defaultModelConfig": {"providerId": "test-provider", "model": basic_model},
+                "defaultModelConfig": {
+                    "providerId": "test-provider",
+                    "model": basic_model,
+                    "liteModel": {
+                        "primary": {"providerId": "test-provider", "model": basic_model}
+                    },
+                },
                 "providers": [
                     {
                         "id": "test-provider",

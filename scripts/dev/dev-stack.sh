@@ -942,7 +942,18 @@ cmd_backend_only_stop() {
   echo "STACK_BACKEND_ONLY_STOP_OK"
 }
 
+_frontend_dev_paused() {
+  if [[ "${MYRM_FRONTEND_DEV_FORCE:-}" == "1" || "${MYRM_FRONTEND_DEV_FORCE:-}" == "true" ]]; then
+    return 1
+  fi
+  "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" check >/dev/null 2>&1
+}
+
 cmd_frontend_only_ensure() {
+  if _frontend_dev_paused; then
+    echo "STACK_FRONTEND_ONLY_ENSURE_SKIP: frontend dev paused (bun run cleanup); MYRM_FRONTEND_DEV_FORCE=1 to override" >&2
+    exit 0
+  fi
   local needs_client_hot=0
   # Only the attach heal path requires client_hot (SHPOIB shell binds a hydrated
   # page). warm_ui_route heal sets MYRM_CHROME_E2E_FRONTEND_HEAL but runs before
@@ -1005,7 +1016,7 @@ cmd_frontend_only_ensure() {
 }
 
 usage() {
-  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop|frontend-only ensure" >&2
+  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop|frontend-only ensure|frontend-only clear-pause" >&2
 }
 
 _supervisor_delegate_or_fail() {
@@ -1081,6 +1092,10 @@ main() {
     frontend-only)
       local subcmd="${2:-}"
       case "${subcmd}" in
+        clear-pause)
+          "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" clear
+          exit $?
+          ;;
         ensure)
           if _supervisor_internal_call; then cmd_frontend_only_ensure; exit $?; fi
           if [[ "${MYRM_FRONTEND_ENSURE_INNER:-}" == "1" ]]; then

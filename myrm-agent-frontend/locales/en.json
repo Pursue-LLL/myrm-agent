@@ -12754,6 +12754,13 @@
         "deleteFailed": "Failed to delete"
       },
       "title": "Model Service",
+      "opencodeContributor": {
+        "badge": "OpenCode Contributor",
+        "providerSummary": "Free model access for active contributors to open-source coding ecosystems.",
+        "modelSummary": "Special quota access provided via OpenCode Contributor tier.",
+        "stepEnableConsent": "Ensure your contribution telemetry consent is enabled in provider settings.",
+        "stepOrUseStandard": "Alternatively configure standard direct API keys if quota limits are reached."
+      },
       "description": "Configure model providers and API keys",
       "addProvider": "Add Provider",
       "removeProvider": "Remove Provider",
@@ -13160,6 +13167,13 @@
           "validating": "Validating...",
           "failed": "Validation failed"
         }
+      },
+      "opencodeContributor": {
+        "badge": "OpenCode Contributor",
+        "providerSummary": "Free model access for active contributors to open-source coding ecosystems.",
+        "modelSummary": "Special quota access provided via OpenCode Contributor tier.",
+        "stepEnableConsent": "Ensure your contribution telemetry consent is enabled in provider settings.",
+        "stepOrUseStandard": "Alternatively configure standard direct API keys if quota limits are reached."
       },
       "modelRestricted": "Restricted by organization policy"
     },

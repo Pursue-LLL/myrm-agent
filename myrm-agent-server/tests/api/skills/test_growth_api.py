@@ -237,3 +237,42 @@ async def test_skill_growth_case_includes_verification_proof(
     assert data["verification_proof"]["blast_radius"]["lines"] == 25
     assert data["target_layer"] == "prompt"
     assert data["target_pathology"] == "unhandled_exception"
+
+
+def test_manifest_attribution_endpoint(client: TestClient) -> None:
+    """Verify POST /api/v1/skill-growth/manifest-attribution returns structured attribution."""
+    payload = {
+        "manifest_id": "manifest-001",
+        "target_component": "skills/web_search",
+        "rationale": "Improve query reformulation pass rate",
+        "predictions": [
+            {
+                "metric_name": "pass_rate",
+                "direction": "increase",
+                "baseline_value": 0.60,
+                "target_value": 0.85,
+                "tolerance": 0.05,
+            },
+            {
+                "metric_name": "total_cost",
+                "direction": "preserve_min",
+                "baseline_value": 0.01,
+                "target_value": 0.01,
+                "tolerance": 0.02,
+            },
+        ],
+        "actual_metrics": {
+            "pass_rate": 0.90,
+            "total_cost": 0.01,
+        },
+    }
+
+    response = client.post("/api/v1/skill-growth/manifest-attribution", json=payload)
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["manifest_id"] == "manifest-001"
+    assert data["overall_verdict"] == "confirmed"
+    assert data["recommended_action"] == "keep"
+    assert len(data["metric_attributions"]) == 2
+    assert data["metric_attributions"][0]["verdict"] == "confirmed"
+

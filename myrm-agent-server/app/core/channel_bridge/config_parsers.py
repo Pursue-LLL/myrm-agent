@@ -227,7 +227,10 @@ def extract_web_tts_config(
 def extract_lite_model_config(
     providers_dict: dict[str, object] | None,
 ) -> "ModelConfig | None":
-    """Extract the filter/summary model config from the frontend's providers config."""
+    """Extract the filter/summary model config from the frontend's providers config.
+    
+    Falls back to baseModel / primary model config when liteModel is not configured.
+    """
     if not providers_dict:
         return None
 
@@ -236,10 +239,17 @@ def extract_lite_model_config(
         return None
 
     lite_model = default_model_cfg.get("liteModel")
-    if not isinstance(lite_model, dict):
-        return None
+    selection = None
+    if isinstance(lite_model, dict):
+        selection = lite_model.get("primary") or lite_model.get("selection")
 
-    selection = lite_model.get("primary") or lite_model.get("selection")
+    if not isinstance(selection, dict):
+        base_model = default_model_cfg.get("baseModel")
+        if isinstance(base_model, dict):
+            selection = base_model.get("primary") or base_model.get("selection")
+        if not isinstance(selection, dict) and default_model_cfg.get("providerId") and default_model_cfg.get("model"):
+            selection = default_model_cfg
+
     if not isinstance(selection, dict):
         return None
 

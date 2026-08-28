@@ -26,6 +26,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,
     ensure_desktop_viewport,
+    get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
     prepare_e2e_ui_session,
@@ -35,12 +36,21 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 
 
-@pytest.mark.chrome_e2e
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
 def test_workspace_project_root_and_diff_chrome_e2e() -> None:
     """Verify workspace browser context menu 'Set as Project Root' and inline diff component render."""
     _require_e2e_cdp_ready()
     warm_ui_route("/")
-    session = prepare_e2e_ui_session("ws_project_diff_e2e")
+    api_base = get_e2e_api_url()
+    prepare_e2e_ui_session(api_base)
+    session = "ws_project_diff_e2e"
     page = open_mcp_page(f"{get_e2e_ui_url()}/?chat={session}")
 
     ensure_desktop_viewport(page)

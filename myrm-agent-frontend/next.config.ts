@@ -123,8 +123,8 @@ const nextConfig: NextConfig = {
   
   // 优化Turbopack性能
   experimental: {
-    // 减少并行编译任务，降低CPU占用
-    cpus: 4,
+    // Dev 编译并行度：2 核足够，避免 Activity Monitor 出现 200%+ 占满多核导致风扇狂转
+    cpus: process.env.NODE_ENV === 'production' ? 4 : 2,
     // Next.js 16 Turbopack 持久缓存已知 bug：缓存损坏（.sst 文件丢失）会触发
     // restore panic 导致 dev server 崩溃（Aborting）。禁用持久缓存换取稳定性。
     turbopackFileSystemCacheForDev: false,

@@ -371,6 +371,15 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 create_ask_question_tool,
             )
 
+            from app.core.agent.tool_description_locale import (
+                resolve_tool_description_locale,
+            )
+
+            tool_description_locale = resolve_tool_description_locale(
+                agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
+                channel=getattr(self, "channel_name", None),
+            )
+
             async def _on_ask_question(form: AskQuestionInput) -> str:
                 from langgraph.types import interrupt
 
@@ -387,7 +396,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
                 return json.dumps(response, ensure_ascii=False)
 
-            tools.append(create_ask_question_tool(_on_ask_question))
+            tools.append(create_ask_question_tool(_on_ask_question, locale=tool_description_locale))
             logger.info("🙋 已加载 ask_question_tool (交互式澄清表单)")
         except Exception as e:
             logger.warning(f"⚠️ ask_question_tool 加载失败: {e}")

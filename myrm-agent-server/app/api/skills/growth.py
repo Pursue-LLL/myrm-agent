@@ -259,6 +259,52 @@ async def get_skill_growth_case(case_id: str) -> JSONResponse:
     return success_response(data=_detail_response(item, dependents.get(item.skill_id)).model_dump())
 
 
+class EvaluatePredictionManifestBody(BaseModel):
+    manifest_id: str
+    target_component: str
+    rationale: str
+    predictions: list[dict[str, object]] = Field(default_factory=list)
+    actual_metrics: dict[str, float] = Field(default_factory=dict)
+    rollback_patch: str | None = None
+
+
+@router.post("/manifest-attribution")
+async def evaluate_manifest_attribution_endpoint(
+    body: EvaluatePredictionManifestBody,
+) -> JSONResponse:
+    """Evaluate and attribute actual test/eval metrics back to a change prediction manifest."""
+    from myrm_agent_harness.eval.manifest_prediction import (
+        ChangePredictionManifest,
+        MetricPrediction,
+        PredictionDirection,
+        evaluate_manifest_attribution,
+    )
+
+    preds: list[MetricPrediction] = []
+    for p in body.predictions:
+        preds.append(
+            MetricPrediction(
+                metric_name=str(p.get("metric_name", "")),
+                direction=PredictionDirection(str(p.get("direction", "increase"))),
+                baseline_value=float(p.get("baseline_value", 0.0)),
+                target_value=float(p.get("target_value", 0.0)),
+                tolerance=float(p.get("tolerance", 0.02)),
+            )
+        )
+
+    manifest = ChangePredictionManifest(
+        manifest_id=body.manifest_id,
+        target_component=body.target_component,
+        rationale=body.rationale,
+        predictions=preds,
+        rollback_patch=body.rollback_patch,
+    )
+
+    result = evaluate_manifest_attribution(manifest, body.actual_metrics)
+    return success_response(data=result.to_dict())
+
+
+
 @router.get("/stats")
 async def get_skill_growth_stats() -> JSONResponse:
     stats = await summarize_skill_growth_dashboard_stats()

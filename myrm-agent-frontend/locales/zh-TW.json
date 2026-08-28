@@ -12981,7 +12981,14 @@
       "acpTimeoutUnit": "秒",
       "testConnection": "測試連線",
       "connectionSuccess": "連線成功",
-      "connectionFailed": "連線失敗"
+      "connectionFailed": "連線失敗",
+      "opencodeContributor": {
+        "badge": "OpenCode 貢獻者",
+        "providerSummary": "為開源程式設計生態的活躍貢獻者提供的免費模型額度。",
+        "modelSummary": "透過 OpenCode 貢獻者通道提供的專屬配額存取。",
+        "stepEnableConsent": "請確保在提供者設定中開啟了貢獻遙測授權。",
+        "stepOrUseStandard": "若額度用盡，也可隨時設定標準的直連 API 金鑰。"
+      }
     },
     "defaultModel": {
       "localModelWarning": "本地輕量模型在處理複雜 Agent 工具鏈時極易產生幻覺或陷入死迴圈。執行長任務建議使用 30B 以上規模模型或雲端高階模型（如 Claude 3.5 Sonnet）。",
@@ -13161,7 +13168,14 @@
       },
       "preflightCompress": "可能壓縮",
       "preflightCompressDetail": "現在切換後，下一則訊息可能觸發上下文壓縮（閾值：{threshold} tokens）",
-      "modelRestricted": "受組織政策限制"
+      "modelRestricted": "受組織政策限制",
+      "opencodeContributor": {
+        "badge": "OpenCode 貢獻者",
+        "providerSummary": "為開源程式生態活躍貢獻者提供免費模型存取。",
+        "modelSummary": "透過 OpenCode 貢獻者層級提供的特殊配額存取。",
+        "stepEnableConsent": "請在供應商設定中啟用貢獻遙測同意。",
+        "stepOrUseStandard": "若配額已滿，可改用標準直連 API 金鑰。"
+      }
     },
     "modelCapabilities": {
       "vision": "視覺",

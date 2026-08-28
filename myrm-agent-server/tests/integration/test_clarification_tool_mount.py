@@ -84,6 +84,28 @@ def test_ask_question_mounted_for_interactive_web_chat() -> None:
     assert "ask_question_tool" in _tool_names(tools)
 
 
+def test_ask_question_tool_locale_resolution() -> None:
+    """Verify tool description resolves properly based on agent locale."""
+    from myrm_agent_harness.agent.meta_tools.clarification._ask_question_descriptions import (
+        ASK_QUESTION_TOOL_DESCRIPTION_EN,
+        ASK_QUESTION_TOOL_DESCRIPTION_ZH,
+    )
+
+    # Chinese locale
+    mixin_zh = _make_mixin(locale="zh-CN")
+    tools_zh: list[object] = []
+    mixin_zh._setup_clarification_tools(tools_zh)
+    tool_zh = next(tool for tool in tools_zh if getattr(tool, "name", None) == "ask_question_tool")
+    assert tool_zh.description == ASK_QUESTION_TOOL_DESCRIPTION_ZH
+
+    # English / default locale
+    mixin_en = _make_mixin(locale="en-US")
+    tools_en: list[object] = []
+    mixin_en._setup_clarification_tools(tools_en)
+    tool_en = next(tool for tool in tools_en if getattr(tool, "name", None) == "ask_question_tool")
+    assert tool_en.description == ASK_QUESTION_TOOL_DESCRIPTION_EN
+
+
 def test_ask_question_tool_schema_uses_requires_confirmation() -> None:
     """Mounted tool must expose requires_confirmation (not legacy clarification_type)."""
     from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput

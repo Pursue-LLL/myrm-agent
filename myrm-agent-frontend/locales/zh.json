@@ -12754,6 +12754,13 @@
         "deleteFailed": "删除失败"
       },
       "title": "模型服务",
+      "opencodeContributor": {
+        "badge": "OpenCode 贡献者",
+        "providerSummary": "为开源编程生态的活跃贡献者提供的免费模型额度。",
+        "modelSummary": "通过 OpenCode 贡献者通道提供的专属配额访问。",
+        "stepEnableConsent": "请确保在提供商设置中开启了贡献遥测授权。",
+        "stepOrUseStandard": "若额度用尽，也可随时配置标准的直连 API 密钥。"
+      },
       "description": "配置模型提供商和 API 密钥",
       "addProvider": "添加提供商",
       "removeProvider": "删除提供商",
@@ -13161,7 +13168,14 @@
           "failed": "验证失败"
         }
       },
-      "modelRestricted": "受组织策略限制"
+      "modelRestricted": "受组织策略限制",
+      "opencodeContributor": {
+        "badge": "OpenCode 贡献者",
+        "providerSummary": "为开源编程生态活跃贡献者提供免费模型访问。",
+        "modelSummary": "通过 OpenCode 贡献者层级提供的特殊配额访问。",
+        "stepEnableConsent": "请在供应商设置中启用贡献遥测同意。",
+        "stepOrUseStandard": "若配额已满，可改用标准直连 API 密钥。"
+      }
     },
     "modelCapabilities": {
       "vision": "视觉",

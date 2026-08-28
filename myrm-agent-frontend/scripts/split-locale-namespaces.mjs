@@ -4,6 +4,7 @@
  * SSOT for translators remains locales/{lang}.json — run before dev/build/test.
  */
 
+import { spawnSync } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
@@ -41,12 +42,71 @@ function resetDirectory(dirPath) {
   mkdirSync(dirPath, { recursive: true });
 }
 
+function tryParseJson(filePath) {
+  if (!existsSync(filePath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(readFileSync(filePath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function ensureMonolithLocales() {
+  const zhPath = resolve(rootDir, 'locales/zh.json');
+  if (tryParseJson(zhPath) !== null) {
+    return;
+  }
+  if (!existsSync(manifestPath)) {
+    throw new Error(
+      'locales/zh.json is invalid and locales/namespaces/manifest.json is missing — '
+        + 'restore locale files or run: node scripts/merge-locale-namespaces.mjs',
+    );
+  }
+  const mergeScript = resolve(__dirname, 'merge-locale-namespaces.mjs');
+  const result = spawnSync(process.execPath, [mergeScript], {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+function loadCanonicalSchema() {
+  const manifest = tryParseJson(manifestPath);
+  if (manifest?.namespaces && manifest?.settingsSections) {
+    return {
+      namespaces: manifest.namespaces.filter((key) => key !== 'settings'),
+      settingsSections: manifest.settingsSections,
+      manifestNamespaces: manifest.namespaces,
+    };
+  }
+  const zhMessages = tryParseJson(resolve(rootDir, 'locales/zh.json'));
+  if (zhMessages === null) {
+    throw new Error('locales/zh.json is invalid and manifest.json is unavailable');
+  }
+  return {
+    namespaces: Object.keys(zhMessages).filter((key) => key !== 'settings'),
+    settingsSections: Object.keys(zhMessages.settings ?? {}),
+    manifestNamespaces: Object.keys(zhMessages),
+  };
+}
+
 function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
   let sourcePath = resolve(rootDir, `locales/${lang}.json`);
   if (!existsSync(sourcePath) && lang === 'zh-TW') {
     sourcePath = resolve(rootDir, 'locales/zh.json');
   }
-  const messages = JSON.parse(readFileSync(sourcePath, 'utf-8'));
+  let messages = tryParseJson(sourcePath);
+  if (messages === null) {
+    ensureMonolithLocales();
+    messages = tryParseJson(sourcePath);
+  }
+  if (messages === null) {
+    throw new Error(`Failed to parse locale source: ${sourcePath}`);
+  }
   const localeDir = resolve(namespacesRoot, lang);
 
   resetDirectory(localeDir);
@@ -63,9 +123,8 @@ function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
   }
 }
 
-const zhMessages = JSON.parse(readFileSync(resolve(rootDir, 'locales/zh.json'), 'utf-8'));
-const namespaces = Object.keys(zhMessages).filter((key) => key !== 'settings');
-const settingsSections = Object.keys(zhMessages.settings ?? {});
+ensureMonolithLocales();
+const { namespaces, settingsSections, manifestNamespaces } = loadCanonicalSchema();
 
 for (const lang of languages) {
   splitLocale(lang, namespaces, settingsSections);
@@ -74,7 +133,7 @@ for (const lang of languages) {
 
 writeJson(manifestPath, {
   languages,
-  namespaces: Object.keys(zhMessages),
+  namespaces: manifestNamespaces,
   settingsSections,
 });
 

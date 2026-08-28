@@ -7,6 +7,8 @@
 
 [OUTPUT]
 - reap_stale_plane_artifacts() / converge_plane_if_idle() / plane_health_snapshot()
+- _start_mux_daemon_if_needed() mirrors chrome-e2e-preflight mux env (CDP port, chrome data dir)
+- _try_acquire_converge_lock() breaks stale /tmp/plane-converge.lockdir (>120s)
 - Consumed by e2e-context (dataPlane block) and attach fast-fail (R032)
 
 [POS]
@@ -26,10 +28,15 @@ from pathlib import Path
 from typing import Final
 
 from e2e_core.real_user_home import real_user_home
-from e2e_core.runtime_identity import _mux_state_dir
+from e2e_core.runtime_identity import (
+    _default_chrome_data_dir,
+    _mux_state_dir,
+    _resolve_e2e_port,
+)
 
 _PLANE_REAP_LOG: Final[str] = "plane-health-reap.jsonl"
 _CONVERGE_LOCK: Final[str] = "plane-converge.lockdir"
+_CONVERGE_LOCK_STALE_SEC: Final[float] = 120.0
 _IDLE_CONVERGE_WALL_SEC: Final[float] = 45.0
 
 
@@ -323,6 +330,7 @@ def _resolve_node_executable() -> str | None:
 
 
 def _start_mux_daemon_if_needed() -> bool:
+    """Start mux with the same env contract as chrome-e2e-preflight _start_mux_daemon."""
     if _mux_daemon_count_live() >= 1:
         return True
     root = _resolve_monorepo_root()
@@ -339,21 +347,39 @@ def _start_mux_daemon_if_needed() -> bool:
         return False
     mux_dir = _mux_state_dir()
     mux_dir.mkdir(parents=True, exist_ok=True)
+    mux_socket = mux_dir / "cdmcp-mux.sock"
+    chrome_data = _default_chrome_data_dir()
+    request_timeout = os.getenv("CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000").strip() or "180000"
     env = {
         **os.environ,
+        "CHROME_DATA_DIR": str(chrome_data),
+        "MYRM_CHROME_E2E_DATA_DIR": str(chrome_data),
+        "MYRM_CHROME_E2E_PORT": str(_resolve_e2e_port()),
         "CDMCP_MUX_STATE_DIR": str(mux_dir),
-        "CDMCP_MUX_SOCKET": str(mux_dir / "cdmcp-mux.sock"),
+        "CDMCP_MUX_SOCKET": str(mux_socket),
+        "CDMCP_MUX_REQUEST_TIMEOUT_MS": request_timeout,
+        "MCP_MUX_UPSTREAM_STDERR": os.getenv("MCP_MUX_UPSTREAM_STDERR", "1"),
     }
+    log_file = mux_dir / "mux.log"
+    try:
+        log_handle = log_file.open("a", encoding="utf-8")
+    except OSError:
+        log_handle = None
     try:
         subprocess.Popen(
             [node, str(mux_bin), "daemon"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=log_handle or subprocess.DEVNULL,
+            stderr=subprocess.STDOUT if log_handle is not None else subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
             start_new_session=True,
             env=env,
         )
     except OSError:
+        if log_handle is not None:
+            log_handle.close()
         return False
+    if log_handle is not None:
+        log_handle.close()
     deadline = time.monotonic() + 15.0
     while time.monotonic() < deadline:
         if _mux_daemon_count_live() >= 1:
@@ -463,6 +489,30 @@ def _converge_lock_dir() -> Path:
     return Path("/tmp") / _CONVERGE_LOCK
 
 
+def _try_acquire_converge_lock() -> bool:
+    """Acquire idle converge lock; break stale lockdirs left by crashed convergers."""
+    lock_dir = _converge_lock_dir()
+    try:
+        lock_dir.mkdir(exist_ok=False)
+        return True
+    except FileExistsError:
+        try:
+            age_sec = time.time() - lock_dir.stat().st_mtime
+        except OSError:
+            return False
+        if age_sec < _CONVERGE_LOCK_STALE_SEC:
+            return False
+        try:
+            lock_dir.rmdir()
+        except OSError:
+            return False
+        try:
+            lock_dir.mkdir(exist_ok=False)
+            return True
+        except FileExistsError:
+            return False
+
+
 def converge_plane_if_idle() -> ConvergeReceipt:
     """Idle-only plane reset: reap → drift apply → mux → orchestrator."""
     started = time.monotonic()
@@ -476,10 +526,7 @@ def converge_plane_if_idle() -> ConvergeReceipt:
             elapsed_sec=time.monotonic() - started,
         )
 
-    lock_dir = _converge_lock_dir()
-    try:
-        lock_dir.mkdir(exist_ok=False)
-    except FileExistsError:
+    if not _try_acquire_converge_lock():
         return ConvergeReceipt(
             ok=False,
             action="skipped",
@@ -487,6 +534,7 @@ def converge_plane_if_idle() -> ConvergeReceipt:
             elapsed_sec=time.monotonic() - started,
         )
 
+    lock_dir = _converge_lock_dir()
     try:
         reap_stale_plane_artifacts()
         root = _resolve_monorepo_root()
