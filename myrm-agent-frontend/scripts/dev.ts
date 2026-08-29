@@ -124,7 +124,7 @@ function setupSignalHandlers(child: ChildProcess) {
 }
 
 /** Shared pause stamp (cleanup / Agent respawn gate). Isolate state dirs cannot bypass. */
-function assertFrontendDevNotPaused(): void {
+function isFrontendDevPaused(): boolean {
   const pauseScript = path.join(
     __dirname,
     '..',
@@ -136,21 +136,38 @@ function assertFrontendDevNotPaused(): void {
     'frontend_dev_pause.py',
   );
   if (!fs.existsSync(pauseScript)) {
-    return;
+    return false;
   }
   const result = spawnSync('python3', [pauseScript, 'check'], {
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  // check exit 0 ⇒ paused
-  if (result.status === 0) {
-    console.error(
-      `⏸️  Frontend dev paused (bun run cleanup). Refusing to start :${APP_DEV_PORT}.`,
-    );
-    console.error('   Lift pause: bash myrm-agent/scripts/dev/dev-stack.sh frontend-only clear-pause');
-    process.exit(0);
-  }
+  return result.status === 0;
 }
+
+/** When paused: reclaim :port (no attach keepalive) then exit — cleanup intent is "no next". */
+function reclaimAndExitIfPaused(): void {
+  if (!isFrontendDevPaused()) {
+    return;
+  }
+  console.error(
+    `⏸️  Frontend dev paused (bun run cleanup). Reclaiming :${APP_DEV_PORT} and refusing start.`,
+  );
+  console.error('   Lift pause: bash myrm-agent/scripts/dev/dev-stack.sh frontend-only clear-pause');
+  try {
+    killListenersOnPort(APP_DEV_PORT, true);
+  } catch {
+    // ignore
+  }
+  try {
+    releaseDevLock();
+  } catch {
+    // ignore
+  }
+  process.exit(0);
+}
+
+reclaimAndExitIfPaused();
 
 if (tryAttachToHealthyDevServer(APP_DEV_PORT)) {
   const lock = readDevLock();
@@ -169,7 +186,7 @@ if (tryAttachToHealthyDevServer(APP_DEV_PORT)) {
 }
 
 // After attach attempts: block cold start when cleanup wrote a pause stamp.
-assertFrontendDevNotPaused();
+reclaimAndExitIfPaused();
 
 console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
 killListenersOnPort(APP_DEV_PORT);

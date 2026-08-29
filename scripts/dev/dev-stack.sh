@@ -527,10 +527,10 @@ _try_frontend_start_with_clean_fallback() {
 
 _start_frontend_supervisor() {
   if _frontend_dev_paused; then
-    if _frontend_healthy; then
-      _sync_frontend_pid_from_lock
-      echo "STACK_OK: frontend already healthy → ${APP_URL} (pause active, no restart)"
-      return 0
+    if _frontend_healthy || _frontend_port_listening; then
+      echo "STACK_FRONTEND_RECLAIM: pause active — stopping existing frontend on :${FRONTEND_PORT}" >&2
+      _kill_frontend_supervisor || true
+      _repair_orphan_frontend || true
     fi
     echo "STACK_FRONTEND_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
     return 0
@@ -963,6 +963,11 @@ cmd_backend_only_stop() {
 
 cmd_frontend_only_ensure() {
   if _frontend_dev_paused; then
+    if _frontend_healthy || _frontend_port_listening; then
+      echo "STACK_FRONTEND_RECLAIM: pause active — stopping existing frontend on :${FRONTEND_PORT}" >&2
+      _kill_frontend_supervisor || true
+      _repair_orphan_frontend || true
+    fi
     echo "STACK_FRONTEND_ONLY_ENSURE_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
     exit 0
   fi
