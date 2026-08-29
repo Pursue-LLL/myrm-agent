@@ -430,16 +430,14 @@ _kill_frontend_supervisor() {
 }
 
 _frontend_dev_paused() {
-  if [[ "${MYRM_FRONTEND_DEV_FORCE:-}" == "1" || "${MYRM_FRONTEND_DEV_FORCE:-}" == "true" ]]; then
-    return 1
-  fi
+  # Only clear-pause lifts the stamp — MYRM_FRONTEND_DEV_FORCE alone cannot bypass cleanup.
   "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" check >/dev/null 2>&1
 }
 
 _launch_frontend_supervisor() {
   # Hard gate: every cold-start path goes through here (ensure / frontend-only / clean fallback).
   if _frontend_dev_paused; then
-    echo "STACK_FRONTEND_SKIP: launch blocked — frontend dev paused; MYRM_FRONTEND_DEV_FORCE=1 to override" >&2
+    echo "STACK_FRONTEND_SKIP: launch blocked — frontend dev paused; run: frontend-only clear-pause" >&2
     return 1
   fi
   local use_clean="${1:-0}"
@@ -534,7 +532,7 @@ _start_frontend_supervisor() {
       echo "STACK_OK: frontend already healthy → ${APP_URL} (pause active, no restart)"
       return 0
     fi
-    echo "STACK_FRONTEND_SKIP: frontend dev paused (bun run cleanup); MYRM_FRONTEND_DEV_FORCE=1 to override" >&2
+    echo "STACK_FRONTEND_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
     return 0
   fi
   if _frontend_healthy; then
@@ -965,7 +963,7 @@ cmd_backend_only_stop() {
 
 cmd_frontend_only_ensure() {
   if _frontend_dev_paused; then
-    echo "STACK_FRONTEND_ONLY_ENSURE_SKIP: frontend dev paused (bun run cleanup); MYRM_FRONTEND_DEV_FORCE=1 to override" >&2
+    echo "STACK_FRONTEND_ONLY_ENSURE_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
     exit 0
   fi
   local needs_client_hot=0

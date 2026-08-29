@@ -43,10 +43,11 @@ def test_isolate_state_dir_cannot_bypass_shared_pause(
     assert pause.is_frontend_dev_paused() is True
 
 
-def test_force_bypasses_pause(isolated_pause_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_force_env_does_not_bypass_pause(isolated_pause_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pause.write_frontend_dev_pause(600.0)
     monkeypatch.setenv("MYRM_FRONTEND_DEV_FORCE", "1")
-    assert pause.is_frontend_dev_paused() is False
+    assert pause.is_frontend_dev_paused() is True
+    assert pause.force_allowed() is False
 
 
 def test_expired_pause_auto_clears(isolated_pause_dir: Path) -> None:

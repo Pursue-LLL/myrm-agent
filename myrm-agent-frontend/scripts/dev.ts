@@ -123,16 +123,8 @@ function setupSignalHandlers(child: ChildProcess) {
   });
 }
 
-function isFrontendDevForce(): boolean {
-  const raw = process.env.MYRM_FRONTEND_DEV_FORCE?.trim().toLowerCase();
-  return raw === '1' || raw === 'true' || raw === 'yes';
-}
-
 /** Shared pause stamp (cleanup / Agent respawn gate). Isolate state dirs cannot bypass. */
 function assertFrontendDevNotPaused(): void {
-  if (isFrontendDevForce()) {
-    return;
-  }
   const pauseScript = path.join(
     __dirname,
     '..',
@@ -155,7 +147,7 @@ function assertFrontendDevNotPaused(): void {
     console.error(
       `⏸️  Frontend dev paused (bun run cleanup). Refusing to start :${APP_DEV_PORT}.`,
     );
-    console.error('   Override: MYRM_FRONTEND_DEV_FORCE=1  |  clear: dev-stack.sh frontend-only clear-pause');
+    console.error('   Lift pause: bash myrm-agent/scripts/dev/dev-stack.sh frontend-only clear-pause');
     process.exit(0);
   }
 }

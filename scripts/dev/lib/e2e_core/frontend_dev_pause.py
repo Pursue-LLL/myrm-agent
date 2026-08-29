@@ -44,7 +44,13 @@ def pause_file_path() -> Path:
 
 
 def force_allowed() -> bool:
-    return os.environ.get("MYRM_FRONTEND_DEV_FORCE", "").strip().lower() in _FORCE_TRUTHY
+    """Deprecated escape hatch — FORCE alone must not defeat cleanup pause.
+
+    Agents that need frontend after cleanup must run
+    ``dev-stack.sh frontend-only clear-pause`` (or ``frontend_dev_pause.py clear``).
+    Kept for diagnostics / future dual-key policy; currently always False for gate.
+    """
+    return False
 
 
 def read_pause_until() -> float | None:
