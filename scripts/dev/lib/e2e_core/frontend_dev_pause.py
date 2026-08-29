@@ -1,4 +1,10 @@
-"""Gate dev-stack frontend-only ensure after manual cleanup (prevents Agent respawn loops)."""
+"""Gate dev-stack frontend-only ensure after manual cleanup (prevents Agent respawn loops).
+
+Pause stamp lives in the *shared* myrm-dev state dir so isolated runtimes
+(MYRM_DEV_STATE_DIR override, ports 13000–14000) cannot bypass the gate.
+Override for tests: MYRM_FRONTEND_DEV_PAUSE_DIR.
+Force ensure: MYRM_FRONTEND_DEV_FORCE=1.
+"""
 
 from __future__ import annotations
 
@@ -15,16 +21,26 @@ if __package__ in (None, ""):
 
 from e2e_core.real_user_home import real_user_home
 
-_DEFAULT_PAUSE_SEC = 1800.0
+# 8h: overnight Agent waves must not respawn next-server after manual cleanup
+_DEFAULT_PAUSE_SEC = 28800.0
 _PAUSE_BASENAME = "frontend-dev-paused-until"
 _FORCE_TRUTHY = frozenset({"1", "true", "yes"})
 
 
+def shared_dev_state_dir() -> Path:
+    """Always the login-user shared myrm-dev dir (never wave/isolated state)."""
+    override = os.environ.get("MYRM_FRONTEND_DEV_PAUSE_DIR", "").strip()
+    if override:
+        path = Path(override)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    path = real_user_home() / ".local" / "state" / "myrm-dev"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def pause_file_path() -> Path:
-    raw = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
-    base = Path(raw) if raw else real_user_home() / ".local" / "state" / "myrm-dev"
-    base.mkdir(parents=True, exist_ok=True)
-    return base / _PAUSE_BASENAME
+    return shared_dev_state_dir() / _PAUSE_BASENAME
 
 
 def force_allowed() -> bool:
@@ -38,7 +54,7 @@ def read_pause_until() -> float | None:
     try:
         line = path.read_text(encoding="utf-8").splitlines()[0].strip()
         until = float(line)
-    except (IndexError, ValueError):
+    except (IndexError, ValueError, OSError):
         return None
     return until
 

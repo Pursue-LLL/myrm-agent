@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: shared :3000)
+ * - frontend_dev_pause.py write (POS: shared pause stamp, 8h default)
+ *
+ * [OUTPUT]
+ * - Shared :3000 cleared; orphan/isolated next for this frontend cleared
+ * - FRONTEND_DEV_PAUSED stamp so Agent ensure cannot respawn for 8h
+ *
+ * [POS]
+ * Manual frontend resource reclaim. Isolated E2E runtimes allocate UI ports in
+ * 13000–14000 — cleanup discovers them via process cmdline (not 1001× lsof).
+ */
 import { execSync, spawnSync } from 'child_process';
 import { basename, dirname, join, resolve } from 'path';
 import { readdirSync, rmSync, statSync, truncateSync } from 'fs';
@@ -5,6 +18,8 @@ import { clearDevLock, clearStaleDevLock } from './dev-lock';
 import { APP_DEV_PORT, killListenersOnPort, listPidsOnPort } from './port-cleanup';
 
 const ROOT = join(import.meta.dir, '..');
+const DEFAULT_PAUSE_SEC = '28800';
+const FRONTEND_MARKER = 'myrm-agent-frontend';
 
 function resolveActiveIsolatedDirName(): string | null {
   const explicit = process.env.MYRM_NEXT_DIST_DIR?.trim();
@@ -24,7 +39,9 @@ function resolveActiveIsolatedDirName(): string | null {
   return null;
 }
 
-console.log(`🧹 Cleaning up myrm-agent-frontend dev port :${APP_DEV_PORT} only...\n`);
+console.log(
+  `🧹 Cleaning up myrm-agent-frontend next-server (shared :${APP_DEV_PORT} + isolated orphans)...\n`,
+);
 
 if (clearStaleDevLock()) {
   console.log('🗑️  Removed stale dev-server.lock\n');
@@ -51,8 +68,105 @@ function showPortProcesses(port: number) {
   console.log('');
 }
 
+function readCommand(pid: string): string {
+  try {
+    return execSync(`ps -p ${pid} -o command=`, { encoding: 'utf-8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function readParentPid(pid: string): string | null {
+  try {
+    const ppid = execSync(`ps -p ${pid} -o ppid=`, { encoding: 'utf-8' }).trim();
+    return /^\d+$/.test(ppid) ? ppid : null;
+  } catch {
+    return null;
+  }
+}
+
+function ancestorHasFrontendMarker(pid: string, maxDepth = 6): boolean {
+  let current: string | null = pid;
+  for (let depth = 0; depth < maxDepth && current; depth += 1) {
+    if (readCommand(current).includes(FRONTEND_MARKER)) {
+      return true;
+    }
+    current = readParentPid(current);
+  }
+  return false;
+}
+
+function signalPid(pid: string, label: string): boolean {
+  console.log(`🔪 Killing ${label} PID ${pid}`);
+  try {
+    execSync(`kill -TERM ${pid}`);
+    return true;
+  } catch {
+    try {
+      execSync(`kill -9 ${pid}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/** Kill next-server / next / scripts/dev.ts belonging to this frontend (any port). */
+function killOrphanFrontendNextTrees(): number {
+  let killed = 0;
+  const pids = new Set<string>();
+
+  const patterns = [
+    `${FRONTEND_MARKER}/scripts/dev\\.ts`,
+    `${FRONTEND_MARKER}/node_modules/\\.bin/next`,
+    `${FRONTEND_MARKER}.*next dev`,
+  ];
+  for (const pattern of patterns) {
+    try {
+      const out = execSync(`pgrep -f '${pattern}' || true`, { encoding: 'utf-8' }).trim();
+      for (const pid of out.split('\n').filter(Boolean)) {
+        pids.add(pid);
+      }
+    } catch {
+      // empty
+    }
+  }
+
+  try {
+    const out = execSync("pgrep -f 'next-server \\(v' || true", { encoding: 'utf-8' }).trim();
+    for (const pid of out.split('\n').filter(Boolean)) {
+      if (ancestorHasFrontendMarker(pid)) {
+        pids.add(pid);
+      }
+    }
+  } catch {
+    // empty
+  }
+
+  for (const pid of pids) {
+    const cmd = readCommand(pid);
+    if (!cmd) continue;
+    if (!cmd.includes(FRONTEND_MARKER) && !ancestorHasFrontendMarker(pid)) {
+      continue;
+    }
+    if (signalPid(pid, cmd.slice(0, 100))) {
+      killed += 1;
+    }
+  }
+  return killed;
+}
+
 showPortProcesses(APP_DEV_PORT);
-const cleanedCount = killListenersOnPort(APP_DEV_PORT, true);
+let cleanedCount = killListenersOnPort(APP_DEV_PORT, true);
+cleanedCount += killOrphanFrontendNextTrees();
+
+try {
+  execSync('sleep 0.4');
+} catch {
+  // ignore
+}
+cleanedCount += killListenersOnPort(APP_DEV_PORT, true);
+cleanedCount += killOrphanFrontendNextTrees();
 
 console.log('📊 Current memory usage:');
 try {
@@ -61,7 +175,7 @@ try {
   // ignore
 }
 
-console.log(`\n✨ Cleanup complete! Terminated ${cleanedCount} process(es) on :${APP_DEV_PORT}.`);
+console.log(`\n✨ Cleanup complete! Terminated ${cleanedCount} process(es) (shared + isolated).`);
 console.log('ℹ️  Other ports (e.g. myrm-website :3002) are untouched.');
 
 function cleanIsolatedNextDirs(): number {
@@ -132,12 +246,25 @@ function stripIsolatedTsconfig(): void {
 stripIsolatedTsconfig();
 
 function writeFrontendDevPause(): void {
-  const pauseSec = process.env.MYRM_FRONTEND_DEV_PAUSE_SEC?.trim() || '1800';
-  const pauseScript = join(import.meta.dir, '..', '..', 'scripts', 'dev', 'lib', 'e2e_core', 'frontend_dev_pause.py');
-  const result = spawnSync('python3', [pauseScript, 'write', '--seconds', pauseSec, '--reason', 'cleanup'], {
-    encoding: 'utf-8',
-    stdio: 'inherit',
-  });
+  const pauseSec = process.env.MYRM_FRONTEND_DEV_PAUSE_SEC?.trim() || DEFAULT_PAUSE_SEC;
+  const pauseScript = join(
+    import.meta.dir,
+    '..',
+    '..',
+    'scripts',
+    'dev',
+    'lib',
+    'e2e_core',
+    'frontend_dev_pause.py',
+  );
+  const result = spawnSync(
+    'python3',
+    [pauseScript, 'write', '--seconds', pauseSec, '--reason', 'cleanup'],
+    {
+      encoding: 'utf-8',
+      stdio: 'inherit',
+    },
+  );
   if (result.status !== 0) {
     console.warn('⚠️  Could not write frontend dev pause stamp (Agent may respawn next dev)');
   }

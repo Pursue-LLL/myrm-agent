@@ -429,7 +429,19 @@ _kill_frontend_supervisor() {
   rm -f "${FRONTEND_LOCK}"
 }
 
+_frontend_dev_paused() {
+  if [[ "${MYRM_FRONTEND_DEV_FORCE:-}" == "1" || "${MYRM_FRONTEND_DEV_FORCE:-}" == "true" ]]; then
+    return 1
+  fi
+  "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" check >/dev/null 2>&1
+}
+
 _launch_frontend_supervisor() {
+  # Hard gate: every cold-start path goes through here (ensure / frontend-only / clean fallback).
+  if _frontend_dev_paused; then
+    echo "STACK_FRONTEND_SKIP: launch blocked — frontend dev paused; MYRM_FRONTEND_DEV_FORCE=1 to override" >&2
+    return 1
+  fi
   local use_clean="${1:-0}"
   local dev_script="${MYRM_FRONTEND_DEV_SCRIPT:-${FRONTEND_DIR}/scripts/dev.ts}"
   local webpack_args=()
@@ -516,6 +528,15 @@ _try_frontend_start_with_clean_fallback() {
 }
 
 _start_frontend_supervisor() {
+  if _frontend_dev_paused; then
+    if _frontend_healthy; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_OK: frontend already healthy → ${APP_URL} (pause active, no restart)"
+      return 0
+    fi
+    echo "STACK_FRONTEND_SKIP: frontend dev paused (bun run cleanup); MYRM_FRONTEND_DEV_FORCE=1 to override" >&2
+    return 0
+  fi
   if _frontend_healthy; then
     _sync_frontend_pid_from_lock
     echo "STACK_OK: frontend already healthy → ${APP_URL}"
@@ -940,13 +961,6 @@ cmd_backend_only_stop() {
     exit 1
   fi
   echo "STACK_BACKEND_ONLY_STOP_OK"
-}
-
-_frontend_dev_paused() {
-  if [[ "${MYRM_FRONTEND_DEV_FORCE:-}" == "1" || "${MYRM_FRONTEND_DEV_FORCE:-}" == "true" ]]; then
-    return 1
-  fi
-  "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" check >/dev/null 2>&1
 }
 
 cmd_frontend_only_ensure() {
