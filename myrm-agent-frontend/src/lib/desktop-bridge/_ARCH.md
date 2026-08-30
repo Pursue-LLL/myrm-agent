@@ -2,23 +2,21 @@
 
 ## 架构概述
 
-Desktop Bridge 标准化原生契约层：提供统一的 `IDesktopBridge` 抽象与双实现（`TauriDesktopBridge` 与 `WebFallbackDesktopBridge`）。
-抹平 WebUI、Tauri 桌面端与 Cloud 托管沙箱的环境差异，提供 OS 级窗口几何留白探测、原生对话框、桌面通知、系统托盘、电源锁与安全 Web 降级。
+Desktop Bridge 标准化原生契约层：提供统一权威的 `IDesktopBridge` 抽象契约与双引擎实现（Tauri 原生 IPC 通信与 Web / Cloud 托管沙箱安全优雅降级）。抹平不同运行环境下的窗口几何度量、系统托盘、本地文件定位、系统级通知与电源休眠锁差异。
 
 ## 文件清单
 
-| 文件                               | 职责                                                                                                                 |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `types.ts`                         | `IDesktopBridge`、`DesktopPlatform`、`DesktopWindowControlsState`、`DesktopBridgeCapabilities` 等核心契约定义 (SSOT) |
-| `bridge.ts`                        | `detectDesktopPlatform`、`getDesktopWindowControlsState`、`createDesktopBridge` 工厂函数与单例导出                   |
-| `tauri-bridge.ts`                  | `TauriDesktopBridge` 原生 IPC 实现类                                                                                 |
-| `web-fallback-bridge.ts`           | `WebFallbackDesktopBridge` 纯 Web / Cloud 零异常安全降级实现类                                                       |
-| `context.tsx`                      | `DesktopBridgeProvider` 与 `useDesktopBridge` React 上下文与 Hook                                                    |
-| `index.ts`                         | 模块对外聚合导出出口                                                                                                 |
-| `__tests__/desktop-bridge.test.ts` | 单元测试，保证双环境接口合规与降级韧性                                                                               |
+| 文件 | 职责 |
+| --- | --- |
+| `types.ts` | 核心协议契约 SSOT：`IDesktopBridge`、`IWindowBridge`、`ITrayBridge`、`IShellBridge`、`IPowerBridge`、`IAppshotBridge`、`INotificationBridge`、`DesktopPlatform`、`DesktopBridgeCapabilities` |
+| `bridge.ts` | 运行时环境探测（`detectDesktopPlatform`）、交通灯/标题栏几何度量（`getDesktopWindowControlsState`）与单例工厂（`createDesktopBridge`） |
+| `tauri-bridge.ts` | `TauriDesktopBridge`：基于 `@/lib/tauri` 与 Tauri 原生插件的强类型 IPC 通信实现 |
+| `web-fallback-bridge.ts` | `WebFallbackDesktopBridge`：纯 Web / Cloud 托管沙箱环境下的安全 No-Op 与 Web 标准 API 接入 |
+| `context.tsx` | `DesktopBridgeProvider` 与 `useDesktopBridge()` React 上下文与 Hook |
+| `index.ts` | 模块统一对外出口 |
+| `__tests__/desktop-bridge.test.ts` | 跨环境行为与接口遵从性单元测试 |
 
 ## 依赖
-
-- `@/lib/tauri` — `isTauriEnvironment`, `invokeTauriCommand`
-- `@tauri-apps/plugin-dialog` — 动态引入原生文件选择器
-- `@tauri-apps/plugin-notification` — 动态引入原生桌面通知
+- `@/lib/tauri` — `invokeTauriCommand`, `isTauriEnvironment`
+- `@tauri-apps/plugin-dialog` — 原生文件选择器插件
+- `@tauri-apps/plugin-notification` — 原生桌面通知插件

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_allowlist_settings_e2e import (
+    REFRESH_ALLOWLIST_JS,
     SETTINGS_SECURITY_SHELL_READY_JS,
     allowlist_pattern_visible_js,
 )
@@ -17,24 +18,30 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _seed_live_allowlist_pattern_row() -> None:
-    api_base = get_e2e_api_url()
-    seeded = http_json(
-        "POST",
-        f"{api_base}/api/v1/security/allowlist/test/seed-pattern-fixture",
+def _seed_allowlist_pattern_row(client, page) -> None:
+    """Seed via page same-origin fetch so UI and DB share the pinned shared :8080 stack."""
+    result = client.evaluate(
+        page,
+        """(() => fetch('/api/v1/security/allowlist/test/seed-pattern-fixture', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+})
+  .then(async (res) => {
+    const body = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      status: res.status,
+      command_pattern: body?.command_pattern ?? body?.data?.command_pattern ?? null,
+      entry_id: body?.entry_id ?? body?.data?.entry_id ?? null,
+    };
+  })
+  .catch((err) => ({ ok: false, err: String(err) })))()""",
+        timeout_sec=30.0,
     )
-    assert isinstance(seeded, dict), seeded
-    assert seeded.get("command_pattern") == "npm install *", seeded
-    assert str(seeded.get("entry_id") or "").strip(), seeded
-
-    yield
-
-    http_json(
-        "DELETE",
-        f"{api_base}/api/v1/security/allowlist/test/clear-pattern-fixture",
-        expected_statuses=frozenset({200, 204}),
-    )
+    assert isinstance(result, dict), result
+    assert result.get("ok") is True, result
+    assert result.get("command_pattern") == "npm install *", result
+    assert str(result.get("entry_id") or "").strip(), result
 
 
 @pytest.mark.chrome_e2e(
@@ -42,10 +49,21 @@ def _seed_live_allowlist_pattern_row() -> None:
 )
 @pytest.mark.timeout(240)
 def test_settings_security_shows_pattern_allowlist_entry() -> None:
+    api_base = get_e2e_api_url()
     warm_ui_route("/settings/security")
     with open_settings_subroute("/settings/security", timeout_ms=90_000) as (client, page):
         shell = wait_for_state(client, page, SETTINGS_SECURITY_SHELL_READY_JS, timeout_sec=90.0)
         assert shell.get("ready") is True, shell
 
+        _seed_allowlist_pattern_row(client, page)
+        refreshed = client.evaluate(page, REFRESH_ALLOWLIST_JS, timeout_sec=15.0)
+        assert isinstance(refreshed, dict) and refreshed.get("ok") is True, refreshed
+
         visible = wait_for_state(client, page, allowlist_pattern_visible_js(), timeout_sec=60.0)
         assert visible.get("ready") is True, visible
+
+    http_json(
+        "DELETE",
+        f"{api_base}/api/v1/security/allowlist/test/clear-pattern-fixture",
+        expected_statuses=frozenset({200, 204}),
+    )

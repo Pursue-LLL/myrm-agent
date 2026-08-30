@@ -13,6 +13,15 @@ SETTINGS_SECURITY_SHELL_READY_JS = """(() => {
 })()"""
 
 
+REFRESH_ALLOWLIST_JS = """(() => {
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const refresh = buttons.find((btn) => /Refresh|刷新|重新整理|更新/.test(btn.textContent || ''));
+  if (!refresh) return { ok: false, err: 'no-refresh-button' };
+  refresh.click();
+  return { ok: true };
+})()"""
+
+
 def allowlist_pattern_visible_js() -> str:
     pattern = PATTERN_ENTRY_COMMAND_PATTERN.replace("\\", "\\\\").replace("'", "\\'")
     tool = PATTERN_ENTRY_TOOL.replace("\\", "\\\\").replace("'", "\\'")

@@ -325,6 +325,39 @@ async def test_multiple_attachments(single_target_config: NotifyToolConfig) -> N
 
 
 @pytest.mark.asyncio
+async def test_relative_attachment_path_auto_resolved_under_allowed_root(
+    single_target_config: NotifyToolConfig,
+    tmp_path: Path,
+) -> None:
+    sender = FakeSender()
+    sub_dir = tmp_path / "reports"
+    sub_dir.mkdir(parents=True, exist_ok=True)
+    report_file = sub_dir / "summary.pdf"
+    report_file.write_text("dummy report content")
+
+    tool = create_channel_notify_tool(
+        sender,
+        single_target_config,
+        allowed_roots=(str(tmp_path),),
+    )
+
+    result = await tool.ainvoke(
+        {
+            "channel": "",
+            "target": "",
+            "body": "Here is the report",
+            "attachments": ["reports/summary.pdf"],
+        }
+    )
+    assert "success" in result.lower()
+    assert len(sender.calls) == 1
+    _, _, media = sender.calls[0]
+    assert len(media) == 1
+    assert media[0].path == str(report_file)
+    assert media[0].filename == "summary.pdf"
+
+
+@pytest.mark.asyncio
 async def test_empty_attachment_entry_skipped(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)

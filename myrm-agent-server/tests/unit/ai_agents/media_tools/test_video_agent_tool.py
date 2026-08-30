@@ -158,6 +158,18 @@ async def test_video_tool_generate_enqueues_when_async_config() -> None:
 
 
 @pytest.mark.asyncio
+async def test_video_tool_async_config_description_contains_workflow() -> None:
+    engine = MagicMock()
+    engine.tool_description = "Video generation tool. Active: luma/ray-2."
+    async_config = MagicMock()
+    tool = create_video_generation_tool(engine, async_config=async_config)
+    assert "Workflow:" in tool.description
+    assert "action='generate'" in tool.description
+    assert "action='status'" in tool.description
+    assert "luma/ray-2" in tool.description
+
+
+@pytest.mark.asyncio
 async def test_video_tool_status_with_task_id_reads_task_store() -> None:
     engine = MagicMock()
     engine.execute = AsyncMock(return_value='{"status":"idle"}')
