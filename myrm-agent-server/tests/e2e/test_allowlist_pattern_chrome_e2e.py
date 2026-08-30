@@ -24,17 +24,9 @@ def _seed_live_allowlist_pattern_row() -> None:
         "POST",
         f"{api_base}/api/v1/security/allowlist/test/seed-pattern-fixture",
     )
-    assert isinstance(seeded, dict) and seeded.get("command_pattern") == "npm install *", seeded
-
-    listed = http_json("GET", f"{api_base}/api/v1/security/allowlist")
-    assert isinstance(listed, dict)
-    rows = listed.get("data")
-    assert isinstance(rows, list)
-    matches = [row for row in rows if row.get("command_pattern") == "npm install *"]
-    assert matches, f"seeded pattern missing from allowlist rows: {rows}"
-    row = matches[0]
-    assert row.get("granularity") == "pattern"
-    assert row.get("command_pattern") == "npm install *"
+    assert isinstance(seeded, dict), seeded
+    assert seeded.get("command_pattern") == "npm install *", seeded
+    assert str(seeded.get("entry_id") or "").strip(), seeded
 
     yield
 

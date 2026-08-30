@@ -24,7 +24,6 @@ from langchain_core.tools.convert import tool
 from pydantic import BaseModel, Field
 
 from .attachment_path_policy import (
-    is_local_attachment_path_allowed,
     resolve_allowed_local_attachment_path,
 )
 from .target_resolver import resolve_notify_target

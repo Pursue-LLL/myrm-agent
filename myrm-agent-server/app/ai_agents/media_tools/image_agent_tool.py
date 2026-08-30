@@ -224,5 +224,13 @@ def create_image_generation_tool(
             reference_image_urls=reference_image_urls,
         )
 
-    image_tool.description = engine.tool_description
+    if async_config is not None:
+        image_tool.description = (
+            f"{engine.tool_description} "
+            "Workflow: 1) Call action='generate' with prompt to start and receive task_id. "
+            "2) Call action='edit' with image_url and prompt to modify an existing image. "
+            "3) Call action='list' to inspect available providers/models."
+        )
+    else:
+        image_tool.description = engine.tool_description
     return image_tool

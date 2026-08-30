@@ -63,10 +63,11 @@ async def seed_pattern_allowlist_fixture() -> dict[str, str]:
             ),
         )
         row = result.scalar_one_or_none()
-        entry_id = row.id if row is not None else ""
+        if row is None or not row.id:
+            raise HTTPException(status_code=500, detail="Allowlist seed failed: row not persisted")
 
     return {
-        "entry_id": entry_id,
+        "entry_id": row.id,
         "command_pattern": _PATTERN_COMMAND,
         "tool_name": _PATTERN_TOOL,
     }
