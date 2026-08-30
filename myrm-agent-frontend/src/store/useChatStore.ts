@@ -26,11 +26,12 @@ import {
   resolveInstantChatSnapshot,
 } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex, removeWaitingForTurnStep } from './chat/messageUtils';
-import { disarmYoloForPreset, normalizeSecurityPreset } from './chat/securityPreset';
+import { disarmYoloForPreset, enforceSecurityPresetYoloMutex, normalizeSecurityPreset } from './chat/securityPreset';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent, type ChatItem } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
+import { getConfigSyncManager } from '@/services/config';
 import { fetchWithTimeout } from '@/lib/api';
 import { releaseTurnInspectorControls } from '@/lib/inspector/releaseTurnInspectorControls';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -1083,4 +1084,7 @@ export default useChatStore;
 
 if (typeof window !== 'undefined') {
   (window as Window & { __myrmChatStore?: typeof useChatStore }).__myrmChatStore = useChatStore;
+  getConfigSyncManager().subscribe('securityConfig', () => {
+    enforceSecurityPresetYoloMutex(useChatStore.getState().securityPreset);
+  });
 }

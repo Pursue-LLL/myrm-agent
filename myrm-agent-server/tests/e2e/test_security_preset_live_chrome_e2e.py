@@ -330,9 +330,9 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     plain_path = seeded["plain_ui_path"]
     preset_chat_id = seeded["preset_chat_id"]
     preset_agent_id = seeded["preset_agent_id"]
-    plain_chat_id = seeded["plain_chat_id"]
     plain_agent_id = seeded["plain_agent_id"]
-    explore_chat_id = seeded["explore_chat_id"]
+    explore_path = seeded["explore_ui_path"]
+    explore_agent_id = seeded["explore_agent_id"]
 
     # --- Scenario 1: live LLM conversation keeps accept_edits preset ---
     warm_ui_route(preset_path)
