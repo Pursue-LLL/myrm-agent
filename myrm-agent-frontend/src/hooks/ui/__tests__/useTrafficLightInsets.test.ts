@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useTrafficLightInsets } from '../useTrafficLightInsets';
 import { desktopBridge } from '@/lib/desktopBridge';
 
@@ -8,23 +8,25 @@ describe('useTrafficLightInsets', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns zero insets when in non-mac web environment', () => {
-    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(false);
+  it('returns 0 insets in Web or non-Mac environment', () => {
     vi.spyOn(desktopBridge, 'isMacOS').mockReturnValue(false);
+    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(false);
 
     const { result } = renderHook(() => useTrafficLightInsets());
+
+    expect(result.current.isImmersiveMac).toBe(false);
     expect(result.current.topInset).toBe(0);
     expect(result.current.leftInset).toBe(0);
-    expect(result.current.isImmersiveMac).toBe(false);
   });
 
-  it('returns positive insets and sets CSS vars when in macOS desktop environment', () => {
-    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(true);
+  it('returns active insets and sets CSS variables in macOS Tauri desktop environment', () => {
     vi.spyOn(desktopBridge, 'isMacOS').mockReturnValue(true);
+    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(true);
 
     const { result } = renderHook(() => useTrafficLightInsets());
-    expect(result.current.topInset).toBeGreaterThan(0);
-    expect(result.current.leftInset).toBeGreaterThan(0);
+
     expect(result.current.isImmersiveMac).toBe(true);
+    expect(result.current.topInset).toBe(28);
+    expect(result.current.leftInset).toBe(78);
   });
 });

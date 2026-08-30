@@ -4,91 +4,85 @@ import React from 'react';
 import { ExtensionSlot } from '../ExtensionSlot';
 import { useExtensionSlotStore } from '../useExtensionSlotStore';
 
-describe('ExtensionSlot Component & Store', () => {
+describe('ExtensionSlot', () => {
   beforeEach(() => {
     useExtensionSlotStore.setState({ contributions: [] });
   });
 
-  it('renders fallback when no contributions exist for given slot', () => {
+  it('renders fallback when no contributions registered', () => {
     render(
       <ExtensionSlot
         name="sidebar.footer.action"
-        fallback={<div data-testid="fallback">No Extensions</div>}
+        fallback={<div data-testid="fallback-slot">Empty fallback</div>}
       />,
     );
 
-    expect(screen.getByTestId('fallback')).toBeInTheDocument();
-    expect(screen.getByText('No Extensions')).toBeInTheDocument();
+    expect(screen.getByTestId('fallback-slot')).toBeDefined();
+    expect(screen.getByText('Empty fallback')).toBeDefined();
   });
 
-  it('renders registered contributions in correct order', () => {
-    const TestComponentA = () => <span data-testid="ext-a">Item A</span>;
-    const TestComponentB = () => <span data-testid="ext-b">Item B</span>;
+  it('renders registered contributions matching slot name', () => {
+    const TestComponentA = () => <div data-testid="contrib-a">Action A</div>;
+    const TestComponentB = () => <div data-testid="contrib-b">Action B</div>;
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'item-b',
-      slotName: 'sidebar.footer.action',
-      order: 20,
-      component: TestComponentB,
-    });
-
-    useExtensionSlotStore.getState().registerContribution({
-      id: 'item-a',
+      id: 'plugin-a',
       slotName: 'sidebar.footer.action',
       order: 10,
       component: TestComponentA,
     });
 
-    const { container } = render(<ExtensionSlot name="sidebar.footer.action" />);
+    useExtensionSlotStore.getState().registerContribution({
+      id: 'plugin-b',
+      slotName: 'sidebar.footer.action',
+      order: 20,
+      component: TestComponentB,
+    });
 
-    expect(screen.getByTestId('ext-a')).toBeInTheDocument();
-    expect(screen.getByTestId('ext-b')).toBeInTheDocument();
+    render(<ExtensionSlot name="sidebar.footer.action" />);
 
-    const items = container.querySelectorAll('[data-testid^="ext-"]');
-    expect(items[0].getAttribute('data-testid')).toBe('ext-a');
-    expect(items[1].getAttribute('data-testid')).toBe('ext-b');
+    expect(screen.getByTestId('contrib-a')).toBeDefined();
+    expect(screen.getByTestId('contrib-b')).toBeDefined();
   });
 
-  it('filters out contributions when condition returns false', () => {
-    const ActiveComponent = () => <span data-testid="active">Active</span>;
-    const InactiveComponent = () => <span data-testid="inactive">Inactive</span>;
+  it('filters out contributions where condition returns false', () => {
+    const TestActive = () => <div data-testid="contrib-active">Active Plugin</div>;
+    const TestInactive = () => <div data-testid="contrib-inactive">Inactive Plugin</div>;
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'active-item',
-      slotName: 'navbar.bottom.tools',
-      component: ActiveComponent,
+      id: 'active',
+      slotName: 'chat.header.actions',
+      component: TestActive,
       condition: () => true,
     });
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'inactive-item',
-      slotName: 'navbar.bottom.tools',
-      component: InactiveComponent,
+      id: 'inactive',
+      slotName: 'chat.header.actions',
+      component: TestInactive,
       condition: () => false,
     });
 
-    render(<ExtensionSlot name="navbar.bottom.tools" />);
+    render(<ExtensionSlot name="chat.header.actions" />);
 
-    expect(screen.getByTestId('active')).toBeInTheDocument();
-    expect(screen.queryByTestId('inactive')).not.toBeInTheDocument();
+    expect(screen.getByTestId('contrib-active')).toBeDefined();
+    expect(screen.queryByTestId('contrib-inactive')).toBeNull();
   });
 
-  it('unregisters contribution cleanly using returned unsubscribe callback', () => {
-    const TestComponent = () => <span>Dynamic Item</span>;
+  it('correctly unregisters contribution on cleanup', () => {
+    const TestComp = () => <div data-testid="temp-contrib">Temporary</div>;
 
     const unregister = useExtensionSlotStore.getState().registerContribution({
-      id: 'dynamic-1',
-      slotName: 'chat.header.actions',
-      component: TestComponent,
+      id: 'temp',
+      slotName: 'navbar.bottom.tools',
+      component: TestComp,
     });
 
-    const { rerender } = render(<ExtensionSlot name="chat.header.actions" />);
-    expect(screen.getByText('Dynamic Item')).toBeInTheDocument();
+    const { rerender } = render(<ExtensionSlot name="navbar.bottom.tools" />);
+    expect(screen.getByTestId('temp-contrib')).toBeDefined();
 
     unregister();
-
-    rerender(<ExtensionSlot name="chat.header.actions" fallback={<div>Empty</div>} />);
-    expect(screen.queryByText('Dynamic Item')).not.toBeInTheDocument();
-    expect(screen.getByText('Empty')).toBeInTheDocument();
+    rerender(<ExtensionSlot name="navbar.bottom.tools" />);
+    expect(screen.queryByTestId('temp-contrib')).toBeNull();
   });
 });

@@ -78,6 +78,7 @@ def probe_llm_api_key(
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
+                "User-Agent": "Myrm-E2E/1.0",
             },
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
@@ -110,6 +111,17 @@ def resolve_e2e_llm_endpoints(
             raise RuntimeError(
                 f"OmniRoute gateway {_LOCAL_GATEWAY_HOST} rejected BASIC_API_KEY or "
                 f"BASIC_MODEL ({basic_model!r}) on chat preflight — fix .env.test"
+            )
+    else:
+        if not probe_llm_api_key(basic_url, basic_key, basic_model):
+            raise RuntimeError(
+                f"LIVE E2E BASIC_MODEL chat preflight failed for {basic_model!r} at "
+                f"{basic_url!r} — model may be retired or BASIC_API_KEY rejected; fix .env.test"
+            )
+        if lite_model != basic_model and not probe_llm_api_key(lite_url, lite_key, lite_model):
+            raise RuntimeError(
+                f"LIVE E2E LITE_MODEL chat preflight failed for {lite_model!r} at "
+                f"{lite_url!r} — model may be retired or LITE_API_KEY rejected; fix .env.test"
             )
 
     return ResolvedE2ELlmEndpoints(

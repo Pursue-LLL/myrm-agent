@@ -2,19 +2,19 @@
 
 ## 架构概述
 
-Desktop Bridge 标准化原生契约层：提供纯 WebUI、Tauri 桌面端与 Cloud 托管沙箱三端同构的原生桥接契约（`IDesktopBridge`），封装 OS 级窗口几何留白探测、原生对话框、桌面通知、系统休眠锁、屏幕快照与 Web 优雅降级管道。
+Desktop Bridge 标准化原生桥接契约层：定义 `IDesktopBridge` 单一权威抽象契约（SSOT），提供 Tauri 桌面原生 IPC 实现（`TauriDesktopBridge`）与纯 Web / Cloud 托管沙箱环境下的安全降级实现（`WebFallbackDesktopBridge`）。
 
 ## 文件清单
 
 | 文件 | 职责 |
 | --- | --- |
-| `types.ts` | `IDesktopBridge`、`DesktopPlatform`、`DesktopBridgeCapabilities`、`DesktopWindowControlsState` 等核心接口与类型契约（SSOT） |
-| `bridge.ts` | `detectDesktopPlatform`、`getDesktopWindowControlsState`、`createDesktopBridge` 工厂函数与全局单例导出 |
-| `tauri-bridge.ts` | `TauriDesktopBridge`：基于 Tauri 2.0 Rust IPC 的原生桌面端桥接实现 |
-| `web-fallback-bridge.ts` | `WebFallbackDesktopBridge`：纯 Web 与 Cloud 沙箱环境下的零异常安全 No-Op 与标准 Web API 降级实现 |
+| `types.ts` | `IDesktopBridge`、`DesktopPlatform`、`DesktopBridgeCapabilities`、`DesktopWindowControlsState`、子桥接接口核心定义（SSOT） |
+| `bridge.ts` | 运行时环境探测（`detectDesktopPlatform`、`getDesktopWindowControlsState`）与单例工厂（`createDesktopBridge`） |
+| `tauri-bridge.ts` | `TauriDesktopBridge` 原生实现（打通 Tauri Rust IPC：窗口控制、系统托盘、文件定位、原生通知、电源休眠锁） |
+| `web-fallback-bridge.ts` | `WebFallbackDesktopBridge` 安全降级实现（纯 Web / Cloud 托管沙箱零异常 No-Op 与 Web 标准 API 接入） |
 | `context.tsx` | `DesktopBridgeProvider` 与 `useDesktopBridge` React 上下文与 Hook |
 | `index.ts` | 模块对外聚合导出出口 |
-| `__tests__/desktop-bridge.test.ts` | 单元测试：验证契约一致性、安全降级与平台探测 |
+| `__tests__/desktop-bridge.test.ts` | 桥接契约合规性、平台探测与安全降级全量单元测试 |
 
 ## 依赖
 - `@/lib/tauri` — `isTauriEnvironment`, `invokeTauriCommand`

@@ -481,6 +481,10 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
             onClose={closeContextMenu}
           />
         )}
+        {/* Extension Slot for sidebar footer action */}
+        <ExtensionSlot name="sidebar.footer.action" className="px-3 pb-2 pt-1 border-t border-border/40" />
+        {/* Extension Slot: 侧边栏底部操作区 */}
+        <ExtensionSlot name="sidebar.footer.action" className="p-2 border-t border-border/50" />
       </div>
     );
   },

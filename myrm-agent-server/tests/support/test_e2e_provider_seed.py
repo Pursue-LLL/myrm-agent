@@ -89,6 +89,25 @@ def test_resolve_e2e_llm_endpoints_raises_when_gateway_key_rejected(
         resolve_e2e_llm_endpoints(secrets)
 
 
+def test_resolve_e2e_llm_endpoints_raises_when_direct_endpoint_model_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    secrets = TestSecrets(
+        raw={
+            "BASIC_API_KEY": "k-basic",
+            "BASIC_BASE_URL": "https://opencode.ai/zen/go/v1",
+            "BASIC_MODEL": "openai-like/ox-alpha-free",
+        }
+    )
+    monkeypatch.setattr(
+        "tests.support.e2e_provider_seed.probe_llm_api_key",
+        lambda *_args, **_kwargs: False,
+    )
+
+    with pytest.raises(RuntimeError, match="BASIC_MODEL chat preflight failed"):
+        resolve_e2e_llm_endpoints(secrets)
+
+
 def test_chat_probe_model_preserves_combo_pattern_for_local_gateway() -> None:
     assert (
         _chat_probe_model(
