@@ -1,10 +1,21 @@
-// next.config.ts
+// next.config.ts — pause gate must run before other config side effects in dev.
+import { enforceFrontendDevNotPaused } from './scripts/frontend-dev-pause-gate';
+
+if (process.env.NODE_ENV === 'development') {
+  enforceFrontendDevNotPaused({ context: 'next dev (next.config load)' });
+}
+
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
 import type { withSentryConfig as sentryConfigWrapper } from '@sentry/nextjs';
+
+// Block direct `bunx next dev` while cleanup pause is active (dev.ts path already gated).
+if (process.env.NODE_ENV === 'development') {
+  enforceFrontendDevNotPaused({ context: 'next dev (next.config load)' });
+}
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 

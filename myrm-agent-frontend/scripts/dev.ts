@@ -20,6 +20,10 @@ import {
   releaseDevLock,
   tryAttachToHealthyDevServer,
 } from './dev-lock';
+import {
+  isFrontendDevPaused,
+  probeFrontendDevPause,
+} from './frontend-dev-pause-gate';
 import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
 
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
@@ -123,30 +127,17 @@ function setupSignalHandlers(child: ChildProcess) {
   });
 }
 
-/** Shared pause stamp (cleanup / Agent respawn gate). Isolate state dirs cannot bypass. */
-function isFrontendDevPaused(): boolean {
-  const pauseScript = path.join(
-    __dirname,
-    '..',
-    '..',
-    'scripts',
-    'dev',
-    'lib',
-    'e2e_core',
-    'frontend_dev_pause.py',
-  );
-  if (!fs.existsSync(pauseScript)) {
-    return false;
+function refuseIfPauseGateBroken(context: string): void {
+  const probe = probeFrontendDevPause();
+  if (probe === 'missing_script' || probe === 'check_failed') {
+    console.error(`❌ Frontend dev pause gate broken (${probe}) — refusing ${context} (fail-closed).`);
+    process.exit(1);
   }
-  const result = spawnSync('python3', [pauseScript, 'check'], {
-    encoding: 'utf-8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  return result.status === 0;
 }
 
 /** When paused: reclaim :port (no attach keepalive) then exit — cleanup intent is "no next". */
 function reclaimAndExitIfPaused(): void {
+  refuseIfPauseGateBroken('dev.ts startup');
   if (!isFrontendDevPaused()) {
     return;
   }

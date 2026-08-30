@@ -266,7 +266,8 @@ function writeFrontendDevPause(): void {
     },
   );
   if (result.status !== 0) {
-    console.warn('⚠️  Could not write frontend dev pause stamp (Agent may respawn next dev)');
+    console.error('❌ Failed to write frontend dev pause stamp — Agent may respawn next dev.');
+    process.exit(result.status ?? 1);
   }
 }
 
