@@ -278,9 +278,32 @@ def _attach_and_wait_agent_preset(
     agent_id: str,
     timeout_sec: float = 90.0,
 ) -> dict[str, object]:
-    # Chat-bound routes hydrate agentConfig via loadMessages (READ chrome_e2e parity).
-    # Explicit attachToChat races route hydration and can leave builtin-general on PRIVATE stacks.
-    _ = chat_id
+    chat_id_json = json.dumps(chat_id)
+    agent_json = json.dumps(agent_id)
+    expected_json = json.dumps(expected_preset)
+    attach_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {{
+    return {{ ok: false, err: 'no-bridge' }};
+  }}
+  const store = window.__myrmChatStore?.getState?.();
+  if (
+    store?.agentConfig?.agentId === {agent_json}
+    && store?.securityPreset === {expected_json}
+    && store?.chatId === {chat_id_json}
+    && store?.isMessagesLoaded
+  ) {{
+    return {{ ok: true, skipped: true }};
+  }}
+  try {{
+    await bridge.attachToChat({chat_id_json});
+    return {{ ok: true, skipped: false }};
+  }} catch (err) {{
+    return {{ ok: false, err: String(err) }};
+  }}
+}})()"""
+    attach_result = client.evaluate(page, attach_js, timeout_sec=min(120.0, timeout_sec))
+    assert isinstance(attach_result, dict) and attach_result.get("ok") is True, attach_result
     return _wait_agent_preset(
         client,
         page,
