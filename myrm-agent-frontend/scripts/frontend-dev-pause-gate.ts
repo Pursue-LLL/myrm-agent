@@ -9,7 +9,7 @@
  * TypeScript SSOT for frontend dev pause gate. Used by dev.ts and next.config.ts
  * so direct `bunx next dev` cannot bypass cleanup pause.
  */
-import { spawnSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -17,6 +17,46 @@ export type FrontendDevPauseProbe = 'active' | 'paused' | 'missing_script' | 'ch
 
 const PAUSE_LIFT_HINT =
   'Lift pause: bash myrm-agent/scripts/dev/dev-stack.sh frontend-only clear-pause';
+
+function resolveDevPortFromArgv(): number {
+  const argv = process.argv;
+  const portFlagIdx = argv.findIndex((arg) => arg === '-p' || arg === '--port');
+  if (portFlagIdx >= 0) {
+    const parsed = Number.parseInt(argv[portFlagIdx + 1] ?? '', 10);
+    if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65535) {
+      return parsed;
+    }
+  }
+  const fromEnv = Number.parseInt(
+    process.env.MYRM_FRONTEND_PORT ?? process.env.PORT ?? '3000',
+    10,
+  );
+  return Number.isInteger(fromEnv) && fromEnv > 0 && fromEnv <= 65535 ? fromEnv : 3000;
+}
+
+/** Reclaim LISTEN sockets when next.config gate exits after Next already bound (bunx path). */
+export function reclaimPausedDevListeners(): void {
+  const port = resolveDevPortFromArgv();
+  try {
+    const pids = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -t`, { encoding: 'utf-8' }).trim();
+    if (!pids) {
+      return;
+    }
+    for (const pid of pids.split('\n').filter(Boolean)) {
+      try {
+        execSync(`kill -TERM ${pid}`);
+      } catch {
+        try {
+          execSync(`kill -9 ${pid}`);
+        } catch {
+          // ignore single pid
+        }
+      }
+    }
+  } catch {
+    // port already free
+  }
+}
 
 export function resolvePauseScriptPath(): string {
   return path.join(__dirname, '..', '..', 'scripts', 'dev', 'lib', 'e2e_core', 'frontend_dev_pause.py');
@@ -62,6 +102,7 @@ export function enforceFrontendDevNotPaused(options?: {
   if (probe === 'paused') {
     console.error(`⏸️  Frontend dev paused (bun run cleanup). Refusing ${context}.`);
     console.error(`   ${PAUSE_LIFT_HINT}`);
+    reclaimPausedDevListeners();
     process.exit(exitCode);
   }
 }

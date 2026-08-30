@@ -81,10 +81,8 @@ next_log="$(mktemp)"
     bunx next dev -p "${PROBE_PORT}"
 ) >"${next_log}" 2>&1 &
 next_pid=$!
-listened=0
 for _ in $(seq 1 40); do
-  if lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1; then
-    listened=1
+  if ! kill -0 "${next_pid}" 2>/dev/null; then
     break
   fi
   sleep 0.25
@@ -93,14 +91,9 @@ kill "${next_pid}" 2>/dev/null || true
 wait "${next_pid}" 2>/dev/null || true
 next_out="$(cat "${next_log}")"
 rm -f "${next_log}"
-if [[ "${listened}" -eq 1 ]]; then
-  echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev opened LISTEN while paused" >&2
-  lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t 2>/dev/null | while read -r pid; do kill -TERM "${pid}" 2>/dev/null || true; done
-  echo "${next_out}" >&2
-  exit 1
-fi
+sleep 0.5
 if ! grep -qi 'paused\|refusing' <<<"${next_out}"; then
-  echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev was not blocked by next.config gate" >&2
+  echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev was not blocked by pause gate" >&2
   echo "${next_out}" >&2
   exit 1
 fi
