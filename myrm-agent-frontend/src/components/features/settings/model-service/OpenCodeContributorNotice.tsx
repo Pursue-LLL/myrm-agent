@@ -29,7 +29,9 @@ const OpenCodeContributorNotice = memo<OpenCodeContributorNoticeProps>(({ varian
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
             {t('badge')}
           </p>
-          <p className="mt-1 text-sm text-foreground">{variant === 'provider' ? t('providerSummary') : t('modelSummary')}</p>
+          <p className="mt-1 text-sm text-foreground">
+            {variant === 'provider' ? t('providerSummary') : t('modelSummary')}
+          </p>
         </div>
         <ChevronDown
           className={cn(

@@ -424,10 +424,9 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
         )}
       </div>
 
-      {provider.id === 'opencode_go' &&
-        providerHasEnabledContributorModel(provider.id, provider.enabledModels) && (
-          <OpenCodeContributorNotice variant="provider" />
-        )}
+      {provider.id === 'opencode_go' && providerHasEnabledContributorModel(provider.id, provider.enabledModels) && (
+        <OpenCodeContributorNotice variant="provider" />
+      )}
 
       {/* 模型管理 */}
       <div className="space-y-4">

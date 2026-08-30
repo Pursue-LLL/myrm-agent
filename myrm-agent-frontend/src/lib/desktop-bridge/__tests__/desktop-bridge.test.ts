@@ -59,9 +59,7 @@ describe('Desktop Bridge Protocol', () => {
     });
 
     it('should handle tray, shell, and power safely without throwing', async () => {
-      await expect(
-        bridge.tray.updateStatus({ liveness: 'idle', activeTasksCount: 0 }),
-      ).resolves.toBeUndefined();
+      await expect(bridge.tray.updateStatus({ liveness: 'idle', activeTasksCount: 0 })).resolves.toBeUndefined();
       const unsub = bridge.tray.onTrayEvent(() => {});
       expect(typeof unsub).toBe('function');
       expect(unsub()).toBeUndefined();

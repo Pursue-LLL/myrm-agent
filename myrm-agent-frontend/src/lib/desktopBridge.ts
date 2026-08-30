@@ -239,9 +239,8 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
   public async sendNotification(options: NotificationOptions): Promise<boolean> {
     if (this.isDesktop()) {
       try {
-        const { isPermissionGranted, requestPermission, sendNotification } = await import(
-          '@tauri-apps/plugin-notification'
-        );
+        const { isPermissionGranted, requestPermission, sendNotification } =
+          await import('@tauri-apps/plugin-notification');
         let permitted = await isPermissionGranted();
         if (!permitted) {
           const perm = await requestPermission();

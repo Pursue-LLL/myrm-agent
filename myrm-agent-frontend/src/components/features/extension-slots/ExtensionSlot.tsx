@@ -31,9 +31,7 @@ interface ExtensionSlotProps {
 export const ExtensionSlot = memo<ExtensionSlotProps>(({ name, className, context, fallback = null }) => {
   const contributions = useExtensionSlotStore(
     useShallow((state) =>
-      state
-        .contributions.filter((c) => c.slotName === name)
-        .sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
+      state.contributions.filter((c) => c.slotName === name).sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
     ),
   );
 

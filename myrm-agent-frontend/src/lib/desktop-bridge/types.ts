@@ -128,4 +128,3 @@ export type AppshotBridge = IAppshotBridge;
 export type NotificationBridge = INotificationBridge;
 export type DesktopLivenessState = LivenessState;
 export type DesktopUsageSummary = UsageSummary;
-

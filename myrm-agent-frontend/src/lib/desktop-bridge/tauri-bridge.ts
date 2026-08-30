@@ -277,9 +277,8 @@ class TauriNotificationBridge implements INotificationBridge {
     }
 
     try {
-      const { sendNotification, isPermissionGranted, requestPermission } = await import(
-        '@tauri-apps/plugin-notification'
-      );
+      const { sendNotification, isPermissionGranted, requestPermission } =
+        await import('@tauri-apps/plugin-notification');
       let granted = await isPermissionGranted();
       if (!granted) {
         const permission = await requestPermission();

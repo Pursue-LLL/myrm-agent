@@ -18,11 +18,7 @@
 
 import { isTauriEnvironment } from '@/lib/tauri';
 import { TauriDesktopBridge } from './tauri-bridge';
-import type {
-  DesktopPlatform,
-  DesktopWindowControlsState,
-  IDesktopBridge,
-} from './types';
+import type { DesktopPlatform, DesktopWindowControlsState, IDesktopBridge } from './types';
 import { WebFallbackDesktopBridge } from './web-fallback-bridge';
 
 export function detectDesktopPlatform(): DesktopPlatform {

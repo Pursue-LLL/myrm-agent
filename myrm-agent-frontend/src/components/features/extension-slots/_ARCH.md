@@ -12,10 +12,10 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-| --- | --- |
-| `types.ts` | 插槽名称枚举、上下文类型与贡献项接口定义 |
-| `useExtensionSlotStore.ts` | Zustand 插槽注册中心 Store |
-| `ExtensionSlot.tsx` | 声明式挂载容器组件 |
-| `index.ts` | 模块对外统一导出门面 |
+| 文件                               | 职责                                             |
+| ---------------------------------- | ------------------------------------------------ |
+| `types.ts`                         | 插槽名称枚举、上下文类型与贡献项接口定义         |
+| `useExtensionSlotStore.ts`         | Zustand 插槽注册中心 Store                       |
+| `ExtensionSlot.tsx`                | 声明式挂载容器组件                               |
+| `index.ts`                         | 模块对外统一导出门面                             |
 | `__tests__/ExtensionSlot.test.tsx` | 插槽渲染、优先级排序、条件过滤与注销单元测试套件 |

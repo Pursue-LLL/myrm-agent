@@ -10,9 +10,7 @@ export interface OpenCodeModelSelectionLike {
 }
 
 /** Whether a bound model selection should show Contributor consent guidance. */
-export function shouldShowContributorNotice(
-  selection: OpenCodeModelSelectionLike | null | undefined,
-): boolean {
+export function shouldShowContributorNotice(selection: OpenCodeModelSelectionLike | null | undefined): boolean {
   if (!selection) {
     return false;
   }

@@ -131,7 +131,7 @@ function ContextBreakdown({ budget, className }: ContextBreakdownProps) {
         {
           key: 'builtinTools',
           label: t('breakdownBuiltinTools'),
-          value: budget.builtin_tools_tokens ?? (budget.bound_tools_overhead_tokens ?? 0),
+          value: budget.builtin_tools_tokens ?? budget.bound_tools_overhead_tokens ?? 0,
           color: 'bg-yellow-500/80',
         },
         {

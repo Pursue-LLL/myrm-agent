@@ -27,10 +27,7 @@ export interface DesktopBridgeProviderProps {
   initialBridge?: IDesktopBridge;
 }
 
-export const DesktopBridgeProvider: React.FC<DesktopBridgeProviderProps> = ({
-  children,
-  initialBridge,
-}) => {
+export const DesktopBridgeProvider: React.FC<DesktopBridgeProviderProps> = ({ children, initialBridge }) => {
   const [bridge, setBridge] = useState<IDesktopBridge>(() => initialBridge || fallbackBridge);
 
   useEffect(() => {
@@ -42,11 +39,7 @@ export const DesktopBridgeProvider: React.FC<DesktopBridgeProviderProps> = ({
     }
   }, [initialBridge]);
 
-  return (
-    <DesktopBridgeContext.Provider value={bridge}>
-      {children}
-    </DesktopBridgeContext.Provider>
-  );
+  return <DesktopBridgeContext.Provider value={bridge}>{children}</DesktopBridgeContext.Provider>;
 };
 
 export function useDesktopBridge(): IDesktopBridge {

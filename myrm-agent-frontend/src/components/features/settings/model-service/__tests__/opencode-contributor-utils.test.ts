@@ -16,22 +16,16 @@ describe('opencode-contributor-utils', () => {
   });
 
   it('scopes contributor detection to opencode_go provider', () => {
-    expect(
-      providerHasEnabledContributorModel('opencode_go', ['muse-spark-1.2-contributor']),
-    ).toBe(true);
+    expect(providerHasEnabledContributorModel('opencode_go', ['muse-spark-1.2-contributor'])).toBe(true);
     expect(providerHasEnabledContributorModel('openai', ['muse-spark-1.2-contributor'])).toBe(false);
     expect(providerHasEnabledContributorModel('opencode_go', ['deepseek-v4-flash'])).toBe(false);
   });
 
   it('detects contributor notice for bound selections', () => {
+    expect(shouldShowContributorNotice({ providerId: 'opencode_go', model: 'muse-spark-1.2-contributor' })).toBe(true);
+    expect(shouldShowContributorNotice({ providerId: 'openai', model: 'muse-spark-1.2-contributor' })).toBe(false);
     expect(
-      shouldShowContributorNotice({ providerId: 'opencode_go', model: 'muse-spark-1.2-contributor' }),
+      anySelectionNeedsContributorNotice([null, { providerId: 'opencode_go', model: 'muse-spark-1.2-contributor' }]),
     ).toBe(true);
-    expect(
-      shouldShowContributorNotice({ providerId: 'openai', model: 'muse-spark-1.2-contributor' }),
-    ).toBe(false);
-    expect(anySelectionNeedsContributorNotice([null, { providerId: 'opencode_go', model: 'muse-spark-1.2-contributor' }])).toBe(
-      true,
-    );
   });
 });

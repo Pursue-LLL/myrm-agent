@@ -200,6 +200,28 @@ async def _instantiate_individual_template(data: dict[str, Any], template_id: st
     data.pop("members", None)
     data.pop("use_cases", None)
 
+    # Process routing_config into model_selection if provided in template YAML
+    if "routing_config" in data and not data.get("model_selection"):
+        rc = data.pop("routing_config")
+        light = rc.get("light_model", {})
+        reasoning = rc.get("reasoning_model", {})
+        data["model_selection"] = {
+            "providerId": "auto",
+            "model": reasoning.get("model") or light.get("model") or "gpt-4o",
+            "routingEnabled": True,
+            "lightProviderId": light.get("provider"),
+            "lightModel": light.get("model"),
+            "reasoningProviderId": reasoning.get("provider"),
+            "reasoningModel": reasoning.get("model"),
+        }
+
+    # Process moa_overlay into engine_params if provided in template YAML
+    if "moa_overlay" in data:
+        moa = data.pop("moa_overlay")
+        if not data.get("engine_params"):
+            data["engine_params"] = {}
+        data["engine_params"]["moa_overlay"] = moa
+
     agent_data = AgentCreate.model_validate(data)
 
     from app.api.agents._agent_response import _to_agent_response
