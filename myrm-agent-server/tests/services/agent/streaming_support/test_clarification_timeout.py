@@ -228,7 +228,12 @@ async def test_clarification_resume_callback_persists_and_logs_completion() -> N
         schedule_clarification_timeout("chat-2", params)
         await _invoke_captured_callback(captured)
 
-    mock_persist.assert_awaited_once_with("chat-2", "continued", extra_data={"k": "v"})
+    mock_persist.assert_awaited_once_with(
+        "chat-2",
+        "continued",
+        extra_data={"k": "v"},
+        request_message_id=params.message_id,
+    )
 
 
 @pytest.mark.asyncio

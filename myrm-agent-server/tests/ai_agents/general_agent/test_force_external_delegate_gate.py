@@ -4,43 +4,38 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from myrm_agent_harness.agent.security.types import SecurityConfig
+from app.ai_agents.general_agent.stream_pipeline import _force_external_delegate_denial_reason
 
 
-def _wrapper_with_config(config: SecurityConfig) -> SimpleNamespace:
-    from myrm_agent_harness.agent.security.config import security_config_to_dict
+def _security_raw(*, invoke_external: str) -> dict[str, object]:
+    return {
+        "capabilities": [{"permission": "*", "pattern": "*"}],
+        "permissions": {
+            "spawn_subagent": "allow",
+            "invoke_external_agent": invoke_external,
+            "file_write": "ask",
+            "shell_exec": "ask",
+        },
+        "yoloModeEnabled": False,
+        "autoModeEnabled": False,
+    }
 
-    return SimpleNamespace(security_config_raw=security_config_to_dict(config))
 
-
-def test_force_external_denied_on_readonly_profile() -> None:
-    from app.ai_agents.general_agent.stream_pipeline import _force_external_delegate_denial_reason
-
-    reason = _force_external_delegate_denial_reason(
-        _wrapper_with_config(SecurityConfig.readonly()),
-        "echo-cli",
-    )
+def test_force_external_denied_when_security_config_missing() -> None:
+    agent = SimpleNamespace(security_config_raw=None)
+    reason = _force_external_delegate_denial_reason(agent, "echo-cli")
     assert reason is not None
-    assert "deny" in reason.lower()
+    assert "security config missing" in reason.lower()
 
 
-def test_force_external_denied_on_workspace_ask_profile() -> None:
-    from app.ai_agents.general_agent.stream_pipeline import _force_external_delegate_denial_reason
+def test_force_external_allowed_when_invoke_external_allowed() -> None:
+    agent = SimpleNamespace(security_config_raw=_security_raw(invoke_external="allow"))
+    reason = _force_external_delegate_denial_reason(agent, "echo-cli")
+    assert reason is None
 
-    config = SecurityConfig.workspace(allowed_roots=("/tmp",))
-    reason = _force_external_delegate_denial_reason(
-        _wrapper_with_config(config),
-        "echo-cli",
-    )
+
+def test_force_external_denied_when_invoke_external_ask() -> None:
+    agent = SimpleNamespace(security_config_raw=_security_raw(invoke_external="ask"))
+    reason = _force_external_delegate_denial_reason(agent, "echo-cli")
     assert reason is not None
     assert "ask" in reason.lower()
-
-
-def test_force_external_allowed_on_full_access_profile() -> None:
-    from app.ai_agents.general_agent.stream_pipeline import _force_external_delegate_denial_reason
-
-    reason = _force_external_delegate_denial_reason(
-        _wrapper_with_config(SecurityConfig.full_access()),
-        "echo-cli",
-    )
-    assert reason is None

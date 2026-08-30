@@ -170,38 +170,60 @@ class TestParseReplyContext:
         assert len(ctx.media) == 1
 
 
-# ── _resolve_mentioned ──
+# ── _resolve_mentioned & _strip_bot_mention_text ──
 
 
 class TestResolveMentioned:
     def test_dm_always_false(self, channel: DiscordChannel) -> None:
         msg = MagicMock(spec=discord.Message)
-        assert channel._resolve_mentioned(msg, is_group=False, reply_to_id=None) is False
+        assert channel._resolve_mentioned(msg, is_group=False, reply_to_id=None) == (False, False)
 
     def test_group_explicit_mention(self, channel: DiscordChannel) -> None:
         bot_user = channel._client.user
         msg = MagicMock(spec=discord.Message)
         msg.mentions = [bot_user]
-        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id=None) is True
+        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id=None) == (True, True)
 
     def test_group_no_mention(self, channel: DiscordChannel) -> None:
         msg = MagicMock(spec=discord.Message)
         msg.mentions = []
         msg.reference = None
-        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id=None) is False
+        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id=None) == (False, False)
 
     def test_group_reply_to_bot_implicit_mention(self, channel: DiscordChannel) -> None:
         bot_user = channel._client.user
         resolved = _make_resolved_message(author_id=bot_user.id)
         msg = _make_message_with_ref(100, resolved, mentions=[])
-        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") is True
+        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") == (True, False)
 
     def test_group_reply_to_other_user_no_mention(self, channel: DiscordChannel) -> None:
         resolved = _make_resolved_message(author_id=9999)
         msg = _make_message_with_ref(100, resolved, mentions=[])
-        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") is False
+        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") == (False, False)
 
     def test_group_reply_to_deleted_no_mention(self, channel: DiscordChannel) -> None:
         deleted = MagicMock(spec=discord.message.DeletedReferencedMessage)
         msg = _make_message_with_ref(100, deleted, mentions=[])
-        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") is False
+        assert channel._resolve_mentioned(msg, is_group=True, reply_to_id="100") == (False, False)
+
+
+class TestStripBotMentionText:
+    def test_strip_mention_with_bot_id(self, channel: DiscordChannel) -> None:
+        text = "<@42> please help me with code"
+        assert channel._strip_bot_mention_text(text, 42) == "please help me with code"
+
+    def test_strip_nick_mention_with_bot_id(self, channel: DiscordChannel) -> None:
+        text = "<@!42>: summarize this meeting"
+        assert channel._strip_bot_mention_text(text, 42) == "summarize this meeting"
+
+    def test_strip_generic_mention_fallback(self, channel: DiscordChannel) -> None:
+        text = "<@12345> hello"
+        assert channel._strip_bot_mention_text(text, None) == "hello"
+
+    def test_preserve_non_bot_mention_when_bot_id_provided(self, channel: DiscordChannel) -> None:
+        text = "<@999> check this out"
+        assert channel._strip_bot_mention_text(text, 42) == "<@999> check this out"
+
+    def test_empty_stripped_fallback_to_original(self, channel: DiscordChannel) -> None:
+        text = "<@42>"
+        assert channel._strip_bot_mention_text(text, 42) == "<@42>"

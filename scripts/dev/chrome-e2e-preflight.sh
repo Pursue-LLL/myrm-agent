@@ -1573,6 +1573,7 @@ _heal_mux_request_timeout_drift() {
   fi
   # Probe failed — heal/restart (fail-closed for stale 55s upstream; BUG-DG-2026-07-21-001).
   if ! _mux_daemon_pid_alive; then
+    _ensure_mux_cold_start_if_absent
     return 0
   fi
   if _mux_timeout_restart_allowed || _mux_restart_allowed; then
@@ -1592,33 +1593,59 @@ _heal_mux_request_timeout_drift() {
   fi
 }
 
-_ensure_mux_daemon() {
+_mux_daemon_present() {
+  if _mux_daemon_pid_alive; then
+    return 0
+  fi
+  local mux_count
+  mux_count="$(_mux_daemon_count 2>/dev/null || echo 0)"
+  [[ "${mux_count}" =~ ^[0-9]+$ && "${mux_count}" -ge 1 ]]
+}
+
+_ensure_mux_cold_start_if_absent() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
-  if [[ -f "${MUX_PID_FILE}" ]]; then
-    local pid
-    pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
-    if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-      if ! _mux_request_timeout_effective; then
-        _heal_mux_request_timeout_drift
-      fi
-      return 0
+  if _mux_daemon_present; then
+    return 0
+  fi
+  if ! myrm_chrome_e2e_cdp_healthy; then
+    if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
+      fail "cdmcp-mux daemon not running during attach — Myrm E2E Chrome CDP not reachable — first Agent must run: ./myrm ready --chrome"
     fi
+    fail "Myrm E2E Chrome CDP not reachable — run: ./myrm ready --chrome"
   fi
-  if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-    fail "cdmcp-mux daemon not running during attach — first Agent must run: ./myrm ready --chrome"
+  echo "CHROME_E2E_WARN: cold-starting cdmcp-mux daemon (idempotent; no peer restart)" >&2
+  if ! PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
+    "${PREFLIGHT_PY}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from e2e_core.plane_health import ensure_mux_daemon_if_absent
+raise SystemExit(0 if ensure_mux_daemon_if_absent() else 1)
+"; then
+    fail "cdmcp-mux daemon cold-start failed — run: ./myrm restart --chrome"
   fi
-  echo "CHROME_E2E_WARN: starting cdmcp-mux daemon for preflight" >&2
-  _start_mux_daemon
-  local i
-  for i in $(seq 1 15); do
-    if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
-      ok "cdmcp-mux daemon auto-started"
+  local attempt mux_count
+  for attempt in $(seq 1 15); do
+    if _mux_daemon_present; then
+      ok "cdmcp-mux daemon cold-started"
       return 0
     fi
     sleep 1
   done
-  fail "cdmcp-mux daemon failed to start — run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
+  mux_count="$(_mux_daemon_count 2>/dev/null || echo 0)"
+  fail "cdmcp-mux daemon cold-start did not produce live daemon (count=${mux_count})"
+}
+
+_ensure_mux_daemon() {
+  [[ "${MUX_USING}" -eq 1 ]] || return 0
+  [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
+  if _mux_daemon_present; then
+    if ! _mux_request_timeout_effective; then
+      _heal_mux_request_timeout_drift
+    fi
+    return 0
+  fi
+  _ensure_mux_cold_start_if_absent
 }
 
 _recover_mux_after_cdp_restart() {
@@ -1707,6 +1734,7 @@ if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
     _smp_attach_backend_drift_heal "${MONOREPO_ROOT}" "${SERVER_DIR}" "${SCRIPT_DIR}/dev-stack.sh"
   fi
   _preflight_progress "mux_begin"
+  _ensure_mux_cold_start_if_absent
   _heal_mux_request_timeout_drift
   _preflight_progress "mux_ready"
   if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" ]]; then

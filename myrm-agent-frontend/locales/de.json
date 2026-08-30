@@ -12728,11 +12728,11 @@
     "modelService": {
       "title": "Modellservice",
       "opencodeContributor": {
-        "badge": "OpenCode-Mitwirkender",
-        "providerSummary": "Kostenloses Modellkontingent für aktive Mitwirkende im Open-Source-Coding-Ökosystem.",
-        "modelSummary": "Dedizierter Kontingentzugriff über die OpenCode-Mitwirkendenstufe.",
+        "badge": "OpenCode-Beitragender",
+        "providerSummary": "Kostenloser Modellzugang für aktive Mitwirkende an Open-Source-Programmier-Ökosystemen.",
+        "modelSummary": "Spezieller Kontingentzugang über die Stufe 'OpenCode-Beitragender'.",
         "stepEnableConsent": "Stellen Sie sicher, dass die Einwilligung zur Beitrags-Telemetrie in den Provider-Einstellungen aktiviert ist.",
-        "stepOrUseStandard": "Alternativ können Sie standardmäßige direkte API-Schlüssel konfigurieren, falls das Kontingent erschöpft ist."
+        "stepOrUseStandard": "Konfigurieren Sie alternativ standardmäßige direkte API-Schlüssel, wenn das Kontingent erschöpft ist."
       },
       "description": "Modellanbieter und API-Schlüssel konfigurieren",
       "addProvider": "Anbieter hinzufügen",
@@ -13168,14 +13168,7 @@
       },
       "preflightCompress": "Wird ggf. komprimiert",
       "preflightCompressDetail": "Beim Wechsel wird der Kontext bei der nächsten Nachricht ggf. komprimiert (Schwellenwert: {threshold} Tokens)",
-      "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt",
-      "opencodeContributor": {
-        "badge": "OpenCode-Mitwirkender",
-        "providerSummary": "Kostenloser Modellzugriff für aktive Mitwirkende an Open-Source-Coding-Ökosystemen.",
-        "modelSummary": "Spezieller Kontingentzugriff über die OpenCode-Mitwirkenden-Stufe.",
-        "stepEnableConsent": "Aktivieren Sie die Zustimmung zur Beitrags-Telemetrie in den Anbietereinstellungen.",
-        "stepOrUseStandard": "Alternativ Standard-API-Schlüssel konfigurieren, wenn Kontingentgrenzen erreicht sind."
-      }
+      "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt"
     },
     "modelCapabilities": {
       "vision": "Bildverständnis",

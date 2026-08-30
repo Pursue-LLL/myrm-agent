@@ -45,6 +45,7 @@ from app.channels.providers.discord.config import (
 from app.channels.providers.discord.helpers import build_discord_files
 from app.channels.rendering.renderer import render
 from app.channels.types import (
+    METADATA_EXPLICIT_MENTION_KEY,
     ChannelCapabilities,
     ChannelStatus,
     InboundMessage,
@@ -567,25 +568,39 @@ class DiscordChannel(BaseChannel):
             reply_to_id,
         )
 
-    def _resolve_mentioned(self, message: discord.Message, is_group: bool, reply_to_id: str | None) -> bool:
+    def _strip_bot_mention_text(self, text: str, bot_id: int | None = None) -> str:
+        """Remove leading/inline @bot mention from group trigger text for Prompt Cache optimization."""
+        if not text:
+            return text
+        import re
+
+        if bot_id:
+            cleaned = re.sub(rf"<@!?{bot_id}>\s*[,:\-]*\s*", "", text).strip()
+        else:
+            cleaned = re.sub(r"<@!?[0-9]+>\s*[,:\-]*\s*", "", text).strip()
+        return cleaned or text
+
+    def _resolve_mentioned(self, message: discord.Message, is_group: bool, reply_to_id: str | None) -> tuple[bool, bool]:
         """Determine if the bot was mentioned in the message.
 
+        Returns (mentioned, explicit_mention).
         In group chats, also treats replying to the bot's own message as
         an implicit mention — same pattern as Telegram [inbound.py:356-358].
         """
         if not is_group:
-            return False
+            return False, False
         bot_user = self._client.user if self._client else None
-        if bot_user and bot_user in getattr(message, "mentions", []):
-            return True
+        explicit = bool(bot_user and bot_user in getattr(message, "mentions", []))
+        if explicit:
+            return True, True
         if reply_to_id:
             ref = getattr(message, "reference", None)
             resolved = getattr(ref, "resolved", None) if ref else None
             if isinstance(resolved, discord.Message):
                 ref_author = resolved.author
                 if ref_author and bot_user and ref_author.id == bot_user.id:
-                    return True
-        return False
+                    return True, False
+        return False, False
 
     async def _on_message(self, message: discord.Message) -> None:
         """Process incoming Discord message from Gateway."""
@@ -613,7 +628,18 @@ class DiscordChannel(BaseChannel):
 
         is_group = message.guild is not None
         reply_to, reply_to_id = self._parse_reply_context(message)
-        mentioned = self._resolve_mentioned(message, is_group, reply_to_id)
+        mentioned, explicit_mention = self._resolve_mentioned(message, is_group, reply_to_id)
+
+        bot_id = self._client.user.id if self._client and self._client.user else None
+        if content and is_group and (explicit_mention or mentioned):
+            content = self._strip_bot_mention_text(content, bot_id)
+
+        metadata: dict[str, object] = {
+            "guild_id": str(message.guild.id) if message.guild else None,
+            "channel_topic": topic,
+        }
+        if explicit_mention:
+            metadata[METADATA_EXPLICIT_MENTION_KEY] = "1"
 
         inbound = InboundMessage(
             channel=self.name,
@@ -632,10 +658,7 @@ class DiscordChannel(BaseChannel):
             mentioned=mentioned,
             reply_to=reply_to,
             reply_to_id=reply_to_id,
-            metadata={
-                "guild_id": str(message.guild.id) if message.guild else None,
-                "channel_topic": topic,
-            },
+            metadata=metadata,
         )
         await self._emit_inbound(inbound)
 

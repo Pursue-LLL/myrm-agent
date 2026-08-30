@@ -12756,10 +12756,10 @@
       "title": "模型服務",
       "opencodeContributor": {
         "badge": "OpenCode 貢獻者",
-        "providerSummary": "為開源程式碼生態系統的活躍貢獻者提供的免費模型配額。",
-        "modelSummary": "透過 OpenCode 貢獻者通道提供的專屬配額存取。",
+        "providerSummary": "為開源編程生態的活躍貢獻者提供的免費模型額度。",
+        "modelSummary": "透過 OpenCode 貢獻者通道提供的專屬配額訪問。",
         "stepEnableConsent": "請確保在提供商設定中啟用了貢獻遙測授權。",
-        "stepOrUseStandard": "若配額用盡，亦可隨時設定標準的直連 API 金鑰。"
+        "stepOrUseStandard": "若額度用盡，也可隨時設定標準的直連 API 金鑰。"
       },
       "description": "配置模型提供商和 API 金鑰",
       "addProvider": "新增提供商",

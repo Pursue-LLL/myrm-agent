@@ -120,6 +120,46 @@ async def test_on_message_ignores_bot(channel):
     assert len(received) == 0
 
 
+@pytest.mark.asyncio
+async def test_on_message_group_mention_stripped_and_metadata_injected(channel):
+    """_on_message in group should strip @bot mention and inject explicit_mention metadata."""
+    from app.channels.types import METADATA_EXPLICIT_MENTION_KEY
+
+    bot_user = MagicMock()
+    bot_user.id = 42
+    channel._client = MagicMock()
+    channel._client.user = bot_user
+
+    mock_message = MagicMock()
+    mock_message.author.bot = False
+    mock_message.author.id = 123
+    mock_message.author.display_name = "alice"
+    mock_message.guild = MagicMock()
+    mock_message.guild.id = 999
+    mock_message.channel.id = 789
+    mock_message.id = 105
+    mock_message.content = "<@!42> help me with coding"
+    mock_message.attachments = []
+    mock_message.reference = None
+    mock_message.mentions = [bot_user]
+
+    received = []
+
+    async def handler(msg):
+        received.append(msg)
+
+    channel.set_inbound_handler(handler)
+
+    await channel._on_message(mock_message)
+
+    assert len(received) == 1
+    inbound = received[0]
+    assert inbound.content == "help me with coding"
+    assert inbound.is_group is True
+    assert inbound.mentioned is True
+    assert inbound.metadata.get(METADATA_EXPLICIT_MENTION_KEY) == "1"
+
+
 # ── Media extraction tests ──
 
 

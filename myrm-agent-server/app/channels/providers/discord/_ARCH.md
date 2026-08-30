@@ -19,7 +19,8 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 
 **Inbound**:
 - `_parse_reply_context()`: 解析 `message.reference.resolved`（discord.py 的真实 API）为结构化 `ReplyContext`，支持 text + embed content + attachments。`resolved` 为 `DeletedReferencedMessage` 或 `None` 时回退到 ID-only minimal context。
-- `_resolve_mentioned()`: 群组中 `@bot` 或引用 bot 消息均视为 mentioned（与 Telegram `inbound.py:356-358` 同一模式）。
+- `_resolve_mentioned()`: 群组中 `@bot` 或引用 bot 消息均视为 mentioned（返回 `(mentioned, explicit_mention)`，与 Telegram `inbound.py:356-358` 同一模式），并在显式提及群聊中注入 `explicit_mention="1"` 元数据。
+- `_strip_bot_mention_text()`: 群聊入站消息标准化清洗，剥离 `<@!BOT_ID>` raw mention 前缀，保障 LLM Prompt Cache 100% 稳定命中。
 - `is_group = message.guild is not None`: 正确区分群组和 DM。
 
 **Outbound**:

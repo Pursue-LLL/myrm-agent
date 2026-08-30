@@ -50,6 +50,7 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
 
     full_response = ""
     tool_calls = []
+    events = []
 
     with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
         assert response.status_code == 200
@@ -58,6 +59,7 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
                 continue
             try:
                 data = json.loads(line[6:])
+                events.append(data)
                 event_type = data.get("type")
                 if event_type in ("message", "reasoning"):
                     full_response += data.get("data", "")
@@ -67,6 +69,9 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
                         tool_calls.append(tool_name)
             except Exception:
                 pass
+
+    from tests.api.agent.utils import check_e2e_errors
+    check_e2e_errors(events)
 
     # Verify that the agent successfully ran tools
     assert len(tool_calls) > 0, "Model should have called tools to complete the goal"

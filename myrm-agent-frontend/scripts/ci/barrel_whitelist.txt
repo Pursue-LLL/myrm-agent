@@ -12,4 +12,5 @@ src/components/layout/index.ts
 src/components/error-boundary/index.ts
 src/lib/humanize/index.ts
 src/lib/intent-dispatcher/index.ts
+src/lib/desktop-bridge/index.ts
 src/theme-engine/index.ts

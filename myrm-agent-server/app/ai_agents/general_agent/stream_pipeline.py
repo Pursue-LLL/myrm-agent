@@ -44,7 +44,7 @@ def _force_external_delegate_denial_reason(
 
     config = parse_security_config(agent_wrapper.security_config_raw)
     if config is None:
-        return None
+        return "invoke_external_agent denied: security config missing"
     action, reason = evaluate_tool_call(
         "invoke_external_agent",
         {"agent": force_external_agent},

@@ -59,7 +59,7 @@ def test_workspace_project_root_and_diff_chrome_e2e() -> None:
         ready = wait_for_state(
             client,
             page,
-            '() => document.body !== null && document.querySelector(\'[data-testid="chat-window"], [data-testid="chat-input-textarea"], main\') !== null',
-            timeout_sec=15.0,
+            '(() => ({ ready: Boolean(document.body !== null && document.querySelector(\'[data-testid="chat-window"], [data-testid="chat-input-textarea"], main\') !== null) }))()',
+            timeout_sec=30.0,
         )
-        assert ready.get("ready") is True or ready is True, "Chat window/page shell did not load"
+        assert ready.get("ready") is True, "Chat window/page shell did not load"

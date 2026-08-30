@@ -14,6 +14,7 @@ import { useTabBadge } from '@/hooks/shell/useTabBadge';
 import { usePowerLock } from '@/hooks/tauri/usePowerLock';
 import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
 import { useVisibilityThrottling } from '@/hooks/ui/useVisibilityThrottling';
+import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
 import { useTrayEvents } from '@/hooks/tauri/useTrayEvents';
 import { useCrashLoopGuard } from '@/hooks/shell/useCrashLoopGuard';
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';

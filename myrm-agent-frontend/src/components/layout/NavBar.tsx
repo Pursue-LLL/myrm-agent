@@ -38,6 +38,9 @@ import { useNavBadges } from '@/hooks/shell/useNavBadges';
 import NotificationBell from '@/components/features/notifications/NotificationBell';
 import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';
 import { IconTerminal } from '@/components/features/icons/PremiumIcons';
+import { ExtensionSlot } from '@/components/features/extension-slots/ExtensionSlot';
+import { ExtensionSlot } from '@/components/features/extension-slots';
+import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
 
 const isDev = process.env.NODE_ENV === 'development';
 type NavIconComponent = ComponentType<{ size?: number; className?: string }>;
@@ -479,6 +482,9 @@ function NavBarInner({
             {badges.extensionConnected ? t('nav.extensionConnected') : t('nav.extensionDisconnected')}
           </TooltipContent>
         </Tooltip>
+
+        {/* Declarative Extension Slot for bottom tools */}
+        <ExtensionSlot name="navbar.bottom.tools" className="flex flex-col gap-1 items-center" />
 
         {/* Settings */}
         <Tooltip>

@@ -22,7 +22,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | server_diagnostics.py | Core | Server business diagnostic probes (DLQ & Durable Outbound Redelivery, ExecutionCache & Process RSS) and probe runner manager. Tests: `tests/core/infra/health/test_server_diagnostics_execution_cache.py`. | ✅ |
 | qdrant.py | Core | Qdrant path verifier (Lock management is natively handled by Qdrant Rust engine with Server entrypoint Phantom-Kill). | ✅ |
 | sqlite.py | Core | SQLite health checker with PRAGMA quick_check integrity verification and backup-based recovery via SQLiteBackupManager. | ✅ |
-| browser.py | Core | Browser pool health checker (orphan automation processes). | ✅ |
+| browser.py | Core | Browser & driver automation pool health checker delegating to Harness authoritative orphans doctor. Tests: `tests/core/infra/health/test_browser_health_checker.py`. | ✅ |
 | coordinator.py | Core | Business-level health check coordinator that instantiates and runs all checkers. | ✅ |
 
 ## Module Dependencies

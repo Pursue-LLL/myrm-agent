@@ -7,12 +7,13 @@
 
 [OUTPUT]
 - reap_stale_plane_artifacts() / converge_plane_if_idle() / plane_health_snapshot()
-- _start_mux_daemon_if_needed() mirrors chrome-e2e-preflight mux env (CDP port, chrome data dir)
+- ensure_mux_daemon_if_absent() / _start_mux_daemon_if_needed() — idempotent mux cold start (never restarts live daemons)
 - _try_acquire_converge_lock() breaks stale /tmp/plane-converge.lockdir (>120s)
 - Consumed by e2e-context (dataPlane block) and attach fast-fail (R032)
 
 [POS]
-Dev Gate infra layer. Never mutates stack during active wave leases.
+Dev Gate infra layer. Idle converge never mutates stack during active wave leases;
+mux cold-start via ensure_mux_daemon_if_absent is lease-safe (start-only, never kills peers).
 """
 
 from __future__ import annotations
@@ -388,6 +389,16 @@ def _start_mux_daemon_if_needed() -> bool:
     return False
 
 
+def ensure_mux_daemon_if_absent() -> bool:
+    """Start the shared mux daemon when none is running.
+
+    Safe under parallel attach: never stops, restarts, or kills an existing daemon.
+    """
+    if _mux_daemon_count_live() >= 1:
+        return True
+    return _start_mux_daemon_if_needed()
+
+
 def _classify_state(
     *,
     mux_count: int,
@@ -618,6 +629,8 @@ def ensure_plane_observable(
     drift_pending: bool = False,
 ) -> PlaneHealthSnapshot:
     reap_stale_plane_artifacts()
+    if _mux_daemon_count_live() < 1:
+        ensure_mux_daemon_if_absent()
     snap = plane_health_snapshot(epoch_match=epoch_match, drift_pending=drift_pending)
     if (
         allow_converge

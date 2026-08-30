@@ -73,14 +73,14 @@ describe('NewTaskWorkContextCard', () => {
     mockState.actionMode = 'agent';
     mockState.sandboxMode = false;
     mockState.workspaceDir = null;
-    (browseDirectories as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      current: '/home/user/workspace',
+    (browseDirectories as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (path?: string) => ({
+      current: path && path !== '~' ? path : '/home/user/workspace',
       parent: '/home/user',
       entries: [
         { name: 'project-a', path: '/home/user/workspace/project-a', is_dir: true },
         { name: 'project-b', path: '/home/user/workspace/project-b', is_dir: true },
       ],
-    });
+    }));
     (mkdirInWorkspace as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ path: '/mock', name: 'mock' });
   });
 
@@ -154,6 +154,13 @@ describe('NewTaskWorkContextCard', () => {
 
     const projectA = screen.getByText('project-a');
     fireEvent.click(projectA);
+
+    await waitFor(() => {
+      expect(browseDirectories).toHaveBeenCalledWith('/home/user/workspace/project-a');
+    });
+
+    const selectBtn = screen.getByTitle('Select this directory');
+    fireEvent.click(selectBtn);
 
     await waitFor(() => {
       expect(mockState.setWorkspaceDir).toHaveBeenCalledWith('/home/user/workspace/project-a');

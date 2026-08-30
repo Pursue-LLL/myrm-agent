@@ -275,6 +275,43 @@ def test_explore_preset_blocks_force_external_delegate_stream(
 
 
 @pytest.mark.e2e
+@patch(
+    "app.ai_agents.general_agent.external_agents._resolve_external_agent_cfgs",
+    new=AsyncMock(return_value=[{"name": "echo-cli", "type": "cli", "command": "echo", "args": []}]),
+)
+def test_missing_security_config_blocks_force_external_delegate_stream(
+    client: TestClient,
+    mock_load_user_configs: AsyncMock,
+) -> None:
+    """Lane-C: missing security config must fail-closed block force_external_agent routing."""
+    from tests.api.agent.conftest import _build_mock_user_configs
+
+    configs = _build_mock_user_configs()
+    configs.security_config_dict = None
+    mock_load_user_configs.return_value = configs
+
+    chat_id = f"test_missing_sec_ext_block_{uuid.uuid4().hex[:8]}"
+    payload: dict[str, object] = {
+        "query": "Run external CLI task",
+        "message_id": f"msg-{chat_id}",
+        "chat_id": chat_id,
+        "action_mode": "agent",
+        "force_external_agent": "echo-cli",
+        "model_selection": get_lite_model_selection(),
+        "agent_config": {
+            "enabled_builtin_tools": ["external_cli"],
+            "skill_ids": [],
+        },
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(client, payload)
+    error_text = _stream_error_text(events).lower()
+    assert "external agent delegation denied" in error_text, events
+    assert "security config missing" in error_text, events
+    assert not _delegate_stream_started(events), events
+
+
+@pytest.mark.e2e
 def test_agent_stream_external_cli_on_skips_delegate_without_backends(
     client: TestClient,
 ) -> None:
