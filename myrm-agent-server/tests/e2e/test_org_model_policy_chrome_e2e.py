@@ -21,6 +21,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    reload_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
@@ -103,7 +104,7 @@ def test_model_picker_shows_policy_restricted_models_as_disabled() -> None:
             # page so the picker reopens and refetches the updated policy, then
             # give the async policy fetch a moment to land before asserting.
             _sync_org_model_policy(api_base, patterns=[_NON_MATCHING_PATTERN])
-            client.reload(page, timeout_ms=60_000)
+            reload_mcp_page(client, page, target_url=f"{ui_base}/", timeout_ms=60_000)
             time.sleep(2)
             state = wait_for_state(client, page, _MODEL_PICKER_POLICY_STATE_JS, timeout_sec=120.0)
             assert state.get("ready") is True, f"Model picker not ready: {state}"

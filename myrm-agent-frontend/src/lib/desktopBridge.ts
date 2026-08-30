@@ -1,23 +1,24 @@
 /**
  * [INPUT]
  * - @/lib/tauri (POS: isTauriEnvironment)
- * - @tauri-apps/api/* (POS: 桌面端窗口与应用 API)
- * - @tauri-apps/plugin-shell (POS: 桌面端系统外链与文件唤起)
- * - @tauri-apps/plugin-dialog (POS: 原生文件与文件夹选择器)
- * - @tauri-apps/plugin-notification (POS: 原生桌面系统通知)
+ * - @/lib/desktop-bridge (POS: 统一桌面原生与 Web 降级契约体系)
  *
  * [OUTPUT]
- * - desktopBridge: 统一桌面原生桥接门面
+ * - desktopBridge: 统一桌面原生桥接门面（兼容平滑迁移）
  * - type DesktopBridgeInterface: 桌面桥接强类型接口
- * - type FileFilterOption: 文件选择过滤项契约
+ * - type FileFilterOption, DirectoryPickerOptions, FilePickerOptions, NotificationOptions
  * - useDesktopBridge: React Hook 便捷访问
  *
  * [POS]
- * 桌面与 Web 统一桥接契约层。收敛所有桌面端原生系统能力调用，
- * 为非桌面环境（纯 WebUI / Cloud 沙箱）提供类型安全、无副作用的优雅降级实现。
+ * 桌面与 Web 统一桥接门面层。收敛所有桌面端原生系统能力调用，
+ * 并与 @/lib/desktop-bridge 体系深度融合，为纯 WebUI / Tauri 桌面端 / Cloud 沙箱提供 100% 同构支持。
  */
 
 import { isTauriEnvironment } from '@/lib/tauri';
+import {
+  desktopBridge as coreDesktopBridge,
+  type IDesktopBridge,
+} from '@/lib/desktop-bridge';
 
 export interface FileFilterOption {
   name: string;
@@ -73,98 +74,53 @@ export interface DesktopBridgeInterface {
 }
 
 class DesktopBridgeImpl implements DesktopBridgeInterface {
+  private readonly core: IDesktopBridge;
+
+  constructor(core: IDesktopBridge = coreDesktopBridge) {
+    this.core = core;
+  }
+
   public isDesktop(): boolean {
-    return isTauriEnvironment();
+    return isTauriEnvironment() || this.core.isDesktop;
   }
 
   public isMacOS(): boolean {
     if (typeof navigator === 'undefined') {
       return false;
     }
-    return /(Macintosh|Mac OS X)/i.test(navigator.userAgent);
+    return /(Macintosh|Mac OS X)/i.test(navigator.userAgent) || this.core.platform === 'macos';
   }
 
   public isWindows(): boolean {
     if (typeof navigator === 'undefined') {
       return false;
     }
-    return /(Windows|Win32|Win64)/i.test(navigator.userAgent);
+    return /(Windows|Win32|Win64)/i.test(navigator.userAgent) || this.core.platform === 'windows';
   }
 
   public async showItemInFolder(path: string): Promise<boolean> {
-    if (!path || !this.isDesktop()) {
-      return false;
-    }
-
-    try {
-      const { open } = await import('@tauri-apps/plugin-shell');
-      await open(path);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  public async openExternal(url: string): Promise<boolean> {
-    if (!url) {
-      return false;
-    }
-
+    if (!path) return false;
     if (this.isDesktop()) {
-      try {
-        const { open } = await import('@tauri-apps/plugin-shell');
-        await open(url);
-        return true;
-      } catch {
-        // Fallback to standard window.open below
-      }
+      return await this.core.shell.showInFileManager(path);
     }
-
-    if (typeof window !== 'undefined') {
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return true;
-    }
-
     return false;
   }
 
-  public async minimizeWindow(): Promise<void> {
-    if (!this.isDesktop()) {
-      return;
-    }
+  public async openExternal(url: string): Promise<boolean> {
+    if (!url) return false;
+    return await this.core.shell.openExternalUrl(url);
+  }
 
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().minimize();
-    } catch {
-      // Graceful fallback for non-tauri or mock environments
-    }
+  public async minimizeWindow(): Promise<void> {
+    await this.core.window.minimize();
   }
 
   public async toggleMaximizeWindow(): Promise<void> {
-    if (!this.isDesktop()) {
-      return;
-    }
-
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().toggleMaximize();
-    } catch {
-      // Graceful fallback
-    }
+    await this.core.window.toggleMaximize();
   }
 
   public async closeWindow(): Promise<void> {
-    if (!this.isDesktop()) {
-      return;
-    }
-
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().close();
-    } catch {
-      // Graceful fallback
-    }
+    await this.core.window.close();
   }
 
   public async getAppVersion(): Promise<string> {
@@ -197,22 +153,20 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
       return null;
     }
 
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: options?.title,
-        defaultPath: options?.defaultPath,
-      });
+    const res = await this.core.shell.openFileDialog({
+      directory: true,
+      multiple: false,
+      title: options?.title,
+      defaultPath: options?.defaultPath,
+    });
 
-      if (typeof selected === 'string' && selected.trim()) {
-        return selected;
-      }
-      return null;
-    } catch {
-      return null;
+    if (typeof res === 'string' && res.trim()) {
+      return res;
     }
+    if (Array.isArray(res) && res.length > 0 && typeof res[0] === 'string') {
+      return res[0];
+    }
+    return null;
   }
 
   public async openFilePicker(options?: FilePickerOptions): Promise<string | string[] | null> {
@@ -220,63 +174,20 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
       return null;
     }
 
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({
-        directory: false,
-        multiple: options?.multiple ?? false,
-        title: options?.title,
-        defaultPath: options?.defaultPath,
-        filters: options?.filters,
-      });
-
-      return selected;
-    } catch {
-      return null;
-    }
+    return await this.core.shell.openFileDialog({
+      directory: false,
+      multiple: options?.multiple ?? false,
+      title: options?.title,
+      defaultPath: options?.defaultPath,
+      filters: options?.filters,
+    });
   }
 
   public async sendNotification(options: NotificationOptions): Promise<boolean> {
-    if (this.isDesktop()) {
-      try {
-        const { isPermissionGranted, requestPermission, sendNotification } =
-          await import('@tauri-apps/plugin-notification');
-        let permitted = await isPermissionGranted();
-        if (!permitted) {
-          const perm = await requestPermission();
-          permitted = perm === 'granted';
-        }
-        if (permitted) {
-          sendNotification({
-            title: options.title,
-            body: options.body,
-          });
-          return true;
-        }
-      } catch {
-        // Fall through to browser notification fallback
-      }
-    }
-
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      try {
-        if (Notification.permission === 'granted') {
-          new Notification(options.title, { body: options.body });
-          return true;
-        }
-        if (Notification.permission !== 'denied') {
-          const perm = await Notification.requestPermission();
-          if (perm === 'granted') {
-            new Notification(options.title, { body: options.body });
-            return true;
-          }
-        }
-      } catch {
-        // Notification failed or blocked
-      }
-    }
-
-    return false;
+    return await this.core.notification.show({
+      title: options.title,
+      body: options.body,
+    });
   }
 
   public async requestUserAttention(level: 'critical' | 'informational' = 'informational'): Promise<void> {
@@ -286,7 +197,6 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
 
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      // 1 = Informational, 2 = Critical (UserAttentionType in Tauri)
       const attentionType = level === 'critical' ? 2 : 1;
       await getCurrentWindow().requestUserAttention(attentionType);
     } catch {

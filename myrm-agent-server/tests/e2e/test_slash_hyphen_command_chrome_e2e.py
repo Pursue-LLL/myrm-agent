@@ -175,8 +175,7 @@ def test_hyphenated_slash_command_preserves_prefix_on_execute() -> None:
     _ensure_skill_enabled(api_url, _SKILL_ID)
     seeded = _seed_composer_fixture(api_url)
     chat_id = str(seeded["chat_id"])
-    agent_id = str(seeded["agent_id"])
-    agent_chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
+    agent_chat_path = f"/{chat_id}"
     warm_ui_route(agent_chat_path)
 
     with open_mcp_page(f"{ui_url}{agent_chat_path}") as (client, page):
@@ -247,8 +246,7 @@ def test_escape_dismisses_hyphenated_slash_command_and_keeps_prefix() -> None:
     _ensure_skill_enabled(api_url, _SKILL_ID)
     seeded = _seed_composer_fixture(api_url)
     chat_id = str(seeded["chat_id"])
-    agent_id = str(seeded["agent_id"])
-    agent_chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
+    agent_chat_path = f"/{chat_id}"
     warm_ui_route(agent_chat_path)
 
     with open_mcp_page(f"{ui_url}{agent_chat_path}") as (client, page):

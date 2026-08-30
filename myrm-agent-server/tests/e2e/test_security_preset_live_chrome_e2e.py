@@ -251,17 +251,6 @@ def _wait_yolo_state(api_url: str, expected: bool, *, timeout_sec: float = 45.0)
     return last
 
 
-def _attach_js(chat_id: str) -> str:
-    chat_id_json = json.dumps(chat_id)
-    return f"""(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat) return {{ ok: false, err: 'no-bridge' }};
-  await bridge.attachToChat({chat_id_json});
-  const snap = bridge.turnSnapshot?.() ?? {{}};
-  return {{ ok: snap.chatId === {chat_id_json}, chatId: snap.chatId ?? null }};
-}})()"""
-
-
 def _wait_agent_preset(
     client: ChromeMcpClient,
     page: McpPage,
@@ -289,8 +278,9 @@ def _attach_and_wait_agent_preset(
     agent_id: str,
     timeout_sec: float = 90.0,
 ) -> dict[str, object]:
-    attached = client.evaluate(page, _attach_js(chat_id), timeout_sec=30.0)
-    assert isinstance(attached, dict) and attached.get("ok") is True, attached
+    # Chat-bound routes hydrate agentConfig via loadMessages (READ chrome_e2e parity).
+    # Explicit attachToChat races route hydration and can leave builtin-general on PRIVATE stacks.
+    _ = chat_id
     return _wait_agent_preset(
         client,
         page,
