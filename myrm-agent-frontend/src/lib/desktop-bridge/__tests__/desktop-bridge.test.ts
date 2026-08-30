@@ -16,7 +16,7 @@ import {
   createDesktopBridge,
   WebFallbackDesktopBridge,
   TauriDesktopBridge,
-} from './index';
+} from '../index';
 
 describe('Desktop Bridge Protocol', () => {
   beforeEach(() => {

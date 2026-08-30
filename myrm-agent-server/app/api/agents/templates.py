@@ -298,9 +298,25 @@ def _build_member_agent_data(member: dict[str, Any], accept_lang: str) -> AgentC
     }
 
     # Carry over optional fields
-    for field in ("mcp_ids", "mcp_tool_selections", "enabled_builtin_tools", "skill_ids", "suggestion_prompts"):
+    for field in (
+        "mcp_ids",
+        "mcp_tool_selections",
+        "enabled_builtin_tools",
+        "skill_ids",
+        "suggestion_prompts",
+        "is_pareto_preset",
+        "cost_reduction_ratio",
+    ):
         if field in member:
             member_payload[field] = member[field]
+
+    # Process model_selection from member if provided
+    if "model_selection" in member:
+        ms = member["model_selection"]
+        member_payload["model_selection"] = {
+            "providerId": ms.get("provider", "auto"),
+            "model": ms.get("model", "gpt-4o"),
+        }
 
     prebuilt_skill_ids = member.get("prebuilt_skill_ids", [])
     if prebuilt_skill_ids:
@@ -339,9 +355,32 @@ def _build_leader_agent_data(
         "enabled_builtin_tools",
         "skill_ids",
         "suggestion_prompts",
+        "is_pareto_preset",
+        "cost_reduction_ratio",
     ):
         if field in data:
             leader_payload[field] = data[field]
+
+    # Process routing_config into model_selection if provided
+    if "routing_config" in data and not leader_payload.get("model_selection"):
+        rc = data["routing_config"]
+        light = rc.get("light_model", {})
+        reasoning = rc.get("reasoning_model", {})
+        leader_payload["model_selection"] = {
+            "providerId": "auto",
+            "model": reasoning.get("model") or light.get("model") or "gpt-4o",
+            "routingEnabled": True,
+            "lightProviderId": light.get("provider"),
+            "lightModel": light.get("model"),
+            "reasoningProviderId": reasoning.get("provider"),
+            "reasoningModel": reasoning.get("model"),
+        }
+
+    # Process moa_overlay into engine_params if provided
+    if "moa_overlay" in data:
+        if not leader_payload.get("engine_params"):
+            leader_payload["engine_params"] = {}
+        leader_payload["engine_params"]["moa_overlay"] = data["moa_overlay"]
 
     prebuilt_skill_ids = data.get("prebuilt_skill_ids", [])
     if prebuilt_skill_ids:

@@ -464,9 +464,6 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
           </div>
         )}
 
-        {/* Declarative Extension Slot for sidebar footer actions */}
-        <ExtensionSlot name="sidebar.footer.action" className="px-3 py-1.5 border-t border-border/40" />
-
         {/* ACP context menu */}
         {contextMenu.visible && contextMenu.file && (
           <CLIContextMenu

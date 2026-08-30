@@ -11,5 +11,6 @@
 | `useDragDrop.ts`                                   | 拖拽                                                                                                           |
 | `useDirtyGuard.ts`                                 | 未保存离开守卫                                                                                                 |
 | `useFocusedMode.ts`                                | 专注模式                                                                                                       |
+| `useTrafficLightInsets.ts`                         | macOS 桌面端沉浸式窗口交通灯安全区留白自适应（自动注入 `--traffic-light-inset-*` CSS 变量）                     |
 | `useModelCheckbox.ts`                              | 模型多选 checkbox                                                                                              |
 | `useReactPreview.ts`                               | React 预览                                                                                                     |
