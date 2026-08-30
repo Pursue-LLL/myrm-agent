@@ -27,7 +27,7 @@
 | `AppLayout.tsx`           | 主布局：三模式路由映射、侧栏 + 内容区；`LocalBackendUnavailableBanner` + `CronSchedulerHealthBanner` + `ConfigReadinessDegradedBanner`            |
 | `useAppLayoutState.ts`    | AppLayout 状态/effect 逻辑（响应式、Tab 路由、侧栏宽度）                                                                                          |
 | `MobileSidebarDrawer.tsx` | 移动端滑出式 NavBar + ContentSidebar                                                                                                              |
-| `NavBar.tsx`              | 侧栏导航，三模式 Tab（Chat / Work / Projects）+ 快捷入口                                                                                          |
+| `NavBar.tsx`              | 侧栏导航，三模式 Tab（Chat / Work / Projects）+ 快捷入口 + `navbar.bottom.tools` 扩展插槽 + macOS 交通灯自适应留白                               |
 | `ContentSidebar.tsx`      | 内容区侧栏（chat → 聊天历史，work → 智能体列表）                                                                                                  |
 | `PageLayout.tsx`          | 根 layout：hydration 后直进 `AppLayout`；readiness 后台；Onboarding/Boot 全屏 overlay                                                             |
 | `TabBar.tsx`              | Work 模式多标签页栏                                                                                                                               |

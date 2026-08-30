@@ -1,13 +1,15 @@
 /**
  * [INPUT]
  * - @/lib/tauri::isTauriEnvironment
- * - @/lib/desktop-bridge/types::DesktopBridge, DesktopPlatform, DesktopWindowControlsState, DesktopBridgeCapabilities
+ * - @/lib/desktop-bridge/types::IDesktopBridge, DesktopPlatform, DesktopWindowControlsState, DesktopBridgeCapabilities
+ * - @/lib/desktop-bridge/tauri-bridge::TauriDesktopBridge
+ * - @/lib/desktop-bridge/web-fallback-bridge::WebFallbackDesktopBridge
  *
  * [OUTPUT]
  * - detectDesktopPlatform: Detects runtime OS platform cleanly
- * - createDesktopBridge: Creates standard desktop bridge implementation
- * - defaultDesktopBridge: Singleton instance of DesktopBridge
  * - getDesktopWindowControlsState: Computes safe titlebar and traffic lights insets
+ * - createDesktopBridge: Creates unified desktop bridge implementation based on environment
+ * - defaultDesktopBridge / desktopBridge: Singleton instance of IDesktopBridge
  *
  * [POS]
  * Implementation of Standardized Desktop Bridge protocol. Provides runtime detection,
@@ -15,13 +17,13 @@
  */
 
 import { isTauriEnvironment } from '@/lib/tauri';
+import { TauriDesktopBridge } from './tauri-bridge';
 import type {
-  DesktopBridge,
-  DesktopBridgeCapabilities,
   DesktopPlatform,
   DesktopWindowControlsState,
-  NativeOpenFileDialogOptions,
+  IDesktopBridge,
 } from './types';
+import { WebFallbackDesktopBridge } from './web-fallback-bridge';
 
 export function detectDesktopPlatform(): DesktopPlatform {
   if (!isTauriEnvironment()) {
@@ -80,93 +82,12 @@ export function getDesktopWindowControlsState(): DesktopWindowControlsState {
   };
 }
 
-class StandardDesktopBridge implements DesktopBridge {
-  getPlatform(): DesktopPlatform {
-    return detectDesktopPlatform();
+export function createDesktopBridge(): IDesktopBridge {
+  if (isTauriEnvironment()) {
+    return new TauriDesktopBridge();
   }
-
-  isDesktop(): boolean {
-    return isTauriEnvironment();
-  }
-
-  getCapabilities(): DesktopBridgeCapabilities {
-    const desktop = this.isDesktop();
-    return {
-      hasNativeDialog: desktop,
-      hasNativeTray: desktop,
-      hasNativeNotification: desktop || (typeof window !== 'undefined' && 'Notification' in window),
-      hasNativeClipboard: typeof navigator !== 'undefined' && 'clipboard' in navigator,
-      hasNativeGlobalShortcuts: desktop,
-      hasNativeProcessRegistry: desktop,
-    };
-  }
-
-  getWindowControlsState(): DesktopWindowControlsState {
-    return getDesktopWindowControlsState();
-  }
-
-  async openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null> {
-    if (!this.isDesktop()) {
-      return null;
-    }
-
-    try {
-      const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
-      const selected = await openDialog({
-        title: options?.title,
-        multiple: options?.multiple ?? false,
-        directory: options?.directory ?? false,
-        defaultPath: options?.defaultPath,
-        filters: options?.filters,
-      });
-      return selected as string | string[] | null;
-    } catch (err) {
-      console.warn('Desktop bridge failed to open native file dialog:', err);
-      return null;
-    }
-  }
-
-  async sendNotification(title: string, body?: string): Promise<boolean> {
-    if (this.isDesktop()) {
-      try {
-        const { sendNotification, isPermissionGranted, requestPermission } = await import(
-          '@tauri-apps/plugin-notification'
-        );
-        let hasPermission = await isPermissionGranted();
-        if (!hasPermission) {
-          const permission = await requestPermission();
-          hasPermission = permission === 'granted';
-        }
-        if (hasPermission) {
-          sendNotification({ title, body });
-          return true;
-        }
-      } catch (err) {
-        console.warn('Native desktop notification failed, falling back to Web API:', err);
-      }
-    }
-
-    // Web Notification Fallback
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      try {
-        if (Notification.permission === 'granted') {
-          new Notification(title, { body });
-          return true;
-        }
-        if (Notification.permission !== 'denied') {
-          const perm = await Notification.requestPermission();
-          if (perm === 'granted') {
-            new Notification(title, { body });
-            return true;
-          }
-        }
-      } catch (err) {
-        console.warn('Web notification delivery failed:', err);
-      }
-    }
-
-    return false;
-  }
+  return new WebFallbackDesktopBridge();
 }
 
-export const defaultDesktopBridge: DesktopBridge = new StandardDesktopBridge();
+export const defaultDesktopBridge: IDesktopBridge = createDesktopBridge();
+export const desktopBridge: IDesktopBridge = defaultDesktopBridge;
