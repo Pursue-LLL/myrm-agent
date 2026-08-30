@@ -497,6 +497,9 @@ class AgentBase(BaseModel):
         None,
         description="Custom starter prompts displayed when this agent is active in an empty chat",
     )
+    # Pareto preset specific attributes
+    is_pareto_preset: bool = Field(default=False, description="是否为帕累托成本/效果前沿预设")
+    cost_reduction_ratio: float | None = Field(None, description="相较全量顶级闭源模型的估算降本比例 (e.g. 0.70)")
     openapi_services: list[dict[str, object]] = Field(
         default_factory=list,
         description="OpenAPI service configurations for zero-code REST API tool integration",
@@ -609,6 +612,8 @@ class AgentUpdate(BaseModel):
         None,
         description="Custom starter prompts displayed when this agent is active in an empty chat",
     )
+    is_pareto_preset: bool | None = Field(None, description="是否为帕累托成本/效果前沿预设")
+    cost_reduction_ratio: float | None = Field(None, description="相较全量顶级闭源模型的估算降本比例")
     openapi_services: list[dict[str, object]] | None = Field(
         None,
         description="OpenAPI service configurations for zero-code REST API tool integration",

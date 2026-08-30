@@ -1,4 +1,4 @@
-// next.config.ts — pause gate must run before other config side effects in dev.
+// Dev-only: enforce shared pause stamp before other config side effects.
 import { enforceFrontendDevNotPaused } from './scripts/frontend-dev-pause-gate';
 
 if (process.env.NODE_ENV === 'development') {

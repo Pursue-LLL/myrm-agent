@@ -211,6 +211,58 @@ def _shared_ui_probe_ok(*, timeout_sec: float = 12.0) -> bool:
         return False
 
 
+def probe_indicates_ui_connection_refused(probe: dict[str, object]) -> bool:
+    """True when CDP page shows Chrome network error (shared :3000 down)."""
+    href = str(probe.get("href") or "")
+    if href.startswith("chrome-error://"):
+        return True
+    body = str(probe.get("bodyText") or probe.get("bodySnippet") or "")
+    if "ERR_CONNECTION_REFUSED" in body:
+        return True
+    if "拒绝了我们的连接" in body:
+        return True
+    return False
+
+
+def launch_force_blocks_frontend_heal(*, probe: dict[str, object] | None = None) -> bool:
+    """R291 guard: skip preemptive heal under launch-force when UI is already reachable."""
+    if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() != "1":
+        return False
+    if probe is not None and probe_indicates_ui_connection_refused(probe):
+        return False
+    return _shared_ui_probe_ok(timeout_sec=5.0)
+
+
+def ensure_shared_ui_before_cdp_navigate(
+    monorepo_root: Path,
+    *,
+    probe: dict[str, object] | None = None,
+    poll_deadline_sec: float = 90.0,
+) -> None:
+    """Ensure shared :3000 serves HTML before CDP Page.navigate (SHPOIB/manifest safe)."""
+    if launch_force_blocks_frontend_heal(probe=probe):
+        return
+    if probe is None and _shared_ui_probe_ok(timeout_sec=8.0):
+        return
+    if probe is not None and not probe_indicates_ui_connection_refused(probe):
+        if _shared_ui_probe_ok(timeout_sec=8.0):
+            return
+    heal_shared_frontend_debounced(
+        monorepo_root,
+        debounce_sec=15.0,
+        flock_wait_sec=30.0,
+        subprocess_timeout_sec=90.0,
+    )
+    deadline = time.monotonic() + poll_deadline_sec
+    while time.monotonic() < deadline:
+        if _shared_ui_probe_ok(timeout_sec=5.0):
+            return
+        time.sleep(2.0)
+    raise RuntimeError(
+        "E2E_SHARED_UI_ENSURE_FAILED: shared frontend :3000 unreachable before CDP navigate"
+    )
+
+
 def _shared_client_hot_ok() -> bool:
     """HTTP 200 alone is insufficient — Turbopack can stall with app-shell-skeleton."""
     try:

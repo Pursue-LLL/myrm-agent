@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from pathlib import Path
 
 from cdp_chat.support import (
     DISMISS_MODALS_JS,
@@ -23,6 +24,13 @@ from cdp_chat.transport import CdpChatTransport
 from dev_gate.contract import EvaluateIntent
 
 _SHELL_PROBE_RECV_TIMEOUT_SEC = 15.0
+
+
+def _bootstrap_monorepo_root() -> Path:
+    raw = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
+    if raw:
+        return Path(raw)
+    return Path(__file__).resolve().parents[5]
 
 
 def _signoff_bridge_hydrate_cap_sec() -> float:
@@ -402,6 +410,14 @@ class CdpChatBootstrap(CdpChatTransport):
                 and probe.get("hasInput")
                 and not probe.get("skeleton")
             ):
+                from e2e_core.warm_ui_heal import ensure_shared_ui_before_cdp_navigate
+
+                probe_dict = probe if isinstance(probe, dict) else None
+                await asyncio.to_thread(
+                    ensure_shared_ui_before_cdp_navigate,
+                    _bootstrap_monorepo_root(),
+                    probe=probe_dict,
+                )
                 await self._shared_ui_burst(
                     "navigate",
                     self.cdp(
@@ -958,6 +974,19 @@ class CdpChatBootstrap(CdpChatTransport):
                                 "strategy=click_new_chat"
                             ) from exc
                     try:
+                        from e2e_core.warm_ui_heal import (
+                            ensure_shared_ui_before_cdp_navigate,
+                            probe_indicates_ui_connection_refused,
+                        )
+
+                        if isinstance(last, dict) and probe_indicates_ui_connection_refused(
+                            last
+                        ):
+                            await asyncio.to_thread(
+                                ensure_shared_ui_before_cdp_navigate,
+                                _bootstrap_monorepo_root(),
+                                probe=last,
+                            )
                         await asyncio.wait_for(heal(), timeout=heal_cap)
                     except TimeoutError as exc:
                         raise TimeoutError(

@@ -31,10 +31,9 @@ moa_overlay:
 prompt_mode: full
 personality_style: professional
 enabled_builtin_tools:
-  - bash
-  - file_editor
+  - code_execute
+  - file_ops
   - web_search
-  - code_review
 system_prompt: |
   你是一位开闭源帕累托前沿驱动的高级软件工程师。
   行为规范：

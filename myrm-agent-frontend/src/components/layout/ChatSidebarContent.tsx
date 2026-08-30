@@ -38,6 +38,7 @@ import { useWorkingDirectory } from '@/store/useCLIAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { type FileEntry } from '@/services/chat';
 import { isTauriEnvironment } from '@/lib/tauri';
+import { ExtensionSlot } from '@/components/features/extension-slots';
 import { CatchupInbox } from '@/components/features/chat-window/catchup/CatchupInbox';
 import SessionTrashPanel from '@/components/features/chat-window/SessionTrashPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
@@ -432,6 +433,9 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
           ) : null}
         </div>
 
+        {/* Declarative Extension Slot for Sidebar Footer */}
+        <ExtensionSlot name="sidebar.footer.action" className="p-2 border-t border-border/50" />
+
         {/* ACP file preview (Tauri) */}
         {isPreviewOpen && previewFile && (
           <div className="absolute inset-0 z-50 bg-background">
@@ -459,6 +463,9 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
             />
           </div>
         )}
+
+        {/* Declarative Extension Slot for sidebar footer actions */}
+        <ExtensionSlot name="sidebar.footer.action" className="px-3 py-1.5 border-t border-border/40" />
 
         {/* ACP context menu */}
         {contextMenu.visible && contextMenu.file && (

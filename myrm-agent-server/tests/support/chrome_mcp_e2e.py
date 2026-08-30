@@ -358,12 +358,14 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
     def _heal_shared_frontend() -> None:
         if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
             return
-        # R291 parity: launch-force preflight validated the shared frontend —
-        # restarting it mid-test strands running pages in chrome-error and
-        # corrupts parallel peers. Skip warm heal unconditionally under
-        # launch-force so a stale shell costs a timeout instead.
-        if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
-            return
+        try:
+            from e2e_core.warm_ui_heal import launch_force_blocks_frontend_heal
+
+            if launch_force_blocks_frontend_heal():
+                return
+        except ImportError:
+            if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
+                return
         heal_timeout = 60.0
         try:
             from mux.transport_supervisor import parallel_active_test_count
@@ -2499,12 +2501,14 @@ def _trigger_attach_frontend_heal_once() -> None:
         return
     if _ATTACH_FRONTEND_HEAL_TRIGGERED:
         return
-    # R291: launch-force preflight fast-path validated attach — restarting the
-    # frontend mid-test strands the running page in chrome-error (variant_d
-    # failure mode). Skip heal unconditionally under launch-force so a stale
-    # shell costs a timeout instead of corrupting parallel peers.
-    if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
-        return
+    try:
+        from e2e_core.warm_ui_heal import launch_force_blocks_frontend_heal
+
+        if launch_force_blocks_frontend_heal():
+            return
+    except ImportError:
+        if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
+            return
     _ATTACH_FRONTEND_HEAL_TRIGGERED = True
     monorepo_root = Path(__file__).resolve().parents[4]
     try:

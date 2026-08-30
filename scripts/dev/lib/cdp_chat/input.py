@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
 
@@ -185,7 +186,21 @@ class CdpChatInput(CdpChatBootstrap):
 
     async def _heal_empty_chat_shell_for_bridge(self) -> None:
         """Re-navigate when CDP page lost chat shell (blank / no input / no bridge)."""
+        from pathlib import Path
+
+        from e2e_core.warm_ui_heal import ensure_shared_ui_before_cdp_navigate
+
         ui_base = (getattr(self, "_base_url", None) or get_e2e_ui_url()).rstrip("/")
+        monorepo_raw = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
+        monorepo_root = (
+            Path(monorepo_raw)
+            if monorepo_raw
+            else Path(__file__).resolve().parents[5]
+        )
+        await asyncio.to_thread(
+            ensure_shared_ui_before_cdp_navigate,
+            monorepo_root,
+        )
         await self._shared_ui_burst(
             "navigate",
             self.cdp(

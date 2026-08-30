@@ -2,19 +2,20 @@
 
 ## 架构概述
 
-声明式扩展插槽（Extension Slots）与动态插件挂载系统。为 WebUI 核心导航区、侧边栏底部操作区与设置面板提供标准挂载点，支持桌面端与插件模块按需挂载原生扩展，并在纯 Web 访问时优雅降级。
+声明式扩展插槽系统：为 WebUI 提供解耦的原生能力和插件挂载点，支持多端（Web / Desktop / Cloud）环境自适应与同构渲染。
+
+## 核心能力
+
+1. **类型安全契约 (`types.ts`)**：定义核心预置插槽（`sidebar.footer.action`, `sidebar.header.action`, `chat.header.actions`, `settings.sections`, `navbar.bottom.tools`）与插槽贡献项契约。
+2. **全局注册中心 (`useExtensionSlotStore.ts`)**：Zustand 驱动的插件贡献注册表，支持按优先级（`order`）排序与动态条件（`condition`）过滤。
+3. **声明式挂载组件 (`ExtensionSlot.tsx`)**：在 WebUI 布局中作为挂载点，无匹配贡献项时优雅回退（`fallback`），零侵入业务代码。
 
 ## 文件清单
 
-| 文件 | 职责 | POS 状态 |
-| --- | --- | --- |
-| `types.ts` | 声明式扩展插槽核心类型定义（`ExtensionSlotName`, `ExtensionSlotContribution`, `ExtensionSlotContext`） | ✅ |
-| `useExtensionSlotStore.ts` | 基于 Zustand 的全局插槽注册中心 Store，管理动态挂载、按权重排序与注销 | ✅ |
-| `ExtensionSlot.tsx` | 声明式插槽挂载容器组件，按 `slotName` 与 `condition` 动态渲染扩展项，支持 `fallback` | ✅ |
-| `index.ts` | 模块对外聚合导出入口 | ✅ |
-| `__tests__/ExtensionSlot.test.tsx` | 声明式插槽渲染、权重排序、条件判断与注销行为单元测试 | ✅ |
-
-## 依赖关系
-
-- 消费方：`@/components/layout/NavBar.tsx`、`@/components/layout/AppLayout.tsx`
-- 内部依赖：Zustand, React, cn
+| 文件 | 职责 |
+| --- | --- |
+| `types.ts` | 插槽名称枚举、上下文类型与贡献项接口定义 |
+| `useExtensionSlotStore.ts` | Zustand 插槽注册中心 Store |
+| `ExtensionSlot.tsx` | 声明式挂载容器组件 |
+| `index.ts` | 模块对外统一导出门面 |
+| `__tests__/ExtensionSlot.test.tsx` | 插槽渲染、优先级排序、条件过滤与注销单元测试套件 |

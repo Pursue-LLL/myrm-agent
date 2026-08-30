@@ -192,6 +192,8 @@ def _to_agent_response(
         memory_policy=_response_memory_policy(agent),
         session_policy=_response_session_policy(metadata),
         engine_params=_meta_dict_or_none(metadata, "engine_params"),
+        is_pareto_preset=bool(metadata.get("is_pareto_preset", False)),
+        cost_reduction_ratio=float(metadata["cost_reduction_ratio"]) if metadata.get("cost_reduction_ratio") is not None else None,
         openapi_services=_meta_list_or_empty(metadata, "openapi_services"),
         command_bindings=(
             [

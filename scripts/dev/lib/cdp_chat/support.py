@@ -977,6 +977,8 @@ PAGE_PROBE_JS = """
     skeleton,
     hasLayout: !!layout,
     path: location.pathname,
+    href: location.href,
+    bodySnippet: (document.body?.innerText || '').slice(0, 200),
   };
 })()
 """.strip()

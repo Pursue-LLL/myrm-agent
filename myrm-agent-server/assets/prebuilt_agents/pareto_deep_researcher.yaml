@@ -32,7 +32,6 @@ prompt_mode: full
 personality_style: professional
 enabled_builtin_tools:
   - web_search
-  - fetch_web_page
   - wiki
   - memory
 system_prompt: |

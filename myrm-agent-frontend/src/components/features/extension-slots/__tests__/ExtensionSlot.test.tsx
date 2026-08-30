@@ -1,95 +1,91 @@
-import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ExtensionSlot } from '../ExtensionSlot';
-import { useExtensionSlotStore } from '../useExtensionSlotStore';
+import React from 'react';
+import { ExtensionSlot, useExtensionSlotStore } from '../index';
 
-describe('ExtensionSlot', () => {
+describe('ExtensionSlot Component and Store', () => {
   beforeEach(() => {
     useExtensionSlotStore.setState({ contributions: [] });
   });
 
-  it('renders nothing when no contributions exist and no fallback is provided', () => {
-    const { container } = render(<ExtensionSlot name="sidebar.footer.action" />);
+  it('renders fallback when no contributions match the slot', () => {
+    render(<ExtensionSlot name="navbar.bottom.tools" fallback={<div data-testid="fallback">No items</div>} />);
+    expect(screen.getByTestId('fallback')).toBeDefined();
+    expect(screen.getByText('No items')).toBeDefined();
+  });
+
+  it('renders nothing if slot is empty and no fallback provided', () => {
+    const { container } = render(<ExtensionSlot name="navbar.bottom.tools" />);
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders fallback when no contributions exist', () => {
-    render(
-      <ExtensionSlot
-        name="sidebar.footer.action"
-        fallback={<div data-testid="fallback">Empty Slot</div>}
-      />,
-    );
-    expect(screen.getByTestId('fallback')).toHaveTextContent('Empty Slot');
-  });
-
-  it('renders registered contributions in order', () => {
-    const SlotItemA = () => <div data-testid="item-a">Item A</div>;
-    const SlotItemB = () => <div data-testid="item-b">Item B</div>;
+  it('renders registered contribution for the slot', () => {
+    const TestComponent = () => <div data-testid="test-tool">Custom Plugin Button</div>;
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'item-b',
+      id: 'plugin-tool-1',
+      slotName: 'navbar.bottom.tools',
+      component: TestComponent,
+    });
+
+    render(<ExtensionSlot name="navbar.bottom.tools" />);
+    expect(screen.getByTestId('test-tool')).toBeDefined();
+    expect(screen.getByText('Custom Plugin Button')).toBeDefined();
+  });
+
+  it('sorts multiple contributions by order', () => {
+    const ComponentA = () => <span>First</span>;
+    const ComponentB = () => <span>Second</span>;
+
+    useExtensionSlotStore.getState().registerContribution({
+      id: 'item-2',
       slotName: 'sidebar.footer.action',
       order: 20,
-      component: SlotItemB,
+      component: ComponentB,
     });
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'item-a',
+      id: 'item-1',
       slotName: 'sidebar.footer.action',
       order: 10,
-      component: SlotItemA,
+      component: ComponentA,
     });
 
-    render(<ExtensionSlot name="sidebar.footer.action" />);
-
-    expect(screen.getByTestId('item-a')).toBeInTheDocument();
-    expect(screen.getByTestId('item-b')).toBeInTheDocument();
-
-    const slotContainer = screen.getByTestId('item-a').parentElement;
-    expect(slotContainer?.children[0]).toHaveAttribute('data-testid', 'item-a');
-    expect(slotContainer?.children[1]).toHaveAttribute('data-testid', 'item-b');
+    const { container } = render(<ExtensionSlot name="sidebar.footer.action" />);
+    expect(container.textContent).toBe('FirstSecond');
   });
 
-  it('evaluates condition before rendering contribution', () => {
-    const VisibleItem = () => <div data-testid="visible">Visible</div>;
-    const HiddenItem = () => <div data-testid="hidden">Hidden</div>;
+  it('respects condition predicate', () => {
+    const ConditionalComponent = () => <div>Only on desktop</div>;
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'visible-item',
+      id: 'cond-item',
       slotName: 'chat.header.actions',
-      component: VisibleItem,
-      condition: () => true,
-    });
-
-    useExtensionSlotStore.getState().registerContribution({
-      id: 'hidden-item',
-      slotName: 'chat.header.actions',
-      component: HiddenItem,
+      component: ConditionalComponent,
       condition: () => false,
     });
 
-    render(<ExtensionSlot name="chat.header.actions" />);
-
-    expect(screen.getByTestId('visible')).toBeInTheDocument();
-    expect(screen.queryByTestId('hidden')).not.toBeInTheDocument();
+    render(<ExtensionSlot name="chat.header.actions" fallback={<div>Hidden Fallback</div>} />);
+    expect(screen.queryByText('Only on desktop')).toBeNull();
+    expect(screen.getByText('Hidden Fallback')).toBeDefined();
   });
 
   it('supports unregistering contributions', () => {
-    const Item = () => <div data-testid="removable">Removable</div>;
+    const DisposableComponent = () => <div>Disposable</div>;
 
     const unregister = useExtensionSlotStore.getState().registerContribution({
-      id: 'removable-item',
+      id: 'temp-item',
       slotName: 'navbar.bottom.tools',
-      component: Item,
+      component: DisposableComponent,
     });
 
     const { rerender } = render(<ExtensionSlot name="navbar.bottom.tools" />);
-    expect(screen.getByTestId('removable')).toBeInTheDocument();
+    expect(screen.getByText('Disposable')).toBeDefined();
 
     unregister();
-    rerender(<ExtensionSlot name="navbar.bottom.tools" />);
-    expect(screen.queryByTestId('removable')).not.toBeInTheDocument();
+
+    rerender(<ExtensionSlot name="navbar.bottom.tools" fallback={<div>Unregistered</div>} />);
+    expect(screen.queryByText('Disposable')).toBeNull();
+    expect(screen.getByText('Unregistered')).toBeDefined();
   });
 });

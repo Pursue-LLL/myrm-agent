@@ -16,3 +16,4 @@ export * from './types';
 export * from './bridge';
 export * from './tauri-bridge';
 export * from './web-fallback-bridge';
+export * from './context';

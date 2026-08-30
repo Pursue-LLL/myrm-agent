@@ -267,6 +267,8 @@ class AgentService:
             "dialog_policy": agent_data.dialog_policy,
             "session_recording": agent_data.session_recording,
             "busy_input_mode": agent_data.busy_input_mode,
+            "is_pareto_preset": agent_data.is_pareto_preset,
+            "cost_reduction_ratio": agent_data.cost_reduction_ratio,
         }
 
         profile = AgentProfile(
@@ -415,6 +417,10 @@ class AgentService:
                 new_metadata["dialog_policy"] = agent_data.dialog_policy
             if "session_recording" in agent_data.model_fields_set:
                 new_metadata["session_recording"] = agent_data.session_recording
+            if "is_pareto_preset" in agent_data.model_fields_set:
+                new_metadata["is_pareto_preset"] = agent_data.is_pareto_preset
+            if "cost_reduction_ratio" in agent_data.model_fields_set:
+                new_metadata["cost_reduction_ratio"] = agent_data.cost_reduction_ratio
             if "busy_input_mode" in agent_data.model_fields_set:
                 new_metadata["busy_input_mode"] = agent_data.busy_input_mode
             if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
