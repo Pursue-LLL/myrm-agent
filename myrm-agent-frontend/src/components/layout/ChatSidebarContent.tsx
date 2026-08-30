@@ -431,60 +431,40 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               <p className="text-sm text-center mb-3">{t('workspace.selectDir')}</p>
             </div>
           ) : null}
+
+          {webPreviewFile && webWorkspaceDir ? (
+            <Suspense fallback={sidebarPanelLoading}>
+              <div className="absolute inset-0 z-10 bg-background">
+                <WorkspaceFilePreview
+                  file={webPreviewFile}
+                  workspace={webWorkspaceDir}
+                  onClose={() => setWebPreviewFile(null)}
+                  className="h-full"
+                />
+              </div>
+            </Suspense>
+          ) : null}
+
+          {isPreviewOpen && previewFile ? (
+            <Suspense fallback={null}>
+              <div className="absolute inset-0 z-10 bg-background">
+                <CLIFilePreview
+                  file={previewFile}
+                  content={content}
+                  fileType={fileType}
+                  language={language}
+                  loading={previewLoading}
+                  error={previewError}
+                  onClose={closePreview}
+                  className="h-full"
+                />
+              </div>
+            </Suspense>
+          ) : null}
         </div>
 
-        {/* Declarative Extension Slot for Sidebar Footer */}
-        <ExtensionSlot name="sidebar.footer.action" className="p-2 border-t border-border/50" />
-
-        {/* ACP file preview (Tauri) */}
-        {isPreviewOpen && previewFile && (
-          <div className="absolute inset-0 z-50 bg-background">
-            <CLIFilePreview
-              file={previewFile}
-              content={content}
-              fileType={fileType}
-              language={language}
-              loading={previewLoading}
-              error={previewError}
-              onClose={closePreview}
-              onOpenInEditor={handleOpenInEditor}
-              onShowInFinder={handleShowInFinder}
-            />
-          </div>
-        )}
-
-        {/* Web file preview */}
-        {webPreviewFile && webWorkspaceDir && (
-          <div className="absolute inset-0 z-50 bg-background">
-            <WorkspaceFilePreview
-              file={webPreviewFile}
-              workspace={webWorkspaceDir}
-              onClose={() => setWebPreviewFile(null)}
-            />
-          </div>
-        )}
-
-        {/* ACP context menu */}
-        {contextMenu.visible && contextMenu.file && (
-          <CLIContextMenu
-            position={contextMenu.position}
-            file={contextMenu.file}
-            visible={contextMenu.visible}
-            onPreview={() => {
-              if (contextMenu.file) {
-                openPreview(contextMenu.file);
-              }
-            }}
-            onOpenInEditor={handleOpenInEditor}
-            onShowInFinder={handleShowInFinder}
-            onCopyPath={handleCopyPath}
-            onClose={closeContextMenu}
-          />
-        )}
-        {/* Extension Slot for sidebar footer action */}
-        <ExtensionSlot name="sidebar.footer.action" className="px-3 pb-2 pt-1 border-t border-border/40" />
         {/* Extension Slot: 侧边栏底部操作区 */}
-        <ExtensionSlot name="sidebar.footer.action" className="p-2 border-t border-border/50" />
+        <ExtensionSlot name="sidebar.footer.action" className="px-3 pb-2 pt-1 border-t border-border/40" />
       </div>
     );
   },
