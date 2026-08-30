@@ -19,18 +19,16 @@ from tests.support.chrome_mcp_e2e import (
 def _seed_explore_fixture(api_url: str) -> dict[str, str]:
     seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-security-preset-fixture")
     assert isinstance(seeded, dict)
-    explore_path = str(seeded.get("explore_ui_path") or "")
-    assert explore_path.startswith("/")
-    return {key: str(seeded[key]) for key in seeded}
+    explore_chat_id = str(seeded.get("explore_chat_id") or "")
+    assert explore_chat_id.startswith("e2esecpreset")
+    assert str(seeded.get("explore_ui_path") or "").startswith("/")
+    payload = {key: str(seeded[key]) for key in seeded}
+    # Chat-bound routes hydrate agentConfig via loadMessages (more reliable than ?agentId= alone).
+    payload["explore_ui_path"] = f"/{payload['explore_chat_id']}"
+    return payload
 
 
 _EXPLORE_FORCE_EXTERNAL_BLOCK_JS = """(async () => {
-  const apiBase =
-    window.__MYRM_E2E_API_BASE__ ||
-    window.__MYRM_E2E_RUNTIME__?.apiBase ||
-    '';
-  if (!apiBase) return { ok: false, err: 'no-api-base' };
-
   const chatId = `e2e-explore-ext-block-${Date.now()}`;
   const body = {
     query: 'Run external CLI task',
@@ -43,7 +41,7 @@ _EXPLORE_FORCE_EXTERNAL_BLOCK_JS = """(async () => {
     timezone: 'UTC',
   };
 
-  const res = await fetch(`${apiBase}/api/v1/agents/agent-stream`, {
+  const res = await fetch('/api/v1/agents/agent-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

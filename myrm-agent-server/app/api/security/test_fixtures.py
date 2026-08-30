@@ -46,13 +46,15 @@ async def seed_pattern_allowlist_fixture() -> dict[str, str]:
         raise HTTPException(status_code=404, detail="Not found")
 
     await _clear_allowlist_rows()
+    allowlist = get_allowlist()
+    await allowlist.clear_user(DEFAULT_USER_ID)
+
     entry = AllowlistEntry(
         permission=_PATTERN_PERMISSION,
         tool_name=_PATTERN_TOOL,
         tool_args_hash=None,
         command_pattern=_PATTERN_COMMAND,
     )
-    allowlist = get_allowlist()
     await allowlist.add(DEFAULT_USER_ID, entry)
 
     factory = get_session_factory()

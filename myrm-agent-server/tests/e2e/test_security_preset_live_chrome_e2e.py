@@ -42,6 +42,8 @@ from cdp_chat.support import (  # noqa: E402
 )
 
 from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -66,7 +68,13 @@ def _seed_fixture(api_url: str) -> dict[str, str]:
         assert str(seeded.get(chat_key) or "").startswith("e2esecpreset")
         assert str(seeded.get(agent_key) or "")
         assert str(seeded.get(path_key) or "").startswith("/")
-    return {key: str(seeded[key]) for key in seeded}
+    payload = {key: str(seeded[key]) for key in seeded}
+    # PRIVATE exclusive_backend: agentId URL hydrates agentConfig reliably; chat-only routes
+    # can finish attachToChat before async fetchAgent settles (builtin-general leak).
+    payload["preset_ui_path"] = f"/?agentId={payload['preset_agent_id']}"
+    payload["plain_ui_path"] = f"/?agentId={payload['plain_agent_id']}"
+    payload["explore_ui_path"] = f"/?agentId={payload['explore_agent_id']}"
+    return payload
 
 
 def _store_preset_probe(expected: str, agent_id: str | None = None) -> str:
@@ -205,6 +213,24 @@ def _attach_js(chat_id: str) -> str:
 }})()"""
 
 
+def _wait_agent_preset(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    expected_preset: str,
+    agent_id: str,
+    timeout_sec: float = 90.0,
+) -> dict[str, object]:
+    state = wait_for_state(
+        client,
+        page,
+        _store_preset_probe(expected_preset, agent_id),
+        timeout_sec=timeout_sec,
+    )
+    assert state.get("ready") is True, json.dumps(state, ensure_ascii=False)
+    return state
+
+
 def _open_preset_selector_js() -> str:
     return """(() => {
   const target = document.querySelector('[data-testid="security-preset-trigger"]');
@@ -304,18 +330,19 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     plain_path = seeded["plain_ui_path"]
     preset_chat_id = seeded["preset_chat_id"]
     preset_agent_id = seeded["preset_agent_id"]
+    plain_chat_id = seeded["plain_chat_id"]
     plain_agent_id = seeded["plain_agent_id"]
+    explore_chat_id = seeded["explore_chat_id"]
 
     # --- Scenario 1: live LLM conversation keeps accept_edits preset ---
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
-        init_state = wait_for_state(
+        _wait_agent_preset(
             client,
             page,
-            _store_preset_probe("accept_edits", preset_agent_id),
-            timeout_sec=90.0,
+            expected_preset="accept_edits",
+            agent_id=preset_agent_id,
         )
-        assert init_state.get("ready") is True, json.dumps(init_state, ensure_ascii=False)
 
         attached = client.evaluate(page, _attach_js(preset_chat_id), timeout_sec=30.0)
         assert isinstance(attached, dict) and attached.get("ok") is True, attached
@@ -343,23 +370,21 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     # --- Scenario 2: agent switch resets preset (no leak across agents) ---
     warm_ui_route(plain_path)
     with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
-        switch_state = wait_for_state(
+        _wait_agent_preset(
             client,
             page,
-            _store_preset_probe("hitl", plain_agent_id),
-            timeout_sec=90.0,
+            expected_preset="hitl",
+            agent_id=plain_agent_id,
         )
-        assert switch_state.get("ready") is True, json.dumps(switch_state, ensure_ascii=False)
 
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
-        back_state = wait_for_state(
+        _wait_agent_preset(
             client,
             page,
-            _store_preset_probe("accept_edits", preset_agent_id),
-            timeout_sec=90.0,
+            expected_preset="accept_edits",
+            agent_id=preset_agent_id,
         )
-        assert back_state.get("ready") is True, json.dumps(back_state, ensure_ascii=False)
 
     # --- Scenario 3: binding a non-HITL preset agent auto-disables YOLO ---
     _set_yolo(api_url, True)
@@ -367,13 +392,12 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
 
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
-        yolo_init_state = wait_for_state(
+        _wait_agent_preset(
             client,
             page,
-            _store_preset_probe("accept_edits", preset_agent_id),
-            timeout_sec=90.0,
+            expected_preset="accept_edits",
+            agent_id=preset_agent_id,
         )
-        assert yolo_init_state.get("ready") is True, json.dumps(yolo_init_state, ensure_ascii=False)
 
     yolo_off = _wait_yolo_state(api_url, False, timeout_sec=45.0)
     assert yolo_off is False, "YOLO must be auto-disabled after binding accept_edits agent"
@@ -383,13 +407,12 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     explore_agent_id = seeded["explore_agent_id"]
     warm_ui_route(explore_path)
     with open_mcp_page(f"{ui_url}{explore_path}", timeout_ms=120_000) as (client, page):
-        explore_state = wait_for_state(
+        _wait_agent_preset(
             client,
             page,
-            _store_preset_probe("explore", explore_agent_id),
-            timeout_sec=90.0,
+            expected_preset="explore",
+            agent_id=explore_agent_id,
         )
-        assert explore_state.get("ready") is True, json.dumps(explore_state, ensure_ascii=False)
 
     # --- Scenario 5: HITL preset coexists with YOLO (only non-HITL disarms) ---
     _set_yolo(api_url, True)
@@ -397,13 +420,12 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
 
     warm_ui_route(plain_path)
     with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
-        hitl_state = wait_for_state(
+        _wait_agent_preset(
             client,
             page,
-            _store_preset_probe("hitl", plain_agent_id),
-            timeout_sec=90.0,
+            expected_preset="hitl",
+            agent_id=plain_agent_id,
         )
-        assert hitl_state.get("ready") is True, json.dumps(hitl_state, ensure_ascii=False)
 
     yolo_still_on = _wait_yolo_state(api_url, True, timeout_sec=20.0)
     assert yolo_still_on is True, "YOLO must stay enabled with a hitl default agent"
@@ -412,13 +434,12 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     # YOLO is still enabled after Scenario 5 (hitl agent does not disarm it).
     warm_ui_route(plain_path)
     with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
-        hitl_ready = wait_for_state(
+        _wait_agent_preset(
             client,
             page,
-            _store_preset_probe("hitl", plain_agent_id),
-            timeout_sec=90.0,
+            expected_preset="hitl",
+            agent_id=plain_agent_id,
         )
-        assert hitl_ready.get("ready") is True, json.dumps(hitl_ready, ensure_ascii=False)
 
         yolo_synced = _wait_yolo_state(api_url, True, timeout_sec=30.0)
         assert yolo_synced is True, "YOLO should still be on before the selector pick"
