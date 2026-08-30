@@ -326,6 +326,18 @@ async def test_image_tool_edit_mask_url_ssrf_blocked() -> None:
     engine.edit_image.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_image_tool_async_config_description_contains_workflow() -> None:
+    engine = MagicMock()
+    engine.tool_description = "Image generation and editing tool. Active model: dalle-3."
+    async_config = MagicMock()
+    tool = create_image_generation_tool(engine, async_config=async_config)
+    assert "Workflow:" in tool.description
+    assert "action='generate'" in tool.description
+    assert "action='edit'" in tool.description
+    assert "dalle-3" in tool.description
+
+
 def test_create_image_generation_tool_returns_basetool() -> None:
     engine = MagicMock()
     engine.tool_description = "desc"

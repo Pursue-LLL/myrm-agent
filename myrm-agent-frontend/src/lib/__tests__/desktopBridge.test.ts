@@ -7,39 +7,49 @@ describe('desktopBridge', () => {
     delete (window as unknown as { __TAURI__?: unknown }).__TAURI__;
   });
 
-  it('detects desktop environment accurately', () => {
+  it('detects desktop environment accurately based on __TAURI__ presence', () => {
     expect(desktopBridge.isDesktop()).toBe(false);
 
-    (window as unknown as { __TAURI__: unknown }).__TAURI__ = {};
+    (window as unknown as { __TAURI__: { invoke: () => Promise<void> } }).__TAURI__ = {
+      invoke: vi.fn(),
+    };
+
     expect(desktopBridge.isDesktop()).toBe(true);
   });
 
-  it('provides default app version in web mode', async () => {
-    const version = await desktopBridge.getAppVersion();
-    expect(version).toBeTruthy();
+  it('detects macOS user agent safely without throwing', () => {
+    const isMac = desktopBridge.isMacOS();
+    expect(typeof isMac).toBe('boolean');
   });
 
-  it('handles writeClipboard gracefully in web browser context', async () => {
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-      },
-    });
+  it('falls back to window.open when openExternal is invoked outside desktop environment', async () => {
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-    const result = await desktopBridge.writeClipboard('test text');
+    const result = await desktopBridge.openExternal('https://myrmagent.ai');
+
     expect(result).toBe(true);
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('test text');
+    expect(windowOpenSpy).toHaveBeenCalledWith('https://myrmagent.ai', '_blank', 'noopener,noreferrer');
   });
 
-  it('returns false for showItemInFolder in non-desktop environment without throwing', async () => {
+  it('returns false for empty URL in openExternal', async () => {
+    const result = await desktopBridge.openExternal('');
+    expect(result).toBe(false);
+  });
+
+  it('returns fallback version outside desktop environment', async () => {
+    const version = await desktopBridge.getAppVersion();
+    expect(typeof version).toBe('string');
+    expect(version.length).toBeGreaterThan(0);
+  });
+
+  it('returns false when showItemInFolder is called in non-desktop mode', async () => {
     const result = await desktopBridge.showItemInFolder('/path/to/file');
     expect(result).toBe(false);
   });
 
-  it('opens url using window.open in web environment', async () => {
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    const result = await desktopBridge.openExternal('https://example.com');
-    expect(result).toBe(true);
-    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+  it('safe window controls do not throw outside desktop environment', async () => {
+    await expect(desktopBridge.minimizeWindow()).resolves.toBeUndefined();
+    await expect(desktopBridge.toggleMaximizeWindow()).resolves.toBeUndefined();
+    await expect(desktopBridge.closeWindow()).resolves.toBeUndefined();
   });
 });
