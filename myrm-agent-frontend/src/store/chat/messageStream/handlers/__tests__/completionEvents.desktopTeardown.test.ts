@@ -164,6 +164,7 @@ describe('completionEvents inspector teardown', () => {
       // The 50ms loading-settle timer must not have fired yet.
       expect(ctx.actions.setMessages).not.toHaveBeenCalled();
     } finally {
+      vi.clearAllTimers();
       vi.useRealTimers();
     }
   });
@@ -181,6 +182,7 @@ describe('completionEvents inspector teardown', () => {
       expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledTimes(1);
       expect(mockBrowserReleaseTurnEngagement).toHaveBeenCalledWith('c1');
     } finally {
+      vi.clearAllTimers();
       vi.useRealTimers();
     }
   });

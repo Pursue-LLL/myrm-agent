@@ -64,10 +64,9 @@ _EXPLORE_FORCE_EXTERNAL_BLOCK_JS = """(async () => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="global_write_non_namespace",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

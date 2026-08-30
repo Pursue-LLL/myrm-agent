@@ -45,7 +45,11 @@ def _seed_fixture(api_url: str) -> dict[str, str]:
     assert plain_chat_id.startswith("e2esecpreset")
     assert str(seeded.get("preset_ui_path") or "").startswith("/")
     assert str(seeded.get("plain_ui_path") or "").startswith("/")
-    return {key: str(seeded[key]) for key in seeded}
+    payload = {key: str(seeded[key]) for key in seeded}
+    # Chat-bound routes hydrate agentConfig via loadMessages (more reliable than ?agentId= alone).
+    payload["preset_ui_path"] = f"/{payload['preset_chat_id']}"
+    payload["plain_ui_path"] = f"/{payload['plain_chat_id']}"
+    return payload
 
 
 def _store_preset_probe(expected: str, agent_id: str | None = None) -> str:
@@ -104,10 +108,9 @@ _CLICK_EXPLORE_OPTION_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

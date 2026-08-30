@@ -486,6 +486,34 @@ _frontend_turbopack_panic_residue() {
   grep -qE "panicked at turbopack|turbo-tasks: an internal panic|Aborting\." "${FRONTEND_LOG}" 2>/dev/null
 }
 
+_heal_stale_next_dev_lock() {
+  # Next.js dev-server.lock can reference a stale next-server PID on an alt port
+  # (e.g. :13301) while :3000 stays dead — kills the stale PID once per ensure.
+  [[ -f "${FRONTEND_LOG}" ]] || return 1
+  local tail_log=""
+  tail_log="$(tail -n 120 "${FRONTEND_LOG}" 2>/dev/null || true)"
+  [[ -n "${tail_log}" ]] || return 1
+  grep -q "Another next dev server is already running" <<<"${tail_log}" || return 1
+  local stale_pid=""
+  stale_pid="$(grep -E '^- PID:' <<<"${tail_log}" | tail -1 | sed -E 's/^- PID:[[:space:]]+//')"
+  [[ "${stale_pid}" =~ ^[0-9]+$ ]] || return 1
+  if [[ -f "${FRONTEND_PID}" ]]; then
+    local fe_pid=""
+    fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+    if [[ "${stale_pid}" == "${fe_pid}" ]]; then
+      return 1
+    fi
+  fi
+  if ! kill -0 "${stale_pid}" 2>/dev/null; then
+    return 1
+  fi
+  echo "STACK_HEAL: stale Next.js dev lock PID ${stale_pid} — terminating orphan next-server" >&2
+  kill -TERM "${stale_pid}" 2>/dev/null || true
+  sleep 1
+  kill -9 "${stale_pid}" 2>/dev/null || true
+  return 0
+}
+
 _try_frontend_start_with_clean_fallback() {
   if _frontend_turbopack_panic_residue; then
     echo "STACK_WARN: Turbopack panic residue — skip non-clean, force --clean cold start" >&2
@@ -508,6 +536,16 @@ _try_frontend_start_with_clean_fallback() {
   fi
   local last_code
   last_code="$(_frontend_http_status)"
+  if [[ "${last_code}" == "000" ]] && _heal_stale_next_dev_lock; then
+    _kill_frontend_supervisor || true
+    _repair_orphan_frontend || true
+    _launch_frontend_supervisor 0
+    if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_OK: frontend → ${APP_URL} (after stale next-server heal)"
+      return 0
+    fi
+  fi
   if [[ "${last_code}" != "404" && "${last_code}" != "000" ]]; then
     echo "STACK_WARN: frontend slow to start (last HTTP ${last_code}) — check ${FRONTEND_LOG}" >&2
     return 1

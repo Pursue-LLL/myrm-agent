@@ -18,10 +18,9 @@ from tests.support.chrome_mcp_e2e import (
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
+    execution_mode="SHARED",
+    access_scope="READ",
     workload="STANDARD",
-    private_reason="global_write_non_namespace",
 )
 @pytest.mark.timeout(240)
 def test_settings_security_shows_delegation_permission_guide_and_types() -> None:

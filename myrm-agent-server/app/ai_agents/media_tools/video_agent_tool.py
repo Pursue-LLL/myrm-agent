@@ -258,5 +258,13 @@ def create_video_generation_tool(
             force=force,
         )
 
-    video_tool.description = engine.tool_description
+    if async_config is not None:
+        video_tool.description = (
+            f"{engine.tool_description} "
+            "Workflow: 1) Call action='generate' with prompt (and optional reference_images for I2V) to start and receive task_id. "
+            "2) Call action='status' with task_id to inspect progress until completed and retrieve the final video URL. "
+            "3) Call action='list' to view available video models and providers."
+        )
+    else:
+        video_tool.description = engine.tool_description
     return video_tool

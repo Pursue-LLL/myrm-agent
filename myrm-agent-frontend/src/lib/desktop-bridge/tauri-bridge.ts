@@ -125,7 +125,7 @@ class TauriTrayBridge implements ITrayBridge {
     }
     let unlisten: (() => void) | null = null;
     window.__TAURI__.event
-      .listen('tray_event', (e) => {
+      .listen('tray_event', (e: { payload: unknown }) => {
         const payload = e.payload as { type?: string; payload?: unknown } | string;
         if (typeof payload === 'string') {
           handler({ type: payload });
@@ -133,7 +133,7 @@ class TauriTrayBridge implements ITrayBridge {
           handler({ type: payload.type || 'unknown', payload: payload.payload });
         }
       })
-      .then((fn) => {
+      .then((fn: () => void) => {
         unlisten = fn;
       })
       .catch(() => {});
@@ -234,14 +234,14 @@ class TauriAppshotBridge implements IAppshotBridge {
     }
     let unlisten: (() => void) | null = null;
     window.__TAURI__.event
-      .listen('appshot_trigger', (e) => {
+      .listen('appshot_trigger', (e: { payload: unknown }) => {
         const p = e.payload as { path?: string; mimeType?: string } | undefined;
         handler({
           path: p?.path || '',
           mimeType: p?.mimeType || 'image/png',
         });
       })
-      .then((fn) => {
+      .then((fn: () => void) => {
         unlisten = fn;
       })
       .catch(() => {});

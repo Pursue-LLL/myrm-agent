@@ -271,6 +271,9 @@ class AgentService:
             "cost_reduction_ratio": agent_data.cost_reduction_ratio,
         }
 
+        if agent_data.model_selection:
+            metadata["model_selection_full"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
+
         profile = AgentProfile(
             id=agent_id,
             display_name=agent_data.name,
@@ -287,9 +290,6 @@ class AgentService:
             metadata=metadata,
             built_in=agent_data.is_built_in,
         )
-
-        if agent_data.model_selection:
-            metadata["_model_selection_full"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
 
         async with UnitOfWork() as uow:
             created_profile = await AgentService._ar(uow).create_profile(
@@ -331,15 +331,17 @@ class AgentService:
                 return None
 
             updates: dict[str, object] = {}
+            new_metadata = dict(existing.metadata) if existing.metadata else {}
+            if agent_data.model_selection is not None:
+                updates["model"] = agent_data.model_selection.model
+                updates["model_selection"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
+                new_metadata["model_selection_full"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
             if agent_data.name is not None:
                 updates["display_name"] = agent_data.name
             if agent_data.description is not None:
                 updates["description"] = agent_data.description
             if agent_data.avatar_url is not None:
                 updates["avatar"] = agent_data.avatar_url
-            if agent_data.model_selection is not None:
-                updates["model"] = agent_data.model_selection.model
-                updates["model_selection"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
             if agent_data.skill_ids is not None:
                 updates["skills"] = agent_data.skill_ids
             if serialized_skill_configs is not None:
@@ -352,16 +354,11 @@ class AgentService:
             if agent_data.system_prompt is not None and agent_data.system_prompt != HIDDEN_SYSTEM_PROMPT:
                 updates["system_prompt"] = agent_data.system_prompt
             if "max_iterations" in agent_data.model_fields_set:
-                # 显式 null 表示恢复系统默认（DB 置 NULL）；不传则保持原值。
-                # 前端清空 Max Iterations 输入框会发送 null，必须能真正重置。
                 updates["max_iterations"] = agent_data.max_iterations
             if "memory_policy" in agent_data.model_fields_set:
                 updates["memory_policy"] = _memory_policy_from_request(agent_data.memory_policy)
             if "workspace_policy" in agent_data.model_fields_set and agent_data.workspace_policy is not None:
                 updates["workspace_policy"] = agent_data.workspace_policy
-
-            # 更新 metadata
-            new_metadata = dict(existing.metadata) if existing.metadata else {}
             if agent_data.mcp_ids is not None:
                 new_metadata["mcp_ids"] = agent_data.mcp_ids
             if agent_data.mcp_tool_selections is not None:

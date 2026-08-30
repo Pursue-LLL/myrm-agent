@@ -35,8 +35,21 @@ from app.database.models import ExpertSummonMetricEvent
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_SURFACES = ("template_market", "flow_pad_inline")
-_TRIGGERS = ("template_card", "use_case_chip", "route_menu")
+_SURFACES = (
+    "template_market",
+    "flow_pad_inline",
+    "empty_chat_featured",
+    "message_input_plus",
+    "mobile_hub_chip",
+)
+_TRIGGERS = (
+    "template_card",
+    "use_case_chip",
+    "route_menu",
+    "featured_chip",
+    "plus_popover_card",
+    "mobile_chip",
+)
 _RETENTION_DAYS = 90
 _CLEANUP_MIN_INTERVAL = timedelta(hours=6)
 _cleanup_lock = asyncio.Lock()
@@ -50,21 +63,23 @@ ExpertSummonFailureReason = Literal[
 ]
 
 
+ExpertSummonSurface = Literal[
+    "template_market", "flow_pad_inline", "empty_chat_featured", "message_input_plus", "mobile_hub_chip"
+]
+ExpertSummonTrigger = Literal[
+    "template_card", "use_case_chip", "route_menu", "featured_chip", "plus_popover_card", "mobile_chip"
+]
+ExpertSummonEventType = Literal[
+    "surface_viewed", "search_used", "summon_attempted", "summon_succeeded", "summon_failed",
+    "route_applied", "route_apply_failed", "first_message_sent", "dropped_report"
+]
+
+
 class ExpertSummonEventRequest(BaseModel):
-    event_type: Literal[
-        "surface_viewed",
-        "search_used",
-        "summon_attempted",
-        "summon_succeeded",
-        "summon_failed",
-        "route_applied",
-        "route_apply_failed",
-        "first_message_sent",
-        "dropped_report",
-    ]
-    surface: Literal["template_market", "flow_pad_inline"]
+    event_type: ExpertSummonEventType
+    surface: ExpertSummonSurface
     context_key: str | None = Field(default=None, min_length=1, max_length=128)
-    trigger: Literal["template_card", "use_case_chip", "route_menu"] | None = None
+    trigger: ExpertSummonTrigger | None = None
     template_kind: Literal["team", "individual"] | None = None
     from_search: bool | None = None
     used_use_case: bool | None = None
@@ -192,21 +207,11 @@ async def _sum_event_count(
 
 
 async def _surface_breakdown(
-    db: AsyncSession,
-    start_dt: datetime,
-    event_type: str,
+    db: AsyncSession, start_dt: datetime, event_type: str
 ) -> dict[str, int]:
     stmt = (
-        select(
-            ExpertSummonMetricEvent.surface,
-            func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0),
-        )
-        .where(
-            and_(
-                ExpertSummonMetricEvent.created_at >= start_dt,
-                ExpertSummonMetricEvent.event_type == event_type,
-            )
-        )
+        select(ExpertSummonMetricEvent.surface, func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0))
+        .where(and_(ExpertSummonMetricEvent.created_at >= start_dt, ExpertSummonMetricEvent.event_type == event_type))
         .group_by(ExpertSummonMetricEvent.surface)
     )
     rows = (await db.execute(stmt)).all()
@@ -218,15 +223,10 @@ async def _surface_breakdown(
 
 
 async def _trigger_breakdown(
-    db: AsyncSession,
-    start_dt: datetime,
-    event_type: str,
+    db: AsyncSession, start_dt: datetime, event_type: str
 ) -> dict[str, int]:
     stmt = (
-        select(
-            ExpertSummonMetricEvent.trigger,
-            func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0),
-        )
+        select(ExpertSummonMetricEvent.trigger, func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0))
         .where(
             and_(
                 ExpertSummonMetricEvent.created_at >= start_dt,
@@ -244,15 +244,9 @@ async def _trigger_breakdown(
     return result
 
 
-async def _failure_reason_breakdown(
-    db: AsyncSession,
-    start_dt: datetime,
-) -> dict[str, int]:
+async def _failure_reason_breakdown(db: AsyncSession, start_dt: datetime) -> dict[str, int]:
     stmt = (
-        select(
-            ExpertSummonMetricEvent.failure_reason,
-            func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0),
-        )
+        select(ExpertSummonMetricEvent.failure_reason, func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0))
         .where(
             and_(
                 ExpertSummonMetricEvent.created_at >= start_dt,
@@ -262,11 +256,7 @@ async def _failure_reason_breakdown(
         .group_by(ExpertSummonMetricEvent.failure_reason)
     )
     rows = (await db.execute(stmt)).all()
-    result: dict[str, int] = {}
-    for reason, count in rows:
-        key = reason or "unknown_error"
-        result[key] = int(count or 0)
-    return result
+    return {(reason or "unknown_error"): int(count or 0) for reason, count in rows}
 
 
 async def _sum_boolean_flag(
@@ -365,33 +355,34 @@ async def get_expert_summon_summary(
         search_assisted_attempted_count = await _sum_boolean_flag(db, start_dt, "summon_attempted", "from_search")
         query_length_total, query_length_samples = await _sum_weighted_query_length(db, start_dt)
 
-        summary = ExpertSummonSummaryResponse(
-            days=days,
-            retention_days=_RETENTION_DAYS,
-            total_events=total_events,
-            surface_viewed_count=surface_viewed_count,
-            search_used_count=search_used_count,
-            summon_attempted_count=summon_attempted_count,
-            summon_succeeded_count=summon_succeeded_count,
-            summon_failed_count=summon_failed_count,
-            route_applied_count=route_applied_count,
-            route_apply_failed_count=route_apply_failed_count,
-            first_message_sent_count=first_message_sent_count,
-            dropped_event_count=dropped_event_count,
-            summon_success_rate=_safe_rate(summon_succeeded_count, summon_attempted_count),
-            summon_failure_rate=_safe_rate(summon_failed_count, summon_attempted_count),
-            route_apply_rate=_safe_rate(route_applied_count, summon_succeeded_count),
-            first_message_sent_rate=_safe_rate(first_message_sent_count, summon_succeeded_count),
-            use_case_trigger_rate=_safe_rate(use_case_attempted_count, summon_attempted_count),
-            search_assisted_summon_rate=_safe_rate(search_assisted_attempted_count, summon_attempted_count),
-            avg_search_query_length=_safe_avg(query_length_total, query_length_samples),
-            viewed_by_surface=await _surface_breakdown(db, start_dt, "surface_viewed"),
-            attempted_by_surface=await _surface_breakdown(db, start_dt, "summon_attempted"),
-            succeeded_by_surface=await _surface_breakdown(db, start_dt, "summon_succeeded"),
-            failed_by_surface=await _surface_breakdown(db, start_dt, "summon_failed"),
-            attempted_by_trigger=await _trigger_breakdown(db, start_dt, "summon_attempted"),
-            failure_reason_breakdown=await _failure_reason_breakdown(db, start_dt),
-        )
+        summary_dict = {
+            "days": days,
+            "retention_days": _RETENTION_DAYS,
+            "total_events": total_events,
+            "surface_viewed_count": surface_viewed_count,
+            "search_used_count": search_used_count,
+            "summon_attempted_count": summon_attempted_count,
+            "summon_succeeded_count": summon_succeeded_count,
+            "summon_failed_count": summon_failed_count,
+            "route_applied_count": route_applied_count,
+            "route_apply_failed_count": route_apply_failed_count,
+            "first_message_sent_count": first_message_sent_count,
+            "dropped_event_count": dropped_event_count,
+            "summon_success_rate": _safe_rate(summon_succeeded_count, summon_attempted_count),
+            "summon_failure_rate": _safe_rate(summon_failed_count, summon_attempted_count),
+            "route_apply_rate": _safe_rate(route_applied_count, summon_succeeded_count),
+            "first_message_sent_rate": _safe_rate(first_message_sent_count, summon_succeeded_count),
+            "use_case_trigger_rate": _safe_rate(use_case_attempted_count, summon_attempted_count),
+            "search_assisted_summon_rate": _safe_rate(search_assisted_attempted_count, summon_attempted_count),
+            "avg_search_query_length": _safe_avg(query_length_total, query_length_samples),
+            "viewed_by_surface": await _surface_breakdown(db, start_dt, "surface_viewed"),
+            "attempted_by_surface": await _surface_breakdown(db, start_dt, "summon_attempted"),
+            "succeeded_by_surface": await _surface_breakdown(db, start_dt, "summon_succeeded"),
+            "failed_by_surface": await _surface_breakdown(db, start_dt, "summon_failed"),
+            "attempted_by_trigger": await _trigger_breakdown(db, start_dt, "summon_attempted"),
+            "failure_reason_breakdown": await _failure_reason_breakdown(db, start_dt),
+        }
+        summary = ExpertSummonSummaryResponse(**summary_dict)
         return success_response(data=summary.model_dump(mode="json"))
     except Exception as e:
         if getattr(e, "status_code", None) == 400:

@@ -23,7 +23,10 @@ from langchain_core.tools import BaseTool
 from langchain_core.tools.convert import tool
 from pydantic import BaseModel, Field
 
-from .attachment_path_policy import is_local_attachment_path_allowed
+from .attachment_path_policy import (
+    is_local_attachment_path_allowed,
+    resolve_allowed_local_attachment_path,
+)
 from .target_resolver import resolve_notify_target
 from .types import NotifySessionState, NotifyToolConfig
 
@@ -81,22 +84,24 @@ def _resolve_attachments(
 
         is_url = entry.startswith(("http://", "https://"))
 
+        resolved_path: str | None = None
         if not is_url:
-            if not is_local_attachment_path_allowed(entry, allowed_roots):
+            resolved_path = resolve_allowed_local_attachment_path(entry, allowed_roots)
+            if resolved_path is None:
                 errors.append(f"Path not allowed (must be under agent workspace): {entry}")
                 continue
-            if not os.path.isfile(entry):
+            if not os.path.isfile(resolved_path):
                 errors.append(f"File not found: {entry}")
                 continue
 
-        filename = os.path.basename(urlparse(entry).path) if is_url else os.path.basename(entry)
+        filename = os.path.basename(urlparse(entry).path) if is_url else os.path.basename(resolved_path or entry)
         media_type = guess_media_type(filename)
 
         attachments.append(
             MA(
                 media_type=media_type,
                 url=entry if is_url else None,
-                path=entry if not is_url else None,
+                path=resolved_path if not is_url else None,
                 filename=filename,
             )
         )

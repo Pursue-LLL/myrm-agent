@@ -121,7 +121,7 @@ def resolve_evaluate_budget(
     if intent is EvaluateIntent.SYNC_PROBE:
         return EvaluateBudget(
             await_promise=False,
-            cdp_timeout_sec=_sync_probe_cdp_timeout_sec(),
+            cdp_timeout_sec=_sync_probe_cdp_timeout_sec(live=live),
             mux_max_attempts=0,
             mux_recv_grace_sec=5.0,
         )
@@ -481,12 +481,13 @@ def _parallel_chrome_e2e_pressure() -> int:
     return max(0, pressure)
 
 
-def _sync_probe_cdp_timeout_sec() -> float:
+def _sync_probe_cdp_timeout_sec(*, live: bool = True) -> float:
     """SYNC_PROBE stays fail-fast (mux_max_attempts=0) but scales under parallel mux pressure."""
-    base = 12.0
+    base = 12.0 if live else 6.0
     peers = _parallel_chrome_e2e_pressure()
     if peers >= 2:
-        return min(30.0, base + peers * 4.0)
+        max_sec = 30.0 if live else 12.0
+        return min(max_sec, base + peers * (4.0 if live else 2.0))
     return base
 
 

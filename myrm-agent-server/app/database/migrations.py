@@ -615,6 +615,12 @@ MIGRATION_STATEMENTS: list[str] = [
     # JSONL event-log 为 SSOT，这两个表在全新库中不创建，此处为存量库清表。
     "DROP TABLE IF EXISTS agent_events",
     "DROP TABLE IF EXISTS agent_turns",
+    # Hosted MCP / sub-agent allowlist scope: agent_id column + 5-column unique index.
+    # New DBs get these from create_all; append-only ALTER covers existing databases.
+    "ALTER TABLE user_tool_allowlist ADD COLUMN agent_id VARCHAR(255) NOT NULL DEFAULT ''",
+    "DROP INDEX IF EXISTS uq_user_allowlist_final",
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_user_allowlist_final
+        ON user_tool_allowlist(permission, tool_name, tool_args_hash, command_pattern, agent_id)""",
 ]
 
 # 创建索引的SQL语句列表

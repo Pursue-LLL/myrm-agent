@@ -1,12 +1,51 @@
 import json
 import os
+import subprocess
 import uuid
 
 import pytest
 from myrm_agent_harness.core.features import init_features
+from myrm_agent_harness.toolkits.code_execution.executors.base import (
+    CodeExecutor,
+    ExecutionResult,
+    reset_executor,
+    set_executor,
+)
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext
 from starlette.testclient import TestClient
 
+from app.services.features.registration import register_all_features
 from tests.api.agent.utils import get_model_selection
+
+
+class _LocalBashExecutor(CodeExecutor):
+    async def execute(self, context: ExecutionContext) -> ExecutionResult:
+        res = subprocess.run(
+            ["python3", "-c", context.code],
+            capture_output=True,
+            text=True,
+            timeout=context.timeout,
+        )
+        return ExecutionResult(
+            exit_code=res.returncode,
+            stdout=res.stdout,
+            stderr=res.stderr,
+            duration=0.1,
+        )
+
+    async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
+        res = subprocess.run(
+            ["bash", "-c", context.code],
+            capture_output=True,
+            text=True,
+            timeout=context.timeout,
+        )
+        return ExecutionResult(
+            exit_code=res.returncode,
+            stdout=res.stdout,
+            stderr=res.stderr,
+            duration=0.1,
+        )
 
 
 @pytest.mark.e2e
@@ -19,67 +58,72 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
     2. The agent correctly works to satisfy the criteria and updates the status to complete.
     3. The gatekeeper verifies the outcome.
     """
+    register_all_features()
     init_features(overrides={"goals_system": True})
-    if not os.getenv("BASIC_API_KEY") and not os.getenv("OPENAI_API_KEY") and not os.getenv("ANTHROPIC_API_KEY"):
-        pytest.skip("Skipping real model E2E test due to missing API keys.")
+    token = set_executor(_LocalBashExecutor())
+    try:
+        if not os.getenv("BASIC_API_KEY") and not os.getenv("OPENAI_API_KEY") and not os.getenv("ANTHROPIC_API_KEY"):
+            pytest.skip("Skipping real model E2E test due to missing API keys.")
 
-    chat_id = f"test_goal_e2e_{uuid.uuid4().hex[:8]}"
+        chat_id = f"test_goal_e2e_{uuid.uuid4().hex[:8]}"
 
-    # 1. Create a new chat
-    create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
-    assert create_response.status_code == 200
+        # 1. Create a new chat
+        create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
+        assert create_response.status_code == 200
 
-    # 2. Chat with the real model, setting a goal with acceptance criteria
-    request_data = {
-        "messageId": f"msg_1_{uuid.uuid4().hex[:8]}",
-        "chatId": chat_id,
-        "query": "Please call the `complete_goal_tool`. You do not need to do any actual work, just call the tool.",
-        "modelSelection": get_model_selection(),
-        "goal": {
-            "objective": "Just complete the goal",
-            "maxTokens": 100000,
-            "acceptance_criteria": [
-                {
-                    "type": "shell",
-                    "command": "echo 'Hello World'",
-                    "timeout_seconds": 60,
-                }
-            ],
-        },
-    }
+        # 2. Chat with the real model, setting a goal with acceptance criteria
+        request_data = {
+            "messageId": f"msg_1_{uuid.uuid4().hex[:8]}",
+            "chatId": chat_id,
+            "query": "Please call the `complete_goal_tool`. You do not need to do any actual work, just call the tool.",
+            "modelSelection": get_model_selection(),
+            "goal": {
+                "objective": "Just complete the goal",
+                "maxTokens": 100000,
+                "acceptance_criteria": [
+                    {
+                        "type": "shell",
+                        "command": "echo 'Hello World'",
+                        "timeout_seconds": 60,
+                    }
+                ],
+            },
+        }
 
-    full_response = ""
-    tool_calls = []
-    events = []
+        full_response = ""
+        tool_calls = []
+        events = []
 
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
-        assert response.status_code == 200
-        for line in response.iter_lines():
-            if not line or not line.startswith("data: "):
-                continue
-            try:
-                data = json.loads(line[6:])
-                events.append(data)
-                event_type = data.get("type")
-                if event_type in ("message", "reasoning"):
-                    full_response += data.get("data", "")
-                elif event_type == "tasks_steps":
-                    tool_name = data.get("tool_name")
-                    if tool_name is not None:
-                        tool_calls.append(tool_name)
-            except Exception:
-                pass
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
+            assert response.status_code == 200
+            for line in response.iter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    data = json.loads(line[6:])
+                    events.append(data)
+                    event_type = data.get("type")
+                    if event_type in ("message", "reasoning"):
+                        full_response += data.get("data", "")
+                    elif event_type == "tasks_steps":
+                        tool_name = data.get("tool_name")
+                        if tool_name is not None:
+                            tool_calls.append(tool_name)
+                except Exception:
+                    pass
 
-    from tests.api.agent.utils import check_e2e_errors
-    check_e2e_errors(events)
+        from tests.api.agent.utils import check_e2e_errors
+        check_e2e_errors(events)
 
-    # Verify that the agent successfully ran tools
-    assert len(tool_calls) > 0, "Model should have called tools to complete the goal"
+        # Verify that the agent successfully ran tools
+        assert len(tool_calls) > 0, "Model should have called tools to complete the goal"
 
-    # 3. Verify the goal status via API
-    status_response = client.get(f"/api/v1/goals/{chat_id}/status")
-    assert status_response.status_code == 200
-    goal_data = status_response.json().get("goal")
+        # 3. Verify the goal status via API
+        status_response = client.get(f"/api/v1/goals/{chat_id}/status")
+        assert status_response.status_code == 200
+        goal_data = status_response.json().get("goal")
 
-    assert goal_data is not None, "Goal should exist"
-    assert goal_data["status"] == "complete", f"Goal should be marked complete, but got {goal_data['status']}"
+        assert goal_data is not None, "Goal should exist"
+        assert goal_data["status"] == "complete", f"Goal should be marked complete, but got {goal_data['status']}"
+    finally:
+        reset_executor(token)

@@ -274,6 +274,12 @@ def _chrome_e2e_profile(
             )
         if private_reason not in _PRIVATE_REASONS:
             raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason={private_reason!r}")
+        if private_reason == "global_write_non_namespace" and access_scope != "GLOBAL_WRITE":
+            raise pytest.UsageError(
+                "CHROME_E2E_PROFILE_SEMANTIC: "
+                f"node={item.nodeid} private_reason=global_write_non_namespace "
+                f"requires access_scope=GLOBAL_WRITE, got {access_scope!r}"
+            )
     elif private_reason is not None:
         raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason only applies to PRIVATE")
     return execution_mode, access_scope, workload
