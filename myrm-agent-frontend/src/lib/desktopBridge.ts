@@ -1,12 +1,15 @@
 /**
  * [INPUT]
- * - @/lib/tauri (POS: isTauriEnvironment, invokeTauriCommand)
+ * - @/lib/tauri (POS: isTauriEnvironment)
  * - @tauri-apps/api/* (POS: 桌面端窗口与应用 API)
  * - @tauri-apps/plugin-shell (POS: 桌面端系统外链与文件唤起)
+ * - @tauri-apps/plugin-dialog (POS: 原生文件与文件夹选择器)
+ * - @tauri-apps/plugin-notification (POS: 原生桌面系统通知)
  *
  * [OUTPUT]
  * - desktopBridge: 统一桌面原生桥接门面
  * - type DesktopBridgeInterface: 桌面桥接强类型接口
+ * - type FileFilterOption: 文件选择过滤项契约
  * - useDesktopBridge: React Hook 便捷访问
  *
  * [POS]
@@ -16,11 +19,35 @@
 
 import { isTauriEnvironment } from '@/lib/tauri';
 
+export interface FileFilterOption {
+  name: string;
+  extensions: string[];
+}
+
+export interface DirectoryPickerOptions {
+  title?: string;
+  defaultPath?: string;
+}
+
+export interface FilePickerOptions {
+  title?: string;
+  defaultPath?: string;
+  multiple?: boolean;
+  filters?: FileFilterOption[];
+}
+
+export interface NotificationOptions {
+  title: string;
+  body: string;
+}
+
 export interface DesktopBridgeInterface {
   /** 判断当前是否运行在桌面端原生环境 */
   isDesktop: () => boolean;
-  /** 判断当前宿主是否为 macOS 桌面端 */
+  /** 判断当前宿主是否为 macOS */
   isMacOS: () => boolean;
+  /** 判断当前宿主是否为 Windows */
+  isWindows: () => boolean;
   /** 在系统默认文件管理器中定位并高亮显示指定文件/目录 */
   showItemInFolder: (path: string) => Promise<boolean>;
   /** 使用系统默认浏览器打开外部超链接 */
@@ -35,6 +62,14 @@ export interface DesktopBridgeInterface {
   getAppVersion: () => Promise<string>;
   /** 安全写入系统剪贴板 */
   writeClipboard: (text: string) => Promise<boolean>;
+  /** 唤起系统原生目录选择器（非桌面环境优雅返回 null） */
+  openDirectoryPicker: (options?: DirectoryPickerOptions) => Promise<string | null>;
+  /** 唤起系统原生文件选择器（非桌面环境优雅返回 null） */
+  openFilePicker: (options?: FilePickerOptions) => Promise<string | string[] | null>;
+  /** 发送系统桌面级通知（支持 Web Notification 降级） */
+  sendNotification: (options: NotificationOptions) => Promise<boolean>;
+  /** 请求用户注意力（macOS Dock 弹跳 / Windows 任务栏闪烁） */
+  requestUserAttention: (level?: 'critical' | 'informational') => Promise<void>;
 }
 
 class DesktopBridgeImpl implements DesktopBridgeInterface {
@@ -49,8 +84,15 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
     return /(Macintosh|Mac OS X)/i.test(navigator.userAgent);
   }
 
+  public isWindows(): boolean {
+    if (typeof navigator === 'undefined') {
+      return false;
+    }
+    return /(Windows|Win32|Win64)/i.test(navigator.userAgent);
+  }
+
   public async showItemInFolder(path: string): Promise<boolean> {
-    if (!this.isDesktop()) {
+    if (!path || !this.isDesktop()) {
       return false;
     }
 
@@ -148,6 +190,109 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
       }
     }
     return false;
+  }
+
+  public async openDirectoryPicker(options?: DirectoryPickerOptions): Promise<string | null> {
+    if (!this.isDesktop()) {
+      return null;
+    }
+
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: options?.title,
+        defaultPath: options?.defaultPath,
+      });
+
+      if (typeof selected === 'string' && selected.trim()) {
+        return selected;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async openFilePicker(options?: FilePickerOptions): Promise<string | string[] | null> {
+    if (!this.isDesktop()) {
+      return null;
+    }
+
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        directory: false,
+        multiple: options?.multiple ?? false,
+        title: options?.title,
+        defaultPath: options?.defaultPath,
+        filters: options?.filters,
+      });
+
+      return selected;
+    } catch {
+      return null;
+    }
+  }
+
+  public async sendNotification(options: NotificationOptions): Promise<boolean> {
+    if (this.isDesktop()) {
+      try {
+        const { isPermissionGranted, requestPermission, sendNotification } = await import(
+          '@tauri-apps/plugin-notification'
+        );
+        let permitted = await isPermissionGranted();
+        if (!permitted) {
+          const perm = await requestPermission();
+          permitted = perm === 'granted';
+        }
+        if (permitted) {
+          sendNotification({
+            title: options.title,
+            body: options.body,
+          });
+          return true;
+        }
+      } catch {
+        // Fall through to browser notification fallback
+      }
+    }
+
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        if (Notification.permission === 'granted') {
+          new Notification(options.title, { body: options.body });
+          return true;
+        }
+        if (Notification.permission !== 'denied') {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') {
+            new Notification(options.title, { body: options.body });
+            return true;
+          }
+        }
+      } catch {
+        // Notification failed or blocked
+      }
+    }
+
+    return false;
+  }
+
+  public async requestUserAttention(level: 'critical' | 'informational' = 'informational'): Promise<void> {
+    if (!this.isDesktop()) {
+      return;
+    }
+
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      // 1 = Informational, 2 = Critical (UserAttentionType in Tauri)
+      const attentionType = level === 'critical' ? 2 : 1;
+      await getCurrentWindow().requestUserAttention(attentionType);
+    } catch {
+      // Graceful fallback
+    }
   }
 }
 

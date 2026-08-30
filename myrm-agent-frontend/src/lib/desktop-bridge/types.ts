@@ -5,14 +5,18 @@
  *
  * [OUTPUT]
  * - IDesktopBridge: 统一桌面原生与 Web 降级契约
- * - WindowMetrics: 视窗度量（交通灯、拖拽区）
- * - TrayStatusPayload: 托盘状态负载
+ * - DesktopPlatform: 运行平台类型
+ * - DesktopBridgeCapabilities: 原生能力探针
+ * - DesktopWindowControlsState: 视窗留白状态
+ * - WindowMetrics, TrayStatusPayload, NativeNotificationPayload
  *
  * [POS]
- * 前端桌面端原生桥接抽象契约。抹平 WebUI、Tauri 桌面端与 Cloud 托管沙箱的环境差异。
+ * 前端桌面端原生桥接抽象契约（SSOT）。抹平 WebUI、Tauri 桌面端与 Cloud 托管沙箱的环境差异。
  */
 
 import type { LivenessState } from '@/hooks/shell/useLivenessState';
+
+export type DesktopPlatform = 'macos' | 'windows' | 'linux' | 'web';
 
 export interface UsageSummary {
   tokens: number;
@@ -24,6 +28,24 @@ export interface WindowMetrics {
   trafficLightsPadding: number;
   titlebarHeight: number;
   dragRegionEnabled: boolean;
+}
+
+export interface DesktopWindowControlsState {
+  controlsInsetTop: number;
+  controlsInsetLeft: number;
+  platform: DesktopPlatform;
+  isDesktop: boolean;
+  isOverlayTitlebar: boolean;
+}
+
+export interface DesktopBridgeCapabilities {
+  hasNativeDialog: boolean;
+  hasNativeTray: boolean;
+  hasNativeNotification: boolean;
+  hasNativeClipboard: boolean;
+  hasNativeGlobalShortcuts: boolean;
+  hasNativePowerLock: boolean;
+  hasNativeAppshot: boolean;
 }
 
 export interface TrayStatusPayload {
@@ -38,6 +60,14 @@ export interface NativeNotificationPayload {
   body: string;
   kind?: 'info' | 'success' | 'warning' | 'error';
   sound?: boolean;
+}
+
+export interface NativeOpenFileDialogOptions {
+  title?: string;
+  multiple?: boolean;
+  directory?: boolean;
+  defaultPath?: string;
+  filters?: Array<{ name: string; extensions: string[] }>;
 }
 
 export interface IWindowBridge {
@@ -59,6 +89,7 @@ export interface IShellBridge {
   openLocalFolder(path: string): Promise<boolean>;
   showInFileManager(path: string): Promise<boolean>;
   openExternalUrl(url: string): Promise<boolean>;
+  openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null>;
 }
 
 export interface IPowerBridge {
@@ -77,11 +108,24 @@ export interface INotificationBridge {
 
 export interface IDesktopBridge {
   readonly isDesktop: boolean;
-  readonly platform: 'macos' | 'windows' | 'linux' | 'web';
+  readonly platform: DesktopPlatform;
+  readonly capabilities: DesktopBridgeCapabilities;
   readonly window: IWindowBridge;
   readonly tray: ITrayBridge;
   readonly shell: IShellBridge;
   readonly power: IPowerBridge;
   readonly appshot: IAppshotBridge;
   readonly notification: INotificationBridge;
+  getWindowControlsState(): DesktopWindowControlsState;
 }
+
+export type DesktopBridge = IDesktopBridge;
+export type WindowBridge = IWindowBridge;
+export type TrayBridge = ITrayBridge;
+export type ShellBridge = IShellBridge;
+export type PowerBridge = IPowerBridge;
+export type AppshotBridge = IAppshotBridge;
+export type NotificationBridge = INotificationBridge;
+export type DesktopLivenessState = LivenessState;
+export type DesktopUsageSummary = UsageSummary;
+

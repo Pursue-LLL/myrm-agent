@@ -38,7 +38,6 @@ import { useNavBadges } from '@/hooks/shell/useNavBadges';
 import NotificationBell from '@/components/features/notifications/NotificationBell';
 import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';
 import { IconTerminal } from '@/components/features/icons/PremiumIcons';
-import { ExtensionSlot } from '@/components/features/extension-slots/ExtensionSlot';
 import { ExtensionSlot } from '@/components/features/extension-slots';
 import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
 
@@ -89,6 +88,7 @@ function NavBarInner({
   const [avatarError, setAvatarError] = useState(false);
   const isLocal = isLocalMode();
   const badges = useNavBadges();
+  const { isImmersiveMac } = useTrafficLightInsets();
   const projectsBadgeCount = badges.cronFailures + badges.pendingApprovals;
 
   const closeMobileSidebar = useCallback(() => {
@@ -184,7 +184,7 @@ function NavBarInner({
       style={{ width: NAVBAR_WIDTH }}
     >
       {/* Header: User Avatar with Popover Menu */}
-      <div className="p-2 flex flex-col items-center gap-2">
+      <div className={cn('p-2 flex flex-col items-center gap-2', isImmersiveMac && !isMobile && 'pt-9')}>
         <Popover>
           <PopoverTrigger asChild>
             <button

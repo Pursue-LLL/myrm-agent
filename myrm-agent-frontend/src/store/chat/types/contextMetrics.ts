@@ -20,4 +20,11 @@ export type ContextBudget = {
   other_tokens?: number;
   /** 服务端 checkpoint 全量 human 消息数（与运行时 compress_processor 口径一致）。 */
   turn_count?: number;
+  /** AgentLens 6-Category Fine-grained Breakdown */
+  system_prompt_tokens?: number;
+  memory_tokens?: number;
+  workspace_rules_tokens?: number;
+  mcp_tools_tokens?: number;
+  skills_tools_tokens?: number;
+  builtin_tools_tokens?: number;
 };

@@ -1,96 +1,78 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { desktopBridge } from '../desktopBridge';
-import * as tauriLib from '../tauri';
 
 describe('desktopBridge', () => {
+  const originalNavigator = globalThis.navigator;
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  describe('isDesktop', () => {
-    it('returns true when in Tauri environment', () => {
-      vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(true);
-      expect(desktopBridge.isDesktop()).toBe(true);
-    });
-
-    it('returns false when in browser environment', () => {
-      vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
-      expect(desktopBridge.isDesktop()).toBe(false);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: originalNavigator,
+      writable: true,
+      configurable: true,
     });
   });
 
-  describe('isMacOS', () => {
-    it('detects macOS user agent correctly', () => {
-      const originalUserAgent = navigator.userAgent;
-      Object.defineProperty(navigator, 'userAgent', {
-        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-        configurable: true,
-      });
+  it('detects desktop environment correctly based on __TAURI__', () => {
+    expect(desktopBridge.isDesktop()).toBe(false);
 
-      expect(desktopBridge.isMacOS()).toBe(true);
-
-      Object.defineProperty(navigator, 'userAgent', {
-        value: originalUserAgent,
-        configurable: true,
-      });
-    });
-
-    it('returns false on Windows user agent', () => {
-      const originalUserAgent = navigator.userAgent;
-      Object.defineProperty(navigator, 'userAgent', {
-        value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        configurable: true,
-      });
-
-      expect(desktopBridge.isMacOS()).toBe(false);
-
-      Object.defineProperty(navigator, 'userAgent', {
-        value: originalUserAgent,
-        configurable: true,
-      });
-    });
+    (window as unknown as { __TAURI__: unknown }).__TAURI__ = {};
+    expect(desktopBridge.isDesktop()).toBe(true);
+    delete (window as unknown as { __TAURI__?: unknown }).__TAURI__;
   });
 
-  describe('openExternal', () => {
-    it('returns false on empty url', async () => {
-      const res = await desktopBridge.openExternal('');
-      expect(res).toBe(false);
+  it('detects macOS user agent correctly', () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
+      writable: true,
+      configurable: true,
     });
+    expect(desktopBridge.isMacOS()).toBe(true);
 
-    it('opens window in browser fallback mode', async () => {
-      vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
-      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-
-      const res = await desktopBridge.openExternal('https://example.com');
-      expect(res).toBe(true);
-      expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      writable: true,
+      configurable: true,
     });
+    expect(desktopBridge.isMacOS()).toBe(false);
   });
 
-  describe('getAppVersion', () => {
-    it('returns default version in browser environment', async () => {
-      vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
-      const ver = await desktopBridge.getAppVersion();
-      expect(ver).toBeDefined();
-      expect(typeof ver).toBe('string');
-    });
+  it('provides safe fallback for openExternal on web', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const result = await desktopBridge.openExternal('https://example.com');
+    expect(result).toBe(true);
+    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
   });
 
-  describe('writeClipboard', () => {
-    it('writes text to navigator.clipboard if available', async () => {
-      const writeTextMock = vi.fn().mockResolvedValue(undefined);
-      Object.defineProperty(navigator, 'clipboard', {
-        value: { writeText: writeTextMock },
-        configurable: true,
-      });
+  it('handles empty url in openExternal gracefully', async () => {
+    const result = await desktopBridge.openExternal('');
+    expect(result).toBe(false);
+  });
 
-      const res = await desktopBridge.writeClipboard('test text');
-      expect(res).toBe(true);
-      expect(writeTextMock).toHaveBeenCalledWith('test text');
+  it('handles showItemInFolder on non-desktop gracefully', async () => {
+    const result = await desktopBridge.showItemInFolder('/path/to/folder');
+    expect(result).toBe(false);
+  });
+
+  it('returns app version string safely', async () => {
+    const version = await desktopBridge.getAppVersion();
+    expect(typeof version).toBe('string');
+    expect(version.length).toBeGreaterThan(0);
+  });
+
+  it('writes clipboard successfully when navigator.clipboard is available', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { clipboard: { writeText } },
+      writable: true,
+      configurable: true,
     });
+
+    const result = await desktopBridge.writeClipboard('hello world');
+    expect(result).toBe(true);
+    expect(writeText).toHaveBeenCalledWith('hello world');
   });
 });

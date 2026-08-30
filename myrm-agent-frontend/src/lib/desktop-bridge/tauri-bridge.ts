@@ -11,33 +11,41 @@
  */
 
 import { invokeTauriCommand, isTauriEnvironment } from '@/lib/tauri';
+import { detectDesktopPlatform, getDesktopWindowControlsState } from './bridge';
 import type {
-  DesktopLivenessState,
-  DesktopUsageSummary,
-  IDesktopAppshotBridge,
+  DesktopBridgeCapabilities,
+  DesktopPlatform,
+  DesktopWindowControlsState,
+  IAppshotBridge,
   IDesktopBridge,
-  IDesktopPowerBridge,
-  IDesktopShellBridge,
-  IDesktopTrayBridge,
-  IDesktopWindowBridge,
+  INotificationBridge,
+  IPowerBridge,
+  IShellBridge,
+  ITrayBridge,
+  IWindowBridge,
+  NativeNotificationPayload,
+  NativeOpenFileDialogOptions,
+  TrayStatusPayload,
+  WindowMetrics,
 } from './types';
 
-class TauriWindowBridge implements IDesktopWindowBridge {
-  async isBorderless(): Promise<boolean> {
-    if (!isTauriEnvironment()) return false;
-    try {
-      return await invokeTauriCommand<boolean>('is_borderless_window');
-    } catch {
-      return true; // Default to true in Tauri macOS/Windows custom frame
+class TauriWindowBridge implements IWindowBridge {
+  async getMetrics(): Promise<WindowMetrics> {
+    if (!isTauriEnvironment()) {
+      return {
+        isBorderless: false,
+        trafficLightsPadding: 0,
+        titlebarHeight: 0,
+        dragRegionEnabled: false,
+      };
     }
-  }
-
-  async getTrafficLightsOffset(): Promise<number> {
-    if (!isTauriEnvironment()) return 0;
-    if (typeof navigator !== 'undefined' && navigator.userAgent.includes('Macintosh')) {
-      return 28; // Standard macOS traffic light height offset
-    }
-    return 0;
+    const isMac = typeof navigator !== 'undefined' && navigator.userAgent.includes('Macintosh');
+    return {
+      isBorderless: true,
+      trafficLightsPadding: isMac ? 28 : 0,
+      titlebarHeight: 36,
+      dragRegionEnabled: true,
+    };
   }
 
   async minimize(): Promise<void> {
@@ -58,12 +66,30 @@ class TauriWindowBridge implements IDesktopWindowBridge {
     }
   }
 
+  async toggleMaximize(): Promise<void> {
+    if (!isTauriEnvironment()) return;
+    try {
+      await invokeTauriCommand('toggle_maximize_window');
+    } catch (e) {
+      console.warn('Failed to toggle maximize window:', e);
+    }
+  }
+
   async close(): Promise<void> {
     if (!isTauriEnvironment()) return;
     try {
       await invokeTauriCommand('close_window');
     } catch (e) {
       console.warn('Failed to close window:', e);
+    }
+  }
+
+  async isMaximized(): Promise<boolean> {
+    if (!isTauriEnvironment()) return false;
+    try {
+      return await invokeTauriCommand<boolean>('is_window_maximized');
+    } catch {
+      return false;
     }
   }
 
@@ -77,54 +103,62 @@ class TauriWindowBridge implements IDesktopWindowBridge {
   }
 }
 
-class TauriTrayBridge implements IDesktopTrayBridge {
-  async setStatus(
-    liveness: DesktopLivenessState,
-    backgroundRunningCount: number,
-    usage?: DesktopUsageSummary | null,
-  ): Promise<void> {
+class TauriTrayBridge implements ITrayBridge {
+  async updateStatus(status: TrayStatusPayload): Promise<void> {
     if (!isTauriEnvironment()) return;
     try {
       await invokeTauriCommand('update_tray_status', {
-        liveness,
-        backgroundRunningCount,
-        tokens: usage?.tokens ?? 0,
-        costUsd: usage?.costUsd ?? 0,
+        liveness: status.liveness,
+        activeTasksCount: status.activeTasksCount,
+        tokens: status.usageSummary?.tokens ?? 0,
+        costUsd: status.usageSummary?.costUsd ?? 0,
+        tooltipText: status.tooltipText,
       });
     } catch (e) {
       console.warn('Failed to update tray status:', e);
     }
   }
 
-  async onTrayEvent(handler: (event: string) => void): Promise<() => void> {
+  onTrayEvent(handler: (event: { type: string; payload?: unknown }) => void): () => void {
     if (!isTauriEnvironment() || typeof window === 'undefined' || !window.__TAURI__?.event) {
       return () => {};
     }
-    try {
-      return await window.__TAURI__.event.listen('tray_event', (e) => {
-        handler(typeof e.payload === 'string' ? e.payload : JSON.stringify(e.payload));
-      });
-    } catch {
-      return () => {};
-    }
+    let unlisten: (() => void) | null = null;
+    window.__TAURI__.event
+      .listen('tray_event', (e) => {
+        const payload = e.payload as { type?: string; payload?: unknown } | string;
+        if (typeof payload === 'string') {
+          handler({ type: payload });
+        } else if (payload && typeof payload === 'object') {
+          handler({ type: payload.type || 'unknown', payload: payload.payload });
+        }
+      })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {});
+
+    return () => {
+      if (unlisten) unlisten();
+    };
   }
 }
 
-class TauriShellBridge implements IDesktopShellBridge {
-  async openLocalFolder(dirPath: string): Promise<boolean> {
-    if (!isTauriEnvironment() || !dirPath) return false;
+class TauriShellBridge implements IShellBridge {
+  async openLocalFolder(path: string): Promise<boolean> {
+    if (!isTauriEnvironment() || !path) return false;
     try {
-      return await invokeTauriCommand<boolean>('open_folder', { path: dirPath });
+      return await invokeTauriCommand<boolean>('open_folder', { path });
     } catch (e) {
       console.warn('Failed to open folder:', e);
       return false;
     }
   }
 
-  async showInFileManager(targetPath: string): Promise<boolean> {
-    if (!isTauriEnvironment() || !targetPath) return false;
+  async showInFileManager(path: string): Promise<boolean> {
+    if (!isTauriEnvironment() || !path) return false;
     try {
-      return await invokeTauriCommand<boolean>('show_in_file_manager', { path: targetPath });
+      return await invokeTauriCommand<boolean>('show_in_file_manager', { path });
     } catch (e) {
       console.warn('Failed to show in file manager:', e);
       return false;
@@ -150,23 +184,42 @@ class TauriShellBridge implements IDesktopShellBridge {
       return false;
     }
   }
+
+  async openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null> {
+    if (!isTauriEnvironment()) return null;
+    try {
+      const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
+      const selected = await openDialog({
+        title: options?.title,
+        multiple: options?.multiple ?? false,
+        directory: options?.directory ?? false,
+        defaultPath: options?.defaultPath,
+        filters: options?.filters,
+      });
+      return selected as string | string[] | null;
+    } catch (e) {
+      console.warn('Failed to open native file dialog:', e);
+      return null;
+    }
+  }
 }
 
-class TauriPowerBridge implements IDesktopPowerBridge {
-  async acquireLock(reason: string): Promise<boolean> {
-    if (!isTauriEnvironment()) return false;
+class TauriPowerBridge implements IPowerBridge {
+  async acquireLock(reason: string): Promise<string | null> {
+    if (!isTauriEnvironment()) return null;
     try {
-      return await invokeTauriCommand<boolean>('acquire_power_lock', { reason });
+      const lockId = await invokeTauriCommand<string>('acquire_power_lock', { reason });
+      return lockId || 'lock-acquired';
     } catch (e) {
       console.warn('Failed to acquire power lock:', e);
-      return false;
+      return null;
     }
   }
 
-  async releaseLock(reason: string): Promise<boolean> {
+  async releaseLock(lockId: string): Promise<boolean> {
     if (!isTauriEnvironment()) return false;
     try {
-      return await invokeTauriCommand<boolean>('release_power_lock', { reason });
+      return await invokeTauriCommand<boolean>('release_power_lock', { lockId });
     } catch (e) {
       console.warn('Failed to release power lock:', e);
       return false;
@@ -174,24 +227,36 @@ class TauriPowerBridge implements IDesktopPowerBridge {
   }
 }
 
-class TauriAppshotBridge implements IDesktopAppshotBridge {
-  async listenAppshot(handler: (payload: unknown) => void): Promise<() => void> {
+class TauriAppshotBridge implements IAppshotBridge {
+  listenAppshot(handler: (payload: { path: string; mimeType: string }) => void): () => void {
     if (!isTauriEnvironment() || typeof window === 'undefined' || !window.__TAURI__?.event) {
       return () => {};
     }
-    try {
-      return await window.__TAURI__.event.listen('appshot_trigger', (e) => {
-        handler(e.payload);
-      });
-    } catch {
-      return () => {};
-    }
+    let unlisten: (() => void) | null = null;
+    window.__TAURI__.event
+      .listen('appshot_trigger', (e) => {
+        const p = e.payload as { path?: string; mimeType?: string } | undefined;
+        handler({
+          path: p?.path || '',
+          mimeType: p?.mimeType || 'image/png',
+        });
+      })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {});
+
+    return () => {
+      if (unlisten) unlisten();
+    };
   }
 
-  async captureScreen(): Promise<string | null> {
+  async captureScreen(): Promise<{ base64: string; mimeType: string } | null> {
     if (!isTauriEnvironment()) return null;
     try {
-      return await invokeTauriCommand<string>('capture_screen');
+      const base64 = await invokeTauriCommand<string>('capture_screen');
+      if (!base64) return null;
+      return { base64, mimeType: 'image/png' };
     } catch (e) {
       console.warn('Failed to capture screen:', e);
       return null;
@@ -199,11 +264,66 @@ class TauriAppshotBridge implements IDesktopAppshotBridge {
   }
 }
 
+class TauriNotificationBridge implements INotificationBridge {
+  async show(payload: NativeNotificationPayload): Promise<boolean> {
+    if (!isTauriEnvironment()) {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          new Notification(payload.title, { body: payload.body });
+          return true;
+        }
+      }
+      return false;
+    }
+
+    try {
+      const { sendNotification, isPermissionGranted, requestPermission } = await import(
+        '@tauri-apps/plugin-notification'
+      );
+      let granted = await isPermissionGranted();
+      if (!granted) {
+        const permission = await requestPermission();
+        granted = permission === 'granted';
+      }
+      if (granted) {
+        sendNotification({
+          title: payload.title,
+          body: payload.body,
+        });
+        return true;
+      }
+    } catch (e) {
+      console.warn('Failed to send native notification via plugin:', e);
+    }
+    return false;
+  }
+}
+
 export class TauriDesktopBridge implements IDesktopBridge {
-  readonly isTauri = true;
-  readonly window = new TauriWindowBridge();
-  readonly tray = new TauriTrayBridge();
-  readonly shell = new TauriShellBridge();
-  readonly power = new TauriPowerBridge();
-  readonly appshot = new TauriAppshotBridge();
+  readonly isDesktop = true;
+  readonly platform: DesktopPlatform;
+  readonly capabilities: DesktopBridgeCapabilities;
+  readonly window: IWindowBridge = new TauriWindowBridge();
+  readonly tray: ITrayBridge = new TauriTrayBridge();
+  readonly shell: IShellBridge = new TauriShellBridge();
+  readonly power: IPowerBridge = new TauriPowerBridge();
+  readonly appshot: IAppshotBridge = new TauriAppshotBridge();
+  readonly notification: INotificationBridge = new TauriNotificationBridge();
+
+  constructor() {
+    this.platform = detectDesktopPlatform();
+    this.capabilities = {
+      hasNativeDialog: true,
+      hasNativeTray: true,
+      hasNativeNotification: true,
+      hasNativeClipboard: typeof navigator !== 'undefined' && 'clipboard' in navigator,
+      hasNativeGlobalShortcuts: true,
+      hasNativePowerLock: true,
+      hasNativeAppshot: true,
+    };
+  }
+
+  getWindowControlsState(): DesktopWindowControlsState {
+    return getDesktopWindowControlsState();
+  }
 }

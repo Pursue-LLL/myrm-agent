@@ -60,6 +60,8 @@ class TemplateListItem(BaseModel):
     description: str | None = None
     avatar_url: str | None = None
     agent_type: str = "individual"
+    is_pareto_preset: bool = False
+    cost_reduction_ratio: float | None = None
     members: list[TeamMemberBrief] | None = None
     use_cases: list[str] | None = None
 
@@ -114,6 +116,8 @@ async def list_templates(request: Request) -> JSONResponse:
                             description=description,
                             avatar_url=data.get("avatar_url"),
                             agent_type=agent_type,
+                            is_pareto_preset=bool(data.get("is_pareto_preset", False)),
+                            cost_reduction_ratio=float(data["cost_reduction_ratio"]) if data.get("cost_reduction_ratio") is not None else None,
                             members=members,
                             use_cases=use_cases,
                         ).model_dump(exclude_none=True)

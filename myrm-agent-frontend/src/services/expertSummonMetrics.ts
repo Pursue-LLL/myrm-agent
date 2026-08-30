@@ -24,6 +24,9 @@ export type ExpertSummonMetricEventType =
   | 'route_applied'
   | 'route_apply_failed'
   | 'first_message_sent'
+  | 'council_phase_completed'
+  | 'council_consensus_reached'
+  | 'expert_rebuttal_effective'
   | 'dropped_report';
 export type ExpertSummonFailureReason = 'network_error' | 'route_apply_failed' | 'server_error' | 'unknown_error';
 
