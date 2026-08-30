@@ -4,8 +4,7 @@
  * - frontend_dev_pause.py write (POS: shared pause stamp, 8h default)
  *
  * [OUTPUT]
- * - Shared :3000 cleared; orphan/isolated next for this frontend cleared
- * - FRONTEND_DEV_PAUSED stamp so Agent ensure cannot respawn for 8h
+ * - Shared :3000 cleared; orphan/isolated next cleared; FRONTEND_DEV_PAUSED stamp (8h default)
  *
  * [POS]
  * Manual frontend resource reclaim. Isolated E2E runtimes allocate UI ports in

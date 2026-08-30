@@ -38,10 +38,12 @@
 | `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
 | `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置） |
 | `sync_i18n.py` | 从 en（SSOT）补全其余 5 种语言缺失键（本地维护） |
-| `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；`dev-server.lock` 健康跳过） |
+| `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
+| `frontend-dev-pause-gate.ts` | TS pause gate SSOT（probe / enforce / reclaim）；`dev.ts` + `next.config.ts` |
+| `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py` |
 | `port-cleanup.ts` | `:3000` LISTEN-only 清理 |
-| `cleanup.ts` | 本地 dev 残留清理（`:3000` 进程、stale lock、非 active 的 `.next-isolated-*`、dev log truncate、stray `package-lock.json`、`strip_isolated_tsconfig.py`） |
+| `cleanup.ts` | dev 残留清理（next 进程、stale lock、`.next-isolated-*`、dev log、pause stamp 8h 默认、stamp write 失败 exit 非零） |
 | `strip_isolated_tsconfig.py` | 移除 Next isolated build 写入的 `tsconfig.json` include 与 `next-env.d.ts` 污染；重置 next-env 为 `.next/dev/types/routes.d.ts` + `root-params.d.ts`；E2E `release_runtime` teardown 与 `cleanup.ts` 调用 |
 | `generate-artifact-types.ts` | 工件类型生成 |
 | `export-known-sse-event-types.ts` | SSE 事件类型导出对齐 |

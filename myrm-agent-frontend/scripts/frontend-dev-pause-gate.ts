@@ -3,11 +3,10 @@
  * - frontend_dev_pause.py check (POS: shared pause stamp SSOT)
  *
  * [OUTPUT]
- * - probeFrontendDevPause / enforceFrontendDevNotPaused
+ * - probeFrontendDevPause / enforceFrontendDevNotPaused / reclaimPausedDevListeners
  *
  * [POS]
- * TypeScript SSOT for frontend dev pause gate. Used by dev.ts and next.config.ts
- * so direct `bunx next dev` cannot bypass cleanup pause.
+ * TypeScript pause gate SSOT. Used by dev.ts and next.config.ts; reclaims LISTEN on late bunx exit.
  */
 import { execSync, spawnSync } from 'child_process';
 import fs from 'fs';

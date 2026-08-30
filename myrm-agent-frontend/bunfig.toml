@@ -1,5 +1,6 @@
 # [install]
 # registry = "https://registry.npmmirror.com"
 
-# Early frontend dev pause gate for any `bun`/`bunx next dev` in this package (see scripts/next-dev-gate.cjs).
+# Bun preload for in-package `bun`/`bunx` when runtime is Bun (see scripts/next-dev-gate.cjs).
+# `bunx next dev` via Node uses next.config + reclaimPausedDevListeners instead.
 preload = ["./scripts/next-dev-gate.cjs"]

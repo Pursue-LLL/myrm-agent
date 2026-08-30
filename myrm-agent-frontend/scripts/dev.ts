@@ -1,14 +1,15 @@
 /**
  * [INPUT]
  * - dev-lock::tryAttachToHealthyDevServer / acquireDevLock (POS: dev-server lock gate)
+ * - frontend-dev-pause-gate::probeFrontendDevPause / enforceFrontendDevNotPaused (POS: TS pause gate SSOT)
  * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: LISTEN-only port cleanup)
  *
  * [OUTPUT]
- * - Next.js dev server on :3000 via `bunx next dev` (Turbopack default when native SWC present)
+ * - Next.js dev server via `node --require next-dev-gate.cjs` + next bin (Turbopack when native SWC present)
  * - Early exit when lock+HTTP prove an existing healthy dev server
  *
  * [POS]
- * Frontend dev entry (`bun run dev` / `dev:lan` / `dev:clean`). Runs locale namespace split, supervises Next.js child.
+ * Frontend dev entry (`bun run dev` / `dev:lan` / `dev:clean`). Respects shared pause stamp; supervises Next child.
  */
 import { type ChildProcess, spawn, spawnSync } from 'child_process';
 import fs from 'fs';
