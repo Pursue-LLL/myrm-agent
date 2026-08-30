@@ -240,7 +240,10 @@ if (bindLan) {
 }
 
 console.log(`🚀 Starting Next.js on port ${APP_DEV_PORT}...`);
-const child = spawn('bunx', [...nextArgs], {
+const nextBin = path.join(process.cwd(), 'node_modules', 'next', 'dist', 'bin', 'next');
+const preloadGate = path.join(__dirname, 'next-dev-gate.cjs');
+const nodeArgs = [`--require`, preloadGate, nextBin, ...nextArgs.slice(1)];
+const child = spawn(process.execPath, nodeArgs, {
   stdio: 'inherit',
   detached: false,
 });

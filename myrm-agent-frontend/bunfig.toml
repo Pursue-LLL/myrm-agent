@@ -1,2 +1,5 @@
 # [install]
 # registry = "https://registry.npmmirror.com"
+
+# Early frontend dev pause gate for any `bun`/`bunx next dev` in this package (see scripts/next-dev-gate.cjs).
+preload = ["./scripts/next-dev-gate.cjs"]

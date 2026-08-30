@@ -11,10 +11,12 @@ PAUSE_DIR="$(mktemp -d)"
 PROBE_PORT="${MYRM_FRONTEND_DEV_PAUSE_PROBE_PORT:-13099}"
 
 cleanup_probe() {
+  set +e
   export MYRM_FRONTEND_DEV_PAUSE_DIR="${PAUSE_DIR}"
   python3 "${PAUSE_PY}" clear >/dev/null 2>&1 || true
   lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t 2>/dev/null | while read -r pid; do kill -TERM "${pid}" 2>/dev/null || true; done
   rm -rf "${PAUSE_DIR}" 2>/dev/null || true
+  return 0
 }
 
 trap cleanup_probe EXIT
@@ -79,11 +81,24 @@ next_log="$(mktemp)"
     bunx next dev -p "${PROBE_PORT}"
 ) >"${next_log}" 2>&1 &
 next_pid=$!
-sleep 8
+listened=0
+for _ in $(seq 1 40); do
+  if lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    listened=1
+    break
+  fi
+  sleep 0.25
+done
 kill "${next_pid}" 2>/dev/null || true
 wait "${next_pid}" 2>/dev/null || true
 next_out="$(cat "${next_log}")"
 rm -f "${next_log}"
+if [[ "${listened}" -eq 1 ]]; then
+  echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev opened LISTEN while paused" >&2
+  lsof -iTCP:"${PROBE_PORT}" -sTCP:LISTEN -t 2>/dev/null | while read -r pid; do kill -TERM "${pid}" 2>/dev/null || true; done
+  echo "${next_out}" >&2
+  exit 1
+fi
 if ! grep -qi 'paused\|refusing' <<<"${next_out}"; then
   echo "FRONTEND_PAUSE_GATE_FAIL: direct next dev was not blocked by next.config gate" >&2
   echo "${next_out}" >&2
@@ -103,3 +118,4 @@ fi
 echo "FRONTEND_PAUSE_GATE_OK: clear-pause lifts gate"
 
 echo "FRONTEND_PAUSE_GATE_OK: all integration checks passed"
+exit 0
