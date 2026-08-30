@@ -101,3 +101,48 @@ def test_official_document_assistant_instantiate_missing_skill(client: TestClien
 
     assert response.status_code == 400
     assert "office-document" in response.json()["detail"]
+
+
+def test_pareto_presets_templates_api(client: TestClient):
+    """Pareto preset templates are discoverable with correct Pareto metadata."""
+    response = client.get("/api/v1/agents/templates")
+    assert response.status_code == 200
+    templates = response.json()["data"]
+    pareto_tpls = [t for t in templates if t.get("is_pareto_preset")]
+    assert len(pareto_tpls) >= 3
+
+    ids = {t["id"] for t in pareto_tpls}
+    assert "pareto_deep_researcher" in ids
+    assert "pareto_code_craftsman" in ids
+    assert "pareto_balanced_squad" in ids
+
+    # Check Deep Researcher metadata
+    dr = next(t for t in pareto_tpls if t["id"] == "pareto_deep_researcher")
+    assert dr["cost_reduction_ratio"] == 0.70
+    assert dr["agent_type"] == "individual"
+    assert dr.get("routing_config") is not None
+    assert dr.get("moa_overlay") is not None
+    assert dr["moa_overlay"]["enabled"] is True
+
+    # Check Balanced Squad team metadata
+    bs = next(t for t in pareto_tpls if t["id"] == "pareto_balanced_squad")
+    assert bs["cost_reduction_ratio"] == 0.75
+    assert bs["agent_type"] == "team"
+    assert bs.get("members") is not None
+    assert len(bs["members"]) >= 2
+
+
+def test_pareto_presets_instantiate(client: TestClient):
+    """Instantiating a Pareto preset persists routing_config and moa_overlay."""
+    response = client.post("/api/v1/agents/instantiate-template/pareto_deep_researcher")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    agent = data["data"]
+    assert agent["is_pareto_preset"] is True
+    assert agent["cost_reduction_ratio"] == 0.70
+    assert agent["model_selection"] is not None
+    assert agent["model_selection"]["light_model"]["provider"] == "openrouter"
+    assert agent["engine_params"] is not None
+    assert agent["engine_params"]["moa_overlay"]["enabled"] is True
+

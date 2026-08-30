@@ -8,8 +8,11 @@ Desktop Bridge 标准化原生契约层：封装 OS 级窗口几何留白探测�
 
 | 文件 | 职责 |
 | --- | --- |
-| `types.ts` | DesktopBridge、DesktopPlatform、DesktopWindowControlsState、DesktopBridgeCapabilities 核心接口定义 |
+| `types.ts` | IDesktopBridge、DesktopPlatform、DesktopWindowControlsState、DesktopBridgeCapabilities 核心接口定义 |
 | `bridge.ts` | StandardDesktopBridge 单例与 getDesktopWindowControlsState / detectDesktopPlatform 实现 |
+| `tauri-bridge.ts` | TauriDesktopBridge 桌面端原生 IPC 桥接实现 |
+| `web-fallback-bridge.ts` | WebFallbackDesktopBridge 纯 Web 与 Cloud 沙箱环境安全降级实现 |
+| `context.tsx` | DesktopBridgeProvider 与 useDesktopBridge React 集成层 |
 | `index.ts` | 模块对外聚合导出出口 |
 
 ## 依赖

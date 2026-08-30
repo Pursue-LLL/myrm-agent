@@ -62,6 +62,8 @@ class TemplateListItem(BaseModel):
     agent_type: str = "individual"
     is_pareto_preset: bool = False
     cost_reduction_ratio: float | None = None
+    routing_config: dict[str, Any] | None = None
+    moa_overlay: dict[str, Any] | None = None
     members: list[TeamMemberBrief] | None = None
     use_cases: list[str] | None = None
 
@@ -118,6 +120,8 @@ async def list_templates(request: Request) -> JSONResponse:
                             agent_type=agent_type,
                             is_pareto_preset=bool(data.get("is_pareto_preset", False)),
                             cost_reduction_ratio=float(data["cost_reduction_ratio"]) if data.get("cost_reduction_ratio") is not None else None,
+                            routing_config=data.get("routing_config"),
+                            moa_overlay=data.get("moa_overlay"),
                             members=members,
                             use_cases=use_cases,
                         ).model_dump(exclude_none=True)
