@@ -47,7 +47,7 @@ def resolve_allowed_local_attachment_path(
             try:
                 root_resolved = Path(root).expanduser().resolve(strict=False)
                 if resolved.is_relative_to(root_resolved):
-                    return str(resolved)
+                    return str(candidate_path)
             except (OSError, ValueError):
                 continue
         return None
