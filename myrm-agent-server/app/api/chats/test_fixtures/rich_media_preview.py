@@ -105,6 +105,7 @@ async def seed_rich_media_preview_fixture(
             chat_id=chat_id,
             title="Rich media preview Chrome E2E",
             agent_id=resolved_agent_id,
+            action_mode="agent",
             messages=[],
         ),
     )
