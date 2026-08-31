@@ -22,10 +22,10 @@ from cdp_chat.support import (  # noqa: E402
     put_config_value,
     wait_e2e_provider_ready,
 )
-from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
+    open_mcp_page_async,
     prepare_e2e_ui_session,
     warm_ui_route,
 )
@@ -176,13 +176,14 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/", timeout_sec=90.0)
 
-    client = ChromeMcpClient(request_timeout_sec=180.0)
-    await asyncio.to_thread(client.start)
-    page: McpPage | None = None
+    session = await open_mcp_page_async(
+        ui_base,
+        timeout_ms=120_000,
+        request_timeout_sec=180.0,
+    )
     try:
-        page = await asyncio.to_thread(client.new_page, ui_base, timeout_ms=120_000)
-        chat = McpChatSession(client, page)
-        await chat.bootstrap(ui_base, timeout_sec=120.0)
+        chat = McpChatSession(session.client, session.page)
+        await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
         prep = await chat.evaluate(_PREP_GENERAL_AGENT_JS, await_promise=True)
         assert isinstance(prep, dict) and prep.get("ready") is True, prep
         await chat.click_new_chat()
@@ -198,9 +199,4 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
         assert int(ui_state.get("sourceCount") or 0) > 0, ui_state
         assert ui_state.get("hasEvidenceButton") is True, ui_state
     finally:
-        try:
-            if page is not None:
-                await asyncio.to_thread(client.close_page, page.id)
-        except Exception:
-            pass
-        await asyncio.to_thread(client.close)
+        await session.aclose()
