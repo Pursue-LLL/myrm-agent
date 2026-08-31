@@ -6525,7 +6525,7 @@
     "deleteBoardConfirmTitle": "Board löschen",
     "deleteBoardConfirmDesc": "Möchten Sie „{name}“ wirklich löschen? Alle Aufgaben, Abhängigkeiten und Ereignisverläufe in diesem Board werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
     "deleteBoardConfirmDescWithTasks": "Möchten Sie „{name}“ wirklich löschen? Dieses Board enthält {total, plural, one {# Aufgabe} other {# Aufgaben}}.",
-    "deleteBoardConfirmDescRunning": "Möchten Sie „{name}“ wirklich löschen? Dieses Board enthält {total, plural, one {# laufende Aufgabe} other {# laufende Aufgaben}}.",
+    "deleteBoardConfirmDescRunning": "Möchten Sie „{name}“ wirklich löschen? Dieses Board enthält {total, plural, one {# Aufgabe} other {# Aufgaben}}, einschließlich {running, plural, one {# laufender Aufgabe} other {# laufender Aufgaben}}, die zwangsweise unterbrochen werden. Diese Aktion kann nicht rückgängig gemacht werden.",
     "delete": "Löschen",
     "boardNamePlaceholder": "Vorstandsname",
     "boardDescPlaceholder": "Boardbeschreibung (optional)",

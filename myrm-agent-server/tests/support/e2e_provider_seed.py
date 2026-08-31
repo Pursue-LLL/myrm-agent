@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -53,14 +54,14 @@ def _chat_probe_max_tokens(base_url: str) -> int:
     return 16 if _LOCAL_GATEWAY_HOST in base_url else 1
 
 
-def probe_llm_api_key(
+def _probe_llm_api_key_once(
     base_url: str,
     api_key: str,
     model: str,
     *,
     timeout_sec: float = 8.0,
 ) -> bool:
-    """Return True when a minimal chat completion succeeds (auth + routing)."""
+    """Single attempt: return True when a minimal chat completion succeeds."""
     model_id = _chat_probe_model(base_url, model)
     payload = json.dumps(
         {
@@ -85,6 +86,25 @@ def probe_llm_api_key(
             return int(resp.status) == 200
     except (urllib.error.URLError, TimeoutError, ValueError, OSError):
         return False
+
+
+def probe_llm_api_key(
+    base_url: str,
+    api_key: str,
+    model: str,
+    *,
+    timeout_sec: float = 8.0,
+    retries: int = 3,
+    retry_delay_sec: float = 1.5,
+) -> bool:
+    """Return True when chat preflight succeeds; retries absorb transient rate limits."""
+    attempts = max(1, retries)
+    for attempt in range(attempts):
+        if _probe_llm_api_key_once(base_url, api_key, model, timeout_sec=timeout_sec):
+            return True
+        if attempt + 1 < attempts:
+            time.sleep(retry_delay_sec * (attempt + 1))
+    return False
 
 
 def resolve_e2e_llm_endpoints(

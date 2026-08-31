@@ -6514,7 +6514,7 @@
     "deleteBoardConfirmTitle": "カンバンを削除",
     "deleteBoardConfirmDesc": "「{name}」を削除してもよろしいですか？このボード内のすべてのタスク、依存関係、イベント履歴が完全に削除されます。この操作は取り消せません。",
     "deleteBoardConfirmDescWithTasks": "「{name}」を削除してもよろしいですか？このボードには {total, plural, other {# 件}} のタスクが含まれています。",
-    "deleteBoardConfirmDescRunning": "「{name}」を削除してもよろしいですか？このボードには実行中のタスクが {total, plural, other {# 件}} 含まれています。",
+    "deleteBoardConfirmDescRunning": "「{name}」を削除してもよろしいですか？このボードには {total, plural, other {# 件}} のタスクがあり、そのうち {running, plural, other {# 件}} の実行中タスクが強制中断されます。この操作は元に戻せません。",
     "delete": "削除",
     "boardNamePlaceholder": "カンバン名前",
     "boardDescPlaceholder": "カンバン説明（任意）",

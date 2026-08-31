@@ -6514,7 +6514,7 @@
     "deleteBoardConfirmTitle": "보드 삭제",
     "deleteBoardConfirmDesc": "「{name}」을(를) 삭제하시겠습니까? 이 보드의 모든 작업, 의존성, 이벤트 기록이 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다.",
     "deleteBoardConfirmDescWithTasks": "\"{name}\" 보드를 삭제하시겠습니까? 이 보드에는 {total, plural, other {#개}} 작업이 포함되어 있습니다.",
-    "deleteBoardConfirmDescRunning": "\"{name}\" 보드를 삭제하시겠습니까? 이 보드에는 실행 중인 작업이 {total, plural, other {#개}} 포함되어 있습니다.",
+    "deleteBoardConfirmDescRunning": "\"{name}\" 보드를 삭제하시겠습니까? 이 보드에는 {total, plural, other {#개}}의 작업이 있으며, 그중 {running, plural, other {#개}}의 실행 중 작업이 강제 중단됩니다. 이 작업은 되돌릴 수 없습니다.",
     "delete": "삭제",
     "boardNamePlaceholder": "보드 이름",
     "boardDescPlaceholder": "보드 설명 (선택)",
@@ -12735,7 +12735,7 @@
       },
       "validationMessages": {
         "successWithDimension": "검증 성공 (차원: {dimension})",
-        "successWithResults": "Validation successful (returned {count, plural, one {# result} other {# results}})",
+        "successWithResults": "검증 성공 ({count, plural, one {#개 결과} other {#개 결과}} 반환)",
         "failedWithError": "검증 실패: {error}",
         "missingRequiredFields": "모든 필수 필드를 입력하세요",
         "networkError": "네트워크 오류, 연결을 확인하세요",
