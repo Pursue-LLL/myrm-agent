@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Loader2, RefreshCw, Settings, Sparkles, Tag } from 'lucide-react';
+import { RefreshCw, Settings, Sparkles, Tag } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
+import { EmptyState } from '@/components/primitives/empty-state';
+import { Skeleton } from '@/components/primitives/skeleton';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getDailyWrap, regenerateDailyWrap, type DailyWrapData } from '@/services/statistics';
 import { showApiError } from '@/lib/api';
@@ -57,9 +59,10 @@ export default function DailyWrapCard({ date }: DailyWrapCardProps) {
   if (loading) {
     return (
       <Card className="border-dashed">
-        <CardContent className="flex items-center justify-center py-6">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
-          <span className="text-sm text-muted-foreground">{t('loading')}</span>
+        <CardContent className="py-6 px-4 space-y-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
         </CardContent>
       </Card>
     );
@@ -68,9 +71,19 @@ export default function DailyWrapCard({ date }: DailyWrapCardProps) {
   if (error) {
     return (
       <Card className="border-destructive/30">
-        <CardContent className="flex items-center justify-center py-4 gap-2">
-          <AlertCircle className="h-4 w-4 text-destructive" />
-          <span className="text-sm text-muted-foreground">{t('error')}</span>
+        <CardContent className="py-2 px-2">
+          <EmptyState
+            variant="error"
+            title={t('errorTitle')}
+            description={t('errorDescription')}
+            className="py-4"
+            action={
+              <Button variant="outline" size="sm" onClick={() => void fetchWrap()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {t('retry')}
+              </Button>
+            }
+          />
         </CardContent>
       </Card>
     );

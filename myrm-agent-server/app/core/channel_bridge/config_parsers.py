@@ -670,29 +670,96 @@ def extract_user_instructions(
     return str(instructions) if instructions else None
 
 
-def extract_fallback_model_configs(
+def _filter_fallback_chain_for_tool_calling(
+    configs: list["ModelConfig"],
     providers_dict: dict[str, object] | None,
-) -> tuple["ModelConfig | None", "ModelConfig | None"]:
-    """Extract fallback model configs for baseModel and liteModel.
+) -> list["ModelConfig"]:
+    """Drop fallback nodes that explicitly lack function calling (agent-mode safety)."""
+    if not configs or providers_dict is None:
+        return configs
 
-    Returns (fallback_model_cfg, fallback_lite_model_cfg).
-    """
-    if not providers_dict:
+    from app.core.channel_bridge.model_resolver import _lookup_custom_model_info
+
+    filtered: list[ModelConfig] = []
+    for cfg in configs:
+        custom = _lookup_custom_model_info(cfg.model, providers_dict)
+        if custom is not None and "supports_function_calling" in custom:
+            if not bool(custom["supports_function_calling"]):
+                logger.warning(
+                    "config_parsers: skipping fallback %s (supports_function_calling=false)",
+                    cfg.model,
+                )
+                continue
+        filtered.append(cfg)
+    return filtered
+
+
+def build_slot_fallback_config_chain(
+    slot: object,
+    providers_dict: dict[str, object] | None,
+    *,
+    require_tool_calling: bool = False,
+) -> list["ModelConfig"]:
+    """Build ordered ModelConfig chain from a WebUI ModelSlot."""
+    configs = extract_slot_fallback_chain(slot, providers_dict)
+    if require_tool_calling:
+        configs = _filter_fallback_chain_for_tool_calling(configs, providers_dict)
+    return configs
+
+
+def resolve_slot_fallback_chain_for_agent(
+    slot: object,
+    providers_dict: dict[str, object] | None,
+    *,
+    require_tool_calling: bool = False,
+) -> tuple["ModelConfig | None", list["ModelConfig"] | None]:
+    """Resolve primary cfg and ordered chain for agent runtime injection."""
+    cfgs = build_slot_fallback_config_chain(
+        slot,
+        providers_dict,
+        require_tool_calling=require_tool_calling,
+    )
+    if not cfgs:
         return None, None
+    return cfgs[0], cfgs
+
+
+def resolve_chat_fallback_chains_from_providers(
+    providers_dict: dict[str, object] | None,
+    *,
+    require_tool_calling: bool = False,
+) -> tuple[list["ModelConfig"], list["ModelConfig"]]:
+    """Resolve ordered baseModel and liteModel fallback chains from defaultModelConfig."""
+    if not providers_dict:
+        return [], []
 
     default_model_cfg = providers_dict.get("defaultModelConfig")
     if not isinstance(default_model_cfg, dict):
-        return None, None
+        return [], []
 
-    providers = providers_dict.get("providers")
-    if not isinstance(providers, list):
-        return None, None
+    base_cfgs = build_slot_fallback_config_chain(
+        default_model_cfg.get("baseModel"),
+        providers_dict,
+        require_tool_calling=require_tool_calling,
+    )
+    lite_cfgs = build_slot_fallback_config_chain(
+        default_model_cfg.get("liteModel"),
+        providers_dict,
+        require_tool_calling=False,
+    )
+    return base_cfgs, lite_cfgs
 
-    base_fallbacks = extract_slot_fallback_chain(default_model_cfg.get("baseModel"), providers_dict)
-    lite_fallbacks = extract_slot_fallback_chain(default_model_cfg.get("liteModel"), providers_dict)
 
-    base_fallback = base_fallbacks[0] if base_fallbacks else None
-    lite_fallback = lite_fallbacks[0] if lite_fallbacks else None
+def extract_fallback_model_configs(
+    providers_dict: dict[str, object] | None,
+) -> tuple["ModelConfig | None", "ModelConfig | None"]:
+    """Extract primary fallback configs for baseModel and liteModel (chain heads).
+
+    Returns (fallback_model_cfg, fallback_lite_model_cfg).
+    """
+    base_cfgs, lite_cfgs = resolve_chat_fallback_chains_from_providers(providers_dict)
+    base_fallback = base_cfgs[0] if base_cfgs else None
+    lite_fallback = lite_cfgs[0] if lite_cfgs else None
     return base_fallback, lite_fallback
 
 

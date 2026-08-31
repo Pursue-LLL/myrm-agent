@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/lib/desktopBridge::useDesktopBridge
+ * - @/lib/desktop-bridge::desktopBridge
  *
  * [OUTPUT]
  * - useTrafficLightInsets: 自适应计算 macOS 桌面端交通灯安全区留白 Hook
@@ -13,7 +13,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { desktopBridge } from '@/lib/desktopBridge';
+import { desktopBridge } from '@/lib/desktop-bridge';
 
 export interface TrafficLightInsets {
   /** 顶部预留安全距离（px） */
@@ -24,42 +24,29 @@ export interface TrafficLightInsets {
   isImmersiveMac: boolean;
 }
 
-const MAC_DEFAULT_TOP_INSET = 28;
-const MAC_DEFAULT_LEFT_INSET = 78;
-
 export function useTrafficLightInsets(): TrafficLightInsets {
-  const [insets, setInsets] = useState<TrafficLightInsets>({
-    topInset: 0,
-    leftInset: 0,
-    isImmersiveMac: false,
+  const [insets, setInsets] = useState<TrafficLightInsets>(() => {
+    const controls = desktopBridge.getWindowControlsState();
+    return {
+      topInset: controls.controlsInsetTop,
+      leftInset: controls.controlsInsetLeft,
+      isImmersiveMac: controls.platform === 'macos' && controls.isDesktop,
+    };
   });
 
   useEffect(() => {
-    const isMac = desktopBridge.isMacOS();
-    const isDesk = desktopBridge.isDesktop();
+    const controls = desktopBridge.getWindowControlsState();
+    const isImmersiveMac = controls.platform === 'macos' && controls.isDesktop;
 
-    if (isMac && isDesk) {
-      setInsets({
-        topInset: MAC_DEFAULT_TOP_INSET,
-        leftInset: MAC_DEFAULT_LEFT_INSET,
-        isImmersiveMac: true,
-      });
+    setInsets({
+      topInset: controls.controlsInsetTop,
+      leftInset: controls.controlsInsetLeft,
+      isImmersiveMac,
+    });
 
-      if (typeof document !== 'undefined') {
-        document.documentElement.style.setProperty('--traffic-light-inset-top', `${MAC_DEFAULT_TOP_INSET}px`);
-        document.documentElement.style.setProperty('--traffic-light-inset-left', `${MAC_DEFAULT_LEFT_INSET}px`);
-      }
-    } else {
-      setInsets({
-        topInset: 0,
-        leftInset: 0,
-        isImmersiveMac: false,
-      });
-
-      if (typeof document !== 'undefined') {
-        document.documentElement.style.setProperty('--traffic-light-inset-top', '0px');
-        document.documentElement.style.setProperty('--traffic-light-inset-left', '0px');
-      }
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--traffic-light-inset-top', `${controls.controlsInsetTop}px`);
+      document.documentElement.style.setProperty('--traffic-light-inset-left', `${controls.controlsInsetLeft}px`);
     }
   }, []);
 

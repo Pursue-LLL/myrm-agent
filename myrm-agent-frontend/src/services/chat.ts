@@ -1254,6 +1254,9 @@ export const resumePlanConfirmStream = async (
 
   scheduler.flush();
   scheduler.cancel();
+
+  const { finalizeAgentStreamTurn } = await import('@/store/chat/chatAgentSessionRestore');
+  await finalizeAgentStreamTurn(chatState.chatId);
 };
 
 /**

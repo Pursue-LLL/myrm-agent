@@ -6,6 +6,7 @@ import { loadMessages } from '@/store/chat/messageManagement';
 const getChatDetailMock = vi.hoisted(() => vi.fn());
 const getMessagesMock = vi.hoisted(() => vi.fn());
 const attachToChatMock = vi.hoisted(() => vi.fn());
+const restoreAgentConfigFromChatMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 const mockStore = vi.hoisted(() => {
   const store: Record<string, unknown> = {
@@ -80,6 +81,10 @@ vi.mock('@/services/uploadController', () => ({
 vi.mock('@/store/chat/messageRequest', () => ({
   attachToChat: attachToChatMock,
   attachForHitlRecovery: vi.fn(),
+}));
+
+vi.mock('@/store/chat/chatAgentSessionRestore', () => ({
+  restoreAgentConfigFromChat: (...args: unknown[]) => restoreAgentConfigFromChatMock(...args),
 }));
 
 function setupStore(chatId: string): void {
@@ -224,9 +229,16 @@ describe('loadMessages active-turn SSE recovery', () => {
       has_more: false,
       next_cursor: null,
     });
+    getChatDetailMock.mockResolvedValue({
+      chat: {
+        ...chatDetailPayload().chat,
+        agent_id: 'agent-from-db',
+      },
+    });
 
     await loadMessages('chat-active', makeActions(), { preserveInstantSessionConfig: true });
 
     expect(attachToChatMock).not.toHaveBeenCalled();
+    expect(restoreAgentConfigFromChatMock).toHaveBeenCalledWith('chat-active', 'agent-from-db');
   });
 });

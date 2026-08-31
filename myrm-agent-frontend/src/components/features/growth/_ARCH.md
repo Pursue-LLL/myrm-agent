@@ -16,6 +16,7 @@
 | `DailyWrapCard.tsx`      | 组件 | AI 日报摘要卡片（Daily Wrap），由 DailyJournal 使用                                                                                                        | ✅    |
 | `HealthRadar.tsx`        | 组件 | 记忆健康雷达图（多维度可视化）                                                                                                                             | ✅    |
 | `SkillEventList.tsx`     | 组件 | 技能演进事件列表                                                                                                                                           | ✅    |
+| `TeamWeeklyDigestView.tsx` | 组件 | 团队周报与知识复利周刊视图（含 Markdown 导出、各 Agent 活跃度排行、技能资产沉淀）                                          | ✅    |
 
 ## 依赖
 

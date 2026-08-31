@@ -9134,6 +9134,8 @@
     "empty": {
       "title": "开始和 Agent 对话",
       "description": "当你与 Agent 互动后，成长数据将在此呈现",
+      "errorTitle": "成长仪表盘加载失败",
+      "errorDescription": "无法获取成长数据，请检查网络连接后重试。",
       "retry": "重试加载"
     },
     "tabs": {
@@ -9143,6 +9145,28 @@
       "graph": "知识图谱",
       "trends": "技能趋势",
       "daily": "每日回顾"
+    },
+    "export": {
+      "title": "Myrm 旅程周报",
+      "copyMarkdown": "复制周报",
+      "copied": "已复制到剪贴板",
+      "exportMarkdown": "导出 .md 文件",
+      "memoryCitations": "记忆引用（7天）",
+      "skillRow": "- `{name}` · 评分 {score} · {status} · 7天调用 {calls7d} 次",
+      "generatedAt": "由 Myrm 生成于 {date}"
+    },
+    "skillHealth": {
+      "title": "技能健康度（7天）",
+      "description": "基于近期技能调用的复利健康评分。",
+      "empty": "暂无技能调用记录。",
+      "calls7d": "7天 {count} 次调用",
+      "successRate": "成功率 {rate}%",
+      "status": {
+        "STAR": "明星",
+        "HEALTHY": "健康",
+        "AT_RISK": "风险",
+        "STALE": "沉睡"
+      }
     },
     "learningTimeline": {
       "title": "记忆与技能学习时间线",
@@ -9180,6 +9204,11 @@
       "empty": {
         "title": "暂无学习成长足迹",
         "description": "当智能体在对话中习得事实、记录偏好或自动沉淀技能时，会按时间序列在此清晰展现并支持人工治理。"
+      },
+      "error": {
+        "title": "学习时间线加载失败",
+        "description": "无法获取时间线数据，请检查网络连接后重试。",
+        "retry": "重试"
       },
       "stats": {
         "totalNodes": "共 {count} 个学习节点",
@@ -9263,6 +9292,9 @@
       "description": "AI 助手会定期分析交互模式，提炼出你的行为习惯与偏好洞察。",
       "emptyTitle": "学习进行中",
       "emptyDescription": "记忆系统需要更多交互才能启动模式分析。继续正常对话，系统会自动发现规律。",
+      "loadErrorTitle": "行为模式数据加载失败",
+      "loadErrorDescription": "无法获取行为模式发现记录，请检查网络连接后重试。",
+      "retry": "重试",
       "triggerButton": "立即分析",
       "triggering": "分析中...",
       "triggerSkipped": "系统尚未就绪 — 需要更多对话积累",
@@ -9288,7 +9320,11 @@
       "toolCalls": "工具调用",
       "timeline": "时间线",
       "empty": "当天无活动记录",
+      "emptyTitle": "当天无活动记录",
+      "emptyDescription": "会话、审批、定时任务与看板更新发生后会在此展示。",
       "error": "加载每日日志失败",
+      "errorTitle": "加载每日日志失败",
+      "errorDescription": "无法获取该日期的日志数据，请检查网络连接后重试。",
       "retry": "重试",
       "typeLabels": {
         "session": "会话",
@@ -9305,6 +9341,9 @@
       "noModel": "请在设置中配置轻量模型以启用 AI 总结",
       "goToSettings": "前往设置",
       "error": "生成总结失败",
+      "errorTitle": "生成总结失败",
+      "errorDescription": "无法生成今日战报，请重试或检查轻量模型配置。",
+      "retry": "重试",
       "keywords": "关键词",
       "suggestions": "明日建议",
       "generatedAt": "生成于"
@@ -17625,5 +17664,16 @@
       "exportSuccessDesc": "系统诊断归档包已生成并已触发浏览器下载。",
       "exportFailedTitle": "诊断包导出失败"
     }
+  },
+  "expertSummon": {
+    "summonSuccess": "已切换至专家 {name}",
+    "summonFailed": "召唤专家模板失败",
+    "featuredTitle": "精选专家与专家团",
+    "teamBadge": "专家团",
+    "expertBadge": "专家",
+    "searchPlaceholder": "搜索专家或团队...",
+    "loading": "加载中...",
+    "empty": "未找到匹配的专家或团队模板",
+    "summonButton": "召唤"
   }
 }

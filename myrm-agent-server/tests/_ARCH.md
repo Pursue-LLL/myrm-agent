@@ -115,7 +115,11 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_channel_delete_confirmation_chrome_e2e.py` | 模块 | 渠道实例删除确认 Chrome MCP E2E（PRIVATE×1 SHPOIB：主账号 WeChat 卡片删除确认「取消保留/确认登出」走真实 `POST /wechat-logout`；wechat extra 实例 seed `POST /instances` → 确认删除走真实 `DELETE /instances` → 卡片消失 + 后端实例清理断言；删除失败容错「404 → 对话框保持打开 → 取消关闭保留 stale 卡片」；`ConfirmDialog` data-testid 探针） |
 | `e2e/test_brand_studio_reset_confirm_chrome_e2e.py` | 模块 | Brand Studio 清空二次确认 Chrome MCP E2E（PRIVATE×1 SHPOIB：`/settings/brand-studio` 真实 WebUI 全链路——seed `brand_name` profile 记忆 → 面板渲染 → 点「清空」弹 `ConfirmDialog`（`confirm-dialog-*` testid）→ 取消保留值 → 再清空确认 → 表单清空 → 保存触发真实 `DELETE /memory/{key}?memory_type=profile` → 后端记忆消失；PRIVATE 隔离后端预配本地 embedding 使 memory 系统可用；关键路径无 mock） |
 | `e2e/test_allowlist_pattern_live_chrome_e2e.py` | 模块 | Allowlist pattern Chrome LIVE×1（`private_backend=True`：bash 审批→pattern allow-always→Settings 验证） |
-| `e2e/test_allowlist_pattern_chrome_e2e.py` | 模块 | Allowlist pattern Settings 设置页 Chrome MCP E2E（STANDARD×1：seed-pattern-fixture → `/settings/security` pattern 条目渲染） |
+| `e2e/test_allowlist_pattern_chrome_e2e.py` | 模块 | Allowlist pattern Settings Chrome MCP E2E（SHARED+NAMESPACE_WRITE×1：seed-pattern-fixture → `/settings/security` pattern 条目） |
+| `e2e/test_delegation_permissions_chrome_e2e.py` | 模块 | Delegation permissions Chrome READ（SHARED+READ×1：Settings 只读徽标 + spawn/external 分离） |
+| `e2e/test_delegation_permissions_live_chrome_e2e.py` | 模块 | Delegation permissions Chrome LIVE（SHARED+NAMESPACE_WRITE×1：真实 agent-stream + 审批流） |
+| `e2e/test_security_preset_chrome_e2e.py` | 模块 | Security preset Chrome READ（SHARED+NAMESPACE_WRITE×1：preset 初始化 / UI 切换 / fail-closed） |
+| `e2e/test_security_preset_live_chrome_e2e.py` | 模块 | Security preset Chrome LIVE×1（PRIVATE+exclusive_backend×6：真实 LLM + agent 切换 + YOLO mutex；post-stream `finalizeAgentStreamTurn`） |
 | `e2e/test_file_write_empty_chrome_e2e.py` | 模块 | Empty file_write Chrome E2E（READ×2 SHPOIB：`seed-file-mutation-fixture?variant=empty_write` → FileMutationWarning 横幅 + `reload_mcp_page()` metadata 持久；LIVE×1：`test_file_write_empty_live_agent_webui` — 真实 LLM `file_write_tool(content='')` + mutation failure 横幅 + **磁盘无文件**；`@e2e_search_policy("empty")` + `seed-file-edit-batch-workspace` sandbox；**solo 签收** ~618s） |
 | `api/chats/test_file_mutation_seed_fixture.py` | 模块 | HTTP：file-mutation seed `empty_write` → persisted `metadata.fileMutationFailures` |
 | `api/chats/test_workspace_merge_seed_fixture.py` | 模块 | HTTP：workspace-merge seed `batch_merge_fail` → persisted `metadata.workspaceMergeFailures` |

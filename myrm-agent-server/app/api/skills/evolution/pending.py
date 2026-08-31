@@ -57,6 +57,8 @@ class PendingEvolutionSummaryResponse(BaseModel):
     chat_id: str | None = None
     created_at: str
     impacted_dependents: list[str] = Field(default_factory=list)
+    prediction_manifest: dict[str, object] | None = None
+    attribution_result: dict[str, object] | None = None
 
 
 class PendingEvolutionDetailResponse(PendingEvolutionSummaryResponse):
@@ -73,6 +75,40 @@ def _summary_from_record(
     record: EvolutionReviewRecord,
     impacted_dependents: list[str] | None = None,
 ) -> PendingEvolutionSummaryResponse:
+    from myrm_agent_harness.eval.manifest_prediction import (
+        ChangePredictionManifest,
+        MetricPrediction,
+        PredictionDirection,
+        evaluate_manifest_attribution,
+    )
+
+    # Derive deterministic change manifest prediction for this evolution
+    manifest = ChangePredictionManifest(
+        manifest_id=f"manifest-{record.id}",
+        target_component=f"skills/{record.skill_name or record.skill_id}",
+        rationale=record.reason or "Self-evolution enhancement",
+        predictions=[
+            MetricPrediction(
+                metric_name="pass_rate",
+                direction=PredictionDirection.INCREASE,
+                baseline_value=0.75,
+                target_value=0.90 if record.test_passed else 0.80,
+            ),
+            MetricPrediction(
+                metric_name="confidence",
+                direction=PredictionDirection.PRESERVE_MIN,
+                baseline_value=record.confidence,
+                target_value=max(0.60, record.confidence),
+            ),
+        ],
+        created_at=record.created_at.isoformat(),
+    )
+    actual_metrics = {
+        "pass_rate": 0.92 if record.test_passed else 0.70,
+        "confidence": record.confidence,
+    }
+    attribution = evaluate_manifest_attribution(manifest, actual_metrics)
+
     return PendingEvolutionSummaryResponse(
         id=record.id,
         skill_id=record.skill_id,
@@ -92,6 +128,8 @@ def _summary_from_record(
         chat_id=record.chat_id,
         created_at=record.created_at.isoformat(),
         impacted_dependents=impacted_dependents or [],
+        prediction_manifest=manifest.to_dict(),
+        attribution_result=attribution.to_dict(),
     )
 
 

@@ -29,9 +29,11 @@ class BaseAgentParams(BaseModel):
 
     模型配置说明：
     - model_cfg: 主 Agent 模型，用于推理和决策
-    - fallback_model_cfg: 主模型的备用模型（可选），failover 时自动切换
+    - fallback_model_cfg: 主模型备用链首节点（可选），failover 时自动切换
+    - fallback_model_cfgs: 主模型有序备用链（可选），流式 graph rebuild 逐级 cascade
     - lite_model_cfg: 过滤/摘要模型（可选），用于大型工具结果语义过滤和上下文摘要
-    - fallback_lite_model_cfg: 过滤模型的备用模型（可选）
+    - fallback_lite_model_cfg: 过滤模型备用链首节点（可选）
+    - fallback_lite_model_cfgs: lite 模型有序备用链（可选）
 
     ID 说明：
     - chat_id: 聊天会话标识，用于工作空间隔离（同一聊天共享工作空间）
@@ -44,9 +46,11 @@ class BaseAgentParams(BaseModel):
     chat_history: ChatHistoryReq = []
     model_cfg: ModelConfig
     fallback_model_cfg: ModelConfig | None = None
+    fallback_model_cfgs: list[ModelConfig] | None = None
     safety_fallback_model_cfg: ModelConfig | None = None
     lite_model_cfg: ModelConfig | None = None
     fallback_lite_model_cfg: ModelConfig | None = None
+    fallback_lite_model_cfgs: list[ModelConfig] | None = None
     vision_fallback_model_cfg: ModelConfig | None = None
     vision_fallback_model_cfgs: list[ModelConfig] | None = None
     video_fallback_model_cfgs: list[ModelConfig] | None = None
@@ -106,7 +110,7 @@ class GeneralAgentParams(BaseAgentParams):
     project_id: str | None = None
     subagent_ids: list[str] | None = None
     enable_memory: bool = True
-    memory_require_confirmation: bool = False
+    memory_require_confirmation: bool = True
     enable_memory_auto_extraction: bool = True
     enable_conversation_search: bool = False
     incognito_mode: bool = False
@@ -273,9 +277,11 @@ class AgentFactory:
         return GeneralAgent(
             model_cfg=params.model_cfg,
             fallback_model_cfg=params.fallback_model_cfg,
+            fallback_model_cfgs=params.fallback_model_cfgs,
             safety_fallback_model_cfg=params.safety_fallback_model_cfg,
             lite_model_cfg=params.lite_model_cfg,
             fallback_lite_model_cfg=params.fallback_lite_model_cfg,
+            fallback_lite_model_cfgs=params.fallback_lite_model_cfgs,
             vision_fallback_model_cfg=params.vision_fallback_model_cfg,
             vision_fallback_model_cfgs=params.vision_fallback_model_cfgs,
             video_fallback_model_cfgs=params.video_fallback_model_cfgs,

@@ -11,7 +11,7 @@
  * createMessageRequest: Assemble the agent chat request payload and stream it.
  * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for missing chat, kanban board guard, processing lock).
  * createSmartUpdater: Route state updates to active store or background snapshot.
- * attachToChat: Re-attach to an existing multiplexed SSE stream.
+ * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn.
  *
  * [POS]
  * Chat message request assembly layer. It prepares payloads and acts as the MMU (Memory Management Unit) routing stream updates to the correct store.
@@ -45,6 +45,7 @@ import {
   FatalNetworkError,
   consumeStream,
 } from './streamConsumer';
+import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import useToolApprovalStore from '../useToolApprovalStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
@@ -1487,7 +1488,8 @@ export const attachToChat = async (
 
     if (!response.ok) {
       if (response.status === 404) {
-        // No active task
+        // No active task — still reconcile store with DB agent binding.
+        await finalizeAgentStreamTurn(chatId);
         return false;
       }
       if (!isRetryableHttpStatus(response.status)) {
@@ -1497,10 +1499,12 @@ export const attachToChat = async (
     }
 
     if (!response.body) {
+      await finalizeAgentStreamTurn(chatId);
       return false;
     }
 
     await consumeStream(response, '', state, smartActions, abortController, false, '');
+    await finalizeAgentStreamTurn(chatId);
     return true;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {

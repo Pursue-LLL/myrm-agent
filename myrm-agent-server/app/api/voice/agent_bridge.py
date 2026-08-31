@@ -374,6 +374,7 @@ class VoiceAgentBridge:
             extract_retrieval_models,
             extract_user_instructions,
             merge_org_mcp_configs,
+            resolve_chat_fallback_chains_from_providers,
             resolve_vision_fallback_chain_for_agent,
             verify_search_service_available,
         )
@@ -403,6 +404,16 @@ class VoiceAgentBridge:
             agent_model_cfg = enrich_model_context_window(agent_model_cfg, configs.providers_dict)
 
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+        fallback_model_cfgs_list, fallback_lite_model_cfgs_list = resolve_chat_fallback_chains_from_providers(
+            configs.providers_dict,
+            require_tool_calling=True,
+        )
+        fallback_model_cfgs = fallback_model_cfgs_list or None
+        fallback_lite_model_cfgs = fallback_lite_model_cfgs_list or None
+        if fallback_model_cfgs and fallback_model_cfg is None:
+            fallback_model_cfg = fallback_model_cfgs[0]
+        if fallback_lite_model_cfgs and fallback_lite_model_cfg is None:
+            fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
         vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
             configs.providers_dict,
             main_model_cfg=(agent_model_cfg if agent_model_cfg.supports_vision else None),
@@ -480,8 +491,10 @@ class VoiceAgentBridge:
             query=query + transcript_ctx,
             model_cfg=agent_model_cfg,
             fallback_model_cfg=fallback_model_cfg,
+            fallback_model_cfgs=fallback_model_cfgs,
             lite_model_cfg=lite_model_cfg,
             fallback_lite_model_cfg=fallback_lite_model_cfg,
+            fallback_lite_model_cfgs=fallback_lite_model_cfgs,
             vision_fallback_model_cfg=vision_fallback_model_cfg,
             vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
             search_service_cfg=configs.search_cfg,

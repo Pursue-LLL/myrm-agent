@@ -9140,9 +9140,25 @@
       "overview": "개요",
       "timeline": "학습 타임라인",
       "evolution": "진화 요약",
+      "weeklyDigest": "주간 리포트",
       "graph": "지식 그래프",
       "trends": "스킬 트렌드",
       "daily": "일일 리뷰"
+    },
+    "weeklyDigest": {
+      "title": "팀 주간 리포트 및 지식 복리 저널",
+      "description": "7일간의 활동 지표, 스킬 건강도 복리 순위, 지식 인용 성과 및 개선 제안을 자동 집계하여 원클릭으로 Markdown 복사 및 내보내기를 지원합니다.",
+      "copyMarkdown": "주간 리포트 복사",
+      "copied": "클립보드에 복사되었습니다",
+      "exportMarkdown": ".md 파일 내보내기",
+      "refresh": "새로고침",
+      "compoundingScore": "복리 지수",
+      "healthTier": "건강 등급",
+      "hoursSaved": "절감 공수",
+      "cacheHitRate": "캐시 재사용률",
+      "citations": "지식 인용",
+      "empty": "이번 주 활동 기록이 없습니다",
+      "emptyDesc": "Agent와 대화를 시작하고 스킬을 사용하거나 기억을 저장하면 주간 리포트가 자동 생성되어 복리 가치를 정량화합니다."
     },
     "learningTimeline": {
       "title": "학습 및 진화 스트림",
@@ -17625,5 +17641,16 @@
       "exportSuccessDesc": "진단 번들 아카이브가 생성되어 성공적으로 다운로드되었습니다.",
       "exportFailedTitle": "내보내기 실패"
     }
+  },
+  "expertSummon": {
+    "summonSuccess": "전문가 {name}(으)로 전환되었습니다",
+    "summonFailed": "전문가 템플릿 소환에 실패했습니다",
+    "featuredTitle": "추천 전문가 및 스쿼드",
+    "teamBadge": "팀",
+    "expertBadge": "전문가",
+    "searchPlaceholder": "전문가 또는 팀 검색...",
+    "loading": "로딩 중...",
+    "empty": "일치하는 전문가 또는 팀 템플릿을 찾을 수 없습니다",
+    "summonButton": "소환"
   }
 }

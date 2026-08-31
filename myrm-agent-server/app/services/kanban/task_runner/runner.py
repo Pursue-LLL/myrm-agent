@@ -478,6 +478,18 @@ class KanbanTaskRunner:
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
             user_cfgs.providers_dict,
         )
+        from app.core.channel_bridge.config_parsers import resolve_chat_fallback_chains_from_providers
+
+        fallback_model_cfgs_list, fallback_lite_model_cfgs_list = resolve_chat_fallback_chains_from_providers(
+            user_cfgs.providers_dict,
+            require_tool_calling=True,
+        )
+        fallback_model_cfgs = fallback_model_cfgs_list or None
+        fallback_lite_model_cfgs = fallback_lite_model_cfgs_list or None
+        if fallback_model_cfgs and fallback_model_cfg is None:
+            fallback_model_cfg = fallback_model_cfgs[0]
+        if fallback_lite_model_cfgs and fallback_lite_model_cfg is None:
+            fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
 
         from myrm_agent_harness.toolkits.retriever.embedding.factory import (
             EmbeddingConfig,
@@ -582,7 +594,9 @@ class KanbanTaskRunner:
             query=context,
             model_cfg=model_cfg,
             fallback_model_cfg=fallback_model_cfg,
+            fallback_model_cfgs=fallback_model_cfgs,
             fallback_lite_model_cfg=fallback_lite_model_cfg,
+            fallback_lite_model_cfgs=fallback_lite_model_cfgs,
             vision_fallback_model_cfg=vision_fallback_model_cfg,
             vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
             search_service_cfg=user_cfgs.search_cfg,

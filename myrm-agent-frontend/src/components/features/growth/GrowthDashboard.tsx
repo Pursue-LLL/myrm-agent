@@ -7,7 +7,6 @@ import {
   Zap,
   CalendarDays,
   HeartPulse,
-  Loader2,
   Sprout,
   RefreshCw,
   TrendingDown,
@@ -15,6 +14,9 @@ import {
   Network,
   BarChart3,
   GitCommit,
+  Copy,
+  Check,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
@@ -33,6 +35,8 @@ import LearningTimeline from './LearningTimeline';
 import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
 import SkillTrendChart from './SkillTrendChart';
+import SkillHealthPanel from './SkillHealthPanel';
+import { buildGrowthMarkdown, downloadGrowthMarkdown } from './growthMarkdownExport';
 
 const MemoryKnowledgeGraph = lazy(() => import('@/components/features/memory/insights/MemoryKnowledgeGraph'));
 
@@ -47,6 +51,7 @@ export default function GrowthDashboard() {
   const [timeRange, setTimeRange] = useState<TimeRange>(30);
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [highlightMemoryId, setHighlightMemoryId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleSelectMemoryForGraph = useCallback((memoryId: string) => {
     setHighlightMemoryId(memoryId);
@@ -71,6 +76,50 @@ export default function GrowthDashboard() {
     fetchData(timeRange);
   }, [fetchData, timeRange]);
 
+  const buildMarkdown = useCallback(() => {
+    if (!data) {
+      return '';
+    }
+    return buildGrowthMarkdown(data, {
+      title: t('export.title'),
+      period: t('weeklySummary.title'),
+      memories: t('snapshot.totalMemories'),
+      memoryCitations: t('export.memoryCitations'),
+      conversations: t('weeklySummary.conversations'),
+      messages: t('weeklySummary.messages'),
+      cronJobs: t('weeklySummary.cronExecutions'),
+      toolCalls: t('weeklySummary.toolCalls'),
+      savings: t('savings.title'),
+      totalCost: t('savings.totalCost'),
+      skillHealth: t('skillHealth.title'),
+      skillRow: (name, score, status, calls7d) =>
+        t('export.skillRow', { name, score: Math.round(score), status, calls7d }),
+      generatedAt: t('export.generatedAt', { date: new Date().toISOString().slice(0, 10) }),
+    });
+  }, [data, t]);
+
+  const handleCopyMarkdown = useCallback(async () => {
+    const markdown = buildMarkdown();
+    if (!markdown) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      showApiError(err);
+    }
+  }, [buildMarkdown]);
+
+  const handleDownloadMarkdown = useCallback(() => {
+    const markdown = buildMarkdown();
+    if (!markdown) {
+      return;
+    }
+    downloadGrowthMarkdown(markdown);
+  }, [buildMarkdown]);
+
   if (loading && !data) {
     return (
       <div className="space-y-6 max-w-7xl mx-auto py-2">
@@ -85,8 +134,8 @@ export default function GrowthDashboard() {
       <EmptyState
         variant={error ? 'error' : 'default'}
         icon={Sprout}
-        title={t('empty.title')}
-        description={t('empty.description')}
+        title={error ? t('empty.errorTitle') : t('empty.title')}
+        description={error ? t('empty.errorDescription') : t('empty.description')}
         className="min-h-[50vh] my-6"
         action={
           error ? (
@@ -100,7 +149,8 @@ export default function GrowthDashboard() {
     );
   }
 
-  const { snapshot, activity_heatmap, weekly_summary, skill_events, cost_summary, skill_trends } = data;
+  const { snapshot, activity_heatmap, weekly_summary, skill_events, cost_summary, skill_trends, skill_health } =
+    data;
 
   const kpiCards = [
     {
@@ -156,12 +206,23 @@ export default function GrowthDashboard() {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8 space-y-6">
       {/* Header with time range selector */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
+        <div className="flex flex-col sm:items-end gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleCopyMarkdown} disabled={loading}>
+              {copied ? <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+              {copied ? t('export.copied') : t('export.copyMarkdown')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadMarkdown} disabled={loading}>
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              {t('export.exportMarkdown')}
+            </Button>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
           {TIME_RANGE_OPTIONS.map((days) => (
             <button
               key={days}
@@ -176,6 +237,7 @@ export default function GrowthDashboard() {
               {t(`timeRange.${days}d`)}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
@@ -373,27 +435,50 @@ export default function GrowthDashboard() {
                     value={weekly_summary.tool_calls}
                     previousValue={weekly_summary.previous_tool_calls}
                   />
+                  <WeeklyMetric
+                    label={t('export.memoryCitations')}
+                    value={snapshot.memory_citations_7d}
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Skill Evolution Log */}
+            {/* Skill Health */}
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2 px-4 pt-4 md:px-6 md:pt-5">
-                <CardTitle className="text-base font-semibold">{t('skillEvents.title')}</CardTitle>
+                <CardTitle className="text-base font-semibold">{t('skillHealth.title')}</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('skillHealth.description')}</p>
               </CardHeader>
               <CardContent className="px-4 pb-4 md:px-6 md:pb-5">
-                <SkillEventList events={skill_events} />
+                <SkillHealthPanel items={skill_health ?? []} />
               </CardContent>
             </Card>
           </div>
+
+          {/* Skill Evolution Log */}
+          <Card>
+            <CardHeader className="pb-2 px-4 pt-4 md:px-6 md:pt-5">
+              <CardTitle className="text-base font-semibold">{t('skillEvents.title')}</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 md:px-6 md:pb-5">
+              <SkillEventList events={skill_events} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function WeeklyMetric({ label, value, previousValue }: { label: string; value: number; previousValue?: number }) {
+function WeeklyMetric({
+  label,
+  value,
+  previousValue,
+}: {
+  label: string;
+  value: number;
+  previousValue?: number;
+}) {
   const delta = previousValue !== undefined ? value - previousValue : undefined;
   const hasChange = delta !== undefined && delta !== 0;
   const isPositive = delta !== undefined && delta > 0;

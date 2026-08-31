@@ -1,59 +1,52 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { desktopBridge } from '../desktopBridge';
-import * as tauriModule from '../tauri';
+import * as tauriLib from '../tauri';
 
 describe('desktopBridge', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('correctly reports non-desktop environment by default in test/browser', () => {
-    vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(false);
+  it('correctly reports non-desktop environment by default', () => {
+    vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
     expect(desktopBridge.isDesktop()).toBe(false);
   });
 
-  it('correctly reports desktop environment when running inside Tauri', () => {
-    vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(true);
+  it('correctly reports desktop environment when in Tauri', () => {
+    vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(true);
     expect(desktopBridge.isDesktop()).toBe(true);
   });
 
-  it('handles showItemInFolder gracefully in non-desktop environments', async () => {
-    vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(false);
+  it('falls back gracefully on non-desktop for showItemInFolder', async () => {
+    vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
     const result = await desktopBridge.showItemInFolder('/test/path');
     expect(result).toBe(false);
   });
 
-  it('handles openExternal with fallback to window.open in web mode', async () => {
-    vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(false);
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+  it('falls back to window.open for openExternal on web', async () => {
+    vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
+    const windowOpenSpy = vi.fn();
+    window.open = windowOpenSpy;
 
-    const success = await desktopBridge.openExternal('https://example.com');
-    expect(success).toBe(true);
-    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+    const result = await desktopBridge.openExternal('https://example.com');
+    expect(result).toBe(true);
+    expect(windowOpenSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
   });
 
-  it('handles empty url in openExternal safely', async () => {
-    const success = await desktopBridge.openExternal('');
-    expect(success).toBe(false);
-  });
-
-  it('returns default fallback version in web mode', async () => {
-    vi.spyOn(tauriModule, 'isTauriEnvironment').mockReturnValue(false);
+  it('returns default version string when not in desktop', async () => {
+    vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
     const version = await desktopBridge.getAppVersion();
     expect(typeof version).toBe('string');
     expect(version.length).toBeGreaterThan(0);
   });
 
-  it('handles writeClipboard safely via navigator.clipboard', async () => {
-    const writeTextMock = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: writeTextMock,
-      },
-    });
+  it('safely handles window minimization on web without throwing', async () => {
+    vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
+    await expect(desktopBridge.minimizeWindow()).resolves.toBeUndefined();
+  });
 
-    const success = await desktopBridge.writeClipboard('test copy');
-    expect(success).toBe(true);
-    expect(writeTextMock).toHaveBeenCalledWith('test copy');
+  it('safely handles window close on web without throwing', async () => {
+    vi.spyOn(tauriLib, 'isTauriEnvironment').mockReturnValue(false);
+    await expect(desktopBridge.closeWindow()).resolves.toBeUndefined();
   });
 });

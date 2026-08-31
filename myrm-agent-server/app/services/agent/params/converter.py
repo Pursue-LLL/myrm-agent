@@ -700,10 +700,85 @@ async def convert_to_general_agent_params(
     selection_vision = request.model_selection.supports_vision if request.model_selection else None
     model_cfg = enrich_model_capabilities(model_cfg, providers_dict, selection_supports_vision=selection_vision)
     model_cfg = enrich_model_context_window(model_cfg, providers_dict)
+
+    from app.core.channel_bridge.config_parsers import (
+        resolve_slot_fallback_chain_for_agent,
+        resolve_vision_fallback_chain_for_agent,
+    )
+
+    default_model_cfg_raw = providers_dict.get("defaultModelConfig") if providers_dict else None
+    base_slot = (
+        default_model_cfg_raw.get("baseModel")
+        if isinstance(default_model_cfg_raw, dict)
+        else None
+    )
+    lite_slot = (
+        default_model_cfg_raw.get("liteModel")
+        if isinstance(default_model_cfg_raw, dict)
+        else None
+    )
+
+    _, base_fallback_cfgs_from_settings = resolve_slot_fallback_chain_for_agent(
+        base_slot,
+        providers_dict,
+        require_tool_calling=True,
+    )
+    _, lite_fallback_cfgs_from_settings = resolve_slot_fallback_chain_for_agent(
+        lite_slot,
+        providers_dict,
+        require_tool_calling=False,
+    )
+
+    fallback_model_cfgs: list[ModelConfig] | None = None
+    if base_fallback_cfgs_from_settings:
+        fallback_model_cfgs = list(base_fallback_cfgs_from_settings)
+    if fallback_model_cfg is not None:
+        if fallback_model_cfgs:
+            fallback_model_cfgs = [
+                fallback_model_cfg,
+                *[c for c in fallback_model_cfgs if c.model != fallback_model_cfg.model],
+            ]
+        else:
+            fallback_model_cfgs = [fallback_model_cfg]
+    elif fallback_model_cfgs:
+        fallback_model_cfg = fallback_model_cfgs[0]
+
+    fallback_lite_model_cfgs: list[ModelConfig] | None = None
+    if lite_fallback_cfgs_from_settings:
+        fallback_lite_model_cfgs = list(lite_fallback_cfgs_from_settings)
+    if fallback_lite_model_cfg is not None:
+        if fallback_lite_model_cfgs:
+            fallback_lite_model_cfgs = [
+                fallback_lite_model_cfg,
+                *[c for c in fallback_lite_model_cfgs if c.model != fallback_lite_model_cfg.model],
+            ]
+        else:
+            fallback_lite_model_cfgs = [fallback_lite_model_cfg]
+    elif fallback_lite_model_cfgs:
+        fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
+
     if fallback_model_cfg:
         fb_vision = request.fallback_model_selection.supports_vision if request.fallback_model_selection else None
         fallback_model_cfg = enrich_model_capabilities(fallback_model_cfg, providers_dict, selection_supports_vision=fb_vision)
         fallback_model_cfg = enrich_model_context_window(fallback_model_cfg, providers_dict)
+    if fallback_lite_model_cfgs:
+        enriched_fl_cfgs: list[ModelConfig] = []
+        for fl_cfg in fallback_lite_model_cfgs:
+            fl_vision = request.fallback_lite_model_selection.supports_vision if request.fallback_lite_model_selection else None
+            enriched = enrich_model_capabilities(fl_cfg, providers_dict, selection_supports_vision=fl_vision)
+            enriched_fl_cfgs.append(enrich_model_context_window(enriched, providers_dict))
+        fallback_lite_model_cfgs = enriched_fl_cfgs
+        if fallback_lite_model_cfg is None and enriched_fl_cfgs:
+            fallback_lite_model_cfg = enriched_fl_cfgs[0]
+    if fallback_model_cfgs:
+        enriched_fb_cfgs: list[ModelConfig] = []
+        for fb_cfg in fallback_model_cfgs:
+            fb_vision = request.fallback_model_selection.supports_vision if request.fallback_model_selection else None
+            enriched = enrich_model_capabilities(fb_cfg, providers_dict, selection_supports_vision=fb_vision)
+            enriched_fb_cfgs.append(enrich_model_context_window(enriched, providers_dict))
+        fallback_model_cfgs = enriched_fb_cfgs
+        if fallback_model_cfg is None and enriched_fb_cfgs:
+            fallback_model_cfg = enriched_fb_cfgs[0]
     if safety_fallback_model_cfg:
         sf_vision = request.safety_fallback_model_selection.supports_vision if request.safety_fallback_model_selection else None
         safety_fallback_model_cfg = enrich_model_capabilities(
@@ -732,10 +807,6 @@ async def convert_to_general_agent_params(
             selection_supports_vision=vf_vision,
         )
         vision_fallback_model_cfg = enrich_model_context_window(vision_fallback_model_cfg, providers_dict)
-
-    from app.core.channel_bridge.config_parsers import (
-        resolve_vision_fallback_chain_for_agent,
-    )
 
     vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
         providers_dict,
@@ -1018,9 +1089,11 @@ async def convert_to_general_agent_params(
         chat_history=cast(ChatHistoryReq, chat_history),
         model_cfg=model_cfg,
         fallback_model_cfg=fallback_model_cfg,
+        fallback_model_cfgs=fallback_model_cfgs,
         safety_fallback_model_cfg=safety_fallback_model_cfg,
         lite_model_cfg=lite_model_cfg,
         fallback_lite_model_cfg=fallback_lite_model_cfg,
+        fallback_lite_model_cfgs=fallback_lite_model_cfgs,
         vision_fallback_model_cfg=vision_fallback_model_cfg,
         vision_fallback_model_cfgs=vision_fallback_model_cfgs,
         video_fallback_model_cfgs=video_fallback_model_cfgs,

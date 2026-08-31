@@ -217,7 +217,16 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
                   {renderAvatar(template.avatar_url, false)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate">{template.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-foreground truncate">{template.name}</span>
+                    {template.is_pareto_preset && (
+                      <span className="shrink-0 px-1.5 py-0.2 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        {template.cost_reduction_ratio
+                          ? `-${Math.round(template.cost_reduction_ratio * 100)}%`
+                          : 'Pareto'}
+                      </span>
+                    )}
+                  </div>
                   {template.description && (
                     <div className="text-xs text-muted-foreground truncate">{template.description}</div>
                   )}
@@ -287,6 +296,13 @@ function TeamTemplateCard({
             <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-primary/10 text-primary">
               Team
             </span>
+            {template.is_pareto_preset && (
+              <span className="shrink-0 px-1.5 py-0.2 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                {template.cost_reduction_ratio
+                  ? `-${Math.round(template.cost_reduction_ratio * 100)}%`
+                  : 'Pareto'}
+              </span>
+            )}
           </div>
           {template.description && (
             <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{template.description}</div>

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Sparkles, Loader2, ChevronDown, ChevronUp, Play, Lightbulb, Sprout } from 'lucide-react';
+import { Sparkles, Loader2, ChevronDown, ChevronUp, Play, Lightbulb, Sprout, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent } from '@/components/primitives/card';
+import { EmptyState } from '@/components/primitives/empty-state';
+import { ListSkeleton } from '@/components/primitives/skeleton-templates';
 import { cn } from '@/lib/utils/classnameUtils';
 import { apiRequest, showApiError } from '@/lib/api';
 
@@ -43,16 +45,20 @@ export default function PatternDigestPanel() {
   const t = useTranslations('growthDashboard.patternDigest');
   const [events, setEvents] = useState<PatternDiscoveryEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [triggering, setTriggering] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(false);
       const data = await apiRequest<PatternDiscoveryEvent[]>('/memory/guardian/pattern-discoveries?limit=10');
       setEvents(data);
     } catch (e) {
       showApiError(e);
+      setLoadError(true);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -85,10 +91,24 @@ export default function PatternDigestPanel() {
   };
 
   if (loading) {
+    return <ListSkeleton count={4} className="min-h-[40vh] my-2" />;
+  }
+
+  if (loadError) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <EmptyState
+        variant="error"
+        icon={Sparkles}
+        title={t('loadErrorTitle')}
+        description={t('loadErrorDescription')}
+        className="min-h-[40vh] my-4"
+        action={
+          <Button variant="outline" size="sm" onClick={() => void fetchEvents()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            {t('retry')}
+          </Button>
+        }
+      />
     );
   }
 
@@ -97,15 +117,19 @@ export default function PatternDigestPanel() {
 
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center px-4">
-        <Sprout className="h-14 w-14 text-muted-foreground/40" />
-        <h3 className="text-lg font-semibold text-foreground">{t('emptyTitle')}</h3>
-        <p className="text-sm text-muted-foreground max-w-md">{t('emptyDescription')}</p>
-        <Button variant="outline" size="sm" onClick={handleTrigger} disabled={triggering} className="mt-2">
-          {triggering ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
-          {triggering ? t('triggering') : t('triggerButton')}
-        </Button>
-      </div>
+      <EmptyState
+        variant="dashed"
+        icon={Sprout}
+        title={t('emptyTitle')}
+        description={t('emptyDescription')}
+        className="min-h-[40vh] my-4"
+        action={
+          <Button variant="outline" size="sm" onClick={handleTrigger} disabled={triggering}>
+            {triggering ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+            {triggering ? t('triggering') : t('triggerButton')}
+          </Button>
+        }
+      />
     );
   }
 

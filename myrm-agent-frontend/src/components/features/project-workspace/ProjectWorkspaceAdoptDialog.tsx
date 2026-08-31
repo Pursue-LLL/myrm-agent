@@ -5,7 +5,7 @@
  * - @/store/useProjectStore::useProjectStore
  * - @/store/useChatStore::useChatStore
  * - @/services/chat::browseDirectories
- * - @tauri-apps/plugin-dialog (Tauri folder picker)
+ * - @/lib/desktopBridge::desktopBridge (Desktop Bridge unified folder picker)
  *
  * [OUTPUT]
  * - ProjectWorkspaceAdoptDialog: UI for zero-friction folder adoption as a Myrm Project
@@ -32,6 +32,7 @@ import {
   shortenHomePath,
 } from '@/lib/directoryBrowseRecent';
 import { toast } from '@/hooks/shared/useToast';
+import { desktopBridge } from '@/lib/desktopBridge';
 import { isTauriEnvironment } from '@/lib/tauri';
 
 function addRecentDir(dir: string): void {
@@ -83,11 +84,11 @@ export default function ProjectWorkspaceAdoptDialog({
       try {
         const data = await browseDirectories(path);
         if (gen !== loadGenRef.current) return;
-        setCurrentPath(data.current_path);
-        setParentPath(data.parent_path);
+        setCurrentPath(data.current);
+        setParentPath(data.parent);
         setEntries(data.entries ?? []);
         setFilterQuery('');
-        const extracted = data.current_path.split(/[/\\]/).filter(Boolean).pop() || '';
+        const extracted = data.current.split(/[/\\]/).filter(Boolean).pop() || '';
         setProjectName((prev) => (prev ? prev : extracted));
       } catch {
         if (gen !== loadGenRef.current) return;
@@ -105,13 +106,11 @@ export default function ProjectWorkspaceAdoptDialog({
   );
 
   const handleNativePick = useCallback(async () => {
-    if (!isTauriEnvironment()) return;
+    if (!desktopBridge.isDesktop()) return;
     try {
-      const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
-      const selected = await openDialog({
-        directory: true,
-        multiple: false,
+      const selected = await desktopBridge.openDirectoryPicker({
         title: t('title'),
+        defaultPath: currentPath || undefined,
       });
       if (typeof selected === 'string' && selected) {
         setCurrentPath(selected);

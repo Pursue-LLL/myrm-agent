@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  AlertCircle,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   GitCommit,
-  Loader2,
   MessageSquare,
   RefreshCw,
   ShieldCheck,
@@ -19,6 +17,8 @@ import {
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
+import { EmptyState } from '@/components/primitives/empty-state';
+import { MetricCardsSkeleton } from '@/components/primitives/skeleton-templates';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getDailyJournal, type DailyJournalData, type DailyJournalTimelineItem } from '@/services/statistics';
 import { showApiError } from '@/lib/api';
@@ -119,20 +119,21 @@ export default function DailyJournal() {
         </Button>
       </div>
 
-      {loading && (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {loading && <MetricCardsSkeleton count={4} className="my-2" />}
 
       {!loading && error && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
-          <AlertCircle className="h-8 w-8 text-destructive" />
-          <p className="text-sm">{t('error')}</p>
-          <Button variant="outline" size="sm" onClick={fetchData}>
-            {t('retry')}
-          </Button>
-        </div>
+        <EmptyState
+          variant="error"
+          title={t('errorTitle')}
+          description={t('errorDescription')}
+          className="min-h-[280px] my-4"
+          action={
+            <Button variant="outline" size="sm" onClick={() => void fetchData()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t('retry')}
+            </Button>
+          }
+        />
       )}
 
       {!loading && !error && data && (
@@ -174,10 +175,13 @@ export default function DailyJournal() {
               </CardContent>
             </Card>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <GitCommit className="h-10 w-10 mb-3 opacity-30" />
-              <p className="text-sm">{t('empty')}</p>
-            </div>
+            <EmptyState
+              variant="dashed"
+              icon={GitCommit}
+              title={t('emptyTitle')}
+              description={t('emptyDescription')}
+              className="min-h-[200px] my-4"
+            />
           )}
         </>
       )}

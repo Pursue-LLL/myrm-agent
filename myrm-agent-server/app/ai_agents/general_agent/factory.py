@@ -89,7 +89,7 @@ async def build_general_agent(
         agent_wrapper.lite_model_cfg,
         agent_wrapper.fallback_model_cfg,
         agent_wrapper.safety_fallback_model_cfg,
-        fallback_model_cfgs=getattr(agent_wrapper, "fallback_model_cfgs", None),
+        fallback_model_cfgs=agent_wrapper.fallback_model_cfgs,
     )
 
     privacy_routing_cfg = build_privacy_routing_config(agent_wrapper.privacy_routing_raw)
@@ -803,6 +803,7 @@ async def build_general_agent(
         tools=tools,
         collect_artifacts=True,
         fallback_llm=fallback_llm,
+        fallback_llms=stream_fallback_llms,
         safety_fallback_llm=safety_fallback_llm,
         escalation_target_llm=escalation_target_llm,
         embedding_config=agent_wrapper.embedding_config,

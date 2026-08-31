@@ -60,6 +60,7 @@ class GrowthSnapshot(BaseModel):
     max_streak: int = 0
     memory_health_score: int = 100
     memory_health_dimensions: dict[str, float] = Field(default_factory=dict)
+    memory_citations_7d: int = 0
 
 
 class ActivityDay(BaseModel):
@@ -121,6 +122,18 @@ class SkillTrendSeries(BaseModel):
     data_points: list[SkillTrendPoint]
 
 
+class SkillHealthItem(BaseModel):
+    """7-day skill compounding health evaluated by harness SkillHealthEvaluator."""
+
+    skill_name: str
+    health_score: float
+    status: str
+    call_count_7d: int
+    call_count_total: int
+    success_rate_7d: float
+    last_used_at: str | None = None
+
+
 class GrowthDashboardResponse(BaseModel):
     """Full dashboard payload — single GET returns everything."""
 
@@ -130,6 +143,7 @@ class GrowthDashboardResponse(BaseModel):
     skill_events: list[SkillEvolutionEvent]
     cost_summary: CostSummary | None = None
     skill_trends: list[SkillTrendSeries] = Field(default_factory=list)
+    skill_health: list[SkillHealthItem] = Field(default_factory=list)
 
 
 # ── Data fetchers (all read-only, no framework mutation) ─────────────
@@ -383,6 +397,116 @@ async def _fetch_skill_trends() -> list[SkillTrendSeries]:
         return []
 
 
+async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
+    """Count memory citations persisted on messages within the last 7 days."""
+    try:
+        week_start = datetime.now(UTC) - timedelta(days=7)
+        stmt = (
+            select(Message.extra_data)
+            .where(
+                Message.created_at >= week_start,
+                Message.extra_data.isnot(None),
+            )
+            .limit(5000)
+        )
+        rows = (await db.execute(stmt)).scalars().all()
+        total = 0
+        for extra_data in rows:
+            if not isinstance(extra_data, dict):
+                continue
+            cited = extra_data.get("citedMemoryIds")
+            if cited is None:
+                cited = extra_data.get("cited_memory_ids")
+            if isinstance(cited, list):
+                total += sum(1 for item in cited if isinstance(item, str) and item.strip())
+        return total
+    except Exception as e:
+        logger.warning("Failed to fetch memory citations: %s", e)
+        return 0
+
+
+async def _fetch_skill_health() -> list[SkillHealthItem]:
+    """Evaluate per-skill compounding health for the last 7 days via harness rules."""
+    try:
+        from myrm_agent_harness.observability.digest import SkillCompoundingMetrics, SkillHealthEvaluator
+
+        from app.core.skills.curator.service import get_stats_collector
+        from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
+
+        now = datetime.now(UTC)
+        week_ago = now - timedelta(days=7)
+        collector = get_stats_collector()
+        items: list[SkillHealthItem] = []
+
+        for skill_root in DEFAULT_LOCAL_SKILL_PATHS:
+            expanded = Path(skill_root).expanduser()
+            if not expanded.exists():
+                continue
+            for skill_dir in expanded.iterdir():
+                if not skill_dir.is_dir() or skill_dir.name.startswith("."):
+                    continue
+
+                stats = collector.get_stats(skill_dir)
+                total_calls = stats.call_count
+                calls_7d = 0
+                succ_7d = 0
+                sessions: set[str] = set()
+                latest_dt: datetime | None = stats.last_used_at
+                usage_history = getattr(stats, "usage_history", []) or []
+
+                for rec in usage_history:
+                    try:
+                        rec_dt = datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00"))
+                    except (TypeError, ValueError):
+                        continue
+
+                    if latest_dt is None or rec_dt > latest_dt:
+                        latest_dt = rec_dt
+
+                    session_key = getattr(rec, "session_id", None)
+                    if isinstance(session_key, str) and session_key:
+                        sessions.add(session_key)
+
+                    if rec_dt >= week_ago:
+                        calls_7d += 1
+                        if rec.success:
+                            succ_7d += 1
+
+                if calls_7d == 0 and total_calls > 0 and not usage_history:
+                    calls_7d = total_calls
+                    succ_7d = stats.success_count
+
+                metrics = SkillCompoundingMetrics(
+                    skill_id=skill_dir.name,
+                    invocations=calls_7d,
+                    successful_invocations=succ_7d,
+                    adopted_outputs=succ_7d,
+                    retry_count=max(0, calls_7d - succ_7d),
+                    distinct_sessions=len(sessions) if sessions else (1 if calls_7d > 0 else 0),
+                    last_invoked_at=latest_dt,
+                )
+                evaluated = SkillHealthEvaluator.evaluate(metrics, reference_time=now)
+                sr_7d = (succ_7d / calls_7d) if calls_7d > 0 else 0.0
+
+                items.append(
+                    SkillHealthItem(
+                        skill_name=skill_dir.name,
+                        health_score=evaluated.health_score,
+                        status=evaluated.status.value,
+                        call_count_7d=calls_7d,
+                        call_count_total=total_calls,
+                        success_rate_7d=round(sr_7d, 3),
+                        last_used_at=latest_dt.isoformat() if latest_dt else None,
+                    )
+                )
+
+        items.sort(key=lambda item: (item.health_score, item.call_count_7d), reverse=True)
+        return items
+    except Exception as e:
+        logger.warning("Failed to fetch skill health: %s", e)
+        return []
+
+
 async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSummary | None:
     """Aggregate cost savings from message extra_data within the time range."""
     try:
@@ -531,6 +655,8 @@ async def get_growth_dashboard(
             skill_snapshot,
             cost_summary,
             skill_trends,
+            skill_health,
+            memory_citations_7d,
         ) = await asyncio.gather(
             _fetch_memory_snapshot(),
             _fetch_activity_data(days),
@@ -538,6 +664,8 @@ async def get_growth_dashboard(
             _fetch_skill_evolution_data(),
             _fetch_cost_summary(db, days),
             _fetch_skill_trends(),
+            _fetch_skill_health(),
+            _fetch_memory_citations_7d(db),
         )
 
         total_memories = sum(memory_by_type.values())
@@ -560,12 +688,14 @@ async def get_growth_dashboard(
                 max_streak=activity.max_streak,
                 memory_health_score=health_score,
                 memory_health_dimensions=health_dims,
+                memory_citations_7d=memory_citations_7d,
             ),
             activity_heatmap=activity.heatmap,
             weekly_summary=weekly,
             skill_events=skill_snapshot.events,
             cost_summary=cost_summary,
             skill_trends=skill_trends,
+            skill_health=skill_health,
         )
 
         return success_response(data=dashboard.model_dump())

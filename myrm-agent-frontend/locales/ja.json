@@ -9134,6 +9134,8 @@
     "empty": {
       "title": "Agent とチャットを開始",
       "description": "エージェントと対話すると、成長データがここに表示されます",
+      "errorTitle": "成長ダッシュボードの読み込みに失敗しました",
+      "errorDescription": "成長データを取得できませんでした。接続を確認して再試行してください。",
       "retry": "再試行読み込み"
     },
     "tabs": {
@@ -9143,6 +9145,22 @@
       "graph": "ナレッジグラフ",
       "trends": "スキルトレンド",
       "daily": "毎日の振り返り"
+    },
+    "export": {
+      "copyMarkdown": "Markdown をコピー",
+      "copied": "クリップボードにコピーしました",
+      "exportMarkdown": ".md をエクスポート"
+    },
+    "skillHealth": {
+      "title": "スキル健康度",
+      "description": "7日間のスキル複利スコアと成功/失敗率",
+      "empty": "今週のスキル実行記録はありません",
+      "emptyDesc": "スキルを使用すると健康度と複利スコアがここに表示されます",
+      "skill": "スキル",
+      "tier": "ティア",
+      "score": "複利スコア",
+      "successRate": "成功率",
+      "runs": "実行回数"
     },
     "learningTimeline": {
       "title": "学習と進化ストリーム",
@@ -9180,6 +9198,11 @@
       "empty": {
         "title": "学習の足跡はまだありません",
         "description": "エージェントが対話で事実を学習したり嗜好を記録したりスキルを蓄積すると、ここに時系列で表示され管理できます。"
+      },
+      "error": {
+        "title": "学習タイムラインの読み込みに失敗しました",
+        "description": "タイムラインデータを取得できませんでした。接続を確認して再試行してください。",
+        "retry": "再試行"
       },
       "stats": {
         "totalNodes": "合計 {count} 個の学習ノード",
@@ -9263,6 +9286,9 @@
       "description": "AI アシスタントが定期的に対話パターンを分析し、行動習慣と環境設定の洞察を提示します。",
       "emptyTitle": "学習進行中",
       "emptyDescription": "メモリシステムはパターン分析を開始する前に、より多くの対話を必要とします。通常どおりチャットを続けると、パターンが自動的に発見されます。",
+      "loadErrorTitle": "行動パターンデータの読み込みに失敗しました",
+      "loadErrorDescription": "行動パターンの発見記録を取得できませんでした。接続を確認して再試行してください。",
+      "retry": "再試行",
       "triggerButton": "今すぐ分析",
       "triggering": "分析中...",
       "triggerSkipped": "システムはまだ準備ができていません — より多くの会話の蓄積が必要です",
@@ -9288,7 +9314,11 @@
       "toolCalls": "ツール呼び出し",
       "timeline": "タイムライン",
       "empty": "この日のアクティビティはありません",
+      "emptyTitle": "この日のアクティビティはありません",
+      "emptyDescription": "セッション、承認、定期タスク、カンバンの更新が発生するとここに表示されます。",
       "error": "日記の読み込みに失敗しました",
+      "errorTitle": "日記の読み込みに失敗しました",
+      "errorDescription": "この日付のジャーナルデータを取得できませんでした。接続を確認して再試行してください。",
       "retry": "再試行",
       "typeLabels": {
         "session": "セッション",
@@ -9305,6 +9335,9 @@
       "noModel": "AI 要約を有効にするには設定でライトモデルを構成してください",
       "goToSettings": "設定へ移動",
       "error": "要約の生成に失敗",
+      "errorTitle": "要約の生成に失敗",
+      "errorDescription": "デイリーダイジェストを生成できませんでした。再試行するかライトモデル設定を確認してください。",
+      "retry": "再試行",
       "keywords": "キーワード",
       "suggestions": "明日推奨",
       "generatedAt": "生成日時"
@@ -17625,5 +17658,16 @@
       "exportSuccessDesc": "診断バンドルアーカイブが生成され、正常にダウンロードされました。",
       "exportFailedTitle": "エクスポートに失敗しました"
     }
+  },
+  "expertSummon": {
+    "summonSuccess": "エキスパート {name} に切り替えました",
+    "summonFailed": "エキスパートテンプレートの呼び出しに失敗しました",
+    "featuredTitle": "注目エキスパート＆チーム",
+    "teamBadge": "チーム",
+    "expertBadge": "専門家",
+    "searchPlaceholder": "専門家またはチームを検索...",
+    "loading": "読み込み中...",
+    "empty": "一致する専門家またはチームのテンプレートが見つかりません",
+    "summonButton": "召喚"
   }
 }

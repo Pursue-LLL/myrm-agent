@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives
 import { browseDirectories, updateChatWorkspaceDir, type DirectoryEntry } from '@/services/chat';
 import { toast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
-import { isTauriEnvironment } from '@/lib/tauri';
+import { desktopBridge } from '@/lib/desktopBridge';
 
 const RECENT_DIRS_KEY = 'myrm.workspaceDirPicker.recent';
 const MAX_RECENT_DIRS = 5;
@@ -137,10 +137,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
 
   const handleTauriNativePicker = async () => {
     try {
-      const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
-      const selected = await openDialog({
-        directory: true,
-        multiple: false,
+      const selected = await desktopBridge.openDirectoryPicker({
         title: t('selectThis'),
         defaultPath: currentDir || undefined,
       });
@@ -171,7 +168,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
           )}
           title={t('tooltip')}
           onClick={(e) => {
-            if (isTauriEnvironment()) {
+            if (desktopBridge.isDesktop()) {
               e.preventDefault();
               handleTauriNativePicker();
             }

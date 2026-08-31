@@ -6,7 +6,7 @@
  * ./multiplexChunkBridge::createMultiplexReadableStream (POS: workspace multiplex 桥)
  *
  * [OUTPUT]
- * executeStreamWithRetry / consumeStream: SSE 消费、网络重试、AgentBusyError fail-fast、multiplex 分流
+ * executeStreamWithRetry / consumeStream: SSE 消费、网络重试、AgentBusyError fail-fast、multiplex 分流；turn 成功后 finalizeAgentStreamTurn
  *
  * [POS]
  * Chat agent-stream 前端消费 SSOT。busy 检测：HTTP 409 或 SSE error_type=AgentBusyError；pinned workflow template 仅在 agent-stream POST 成功（res.ok）后清除；multiplex 下 early-terminal SSE 直读 POST。
@@ -34,6 +34,7 @@ import { recordWikiQuerySubmitted } from '@/services/wiki/evidenceMetrics';
 import { consumePendingChatWikiQuerySuccess } from '@/services/wiki/evidenceQuerySuccessPendingCore';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
+import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 
 function finalizeMigrationBoundProjectHandoff(chatId: string | undefined): void {
   const boundProjectId = consumeMigrationBoundProjectId();
@@ -363,6 +364,7 @@ export async function executeStreamWithRetry(
         await consumeStream(res, input, state, actions, abortController, added, recievedMessage, { onBusinessEvent });
       }
       await tryE2eAttachForPendingApproval(state, actions, abortController);
+      await finalizeAgentStreamTurn(state.chatId);
       return;
     } catch (error) {
       if (!(error instanceof Error)) {

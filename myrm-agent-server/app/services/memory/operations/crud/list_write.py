@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import Depends, HTTPException, Query
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryType
+from myrm_agent_harness.toolkits.memory import MemoryError, MemoryManager, MemoryOperationKind, MemoryType
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 from pydantic import BaseModel
 
@@ -189,7 +189,10 @@ async def create_memory(
     elif mem_type == MemoryType.SEMANTIC:
         if not manager.has_vector:
             raise HTTPException(status_code=400, detail="Semantic memory is not enabled")
-        memory = await manager.add_knowledge(body.content, importance=body.importance, tags=body.tags)
+        try:
+            memory = await manager.add_knowledge(body.content, importance=body.importance, tags=body.tags)
+        except MemoryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,
             summary="Semantic memory created manually.",
@@ -201,11 +204,14 @@ async def create_memory(
     elif mem_type == MemoryType.EPISODIC:
         if not manager.has_vector:
             raise HTTPException(status_code=400, detail="Episodic memory is not enabled")
-        memory = await manager.add_event(
-            body.content,
-            event_type="user_manual",
-            related_entities=body.related_entities or None,
-        )
+        try:
+            memory = await manager.add_event(
+                body.content,
+                event_type="user_manual",
+                related_entities=body.related_entities or None,
+            )
+        except MemoryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,
             summary="Episodic memory created manually.",
@@ -268,6 +274,8 @@ async def update_memory(
             memory_type=mem_type.value,
         )
         return memory_to_item(updated, mem_type)
+    except MemoryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as e:
         raise HTTPException(status_code=404, detail="Memory not found") from e
 

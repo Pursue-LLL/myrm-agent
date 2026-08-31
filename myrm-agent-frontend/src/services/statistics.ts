@@ -471,6 +471,7 @@ export interface GrowthSnapshot {
   max_streak: number;
   memory_health_score: number;
   memory_health_dimensions: Record<string, number>;
+  memory_citations_7d: number;
 }
 
 export interface ActivityDay {
@@ -521,6 +522,16 @@ export interface SkillTrendSeries {
   data_points: SkillTrendPoint[];
 }
 
+export interface SkillHealthItem {
+  skill_name: string;
+  health_score: number;
+  status: string;
+  call_count_7d: number;
+  call_count_total: number;
+  success_rate_7d: number;
+  last_used_at: string | null;
+}
+
 export interface GrowthDashboardData {
   snapshot: GrowthSnapshot;
   activity_heatmap: ActivityDay[];
@@ -528,6 +539,7 @@ export interface GrowthDashboardData {
   skill_events: SkillEvolutionEvent[];
   cost_summary: CostSummary | null;
   skill_trends: SkillTrendSeries[];
+  skill_health: SkillHealthItem[];
 }
 
 export async function getGrowthDashboard(days = 84): Promise<GrowthDashboardData> {

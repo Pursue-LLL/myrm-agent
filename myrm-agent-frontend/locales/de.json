@@ -1,4 +1,11 @@
 {
+  "expertSummon": {
+    "summonSuccess": "{name} erfolgreich aktiviert",
+    "summonFailed": "Agent-Vorlage konnte nicht aktiviert werden",
+    "featuredTitle": "Empfohlene Expertenteams & Agenten",
+    "teamBadge": "Team",
+    "expertBadge": "Experte"
+  },
   "recovery": {
     "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
     "description": "Beim Start wurden Anomalien in Komponenten oder Konfigurationen festgestellt. Sie können zur letzten funktionierenden Konfiguration zurückkehren oder ein Diagnosepaket exportieren.",
@@ -9140,9 +9147,25 @@
       "overview": "Überblick",
       "timeline": "Lernzeitleiste",
       "evolution": "Evolutionsübersicht",
+      "weeklyDigest": "Wochenbericht",
       "graph": "Wissensgraph",
       "trends": "Skill-Trends",
       "daily": "Täglicher Rückblick"
+    },
+    "weeklyDigest": {
+      "title": "Team-Wochenbericht & Wissenszins-Journal",
+      "description": "Fasst 7-Tage-Aktivitätsmetriken, Skill-Zinseszins-Rankings, Wissenszitierungen und Fehlervermeidungsvorschläge automatisch zusammen, mit 1-Klick-Markdown-Export.",
+      "copyMarkdown": "Bericht kopieren",
+      "copied": "In die Zwischenablage kopiert",
+      "exportMarkdown": ".md-Datei exportieren",
+      "refresh": "Aktualisieren",
+      "compoundingScore": "Zinseszins-Index",
+      "healthTier": "Gesundheitsstufe",
+      "hoursSaved": "Eingesparte Stunden",
+      "cacheHitRate": "Cache-Wiederverwendungsrate",
+      "citations": "Wissenszitierungen",
+      "empty": "Keine Aktivitäten in dieser Woche",
+      "emptyDesc": "Sobald Sie mit dem Agenten interagieren, Skills nutzen oder Erinnerungen speichern, wird der Wochenbericht automatisch generiert."
     },
     "learningTimeline": {
       "title": "Lern- und Evolutionsstream",
@@ -17625,5 +17648,16 @@
       "exportSuccessDesc": "Diagnosearchiv wurde erfolgreich erstellt und heruntergeladen.",
       "exportFailedTitle": "Export fehlgeschlagen"
     }
+  },
+  "expertSummon": {
+    "summonSuccess": "Zu Experte {name} gewechselt",
+    "summonFailed": "Beschwörung der Expertenvorlage fehlgeschlagen",
+    "featuredTitle": "Ausgewählte Experten & Squads",
+    "teamBadge": "Expertenteam",
+    "expertBadge": "Experte",
+    "searchPlaceholder": "Experten oder Teams suchen...",
+    "loading": "Wird geladen...",
+    "empty": "Keine passenden Experten- oder Team-Vorlagen gefunden",
+    "summonButton": "Beschwören"
   }
 }

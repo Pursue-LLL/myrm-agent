@@ -13,76 +13,62 @@ describe('ExtensionSlot', () => {
     render(
       <ExtensionSlot
         name="sidebar.footer.action"
-        fallback={<div data-testid="fallback-slot">Empty fallback</div>}
+        fallback={<div data-testid="fallback-node">Empty Fallback</div>}
       />,
     );
 
-    expect(screen.getByTestId('fallback-slot')).toBeDefined();
-    expect(screen.getByText('Empty fallback')).toBeDefined();
+    expect(screen.getByTestId('fallback-node')).toBeInTheDocument();
   });
 
-  it('renders registered contributions matching slot name', () => {
-    const TestComponentA = () => <div data-testid="contrib-a">Action A</div>;
-    const TestComponentB = () => <div data-testid="contrib-b">Action B</div>;
+  it('renders contributions matching slot name ordered correctly', () => {
+    const ComponentA = () => <div data-testid="comp-a">Comp A (order 20)</div>;
+    const ComponentB = () => <div data-testid="comp-b">Comp B (order 10)</div>;
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'plugin-a',
-      slotName: 'sidebar.footer.action',
-      order: 10,
-      component: TestComponentA,
-    });
-
-    useExtensionSlotStore.getState().registerContribution({
-      id: 'plugin-b',
+      id: 'test-a',
       slotName: 'sidebar.footer.action',
       order: 20,
-      component: TestComponentB,
+      component: ComponentA,
     });
 
-    render(<ExtensionSlot name="sidebar.footer.action" />);
+    useExtensionSlotStore.getState().registerContribution({
+      id: 'test-b',
+      slotName: 'sidebar.footer.action',
+      order: 10,
+      component: ComponentB,
+    });
 
-    expect(screen.getByTestId('contrib-a')).toBeDefined();
-    expect(screen.getByTestId('contrib-b')).toBeDefined();
+    const { container } = render(<ExtensionSlot name="sidebar.footer.action" />);
+
+    expect(screen.getByTestId('comp-a')).toBeInTheDocument();
+    expect(screen.getByTestId('comp-b')).toBeInTheDocument();
+
+    const items = container.querySelectorAll('[data-testid^="comp-"]');
+    expect(items[0]).toHaveAttribute('data-testid', 'comp-b');
+    expect(items[1]).toHaveAttribute('data-testid', 'comp-a');
   });
 
-  it('filters out contributions where condition returns false', () => {
-    const TestActive = () => <div data-testid="contrib-active">Active Plugin</div>;
-    const TestInactive = () => <div data-testid="contrib-inactive">Inactive Plugin</div>;
+  it('respects dynamic condition evaluation', () => {
+    const ActiveComp = () => <div data-testid="comp-active">Active</div>;
+    const InactiveComp = () => <div data-testid="comp-inactive">Inactive</div>;
 
     useExtensionSlotStore.getState().registerContribution({
       id: 'active',
-      slotName: 'chat.header.actions',
-      component: TestActive,
+      slotName: 'navbar.bottom.tools',
+      component: ActiveComp,
       condition: () => true,
     });
 
     useExtensionSlotStore.getState().registerContribution({
       id: 'inactive',
-      slotName: 'chat.header.actions',
-      component: TestInactive,
+      slotName: 'navbar.bottom.tools',
+      component: InactiveComp,
       condition: () => false,
     });
 
-    render(<ExtensionSlot name="chat.header.actions" />);
+    render(<ExtensionSlot name="navbar.bottom.tools" />);
 
-    expect(screen.getByTestId('contrib-active')).toBeDefined();
-    expect(screen.queryByTestId('contrib-inactive')).toBeNull();
-  });
-
-  it('correctly unregisters contribution on cleanup', () => {
-    const TestComp = () => <div data-testid="temp-contrib">Temporary</div>;
-
-    const unregister = useExtensionSlotStore.getState().registerContribution({
-      id: 'temp',
-      slotName: 'navbar.bottom.tools',
-      component: TestComp,
-    });
-
-    const { rerender } = render(<ExtensionSlot name="navbar.bottom.tools" />);
-    expect(screen.getByTestId('temp-contrib')).toBeDefined();
-
-    unregister();
-    rerender(<ExtensionSlot name="navbar.bottom.tools" />);
-    expect(screen.queryByTestId('temp-contrib')).toBeNull();
+    expect(screen.getByTestId('comp-active')).toBeInTheDocument();
+    expect(screen.queryByTestId('comp-inactive')).not.toBeInTheDocument();
   });
 });

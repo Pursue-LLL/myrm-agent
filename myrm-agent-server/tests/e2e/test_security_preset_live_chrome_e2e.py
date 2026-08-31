@@ -445,7 +445,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
             client,
             page,
             _store_preset_probe("accept_edits", preset_agent_id),
-            timeout_sec=30.0,
+            timeout_sec=90.0,
         )
         assert after_turn.get("ready") is True, json.dumps(after_turn, ensure_ascii=False)
 

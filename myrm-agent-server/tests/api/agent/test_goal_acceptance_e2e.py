@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import subprocess
@@ -20,11 +21,15 @@ from tests.api.agent.utils import get_model_selection
 
 class _LocalBashExecutor(CodeExecutor):
     async def execute(self, context: ExecutionContext) -> ExecutionResult:
-        res = subprocess.run(
-            ["python3", "-c", context.code],
-            capture_output=True,
-            text=True,
-            timeout=context.timeout,
+        loop = asyncio.get_running_loop()
+        res = await loop.run_in_executor(
+            None,
+            lambda: subprocess.run(
+                ["python3", "-c", context.code],
+                capture_output=True,
+                text=True,
+                timeout=context.timeout,
+            ),
         )
         return ExecutionResult(
             exit_code=res.returncode,
@@ -34,11 +39,15 @@ class _LocalBashExecutor(CodeExecutor):
         )
 
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
-        res = subprocess.run(
-            ["bash", "-c", context.code],
-            capture_output=True,
-            text=True,
-            timeout=context.timeout,
+        loop = asyncio.get_running_loop()
+        res = await loop.run_in_executor(
+            None,
+            lambda: subprocess.run(
+                ["bash", "-c", context.code],
+                capture_output=True,
+                text=True,
+                timeout=context.timeout,
+            ),
         )
         return ExecutionResult(
             exit_code=res.returncode,
@@ -79,7 +88,7 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
             "modelSelection": get_model_selection(),
             "goal": {
                 "objective": "Just complete the goal",
-                "maxTokens": 100000,
+                "maxTokens": 1000000,
                 "acceptance_criteria": [
                     {
                         "type": "shell",

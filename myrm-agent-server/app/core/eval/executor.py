@@ -200,6 +200,18 @@ class LocalEvalExecutor:
         )
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+        from app.core.channel_bridge.config_parsers import resolve_chat_fallback_chains_from_providers
+
+        fallback_model_cfgs_list, fallback_lite_model_cfgs_list = resolve_chat_fallback_chains_from_providers(
+            configs.providers_dict,
+            require_tool_calling=True,
+        )
+        fallback_model_cfgs = fallback_model_cfgs_list or None
+        fallback_lite_model_cfgs = fallback_lite_model_cfgs_list or None
+        if fallback_model_cfgs and fallback_model_cfg is None:
+            fallback_model_cfg = fallback_model_cfgs[0]
+        if fallback_lite_model_cfgs and fallback_lite_model_cfg is None:
+            fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
         user_instructions = extract_user_instructions(configs.personal_settings_dict)
 
         agent_skill_ids = []
@@ -349,8 +361,10 @@ class LocalEvalExecutor:
             query=message,
             model_cfg=eval_model_cfg,
             fallback_model_cfg=fallback_model_cfg,
+            fallback_model_cfgs=fallback_model_cfgs,
             lite_model_cfg=lite_model_cfg,
             fallback_lite_model_cfg=fallback_lite_model_cfg,
+            fallback_lite_model_cfgs=fallback_lite_model_cfgs,
             search_service_cfg=configs.search_cfg,
             mcp_cfg=mcp_configs or None,
             user_instructions=user_instructions,

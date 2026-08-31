@@ -1,32 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useTrafficLightInsets } from '../useTrafficLightInsets';
-import { desktopBridge } from '@/lib/desktopBridge';
+import { desktopBridge } from '@/lib/desktop-bridge';
 
 describe('useTrafficLightInsets', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('returns 0 insets in Web or non-Mac environment', () => {
-    vi.spyOn(desktopBridge, 'isMacOS').mockReturnValue(false);
-    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(false);
+  it('sets zero insets in standard web browser environment', () => {
+    vi.spyOn(desktopBridge, 'getWindowControlsState').mockReturnValue({
+      controlsInsetTop: 0,
+      controlsInsetLeft: 0,
+      platform: 'web',
+      isDesktop: false,
+      isOverlayTitlebar: false,
+    });
 
     const { result } = renderHook(() => useTrafficLightInsets());
 
-    expect(result.current.isImmersiveMac).toBe(false);
     expect(result.current.topInset).toBe(0);
     expect(result.current.leftInset).toBe(0);
+    expect(result.current.isImmersiveMac).toBe(false);
   });
 
-  it('returns active insets and sets CSS variables in macOS Tauri desktop environment', () => {
-    vi.spyOn(desktopBridge, 'isMacOS').mockReturnValue(true);
-    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(true);
+  it('sets non-zero insets when running in macOS desktop environment', () => {
+    vi.spyOn(desktopBridge, 'getWindowControlsState').mockReturnValue({
+      controlsInsetTop: 28,
+      controlsInsetLeft: 76,
+      platform: 'macos',
+      isDesktop: true,
+      isOverlayTitlebar: true,
+    });
 
     const { result } = renderHook(() => useTrafficLightInsets());
 
-    expect(result.current.isImmersiveMac).toBe(true);
     expect(result.current.topInset).toBe(28);
-    expect(result.current.leftInset).toBe(78);
+    expect(result.current.leftInset).toBe(76);
+    expect(result.current.isImmersiveMac).toBe(true);
   });
 });
+

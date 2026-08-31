@@ -65,7 +65,17 @@
     ".next-isolated-chrome-test_search_priority_chain_settings_ui_s-e3603111-50812-22f3393a/types/**/*.ts",
     ".next-isolated-chrome-test_search_priority_chain_settings_ui_s-e3603111-50812-22f3393a/dev/types/**/*.ts",
     ".next-isolated-chrome-test_plugin_manager_shows_mcp_server_ena-a6926989-80065-f6c35f12/types/**/*.ts",
-    ".next-isolated-chrome-test_plugin_manager_shows_mcp_server_ena-a6926989-80065-f6c35f12/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_plugin_manager_shows_mcp_server_ena-a6926989-80065-f6c35f12/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_kept_prior_chat_mention_reaches_rea-d4f7cbd3-53615-4f66a654/types/**/*.ts",
+    ".next-isolated-chrome-test_kept_prior_chat_mention_reaches_rea-d4f7cbd3-53615-4f66a654/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-6945-9acd910a/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-6945-9acd910a/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-52690-b9bc9275/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-52690-b9bc9275/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-44756-57fe0411/types/**/*.ts",
+    ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-44756-57fe0411/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-69354-700178ff/types/**/*.ts",
+    ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-69354-700178ff/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

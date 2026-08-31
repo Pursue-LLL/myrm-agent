@@ -1,4 +1,11 @@
 {
+  "expertSummon": {
+    "summonSuccess": "已成功啟用 {name}",
+    "summonFailed": "啟用智慧體範本失敗",
+    "featuredTitle": "精選專家小隊與智慧體",
+    "teamBadge": "小隊",
+    "expertBadge": "專家"
+  },
   "recovery": {
     "title": "Agent 啟動與配置自愈中心",
     "description": "檢測到當前 Agent 綁定的組件或配置在啟動期存在異常。您可以一鍵恢復至最後已知良好配置，或匯出診斷包進行排查。",
@@ -9144,6 +9151,22 @@
       "trends": "技能趨勢",
       "daily": "每日回顧"
     },
+    "export": {
+      "copyMarkdown": "複製 Markdown",
+      "copied": "已複製到剪貼簿",
+      "exportMarkdown": "匯出 .md"
+    },
+    "skillHealth": {
+      "title": "技能健康度",
+      "description": "近 7 天技能複利分數與成功/失敗率",
+      "empty": "暫無本週技能執行記錄",
+      "emptyDesc": "使用技能後，健康度與複利分數將顯示於此",
+      "skill": "技能",
+      "tier": "等級",
+      "score": "複利分",
+      "successRate": "成功率",
+      "runs": "執行次數"
+    },
     "learningTimeline": {
       "title": "記憶與技能學習時間線",
       "description": "統一按時間軸彙聚事實、偏好、經驗流程記憶與技能演化流，提供行內修改與治理能力。",
@@ -17625,5 +17648,16 @@
       "exportSuccessDesc": "系統診斷歸檔包已產生並已觸發瀏覽器下載。",
       "exportFailedTitle": "診斷包匯出失敗"
     }
+  },
+  "expertSummon": {
+    "summonSuccess": "已切換至專家 {name}",
+    "summonFailed": "召喚專家範本失敗",
+    "featuredTitle": "精選專家與專家團",
+    "teamBadge": "專家團",
+    "expertBadge": "專家",
+    "searchPlaceholder": "搜尋專家或團隊...",
+    "loading": "載入中...",
+    "empty": "未找到相符的專家或團隊範本",
+    "summonButton": "召喚"
   }
 }

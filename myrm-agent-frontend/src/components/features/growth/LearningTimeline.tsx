@@ -122,6 +122,7 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
   const [items, setItems] = useState<LearningTimelineItem[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
   const [selectedKind, setSelectedKind] = useState<string>('all');
   const [days, setDays] = useState<number>(30);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -140,6 +141,7 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
       try {
         if (reset) {
           setLoading(true);
+          setLoadError(false);
         } else {
           setLoadingMore(true);
         }
@@ -160,6 +162,13 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
         setNextCursor(resp.next_cursor);
       } catch (err) {
         showApiError(err);
+        if (reset) {
+          setLoadError(true);
+          setItems([]);
+          setTotalCount(0);
+          setHasMore(false);
+          setNextCursor(null);
+        }
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -312,8 +321,25 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
       {/* Loading state */}
       {loading && <TimelineSkeleton count={4} className="my-2" />}
 
+      {/* Load error */}
+      {!loading && loadError && (
+        <EmptyState
+          variant="error"
+          icon={AlertCircle}
+          title={t('error.title')}
+          description={t('error.description')}
+          className="min-h-[260px] my-4"
+          action={
+            <Button variant="outline" size="sm" onClick={() => void fetchTimeline(true)}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              {t('error.retry')}
+            </Button>
+          }
+        />
+      )}
+
       {/* Empty state */}
-      {!loading && items.length === 0 && (
+      {!loading && !loadError && items.length === 0 && (
         <EmptyState
           variant="dashed"
           icon={Brain}
@@ -324,7 +350,7 @@ export const LearningTimeline = memo<LearningTimelineProps>(({ onSelectMemoryFor
       )}
 
       {/* Timeline Stream */}
-      {!loading && items.length > 0 && (
+      {!loading && !loadError && items.length > 0 && (
         <div className="relative pl-6 space-y-4 before:absolute before:bottom-2 before:left-2.5 before:top-2 before:w-[2px] before:bg-border/60">
           {items.map((item) => {
             const meta = KIND_META[item.kind] ?? KIND_META.fact_memory;

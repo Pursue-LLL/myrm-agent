@@ -114,8 +114,20 @@ async def build_channel_execution_agent(
         agent_model_cfg = configs.model_cfg
 
     from app.core.channel_bridge.config_parsers import (
+        resolve_chat_fallback_chains_from_providers,
         resolve_vision_fallback_chain_for_agent,
     )
+
+    fallback_model_cfgs_list, fallback_lite_model_cfgs_list = resolve_chat_fallback_chains_from_providers(
+        configs.providers_dict,
+        require_tool_calling=True,
+    )
+    fallback_model_cfgs = fallback_model_cfgs_list or None
+    fallback_lite_model_cfgs = fallback_lite_model_cfgs_list or None
+    if fallback_model_cfgs and fallback_model_cfg is None:
+        fallback_model_cfg = fallback_model_cfgs[0]
+    if fallback_lite_model_cfgs and fallback_lite_model_cfg is None:
+        fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
 
     vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
         configs.providers_dict,
@@ -192,8 +204,10 @@ async def build_channel_execution_agent(
         query=query,
         model_cfg=agent_model_cfg,
         fallback_model_cfg=fallback_model_cfg,
+        fallback_model_cfgs=fallback_model_cfgs,
         lite_model_cfg=lite_model_cfg,
         fallback_lite_model_cfg=fallback_lite_model_cfg,
+        fallback_lite_model_cfgs=fallback_lite_model_cfgs,
         vision_fallback_model_cfg=vision_fallback_model_cfg,
         vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
         search_service_cfg=configs.search_cfg,
@@ -217,7 +231,7 @@ async def build_channel_execution_agent(
         enable_advanced_retrieval=bool(
             configs.retrieval_dict.get("enableAdvancedRetrieval") if configs.retrieval_dict else False
         ),
-        memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation")),
+        memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation", True)),
         enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
         enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
         security_config_raw=apply_learn_skill_manage_permission_overlay(

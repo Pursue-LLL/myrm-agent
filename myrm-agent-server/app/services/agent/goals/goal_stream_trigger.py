@@ -205,6 +205,7 @@ async def trigger_goal_stream(
     from app.core.channel_bridge.config_parsers import (
         extract_fallback_model_configs,
         extract_retrieval_models,
+        resolve_chat_fallback_chains_from_providers,
         resolve_vision_fallback_chain_for_agent,
         verify_search_service_available,
     )
@@ -226,6 +227,16 @@ async def trigger_goal_stream(
     model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
     model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
     fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(user_cfgs.providers_dict)
+    fallback_model_cfgs_list, fallback_lite_model_cfgs_list = resolve_chat_fallback_chains_from_providers(
+        user_cfgs.providers_dict,
+        require_tool_calling=True,
+    )
+    fallback_model_cfgs = fallback_model_cfgs_list or None
+    fallback_lite_model_cfgs = fallback_lite_model_cfgs_list or None
+    if fallback_model_cfgs and fallback_model_cfg is None:
+        fallback_model_cfg = fallback_model_cfgs[0]
+    if fallback_lite_model_cfgs and fallback_lite_model_cfg is None:
+        fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
     vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
         user_cfgs.providers_dict,
         main_model_cfg=model_cfg if model_cfg.supports_vision else None,
@@ -276,7 +287,9 @@ async def trigger_goal_stream(
         subagent_ids=agent_ctx.subagent_ids,
         model_cfg=model_cfg,
         fallback_model_cfg=fallback_model_cfg,
+        fallback_model_cfgs=fallback_model_cfgs,
         fallback_lite_model_cfg=fallback_lite_model_cfg,
+        fallback_lite_model_cfgs=fallback_lite_model_cfgs,
         vision_fallback_model_cfg=vision_fallback_model_cfg,
         vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
         search_service_cfg=user_cfgs.search_cfg,

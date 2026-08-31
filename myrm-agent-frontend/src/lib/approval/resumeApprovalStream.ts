@@ -137,6 +137,9 @@ export async function resumeApprovalStream(
 
   scheduler.flush();
   scheduler.cancel();
+
+  const { finalizeAgentStreamTurn } = await import('@/store/chat/chatAgentSessionRestore');
+  await finalizeAgentStreamTurn(request.chatId);
 }
 
 export class ApprovalExpiredError extends Error {

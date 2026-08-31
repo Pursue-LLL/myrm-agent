@@ -7,7 +7,7 @@
  * [OUTPUT]
  * initializeChat: Initialize or switch chat sessions with instant snapshot rendering.
  * resolveInstantChatSnapshot: Resolve workspace pane or LRU snapshot for a chat id.
- * loadMessages: Fetch chat history from DB + restore bound agentConfig (optional instant-session preserve).
+ * loadMessages: Fetch chat history from DB + always restore bound agentConfig from chat.agent_id.
  * autoSaveChat: Auto-generate and save chat titles.
  *
  * [POS]
@@ -28,16 +28,15 @@ import {
 import { ApiError, apiRequest } from '@/lib/api';
 import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { disambiguateChatTitle } from '@/lib/utils/titleUtils';
-import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
+import { restoreAgentConfigFromChat } from '@/store/chat/chatAgentSessionRestore';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { normalizeSessionAccessRoots } from '@/store/chat/types/sessionAccess';
 import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
-import useAgentStore from '@/store/useAgentStore';
-import { useSkillStore } from '@/store/skill';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
+
 import {
   extractNavigationSnapshot,
   getChatNavigationSnapshot,
@@ -69,34 +68,6 @@ function normalizeActionMode(actionMode: string | null | undefined): ActionMode 
 }
 
 /**
- * Restore agentConfig when loading a historical chat that was bound to a specific agent.
- * Runs asynchronously to avoid blocking message rendering.
- */
-function restoreAgentConfigFromChat(chatId: string, agentId: string | null | undefined): void {
-  if (!agentId) {
-    return;
-  }
-
-  const currentConfig = useChatStore.getState().agentConfig;
-  if (currentConfig?.agentId === agentId) {
-    return;
-  }
-
-  useAgentStore
-    .getState()
-    .fetchAgent(agentId)
-    .then(async (agent) => {
-      if (!agent || useChatStore.getState().chatId !== chatId) {
-        return;
-      }
-      const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
-      await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
-      useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
-    })
-    .catch(() => {});
-}
-
-/**
  * 加载历史消息（初始加载最新一页）
  */
 export const loadMessages = async (
@@ -104,26 +75,6 @@ export const loadMessages = async (
   actions: ChatActionsMethods,
   options?: LoadMessagesOptions,
 ): Promise<void> => {
-  if (typeof window !== 'undefined' && (window as any).__MYRM_LOADMSGS_CLOCK__ !== undefined) {
-    try {
-      const cutoff = (window as any).__MYRM_LOADMSGS_CLOCK__;
-      // Diagnostic probe (temp): log any loadMessages within the clock window —
-      // mid-stream or not — so a stale reload that drops store-injected state
-      // (routingTier) always leaves a caller stack.
-      const st = useChatStore.getState();
-      if (Date.now() < cutoff) {
-        console.warn('[MYRM_LOADMSGS] loadMessages fired!', {
-          chatId,
-          loading: st.loading,
-          currentSessionMessageId: st.currentSessionMessageId,
-          msgCount: (st.messages ?? []).length,
-        });
-        console.warn('[MYRM_LOADMSGS] stack:', new Error('loadMessages caller').stack);
-      }
-    } catch {
-      /* diagnostic only */
-    }
-  }
   const preserveInstantSessionConfig = options?.preserveInstantSessionConfig ?? false;
   // Snapshot whether a live turn was streaming when this load started. If so,
   // the DB snapshot may not have persisted the in-flight assistant message
@@ -233,9 +184,9 @@ export const loadMessages = async (
       }
     });
 
-    if (!preserveInstantSessionConfig) {
-      restoreAgentConfigFromChat(chatId, chatData.chat.agent_id);
-    }
+    // Agent binding always follows DB chat.agent_id, even when instant-session
+    // snapshot preserved messages/loading (LRU attach must not keep stale agentConfig).
+    await restoreAgentConfigFromChat(chatId, chatData.chat.agent_id);
 
     if (!preserveInstantSessionConfig && !options?.skipActiveTurnAttach) {
       console.log('[MYRM-ATTACH] loadMessages triggers maybeAttachToActiveTurn', {

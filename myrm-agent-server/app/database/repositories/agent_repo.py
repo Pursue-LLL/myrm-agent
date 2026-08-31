@@ -122,6 +122,8 @@ class AgentRepository:
                 "dialog_policy": agent.dialog_policy,
                 "session_recording": agent.session_recording,
                 "cron_post_run_verify": bool(getattr(agent, "cron_post_run_verify", False)),
+                "is_pareto_preset": bool((agent.engine_params or {}).get("is_pareto_preset", False)) if isinstance(agent.engine_params, dict) else False,
+                "cost_reduction_ratio": (agent.engine_params or {}).get("cost_reduction_ratio") if isinstance(agent.engine_params, dict) else None,
             },
             built_in=agent.is_built_in or agent.is_public,
             created_at=agent.created_at,
@@ -169,6 +171,19 @@ class AgentRepository:
         return result.scalar_one()
 
     @staticmethod
+    def _prepare_engine_params(meta: dict[str, object]) -> dict[str, object] | None:
+        """Combine engine_params with top-level is_pareto_preset / cost_reduction_ratio metadata."""
+        ep = meta.get("engine_params")
+        engine_params = dict(ep) if isinstance(ep, dict) else {}
+
+        if meta.get("is_pareto_preset") is not None:
+            engine_params["is_pareto_preset"] = bool(meta["is_pareto_preset"])
+        if meta.get("cost_reduction_ratio") is not None:
+            engine_params["cost_reduction_ratio"] = float(meta["cost_reduction_ratio"])  # type: ignore[arg-type]
+
+        return engine_params or None
+
+    @staticmethod
     async def create_profile(
         db: AsyncSession,
         profile: AgentProfile,
@@ -206,7 +221,7 @@ class AgentRepository:
                 # if encryption fails, to avoid leaking.
                 gateway_config.pop("auth_token", None)
 
-        full_model_selection = meta.pop("_model_selection_full", None)
+        full_model_selection = meta.pop("model_selection_full", None) or meta.pop("_model_selection_full", None)
         raw_auto = meta.get("auto_restore_domains")
         auto_restore_val: list[str] | None = [str(x) for x in raw_auto] if isinstance(raw_auto, list) else None
         agent = Agent(
@@ -234,7 +249,7 @@ class AgentRepository:
             auto_restore_domains=auto_restore_val,
             security_overrides=meta.get("security_overrides"),
             default_security_preset=meta.get("default_security_preset"),
-            engine_params=meta.get("engine_params"),
+            engine_params=AgentRepository._prepare_engine_params(meta),
             suggestion_prompts=meta.get("suggestion_prompts"),
             openapi_services=meta.get("openapi_services") or None,
             prompt_mode=str(meta.get("prompt_mode", "full")),
@@ -376,10 +391,8 @@ class AgentRepository:
                 agent.allow_discovery = bool(metadata["allow_discovery"])
             if "workspace_policy" in metadata:
                 agent.workspace_policy = cast(str, metadata["workspace_policy"])
-            if "engine_params" in metadata:
-                engine_params = metadata["engine_params"]
-                if engine_params is None or isinstance(engine_params, dict):
-                    agent.engine_params = engine_params
+            if "engine_params" in metadata or "is_pareto_preset" in metadata or "cost_reduction_ratio" in metadata:
+                agent.engine_params = AgentRepository._prepare_engine_params(metadata)
             if "auto_restore_domains" in metadata:
                 raw_ar = metadata["auto_restore_domains"]
                 if raw_ar is None:

@@ -26,6 +26,7 @@ import { resolveLucideIcon } from '@/components/agent/agent-icons';
 import { resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
 import { recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
+import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useChatStore from '@/store/useChatStore';
 
 interface FeaturedExpertChipsProps {
@@ -115,7 +116,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({ className
         });
 
         // Bind new agent to active session
-        setAgentConfig(newAgent);
+        setAgentConfig(buildAgentConfig(newAgent));
         if (starterPrompt) {
           setInputMessage(starterPrompt);
         }

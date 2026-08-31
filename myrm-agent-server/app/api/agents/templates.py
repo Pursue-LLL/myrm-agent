@@ -227,7 +227,8 @@ async def _instantiate_individual_template(data: dict[str, Any], template_id: st
     from app.api.agents._agent_response import _to_agent_response
 
     agent = await AgentService.create_agent(agent_data)
-    return success_response(data=_to_agent_response(agent).model_dump())
+    fresh_agent = await AgentService.get_agent_by_id(agent.id) or agent
+    return success_response(data=_to_agent_response(fresh_agent).model_dump())
 
 
 async def _instantiate_team_template(data: dict[str, Any], template_id: str, request: Request) -> JSONResponse:
@@ -259,10 +260,11 @@ async def _instantiate_team_template(data: dict[str, Any], template_id: str, req
         # Phase 2: Create leader with references to all members
         leader_data = _build_leader_agent_data(data, created_agent_ids, accept_lang, template_id)
         leader_agent = await AgentService.create_agent(leader_data)
+        fresh_leader = await AgentService.get_agent_by_id(leader_agent.id) or leader_agent
 
         from app.api.agents._agent_response import _to_agent_response
 
-        response_data = _to_agent_response(leader_agent).model_dump()
+        response_data = _to_agent_response(fresh_leader).model_dump()
         response_data["team_member_ids"] = created_agent_ids
         return success_response(data=response_data)
 

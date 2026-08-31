@@ -73,12 +73,14 @@ class GeneralAgent(ToolSetupMixin):
         project_id: str | None = None,
         lite_model_cfg: ModelConfig | None = None,
         fallback_model_cfg: ModelConfig | None = None,
+        fallback_model_cfgs: list[ModelConfig] | None = None,
         safety_fallback_model_cfg: ModelConfig | None = None,
         fallback_lite_model_cfg: ModelConfig | None = None,
+        fallback_lite_model_cfgs: list[ModelConfig] | None = None,
         vision_fallback_model_cfg: ModelConfig | None = None,
         vision_fallback_model_cfgs: list[ModelConfig] | None = None,
         video_fallback_model_cfgs: list[ModelConfig] | None = None,
-        memory_require_confirmation: bool = False,
+        memory_require_confirmation: bool = True,
         enable_memory_auto_extraction: bool = True,
         enable_conversation_search: bool = False,
         incognito_mode: bool = False,
@@ -172,9 +174,11 @@ class GeneralAgent(ToolSetupMixin):
     ) -> None:
         self.model_cfg = model_cfg
         self.fallback_model_cfg = fallback_model_cfg
+        self.fallback_model_cfgs = fallback_model_cfgs
         self.safety_fallback_model_cfg = safety_fallback_model_cfg
         self.lite_model_cfg = lite_model_cfg
         self.fallback_lite_model_cfg = fallback_lite_model_cfg
+        self.fallback_lite_model_cfgs = fallback_lite_model_cfgs
         self.vision_fallback_model_cfg = vision_fallback_model_cfg
         self.vision_fallback_model_cfgs = vision_fallback_model_cfgs
         self.video_fallback_model_cfgs = video_fallback_model_cfgs

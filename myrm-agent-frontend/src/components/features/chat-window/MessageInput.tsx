@@ -68,6 +68,8 @@ import { QuoteCard } from './QuoteCard';
 import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
 import { SkillActivationChips } from '../message-box/SkillActivationChips';
+import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
+import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
 import { WorkflowTemplateArmedBar } from './WorkflowTemplateArmedBar';
 import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
@@ -510,6 +512,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               />
             ) : (
               <>
+                <FeaturedExpertChips />
                 {pendingWorkflowTemplateId ? (
                   <WorkflowTemplateArmedBar
                     templateId={pendingWorkflowTemplateId}
@@ -598,6 +601,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                       <SandboxModeToggle />
                       <SecurityPresetSelector />
                       <FocusFlushButton />
+                      <ExpertSummonPopover />
                       {chatId && messages.length > 0 && !loading && (
                         <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
                       )}

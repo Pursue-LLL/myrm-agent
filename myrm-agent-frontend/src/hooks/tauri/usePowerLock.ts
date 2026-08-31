@@ -1,40 +1,46 @@
 /**
  * [INPUT]
  * @/store/useChatStore::useChatStore (POS: Chat conversation state store)
- * @/lib/deploy-mode::isTauriRuntime (POS: Deployment mode detector)
+ * @/lib/desktop-bridge::desktopBridge (POS: 统一桌面桥接门面)
  *
  * [OUTPUT]
  * usePowerLock: Prevents system sleep during agent task execution on desktop.
  *
  * [POS]
  * Desktop power management hook. Acquires a system power lock when agent
- * tasks are running and releases it when idle. Only active in Tauri runtime.
+ * tasks are running and releases it when idle. Driven through IDesktopBridge.power.
  */
-import { useEffect } from 'react';
-import { isTauriRuntime } from '@/lib/deploy-mode';
+import { useEffect, useRef } from 'react';
+import { desktopBridge } from '@/lib/desktop-bridge';
 import useChatStore from '@/store/useChatStore';
 
 export function usePowerLock() {
   const isGenerating = useChatStore((state) => state.loading);
+  const lockIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isTauriRuntime()) {
+    if (!desktopBridge.isDesktop || !desktopBridge.capabilities.hasNativePowerLock) {
       return;
     }
 
     const managePowerLock = async () => {
       try {
-        const { invoke } = await import('@tauri-apps/api/core');
         if (isGenerating) {
-          await invoke('power_lock_acquire', { reason: 'Agent task in progress' });
+          if (!lockIdRef.current) {
+            const id = await desktopBridge.power.acquireLock('Agent task in progress');
+            lockIdRef.current = id;
+          }
         } else {
-          await invoke('power_lock_release');
+          if (lockIdRef.current) {
+            await desktopBridge.power.releaseLock(lockIdRef.current);
+            lockIdRef.current = null;
+          }
         }
       } catch {
         // Non-critical: silently ignore if power management unavailable
       }
     };
 
-    managePowerLock();
+    void managePowerLock();
   }, [isGenerating]);
 }

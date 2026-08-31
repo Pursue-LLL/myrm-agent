@@ -142,7 +142,10 @@ def test_pareto_presets_instantiate(client: TestClient):
     assert agent["is_pareto_preset"] is True
     assert agent["cost_reduction_ratio"] == 0.70
     assert agent["model_selection"] is not None
-    assert agent["model_selection"]["light_model"]["provider"] == "openrouter"
+    assert agent["model_selection"]["lightProviderId"] == "openrouter"
+    assert agent["model_selection"]["lightModel"] == "meta-llama/llama-3.3-70b-instruct"
+    assert agent["model_selection"]["reasoningProviderId"] == "google"
+    assert agent["model_selection"]["reasoningModel"] == "gemini-1.5-pro"
     assert agent["engine_params"] is not None
     assert agent["engine_params"]["moa_overlay"]["enabled"] is True
 

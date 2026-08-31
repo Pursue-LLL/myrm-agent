@@ -747,7 +747,7 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   showContextUsage: true,
   reasoningDisplayMode: 'collapsed',
   enableMemory: true,
-  memoryRequireConfirmation: false,
+  memoryRequireConfirmation: true,
   enableMemoryAutoExtraction: true,
   memoryEnableConversationSearch: false,
   preCompactEnabled: true,
