@@ -26,6 +26,7 @@ import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
+import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
 import {
   stripDatetimeTag,
   parseExplicitSkillActivation,
@@ -173,7 +174,6 @@ const MessageBox = ({
   loading: boolean;
   isLast: boolean;
 }) => {
-  const [parsedMessage, setParsedMessage] = useState('');
   const [showSystemMessages, setShowSystemMessages] = useState(false);
   const [isReasoningExpanded, setIsReasoningExpanded] = useState(() => isLast && loading && !message.content);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -191,7 +191,31 @@ const MessageBox = ({
   const reasoningDisplayMode = useConfigStore(
     (state) => state.personalSettings?.reasoningDisplayMode ?? state.reasoningDisplayMode ?? 'collapsed',
   );
-  const previousContentRef = useRef('');
+  const parsedMessage = useMemo(() => {
+    if (!message.content) {
+      return '';
+    }
+    let processedMessage = message.content;
+    if (message.role === 'assistant' && processedMessage.includes('<')) {
+      for (const tag of [
+        'think',
+        'thinking',
+        'thought',
+        'antthinking',
+        'reasoning',
+        'REASONING_SCRATCHPAD',
+      ] as const) {
+        const openRe = new RegExp(`<${tag}>`, 'gi');
+        const closeRe = new RegExp(`</${tag}>`, 'gi');
+        const openCount = processedMessage.match(openRe)?.length || 0;
+        const closeCount = processedMessage.match(closeRe)?.length || 0;
+        if (openCount > closeCount) {
+          processedMessage += `</${tag}> <a> </a>`;
+        }
+      }
+    }
+    return processedMessage;
+  }, [message.content, message.role]);
   const t = useTranslations('chat');
   const tProgress = useTranslations('progressSteps');
   const tUiAction = useTranslations('interactiveUI.userAction');
@@ -427,38 +451,10 @@ const MessageBox = ({
     return allSources;
   }, [messages, messageIndex]);
 
-  useEffect(() => {
-    if (!message.content || previousContentRef.current === message.content) {
-      return;
-    }
-
-    // 用requestAnimationFrame批量处理内容更新，提高性能
-    window.requestAnimationFrame(() => {
-      previousContentRef.current = message.content;
-      let processedMessage = message.content;
-
-      if (message.role === 'assistant' && processedMessage.includes('<')) {
-        for (const tag of [
-          'think',
-          'thinking',
-          'thought',
-          'antthinking',
-          'reasoning',
-          'REASONING_SCRATCHPAD',
-        ] as const) {
-          const openRe = new RegExp(`<${tag}>`, 'gi');
-          const closeRe = new RegExp(`</${tag}>`, 'gi');
-          const openCount = processedMessage.match(openRe)?.length || 0;
-          const closeCount = processedMessage.match(closeRe)?.length || 0;
-          if (openCount > closeCount) {
-            processedMessage += `</${tag}> <a> </a>`;
-          }
-        }
-      }
-
-      setParsedMessage(processedMessage);
-    });
-  }, [message.content, message.role]);
+  const citationSources = useMemo(
+    () => mergeMessageSources(accumulatedSources, message.sources ?? []),
+    [accumulatedSources, message.sources],
+  );
 
   if (!message) {
     return null;
@@ -729,7 +725,7 @@ const MessageBox = ({
             >
               <MarkdownContent
                 content={parsedMessage}
-                sources={accumulatedSources}
+                sources={citationSources}
                 messageId={message.messageId}
                 isStreaming={isLast && loading}
                 chatId={chatId}

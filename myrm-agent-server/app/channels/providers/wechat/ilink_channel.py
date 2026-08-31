@@ -27,7 +27,7 @@ import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from myrm_agent_harness.runtime.lazy_deps import feature_missing
+from myrm_agent_harness.runtime.deps.lazy_deps import feature_missing
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.credentials import credential_field, credential_spec

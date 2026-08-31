@@ -6,7 +6,7 @@ from pathlib import Path
 
 import myrm_agent_harness.runtime.context.context_branches as branches_module
 import myrm_agent_harness.runtime.context.session.session_context_pins as pins_module
-import myrm_agent_harness.runtime.execution_paths as execution_paths
+import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 import pytest
 
 from app.platform_utils.persistent_root import configure_persistent_root_for_local_dev

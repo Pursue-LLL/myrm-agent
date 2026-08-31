@@ -36,6 +36,28 @@ describe('mergeMessageSources', () => {
     expect(merged[0]?.url).toBe('https://real.example/article');
     expect(merged[0]?.title).toBe('B');
   });
+
+  it('coerces string indexes and assigns missing indexes', () => {
+    const merged = mergeMessageSources(
+      [],
+      [
+        {
+          index: '1' as unknown as number,
+          type: 'web_search',
+          url: 'https://example.com/a',
+          title: 'A',
+        },
+        {
+          type: 'web_search',
+          url: 'https://example.com/b',
+          title: 'B',
+        },
+      ],
+    );
+    expect(merged).toHaveLength(2);
+    expect(merged[0]?.index).toBe(1);
+    expect(merged[1]?.index).toBe(2);
+  });
 });
 
 describe('mapTaskStepStatus', () => {

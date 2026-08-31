@@ -6,7 +6,7 @@ import asyncio
 import weakref
 
 import pytest
-from myrm_agent_harness.runtime.memory_pressure import PressureEvent, PressureLevel
+from myrm_agent_harness.runtime.survival.memory_pressure import PressureEvent, PressureLevel
 
 from app.services.agent.gateway import (
     ActiveSessionInfo,

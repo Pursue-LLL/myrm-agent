@@ -4,9 +4,10 @@
 @services.agent.gateway::AgentGateway (POS: Agent 执行网关，并发控制与生命周期)
 @core.channel_bridge::get_channel_gateway (POS: 渠道网关单例，管理所有消息渠道)
 @lifecycle.monitors::get_memory_pressure_monitor_instance (POS: 内存压力监控)
+@myrm_agent_harness.observability.diagnostics.gateway_health::GatewayHealthInspector (POS: gateway runtime vitals probe)
 
 [OUTPUT]
-GET /api/v1/health/liveness — aggregated agent liveness state (includes pendingOutboundCount)
+GET /api/v1/health/liveness — aggregated agent liveness state (includes pendingOutboundCount, gatewayRuntime vitals)
 
 [POS]
 Agent 全局存活状态 SSOT 端点。聚合 AgentGateway 活跃会话、排空状态、渠道健康摘要、
@@ -22,6 +23,7 @@ import time
 from fastapi import APIRouter
 
 from app.services.agent.gateway import get_agent_gateway
+from myrm_agent_harness.observability.diagnostics.gateway_health import GatewayRedactedHealthDTO
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,14 @@ async def agent_liveness() -> dict[str, object]:
     - Cloud monitoring / curl health probes
     - Multi-pane workspace status bar
     """
+    from myrm_agent_harness.observability.diagnostics.gateway_health import (
+        GatewayHealthInspector,
+        GatewayHealthStatus,
+    )
+
     gateway = get_agent_gateway()
+    gateway_runtime_dto = await GatewayHealthInspector.inspect()
+    gateway_runtime = gateway_runtime_dto.to_dict()
 
     active_sessions = gateway.get_active_sessions()
     active_count = gateway.active_count
@@ -59,15 +68,22 @@ async def agent_liveness() -> dict[str, object]:
     has_degraded_channel = (
         any(ch.get("status") in ("degraded", "error") for ch in channels_summary.values()) if channels_summary else False
     )
+    gateway_runtime_unhealthy = gateway_runtime_dto.status != GatewayHealthStatus.HEALTHY
 
     if gateway.is_draining:
         state = "draining"
     elif active_count > 0:
         state = "busy"
-    elif has_degraded_channel or memory.get("level") in ("WARNING", "CRITICAL", "EMERGENCY"):
+    elif (
+        has_degraded_channel
+        or memory.get("level") in ("WARNING", "CRITICAL", "EMERGENCY")
+        or gateway_runtime_unhealthy
+    ):
         state = "degraded"
     else:
         state = "idle"
+
+    _maybe_record_gateway_prometheus(gateway_runtime_dto)
 
     return {
         "state": state,
@@ -79,9 +95,24 @@ async def agent_liveness() -> dict[str, object]:
         },
         "channels": channels_summary,
         "memory": memory,
+        "gatewayRuntime": gateway_runtime,
         "pendingOutboundCount": pending_outbound,
         "uptimeSeconds": round(time.monotonic() - _BOOT_MONOTONIC, 1),
     }
+
+
+def _maybe_record_gateway_prometheus(
+    gateway_runtime_dto: GatewayRedactedHealthDTO,
+) -> None:
+    """Record gateway vitals to Prometheus when server metrics are enabled."""
+    try:
+        from app.core.monitoring import is_metrics_enabled
+        from app.core.monitoring.gateway_vitals_metrics import record_gateway_vitals
+
+        if is_metrics_enabled():
+            record_gateway_vitals(gateway_runtime_dto)
+    except Exception:
+        logger.debug("Gateway vitals Prometheus export skipped", exc_info=True)
 
 
 def _build_channels_summary() -> dict[str, dict[str, object]]:

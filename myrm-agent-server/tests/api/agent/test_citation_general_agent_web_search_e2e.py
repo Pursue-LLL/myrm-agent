@@ -21,8 +21,8 @@ from tests.api.agent.utils import (
     get_search_service_config,
 )
 
-_CITATION_PROMPT = (
-    "请搜索「OpenCode AI」，用一句话总结，正文中必须用【1】标注引用，"
+_CITATION_PROMPT_FAST = (
+    "请搜索「Python 3.14 新特性」，用一句话总结，正文中必须用【1】标注引用，"
     "末尾单独一行写 CITE_OK。"
 )
 
@@ -121,7 +121,7 @@ class TestWebSearchCitationPipeline:
         """Fast Search: web_search tool → sources events → cite markers in answer."""
         answer, collected, tool_calls, has_sources = perform_fast_search(
             client,
-            _CITATION_PROMPT,
+            _CITATION_PROMPT_FAST,
             user_instructions="必须用【1】标注引用，末尾写 CITE_OK。",
         )
         check_e2e_errors(collected)

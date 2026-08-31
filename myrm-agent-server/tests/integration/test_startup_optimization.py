@@ -6,7 +6,7 @@ Validates the optimized startup flow with real services.
 import asyncio
 
 import pytest
-from myrm_agent_harness.runtime.startup import StartupTimer
+from myrm_agent_harness.runtime.survival.startup import StartupTimer
 
 
 @pytest.mark.asyncio

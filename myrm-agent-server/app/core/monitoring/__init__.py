@@ -2,6 +2,7 @@
 
 Consolidates all metrics (Prometheus) and tracing (OpenTelemetry) initialization.
 Ensures zero overhead in local/sandbox modes unless explicitly enabled.
+Gateway runtime vitals export: `gateway_vitals_metrics.py` (updated on `/health/liveness`).
 """
 
 from __future__ import annotations

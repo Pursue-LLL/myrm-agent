@@ -347,13 +347,6 @@ class CoordinatorService:
         policy_raw = request.get("policy")
         if not isinstance(policy_raw, dict):
             raise ValueError("submit policy must be an object")
-        owner_pid = _required_int(request, "owner_pid")
-        from e2e_marathon.lock import marathon_exclusive_blocked
-        from e2e_marathon.paths import resolve_paths
-
-        blocked = marathon_exclusive_blocked(resolve_paths().lock_file, owner_pid)
-        if blocked is not None:
-            raise ValueError(blocked)
         policy = SessionPolicy(
             execution_mode=ExecutionMode(
                 _required_text(policy_raw, "execution_mode").upper()

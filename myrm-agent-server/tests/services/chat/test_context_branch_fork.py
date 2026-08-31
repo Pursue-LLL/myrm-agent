@@ -39,7 +39,7 @@ def test_resolve_snapshot_path_finds_relative_context_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import myrm_agent_harness.runtime.context.context_branches as branches_module
-    import myrm_agent_harness.runtime.execution_paths as execution_paths
+    import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
     root = tmp_path / "persistent"
     root.mkdir()
@@ -65,7 +65,7 @@ async def test_fork_from_branch_creates_child_chat(
 ) -> None:
     import myrm_agent_harness.runtime.context.context_branches as branches_module
     import myrm_agent_harness.runtime.context.context_branches as branches_write
-    import myrm_agent_harness.runtime.execution_paths as execution_paths
+    import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
     async def _noop_rebuild(_db: object, _chat_id: str) -> None:
         return None
@@ -183,7 +183,7 @@ async def test_fork_from_branch_returns_error_when_snapshot_has_no_messages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import myrm_agent_harness.runtime.context.context_branches as branches_module
-    import myrm_agent_harness.runtime.execution_paths as execution_paths
+    import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
     root = tmp_path / "persistent"
     root.mkdir()

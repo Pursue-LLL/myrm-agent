@@ -106,8 +106,28 @@ function getSourceKey(source: Source): string {
   return `index:${source.index}`;
 }
 
+function coerceSourceIndex(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+function assignSourceIndex(source: Source, usedIndexes: Set<number>, maxIndex: number): Source {
+  const coerced = coerceSourceIndex(source.index);
+  if (coerced !== null && !usedIndexes.has(coerced)) {
+    return { ...source, index: coerced };
+  }
+  const nextIndex = maxIndex + 1;
+  return { ...source, index: nextIndex };
+}
+
 export function mergeMessageSources(existingSources: Source[], incomingSources: Source[]): Source[] {
-  const mergedSources = [...existingSources];
+  const mergedSources = existingSources.map((source) => {
+    const coerced = coerceSourceIndex(source.index);
+    return coerced === null ? source : { ...source, index: coerced };
+  });
   const usedIndexes = new Set(mergedSources.map((source) => source.index));
   let maxIndex = Math.max(0, ...mergedSources.map((source) => source.index));
 
@@ -115,19 +135,16 @@ export function mergeMessageSources(existingSources: Source[], incomingSources: 
     const sourceKey = getSourceKey(incoming);
     const existingIndex = mergedSources.findIndex((source) => getSourceKey(source) === sourceKey);
     if (existingIndex !== -1) {
+      const preservedIndex = mergedSources[existingIndex].index;
       mergedSources[existingIndex] = {
         ...mergedSources[existingIndex],
         ...incoming,
-        index: mergedSources[existingIndex].index,
+        index: preservedIndex,
       };
       continue;
     }
 
-    const nextSource = { ...incoming };
-    if (usedIndexes.has(nextSource.index)) {
-      maxIndex += 1;
-      nextSource.index = maxIndex;
-    }
+    const nextSource = assignSourceIndex(incoming, usedIndexes, maxIndex);
     usedIndexes.add(nextSource.index);
     maxIndex = Math.max(maxIndex, nextSource.index);
     mergedSources.push(nextSource);

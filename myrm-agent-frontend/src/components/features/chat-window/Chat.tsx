@@ -38,6 +38,7 @@ import CompanionWidget from '../companion/CompanionWidget';
 import MessageBox from '../message-box/MessageBox';
 import MessageBoxLoading from '../message-box/MessageBoxLoading';
 import useChatStore from '@/store/useChatStore';
+import { buildMessageRenderFingerprint } from '@/store/chat/messageRenderFingerprint';
 import { useShallow } from 'zustand/react/shallow';
 import React from 'react';
 import { isNearBottom } from '@/lib/utils/domUtils';
@@ -267,9 +268,7 @@ const Chat = ({
   }, [messages.length, restoreScrollPosition, chatId]);
 
   // 计算消息内容的哈希值，用于检测消息内容变化
-  const messagesContentHash = useMemo(() => {
-    return messages.map((m) => `${m.messageId}:${m.content?.length || 0}`).join('|');
-  }, [messages]);
+  const messagesContentHash = useMemo(() => buildMessageRenderFingerprint(messages), [messages]);
 
   const messageBoxElements = useMemo(() => {
     const elements = messages.map((msg, i) => {

@@ -42,7 +42,10 @@ export async function companionEvents(ctx: StreamCtx): Promise<StreamTurn | null
         msg.content = snap.content || '';
         msg.thinkingItems = snap.reasoning ? [snap.reasoning] : [];
         msg.progressSteps = snap.progress_steps || [];
-        msg.sources = snap.sources || [];
+        // Never wipe in-stream sources with an empty catchup payload.
+        if (Array.isArray(snap.sources) && snap.sources.length > 0) {
+          msg.sources = H.mergeMessageSources(msg.sources || [], snap.sources);
+        }
         msg.uiArtifacts = snap.ui_artifacts || [];
       }
     });

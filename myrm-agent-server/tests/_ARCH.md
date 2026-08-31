@@ -47,7 +47,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_integration_catalog_loopback_guard_chrome_e2e.py` | 模块 | Integration Catalog loopback guard Chrome MCP E2E（READ×3：live API `deployment_scope` 与 `/integrations/mcp/probe` 语义断言 + 阻断链 `scan/verify` 不扇出 + `recommendedMode` 在 `connection_refused` / `probe_failed_unknown` 重试后自动续接连接） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
 | `e2e/test_web_search_inline_citations_chrome_e2e.py` | 模块 | Web search 行内引用 Chrome READ E2E（inject sources+【N】/[N] → LinkPopover badge + 代码块 mask + 「依据 N」） |
-| `e2e/test_web_search_citations_live_chrome_e2e.py` | 模块 | General Agent web_search 引用 LIVE Chrome E2E（PRIVATE+SHPOIB：真实 LLM turn → sources SSE → Evidence + 行内 cite UI；`seed_live_e2e_providers` + `enabledBuiltinTools=[web_search]`） |
+| `e2e/test_web_search_citations_live_chrome_e2e.py` | 模块 | Web search 引用 LIVE Chrome E2E×2（PRIVATE+SHPOIB：General Agent `web_search` + Fast Search `actionMode=fast` → sources SSE → Evidence + 可点行内 badge；`seed_live_e2e_providers`） |
 | `api/agent/test_citation_general_agent_web_search_e2e.py` | 模块 | General Agent web_search 引用 API E2E（`@pytest.mark.e2e`：agent-stream sources 事件 + 【1】/CITE_OK 断言；`enabledBuiltinTools=[web_search]`） |
 | `e2e/test_voice_memory_acl_chrome_e2e.py` | 模块 | Voice memory ACL Chrome MCP E2E（READ×2：`/settings/memory` UI 开/关「历史会话搜索」→ `GET /config/personalSettings` 断言；token corpus 由 HTTP 集成测覆盖） |
 | `api/voice/test_voice_memory_context.py` | 模块 | Voice memory ACL SSOT 单元 + policy 矩阵 |
@@ -145,6 +145,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_project_workspace_bind_file_write_integration.py` | 模块 | Project bind → `convert_to_general_agent_params.declared_allowed_roots` → `file_write_tool` 磁盘断言（无 LLM） |
 | `integration/test_durable_outbound_integration.py` | 模块 | Durable outbound 全链路集成（15 cases：含 QueueFull 自动 recover、edit_placeholder、send_tracked、edit fallback、null-send→DLQ） |
 | `api/health/test_liveness_pending_outbound.py` | 模块 | GET `/health/liveness` 返回 `pendingOutboundCount` |
+| `api/health/test_liveness_gateway_runtime.py` | 模块 | GET `/health/liveness` 返回 `gatewayRuntime` 零载荷块；gateway 异常时 `state=degraded`；Prometheus `myrm_gateway_*` gauge 刷新 |
 | `api/health/test_browser_doctor.py` | 模块 | 健康 browser 全端点（21 项）：`/health/browser`（pool health dict/string/异常降级）+ `/health/browser/doctor`（注入真实端口 `extension_relay_base_url` + launch_test 透传）+ `/health/browser/orphans` GET/DELETE（automation 扫描、confirm 安全门、failed 透传、空孤儿）+ `/health/browser/test-cloud-connection`（not_configured/disabled/invalid/connected/failed/无 WS 库）+ `/health/browser/test-proxy-connection`（not_configured/disabled/invalid/connected/http error/异常；mock harness + config_service + websockets/httpx） |
 | `e2e/test_browser_doctor_chrome_e2e.py` | 模块 | Browser Doctor 卡片 Chrome MCP E2E（SHARED+READ×1：Settings/System 渲染卡片 + 运行诊断 → 真实后端报告（Patchright 检查 + healthy/unhealthy 徽标）） |
 | `e2e/test_org_model_policy_chrome_e2e.py` | 模块 | Org model policy Chrome MCP E2E（PRIVATE×1 SHPOIB：`exclusive_backend` · SHPOIB 后 `POST /api/admin/org-model-policy-sync` seed `minimax/*` → 打开 model picker → minimax 可选 / openai-like 灰显） |

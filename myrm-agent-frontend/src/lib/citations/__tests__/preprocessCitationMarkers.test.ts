@@ -66,6 +66,27 @@ describe('preprocessCitationMarkers', () => {
     expect(result).toContain('`arr[1]`');
     expect(result).toContain('<citation data-num="1"');
   });
+
+  it('matches string index values from SSE payloads', () => {
+    const stringIndexed = sources.map((source) => ({
+      ...source,
+      index: String(source.index) as unknown as number,
+    }));
+    const result = preprocessCitationMarkers('增长 5%【1】。', stringIndexed);
+    expect(result).toContain('<citation data-num="1"');
+  });
+
+  it('falls back to positional index when source.index is missing', () => {
+    const noIndexSources = sources.map(({ index: _index, ...rest }) => rest) as Source[];
+    const result = preprocessCitationMarkers('增长 5%【1】。', noIndexSources);
+    expect(result).toContain('<citation data-num="1"');
+  });
+
+  it('converts full-width digit markers 【１】', () => {
+    const result = preprocessCitationMarkers('Python 3.14 新特性【１】。', sources);
+    expect(result).toContain('<citation data-num="1"');
+    expect(result).not.toContain('【１】');
+  });
 });
 
 describe('maskCodeRegions', () => {

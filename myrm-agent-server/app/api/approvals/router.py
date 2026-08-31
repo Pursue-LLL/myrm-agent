@@ -24,12 +24,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
-async def _handle_outbound_draft_resolution(record: ApprovalRecord, decision: str) -> None:
+async def _handle_outbound_draft_resolution(
+    record: ApprovalRecord, decision: str
+) -> None:
     """Send or discard a held outbound draft message based on the approval decision."""
     if decision == "approve":
         from app.services.approvals.registry import send_outbound_draft_payload
 
-        await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
+        await send_outbound_draft_payload(
+            record.payload or {}, record.agent_id, record.id
+        )
     else:
         logger.info("Outbound draft %s rejected, message discarded", record.id)
 
@@ -89,7 +93,9 @@ async def list_pending_approvals(
     offset: int = Query(0, ge=0),
 ) -> ApprovalListResponse:
     records = await ApprovalRegistry.list_pending(limit=limit, offset=offset)
-    return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in records])
+    return ApprovalListResponse(
+        approvals=[ApprovalRecordResponse.from_orm(r) for r in records]
+    )
 
 
 @router.post("/{approval_id}/resolve")
@@ -108,7 +114,9 @@ async def resolve_approval(
     )
 
     if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found"
+        )
 
     if record.action_type == "outbound_draft":
         await _handle_outbound_draft_resolution(record, normalized_decision)
@@ -121,7 +129,10 @@ async def resolve_approval(
 
         resolved = resolve_pending_elicitation(approval_id, normalized_decision)
         if not resolved:
-            logger.warning("MCP elicitation %s not found in pending map (may have timed out)", approval_id)
+            logger.warning(
+                "MCP elicitation %s not found in pending map (may have timed out)",
+                approval_id,
+            )
         return ApprovalRecordResponse.from_orm(record)
 
     # If it's a LangGraph interrupt, we must resume the agent!
@@ -160,7 +171,9 @@ async def resolve_approval(
             logger.error("Failed to resume agent: %s", e)
 
     if record.chat_id:
-        from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+        from app.services.agent.streaming_support.multiplexer import (
+            WorkspaceMultiplexer,
+        )
 
         WorkspaceMultiplexer.get().publish_session_status(record.chat_id, "idle", "")
 
@@ -197,7 +210,12 @@ async def batch_resolve_approvals(
         BatchApprovalItem(
             item_id=r.id,
             action_type=r.action_type,
-            tool_name=(r.payload.get("tool_calls", [{}])[0].get("name", r.action_type) if isinstance(r.payload.get("tool_calls"), list) and r.payload.get("tool_calls") else r.action_type),
+            tool_name=(
+                r.payload.get("tool_calls", [{}])[0].get("name", r.action_type)
+                if isinstance(r.payload.get("tool_calls"), list)
+                and r.payload.get("tool_calls")
+                else r.action_type
+            ),
             severity=r.severity,
             reason=r.reason,
             payload=r.payload or {},
@@ -235,6 +253,28 @@ async def batch_resolve_approvals(
 
     # Determine which target approval IDs to resolve
     if normalized_decision == "approve" and req.safe_only:
+        if risk_report.safe_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "NO_SAFE_ITEMS_TO_APPROVE",
+                    "message": "All items in the batch are high-risk. Cannot resolve safe-only batch without explicit confirmation.",
+                    "has_high_risk": True,
+                    "high_risk_count": risk_report.high_risk_count,
+                    "safe_count": 0,
+                    "high_risk_items": [
+                        {
+                            "item_id": item.item_id,
+                            "action_type": item.action_type,
+                            "tool_name": item.tool_name,
+                            "risk_level": item.risk_level.value,
+                            "risk_reason": item.risk_reason,
+                        }
+                        for item in risk_report.high_risk_items
+                    ],
+                    "safe_item_ids": [],
+                },
+            )
         target_ids = list(risk_report.safe_item_ids)
     else:
         target_ids = req.approval_ids
@@ -279,13 +319,19 @@ async def batch_resolve_approvals(
                     logger.error("Failed to resume agent for %s: %s", record.id, e)
 
             if record.chat_id:
-                from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+                from app.services.agent.streaming_support.multiplexer import (
+                    WorkspaceMultiplexer,
+                )
 
-                WorkspaceMultiplexer.get().publish_session_status(record.chat_id, "idle", "")
+                WorkspaceMultiplexer.get().publish_session_status(
+                    record.chat_id, "idle", ""
+                )
         except Exception as e:
             logger.error("Failed to batch resolve approval %s: %s", approval_id, e)
 
-    return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records])
+    return ApprovalListResponse(
+        approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records]
+    )
 
 
 @router.post("/test/seed-mock", include_in_schema=False)
