@@ -2,7 +2,7 @@
 
 Validates:
 1. StreamContentCollector correctly collects, deduplicates, and merges sources
-2. CitationRulesMiddleware injection logic (final_answer detection, UNTRUSTED_DATA scanning)
+2. CitationRulesMiddleware UNTRUSTED_DATA scanning helpers
 3. Source model structure integrity for frontend consumption
 """
 
@@ -247,51 +247,6 @@ class TestSourcesInSnapshot:
 class TestCitationRulesMiddlewareLogic:
     """Tests for citation_rules_middleware internal helpers."""
 
-    def test_is_final_answer_phase_with_tool_message(self) -> None:
-        from langchain_core.messages import HumanMessage, ToolMessage
-
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _is_final_answer_phase,
-        )
-
-        messages = [
-            HumanMessage(content="hello"),
-            ToolMessage(content="result", name="request_answer_user_tool", tool_call_id="tc1"),
-        ]
-        assert _is_final_answer_phase(messages) is True
-
-    def test_is_final_answer_phase_without_tool_message(self) -> None:
-        from langchain_core.messages import AIMessage, HumanMessage
-
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _is_final_answer_phase,
-        )
-
-        messages = [
-            HumanMessage(content="hello"),
-            AIMessage(content="world"),
-        ]
-        assert _is_final_answer_phase(messages) is False
-
-    def test_is_final_answer_phase_wrong_tool_name(self) -> None:
-        from langchain_core.messages import ToolMessage
-
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _is_final_answer_phase,
-        )
-
-        messages = [
-            ToolMessage(content="result", name="other_tool", tool_call_id="tc1"),
-        ]
-        assert _is_final_answer_phase(messages) is False
-
-    def test_is_final_answer_phase_empty(self) -> None:
-        from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-            _is_final_answer_phase,
-        )
-
-        assert _is_final_answer_phase([]) is False
-
     def test_has_external_sources_with_untrusted_data(self) -> None:
         from langchain_core.messages import HumanMessage, ToolMessage
 
@@ -367,10 +322,14 @@ class TestCitationRulesContent:
             get_citation_rules_if_needed,
         )
 
-        result = get_citation_rules_if_needed(has_external_sources=True)
-        assert result is not None
-        assert "citation_rules" in result
-        assert "【数字】" in result
+        en_result = get_citation_rules_if_needed(has_external_sources=True, locale="en")
+        assert en_result is not None
+        assert "citation_rules" in en_result
+        assert "[1]" in en_result
+
+        zh_result = get_citation_rules_if_needed(has_external_sources=True, locale="zh-CN")
+        assert zh_result is not None
+        assert "【数字】" in zh_result
 
     def test_citation_rules_none_when_not_needed(self) -> None:
         from app.ai_agents.prompts.general_agent_prompt import (

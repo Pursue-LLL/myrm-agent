@@ -43,5 +43,5 @@ search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（de
 - `enable_answer_tool`：控制 identity 和 ruleset 中 answer_tool 引导的注入
 
 中间件条件逻辑：
-- `citation_rules_middleware`：naked/lean/search 模式跳过
+- `citation_rules_middleware`：naked/search 模式跳过（lean/full 在有外部来源时注入）
 - `widget_capability_middleware`：naked 模式跳过

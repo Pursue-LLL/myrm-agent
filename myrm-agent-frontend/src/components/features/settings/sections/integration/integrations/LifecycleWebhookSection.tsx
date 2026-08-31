@@ -5,11 +5,9 @@ import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
-import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Skeleton } from '@/components/primitives/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import { Webhook, Plus, Trash2, RefreshCw, Send, CheckCircle2, AlertCircle, Shield, Key } from 'lucide-react';
+import { Webhook, Plus, Trash2, RefreshCw, Send, CheckCircle2, AlertCircle, Shield, Pencil } from 'lucide-react';
 import SettingsSection from '../../SettingsSection';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { listAgents, type AgentListItem } from '@/services/agent';
@@ -22,17 +20,20 @@ import {
   type LifecycleWebhook,
   type WebhookPingResult,
 } from '@/services/lifecycleWebhook';
+import WebhookEndpointForm, {
+  AVAILABLE_WEBHOOK_EVENT_IDS,
+  type WebhookEndpointFormValues,
+} from './WebhookEndpointForm';
 
-const AVAILABLE_EVENT_IDS = [
-  'session_completed',
-  'session_failed',
-  'approval_required',
-  'approval_resolved',
-  'kanban_task_updated',
-  'goal_terminal',
-  'subagent_spawned',
-  'subagent_merged',
-] as const;
+const DEFAULT_EVENTS = ['session_completed', 'session_failed', 'approval_required'];
+
+const emptyFormValues = (): WebhookEndpointFormValues => ({
+  name: '',
+  url: '',
+  secret: '',
+  agentId: null,
+  events: [...DEFAULT_EVENTS],
+});
 
 export const LifecycleWebhookSection = memo(() => {
   const t = useTranslations('settings.lifecycleWebhook');
@@ -41,17 +42,9 @@ export const LifecycleWebhookSection = memo(() => {
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-
-  // Add/Edit form state
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [secret, setSecret] = useState('');
-  const [agentId, setAgentId] = useState<string | null>(null);
-  const [selectedEvents, setSelectedEvents] = useState<string[]>([
-    'session_completed',
-    'session_failed',
-    'approval_required',
-  ]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState<WebhookEndpointFormValues>(emptyFormValues);
+  const [editForm, setEditForm] = useState<WebhookEndpointFormValues>(emptyFormValues);
   const [submitting, setSubmitting] = useState(false);
   const [pingLoading, setPingLoading] = useState<string | null>(null);
   const [pingResult, setPingResult] = useState<{ id: string; result: WebhookPingResult } | null>(null);
@@ -89,23 +82,72 @@ export const LifecycleWebhookSection = memo(() => {
     fetchWebhooks();
   }, [fetchWebhooks]);
 
+  const closeCreateForm = () => {
+    setShowAddForm(false);
+    setCreateForm(emptyFormValues());
+  };
+
+  const closeEditForm = () => {
+    setEditingId(null);
+    setEditForm(emptyFormValues());
+  };
+
+  const openEditForm = (hook: LifecycleWebhook) => {
+    setShowAddForm(false);
+    setCreateForm(emptyFormValues());
+    setEditingId(hook.id);
+    setEditForm({
+      name: hook.name,
+      url: hook.url,
+      secret: '',
+      agentId: hook.agent_id ?? null,
+      events: hook.events.length > 0 ? [...hook.events] : [...DEFAULT_EVENTS],
+    });
+  };
+
   const handleCreate = async () => {
-    if (!name.trim() || !url.trim()) return;
+    if (!createForm.name.trim() || !createForm.url.trim()) return;
     try {
       setSubmitting(true);
       await createLifecycleWebhook({
-        name: name.trim(),
-        url: url.trim(),
-        secret: secret.trim() || undefined,
-        events: selectedEvents,
-        agent_id: agentId,
+        name: createForm.name.trim(),
+        url: createForm.url.trim(),
+        secret: createForm.secret.trim() || undefined,
+        events: createForm.events,
+        agent_id: createForm.agentId,
         is_active: true,
       });
-      setName('');
-      setUrl('');
-      setSecret('');
-      setAgentId(null);
-      setShowAddForm(false);
+      closeCreateForm();
+      await fetchWebhooks();
+    } catch {
+      // Handled by API error toast
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (hook: LifecycleWebhook) => {
+    if (!editForm.name.trim() || !editForm.url.trim()) return;
+    try {
+      setSubmitting(true);
+      const originalAgentId = hook.agent_id ?? null;
+      const payload: Parameters<typeof updateLifecycleWebhook>[1] = {
+        name: editForm.name.trim(),
+        url: editForm.url.trim(),
+        events: editForm.events,
+      };
+      if (editForm.secret.trim()) {
+        payload.secret = editForm.secret.trim();
+      }
+      if (editForm.agentId !== originalAgentId) {
+        if (editForm.agentId === null) {
+          payload.clear_agent_scope = true;
+        } else {
+          payload.agent_id = editForm.agentId;
+        }
+      }
+      await updateLifecycleWebhook(hook.id, payload);
+      closeEditForm();
       await fetchWebhooks();
     } catch {
       // Handled by API error toast
@@ -128,6 +170,9 @@ export const LifecycleWebhookSection = memo(() => {
   const handleDelete = async (id: string) => {
     try {
       await deleteLifecycleWebhook(id);
+      if (editingId === id) {
+        closeEditForm();
+      }
       setWebhooks((prev) => prev.filter((item) => item.id !== id));
     } catch {
       // Error handled
@@ -149,19 +194,6 @@ export const LifecycleWebhookSection = memo(() => {
     }
   };
 
-  const generateSecret = () => {
-    const randomBytes = new Uint8Array(16);
-    crypto.getRandomValues(randomBytes);
-    const hex = Array.from(randomBytes)
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
-    setSecret(`whsec_${hex}`);
-  };
-
-  const toggleEventSelection = (eventId: string) => {
-    setSelectedEvents((prev) => (prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId]));
-  };
-
   return (
     <SettingsSection title={t('title')} description={t('description')}>
       <div className="space-y-4">
@@ -170,105 +202,37 @@ export const LifecycleWebhookSection = memo(() => {
             <Webhook className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-foreground">{t('endpointsTitle')}</span>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm((v) => !v)} className="gap-1.5">
+          <Button
+            size="sm"
+            onClick={() => {
+              if (showAddForm) {
+                closeCreateForm();
+              } else {
+                closeEditForm();
+                setShowAddForm(true);
+              }
+            }}
+            className="gap-1.5"
+          >
             <Plus className="h-3.5 w-3.5" />
             {showAddForm ? t('cancel') : t('addEndpoint')}
           </Button>
         </div>
 
-        {/* Add Form Drawer */}
-        {showAddForm && (
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-4 animate-in fade-in-50">
-            <h4 className="text-sm font-semibold text-foreground">{t('newEndpoint')}</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">{t('endpointName')}</label>
-                <Input
-                  placeholder="e.g. Feishu Alert Bot, CI Pipeline"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">{t('payloadUrl')}</label>
-                <Input
-                  placeholder="https://example.com/api/webhook"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">{t('agentScope')}</label>
-              <Select value={agentId ?? 'all'} onValueChange={(value) => setAgentId(value === 'all' ? null : value)}>
-                <SelectTrigger className="w-full sm:max-w-md">
-                  <SelectValue placeholder={t('agentScopeAll')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('agentScopeAll')}</SelectItem>
-                  {agentOptions.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      {agent.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">{t('agentScopeHint')}</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Key className="h-3.5 w-3.5" />
-                  {t('signingSecret')}
-                </label>
-                <button
-                  type="button"
-                  onClick={generateSecret}
-                  className="text-[11px] text-primary hover:underline cursor-pointer"
-                >
-                  {t('generateRandom')}
-                </button>
-              </div>
-              <Input
-                placeholder={t('signingSecretPlaceholder')}
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">{t('subscribedEvents')}</label>
-              <div className="flex flex-wrap gap-1.5">
-                {AVAILABLE_EVENT_IDS.map((ev) => {
-                  const active = selectedEvents.includes(ev);
-                  return (
-                    <Badge
-                      key={ev}
-                      variant={active ? 'default' : 'outline'}
-                      className="cursor-pointer transition text-[11px] py-1 px-2.5"
-                      onClick={() => toggleEventSelection(ev)}
-                    >
-                      {t(`events.${ev}`)}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
-              <Button variant="ghost" size="sm" onClick={() => setShowAddForm(false)}>
-                {t('cancel')}
-              </Button>
-              <Button size="sm" onClick={handleCreate} disabled={!name.trim() || !url.trim() || submitting}>
-                {submitting ? t('saving') : t('saveEndpoint')}
-              </Button>
-            </div>
+        {showAddForm ? (
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 animate-in fade-in-50">
+            <WebhookEndpointForm
+              mode="create"
+              values={createForm}
+              agentOptions={agentOptions}
+              submitting={submitting}
+              onChange={(patch) => setCreateForm((prev) => ({ ...prev, ...patch }))}
+              onCancel={closeCreateForm}
+              onSubmit={handleCreate}
+            />
           </div>
-        )}
+        ) : null}
 
-        {/* Endpoints List */}
         {loading ? (
           <div className="space-y-3">
             <Skeleton className="h-20 w-full rounded-xl" />
@@ -323,13 +287,22 @@ export const LifecycleWebhookSection = memo(() => {
                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
                       {hook.events.map((ev) => (
                         <span key={ev} className="text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded">
-                          {t(`events.${ev}` as `events.${typeof AVAILABLE_EVENT_IDS[number]}`)}
+                          {t(`events.${ev}` as `events.${typeof AVAILABLE_WEBHOOK_EVENT_IDS[number]}`)}
                         </span>
                       ))}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs h-8"
+                      onClick={() => (editingId === hook.id ? closeEditForm() : openEditForm(hook))}
+                    >
+                      <Pencil className="h-3 w-3" />
+                      {editingId === hook.id ? t('cancel') : t('editEndpoint')}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -355,8 +328,22 @@ export const LifecycleWebhookSection = memo(() => {
                   </div>
                 </div>
 
-                {/* Ping probe status feedback */}
-                {pingResult && pingResult.id === hook.id && (
+                {editingId === hook.id ? (
+                  <div className="mt-4 pt-4 border-t border-border/40">
+                    <WebhookEndpointForm
+                      mode="edit"
+                      values={editForm}
+                      hasExistingSecret={Boolean(hook.has_secret || hook.secret)}
+                      agentOptions={agentOptions}
+                      submitting={submitting}
+                      onChange={(patch) => setEditForm((prev) => ({ ...prev, ...patch }))}
+                      onCancel={closeEditForm}
+                      onSubmit={() => handleUpdate(hook)}
+                    />
+                  </div>
+                ) : null}
+
+                {pingResult && pingResult.id === hook.id ? (
                   <div
                     className={cn(
                       'mt-3 rounded-lg border p-2.5 text-xs flex items-center justify-between',
@@ -390,7 +377,7 @@ export const LifecycleWebhookSection = memo(() => {
                       ×
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
             ))}
           </div>

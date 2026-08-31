@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Source } from '@/store/chat/types';
-import { maskCodeRegions, unmaskCodeRegions } from './maskCodeRegions';
-import { preprocessCitationMarkers } from './preprocessCitationMarkers';
+import { maskCodeRegions, unmaskCodeRegions } from '../maskCodeRegions';
+import { preprocessCitationMarkers } from '../preprocessCitationMarkers';
 
 const sources: Source[] = [
   {
@@ -42,6 +42,14 @@ describe('preprocessCitationMarkers', () => {
   it('leaves unknown indices as plain text', () => {
     const result = preprocessCitationMarkers('Unknown [9].', sources);
     expect(result).toBe('Unknown [9].');
+  });
+
+  it('does not convert full-width markers inside fenced code blocks', () => {
+    const input = 'Prose cites 【1】。\n\n```python\n# example marker 【1】\n```';
+    const result = preprocessCitationMarkers(input, sources);
+    expect(result).toContain('<citation data-num="1"');
+    expect(result).toContain('# example marker 【1】');
+    expect(result).not.toMatch(/example marker <citation/);
   });
 
   it('does not convert half-width markers inside fenced code blocks', () => {

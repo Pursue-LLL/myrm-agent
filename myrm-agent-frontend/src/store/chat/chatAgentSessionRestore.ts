@@ -20,7 +20,11 @@ import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
-import { disarmYoloForPreset, normalizeSecurityPreset } from '@/store/chat/securityPreset';
+import { disarmYoloForPreset } from '@/store/chat/securityPreset';
+import {
+  expectedSecurityPresetForAgent,
+  securityPresetNeedsSync,
+} from '@/store/chat/sessionAgentHydration';
 
 async function applyRestoredAgentConfig(chatId: string, agentId: string): Promise<void> {
   const agent = await useAgentStore.getState().fetchAgent(agentId);
@@ -38,12 +42,12 @@ async function applyRestoredAgentConfig(chatId: string, agentId: string): Promis
   }
 
   const config = buildAgentConfig(agent);
-  const expectedPreset = normalizeSecurityPreset(config.defaultSecurityPreset);
+  const expectedPreset = expectedSecurityPresetForAgent(config);
   const store = useChatStore.getState();
   const agentAlreadyBound = store.agentConfig?.agentId === agentId;
 
   if (agentAlreadyBound) {
-    if (store.securityPreset !== expectedPreset) {
+    if (securityPresetNeedsSync(store.securityPreset, config)) {
       disarmYoloForPreset(expectedPreset);
       useChatStore.setState({ securityPreset: expectedPreset });
     }

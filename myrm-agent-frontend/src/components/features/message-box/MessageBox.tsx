@@ -427,22 +427,14 @@ const MessageBox = ({
     return allSources;
   }, [messages, messageIndex]);
 
-  // 用于跟踪上次处理时的 sources 长度，确保 sources 更新时也能重新处理
-  const previousSourcesLengthRef = useRef(0);
-
   useEffect(() => {
-    const currentSourcesLength = accumulatedSources.length;
-    const sourcesChanged = currentSourcesLength !== previousSourcesLengthRef.current;
-
-    // 如果内容没变且 sources 也没变，跳过处理
-    if (!message.content || (previousContentRef.current === message.content && !sourcesChanged)) {
+    if (!message.content || previousContentRef.current === message.content) {
       return;
     }
 
     // 用requestAnimationFrame批量处理内容更新，提高性能
     window.requestAnimationFrame(() => {
       previousContentRef.current = message.content;
-      previousSourcesLengthRef.current = currentSourcesLength;
       let processedMessage = message.content;
 
       if (message.role === 'assistant' && processedMessage.includes('<')) {
@@ -464,36 +456,9 @@ const MessageBox = ({
         }
       }
 
-      let finalContent = processedMessage;
-
-      const citationRegex = /【(\d+)】/g;
-
-      // 使用累积的 sources 来处理引用
-      // 这样可以正确渲染引用了之前消息中 sources 的 【数字】 标记
-      if (message.role === 'assistant' && accumulatedSources.length > 0) {
-        finalContent = processedMessage.replace(citationRegex, (_, numStr: string) => {
-          const number = parseInt(numStr);
-
-          if (isNaN(number) || number <= 0) {
-            return `[${numStr}]`;
-          }
-
-          // 从累积的 sources 中查找对应的来源
-          const source = accumulatedSources[number - 1];
-
-          // 只要有source就生成citation标签，不管是否有URL
-          if (source) {
-            const url = source?.url || '';
-            return `<citation data-url="${url}" data-num="${numStr}" data-source-index="${number - 1}"></citation>`;
-          } else {
-            return `[${numStr}]`;
-          }
-        });
-      }
-
-      setParsedMessage(finalContent);
+      setParsedMessage(processedMessage);
     });
-  }, [message.content, message.role, accumulatedSources]);
+  }, [message.content, message.role]);
 
   if (!message) {
     return null;

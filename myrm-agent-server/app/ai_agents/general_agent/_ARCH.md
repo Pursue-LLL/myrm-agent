@@ -51,7 +51,7 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `checkpoint_helpers.py` | ✅ 辅助 | Browser checkpoint 生命周期辅助函数 | ✅ |
 | `llm_factory.py` | ✅ 辅助 | LLM 实例工厂（main/lite/fallback/safety_fallback；ManagedLLM 包装 main/lite；**stream_fallback_llm** 供 StreamExecutor；`apply_lite_context_downgrade` 返回 effective lite cfg；`apply_lite_managed_fallback` 在 downgrade 后包装 lite） | ✅ |
 | `mcp_vault_handler.py` | ✅ 辅助 | Server 层 MCP 大结果 vault spill handler 工厂。`build_mcp_vault_handler(workspace_root)` 返回 `OversizedResultHandler` 闭包，在 `factory.py` 注入到 MCP 配置，使 harness `_timeout_wrapper` 将超量结果持久化至 ArtifactVault 而非截断丢弃。 | ✅ |
-| `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；naked/lean 模式跳过注入 |
+| `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；naked/search 模式跳过注入；lean/full 在有 UNTRUSTED 来源时注入 |
 | `agent_middlewares/tool_selection_middleware.py` | ✅ 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 |
 | `tools/_tool_layer_bootstrap.py` | ✅ 核心 | Server 专属工具向 harness `_TOOL_LAYERS` 注册（x_search、channel_notify、image/video/tts media 工具） |
 | `tools/x_search_provider.py` | ✅ 辅助 | xAI Live Search API 客户端；skill 绑定后 eager tool 工厂在 `services/integrations/tools/x_live_search.py` |

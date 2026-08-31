@@ -167,4 +167,90 @@ describe('LifecycleWebhookSection - Full Flow', () => {
     expect(await screen.findByText('pingFailed')).toBeInTheDocument();
     expect(webhookService.pingSavedLifecycleWebhook).toHaveBeenCalledWith('wh-1');
   });
+
+  it('opens edit form and updates webhook without resending secret when blank', async () => {
+    const scopedWebhook: webhookService.LifecycleWebhook = {
+      ...mockWebhooks[0],
+      agent_id: 'agent-1',
+      events: ['session_completed'],
+    };
+
+    (webhookService.listLifecycleWebhooks as any)
+      .mockResolvedValueOnce([scopedWebhook])
+      .mockResolvedValueOnce([{ ...scopedWebhook, name: 'CI Webhook Updated', events: ['session_completed', 'goal_terminal'] }]);
+    (webhookService.updateLifecycleWebhook as any).mockResolvedValueOnce({
+      ...scopedWebhook,
+      name: 'CI Webhook Updated',
+      events: ['session_completed', 'goal_terminal'],
+    });
+
+    render(<LifecycleWebhookSection />);
+    expect(await screen.findByText('CI Webhook')).toBeInTheDocument();
+
+    const editBtn = screen.getByRole('button', { name: /editEndpoint/i });
+    fireEvent.click(editBtn);
+
+    expect(screen.getByText('editEndpoint')).toBeInTheDocument();
+
+    const inputs = screen.getAllByRole('textbox');
+    fireEvent.change(inputs[0], { target: { value: 'CI Webhook Updated' } });
+
+    const goalBadge = screen.getByText('events.goal_terminal');
+    fireEvent.click(goalBadge);
+
+    const saveBtn = screen.getByRole('button', { name: /saveChanges/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(webhookService.updateLifecycleWebhook).toHaveBeenCalledWith(
+        'wh-1',
+        expect.objectContaining({
+          name: 'CI Webhook Updated',
+          url: 'https://example.com/api/hook',
+          events: expect.arrayContaining(['session_completed', 'goal_terminal']),
+        }),
+      );
+    });
+
+    const updatePayload = (webhookService.updateLifecycleWebhook as any).mock.calls[0][1];
+    expect(updatePayload.secret).toBeUndefined();
+    expect(updatePayload.clear_agent_scope).toBeUndefined();
+  });
+
+  it('sends clear_agent_scope when agent scope is cleared on edit', async () => {
+    const scopedWebhook: webhookService.LifecycleWebhook = {
+      ...mockWebhooks[0],
+      agent_id: 'agent-1',
+    };
+
+    (webhookService.listLifecycleWebhooks as any)
+      .mockResolvedValueOnce([scopedWebhook])
+      .mockResolvedValueOnce([{ ...scopedWebhook, agent_id: null }]);
+    (webhookService.updateLifecycleWebhook as any).mockResolvedValueOnce({
+      ...scopedWebhook,
+      agent_id: null,
+    });
+
+    render(<LifecycleWebhookSection />);
+    expect(await screen.findByText('CI Webhook')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /editEndpoint/i }));
+
+    const agentScopeTrigger = screen.getByRole('combobox');
+    fireEvent.click(agentScopeTrigger);
+
+    const allAgentsOption = await screen.findByRole('option', { name: 'agentScopeAll' });
+    fireEvent.click(allAgentsOption);
+
+    fireEvent.click(screen.getByRole('button', { name: /saveChanges/i }));
+
+    await waitFor(() => {
+      expect(webhookService.updateLifecycleWebhook).toHaveBeenCalledWith(
+        'wh-1',
+        expect.objectContaining({
+          clear_agent_scope: true,
+        }),
+      );
+    });
+  });
 });

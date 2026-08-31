@@ -31,6 +31,7 @@ import { disambiguateChatTitle } from '@/lib/utils/titleUtils';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
 import { restoreAgentConfigFromChat } from '@/store/chat/chatAgentSessionRestore';
+import { shouldDeferMessagesReadyUntilAgentRestore } from '@/store/chat/sessionAgentHydration';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
 import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { normalizeSessionAccessRoots } from '@/store/chat/types/sessionAccess';
@@ -183,7 +184,7 @@ export const loadMessages = async (
     });
 
     const agentIdForRestore = chatData.chat.agent_id?.trim() || null;
-    const deferReadyUntilAgentRestore = Boolean(agentIdForRestore);
+    const deferReadyUntilAgentRestore = shouldDeferMessagesReadyUntilAgentRestore(agentIdForRestore);
 
     if (deferReadyUntilAgentRestore) {
       actions.setMessages((state) => {
