@@ -75,7 +75,13 @@
     ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-44756-57fe0411/types/**/*.ts",
     ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-44756-57fe0411/dev/types/**/*.ts",
     ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-69354-700178ff/types/**/*.ts",
-    ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-69354-700178ff/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_fast_deep_search_web_fetch_spill_us-244f8187-69354-700178ff/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-9179-c2f469c9/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-9179-c2f469c9/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-40438-7313c303/types/**/*.ts",
+    ".next-isolated-chrome-test_security_preset_live_flow_and_switc-66b15b8c-40438-7313c303/dev/types/**/*.ts",
+    ".next-isolated-web-cite/types/**/*.ts",
+    ".next-isolated-web-cite/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

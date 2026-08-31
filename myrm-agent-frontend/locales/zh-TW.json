@@ -2446,7 +2446,7 @@
       "parameters": "引數",
       "layers": {
         "core": "核心",
-        "common": "通用",
+        "high_priority": "高優",
         "extended": "擴展",
         "external": "外部整合"
       },

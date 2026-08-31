@@ -31,6 +31,50 @@ export interface BatchRiskReport {
   allItemIds: string[];
 }
 
+const DESTRUCTIVE_COMMAND_PATTERNS: RegExp[] = [
+  /\brm\s+-[a-zA-Z]*[rfRF][a-zA-Z]*\b/,
+  /\b(mkfs|fdisk|parted|dd\s+if=)\b/,
+  /\b(DROP\s+DATABASE|DROP\s+TABLE|TRUNCATE\s+TABLE)\b/i,
+  /\b(chmod\s+-R\s+777|chown\s+-R)\b/,
+  /\b(shutdown|reboot|init\s+0|halt)\b/,
+  /:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/,
+];
+
+function extractCommandStrings(payload?: Record<string, unknown>): string[] {
+  if (!payload) return [];
+  const cmds: string[] = [];
+
+  for (const key of ['command', 'cmd', 'script', 'query', 'sql']) {
+    const val = payload[key];
+    if (typeof val === 'string') cmds.push(val);
+  }
+
+  const args = payload.args;
+  if (args && typeof args === 'object' && !Array.isArray(args)) {
+    for (const key of ['command', 'cmd', 'script', 'query', 'sql']) {
+      const val = (args as Record<string, unknown>)[key];
+      if (typeof val === 'string') cmds.push(val);
+    }
+  }
+
+  const toolCalls = payload.tool_calls;
+  if (Array.isArray(toolCalls)) {
+    for (const tc of toolCalls) {
+      if (tc && typeof tc === 'object') {
+        const tcArgs = (tc as Record<string, unknown>).args || (tc as Record<string, unknown>).arguments;
+        if (tcArgs && typeof tcArgs === 'object' && !Array.isArray(tcArgs)) {
+          for (const key of ['command', 'cmd', 'script', 'query', 'sql']) {
+            const val = (tcArgs as Record<string, unknown>)[key];
+            if (typeof val === 'string') cmds.push(val);
+          }
+        }
+      }
+    }
+  }
+
+  return cmds;
+}
+
 export function classifySingleApprovalRisk(item: ApprovalPayload): { riskLevel: BatchItemRiskLevel; reason: string } {
   // Check smartDenied / hideAllowAlways in reviewConfigs
   const reviewConfigs = item.payload?.reviewConfigs;
@@ -65,6 +109,20 @@ export function classifySingleApprovalRisk(item: ApprovalPayload): { riskLevel: 
   ).toLowerCase();
   if (['danger', 'destroy', 'drop_db', 'wipe'].some((k) => toolName.includes(k))) {
     return { riskLevel: 'high', reason: `High-risk tool name: ${toolName}` };
+  }
+
+  // Check deep command strings in payload
+  const cmdStrings = extractCommandStrings(item.payload as Record<string, unknown>);
+  for (const cmd of cmdStrings) {
+    for (const pattern of DESTRUCTIVE_COMMAND_PATTERNS) {
+      const match = pattern.exec(cmd);
+      if (match) {
+        return {
+          riskLevel: 'high',
+          reason: `Destructive command pattern detected in payload: ${match[0]}`,
+        };
+      }
+    }
   }
 
   return { riskLevel: 'safe', reason: 'Standard safe / approved action' };

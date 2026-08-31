@@ -2104,7 +2104,7 @@
       "parameters": "Parameter",
       "layers": {
         "core": "Kern",
-        "common": "Allgemein",
+        "high_priority": "Hohe Priorität",
         "extended": "Erweitert",
         "external": "Extern"
       },

@@ -2427,7 +2427,7 @@
       "parameters": "パラメータ",
       "layers": {
         "core": "コア",
-        "common": "共通",
+        "high_priority": "高優先",
         "extended": "拡張",
         "external": "外部連携"
       },

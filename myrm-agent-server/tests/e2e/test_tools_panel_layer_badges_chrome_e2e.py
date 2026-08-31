@@ -297,13 +297,13 @@ _LAYER_BADGES_READY_JS = """(() => {
     .map((el) => (el.textContent || '').trim())
     .filter(Boolean);
   const hasCore = /(?:^|\\s)(核心|Core)(?:\\s|$)/m.test(text);
-  const hasCommon = /(?:^|\\s)(通用|Common)(?:\\s|$)/m.test(text);
+  const hasHighPriority = /(?:^|\\s)(高优|High Priority|通用|Common)(?:\\s|$)/m.test(text);
   const hasExtended = /(?:^|\\s)(扩展|Extended)(?:\\s|$)/m.test(text);
   const hasDigitLayer = badges.some((label) => /^[1-4]$/.test(label));
   return {
-    ready: hasCore && hasCommon && hasExtended && !hasDigitLayer,
+    ready: hasCore && hasHighPriority && hasExtended && !hasDigitLayer,
     hasCore,
-    hasCommon,
+    hasHighPriority,
     hasExtended,
     hasDigitLayer,
     badges: badges.slice(0, 40),
@@ -546,7 +546,7 @@ async def _run_tools_panel_layer_badges_flow(
         poll_sec=0.5,
     )
     assert badges.get("hasCore") is True, badges
-    assert badges.get("hasCommon") is True, badges
+    assert badges.get("hasHighPriority") is True, badges
     assert badges.get("hasExtended") is True, badges
     assert badges.get("hasDigitLayer") is False, badges
 

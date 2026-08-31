@@ -2093,7 +2093,7 @@
       "parameters": "매개변수",
       "layers": {
         "core": "핵심",
-        "common": "일반",
+        "high_priority": "높은 우선순위",
         "extended": "확장",
         "external": "외부"
       },

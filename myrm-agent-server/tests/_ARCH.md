@@ -46,6 +46,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/chats/test_clarify_refresh_seed_fixture.py` | 模块 | clarify refresh seed HTTP 单测（local-only gate + 三 variant mock 持久化） |
 | `e2e/test_integration_catalog_loopback_guard_chrome_e2e.py` | 模块 | Integration Catalog loopback guard Chrome MCP E2E（READ×3：live API `deployment_scope` 与 `/integrations/mcp/probe` 语义断言 + 阻断链 `scan/verify` 不扇出 + `recommendedMode` 在 `connection_refused` / `probe_failed_unknown` 重试后自动续接连接） |
 | `e2e/test_memory_citations_chrome_e2e.py` | 模块 | Memory Chrome MCP E2E（READ×2：设置「历史会话搜索」开关；统一「依据/Evidence N」Sheet） |
+| `e2e/test_web_search_inline_citations_chrome_e2e.py` | 模块 | Web search 行内引用 Chrome READ E2E（inject sources+【N】/[N] → LinkPopover badge + 代码块 mask + 「依据 N」） |
+| `e2e/test_web_search_citations_live_chrome_e2e.py` | 模块 | General Agent web_search 引用 LIVE Chrome E2E（PRIVATE+SHPOIB：真实 LLM turn → sources SSE → Evidence + 行内 cite UI；`seed_live_e2e_providers` + `enabledBuiltinTools=[web_search]`） |
+| `api/agent/test_citation_general_agent_web_search_e2e.py` | 模块 | General Agent web_search 引用 API E2E（`@pytest.mark.e2e`：agent-stream sources 事件 + 【1】/CITE_OK 断言；`enabledBuiltinTools=[web_search]`） |
 | `e2e/test_voice_memory_acl_chrome_e2e.py` | 模块 | Voice memory ACL Chrome MCP E2E（READ×2：`/settings/memory` UI 开/关「历史会话搜索」→ `GET /config/personalSettings` 断言；token corpus 由 HTTP 集成测覆盖） |
 | `api/voice/test_voice_memory_context.py` | 模块 | Voice memory ACL SSOT 单元 + policy 矩阵 |
 | `api/voice/test_voice_memory_acl_api_integration.py` | 模块 | Voice memory ACL HTTP 集成（realtime/gemini token enum + tool-exec flags，ACL 路径 unmocked） |
