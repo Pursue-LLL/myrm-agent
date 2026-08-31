@@ -1,7 +1,7 @@
 """GUI-driven lazy install of optional channel dependencies.
 
 [INPUT]
-- myrm_agent_harness.runtime.lazy_deps::ensure, feature_missing (POS: Allowlisted venv lazy install)
+- myrm_agent_harness.runtime.deps.lazy_deps::ensure, feature_missing (POS: Allowlisted venv lazy install)
 - app.channels.providers.registry::get_channel_spec, clear_cache (POS: Central channel provider registry)
 
 [OUTPUT]
@@ -19,7 +19,7 @@ import logging
 from pathlib import Path
 
 from filelock import FileLock, Timeout
-from myrm_agent_harness.runtime.lazy_deps import FeatureUnavailableError, ensure, feature_missing
+from myrm_agent_harness.runtime.deps.lazy_deps import FeatureUnavailableError, ensure, feature_missing
 
 from app.channels.providers.registry import clear_cache
 from app.channels.types import ChannelIssue, IssueKind, IssueSeverity

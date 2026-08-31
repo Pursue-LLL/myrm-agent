@@ -4,7 +4,7 @@ Exposes high-fidelity memory metrics, historical sampling, and on-demand
 heap profiling capabilities from the Harness layer to the Frontend and Control Plane.
 
 [INPUT]
-- myrm_agent_harness.runtime.resource_monitor::get_resource_monitor (POS: Harness memory profiler)
+- myrm_agent_harness.runtime.survival.resource_monitor::get_resource_monitor (POS: Harness memory profiler)
 
 [OUTPUT]
 - GET /api/v1/health/memory/history: Get 512-point memory history
@@ -16,7 +16,7 @@ Memory diagnostics API. Provides observability for memory leaks and OOM preventi
 """
 
 from fastapi import APIRouter, HTTPException
-from myrm_agent_harness.runtime.resource_monitor import get_resource_monitor
+from myrm_agent_harness.runtime.survival.resource_monitor import get_resource_monitor
 
 from app.services.chat.conversation_search_service import ConversationSearchService
 

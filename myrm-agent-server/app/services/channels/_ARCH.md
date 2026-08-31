@@ -14,7 +14,7 @@ Business-layer helpers for optional channel SDK installation and post-install ga
 
 ## Dependencies
 
-- `dependency_install.py` → `myrm_agent_harness.runtime.lazy_deps`, `app.channels.providers.registry`
+- `dependency_install.py` → `myrm_agent_harness.runtime.deps.lazy_deps`, `app.channels.providers.registry`
 - Optional capability extras (e.g. WeChat voice `platform.wechat-silk`) install via explicit Settings action; WARNING issues do not block channel enable.
 - `sdk_registration.py` → `app.channels.core.factory`, `app.core.channel_bridge`
 - `api/channels/router.py` → both modules above

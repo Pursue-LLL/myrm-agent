@@ -75,7 +75,7 @@ def configure_logging() -> None:
     logging.getLogger("myrm_agent_harness.toolkits.web_search.processing.search_results_processor").setLevel(logging.INFO)
 
     # Production-visible memory monitoring (grep-friendly [MEMORY] logs)
-    logging.getLogger("myrm_agent_harness.runtime.resource_monitor").setLevel(logging.INFO)
+    logging.getLogger("myrm_agent_harness.runtime.survival.resource_monitor").setLevel(logging.INFO)
 
 
 def _suppress_library_logs(logger_name: str, level: int) -> None:

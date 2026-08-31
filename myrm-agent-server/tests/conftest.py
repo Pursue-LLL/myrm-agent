@@ -623,7 +623,7 @@ def _chrome_e2e_item_runtime(
         "CHROME_E2E_RUNTIME: "
         f"item={request.node.name} runtime={runtime.runtime_id} "
         f"api={runtime.api_base} ui={runtime.environment.get('E2E_UI_BASE', '')} "
-        f"startup={runtime.startup_seconds:.2f}s"
+        f"startup={runtime.survival.startup_seconds:.2f}s"
     )
     try:
         yield runtime

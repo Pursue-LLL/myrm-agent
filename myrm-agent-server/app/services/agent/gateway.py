@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.base_agent import BaseAgent
-    from myrm_agent_harness.runtime.memory_pressure import PressureEvent
+    from myrm_agent_harness.runtime.survival.memory_pressure import PressureEvent
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ class AgentGateway:
         self._session_info: dict[str, ActiveSessionInfo] = {}
         self._draining = False
 
-        from myrm_agent_harness.runtime.memory_pressure import PressureLevel
+        from myrm_agent_harness.runtime.survival.memory_pressure import PressureLevel
 
         self._memory_pressure_level: PressureLevel = PressureLevel.NORMAL
         self._pressure_resolved = asyncio.Event()
@@ -384,7 +384,7 @@ class AgentGateway:
         NORMAL/WARNING → allow new executions (set the Event).
         Already-running agents are NOT interrupted — only new ones are queued.
         """
-        from myrm_agent_harness.runtime.memory_pressure import PressureLevel
+        from myrm_agent_harness.runtime.survival.memory_pressure import PressureLevel
 
         self._memory_pressure_level = event.level
         if event.level >= PressureLevel.CRITICAL:

@@ -1,7 +1,7 @@
 """Map harness persistent volume paths for local dev without /persistent mount.
 
 [INPUT]
-- myrm_agent_harness.runtime.execution_paths (POS: PERSISTENT_ROOT and derived paths)
+- myrm_agent_harness.runtime.paths.execution_paths (POS: PERSISTENT_ROOT and derived paths)
 - myrm_agent_harness.runtime.context.context_branches (POS: PERSISTENT_ROOT override)
 - myrm_agent_harness.runtime.context.session.session_context_pins (POS: PERSISTENT_ROOT override)
 
@@ -31,7 +31,7 @@ def configure_persistent_root_for_local_dev(state_dir: str) -> str:
 
     import myrm_agent_harness.runtime.context.context_branches as branches_module
     import myrm_agent_harness.runtime.context.session.session_context_pins as pins_module
-    import myrm_agent_harness.runtime.execution_paths as execution_paths
+    import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
     execution_paths.PERSISTENT_ROOT = root_str
     execution_paths.WORKSPACE_ROOT = f"{root_str}/workspace"

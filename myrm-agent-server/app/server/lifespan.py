@@ -25,7 +25,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
-from myrm_agent_harness.runtime.startup import StartupTimer
+from myrm_agent_harness.runtime.survival.startup import StartupTimer
 
 if TYPE_CHECKING:
     from myrm_agent_harness.runtime.context.cleanup_task import ContextCleanupScheduler

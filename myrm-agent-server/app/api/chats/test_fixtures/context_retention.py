@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-import myrm_agent_harness.runtime.execution_paths as execution_paths
+import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.runtime.context.context_branches import append_context_branch
 from myrm_agent_harness.runtime.context.session.session_context_pins import (

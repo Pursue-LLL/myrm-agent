@@ -11,7 +11,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.runtime.memory_pressure import MemoryPressureMonitor
+    from myrm_agent_harness.runtime.survival.memory_pressure import MemoryPressureMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ async def start_memory_pressure_monitor() -> None:
     if _memory_pressure_monitor is not None:
         return
 
-    from myrm_agent_harness.runtime.memory_pressure import init_memory_pressure_monitor
+    from myrm_agent_harness.runtime.survival.memory_pressure import init_memory_pressure_monitor
 
     _memory_pressure_monitor = init_memory_pressure_monitor()
     await _memory_pressure_monitor.start()
@@ -82,7 +82,7 @@ async def start_memory_pressure_monitor() -> None:
     )
 
     # Also start the high-fidelity resource monitor
-    from myrm_agent_harness.runtime.resource_monitor import get_resource_monitor
+    from myrm_agent_harness.runtime.survival.resource_monitor import get_resource_monitor
 
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
@@ -114,7 +114,7 @@ async def stop_memory_pressure_monitor() -> None:
     _memory_pressure_monitor = None
 
     # Also stop the high-fidelity resource monitor
-    from myrm_agent_harness.runtime.resource_monitor import get_resource_monitor
+    from myrm_agent_harness.runtime.survival.resource_monitor import get_resource_monitor
 
     await get_resource_monitor().stop()
 
