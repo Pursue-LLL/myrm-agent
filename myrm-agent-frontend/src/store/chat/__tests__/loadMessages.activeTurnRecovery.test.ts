@@ -13,6 +13,7 @@ const mockStore = vi.hoisted(() => {
     chatId: 'chat-active',
     messages: [] as unknown[],
     loading: false,
+    isMessagesLoaded: false,
     abortController: null,
     setContextPinnedFiles: vi.fn(),
     setContextPinnedFilesLoadError: vi.fn(),
@@ -91,6 +92,7 @@ function setupStore(chatId: string): void {
   mockStore.chatId = chatId;
   mockStore.messages = [];
   mockStore.loading = false;
+  mockStore.isMessagesLoaded = false;
   mockStore.abortController = null;
 }
 
@@ -239,6 +241,32 @@ describe('loadMessages active-turn SSE recovery', () => {
     await loadMessages('chat-active', makeActions(), { preserveInstantSessionConfig: true });
 
     expect(attachToChatMock).not.toHaveBeenCalled();
+    expect(restoreAgentConfigFromChatMock).toHaveBeenCalledWith('chat-active', 'agent-from-db');
+  });
+
+  it('defers isMessagesLoaded until restore completes when chat has agent_id', async () => {
+    setupStore('chat-active');
+    let loadedBeforeRestore = false;
+    restoreAgentConfigFromChatMock.mockImplementation(async () => {
+      loadedBeforeRestore = mockStore.isMessagesLoaded === true;
+    });
+    getChatDetailMock.mockResolvedValue({
+      chat: {
+        ...chatDetailPayload().chat,
+        agent_id: 'agent-from-db',
+      },
+    });
+    getMessagesMock.mockResolvedValue({
+      messages: [],
+      has_more: false,
+      next_cursor: null,
+    });
+
+    await loadMessages('chat-active', makeActions());
+
+    expect(loadedBeforeRestore).toBe(false);
+    expect(mockStore.isMessagesLoaded).toBe(true);
+    expect(mockStore.loading).toBe(false);
     expect(restoreAgentConfigFromChatMock).toHaveBeenCalledWith('chat-active', 'agent-from-db');
   });
 });

@@ -23,6 +23,7 @@ import json
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    attach_chat_and_wait_agent_binding,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -122,17 +123,20 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
     seeded = _seed_fixture(api_url)
     preset_path = seeded["preset_ui_path"]
     plain_path = seeded["plain_ui_path"]
+    preset_chat_id = seeded["preset_chat_id"]
+    plain_chat_id = seeded["plain_chat_id"]
     preset_agent_id = seeded["preset_agent_id"]
     plain_agent_id = seeded["plain_agent_id"]
 
     # --- Scenario 1: initialization to agent default preset ---
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
-        init_state = wait_for_state(
+        init_state = attach_chat_and_wait_agent_binding(
             client,
             page,
-            _store_preset_probe("accept_edits", preset_agent_id),
-            timeout_sec=90.0,
+            preset_chat_id,
+            expected_preset="accept_edits",
+            agent_id=preset_agent_id,
         )
         assert init_state.get("ready") is True, json.dumps(init_state, ensure_ascii=False)
 
@@ -181,10 +185,11 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
     # --- Scenario 3: fail-closed fallback to hitl on an agent without default ---
     warm_ui_route(plain_path)
     with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
-        fallback_state = wait_for_state(
+        fallback_state = attach_chat_and_wait_agent_binding(
             client,
             page,
-            _store_preset_probe("hitl", plain_agent_id),
-            timeout_sec=90.0,
+            plain_chat_id,
+            expected_preset="hitl",
+            agent_id=plain_agent_id,
         )
         assert fallback_state.get("ready") is True, json.dumps(fallback_state, ensure_ascii=False)

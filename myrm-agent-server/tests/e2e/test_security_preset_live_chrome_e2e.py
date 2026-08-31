@@ -44,6 +44,7 @@ from cdp_chat.support import (  # noqa: E402
 from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
+    attach_chat_and_wait_agent_binding,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -251,68 +252,6 @@ def _wait_yolo_state(api_url: str, expected: bool, *, timeout_sec: float = 45.0)
     return last
 
 
-def _wait_agent_preset(
-    client: ChromeMcpClient,
-    page: McpPage,
-    *,
-    expected_preset: str,
-    agent_id: str,
-    timeout_sec: float = 90.0,
-) -> dict[str, object]:
-    state = wait_for_state(
-        client,
-        page,
-        _store_preset_probe(expected_preset, agent_id),
-        timeout_sec=timeout_sec,
-    )
-    assert state.get("ready") is True, json.dumps(state, ensure_ascii=False)
-    return state
-
-
-def _attach_and_wait_agent_preset(
-    client: ChromeMcpClient,
-    page: McpPage,
-    chat_id: str,
-    *,
-    expected_preset: str,
-    agent_id: str,
-    timeout_sec: float = 90.0,
-) -> dict[str, object]:
-    chat_id_json = json.dumps(chat_id)
-    agent_json = json.dumps(agent_id)
-    expected_json = json.dumps(expected_preset)
-    attach_js = f"""(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat) {{
-    return {{ ok: false, err: 'no-bridge' }};
-  }}
-  const store = window.__myrmChatStore?.getState?.();
-  if (
-    store?.agentConfig?.agentId === {agent_json}
-    && store?.securityPreset === {expected_json}
-    && store?.chatId === {chat_id_json}
-    && store?.isMessagesLoaded
-  ) {{
-    return {{ ok: true, skipped: true }};
-  }}
-  try {{
-    await bridge.attachToChat({chat_id_json});
-    return {{ ok: true, skipped: false }};
-  }} catch (err) {{
-    return {{ ok: false, err: String(err) }};
-  }}
-}})()"""
-    attach_result = client.evaluate(page, attach_js, timeout_sec=min(120.0, timeout_sec))
-    assert isinstance(attach_result, dict) and attach_result.get("ok") is True, attach_result
-    return _wait_agent_preset(
-        client,
-        page,
-        expected_preset=expected_preset,
-        agent_id=agent_id,
-        timeout_sec=timeout_sec,
-    )
-
-
 def _open_preset_selector_js() -> str:
     return """(() => {
   const target = document.querySelector('[data-testid="security-preset-trigger"]');
@@ -421,7 +360,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     # --- Scenario 1: live LLM conversation keeps accept_edits preset ---
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
-        _attach_and_wait_agent_preset(
+        attach_chat_and_wait_agent_binding(
             client,
             page,
             preset_chat_id,
@@ -452,7 +391,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     # --- Scenario 2: agent switch resets preset (no leak across agents) ---
     warm_ui_route(plain_path)
     with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
-        _attach_and_wait_agent_preset(
+        attach_chat_and_wait_agent_binding(
             client,
             page,
             plain_chat_id,
@@ -462,7 +401,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
 
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
-        _attach_and_wait_agent_preset(
+        attach_chat_and_wait_agent_binding(
             client,
             page,
             preset_chat_id,
@@ -476,7 +415,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
 
     warm_ui_route(preset_path)
     with open_mcp_page(f"{ui_url}{preset_path}", timeout_ms=120_000) as (client, page):
-        _attach_and_wait_agent_preset(
+        attach_chat_and_wait_agent_binding(
             client,
             page,
             preset_chat_id,
@@ -489,7 +428,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     # --- Scenario 4: explore default preset hydrates to explore (third tier) ---
     warm_ui_route(explore_path)
     with open_mcp_page(f"{ui_url}{explore_path}", timeout_ms=120_000) as (client, page):
-        _attach_and_wait_agent_preset(
+        attach_chat_and_wait_agent_binding(
             client,
             page,
             explore_chat_id,
@@ -503,7 +442,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
 
     warm_ui_route(plain_path)
     with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
-        _attach_and_wait_agent_preset(
+        attach_chat_and_wait_agent_binding(
             client,
             page,
             plain_chat_id,
@@ -518,7 +457,7 @@ def test_security_preset_live_flow_and_switch_and_yolo_mutex() -> None:
     # YOLO is still enabled after Scenario 5 (hitl agent does not disarm it).
     warm_ui_route(plain_path)
     with open_mcp_page(f"{ui_url}{plain_path}", timeout_ms=120_000) as (client, page):
-        _attach_and_wait_agent_preset(
+        attach_chat_and_wait_agent_binding(
             client,
             page,
             plain_chat_id,

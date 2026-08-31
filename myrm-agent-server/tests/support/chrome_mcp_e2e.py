@@ -2787,6 +2787,80 @@ def _looks_like_cdp_transport_error(message: str) -> bool:
     )
 
 
+def chat_agent_binding_probe_js(*, expected_preset: str, agent_id: str | None = None) -> str:
+    expected_json = json.dumps(expected_preset)
+    agent_json = json.dumps(agent_id) if agent_id else "null"
+    return f"""(() => {{
+  const store = window.__myrmChatStore?.getState?.();
+  if (!store) return {{ ready: false, err: 'no-store' }};
+  const preset = store.securityPreset;
+  const boundAgentId = store.agentConfig?.agentId ?? null;
+  const ready = preset === {expected_json}
+    && ({agent_json} === null || boundAgentId === {agent_json})
+    && store.isMessagesLoaded === true
+    && store.loading !== true;
+  return {{
+    ready,
+    preset,
+    expected: {expected_json},
+    boundAgentId,
+    expectedAgentId: {agent_json},
+    actionMode: store.actionMode ?? null,
+    isMessagesLoaded: store.isMessagesLoaded ?? false,
+    loading: store.loading ?? null,
+    apiBase: window.__MYRM_E2E_API_BASE__ ?? window.__MYRM_E2E_RUNTIME__?.apiBase ?? null,
+    err: null,
+  }};
+}})()"""
+
+
+def attach_chat_and_wait_agent_binding(
+    client: ChromeMcpClient,
+    page: McpPage,
+    chat_id: str,
+    *,
+    expected_preset: str,
+    agent_id: str,
+    timeout_sec: float = 90.0,
+) -> dict[str, object]:
+    """Deterministic agent+preset hydrate via E2E bridge attachToChat (BUG-004 SSOT)."""
+    if _parallel_chrome_e2e_active():
+        timeout_sec = max(timeout_sec, 120.0)
+    chat_id_json = json.dumps(chat_id)
+    agent_json = json.dumps(agent_id)
+    expected_json = json.dumps(expected_preset)
+    attach_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {{
+    return {{ ok: false, err: 'no-bridge' }};
+  }}
+  const store = window.__myrmChatStore?.getState?.();
+  if (
+    store?.agentConfig?.agentId === {agent_json}
+    && store?.securityPreset === {expected_json}
+    && store?.chatId === {chat_id_json}
+    && store?.isMessagesLoaded
+    && store?.loading !== true
+  ) {{
+    return {{ ok: true, skipped: true }};
+  }}
+  try {{
+    await bridge.attachToChat({chat_id_json});
+    return {{ ok: true, skipped: false }};
+  }} catch (err) {{
+    return {{ ok: false, err: String(err) }};
+  }}
+}})()"""
+    attach_result = client.evaluate(page, attach_js, timeout_sec=min(120.0, timeout_sec))
+    if not isinstance(attach_result, dict) or attach_result.get("ok") is not True:
+        raise AssertionError(f"attachToChat failed: {attach_result!r}")
+    probe = chat_agent_binding_probe_js(expected_preset=expected_preset, agent_id=agent_id)
+    state = wait_for_state(client, page, probe, timeout_sec=timeout_sec)
+    if state.get("ready") is not True:
+        raise AssertionError(f"Agent binding not ready: {json.dumps(state, ensure_ascii=False)}")
+    return state
+
+
 def wait_for_state(
     client: ChromeMcpClient,
     page: McpPage,

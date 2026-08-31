@@ -7,7 +7,7 @@
  * [OUTPUT]
  * initializeChat: Initialize or switch chat sessions with instant snapshot rendering.
  * resolveInstantChatSnapshot: Resolve workspace pane or LRU snapshot for a chat id.
- * loadMessages: Fetch chat history from DB + always restore bound agentConfig from chat.agent_id.
+ * loadMessages: Fetch chat history; agent-bound chats defer isMessagesLoaded until restore completes.
  * autoSaveChat: Auto-generate and save chat titles.
  *
  * [POS]
@@ -179,14 +179,40 @@ export const loadMessages = async (
         state.sessionAccessRoots = normalizeSessionAccessRoots(chatData.chat.session_access_roots);
         state.hasMoreMessages = page.has_more;
         state.nextCursor = page.next_cursor;
-        state.isMessagesLoaded = true;
-        state.loading = false;
       }
     });
+
+    const agentIdForRestore = chatData.chat.agent_id?.trim() || null;
+    const deferReadyUntilAgentRestore = Boolean(agentIdForRestore);
+
+    if (deferReadyUntilAgentRestore) {
+      actions.setMessages((state) => {
+        if (state.chatId === chatId) {
+          state.loading = true;
+          state.isMessagesLoaded = false;
+        }
+      });
+    } else {
+      actions.setMessages((state) => {
+        if (state.chatId === chatId) {
+          state.isMessagesLoaded = true;
+          state.loading = false;
+        }
+      });
+    }
 
     // Agent binding always follows DB chat.agent_id, even when instant-session
     // snapshot preserved messages/loading (LRU attach must not keep stale agentConfig).
     await restoreAgentConfigFromChat(chatId, chatData.chat.agent_id);
+
+    if (deferReadyUntilAgentRestore) {
+      actions.setMessages((state) => {
+        if (state.chatId === chatId) {
+          state.isMessagesLoaded = true;
+          state.loading = false;
+        }
+      });
+    }
 
     if (!preserveInstantSessionConfig && !options?.skipActiveTurnAttach) {
       console.log('[MYRM-ATTACH] loadMessages triggers maybeAttachToActiveTurn', {
@@ -505,10 +531,12 @@ export const initializeChat = (
     const snapshot = resolveInstantChatSnapshot(id);
 
     if (snapshot) {
+      const snapshotHasBoundAgent = Boolean(snapshot.agentConfig?.agentId);
       actions.setMessages((draft) => {
         Object.assign(draft, snapshot);
         draft.chatId = id;
-        draft.isMessagesLoaded = true;
+        // Agent-bound chats: background loadMessages+restore owns ready signal (BUG-004 gate).
+        draft.isMessagesLoaded = snapshotHasBoundAgent ? false : true;
         draft.securityPreset = normalizeSecurityPreset(draft.agentConfig?.defaultSecurityPreset);
         draft.activeMoaPresetId = snapshot.incognitoMode ? null : (snapshot.activeMoaPresetId ?? null);
       });
@@ -522,13 +550,16 @@ export const initializeChat = (
         ...actions,
         setMessages: (updater: (state: ChatState) => void) => {
           actions.setMessages((draft) => {
-            if (draft.chatId === id) {
-              const preservedLoading = draft.loading;
-              const preservedIsMessagesLoaded = draft.isMessagesLoaded;
-              updater(draft);
-              draft.loading = preservedLoading;
-              draft.isMessagesLoaded = preservedIsMessagesLoaded;
+            if (draft.chatId !== id) {
+              return;
             }
+            const lockStreamingLoading = snapshot.loading;
+            const lockedLoading = lockStreamingLoading ? draft.loading : null;
+            updater(draft);
+            if (lockStreamingLoading && lockedLoading !== null) {
+              draft.loading = lockedLoading;
+            }
+            // isMessagesLoaded: never preserve — loadMessages Hydration Readiness Gate owns it.
           });
         },
       };
