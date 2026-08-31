@@ -16,4 +16,5 @@
 | `github_full.py` | 核心 | Local 全量 GitHub 仪表盘（支持多仓 PR 补充） | ✅ |
 | `dashboard_settings.py` | 核心 | Omni-Config `securityDashboardSettings` 读取 | ✅ |
 | `profile_manager.py` | 核心 | Security Profile CRUD；builtin seed 与 SSOT 同步；save/read API 路径均 fan-out 旧 `delegate_agent` 键 | ✅ |
+| `workspace_trust_store.py` | 核心 | UserConfig 持久化 workspace trust registry；启动时注入 harness `WorkspaceTrustLookup` | ✅ |
 | `tenant_guardrail.py` | 核心 | SaaS tenant guardrail hook（预留；subagent 消费由 WU budget 门禁） | ✅ |

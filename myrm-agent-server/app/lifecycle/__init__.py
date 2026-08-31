@@ -45,6 +45,7 @@ from .skills import shutdown_skill_optimization_listeners, start_skill_optimizat
 from .system import (
     init_allowlist_store,
     init_risk_rules,
+    init_workspace_trust_store,
     pause_orphaned_active_goals,
     resume_durable_offline_tasks,
     start_channel_gateway,
@@ -92,6 +93,7 @@ __all__ = [
     "auto_continue_interrupted_turns",
     "init_allowlist_store",
     "init_risk_rules",
+    "init_workspace_trust_store",
     "pause_orphaned_active_goals",
     "resume_durable_offline_tasks",
     "start_channel_gateway",

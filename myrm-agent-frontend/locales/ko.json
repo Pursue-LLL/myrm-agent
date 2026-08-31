@@ -2675,7 +2675,28 @@
     "routingStandardTooltip": "표준 기본 모델을 사용하여 일상적인 작업을 처리합니다",
     "routingReasoningTooltip": "복잡한 논리 또는 다단계 추론을 감지하여 고성능 심층 추론 모델로 자동 할당했습니다",
     "routingCodeTooltip": "코드 작성, 리팩토링 또는 디버그 작업을 감지하여 코드 전문 모델로 라우팅했습니다",
-    "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다"
+    "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다",
+    "deviceInspector": {
+      "title": "Mobile Device Live View",
+      "toggleTitle": "Toggle Device Inspector",
+      "viewMode": "View Mode",
+      "inspectMode": "Inspect Mode",
+      "close": "Close",
+      "refresh": "Refresh",
+      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
+      "resizePanel": "Resize panel",
+      "screenshotAlt": "Mobile device screenshot",
+      "waitingForDevice": "Waiting for mobile device activity...",
+      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
+      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
+      "notificationRedaction": "Status Bar Notification Redaction",
+      "redactionBadge": "Redaction",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
+      "instructionPlaceholder": "Describe what you want to do on the device...",
+      "instructionWithElement": "What should the agent do with this mobile element?",
+      "send": "Send instruction"
+    }
   },
   "mode": {
     "fast": "빠른 검색",
@@ -10652,7 +10673,23 @@
       "loadFailed": "디렉터리를 로드하지 못했습니다",
       "boundSuccess": "프로젝트를 가져오고 워크스페이스를 성공적으로 바인딩했습니다",
       "bindFailed": "프로젝트 가져오기 실패",
-      "currentPath": "워크스페이스 절대 경로"
+      "currentPath": "워크스페이스 절대 경로",
+      "folderGate": {
+        "title": "Trust this folder?",
+        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "loading": "Scanning folder…",
+        "loadFailed": "Could not scan this folder. Try again or pick another path.",
+        "decideFailed": "Could not save your choice. Try again.",
+        "disclosureTitle": "What we found in this folder",
+        "skills": "Local skills",
+        "rules": "Workspace rules",
+        "hasMyrmConfig": "Contains a .myrm project config",
+        "repoCommands": "Repo-declared command shortcuts",
+        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
+        "cancel": "Cancel",
+        "restrict": "Link without trusting",
+        "trust": "Trust and link"
+      }
     }
   },
   "milestone": {
@@ -12188,6 +12225,38 @@
         "badgeCloudApi": "클라우드 API",
         "dataScopePrompt": "필터링된 프롬프트 및 대화 컨텍스트",
         "dataScopeToolArgs": "도구 호출 매개변수 및 페이로드",
+        "connectorCategory": "외부 커넥터",
+        "agentConnectorCategory": "외부 Agent 커넥터",
+        "integrationOAuthCategory": "연결된 통합",
+        "dataScopeConnector": "커넥터 범위별 동기화된 메모리 및 Agent 컨텍스트",
+        "dataScopeIntegration": "OAuth 범위 API 액세스 및 동기화된 통합 데이터",
+        "channelCategory": "메시징 채널",
+        "dataScopeChannel": "수신 메시지, 에이전트 응답 및 알림 전달",
+        "fallbackCloudEndpoint": "클라우드 엔드포인트",
+        "fallbackLocalStdio": "로컬 STDIO",
+        "integrationsLoading": "연결된 통합 불러오는 중…",
+        "badgeActiveCount": "활성 {count}개",
+        "badgeHosted": "호스팅",
+        "controlPlaneHosted": "호스팅 / 샌드박스 모드",
+        "controlPlaneHostedDesc": "세션 메타데이터, 선택적 원격 측정 및 플랫폼 권한이 컨트롤 플레인과 동기화될 수 있습니다.",
+        "egressLoading": "외부 egress 구성을 불러오는 중…",
+        "crossBorderRoutingHint": "개인정보 라우팅이 활성화됨 — 민감 콘텐츠는 클라우드 제공업체 대신 구성된 로컬 모델에서 처리될 수 있습니다.",
+        "crossBorderRoutingLink": "개인정보 라우팅 설정 검토",
+        "dataUsagePolicyLink": "제공업체 정책",
+        "dataUsage": {
+          "api_not_used_for_training": "API 데이터는 일반적으로 모델 학습에 사용되지 않습니다(제공업체 계정에서 확인).",
+          "account_settings_apply": "데이터 사용은 제공업체 계정 및 제품 설정에 따릅니다.",
+          "self_hosted": "본인 컴퓨터에서 실행 — 프롬프트가 이 호스트를 벗어나지 않습니다.",
+          "third_party_routing": "기본 제공업체로 라우팅 — 각 정책을 확인하세요.",
+          "review_provider_policy": "이 제공업체의 데이터 사용 및 학습 정책을 확인하세요."
+        },
+        "yourRightsTitle": "귀하의 데이터 권리",
+        "yourRightsDesc": "메모리 및 개인정보 설정을 내보내거나 메모리 설정에서 삭제를 관리하세요.",
+        "rightsExportButton": "규정 준수 내보내기 다운로드",
+        "rightsExporting": "내보내기 준비 중…",
+        "rightsExportSuccess": "규정 준수 내보내기가 다운로드되었습니다",
+        "rightsExportFailed": "내보내기 실패 — 메모리 설정에서 다시 시도하세요",
+        "rightsManageMemory": "메모리 및 삭제 관리",
         "actionManage": "설정 관리"
       },
       "modeAllow": "허용",
@@ -12657,6 +12726,32 @@
       "permissionTypes": {
         "spawn_subagent": "내부 서브 에이전트",
         "invoke_external_agent": "외부 CLI 에이전트"
+      },
+      "trustedFolders": {
+        "title": "Trusted Folders",
+        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
+        "totalEntries": "{count} folders",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "empty": "No trusted folders yet",
+        "loadError": "Failed to load trusted folders",
+        "revokeSuccess": "Trust revoked",
+        "revokeError": "Failed to revoke trust",
+        "level": {
+          "trusted": "Trusted",
+          "restricted": "Restricted",
+          "revoked": "Revoked"
+        },
+        "notice": {
+          "title": "How folder trust works",
+          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+        },
+        "revokeConfirm": {
+          "title": "Revoke folder trust?",
+          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
+          "cancel": "Cancel",
+          "confirm": "Revoke trust"
+        }
       }
     },
     "retrieval": {

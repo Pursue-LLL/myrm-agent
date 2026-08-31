@@ -87,7 +87,13 @@ const MAX_QUERY_LENGTH = 200;
 const MAX_PENDING_DROPPED_EVENTS = 1_000;
 const DEFAULT_CONTEXT_KEY = 'global';
 const DROPPED_BUFFER_STORAGE_KEY = 'expertSummonDroppedBufferV1';
-const SUMMON_SURFACES: ExpertSummonMetricSurface[] = ['template_market', 'flow_pad_inline'];
+const SUMMON_SURFACES: ExpertSummonMetricSurface[] = [
+  'template_market',
+  'flow_pad_inline',
+  'empty_chat_featured',
+  'message_input_plus',
+  'mobile_hub_chip',
+];
 
 let pendingDroppedEventsBySurface = loadDroppedBufferFromStorage();
 let postQueue: Promise<void> = Promise.resolve();
@@ -112,13 +118,16 @@ function normalizeContextKey(contextKey?: string): string {
 }
 
 function totalPendingDroppedEvents(): number {
-  return SUMMON_SURFACES.reduce((sum, surface) => sum + pendingDroppedEventsBySurface[surface], 0);
+  return SUMMON_SURFACES.reduce((sum, surface) => sum + (pendingDroppedEventsBySurface[surface] ?? 0), 0);
 }
 
 function createEmptyDroppedBuffer(): Record<ExpertSummonMetricSurface, number> {
   return {
     template_market: 0,
     flow_pad_inline: 0,
+    empty_chat_featured: 0,
+    message_input_plus: 0,
+    mobile_hub_chip: 0,
   };
 }
 
@@ -142,6 +151,9 @@ function loadDroppedBufferFromStorage(): Record<ExpertSummonMetricSurface, numbe
     return {
       template_market: clampPendingCount(parsed.template_market),
       flow_pad_inline: clampPendingCount(parsed.flow_pad_inline),
+      empty_chat_featured: clampPendingCount(parsed.empty_chat_featured),
+      message_input_plus: clampPendingCount(parsed.message_input_plus),
+      mobile_hub_chip: clampPendingCount(parsed.mobile_hub_chip),
     };
   } catch {
     return createEmptyDroppedBuffer();
@@ -410,6 +422,51 @@ export function recordExpertSummonFirstMessageSent(
     templateKind: options?.templateKind,
     fromSearch: options?.fromSearch,
     usedUseCase: options?.usedUseCase,
+  });
+}
+
+export function recordExpertCouncilPhaseCompleted(
+  surface: ExpertSummonMetricSurface,
+  trigger: ExpertSummonMetricTrigger,
+  options?: {
+    contextKey?: string;
+    templateKind?: ExpertTemplateKind;
+  },
+): void {
+  enqueueSimpleEvent('council_phase_completed', surface, {
+    contextKey: options?.contextKey,
+    trigger,
+    templateKind: options?.templateKind,
+  });
+}
+
+export function recordExpertCouncilConsensusReached(
+  surface: ExpertSummonMetricSurface,
+  trigger: ExpertSummonMetricTrigger,
+  options?: {
+    contextKey?: string;
+    templateKind?: ExpertTemplateKind;
+  },
+): void {
+  enqueueSimpleEvent('council_consensus_reached', surface, {
+    contextKey: options?.contextKey,
+    trigger,
+    templateKind: options?.templateKind,
+  });
+}
+
+export function recordExpertRebuttalEffective(
+  surface: ExpertSummonMetricSurface,
+  trigger: ExpertSummonMetricTrigger,
+  options?: {
+    contextKey?: string;
+    templateKind?: ExpertTemplateKind;
+  },
+): void {
+  enqueueSimpleEvent('expert_rebuttal_effective', surface, {
+    contextKey: options?.contextKey,
+    trigger,
+    templateKind: options?.templateKind,
   });
 }
 

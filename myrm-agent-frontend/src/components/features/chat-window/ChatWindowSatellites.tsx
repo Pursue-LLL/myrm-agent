@@ -66,6 +66,22 @@ const DesktopLiveView = dynamic(
   { ssr: false },
 );
 
+const DeviceInspectorToggle = dynamic(
+  () =>
+    import('@/components/features/device-inspector').then((module) => ({
+      default: module.DeviceInspectorToggle,
+    })),
+  { ssr: false },
+);
+
+const DeviceLiveView = dynamic(
+  () =>
+    import('@/components/features/device-inspector').then((module) => ({
+      default: module.DeviceLiveView,
+    })),
+  { ssr: false },
+);
+
 const FileSnapshotPanel = dynamic(() => import('@/components/features/checkpoint/FileSnapshotPanel'), { ssr: false });
 
 const SessionRevertButton = dynamic(() => import('@/components/features/message-actions/SessionRevertButton'), {
@@ -113,6 +129,8 @@ export default function ChatWindowSatellites({
       <BrowserRecordingPanel />
       <DesktopInspectorToggle />
       <DesktopLiveView onSendInstruction={onDesktopInspectorInstruction} />
+      <DeviceInspectorToggle />
+      <DeviceLiveView onSendInstruction={onDesktopInspectorInstruction} />
       <FileSnapshotPanel />
       {chatId ? (
         <div className="fixed bottom-24 right-[4.5rem] z-50 max-sm:bottom-20 max-sm:right-16 bg-secondary rounded-full shadow-lg">

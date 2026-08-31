@@ -31,6 +31,27 @@ export interface LastCompactionMeta {
   snapshotPath?: string;
 }
 
+export interface CouncilOpinionView {
+  expert_id: string;
+  agent_type: string;
+  round_num: number;
+  content: string;
+  success: boolean;
+  duration_seconds?: number;
+}
+
+export interface CouncilResultView {
+  success: boolean;
+  synthesis: string;
+  consensus_points?: string[];
+  divergences?: string[];
+  action_items?: string[];
+  opinions?: CouncilOpinionView[];
+  rounds_completed?: number;
+  total_duration_seconds?: number;
+  error?: string;
+}
+
 export type Message = {
   messageId: string;
   /**
@@ -167,6 +188,7 @@ export type Message = {
   workspaceMergeFailedCount?: number; // merge 失败总数（可大于 failures 列表长度）
   workspaceMergeTruncated?: number; // 未展示的额外错误条数
   toolImages?: ToolImageOutput[]; // 工具输出的图片（如 computer_use 截屏）
+  councilResult?: CouncilResultView; // 多专家 Council 编排结构化会商与仲裁结果
   mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
   sessionRecording?: { filename: string; preview_url: string; content_type: string };
   siblingGroupId?: string;

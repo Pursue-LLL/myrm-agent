@@ -82,6 +82,7 @@ from app.api.security.profiles import router as security_profiles_router
 from app.api.security.router import router as security_dashboard_router
 from app.api.security.vault import router as vault_router
 from app.api.security.vault_credentials import router as vault_credentials_router
+from app.api.security.workspace_trust import router as workspace_trust_router
 from app.api.skill_optimization import router as skill_optimization_router
 from app.api.skill_optimization import ws_router as skill_optimization_ws_router
 from app.api.skills import router as skills_router
@@ -290,6 +291,9 @@ api_router.include_router(connect_router, tags=["connect"])
 api_router.include_router(config_router, prefix="/config", tags=["config"])
 api_router.include_router(
     allowlist_router, prefix="/security/allowlist", tags=["security"]
+)
+api_router.include_router(
+    workspace_trust_router, prefix="/security/workspace-trust", tags=["security"]
 )
 api_router.include_router(security_estop_router, tags=["security"])
 api_router.include_router(security_dashboard_router, tags=["security"])

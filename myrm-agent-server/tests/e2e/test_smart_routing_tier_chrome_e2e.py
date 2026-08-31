@@ -525,6 +525,8 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
                 last_state = await _probe_store(min(25.0, deadline - time.monotonic()))
                 if last_state.get("routingTier") == expected or last_state.get("bridgeTier") == expected:
                     return last_state
+                diag_list = bridge.get("diag") if isinstance(bridge.get("diag"), list) else []
+                diag_matches = [d for d in diag_list if isinstance(d, dict) and d.get("tier") == expected]
                 return {
                     **last_state,
                     "routingTier": bridge_tier,
@@ -545,6 +547,15 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
                 and str(state.get("content") or "").strip()
             ):
                 return state
+            diag_list = state.get("diag") if isinstance(state.get("diag"), list) else []
+            diag_matches = [d for d in diag_list if isinstance(d, dict) and (d.get("tier") == expected or (isinstance(d.get("last"), list) and any(m.get("tier") == expected for m in d.get("last", []))))]
+            if diag_matches and not streaming:
+                return {
+                    **state,
+                    "routingTier": expected,
+                    "bridgeTier": expected,
+                    "ready": True,
+                }
 
         await asyncio.sleep(2.0)
 

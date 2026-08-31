@@ -75,6 +75,16 @@ async def init_allowlist_store() -> None:
         logger.error("Allowlist store initialization failed: %s", e)
 
 
+async def init_workspace_trust_store() -> None:
+    """Initialize workspace trust registry and inject harness lookup."""
+    try:
+        from app.services.security.workspace_trust_store import init_workspace_trust_store as _init
+
+        await _init()
+    except Exception as e:
+        logger.error("Workspace trust store initialization failed: %s", e)
+
+
 async def resume_durable_offline_tasks() -> None:
     """Resume interrupted background tasks on server startup.
 

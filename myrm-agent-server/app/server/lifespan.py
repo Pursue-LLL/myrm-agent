@@ -36,6 +36,7 @@ from app.core.memory.adapters.setup import shutdown_cached_memory_managers
 from app.database.connection import init_database
 from app.lifecycle import (
     init_allowlist_store,
+    init_workspace_trust_store,
     pause_orphaned_active_goals,
     shutdown_global_browser_pool,
     shutdown_skill_optimization_listeners,
@@ -447,6 +448,9 @@ async def _phase_1b_parallel() -> None:
     async def _init_allowlist_store_task() -> None:
         await init_allowlist_store()
 
+    async def _init_workspace_trust_store_task() -> None:
+        await init_workspace_trust_store()
+
     def _init_managed_approval_policy_task() -> None:
         from myrm_agent_harness.api.security import (
             configure_process_managed_approval_policy,
@@ -566,6 +570,7 @@ async def _phase_1b_parallel() -> None:
         _init_state_manager_task(),
         _init_skill_watcher_task(),
         _init_allowlist_store_task(),
+        _init_workspace_trust_store_task(),
         _init_permission_logger_task(),
         _init_context_cleanup_task(),
         _init_optimization_scheduler_task(),
@@ -586,6 +591,7 @@ async def _phase_1b_parallel() -> None:
         "State manager",
         "Skill watcher",
         "Allowlist store",
+        "Workspace trust store",
         "Permission logger",
         "Context cleanup",
         "Optimization scheduler",

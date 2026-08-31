@@ -25,6 +25,7 @@ import { DomainAllowlistEditor } from './DomainAllowlistEditor';
 import { CommandDenylistEditor } from './CommandDenylistEditor';
 import { DomainBlocklistEditor } from './DomainBlocklistEditor';
 import AllowlistSection from './AllowlistSection';
+import TrustedFoldersSection from './TrustedFoldersSection';
 import NLPolicyGenerator from './NLPolicyGenerator';
 import SecurityProfileSelector from './SecurityProfileSelector';
 import SecurityPrivacyPanel from './SecurityPrivacyPanel';
@@ -515,6 +516,8 @@ const SecurityPolicySection = memo(() => {
       )}
 
       <AllowlistSection />
+
+      <TrustedFoldersSection />
     </div>
   );
 });

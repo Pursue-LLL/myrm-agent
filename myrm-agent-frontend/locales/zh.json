@@ -2409,6 +2409,27 @@
         "allowAlways": "始终允许此应用"
       }
     },
+    "deviceInspector": {
+      "title": "移动设备实时视图",
+      "toggleTitle": "切换移动设备检查器",
+      "viewMode": "查看模式",
+      "inspectMode": "检查模式",
+      "close": "关闭",
+      "refresh": "刷新",
+      "enabledHint": "Agent 连接移动设备后，检查器将在此打开",
+      "resizePanel": "调整面板大小",
+      "screenshotAlt": "移动设备屏幕截图",
+      "waitingForDevice": "等待移动设备活动...",
+      "waitingHint": "当 Agent 操作移动端真机或模拟器时，实时视图将自动显示",
+      "deviceDisconnected": "移动设备已断开连接，请检查 ADB 或网络状态",
+      "notificationRedaction": "顶部状态栏隐私脱敏",
+      "redactionBadge": "隐私脱敏",
+      "notificationRedacted": "🔒 状态栏通知已脱敏遮蔽",
+      "notificationRedactedHint": "顶部系统通知栏已自动模糊遮蔽，防止私密信息与验证码泄露入 Prompt",
+      "instructionPlaceholder": "描述你想在移动设备上做什么...",
+      "instructionWithElement": "Agent 应该对这个移动端元素做什么？",
+      "send": "发送指令"
+    },
     "clarification": {
       "formTitle": "澄清表单",
       "badge": "需要你确认",
@@ -10652,7 +10673,23 @@
       "loadFailed": "加载目录失败",
       "boundSuccess": "项目接纳并绑定成功",
       "bindFailed": "接纳项目失败",
-      "currentPath": "工作区目录绝对路径"
+      "currentPath": "工作区目录绝对路径",
+      "folderGate": {
+        "title": "是否信任此文件夹？",
+        "description": "该文件夹可能包含会在本机运行的技能、规则与本地工具。关联前请先选择信任程度。",
+        "loading": "正在扫描文件夹…",
+        "loadFailed": "无法扫描该文件夹，请重试或选择其他路径。",
+        "decideFailed": "无法保存您的选择，请重试。",
+        "disclosureTitle": "在此文件夹中发现",
+        "skills": "本地技能",
+        "rules": "工作区规则",
+        "hasMyrmConfig": "包含 .myrm 项目配置",
+        "repoCommands": "仓库声明的命令快捷方式",
+        "restrictedHint": "若选择「不信任并关联」，该文件夹内的本地技能、规则与 MCP 服务将保持禁用，可在设置中稍后改为信任。",
+        "cancel": "取消",
+        "restrict": "不信任并关联",
+        "trust": "信任并关联"
+      }
     }
   },
   "milestone": {
@@ -12188,7 +12225,39 @@
         "dataScopePrompt": "提示词、会话上下文与附件",
         "actionManage": "管理",
         "mcpCategory": "外部 MCP 服务",
-        "dataScopeToolArgs": "工具调用参数与外部能力载荷"
+        "dataScopeToolArgs": "工具调用参数与外部能力载荷",
+        "connectorCategory": "外部连接器",
+        "agentConnectorCategory": "外部 Agent 连接器",
+        "integrationOAuthCategory": "已连接集成",
+        "dataScopeConnector": "按连接器作用域同步的记忆与 Agent 上下文",
+        "dataScopeIntegration": "OAuth 授权 API 访问与同步的集成数据",
+        "channelCategory": "消息渠道",
+        "dataScopeChannel": "入站消息、智能体回复与通知投递",
+        "fallbackCloudEndpoint": "云端端点",
+        "fallbackLocalStdio": "本地 STDIO",
+        "integrationsLoading": "正在加载已连接集成…",
+        "badgeActiveCount": "{count} 个活跃",
+        "badgeHosted": "托管",
+        "controlPlaneHosted": "托管 / 沙箱模式",
+        "controlPlaneHostedDesc": "会话元数据、可选遥测与平台权益可能与控制平面同步。",
+        "egressLoading": "正在加载外部 egress 配置…",
+        "crossBorderRoutingHint": "隐私路由已启用 — 敏感内容可能改由您配置的本地模型处理，而非云提供商。",
+        "crossBorderRoutingLink": "查看隐私路由设置",
+        "dataUsagePolicyLink": "提供商政策",
+        "dataUsage": {
+          "api_not_used_for_training": "API 数据通常不用于模型训练（请以您的提供商账户为准）。",
+          "account_settings_apply": "数据用途取决于您的提供商账户与产品设置。",
+          "self_hosted": "运行于本机 — 提示词不会离开此主机。",
+          "third_party_routing": "路由至底层提供商 — 请分别查阅各提供商政策。",
+          "review_provider_policy": "请查阅该提供商的数据使用与训练政策。"
+        },
+        "yourRightsTitle": "您的数据权利",
+        "yourRightsDesc": "导出记忆与隐私设置，或在「记忆」设置中管理删除。",
+        "rightsExportButton": "下载合规导出包",
+        "rightsExporting": "正在准备导出…",
+        "rightsExportSuccess": "合规导出已下载",
+        "rightsExportFailed": "导出失败 — 请尝试在记忆设置中导出",
+        "rightsManageMemory": "管理记忆与删除"
       },
       "profile": {
         "title": "安全配置集",
@@ -12402,6 +12471,32 @@
           "description": "将清除所有 {count} 条允许记录，所有自动通过的操作将恢复审批流程。此操作不可撤销。",
           "cancel": "取消",
           "confirm": "确认清除"
+        }
+      },
+      "trustedFolders": {
+        "title": "受信任文件夹",
+        "description": "关联项目工作区时您明确信任的文件夹。撤销信任后，该文件夹内的本地技能、规则与 MCP 服务将被禁用。",
+        "totalEntries": "共 {count} 个文件夹",
+        "refresh": "刷新",
+        "loading": "加载中…",
+        "empty": "暂无受信任文件夹",
+        "loadError": "加载失败",
+        "revokeSuccess": "已撤销信任",
+        "revokeError": "撤销失败",
+        "level": {
+          "trusted": "已信任",
+          "restricted": "受限",
+          "revoked": "已撤销"
+        },
+        "notice": {
+          "title": "文件夹信任说明",
+          "description": "信任仅作用于仓库本地旁路能力。终端与文件权限仍遵循您的安全策略。"
+        },
+        "revokeConfirm": {
+          "title": "撤销文件夹信任？",
+          "description": "下次运行时将禁用 {path} 中的本地技能、规则与 MCP 服务。",
+          "cancel": "取消",
+          "confirm": "撤销信任"
         }
       },
       "autoReview": {
@@ -17700,6 +17795,15 @@
     "searchPlaceholder": "搜索专家或团队...",
     "loading": "加载中...",
     "empty": "未找到匹配的专家或团队模板",
-    "summonButton": "召唤"
+    "summonButton": "召唤",
+    "councilResultTitle": "专家团会商决议",
+    "chairSynthesisTitle": "首席仲裁决议",
+    "consensusPoints": "共识结论",
+    "divergences": "分歧与辩论点",
+    "actionItems": "执行路线",
+    "expertOpinions": "各专家独立分析与反驳",
+    "expandOpinions": "展开各专家详尽观点 ({count})",
+    "collapseOpinions": "收起专家观点",
+    "roundLabel": "第 {round} 轮"
   }
 }

@@ -24,6 +24,49 @@ def client() -> Iterator[TestClient]:
         yield TestClient(app)
 
 
+class TestOAuthListCredentials:
+    """Test GET /oauth used by DataFlow disclosure panel."""
+
+    def test_list_returns_empty_when_no_row(self, client: TestClient):
+        with patch(
+            "app.api.integrations.oauth.load_oauth_credentials_row",
+            new=AsyncMock(return_value=None),
+        ):
+            response = client.get(f"{API_PREFIX}/oauth")
+            assert response.status_code == 200
+            assert response.json() == []
+
+    def test_list_returns_connected_items(self, client: TestClient):
+        row = type("Row", (), {"config_value": "encrypted", "is_encrypted": True})()
+        with (
+            patch(
+                "app.api.integrations.oauth.load_oauth_credentials_row",
+                new=AsyncMock(return_value=row),
+            ),
+            patch(
+                "app.api.integrations.oauth.decrypt_oauth_credentials",
+                return_value={
+                    "slack": {
+                        "token": "tok",
+                        "user_id": "U1",
+                        "scope": "chat:write",
+                        "expires_at": 123.0,
+                    },
+                    "github": {"user_id": "U2"},
+                },
+            ),
+        ):
+            response = client.get(f"{API_PREFIX}/oauth")
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data) == 2
+            slack = next(item for item in data if item["issuer"] == "slack")
+            github = next(item for item in data if item["issuer"] == "github")
+            assert slack["connected"] is True
+            assert slack["user_id"] == "U1"
+            assert github["connected"] is False
+
+
 class TestOAuthDeleteClearSyncedMemory:
     """Test DELETE /oauth/{issuer} with clear_synced_memory parameter."""
 

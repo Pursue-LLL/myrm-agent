@@ -194,7 +194,7 @@ const SecurityPrivacyPanel = memo(() => {
               <Switch checked={privacyDeepScan} onCheckedChange={setPrivacyDeepScan} />
             </div>
 
-            <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+            <div id="security-privacy-routing" className="mt-4 pt-4 border-t border-border/50 space-y-3">
               <div className="flex items-center gap-2 mb-2">
                 <Navigation className="h-3.5 w-3.5 text-primary" />
                 <span className="text-sm font-medium text-foreground">{t('privacy.routing.title')}</span>

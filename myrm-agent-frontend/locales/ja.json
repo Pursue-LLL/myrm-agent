@@ -2675,7 +2675,28 @@
     "routingStandardTooltip": "標準のメインモデルで日常タスクを処理",
     "routingReasoningTooltip": "複雑な論理または推論タスクを検出し、高精度な深層推論モデルを自動割り当て",
     "routingCodeTooltip": "コーディング、リファクタリング、デバッグタスクを検出し、コード専門モデルにルーティング",
-    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング"
+    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング",
+    "deviceInspector": {
+      "title": "Mobile Device Live View",
+      "toggleTitle": "Toggle Device Inspector",
+      "viewMode": "View Mode",
+      "inspectMode": "Inspect Mode",
+      "close": "Close",
+      "refresh": "Refresh",
+      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
+      "resizePanel": "Resize panel",
+      "screenshotAlt": "Mobile device screenshot",
+      "waitingForDevice": "Waiting for mobile device activity...",
+      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
+      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
+      "notificationRedaction": "Status Bar Notification Redaction",
+      "redactionBadge": "Redaction",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
+      "instructionPlaceholder": "Describe what you want to do on the device...",
+      "instructionWithElement": "What should the agent do with this mobile element?",
+      "send": "Send instruction"
+    }
   },
   "mode": {
     "fast": "高速検索",
@@ -10652,7 +10673,23 @@
       "loadFailed": "ディレクトリの読み込みに失敗しました",
       "boundSuccess": "プロジェクトを導入しワークスペースをバインドしました",
       "bindFailed": "プロジェクトの導入に失敗しました",
-      "currentPath": "ワークスペースの絶対パス"
+      "currentPath": "ワークスペースの絶対パス",
+      "folderGate": {
+        "title": "Trust this folder?",
+        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "loading": "Scanning folder…",
+        "loadFailed": "Could not scan this folder. Try again or pick another path.",
+        "decideFailed": "Could not save your choice. Try again.",
+        "disclosureTitle": "What we found in this folder",
+        "skills": "Local skills",
+        "rules": "Workspace rules",
+        "hasMyrmConfig": "Contains a .myrm project config",
+        "repoCommands": "Repo-declared command shortcuts",
+        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
+        "cancel": "Cancel",
+        "restrict": "Link without trusting",
+        "trust": "Trust and link"
+      }
     }
   },
   "milestone": {
@@ -12188,6 +12225,38 @@
         "badgeCloudApi": "クラウド API",
         "dataScopePrompt": "フィルタリングされたプロンプトと会話",
         "dataScopeToolArgs": "ツール実行パラメータとペイロード",
+        "connectorCategory": "外部コネクタ",
+        "agentConnectorCategory": "外部 Agent コネクタ",
+        "integrationOAuthCategory": "接続済み統合",
+        "dataScopeConnector": "コネクタスコープごとに同期されたメモリと Agent コンテキスト",
+        "dataScopeIntegration": "OAuth スコープの API アクセスと同期統合データ",
+        "channelCategory": "メッセージングチャネル",
+        "dataScopeChannel": "受信メッセージ、エージェント応答、通知配信",
+        "fallbackCloudEndpoint": "クラウドエンドポイント",
+        "fallbackLocalStdio": "ローカル STDIO",
+        "integrationsLoading": "接続済み統合を読み込み中…",
+        "badgeActiveCount": "アクティブ {count}件",
+        "badgeHosted": "ホスト型",
+        "controlPlaneHosted": "ホスト型 / サンドボックスモード",
+        "controlPlaneHostedDesc": "セッションメタデータ、オプションのテレメトリ、プラットフォーム権限がコントロールプレーンと同期される場合があります。",
+        "egressLoading": "外部 egress 設定を読み込み中…",
+        "crossBorderRoutingHint": "プライバシールーティングが有効 — 機密コンテンツはクラウドプロバイダーではなく、設定したローカルモデルで処理される場合があります。",
+        "crossBorderRoutingLink": "プライバシールーティング設定を確認",
+        "dataUsagePolicyLink": "プロバイダーポリシー",
+        "dataUsage": {
+          "api_not_used_for_training": "API データは通常モデル学習に使用されません（プロバイダーアカウントで確認してください）。",
+          "account_settings_apply": "データ利用はプロバイダーアカウントと製品設定に依存します。",
+          "self_hosted": "お使いのマシンで実行 — プロンプトはこのホストから出ません。",
+          "third_party_routing": "基盤プロバイダーへルーティング — 各ポリシーを確認してください。",
+          "review_provider_policy": "このプロバイダーのデータ利用と学習ポリシーを確認してください。"
+        },
+        "yourRightsTitle": "データに関する権利",
+        "yourRightsDesc": "メモリとプライバシー設定をエクスポートするか、メモリ設定で削除を管理します。",
+        "rightsExportButton": "コンプライアンスエクスポートをダウンロード",
+        "rightsExporting": "エクスポートを準備中…",
+        "rightsExportSuccess": "コンプライアンスエクスポートをダウンロードしました",
+        "rightsExportFailed": "エクスポートに失敗 — メモリ設定から再試行してください",
+        "rightsManageMemory": "メモリと削除を管理",
         "actionManage": "設定管理"
       },
       "profile": {
@@ -12657,6 +12726,32 @@
       "permissionTypes": {
         "spawn_subagent": "内部サブエージェント",
         "invoke_external_agent": "外部 CLI エージェント"
+      },
+      "trustedFolders": {
+        "title": "Trusted Folders",
+        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
+        "totalEntries": "{count} folders",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "empty": "No trusted folders yet",
+        "loadError": "Failed to load trusted folders",
+        "revokeSuccess": "Trust revoked",
+        "revokeError": "Failed to revoke trust",
+        "level": {
+          "trusted": "Trusted",
+          "restricted": "Restricted",
+          "revoked": "Revoked"
+        },
+        "notice": {
+          "title": "How folder trust works",
+          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+        },
+        "revokeConfirm": {
+          "title": "Revoke folder trust?",
+          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
+          "cancel": "Cancel",
+          "confirm": "Revoke trust"
+        }
       }
     },
     "retrieval": {

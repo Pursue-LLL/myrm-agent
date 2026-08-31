@@ -31,6 +31,7 @@ import {
 } from '@/lib/directoryBrowseRecent';
 import { toast } from '@/hooks/shared/useToast';
 import { isTauriEnvironment } from '@/lib/tauri';
+import WorkspaceTrustFolderGate from './WorkspaceTrustFolderGate';
 
 function addRecentDir(dir: string): void {
   rememberDirectoryPath(PROJECT_WORKSPACE_RECENT_KEY, dir);
@@ -64,6 +65,8 @@ export default function ProjectWorkspaceMount({
   const [pathInput, setPathInput] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
   const loadGenRef = useRef(0);
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export default function ProjectWorkspaceMount({
     }
   }, [open, initialPath]);
 
-  const persistWorkspace = useCallback(
+  const finalizeWorkspaceBind = useCallback(
     async (dir: string | null) => {
       setSubmitting(true);
       try {
@@ -93,6 +96,26 @@ export default function ProjectWorkspaceMount({
       }
     },
     [onBound, onOpenChange, projectId, t],
+  );
+
+  const persistWorkspace = useCallback(
+    async (dir: string | null) => {
+      if (dir === null) {
+        await finalizeWorkspaceBind(null);
+        return;
+      }
+      setPendingPath(dir);
+      setGateOpen(true);
+    },
+    [finalizeWorkspaceBind],
+  );
+
+  const handleGateDecided = useCallback(
+    async (path: string, _level: 'TRUSTED' | 'RESTRICTED') => {
+      await finalizeWorkspaceBind(path);
+      setPendingPath(null);
+    },
+    [finalizeWorkspaceBind],
   );
 
   const loadDirectory = useCallback(
@@ -311,6 +334,13 @@ export default function ProjectWorkspaceMount({
           </div>
         </PopoverContent>
       </Popover>
+
+      <WorkspaceTrustFolderGate
+        open={gateOpen}
+        folderPath={pendingPath}
+        onOpenChange={setGateOpen}
+        onDecided={handleGateDecided}
+      />
     </div>
   );
 }

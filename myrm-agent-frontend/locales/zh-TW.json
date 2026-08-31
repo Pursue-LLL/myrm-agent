@@ -2686,6 +2686,27 @@
         "inProgress": "進行中",
         "pending": "等待中"
       }
+    },
+    "deviceInspector": {
+      "title": "Mobile Device Live View",
+      "toggleTitle": "Toggle Device Inspector",
+      "viewMode": "View Mode",
+      "inspectMode": "Inspect Mode",
+      "close": "Close",
+      "refresh": "Refresh",
+      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
+      "resizePanel": "Resize panel",
+      "screenshotAlt": "Mobile device screenshot",
+      "waitingForDevice": "Waiting for mobile device activity...",
+      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
+      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
+      "notificationRedaction": "Status Bar Notification Redaction",
+      "redactionBadge": "Redaction",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
+      "instructionPlaceholder": "Describe what you want to do on the device...",
+      "instructionWithElement": "What should the agent do with this mobile element?",
+      "send": "Send instruction"
     }
   },
   "mode": {
@@ -10663,7 +10684,23 @@
       "loadFailed": "載入目錄失敗",
       "boundSuccess": "專案接納並綁定成功",
       "bindFailed": "接納專案失敗",
-      "currentPath": "工作區目錄絕對路徑"
+      "currentPath": "工作區目錄絕對路徑",
+      "folderGate": {
+        "title": "Trust this folder?",
+        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "loading": "Scanning folder…",
+        "loadFailed": "Could not scan this folder. Try again or pick another path.",
+        "decideFailed": "Could not save your choice. Try again.",
+        "disclosureTitle": "What we found in this folder",
+        "skills": "Local skills",
+        "rules": "Workspace rules",
+        "hasMyrmConfig": "Contains a .myrm project config",
+        "repoCommands": "Repo-declared command shortcuts",
+        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
+        "cancel": "Cancel",
+        "restrict": "Link without trusting",
+        "trust": "Trust and link"
+      }
     }
   },
   "milestone": {
@@ -12199,6 +12236,38 @@
         "badgeCloudApi": "雲端 API",
         "dataScopePrompt": "已脫敏提示詞與對話上下文",
         "dataScopeToolArgs": "工具調用參數與執行載荷",
+        "connectorCategory": "外部連接器",
+        "agentConnectorCategory": "外部 Agent 連接器",
+        "integrationOAuthCategory": "已連接整合",
+        "dataScopeConnector": "按連接器作用域同步的記憶與 Agent 上下文",
+        "dataScopeIntegration": "OAuth 授權 API 存取與同步的整合資料",
+        "channelCategory": "訊息渠道",
+        "dataScopeChannel": "入站訊息、智能體回覆與通知投遞",
+        "fallbackCloudEndpoint": "雲端端點",
+        "fallbackLocalStdio": "本地 STDIO",
+        "integrationsLoading": "正在載入已連接整合…",
+        "badgeActiveCount": "{count} 個活躍",
+        "badgeHosted": "託管",
+        "controlPlaneHosted": "託管 / 沙箱模式",
+        "controlPlaneHostedDesc": "工作階段元資料、可選遙測與平台權益可能與控制平面同步。",
+        "egressLoading": "正在載入外部 egress 配置…",
+        "crossBorderRoutingHint": "隱私路由已啟用 — 敏感內容可能改由您設定的本地模型處理，而非雲端供應商。",
+        "crossBorderRoutingLink": "查看隱私路由設定",
+        "dataUsagePolicyLink": "供應商政策",
+        "dataUsage": {
+          "api_not_used_for_training": "API 資料通常不用於模型訓練（請以您的供應商帳戶為準）。",
+          "account_settings_apply": "資料用途取決於您的供應商帳戶與產品設定。",
+          "self_hosted": "運行於本機 — 提示詞不會離開此主機。",
+          "third_party_routing": "路由至底層供應商 — 請分別查閱各供應商政策。",
+          "review_provider_policy": "請查閱該供應商的資料使用與訓練政策。"
+        },
+        "yourRightsTitle": "您的資料權利",
+        "yourRightsDesc": "匯出記憶與隱私設定，或在「記憶」設定中管理刪除。",
+        "rightsExportButton": "下載合規匯出包",
+        "rightsExporting": "正在準備匯出…",
+        "rightsExportSuccess": "合規匯出已下載",
+        "rightsExportFailed": "匯出失敗 — 請嘗試在記憶設定中匯出",
+        "rightsManageMemory": "管理記憶與刪除",
         "actionManage": "配置管理"
       },
       "profile": {
@@ -12668,6 +12737,32 @@
       "permissionTypes": {
         "spawn_subagent": "內部子智慧體",
         "invoke_external_agent": "外部 CLI 智慧體"
+      },
+      "trustedFolders": {
+        "title": "Trusted Folders",
+        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
+        "totalEntries": "{count} folders",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "empty": "No trusted folders yet",
+        "loadError": "Failed to load trusted folders",
+        "revokeSuccess": "Trust revoked",
+        "revokeError": "Failed to revoke trust",
+        "level": {
+          "trusted": "Trusted",
+          "restricted": "Restricted",
+          "revoked": "Revoked"
+        },
+        "notice": {
+          "title": "How folder trust works",
+          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+        },
+        "revokeConfirm": {
+          "title": "Revoke folder trust?",
+          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
+          "cancel": "Cancel",
+          "confirm": "Revoke trust"
+        }
       }
     },
     "retrieval": {

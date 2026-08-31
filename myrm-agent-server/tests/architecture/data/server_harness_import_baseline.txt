@@ -112,6 +112,9 @@ myrm_agent_harness.agent.security.session_access
 myrm_agent_harness.agent.security.transcript_classifier
 myrm_agent_harness.agent.security.trust_context
 myrm_agent_harness.agent.security.types
+myrm_agent_harness.agent.security.workspace_trust.manifest
+myrm_agent_harness.agent.security.workspace_trust.provider
+myrm_agent_harness.agent.security.workspace_trust.types
 myrm_agent_harness.agent.skill_agent
 myrm_agent_harness.agent.skills.curator
 myrm_agent_harness.agent.skills.curator.consolidation

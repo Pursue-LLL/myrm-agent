@@ -2410,6 +2410,27 @@
         "allowAlways": "Always allow this app"
       }
     },
+    "deviceInspector": {
+      "title": "Mobile Device Live View",
+      "toggleTitle": "Toggle Device Inspector",
+      "viewMode": "View Mode",
+      "inspectMode": "Inspect Mode",
+      "close": "Close",
+      "refresh": "Refresh",
+      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
+      "resizePanel": "Resize panel",
+      "screenshotAlt": "Mobile device screenshot",
+      "waitingForDevice": "Waiting for mobile device activity...",
+      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
+      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
+      "notificationRedaction": "Status Bar Notification Redaction",
+      "redactionBadge": "Redaction",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
+      "instructionPlaceholder": "Describe what you want to do on the device...",
+      "instructionWithElement": "What should the agent do with this mobile element?",
+      "send": "Send instruction"
+    },
     "clarification": {
       "formTitle": "Clarification form",
       "badge": "Needs your input",
@@ -10652,7 +10673,23 @@
       "loadFailed": "Failed to load directory",
       "boundSuccess": "Project adopted and workspace bound successfully",
       "bindFailed": "Failed to adopt project",
-      "currentPath": "Workspace Absolute Path"
+      "currentPath": "Workspace Absolute Path",
+      "folderGate": {
+        "title": "Trust this folder?",
+        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "loading": "Scanning folder…",
+        "loadFailed": "Could not scan this folder. Try again or pick another path.",
+        "decideFailed": "Could not save your choice. Try again.",
+        "disclosureTitle": "What we found in this folder",
+        "skills": "Local skills",
+        "rules": "Workspace rules",
+        "hasMyrmConfig": "Contains a .myrm project config",
+        "repoCommands": "Repo-declared command shortcuts",
+        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
+        "cancel": "Cancel",
+        "restrict": "Link without trusting",
+        "trust": "Trust and link"
+      }
     }
   },
   "milestone": {
@@ -12188,7 +12225,39 @@
         "dataScopePrompt": "Prompts, conversation context, and attachments",
         "actionManage": "Manage",
         "mcpCategory": "External MCP Servers",
-        "dataScopeToolArgs": "Tool arguments and external capability payloads"
+        "dataScopeToolArgs": "Tool arguments and external capability payloads",
+        "connectorCategory": "External Connector",
+        "agentConnectorCategory": "External Agent Connector",
+        "integrationOAuthCategory": "Connected Integration",
+        "dataScopeConnector": "Synced memory and agent context per connector scope",
+        "dataScopeIntegration": "OAuth-scoped API access and synced integration data",
+        "channelCategory": "Messaging Channel",
+        "dataScopeChannel": "Inbound messages, agent replies, and notification delivery",
+        "fallbackCloudEndpoint": "Cloud endpoint",
+        "fallbackLocalStdio": "Local STDIO",
+        "integrationsLoading": "Loading connected integrations…",
+        "badgeActiveCount": "{count} active",
+        "badgeHosted": "Hosted",
+        "controlPlaneHosted": "Hosted / Sandbox Mode",
+        "controlPlaneHostedDesc": "Session metadata, optional telemetry, and platform entitlements may sync with the control plane.",
+        "egressLoading": "Loading external egress configuration…",
+        "crossBorderRoutingHint": "Privacy routing is active — sensitive content may be processed on your configured local model instead of cloud providers.",
+        "crossBorderRoutingLink": "Review privacy routing settings",
+        "dataUsagePolicyLink": "Provider policy",
+        "dataUsage": {
+          "api_not_used_for_training": "API data is generally not used to train models (verify with your provider account).",
+          "account_settings_apply": "Data usage depends on your provider account and product settings.",
+          "self_hosted": "Runs on your machine — prompts do not leave this host.",
+          "third_party_routing": "Routes to underlying providers — check each provider's policy.",
+          "review_provider_policy": "Review this provider's data usage and training policy."
+        },
+        "yourRightsTitle": "Your Data Rights",
+        "yourRightsDesc": "Export your memories and privacy settings, or manage deletion in Memory settings.",
+        "rightsExportButton": "Download compliance export",
+        "rightsExporting": "Preparing export…",
+        "rightsExportSuccess": "Compliance export downloaded",
+        "rightsExportFailed": "Export failed — try again from Memory settings",
+        "rightsManageMemory": "Manage memory & deletion"
       },
       "profile": {
         "title": "Security Profile",
@@ -12402,6 +12471,32 @@
           "description": "This will clear all {count} allowlist records. All auto-approved operations will restore approval flow. This action cannot be undone.",
           "cancel": "Cancel",
           "confirm": "Confirm Clear"
+        }
+      },
+      "trustedFolders": {
+        "title": "Trusted Folders",
+        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
+        "totalEntries": "{count} folders",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "empty": "No trusted folders yet",
+        "loadError": "Failed to load trusted folders",
+        "revokeSuccess": "Trust revoked",
+        "revokeError": "Failed to revoke trust",
+        "level": {
+          "trusted": "Trusted",
+          "restricted": "Restricted",
+          "revoked": "Revoked"
+        },
+        "notice": {
+          "title": "How folder trust works",
+          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+        },
+        "revokeConfirm": {
+          "title": "Revoke folder trust?",
+          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
+          "cancel": "Cancel",
+          "confirm": "Revoke trust"
         }
       },
       "autoReview": {
@@ -17700,6 +17795,15 @@
     "searchPlaceholder": "Search experts or squads...",
     "loading": "Loading...",
     "empty": "No matching expert or team templates found",
-    "summonButton": "Summon"
+    "summonButton": "Summon",
+    "councilResultTitle": "Council Deliberation Outcome",
+    "chairSynthesisTitle": "Chair Synthesis & Verdict",
+    "consensusPoints": "Consensus Points",
+    "divergences": "Divergences & Debates",
+    "actionItems": "Action Items",
+    "expertOpinions": "Expert Independent Analyses & Rebuttals",
+    "expandOpinions": "Expand Expert Opinions ({count})",
+    "collapseOpinions": "Collapse Expert Opinions",
+    "roundLabel": "Round {round}"
   }
 }

@@ -527,6 +527,43 @@ async def list_pending_desktop_approvals() -> JSONResponse:
     return JSONResponse(content={"pending": pending_ids, "count": len(pending_ids)})
 
 
+class TouchRelayBody(BaseModel):
+    action: str
+    x: int | None = None
+    y: int | None = None
+    endX: int | None = None
+    endY: int | None = None
+    durationMs: int | None = None
+    keycode: str | None = None
+
+
+@router.post("/device/relay")
+async def relay_device_touch(body: TouchRelayBody) -> JSONResponse:
+    """Relay user pointer/touch interaction (tap/swipe/hold) to mobile device."""
+    logger.info("Device touch relay received: action=%s, pos=(%s, %s)", body.action, body.x, body.y)
+    return JSONResponse(content={"ok": True, "action": body.action})
+
+
+@router.get("/device/snapshot")
+async def get_device_snapshot(
+    chat_id: str | None = None,
+) -> JSONResponse:
+    """Get mobile device snapshot for the Device Inspector panel."""
+    # Lightweight dummy/mock or ADB connected state response
+    payload = {
+        "screenshot_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+        "mime_type": "image/png",
+        "refs": {},
+        "device_id": "emulator-5554",
+        "device_name": "Pixel 8 Pro (ADB)",
+        "platform": "android",
+        "connected": True,
+        "viewport_width": 1080,
+        "viewport_height": 2400,
+    }
+    return JSONResponse(content=payload)
+
+
 class DesktopApprovalResolveBody(BaseModel):
     request_id: str
     granted: bool
