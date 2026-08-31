@@ -1,10 +1,14 @@
 {
   "expertSummon": {
-    "summonSuccess": "{name} erfolgreich aktiviert",
-    "summonFailed": "Agent-Vorlage konnte nicht aktiviert werden",
-    "featuredTitle": "Empfohlene Expertenteams & Agenten",
-    "teamBadge": "Team",
-    "expertBadge": "Experte"
+    "summonSuccess": "Zu Experte {name} gewechselt",
+    "summonFailed": "Beschwörung der Expertenvorlage fehlgeschlagen",
+    "featuredTitle": "Ausgewählte Experten & Squads",
+    "teamBadge": "Expertenteam",
+    "expertBadge": "Experte",
+    "searchPlaceholder": "Experten oder Teams suchen...",
+    "loading": "Wird geladen...",
+    "empty": "Keine passenden Experten- oder Team-Vorlagen gefunden",
+    "summonButton": "Beschwören"
   },
   "recovery": {
     "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
@@ -5441,7 +5445,9 @@
     "delete_loading": "Löschen...",
     "conversation_excluded": "Vom Gesprächsrückruf ausgeschlossen",
     "conversation_deleted": "Konversation gelöscht",
-    "operation_failed": "Der Vorgang ist fehlgeschlagen"
+    "operation_failed": "Der Vorgang ist fehlgeschlagen",
+    "copyAll": "Copy all",
+    "copyAllSuccess": "Sources copied to clipboard"
   },
   "auth": {
     "setup": {
@@ -6518,8 +6524,8 @@
     "deleteBoardError": "Das Board konnte nicht gelöscht werden",
     "deleteBoardConfirmTitle": "Board löschen",
     "deleteBoardConfirmDesc": "Möchten Sie „{name}“ wirklich löschen? Alle Aufgaben, Abhängigkeiten und Ereignisverläufe in diesem Board werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
-    "deleteBoardConfirmDescWithTasks": "Möchten Sie „{name}“ wirklich löschen? Dieses Board enthält {total} Aufgaben, die dauerhaft gelöscht werden. Diese Aktion kann nicht rückgängig gemacht werden.",
-    "deleteBoardConfirmDescRunning": "Möchten Sie „{name}“ wirklich löschen? Dieses Board enthält {total} Aufgaben, davon werden {running} laufende Aufgaben zwangsweise unterbrochen. Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteBoardConfirmDescWithTasks": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}} that will be permanently deleted. This action cannot be undone.",
+    "deleteBoardConfirmDescRunning": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}}, including {running, plural, one {# running task} other {# running tasks}} that will be forcefully interrupted. This action cannot be undone.",
     "delete": "Löschen",
     "boardNamePlaceholder": "Vorstandsname",
     "boardDescPlaceholder": "Boardbeschreibung (optional)",
@@ -9082,7 +9088,7 @@
   },
   "growthDashboard": {
     "title": "Wachstums-Dashboard",
-    "subtitle": "Reise zum Agentenwachstum",
+    "subtitle": "Agent Wachstumsreise",
     "snapshot": {
       "totalMemories": "Totale Erinnerungen",
       "weekDelta": "+{count} diese Woche",
@@ -9139,33 +9145,19 @@
       "weeksAgo": "Vor {count}w"
     },
     "empty": {
-      "title": "Beginnen Sie mit dem Agenten zu chatten",
-      "description": "Wachstumsdaten werden hier angezeigt, nachdem Sie mit dem Agenten interagiert haben",
-      "retry": "Wiederholen"
+      "title": "Beginnen Sie mit Agent zu chatten",
+      "description": "Wachstumsdaten werden hier nach der Interaktion angezeigt",
+      "retry": "Wiederholen",
+      "errorTitle": "Fehler beim Laden des Wachstums-Dashboards",
+      "errorDescription": "Wachstumsdaten konnten nicht abgerufen werden. Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut."
     },
     "tabs": {
       "overview": "Überblick",
       "timeline": "Lernzeitleiste",
       "evolution": "Evolutionsübersicht",
-      "weeklyDigest": "Wochenbericht",
       "graph": "Wissensgraph",
       "trends": "Skill-Trends",
       "daily": "Täglicher Rückblick"
-    },
-    "weeklyDigest": {
-      "title": "Team-Wochenbericht & Wissenszins-Journal",
-      "description": "Fasst 7-Tage-Aktivitätsmetriken, Skill-Zinseszins-Rankings, Wissenszitierungen und Fehlervermeidungsvorschläge automatisch zusammen, mit 1-Klick-Markdown-Export.",
-      "copyMarkdown": "Bericht kopieren",
-      "copied": "In die Zwischenablage kopiert",
-      "exportMarkdown": ".md-Datei exportieren",
-      "refresh": "Aktualisieren",
-      "compoundingScore": "Zinseszins-Index",
-      "healthTier": "Gesundheitsstufe",
-      "hoursSaved": "Eingesparte Stunden",
-      "cacheHitRate": "Cache-Wiederverwendungsrate",
-      "citations": "Wissenszitierungen",
-      "empty": "Keine Aktivitäten in dieser Woche",
-      "emptyDesc": "Sobald Sie mit dem Agenten interagieren, Skills nutzen oder Erinnerungen speichern, wird der Wochenbericht automatisch generiert."
     },
     "learningTimeline": {
       "title": "Lern- und Evolutionsstream",
@@ -9214,6 +9206,11 @@
         "archiveSuccess": "Skill archiviert",
         "unarchiveSuccess": "Skill wiederhergestellt und aktiviert",
         "actionFailed": "Aktion fehlgeschlagen: {error}"
+      },
+      "error": {
+        "title": "Failed to load learning timeline",
+        "description": "We couldn't fetch timeline data. Check your connection and try again.",
+        "retry": "Retry"
       }
     },
     "learningLoop": {
@@ -9301,7 +9298,10 @@
         "emerging": "Auftauchend",
         "established": "Gegründet",
         "declining": "Abnehmend"
-      }
+      },
+      "loadErrorTitle": "Failed to load pattern discoveries",
+      "loadErrorDescription": "We couldn't fetch behavioral pattern data. Check your connection and try again.",
+      "retry": "Retry"
     },
     "dailyJournal": {
       "today": "Heute",
@@ -9318,7 +9318,11 @@
         "approval": "Freigabe",
         "cron": "Geplant",
         "kanban": "Tafel"
-      }
+      },
+      "emptyTitle": "Keine Aktivität an diesem Tag",
+      "emptyDescription": "Sitzungen, Genehmigungen, Cron-Jobs und Kanban-Updates erscheinen hier",
+      "errorTitle": "Fehler beim Laden des Tagesjournals",
+      "errorDescription": "Journaldaten für dieses Datum konnten nicht geladen werden. Verbindung prüfen und erneut versuchen"
     },
     "timeRange": {
       "7d": "7T",
@@ -9341,7 +9345,32 @@
       "error": "Zusammenfassung konnte nicht erstellt werden",
       "keywords": "Schlüsselwörter",
       "suggestions": "Nächste Schritte",
-      "generatedAt": "Generiert"
+      "generatedAt": "Generiert",
+      "errorTitle": "Fehler beim Erstellen der Zusammenfassung",
+      "errorDescription": "Tageszusammenfassung konnte nicht erstellt werden. Erneut versuchen oder Lite-Model-Einstellungen prüfen",
+      "retry": "Wiederholen"
+    },
+    "export": {
+      "title": "Myrm Reise-Wochenbericht",
+      "copyMarkdown": "Bericht kopieren",
+      "copied": "In die Zwischenablage kopiert",
+      "exportMarkdown": ".md exportieren",
+      "memoryCitations": "Gedächtniszitate (7T)",
+      "skillRow": "- `{name}` · Wertung {score} · {status} · {calls7d} Aufrufe (7T)",
+      "generatedAt": "Erstellt von Myrm am {date}"
+    },
+    "skillHealth": {
+      "title": "Skill-Integrität (7 Tage)",
+      "description": "Zusammengesetzte Integritätswerte basierend auf der jüngsten Nutzung.",
+      "empty": "Noch keine Skill-Nutzung aufgezeichnet.",
+      "calls7d": "{count} Aufrufe (7T)",
+      "successRate": "{rate}% Erfolgsrate",
+      "status": {
+        "STAR": "Star",
+        "HEALTHY": "Gesund",
+        "AT_RISK": "Gefährdet",
+        "STALE": "Inaktiv"
+      }
     }
   },
   "subagentDashboard": {
@@ -10612,7 +10641,7 @@
     "workspacePlaceholder": "Absoluter Pfad, z.B. /workspace/docs",
     "workspaceUpdated": "Arbeitsverzeichnis aktualisiert",
     "workspaceCleared": "Arbeitsverzeichnis gelöscht",
-    "moveSuccess": "{count} Chats erfolgreich verschoben",
+    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
     "moveFailed": "Chats konnten nicht verschoben werden",
     "workspaceMount": {
       "title": "Link-Ordner",
@@ -11776,14 +11805,31 @@
       "endpointName": "Endpunktname",
       "payloadUrl": "Payload-URL",
       "signingSecret": "HMAC-Signatur-Geheimnis (Optional)",
+      "signingSecretPlaceholder": "Optionales Signaturgeheimnis zur Absenderprüfung",
       "generateRandom": "Zufällig generieren",
       "subscribedEvents": "Abonnierte Ereignisse",
+      "agentScope": "Agent-Profile-Bereich",
+      "agentScopeAll": "Alle Agent-Profile",
+      "agentScopeHint": "Nur Ereignisse des ausgewählten Agent-Profils zustellen. „Alle“ empfängt Ereignisse von jedem Profil.",
       "saveEndpoint": "Endpunkt speichern",
       "saving": "Speichern...",
       "cancel": "Abbrechen",
       "testPing": "Verbindungstest",
+      "pingSuccess": "Ping erfolgreich: HTTP {status} ({latency} ms)",
+      "pingFailed": "Ping fehlgeschlagen: {error}",
+      "pingConnectionError": "Verbindungsfehler",
       "noEndpoints": "Keine Outbound-Webhooks konfiguriert",
-      "noEndpointsDesc": "Konfigurieren Sie ausgehende Webhooks, um Status- und Lebenszyklusereignisse des Agenten in Echtzeit an externe Workflows zu senden."
+      "noEndpointsDesc": "Konfigurieren Sie ausgehende Webhooks, um Status- und Lebenszyklusereignisse des Agenten in Echtzeit an externe Workflows zu senden.",
+      "events": {
+        "session_completed": "Sitzung abgeschlossen",
+        "session_failed": "Sitzung fehlgeschlagen",
+        "approval_required": "Genehmigung erforderlich",
+        "approval_resolved": "Genehmigung erledigt",
+        "kanban_task_updated": "Kanban aktualisiert",
+        "goal_terminal": "Ziel abgeschlossen",
+        "subagent_spawned": "Subagent erstellt",
+        "subagent_merged": "Subagent zusammengeführt"
+      }
     },
     "integrationCatalog": {
       "title": "Service-Katalog",
@@ -17648,16 +17694,5 @@
       "exportSuccessDesc": "Diagnosearchiv wurde erfolgreich erstellt und heruntergeladen.",
       "exportFailedTitle": "Export fehlgeschlagen"
     }
-  },
-  "expertSummon": {
-    "summonSuccess": "Zu Experte {name} gewechselt",
-    "summonFailed": "Beschwörung der Expertenvorlage fehlgeschlagen",
-    "featuredTitle": "Ausgewählte Experten & Squads",
-    "teamBadge": "Expertenteam",
-    "expertBadge": "Experte",
-    "searchPlaceholder": "Experten oder Teams suchen...",
-    "loading": "Wird geladen...",
-    "empty": "Keine passenden Experten- oder Team-Vorlagen gefunden",
-    "summonButton": "Beschwören"
   }
 }

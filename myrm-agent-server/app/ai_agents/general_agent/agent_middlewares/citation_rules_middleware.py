@@ -1,7 +1,7 @@
 """Citation rules middleware for GeneralAgent.
 
 Appends citation formatting rules as a transient HumanMessage (via request.override)
-during the final_answer phase when external sources are present in the current turn.
+when the current user turn contains UNTRUSTED external sources.
 Uses HumanMessage to preserve SystemMessage hash stability for prompt caching.
 """
 
@@ -15,17 +15,16 @@ from app.ai_agents.prompts.general_agent_prompt import get_citation_rules_if_nee
 
 logger = logging.getLogger(__name__)
 
-
-def _is_final_answer_phase(messages: Sequence[object]) -> bool:
-    """Return True if the last message is a request_answer_user_tool result."""
-    if messages:
-        last_message = messages[-1]
-        if isinstance(last_message, ToolMessage) and last_message.name == "request_answer_user_tool":
-            return True
-    return False
-
-
 _UNTRUSTED_DATA_MARKER = "<<<UNTRUSTED_DATA "
+_CITATION_RULES_TURN_KEY = "citation_rules_injected_for_turn"
+
+
+def _get_last_human_turn_index(messages: Sequence[object]) -> int:
+    """Return the index of the latest HumanMessage, or -1 when absent."""
+    for i in range(len(messages) - 1, -1, -1):
+        if isinstance(messages[i], HumanMessage):
+            return i
+    return -1
 
 
 def _has_external_sources_in_current_turn(messages: Sequence[object]) -> bool:
@@ -53,8 +52,26 @@ def _has_external_sources_in_current_turn(messages: Sequence[object]) -> bool:
     return False
 
 
+def _should_inject_citation_rules(
+    messages: Sequence[object],
+    ctx: dict[str, object] | None,
+) -> tuple[bool, int]:
+    """Return whether to inject full citation rules and the active turn index."""
+    turn_idx = _get_last_human_turn_index(messages)
+    if turn_idx == -1:
+        return False, turn_idx
+
+    if not _has_external_sources_in_current_turn(messages):
+        return False, turn_idx
+
+    if ctx is not None and ctx.get(_CITATION_RULES_TURN_KEY) == turn_idx:
+        return False, turn_idx
+
+    return True, turn_idx
+
+
 class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
-    """Injects citation formatting rules during the final_answer phase.
+    """Injects citation formatting rules when external sources exist in the user turn.
 
     Uses request.override() with HumanMessage (non-persistent, cache-safe).
     """
@@ -73,23 +90,28 @@ class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        # naked/lean 模式下跳过引用规则注入
+        ctx: dict[str, object] | None = None
         if request.runtime is not None:
-            ctx = getattr(request.runtime, "context", None)
-            if isinstance(ctx, dict) and ctx.get("prompt_mode") in ("naked", "lean", "search"):
-                return await handler(request)
+            runtime_ctx = getattr(request.runtime, "context", None)
+            if isinstance(runtime_ctx, dict):
+                ctx = runtime_ctx
+                prompt_mode = runtime_ctx.get("prompt_mode")
+                if prompt_mode in ("naked", "search"):
+                    return await handler(request)
 
         state = request.state
         raw_messages = state.get("messages", [])
         messages: list[object] = list(raw_messages) if isinstance(raw_messages, list) else []
 
-        if _is_final_answer_phase(messages):
-            has_sources = _has_external_sources_in_current_turn(messages)
-            citation_content = get_citation_rules_if_needed(has_sources)
+        should_inject, turn_idx = _should_inject_citation_rules(messages, ctx)
+        if should_inject:
+            locale_val = ctx.get("prompt_locale") if ctx is not None else None
+            locale = locale_val if isinstance(locale_val, str) else None
+            citation_content = get_citation_rules_if_needed(True, locale=locale)
 
             logger.info(
-                "Citation rules: final_answer phase, has_external_sources=%s, will_inject=%s",
-                has_sources,
+                "Citation rules: turn_idx=%s, has_external_sources=True, will_inject=%s",
+                turn_idx,
                 citation_content is not None,
             )
 
@@ -97,6 +119,8 @@ class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 new_messages = list(request.messages)
                 new_messages.append(HumanMessage(content=f"[SYSTEM INSTRUCTION]\n{citation_content}"))
                 request = request.override(messages=new_messages)
+                if ctx is not None:
+                    ctx[_CITATION_RULES_TURN_KEY] = turn_idx
 
         return await handler(request)
 

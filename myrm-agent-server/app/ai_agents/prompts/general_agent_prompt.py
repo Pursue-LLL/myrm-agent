@@ -260,7 +260,7 @@ def get_citation_rules_if_needed(
 ) -> str | None:
     """获取外部来源引用规则（如果需要）
 
-    用于在 final_answer 阶段、当前轮次有 external_sources 时追加。
+    用于在当前 user turn 存在 external_sources 时追加。
 
     Args:
         has_external_sources: 当前轮次是否有外部知识源

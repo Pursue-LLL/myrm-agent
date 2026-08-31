@@ -20,6 +20,40 @@ import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
+import { disarmYoloForPreset, normalizeSecurityPreset } from '@/store/chat/securityPreset';
+
+async function applyRestoredAgentConfig(chatId: string, agentId: string): Promise<void> {
+  const agent = await useAgentStore.getState().fetchAgent(agentId);
+  if (!agent) {
+    console.warn('[MYRM-AGENT-RESTORE] fetchAgent returned empty', { chatId, agentId });
+    return;
+  }
+  if (useChatStore.getState().chatId !== chatId) {
+    console.warn('[MYRM-AGENT-RESTORE] chatId changed during restore', {
+      chatId,
+      agentId,
+      stateChatId: useChatStore.getState().chatId,
+    });
+    return;
+  }
+
+  const config = buildAgentConfig(agent);
+  const expectedPreset = normalizeSecurityPreset(config.defaultSecurityPreset);
+  const store = useChatStore.getState();
+  const agentAlreadyBound = store.agentConfig?.agentId === agentId;
+
+  if (agentAlreadyBound) {
+    if (store.securityPreset !== expectedPreset) {
+      disarmYoloForPreset(expectedPreset);
+      useChatStore.setState({ securityPreset: expectedPreset });
+    }
+    return;
+  }
+
+  const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
+  await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
+  useChatStore.getState().setAgentConfig(config);
+}
 
 export async function restoreAgentConfigFromChat(
   chatId: string,
@@ -29,28 +63,8 @@ export async function restoreAgentConfigFromChat(
     return;
   }
 
-  const currentConfig = useChatStore.getState().agentConfig;
-  if (currentConfig?.agentId === agentId) {
-    return;
-  }
-
   try {
-    const agent = await useAgentStore.getState().fetchAgent(agentId);
-    if (!agent) {
-      console.warn('[MYRM-AGENT-RESTORE] fetchAgent returned empty', { chatId, agentId });
-      return;
-    }
-    if (useChatStore.getState().chatId !== chatId) {
-      console.warn('[MYRM-AGENT-RESTORE] chatId changed during restore', {
-        chatId,
-        agentId,
-        stateChatId: useChatStore.getState().chatId,
-      });
-      return;
-    }
-    const { fetchMarketSkills, fetchLocalSkills } = useSkillStore.getState();
-    await Promise.all([fetchMarketSkills(true), fetchLocalSkills()]);
-    useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
+    await applyRestoredAgentConfig(chatId, agentId);
   } catch (error) {
     console.warn('[MYRM-AGENT-RESTORE] restoreAgentConfigFromChat failed', { chatId, agentId, error });
   }

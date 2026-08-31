@@ -5434,7 +5434,9 @@
     "delete_loading": "삭제 중...",
     "conversation_excluded": "대화 회상에서 제외됨",
     "conversation_deleted": "대화가 삭제되었습니다",
-    "operation_failed": "작업 실패"
+    "operation_failed": "작업 실패",
+    "copyAll": "Copy all",
+    "copyAllSuccess": "Sources copied to clipboard"
   },
   "auth": {
     "setup": {
@@ -6511,8 +6513,8 @@
     "deleteBoardError": "보드 삭제 실패",
     "deleteBoardConfirmTitle": "보드 삭제",
     "deleteBoardConfirmDesc": "「{name}」을(를) 삭제하시겠습니까? 이 보드의 모든 작업, 의존성, 이벤트 기록이 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다.",
-    "deleteBoardConfirmDescWithTasks": "「{name}」을(를) 삭제하시겠습니까? 이 보드에는 {total}개의 작업이 포함되어 있으며, 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다.",
-    "deleteBoardConfirmDescRunning": "「{name}」을(를) 삭제하시겠습니까? 이 보드에는 {total}개의 작업이 포함되어 있으며, 그 중 {running}개의 실행 중인 작업이 강제 중단됩니다. 이 작업은 취소할 수 없습니다.",
+    "deleteBoardConfirmDescWithTasks": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}} that will be permanently deleted. This action cannot be undone.",
+    "deleteBoardConfirmDescRunning": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}}, including {running, plural, one {# running task} other {# running tasks}} that will be forcefully interrupted. This action cannot be undone.",
     "delete": "삭제",
     "boardNamePlaceholder": "보드 이름",
     "boardDescPlaceholder": "보드 설명 (선택)",
@@ -6633,7 +6635,7 @@
     "attachmentLimitExceeded": "최대 10개의 첨부 파일만 허용됩니다",
     "attachmentRemoveError": "첨부 파일 삭제에 실패했습니다",
     "removeAttachment": "첨부 파일 삭제",
-    "attachmentCount": "파일 {count}개",
+    "attachmentCount": "{count, plural, one {# file} other {# files}}",
     "removeDep": "의존성 제거",
     "depAdded": "의존성이 추가되었습니다",
     "depRemoved": "의존성이 제거되었습니다",
@@ -6700,7 +6702,7 @@
     "unassigned": "미할당",
     "laneByProfile": "에이전트별",
     "laneByProfileHint": "실행 중인 작업을 에이전트별로 그룹화",
-    "tasksInLane": "{count}개 작업",
+    "tasksInLane": "{count, plural, one {# task} other {# tasks}}",
     "noTasks": "작업 없음",
     "taskDetails": "작업 세부 정보",
     "executionTrace": "실행 추적",
@@ -9075,7 +9077,7 @@
   },
   "growthDashboard": {
     "title": "성장 대시보드",
-    "subtitle": "에이전트 성장 여정",
+    "subtitle": "Agent 성장 여정",
     "snapshot": {
       "totalMemories": "총 메모리",
       "weekDelta": "이번 주 +{count}",
@@ -9132,33 +9134,19 @@
       "weeksAgo": "{count}주 전"
     },
     "empty": {
-      "title": "에이전트와 채팅 시작하기",
-      "description": "에이전트와 상호작용한 후 여기에 성장 데이터가 표시됩니다",
-      "retry": "재시도"
+      "title": "Agent와 대화 시작",
+      "description": "Agent와 상호작용한 후 성장 데이터가 여기에 표시됩니다",
+      "retry": "다시 시도",
+      "errorTitle": "성장 대시보드 로드 실패",
+      "errorDescription": "성장 데이터를 가져올 수 없습니다. 네트워크 연결을 확인하고 다시 시도하세요."
     },
     "tabs": {
       "overview": "개요",
       "timeline": "학습 타임라인",
       "evolution": "진화 요약",
-      "weeklyDigest": "주간 리포트",
       "graph": "지식 그래프",
       "trends": "스킬 트렌드",
       "daily": "일일 리뷰"
-    },
-    "weeklyDigest": {
-      "title": "팀 주간 리포트 및 지식 복리 저널",
-      "description": "7일간의 활동 지표, 스킬 건강도 복리 순위, 지식 인용 성과 및 개선 제안을 자동 집계하여 원클릭으로 Markdown 복사 및 내보내기를 지원합니다.",
-      "copyMarkdown": "주간 리포트 복사",
-      "copied": "클립보드에 복사되었습니다",
-      "exportMarkdown": ".md 파일 내보내기",
-      "refresh": "새로고침",
-      "compoundingScore": "복리 지수",
-      "healthTier": "건강 등급",
-      "hoursSaved": "절감 공수",
-      "cacheHitRate": "캐시 재사용률",
-      "citations": "지식 인용",
-      "empty": "이번 주 활동 기록이 없습니다",
-      "emptyDesc": "Agent와 대화를 시작하고 스킬을 사용하거나 기억을 저장하면 주간 리포트가 자동 생성되어 복리 가치를 정량화합니다."
     },
     "learningTimeline": {
       "title": "학습 및 진화 스트림",
@@ -9207,6 +9195,11 @@
         "archiveSuccess": "스킬이 아카이브되었습니다",
         "unarchiveSuccess": "스킬이 복원되어 활성화되었습니다",
         "actionFailed": "작업 실패: {error}"
+      },
+      "error": {
+        "title": "Failed to load learning timeline",
+        "description": "We couldn't fetch timeline data. Check your connection and try again.",
+        "retry": "Retry"
       }
     },
     "learningLoop": {
@@ -9294,7 +9287,10 @@
         "emerging": "발현 중",
         "established": "확립됨",
         "declining": "감소 중"
-      }
+      },
+      "loadErrorTitle": "Failed to load pattern discoveries",
+      "loadErrorDescription": "We couldn't fetch behavioral pattern data. Check your connection and try again.",
+      "retry": "Retry"
     },
     "dailyJournal": {
       "today": "오늘",
@@ -9311,7 +9307,11 @@
         "approval": "승인",
         "cron": "예약",
         "kanban": "칸반"
-      }
+      },
+      "emptyTitle": "해당 날짜에 활동이 없습니다",
+      "emptyDescription": "세션, 승인, Cron 작업, 칸반 업데이트가 발생 시 여기에 표시됩니다",
+      "errorTitle": "일일 저널 로드 실패",
+      "errorDescription": "해당 날짜의 저널 데이터를 가져올 수 없습니다. 연결을 확인하고 다시 시도하세요"
     },
     "timeRange": {
       "7d": "7일",
@@ -9334,7 +9334,32 @@
       "error": "요약 생성 실패",
       "keywords": "키워드",
       "suggestions": "다음 단계",
-      "generatedAt": "생성 시각"
+      "generatedAt": "생성 시각",
+      "errorTitle": "요약 생성 실패",
+      "errorDescription": "일일 요약을 생성할 수 없습니다. 다시 시도하거나 Lite Model 설정을 확인하세요",
+      "retry": "다시 시도"
+    },
+    "export": {
+      "title": "Myrm 여정 주간 보고서",
+      "copyMarkdown": "보고서 복사",
+      "copied": "클립보드에 복사되었습니다",
+      "exportMarkdown": ".md 내보내기",
+      "memoryCitations": "기억 인용 (7일)",
+      "skillRow": "- `{name}` · 점수 {score} · {status} · 7일간 {calls7d}회 호출",
+      "generatedAt": "{date}에 Myrm에서 생성됨"
+    },
+    "skillHealth": {
+      "title": "스킬 건전성 (7일)",
+      "description": "최근 스킬 사용에 따른 복리 건전성 점수입니다.",
+      "empty": "아직 스킬 사용 기록이 없습니다.",
+      "calls7d": "7일간 {count}회 호출",
+      "successRate": "성공률 {rate}%",
+      "status": {
+        "STAR": "스타",
+        "HEALTHY": "건강",
+        "AT_RISK": "위험",
+        "STALE": "미사용"
+      }
     }
   },
   "subagentDashboard": {
@@ -10605,7 +10630,7 @@
     "workspacePlaceholder": "절대 경로, 예: /workspace/docs",
     "workspaceUpdated": "작업 디렉터리가 업데이트되었습니다",
     "workspaceCleared": "작업 디렉터리가 지워졌습니다",
-    "moveSuccess": "{count}개의 대화를 이동했습니다",
+    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
     "moveFailed": "대화 이동에 실패했습니다",
     "workspaceMount": {
       "title": "폴더 연결",
@@ -11330,12 +11355,12 @@
     "taskStatusInReview": "검토 중",
     "taskStatusBlocked": "차단됨",
     "retryAction": "실패 항목 재시도",
-    "retrySuccess": "디렉터리 {count}개 재시도됨",
+    "retrySuccess": "Retried {count, plural, one {# directory} other {# directories}}",
     "retryError": "재시도 실패",
     "approvalLabel": "실행 전 승인 필요",
-    "dirsSelectedCount": "선택한 디렉터리 {count}개",
-    "dirsCount": "디렉터리 {count}개",
-    "dirsCountTitle": "대상 디렉터리 총 {count}개",
+    "dirsSelectedCount": "{count, plural, one {# directory selected} other {# directories selected}}",
+    "dirsCount": "{count, plural, one {# directory} other {# directories}}",
+    "dirsCountTitle": "{count, plural, one {# target directory} other {# target directories}}",
     "artifactVerified": "산출물 검증됨",
     "artifactMissing": "산출물 누락",
     "missingArtifactsTitle": "산출물 누락",
@@ -11769,14 +11794,31 @@
       "endpointName": "엔드포인트 이름",
       "payloadUrl": "페이로드 URL (Payload URL)",
       "signingSecret": "HMAC 서명 시크릿 (선택사항)",
+      "signingSecretPlaceholder": "선택적 서명 시크릿 (전달 출처 검증용)",
       "generateRandom": "랜덤 생성",
       "subscribedEvents": "구독 이벤트",
+      "agentScope": "Agent Profile 범위",
+      "agentScopeAll": "모든 Agent Profile",
+      "agentScopeHint": "선택한 Agent Profile의 이벤트만 전달합니다. 전체를 선택하면 모든 Profile의 이벤트를 수신합니다.",
       "saveEndpoint": "엔드포인트 저장",
       "saving": "저장 중...",
       "cancel": "취소",
       "testPing": "연결 테스트",
+      "pingSuccess": "Ping 성공: HTTP {status} ({latency}ms)",
+      "pingFailed": "Ping 실패: {error}",
+      "pingConnectionError": "연결 오류",
       "noEndpoints": "구성된 아웃바운드 웹훅이 없습니다",
-      "noEndpointsDesc": "아웃바운드 웹훅을 설정하여 에이전트 실행 진행 상황과 결과를 외부 파이프라인으로 스트리밍하세요."
+      "noEndpointsDesc": "아웃바운드 웹훅을 설정하여 에이전트 실행 진행 상황과 결과를 외부 파이프라인으로 스트리밍하세요.",
+      "events": {
+        "session_completed": "세션 완료",
+        "session_failed": "세션 실패",
+        "approval_required": "승인 필요",
+        "approval_resolved": "승인 처리됨",
+        "kanban_task_updated": "칸반 업데이트",
+        "goal_terminal": "목표 종료",
+        "subagent_spawned": "서브에이전트 생성",
+        "subagent_merged": "서브에이전트 병합"
+      }
     },
     "integrationCatalog": {
       "title": "서비스 카탈로그",
@@ -12686,7 +12728,7 @@
       },
       "validationMessages": {
         "successWithDimension": "검증 성공 (차원: {dimension})",
-        "successWithResults": "검증 성공 (결과 {count}건 반환)",
+        "successWithResults": "Validation successful (returned {count, plural, one {# result} other {# results}})",
         "failedWithError": "검증 실패: {error}",
         "missingRequiredFields": "모든 필수 필드를 입력하세요",
         "networkError": "네트워크 오류, 연결을 확인하세요",
@@ -14180,7 +14222,7 @@
       "repairingTypes": "복구 중...",
       "repairingPublication": "게시 상태 복구 중...",
       "reindexingVectors": "벡터 인덱스 재구축 중...",
-      "reindexErrorsTitle": "{count}개 항목을 재구축하지 못했습니다",
+      "reindexErrorsTitle": "{count, plural, one {# item could not be reindexed} other {# items could not be reindexed}}",
       "reindexErrorsTruncated": "…외 {count}개",
       "healthReport": {
         "title": "지식 상태",

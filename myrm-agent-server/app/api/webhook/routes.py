@@ -1,11 +1,9 @@
 """REST API routes for lifecycle outbound webhooks.
 
-[POS] Endpoints for Webhook CRUD, toggles, and live connectivity ping.
+[POS] CRUD, toggles, anonymous `/ping`, and saved `/{id}/ping` connectivity probes for lifecycle webhooks.
 """
 
 from __future__ import annotations
-
-import logging
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
@@ -24,9 +22,30 @@ from app.services.webhook.lifecycle_webhook_service import (
     LifecycleOutboundWebhookService,
 )
 
-logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/lifecycle-webhooks", tags=["lifecycle-webhooks"])
+
+
+def _to_webhook_response(
+    model: LifecycleWebhookModel,
+    *,
+    include_secret: bool,
+) -> LifecycleWebhookResponse:
+    return LifecycleWebhookResponse(
+        id=model.id,
+        name=model.name,
+        url=model.url,
+        secret=model.secret if include_secret else None,
+        has_secret=bool(model.secret),
+        events=model.events_json or [],
+        agent_id=model.agent_id,
+        is_active=model.is_active,
+        timeout_seconds=model.timeout_seconds,
+        last_delivery_at=model.last_delivery_at,
+        last_delivery_status=model.last_delivery_status,
+        last_error=model.last_error,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+    )
 
 
 @router.get("", response_model=list[LifecycleWebhookResponse])
@@ -36,24 +55,7 @@ async def list_lifecycle_webhooks() -> list[LifecycleWebhookResponse]:
         stmt = select(LifecycleWebhookModel).order_by(LifecycleWebhookModel.created_at.desc())
         res = await session.execute(stmt)
         models = res.scalars().all()
-        return [
-            LifecycleWebhookResponse(
-                id=m.id,
-                name=m.name,
-                url=m.url,
-                secret=m.secret,
-                events=m.events_json or [],
-                agent_id=m.agent_id,
-                is_active=m.is_active,
-                timeout_seconds=m.timeout_seconds,
-                last_delivery_at=m.last_delivery_at,
-                last_delivery_status=m.last_delivery_status,
-                last_error=m.last_error,
-                created_at=m.created_at,
-                updated_at=m.updated_at,
-            )
-            for m in models
-        ]
+        return [_to_webhook_response(m, include_secret=False) for m in models]
 
 
 @router.post("", response_model=LifecycleWebhookResponse, status_code=status.HTTP_201_CREATED)
@@ -83,21 +85,7 @@ async def create_lifecycle_webhook(
         await session.commit()
         await session.refresh(m)
 
-        return LifecycleWebhookResponse(
-            id=m.id,
-            name=m.name,
-            url=m.url,
-            secret=m.secret,
-            events=m.events_json or [],
-            agent_id=m.agent_id,
-            is_active=m.is_active,
-            timeout_seconds=m.timeout_seconds,
-            last_delivery_at=m.last_delivery_at,
-            last_delivery_status=m.last_delivery_status,
-            last_error=m.last_error,
-            created_at=m.created_at,
-            updated_at=m.updated_at,
-        )
+        return _to_webhook_response(m, include_secret=True)
 
 
 @router.put("/{webhook_id}", response_model=LifecycleWebhookResponse)
@@ -138,21 +126,7 @@ async def update_lifecycle_webhook(
         await session.commit()
         await session.refresh(m)
 
-        return LifecycleWebhookResponse(
-            id=m.id,
-            name=m.name,
-            url=m.url,
-            secret=m.secret,
-            events=m.events_json or [],
-            agent_id=m.agent_id,
-            is_active=m.is_active,
-            timeout_seconds=m.timeout_seconds,
-            last_delivery_at=m.last_delivery_at,
-            last_delivery_status=m.last_delivery_status,
-            last_error=m.last_error,
-            created_at=m.created_at,
-            updated_at=m.updated_at,
-        )
+        return _to_webhook_response(m, include_secret=body.secret is not None)
 
 
 @router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -171,6 +145,28 @@ async def ping_lifecycle_webhook(body: WebhookPingRequest) -> WebhookPingRespons
     """Test immediate connectivity and signature dispatch to target webhook URL."""
     svc = LifecycleOutboundWebhookService.get_instance()
     res = await svc.ping_webhook(url=body.url, secret=body.secret, timeout=body.timeout_seconds)
+    return WebhookPingResponse(
+        success=res.success,
+        status_code=res.status_code,
+        latency_ms=res.latency_ms,
+        error=res.error,
+    )
+
+
+@router.post("/{webhook_id}/ping", response_model=WebhookPingResponse)
+async def ping_saved_lifecycle_webhook(webhook_id: str) -> WebhookPingResponse:
+    """Ping a saved webhook using its stored URL, secret, and timeout."""
+    async with get_session() as session:
+        model = await session.get(LifecycleWebhookModel, webhook_id)
+        if not model:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
+
+    svc = LifecycleOutboundWebhookService.get_instance()
+    res = await svc.ping_webhook(
+        url=model.url,
+        secret=model.secret,
+        timeout=model.timeout_seconds,
+    )
     return WebhookPingResponse(
         success=res.success,
         status_code=res.status_code,

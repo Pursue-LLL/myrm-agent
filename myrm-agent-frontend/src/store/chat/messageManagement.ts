@@ -273,7 +273,7 @@ export const loadMessages = async (
         const isNotFound = error instanceof ApiError && (error.code === 40004 || error.code === 404);
         state.notFound = isNotFound;
         state.loadError = !isNotFound; // 非 404 的错误都视为加载错误
-        state.isMessagesLoaded = true;
+        state.isMessagesLoaded = isNotFound;
         state.loading = false;
       }
     });

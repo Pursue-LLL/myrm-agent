@@ -6,6 +6,7 @@ import * as webhookService from '@/services/lifecycleWebhook';
 const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+  useLocale: () => 'en',
 }));
 
 vi.mock('@/services/lifecycleWebhook', () => ({
@@ -13,7 +14,11 @@ vi.mock('@/services/lifecycleWebhook', () => ({
   createLifecycleWebhook: vi.fn(),
   updateLifecycleWebhook: vi.fn(),
   deleteLifecycleWebhook: vi.fn(),
-  pingLifecycleWebhook: vi.fn(),
+  pingSavedLifecycleWebhook: vi.fn(),
+}));
+
+vi.mock('@/services/agent', () => ({
+  listAgents: vi.fn().mockResolvedValue({ items: [] }),
 }));
 
 describe('LifecycleWebhookSection - Full Flow', () => {
@@ -23,6 +28,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
       name: 'CI Webhook',
       url: 'https://example.com/api/hook',
       secret: 'whsec_secret123',
+      has_secret: true,
       events: ['session_completed', 'session_failed'],
       agent_id: null,
       is_active: true,
@@ -108,7 +114,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
     expect(inputs[2].getAttribute('value')).toMatch(/^whsec_[0-9a-f]{32}$/);
 
     // Toggle event selection
-    const goalBadge = screen.getByText('Goal Terminal');
+    const goalBadge = screen.getByText('events.goal_terminal');
     fireEvent.click(goalBadge);
 
     // Save
@@ -145,7 +151,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
 
   it('handles ping failure gracefully', async () => {
     (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
-    (webhookService.pingLifecycleWebhook as any).mockResolvedValueOnce({
+    (webhookService.pingSavedLifecycleWebhook as any).mockResolvedValueOnce({
       success: false,
       status_code: 500,
       latency_ms: 120.5,
@@ -158,6 +164,7 @@ describe('LifecycleWebhookSection - Full Flow', () => {
     const pingBtn = screen.getByRole('button', { name: /testPing/i });
     fireEvent.click(pingBtn);
 
-    expect(await screen.findByText(/Ping Failed: HTTP 500 Internal Server Error/i)).toBeInTheDocument();
+    expect(await screen.findByText('pingFailed')).toBeInTheDocument();
+    expect(webhookService.pingSavedLifecycleWebhook).toHaveBeenCalledWith('wh-1');
   });
 });

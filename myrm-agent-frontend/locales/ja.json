@@ -5434,7 +5434,9 @@
     "delete_loading": "削除中...",
     "conversation_excluded": "会話リコールから除外",
     "conversation_deleted": "会話を削除しました",
-    "operation_failed": "操作に失敗しました"
+    "operation_failed": "操作に失敗しました",
+    "copyAll": "Copy all",
+    "copyAllSuccess": "Sources copied to clipboard"
   },
   "auth": {
     "setup": {
@@ -6511,8 +6513,8 @@
     "deleteBoardError": "ボードの削除に失敗",
     "deleteBoardConfirmTitle": "カンバンを削除",
     "deleteBoardConfirmDesc": "「{name}」を削除してもよろしいですか？このボード内のすべてのタスク、依存関係、イベント履歴が完全に削除されます。この操作は取り消せません。",
-    "deleteBoardConfirmDescWithTasks": "「{name}」を削除してもよろしいですか？このボードには {total} 件のタスクが含まれており、完全に削除されます。この操作は取り消せません。",
-    "deleteBoardConfirmDescRunning": "「{name}」を削除してもよろしいですか？このボードには {total} 件のタスクが含まれており、うち {running} 件の実行中のタスクが強制中断されます。この操作は取り消せません。",
+    "deleteBoardConfirmDescWithTasks": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}} that will be permanently deleted. This action cannot be undone.",
+    "deleteBoardConfirmDescRunning": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}}, including {running, plural, one {# running task} other {# running tasks}} that will be forcefully interrupted. This action cannot be undone.",
     "delete": "削除",
     "boardNamePlaceholder": "カンバン名前",
     "boardDescPlaceholder": "カンバン説明（任意）",
@@ -6635,7 +6637,7 @@
     "attachmentLimitExceeded": "添付ファイルは最大10個まです",
     "attachmentRemoveError": "添付ファイルの削除に失敗しました",
     "removeAttachment": "添付ファイルを削除",
-    "attachmentCount": "{count}個のファイル",
+    "attachmentCount": "{count, plural, one {# file} other {# files}}",
     "removeDep": "依存関係を削除",
     "depAdded": "依存関係を追加しました",
     "depRemoved": "依存関係を削除しました",
@@ -6704,7 +6706,7 @@
     "unassigned": "未割り場合て",
     "laneByProfile": "エージェント別",
     "laneByProfileHint": "実行中タスクをエージェント別に表示",
-    "tasksInLane": "{count} 個タスク",
+    "tasksInLane": "{count, plural, one {# task} other {# tasks}}",
     "noTasks": "タスクなし",
     "taskDetails": "タスク詳細",
     "executionTrace": "実行トレース",
@@ -9075,7 +9077,7 @@
   },
   "growthDashboard": {
     "title": "成長ダッシュボード",
-    "subtitle": "Agent の成長の軌跡",
+    "subtitle": "Agentの成長軌跡",
     "snapshot": {
       "totalMemories": "メモリ総数",
       "weekDelta": "今週 +{count}",
@@ -9132,11 +9134,11 @@
       "weeksAgo": "{count}週前"
     },
     "empty": {
-      "title": "Agent とチャットを開始",
-      "description": "エージェントと対話すると、成長データがここに表示されます",
+      "title": "Agentと対話を開始",
+      "description": "Agentと対話すると、成長データがここに表示されます",
       "errorTitle": "成長ダッシュボードの読み込みに失敗しました",
-      "errorDescription": "成長データを取得できませんでした。接続を確認して再試行してください。",
-      "retry": "再試行読み込み"
+      "errorDescription": "成長データを取得できませんでした。ネットワーク接続を確認して再試行してください。",
+      "retry": "再試行"
     },
     "tabs": {
       "overview": "概要",
@@ -9147,20 +9149,26 @@
       "daily": "毎日の振り返り"
     },
     "export": {
-      "copyMarkdown": "Markdown をコピー",
+      "copyMarkdown": "レポートをコピー",
       "copied": "クリップボードにコピーしました",
-      "exportMarkdown": ".md をエクスポート"
+      "exportMarkdown": ".md をエクスポート",
+      "title": "Myrm ジャーニー週次レポート",
+      "memoryCitations": "記憶引用 (7日間)",
+      "skillRow": "- `{name}` · スコア {score} · {status} · 過去7日間で {calls7d} 回呼び出し",
+      "generatedAt": "{date} に Myrm により生成"
     },
     "skillHealth": {
-      "title": "スキル健康度",
-      "description": "7日間のスキル複利スコアと成功/失敗率",
-      "empty": "今週のスキル実行記録はありません",
-      "emptyDesc": "スキルを使用すると健康度と複利スコアがここに表示されます",
-      "skill": "スキル",
-      "tier": "ティア",
-      "score": "複利スコア",
-      "successRate": "成功率",
-      "runs": "実行回数"
+      "title": "スキル健全性 (7日間)",
+      "description": "最近のスキル使用状況に基づく複利健全性スコア。",
+      "empty": "スキルの使用履歴はまだありません。",
+      "successRate": "成功率 {rate}%",
+      "calls7d": "7日間 {count} 回呼び出し",
+      "status": {
+        "STAR": "スター",
+        "HEALTHY": "健全",
+        "AT_RISK": "リスクあり",
+        "STALE": "休眠"
+      }
     },
     "learningTimeline": {
       "title": "学習と進化ストリーム",
@@ -9315,10 +9323,10 @@
       "timeline": "タイムライン",
       "empty": "この日のアクティビティはありません",
       "emptyTitle": "この日のアクティビティはありません",
-      "emptyDescription": "セッション、承認、定期タスク、カンバンの更新が発生するとここに表示されます。",
+      "emptyDescription": "セッション、承認、Cronジョブ、カンバンの更新がここに表示されます",
       "error": "日記の読み込みに失敗しました",
-      "errorTitle": "日記の読み込みに失敗しました",
-      "errorDescription": "この日付のジャーナルデータを取得できませんでした。接続を確認して再試行してください。",
+      "errorTitle": "日次ジャーナルの読み込みに失敗しました",
+      "errorDescription": "この日付のジャーナルデータを取得できませんでした。接続を確認して再試行してください",
       "retry": "再試行",
       "typeLabels": {
         "session": "セッション",
@@ -9335,8 +9343,8 @@
       "noModel": "AI 要約を有効にするには設定でライトモデルを構成してください",
       "goToSettings": "設定へ移動",
       "error": "要約の生成に失敗",
-      "errorTitle": "要約の生成に失敗",
-      "errorDescription": "デイリーダイジェストを生成できませんでした。再試行するかライトモデル設定を確認してください。",
+      "errorTitle": "サマリー生成に失敗しました",
+      "errorDescription": "日次サマリーを生成できませんでした。再試行するか、Lite Modelの設定を確認してください",
       "retry": "再試行",
       "keywords": "キーワード",
       "suggestions": "明日推奨",
@@ -10622,7 +10630,7 @@
     "workspacePlaceholder": "絶対パス 例: /workspace/docs",
     "workspaceUpdated": "作業ディレクトリを更新しました",
     "workspaceCleared": "作業ディレクトリをクリアしました",
-    "moveSuccess": "{count}件のチャットを移動しました",
+    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
     "moveFailed": "チャットの移動に失敗しました",
     "workspaceMount": {
       "title": "フォルダをリンク",
@@ -11347,12 +11355,12 @@
     "taskStatusInReview": "審査待ち",
     "taskStatusBlocked": "ブロック中",
     "retryAction": "失敗分を再実行",
-    "retrySuccess": "{count} 件のディレクトリを再実行しました",
+    "retrySuccess": "Retried {count, plural, one {# directory} other {# directories}}",
     "retryError": "再実行に失敗しました",
     "approvalLabel": "実行前に承認が必要",
-    "dirsSelectedCount": "{count} 個のディレクトリを選択",
-    "dirsCount": "{count} 個のディレクトリ",
-    "dirsCountTitle": "合計 {count} 個の対象ディレクトリ",
+    "dirsSelectedCount": "{count, plural, one {# directory selected} other {# directories selected}}",
+    "dirsCount": "{count, plural, one {# directory} other {# directories}}",
+    "dirsCountTitle": "{count, plural, one {# target directory} other {# target directories}}",
     "artifactVerified": "生成物を検証済み",
     "artifactMissing": "生成物がありません",
     "missingArtifactsTitle": "生成物がありません",
@@ -11786,14 +11794,31 @@
       "endpointName": "エンドポイント名",
       "payloadUrl": "ペイロード URL (Payload URL)",
       "signingSecret": "HMAC 署名シークレット (任意)",
+      "signingSecretPlaceholder": "任意の署名シークレット（配信元の検証用）",
       "generateRandom": "ランダム生成",
       "subscribedEvents": "購読イベント",
+      "agentScope": "Agent Profile スコープ",
+      "agentScopeAll": "すべての Agent Profile",
+      "agentScopeHint": "選択した Agent Profile のイベントのみ配信します。「すべて」を選ぶと全 Profile のイベントを受信します。",
       "saveEndpoint": "エンドポイントを保存",
       "saving": "保存中...",
       "cancel": "キャンセル",
       "testPing": "接続テスト",
+      "pingSuccess": "Ping 成功: HTTP {status} ({latency}ms)",
+      "pingFailed": "Ping 失敗: {error}",
+      "pingConnectionError": "接続エラー",
       "noEndpoints": "設定された送信 Webhook はありません",
-      "noEndpointsDesc": "送信 Webhook を設定して、エージェントの実行進捗と結果を外部の監視やワークフローシステムにリアルタイム配信します。"
+      "noEndpointsDesc": "送信 Webhook を設定して、エージェントの実行進捗と結果を外部の監視やワークフローシステムにリアルタイム配信します。",
+      "events": {
+        "session_completed": "セッション完了",
+        "session_failed": "セッション失敗",
+        "approval_required": "承認が必要",
+        "approval_resolved": "承認済み",
+        "kanban_task_updated": "カンバン更新",
+        "goal_terminal": "目標終了",
+        "subagent_spawned": "サブエージェント作成",
+        "subagent_merged": "サブエージェント統合"
+      }
     },
     "integrationCatalog": {
       "title": "サービスカタログ",
@@ -14073,7 +14098,7 @@
       "repairingTypes": "修復中…",
       "repairingPublication": "公開状態を修復中…",
       "reindexingVectors": "ベクトルインデックスを再構築中…",
-      "reindexErrorsTitle": "{count} 件を再構築できませんでした",
+      "reindexErrorsTitle": "{count, plural, one {# item could not be reindexed} other {# items could not be reindexed}}",
       "reindexErrorsTruncated": "…他 {count} 件",
       "healthReport": {
         "title": "ナレッジ健全性",

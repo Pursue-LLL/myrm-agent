@@ -29,6 +29,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_security_preset_trigger,
     wait_for_state,
     warm_ui_route,
 )
@@ -80,6 +81,7 @@ _TRIGGER_READY_JS = """(() => {
   const trigger = document.querySelector('[data-testid="security-preset-trigger"]');
   return { ready: !!trigger, hasTrigger: !!trigger };
 })()"""
+
 
 _CLICK_TRIGGER_JS = """(() => {
   const target = document.querySelector('[data-testid="security-preset-trigger"]');
@@ -140,12 +142,7 @@ def test_security_preset_initialization_and_ui_switch_and_fail_closed() -> None:
         )
         assert init_state.get("ready") is True, json.dumps(init_state, ensure_ascii=False)
 
-        trigger_state = wait_for_state(
-            client,
-            page,
-            _TRIGGER_READY_JS,
-            timeout_sec=30.0,
-        )
+        trigger_state = wait_for_security_preset_trigger(client, page, timeout_sec=30.0)
         assert trigger_state.get("ready") is True, json.dumps(trigger_state, ensure_ascii=False)
 
         # --- Scenario 2: UI switch to explore via dropdown ---

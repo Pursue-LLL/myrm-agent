@@ -11,28 +11,10 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
     CitationRulesMiddleware,
+    _CITATION_RULES_TURN_KEY,
     _has_external_sources_in_current_turn,
-    _is_final_answer_phase,
+    _should_inject_citation_rules,
 )
-
-
-class TestIsFinalAnswerPhase:
-    def test_detects_answer_tool(self) -> None:
-        messages = [
-            HumanMessage(content="query"),
-            ToolMessage(content="ok", tool_call_id="c1", name="request_answer_user_tool"),
-        ]
-        assert _is_final_answer_phase(messages) is True
-
-    def test_rejects_other_tool(self) -> None:
-        messages = [
-            HumanMessage(content="query"),
-            ToolMessage(content="ok", tool_call_id="c1", name="web_search"),
-        ]
-        assert _is_final_answer_phase(messages) is False
-
-    def test_empty_messages(self) -> None:
-        assert _is_final_answer_phase([]) is False
 
 
 class TestHasExternalSources:
@@ -42,7 +24,7 @@ class TestHasExternalSources:
             ToolMessage(
                 content="<<<UNTRUSTED_DATA some_source\nresult",
                 tool_call_id="c1",
-                name="web_search",
+                name="web_search_tool",
             ),
         ]
         assert _has_external_sources_in_current_turn(messages) is True
@@ -61,9 +43,37 @@ class TestHasExternalSources:
         assert _has_external_sources_in_current_turn(messages) is False
 
 
+class TestShouldInjectCitationRules:
+    def test_injects_when_untrusted_present(self) -> None:
+        messages = [
+            HumanMessage(content="query"),
+            ToolMessage(
+                content="<<<UNTRUSTED_DATA src\nresult",
+                tool_call_id="c1",
+                name="web_search_tool",
+            ),
+        ]
+        should_inject, turn_idx = _should_inject_citation_rules(messages, {})
+        assert should_inject is True
+        assert turn_idx == 0
+
+    def test_skips_when_already_injected_for_turn(self) -> None:
+        messages = [
+            HumanMessage(content="query"),
+            ToolMessage(
+                content="<<<UNTRUSTED_DATA src\nresult",
+                tool_call_id="c1",
+                name="web_search_tool",
+            ),
+        ]
+        ctx: dict[str, object] = {_CITATION_RULES_TURN_KEY: 0}
+        should_inject, _ = _should_inject_citation_rules(messages, ctx)
+        assert should_inject is False
+
+
 class TestCitationRulesMiddleware:
     @pytest.mark.asyncio
-    async def test_injects_human_message_in_final_answer(self) -> None:
+    async def test_injects_when_untrusted_in_turn(self) -> None:
         mw = CitationRulesMiddleware()
 
         state_messages: list[Any] = [
@@ -73,10 +83,8 @@ class TestCitationRulesMiddleware:
             ToolMessage(
                 content="<<<UNTRUSTED_DATA src\nresult",
                 tool_call_id="c1",
-                name="web_search",
+                name="web_search_tool",
             ),
-            AIMessage(content="answering"),
-            ToolMessage(content="ok", tool_call_id="c2", name="request_answer_user_tool"),
         ]
 
         mock_handler = AsyncMock()
@@ -96,7 +104,44 @@ class TestCitationRulesMiddleware:
         assert "[SYSTEM INSTRUCTION]" in str(last_msg.content)
 
     @pytest.mark.asyncio
-    async def test_noop_when_not_final_answer(self) -> None:
+    async def test_injects_after_intermediate_tool_without_answer_tool(self) -> None:
+        mw = CitationRulesMiddleware()
+
+        state_messages: list[Any] = [
+            SystemMessage(content="system"),
+            HumanMessage(content="query"),
+            ToolMessage(
+                content="<<<UNTRUSTED_DATA src\nresult",
+                tool_call_id="c1",
+                name="web_search_tool",
+            ),
+            AIMessage(content="running code"),
+            ToolMessage(content="table output", tool_call_id="c2", name="bash_code_execute_tool"),
+        ]
+
+        mock_handler = AsyncMock()
+        mock_handler.return_value = AsyncMock()
+        ctx: dict[str, object] = {}
+
+        mock_runtime = AsyncMock()
+        mock_runtime.context = ctx
+
+        request = ModelRequest(
+            model=AsyncMock(),
+            messages=[SystemMessage(content="sys"), HumanMessage(content="q")],
+            state={"messages": state_messages},
+            runtime=mock_runtime,
+        )
+
+        await mw.awrap_model_call(request, mock_handler)
+
+        called_request = mock_handler.call_args[0][0]
+        last_msg = called_request.messages[-1]
+        assert isinstance(last_msg, HumanMessage)
+        assert "[SYSTEM INSTRUCTION]" in str(last_msg.content)
+
+    @pytest.mark.asyncio
+    async def test_noop_when_no_untrusted(self) -> None:
         mw = CitationRulesMiddleware()
 
         state_messages: list[Any] = [
@@ -129,9 +174,8 @@ class TestCitationRulesMiddleware:
             ToolMessage(
                 content="<<<UNTRUSTED_DATA x\ndata",
                 tool_call_id="c1",
-                name="web_search",
+                name="web_search_tool",
             ),
-            ToolMessage(content="ok", tool_call_id="c2", name="request_answer_user_tool"),
         ]
 
         mock_handler = AsyncMock()
@@ -151,9 +195,8 @@ class TestCitationRulesMiddleware:
         assert system_msgs[0].content == "sys"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("mode", ["naked", "lean", "search"])
-    async def test_skips_injection_in_naked_and_lean_mode(self, mode: str) -> None:
-        """Citation rules must be skipped when prompt_mode is naked, lean, or search."""
+    @pytest.mark.parametrize("mode", ["naked", "search"])
+    async def test_skips_injection_in_naked_and_search_mode(self, mode: str) -> None:
         mw = CitationRulesMiddleware()
 
         state_messages: list[Any] = [
@@ -162,10 +205,8 @@ class TestCitationRulesMiddleware:
             ToolMessage(
                 content="<<<UNTRUSTED_DATA src\nresult",
                 tool_call_id="c1",
-                name="web_search",
+                name="web_search_tool",
             ),
-            AIMessage(content="answering"),
-            ToolMessage(content="ok", tool_call_id="c2", name="request_answer_user_tool"),
         ]
 
         mock_handler = AsyncMock()
@@ -188,8 +229,7 @@ class TestCitationRulesMiddleware:
         assert not any("[SYSTEM INSTRUCTION]" in str(m.content) for m in called_request.messages)
 
     @pytest.mark.asyncio
-    async def test_injects_in_full_mode(self) -> None:
-        """Citation rules must still be injected in full mode."""
+    async def test_injects_in_lean_mode(self) -> None:
         mw = CitationRulesMiddleware()
 
         state_messages: list[Any] = [
@@ -198,10 +238,42 @@ class TestCitationRulesMiddleware:
             ToolMessage(
                 content="<<<UNTRUSTED_DATA src\nresult",
                 tool_call_id="c1",
-                name="web_search",
+                name="web_search_tool",
             ),
-            AIMessage(content="answering"),
-            ToolMessage(content="ok", tool_call_id="c2", name="request_answer_user_tool"),
+        ]
+
+        mock_handler = AsyncMock()
+        mock_handler.return_value = AsyncMock()
+
+        mock_runtime = AsyncMock()
+        mock_runtime.context = {"prompt_mode": "lean"}
+
+        request = ModelRequest(
+            model=AsyncMock(),
+            messages=[SystemMessage(content="sys"), HumanMessage(content="q")],
+            state={"messages": state_messages},
+            runtime=mock_runtime,
+        )
+
+        await mw.awrap_model_call(request, mock_handler)
+
+        called_request = mock_handler.call_args[0][0]
+        last_msg = called_request.messages[-1]
+        assert isinstance(last_msg, HumanMessage)
+        assert "[SYSTEM INSTRUCTION]" in str(last_msg.content)
+
+    @pytest.mark.asyncio
+    async def test_injects_in_full_mode(self) -> None:
+        mw = CitationRulesMiddleware()
+
+        state_messages: list[Any] = [
+            SystemMessage(content="system"),
+            HumanMessage(content="query"),
+            ToolMessage(
+                content="<<<UNTRUSTED_DATA src\nresult",
+                tool_call_id="c1",
+                name="web_search_tool",
+            ),
         ]
 
         mock_handler = AsyncMock()
@@ -223,3 +295,73 @@ class TestCitationRulesMiddleware:
         last_msg = called_request.messages[-1]
         assert isinstance(last_msg, HumanMessage)
         assert "[SYSTEM INSTRUCTION]" in str(last_msg.content)
+
+    @pytest.mark.asyncio
+    async def test_injects_zh_rules_when_prompt_locale_zh(self) -> None:
+        mw = CitationRulesMiddleware()
+
+        state_messages: list[Any] = [
+            HumanMessage(content="query"),
+            ToolMessage(
+                content="<<<UNTRUSTED_DATA src\nresult",
+                tool_call_id="c1",
+                name="web_search_tool",
+            ),
+        ]
+
+        mock_handler = AsyncMock()
+        mock_handler.return_value = AsyncMock()
+
+        mock_runtime = AsyncMock()
+        mock_runtime.context = {"prompt_mode": "lean", "prompt_locale": "zh-CN"}
+
+        request = ModelRequest(
+            model=AsyncMock(),
+            messages=[SystemMessage(content="sys"), HumanMessage(content="q")],
+            state={"messages": state_messages},
+            runtime=mock_runtime,
+        )
+
+        await mw.awrap_model_call(request, mock_handler)
+
+        called_request = mock_handler.call_args[0][0]
+        last_msg = called_request.messages[-1]
+        assert isinstance(last_msg, HumanMessage)
+        assert "【" in str(last_msg.content)
+
+    @pytest.mark.asyncio
+    async def test_injects_only_once_per_turn(self) -> None:
+        mw = CitationRulesMiddleware()
+        ctx: dict[str, object] = {"prompt_mode": "full"}
+
+        state_messages: list[Any] = [
+            SystemMessage(content="system"),
+            HumanMessage(content="query"),
+            ToolMessage(
+                content="<<<UNTRUSTED_DATA src\nresult",
+                tool_call_id="c1",
+                name="web_search_tool",
+            ),
+        ]
+
+        mock_handler = AsyncMock()
+        mock_handler.return_value = AsyncMock()
+
+        mock_runtime = AsyncMock()
+        mock_runtime.context = ctx
+
+        request = ModelRequest(
+            model=AsyncMock(),
+            messages=[SystemMessage(content="sys"), HumanMessage(content="q")],
+            state={"messages": state_messages},
+            runtime=mock_runtime,
+        )
+
+        await mw.awrap_model_call(request, mock_handler)
+        first_count = len(mock_handler.call_args[0][0].messages)
+
+        await mw.awrap_model_call(request, mock_handler)
+        second_count = len(mock_handler.call_args[0][0].messages)
+
+        assert first_count == 3
+        assert second_count == 2

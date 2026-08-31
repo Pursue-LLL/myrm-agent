@@ -8,6 +8,7 @@ import uuid
 from collections.abc import AsyncGenerator
 
 from myrm_agent_harness.agent.config.exceptions import ConfigIncompleteError
+from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
@@ -669,7 +670,44 @@ async def finalize_agent_stream_session(
                 phase=phase,
                 progress_steps=list(session.collector._progress_steps),
             )
+            _publish_session_lifecycle_webhook_event(
+                chat_id=session.request.chat_id,
+                phase=phase,
+                agent_id=getattr(session.request, "agent_id", None),
+                was_cancelled=session.cancel_token.is_cancelled,
+                had_fatal_error=session.had_fatal_error,
+            )
         session.collector.cleanup()
+
+
+def _publish_session_lifecycle_webhook_event(
+    *,
+    chat_id: str,
+    phase: RunDigestPhase,
+    agent_id: str | None,
+    was_cancelled: bool,
+    had_fatal_error: bool,
+) -> None:
+    """Publish session_completed / session_failed for outbound lifecycle webhooks."""
+    from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+    if phase == RunDigestPhase.COMPLETED:
+        event_type = AppEventType.SESSION_COMPLETED
+    else:
+        event_type = AppEventType.SESSION_FAILED
+
+    get_event_bus().publish(
+        AppEvent(
+            event_type=event_type,
+            data={
+                "chat_id": chat_id,
+                "agent_id": agent_id,
+                "phase": phase.value,
+                "was_cancelled": was_cancelled,
+                "had_fatal_error": had_fatal_error,
+            },
+        )
+    )
 
 
 async def _clear_interrupted_turn_marker(chat_id: str) -> None:

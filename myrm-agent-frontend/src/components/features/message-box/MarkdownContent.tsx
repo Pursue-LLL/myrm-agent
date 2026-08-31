@@ -57,31 +57,7 @@ const preprocessVaultLinks = (text: string) => {
   return text.replace(/vault:\/\/([a-f0-9A-F-]+)/gi, '<vault id="$1"></vault>');
 };
 
-const CITATION_MARKER_RE = /\u3010(\d+)\u3011/g;
-
-/**
- * Convert 【N】 citation markers into <citation> tags
- * so they are rendered by the existing citation component.
- * Only applied post-stream to avoid partial-marker artefacts.
- */
-const escapeHtmlAttr = (s: string): string =>
-  s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
-  if (sources.length === 0) {
-    return text;
-  }
-  return text.replace(CITATION_MARKER_RE, (_match, numStr: string) => {
-    const num = parseInt(numStr, 10);
-    const sourceIndex = sources.findIndex((s) => s.index === num);
-    if (sourceIndex === -1) {
-      return `[${numStr}]`;
-    }
-    const source = sources[sourceIndex];
-    const safeUrl = escapeHtmlAttr(source?.url || '');
-    return `<citation data-num="${numStr}" data-source-index="${sourceIndex}" data-url="${safeUrl}"></citation>`;
-  });
-};
+import { preprocessCitationMarkers } from '@/lib/citations/preprocessCitationMarkers';
 
 function normalizeWikiLevel(level: Source['level']): WikiSourceLevel | undefined {
   if (level === 'L0' || level === 'L1' || level === 'L2') {
@@ -232,7 +208,7 @@ const MarkdownContent = React.memo(
 
     const processedContent = useMemo(() => {
       let text = preprocessContentMath(displayContent, isStreaming);
-      if (!isStreaming) {
+      if (sources.length > 0) {
         text = preprocessCitationMarkers(text, sources);
       }
       return preprocessVaultLinks(text);

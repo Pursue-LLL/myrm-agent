@@ -5,6 +5,7 @@ export interface LifecycleWebhook {
   name: string;
   url: string;
   secret?: string | null;
+  has_secret?: boolean;
   events: string[];
   agent_id?: string | null;
   is_active: boolean;
@@ -80,5 +81,11 @@ export async function pingLifecycleWebhook(input: WebhookPingInput): Promise<Web
   return apiRequest<WebhookPingResult>('/lifecycle-webhooks/ping', {
     method: 'POST',
     body: JSON.stringify(input),
+  });
+}
+
+export async function pingSavedLifecycleWebhook(webhookId: string): Promise<WebhookPingResult> {
+  return apiRequest<WebhookPingResult>(`/lifecycle-webhooks/${webhookId}/ping`, {
+    method: 'POST',
   });
 }

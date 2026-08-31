@@ -14,6 +14,6 @@
 | `pattern_discovery_trigger.py` | 辅助 | 行为模式发现触发器。管理 Pattern Discovery 的定时/手动执行，用 WebUI 默认对话模型（`load_platform_llm` → wire-aware `ChatLiteLLM`）构造分析 LLM（guardian 上下文 MemoryManager 本身无 LLM），发现结果写入 operation_ledger 以供 Command Center 时间线和 Evolution Digest 展示；audit summary 为 toC 用户可读文案（耗时等内部细节仅保留在 metadata，不泄漏到时间线）；LLM 未配置时优雅跳过 | ✅ |
 | `browser.py` | 核心 | 浏览器生命周期：池预热（config + proxy pool + launch_options）/关闭、线程清理、会话预热（可选）。代理池从 DB 配置或 `MYRM_PROXIES` 环境变量解析 | ✅ |
 | `monitors.py` | 辅助 | 后台监控器（内存压力、认证告警） | ✅ |
-| `harness_bridge.py` | 辅助 | 框架事件桥接器。监听 Harness 状态事件，debounce 合并 subagent 树并通过 `subagents_updated` 广播（`chat_id` 经 `session_tree._normalize_rest_chat_id` 归一为 REST uuid，含重复 `chat_` 前缀）；关闭时释放 Harness 资源 | ✅ |
+| `harness_bridge.py` | 辅助 | 框架事件桥接器。监听 Harness 状态事件，debounce 合并 subagent 树并通过 `subagents_updated` 广播；`spawn`/`complete` 生命周期事件同步发布 `subagent_spawned`/`subagent_merged` 供出站 Webhook；关闭时释放 Harness 资源 | ✅ |
 | `skills.py` | 辅助 | 技能系统初始化（发现、加载） | — |
 | `task_worker.py` | 辅助 | 异步任务 worker 生命周期（SQLite 任务存储、Vault GC 定时清理） | ✅ |

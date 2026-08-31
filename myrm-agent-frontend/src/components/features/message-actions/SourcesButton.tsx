@@ -26,12 +26,21 @@ import { toast } from '@/hooks/shared/useToast';
 import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { buildWikiAssetUrl } from '@/services/wikiService';
-import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2, BookOpen } from 'lucide-react';
+import { Database, ExternalLink, EyeOff, Globe, Plug, Trash2, BookOpen, Copy } from 'lucide-react';
 import { useAgentName } from '@/hooks/agent/useAgentName';
 
 interface SourcesButtonProps {
   sources: Source[];
 }
+
+const formatSourcesForCopy = (sources: Source[]): string =>
+  sources
+    .map((source) => {
+      const url = resolveSourceClickUrl(source) || source.url || '';
+      const title = source.title || source.filename || source.kb_name || 'Untitled';
+      return `[${source.index}] ${title}${url ? ` - ${url}` : ''}`;
+    })
+    .join('\n');
 
 /**
  * 来源按钮组件 - 显示重叠favicon和来源数量，点击打开右侧弹出层
@@ -39,6 +48,15 @@ interface SourcesButtonProps {
 const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
   const t = useTranslations('sources');
   const [open, setOpen] = useState(false);
+
+  const handleCopyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(formatSourcesForCopy(sources));
+      toast({ title: t('copyAllSuccess') });
+    } catch {
+      toast({ title: t('operation_failed'), variant: 'destructive' });
+    }
+  };
 
   if (!sources || sources.length === 0) {
     return null;
@@ -128,8 +146,19 @@ const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
       </SheetTrigger>
 
       <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{t('title')}</SheetTitle>
+        <SheetHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pr-8">
+          <SheetTitle className="text-left">{t('title')}</SheetTitle>
+          <button
+            type="button"
+            onClick={handleCopyAll}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium',
+              'text-muted-foreground hover:text-foreground hover:bg-accent transition-colors',
+            )}
+          >
+            <Copy className="w-3.5 h-3.5" />
+            {t('copyAll')}
+          </button>
         </SheetHeader>
 
         <div className="mt-6 space-y-3">

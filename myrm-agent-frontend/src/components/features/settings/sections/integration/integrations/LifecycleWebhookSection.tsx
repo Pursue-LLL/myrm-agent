@@ -1,39 +1,44 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { memo, useState, useCallback, useEffect, useMemo } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Skeleton } from '@/components/primitives/skeleton';
-import { Webhook, Plus, Trash2, RefreshCw, Send, CheckCircle2, AlertCircle, Clock, Shield, Key } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { Webhook, Plus, Trash2, RefreshCw, Send, CheckCircle2, AlertCircle, Shield, Key } from 'lucide-react';
 import SettingsSection from '../../SettingsSection';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import { listAgents, type AgentListItem } from '@/services/agent';
 import {
   listLifecycleWebhooks,
   createLifecycleWebhook,
   updateLifecycleWebhook,
   deleteLifecycleWebhook,
-  pingLifecycleWebhook,
+  pingSavedLifecycleWebhook,
   type LifecycleWebhook,
   type WebhookPingResult,
 } from '@/services/lifecycleWebhook';
 
-const AVAILABLE_EVENTS = [
-  { id: 'session_completed', label: 'Session Completed' },
-  { id: 'session_failed', label: 'Session Failed' },
-  { id: 'approval_required', label: 'Approval Required' },
-  { id: 'approval_resolved', label: 'Approval Resolved' },
-  { id: 'kanban_task_updated', label: 'Kanban Task Updated' },
-  { id: 'goal_terminal', label: 'Goal Terminal' },
-  { id: 'subagent_spawned', label: 'Subagent Spawned' },
-  { id: 'subagent_merged', label: 'Subagent Merged' },
-];
+const AVAILABLE_EVENT_IDS = [
+  'session_completed',
+  'session_failed',
+  'approval_required',
+  'approval_resolved',
+  'kanban_task_updated',
+  'goal_terminal',
+  'subagent_spawned',
+  'subagent_merged',
+] as const;
 
 export const LifecycleWebhookSection = memo(() => {
   const t = useTranslations('settings.lifecycleWebhook');
+  const locale = useLocale();
   const [webhooks, setWebhooks] = useState<LifecycleWebhook[]>([]);
+  const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -41,6 +46,7 @@ export const LifecycleWebhookSection = memo(() => {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [secret, setSecret] = useState('');
+  const [agentId, setAgentId] = useState<string | null>(null);
   const [selectedEvents, setSelectedEvents] = useState<string[]>([
     'session_completed',
     'session_failed',
@@ -50,13 +56,30 @@ export const LifecycleWebhookSection = memo(() => {
   const [pingLoading, setPingLoading] = useState<string | null>(null);
   const [pingResult, setPingResult] = useState<{ id: string; result: WebhookPingResult } | null>(null);
 
+  const agentLabelById = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const agent of agents) {
+      labels.set(agent.id, getBuiltinAgentName(agent.id, agent.name, locale));
+    }
+    return labels;
+  }, [agents, locale]);
+
+  const agentOptions = useMemo(() => {
+    return agents.map((agent) => ({
+      id: agent.id,
+      label: agentLabelById.get(agent.id) ?? agent.name,
+    }));
+  }, [agents, agentLabelById]);
+
   const fetchWebhooks = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await listLifecycleWebhooks();
-      setWebhooks(Array.isArray(data) ? data : []);
+      const [webhookData, agentResponse] = await Promise.all([listLifecycleWebhooks(), listAgents(1, 100)]);
+      setWebhooks(Array.isArray(webhookData) ? webhookData : []);
+      setAgents(agentResponse.items);
     } catch {
       setWebhooks([]);
+      setAgents([]);
     } finally {
       setLoading(false);
     }
@@ -75,11 +98,13 @@ export const LifecycleWebhookSection = memo(() => {
         url: url.trim(),
         secret: secret.trim() || undefined,
         events: selectedEvents,
+        agent_id: agentId,
         is_active: true,
       });
       setName('');
       setUrl('');
       setSecret('');
+      setAgentId(null);
       setShowAddForm(false);
       await fetchWebhooks();
     } catch {
@@ -112,16 +137,12 @@ export const LifecycleWebhookSection = memo(() => {
   const handlePing = async (webhook: LifecycleWebhook) => {
     try {
       setPingLoading(webhook.id);
-      const res = await pingLifecycleWebhook({
-        url: webhook.url,
-        secret: webhook.secret,
-        timeout_seconds: webhook.timeout_seconds,
-      });
+      const res = await pingSavedLifecycleWebhook(webhook.id);
       setPingResult({ id: webhook.id, result: res });
     } catch {
       setPingResult({
         id: webhook.id,
-        result: { success: false, latency_ms: 0, error: 'Ping failed' },
+        result: { success: false, latency_ms: 0, error: t('pingConnectionError') },
       });
     } finally {
       setPingLoading(null);
@@ -179,6 +200,24 @@ export const LifecycleWebhookSection = memo(() => {
             </div>
 
             <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">{t('agentScope')}</label>
+              <Select value={agentId ?? 'all'} onValueChange={(value) => setAgentId(value === 'all' ? null : value)}>
+                <SelectTrigger className="w-full sm:max-w-md">
+                  <SelectValue placeholder={t('agentScopeAll')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('agentScopeAll')}</SelectItem>
+                  {agentOptions.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">{t('agentScopeHint')}</p>
+            </div>
+
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Key className="h-3.5 w-3.5" />
@@ -193,7 +232,7 @@ export const LifecycleWebhookSection = memo(() => {
                 </button>
               </div>
               <Input
-                placeholder="Optional HMAC-SHA256 signature secret (X-Myrm-Signature-256)"
+                placeholder={t('signingSecretPlaceholder')}
                 value={secret}
                 onChange={(e) => setSecret(e.target.value)}
               />
@@ -202,16 +241,16 @@ export const LifecycleWebhookSection = memo(() => {
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">{t('subscribedEvents')}</label>
               <div className="flex flex-wrap gap-1.5">
-                {AVAILABLE_EVENTS.map((ev) => {
-                  const active = selectedEvents.includes(ev.id);
+                {AVAILABLE_EVENT_IDS.map((ev) => {
+                  const active = selectedEvents.includes(ev);
                   return (
                     <Badge
-                      key={ev.id}
+                      key={ev}
                       variant={active ? 'default' : 'outline'}
                       className="cursor-pointer transition text-[11px] py-1 px-2.5"
-                      onClick={() => toggleEventSelection(ev.id)}
+                      onClick={() => toggleEventSelection(ev)}
                     >
-                      {ev.label}
+                      {t(`events.${ev}`)}
                     </Badge>
                   );
                 })}
@@ -260,10 +299,15 @@ export const LifecycleWebhookSection = memo(() => {
                         onCheckedChange={() => handleToggle(hook)}
                         aria-label="Toggle Webhook"
                       />
-                      {hook.secret ? (
+                      {hook.has_secret || hook.secret ? (
                         <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0">
                           <Shield className="h-2.5 w-2.5 text-emerald-500" />
                           HMAC
+                        </Badge>
+                      ) : null}
+                      {hook.agent_id ? (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {agentLabelById.get(hook.agent_id) ?? hook.agent_id}
                         </Badge>
                       ) : null}
                       {hook.last_delivery_status ? (
@@ -279,7 +323,7 @@ export const LifecycleWebhookSection = memo(() => {
                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
                       {hook.events.map((ev) => (
                         <span key={ev} className="text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded">
-                          {ev}
+                          {t(`events.${ev}` as `events.${typeof AVAILABLE_EVENT_IDS[number]}`)}
                         </span>
                       ))}
                     </div>
@@ -329,8 +373,13 @@ export const LifecycleWebhookSection = memo(() => {
                       )}
                       <span>
                         {pingResult.result.success
-                          ? `Ping Successful: HTTP ${pingResult.result.status_code} (${pingResult.result.latency_ms}ms)`
-                          : `Ping Failed: ${pingResult.result.error || 'Connection error'}`}
+                          ? t('pingSuccess', {
+                              status: pingResult.result.status_code ?? 0,
+                              latency: Math.round(pingResult.result.latency_ms),
+                            })
+                          : t('pingFailed', {
+                              error: pingResult.result.error || t('pingConnectionError'),
+                            })}
                       </span>
                     </div>
                     <button

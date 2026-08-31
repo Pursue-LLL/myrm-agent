@@ -42,6 +42,24 @@ def _rest_chat_id(session_id: str) -> str:
     return _normalize_rest_chat_id(session_id)
 
 
+def _subagent_lifecycle_webhook_payload(event: SubagentLifecycleEvent) -> dict[str, object]:
+    """Build AppEvent payload for subagent_spawned / subagent_merged outbound webhooks."""
+    data = event.data
+    payload: dict[str, object] = {
+        "chat_id": _rest_chat_id(event.session_id),
+        "task_id": event.task_id,
+        "agent_type": data.agent_type or "",
+        "description": data.description or "",
+        "role": data.role or "",
+        "control_scope": data.control_scope or "",
+    }
+    if event.event_name == "complete":
+        payload["status"] = data.status or ""
+        if data.result is not None:
+            payload["result"] = data.result
+    return payload
+
+
 def _subagent_lifecycle_data_to_node(
     event: SubagentLifecycleEvent,
 ) -> dict[str, object] | None:
@@ -170,6 +188,21 @@ async def _handle_subagent_event(event: SubagentLifecycleEvent) -> None:
             )
         )
         return
+
+    if event.event_name == "spawn":
+        get_server_bus().publish(
+            AppEvent(
+                event_type=AppEventType.SUBAGENT_SPAWNED,
+                data=_subagent_lifecycle_webhook_payload(event),
+            )
+        )
+    elif event.event_name == "complete":
+        get_server_bus().publish(
+            AppEvent(
+                event_type=AppEventType.SUBAGENT_MERGED,
+                data=_subagent_lifecycle_webhook_payload(event),
+            )
+        )
 
     policy_node = _subagent_lifecycle_data_to_node(event)
     if policy_node is not None:

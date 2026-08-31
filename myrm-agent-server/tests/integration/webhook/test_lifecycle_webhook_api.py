@@ -5,13 +5,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.api.webhook.routes import router as lifecycle_webhook_router
+from app.services.webhook.lifecycle_webhook_service import LifecycleOutboundWebhookService, PingResult
 
 
 @pytest.fixture
@@ -52,7 +53,30 @@ async def test_lifecycle_webhook_crud_and_ping(webhook_app: FastAPI):
             webhook_id = data["id"]
             assert data["name"] == "Integration Test Hook"
             assert data["is_active"] is True
+            assert data["secret"] == "whsec_test_secret_12345"
             assert "session_completed" in data["events"]
+
+            list_res = await client.get("/api/lifecycle-webhooks")
+            assert list_res.status_code == 200
+            listed = next(item for item in list_res.json() if item["id"] == webhook_id)
+            assert listed["has_secret"] is True
+            assert listed["secret"] is None
+
+            with patch.object(
+                LifecycleOutboundWebhookService,
+                "ping_webhook",
+                new_callable=AsyncMock,
+                return_value=PingResult(success=True, status_code=200, latency_ms=42.0),
+            ) as ping_mock:
+                saved_ping_res = await client.post(f"/api/lifecycle-webhooks/{webhook_id}/ping")
+            assert saved_ping_res.status_code == 200
+            assert saved_ping_res.json()["success"] is True
+            assert saved_ping_res.json()["status_code"] == 200
+            ping_mock.assert_awaited_once_with(
+                url="https://example.com/api/webhook",
+                secret="whsec_test_secret_12345",
+                timeout=10,
+            )
 
             # 3. Update webhook
             update_payload = {"is_active": False, "name": "Updated Hook"}

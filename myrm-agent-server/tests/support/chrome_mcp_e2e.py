@@ -2814,6 +2814,27 @@ def chat_agent_binding_probe_js(*, expected_preset: str, agent_id: str | None = 
 }})()"""
 
 
+_SECURITY_PRESET_TRIGGER_PROBE_JS = """(() => {
+  const trigger = document.querySelector('[data-testid="security-preset-trigger"]');
+  return { ready: !!trigger, hasTrigger: !!trigger };
+})()"""
+
+
+def wait_for_security_preset_trigger(
+    client: ChromeMcpClient,
+    page: McpPage,
+    *,
+    timeout_sec: float = 30.0,
+) -> dict[str, object]:
+    """Wait for SecurityPresetSelector trigger DOM under parallel turbopack load."""
+    if _parallel_chrome_e2e_active():
+        timeout_sec = max(timeout_sec, 60.0)
+    state = wait_for_state(client, page, _SECURITY_PRESET_TRIGGER_PROBE_JS, timeout_sec=timeout_sec)
+    if state.get("ready") is not True:
+        raise AssertionError(f"Security preset trigger not ready: {json.dumps(state, ensure_ascii=False)}")
+    return state
+
+
 def attach_chat_and_wait_agent_binding(
     client: ChromeMcpClient,
     page: McpPage,

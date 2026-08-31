@@ -5,12 +5,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.services.event.app_event_bus import AppEvent, AppEventType
 from app.services.webhook.lifecycle_webhook_service import (
     LifecycleOutboundWebhookService,
     OutboundWebhookTarget,
@@ -59,3 +63,46 @@ async def test_ping_webhook_ssrf_block():
     assert not res.success
     assert res.error is not None
     assert "SSRF blocked" in res.error
+
+
+@pytest.mark.asyncio
+async def test_on_app_event_enqueues_matching_webhook_target():
+    """AppEvent publish must enqueue outbound delivery for subscribed active targets."""
+    svc = LifecycleOutboundWebhookService()
+    svc._running = True
+
+    mock_model = MagicMock()
+    mock_model.id = "wh-dispatch-1"
+    mock_model.name = "Dispatch Test"
+    mock_model.url = "https://example.com/hook"
+    mock_model.secret = "whsec_test"
+    mock_model.events_json = ["session_completed"]
+    mock_model.agent_id = None
+    mock_model.is_active = True
+    mock_model.timeout_seconds = 10
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_model]
+    mock_session = AsyncMock()
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @asynccontextmanager
+    async def fake_get_session():
+        yield mock_session
+
+    with patch(
+        "app.services.webhook.lifecycle_webhook_service.get_session",
+        fake_get_session,
+    ):
+        svc._on_app_event(
+            AppEvent(
+                event_type=AppEventType.SESSION_COMPLETED,
+                data={"chat_id": "chat-dispatch", "phase": "completed"},
+            )
+        )
+        await asyncio.sleep(0.05)
+
+    assert svc._queue.qsize() == 1
+    item = svc._queue.get_nowait()
+    assert item["url"] == "https://example.com/hook"
+    assert item["headers"]["X-Myrm-Event"] == "session_completed"

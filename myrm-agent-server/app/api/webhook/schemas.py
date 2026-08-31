@@ -43,6 +43,7 @@ class LifecycleWebhookResponse(BaseModel):
     name: str
     url: str
     secret: str | None = None
+    has_secret: bool = False
     events: list[str]
     agent_id: str | None = None
     is_active: bool

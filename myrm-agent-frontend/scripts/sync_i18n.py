@@ -13,9 +13,24 @@ from pathlib import Path
 SUPPORTED_LOCALES: tuple[str, ...] = ("en", "zh", "ja", "ko", "de", "zh-TW")
 
 
+import re
+
+
+def extract_placeholders(text: str) -> set[str]:
+    return set(re.findall(r"\{([a-zA-Z0-9_]+)\}", text))
+
+
 def sync_dict(source: dict[str, object], target: dict[str, object]) -> bool:
-    """递归将 source 中 target 缺失的键深拷贝到 target。"""
+    """递归将 source 中 target 缺失的键深拷贝到 target，清理孤儿键，并修正不匹配的占位符。"""
     changed = False
+
+    # 1. 删除 target 中存在但在 source 中不存在的孤儿键
+    orphan_keys = [k for k in target if k not in source]
+    for k in orphan_keys:
+        del target[k]
+        changed = True
+
+    # 2. 同步与校验
     for key, value in source.items():
         if key not in target:
             target[key] = copy.deepcopy(value)
@@ -23,6 +38,16 @@ def sync_dict(source: dict[str, object], target: dict[str, object]) -> bool:
         elif isinstance(value, dict) and isinstance(target[key], dict):
             if sync_dict(value, target[key]):
                 changed = True
+        elif isinstance(value, str) and isinstance(target[key], str):
+            src_ph = extract_placeholders(value)
+            tgt_ph = extract_placeholders(target[key])
+            if src_ph != tgt_ph:
+                target[key] = value
+                changed = True
+        elif type(value) is not type(target[key]):
+            target[key] = copy.deepcopy(value)
+            changed = True
+
     return changed
 
 

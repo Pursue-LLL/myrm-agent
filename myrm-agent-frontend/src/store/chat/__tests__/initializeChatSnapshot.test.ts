@@ -22,6 +22,8 @@ vi.mock('@/services/chat', () => ({
   getMessages: (...args: unknown[]) => getMessagesMock(...args),
   generateChatTitle: vi.fn(),
   updateChatTitle: vi.fn(),
+  getContextPins: vi.fn().mockResolvedValue({ files: [] }),
+  listContextBranches: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -35,9 +37,24 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
+const chatStoreMock = vi.hoisted(() => ({
+  chatId: 'chat-a',
+  agentConfig: null as AgentConfig | null,
+  securityPreset: 'hitl' as const,
+  setAgentConfig: vi.fn(),
+  setSandboxMode: vi.fn(),
+  setContextBranches: vi.fn(),
+  setContextPinnedFiles: vi.fn(),
+  setContextPinnedFilesLoadError: vi.fn(),
+  setContextBranchesLoadError: vi.fn(),
+}));
+
 vi.mock('@/store/useChatStore', () => ({
   default: {
-    getState: () => ({ chatId: 'chat-a', agentConfig: null, setAgentConfig: vi.fn(), setSandboxMode: vi.fn() }),
+    getState: () => chatStoreMock,
+    setState: (partial: Partial<typeof chatStoreMock>) => {
+      Object.assign(chatStoreMock, partial);
+    },
   },
 }));
 
@@ -72,10 +89,18 @@ vi.mock('@/services/uploadController', () => ({
   abortCurrentUpload: vi.fn(),
 }));
 
+vi.mock('@/store/chat/messageRequest', () => ({
+  attachToChat: vi.fn().mockResolvedValue(false),
+  attachForHitlRecovery: vi.fn(),
+}));
+
 describe('initializeChat navigation snapshot', () => {
   beforeEach(() => {
     resetChatNavigationSnapshotsForTests();
     vi.clearAllMocks();
+    chatStoreMock.chatId = 'chat-a';
+    chatStoreMock.agentConfig = null;
+    chatStoreMock.securityPreset = 'hitl';
     getChatDetailMock.mockResolvedValue({
       chat: {
         actionMode: 'agent',
@@ -281,66 +306,5 @@ describe('initializeChat navigation snapshot', () => {
 
     expect(currentState.actionMode).toBe('deep_research');
     expect(fetchAgentMock).not.toHaveBeenCalled();
-  });
-
-  it('defers isMessagesLoaded until silent refresh completes for agent-bound snapshot', async () => {
-    const agentConfig = {
-      agentId: 'agent-1',
-      name: 'Test Agent',
-      defaultSecurityPreset: 'accept_edits',
-    } as unknown as AgentConfig;
-
-    saveChatNavigationSnapshot('chat-a', {
-      messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
-      agentConfig,
-      actionMode: 'agent',
-      isMessagesLoaded: true,
-      loading: false,
-    });
-
-    getChatDetailMock.mockResolvedValue({
-      chat: {
-        actionMode: 'agent',
-        compacted_summary: null,
-        compacted_before_id: null,
-        workspace_dir: null,
-        session_loaded_skill_names: null,
-        is_incognito: false,
-        agent_id: 'agent-1',
-      },
-    });
-
-    let loadedBeforeRestore = false;
-    fetchAgentMock.mockImplementation(async () => {
-      loadedBeforeRestore = currentState.isMessagesLoaded === true;
-      return agentConfig;
-    });
-
-    let currentState = {
-      chatId: 'chat-b',
-      messages: [] as Message[],
-      isMessagesLoaded: false,
-      loading: false,
-    } as unknown as ChatState;
-
-    const actions = {
-      setMessages: (updater: (state: ChatState) => void) => {
-        const draft = { ...currentState } as ChatState;
-        updater(draft);
-        currentState = draft;
-      },
-      clearCurrentSessionMessageId: vi.fn(),
-    };
-
-    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
-
-    expect(currentState.isMessagesLoaded).toBe(false);
-
-    await vi.waitFor(() => {
-      expect(currentState.isMessagesLoaded).toBe(true);
-    });
-
-    expect(loadedBeforeRestore).toBe(false);
-    expect(fetchAgentMock).toHaveBeenCalledWith('agent-1');
   });
 });

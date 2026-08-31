@@ -70,8 +70,6 @@ class AppEventType(StrEnum):
     SKILL_POOL_UPDATED = "skill_pool_updated"
     SESSION_COMPLETED = "session_completed"
     SESSION_FAILED = "session_failed"
-    PRE_TOOL_CALL = "pre_tool_call"
-    POST_TOOL_CALL = "post_tool_call"
     SUBAGENT_SPAWNED = "subagent_spawned"
     SUBAGENT_MERGED = "subagent_merged"
     SANDBOX_PERSIST_TRIGGERED = "sandbox_persist_triggered"

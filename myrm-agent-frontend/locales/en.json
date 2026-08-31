@@ -5434,7 +5434,9 @@
     "delete_loading": "Deleting...",
     "conversation_excluded": "Excluded from Conversation Recall",
     "conversation_deleted": "Conversation deleted",
-    "operation_failed": "Operation failed"
+    "operation_failed": "Operation failed",
+    "copyAll": "Copy all",
+    "copyAllSuccess": "Sources copied to clipboard"
   },
   "auth": {
     "setup": {
@@ -11792,14 +11794,31 @@
       "endpointName": "Endpoint Name",
       "payloadUrl": "Payload URL",
       "signingSecret": "HMAC Signing Secret (Optional)",
+      "signingSecretPlaceholder": "Optional signing secret for verified delivery",
       "generateRandom": "Generate Random Secret",
       "subscribedEvents": "Subscribed Events",
+      "agentScope": "Agent Profile Scope",
+      "agentScopeAll": "All Agent Profiles",
+      "agentScopeHint": "Only deliver events from the selected Agent Profile. Choose all to receive events from every profile.",
       "saveEndpoint": "Save Endpoint",
       "saving": "Saving...",
       "cancel": "Cancel",
       "testPing": "Ping Test",
+      "pingSuccess": "Ping successful: HTTP {status} ({latency}ms)",
+      "pingFailed": "Ping failed: {error}",
+      "pingConnectionError": "Connection error",
       "noEndpoints": "No Outbound Webhooks Configured",
-      "noEndpointsDesc": "Configure outbound webhooks to stream Agent lifecycle events and status updates to your external pipelines."
+      "noEndpointsDesc": "Configure outbound webhooks to stream Agent lifecycle events and status updates to your external pipelines.",
+      "events": {
+        "session_completed": "Session Completed",
+        "session_failed": "Session Failed",
+        "approval_required": "Approval Required",
+        "approval_resolved": "Approval Resolved",
+        "kanban_task_updated": "Kanban Task Updated",
+        "goal_terminal": "Goal Terminal",
+        "subagent_spawned": "Subagent Spawned",
+        "subagent_merged": "Subagent Merged"
+      }
     },
     "integrationCatalog": {
       "title": "Service Catalog",

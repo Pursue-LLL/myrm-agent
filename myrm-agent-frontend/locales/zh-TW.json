@@ -1,10 +1,14 @@
 {
   "expertSummon": {
-    "summonSuccess": "已成功啟用 {name}",
-    "summonFailed": "啟用智慧體範本失敗",
-    "featuredTitle": "精選專家小隊與智慧體",
-    "teamBadge": "小隊",
-    "expertBadge": "專家"
+    "summonSuccess": "已切換至專家 {name}",
+    "summonFailed": "召喚專家範本失敗",
+    "featuredTitle": "精選專家與專家團",
+    "teamBadge": "專家團",
+    "expertBadge": "專家",
+    "searchPlaceholder": "搜尋專家或團隊...",
+    "loading": "載入中...",
+    "empty": "未找到相符的專家或團隊範本",
+    "summonButton": "召喚"
   },
   "recovery": {
     "title": "Agent 啟動與配置自愈中心",
@@ -5441,7 +5445,9 @@
     "delete_loading": "刪除中...",
     "conversation_excluded": "已從會話召回中排除",
     "conversation_deleted": "會話已刪除",
-    "operation_failed": "操作失敗"
+    "operation_failed": "操作失敗",
+    "copyAll": "Copy all",
+    "copyAllSuccess": "Sources copied to clipboard"
   },
   "auth": {
     "setup": {
@@ -6518,8 +6524,8 @@
     "deleteBoardError": "刪除看板失敗",
     "deleteBoardConfirmTitle": "刪除看板",
     "deleteBoardConfirmDesc": "確定要刪除「{name}」嗎？該看板內的所有任務、依賴關係和事件歷史將被永久刪除，此操作無法撤銷。",
-    "deleteBoardConfirmDescWithTasks": "確定要刪除「{name}」嗎？該看板包含 {total} 個任務，將被永久刪除，此操作無法撤銷。",
-    "deleteBoardConfirmDescRunning": "確定要刪除「{name}」嗎？該看板包含 {total} 個任務，其中 {running} 個正在執行的任務將被強制中斷。此操作無法撤銷。",
+    "deleteBoardConfirmDescWithTasks": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}} that will be permanently deleted. This action cannot be undone.",
+    "deleteBoardConfirmDescRunning": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}}, including {running, plural, one {# running task} other {# running tasks}} that will be forcefully interrupted. This action cannot be undone.",
     "delete": "刪除",
     "boardNamePlaceholder": "看板名稱",
     "boardDescPlaceholder": "看板描述（可選）",
@@ -6642,7 +6648,7 @@
     "attachmentLimitExceeded": "最多允許 10 個附件",
     "attachmentRemoveError": "附件移除失敗",
     "removeAttachment": "移除附件",
-    "attachmentCount": "{count} 個檔案",
+    "attachmentCount": "{count, plural, one {# file} other {# files}}",
     "removeDep": "移除依賴",
     "depAdded": "依賴已新增",
     "depRemoved": "依賴已移除",
@@ -6711,7 +6717,7 @@
     "unassigned": "未分配",
     "laneByProfile": "按 Agent 分組",
     "laneByProfileHint": "Running 列按 Agent 分組顯示",
-    "tasksInLane": "{count} 個任務",
+    "tasksInLane": "{count, plural, one {# task} other {# tasks}}",
     "noTasks": "暫無任務",
     "taskDetails": "任務詳情",
     "executionTrace": "執行追蹤",
@@ -9140,8 +9146,10 @@
     },
     "empty": {
       "title": "開始和 Agent 對話",
-      "description": "當你與 Agent 互動後，成長資料將在此呈現",
-      "retry": "重試載入"
+      "description": "當你與 Agent 互動後，成長數據將在此呈現",
+      "retry": "重試加載",
+      "errorTitle": "成長儀表盤加載失敗",
+      "errorDescription": "無法獲取成長數據，請檢查網絡連接後重試。"
     },
     "tabs": {
       "overview": "總覽",
@@ -9152,20 +9160,26 @@
       "daily": "每日回顧"
     },
     "export": {
-      "copyMarkdown": "複製 Markdown",
+      "copyMarkdown": "複製週報",
       "copied": "已複製到剪貼簿",
-      "exportMarkdown": "匯出 .md"
+      "exportMarkdown": "匯出 .md 檔案",
+      "title": "Myrm 旅程週報",
+      "memoryCitations": "記憶引用（7天）",
+      "skillRow": "- `{name}` · 評分 {score} · {status} · 7天調用 {calls7d} 次",
+      "generatedAt": "由 Myrm 生成於 {date}"
     },
     "skillHealth": {
-      "title": "技能健康度",
-      "description": "近 7 天技能複利分數與成功/失敗率",
-      "empty": "暫無本週技能執行記錄",
-      "emptyDesc": "使用技能後，健康度與複利分數將顯示於此",
-      "skill": "技能",
-      "tier": "等級",
-      "score": "複利分",
-      "successRate": "成功率",
-      "runs": "執行次數"
+      "title": "技能健康度（7天）",
+      "description": "基於近期技能調用的複利健康評分。",
+      "empty": "暫無技能調用記錄。",
+      "successRate": "成功率 {rate}%",
+      "calls7d": "7天 {count} 次調用",
+      "status": {
+        "STAR": "明星",
+        "HEALTHY": "健康",
+        "AT_RISK": "風險",
+        "STALE": "沉睡"
+      }
     },
     "learningTimeline": {
       "title": "記憶與技能學習時間線",
@@ -9214,6 +9228,11 @@
         "archiveSuccess": "技能已歸檔",
         "unarchiveSuccess": "技能已恢復啟用",
         "actionFailed": "操作失敗: {error}"
+      },
+      "error": {
+        "title": "Failed to load learning timeline",
+        "description": "We couldn't fetch timeline data. Check your connection and try again.",
+        "retry": "Retry"
       }
     },
     "learningLoop": {
@@ -9301,7 +9320,10 @@
         "emerging": "萌芽",
         "established": "成型",
         "declining": "衰減中"
-      }
+      },
+      "loadErrorTitle": "Failed to load pattern discoveries",
+      "loadErrorDescription": "We couldn't fetch behavioral pattern data. Check your connection and try again.",
+      "retry": "Retry"
     },
     "dailyJournal": {
       "today": "今天",
@@ -9318,7 +9340,11 @@
         "approval": "審批",
         "cron": "定時",
         "kanban": "看板"
-      }
+      },
+      "emptyTitle": "該日暫無活動",
+      "emptyDescription": "會話、審批、Cron 任務、看板更新將在發生時顯示於此",
+      "errorTitle": "加載每日日誌失敗",
+      "errorDescription": "無法獲取該日期的日誌數據。請檢查連接後重試"
     },
     "dailyWrap": {
       "title": "今日戰報",
@@ -9330,7 +9356,10 @@
       "error": "生成總結失敗",
       "keywords": "關鍵詞",
       "suggestions": "明日建議",
-      "generatedAt": "生成於"
+      "generatedAt": "生成於",
+      "errorTitle": "生成總結失敗",
+      "errorDescription": "無法生成每日總結。請重試或檢查 Lite Model 設置",
+      "retry": "重試"
     },
     "timeRange": {
       "7d": "7天",
@@ -10612,7 +10641,7 @@
     "workspacePlaceholder": "絕對路徑，如 /workspace/docs",
     "workspaceUpdated": "工作目錄已更新",
     "workspaceCleared": "工作目錄已清除",
-    "moveSuccess": "已成功移動 {count} 個會話",
+    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
     "moveFailed": "移動會話失敗",
     "workspaceMount": {
       "title": "關聯資料夾",
@@ -11339,12 +11368,12 @@
     "taskStatusInReview": "待審核",
     "taskStatusBlocked": "已阻塞",
     "retryAction": "重試失敗目錄",
-    "retrySuccess": "已重試 {count} 個目錄",
+    "retrySuccess": "Retried {count, plural, one {# directory} other {# directories}}",
     "retryError": "重試失敗",
     "approvalLabel": "執行前需人工審批",
-    "dirsSelectedCount": "已選擇 {count} 個目錄",
-    "dirsCount": "{count} 個目錄",
-    "dirsCountTitle": "共 {count} 個目標目錄",
+    "dirsSelectedCount": "{count, plural, one {# directory selected} other {# directories selected}}",
+    "dirsCount": "{count, plural, one {# directory} other {# directories}}",
+    "dirsCountTitle": "{count, plural, one {# target directory} other {# target directories}}",
     "artifactVerified": "產物驗證通過",
     "artifactMissing": "缺少預期產物",
     "missingArtifactsTitle": "缺少預期產物",
@@ -11354,13 +11383,13 @@
     "confirmRetryTaskTitle": "重試此目錄？",
     "confirmRetryTaskDescription": "將為此目錄建立新任務，沿用相同的提示詞與設定。",
     "confirmRetryTaskAction": "重試目錄",
-    "retryTaskSuccess": "已重試 {count} 個目錄",
+    "retryTaskSuccess": "Retried {count, plural, one {# directory} other {# directories}}",
     "retryTaskError": "重試目錄失敗",
     "rerunAction": "全部重跑",
     "confirmRerunTitle": "重跑批次「{name}」？",
     "confirmRerunDescription": "所有目錄將使用原始提示詞重新執行，歷史結果會保留。",
     "confirmRerunAction": "全部重跑",
-    "rerunSuccess": "已重新排隊 {count} 個目錄",
+    "rerunSuccess": "Re-queued {count, plural, one {# directory} other {# directories}}",
     "rerunError": "重跑批次失敗",
     "statusPaused": "已暫停",
     "pauseAction": "暫停",
@@ -11776,14 +11805,31 @@
       "endpointName": "終端名稱",
       "payloadUrl": "接收端 URL (Payload URL)",
       "signingSecret": "HMAC 簽名金鑰 (可選)",
+      "signingSecretPlaceholder": "可選簽名金鑰，用於驗證推送來源",
       "generateRandom": "生成隨機金鑰",
       "subscribedEvents": "訂閱事件",
+      "agentScope": "Agent Profile 範圍",
+      "agentScopeAll": "全部 Agent Profile",
+      "agentScopeHint": "僅推送所選 Agent Profile 的事件；選擇全部則接收所有 Profile 的事件。",
       "saveEndpoint": "儲存終端",
       "saving": "儲存中...",
       "cancel": "取消",
       "testPing": "連通性測試",
+      "pingSuccess": "Ping 成功：HTTP {status}（{latency}ms）",
+      "pingFailed": "Ping 失敗：{error}",
+      "pingConnectionError": "連線錯誤",
       "noEndpoints": "暫無配置的出站 Webhook",
-      "noEndpointsDesc": "配置出站 Webhook 以便將智能體執行進度與結果實時通知到你的外部監控或業務流系統。"
+      "noEndpointsDesc": "配置出站 Webhook 以便將智能體執行進度與結果實時通知到你的外部監控或業務流系統。",
+      "events": {
+        "session_completed": "會話完成",
+        "session_failed": "會話失敗",
+        "approval_required": "需要審批",
+        "approval_resolved": "審批已處理",
+        "kanban_task_updated": "看板任務更新",
+        "goal_terminal": "目標終態",
+        "subagent_spawned": "子智能體已建立",
+        "subagent_merged": "子智能體已合併"
+      }
     },
     "integrationCatalog": {
       "title": "服務目錄",
@@ -12693,7 +12739,7 @@
       },
       "validationMessages": {
         "successWithDimension": "驗證成功（維度：{dimension}）",
-        "successWithResults": "驗證成功（返回 {count} 個結果）",
+        "successWithResults": "Validation successful (returned {count, plural, one {# result} other {# results}})",
         "failedWithError": "驗證失敗：{error}",
         "missingRequiredFields": "請填寫所有必填欄位",
         "networkError": "網路錯誤，請檢查連線",
@@ -13676,8 +13722,8 @@
         "lastMaintainSkipped": "上次維護已跳過",
         "lastMaintainSkippedCompile": "上次維護已跳過（編譯進行中）",
         "lastMaintainSkippedNoModel": "上次維護已跳過（未配置 AI 模型）",
-        "indexedAssets": "已索引 {count} 張圖片",
-        "failedAssets": "{count} 張圖片索引失敗",
+        "indexedAssets": "{count, plural, one {# image indexed} other {# images indexed}}",
+        "failedAssets": "{count, plural, one {# image index failed} other {# image indexes failed}}",
         "assetsVisionHint": "圖片已導入但尚不可搜尋。請在「設置 → 模型」中配置視覺降級模型以建立索引。",
         "synthesisPending": "{count, plural, other {# 條演化合成待審核}}",
         "duplicateGroupsPending": "{count, plural, other {# 組重複待審核}}"
@@ -14187,7 +14233,7 @@
       "repairingTypes": "修復中...",
       "repairingPublication": "修復發布狀態中...",
       "reindexingVectors": "重建向量索引中...",
-      "reindexErrorsTitle": "{count} 項未能重建索引",
+      "reindexErrorsTitle": "{count, plural, one {# item could not be reindexed} other {# items could not be reindexed}}",
       "reindexErrorsTruncated": "…另有 {count} 項",
       "healthReport": {
         "title": "知識庫健康",
@@ -14208,7 +14254,7 @@
         "truncatedList": "顯示 {shown} / {total} 項問題。",
         "loadFailed": "無法加載健康報告。",
         "retry": "重試",
-        "maintainToastOpen": "仍有 {open} 項需您處理 · 已自動修復 {fixed} 項",
+        "maintainToastOpen": "{open, plural, one {# item still needs your action} other {# items still need your action}} · {fixed} auto-fixed",
         "issueType": {
           "broken_link": "斷鏈",
           "broken_wikilink": "無效雙向連結",
@@ -14299,7 +14345,7 @@
           "empty": "無可讀正文"
         },
         "success": {
-          "disposition": "{action}：已更新 {count} 個路徑"
+          "disposition": "{action}: {count, plural, one {# path updated} other {# paths updated}}"
         },
         "vaultHygiene": {
           "title": "語料衛生",
@@ -15156,7 +15202,7 @@
         "deleteFailed": "刪除模板失敗",
         "deleteConfirmTitle": "刪除工作流模板？",
         "deleteConfirm": "確定刪除「{name}」？此操作無法撤銷。",
-        "deleteConfirmWithCron": "確定刪除「{name}」？仍有 {count} 個定時任務綁定此模板，刪除後將無法繼續執行該模板。此操作無法撤銷。",
+        "deleteConfirmWithCron": "Delete \"{name}\"? {count, plural, one {# scheduled task is} other {# scheduled tasks are}} still bound to this template and will stop running it. This cannot be undone.",
         "deleteCancel": "取消",
         "runQueryPlaceholder": "輸入本次 pinned 模板運行的任務描述…",
         "runQueryRequired": "運行模板前請先輸入任務描述",
@@ -16101,7 +16147,7 @@
       "mcpAclGroups": "限制可見群組（可選）",
       "mcpAclGroupsPlaceholder": "engineering, finance, security",
       "mcpAclGroupsHint": "逗號分隔的 IdP 群組名。留空表示對所有成員可見。",
-      "mcpAclGroupsBadge": "{count} 個群組",
+      "mcpAclGroupsBadge": "{count, plural, one {# group} other {# groups}}",
       "tunnelTitle": "私有隧道",
       "tunnelDescription": "通過安全出站隧道將雲沙箱連接到內網 MCP 伺服器，無需配置入站防火牆規則。",
       "tunnelAdd": "註冊隧道",
@@ -17648,16 +17694,5 @@
       "exportSuccessDesc": "系統診斷歸檔包已產生並已觸發瀏覽器下載。",
       "exportFailedTitle": "診斷包匯出失敗"
     }
-  },
-  "expertSummon": {
-    "summonSuccess": "已切換至專家 {name}",
-    "summonFailed": "召喚專家範本失敗",
-    "featuredTitle": "精選專家與專家團",
-    "teamBadge": "專家團",
-    "expertBadge": "專家",
-    "searchPlaceholder": "搜尋專家或團隊...",
-    "loading": "載入中...",
-    "empty": "未找到相符的專家或團隊範本",
-    "summonButton": "召喚"
   }
 }

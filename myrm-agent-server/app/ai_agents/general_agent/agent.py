@@ -380,6 +380,8 @@ class GeneralAgent(ToolSetupMixin):
             context["user_instructions"] = self.user_instructions
         if self.prompt_mode != "full":
             context["prompt_mode"] = self.prompt_mode
+        if self.locale:
+            context["prompt_locale"] = self.locale
 
         session_id = f"chat_{effective_chat_id}"
         context["session_id"] = session_id

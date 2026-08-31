@@ -21,6 +21,7 @@ from app.lifecycle.harness_bridge import (
     setup_harness_bridge,
     stop_harness_bridge,
 )
+from app.services.event.app_event_bus import AppEventType
 
 
 @pytest.mark.asyncio
@@ -63,6 +64,85 @@ async def test_subagent_event_throttle():
 
         assert session_id not in _pending_subagent_events
         mock_bus.publish.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_subagent_spawn_publishes_subagent_spawned_event():
+    """Spawn lifecycle events must publish SUBAGENT_SPAWNED for outbound webhooks."""
+    session_id = "chat_test_spawn_webhook"
+    _pending_subagent_events.pop(session_id, None)
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway"),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+        ) as mock_list_checkpoints,
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_list_checkpoints.return_value = []
+
+        event = SubagentLifecycleEvent(
+            session_id=session_id,
+            event_name="spawn",
+            task_id="task-spawn-1",
+            data=SubagentLifecycleData(agent_type="researcher", description="Compare competitors"),
+        )
+        await _handle_subagent_event(event)
+
+        spawn_publish = [
+            call
+            for call in mock_bus.publish.call_args_list
+            if call.args[0].event_type == AppEventType.SUBAGENT_SPAWNED
+        ]
+        assert len(spawn_publish) == 1
+        payload = spawn_publish[0].args[0].data
+        assert payload["task_id"] == "task-spawn-1"
+        assert payload["agent_type"] == "researcher"
+
+
+@pytest.mark.asyncio
+async def test_subagent_complete_publishes_subagent_merged_event():
+    """Complete lifecycle events must publish SUBAGENT_MERGED for outbound webhooks."""
+    session_id = "chat_test_merge_webhook"
+    _pending_subagent_events.pop(session_id, None)
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway"),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+        ) as mock_list_checkpoints,
+    ):
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        mock_list_checkpoints.return_value = []
+
+        event = SubagentLifecycleEvent(
+            session_id=session_id,
+            event_name="complete",
+            task_id="task-complete-1",
+            data=SubagentLifecycleData(
+                agent_type="researcher",
+                description="Compare competitors",
+                status="success",
+                result={"summary": "done"},
+            ),
+        )
+        await _handle_subagent_event(event)
+
+        merged_publish = [
+            call
+            for call in mock_bus.publish.call_args_list
+            if call.args[0].event_type == AppEventType.SUBAGENT_MERGED
+        ]
+        assert len(merged_publish) == 1
+        payload = merged_publish[0].args[0].data
+        assert payload["status"] == "success"
+        assert payload["result"] == {"summary": "done"}
 
 
 @pytest.mark.asyncio

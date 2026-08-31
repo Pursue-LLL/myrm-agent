@@ -12,7 +12,8 @@ const setAgentConfigMock = vi.hoisted(() => vi.fn());
 const mockStore = vi.hoisted(() => ({
   chatId: 'chat-restore',
   actionMode: 'agent' as const,
-  agentConfig: null as { agentId: string } | null,
+  agentConfig: null as { agentId: string; defaultSecurityPreset?: string } | null,
+  securityPreset: 'hitl' as 'hitl' | 'accept_edits' | 'explore',
   setAgentConfig: setAgentConfigMock,
 }));
 
@@ -29,6 +30,9 @@ vi.mock('@/store/useAgentStore', () => ({
 vi.mock('@/store/useChatStore', () => ({
   default: {
     getState: () => mockStore,
+    setState: (partial: Partial<typeof mockStore>) => {
+      Object.assign(mockStore, partial);
+    },
   },
 }));
 
@@ -42,7 +46,10 @@ vi.mock('@/store/skill', () => ({
 }));
 
 vi.mock('@/lib/utils/agentConfigMapper', () => ({
-  buildAgentConfig: (agent: { id: string }) => ({ agentId: agent.id }),
+  buildAgentConfig: (agent: { id: string; defaultSecurityPreset?: string }) => ({
+    agentId: agent.id,
+    defaultSecurityPreset: agent.defaultSecurityPreset,
+  }),
 }));
 
 describe('chatAgentSessionRestore', () => {
@@ -51,7 +58,19 @@ describe('chatAgentSessionRestore', () => {
     mockStore.chatId = 'chat-restore';
     mockStore.actionMode = 'agent';
     mockStore.agentConfig = null;
+    mockStore.securityPreset = 'hitl';
     setAgentConfigMock.mockReset();
+  });
+
+  it('syncs securityPreset when agentId already matches but preset drifted', async () => {
+    mockStore.agentConfig = { agentId: 'agent-1', defaultSecurityPreset: 'accept_edits' };
+    mockStore.securityPreset = 'hitl';
+    fetchAgentMock.mockResolvedValue({ id: 'agent-1', defaultSecurityPreset: 'accept_edits' });
+
+    await restoreAgentConfigFromChat('chat-restore', 'agent-1');
+
+    expect(mockStore.securityPreset).toBe('accept_edits');
+    expect(setAgentConfigMock).not.toHaveBeenCalled();
   });
 
   it('warns when fetchAgent rejects without throwing to callers', async () => {
