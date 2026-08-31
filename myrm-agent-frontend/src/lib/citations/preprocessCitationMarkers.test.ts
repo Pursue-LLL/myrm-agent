@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Source } from '@/store/chat/types';
+import { maskCodeRegions, unmaskCodeRegions } from './maskCodeRegions';
 import { preprocessCitationMarkers } from './preprocessCitationMarkers';
 
 const sources: Source[] = [
@@ -41,5 +42,29 @@ describe('preprocessCitationMarkers', () => {
   it('leaves unknown indices as plain text', () => {
     const result = preprocessCitationMarkers('Unknown [9].', sources);
     expect(result).toBe('Unknown [9].');
+  });
+
+  it('does not convert half-width markers inside fenced code blocks', () => {
+    const input = 'Prose cites [1].\n\n```python\nvalue = arr[1]\n```';
+    const result = preprocessCitationMarkers(input, sources);
+    expect(result).toContain('<citation data-num="1"');
+    expect(result).toContain('value = arr[1]');
+    expect(result).not.toMatch(/arr< citation/);
+  });
+
+  it('does not convert half-width markers inside inline code', () => {
+    const input = 'Use `arr[1]` for indexing and cite [1] in prose.';
+    const result = preprocessCitationMarkers(input, sources);
+    expect(result).toContain('`arr[1]`');
+    expect(result).toContain('<citation data-num="1"');
+  });
+});
+
+describe('maskCodeRegions', () => {
+  it('round-trips fenced and inline code slots', () => {
+    const original = 'Text\n```js\nconst x = arr[1];\n``` and `arr[2]` end';
+    const { text, slots } = maskCodeRegions(original);
+    expect(text).not.toContain('arr[1]');
+    expect(unmaskCodeRegions(text, slots)).toBe(original);
   });
 });

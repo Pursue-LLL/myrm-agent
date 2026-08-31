@@ -30,6 +30,7 @@ class LifecycleWebhookUpdate(BaseModel):
     secret: str | None = Field(default=None, max_length=255)
     events: list[str] | None = Field(default=None)
     agent_id: str | None = Field(default=None)
+    clear_agent_scope: bool = Field(default=False)
     is_active: bool | None = Field(default=None)
     timeout_seconds: int | None = Field(default=None, ge=1, le=60)
 

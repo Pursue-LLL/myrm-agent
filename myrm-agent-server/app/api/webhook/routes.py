@@ -116,7 +116,9 @@ async def update_lifecycle_webhook(
             m.secret = body.secret.strip() if body.secret else None
         if body.events is not None:
             m.events_json = body.events
-        if body.agent_id is not None:
+        if body.clear_agent_scope:
+            m.agent_id = None
+        elif body.agent_id is not None:
             m.agent_id = body.agent_id
         if body.is_active is not None:
             m.is_active = body.is_active

@@ -100,3 +100,39 @@ async def test_lifecycle_webhook_crud_and_ping(webhook_app: FastAPI):
         assert ping_res.status_code == 200
         assert ping_res.json()["success"] is False
         assert "SSRF blocked" in str(ping_res.json()["error"])
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_webhook_clear_agent_scope(webhook_app: FastAPI):
+    """PUT clear_agent_scope must reset agent_id to null for all-agent delivery."""
+    with patch(
+        "socket.getaddrinfo",
+        return_value=[(None, None, None, None, ("93.184.216.34", 0))],
+    ):
+        async with AsyncClient(transport=ASGITransport(app=webhook_app), base_url="http://test") as client:
+            create_res = await client.post(
+                "/api/lifecycle-webhooks",
+                json={
+                    "name": "Scoped Hook",
+                    "url": "https://example.com/api/webhook",
+                    "events": ["session_completed"],
+                    "agent_id": "agent-research-001",
+                    "is_active": True,
+                },
+            )
+            assert create_res.status_code == 201
+            webhook_id = create_res.json()["id"]
+            assert create_res.json()["agent_id"] == "agent-research-001"
+
+            clear_res = await client.put(
+                f"/api/lifecycle-webhooks/{webhook_id}",
+                json={"clear_agent_scope": True},
+            )
+            assert clear_res.status_code == 200
+            assert clear_res.json()["agent_id"] is None
+
+            list_res = await client.get("/api/lifecycle-webhooks")
+            listed = next(item for item in list_res.json() if item["id"] == webhook_id)
+            assert listed["agent_id"] is None
+
+            await client.delete(f"/api/lifecycle-webhooks/{webhook_id}")

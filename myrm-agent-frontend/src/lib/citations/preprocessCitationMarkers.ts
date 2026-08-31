@@ -1,5 +1,6 @@
 import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
+import { maskCodeRegions, unmaskCodeRegions } from './maskCodeRegions';
 
 const CITATION_FULLWIDTH_RE = /\u3010(\d+)\u3011/g;
 const CITATION_HALFWIDTH_RE = /\[(\d+)\](?!\()/g;
@@ -25,12 +26,7 @@ const findSourceIndexByUrl = (url: string, sources: Source[]): number =>
     return candidate === url;
   });
 
-/** Convert inline citation markers into `<citation>` tags for MarkdownContent. */
-export const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
-  if (sources.length === 0) {
-    return text;
-  }
-
+const applyCitationReplacements = (text: string, sources: Source[]): string => {
   let processed = text.replace(CITATION_MARKDOWN_LINK_RE, (match, _title: string, url: string) => {
     const sourceIndex = findSourceIndexByUrl(url, sources);
     if (sourceIndex === -1) {
@@ -51,4 +47,15 @@ export const preprocessCitationMarkers = (text: string, sources: Source[]): stri
   );
 
   return processed;
+};
+
+/** Convert inline citation markers into `<citation>` tags for MarkdownContent. */
+export const preprocessCitationMarkers = (text: string, sources: Source[]): string => {
+  if (sources.length === 0) {
+    return text;
+  }
+
+  const { text: maskedText, slots } = maskCodeRegions(text);
+  const processed = applyCitationReplacements(maskedText, sources);
+  return unmaskCodeRegions(processed, slots);
 };

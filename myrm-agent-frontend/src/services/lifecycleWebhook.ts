@@ -33,6 +33,7 @@ export interface LifecycleWebhookUpdateInput {
   secret?: string | null;
   events?: string[];
   agent_id?: string | null;
+  clear_agent_scope?: boolean;
   is_active?: boolean;
   timeout_seconds?: number;
 }

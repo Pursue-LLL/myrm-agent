@@ -10,8 +10,8 @@ from langchain.agents.middleware import ModelRequest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from app.ai_agents.general_agent.agent_middlewares.citation_rules_middleware import (
-    CitationRulesMiddleware,
     _CITATION_RULES_TURN_KEY,
+    CitationRulesMiddleware,
     _has_external_sources_in_current_turn,
     _should_inject_citation_rules,
 )

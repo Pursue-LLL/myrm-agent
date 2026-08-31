@@ -10,6 +10,7 @@
  * - 处理自定义标签 (vault://, think/thinking/thought/antthinking/reasoning, mermaid, diff 等)
  * - 平滑流式渲染：通过 useSmoothStream + Intl.Segmenter 实现逐字符打字机效果
  * - citation 渲染：支持 web/mcp/kb/conversation 四种来源类型的 LinkPopover 预览
+ *   （解析逻辑见 @/lib/citations/preprocessCitationMarkers）
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
