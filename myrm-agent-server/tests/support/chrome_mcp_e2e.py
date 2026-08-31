@@ -2788,6 +2788,7 @@ def _looks_like_cdp_transport_error(message: str) -> bool:
 
 
 def chat_agent_binding_probe_js(*, expected_preset: str, agent_id: str | None = None) -> str:
+    """Store probe aligned with frontend sessionAgentHydration.isAgentSessionHydrated SSOT."""
     expected_json = json.dumps(expected_preset)
     agent_json = json.dumps(agent_id) if agent_id else "null"
     return f"""(() => {{

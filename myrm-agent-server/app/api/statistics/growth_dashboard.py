@@ -428,7 +428,7 @@ async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
 async def _fetch_skill_health() -> list[SkillHealthItem]:
     """Evaluate per-skill compounding health for the last 7 days via harness rules."""
     try:
-        from myrm_agent_harness.observability.digest import SkillCompoundingMetrics, SkillHealthEvaluator
+        from myrm_agent_harness.api import SkillCompoundingMetrics, SkillHealthEvaluator
 
         from app.core.skills.curator.service import get_stats_collector
         from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS

@@ -1,6 +1,6 @@
 """REST API routes for lifecycle outbound webhooks.
 
-[POS] CRUD, toggles, anonymous `/ping`, and saved `/{id}/ping` connectivity probes for lifecycle webhooks.
+[POS] CRUD, toggles, and saved `/{id}/ping` connectivity probes for lifecycle webhooks.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ from app.api.webhook.schemas import (
     LifecycleWebhookCreate,
     LifecycleWebhookResponse,
     LifecycleWebhookUpdate,
-    WebhookPingRequest,
     WebhookPingResponse,
 )
 from app.database.connection import get_session
@@ -140,19 +139,6 @@ async def delete_lifecycle_webhook(webhook_id: str) -> None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook not found")
         await session.delete(m)
         await session.commit()
-
-
-@router.post("/ping", response_model=WebhookPingResponse)
-async def ping_lifecycle_webhook(body: WebhookPingRequest) -> WebhookPingResponse:
-    """Test immediate connectivity and signature dispatch to target webhook URL."""
-    svc = LifecycleOutboundWebhookService.get_instance()
-    res = await svc.ping_webhook(url=body.url, secret=body.secret, timeout=body.timeout_seconds)
-    return WebhookPingResponse(
-        success=res.success,
-        status_code=res.status_code,
-        latency_ms=res.latency_ms,
-        error=res.error,
-    )
 
 
 @router.post("/{webhook_id}/ping", response_model=WebhookPingResponse)

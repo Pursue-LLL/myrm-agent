@@ -82,7 +82,15 @@ export function ApprovalDrawer() {
   ) => {
     setIsSubmitting(true);
     try {
-      const targetIds = options?.targetIds ?? queue.map((a) => a.approval_id);
+      let targetIds = options?.targetIds;
+      if (!targetIds) {
+        if (options?.safeOnly && pendingRiskReport) {
+          targetIds = pendingRiskReport.safeItemIds;
+        } else {
+          targetIds = queue.map((a) => a.approval_id);
+        }
+      }
+
       const targetApprovals = queue.filter((item) => targetIds.includes(item.approval_id));
 
       const resumableApprovals = targetApprovals.filter((item) => shouldResumeDrawerApproval(item.action_type));
@@ -203,7 +211,12 @@ export function ApprovalDrawer() {
         report={pendingRiskReport}
         isSubmitting={isSubmitting}
         onConfirmAll={() => executeBatchResolve('approve', { confirmHighRisk: true })}
-        onApproveSafeOnly={() => executeBatchResolve('approve', { safeOnly: true })}
+        onApproveSafeOnly={() =>
+          executeBatchResolve('approve', {
+            safeOnly: true,
+            targetIds: pendingRiskReport?.safeItemIds ?? [],
+          })
+        }
       />
     </Drawer>
   );

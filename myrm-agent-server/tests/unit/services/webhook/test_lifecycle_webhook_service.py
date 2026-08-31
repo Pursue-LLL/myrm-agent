@@ -106,3 +106,43 @@ async def test_on_app_event_enqueues_matching_webhook_target():
     item = svc._queue.get_nowait()
     assert item["url"] == "https://example.com/hook"
     assert item["headers"]["X-Myrm-Event"] == "session_completed"
+
+
+@pytest.mark.asyncio
+async def test_on_app_event_skips_empty_events_subscription():
+    """Targets with no subscribed events must not enqueue deliveries."""
+    svc = LifecycleOutboundWebhookService()
+    svc._running = True
+
+    mock_model = MagicMock()
+    mock_model.id = "wh-empty-events"
+    mock_model.name = "Empty Events Target"
+    mock_model.url = "https://example.com/hook"
+    mock_model.secret = None
+    mock_model.events_json = []
+    mock_model.agent_id = None
+    mock_model.is_active = True
+    mock_model.timeout_seconds = 10
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_model]
+    mock_session = AsyncMock()
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @asynccontextmanager
+    async def fake_get_session():
+        yield mock_session
+
+    with patch(
+        "app.services.webhook.lifecycle_webhook_service.get_session",
+        fake_get_session,
+    ):
+        svc._on_app_event(
+            AppEvent(
+                event_type=AppEventType.SESSION_COMPLETED,
+                data={"chat_id": "chat-empty-events", "phase": "completed"},
+            )
+        )
+        await asyncio.sleep(0.05)
+
+    assert svc._queue.qsize() == 0

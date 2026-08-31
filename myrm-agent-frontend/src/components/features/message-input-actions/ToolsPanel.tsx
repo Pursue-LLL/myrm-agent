@@ -52,13 +52,15 @@ function sourceBadgeVariant(source: string): 'default' | 'secondary' | 'outline'
 
 function layerLabel(layer: string, t: ReturnType<typeof useTranslations>): string {
   const normalized = layer.trim().toLowerCase();
-  const known = ['core', 'common', 'high_frequency', 'extended', 'external'] as const;
+  const known = ['core', 'high_priority', 'extended', 'external'] as const;
   if ((known as readonly string[]).includes(normalized)) {
-    const key = normalized === 'high_frequency' ? 'common' : normalized;
-    return t(`layers.${key}` as 'layers.core');
+    return t(`layers.${normalized}` as 'layers.core');
+  }
+  if (normalized === 'high_frequency' || normalized === 'common') {
+    return t('layers.high_priority');
   }
   if (/^[1-4]$/.test(layer)) {
-    const legacy = ['core', 'common', 'extended', 'external'][Number(layer) - 1];
+    const legacy = ['core', 'high_priority', 'extended', 'external'][Number(layer) - 1];
     return t(`layers.${legacy}` as 'layers.core');
   }
   return layer;

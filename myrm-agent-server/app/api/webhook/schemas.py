@@ -16,7 +16,7 @@ class LifecycleWebhookCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     url: str = Field(..., min_length=1, max_length=1024)
     secret: str | None = Field(default=None, max_length=255)
-    events: list[str] = Field(default_factory=list)
+    events: list[str] = Field(..., min_length=1)
     agent_id: str | None = Field(default=None)
     is_active: bool = Field(default=True)
     timeout_seconds: int = Field(default=10, ge=1, le=60)
@@ -28,7 +28,7 @@ class LifecycleWebhookUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     url: str | None = Field(default=None, min_length=1, max_length=1024)
     secret: str | None = Field(default=None, max_length=255)
-    events: list[str] | None = Field(default=None)
+    events: list[str] | None = Field(default=None, min_length=1)
     agent_id: str | None = Field(default=None)
     clear_agent_scope: bool = Field(default=False)
     is_active: bool | None = Field(default=None)
@@ -54,14 +54,6 @@ class LifecycleWebhookResponse(BaseModel):
     last_error: str | None = None
     created_at: datetime
     updated_at: datetime
-
-
-class WebhookPingRequest(BaseModel):
-    """Request for testing webhook connectivity."""
-
-    url: str = Field(..., min_length=1, max_length=1024)
-    secret: str | None = Field(default=None, max_length=255)
-    timeout_seconds: int = Field(default=10, ge=1, le=60)
 
 
 class WebhookPingResponse(BaseModel):

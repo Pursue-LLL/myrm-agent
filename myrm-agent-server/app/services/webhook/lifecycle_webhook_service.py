@@ -159,7 +159,7 @@ class LifecycleOutboundWebhookService:
             return
 
         for target in targets:
-            if target.events and event_name not in target.events:
+            if not target.events or event_name not in target.events:
                 continue
             event_agent_id = data.get("agent_id")
             if target.agent_id and event_agent_id and target.agent_id != event_agent_id:

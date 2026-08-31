@@ -725,5 +725,40 @@ describe('ContextUsageIndicator', () => {
       expect(screen.getByText('breakdownTools')).toBeInTheDocument();
       expect(screen.getByText('breakdownTotal')).toBeInTheDocument();
     });
+
+    it('shows fine-grained AgentLens 6-category breakdown and health zone badge', async () => {
+      const user = userEvent.setup();
+      mockChatState.messages = [
+        {
+          role: 'assistant' as const,
+          contextBudget: {
+            current_tokens: 45000,
+            max_context_tokens: 128000,
+            usage_percent: 35.1,
+            health_status: 'healthy' as const,
+            messages_estimated_tokens: 20000,
+            system_prompt_tokens: 5000,
+            memory_tokens: 3000,
+            workspace_rules_tokens: 2000,
+            mcp_tools_tokens: 8000,
+            skills_tools_tokens: 4000,
+            builtin_tools_tokens: 3000,
+            other_tokens: 10000,
+          },
+        },
+      ];
+      render(<ContextUsageIndicator />);
+      await user.click(screen.getByRole('status'));
+      expect(await screen.findByText('breakdownTitle')).toBeInTheDocument();
+      expect(screen.getByTestId('context-budget-breakdown')).toBeInTheDocument();
+      expect(screen.getByText('breakdownMessages')).toBeInTheDocument();
+      expect(screen.getByText('breakdownSystemPrompt')).toBeInTheDocument();
+      expect(screen.getByText('breakdownMemory')).toBeInTheDocument();
+      expect(screen.getByText('breakdownWorkspaceRules')).toBeInTheDocument();
+      expect(screen.getByText('breakdownMcpTools')).toBeInTheDocument();
+      expect(screen.getByText('breakdownSkillsTools')).toBeInTheDocument();
+      expect(screen.getByText('breakdownBuiltinTools')).toBeInTheDocument();
+      expect(screen.getByText('optimalZone')).toBeInTheDocument();
+    });
   });
 });

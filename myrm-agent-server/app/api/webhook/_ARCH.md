@@ -6,8 +6,8 @@ Lifecycle outbound webhook REST API。供 WebUI Settings → Integrations 管理
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `routes.py` | 核心 | CRUD `/lifecycle-webhooks`、`POST /{id}/ping`（读库 secret）、匿名 `/ping` 探测；list 掩码 secret（`has_secret`） | ✅ |
-| `schemas.py` | 辅助 | Pydantic 请求/响应模型；Update 含 `clear_agent_scope` 清空 Agent 过滤 | ✅ |
+| `routes.py` | 核心 | CRUD `/lifecycle-webhooks`、`POST /{id}/ping`（读库 secret）；list 掩码 secret（`has_secret`） | ✅ |
+| `schemas.py` | 辅助 | Pydantic 请求/响应模型；Update 含 `clear_agent_scope`；`events` 至少 1 项 | ✅ |
 
 ## 依赖
 

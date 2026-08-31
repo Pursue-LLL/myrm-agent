@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: @/components/features/extension-slots::ExtensionSlot, useExtensionSlotStore
+ * [OUTPUT]: Unit tests for ExtensionSlot rendering and contribution lifecycle
+ * [POS]: 声明式扩展插槽单元测试，覆盖动态注册、排序、条件判断、注销与 fallback 渲染。
+ */
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
@@ -6,6 +12,7 @@ import { useExtensionSlotStore } from '../useExtensionSlotStore';
 
 describe('ExtensionSlot', () => {
   beforeEach(() => {
+    // Reset store
     useExtensionSlotStore.setState({ contributions: [] });
   });
 
@@ -13,62 +20,86 @@ describe('ExtensionSlot', () => {
     render(
       <ExtensionSlot
         name="sidebar.footer.action"
-        fallback={<div data-testid="fallback-node">Empty Fallback</div>}
+        fallback={<div data-testid="fallback">No Extensions</div>}
       />,
     );
 
-    expect(screen.getByTestId('fallback-node')).toBeInTheDocument();
+    expect(screen.getByTestId('fallback')).toBeInTheDocument();
+    expect(screen.getByText('No Extensions')).toBeInTheDocument();
   });
 
-  it('renders contributions matching slot name ordered correctly', () => {
-    const ComponentA = () => <div data-testid="comp-a">Comp A (order 20)</div>;
-    const ComponentB = () => <div data-testid="comp-b">Comp B (order 10)</div>;
+  it('renders nothing when empty and no fallback provided', () => {
+    const { container } = render(<ExtensionSlot name="sidebar.footer.action" />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders registered contributions sorted by order', () => {
+    const ComponentA = () => <div data-testid="item-a">Extension A</div>;
+    const ComponentB = () => <div data-testid="item-b">Extension B</div>;
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'test-a',
+      id: 'ext-b',
       slotName: 'sidebar.footer.action',
       order: 20,
-      component: ComponentA,
-    });
-
-    useExtensionSlotStore.getState().registerContribution({
-      id: 'test-b',
-      slotName: 'sidebar.footer.action',
-      order: 10,
       component: ComponentB,
     });
 
-    const { container } = render(<ExtensionSlot name="sidebar.footer.action" />);
+    useExtensionSlotStore.getState().registerContribution({
+      id: 'ext-a',
+      slotName: 'sidebar.footer.action',
+      order: 10,
+      component: ComponentA,
+    });
 
-    expect(screen.getByTestId('comp-a')).toBeInTheDocument();
-    expect(screen.getByTestId('comp-b')).toBeInTheDocument();
+    render(<ExtensionSlot name="sidebar.footer.action" />);
 
-    const items = container.querySelectorAll('[data-testid^="comp-"]');
-    expect(items[0]).toHaveAttribute('data-testid', 'comp-b');
-    expect(items[1]).toHaveAttribute('data-testid', 'comp-a');
+    expect(screen.getByTestId('item-a')).toBeInTheDocument();
+    expect(screen.getByTestId('item-b')).toBeInTheDocument();
+
+    const items = screen.getAllByTestId(/^item-/);
+    expect(items[0]).toHaveAttribute('data-testid', 'item-a');
+    expect(items[1]).toHaveAttribute('data-testid', 'item-b');
   });
 
-  it('respects dynamic condition evaluation', () => {
-    const ActiveComp = () => <div data-testid="comp-active">Active</div>;
-    const InactiveComp = () => <div data-testid="comp-inactive">Inactive</div>;
+  it('evaluates condition before rendering', () => {
+    const ActiveComponent = () => <div data-testid="active">Active</div>;
+    const InactiveComponent = () => <div data-testid="inactive">Inactive</div>;
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'active',
-      slotName: 'navbar.bottom.tools',
-      component: ActiveComp,
+      id: 'active-item',
+      slotName: 'sidebar.footer.action',
+      component: ActiveComponent,
       condition: () => true,
     });
 
     useExtensionSlotStore.getState().registerContribution({
-      id: 'inactive',
-      slotName: 'navbar.bottom.tools',
-      component: InactiveComp,
+      id: 'inactive-item',
+      slotName: 'sidebar.footer.action',
+      component: InactiveComponent,
       condition: () => false,
     });
 
-    render(<ExtensionSlot name="navbar.bottom.tools" />);
+    render(<ExtensionSlot name="sidebar.footer.action" />);
 
-    expect(screen.getByTestId('comp-active')).toBeInTheDocument();
-    expect(screen.queryByTestId('comp-inactive')).not.toBeInTheDocument();
+    expect(screen.getByTestId('active')).toBeInTheDocument();
+    expect(screen.queryByTestId('inactive')).not.toBeInTheDocument();
+  });
+
+  it('supports unregistering contributions', () => {
+    const Comp = () => <div data-testid="removable">Removable</div>;
+
+    const unregister = useExtensionSlotStore.getState().registerContribution({
+      id: 'temp-item',
+      slotName: 'navbar.bottom.tools',
+      component: Comp,
+    });
+
+    const { rerender } = render(<ExtensionSlot name="navbar.bottom.tools" />);
+    expect(screen.getByTestId('removable')).toBeInTheDocument();
+
+    unregister();
+
+    rerender(<ExtensionSlot name="navbar.bottom.tools" />);
+    expect(screen.queryByTestId('removable')).not.toBeInTheDocument();
   });
 });

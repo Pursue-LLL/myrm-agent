@@ -5435,8 +5435,8 @@
     "conversation_excluded": "대화 회상에서 제외됨",
     "conversation_deleted": "대화가 삭제되었습니다",
     "operation_failed": "작업 실패",
-    "copyAll": "Copy all",
-    "copyAllSuccess": "Sources copied to clipboard"
+    "copyAll": "모두 복사",
+    "copyAllSuccess": "출처가 클립보드에 복사되었습니다"
   },
   "auth": {
     "setup": {
@@ -6513,8 +6513,8 @@
     "deleteBoardError": "보드 삭제 실패",
     "deleteBoardConfirmTitle": "보드 삭제",
     "deleteBoardConfirmDesc": "「{name}」을(를) 삭제하시겠습니까? 이 보드의 모든 작업, 의존성, 이벤트 기록이 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다.",
-    "deleteBoardConfirmDescWithTasks": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}} that will be permanently deleted. This action cannot be undone.",
-    "deleteBoardConfirmDescRunning": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}}, including {running, plural, one {# running task} other {# running tasks}} that will be forcefully interrupted. This action cannot be undone.",
+    "deleteBoardConfirmDescWithTasks": "\"{name}\" 보드를 삭제하시겠습니까? 이 보드에는 {total, plural, other {#개}} 작업이 포함되어 있습니다.",
+    "deleteBoardConfirmDescRunning": "\"{name}\" 보드를 삭제하시겠습니까? 이 보드에는 실행 중인 작업이 {total, plural, other {#개}} 포함되어 있습니다.",
     "delete": "삭제",
     "boardNamePlaceholder": "보드 이름",
     "boardDescPlaceholder": "보드 설명 (선택)",
@@ -6635,7 +6635,7 @@
     "attachmentLimitExceeded": "최대 10개의 첨부 파일만 허용됩니다",
     "attachmentRemoveError": "첨부 파일 삭제에 실패했습니다",
     "removeAttachment": "첨부 파일 삭제",
-    "attachmentCount": "{count, plural, one {# file} other {# files}}",
+    "attachmentCount": "{count, plural, =0 {첨부 파일 없음} other {#개 첨부 파일}}",
     "removeDep": "의존성 제거",
     "depAdded": "의존성이 추가되었습니다",
     "depRemoved": "의존성이 제거되었습니다",
@@ -6702,7 +6702,7 @@
     "unassigned": "미할당",
     "laneByProfile": "에이전트별",
     "laneByProfileHint": "실행 중인 작업을 에이전트별로 그룹화",
-    "tasksInLane": "{count, plural, one {# task} other {# tasks}}",
+    "tasksInLane": "{count, plural, =0 {작업 없음} other {#개 작업}}",
     "noTasks": "작업 없음",
     "taskDetails": "작업 세부 정보",
     "executionTrace": "실행 추적",
@@ -9197,9 +9197,9 @@
         "actionFailed": "작업 실패: {error}"
       },
       "error": {
-        "title": "Failed to load learning timeline",
-        "description": "We couldn't fetch timeline data. Check your connection and try again.",
-        "retry": "Retry"
+        "title": "학습 타임라인 로드 실패",
+        "description": "학습 타임라인 데이터를 가져오지 못했습니다. 네트워크 연결을 확인하고 다시 시도하세요.",
+        "retry": "다시 시도"
       }
     },
     "learningLoop": {
@@ -9288,9 +9288,9 @@
         "established": "확립됨",
         "declining": "감소 중"
       },
-      "loadErrorTitle": "Failed to load pattern discoveries",
-      "loadErrorDescription": "We couldn't fetch behavioral pattern data. Check your connection and try again.",
-      "retry": "Retry"
+      "loadErrorTitle": "패턴 발견 로드 실패",
+      "loadErrorDescription": "행동 패턴 데이터를 가져오지 못했습니다. 네트워크 연결을 확인하고 다시 시도하세요.",
+      "retry": "다시 시도"
     },
     "dailyJournal": {
       "today": "오늘",
@@ -9355,7 +9355,7 @@
       "calls7d": "7일간 {count}회 호출",
       "successRate": "성공률 {rate}%",
       "status": {
-        "STAR": "스타",
+        "STAR": "별표",
         "HEALTHY": "건강",
         "AT_RISK": "위험",
         "STALE": "미사용"
@@ -10630,7 +10630,7 @@
     "workspacePlaceholder": "절대 경로, 예: /workspace/docs",
     "workspaceUpdated": "작업 디렉터리가 업데이트되었습니다",
     "workspaceCleared": "작업 디렉터리가 지워졌습니다",
-    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
+    "moveSuccess": "{count, plural, other {#개 대화}} 이동 완료",
     "moveFailed": "대화 이동에 실패했습니다",
     "workspaceMount": {
       "title": "폴더 연결",
@@ -11355,12 +11355,12 @@
     "taskStatusInReview": "검토 중",
     "taskStatusBlocked": "차단됨",
     "retryAction": "실패 항목 재시도",
-    "retrySuccess": "Retried {count, plural, one {# directory} other {# directories}}",
+    "retrySuccess": "{count, plural, other {#개 디렉터리 재시도됨}}",
     "retryError": "재시도 실패",
     "approvalLabel": "실행 전 승인 필요",
-    "dirsSelectedCount": "{count, plural, one {# directory selected} other {# directories selected}}",
-    "dirsCount": "{count, plural, one {# directory} other {# directories}}",
-    "dirsCountTitle": "{count, plural, one {# target directory} other {# target directories}}",
+    "dirsSelectedCount": "{count, plural, =0 {선택 안 됨} other {#개 디렉터리 선택됨}}",
+    "dirsCount": "{count, plural, =0 {0개 디렉터리} other {#개 디렉터리}}",
+    "dirsCountTitle": "{count, plural, =0 {0개 대상 디렉터리} other {#개 대상 디렉터리}}",
     "artifactVerified": "산출물 검증됨",
     "artifactMissing": "산출물 누락",
     "missingArtifactsTitle": "산출물 누락",
@@ -11793,12 +11793,16 @@
       "newEndpoint": "새 웹훅 엔드포인트 구성",
       "editEndpoint": "편집",
       "endpointName": "엔드포인트 이름",
+      "endpointNamePlaceholder": "예: Feishu 알림 Bot, CI 파이프라인",
       "payloadUrl": "페이로드 URL (Payload URL)",
+      "payloadUrlPlaceholder": "https://example.com/api/webhook",
       "signingSecret": "HMAC 서명 시크릿 (선택사항)",
       "signingSecretPlaceholder": "선택적 서명 시크릿 (전달 출처 검증용)",
       "signingSecretKeepPlaceholder": "비워 두면 현재 시크릿 유지",
       "generateRandom": "랜덤 생성",
       "subscribedEvents": "구독 이벤트",
+      "eventsRequired": "이벤트를 하나 이상 선택하세요",
+      "toggleActiveAriaLabel": "Webhook 활성 상태 전환",
       "agentScope": "Agent Profile 범위",
       "agentScopeAll": "모든 Agent Profile",
       "agentScopeHint": "선택한 Agent Profile의 이벤트만 전달합니다. 전체를 선택하면 모든 Profile의 이벤트를 수신합니다.",
@@ -14225,7 +14229,7 @@
       "repairingTypes": "복구 중...",
       "repairingPublication": "게시 상태 복구 중...",
       "reindexingVectors": "벡터 인덱스 재구축 중...",
-      "reindexErrorsTitle": "{count, plural, one {# item could not be reindexed} other {# items could not be reindexed}}",
+      "reindexErrorsTitle": "{count, plural, other {#개 항목을 재색인할 수 없습니다}}",
       "reindexErrorsTruncated": "…외 {count}개",
       "healthReport": {
         "title": "지식 상태",

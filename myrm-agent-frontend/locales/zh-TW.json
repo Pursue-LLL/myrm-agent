@@ -5446,8 +5446,8 @@
     "conversation_excluded": "已從會話召回中排除",
     "conversation_deleted": "會話已刪除",
     "operation_failed": "操作失敗",
-    "copyAll": "Copy all",
-    "copyAllSuccess": "Sources copied to clipboard"
+    "copyAll": "複製全部來源",
+    "copyAllSuccess": "來源已複製到剪貼簿"
   },
   "auth": {
     "setup": {
@@ -6524,8 +6524,8 @@
     "deleteBoardError": "刪除看板失敗",
     "deleteBoardConfirmTitle": "刪除看板",
     "deleteBoardConfirmDesc": "確定要刪除「{name}」嗎？該看板內的所有任務、依賴關係和事件歷史將被永久刪除，此操作無法撤銷。",
-    "deleteBoardConfirmDescWithTasks": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}} that will be permanently deleted. This action cannot be undone.",
-    "deleteBoardConfirmDescRunning": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}}, including {running, plural, one {# running task} other {# running tasks}} that will be forcefully interrupted. This action cannot be undone.",
+    "deleteBoardConfirmDescWithTasks": "確定要刪除「{name}」嗎？此看板包含 {total, plural, one {# 個任務} other {# 個任務}}。",
+    "deleteBoardConfirmDescRunning": "確定要刪除「{name}」嗎？此看板包含 {total, plural, one {# 個正在執行的任務} other {# 個正在執行的任務}}。",
     "delete": "刪除",
     "boardNamePlaceholder": "看板名稱",
     "boardDescPlaceholder": "看板描述（可選）",
@@ -6648,7 +6648,7 @@
     "attachmentLimitExceeded": "最多允許 10 個附件",
     "attachmentRemoveError": "附件移除失敗",
     "removeAttachment": "移除附件",
-    "attachmentCount": "{count, plural, one {# file} other {# files}}",
+    "attachmentCount": "{count, plural, =0 {0 個附件} one {# 個附件} other {# 個附件}}",
     "removeDep": "移除依賴",
     "depAdded": "依賴已新增",
     "depRemoved": "依賴已移除",
@@ -6717,7 +6717,7 @@
     "unassigned": "未分配",
     "laneByProfile": "按 Agent 分組",
     "laneByProfileHint": "Running 列按 Agent 分組顯示",
-    "tasksInLane": "{count, plural, one {# task} other {# tasks}}",
+    "tasksInLane": "{count, plural, =0 {0 個任務} one {# 個任務} other {# 個任務}}",
     "noTasks": "暫無任務",
     "taskDetails": "任務詳情",
     "executionTrace": "執行追蹤",
@@ -9175,7 +9175,7 @@
       "successRate": "成功率 {rate}%",
       "calls7d": "7天 {count} 次調用",
       "status": {
-        "STAR": "明星",
+        "STAR": "標星",
         "HEALTHY": "健康",
         "AT_RISK": "風險",
         "STALE": "沉睡"
@@ -9230,9 +9230,9 @@
         "actionFailed": "操作失敗: {error}"
       },
       "error": {
-        "title": "Failed to load learning timeline",
-        "description": "We couldn't fetch timeline data. Check your connection and try again.",
-        "retry": "Retry"
+        "title": "載入學習時間軸失敗",
+        "description": "無法獲取學習時間軸資料，請檢查網路連線後重試。",
+        "retry": "重試"
       }
     },
     "learningLoop": {
@@ -9321,9 +9321,9 @@
         "established": "成型",
         "declining": "衰減中"
       },
-      "loadErrorTitle": "Failed to load pattern discoveries",
-      "loadErrorDescription": "We couldn't fetch behavioral pattern data. Check your connection and try again.",
-      "retry": "Retry"
+      "loadErrorTitle": "載入行為模式發現失敗",
+      "loadErrorDescription": "無法獲取行為模式資料，請檢查網路連線後重試。",
+      "retry": "重試"
     },
     "dailyJournal": {
       "today": "今天",
@@ -10641,7 +10641,7 @@
     "workspacePlaceholder": "絕對路徑，如 /workspace/docs",
     "workspaceUpdated": "工作目錄已更新",
     "workspaceCleared": "工作目錄已清除",
-    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
+    "moveSuccess": "成功移動 {count, plural, one {# 個對話} other {# 個對話}}",
     "moveFailed": "移動會話失敗",
     "workspaceMount": {
       "title": "關聯資料夾",
@@ -11368,12 +11368,12 @@
     "taskStatusInReview": "待審核",
     "taskStatusBlocked": "已阻塞",
     "retryAction": "重試失敗目錄",
-    "retrySuccess": "Retried {count, plural, one {# directory} other {# directories}}",
+    "retrySuccess": "已重試 {count, plural, one {# 個目錄} other {# 個目錄}}",
     "retryError": "重試失敗",
     "approvalLabel": "執行前需人工審批",
-    "dirsSelectedCount": "{count, plural, one {# directory selected} other {# directories selected}}",
-    "dirsCount": "{count, plural, one {# directory} other {# directories}}",
-    "dirsCountTitle": "{count, plural, one {# target directory} other {# target directories}}",
+    "dirsSelectedCount": "{count, plural, =0 {未選擇目錄} one {已選 # 個目錄} other {已選 # 個目錄}}",
+    "dirsCount": "{count, plural, =0 {0 個目錄} one {# 個目錄} other {# 個目錄}}",
+    "dirsCountTitle": "{count, plural, =0 {0 個目標目錄} one {# 個目標目錄} other {# 個目標目錄}}",
     "artifactVerified": "產物驗證通過",
     "artifactMissing": "缺少預期產物",
     "missingArtifactsTitle": "缺少預期產物",
@@ -11383,13 +11383,13 @@
     "confirmRetryTaskTitle": "重試此目錄？",
     "confirmRetryTaskDescription": "將為此目錄建立新任務，沿用相同的提示詞與設定。",
     "confirmRetryTaskAction": "重試目錄",
-    "retryTaskSuccess": "Retried {count, plural, one {# directory} other {# directories}}",
+    "retryTaskSuccess": "已重試 {count, plural, one {# 個目錄} other {# 個目錄}}",
     "retryTaskError": "重試目錄失敗",
     "rerunAction": "全部重跑",
     "confirmRerunTitle": "重跑批次「{name}」？",
     "confirmRerunDescription": "所有目錄將使用原始提示詞重新執行，歷史結果會保留。",
     "confirmRerunAction": "全部重跑",
-    "rerunSuccess": "Re-queued {count, plural, one {# directory} other {# directories}}",
+    "rerunSuccess": "已重新排隊 {count, plural, one {# 個目錄} other {# 個目錄}}",
     "rerunError": "重跑批次失敗",
     "statusPaused": "已暫停",
     "pauseAction": "暫停",
@@ -11804,12 +11804,16 @@
       "newEndpoint": "配置新的 Webhook 終端",
       "editEndpoint": "編輯",
       "endpointName": "終端名稱",
+      "endpointNamePlaceholder": "例如：飛書告警機器人、CI 流水線",
       "payloadUrl": "接收端 URL (Payload URL)",
+      "payloadUrlPlaceholder": "https://example.com/api/webhook",
       "signingSecret": "HMAC 簽名金鑰 (可選)",
       "signingSecretPlaceholder": "可選簽名金鑰，用於驗證推送來源",
       "signingSecretKeepPlaceholder": "留空則保留目前金鑰",
       "generateRandom": "生成隨機金鑰",
       "subscribedEvents": "訂閱事件",
+      "eventsRequired": "請至少選擇一個事件",
+      "toggleActiveAriaLabel": "切換 Webhook 啟用狀態",
       "agentScope": "Agent Profile 範圍",
       "agentScopeAll": "全部 Agent Profile",
       "agentScopeHint": "僅推送所選 Agent Profile 的事件；選擇全部則接收所有 Profile 的事件。",
@@ -12742,7 +12746,7 @@
       },
       "validationMessages": {
         "successWithDimension": "驗證成功（維度：{dimension}）",
-        "successWithResults": "Validation successful (returned {count, plural, one {# result} other {# results}})",
+        "successWithResults": "驗證成功（返回 {count, plural, one {# 條結果} other {# 條結果}}）",
         "failedWithError": "驗證失敗：{error}",
         "missingRequiredFields": "請填寫所有必填欄位",
         "networkError": "網路錯誤，請檢查連線",
@@ -13726,7 +13730,7 @@
         "lastMaintainSkippedCompile": "上次維護已跳過（編譯進行中）",
         "lastMaintainSkippedNoModel": "上次維護已跳過（未配置 AI 模型）",
         "indexedAssets": "{count, plural, one {# image indexed} other {# images indexed}}",
-        "failedAssets": "{count, plural, one {# image index failed} other {# image indexes failed}}",
+        "failedAssets": "{count, plural, one {# 張圖片索引失敗} other {# 張圖片索引失敗}}",
         "assetsVisionHint": "圖片已導入但尚不可搜尋。請在「設置 → 模型」中配置視覺降級模型以建立索引。",
         "synthesisPending": "{count, plural, other {# 條演化合成待審核}}",
         "duplicateGroupsPending": "{count, plural, other {# 組重複待審核}}"
@@ -14236,7 +14240,7 @@
       "repairingTypes": "修復中...",
       "repairingPublication": "修復發布狀態中...",
       "reindexingVectors": "重建向量索引中...",
-      "reindexErrorsTitle": "{count, plural, one {# item could not be reindexed} other {# items could not be reindexed}}",
+      "reindexErrorsTitle": "有 {count, plural, one {# 個條目無法重新索引} other {# 個條目無法重新索引}}",
       "reindexErrorsTruncated": "…另有 {count} 項",
       "healthReport": {
         "title": "知識庫健康",
@@ -14348,7 +14352,7 @@
           "empty": "無可讀正文"
         },
         "success": {
-          "disposition": "{action}: {count, plural, one {# path updated} other {# paths updated}}"
+          "disposition": "{action}：已更新 {count, plural, one {# 個路徑} other {# 個路徑}}"
         },
         "vaultHygiene": {
           "title": "語料衛生",
@@ -15205,7 +15209,7 @@
         "deleteFailed": "刪除模板失敗",
         "deleteConfirmTitle": "刪除工作流模板？",
         "deleteConfirm": "確定刪除「{name}」？此操作無法撤銷。",
-        "deleteConfirmWithCron": "Delete \"{name}\"? {count, plural, one {# scheduled task is} other {# scheduled tasks are}} still bound to this template and will stop running it. This cannot be undone.",
+        "deleteConfirmWithCron": "確定刪除「{name}」？將同時移除 {count, plural, one {# 個關聯排程任務} other {# 個關聯排程任務}}。",
         "deleteCancel": "取消",
         "runQueryPlaceholder": "輸入本次 pinned 模板運行的任務描述…",
         "runQueryRequired": "運行模板前請先輸入任務描述",
@@ -16150,7 +16154,7 @@
       "mcpAclGroups": "限制可見群組（可選）",
       "mcpAclGroupsPlaceholder": "engineering, finance, security",
       "mcpAclGroupsHint": "逗號分隔的 IdP 群組名。留空表示對所有成員可見。",
-      "mcpAclGroupsBadge": "{count, plural, one {# group} other {# groups}}",
+      "mcpAclGroupsBadge": "{count, plural, one {# 個群組} other {# 個群組}}",
       "tunnelTitle": "私有隧道",
       "tunnelDescription": "通過安全出站隧道將雲沙箱連接到內網 MCP 伺服器，無需配置入站防火牆規則。",
       "tunnelAdd": "註冊隧道",

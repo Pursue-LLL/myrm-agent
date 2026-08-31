@@ -5446,8 +5446,8 @@
     "conversation_excluded": "Vom Gesprächsrückruf ausgeschlossen",
     "conversation_deleted": "Konversation gelöscht",
     "operation_failed": "Der Vorgang ist fehlgeschlagen",
-    "copyAll": "Copy all",
-    "copyAllSuccess": "Sources copied to clipboard"
+    "copyAll": "Alle kopieren",
+    "copyAllSuccess": "Quellen in die Zwischenablage kopiert"
   },
   "auth": {
     "setup": {
@@ -6524,8 +6524,8 @@
     "deleteBoardError": "Das Board konnte nicht gelöscht werden",
     "deleteBoardConfirmTitle": "Board löschen",
     "deleteBoardConfirmDesc": "Möchten Sie „{name}“ wirklich löschen? Alle Aufgaben, Abhängigkeiten und Ereignisverläufe in diesem Board werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
-    "deleteBoardConfirmDescWithTasks": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}} that will be permanently deleted. This action cannot be undone.",
-    "deleteBoardConfirmDescRunning": "Are you sure you want to delete \"{name}\"? This board contains {total, plural, one {# task} other {# tasks}}, including {running, plural, one {# running task} other {# running tasks}} that will be forcefully interrupted. This action cannot be undone.",
+    "deleteBoardConfirmDescWithTasks": "Möchten Sie „{name}“ wirklich löschen? Dieses Board enthält {total, plural, one {# Aufgabe} other {# Aufgaben}}.",
+    "deleteBoardConfirmDescRunning": "Möchten Sie „{name}“ wirklich löschen? Dieses Board enthält {total, plural, one {# laufende Aufgabe} other {# laufende Aufgaben}}.",
     "delete": "Löschen",
     "boardNamePlaceholder": "Vorstandsname",
     "boardDescPlaceholder": "Boardbeschreibung (optional)",
@@ -9208,9 +9208,9 @@
         "actionFailed": "Aktion fehlgeschlagen: {error}"
       },
       "error": {
-        "title": "Failed to load learning timeline",
-        "description": "We couldn't fetch timeline data. Check your connection and try again.",
-        "retry": "Retry"
+        "title": "Lernverlauf konnte nicht geladen werden",
+        "description": "Verlauf konnte nicht geladen werden. Bitte Verbindung prüfen und erneut versuchen.",
+        "retry": "Wiederholen"
       }
     },
     "learningLoop": {
@@ -9299,9 +9299,9 @@
         "established": "Gegründet",
         "declining": "Abnehmend"
       },
-      "loadErrorTitle": "Failed to load pattern discoveries",
-      "loadErrorDescription": "We couldn't fetch behavioral pattern data. Check your connection and try again.",
-      "retry": "Retry"
+      "loadErrorTitle": "Mustererkennung konnte nicht geladen werden",
+      "loadErrorDescription": "Verhaltensmuster konnten nicht geladen werden. Bitte Verbindung prüfen und erneut versuchen.",
+      "retry": "Wiederholen"
     },
     "dailyJournal": {
       "today": "Heute",
@@ -9366,7 +9366,7 @@
       "calls7d": "{count} Aufrufe (7T)",
       "successRate": "{rate}% Erfolgsrate",
       "status": {
-        "STAR": "Star",
+        "STAR": "Favorit",
         "HEALTHY": "Gesund",
         "AT_RISK": "Gefährdet",
         "STALE": "Inaktiv"
@@ -10641,7 +10641,7 @@
     "workspacePlaceholder": "Absoluter Pfad, z.B. /workspace/docs",
     "workspaceUpdated": "Arbeitsverzeichnis aktualisiert",
     "workspaceCleared": "Arbeitsverzeichnis gelöscht",
-    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
+    "moveSuccess": "{count, plural, one {# Chat} other {# Chats}} erfolgreich verschoben",
     "moveFailed": "Chats konnten nicht verschoben werden",
     "workspaceMount": {
       "title": "Link-Ordner",
@@ -11804,12 +11804,16 @@
       "newEndpoint": "Neuen Webhook-Endpunkt konfigurieren",
       "editEndpoint": "Bearbeiten",
       "endpointName": "Endpunktname",
+      "endpointNamePlaceholder": "z. B. Feishu Alert Bot, CI-Pipeline",
       "payloadUrl": "Payload-URL",
+      "payloadUrlPlaceholder": "https://example.com/api/webhook",
       "signingSecret": "HMAC-Signatur-Geheimnis (Optional)",
       "signingSecretPlaceholder": "Optionales Signaturgeheimnis zur Absenderprüfung",
       "signingSecretKeepPlaceholder": "Leer lassen, um das aktuelle Geheimnis beizubehalten",
       "generateRandom": "Zufällig generieren",
       "subscribedEvents": "Abonnierte Ereignisse",
+      "eventsRequired": "Mindestens ein Ereignis auswählen",
+      "toggleActiveAriaLabel": "Webhook-Aktivstatus umschalten",
       "agentScope": "Agent-Profile-Bereich",
       "agentScopeAll": "Alle Agent-Profile",
       "agentScopeHint": "Nur Ereignisse des ausgewählten Agent-Profils zustellen. „Alle“ empfängt Ereignisse von jedem Profil.",

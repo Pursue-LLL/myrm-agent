@@ -38,12 +38,6 @@ export interface LifecycleWebhookUpdateInput {
   timeout_seconds?: number;
 }
 
-export interface WebhookPingInput {
-  url: string;
-  secret?: string | null;
-  timeout_seconds?: number;
-}
-
 export interface WebhookPingResult {
   success: boolean;
   status_code?: number | null;
@@ -75,13 +69,6 @@ export async function updateLifecycleWebhook(
 export async function deleteLifecycleWebhook(id: string): Promise<void> {
   return apiRequest<void>(`/lifecycle-webhooks/${id}`, {
     method: 'DELETE',
-  });
-}
-
-export async function pingLifecycleWebhook(input: WebhookPingInput): Promise<WebhookPingResult> {
-  return apiRequest<WebhookPingResult>('/lifecycle-webhooks/ping', {
-    method: 'POST',
-    body: JSON.stringify(input),
   });
 }
 

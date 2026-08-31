@@ -133,6 +133,21 @@ describe('LifecycleWebhookSection - Full Flow', () => {
     });
   });
 
+  it('disables save when all events are deselected', async () => {
+    (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce([]);
+    render(<LifecycleWebhookSection />);
+    expect(await screen.findByText('noEndpoints')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /addEndpoint/i }));
+
+    fireEvent.click(screen.getByText('events.session_completed'));
+    fireEvent.click(screen.getByText('events.session_failed'));
+    fireEvent.click(screen.getByText('events.approval_required'));
+
+    expect(screen.getByText('eventsRequired')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /saveEndpoint/i })).toBeDisabled();
+  });
+
   it('deletes an existing webhook', async () => {
     (webhookService.listLifecycleWebhooks as any).mockResolvedValueOnce(mockWebhooks);
     (webhookService.deleteLifecycleWebhook as any).mockResolvedValueOnce(undefined);

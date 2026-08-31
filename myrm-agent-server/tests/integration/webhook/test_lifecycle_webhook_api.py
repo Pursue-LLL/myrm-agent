@@ -1,6 +1,6 @@
 """FastAPI integration tests for lifecycle outbound webhooks endpoints.
 
-[POS] Integration tests covering REST CRUD operations, DB persistence, and /ping endpoint.
+[POS] Integration tests covering REST CRUD operations, DB persistence, and saved /{id}/ping probes.
 """
 
 from __future__ import annotations
@@ -89,17 +89,45 @@ async def test_lifecycle_webhook_crud_and_ping(webhook_app: FastAPI):
             delete_res = await client.delete(f"/api/lifecycle-webhooks/{webhook_id}")
             assert delete_res.status_code == 204
 
-    # 5. Ping endpoint SSRF validation (without mock, testing real 169.254.169.254 block)
-    async with AsyncClient(transport=ASGITransport(app=webhook_app), base_url="http://test") as client:
-        ping_payload = {
-            "url": "http://169.254.169.254/metadata",
-            "secret": "whsec_test",
-            "timeout_seconds": 5,
-        }
-        ping_res = await client.post("/api/lifecycle-webhooks/ping", json=ping_payload)
-        assert ping_res.status_code == 200
-        assert ping_res.json()["success"] is False
-        assert "SSRF blocked" in str(ping_res.json()["error"])
+
+@pytest.mark.asyncio
+async def test_lifecycle_webhook_rejects_empty_events(webhook_app: FastAPI):
+    """Create and update must reject empty event subscriptions."""
+    with patch(
+        "socket.getaddrinfo",
+        return_value=[(None, None, None, None, ("93.184.216.34", 0))],
+    ):
+        async with AsyncClient(transport=ASGITransport(app=webhook_app), base_url="http://test") as client:
+            create_res = await client.post(
+                "/api/lifecycle-webhooks",
+                json={
+                    "name": "Empty Events Hook",
+                    "url": "https://example.com/api/webhook",
+                    "events": [],
+                    "is_active": True,
+                },
+            )
+            assert create_res.status_code == 422
+
+            create_res = await client.post(
+                "/api/lifecycle-webhooks",
+                json={
+                    "name": "Valid Hook",
+                    "url": "https://example.com/api/webhook",
+                    "events": ["session_completed"],
+                    "is_active": True,
+                },
+            )
+            assert create_res.status_code == 201
+            webhook_id = create_res.json()["id"]
+
+            update_res = await client.put(
+                f"/api/lifecycle-webhooks/{webhook_id}",
+                json={"events": []},
+            )
+            assert update_res.status_code == 422
+
+            await client.delete(f"/api/lifecycle-webhooks/{webhook_id}")
 
 
 @pytest.mark.asyncio

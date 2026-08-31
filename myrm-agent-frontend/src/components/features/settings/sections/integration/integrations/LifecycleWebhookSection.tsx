@@ -261,7 +261,7 @@ export const LifecycleWebhookSection = memo(() => {
                       <Switch
                         checked={hook.is_active}
                         onCheckedChange={() => handleToggle(hook)}
-                        aria-label="Toggle Webhook"
+                        aria-label={t('toggleActiveAriaLabel')}
                       />
                       {hook.has_secret || hook.secret ? (
                         <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0">

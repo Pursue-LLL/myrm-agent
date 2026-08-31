@@ -75,7 +75,7 @@ def _summary_from_record(
     record: EvolutionReviewRecord,
     impacted_dependents: list[str] | None = None,
 ) -> PendingEvolutionSummaryResponse:
-    from myrm_agent_harness.eval.manifest_prediction import (
+    from myrm_agent_harness.api import (
         ChangePredictionManifest,
         MetricPrediction,
         PredictionDirection,

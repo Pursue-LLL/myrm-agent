@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - next-intl::useTranslations (POS: Settings lifecycle webhook localized copy)
+ * - @/components/primitives/* (POS: shared Settings form controls)
+ *
+ * [OUTPUT]
+ * - WebhookEndpointForm: shared create/edit form for lifecycle webhook endpoints
+ *
+ * [POS]
+ * Reusable Settings form for lifecycle outbound webhook create and edit flows.
+ */
+
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
@@ -74,6 +86,7 @@ export const WebhookEndpointForm = memo(
 
     const secretPlaceholder =
       mode === 'edit' && hasExistingSecret ? t('signingSecretKeepPlaceholder') : t('signingSecretPlaceholder');
+    const hasRequiredFields = Boolean(values.name.trim() && values.url.trim() && values.events.length > 0);
 
     return (
       <div className="space-y-4">
@@ -85,7 +98,7 @@ export const WebhookEndpointForm = memo(
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">{t('endpointName')}</label>
             <Input
-              placeholder="e.g. Feishu Alert Bot, CI Pipeline"
+              placeholder={t('endpointNamePlaceholder')}
               value={values.name}
               onChange={(e) => onChange({ name: e.target.value })}
             />
@@ -93,7 +106,7 @@ export const WebhookEndpointForm = memo(
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">{t('payloadUrl')}</label>
             <Input
-              placeholder="https://example.com/api/webhook"
+              placeholder={t('payloadUrlPlaceholder')}
               value={values.url}
               onChange={(e) => onChange({ url: e.target.value })}
             />
@@ -159,17 +172,16 @@ export const WebhookEndpointForm = memo(
               );
             })}
           </div>
+          {values.events.length === 0 ? (
+            <p className="text-[11px] text-destructive">{t('eventsRequired')}</p>
+          ) : null}
         </div>
 
         <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
           <Button variant="ghost" size="sm" onClick={onCancel}>
             {t('cancel')}
           </Button>
-          <Button
-            size="sm"
-            onClick={onSubmit}
-            disabled={!values.name.trim() || !values.url.trim() || submitting}
-          >
+          <Button size="sm" onClick={onSubmit} disabled={!hasRequiredFields || submitting}>
             {submitting ? t('saving') : mode === 'create' ? t('saveEndpoint') : t('saveChanges')}
           </Button>
         </div>
