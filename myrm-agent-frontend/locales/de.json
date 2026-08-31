@@ -2320,6 +2320,27 @@
         "allowAlways": "Diese App immer erlauben"
       }
     },
+    "deviceInspector": {
+      "title": "Mobilgerät-Live-Ansicht",
+      "toggleTitle": "Mobilgerät-Inspektor umschalten",
+      "viewMode": "Ansichtsmodus",
+      "inspectMode": "Inspektionsmodus",
+      "close": "Schließen",
+      "refresh": "Aktualisieren",
+      "enabledHint": "Der Mobilgerät-Inspektor öffnet sich hier, wenn der Agent ein Mobilgerät verbindet",
+      "resizePanel": "Panelgröße ändern",
+      "screenshotAlt": "Mobilgerät-Screenshot",
+      "waitingForDevice": "Warten auf Mobilgeräte-Aktivität...",
+      "waitingHint": "Die Live-Ansicht erscheint, wenn der Agent ein echtes Mobilgerät oder einen Emulator steuert",
+      "deviceDisconnected": "Mobilgerät getrennt. Bitte prüfen Sie ADB oder die Netzwerkverbindung.",
+      "notificationRedaction": "Statusleisten-Datenschutz",
+      "redactionBadge": "Datenschutz",
+      "notificationRedacted": "🔒 Statusleisten-Benachrichtigungen geschwärzt",
+      "notificationRedactedHint": "Die obere Statusleiste wird automatisch geschwärzt, um sensible Benachrichtigungen zu schützen.",
+      "instructionPlaceholder": "Beschreiben Sie, was Sie auf dem Mobilgerät tun möchten ...",
+      "instructionWithElement": "Was soll der Agent mit diesem mobilen Element tun?",
+      "send": "Anweisung senden"
+    },
     "subagent": {
       "viewResults": "Ergebnisse anzeigen"
     },

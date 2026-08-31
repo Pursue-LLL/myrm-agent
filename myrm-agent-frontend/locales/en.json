@@ -2425,8 +2425,8 @@
       "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
       "notificationRedaction": "Status Bar Notification Redaction",
       "redactionBadge": "Redaction",
-      "notificationRedacted": "🔒 Status bar notifications redacted",
-      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
+      "notificationRedacted": "Status bar notifications redacted",
+      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs and sensitive messages",
       "instructionPlaceholder": "Describe what you want to do on the device...",
       "instructionWithElement": "What should the agent do with this mobile element?",
       "send": "Send instruction"
