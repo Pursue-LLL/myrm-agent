@@ -21,9 +21,9 @@ import logging
 import time
 
 from fastapi import APIRouter
+from myrm_agent_harness.observability.diagnostics.gateway_health import GatewayRedactedHealthDTO
 
 from app.services.agent.gateway import get_agent_gateway
-from myrm_agent_harness.observability.diagnostics.gateway_health import GatewayRedactedHealthDTO
 
 logger = logging.getLogger(__name__)
 
