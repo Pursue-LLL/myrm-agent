@@ -2309,6 +2309,27 @@
         "allowAlways": "이 앱 항상 허용"
       }
     },
+    "deviceInspector": {
+      "title": "모바일 기기 라이브 뷰",
+      "toggleTitle": "모바일 기기 인스펙터 전환",
+      "viewMode": "보기 모드",
+      "inspectMode": "검사 모드",
+      "close": "닫기",
+      "refresh": "새로고침",
+      "enabledHint": "에이전트가 모바일 기기에 연결하면 여기에 인스펙터가 열립니다",
+      "resizePanel": "패널 크기 조정",
+      "screenshotAlt": "모바일 기기 스크린샷",
+      "waitingForDevice": "모바일 기기 활동 대기 중...",
+      "waitingHint": "에이전트가 모바일 기기나 에뮬레이터를 조작하면 라이브 뷰가 나타납니다",
+      "deviceDisconnected": "모바일 기기 연결이 끊어졌습니다. ADB 또는 네트워크 상태를 확인하세요.",
+      "notificationRedaction": "상단 상태 표시줄 개인정보 마스킹",
+      "redactionBadge": "마스킹",
+      "notificationRedacted": "🔒 상태 표시줄 알림 마스킹됨",
+      "notificationRedactedHint": "상단 알림 표시는 인증 코드 및 개인정보 유출을 방지하기 위해 마스킹 처리됩니다.",
+      "instructionPlaceholder": "모바일 기기에서 수행하려는 작업을 설명하세요...",
+      "instructionWithElement": "에이전트가 이 모바일 요소로 무엇을 해야 하나요?",
+      "send": "지시 보내기"
+    },
     "deliveryContracts": {
       "title": "5대 전달 계약",
       "allSatisfied": "모든 계약 충족됨",

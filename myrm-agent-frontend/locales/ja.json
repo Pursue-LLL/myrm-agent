@@ -2338,6 +2338,27 @@
         "allowAlways": "このアプリを常に許可"
       }
     },
+    "deviceInspector": {
+      "title": "モバイル端末ライブビュー",
+      "toggleTitle": "モバイル端末インスペクタを切り替え",
+      "viewMode": "表示モード",
+      "inspectMode": "検査モード",
+      "close": "閉じる",
+      "refresh": "更新",
+      "enabledHint": "Agent がモバイル端末に接続するとインスペクタがここに表示されます",
+      "resizePanel": "パネルサイズを調整",
+      "screenshotAlt": "モバイル端末スクリーンショット",
+      "waitingForDevice": "モバイル端末のアクティビティを待機中…",
+      "waitingHint": "Agent がモバイル実機またはエミュレータを操作するとライブビューが自動表示されます",
+      "deviceDisconnected": "モバイル端末が切断されました。ADB またはネットワーク接続を確認してください",
+      "notificationRedaction": "上部ステータスバーのプライバシーマスキング",
+      "redactionBadge": "マスキング",
+      "notificationRedacted": "🔒 ステータスバー通知はマスキング済み",
+      "notificationRedactedHint": "上部通知バーは個人情報や認証コードの混入を防ぐため自動マスキングされます",
+      "instructionPlaceholder": "モバイル端末で実行したい操作を入力…",
+      "instructionWithElement": "この要素に対して Agent は何をすべきですか？",
+      "send": "指示を送信"
+    },
     "clarification": {
       "formTitle": "確認フォーム",
       "badge": "入力が必須です",

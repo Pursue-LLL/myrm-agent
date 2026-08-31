@@ -120,7 +120,10 @@ def provider_egress_visible_js(provider_id: str) -> str:
 def test_settings_security_shows_data_flow_disclosure_panel() -> None:
     security_url = f"{get_e2e_ui_url().rstrip('/')}/settings/security"
     warm_ui_route("/settings/security")
-    with open_settings_subroute("/settings/security", timeout_ms=90_000) as (client, page):
+    with open_settings_subroute("/settings/security", timeout_ms=90_000) as (
+        client,
+        page,
+    ):
         client.navigate(page, security_url, timeout_ms=90_000)
         dismiss_blocking_modals(client, page, recover_url=security_url)
         wait_for_settings_layout(client, page, page_url=security_url, timeout_sec=60.0)
@@ -150,9 +153,9 @@ def test_settings_security_shows_data_flow_disclosure_panel() -> None:
         api_url = get_e2e_api_url()
         endpoints = seed_live_e2e_providers(api_url)
         provider_id = infer_provider_id(endpoints.basic_model)
-        assert wait_e2e_provider_ready(timeout_sec=90.0), (
-            f"WebUI provider store not ready after seeding {endpoints.basic_model!r}"
-        )
+        assert wait_e2e_provider_ready(
+            timeout_sec=90.0
+        ), f"WebUI provider store not ready after seeding {endpoints.basic_model!r}"
 
         client.navigate(page, security_url, timeout_ms=90_000)
         dismiss_blocking_modals(client, page, recover_url=security_url)
@@ -170,7 +173,11 @@ def test_settings_security_shows_data_flow_disclosure_panel() -> None:
         assert provider_egress.get("hasCloudBadge") is True, provider_egress
 
         export_btn = wait_for_state(
-            client, page, COMPLIANCE_EXPORT_BUTTON_JS, timeout_sec=30.0, page_url=security_url
+            client,
+            page,
+            COMPLIANCE_EXPORT_BUTTON_JS,
+            timeout_sec=30.0,
+            page_url=security_url,
         )
         assert export_btn.get("ready") is True, export_btn
 

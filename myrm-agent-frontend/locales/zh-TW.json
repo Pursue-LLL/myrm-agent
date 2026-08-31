@@ -2357,6 +2357,27 @@
         "allowAlways": "始終允許此應用"
       }
     },
+    "deviceInspector": {
+      "title": "行動裝置實時檢視",
+      "toggleTitle": "切換行動裝置檢查器",
+      "viewMode": "檢視模式",
+      "inspectMode": "檢查模式",
+      "close": "關閉",
+      "refresh": "重新整理",
+      "enabledHint": "Agent 連線行動裝置後，檢查器將在此開啟",
+      "resizePanel": "調整面板大小",
+      "screenshotAlt": "行動裝置螢幕截圖",
+      "waitingForDevice": "等待行動裝置活動...",
+      "waitingHint": "當 Agent 操作行動端真機或模擬器時，實時檢視將自動顯示",
+      "deviceDisconnected": "行動裝置已斷開連線，請檢查 ADB 或網路狀態",
+      "notificationRedaction": "頂部狀態列隱私脫敏",
+      "redactionBadge": "隱私脫敏",
+      "notificationRedacted": "🔒 狀態列通知已脫敏遮蔽",
+      "notificationRedactedHint": "頂部系統通知列已自動模糊遮蔽，防止私密資訊與驗證碼洩露入 Prompt",
+      "instructionPlaceholder": "描述你想在行動裝置上做什麼...",
+      "instructionWithElement": "Agent 應該對這個行動端元素做什麼？",
+      "send": "傳送指令"
+    },
     "clarification": {
       "formTitle": "澄清表單",
       "badge": "需要你確認",
