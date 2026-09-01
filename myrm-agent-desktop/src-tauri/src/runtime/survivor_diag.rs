@@ -29,29 +29,44 @@ pub enum SurvivorDiagResult {
     UnknownConflict,
 }
 
-/// 判定指定进程名/路径是否属于 Myrm 自身组件
-pub fn is_self_process(process_name: &str, _exe_path: &str) -> bool {
+/// 判定指定进程名/路径/命令行是否属于 Myrm 自身组件
+pub fn is_self_process(process_name: &str, exe_or_cmd: &str) -> bool {
     let lower_name = process_name.to_lowercase();
-    let lower_path = _exe_path.to_lowercase();
+    let lower_path = exe_or_cmd.to_lowercase();
 
     // 1. 匹配后端或前端核心二进制名称
     if lower_name.contains("myrmagent") || lower_name.contains("myrm-agent") {
         return true;
     }
 
-    // 2. 匹配 python/node 二进制且路径包含 myrm 相关工作区或资源目录
-    if (lower_name.contains("python") || lower_name.contains("node"))
-        && (lower_path.contains("myrm") || lower_path.contains("standalone"))
-    {
+    // 2. 匹配 python/node 二进制且路径/命令行包含 myrm 相关工作区、脚本或资源目录
+    let is_script_runtime = lower_name.contains("python")
+        || lower_name.contains("node")
+        || lower_name.ends_with("/python")
+        || lower_name.ends_with("/node");
+
+    if is_script_runtime {
+        if lower_path.contains("myrm")
+            || lower_path.contains("standalone")
+            || lower_path.contains("server.js")
+            || lower_path.contains("run.py")
+            || lower_path.contains("agent-runner")
+        {
+            return true;
+        }
+    }
+
+    // 3. 命令行本身包含核心标志
+    if lower_path.contains("myrmagent") || lower_path.contains("myrm-agent") {
         return true;
     }
 
     false
 }
 
-/// 获取占用指定端口的 PID 与进程名（Windows 平台实现）
+/// 获取占用指定端口的 PID、进程名与命令行（Windows 平台实现）
 #[cfg(target_os = "windows")]
-fn find_process_occupying_port(port: u16) -> Option<(u32, String)> {
+fn find_process_occupying_port(port: u16) -> Option<(u32, String, String)> {
     use std::process::Command;
     // 使用 netstat 快速定位占用端口的 PID
     let mut cmd = Command::new("netstat");
@@ -94,11 +109,25 @@ fn find_process_occupying_port(port: u16) -> Option<(u32, String)> {
         .map(|s| s.trim_matches('"').to_string())
         .unwrap_or_else(|| "unknown.exe".to_string());
 
-    Some((pid, process_name))
+    // 尝试通过 powershell 获取完整命令行
+    let mut ps_cmd = Command::new("powershell");
+    ps_cmd.args([
+        "-NoProfile",
+        "-Command",
+        &format!("(Get-CimInstance Win32_Process -Filter 'ProcessId = {}').CommandLine", pid),
+    ]);
+    crate::runtime::suppress_console_window(&mut ps_cmd);
+    let cmd_line = ps_cmd
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    Some((pid, process_name, cmd_line))
 }
 
 #[cfg(not(target_os = "windows"))]
-fn find_process_occupying_port(port: u16) -> Option<(u32, String)> {
+fn find_process_occupying_port(port: u16) -> Option<(u32, String, String)> {
     use std::process::Command;
     let output = Command::new("lsof")
         .args(["-iTCP", &format!(":{}", port), "-sTCP:LISTEN", "-t"])
@@ -114,7 +143,13 @@ fn find_process_occupying_port(port: u16) -> Option<(u32, String)> {
         .ok()?;
     let proc_name = String::from_utf8_lossy(&name_out.stdout).trim().to_string();
 
-    Some((pid, proc_name))
+    let args_out = Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "args="])
+        .output()
+        .ok()?;
+    let full_args = String::from_utf8_lossy(&args_out.stdout).trim().to_string();
+
+    Some((pid, proc_name, full_args))
 }
 
 /// 诊断并自愈端口冲突（带防误杀三道防线与 TCP 释放确认）
@@ -123,16 +158,16 @@ pub async fn diagnose_and_reclaim_port(host: &str, port: u16) -> SurvivorDiagRes
         return SurvivorDiagResult::Clean;
     }
 
-    let (pid, proc_name) = match find_process_occupying_port(port) {
+    let (pid, proc_name, cmd_line) = match find_process_occupying_port(port) {
         Some(res) => res,
         None => return SurvivorDiagResult::UnknownConflict,
     };
 
     // 防线校验：必须确认为自身历史遗留幸存者
-    if !is_self_process(&proc_name, "") {
+    if !is_self_process(&proc_name, &cmd_line) {
         eprintln!(
-            "⚠️  Port {}:{} is occupied by foreign process: {} (PID: {}). Refusing to kill.",
-            host, port, proc_name, pid
+            "⚠️  Port {}:{} is occupied by foreign process: {} (PID: {}, args: {}). Refusing to kill.",
+            host, port, proc_name, pid, cmd_line
         );
         return SurvivorDiagResult::ForeignConflict {
             pid,
@@ -141,8 +176,8 @@ pub async fn diagnose_and_reclaim_port(host: &str, port: u16) -> SurvivorDiagRes
     }
 
     println!(
-        "🔄 Detected survivor process occupying port {}:{} -> {} (PID: {}). Reclaiming...",
-        host, port, proc_name, pid
+        "🔄 Detected survivor process occupying port {}:{} -> {} (PID: {}, args: {}). Reclaiming...",
+        host, port, proc_name, pid, cmd_line
     );
 
     // 执行进程树强杀
@@ -174,9 +209,13 @@ mod tests {
     fn test_is_self_process_detection() {
         assert!(is_self_process("myrmagent-backend.exe", ""));
         assert!(is_self_process("myrm-agent.exe", ""));
-        assert!(is_self_process("python.exe", "C:\\Program Files\\MyrmAgent\\resources"));
-        assert!(is_self_process("node.exe", "C:\\Users\\app\\myrm\\standalone"));
-        assert!(!is_self_process("nginx.exe", "C:\\nginx"));
-        assert!(!is_self_process("java.exe", "C:\\Java\\bin"));
+        assert!(is_self_process("python.exe", "C:\\Program Files\\MyrmAgent\\resources\\run.py"));
+        assert!(is_self_process("node.exe", "node.exe C:\\Users\\app\\myrm\\standalone\\server.js"));
+        assert!(is_self_process("node", "/usr/local/bin/node /repo/myrm-agent-frontend/.next/standalone/server.js"));
+        assert!(is_self_process("python3", "python3 /Users/test/myrm-agent-server/run.py"));
+        assert!(!is_self_process("nginx.exe", "C:\\nginx\\nginx.exe"));
+        assert!(!is_self_process("java.exe", "C:\\Java\\bin\\java.exe -jar other.jar"));
+        assert!(!is_self_process("node", "node /projects/unrelated-react-app/index.js"));
+        assert!(!is_self_process("python", "python /var/www/other_service.py"));
     }
 }

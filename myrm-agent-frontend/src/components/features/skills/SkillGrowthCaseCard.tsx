@@ -9,8 +9,10 @@ import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
+  AlertTriangle,
   CalendarClock,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock3,
@@ -19,7 +21,9 @@ import {
   Loader2,
   ShieldAlert,
   ShieldCheck,
+  TrendingUp,
   X,
+  XCircle,
 } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
@@ -398,6 +402,87 @@ export default function SkillGrowthCaseCard({
           {item.verificationProof.verification_summary && (
             <p className="mt-1.5 text-xs text-foreground font-medium">{item.verificationProof.verification_summary}</p>
           )}
+        </div>
+      )}
+
+      {(item.predictionManifest || item.attributionResult) && (
+        <div className="mt-4 rounded-xl border border-indigo-300/50 bg-indigo-50/50 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              {t('manifestPrediction.title')}
+            </p>
+            {item.attributionResult && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-[11px] font-medium inline-flex items-center gap-1',
+                  item.attributionResult.verdict === 'CONFIRMED'
+                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                    : item.attributionResult.verdict === 'REGRESSION'
+                      ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                      : 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+                )}
+              >
+                {item.attributionResult.verdict === 'CONFIRMED' ? (
+                  <CheckCircle2 className="h-3 w-3" />
+                ) : item.attributionResult.verdict === 'REGRESSION' ? (
+                  <XCircle className="h-3 w-3" />
+                ) : (
+                  <AlertTriangle className="h-3 w-3" />
+                )}
+                {t(`manifestPrediction.verdictBadge.${item.attributionResult.verdict}` as Parameters<typeof t>[0])}
+              </Badge>
+            )}
+          </div>
+
+          {item.predictionManifest?.predictions && item.predictionManifest.predictions.length > 0 && (
+            <div className="mt-2.5 space-y-2">
+              {item.predictionManifest.predictions.map((pred, idx) => (
+                <div
+                  key={`${pred.metric_name}-${idx}`}
+                  className="rounded-lg bg-background/80 p-2 text-xs border border-indigo-200/40 dark:border-indigo-900/40"
+                >
+                  <div className="flex items-center justify-between font-mono font-medium text-foreground">
+                    <span>{pred.metric_name}</span>
+                    <span className="text-muted-foreground font-sans">
+                      {t('manifestPrediction.baseline')}: {(pred.baseline_value * 100).toFixed(0)}% →{' '}
+                      <span className="font-semibold text-foreground">
+                        {t('manifestPrediction.target')}: {(pred.target_value * 100).toFixed(0)}%
+                      </span>
+                    </span>
+                  </div>
+                  {pred.rationale && <p className="mt-1 text-muted-foreground">{pred.rationale}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {item.attributionResult && (
+            <div className="mt-2.5 rounded-lg bg-background/80 p-2 text-xs border border-indigo-200/40 dark:border-indigo-900/40">
+              <p className="text-foreground font-medium">{item.attributionResult.details}</p>
+              {item.attributionResult.unpredicted_regressions &&
+                item.attributionResult.unpredicted_regressions.length > 0 && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      {t('manifestPrediction.unpredictedRegressions')}:{' '}
+                      {item.attributionResult.unpredicted_regressions.join(', ')}
+                    </span>
+                  </div>
+                )}
+            </div>
+          )}
+
+          {item.predictionManifest?.falsification_conditions &&
+            item.predictionManifest.falsification_conditions.length > 0 && (
+              <div className="mt-2 text-[11px] text-muted-foreground">
+                <span className="font-medium text-foreground/80">
+                  {t('manifestPrediction.falsificationConditions')}:{' '}
+                </span>
+                {item.predictionManifest.falsification_conditions.join('；')}
+              </div>
+            )}
         </div>
       )}
 

@@ -161,3 +161,6 @@ app/services/ops/snapshot_service.py
 app/services/plugins/import_service.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py
+app/services/skills/evolution_review/actions.py
+app/services/skills/evolution_review/disk.py
+app/services/skills/growth/queries.py
