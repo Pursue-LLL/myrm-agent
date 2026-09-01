@@ -42,6 +42,14 @@ _PUSH_TEMPLATES: dict[AppEventType, tuple[str, str]] = {
         "Goal {status}",
         "{objective}",
     ),
+    AppEventType.SESSION_COMPLETED: (
+        "Session Completed",
+        "{title}",
+    ),
+    AppEventType.SESSION_FAILED: (
+        "Session Failed",
+        "{title}",
+    ),
     AppEventType.CHANNEL_DISCONNECTED: (
         "Channel Disconnected",
         "Channel '{channel}' went offline",

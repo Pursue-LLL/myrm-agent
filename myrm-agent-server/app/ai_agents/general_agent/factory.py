@@ -489,7 +489,6 @@ async def build_general_agent(
     system_prompt = get_core_system_prompt(
         mode=agent_wrapper.prompt_mode,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
-        enable_memory=agent_wrapper.enable_memory and not agent_wrapper.incognito_mode,
         locale=effective_prompt_locale,
     )
 

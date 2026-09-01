@@ -36,6 +36,7 @@ interface MemoryCitationsButtonProps {
   references?: CitedMemoryReference[];
   sources?: Source[];
   degraded?: boolean;
+  citationAudit?: { totalMarkers: number; valid: number; unresolved: number };
 }
 
 const shortId = (id: string): string => (id.length > 8 ? `${id.slice(0, 8)}...` : id);
@@ -89,6 +90,7 @@ export default function MemoryCitationsButton({
   references,
   sources,
   degraded,
+  citationAudit,
 }: MemoryCitationsButtonProps) {
   const t = useTranslations('memoryCitations');
   const router = useRouter();
@@ -97,6 +99,7 @@ export default function MemoryCitationsButton({
   const citationRefs = useMemo(() => uniqueReferences(memoryIds, references), [memoryIds, references]);
   const messageSources = useMemo(() => sources ?? [], [sources]);
   const evidenceCount = citationRefs.length + messageSources.length;
+  const showUnresolvedBadge = (citationAudit?.unresolved ?? 0) > 0;
   const sharedContextIds = useMemo(
     () => citationRefs.map(sharedContextIdFromRef).filter((id): id is string => id !== null),
     [citationRefs],
@@ -158,6 +161,15 @@ export default function MemoryCitationsButton({
         >
           <IconBrain className="h-4 w-4" />
           <span className="text-xs font-semibold whitespace-nowrap">{t('button', { count: evidenceCount })}</span>
+          {showUnresolvedBadge && (
+            <Badge
+              variant="outline"
+              className="border-amber-500/40 bg-amber-100/80 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+              title={t('unresolvedCitationsTitle', { count: citationAudit?.unresolved ?? 0 })}
+            >
+              {t('unresolvedCitations', { count: citationAudit?.unresolved ?? 0 })}
+            </Badge>
+          )}
         </button>
       </SheetTrigger>
 

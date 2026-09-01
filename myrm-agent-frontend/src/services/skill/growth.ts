@@ -42,6 +42,32 @@ export interface VerificationProofDto {
   verified_at?: string;
 }
 
+export interface MetricPredictionDto {
+  metric_name: string;
+  direction: 'INCREASE' | 'DECREASE' | 'NEUTRAL';
+  baseline_value: number;
+  target_value: number;
+  rationale: string;
+}
+
+export interface PredictionManifestDto {
+  manifest_id: string;
+  change_id: string;
+  created_at: string;
+  predictions: MetricPredictionDto[];
+  falsification_conditions: string[];
+  verdict?: string | null;
+}
+
+export interface AttributionResultDto {
+  manifest_id: string;
+  verdict: 'CONFIRMED' | 'REFUTED' | 'REGRESSION' | 'INCONCLUSIVE';
+  attributed_at: string;
+  metric_deltas: Record<string, number>;
+  unpredicted_regressions: string[];
+  details: string;
+}
+
 interface SkillGrowthCaseSummaryApiItem {
   id: string;
   source: SkillGrowthSource;
@@ -70,6 +96,8 @@ interface SkillGrowthCaseSummaryApiItem {
   verification_proof?: VerificationProofDto | null;
   target_layer?: string | null;
   target_pathology?: string | null;
+  prediction_manifest?: PredictionManifestDto | null;
+  attribution_result?: AttributionResultDto | null;
 }
 
 interface SkillGrowthCaseDetailApiItem extends SkillGrowthCaseSummaryApiItem {
@@ -162,6 +190,8 @@ export interface SkillGrowthCaseSummary {
   verificationProof: VerificationProofDto | null;
   targetLayer?: string | null;
   targetPathology?: string | null;
+  predictionManifest?: PredictionManifestDto | null;
+  attributionResult?: AttributionResultDto | null;
 }
 
 export interface SkillGrowthCaseDetail extends SkillGrowthCaseSummary {
@@ -258,6 +288,8 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     verificationProof: item.verification_proof ?? null,
     targetLayer: item.target_layer ?? null,
     targetPathology: item.target_pathology ?? null,
+    predictionManifest: item.prediction_manifest ?? null,
+    attributionResult: item.attribution_result ?? null,
   };
 }
 

@@ -35,8 +35,6 @@ from app.ai_agents.prompts.shared_rules import (
     ABSOLUTE_OBEDIENCE_RULES_ZH,
     EXTERNAL_SOURCES_CITATION_RULES_EN,
     EXTERNAL_SOURCES_CITATION_RULES_ZH,
-    MEMORY_RULES_EN,
-    MEMORY_RULES_ZH,
     RESPONSE_RULES_EN,
     RESPONSE_RULES_ZH,
     SECURITY_RULES_EN,
@@ -157,7 +155,6 @@ def _build_prompt_map(
     identity: str,
     *,
     is_zh: bool,
-    include_memory_rules: bool = True,
 ) -> dict[PromptMode, str]:
     if is_zh:
         full_parts = [
@@ -167,12 +164,8 @@ def _build_prompt_map(
             SECURITY_RULES_ZH,
             TASK_INTEGRITY_RULES_ZH,
         ]
-        if include_memory_rules:
-            full_parts.append(MEMORY_RULES_ZH)
 
         lean_parts = [identity, SECURITY_RULES_ZH, TASK_INTEGRITY_RULES_ZH]
-        if include_memory_rules:
-            lean_parts.append(MEMORY_RULES_ZH)
 
         return {
             "full": "\n".join(full_parts),
@@ -188,12 +181,8 @@ def _build_prompt_map(
         SECURITY_RULES_EN,
         TASK_INTEGRITY_RULES_EN,
     ]
-    if include_memory_rules:
-        full_parts.append(MEMORY_RULES_EN)
 
     lean_parts = [identity, SECURITY_RULES_EN, TASK_INTEGRITY_RULES_EN]
-    if include_memory_rules:
-        lean_parts.append(MEMORY_RULES_EN)
 
     return {
         "full": "\n".join(full_parts),
@@ -203,20 +192,18 @@ def _build_prompt_map(
     }
 
 
-# 预构建 8 个静态 Map（is_zh × enable_answer_tool × enable_memory），
+# 预构建 4 个静态 Map（is_zh × enable_answer_tool），
 # 每个组合跨用户始终返回同一字符串对象以保证 KV Cache 稳定。
-_PROMPT_MAPS: dict[tuple[bool, bool, bool], dict[PromptMode, str]] = {
-    (False, True, True): _build_prompt_map(_build_identity_and_rules(True, False), is_zh=False, include_memory_rules=True),
-    (False, True, False): _build_prompt_map(_build_identity_and_rules(True, False), is_zh=False, include_memory_rules=False),
-    (False, False, True): _build_prompt_map(_build_identity_and_rules(False, False), is_zh=False, include_memory_rules=True),
-    (False, False, False): _build_prompt_map(_build_identity_and_rules(False, False), is_zh=False, include_memory_rules=False),
-    (True, True, True): _build_prompt_map(_build_identity_and_rules(True, True), is_zh=True, include_memory_rules=True),
-    (True, True, False): _build_prompt_map(_build_identity_and_rules(True, True), is_zh=True, include_memory_rules=False),
-    (True, False, True): _build_prompt_map(_build_identity_and_rules(False, True), is_zh=True, include_memory_rules=True),
-    (True, False, False): _build_prompt_map(_build_identity_and_rules(False, True), is_zh=True, include_memory_rules=False),
+# 记忆工具的使用规则已完全下沉收敛至 memory 工具自身（Self-contained），
+# 系统提示词保持纯净，不再耦合具体工具规则，杜绝状态组合膨胀。
+_PROMPT_MAPS: dict[tuple[bool, bool], dict[PromptMode, str]] = {
+    (False, True): _build_prompt_map(_build_identity_and_rules(True, False), is_zh=False),
+    (False, False): _build_prompt_map(_build_identity_and_rules(False, False), is_zh=False),
+    (True, True): _build_prompt_map(_build_identity_and_rules(True, True), is_zh=True),
+    (True, False): _build_prompt_map(_build_identity_and_rules(False, True), is_zh=True),
 }
 
-CORE_SYSTEM_PROMPT: str = _PROMPT_MAPS[(False, True, True)]["full"]
+CORE_SYSTEM_PROMPT: str = _PROMPT_MAPS[(False, True)]["full"]
 
 # =============================================================================
 # API 函数
@@ -227,7 +214,6 @@ def get_core_system_prompt(
     mode: PromptMode = "full",
     *,
     enable_answer_tool: bool = True,
-    enable_memory: bool = True,
     locale: str | None = None,
 ) -> str:
     """获取核心层 System Prompt (Layer 1)
@@ -235,11 +221,10 @@ def get_core_system_prompt(
     Args:
         mode: 提示词模式
             - full: 完整规则（默认），适合通用场景
-            - lean: 精简规则，保留身份+安全+任务完整性+记忆（条件）
+            - lean: 精简规则，保留身份+安全+任务完整性
             - naked: 裸调模式，仅安全规则+工具调用指引
             - search: 搜索模式，轻量搜索专用提示词
         enable_answer_tool: 是否包含 request_answer_user_tool 引导规则
-        enable_memory: 是否包含 MEMORY_RULES（memory 工具不可用时应为 False）
         locale: 语言区域代码，如 "zh-CN" / "en"（默认 "en" 英文）
 
     Returns:
@@ -247,8 +232,8 @@ def get_core_system_prompt(
     """
     zh = is_chinese(locale)
     prompt_map = _PROMPT_MAPS.get(
-        (zh, enable_answer_tool, enable_memory),
-        _PROMPT_MAPS[(False, True, True)],
+        (zh, enable_answer_tool),
+        _PROMPT_MAPS[(False, True)],
     )
     return prompt_map.get(mode, prompt_map["full"])
 

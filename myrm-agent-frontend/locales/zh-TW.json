@@ -8,7 +8,16 @@
     "searchPlaceholder": "搜尋專家或團隊...",
     "loading": "載入中...",
     "empty": "未找到相符的專家或團隊範本",
-    "summonButton": "召喚"
+    "summonButton": "召喚",
+    "councilResultTitle": "專家團會商決議",
+    "chairSynthesisTitle": "首席仲裁決議",
+    "consensusPoints": "共識結論",
+    "divergences": "分歧與辯論點",
+    "actionItems": "執行路線",
+    "expertOpinions": "各專家獨立分析與反駁",
+    "expandOpinions": "展開各專家詳盡觀點 ({count})",
+    "collapseOpinions": "收合專家觀點",
+    "roundLabel": "第 {round} 輪"
   },
   "recovery": {
     "title": "Agent 啟動與配置自愈中心",
@@ -2358,22 +2367,22 @@
       }
     },
     "deviceInspector": {
-      "title": "行動裝置實時檢視",
+      "title": "行動裝置即時視圖",
       "toggleTitle": "切換行動裝置檢查器",
       "viewMode": "檢視模式",
       "inspectMode": "檢查模式",
       "close": "關閉",
       "refresh": "重新整理",
-      "enabledHint": "Agent 連線行動裝置後，檢查器將在此開啟",
+      "enabledHint": "Agent 連接行動裝置後，檢查器將在此開啟",
       "resizePanel": "調整面板大小",
       "screenshotAlt": "行動裝置螢幕截圖",
       "waitingForDevice": "等待行動裝置活動...",
-      "waitingHint": "當 Agent 操作行動端真機或模擬器時，實時檢視將自動顯示",
-      "deviceDisconnected": "行動裝置已斷開連線，請檢查 ADB 或網路狀態",
+      "waitingHint": "當 Agent 操作行動端真機或模擬器時，即時視圖將自動顯示",
+      "deviceDisconnected": "行動裝置已中斷連線，請檢查 ADB 或網路狀態",
       "notificationRedaction": "頂部狀態列隱私脫敏",
       "redactionBadge": "隱私脫敏",
-      "notificationRedacted": "🔒 狀態列通知已脫敏遮蔽",
-      "notificationRedactedHint": "頂部系統通知列已自動模糊遮蔽，防止私密資訊與驗證碼洩露入 Prompt",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "頂部系統通知欄已自動模糊遮蔽，防止私密資訊與驗證碼洩漏入 Prompt",
       "instructionPlaceholder": "描述你想在行動裝置上做什麼...",
       "instructionWithElement": "Agent 應該對這個行動端元素做什麼？",
       "send": "傳送指令"
@@ -2675,7 +2684,10 @@
       "noSkills": "該智能體未啟用任何技能",
       "noMcp": "該智能體未啟用任何 MCP 服務",
       "usingAgentDefaults": "使用智能體默認能力",
-      "nextTurnOnly": "僅對下一條消息生效"
+      "nextTurnOnly": "僅對下一條消息生效",
+      "overrideSkillsShort": "技能 {skills} 項",
+      "overrideMcpShort": "MCP {mcps} 項",
+      "overrideRemove": "恢復默認"
     },
     "retry": "重試",
     "archiveRestore": {
@@ -2707,27 +2719,6 @@
         "inProgress": "進行中",
         "pending": "等待中"
       }
-    },
-    "deviceInspector": {
-      "title": "Mobile Device Live View",
-      "toggleTitle": "Toggle Device Inspector",
-      "viewMode": "View Mode",
-      "inspectMode": "Inspect Mode",
-      "close": "Close",
-      "refresh": "Refresh",
-      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
-      "resizePanel": "Resize panel",
-      "screenshotAlt": "Mobile device screenshot",
-      "waitingForDevice": "Waiting for mobile device activity...",
-      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
-      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
-      "notificationRedaction": "Status Bar Notification Redaction",
-      "redactionBadge": "Redaction",
-      "notificationRedacted": "🔒 Status bar notifications redacted",
-      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
-      "instructionPlaceholder": "Describe what you want to do on the device...",
-      "instructionWithElement": "What should the agent do with this mobile element?",
-      "send": "Send instruction"
     }
   },
   "mode": {
@@ -5048,6 +5039,8 @@
     "viewSourceChat": "檢視原始會話",
     "degradedNotice": "記憶檢索暫時不可用",
     "degradedNoticeTitle": "本次回覆未引用你的記憶，因為記憶檢索暫時不可用。",
+    "unresolvedCitations": "{count} 條無法解析",
+    "unresolvedCitationsTitle": "有 {count} 個行內引用編號與可用來源不匹配，請打開依據核對。",
     "types": {
       "semantic": "知識",
       "episodic": "事件",
@@ -10707,20 +10700,20 @@
       "bindFailed": "接納專案失敗",
       "currentPath": "工作區目錄絕對路徑",
       "folderGate": {
-        "title": "Trust this folder?",
-        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "title": "是否信任此資料夾？",
+        "description": "該資料夾可能包含會在本機執行的技能、規則與本地工具。關聯前請先選擇信任程度",
         "loading": "Scanning folder…",
-        "loadFailed": "Could not scan this folder. Try again or pick another path.",
-        "decideFailed": "Could not save your choice. Try again.",
-        "disclosureTitle": "What we found in this folder",
-        "skills": "Local skills",
-        "rules": "Workspace rules",
-        "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Repo-declared command shortcuts",
-        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
-        "cancel": "Cancel",
-        "restrict": "Link without trusting",
-        "trust": "Trust and link"
+        "loadFailed": "無法掃描該資料夾，請重試或選擇其他路徑",
+        "decideFailed": "無法儲存您的選擇，請重試",
+        "disclosureTitle": "在此資料夾中發現",
+        "skills": "本地技能",
+        "rules": "工作區規則",
+        "hasMyrmConfig": "包含 .myrm 專案設定",
+        "repoCommands": "儲存庫宣告的命令捷徑",
+        "restrictedHint": "若選擇「不信任並關聯」，該資料夾內的本地技能、規則與 MCP 服務將保持停用，可在設定中稍後改為信任",
+        "cancel": "取消",
+        "restrict": "不信任並關聯",
+        "trust": "信任並關聯"
       }
     }
   },
@@ -12760,29 +12753,29 @@
         "invoke_external_agent": "外部 CLI 智慧體"
       },
       "trustedFolders": {
-        "title": "Trusted Folders",
-        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
-        "totalEntries": "{count} folders",
-        "refresh": "Refresh",
+        "title": "受信任資料夾",
+        "description": "關聯專案工作區時您明確信任的資料夾。撤銷信任後，該資料夾內的本地技能、規則與 MCP 服務將被停用",
+        "totalEntries": "共 {count} 個資料夾",
+        "refresh": "重新整理",
         "loading": "Loading…",
-        "empty": "No trusted folders yet",
-        "loadError": "Failed to load trusted folders",
-        "revokeSuccess": "Trust revoked",
-        "revokeError": "Failed to revoke trust",
+        "empty": "暫無受信任資料夾",
+        "loadError": "載入失敗",
+        "revokeSuccess": "已撤銷信任",
+        "revokeError": "撤銷失敗",
         "level": {
-          "trusted": "Trusted",
-          "restricted": "Restricted",
-          "revoked": "Revoked"
+          "trusted": "已信任",
+          "restricted": "受限",
+          "revoked": "已撤銷"
         },
         "notice": {
-          "title": "How folder trust works",
-          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+          "title": "資料夾信任說明",
+          "description": "信任僅作用於儲存庫本地旁路能力。終端與檔案權限仍遵循您的安全策略"
         },
         "revokeConfirm": {
-          "title": "Revoke folder trust?",
-          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
-          "cancel": "Cancel",
-          "confirm": "Revoke trust"
+          "title": "撤銷資料夾信任？",
+          "description": "下次執行時將停用 {path} 中的本地技能、規則與 MCP 服務",
+          "cancel": "取消",
+          "confirm": "撤銷信任"
         }
       }
     },

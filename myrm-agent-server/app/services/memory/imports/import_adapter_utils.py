@@ -26,7 +26,9 @@ SUPPORTED_NATIVE_BUCKETS = {"profile", "semantic", "episodic", "procedural"}
 
 WARNING_NO_NATIVE_BUCKETS = "no_native_buckets"
 WARNING_MYRM_ARCHIVE_MEMORY_SECTION_MISSING = "myrm_archive_memory_section_missing"
-WARNING_MYRM_ARCHIVE_REVIEW_ONLY_SECTIONS = "myrm_archive_non_memory_sections_review_only"
+WARNING_MYRM_ARCHIVE_REVIEW_ONLY_SECTIONS = (
+    "myrm_archive_non_memory_sections_review_only"
+)
 WARNING_AGENTMEMORY_VERSION_UNSUPPORTED = "agentmemory_version_unsupported"
 WARNING_AGENTMEMORY_TOO_MANY_SESSIONS = "agentmemory_too_many_sessions"
 WARNING_AGENTMEMORY_TOO_MANY_MEMORIES = "agentmemory_too_many_memories"
@@ -66,12 +68,24 @@ def build_result(
     )
 
 
-def unsupported_result(source: MemoryImportSource, warning_code: str) -> MemoryImportDryRunResult:
+def unsupported_result(
+    source: MemoryImportSource, warning_code: str
+) -> MemoryImportDryRunResult:
     """Build a result for unsupported or unrecognized sources."""
 
     return MemoryImportDryRunResult(
-        summary=MemoryImportDryRunSummary(source=source, total_items=0, mapped_items=0, unmapped_items=0, status="missing"),
-        mappings=[MemoryImportMappingItem(source_bucket=source, status="unsupported", reason=warning_code)],
+        summary=MemoryImportDryRunSummary(
+            source=source,
+            total_items=0,
+            mapped_items=0,
+            unmapped_items=0,
+            status="missing",
+        ),
+        mappings=[
+            MemoryImportMappingItem(
+                source_bucket=source, status="unsupported", reason=warning_code
+            )
+        ],
         warnings=[warning_code],
     )
 
@@ -138,7 +152,9 @@ def iso_or_now(value: object) -> str:
     return datetime.now(UTC).isoformat()
 
 
-def build_metadata(source: str, item: dict[str, object], fields: tuple[str, ...]) -> dict[str, str | int | float | bool]:
+def build_metadata(
+    source: str, item: dict[str, object], fields: tuple[str, ...]
+) -> dict[str, str | int | float | bool]:
     """Build metadata dict from selected fields of an imported item."""
 
     metadata: dict[str, str | int | float | bool] = {"external_source": source}
@@ -147,7 +163,11 @@ def build_metadata(source: str, item: dict[str, object], fields: tuple[str, ...]
         if isinstance(value, str | int | float | bool):
             metadata[f"external_{field}"] = value
         elif isinstance(value, list):
-            metadata[f"external_{field}"] = ",".join(str(entry) for entry in value if isinstance(entry, str | int | float | bool))
+            metadata[f"external_{field}"] = ",".join(
+                str(entry)
+                for entry in value
+                if isinstance(entry, str | int | float | bool)
+            )
     return metadata
 
 
@@ -168,13 +188,17 @@ def to_memory_import_source(source: str) -> MemoryImportSource:
         "claude",
         "mem0",
         "chatgpt",
+        "windsurf",
+        "trae",
     }
     if source in _KNOWN:
         return source  # type: ignore[return-value]
     return "unknown"
 
 
-def _import_status(total_items: int, mapped_items: int, unmapped_items: int) -> MemoryReliabilityStatus:
+def _import_status(
+    total_items: int, mapped_items: int, unmapped_items: int
+) -> MemoryReliabilityStatus:
     if total_items == 0:
         return "missing"
     if mapped_items == total_items:

@@ -9,6 +9,7 @@ ChannelGateway.
 - app.services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType
 - core.channel_bridge::channel_gateway (ChannelGateway singleton)
 - database.connection::get_session / database.models::UserConfigModel
+- app.core.notifications.adaptive_cards::format_notification, format_legacy_text, FormattedNotification
 
 [OUTPUT]
 - NotificationDispatcher: start()/stop() lifecycle, integrates with setup.py
@@ -25,6 +26,12 @@ import logging
 from dataclasses import dataclass
 
 from app.channels.types import OutboundMessage
+from app.channels.types.components import ComponentRow, QuickReply
+from app.core.notifications.adaptive_cards import (
+    FormattedNotification,
+    format_legacy_text,
+    format_notification,
+)
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 logger = logging.getLogger(__name__)
@@ -38,37 +45,6 @@ class NotificationTarget:
 
     channel: str
     target: str
-
-
-_EVENT_TEMPLATES: dict[AppEventType, str] = {
-    AppEventType.PAIRING_PENDING: (
-        "[Myrm AI] New pairing request: {channel} / {sender_id}\nPlease go to Settings → Channels to approve or block."
-    ),
-    AppEventType.APPROVAL_REQUIRED: (
-        "[Myrm AI] Approval required: {action_type} (severity: {severity})\nPlease check the app to approve or reject."
-    ),
-    AppEventType.HEALTH_ALERT: ("[Myrm AI] Health alert ({component}): {message}"),
-    AppEventType.BUDGET_ALERT: ("[Myrm AI] Budget alert: {status} — {pct}% used (${today_cost} / ${daily_limit})"),
-    AppEventType.NEW_SKILL_DRAFT: ("[Myrm AI] New skill draft '{name}' ({draft_type}) needs your review."),
-    AppEventType.MESSAGE_DEAD_LETTERED: ("[Myrm AI] Message delivery failed on {channel}: {error_reason}"),
-    AppEventType.CHANNEL_DISCONNECTED: (
-        "[Myrm AI] Channel '{channel}' disconnected (status: {status}).\nPlease check Settings → Channels."
-    ),
-    AppEventType.WECHAT_SESSION_EXPIRED: ("[Myrm AI] WeChat session expired. Please re-login in Settings → Channels."),
-    AppEventType.CONFIG_HEALTH_WARNING: ("[Myrm AI] Configuration issue detected.\nMissing: {missing_items}"),
-    AppEventType.SYSTEM_NOTIFICATION: ("[Myrm AI] {title}: {message}"),
-    AppEventType.GOAL_TERMINAL: (
-        "[Myrm AI] Goal {status}: {objective}\n"
-        "{files_modified} files · {turns_used} turns · {execution_duration_s:.0f}s · {total_tokens:,} tokens · ${total_cost_usd:.2f}"
-    ),
-    AppEventType.SUBAGENT_STALE: (
-        "[Myrm AI] Subagent stalled: {agent_type} ({task_id})\nNo progress for {stale_duration_seconds:.0f}s · {wasted_tokens:,} tokens"
-    ),
-    AppEventType.GOAL_DEQUEUED: ("[Myrm AI] Next goal started: {objective}"),
-    AppEventType.OAUTH_REAUTH_REQUIRED: (
-        "[Myrm AI] {issuer} authorization expired ({reason}).\nPlease go to Settings → Integrations to reauthorize."
-    ),
-}
 
 
 class NotificationDispatcher:
@@ -117,11 +93,17 @@ class NotificationDispatcher:
                     continue
                 if event.data.get("suppress_im_notification") is True:
                     continue
-                text = _format_message(event)
-                if not text:
+                formatted = format_notification(event)
+                if not formatted:
                     continue
                 for target in targets:
-                    await _publish(target, text)
+                    await _publish(
+                        target,
+                        formatted.content,
+                        components=formatted.components,
+                        quick_replies=formatted.quick_replies,
+                        metadata=formatted.metadata if formatted.metadata else None,
+                    )
             except Exception as exc:
                 logger.warning("NotificationDispatcher: failed to send IM notification: %s", exc)
 
@@ -166,69 +148,19 @@ async def _load_notification_targets() -> list[NotificationTarget]:
         return []
 
 
-_KANBAN_TERMINAL_ACTIONS = frozenset(
-    {
-        "task_completed",
-        "task_blocked",
-        "task_failed",
-    }
-)
-_KANBAN_TERMINAL_STATUSES = frozenset(
-    {
-        "completed",
-        "blocked",
-        "failed",
-    }
-)
-
-
-def _format_kanban_event(data: dict[str, object]) -> str | None:
-    """Format a KANBAN_TASK_UPDATED event into IM notification text.
-
-    Only terminal actions (from dispatcher) or terminal move targets
-    (from KanbanService.move_task) produce notifications; high-frequency
-    lifecycle events (created, updated, deleted, etc.) are silently skipped.
-    """
-    action = str(data.get("action", ""))
-    status = str(data.get("status", ""))
-
-    if action == "moved":
-        if status not in _KANBAN_TERMINAL_STATUSES:
-            return None
-    elif action not in _KANBAN_TERMINAL_ACTIONS:
-        return None
-
-    title = str(data.get("title", data.get("task_id", "?")))
-    detail = str(data.get("detail", ""))
-    suffix = f"\n{detail[:200]}" if detail else ""
-
-    resolved_status = status or action.removeprefix("task_")
-    if resolved_status == "completed":
-        return f'[Myrm AI] Kanban task "{title}" completed{suffix}'
-    if resolved_status == "blocked":
-        return f'[Myrm AI] Kanban task "{title}" blocked{suffix}'
-    if resolved_status == "failed":
-        return f'[Myrm AI] Kanban task "{title}" failed{suffix}'
-    return None
-
-
 def _format_message(event: AppEvent) -> str | None:
-    """Format an AppEvent into a human-readable notification string."""
-    if event.event_type == AppEventType.KANBAN_TASK_UPDATED:
-        return _format_kanban_event(event.data)
-
-    template = _EVENT_TEMPLATES.get(event.event_type)
-    if not template:
-        return None
-    try:
-        return template.format(**event.data)
-    except (KeyError, ValueError) as exc:
-        logger.warning("Failed to format notification for %s: %s", event.event_type, exc)
-        return None
+    """Format an AppEvent into a human-readable notification string (legacy helper)."""
+    return format_legacy_text(event)
 
 
-async def _publish(target: NotificationTarget, text: str) -> None:
-    """Send the notification through the ChannelGateway."""
+async def _publish(
+    target: NotificationTarget,
+    text: str,
+    components: tuple[ComponentRow, ...] = (),
+    quick_replies: tuple[QuickReply, ...] = (),
+    metadata: dict[str, object] | None = None,
+) -> None:
+    """Send a notification through the ChannelGateway with optional components and metadata."""
     from app.core.channel_bridge import channel_gateway
 
     msg = OutboundMessage(
@@ -236,6 +168,20 @@ async def _publish(target: NotificationTarget, text: str) -> None:
         recipient_id=target.target,
         content=text,
         user_id=_USER_ID,
+        components=components,
+        quick_replies=quick_replies,
+        metadata=metadata,
     )
     await channel_gateway.publish(msg)
     logger.info("IM notification sent to %s/%s", target.channel, target.target)
+
+
+async def _publish_formatted(target: NotificationTarget, notif: FormattedNotification) -> None:
+    """Send a structured FormattedNotification through the ChannelGateway."""
+    await _publish(
+        target,
+        notif.content,
+        components=notif.components,
+        quick_replies=notif.quick_replies,
+        metadata=notif.metadata if notif.metadata else None,
+    )

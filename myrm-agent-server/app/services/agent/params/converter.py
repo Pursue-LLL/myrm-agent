@@ -137,14 +137,15 @@ async def convert_to_general_agent_params(
     request: AgentRequest,
     chat_history: list[list[str | dict[str, object]]],
     http_request: Request | None = None,
-) -> tuple[GeneralAgentParams, str | None, list[str], list[dict[str, object]]]:
+) -> tuple[GeneralAgentParams, str | None, str | None, list[str], list[dict[str, object]]]:
     """将 Agent API 请求转换为 General Agent 参数。
 
     从 DB 读取用户配置（已解密），解析 API Key 和检索模型配置。
     chat_history 由调用方从 DB 加载后传入。
 
     Returns:
-        Tuple of (GeneralAgentParams, routing_tier or None, context_reference_warnings, archive_restore_results)
+        Tuple of (GeneralAgentParams, routing_tier or None, routing_specialty or None,
+        context_reference_warnings, archive_restore_results)
     """
 
     from app.core.channel_bridge.config_loader import load_user_configs

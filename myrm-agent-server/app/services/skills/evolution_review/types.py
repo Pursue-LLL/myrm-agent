@@ -84,6 +84,8 @@ class EvolutionApprovalPayload(BaseModel):
     remediation: str | None = "Review the diff and approve or reject the proposal."
     runtime_failure: RuntimeFailureEvidence | None = None
     eval_cases: list[dict[str, object]] = Field(default_factory=list)
+    change_manifest: dict[str, object] | None = None
+    attribution_result: dict[str, object] | None = None
 
 
 @dataclass(slots=True)
@@ -111,6 +113,8 @@ class EvolutionReviewRecord:
     task_context: str | None
     created_at: datetime
     resolved_at: datetime | None
+    change_manifest: dict[str, object] | None = None
+    attribution_result: dict[str, object] | None = None
 
 
 class EvolutionApplyError(RuntimeError):
@@ -168,6 +172,8 @@ def approval_to_evolution_review_record(
         task_context=payload.task_context,
         created_at=record.created_at,
         resolved_at=record.resolved_at,
+        change_manifest=payload.change_manifest,
+        attribution_result=payload.attribution_result,
     )
 
 

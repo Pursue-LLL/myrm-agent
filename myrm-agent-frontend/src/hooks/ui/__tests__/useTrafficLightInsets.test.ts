@@ -7,7 +7,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useTrafficLightInsets } from '../useTrafficLightInsets';
-import { desktopBridge } from '@/lib/desktopBridge';
+import { desktopBridge } from '@/lib/desktop-bridge';
+
+function mockControls(overrides: Partial<{
+  platform: string;
+  isDesktop: boolean;
+  controlsInsetTop: number;
+  controlsInsetLeft: number;
+}> = {}) {
+  vi.spyOn(desktopBridge, 'getWindowControlsState').mockReturnValue({
+    platform: 'web',
+    isDesktop: false,
+    controlsInsetTop: 0,
+    controlsInsetLeft: 0,
+    ...overrides,
+  });
+}
 
 describe('useTrafficLightInsets', () => {
   beforeEach(() => {
@@ -19,8 +34,7 @@ describe('useTrafficLightInsets', () => {
   });
 
   it('returns zero insets when in non-desktop web environment', () => {
-    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(false);
-    vi.spyOn(desktopBridge, 'isMacOS').mockReturnValue(true);
+    mockControls({ platform: 'web', isDesktop: false });
 
     const { result } = renderHook(() => useTrafficLightInsets());
 
@@ -30,8 +44,7 @@ describe('useTrafficLightInsets', () => {
   });
 
   it('returns zero insets when in Windows/Linux desktop environment', () => {
-    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(true);
-    vi.spyOn(desktopBridge, 'isMacOS').mockReturnValue(false);
+    mockControls({ platform: 'windows', isDesktop: true });
 
     const { result } = renderHook(() => useTrafficLightInsets());
 
@@ -41,8 +54,7 @@ describe('useTrafficLightInsets', () => {
   });
 
   it('returns positive insets and sets CSS variables in macOS desktop environment', () => {
-    vi.spyOn(desktopBridge, 'isDesktop').mockReturnValue(true);
-    vi.spyOn(desktopBridge, 'isMacOS').mockReturnValue(true);
+    mockControls({ platform: 'macos', isDesktop: true, controlsInsetTop: 28, controlsInsetLeft: 78 });
 
     const { result } = renderHook(() => useTrafficLightInsets());
 

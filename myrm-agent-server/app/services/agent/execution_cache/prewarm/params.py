@@ -36,7 +36,7 @@ async def resolve_prewarm_agent_params(
         action_mode=action_mode,
         incognito_mode=incognito_mode,
     )
-    params, _routing, _warnings, _archive = await convert_to_general_agent_params(
+    params, _routing, _routing_specialty, _warnings, _archive = await convert_to_general_agent_params(
         request,
         [],
         http_request=None,

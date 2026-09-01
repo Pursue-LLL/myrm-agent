@@ -2339,24 +2339,24 @@
       }
     },
     "deviceInspector": {
-      "title": "モバイル端末ライブビュー",
-      "toggleTitle": "モバイル端末インスペクタを切り替え",
+      "title": "モバイルデバイスのライブビュー",
+      "toggleTitle": "デバイスインスペクターを切り替え",
       "viewMode": "表示モード",
       "inspectMode": "検査モード",
       "close": "閉じる",
       "refresh": "更新",
-      "enabledHint": "Agent がモバイル端末に接続するとインスペクタがここに表示されます",
-      "resizePanel": "パネルサイズを調整",
-      "screenshotAlt": "モバイル端末スクリーンショット",
-      "waitingForDevice": "モバイル端末のアクティビティを待機中…",
-      "waitingHint": "Agent がモバイル実機またはエミュレータを操作するとライブビューが自動表示されます",
-      "deviceDisconnected": "モバイル端末が切断されました。ADB またはネットワーク接続を確認してください",
-      "notificationRedaction": "上部ステータスバーのプライバシーマスキング",
-      "redactionBadge": "マスキング",
-      "notificationRedacted": "🔒 ステータスバー通知はマスキング済み",
-      "notificationRedactedHint": "上部通知バーは個人情報や認証コードの混入を防ぐため自動マスキングされます",
-      "instructionPlaceholder": "モバイル端末で実行したい操作を入力…",
-      "instructionWithElement": "この要素に対して Agent は何をすべきですか？",
+      "enabledHint": "Agent がモバイルデバイスに接続すると、インスペクターがここに開きます",
+      "resizePanel": "パネルサイズを変更",
+      "screenshotAlt": "モバイルデバイスのスクリーンショット",
+      "waitingForDevice": "モバイルデバイスのアクティビティを待機中...",
+      "waitingHint": "Agent がモバイル実機またはエミュレータを操作すると、ライブビューが表示されます",
+      "deviceDisconnected": "モバイルデバイスが切断されました。ADB またはネットワーク接続を確認してください",
+      "notificationRedaction": "ステータスバーのプライバシー遮蔽",
+      "redactionBadge": "プライバシー遮蔽",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "上部のシステム通知バーは自動的にぼかし遮蔽され、個人情報や認証コードがプロンプトに漏れるのを防ぎます",
+      "instructionPlaceholder": "モバイルデバイスで何をしたいかを記述してください...",
+      "instructionWithElement": "Agent はこのモバイル要素をどうしますか？",
       "send": "指示を送信"
     },
     "clarification": {
@@ -2684,7 +2684,10 @@
       "noSkills": "このエージェントで有効なスキルはありません",
       "noMcp": "このエージェントで有効なMCPサーバーはありません",
       "usingAgentDefaults": "エージェントのデフォルトを使用",
-      "nextTurnOnly": "次のメッセージのみに適用"
+      "nextTurnOnly": "次のメッセージのみに適用",
+      "overrideSkillsShort": "スキル {skills} 件",
+      "overrideMcpShort": "MCP {mcps} 件",
+      "overrideRemove": "リセット"
     },
     "retry": "再試行",
     "archiveRestore": {
@@ -2696,28 +2699,7 @@
     "routingStandardTooltip": "標準のメインモデルで日常タスクを処理",
     "routingReasoningTooltip": "複雑な論理または推論タスクを検出し、高精度な深層推論モデルを自動割り当て",
     "routingCodeTooltip": "コーディング、リファクタリング、デバッグタスクを検出し、コード専門モデルにルーティング",
-    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング",
-    "deviceInspector": {
-      "title": "Mobile Device Live View",
-      "toggleTitle": "Toggle Device Inspector",
-      "viewMode": "View Mode",
-      "inspectMode": "Inspect Mode",
-      "close": "Close",
-      "refresh": "Refresh",
-      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
-      "resizePanel": "Resize panel",
-      "screenshotAlt": "Mobile device screenshot",
-      "waitingForDevice": "Waiting for mobile device activity...",
-      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
-      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
-      "notificationRedaction": "Status Bar Notification Redaction",
-      "redactionBadge": "Redaction",
-      "notificationRedacted": "🔒 Status bar notifications redacted",
-      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
-      "instructionPlaceholder": "Describe what you want to do on the device...",
-      "instructionWithElement": "What should the agent do with this mobile element?",
-      "send": "Send instruction"
-    }
+    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング"
   },
   "mode": {
     "fast": "高速検索",
@@ -5037,6 +5019,8 @@
     "viewSourceChat": "元の会話で確認",
     "degradedNotice": "記憶検索が一時的に利用できません",
     "degradedNoticeTitle": "記憶検索が一時的に利用できないため、この返信は記憶を参照していません。",
+    "unresolvedCitations": "未解決 {count} 件",
+    "unresolvedCitationsTitle": "行内引用番号 {count} 件が利用可能なソースと一致しません。Evidence で確認してください。",
     "types": {
       "semantic": "知識",
       "episodic": "イベント",
@@ -10696,20 +10680,20 @@
       "bindFailed": "プロジェクトの導入に失敗しました",
       "currentPath": "ワークスペースの絶対パス",
       "folderGate": {
-        "title": "Trust this folder?",
-        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "title": "このフォルダを信頼しますか？",
+        "description": "このフォルダには、本機で実行されるスキル・ルール・ローカルツールが含まれる可能性があります。関連付けの前に信頼度を選択してください",
         "loading": "Scanning folder…",
-        "loadFailed": "Could not scan this folder. Try again or pick another path.",
-        "decideFailed": "Could not save your choice. Try again.",
-        "disclosureTitle": "What we found in this folder",
-        "skills": "Local skills",
-        "rules": "Workspace rules",
-        "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Repo-declared command shortcuts",
-        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
-        "cancel": "Cancel",
-        "restrict": "Link without trusting",
-        "trust": "Trust and link"
+        "loadFailed": "フォルダをスキャンできませんでした。再試行するか別のパスを選択してください",
+        "decideFailed": "選択を保存できませんでした。もう一度お試しください",
+        "disclosureTitle": "このフォルダで検出",
+        "skills": "ローカルスキル",
+        "rules": "ワークスペースルール",
+        "hasMyrmConfig": ".myrm プロジェクト設定を含む",
+        "repoCommands": "リポジトリ宣言のコマンドショートカット",
+        "restrictedHint": "「信頼せずに関連付け」を選ぶと、このフォルダ内のローカルスキル・ルール・MCP サービスは無効のままになり、設定で後から信頼に変更できます",
+        "cancel": "キャンセル",
+        "restrict": "信頼せずに関連付け",
+        "trust": "信頼して関連付け"
       }
     }
   },
@@ -12749,29 +12733,29 @@
         "invoke_external_agent": "外部 CLI エージェント"
       },
       "trustedFolders": {
-        "title": "Trusted Folders",
-        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
-        "totalEntries": "{count} folders",
-        "refresh": "Refresh",
+        "title": "信頼済みフォルダ",
+        "description": "プロジェクトワークスペースの関連付け時に明示的に信頼したフォルダです。信頼を取り消すと、フォルダ内のローカルスキル・ルール・MCP サービスが無効になります",
+        "totalEntries": "全 {count} フォルダ",
+        "refresh": "更新",
         "loading": "Loading…",
-        "empty": "No trusted folders yet",
-        "loadError": "Failed to load trusted folders",
-        "revokeSuccess": "Trust revoked",
-        "revokeError": "Failed to revoke trust",
+        "empty": "信頼済みフォルダはありません",
+        "loadError": "読み込み失敗",
+        "revokeSuccess": "信頼を取り消しました",
+        "revokeError": "取り消しに失敗しました",
         "level": {
-          "trusted": "Trusted",
-          "restricted": "Restricted",
-          "revoked": "Revoked"
+          "trusted": "信頼済み",
+          "restricted": "制限付き",
+          "revoked": "取り消し済み"
         },
         "notice": {
-          "title": "How folder trust works",
-          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+          "title": "フォルダ信頼の説明",
+          "description": "信頼はリポジトリローカルのバイパス能力にのみ適用されます。ターミナルとファイル権限は引き続きあなたのセキュリティポリシーに従います"
         },
         "revokeConfirm": {
-          "title": "Revoke folder trust?",
-          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
-          "cancel": "Cancel",
-          "confirm": "Revoke trust"
+          "title": "フォルダの信頼を取り消しますか？",
+          "description": "次回実行時に {path} 内のローカルスキル・ルール・MCP サービスが無効になります",
+          "cancel": "キャンセル",
+          "confirm": "信頼を取り消す"
         }
       }
     },
@@ -17816,6 +17800,15 @@
     "searchPlaceholder": "専門家またはチームを検索...",
     "loading": "読み込み中...",
     "empty": "一致する専門家またはチームのテンプレートが見つかりません",
-    "summonButton": "召喚"
+    "summonButton": "召喚",
+    "councilResultTitle": "専門家チーム会議の決議",
+    "chairSynthesisTitle": "議長裁定の決議",
+    "consensusPoints": "合意事項",
+    "divergences": "相違点と論点",
+    "actionItems": "実行計画",
+    "expertOpinions": "各専門家の個別分析と反論",
+    "expandOpinions": "各専門家の詳細な見解を展開 ({count})",
+    "collapseOpinions": "専門家の見解を折りたたむ",
+    "roundLabel": "第 {round} ラウンド"
   }
 }

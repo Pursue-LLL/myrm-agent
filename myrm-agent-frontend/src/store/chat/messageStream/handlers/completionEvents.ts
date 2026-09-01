@@ -5,6 +5,7 @@
 
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
+import { auditCitationMarkers, resolveSourceCountForAudit } from '@/lib/citations/auditCitationMarkers';
 import * as H from './handlerDeps';
 
 export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -155,6 +156,15 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
 
           if (typeof data.wiki_source_count === 'number') {
             state.messages[messageIndex].wikiSourceCount = data.wiki_source_count;
+          }
+
+          const sources = state.messages[messageIndex].sources;
+          const sourceCount = sources ? resolveSourceCountForAudit(sources) : 0;
+          if (sourceCount > 0 && recievedMessage) {
+            const audit = auditCitationMarkers(recievedMessage, sourceCount);
+            if (audit) {
+              state.messages[messageIndex].citationAudit = audit;
+            }
           }
         }
 

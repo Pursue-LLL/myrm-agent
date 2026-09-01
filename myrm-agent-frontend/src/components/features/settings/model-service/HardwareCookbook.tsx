@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/primitives/card';
+import { calculateKvCacheVramGb } from '@/lib/utils/hardwareSimulator';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Progress } from '@/components/primitives/progress';

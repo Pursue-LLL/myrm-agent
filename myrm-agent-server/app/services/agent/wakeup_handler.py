@@ -133,7 +133,7 @@ class ServerWakeupHandler:
                         row.append(item)
                 normalized_history.append(row)
 
-            params, _routing_tier, _, _archive_restore_results = await convert_to_general_agent_params(
+            params, _routing_tier, _, _, _archive_restore_results = await convert_to_general_agent_params(
                 request, normalized_history
             )
 

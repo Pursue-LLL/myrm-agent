@@ -16,7 +16,8 @@ file mutation failures (`fileMutationFailures`), workspace merge failures (`work
 reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
 per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
 with stored_chars/total_lines/storage_truncated metrics for each),
-and deduplicated model-failover progress steps (`model_failover*`) from STATUS + SSE channels.
+and deduplicated model-failover progress steps (`model_failover*`) from STATUS + SSE channels,
+and `citationAudit` when inline 【N】 markers are present alongside collected sources.
 
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata.
@@ -28,6 +29,10 @@ import asyncio
 import json
 import logging
 
+from myrm_agent_harness.agent.streaming.citation_audit import (
+    audit_citation_markers,
+    resolve_source_count_for_audit,
+)
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     scrub_sensitive_info,
 )
@@ -43,6 +48,8 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_workspace_merge_failures,
     deep_merge_ui_data,
     is_memory_citation_tool,
+    merge_sources_list,
+    source_dedup_key,
     string_keyed_dict,
     string_keyed_dicts,
 )
@@ -504,15 +511,12 @@ class StreamContentCollector:
         merged_sources_dict: dict[str, dict[str, object]] = {}
         ordered_sources: list[dict[str, object]] = []
         for source in self._sources:
-            url = source.get("url")
-            if isinstance(url, str):
-                if url not in merged_sources_dict:
-                    merged_sources_dict[url] = source.copy()
-                    ordered_sources.append(merged_sources_dict[url])
-                else:
-                    merged_sources_dict[url].update(source)
+            key = source_dedup_key(source)
+            if key not in merged_sources_dict:
+                merged_sources_dict[key] = source.copy()
+                ordered_sources.append(merged_sources_dict[key])
             else:
-                ordered_sources.append(source)
+                merged_sources_dict[key].update(source)
 
         return {
             "content": "".join(self._content_parts),
@@ -624,7 +628,9 @@ class StreamContentCollector:
         elif event_type == "reasoning" and data:
             self._append_reasoning(str(data))
         elif event_type == "sources" and isinstance(data, list):
-            self._sources.extend(string_keyed_dicts(data))
+            incoming = string_keyed_dicts(data)
+            if incoming:
+                self._sources = merge_sources_list(self._sources, incoming)
         elif event_type == "file_mutation_failed":
             collect_file_mutation_failures(self._file_mutation_failures, data)
         elif event_type == "workspace_merge_failed":
@@ -947,6 +953,16 @@ class StreamContentCollector:
         result: dict[str, object] = {}
         if self._sources:
             result["sources"] = self._sources
+            content = self.content
+            if content:
+                source_count = resolve_source_count_for_audit(self._sources)
+                audit = audit_citation_markers(content, source_count)
+                if audit.total_markers > 0:
+                    result["citationAudit"] = {
+                        "totalMarkers": audit.total_markers,
+                        "valid": audit.valid,
+                        "unresolved": audit.unresolved,
+                    }
         if self._stop_reason:
             result["stopReason"] = self._stop_reason
         if self._progress_steps:

@@ -16,7 +16,6 @@ import type {
   ArtifactContentStreamEvent,
   ArtifactFocusStreamEvent,
   ArtifactsStreamEvent,
-  CitationMapStreamEvent,
   ClarificationRequiredStreamEvent,
   CorrectionLearnedStreamEvent,
   CapabilityGapStreamEvent,
@@ -111,7 +110,6 @@ export type AgentStreamEvent =
   | ArtifactFocusStreamEvent
   | RiskBlockedStreamEvent
   | SessionRecordingStreamEvent
-  | CitationMapStreamEvent
   | CouncilPhaseStreamEvent
   | CorrectionLearnedStreamEvent
   | CapabilityGapStreamEvent

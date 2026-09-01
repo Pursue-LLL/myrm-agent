@@ -24,6 +24,9 @@ function formatTokens(count: number): string {
   return String(count);
 }
 
+const EMPTY_AGENTS: AgentListItem[] = [];
+const EMPTY_AGENT_STATS: Record<string, AgentFleetStats> = {};
+
 function formatCost(usd: number): string {
   if (usd >= 100) {
     return `$${usd.toFixed(0)}`;
@@ -48,9 +51,9 @@ export default function AgentsPage() {
     revalidateOnFocus: true,
   });
 
-  const agents = response?.items || [];
+  const agents = response?.items || EMPTY_AGENTS;
   const kpi = fleetData?.kpi;
-  const agentStatsMap = fleetData?.agents || {};
+  const agentStatsMap = fleetData?.agents || EMPTY_AGENT_STATS;
 
   const sortedAgents = useMemo(() => {
     if (!agents.length) {

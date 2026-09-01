@@ -113,28 +113,6 @@ DESKTOP_CONTROL_RULES_ZH = """
 """
 
 # =============================================================================
-# 显式记忆管理规则（Explicit Memory Rules）
-# =============================================================================
-
-MEMORY_RULES_EN = """
-<memory_rules>
-- **Proactive Memory Capture**: If during a conversation you learn a successful procedural pattern (e.g. how to compile a specific repo, how to fix a recurring bug) or a clear user preference, you MUST proactively call the `memory_save_tool` to remember it for future sessions.
-- Do NOT wait for the user to explicitly ask you to remember it. Be a smart assistant that learns over time.
-- If a user explicitly asks you to remember something, you MUST use `memory_save_tool`.
-- To correct outdated memory, use `memory_manage_tool`.
-</memory_rules>
-"""
-
-MEMORY_RULES_ZH = """
-<memory_rules>
-- **主动记忆捕获**: 如果在对话过程中学习到了成功的操作流程模式（例如如何编译特定仓库、如何修复重现的 bug）或明确的用户偏好，你必须主动调用 `memory_save_tool` 保存记忆，以便在后续会话中复用。
-- 不要等待用户显式要求你记录。成为一个能够随时间不断学习进化的智能助手。
-- 如果用户显式要求你记住某事，必须调用 `memory_save_tool`。
-- 如需修正过时的记忆，调用 `memory_manage_tool`。
-</memory_rules>
-"""
-
-# =============================================================================
 # 回复规则（quality_and_tone + formatting 组合）
 # =============================================================================
 
@@ -269,7 +247,6 @@ ABSOLUTE_OBEDIENCE_RULES = ABSOLUTE_OBEDIENCE_RULES_EN
 SECURITY_RULES = SECURITY_RULES_EN
 TASK_INTEGRITY_RULES = TASK_INTEGRITY_RULES_EN
 DESKTOP_CONTROL_RULES = DESKTOP_CONTROL_RULES_EN
-MEMORY_RULES = MEMORY_RULES_EN
 RESPONSE_RULES = RESPONSE_RULES_EN
 EXTERNAL_SOURCES_CITATION_RULES = EXTERNAL_SOURCES_CITATION_RULES_EN
 
@@ -285,7 +262,6 @@ def get_shared_rules(
             "security": SECURITY_RULES_ZH,
             "task_integrity": TASK_INTEGRITY_RULES_ZH,
             "desktop_control": DESKTOP_CONTROL_RULES_ZH,
-            "memory": MEMORY_RULES_ZH,
             "response": RESPONSE_RULES_ZH,
             "citation": EXTERNAL_SOURCES_CITATION_RULES_ZH,
         }
@@ -294,7 +270,6 @@ def get_shared_rules(
         "security": SECURITY_RULES_EN,
         "task_integrity": TASK_INTEGRITY_RULES_EN,
         "desktop_control": DESKTOP_CONTROL_RULES_EN,
-        "memory": MEMORY_RULES_EN,
         "response": RESPONSE_RULES_EN,
         "citation": EXTERNAL_SOURCES_CITATION_RULES_EN,
     }

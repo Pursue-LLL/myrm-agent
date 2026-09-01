@@ -42,15 +42,26 @@ def test_batch_resolve_safe_items_succeeds(client: TestClient):
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        new=AsyncMock(side_effect=lambda approval_id: rec1 if approval_id == "appr-safe-1" else rec2),
+        new=AsyncMock(
+            side_effect=lambda approval_id: (
+                rec1 if approval_id == "appr-safe-1" else rec2
+            )
+        ),
     ), patch.object(
         ApprovalRegistry,
         "resolve_approval",
-        new=AsyncMock(side_effect=lambda approval_id, decision, edited_payload=None: rec1 if approval_id == "appr-safe-1" else rec2),
+        new=AsyncMock(
+            side_effect=lambda approval_id, decision, edited_payload=None: (
+                rec1 if approval_id == "appr-safe-1" else rec2
+            )
+        ),
     ):
         response = client.post(
             "/approvals/batch-resolve",
-            json={"approval_ids": ["appr-safe-1", "appr-safe-2"], "decision": "approve"},
+            json={
+                "approval_ids": ["appr-safe-1", "appr-safe-2"],
+                "decision": "approve",
+            },
         )
         assert response.status_code == 200
         data = response.json()
@@ -80,11 +91,18 @@ def test_batch_resolve_high_risk_blocked_with_409(client):
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        new=AsyncMock(side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high),
+        new=AsyncMock(
+            side_effect=lambda approval_id: (
+                rec_safe if approval_id == "appr-safe-1" else rec_high
+            )
+        ),
     ):
         response = client.post(
             "/approvals/batch-resolve",
-            json={"approval_ids": ["appr-safe-1", "appr-high-1"], "decision": "approve"},
+            json={
+                "approval_ids": ["appr-safe-1", "appr-high-1"],
+                "decision": "approve",
+            },
         )
         assert response.status_code == 409
         data = response.json()
@@ -151,7 +169,11 @@ def test_batch_resolve_safe_only_mode(client):
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        new=AsyncMock(side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high),
+        new=AsyncMock(
+            side_effect=lambda approval_id: (
+                rec_safe if approval_id == "appr-safe-1" else rec_high
+            )
+        ),
     ), patch.object(
         ApprovalRegistry,
         "resolve_approval",
@@ -168,3 +190,34 @@ def test_batch_resolve_safe_only_mode(client):
         assert response.status_code == 200
         data = response.json()
         assert len(data["approvals"]) == 1
+
+
+def test_batch_resolve_safe_only_all_high_risk_blocks_with_409(client):
+    rec_high = ApprovalRecord(
+        id="appr-high-only",
+        agent_id="agent1",
+        action_type="delete_file",
+        status="PENDING",
+        severity="high",
+        reason="Delete critical data",
+        payload={"tool_name": "rm"},
+    )
+
+    with patch.object(
+        ApprovalRegistry,
+        "get_approval",
+        new=AsyncMock(return_value=rec_high),
+    ):
+        response = client.post(
+            "/approvals/batch-resolve",
+            json={
+                "approval_ids": ["appr-high-only"],
+                "decision": "approve",
+                "safe_only": True,
+            },
+        )
+        assert response.status_code == 409
+        data = response.json()
+        assert data["detail"]["error"] == "NO_SAFE_ITEMS_TO_APPROVE"
+        assert data["detail"]["safe_count"] == 0
+        assert data["detail"]["high_risk_count"] == 1

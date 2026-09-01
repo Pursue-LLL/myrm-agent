@@ -230,7 +230,7 @@ async def test_build_agent_params_writes_temperature_to_model_kwargs() -> None:
             base_url="http://test",
             model_kwargs={"max_tokens": 1024},
         )
-        mock_convert.return_value = (params, None, [], [])
+        mock_convert.return_value = (params, None, None, [], [])
         result = await _build_agent_params(request)
 
     assert result.model_cfg.temperature == 0.2
@@ -263,7 +263,7 @@ async def test_build_agent_params_keeps_existing_kwargs_without_temperature() ->
             model_kwargs={"max_tokens": 1024},
         )
         params.model_cfg = original_cfg
-        mock_convert.return_value = (params, None, [], [])
+        mock_convert.return_value = (params, None, None, [], [])
         result = await _build_agent_params(request)
 
     assert result.model_cfg is original_cfg

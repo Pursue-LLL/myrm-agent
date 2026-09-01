@@ -1486,7 +1486,11 @@
       "desktop": "桌面",
       "artifacts": "交付物",
       "advisorAsk": "问顾问",
-      "advisorOpen": "旁路问答"
+      "advisorOpen": "旁路问答",
+      "pushEnableBanner": "开启推送，离线时及时获取任务完成与审批提醒",
+      "pushEnableButton": "开启通知",
+      "pushDismiss": "忽略",
+      "pushEnabled": "推送已开启"
     }
   },
   "common": {
@@ -2556,7 +2560,10 @@
       "noSkills": "该智能体未启用任何技能",
       "noMcp": "该智能体未启用任何 MCP 服务",
       "usingAgentDefaults": "使用智能体默认能力",
-      "nextTurnOnly": "仅对下一条消息生效"
+      "nextTurnOnly": "仅对下一条消息生效",
+      "overrideSkillsShort": "技能 {skills} 项",
+      "overrideMcpShort": "MCP {mcps} 项",
+      "overrideRemove": "恢复默认"
     },
     "samplePrompts": {
       "fast_0": "最新的 AI 监管政策有哪些？",
@@ -5016,6 +5023,8 @@
     "viewSourceChat": "查看原始会话",
     "degradedNotice": "记忆检索暂时不可用",
     "degradedNoticeTitle": "本次回复未引用你的记忆，因为记忆检索暂时不可用。",
+    "unresolvedCitations": "{count} 条无法解析",
+    "unresolvedCitationsTitle": "有 {count} 个行内引用编号与可用来源不匹配，请打开依据核对。",
     "types": {
       "semantic": "知识",
       "episodic": "事件",
@@ -15002,6 +15011,26 @@
           "count": "失败次数：{value}",
           "confidence": "归因置信度 {value}%",
           "loopKind": "循环类型：{value}"
+        },
+        "manifestPrediction": {
+          "title": "可证伪变更预测与归因",
+          "baseline": "基线",
+          "target": "目标",
+          "predictedDirection": {
+            "INCREASE": "预期提升",
+            "DECREASE": "预期降低",
+            "NEUTRAL": "预期保持"
+          },
+          "falsificationConditions": "证伪条件",
+          "attributionVerdict": "归因结论",
+          "verdictBadge": {
+            "CONFIRMED": "预期达成",
+            "REFUTED": "未达预期",
+            "REGRESSION": "发生退化",
+            "INCONCLUSIVE": "证据不足"
+          },
+          "metricDeltas": "实测指标变化",
+          "unpredictedRegressions": "未预期退化警告"
         },
         "empty": {
           "title": "当前视图暂无案例",

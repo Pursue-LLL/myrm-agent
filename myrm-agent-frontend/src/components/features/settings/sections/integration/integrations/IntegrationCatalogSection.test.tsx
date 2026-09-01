@@ -5,9 +5,24 @@ import IntegrationCatalogSection from './IntegrationCatalogSection';
 import type { CatalogEntry, CatalogResponse } from './catalog-types';
 
 const mockApiRequest = vi.hoisted(() => vi.fn());
+const mockListAgents = vi.hoisted(() => vi.fn());
+const mockListWebhooks = vi.hoisted(() => vi.fn());
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
+  useLocale: () => 'en',
+}));
+
+vi.mock('@/services/agent', () => ({
+  listAgents: (...args: unknown[]) => mockListAgents(...args),
+}));
+
+vi.mock('@/services/lifecycleWebhook', () => ({
+  listLifecycleWebhooks: (...args: unknown[]) => mockListWebhooks(...args),
+  createLifecycleWebhook: vi.fn(),
+  updateLifecycleWebhook: vi.fn(),
+  deleteLifecycleWebhook: vi.fn(),
+  pingSavedLifecycleWebhook: vi.fn(),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -95,6 +110,8 @@ const MOCK_CATALOG: CatalogResponse = {
 describe('IntegrationCatalogSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockListAgents.mockResolvedValue({ items: [], total: 0 });
+    mockListWebhooks.mockResolvedValue([]);
     mockApiRequest.mockImplementation((url: string) => {
       if (url === '/integrations/catalog') {
         return Promise.resolve(MOCK_CATALOG);
@@ -104,6 +121,8 @@ describe('IntegrationCatalogSection', () => {
       }
       return Promise.resolve({});
     });
+    mockListAgents.mockResolvedValue({ items: [], total: 0 });
+    mockListWebhooks.mockResolvedValue([]);
   });
 
   afterEach(() => {

@@ -57,8 +57,23 @@ function SortableQueueItem({
   onRemove: () => void;
 }) {
   const t = useTranslations('chat');
+  const tTurn = useTranslations('chat.turnCapabilities');
   const editInputRef = useRef<HTMLInputElement>(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: msg.id });
+
+  const overrideSummary = useMemo(() => {
+    if (!msg.turnCapabilitySelection) {
+      return null;
+    }
+    const parts: string[] = [];
+    if (msg.turnCapabilitySelection.skillIds !== null) {
+      parts.push(tTurn('overrideSkillsShort', { skills: msg.turnCapabilitySelection.skillIds.length }));
+    }
+    if (msg.turnCapabilitySelection.mcpNames !== null) {
+      parts.push(tTurn('overrideMcpShort', { mcps: msg.turnCapabilitySelection.mcpNames.length }));
+    }
+    return parts.join(' · ');
+  }, [msg.turnCapabilitySelection, tTurn]);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -129,6 +144,14 @@ function SortableQueueItem({
             <span className="text-accent-warm font-medium flex-shrink-0">
               {t('queue.queued', { index: String(index + 1), total: String(total) })}
             </span>
+            {overrideSummary && (
+              <span
+                className="inline-flex items-center rounded border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary shrink-0"
+                title={overrideSummary}
+              >
+                {overrideSummary}
+              </span>
+            )}
             <span className="text-muted-foreground truncate">{msg.text}</span>
           </div>
           <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover/queue:opacity-100 transition-opacity">

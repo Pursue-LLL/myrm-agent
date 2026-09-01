@@ -75,6 +75,8 @@ def resolve_push_url(event: AppEvent) -> str:
         AppEventType.GOAL_TERMINAL,
         AppEventType.BACKGROUND_TASK_DONE,
         AppEventType.SYSTEM_NOTIFICATION,
+        AppEventType.SESSION_COMPLETED,
+        AppEventType.SESSION_FAILED,
     }:
         # Kanban review requests jump straight to the board filtered to the
         # in-review column, so the user acts on the pending task without

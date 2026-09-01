@@ -8,7 +8,16 @@
     "searchPlaceholder": "Experten oder Teams suchen...",
     "loading": "Wird geladen...",
     "empty": "Keine passenden Experten- oder Team-Vorlagen gefunden",
-    "summonButton": "Beschwören"
+    "summonButton": "Beschwören",
+    "councilResultTitle": "Expertenrat-Beschluss",
+    "chairSynthesisTitle": "Vorsitz-Synthese",
+    "consensusPoints": "Konsenspunkte",
+    "divergences": "Abweichungen und Debattenpunkte",
+    "actionItems": "Maßnahmen",
+    "expertOpinions": "Unabhängige Analysen und Einwände der Experten",
+    "expandOpinions": "Detaillierte Expertenmeinungen ausklappen ({count})",
+    "collapseOpinions": "Expertenmeinungen einklappen",
+    "roundLabel": "Runde {round}"
   },
   "recovery": {
     "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
@@ -2321,23 +2330,23 @@
       }
     },
     "deviceInspector": {
-      "title": "Mobilgerät-Live-Ansicht",
-      "toggleTitle": "Mobilgerät-Inspektor umschalten",
+      "title": "Mobiles Gerät – Live-Ansicht",
+      "toggleTitle": "Geräte-Inspektor umschalten",
       "viewMode": "Ansichtsmodus",
       "inspectMode": "Inspektionsmodus",
       "close": "Schließen",
       "refresh": "Aktualisieren",
-      "enabledHint": "Der Mobilgerät-Inspektor öffnet sich hier, wenn der Agent ein Mobilgerät verbindet",
-      "resizePanel": "Panelgröße ändern",
-      "screenshotAlt": "Mobilgerät-Screenshot",
-      "waitingForDevice": "Warten auf Mobilgeräte-Aktivität...",
-      "waitingHint": "Die Live-Ansicht erscheint, wenn der Agent ein echtes Mobilgerät oder einen Emulator steuert",
-      "deviceDisconnected": "Mobilgerät getrennt. Bitte prüfen Sie ADB oder die Netzwerkverbindung.",
-      "notificationRedaction": "Statusleisten-Datenschutz",
-      "redactionBadge": "Datenschutz",
-      "notificationRedacted": "🔒 Statusleisten-Benachrichtigungen geschwärzt",
-      "notificationRedactedHint": "Die obere Statusleiste wird automatisch geschwärzt, um sensible Benachrichtigungen zu schützen.",
-      "instructionPlaceholder": "Beschreiben Sie, was Sie auf dem Mobilgerät tun möchten ...",
+      "enabledHint": "Der Geräte-Inspektor öffnet sich hier, sobald der Agent ein mobiles Gerät verbindet",
+      "resizePanel": "Panelgröße anpassen",
+      "screenshotAlt": "Screenshot des Mobilgeräts",
+      "waitingForDevice": "Warte auf Aktivität des Mobilgeräts...",
+      "waitingHint": "Die Live-Ansicht erscheint, sobald der Agent ein echtes Gerät oder einen Emulator bedient",
+      "deviceDisconnected": "Mobiles Gerät getrennt. Bitte ADB- oder Netzwerkverbindung prüfen",
+      "notificationRedaction": "Statusleisten-Datenschutz-Ausblendung",
+      "redactionBadge": "Datenschutz-Schwärzung",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "Die Systembenachrichtigungsleiste wird automatisch unkenntlich gemacht, damit private Daten und Codes nicht in den Prompt gelangen",
+      "instructionPlaceholder": "Beschreiben Sie, was Sie auf dem Mobilgerät tun möchten...",
       "instructionWithElement": "Was soll der Agent mit diesem mobilen Element tun?",
       "send": "Anweisung senden"
     },
@@ -2675,7 +2684,10 @@
       "noSkills": "Keine Fähigkeiten für diesen Agenten aktiviert",
       "noMcp": "Keine MCP-Server für diesen Agenten aktiviert",
       "usingAgentDefaults": "Agent-Standards verwenden",
-      "nextTurnOnly": "Gilt nur für die nächste Nachricht"
+      "nextTurnOnly": "Gilt nur für die nächste Nachricht",
+      "overrideSkillsShort": "{skills} Fähigkeiten",
+      "overrideMcpShort": "{mcps} MCP",
+      "overrideRemove": "Zurücksetzen"
     },
     "retry": "Erneut versuchen",
     "archiveRestore": {
@@ -2707,27 +2719,6 @@
         "inProgress": "In Bearbeitung",
         "pending": "Ausstehend"
       }
-    },
-    "deviceInspector": {
-      "title": "Mobile Device Live View",
-      "toggleTitle": "Toggle Device Inspector",
-      "viewMode": "View Mode",
-      "inspectMode": "Inspect Mode",
-      "close": "Close",
-      "refresh": "Refresh",
-      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
-      "resizePanel": "Resize panel",
-      "screenshotAlt": "Mobile device screenshot",
-      "waitingForDevice": "Waiting for mobile device activity...",
-      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
-      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
-      "notificationRedaction": "Status Bar Notification Redaction",
-      "redactionBadge": "Redaction",
-      "notificationRedacted": "🔒 Status bar notifications redacted",
-      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
-      "instructionPlaceholder": "Describe what you want to do on the device...",
-      "instructionWithElement": "What should the agent do with this mobile element?",
-      "send": "Send instruction"
     }
   },
   "mode": {
@@ -5048,6 +5039,8 @@
     "viewSourceChat": "Im Originalchat anzeigen",
     "degradedNotice": "Speicherabruf vorübergehend nicht verfügbar",
     "degradedNoticeTitle": "Diese Antwort hat Ihren Speicher nicht referenziert, da der Speicherabruf vorübergehend nicht verfügbar war.",
+    "unresolvedCitations": "{count} unaufgelöst",
+    "unresolvedCitationsTitle": "{count} Inline-Zitiernummern passen nicht zu verfügbaren Quellen. Evidence öffnen zum Prüfen.",
     "types": {
       "semantic": "Wissen",
       "episodic": "Ereignis",
@@ -10707,20 +10700,20 @@
       "bindFailed": "Projektübernahme fehlgeschlagen",
       "currentPath": "Absoluter Pfad des Arbeitsbereichs",
       "folderGate": {
-        "title": "Trust this folder?",
-        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "title": "Diesem Ordner vertrauen?",
+        "description": "Dieser Ordner kann lokal ausgeführte Skills, Regeln und lokale Tools enthalten. Vor dem Verknüpfen bitte Vertrauensstufe wählen",
         "loading": "Scanning folder…",
-        "loadFailed": "Could not scan this folder. Try again or pick another path.",
-        "decideFailed": "Could not save your choice. Try again.",
-        "disclosureTitle": "What we found in this folder",
-        "skills": "Local skills",
-        "rules": "Workspace rules",
-        "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Repo-declared command shortcuts",
-        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
-        "cancel": "Cancel",
-        "restrict": "Link without trusting",
-        "trust": "Trust and link"
+        "loadFailed": "Ordner konnte nicht gescannt werden, bitte wiederholen oder anderen Pfad wählen",
+        "decideFailed": "Auswahl konnte nicht gespeichert werden, bitte wiederholen",
+        "disclosureTitle": "In diesem Ordner entdeckt",
+        "skills": "Lokale Skills",
+        "rules": "Workspace-Regeln",
+        "hasMyrmConfig": "Enthält .myrm-Projektkonfiguration",
+        "repoCommands": "Repository-deklarierte Befehlsverknüpfungen",
+        "restrictedHint": "Bei „Nicht vertrauen und verknüpfen“ bleiben lokale Skills, Regeln und MCP-Dienste in diesem Ordner deaktiviert; später in den Einstellungen änderbar",
+        "cancel": "Abbrechen",
+        "restrict": "Nicht vertrauen und verknüpfen",
+        "trust": "Vertrauen und verknüpfen"
       }
     }
   },
@@ -12760,29 +12753,29 @@
         "invoke_external_agent": "Externer CLI-Agent"
       },
       "trustedFolders": {
-        "title": "Trusted Folders",
-        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
-        "totalEntries": "{count} folders",
-        "refresh": "Refresh",
+        "title": "Vertrauenswürdige Ordner",
+        "description": "Ordner, die beim Verknüpfen von Projekt-Workspaces ausdrücklich vertraut wurden. Nach Widerruf werden lokale Skills, Regeln und MCP-Dienste im Ordner deaktiviert",
+        "totalEntries": "Insgesamt {count} Ordner",
+        "refresh": "Aktualisieren",
         "loading": "Loading…",
-        "empty": "No trusted folders yet",
-        "loadError": "Failed to load trusted folders",
-        "revokeSuccess": "Trust revoked",
-        "revokeError": "Failed to revoke trust",
+        "empty": "Keine vertrauenswürdigen Ordner",
+        "loadError": "Ladefehler",
+        "revokeSuccess": "Vertrauen wurde widerrufen",
+        "revokeError": "Widerruf fehlgeschlagen",
         "level": {
-          "trusted": "Trusted",
-          "restricted": "Restricted",
-          "revoked": "Revoked"
+          "trusted": "Vertrauenswürdig",
+          "restricted": "Eingeschränkt",
+          "revoked": "Widerrufen"
         },
         "notice": {
-          "title": "How folder trust works",
-          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+          "title": "Hinweis zum Ordnervertrauen",
+          "description": "Vertrauen gilt nur für repository-lokale Bypass-Fähigkeiten. Terminal und Dateiberechtigungen folgen weiterhin Ihrer Sicherheitsrichtlinie"
         },
         "revokeConfirm": {
-          "title": "Revoke folder trust?",
-          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
-          "cancel": "Cancel",
-          "confirm": "Revoke trust"
+          "title": "Ordnervertrauen widerrufen?",
+          "description": "Beim nächsten Lauf werden lokale Skills, Regeln und MCP-Dienste in {path} deaktiviert",
+          "cancel": "Abbrechen",
+          "confirm": "Vertrauen widerrufen"
         }
       }
     },

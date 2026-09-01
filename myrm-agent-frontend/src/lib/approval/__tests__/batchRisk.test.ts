@@ -44,30 +44,20 @@ describe('batchRisk classification logic', () => {
     expect(res.riskLevel).toBe('high');
   });
 
-  it('generates a full batch report with safe and high-risk separation', () => {
-    const items: ApprovalPayload[] = [
-      {
-        approval_id: 'safe-1',
-        user_id: 'u1',
-        action_type: 'read_file',
-        status: 'PENDING',
-        severity: 'info',
+  it('detects deep destructive shell patterns in generic bash tool payload', () => {
+    const item: ApprovalPayload = {
+      approval_id: 'bash-1',
+      user_id: 'u1',
+      action_type: 'shell_exec',
+      status: 'PENDING',
+      severity: 'info',
+      payload: {
+        tool_name: 'bash',
+        command: 'rm -rf /Users/test/data',
       },
-      {
-        approval_id: 'high-1',
-        user_id: 'u1',
-        action_type: 'delete_file',
-        status: 'PENDING',
-        severity: 'high',
-      },
-    ];
-
-    const report = classifyBatchApprovalRisk(items);
-    expect(report.hasHighRisk).toBe(true);
-    expect(report.totalCount).toBe(2);
-    expect(report.highRiskCount).toBe(1);
-    expect(report.safeCount).toBe(1);
-    expect(report.safeItemIds).toEqual(['safe-1']);
-    expect(report.highRiskItems[0].itemId).toBe('high-1');
+    };
+    const res = classifySingleApprovalRisk(item);
+    expect(res.riskLevel).toBe('high');
+    expect(res.reason).toContain('Destructive command pattern detected');
   });
 });

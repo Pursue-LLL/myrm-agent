@@ -39,6 +39,9 @@ interface TurnCapabilityToggleProps {
   selection: TurnCapabilitySelection | null;
   onSelectionChange: (selection: TurnCapabilitySelection | null) => void;
   disabled?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 function CapabilityRow({
@@ -84,9 +87,24 @@ export default function TurnCapabilityToggle({
   selection,
   onSelectionChange,
   disabled = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
 }: TurnCapabilityToggleProps) {
   const t = useTranslations('chat.turnCapabilities');
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = useCallback(
+    (nextOpen: boolean) => {
+      if (isControlled) {
+        controlledOnOpenChange?.(nextOpen);
+      } else {
+        setUncontrolledOpen(nextOpen);
+      }
+    },
+    [controlledOnOpenChange, isControlled],
+  );
 
   const { actionMode, agentConfig } = useChatStore(
     useShallow((state) => ({
@@ -189,32 +207,38 @@ export default function TurnCapabilityToggle({
   return (
     <TooltipProvider delayDuration={300}>
       <Popover open={open} onOpenChange={setOpen}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                disabled={disabled}
-                className={cn(
-                  'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors disabled:opacity-50',
-                  hasOverride
-                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                    : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50',
-                )}
-              >
-                <SlidersHorizontal size={14} />
-                {hasOverride && <span className="font-medium">{totalActiveCount}</span>}
-              </button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>
-              {hasOverride
-                ? t('activeCount', { skills: activeSkillIds.length, mcps: activeMcpNames.length })
-                : t('tooltip')}
-            </p>
-          </TooltipContent>
-        </Tooltip>
+        {hideTrigger ? (
+          <PopoverTrigger asChild>
+            <span className="sr-only" aria-hidden="true" />
+          </PopoverTrigger>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors disabled:opacity-50',
+                    hasOverride
+                      ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                      : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50',
+                  )}
+                >
+                  <SlidersHorizontal size={14} />
+                  {hasOverride && <span className="font-medium">{totalActiveCount}</span>}
+                </button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>
+                {hasOverride
+                  ? t('activeCount', { skills: activeSkillIds.length, mcps: activeMcpNames.length })
+                  : t('tooltip')}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         <PopoverContent className="w-72 max-w-[calc(100vw-2rem)] p-0" side="top" align="start" sideOffset={8}>
           <div className="px-3 py-2.5 border-b border-border/50 flex items-center justify-between">

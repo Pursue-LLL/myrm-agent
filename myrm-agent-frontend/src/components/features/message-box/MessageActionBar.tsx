@@ -110,6 +110,7 @@ export default function MessageActionBar({
             references={message.citedMemoryRefs}
             sources={message.sources}
             degraded={message.memoryRetrievalDegraded}
+            citationAudit={message.citationAudit}
           />
         )}
         {!isStreaming && chatId && (

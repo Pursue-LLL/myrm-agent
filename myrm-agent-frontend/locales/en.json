@@ -1486,7 +1486,11 @@
       "desktop": "Desktop",
       "artifacts": "Deliverables",
       "advisorAsk": "Ask Advisor",
-      "advisorOpen": "Side Q&A"
+      "advisorOpen": "Side Q&A",
+      "pushEnableBanner": "Enable push notifications to stay updated on task outcomes & approvals",
+      "pushEnableButton": "Enable",
+      "pushDismiss": "Dismiss",
+      "pushEnabled": "Notifications active"
     }
   },
   "common": {
@@ -2557,7 +2561,10 @@
       "noSkills": "No skills enabled on this agent",
       "noMcp": "No MCP servers enabled on this agent",
       "usingAgentDefaults": "Using agent defaults",
-      "nextTurnOnly": "Applies to the next message only"
+      "nextTurnOnly": "Applies to the next message only",
+      "overrideSkillsShort": "{skills} skills",
+      "overrideMcpShort": "{mcps} MCP",
+      "overrideRemove": "Reset"
     },
     "samplePrompts": {
       "fast_0": "What are the latest AI regulation policies?",
@@ -5016,6 +5023,8 @@
     "viewSourceChat": "View in original chat",
     "degradedNotice": "Memory recall temporarily unavailable",
     "degradedNoticeTitle": "This reply did not reference your memory because memory recall was temporarily unavailable.",
+    "unresolvedCitations": "{count} unresolved",
+    "unresolvedCitationsTitle": "{count} inline citation numbers do not match available sources. Open Evidence to verify.",
     "types": {
       "semantic": "Knowledge",
       "episodic": "Event",
@@ -15002,6 +15011,26 @@
           "count": "Failures: {value}",
           "confidence": "Attribution {value}%",
           "loopKind": "Loop: {value}"
+        },
+        "manifestPrediction": {
+          "title": "Change Manifest Predictions & Attribution",
+          "baseline": "Baseline",
+          "target": "Target",
+          "predictedDirection": {
+            "INCREASE": "Predicted Increase",
+            "DECREASE": "Predicted Decrease",
+            "NEUTRAL": "Predicted Neutral"
+          },
+          "falsificationConditions": "Falsification Conditions",
+          "attributionVerdict": "Attribution Verdict",
+          "verdictBadge": {
+            "CONFIRMED": "CONFIRMED",
+            "REFUTED": "REFUTED",
+            "REGRESSION": "REGRESSION",
+            "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "metricDeltas": "Observed Metric Deltas",
+          "unpredictedRegressions": "Unpredicted Regressions"
         },
         "empty": {
           "title": "No cases in this view",

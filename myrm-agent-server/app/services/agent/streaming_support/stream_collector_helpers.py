@@ -9,6 +9,7 @@
 - collect_clarification_required, collect_plan_confirmation_status
 - collect_file_mutation_failures
 - collect_workspace_merge_failures
+- merge_sources_list, source_dedup_key
 - string_keyed_dict, string_keyed_dicts
 
 [POS]
@@ -102,6 +103,61 @@ def string_keyed_dicts(values: list[object]) -> list[dict[str, object]]:
         if normalized is not None:
             result.append(normalized)
     return result
+
+
+def source_dedup_key(source: dict[str, object]) -> str:
+    """Stable dedup key aligned with frontend mergeMessageSources / SourceTracker."""
+    source_key = source.get("source_key")
+    if isinstance(source_key, str) and source_key.strip():
+        return f"source_key:{source_key.strip()}"
+
+    source_type = source.get("type")
+    if source_type == "conversation_history":
+        conversation_id = source.get("conversation_id")
+        message_id = source.get("message_id")
+        if isinstance(conversation_id, str) and conversation_id.strip():
+            mid = message_id if isinstance(message_id, str) else ""
+            return f"conversation:{conversation_id.strip()}:{mid}"
+
+    url = source.get("url")
+    if isinstance(url, str) and url.strip():
+        return f"url:{url.strip()}"
+
+    skill_name = source.get("skill_name")
+    if isinstance(skill_name, str) and skill_name.strip():
+        return f"mcp:{skill_name.strip()}"
+
+    index = source.get("index")
+    if index is not None:
+        return f"index:{index}"
+
+    stable = sorted((str(key), str(value)) for key, value in source.items() if key != "index")
+    return f"content:{hash(tuple(stable))}"
+
+
+def merge_sources_list(
+    existing: list[dict[str, object]],
+    incoming: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Merge source dicts by dedup key; incoming fields overlay existing entries."""
+    merged: dict[str, dict[str, object]] = {}
+    order: list[str] = []
+    for source in existing:
+        key = source_dedup_key(source)
+        if key not in merged:
+            order.append(key)
+        merged[key] = dict(source)
+    for source in incoming:
+        key = source_dedup_key(source)
+        if key in merged:
+            preserved_index = merged[key].get("index")
+            merged[key] = {**merged[key], **source}
+            if preserved_index is not None:
+                merged[key]["index"] = preserved_index
+        else:
+            order.append(key)
+            merged[key] = dict(source)
+    return [merged[key] for key in order]
 
 
 def collect_clarification_required(

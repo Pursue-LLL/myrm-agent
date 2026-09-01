@@ -30,7 +30,7 @@
 
 'use client';
 
-import { Fragment, useEffect, useRef, useState, useMemo, useCallback, useSyncExternalStore } from 'react';
+import { Fragment, useEffect, useRef, useState, useMemo, useCallback } from 'react';
 
 import { useSearchParams } from 'next/navigation';
 import MessageInput from './MessageInput';
@@ -38,6 +38,7 @@ import CompanionWidget from '../companion/CompanionWidget';
 import MessageBox from '../message-box/MessageBox';
 import MessageBoxLoading from '../message-box/MessageBoxLoading';
 import useChatStore from '@/store/useChatStore';
+import { useStoreSnapshot } from '@/hooks/shared/useStoreSnapshot';
 import { buildMessageRenderFingerprint } from '@/store/chat/messageRenderFingerprint';
 import { useShallow } from 'zustand/react/shallow';
 import React from 'react';
@@ -99,7 +100,6 @@ const Chat = ({
   const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
 
   const {
-    messages: rawMessagesFromSelector,
     chatId,
     compactedSummary,
     activeSessionAnalyticsId,
@@ -107,7 +107,6 @@ const Chat = ({
     setActiveSessionAnalyticsMessageId,
   } = useChatStore(
     useShallow((state) => ({
-      messages: state.messages,
       chatId: state.chatId,
       compactedSummary: state.compactedSummary,
       activeSessionAnalyticsId: state.activeSessionAnalyticsId,
@@ -116,18 +115,18 @@ const Chat = ({
     })),
   );
 
-  const rawMessagesFromSync = useSyncExternalStore(
+  // Streaming hot path: the manual subscription (DefaultLane wakeup) is the
+  // only messages source. `messages` must NOT be selected via useShallow:
+  // its notifications route through useSyncExternalStore (SyncLane) and
+  // re-create the nested-update ratchet this hook removes.
+  const rawMessagesFromSync = useStoreSnapshot(
     (onStoreChange) => useChatStore.subscribe(onStoreChange),
     () => useChatStore.getState().messages,
     () => EMPTY_MESSAGES,
+    chatId,
   );
 
-  const rawMessages =
-    rawMessagesFromSelector.length > 0
-      ? rawMessagesFromSelector
-      : messagesOverride?.length
-        ? messagesOverride
-        : rawMessagesFromSync;
+  const rawMessages = messagesOverride?.length ? messagesOverride : rawMessagesFromSync;
 
   const messages = useMemo(() => {
     const safeMessages = Array.isArray(rawMessages) ? rawMessages : [];

@@ -69,6 +69,8 @@ class SkillGrowthCaseSummaryRead:
     verification_proof: dict[str, object] | None = None
     target_layer: str | None = None
     target_pathology: str | None = None
+    prediction_manifest: dict[str, object] | None = None
+    attribution_result: dict[str, object] | None = None
 
 
 @dataclass(slots=True)
@@ -100,6 +102,8 @@ class SkillGrowthCaseDetailRead:
     verification_proof: dict[str, object] | None = None
     target_layer: str | None = None
     target_pathology: str | None = None
+    prediction_manifest: dict[str, object] | None = None
+    attribution_result: dict[str, object] | None = None
 
 
 SkillGrowthCaseRead = SkillGrowthCaseDetailRead

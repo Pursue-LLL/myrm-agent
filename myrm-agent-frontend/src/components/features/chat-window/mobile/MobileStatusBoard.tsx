@@ -27,6 +27,7 @@ import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { MobileStatusApprovalsSection } from './MobileStatusApprovalsSection';
 import { MobileStatusMessageBody } from './MobileStatusMessageBody';
+import { MobilePushDiscoveryBanner } from './MobilePushDiscoveryBanner';
 import RunStatusChip from '@/components/features/copilot/RunStatusChip';
 import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
 
@@ -231,6 +232,8 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
       <RunStatusChip chatId={chatId} />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <MobilePushDiscoveryBanner />
+
         <MobileStatusApprovalsSection
           pendingCount={pendingCount}
           inlineRequests={inlineRequests}

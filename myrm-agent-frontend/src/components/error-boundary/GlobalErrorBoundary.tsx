@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ReactNode } from 'react';
+import { swallowNestedUpdateOverflow } from '@/lib/rendering/update-overflow-guard';
 
 interface Props {
   children: ReactNode;
@@ -92,6 +93,8 @@ function getLocaleTexts(): Record<string, string> {
  * Global Error Boundary
  *
  * - Catches all unhandled React rendering errors
+ * - Absorbs React #185 (nested-update overflow): self-healing by contract,
+ *   no error UI, next commit renders normally (see @/lib/rendering)
  * - Auto-recovers from ChunkLoadError (stale chunks after deployment)
  *   with a single transparent reload + sessionStorage-based anti-loop guard
  * - Falls back to a user-friendly error page for other errors
@@ -105,10 +108,18 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
+    // React #185 is self-healing by contract: the reconciler resets its
+    // nested-update counter BEFORE throwing, so absorbing exactly this class
+    // shows no error UI and the next commit renders normally. Anything else
+    // keeps the error-page fallback.
+    if (swallowNestedUpdateOverflow(error, 'error-boundary')) {
+      return { hasError: false, error: null, isChunkError: false };
+    }
     return { hasError: true, error, isChunkError: isChunkLoadError(error) };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // #185 absorbed at getDerivedStateFromError never reaches here.
     if (isChunkLoadError(error)) {
       this.attemptChunkReload(error);
       return;

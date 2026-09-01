@@ -89,7 +89,10 @@ class TestNativeJsonDryRun:
         assert len(result.normalized_data["semantic"]) == 2
 
     def test_all_supported_buckets(self) -> None:
-        payload = {bucket: [{"content": f"{bucket} item"}] for bucket in SUPPORTED_NATIVE_BUCKETS}
+        payload = {
+            bucket: [{"content": f"{bucket} item"}]
+            for bucket in SUPPORTED_NATIVE_BUCKETS
+        }
         result = build_memory_import_dry_run(payload, source="native_json")
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == len(SUPPORTED_NATIVE_BUCKETS)
@@ -343,7 +346,9 @@ class TestAdapterRegistryConsistency:
         statuses = memory_import_adapter_status()
         ready = [s for s, st in statuses.items() if st == "ready"]
         for adapter in ready:
-            assert adapter in sources, f"Ready adapter '{adapter}' missing from supported sources"
+            assert (
+                adapter in sources
+            ), f"Ready adapter '{adapter}' missing from supported sources"
 
     def test_ready_registry_matches_expected_sources(self) -> None:
         """Registry 'ready' set must exactly match the adapters implemented today.
@@ -371,6 +376,8 @@ class TestAdapterRegistryConsistency:
             "mem0",
             "chatgpt",
             "plur",
+            "windsurf",
+            "trae",
         }, "Registry 'ready' set drifted from actual adapters"
 
     def test_source_adapters_are_ready(self) -> None:
@@ -505,3 +512,117 @@ class TestPiDryRun:
         result = build_memory_import_dry_run(payload)
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == 1
+
+
+class TestTraeDryRun:
+    """Validates the TRAE-specific dry-run adapter path."""
+
+    def test_trae_rules_mapped_to_procedural(self) -> None:
+        payload = {
+            "_source": "trae",
+            "trae_rules": [
+                {
+                    "name": "Naming",
+                    "content": "Use camelCase for variables",
+                    "scope": "project",
+                },
+                {"name": "Format", "content": "Always format on save"},
+            ],
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "trae"
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 2
+        procedural = result.normalized_data.get("procedural")
+        assert isinstance(procedural, list) and len(procedural) == 2
+        assert "camelCase" in procedural[0]["content"]
+
+    def test_trae_detected_via_payload_key(self) -> None:
+        payload = {"trae_rules": [{"name": "R", "content": "c"}]}
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "trae"
+
+    def test_trae_settings_mapped_to_profile(self) -> None:
+        payload = {
+            "_source": "trae",
+            "trae_settings": {"preferredLanguage": "python"},
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "trae"
+        profile = result.normalized_data.get("profile")
+        assert isinstance(profile, list) and len(profile) == 1
+        assert "python" in profile[0]["content"].lower()
+
+    def test_trae_empty_payload_warns(self) -> None:
+        result = build_memory_import_dry_run({"_source": "trae"}, source="trae")
+        assert result.summary.status == "critical"
+        assert result.summary.mapped_items == 0
+
+    def test_trae_invalid_rules_skipped(self) -> None:
+        payload = {
+            "_source": "trae",
+            "trae_rules": ["not_a_dict", 42, {"name": "NoContent"}],
+        }
+        result = build_memory_import_dry_run(payload, source="trae")
+        assert result.summary.status == "critical"
+        assert result.summary.mapped_items == 0
+        assert "trae_empty_payload" in result.warnings
+
+
+class TestWindsurfDryRun:
+    """Validates the Windsurf-specific dry-run adapter path."""
+
+    def test_windsurf_memories_mapped_to_semantic(self) -> None:
+        payload = {
+            "_source": "windsurf",
+            "windsurf_memories": [
+                {"id": "m1", "content": "User prefers TypeScript"},
+                {"id": "m2", "text": "Deploy via pnpm"},
+            ],
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "windsurf"
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 2
+        semantic = result.normalized_data.get("semantic")
+        assert isinstance(semantic, list) and len(semantic) == 2
+
+    def test_windsurf_detected_via_payload_key(self) -> None:
+        payload = {"windsurf_memories": [{"content": "fact"}]}
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "windsurf"
+
+    def test_windsurf_settings_mapped_to_profile(self) -> None:
+        payload = {
+            "_source": "windsurf",
+            "windsurf_settings": {"preferredLanguage": "python"},
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "windsurf"
+        profile = result.normalized_data.get("profile")
+        assert isinstance(profile, list) and len(profile) == 1
+
+    def test_windsurf_empty_payload_warns(self) -> None:
+        result = build_memory_import_dry_run({"_source": "windsurf"}, source="windsurf")
+        assert result.summary.status == "critical"
+        assert result.summary.mapped_items == 0
+        assert "windsurf_empty_payload" in result.warnings
+
+    def test_windsurf_importance_clamped(self) -> None:
+        payload = {
+            "_source": "windsurf",
+            "windsurf_memories": [{"content": "c", "importance": 5}],
+        }
+        result = build_memory_import_dry_run(payload, source="windsurf")
+        semantic = result.normalized_data["semantic"][0]
+        assert semantic["importance"] == pytest.approx(1.0, abs=0.01)
+
+    def test_explicit_trae_source_overrides(self) -> None:
+        payload = {"trae_rules": [{"name": "R", "content": "c"}]}
+        result = build_memory_import_dry_run(payload, source="trae")
+        assert result.summary.source == "trae"
+
+    def test_explicit_windsurf_source_overrides(self) -> None:
+        payload = {"windsurf_memories": [{"content": "c"}]}
+        result = build_memory_import_dry_run(payload, source="windsurf")
+        assert result.summary.source == "windsurf"

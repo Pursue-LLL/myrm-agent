@@ -70,6 +70,7 @@ import InputHistoryPopup from './InputHistoryPopup';
 import { SkillActivationChips } from '../message-box/SkillActivationChips';
 import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
 import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
+import TurnCapabilityOverrideBar from './TurnCapabilityOverrideBar';
 import { WorkflowTemplateArmedBar } from './WorkflowTemplateArmedBar';
 import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
@@ -513,6 +514,11 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
             ) : (
               <>
                 <FeaturedExpertChips />
+                <TurnCapabilityOverrideBar
+                  selection={turnCapabilitySelection}
+                  onSelectionChange={setTurnCapabilitySelection}
+                  disabled={loading}
+                />
                 {pendingWorkflowTemplateId ? (
                   <WorkflowTemplateArmedBar
                     templateId={pendingWorkflowTemplateId}

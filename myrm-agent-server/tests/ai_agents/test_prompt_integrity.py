@@ -137,83 +137,56 @@ class TestPromptModeThreeTier:
         assert "<security_rules>" in prompt
 
     def test_prompt_stability_all_param_combos(self) -> None:
-        """All (enable_answer_tool, enable_memory) combos return stable objects."""
+        """All enable_answer_tool combos return stable objects."""
         for answer in (True, False):
-            for memory in (True, False):
-                for mode in ("full", "lean", "naked"):
-                    a = get_core_system_prompt(mode, enable_answer_tool=answer, enable_memory=memory)  # type: ignore[arg-type]
-                    b = get_core_system_prompt(mode, enable_answer_tool=answer, enable_memory=memory)  # type: ignore[arg-type]
-                    assert a is b
+            for mode in ("full", "lean", "naked"):
+                a = get_core_system_prompt(mode, enable_answer_tool=answer)  # type: ignore[arg-type]
+                b = get_core_system_prompt(mode, enable_answer_tool=answer)  # type: ignore[arg-type]
+                assert a is b
 
 
-class TestMemoryRulesConditionalInjection:
-    """Validates MEMORY_RULES are only injected when enable_memory=True."""
+class TestSystemPromptDecoupledFromMemoryTools:
+    """Validates System Prompt is completely decoupled from memory tools.
 
-    def test_full_mode_includes_memory_rules_by_default(self) -> None:
-        prompt = get_core_system_prompt("full")
-        assert "<memory_rules>" in prompt
-        assert "memory_save_tool" in prompt
+    Memory SOP rules live strictly inside memory tool descriptions (Self-contained),
+    keeping the core system prompt pure and free of memory tool references.
+    """
 
-    def test_full_mode_excludes_memory_rules_when_disabled(self) -> None:
-        prompt = get_core_system_prompt("full", enable_memory=False)
+    @pytest.mark.parametrize("mode", ["full", "lean", "naked", "search"])
+    def test_all_modes_never_have_memory_rules(self, mode: str) -> None:
+        """System prompt must never leak memory_rules or memory tool names in any mode."""
+        prompt = get_core_system_prompt(mode)  # type: ignore[arg-type]
         assert "<memory_rules>" not in prompt
         assert "memory_save_tool" not in prompt
+        assert "memory_manage_tool" not in prompt
+        assert "memory_search_tool" not in prompt
 
-    def test_lean_mode_includes_memory_rules_when_enabled(self) -> None:
-        prompt = get_core_system_prompt("lean", enable_memory=True)
-        assert "<memory_rules>" in prompt
-
-    def test_lean_mode_excludes_memory_rules_when_disabled(self) -> None:
-        prompt = get_core_system_prompt("lean", enable_memory=False)
-        assert "<memory_rules>" not in prompt
-
-    def test_naked_mode_never_has_memory_rules(self) -> None:
-        for memory in (True, False):
-            prompt = get_core_system_prompt("naked", enable_memory=memory)
-            assert "<memory_rules>" not in prompt
-
-    def test_memory_disabled_still_has_other_rules(self) -> None:
-        """Disabling memory must not affect other rule blocks."""
-        prompt = get_core_system_prompt("full", enable_memory=False)
+    def test_prompt_still_has_all_core_rule_blocks(self) -> None:
+        """Core rules must remain present and intact."""
+        prompt = get_core_system_prompt("full")
         assert "<identity>" in prompt
         assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
         assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
 
-    def test_memory_disabled_prompt_is_shorter(self) -> None:
-        with_mem = get_core_system_prompt("full", enable_memory=True)
-        without_mem = get_core_system_prompt("full", enable_memory=False)
-        assert len(with_mem) > len(without_mem)
-
-    def test_memory_disabled_no_memory_tool_references(self) -> None:
-        """No memory tool names should leak when memory is disabled."""
-        prompt = get_core_system_prompt("full", enable_memory=False)
-        assert "memory_save_tool" not in prompt
-        assert "memory_manage_tool" not in prompt
-        assert "memory_search_tool" not in prompt
-
-    def test_both_disabled_full_mode_still_has_core_rules(self) -> None:
-        """enable_answer_tool=False + enable_memory=False still has core rules."""
-        prompt = get_core_system_prompt("full", enable_answer_tool=False, enable_memory=False)
+    def test_answer_tool_disabled_full_mode_still_has_core_rules(self) -> None:
+        """enable_answer_tool=False still has core rules."""
+        prompt = get_core_system_prompt("full", enable_answer_tool=False)
         assert "<identity>" in prompt
         assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
         assert "request_answer_user_tool" not in prompt
-        assert "<memory_rules>" not in prompt
 
-    def test_both_disabled_no_answer_tool_references(self) -> None:
-        """No answer tool references when both features disabled."""
-        prompt = get_core_system_prompt("full", enable_answer_tool=False, enable_memory=False)
+    def test_answer_tool_disabled_no_answer_tool_references(self) -> None:
+        """No answer tool references when answer tool disabled."""
+        prompt = get_core_system_prompt("full", enable_answer_tool=False)
         assert "answer_tool_required" not in prompt
 
-    def test_invalid_mode_with_memory_disabled_falls_back(self) -> None:
-        """Unknown mode + enable_memory=False falls back to full without memory."""
-        result = get_core_system_prompt(
-            "unknown_mode",
-            enable_memory=False,  # type: ignore[arg-type]
-        )
-        expected = get_core_system_prompt("full", enable_memory=False)
+    def test_invalid_mode_falls_back_to_full(self) -> None:
+        """Unknown mode falls back to full."""
+        result = get_core_system_prompt("unknown_mode")  # type: ignore[arg-type]
+        expected = get_core_system_prompt("full")
         assert result is expected
 
 

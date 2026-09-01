@@ -23,12 +23,18 @@ router.include_router(vnc_router)
 
 
 @router.get("/og-metadata")
-async def get_og_metadata(url: str = Query(..., description="URL to fetch OG metadata for")) -> JSONResponse:
+async def get_og_metadata(
+    url: str = Query(..., description="URL to fetch OG metadata for")
+) -> JSONResponse:
     """Proxy-fetch Open Graph metadata for a URL (solves CORS for WebUI embeds)."""
     if not url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
+        raise HTTPException(
+            status_code=400, detail="URL must start with http:// or https://"
+        )
     metadata = await fetch_og_metadata(url)
-    return JSONResponse(content=metadata, headers={"Cache-Control": "public, max-age=3600"})
+    return JSONResponse(
+        content=metadata, headers={"Cache-Control": "public, max-age=3600"}
+    )
 
 
 @router.get("/qrcode.png")
@@ -372,7 +378,10 @@ async def get_desktop_permissions() -> JSONResponse:
         logger.error("Desktop permissions check failed: %s", e, exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": "permissions_check_failed", "message": "Desktop permissions check failed"},
+            content={
+                "error": "permissions_check_failed",
+                "message": "Desktop permissions check failed",
+            },
         )
     finally:
         if session is not None:
@@ -540,7 +549,12 @@ class TouchRelayBody(BaseModel):
 @router.post("/device/relay")
 async def relay_device_touch(body: TouchRelayBody) -> JSONResponse:
     """Relay user pointer/touch interaction (tap/swipe/hold) to mobile device."""
-    logger.info("Device touch relay received: action=%s, pos=(%s, %s)", body.action, body.x, body.y)
+    logger.info(
+        "Device touch relay received: action=%s, pos=(%s, %s)",
+        body.action,
+        body.x,
+        body.y,
+    )
     return JSONResponse(content={"ok": True, "action": body.action})
 
 

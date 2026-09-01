@@ -34,7 +34,9 @@ from .case_types import (
     SkillGrowthFormMetadataRead,
 )
 
-_GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in SkillGrowthCaseStatus)
+_GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(
+    status.value for status in SkillGrowthCaseStatus
+)
 
 SKILL_GROWTH_CASE_ACTION_TYPES: tuple[str, ...] = (
     "skill_draft",
@@ -77,7 +79,9 @@ def _form_metadata(payload: dict[str, object]) -> SkillGrowthFormMetadataRead | 
     form_reasoning = _text(raw.get("form_reasoning"))
     if schedule_hint is None and form_reasoning is None:
         return None
-    return SkillGrowthFormMetadataRead(schedule_hint=schedule_hint, form_reasoning=form_reasoning)
+    return SkillGrowthFormMetadataRead(
+        schedule_hint=schedule_hint, form_reasoning=form_reasoning
+    )
 
 
 def _approval_growth_status(record: ApprovalRecord) -> SkillGrowthCaseStatus:
@@ -107,8 +111,14 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         or _text(payload.get("content"))
         or draft_name
     )
-    proposed_content = _text(payload.get("patch_content")) or _text(payload.get("content"))
-    verification_proof = payload.get("verification_proof") if isinstance(payload.get("verification_proof"), dict) else None
+    proposed_content = _text(payload.get("patch_content")) or _text(
+        payload.get("content")
+    )
+    verification_proof = (
+        payload.get("verification_proof")
+        if isinstance(payload.get("verification_proof"), dict)
+        else None
+    )
     target_layer = _text(payload.get("target_layer")) or "prompt"
     target_pathology = _text(payload.get("target_pathology")) or "unhandled_exception"
     return SkillGrowthCaseDetailRead(
@@ -144,11 +154,17 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
 
 def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDetailRead:
     verification_proof = getattr(record, "verification_proof", None)
-    payload_dict = record.payload if hasattr(record, "payload") and isinstance(record.payload, dict) else {}
+    payload_dict = (
+        record.payload
+        if hasattr(record, "payload") and isinstance(record.payload, dict)
+        else {}
+    )
     if not isinstance(verification_proof, dict):
         verification_proof = payload_dict.get("verification_proof")
     target_layer = _text(payload_dict.get("target_layer")) or "tool_code"
-    target_pathology = _text(payload_dict.get("target_pathology")) or "unhandled_exception"
+    target_pathology = (
+        _text(payload_dict.get("target_pathology")) or "unhandled_exception"
+    )
     return SkillGrowthCaseDetailRead(
         id=f"evolution:{record.id}",
         source=SkillGrowthCaseSource.EVOLUTION,
@@ -174,9 +190,19 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         chat_id=record.chat_id,
         form_metadata=None,
         created_at=record.created_at,
-        verification_proof=verification_proof if isinstance(verification_proof, dict) else None,
+        verification_proof=(
+            verification_proof if isinstance(verification_proof, dict) else None
+        ),
         target_layer=target_layer,
         target_pathology=target_pathology,
+        prediction_manifest=(
+            record.change_manifest if isinstance(record.change_manifest, dict) else None
+        ),
+        attribution_result=(
+            record.attribution_result
+            if isinstance(record.attribution_result, dict)
+            else None
+        ),
     )
 
 
@@ -208,6 +234,8 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         verification_proof=detail.verification_proof,
         target_layer=detail.target_layer,
         target_pathology=detail.target_pathology,
+        prediction_manifest=detail.prediction_manifest,
+        attribution_result=detail.attribution_result,
     )
 
 
@@ -232,7 +260,9 @@ def _evolution_case(record: EvolutionReviewRecord) -> SkillGrowthCaseDetailRead:
 async def _count_approval_cases() -> int:
     async with get_session() as db:
         result = await db.execute(
-            select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.action_type.in_(SKILL_GROWTH_CASE_ACTION_TYPES))
+            select(func.count())
+            .select_from(ApprovalRecord)
+            .where(ApprovalRecord.action_type.in_(SKILL_GROWTH_CASE_ACTION_TYPES))
         )
         return int(result.scalar_one())
 
@@ -360,7 +390,10 @@ async def get_skill_growth_case_detail(
         record_id = case_id.removeprefix("draft:")
         async with get_session() as db:
             record = await db.get(ApprovalRecord, record_id)
-            if record is None or record.action_type not in SKILL_GROWTH_CASE_ACTION_TYPES:
+            if (
+                record is None
+                or record.action_type not in SKILL_GROWTH_CASE_ACTION_TYPES
+            ):
                 return None
             return _approval_case_detail(record)
 

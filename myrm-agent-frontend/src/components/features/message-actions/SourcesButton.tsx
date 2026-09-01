@@ -176,6 +176,7 @@ const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
  */
 export function SourceItem({ source }: { source: Source }) {
   const t = useTranslations('sources');
+  const tWiki = useTranslations('settings.wiki.concepts');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const isMcp = source.type === 'mcp' || !!source.skill_name;
@@ -216,6 +217,29 @@ export function SourceItem({ source }: { source: Source }) {
               <span className="text-sm font-medium truncate flex-1">{title}</span>
             </div>
             {description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{description}</p>}
+            {(source.snapshot_status || source.claim_confidence != null || source.superseded_from_uri) && (
+              <div className="mt-2 space-y-1">
+                {source.snapshot_status === 'verified' && (
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300">{tWiki('evidenceSnapshotVerified')}</p>
+                )}
+                {source.snapshot_status === 'stale' && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">{tWiki('evidenceSnapshotStale')}</p>
+                )}
+                {source.snapshot_status === 'missing' && source.path && (
+                  <p className="text-[11px] text-muted-foreground">{tWiki('evidenceSnapshotMissing')}</p>
+                )}
+                {source.claim_confidence != null && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {tWiki('evidenceClaimConfidence', { value: Math.round(source.claim_confidence * 100) })}
+                  </p>
+                )}
+                {source.superseded_from_uri && (
+                  <p className="text-[11px] text-amber-700/90 dark:text-amber-300/90 font-mono break-all">
+                    {tWiki('evidenceSupersededFrom', { uri: source.superseded_from_uri })}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -2310,25 +2310,25 @@
       }
     },
     "deviceInspector": {
-      "title": "모바일 기기 라이브 뷰",
-      "toggleTitle": "모바일 기기 인스펙터 전환",
+      "title": "모바일 기기 실시간 보기",
+      "toggleTitle": "기기 검사기 전환",
       "viewMode": "보기 모드",
       "inspectMode": "검사 모드",
       "close": "닫기",
-      "refresh": "새로고침",
-      "enabledHint": "에이전트가 모바일 기기에 연결하면 여기에 인스펙터가 열립니다",
+      "refresh": "새로 고침",
+      "enabledHint": "에이전트가 모바일 기기에 연결되면 검사기가 여기에 열립니다",
       "resizePanel": "패널 크기 조정",
       "screenshotAlt": "모바일 기기 스크린샷",
       "waitingForDevice": "모바일 기기 활동 대기 중...",
-      "waitingHint": "에이전트가 모바일 기기나 에뮬레이터를 조작하면 라이브 뷰가 나타납니다",
-      "deviceDisconnected": "모바일 기기 연결이 끊어졌습니다. ADB 또는 네트워크 상태를 확인하세요.",
-      "notificationRedaction": "상단 상태 표시줄 개인정보 마스킹",
-      "redactionBadge": "마스킹",
-      "notificationRedacted": "🔒 상태 표시줄 알림 마스킹됨",
-      "notificationRedactedHint": "상단 알림 표시는 인증 코드 및 개인정보 유출을 방지하기 위해 마스킹 처리됩니다.",
-      "instructionPlaceholder": "모바일 기기에서 수행하려는 작업을 설명하세요...",
-      "instructionWithElement": "에이전트가 이 모바일 요소로 무엇을 해야 하나요?",
-      "send": "지시 보내기"
+      "waitingHint": "에이전트가 모바일 기기나 에뮬레이터를 조작할 때 실시간 보기가 표시됩니다",
+      "deviceDisconnected": "모바일 기기 연결이 끊겼습니다. ADB 또는 네트워크 연결을 확인하세요",
+      "notificationRedaction": "상태 표시줄 개인정보 비식별화",
+      "redactionBadge": "개인정보 비식별화",
+      "notificationRedacted": "🔒 Status bar notifications redacted",
+      "notificationRedactedHint": "상단 시스템 알림 표시줄은 자동으로 흐림 처리되어 개인 정보와 인증 코드가 프롬프트에 새어 들어가는 것을 방지합니다",
+      "instructionPlaceholder": "모바일 기기에서 하고 싶은 작업을 설명하세요...",
+      "instructionWithElement": "이 모바일 요소로 에이전트가 무엇을 해야 할까요?",
+      "send": "지시 전송"
     },
     "deliveryContracts": {
       "title": "5대 전달 계약",
@@ -2676,7 +2676,10 @@
       "noSkills": "이 에이전트에 활성화된 스킬이 없습니다",
       "noMcp": "이 에이전트에 활성화된 MCP 서버가 없습니다",
       "usingAgentDefaults": "에이전트 기본값 사용 중",
-      "nextTurnOnly": "다음 메시지에만 적용됩니다"
+      "nextTurnOnly": "다음 메시지에만 적용됩니다",
+      "overrideSkillsShort": "스킬 {skills}개",
+      "overrideMcpShort": "MCP {mcps}개",
+      "overrideRemove": "재설정"
     },
     "retry": "다시 시도",
     "archiveRestore": {
@@ -2696,28 +2699,7 @@
     "routingStandardTooltip": "표준 기본 모델을 사용하여 일상적인 작업을 처리합니다",
     "routingReasoningTooltip": "복잡한 논리 또는 다단계 추론을 감지하여 고성능 심층 추론 모델로 자동 할당했습니다",
     "routingCodeTooltip": "코드 작성, 리팩토링 또는 디버그 작업을 감지하여 코드 전문 모델로 라우팅했습니다",
-    "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다",
-    "deviceInspector": {
-      "title": "Mobile Device Live View",
-      "toggleTitle": "Toggle Device Inspector",
-      "viewMode": "View Mode",
-      "inspectMode": "Inspect Mode",
-      "close": "Close",
-      "refresh": "Refresh",
-      "enabledHint": "Device Inspector opens here when the agent connects to a mobile device",
-      "resizePanel": "Resize panel",
-      "screenshotAlt": "Mobile device screenshot",
-      "waitingForDevice": "Waiting for mobile device activity...",
-      "waitingHint": "The live view will appear when the agent operates a mobile device or emulator",
-      "deviceDisconnected": "Device disconnected. Please check ADB or network connection.",
-      "notificationRedaction": "Status Bar Notification Redaction",
-      "redactionBadge": "Redaction",
-      "notificationRedacted": "🔒 Status bar notifications redacted",
-      "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs & sensitive messages from prompt ingestion",
-      "instructionPlaceholder": "Describe what you want to do on the device...",
-      "instructionWithElement": "What should the agent do with this mobile element?",
-      "send": "Send instruction"
-    }
+    "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -5037,6 +5019,8 @@
     "viewSourceChat": "원본 대화에서 보기",
     "degradedNotice": "메모리 검색을 일시적으로 사용할 수 없습니다",
     "degradedNoticeTitle": "메모리 검색을 일시적으로 사용할 수 없어 이 답변은 메모리를 참조하지 않았습니다.",
+    "unresolvedCitations": "미해결 {count}개",
+    "unresolvedCitationsTitle": "인라인 인용 번호 {count}개가 사용 가능한 출처와 일치하지 않습니다. Evidence에서 확인하세요.",
     "types": {
       "semantic": "지식",
       "episodic": "이벤트",
@@ -10696,20 +10680,20 @@
       "bindFailed": "프로젝트 가져오기 실패",
       "currentPath": "워크스페이스 절대 경로",
       "folderGate": {
-        "title": "Trust this folder?",
-        "description": "This folder may contain skills, rules, and local tools that run on your computer. Choose how much you trust it before linking.",
+        "title": "이 폴더를 신뢰하시겠습니까?",
+        "description": "이 폴더에는 이 기기에서 실행될 수 있는 스킬·규칙·로컬 도구가 포함될 수 있습니다. 연결 전에 신뢰 수준을 선택하세요",
         "loading": "Scanning folder…",
-        "loadFailed": "Could not scan this folder. Try again or pick another path.",
-        "decideFailed": "Could not save your choice. Try again.",
-        "disclosureTitle": "What we found in this folder",
-        "skills": "Local skills",
-        "rules": "Workspace rules",
-        "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Repo-declared command shortcuts",
-        "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
-        "cancel": "Cancel",
-        "restrict": "Link without trusting",
-        "trust": "Trust and link"
+        "loadFailed": "폴더를 스캔하지 못했습니다. 다시 시도하거나 다른 경로를 선택하세요",
+        "decideFailed": "선택을 저장하지 못했습니다. 다시 시도하세요",
+        "disclosureTitle": "이 폴더에서 발견",
+        "skills": "로컬 스킬",
+        "rules": "워크스페이스 규칙",
+        "hasMyrmConfig": ".myrm 프로젝트 설정 포함",
+        "repoCommands": "저장소 선언 명령 바로가기",
+        "restrictedHint": "「신뢰하지 않고 연결」을 선택하면 이 폴더의 로컬 스킬·규칙·MCP 서비스는 비활성 상태로 유지되며, 설정에서 나중에 신뢰로 변경할 수 있습니다",
+        "cancel": "취소",
+        "restrict": "신뢰하지 않고 연결",
+        "trust": "신뢰하고 연결"
       }
     }
   },
@@ -12749,29 +12733,29 @@
         "invoke_external_agent": "외부 CLI 에이전트"
       },
       "trustedFolders": {
-        "title": "Trusted Folders",
-        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
-        "totalEntries": "{count} folders",
-        "refresh": "Refresh",
+        "title": "신뢰한 폴더",
+        "description": "프로젝트 워크스페이스 연결 시 명시적으로 신뢰한 폴더입니다. 신뢰를 철회하면 폴더 내 로컬 스킬·규칙·MCP 서비스가 비활성화됩니다",
+        "totalEntries": "총 {count}개 폴더",
+        "refresh": "새로 고침",
         "loading": "Loading…",
-        "empty": "No trusted folders yet",
-        "loadError": "Failed to load trusted folders",
-        "revokeSuccess": "Trust revoked",
-        "revokeError": "Failed to revoke trust",
+        "empty": "신뢰한 폴더가 없습니다",
+        "loadError": "불러오기 실패",
+        "revokeSuccess": "신뢰가 철회되었습니다",
+        "revokeError": "철회에 실패했습니다",
         "level": {
-          "trusted": "Trusted",
-          "restricted": "Restricted",
-          "revoked": "Revoked"
+          "trusted": "신뢰됨",
+          "restricted": "제한됨",
+          "revoked": "철회됨"
         },
         "notice": {
-          "title": "How folder trust works",
-          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+          "title": "폴더 신뢰 안내",
+          "description": "신뢰는 저장소 로컬 바이패스 기능에만 적용됩니다. 터미널과 파일 권한은 계속 사용자의 보안 정책을 따릅니다"
         },
         "revokeConfirm": {
-          "title": "Revoke folder trust?",
-          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
-          "cancel": "Cancel",
-          "confirm": "Revoke trust"
+          "title": "폴더 신뢰를 철회하시겠습니까?",
+          "description": "다음 실행 시 {path} 내 로컬 스킬·규칙·MCP 서비스가 비활성화됩니다",
+          "cancel": "취소",
+          "confirm": "신뢰 철회"
         }
       }
     },
@@ -17816,6 +17800,15 @@
     "searchPlaceholder": "전문가 또는 팀 검색...",
     "loading": "로딩 중...",
     "empty": "일치하는 전문가 또는 팀 템플릿을 찾을 수 없습니다",
-    "summonButton": "소환"
+    "summonButton": "소환",
+    "councilResultTitle": "전문가 팀 회의 결의",
+    "chairSynthesisTitle": "의장 중재 결정",
+    "consensusPoints": "합의 사항",
+    "divergences": "의견 차이와 쟁점",
+    "actionItems": "실행 계획",
+    "expertOpinions": "각 전문가의 독립 분석 및 반박",
+    "expandOpinions": "각 전문가의 상세 견해 펼치기 ({count})",
+    "collapseOpinions": "전문가 견해 접기",
+    "roundLabel": "{round} 라운드"
   }
 }

@@ -109,7 +109,7 @@ async def _build_agent_params(
     )
 
     chat_history = _build_chat_history(request)
-    params, _, _, _archive_restore_results = await convert_to_general_agent_params(agent_request, chat_history)
+    params, _, _, _, _archive_restore_results = await convert_to_general_agent_params(agent_request, chat_history)
 
     if request.temperature is not None and params.model_cfg:
         # Dual-channel write: temperature 同时写入顶层字段与 model_kwargs，

@@ -95,7 +95,6 @@ export const AgentEventType = {
   COUNCIL_PHASE: 'council_phase',
   CAPABILITY_GAP: 'capability_gap',
   SKILL_GAP: 'skill_gap',
-  CITATION_MAP: 'citation_map',
 } as const;
 
 export interface BaseAgentEvent {
@@ -310,14 +309,6 @@ export interface SessionRecordingStreamEvent extends BaseAgentEvent {
     filename?: string;
     preview_url?: string;
     content_type?: string;
-  };
-}
-
-export interface CitationMapStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.CITATION_MAP;
-  data?: {
-    sources?: Source[];
-    audit?: { total_markers: number; valid: number; unresolved: number };
   };
 }
 

@@ -51,6 +51,7 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 | File | Role | Description |
 |------|------|-------------|
 | `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats messages, sends to all configured targets via Gateway |
+| `adaptive_cards.py` | Formatting | `AdaptiveCardFormatter` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers |
 
 ## Configuration
 

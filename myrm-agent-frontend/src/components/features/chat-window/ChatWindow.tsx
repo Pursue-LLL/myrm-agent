@@ -9,6 +9,7 @@ import { Settings, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import NextError from 'next/error';
 import useChatStore from '@/store/useChatStore';
+import { useStoreSnapshot } from '@/hooks/shared/useStoreSnapshot';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getAgent } from '@/services/agent';
@@ -173,7 +174,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   }, []);
 
   const {
-    messages,
     compactedSummary,
     chatId: storeChatId,
     loading,
@@ -189,7 +189,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     agentConfig,
   } = useChatStore(
     useShallow((state) => ({
-      messages: state.messages,
       compactedSummary: state.compactedSummary,
       chatId: state.chatId,
       loading: state.loading,
@@ -206,8 +205,15 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     })),
   );
 
+  const chatMessages = useStoreSnapshot(
+    (onStoreChange) => useChatStore.subscribe(onStoreChange),
+    () => useChatStore.getState().messages,
+    () => [],
+    id,
+  );
+
   const chatRouteHydratedFromSelector =
-    Boolean(id) && storeChatId === id && isMessagesLoaded && (messages.length > 0 || Boolean(compactedSummary?.trim()));
+    Boolean(id) && storeChatId === id && isMessagesLoaded && (chatMessages.length > 0 || Boolean(compactedSummary?.trim()));
 
   const chatRouteHydratedDirect = Boolean(id) && isChatRouteHydratedForId(id);
 
@@ -220,22 +226,25 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const storeMessageCountDirect =
     id && useChatStore.getState().chatId === id ? useChatStore.getState().messages.length : 0;
 
-  const storeMessageCountSync = useSyncExternalStore(
+  const storeMessageCountSync = useStoreSnapshot(
     (onStoreChange) => useChatStore.subscribe(onStoreChange),
     () => (id && useChatStore.getState().chatId === id ? useChatStore.getState().messages.length : 0),
     () => 0,
+    id,
   );
 
   const storeMessagesDirect = id && useChatStore.getState().chatId === id ? useChatStore.getState().messages : [];
 
-  const chatMessagesForRender = messages.length > 0 ? messages : storeMessagesDirect;
+  const chatMessagesForRender = chatMessages.length > 0 ? chatMessages : storeMessagesDirect;
 
   const chatRouteHydrated = chatRouteHydratedFromSelector || chatRouteHydratedSync || chatRouteHydratedDirect;
   const storeMessageCount = Math.max(storeMessageCountSync, storeMessageCountDirect);
   void routeHydrationEpoch;
 
   const hasChatContent =
-    messages.length > 0 || (Boolean(compactedSummary?.trim()) && Boolean(id) && isMessagesLoaded) || chatRouteHydrated;
+    chatMessages.length > 0 ||
+    (Boolean(compactedSummary?.trim()) && Boolean(id) && isMessagesLoaded) ||
+    chatRouteHydrated;
 
   const initConfig = useConfigStore((state) => state.initConfig);
   const mcpConfigs = useConfigStore((state) => state.mcpConfigs);
@@ -642,7 +651,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                       loading={loading}
                       messageAppeared={messageAppeared}
                       messagesOverride={
-                        chatMessagesForRender.length > messages.length ? chatMessagesForRender : undefined
+                        chatMessagesForRender.length > chatMessages.length ? chatMessagesForRender : undefined
                       }
                     />
                   </div>

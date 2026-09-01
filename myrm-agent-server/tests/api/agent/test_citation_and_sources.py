@@ -107,6 +107,25 @@ class TestSourcesCollection:
         assert len(snapshot["sources"]) == 1
         assert snapshot["sources"][0]["title"] == "Updated Version"
 
+    def test_extra_data_deduplicates_sources_by_url(self, collector: StreamContentCollector) -> None:
+        collector.feed_event(
+            {
+                "type": "sources",
+                "data": [{"url": "https://dup.com", "title": "First Version"}],
+            }
+        )
+        collector.feed_event(
+            {
+                "type": "sources",
+                "data": [{"url": "https://dup.com", "title": "Updated Version"}],
+            }
+        )
+
+        extra = collector.extra_data
+        assert extra is not None
+        assert len(extra["sources"]) == 1
+        assert extra["sources"][0]["title"] == "Updated Version"
+
     def test_sources_preserve_citation_redirect_url(self, collector: StreamContentCollector) -> None:
         collector.feed_event(
             {
@@ -196,6 +215,23 @@ class TestSourcesCollection:
             }
         )
         assert collector.extra_data is None
+
+    def test_extra_data_includes_citation_audit_for_markers(self, collector: StreamContentCollector) -> None:
+        collector.feed_event(
+            {
+                "type": "sources",
+                "data": [{"url": "https://example.com", "title": "Example", "index": 1}],
+            }
+        )
+        collector.feed_event({"type": "message", "data": "Valid【1】 and invalid【9】"})
+
+        extra = collector.extra_data
+        assert extra is not None
+        audit = extra.get("citationAudit")
+        assert isinstance(audit, dict)
+        assert audit["totalMarkers"] == 2
+        assert audit["valid"] == 1
+        assert audit["unresolved"] == 1
 
 
 class TestSourcesInSnapshot:

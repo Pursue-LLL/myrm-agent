@@ -32,20 +32,39 @@ class SteeringRegistry:
 
     _lock = threading.Lock()
     _tokens: dict[str, SteeringToken] = {}
-    _pending_buffers: dict[str, list[tuple[str, float]]] = {}
+    _pending_buffers: dict[str, list[tuple[str, str, float]]] = {}  # chat_id -> [(action, message, timestamp)]
     _PENDING_TTL_SECONDS: float = 10.0
+    _MAX_PENDING_PER_CHAT: int = 10
+
+    @classmethod
+    def _prune_expired_buffers_locked(cls, now: float) -> None:
+        """Prune expired buffers under lock."""
+        expired_chats: list[str] = []
+        for cid, items in cls._pending_buffers.items():
+            valid = [item for item in items if now - item[2] <= cls._PENDING_TTL_SECONDS]
+            if valid:
+                cls._pending_buffers[cid] = valid
+            else:
+                expired_chats.append(cid)
+        for cid in expired_chats:
+            cls._pending_buffers.pop(cid, None)
 
     @classmethod
     def register(cls, chat_id: str, token: SteeringToken) -> None:
         """Register a steering token for a chat session and reconcile any pending messages."""
         now = time.time()
         with cls._lock:
+            cls._prune_expired_buffers_locked(now)
             cls._tokens[chat_id] = token
             pending = cls._pending_buffers.pop(chat_id, [])
-            valid_msgs = [msg for msg, ts in pending if now - ts <= cls._PENDING_TTL_SECONDS]
-            for msg in valid_msgs:
-                token.steer(msg)
-                logger.info("Reconciled buffered steering message for chat_id=%s: %s...", chat_id, msg[:60])
+            valid_items = [item for item in pending if now - item[2] <= cls._PENDING_TTL_SECONDS]
+            for action, msg, _ in valid_items:
+                if action == "redirect":
+                    token.redirect(msg)
+                    logger.info("Reconciled buffered redirect message for chat_id=%s: %s...", chat_id, msg[:60])
+                else:
+                    token.steer(msg)
+                    logger.info("Reconciled buffered steering message for chat_id=%s: %s...", chat_id, msg[:60])
         logger.debug("Registered steering token: chat_id=%s", chat_id)
 
     @classmethod
@@ -68,6 +87,7 @@ class SteeringRegistry:
         Returns:
             True if the token was found (or message buffered), False otherwise.
         """
+        now = time.time()
         with cls._lock:
             token = cls._tokens.get(chat_id)
             if token:
@@ -75,8 +95,11 @@ class SteeringRegistry:
                 logger.info("Steering message injected: chat_id=%s", chat_id)
                 return True
             if buffer_if_missing:
-                cls._pending_buffers.setdefault(chat_id, []).append((message, time.time()))
-                logger.info("Steering message buffered for upcoming turn: chat_id=%s", chat_id)
+                cls._prune_expired_buffers_locked(now)
+                buf = cls._pending_buffers.setdefault(chat_id, [])
+                if len(buf) < cls._MAX_PENDING_PER_CHAT:
+                    buf.append(("steer", message, now))
+                    logger.info("Steering message buffered for upcoming turn: chat_id=%s", chat_id)
                 return True
         return False
 
@@ -96,6 +119,7 @@ class SteeringRegistry:
         Returns:
             True if the token was found (or message buffered), False otherwise.
         """
+        now = time.time()
         with cls._lock:
             token = cls._tokens.get(chat_id)
             if token:
@@ -103,8 +127,11 @@ class SteeringRegistry:
                 logger.info("Redirect triggered: chat_id=%s", chat_id)
                 return True
             if buffer_if_missing:
-                cls._pending_buffers.setdefault(chat_id, []).append((message, time.time()))
-                logger.info("Redirect message buffered for upcoming turn: chat_id=%s", chat_id)
+                cls._prune_expired_buffers_locked(now)
+                buf = cls._pending_buffers.setdefault(chat_id, [])
+                if len(buf) < cls._MAX_PENDING_PER_CHAT:
+                    buf.append(("redirect", message, now))
+                    logger.info("Redirect message buffered for upcoming turn: chat_id=%s", chat_id)
                 return True
         return False
 

@@ -75,23 +75,14 @@ class TestIncognitoConverterMatrix:
 
 
 class TestIncognitoSystemPrompt:
-    """System prompt must exclude MEMORY_RULES when incognito."""
-
-    def test_incognito_disables_memory_rules_in_prompt(self) -> None:
-        from app.ai_agents.prompts.general_agent_prompt import get_core_system_prompt
-
-        prompt_with_memory = get_core_system_prompt(enable_memory=True)
-        prompt_without_memory = get_core_system_prompt(enable_memory=False)
-        assert len(prompt_with_memory) > len(prompt_without_memory)
-        assert "memory_save_tool" in prompt_with_memory or "MEMORY" in prompt_with_memory
-        assert "memory_save_tool" not in prompt_without_memory
+    """System prompt stays decoupled and cache-stable in all modes."""
 
     def test_prompt_cache_key_stability(self) -> None:
         from app.ai_agents.prompts.general_agent_prompt import get_core_system_prompt
 
-        p1 = get_core_system_prompt(enable_memory=False)
-        p2 = get_core_system_prompt(enable_memory=False)
-        assert p1 is p2 or p1 == p2
+        p1 = get_core_system_prompt()
+        p2 = get_core_system_prompt()
+        assert p1 is p2
 
 
 class TestIncognitoSessionCleanup:

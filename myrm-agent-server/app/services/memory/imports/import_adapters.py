@@ -31,17 +31,28 @@ from app.services.memory.imports.import_adapter_utils import (
     unsupported_result,
 )
 from app.services.memory.imports.import_agentmemory import dry_run_agentmemory
-from app.services.memory.imports.import_chatgpt import dry_run_chatgpt, is_chatgpt_payload
-from app.services.memory.imports.import_claude_code import dry_run_claude_code_jsonl, is_claude_code_jsonl
+from app.services.memory.imports.import_chatgpt import (
+    dry_run_chatgpt,
+    is_chatgpt_payload,
+)
+from app.services.memory.imports.import_claude_code import (
+    dry_run_claude_code_jsonl,
+    is_claude_code_jsonl,
+)
 from app.services.memory.imports.import_codex import dry_run_codex
 from app.services.memory.imports.import_cursor import dry_run_cursor
 from app.services.memory.imports.import_gbrain import dry_run_gbrain
 from app.services.memory.imports.import_hermes import dry_run_hermes
 from app.services.memory.imports.import_mem0 import dry_run_mem0, is_mem0_payload
-from app.services.memory.imports.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
+from app.services.memory.imports.import_myrm_archive import (
+    dry_run_myrm_archive,
+    is_myrm_archive,
+)
 from app.services.memory.imports.import_native_json import dry_run_native_json
 from app.services.memory.imports.import_openclaw import dry_run_openclaw
 from app.services.memory.imports.import_plur import dry_run_plur, is_plur_payload
+from app.services.memory.imports.import_trae import dry_run_trae
+from app.services.memory.imports.import_windsurf import dry_run_windsurf
 from app.services.migration.source.source_manifest import migration_source_import_map
 from app.services.migration.source.source_payload_loader import (
     is_source_discovery_payload,
@@ -65,10 +76,13 @@ RequestedImportSource = Literal[
     "chatgpt",
     "pi",
     "plur",
+    "windsurf",
+    "trae",
 ]
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
-    source_id: import_source for source_id, import_source in migration_source_import_map().items()
+    source_id: import_source
+    for source_id, import_source in migration_source_import_map().items()
 }
 
 _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
@@ -81,6 +95,8 @@ _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
     "mem0": "mem0",
     "chatgpt": "chatgpt",
     "plur": "plur",
+    "windsurf": "windsurf",
+    "trae": "trae",
 }
 
 
@@ -112,7 +128,11 @@ def build_memory_import_dry_run(
     if resolved_source == "claude":
         return dry_run_native_json(resolved_payload)
 
-    detected = _detect_source(resolved_payload) if resolved_source == "auto" else resolved_source
+    detected = (
+        _detect_source(resolved_payload)
+        if resolved_source == "auto"
+        else resolved_source
+    )
     if detected == "native_json":
         return dry_run_native_json(resolved_payload)
     if detected == "myrm_archive":
@@ -137,9 +157,15 @@ def build_memory_import_dry_run(
         return dry_run_chatgpt(resolved_payload)
     if detected == "plur":
         return dry_run_plur(resolved_payload)
+    if detected == "windsurf":
+        return dry_run_windsurf(resolved_payload)
+    if detected == "trae":
+        return dry_run_trae(resolved_payload)
     if _is_pi_payload(resolved_payload):
         return _dry_run_pi(resolved_payload)
-    return unsupported_result(to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE)
+    return unsupported_result(
+        to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE
+    )
 
 
 def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
@@ -163,6 +189,10 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
         return "cursor_rules"
     if _is_codex_payload(payload):
         return "codex"
+    if _is_windsurf_payload(payload):
+        return "windsurf"
+    if _is_trae_payload(payload):
+        return "trae"
     if is_mem0_payload(payload):
         return "mem0"
     if is_chatgpt_payload(payload):
@@ -192,7 +222,9 @@ def _is_instruction_only_source_payload(payload: dict[str, object]) -> bool:
     return not set(payload.keys()) - metadata_keys
 
 
-def _instruction_only_source_dry_run(payload: dict[str, object]) -> MemoryImportDryRunResult:
+def _instruction_only_source_dry_run(
+    payload: dict[str, object],
+) -> MemoryImportDryRunResult:
     """Return a ready dry-run when memory lane is intentionally empty after split."""
 
     from myrm_agent_harness.toolkits.memory import MemoryImportDryRunSummary
@@ -218,7 +250,9 @@ def _instruction_only_source_dry_run(payload: dict[str, object]) -> MemoryImport
     )
 
 
-def _detect_source_from_payload_tag(payload: dict[str, object]) -> MemoryImportSource | None:
+def _detect_source_from_payload_tag(
+    payload: dict[str, object],
+) -> MemoryImportSource | None:
     """Prefer explicit ``_source`` from source loader over structural heuristics."""
 
     raw = payload.get("_source")
@@ -255,7 +289,9 @@ def _is_openclaw_payload(payload: dict[str, object]) -> bool:
 
     if payload.get("_source") == "openclaw":
         return True
-    return isinstance(payload.get("openclaw_sessions"), list) or isinstance(payload.get("openclaw_memory"), list)
+    return isinstance(payload.get("openclaw_sessions"), list) or isinstance(
+        payload.get("openclaw_memory"), list
+    )
 
 
 def _is_cursor_payload(payload: dict[str, object]) -> bool:
@@ -263,7 +299,9 @@ def _is_cursor_payload(payload: dict[str, object]) -> bool:
 
     if payload.get("_source") == "cursor_rules":
         return True
-    return isinstance(payload.get("cursor_rules"), list) or isinstance(payload.get("cursor_settings"), dict)
+    return isinstance(payload.get("cursor_rules"), list) or isinstance(
+        payload.get("cursor_settings"), dict
+    )
 
 
 def _is_codex_payload(payload: dict[str, object]) -> bool:
@@ -271,13 +309,31 @@ def _is_codex_payload(payload: dict[str, object]) -> bool:
 
     if payload.get("_source") == "codex":
         return True
-    return isinstance(payload.get("codex_instructions"), str) or isinstance(payload.get("codex_settings"), dict)
+    return isinstance(payload.get("codex_instructions"), str) or isinstance(
+        payload.get("codex_settings"), dict
+    )
 
 
 def _is_pi_payload(payload: dict[str, object]) -> bool:
     if payload.get("_source") == "pi":
         return True
     return isinstance(payload.get("pi_sessions"), list)
+
+
+def _is_windsurf_payload(payload: dict[str, object]) -> bool:
+    """Detect Windsurf data: characteristic memories/settings keys."""
+
+    return isinstance(payload.get("windsurf_memories"), list) or isinstance(
+        payload.get("windsurf_settings"), dict
+    )
+
+
+def _is_trae_payload(payload: dict[str, object]) -> bool:
+    """Detect TRAE data: characteristic rules/settings keys."""
+
+    return isinstance(payload.get("trae_rules"), list) or isinstance(
+        payload.get("trae_settings"), dict
+    )
 
 
 def _dry_run_pi(payload: dict[str, object]) -> MemoryImportDryRunResult:
@@ -298,12 +354,17 @@ def _dry_run_pi(payload: dict[str, object]) -> MemoryImportDryRunResult:
             if not isinstance(messages, list) or not messages:
                 continue
             first_user_msg = next(
-                (str(m.get("content", ""))[:200] for m in messages if isinstance(m, dict) and m.get("role") == "user"),
+                (
+                    str(m.get("content", ""))[:200]
+                    for m in messages
+                    if isinstance(m, dict) and m.get("role") == "user"
+                ),
                 "",
             )
             episodic_items.append(
                 {
-                    "content": first_user_msg or f"Session {session.get('id', 'unknown')}",
+                    "content": first_user_msg
+                    or f"Session {session.get('id', 'unknown')}",
                     "type": "episodic",
                     "category": "pi_session",
                     "metadata": {
