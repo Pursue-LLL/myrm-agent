@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,7 +35,7 @@ describe('MobilePushDiscoveryBanner', () => {
     vi.clearAllMocks();
     mockState = 'prompt';
     mockLoading = false;
-    sessionStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it('renders discovery banner when push subscription state is prompt', () => {
@@ -77,6 +78,6 @@ describe('MobilePushDiscoveryBanner', () => {
     expect(
       screen.queryByText('Enable push notifications to stay updated on task outcomes & approvals'),
     ).toBeNull();
-    expect(sessionStorage.getItem('dismissed_mobile_push_banner')).toBe('1');
+    expect(window.sessionStorage.getItem('dismissed_mobile_push_banner')).toBe('1');
   });
 });
