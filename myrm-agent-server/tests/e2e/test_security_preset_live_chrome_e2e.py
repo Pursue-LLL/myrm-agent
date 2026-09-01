@@ -138,9 +138,7 @@ def _first_enabled_model_from_providers(shared: dict[str, object]) -> tuple[str,
         if not (provider.get("isEnabled") or provider.get("enabled")):
             continue
         keys = provider.get("apiKeys")
-        has_key = isinstance(keys, list) and any(
-            isinstance(k, dict) and k.get("isActive") and k.get("key") for k in keys
-        )
+        has_key = isinstance(keys, list) and any(isinstance(k, dict) and k.get("isActive") and k.get("key") for k in keys)
         if not has_key:
             continue
         provider_id = str(provider.get("id") or "")
@@ -188,11 +186,7 @@ def _mirror_shared_providers_to_private(api_url: str) -> None:
         saved_dmc = value.get("defaultModelConfig")
         if isinstance(saved_dmc, dict) and isinstance(saved_dmc.get("baseModel"), dict):
             primary = saved_dmc["baseModel"].get("primary")
-            if (
-                isinstance(primary, dict)
-                and primary.get("providerId") == provider_id
-                and primary.get("model") == model_name
-            ):
+            if isinstance(primary, dict) and primary.get("providerId") == provider_id and primary.get("model") == model_name:
                 return
         time.sleep(0.5)
     pytest.fail(f"{provider_id}/{model_name} base model not persisted on PRIVATE backend")

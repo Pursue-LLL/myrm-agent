@@ -57,8 +57,9 @@ async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
 
     result = await search_tool.ainvoke({"query": "deployment", "corpus": "sessions"})
 
-    assert "Prior deployment thread" in result
-    assert "Docker Compose" in result
+    text = result["content"] if isinstance(result, dict) else str(result)
+    assert "Prior deployment thread" in text
+    assert "Docker Compose" in text
 
 
 @pytest.mark.asyncio

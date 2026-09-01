@@ -72,9 +72,7 @@ class FallbackActionSessionRegistry:
     def _cleanup_expired(self) -> None:
         """Remove expired action sessions."""
         now = time.time()
-        expired_keys = [
-            k for k, sess in self._sessions.items() if (now - sess.created_at) > sess.ttl_seconds
-        ]
+        expired_keys = [k for k, sess in self._sessions.items() if (now - sess.created_at) > sess.ttl_seconds]
         for k in expired_keys:
             self._sessions.pop(k, None)
 

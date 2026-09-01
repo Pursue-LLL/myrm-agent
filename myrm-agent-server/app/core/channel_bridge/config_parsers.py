@@ -228,7 +228,7 @@ def extract_lite_model_config(
     providers_dict: dict[str, object] | None,
 ) -> "ModelConfig | None":
     """Extract the filter/summary model config from the frontend's providers config.
-    
+
     Falls back to baseModel / primary model config when liteModel is not configured.
     """
     if not providers_dict:

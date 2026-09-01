@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter, Url};
 
 const MAX_THEME_PACKAGE_BYTES: u64 = 24 * 1024 * 1024;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ThemePackageOpenPayload {
     path: String,

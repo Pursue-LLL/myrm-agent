@@ -52,7 +52,12 @@ _FEISHU_BUTTON_TYPE: dict[str, str] = {
 # ── Component card (from OutboundMessage) ────────────────────────
 
 
-def build_component_card(msg: OutboundMessage, text: str) -> dict[str, object] | None:
+def build_component_card(
+    msg: OutboundMessage,
+    text: str,
+    *,
+    fallback_options: list[dict[str, object]] | None = None,
+) -> dict[str, object] | None:
     """Build a Feishu Interactive Card from OutboundMessage components.
 
     Maps Myrm component types to Feishu Card elements:
@@ -62,7 +67,7 @@ def build_component_card(msg: OutboundMessage, text: str) -> dict[str, object] |
 
     Returns None if no interactive elements are present.
     """
-    if not msg.components and not msg.quick_replies:
+    if not msg.components and not msg.quick_replies and not fallback_options:
         return None
 
     elements: list[dict[str, object]] = []
@@ -71,6 +76,9 @@ def build_component_card(msg: OutboundMessage, text: str) -> dict[str, object] |
 
     action_elements = build_card_actions(msg.quick_replies, msg.components)
     elements.extend(action_elements)
+
+    if fallback_options:
+        elements.extend(fallback_options)
 
     return {"config": _CARD_CONFIG, "elements": elements}
 

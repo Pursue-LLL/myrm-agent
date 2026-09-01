@@ -174,7 +174,8 @@ if __name__ == "__main__":
         port = find_available_port(preferred_port, host)
         if port != preferred_port:
             print(f"\n⚠️  端口 {preferred_port} 已被占用，已自动切换到 {port}")
-            print(f"💡 后端实际端口: http://{host}:{port}\n")
+            print(f"💡 后端实际端口: http://{host}:{port}")
+            print(f"📌 如需固定端口，请先释放 {preferred_port} 端口上的占用进程，或通过 -p 指定其它可用端口\n")
         else:
             port = preferred_port
     else:

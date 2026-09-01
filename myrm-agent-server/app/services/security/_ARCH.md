@@ -18,3 +18,4 @@
 | `profile_manager.py` | 核心 | Security Profile CRUD；builtin seed 与 SSOT 同步；save/read API 路径均 fan-out 旧 `delegate_agent` 键 | ✅ |
 | `workspace_trust_store.py` | 核心 | UserConfig 持久化 workspace trust registry；启动时注入 harness `WorkspaceTrustLookup` | ✅ |
 | `tenant_guardrail.py` | 核心 | SaaS tenant guardrail hook（预留；subagent 消费由 WU budget 门禁） | ✅ |
+| `scan_run_comparison.py` | 核心 | `ScanRunComparisonService`：漏洞扫描运行历史、跨版本差量状态机（New/Persisting/Resolved/Regressed）比对与 Executive 报告生成 | ✅ |

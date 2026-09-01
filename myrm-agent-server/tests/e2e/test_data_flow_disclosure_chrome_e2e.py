@@ -113,9 +113,7 @@ def provider_egress_visible_js(provider_id: str) -> str:
 }})()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.timeout(240)
 def test_settings_security_shows_data_flow_disclosure_panel() -> None:
     security_url = f"{get_e2e_ui_url().rstrip('/')}/settings/security"
@@ -140,22 +138,18 @@ def test_settings_security_shows_data_flow_disclosure_panel() -> None:
         assert panel.get("hasEgress") is True, panel
         assert panel.get("hasRights") is True, panel
 
-        local_domain = wait_for_state(
-            client, page, LOCAL_DOMAIN_JS, timeout_sec=30.0, page_url=security_url
-        )
+        local_domain = wait_for_state(client, page, LOCAL_DOMAIN_JS, timeout_sec=30.0, page_url=security_url)
         assert local_domain.get("ready") is True, local_domain
 
-        control_plane = wait_for_state(
-            client, page, CONTROL_PLANE_JS, timeout_sec=30.0, page_url=security_url
-        )
+        control_plane = wait_for_state(client, page, CONTROL_PLANE_JS, timeout_sec=30.0, page_url=security_url)
         assert control_plane.get("ready") is True, control_plane
 
         api_url = get_e2e_api_url()
         endpoints = seed_live_e2e_providers(api_url)
         provider_id = infer_provider_id(endpoints.basic_model)
-        assert wait_e2e_provider_ready(
-            timeout_sec=90.0
-        ), f"WebUI provider store not ready after seeding {endpoints.basic_model!r}"
+        assert wait_e2e_provider_ready(timeout_sec=90.0), (
+            f"WebUI provider store not ready after seeding {endpoints.basic_model!r}"
+        )
 
         client.navigate(page, security_url, timeout_ms=90_000)
         dismiss_blocking_modals(client, page, recover_url=security_url)
@@ -184,9 +178,7 @@ def test_settings_security_shows_data_flow_disclosure_panel() -> None:
         clicked = client.evaluate(page, CLICK_COMPLIANCE_EXPORT_JS, timeout_sec=15.0)
         assert clicked.get("ok") is True, clicked
 
-        export_feedback = wait_for_state(
-            client, page, EXPORT_FEEDBACK_JS, timeout_sec=60.0, page_url=security_url
-        )
+        export_feedback = wait_for_state(client, page, EXPORT_FEEDBACK_JS, timeout_sec=60.0, page_url=security_url)
         assert export_feedback.get("ready") is True, export_feedback
         assert export_feedback.get("failed") is not True, export_feedback
         assert export_feedback.get("success") is True, export_feedback

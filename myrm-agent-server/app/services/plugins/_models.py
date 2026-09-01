@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from myrm_agent_harness.agent.plugins.models import (
+    PluginAgent,
     PluginMcpServer,
     PluginParseResult,
     PluginSkill,
@@ -34,13 +35,14 @@ class PluginImportSession:
     plugin_result: PluginParseResult
     skills_by_key: dict[str, PluginSkill] = field(default_factory=dict)
     servers_by_key: dict[str, PluginMcpServer] = field(default_factory=dict)
+    agents_by_key: dict[str, PluginAgent] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class PluginConfirmItem:
     """A confirm decision for a single plugin component."""
 
-    component: str  # "plugin" | "skill:<name>" | "mcp:<name>"
-    virtual_id: str  # stage key: skill:<idx> | mcp:<idx>
+    component: str  # "plugin" | "skill:<name>" | "mcp:<name>" | "agent:<name>"
+    virtual_id: str  # stage key: skill:<idx> | mcp:<idx> | agent:<idx>
     resolution: str  # "install" | "replace" | "skip"
     name: str

@@ -122,6 +122,7 @@ async def test_goal_acceptance_e2e_real_model(client: TestClient):
                     pass
 
         from tests.api.agent.utils import check_e2e_errors
+
         check_e2e_errors(events)
 
         # Verify that the agent successfully ran tools

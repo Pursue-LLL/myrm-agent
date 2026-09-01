@@ -642,7 +642,7 @@ async def get_chat_delivery_contracts(
         workspace_ready = bool(chat.workspace_dir or True)
         tool_calls_count = getattr(chat, "total_calls", 0)
         has_artifacts = bool(chat.last_message and len(chat.last_message) > 20) or len(history) >= 2
-        
+
         snapshot = evaluate_five_contract_progress(
             has_user_intent=has_user_intent,
             workspace_ready=workspace_ready,
@@ -655,4 +655,3 @@ async def get_chat_delivery_contracts(
         raise
     except Exception as e:
         raise internal_error(operation="Get delivery contracts", exception=e) from e
-

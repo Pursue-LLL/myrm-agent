@@ -6,6 +6,7 @@ app/ai_agents/general_agent/agent.py
 app/ai_agents/general_agent/factory.py
 app/ai_agents/general_agent/stream_pipeline.py
 app/ai_agents/general_agent/tool_setup.py
+app/api/agents/templates.py
 app/api/batch_optimization/router.py
 app/api/channels/router.py
 app/api/channels/test_connections.py
@@ -34,6 +35,7 @@ app/api/statistics/context_health/context_health.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
 app/api/statistics/wiki_evidence.py
+app/api/system/router.py
 app/api/voice/agent_bridge.py
 app/api/voice/realtime.py
 app/api/voice/ws_session.py
@@ -161,6 +163,4 @@ app/services/ops/snapshot_service.py
 app/services/plugins/import_service.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py
-app/services/skills/evolution_review/actions.py
-app/services/skills/evolution_review/disk.py
 app/services/skills/growth/queries.py

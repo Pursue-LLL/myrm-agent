@@ -21,10 +21,7 @@ from tests.api.agent.utils import (
     get_search_service_config,
 )
 
-_CITATION_PROMPT_FAST = (
-    "请搜索「Python 3.14 新特性」，用一句话总结，正文中必须用【1】标注引用，"
-    "末尾单独一行写 CITE_OK。"
-)
+_CITATION_PROMPT_FAST = "请搜索「Python 3.14 新特性」，用一句话总结，正文中必须用【1】标注引用，末尾单独一行写 CITE_OK。"
 
 _GENERAL_PROMPT = (
     "请必须使用 web_search 工具搜索「OpenCode AI」，用一句话总结搜索结果，"

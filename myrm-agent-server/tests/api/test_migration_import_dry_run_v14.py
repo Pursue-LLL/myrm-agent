@@ -319,3 +319,57 @@ class TestSourceImportDryRunApi:
         assert result["summary"]["unmapped_items"] == 3
         mapping_buckets = {m["source_bucket"] for m in result["mappings"]}
         assert "memories" in mapping_buckets
+
+    def test_trae_dry_run_full_api_chain(self, client: TestClient) -> None:
+        """TRAE rules and settings dry-run through the real API integration chain."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "trae_rules": [
+                    {
+                        "name": "Backend Guide",
+                        "content": "Follow PEP 8 and avoid Any",
+                        "scope": "project",
+                    }
+                ],
+                "trae_settings": {"preferredLanguage": "python"},
+            },
+            "migration": {"include_episodic": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "trae"
+        assert result["summary"]["status"] == "ready"
+        assert result["summary"]["mapped_items"] == 2
+        buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "trae_rules" in buckets
+        assert "trae_settings" in buckets
+
+    def test_windsurf_dry_run_full_api_chain(self, client: TestClient) -> None:
+        """Windsurf cascade memories and settings dry-run through the real API integration chain."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "windsurf_memories": [
+                    {
+                        "content": "User prefers concise launchpad features",
+                        "importance": 0.8,
+                        "confidence": 0.9,
+                    }
+                ],
+                "windsurf_settings": {"preferredLanguage": "typescript"},
+            },
+            "migration": {"include_episodic": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "windsurf"
+        assert result["summary"]["status"] == "ready"
+        assert result["summary"]["mapped_items"] == 2
+        buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "windsurf_memories" in buckets
+        assert "windsurf_settings" in buckets

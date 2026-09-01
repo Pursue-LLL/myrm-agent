@@ -39,21 +39,18 @@ def test_batch_resolve_safe_items_succeeds(client: TestClient):
         payload={"tool_name": "search"},
     )
 
-    with patch.object(
-        ApprovalRegistry,
-        "get_approval",
-        new=AsyncMock(
-            side_effect=lambda approval_id: (
-                rec1 if approval_id == "appr-safe-1" else rec2
-            )
+    with (
+        patch.object(
+            ApprovalRegistry,
+            "get_approval",
+            new=AsyncMock(side_effect=lambda approval_id: rec1 if approval_id == "appr-safe-1" else rec2),
         ),
-    ), patch.object(
-        ApprovalRegistry,
-        "resolve_approval",
-        new=AsyncMock(
-            side_effect=lambda approval_id, decision, edited_payload=None: (
-                rec1 if approval_id == "appr-safe-1" else rec2
-            )
+        patch.object(
+            ApprovalRegistry,
+            "resolve_approval",
+            new=AsyncMock(
+                side_effect=lambda approval_id, decision, edited_payload=None: rec1 if approval_id == "appr-safe-1" else rec2
+            ),
         ),
     ):
         response = client.post(
@@ -91,11 +88,7 @@ def test_batch_resolve_high_risk_blocked_with_409(client):
     with patch.object(
         ApprovalRegistry,
         "get_approval",
-        new=AsyncMock(
-            side_effect=lambda approval_id: (
-                rec_safe if approval_id == "appr-safe-1" else rec_high
-            )
-        ),
+        new=AsyncMock(side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high),
     ):
         response = client.post(
             "/approvals/batch-resolve",
@@ -124,14 +117,17 @@ def test_batch_resolve_high_risk_with_explicit_confirm(client):
         payload={"tool_name": "rm"},
     )
 
-    with patch.object(
-        ApprovalRegistry,
-        "get_approval",
-        new=AsyncMock(return_value=rec_high),
-    ), patch.object(
-        ApprovalRegistry,
-        "resolve_approval",
-        new=AsyncMock(return_value=rec_high),
+    with (
+        patch.object(
+            ApprovalRegistry,
+            "get_approval",
+            new=AsyncMock(return_value=rec_high),
+        ),
+        patch.object(
+            ApprovalRegistry,
+            "resolve_approval",
+            new=AsyncMock(return_value=rec_high),
+        ),
     ):
         response = client.post(
             "/approvals/batch-resolve",
@@ -166,18 +162,17 @@ def test_batch_resolve_safe_only_mode(client):
         payload={"tool_name": "rm"},
     )
 
-    with patch.object(
-        ApprovalRegistry,
-        "get_approval",
-        new=AsyncMock(
-            side_effect=lambda approval_id: (
-                rec_safe if approval_id == "appr-safe-1" else rec_high
-            )
+    with (
+        patch.object(
+            ApprovalRegistry,
+            "get_approval",
+            new=AsyncMock(side_effect=lambda approval_id: rec_safe if approval_id == "appr-safe-1" else rec_high),
         ),
-    ), patch.object(
-        ApprovalRegistry,
-        "resolve_approval",
-        new=AsyncMock(return_value=rec_safe),
+        patch.object(
+            ApprovalRegistry,
+            "resolve_approval",
+            new=AsyncMock(return_value=rec_safe),
+        ),
     ):
         response = client.post(
             "/approvals/batch-resolve",

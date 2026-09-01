@@ -72,6 +72,20 @@ class PluginServerPreview(BaseModel):
     virtual_id: str
 
 
+class PluginAgentPreview(BaseModel):
+    name: str
+    description: str = ""
+    system_prompt: str = ""
+    max_iterations: int | None = None
+    skill_names: list[str] = Field(default_factory=list)
+    tool_names: list[str] = Field(default_factory=list)
+    mcp_names: list[str] = Field(default_factory=list)
+    subagent_names: list[str] = Field(default_factory=list)
+    is_subagent: bool = False
+    is_entry_agent: bool = False
+    virtual_id: str
+
+
 class PluginDiagnosticResponse(BaseModel):
     component: str
     code: str
@@ -84,12 +98,14 @@ class PluginImportPreviewResponse(BaseModel):
     plugin: PluginMetaResponse
     skills: list[PluginSkillPreview]
     servers: list[PluginServerPreview]
+    agents: list[PluginAgentPreview] = Field(default_factory=list)
+    workspace_file_count: int = 0
     diagnostics: list[PluginDiagnosticResponse]
     is_valid: bool
 
 
 class PluginConfirmComponent(BaseModel):
-    component: str  # "plugin" | "skill" | "mcp"
+    component: str  # "plugin" | "skill" | "mcp" | "agent"
     virtual_id: str
     name: str
     resolution: Literal["install", "replace", "skip"]
@@ -99,6 +115,7 @@ class PluginImportConfirmRequest(BaseModel):
     session_id: str
     skills: list[PluginConfirmComponent]
     servers: list[PluginConfirmComponent]
+    agents: list[PluginConfirmComponent] = Field(default_factory=list)
     bind_agent_id: str | None = Field(default=None, description="Agent ID to bind MCP servers to")
 
 
@@ -107,9 +124,15 @@ class PluginImportConfirmResponse(BaseModel):
     skipped_skills: int
     imported_servers: int
     skipped_servers: int
+    imported_agents: int = 0
+    skipped_agents: int = 0
     required_secret_keys: list[str] = Field(
         default_factory=list,
         description="Secret keys the imported MCP servers depend on (Scoped Secret Injection)",
+    )
+    created_agent_ids: list[str] = Field(
+        default_factory=list,
+        description="IDs of created Agent profiles",
     )
 
 
@@ -151,9 +174,10 @@ async def preview_plugin_import(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     session_id = uuid.uuid4().hex
-    # virtual_id keys must match build_preview_result (skill:<idx> / mcp:<idx>).
+    # virtual_id keys must match build_preview_result (skill:<idx> / mcp:<idx> / agent:<idx>).
     skills_by_key = {f"skill:{idx}": skill for idx, skill in enumerate(result.skills)}
     servers_by_key = {f"mcp:{idx}": server for idx, server in enumerate(result.servers)}
+    agents_by_key = {f"agent:{idx}": agent for idx, agent in enumerate(result.agents)}
 
     store = get_evolution_skill_store_db_path()
     staging = PluginStaging(store.parent)
@@ -163,6 +187,7 @@ async def preview_plugin_import(
             plugin_result=result,
             skills_by_key=skills_by_key,
             servers_by_key=servers_by_key,
+            agents_by_key=agents_by_key,
         ),
     )
     background_tasks.add_task(staging.cleanup_expired_sessions)
@@ -173,6 +198,8 @@ async def preview_plugin_import(
         plugin=PluginMetaResponse(**preview["plugin"]),
         skills=[PluginSkillPreview(**item) for item in preview["skills"]],
         servers=[PluginServerPreview(**item) for item in preview["servers"]],
+        agents=[PluginAgentPreview(**item) for item in preview.get("agents", [])],
+        workspace_file_count=int(preview.get("workspace_file_count", 0)),
         diagnostics=[PluginDiagnosticResponse(**item) for item in preview["diagnostics"]],
         is_valid=preview["is_valid"],
     )
@@ -220,12 +247,22 @@ async def confirm_plugin_import(
         )
         for item in request.servers
     ]
+    agent_decisions = [
+        PluginConfirmItem(
+            component=item.component,
+            virtual_id=item.virtual_id,
+            resolution=item.resolution,
+            name=item.name,
+        )
+        for item in request.agents
+    ]
 
     try:
         result = await _import_service.confirm_plugin_import(
             session,
             skill_decisions=skill_decisions,
             server_decisions=server_decisions,
+            agent_decisions=agent_decisions,
             bind_agent_id=request.bind_agent_id,
         )
     except Exception as exc:

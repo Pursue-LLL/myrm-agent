@@ -20,7 +20,12 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.channels.types.components import ActionButton, ButtonStyle, ComponentRow, QuickReply
+from app.channels.types.components import (
+    ActionButton,
+    ButtonStyle,
+    ComponentRow,
+    QuickReply,
+)
 from app.services.event.app_event_bus import AppEvent, AppEventType
 
 logger = logging.getLogger(__name__)
@@ -257,7 +262,11 @@ def _format_background_task_done(data: dict[str, Any]) -> FormattedNotification 
     return FormattedNotification(
         content="\n".join(lines),
         components=components,
-        metadata={"task_id": task_id, "status": status, "board_id": str(board_id) if board_id else ""},
+        metadata={
+            "task_id": task_id,
+            "status": status,
+            "board_id": str(board_id) if board_id else "",
+        },
     )
 
 
@@ -274,7 +283,10 @@ def format_notification(event: AppEvent) -> FormattedNotification | None:
         return _format_goal_terminal(event.data)
     elif event.event_type == AppEventType.BACKGROUND_TASK_DONE:
         return _format_background_task_done(event.data)
-    elif event.event_type in (AppEventType.SESSION_COMPLETED, AppEventType.SESSION_FAILED):
+    elif event.event_type in (
+        AppEventType.SESSION_COMPLETED,
+        AppEventType.SESSION_FAILED,
+    ):
         status = "completed" if event.event_type == AppEventType.SESSION_COMPLETED else "failed"
         title = str(event.data.get("title", "Session"))
         icon = "✅" if status == "completed" else "🛑"
@@ -294,7 +306,10 @@ def format_notification(event: AppEvent) -> FormattedNotification | None:
         return FormattedNotification(
             content=content,
             components=components,
-            metadata={"session_id": str(session_id) if session_id else "", "status": status},
+            metadata={
+                "session_id": str(session_id) if session_id else "",
+                "status": status,
+            },
         )
     elif event.event_type == AppEventType.KANBAN_TASK_UPDATED:
         text = _format_kanban_text(event.data)

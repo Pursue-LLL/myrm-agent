@@ -61,10 +61,18 @@ class SteeringRegistry:
             for action, msg, _ in valid_items:
                 if action == "redirect":
                     token.redirect(msg)
-                    logger.info("Reconciled buffered redirect message for chat_id=%s: %s...", chat_id, msg[:60])
+                    logger.info(
+                        "Reconciled buffered redirect message for chat_id=%s: %s...",
+                        chat_id,
+                        msg[:60],
+                    )
                 else:
                     token.steer(msg)
-                    logger.info("Reconciled buffered steering message for chat_id=%s: %s...", chat_id, msg[:60])
+                    logger.info(
+                        "Reconciled buffered steering message for chat_id=%s: %s...",
+                        chat_id,
+                        msg[:60],
+                    )
         logger.debug("Registered steering token: chat_id=%s", chat_id)
 
     @classmethod
@@ -99,7 +107,10 @@ class SteeringRegistry:
                 buf = cls._pending_buffers.setdefault(chat_id, [])
                 if len(buf) < cls._MAX_PENDING_PER_CHAT:
                     buf.append(("steer", message, now))
-                    logger.info("Steering message buffered for upcoming turn: chat_id=%s", chat_id)
+                    logger.info(
+                        "Steering message buffered for upcoming turn: chat_id=%s",
+                        chat_id,
+                    )
                 return True
         return False
 
@@ -131,7 +142,10 @@ class SteeringRegistry:
                 buf = cls._pending_buffers.setdefault(chat_id, [])
                 if len(buf) < cls._MAX_PENDING_PER_CHAT:
                     buf.append(("redirect", message, now))
-                    logger.info("Redirect message buffered for upcoming turn: chat_id=%s", chat_id)
+                    logger.info(
+                        "Redirect message buffered for upcoming turn: chat_id=%s",
+                        chat_id,
+                    )
                 return True
         return False
 

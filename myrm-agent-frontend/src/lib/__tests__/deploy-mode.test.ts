@@ -6,7 +6,9 @@ import {
   getDocsUrl,
   getNotificationStreamUrl,
   getRemoteGatewayConfig,
+  getRuntimeTauriBackendPort,
   isRemoteGatewayActive,
+  setRuntimeTauriBackendPort,
 } from '@/lib/deploy-mode';
 import { getWsUrl } from '@/lib/api';
 
@@ -37,6 +39,7 @@ describe('deploy-mode base url resolution', () => {
   const originalEnv = snapshotEnv();
 
   afterEach(() => {
+    setRuntimeTauriBackendPort(null);
     restoreEnv(originalEnv);
   });
 
@@ -48,7 +51,7 @@ describe('deploy-mode base url resolution', () => {
     expect(getApiBaseUrl()).toBe('/api/v1');
     expect(getBackendBaseUrl()).toBe('');
     expect(getAgentApiBaseUrl()).toBe('http://127.0.0.1:8080/v1');
-    expect(getNotificationStreamUrl()).toBe('http://127.0.0.1:8080/api/v1/notifications/stream');
+    expect(getNotificationStreamUrl()).toBe('/api/v1/notifications/stream');
   });
 
   it('rejects invalid configured base urls in sandbox mode', () => {
@@ -127,6 +130,32 @@ describe('deploy-mode base url resolution', () => {
 
     expect(getApiBaseUrl()).toBe('http://127.0.0.1:8080/api/v1');
     expect(getBackendBaseUrl()).toBe('http://127.0.0.1:8080');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+
+  it('prioritizes memory runtime tauri backend port over localStorage cache', () => {
+    const originalWindow = globalThis.window;
+    const mockWindow = {
+      __TAURI__: {},
+      location: { hostname: 'desktop.myrm.local' },
+      localStorage: {
+        getItem: () => JSON.stringify({ enableWebUIMode: true, apiPort: 25808 }),
+        setItem: () => undefined,
+      },
+    };
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: mockWindow,
+    });
+
+    setRuntimeTauriBackendPort(3005);
+    expect(getRuntimeTauriBackendPort()).toBe(3005);
+    expect(getApiBaseUrl()).toBe('http://127.0.0.1:3005/api/v1');
+    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:3005');
 
     Object.defineProperty(globalThis, 'window', {
       configurable: true,

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-kill-desktop-process"
+description = "Enables the kill_desktop_process command without any pre-configured scope."
+commands.allow = ["kill_desktop_process"]
+
+[[permission]]
+identifier = "deny-kill-desktop-process"
+description = "Denies the kill_desktop_process command without any pre-configured scope."
+commands.deny = ["kill_desktop_process"]

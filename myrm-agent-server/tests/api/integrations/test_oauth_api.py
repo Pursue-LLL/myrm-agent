@@ -103,9 +103,7 @@ class TestOAuthDeleteClearSyncedMemory:
                 new=AsyncMock(return_value=mock_mem_svc),
             ),
         ):
-            response = client.delete(
-                f"{API_PREFIX}/oauth/github?clear_synced_memory=true"
-            )
+            response = client.delete(f"{API_PREFIX}/oauth/github?clear_synced_memory=true")
             assert response.status_code == 200
             data = response.json()
             assert data["trees_removed"] == 5

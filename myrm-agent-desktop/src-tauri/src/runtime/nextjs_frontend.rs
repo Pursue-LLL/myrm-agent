@@ -144,18 +144,16 @@ pub async fn start_frontend(
 
 #[tauri::command]
 pub fn stop_frontend(
-    app: Option<AppHandle>,
+    app: AppHandle,
     frontend: State<'_, NextJSFrontend>,
 ) -> Result<String, String> {
     println!("Stopping Next.js frontend...");
 
-    if let Some(ref handle) = app {
-        if let Some(registry) = handle.try_state::<crate::runtime::ProcessRegistry>() {
-            let reg = registry.inner().clone();
-            tauri::async_runtime::spawn(async move {
-                reg.mark_stopped("sidecar:frontend", Some(0)).await;
-            });
-        }
+    if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+        let reg = registry.inner().clone();
+        tauri::async_runtime::spawn(async move {
+            reg.mark_stopped("sidecar:frontend", Some(0)).await;
+        });
     }
 
     let mut process_guard = frontend.process.lock().unwrap();

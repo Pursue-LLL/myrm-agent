@@ -48,14 +48,10 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
                 score += 35
             else:
                 phase_details["model_provider"] = "unconfigured"
-                fix_suggestions.append(
-                    "Configure a default LLM Provider in Settings -> Models."
-                )
+                fix_suggestions.append("Configure a default LLM Provider in Settings -> Models.")
         except Exception as exc:
             phase_details["model_provider_error"] = str(exc)
-            fix_suggestions.append(
-                "Verify LLM Provider credentials and network connection."
-            )
+            fix_suggestions.append("Verify LLM Provider credentials and network connection.")
 
         # 2. Tool Catalog Readiness
         try:
@@ -102,9 +98,7 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             score += 20
         except Exception as exc:
             phase_details["storage_error"] = str(exc)
-            fix_suggestions.append(
-                "Check database connection and file lock permissions."
-            )
+            fix_suggestions.append("Check database connection and file lock permissions.")
 
         if "model_ready" not in ready_phases:
             status, code = "warn", "WARN_AGENT_MODEL_UNCONFIGURED"
@@ -248,15 +242,10 @@ class AgentStepBudgetDiagnostic(DiagnosticProtocol):
                         continue
                     budget = ag.max_iterations
                     if budget is not None and budget < self.RECOMMENDED_MIN_STEPS:
-                        low_budget_agents.append(
-                            {"id": ag.id, "name": ag.name, "max_iterations": budget}
-                        )
+                        low_budget_agents.append({"id": ag.id, "name": ag.name, "max_iterations": budget})
 
             if low_budget_agents:
-                agent_names = [
-                    f"{a['name']} ({a['max_iterations']} steps)"
-                    for a in low_budget_agents[:3]
-                ]
+                agent_names = [f"{a['name']} ({a['max_iterations']} steps)" for a in low_budget_agents[:3]]
                 summary_str = ", ".join(agent_names)
                 if len(low_budget_agents) > 3:
                     summary_str += f" and {len(low_budget_agents) - 3} more"
@@ -315,9 +304,7 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
             r"\b(?:current\s+time|today['’]?s\s+date|current\s+date)\s*[:：]\s*\d{4}[-/.]\d{1,2}[-/.]\d{1,2}",
             re.IGNORECASE,
         ),
-        re.compile(
-            r"当前(?:时间|日期|北京时间)\s*[:：]\s*(?:\{\{|\d{4})", re.IGNORECASE
-        ),
+        re.compile(r"当前(?:时间|日期|北京时间)\s*[:：]\s*(?:\{\{|\d{4})", re.IGNORECASE),
     ]
 
     async def check_health(self) -> HealthReport:
@@ -342,11 +329,7 @@ class AgentPromptCacheAlignmentDiagnostic(DiagnosticProtocol):
                         continue
 
                     prefix_snippet = prompt[:500]
-                    matched_patterns = [
-                        p.pattern
-                        for p in self.DYNAMIC_PREFIX_PATTERNS
-                        if p.search(prefix_snippet)
-                    ]
+                    matched_patterns = [p.pattern for p in self.DYNAMIC_PREFIX_PATTERNS if p.search(prefix_snippet)]
                     if matched_patterns:
                         jitter_agents.append(
                             {

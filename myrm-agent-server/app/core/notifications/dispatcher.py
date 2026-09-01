@@ -32,7 +32,7 @@ from app.core.notifications.adaptive_cards import (
     format_legacy_text,
     format_notification,
 )
-from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
+from app.services.event.app_event_bus import AppEvent, ServerEventBus
 
 logger = logging.getLogger(__name__)
 

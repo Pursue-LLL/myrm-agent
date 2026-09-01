@@ -160,11 +160,7 @@ def _summary_response(
         apply_error=item.apply_error,
         reason_code=item.reason_code,
         remediation=item.remediation,
-        runtime_failure=(
-            item.runtime_failure.model_dump(mode="json")
-            if item.runtime_failure is not None
-            else None
-        ),
+        runtime_failure=(item.runtime_failure.model_dump(mode="json") if item.runtime_failure is not None else None),
         chat_id=item.chat_id,
         form_metadata=_form_metadata_response(item.form_metadata),
         has_diff=item.has_diff,
@@ -249,16 +245,10 @@ async def get_skill_growth_cases(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> JSONResponse:
-    items, total = await list_skill_growth_cases(
-        limit=limit, offset=offset, status=status
-    )
-    dependents_map = await get_dependents_map(
-        [item.skill_id for item in items if item.skill_id]
-    )
+    items, total = await list_skill_growth_cases(limit=limit, offset=offset, status=status)
+    dependents_map = await get_dependents_map([item.skill_id for item in items if item.skill_id])
     payload = SkillGrowthCaseListResponse(
-        items=[
-            _summary_response(item, dependents_map.get(item.skill_id)) for item in items
-        ],
+        items=[_summary_response(item, dependents_map.get(item.skill_id)) for item in items],
         total=total,
     )
     return success_response(data=payload.model_dump())
@@ -268,13 +258,9 @@ async def get_skill_growth_cases(
 async def get_skill_growth_case(case_id: str) -> JSONResponse:
     item = await get_skill_growth_case_detail(case_id)
     if item is None:
-        raise HTTPException(
-            status_code=404, detail=f"Skill growth case not found: {case_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Skill growth case not found: {case_id}")
     dependents = await get_dependents_map([item.skill_id]) if item.skill_id else {}
-    return success_response(
-        data=_detail_response(item, dependents.get(item.skill_id)).model_dump()
-    )
+    return success_response(data=_detail_response(item, dependents.get(item.skill_id)).model_dump())
 
 
 class EvaluatePredictionManifestBody(BaseModel):
@@ -340,9 +326,7 @@ async def get_skill_growth_audit(
     days: int = Query(30, ge=1, le=365),
     skill_id: str | None = Query(None),
 ) -> JSONResponse:
-    items = await list_skill_growth_audit_entries(
-        limit=limit, days=days, skill_id=skill_id
-    )
+    items = await list_skill_growth_audit_entries(limit=limit, days=days, skill_id=skill_id)
     payload = SkillGrowthAuditListResponse(
         items=[_audit_entry_response(item) for item in items],
         total=len(items),

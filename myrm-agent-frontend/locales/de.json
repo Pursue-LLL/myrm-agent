@@ -2686,7 +2686,7 @@
       "usingAgentDefaults": "Agent-Standards verwenden",
       "nextTurnOnly": "Gilt nur für die nächste Nachricht",
       "overrideSkillsShort": "{skills} Fähigkeiten",
-      "overrideMcpShort": "{mcps} MCP",
+      "overrideMcpShort": "{mcps} MCP-Dienste",
       "overrideRemove": "Zurücksetzen"
     },
     "retry": "Erneut versuchen",
@@ -15187,6 +15187,26 @@
           "count": "Fehler: {value}",
           "confidence": "Zuschreibung {value}%",
           "loopKind": "Schleife: {value}"
+        },
+        "manifestPrediction": {
+          "title": "Falsifizierbare Änderungsprognose und Attribution",
+          "baseline": "Basislinie",
+          "target": "Ziel",
+          "predictedDirection": {
+            "INCREASE": "Prognostizierte Steigerung",
+            "DECREASE": "Prognostizierte Senkung",
+            "NEUTRAL": "Prognostizierte Beibehaltung"
+          },
+          "falsificationConditions": "Falsifikationsbedingungen",
+          "attributionVerdict": "Attributionsurteil",
+          "verdictBadge": {
+            "CONFIRMED": "Bestätigt",
+            "REFUTED": "Nicht erreicht",
+            "REGRESSION": "Regression aufgetreten",
+            "INCONCLUSIVE": "Unzureichende Beweise"
+          },
+          "metricDeltas": "Gemessene Metrikänderungen",
+          "unpredictedRegressions": "Unerwartete Regressionswarnungen"
         },
         "empty": {
           "title": "Keine Fälle in dieser Ansicht",

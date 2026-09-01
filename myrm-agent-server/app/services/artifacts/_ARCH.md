@@ -19,6 +19,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `share/`（子包） | 核心 | 工件分享子域：`share/share_bundle.py`（物化 share 静态包）、`share/share_token.py`（分享令牌签发/校验/重建）、`share/share_registry.py`（分享链接生命周期治理）。`share/__init__.py` 为聚合门面 |
+| `bundle_builder.py` | 业务 | 提供 `build_zip_deliverable_bundle` 与 `generate_bundle_readme`，支持按 DeliverableManifest 分层流式压缩打包多工件资产 |
 
 ---
 

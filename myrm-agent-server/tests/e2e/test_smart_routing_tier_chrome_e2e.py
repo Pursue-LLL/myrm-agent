@@ -276,9 +276,7 @@ _HOVER_TOKEN_BTN_JS = """(() => {
 })()"""
 
 
-def _configure_smart_routing_providers(
-    api_url: str, *, verify: bool = False
-) -> dict[str, object]:
+def _configure_smart_routing_providers(api_url: str, *, verify: bool = False) -> dict[str, object]:
     secrets = load_test_secrets()
     endpoints = resolve_e2e_llm_endpoints(secrets)
     basic_model = endpoints.basic_model
@@ -346,24 +344,15 @@ def _configure_smart_routing_providers(
     return merged
 
 
-def _assert_routing_seed_effective(
-    api_url: str, lite_provider_id: str, lite_model_id: str
-) -> None:
+def _assert_routing_seed_effective(api_url: str, lite_provider_id: str, lite_model_id: str) -> None:
     recheck = fetch_config_value("providers", api_url=api_url)
     dmc = recheck.get("defaultModelConfig")
     assert isinstance(dmc, dict), recheck
     routing_cfg = dmc.get("routingConfig")
     assert isinstance(routing_cfg, dict) and routing_cfg.get("enabled") is True, recheck
-    light_primary = (
-        routing_cfg.get("lightModel", {}).get("primary")
-        if isinstance(routing_cfg, dict)
-        else None
-    )
+    light_primary = routing_cfg.get("lightModel", {}).get("primary") if isinstance(routing_cfg, dict) else None
     assert isinstance(light_primary, dict), recheck
-    assert (
-        light_primary.get("providerId") == lite_provider_id
-        and light_primary.get("model") == lite_model_id
-    ), recheck
+    assert light_primary.get("providerId") == lite_provider_id and light_primary.get("model") == lite_model_id, recheck
 
 
 def _base_url() -> str:
@@ -532,26 +521,12 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
             bridge_tier = bridge.get("lastAssistantRoutingTier")
             streaming = bridge.get("isStreaming") is True
             sample = str(bridge.get("lastAssistantSample") or "").strip()
-            if (
-                not streaming
-                and sample
-                and int(bridge.get("userCount") or 0) >= 1
-                and bridge_tier == expected
-            ):
+            if not streaming and sample and int(bridge.get("userCount") or 0) >= 1 and bridge_tier == expected:
                 last_state = await _probe_store(min(25.0, deadline - time.monotonic()))
-                if (
-                    last_state.get("routingTier") == expected
-                    or last_state.get("bridgeTier") == expected
-                ):
+                if last_state.get("routingTier") == expected or last_state.get("bridgeTier") == expected:
                     return last_state
-                diag_list = (
-                    bridge.get("diag") if isinstance(bridge.get("diag"), list) else []
-                )
-                diag_matches = [
-                    d
-                    for d in diag_list
-                    if isinstance(d, dict) and d.get("tier") == expected
-                ]
+                diag_list = bridge.get("diag") if isinstance(bridge.get("diag"), list) else []
+                diag_matches = [d for d in diag_list if isinstance(d, dict) and d.get("tier") == expected]
                 return {
                     **last_state,
                     "routingTier": bridge_tier,
@@ -567,10 +542,7 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
             streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
             if (
                 (state.get("ready") is True or state.get("bridgeStreaming") is True)
-                and (
-                    state.get("routingTier") == expected
-                    or state.get("bridgeTier") == expected
-                )
+                and (state.get("routingTier") == expected or state.get("bridgeTier") == expected)
                 and not streaming
                 and str(state.get("content") or "").strip()
             ):
@@ -582,10 +554,7 @@ async def _wait_tier(chat: McpChatSession, expected: str) -> dict[str, object]:
                 if isinstance(d, dict)
                 and (
                     d.get("tier") == expected
-                    or (
-                        isinstance(d.get("last"), list)
-                        and any(m.get("tier") == expected for m in d.get("last", []))
-                    )
+                    or (isinstance(d.get("last"), list) and any(m.get("tier") == expected for m in d.get("last", [])))
                 )
             ]
             if diag_matches and not streaming:
@@ -660,9 +629,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     _PIN_BASIC_PRIMARY_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
-                pin_state = (
-                    pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
-                )
+                pin_state = pin_raw if isinstance(pin_raw, dict) else json.loads(str(pin_raw))
                 assert pin_state.get("ok") is True, pin_state
                 selection = pin_state.get("selection")
                 assert isinstance(selection, dict), pin_state
@@ -682,31 +649,20 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     SIMPLE_PROMPT,
                 )
                 chat_id = (
-                    str(
-                        send_result.get("started", {}).get("chatId")
-                        or send_result.get("submit", {}).get("chatId")
-                        or ""
-                    ).strip()
+                    str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
                     or None
                 )
 
                 simple_state = await _wait_tier(chat, "simple")
                 print(
-                    "[E2E_SIMPLE_TIER] "
-                    + json.dumps(simple_state, indent=2, default=str),
+                    "[E2E_SIMPLE_TIER] " + json.dumps(simple_state, indent=2, default=str),
                     file=sys.stderr,
                     flush=True,
                 )
-                if (
-                    simple_state.get("routingTier") != "simple"
-                    and simple_state.get("bridgeTier") != "simple"
-                ):
+                if simple_state.get("routingTier") != "simple" and simple_state.get("bridgeTier") != "simple":
                     _dump_backend_routing_log(api_url)
                     await _dump_sse_log(chat)
-                    assert (
-                        simple_state.get("routingTier") == "simple"
-                        or simple_state.get("bridgeTier") == "simple"
-                    ), simple_state
+                    assert simple_state.get("routingTier") == "simple" or simple_state.get("bridgeTier") == "simple", simple_state
                     heartbeat_once()
 
                 await chat.evaluate(
@@ -718,30 +674,21 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     DEBUG_PROMPT,
                 )
                 standard_state = await _wait_tier(chat, "standard")
-                if (
-                    standard_state.get("routingTier") != "standard"
-                    and standard_state.get("bridgeTier") != "standard"
-                ):
+                if standard_state.get("routingTier") != "standard" and standard_state.get("bridgeTier") != "standard":
                     _dump_backend_routing_log(api_url)
                     await _dump_sse_log(chat)
-                assert (
-                    standard_state.get("routingTier") == "standard"
-                    or standard_state.get("bridgeTier") == "standard"
-                ), standard_state
+                assert standard_state.get("routingTier") == "standard" or standard_state.get("bridgeTier") == "standard", (
+                    standard_state
+                )
 
                 # 档位 badge 位于 token 用量 tooltip 内（默认隐藏）——hover 触发后轮询可见。
                 usage_probe = await chat.evaluate(
                     _USAGE_PROBE_JS,
                     intent=EvaluateIntent.SYNC_PROBE,
                 )
-                probe_state = (
-                    usage_probe
-                    if isinstance(usage_probe, dict)
-                    else json.loads(str(usage_probe))
-                )
+                probe_state = usage_probe if isinstance(usage_probe, dict) else json.loads(str(usage_probe))
                 print(
-                    "[E2E_USAGE_PROBE] "
-                    + json.dumps(probe_state, indent=2, default=str),
+                    "[E2E_USAGE_PROBE] " + json.dumps(probe_state, indent=2, default=str),
                     file=sys.stderr,
                     flush=True,
                 )
@@ -749,9 +696,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                     _HOVER_TOKEN_BTN_JS,
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
-                hover_state = (
-                    hover if isinstance(hover, dict) else json.loads(str(hover))
-                )
+                hover_state = hover if isinstance(hover, dict) else json.loads(str(hover))
                 assert hover_state.get("ok") is True, hover_state
                 deadline = time.monotonic() + 10.0
                 badge_state: dict[str, object] = {}
@@ -760,9 +705,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                         _TIER_BADGE_JS,
                         intent=EvaluateIntent.SYNC_PROBE,
                     )
-                    badge_state = (
-                        badge if isinstance(badge, dict) else json.loads(str(badge))
-                    )
+                    badge_state = badge if isinstance(badge, dict) else json.loads(str(badge))
                     if badge_state.get("found") is True:
                         break
                     await asyncio.sleep(0.5)
@@ -770,9 +713,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
 
                 resolved_chat_id = chat_id
                 if not resolved_chat_id:
-                    after = await chat.main_state(
-                        DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL
-                    )
+                    after = await chat.main_state(DEBUG_PROMPT, intent=EvaluateIntent.BRIDGE_POLL)
                     href = str(after.get("url") or "")
                     resolved_chat_id = chat_id_from_path(href.split("?", 1)[0])
                 if resolved_chat_id:

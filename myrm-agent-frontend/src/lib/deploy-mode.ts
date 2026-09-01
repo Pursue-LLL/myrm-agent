@@ -13,6 +13,7 @@
  * - RemoteGatewayConfig: 远程网关配置接口。
  * - getRemoteGatewayConfig / setRemoteGatewayConfig: localStorage 远程网关配置读写。
  * - isRemoteGatewayActive: 是否正在使用远程网关模式。
+ * - setRuntimeTauriBackendPort / getRuntimeTauriBackendPort: 运行时内存级 Tauri 后端端口 SSOT 覆盖与读取。
  *
  * [POS]
  * 前端部署模式与基础地址解析层。统一判定本地、桌面和沙箱环境，并阻断 `undefined` 之类的脏配置进入请求链路。
@@ -263,17 +264,37 @@ export function getLocalUserId(): string {
   return 'local_user';
 }
 
+import { readTauriSystemConfigCache } from './tauri-system-config-cache';
+
+let memoryTauriBackendPort: number | null = null;
+
+export function setRuntimeTauriBackendPort(port: number | null): void {
+  memoryTauriBackendPort = port;
+}
+
+export function getRuntimeTauriBackendPort(): number | null {
+  return memoryTauriBackendPort;
+}
+
 /**
  * Resolve Tauri backend port from persisted system config (if WebUI mode), else desktop default.
  */
 function getTauriBackendPort(): number {
+  if (memoryTauriBackendPort && memoryTauriBackendPort > 0) {
+    return memoryTauriBackendPort;
+  }
+
   if (typeof window === 'undefined') {
     return TAURI_DESKTOP_API_PORT;
   }
 
   try {
+    const config = readTauriSystemConfigCache();
+    if (config && config.enableWebUIMode) {
+      return config.apiPort ?? TAURI_WEBUI_API_PORT;
+    }
     const storage = window.localStorage;
-    const raw = storage.getItem('myrm-tauri-system-config');
+    const raw = storage ? storage.getItem('myrm-tauri-system-config') : null;
     if (raw) {
       const parsed = JSON.parse(raw) as { enableWebUIMode?: boolean; apiPort?: number };
       if (parsed.enableWebUIMode) {

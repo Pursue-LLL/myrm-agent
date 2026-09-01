@@ -119,7 +119,9 @@ async def list_templates(request: Request) -> JSONResponse:
                             avatar_url=data.get("avatar_url"),
                             agent_type=agent_type,
                             is_pareto_preset=bool(data.get("is_pareto_preset", False)),
-                            cost_reduction_ratio=float(data["cost_reduction_ratio"]) if data.get("cost_reduction_ratio") is not None else None,
+                            cost_reduction_ratio=float(data["cost_reduction_ratio"])
+                            if data.get("cost_reduction_ratio") is not None
+                            else None,
                             routing_config=data.get("routing_config"),
                             moa_overlay=data.get("moa_overlay"),
                             members=members,

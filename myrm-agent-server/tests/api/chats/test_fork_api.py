@@ -346,4 +346,3 @@ async def test_get_chat_delivery_contracts(async_client: httpx.AsyncClient) -> N
     assert "delivery_artifact" in data["contracts"]
     assert "acceptance_verification" in data["contracts"]
     assert data["contracts"]["task_intent"]["status"] == "satisfied"
-

@@ -330,18 +330,16 @@ async fn check_health_with_port(port: u16) -> Result<bool, String> {
 
 #[tauri::command]
 pub fn stop_backend(
-    app: Option<AppHandle>,
+    app: AppHandle,
     backend: State<'_, PythonBackend>,
 ) -> Result<String, String> {
     println!("Stopping Python backend...");
 
-    if let Some(ref handle) = app {
-        if let Some(registry) = handle.try_state::<crate::runtime::ProcessRegistry>() {
-            let reg = registry.inner().clone();
-            tauri::async_runtime::spawn(async move {
-                reg.mark_stopped("sidecar:backend", Some(0)).await;
-            });
-        }
+    if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+        let reg = registry.inner().clone();
+        tauri::async_runtime::spawn(async move {
+            reg.mark_stopped("sidecar:backend", Some(0)).await;
+        });
     }
 
     let mut process_guard = backend.process.lock().unwrap();

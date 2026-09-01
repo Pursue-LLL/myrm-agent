@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.channels.types.components import ActionButton, ButtonStyle
 from app.core.notifications.adaptive_cards import (
     FormattedNotification,

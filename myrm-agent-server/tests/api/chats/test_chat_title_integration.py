@@ -38,9 +38,7 @@ def setup_test_config():
                 "defaultModelConfig": {
                     "providerId": "test-provider",
                     "model": basic_model,
-                    "liteModel": {
-                        "primary": {"providerId": "test-provider", "model": basic_model}
-                    },
+                    "liteModel": {"primary": {"providerId": "test-provider", "model": basic_model}},
                 },
                 "providers": [
                     {

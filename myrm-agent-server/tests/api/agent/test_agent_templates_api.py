@@ -148,4 +148,3 @@ def test_pareto_presets_instantiate(client: TestClient):
     assert agent["model_selection"]["reasoningModel"] == "gemini-1.5-pro"
     assert agent["engine_params"] is not None
     assert agent["engine_params"]["moa_overlay"]["enabled"] is True
-

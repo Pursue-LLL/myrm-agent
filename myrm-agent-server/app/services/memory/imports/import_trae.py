@@ -103,27 +103,17 @@ def _parse_rules(rules: list[object]) -> list[dict[str, object]]:
         rule = object_dict(raw_rule)
         content = text(rule.get("content")) or text(rule.get("body"))
         name = text(rule.get("name")) or text(rule.get("title")) or "TRAE rule"
-        scope = text(rule.get("scope")) or (
-            "project" if text(rule.get("source")) == "project_rules" else ""
-        )
+        scope = text(rule.get("scope")) or ("project" if text(rule.get("source")) == "project_rules" else "")
         if not content:
             continue
 
         items.append(
             {
-                "content": (
-                    f"{name}\n{content}".strip() if name != "TRAE rule" else content
-                ),
-                "trigger": (
-                    f"When working on project: {name}"
-                    if scope != "user"
-                    else "When working on any project"
-                ),
+                "content": (f"{name}\n{content}".strip() if name != "TRAE rule" else content),
+                "trigger": (f"When working on project: {name}" if scope != "user" else "When working on any project"),
                 "action": content[:500],
                 "priority": 7,
-                "trigger_keywords": [
-                    tag for tag in [scope or None, "trae_rule"] if tag
-                ],
+                "trigger_keywords": [tag for tag in [scope or None, "trae_rule"] if tag],
                 "created_at": iso_or_now(rule.get("created_at")),
                 "metadata": build_metadata("trae", rule, ("name", "scope", "source")),
             }

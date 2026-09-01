@@ -37,10 +37,7 @@ _MUSE_SPARK_MODEL = "muse-spark-1.2-contributor"
 _PROVIDER_ID = "opencode_go"
 _TURN_WAIT_SEC = 360.0
 
-_TURN1_PROMPT = (
-    "请必须使用 web_search 工具搜索「OpenCode AI」，用一句话总结搜索结果，"
-    "并在最终回复末尾单独一行写 TOOL_LOOP_OK。"
-)
+_TURN1_PROMPT = "请必须使用 web_search 工具搜索「OpenCode AI」，用一句话总结搜索结果，并在最终回复末尾单独一行写 TOOL_LOOP_OK。"
 _TURN2_PROMPT = "上一条你搜索到了什么？最终回复末尾单独一行写 TURN2_OK。"
 
 _PREP_AGENT_TURN_JS = """(async () => {
@@ -235,9 +232,7 @@ async def test_muse_spark_responses_wire_two_turn_tool_loop(
         heartbeat_once()
 
         await chat.send_message(_TURN1_PROMPT, _TURN1_PROMPT)
-        turn1 = await _wait_turn_with_marker(
-            chat, _TURN1_PROMPT, "TOOL_LOOP_OK", timeout_sec=_TURN_WAIT_SEC
-        )
+        turn1 = await _wait_turn_with_marker(chat, _TURN1_PROMPT, "TOOL_LOOP_OK", timeout_sec=_TURN_WAIT_SEC)
         if str(turn1.get("path", "")).startswith("/settings"):
             pytest.fail(f"Chat redirected to settings on turn 1: {turn1}")
         assert _turn_has_marker(turn1, "TOOL_LOOP_OK"), (
@@ -246,14 +241,11 @@ async def test_muse_spark_responses_wire_two_turn_tool_loop(
 
         heartbeat_once()
         await chat.send_message(_TURN2_PROMPT, _TURN2_PROMPT)
-        turn2 = await _wait_turn_with_marker(
-            chat, _TURN2_PROMPT, "TURN2_OK", timeout_sec=_TURN_WAIT_SEC
-        )
+        turn2 = await _wait_turn_with_marker(chat, _TURN2_PROMPT, "TURN2_OK", timeout_sec=_TURN_WAIT_SEC)
         if str(turn2.get("path", "")).startswith("/settings"):
             pytest.fail(f"Chat redirected to settings on turn 2: {turn2}")
         assert _turn_has_marker(turn2, "TURN2_OK"), (
-            f"Turn2 missing TURN2_OK (reasoning replay may have failed): "
-            f"{json.dumps(turn2, ensure_ascii=False)[:800]}"
+            f"Turn2 missing TURN2_OK (reasoning replay may have failed): {json.dumps(turn2, ensure_ascii=False)[:800]}"
         )
 
         chat_id = str(turn2.get("chatId") or turn1.get("chatId") or "")

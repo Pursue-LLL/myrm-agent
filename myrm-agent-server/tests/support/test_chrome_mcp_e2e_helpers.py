@@ -868,6 +868,4 @@ def test_warm_heal_guard_launch_force_before_debounced_call() -> None:
     start = text.index("def _heal_shared_frontend")
     block = text[start : start + 900]
     assert "launch_force_blocks_frontend_heal" in block
-    assert block.index("launch_force_blocks_frontend_heal") < block.index(
-        "heal_shared_frontend_debounced"
-    )
+    assert block.index("launch_force_blocks_frontend_heal") < block.index("heal_shared_frontend_debounced")

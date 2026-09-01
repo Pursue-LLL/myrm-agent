@@ -78,6 +78,8 @@ async def generate_cancellable_stream(
             routing_data["tier"] = session.routing_tier
         if session.routing_specialty:
             routing_data["specialty"] = session.routing_specialty
+        if session.routing_reason:
+            routing_data["reason"] = session.routing_reason
         if _model_tier != ModelTier.STRONG:
             routing_data["model_tier"] = _model_tier.value
 

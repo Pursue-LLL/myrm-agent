@@ -50,7 +50,9 @@ if TYPE_CHECKING:
     from app.services.agent.params.models import GeneralAgentParams
 
 
-def _build_chat_history(request: ChatCompletionRequest) -> list[list[str | dict[str, object]]]:
+def _build_chat_history(
+    request: ChatCompletionRequest,
+) -> list[list[str | dict[str, object]]]:
     """Convert OpenAI messages array to internal chat_history format.
 
     Internal format: list of [role_content_pairs] where each pair is
@@ -109,7 +111,7 @@ async def _build_agent_params(
     )
 
     chat_history = _build_chat_history(request)
-    params, _, _, _, _archive_restore_results = await convert_to_general_agent_params(agent_request, chat_history)
+    params, _, _, _, _, _archive_restore_results = await convert_to_general_agent_params(agent_request, chat_history)
 
     if request.temperature is not None and params.model_cfg:
         # Dual-channel write: temperature 同时写入顶层字段与 model_kwargs，
@@ -256,9 +258,9 @@ async def chat_completions(
             break
 
     usage = UsageInfo(
-        prompt_tokens=int(usage_data.get("prompt_tokens", 0)) if isinstance(usage_data, dict) else 0,
-        completion_tokens=int(usage_data.get("completion_tokens", 0)) if isinstance(usage_data, dict) else 0,
-        total_tokens=int(usage_data.get("total_tokens", 0)) if isinstance(usage_data, dict) else 0,
+        prompt_tokens=(int(usage_data.get("prompt_tokens", 0)) if isinstance(usage_data, dict) else 0),
+        completion_tokens=(int(usage_data.get("completion_tokens", 0)) if isinstance(usage_data, dict) else 0),
+        total_tokens=(int(usage_data.get("total_tokens", 0)) if isinstance(usage_data, dict) else 0),
     )
 
     return ChatCompletionResponse(

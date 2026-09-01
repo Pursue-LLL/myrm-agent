@@ -15168,6 +15168,26 @@
           "confidence": "귀속 {value}%",
           "loopKind": "루프: {value}"
         },
+        "manifestPrediction": {
+          "title": "반증 가능한 변경 예측 및 귀속",
+          "baseline": "기준선",
+          "target": "목표",
+          "predictedDirection": {
+            "INCREASE": "향상 예측",
+            "DECREASE": "감소 예측",
+            "NEUTRAL": "유지 예측"
+          },
+          "falsificationConditions": "반증 조건",
+          "attributionVerdict": "귀속 결론",
+          "verdictBadge": {
+            "CONFIRMED": "달성 확인",
+            "REFUTED": "미달",
+            "REGRESSION": "퇴보 발생",
+            "INCONCLUSIVE": "증거 불충분"
+          },
+          "metricDeltas": "실측 지표 변화",
+          "unpredictedRegressions": "예측되지 않은 퇴보 경고"
+        },
         "empty": {
           "title": "이 보기에 사례가 없습니다",
           "description": "에이전트가 개선 사항을 캡처하거나 검토한 후 최근 스킬 성장 활동이 여기에 표시됩니다."

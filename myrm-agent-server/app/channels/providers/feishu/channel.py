@@ -265,9 +265,17 @@ class FeishuChannel(BaseChannel):
                 last_msg_id = mid
 
         if msg.content:
-            chunks = render(msg, self.render_style)
-            for i, chunk in enumerate(chunks):
-                is_last = i == len(chunks) - 1
+            from .table_slicer import slice_card_markdown
+
+            # In raw mode or rich post mode, use standard render chunking
+            if self._render_mode == "raw" or (self._render_mode != "card" and not self._should_use_card(msg.content, msg)):
+                content_chunks = render(msg, self.render_style)
+            else:
+                # In card mode, apply table slicing and Lark Markdown protection across 24KB boundaries
+                content_chunks = slice_card_markdown(msg.content)
+
+            for i, chunk in enumerate(content_chunks):
+                is_last = i == len(content_chunks) - 1
                 chunk_msg = dataclasses.replace(
                     msg,
                     content=chunk,
@@ -441,6 +449,29 @@ class FeishuChannel(BaseChannel):
                     except (ValueError, TypeError):
                         pass
 
+                # Check numbered action fallback resolution for localhost/intranet environments
+                from .action_fallback import default_action_fallback_registry
+
+                resolved_action_id = default_action_fallback_registry.resolve_action(
+                    chat_id=parsed.chat_id,
+                    user_id=parsed.sender_id,
+                    input_text=content,
+                )
+
+                metadata: dict[str, object] = {
+                    "message_id": parsed.message_id,
+                    "msg_type": parsed.msg_type,
+                    "image_keys": parsed.image_keys,
+                    "media_keys": parsed.media_keys,
+                }
+
+                if resolved_action_id:
+                    # Upgrade text reply to structured card action event
+                    content = resolved_action_id
+                    metadata["callback_type"] = "act"
+                    metadata["action_id"] = resolved_action_id
+                    metadata["fallback_resolved"] = True
+
                 inbound = self._build_inbound(
                     sender_id=parsed.sender_id,
                     content=content,
@@ -449,18 +480,13 @@ class FeishuChannel(BaseChannel):
                     chat_id=parsed.chat_id,
                     is_group=parsed.is_group,
                     is_bot=parsed.sender_type in ("bot", "app"),
-                    mentioned=parsed.bot_mentioned,
+                    mentioned=parsed.bot_mentioned or bool(resolved_action_id),
                     media=media,
                     message_id=parsed.message_id,
                     thread_id=parsed.root_id,
                     reply_to=reply_to,
                     sender_name=await self._resolve_sender_name(parsed.sender_id),
-                    metadata={
-                        "message_id": parsed.message_id,
-                        "msg_type": parsed.msg_type,
-                        "image_keys": parsed.image_keys,
-                        "media_keys": parsed.media_keys,
-                    },
+                    metadata=metadata,
                 )
                 await self._emit_inbound(inbound)
 
@@ -582,6 +608,31 @@ class FeishuChannel(BaseChannel):
                 )
             )
         return issues
+
+    async def run_diagnostics(self) -> dict[str, object]:
+        """Run comprehensive Feishu Doctor diagnostics and return structured JSON."""
+        from .doctor import diagnose_feishu_channel
+
+        report = await diagnose_feishu_channel(
+            self._client,
+            app_id=self._app_id,
+            transport_mode=self._transport,
+            webhook_url=self._webhook_url if hasattr(self, "_webhook_url") else None,
+        )
+        return {
+            "app_id": report.app_id,
+            "is_healthy": report.is_healthy,
+            "checks": [
+                {
+                    "name": c.name,
+                    "passed": c.passed,
+                    "message": c.message,
+                    "details": c.details,
+                }
+                for c in report.checks
+            ],
+            "recommendations": report.recommendations,
+        }
 
     async def _start_ws_transport(self) -> None:
         """Initialize and start the WebSocket transport."""

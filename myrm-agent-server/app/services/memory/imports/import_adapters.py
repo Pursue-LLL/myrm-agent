@@ -81,8 +81,7 @@ RequestedImportSource = Literal[
 ]
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
-    source_id: import_source
-    for source_id, import_source in migration_source_import_map().items()
+    source_id: import_source for source_id, import_source in migration_source_import_map().items()
 }
 
 _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
@@ -128,11 +127,7 @@ def build_memory_import_dry_run(
     if resolved_source == "claude":
         return dry_run_native_json(resolved_payload)
 
-    detected = (
-        _detect_source(resolved_payload)
-        if resolved_source == "auto"
-        else resolved_source
-    )
+    detected = _detect_source(resolved_payload) if resolved_source == "auto" else resolved_source
     if detected == "native_json":
         return dry_run_native_json(resolved_payload)
     if detected == "myrm_archive":
@@ -163,9 +158,7 @@ def build_memory_import_dry_run(
         return dry_run_trae(resolved_payload)
     if _is_pi_payload(resolved_payload):
         return _dry_run_pi(resolved_payload)
-    return unsupported_result(
-        to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE
-    )
+    return unsupported_result(to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE)
 
 
 def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
@@ -289,9 +282,7 @@ def _is_openclaw_payload(payload: dict[str, object]) -> bool:
 
     if payload.get("_source") == "openclaw":
         return True
-    return isinstance(payload.get("openclaw_sessions"), list) or isinstance(
-        payload.get("openclaw_memory"), list
-    )
+    return isinstance(payload.get("openclaw_sessions"), list) or isinstance(payload.get("openclaw_memory"), list)
 
 
 def _is_cursor_payload(payload: dict[str, object]) -> bool:
@@ -299,9 +290,7 @@ def _is_cursor_payload(payload: dict[str, object]) -> bool:
 
     if payload.get("_source") == "cursor_rules":
         return True
-    return isinstance(payload.get("cursor_rules"), list) or isinstance(
-        payload.get("cursor_settings"), dict
-    )
+    return isinstance(payload.get("cursor_rules"), list) or isinstance(payload.get("cursor_settings"), dict)
 
 
 def _is_codex_payload(payload: dict[str, object]) -> bool:
@@ -309,9 +298,7 @@ def _is_codex_payload(payload: dict[str, object]) -> bool:
 
     if payload.get("_source") == "codex":
         return True
-    return isinstance(payload.get("codex_instructions"), str) or isinstance(
-        payload.get("codex_settings"), dict
-    )
+    return isinstance(payload.get("codex_instructions"), str) or isinstance(payload.get("codex_settings"), dict)
 
 
 def _is_pi_payload(payload: dict[str, object]) -> bool:
@@ -323,17 +310,13 @@ def _is_pi_payload(payload: dict[str, object]) -> bool:
 def _is_windsurf_payload(payload: dict[str, object]) -> bool:
     """Detect Windsurf data: characteristic memories/settings keys."""
 
-    return isinstance(payload.get("windsurf_memories"), list) or isinstance(
-        payload.get("windsurf_settings"), dict
-    )
+    return isinstance(payload.get("windsurf_memories"), list) or isinstance(payload.get("windsurf_settings"), dict)
 
 
 def _is_trae_payload(payload: dict[str, object]) -> bool:
     """Detect TRAE data: characteristic rules/settings keys."""
 
-    return isinstance(payload.get("trae_rules"), list) or isinstance(
-        payload.get("trae_settings"), dict
-    )
+    return isinstance(payload.get("trae_rules"), list) or isinstance(payload.get("trae_settings"), dict)
 
 
 def _dry_run_pi(payload: dict[str, object]) -> MemoryImportDryRunResult:
@@ -354,17 +337,12 @@ def _dry_run_pi(payload: dict[str, object]) -> MemoryImportDryRunResult:
             if not isinstance(messages, list) or not messages:
                 continue
             first_user_msg = next(
-                (
-                    str(m.get("content", ""))[:200]
-                    for m in messages
-                    if isinstance(m, dict) and m.get("role") == "user"
-                ),
+                (str(m.get("content", ""))[:200] for m in messages if isinstance(m, dict) and m.get("role") == "user"),
                 "",
             )
             episodic_items.append(
                 {
-                    "content": first_user_msg
-                    or f"Session {session.get('id', 'unknown')}",
+                    "content": first_user_msg or f"Session {session.get('id', 'unknown')}",
                     "type": "episodic",
                     "category": "pi_session",
                     "metadata": {

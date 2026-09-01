@@ -15021,6 +15021,26 @@
           "confidence": "歸因置信度 {value}%",
           "loopKind": "迴圈型別：{value}"
         },
+        "manifestPrediction": {
+          "title": "可證偽變更預測與歸因",
+          "baseline": "基準線",
+          "target": "目標",
+          "predictedDirection": {
+            "INCREASE": "預期提升",
+            "DECREASE": "預期降低",
+            "NEUTRAL": "預期保持"
+          },
+          "falsificationConditions": "證偽條件",
+          "attributionVerdict": "歸因結論",
+          "verdictBadge": {
+            "CONFIRMED": "預期達成",
+            "REFUTED": "未達預期",
+            "REGRESSION": "發生退化",
+            "INCONCLUSIVE": "證據不足"
+          },
+          "metricDeltas": "實測指標變化",
+          "unpredictedRegressions": "未預期退化警告"
+        },
         "empty": {
           "title": "當前檢視暫無案例",
           "description": "當 Agent 捕獲到新經驗、自動落地能力，或需要你稽核時，相關記錄會出現在這裡。"

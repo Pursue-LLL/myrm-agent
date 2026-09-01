@@ -38,6 +38,7 @@ from .types import (
     MAX_SKILL_CONTENT_CHARS,
     EvolutionApplyError,
     EvolutionApplyStatus,
+    EvolutionApprovalPayload,
     EvolutionGrowthStatus,
     EvolutionReviewRecord,
     approval_payload,
@@ -48,96 +49,7 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 
-def _rebuild_manifest_after_revision(
-    payload: EvolutionApprovalPayload, revised_content: str
-) -> dict[str, object] | None:
-    """Recompute the manifest's target pass rate after a human revision.
-
-    Keeps the falsifiable prediction consistent with the content that will
-    actually be applied (the original manifest targeted the pre-revision
-    content and would be stale). Baseline (original content) and eval_cases
-    snapshot are preserved unchanged. Returns None when no manifest exists.
-    """
-    manifest_dict = payload.change_manifest
-    if not isinstance(manifest_dict, dict) or not manifest_dict.get("predictions"):
-        return None
-
-    from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
-        evaluate_content_assertions,
-    )
-    from myrm_agent_harness.eval.manifest_prediction import MetricPrediction
-
-    try:
-        rebuilt: dict[str, object] = dict(manifest_dict)
-        new_predictions: list[dict[str, object]] = []
-        for pred in manifest_dict["predictions"]:
-            if not isinstance(pred, dict) or pred.get("metric_name") != "pass_rate":
-                new_predictions.append(pred)
-                continue
-            updated = dict(pred)
-            updated["target_value"] = evaluate_content_assertions(
-                payload.eval_cases, revised_content
-            )
-            new_predictions.append(updated)
-        rebuilt["predictions"] = new_predictions
-        return rebuilt
-    except (ValueError, TypeError, KeyError) as exc:
-        logger.warning(
-            "Change manifest re-prediction failed for skill '%s': %s",
-            payload.skill_id,
-            exc,
-        )
-        return None
-
-
-def _rebuild_manifest_after_revision(
-    payload: EvolutionApprovalPayload, revised_content: str
-) -> dict[str, object] | None:
-    """Rebuild the change manifest predictions after a human revision.
-
-    The revision replaces the previously predicted content, so stale targets would
-    make the post-apply attribution meaningless. Baseline (original content) and the
-    eval_cases snapshot stay fixed; only the predicted target is recomputed against
-    the revised content with the same deterministic assertion engine.
-    """
-    manifest_dict = payload.change_manifest
-    if not isinstance(manifest_dict, dict) or not manifest_dict.get("predictions"):
-        return None
-
-    from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
-        evaluate_content_assertions,
-    )
-    from myrm_agent_harness.eval.manifest_prediction import PredictionDirection
-
-    try:
-        for pred in manifest_dict["predictions"]:
-            if not isinstance(pred, dict) or pred.get("metric_name") != "pass_rate":
-                continue
-            baseline = float(pred.get("baseline_value", 0.0))
-            revised_rate = evaluate_content_assertions(
-                payload.eval_cases, revised_content
-            )
-            pred["target_value"] = max(
-                evaluate_content_assertions(payload.eval_cases, revised_content),
-                baseline,
-            )
-            pred["direction"] = PredictionDirection.INCREASE.value
-            break
-        else:
-            return None
-        return manifest_dict
-    except (ValueError, TypeError, KeyError) as exc:
-        logger.warning(
-            "Manifest prediction rebuild failed for skill '%s': %s",
-            payload.skill_id,
-            exc,
-        )
-        return None
-
-
-def _rebuild_manifest_after_revision(
-    payload: EvolutionApprovalPayload, revised_content: str
-) -> dict[str, object] | None:
+def _rebuild_manifest_after_revision(payload: EvolutionApprovalPayload, revised_content: str) -> dict[str, object] | None:
     """Recompute the prediction manifest after a manual revision.
 
     The original manifest's target was computed against the pre-revision
@@ -146,11 +58,7 @@ def _rebuild_manifest_after_revision(
     Returns None when no manifest or no eval_cases exist (nothing to predict).
     """
     manifest_dict = payload.change_manifest
-    if (
-        not isinstance(manifest_dict, dict)
-        or not manifest_dict.get("predictions")
-        or not payload.eval_cases
-    ):
+    if not isinstance(manifest_dict, dict) or not manifest_dict.get("predictions") or not payload.eval_cases:
         return None
 
     from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
@@ -163,11 +71,7 @@ def _rebuild_manifest_after_revision(
     )
 
     try:
-        original_pred = next(
-            p
-            for p in manifest_dict["predictions"]
-            if p.get("metric_name") == "pass_rate"
-        )
+        original_pred = next(p for p in manifest_dict["predictions"] if p.get("metric_name") == "pass_rate")
     except StopIteration:
         return None
 
@@ -200,9 +104,7 @@ async def approve_evolution_review_record(
 ) -> EvolutionReviewRecord:
     approval_record = await load_approval_record(evolution_id)
     if approval_record is None:
-        raise EvolutionApplyError(
-            f"Evolution approval record not found: {evolution_id}"
-        )
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
 
     current = approval_to_evolution_review_record(approval_record)
     if current is None:
@@ -223,14 +125,10 @@ async def approve_evolution_review_record(
             edited_payload={"growth_status": EvolutionGrowthStatus.APPROVED.value},
         )
         if resolved is None:
-            raise EvolutionApplyError(
-                f"Evolution approval record not found: {evolution_id}"
-            )
+            raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         record = resolved
 
-    return await apply_approval_record(
-        record, auto_approved=auto_approved, apply_mode=apply_mode
-    )
+    return await apply_approval_record(record, auto_approved=auto_approved, apply_mode=apply_mode)
 
 
 async def reject_evolution_review_record(
@@ -240,9 +138,7 @@ async def reject_evolution_review_record(
 ) -> EvolutionReviewRecord:
     approval_record = await load_approval_record(evolution_id)
     if approval_record is None:
-        raise EvolutionApplyError(
-            f"Evolution approval record not found: {evolution_id}"
-        )
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
 
     payload = approval_payload(approval_record)
     if payload is None:
@@ -261,9 +157,7 @@ async def reject_evolution_review_record(
             edited_payload=payload.model_dump(mode="json"),
         )
         if resolved is None:
-            raise EvolutionApplyError(
-                f"Evolution approval record not found: {evolution_id}"
-            )
+            raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         approval_record = resolved
     else:
         approval_record = await persist_approval_payload(
@@ -304,9 +198,7 @@ async def reject_evolution_review_record(
 
     review_record = approval_to_evolution_review_record(approval_record)
     if review_record is None:
-        raise EvolutionApplyError(
-            f"Failed to normalize rejected evolution record: {approval_record.id}"
-        )
+        raise EvolutionApplyError(f"Failed to normalize rejected evolution record: {approval_record.id}")
     return review_record
 
 
@@ -317,9 +209,7 @@ async def revise_evolution_review_record(
 ) -> EvolutionReviewRecord:
     approval_record = await load_approval_record(evolution_id)
     if approval_record is None:
-        raise EvolutionApplyError(
-            f"Evolution approval record not found: {evolution_id}"
-        )
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
 
     payload = approval_payload(approval_record)
     if payload is None:
@@ -337,9 +227,7 @@ async def revise_evolution_review_record(
         raise EvolutionApplyError("Revised content cannot be empty.")
 
     if len(evolved_content) > MAX_SKILL_CONTENT_CHARS:
-        raise EvolutionApplyError(
-            f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS})."
-        )
+        raise EvolutionApplyError(f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS}).")
 
     scan_passed = True
     try:
@@ -350,27 +238,21 @@ async def revise_evolution_review_record(
         scan_result = scan_skill_content(payload.skill_name, evolved_content)
         scan_passed = scan_result.is_clean
     except Exception as exc:
-        logger.warning(
-            "Security scan failed during revision for %s: %s", evolution_id, exc
-        )
+        logger.warning("Security scan failed during revision for %s: %s", evolution_id, exc)
 
     payload.evolved_content = evolved_content
     payload.test_passed = scan_passed
     if not scan_passed:
         payload.growth_status = EvolutionGrowthStatus.FAILED_SCAN
         payload.reason_code = "revised_failed_scan"
-        payload.remediation = (
-            "Revised content failed security scan. Please fix the flagged issues."
-        )
+        payload.remediation = "Revised content failed security scan. Please fix the flagged issues."
     else:
         payload.growth_status = EvolutionGrowthStatus.PENDING_REVIEW
         payload.apply_status = EvolutionApplyStatus.NOT_APPLIED
         payload.apply_error = None
         payload.reason_code = "revised"
         payload.remediation = None
-        payload.change_manifest = _rebuild_manifest_after_revision(
-            payload, evolved_content
-        )
+        payload.change_manifest = _rebuild_manifest_after_revision(payload, evolved_content)
 
     updated = await persist_approval_payload(
         evolution_id,
@@ -402,18 +284,14 @@ async def revise_evolution_review_record(
 
     review_record = approval_to_evolution_review_record(updated)
     if review_record is None:
-        raise EvolutionApplyError(
-            f"Failed to normalize revised evolution record: {updated.id}"
-        )
+        raise EvolutionApplyError(f"Failed to normalize revised evolution record: {updated.id}")
     return review_record
 
 
 async def rollback_evolution_review_record(evolution_id: str) -> dict[str, object]:
     approval_record = await load_approval_record(evolution_id)
     if approval_record is None:
-        raise EvolutionApplyError(
-            f"Evolution approval record not found: {evolution_id}"
-        )
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
 
     payload = approval_payload(approval_record)
     if payload is None:
@@ -430,9 +308,7 @@ async def rollback_evolution_review_record(evolution_id: str) -> dict[str, objec
     payload.apply_status = EvolutionApplyStatus.ROLLED_BACK
     payload.apply_error = None
     payload.reason_code = "rolled_back"
-    payload.remediation = (
-        "Review the original content before re-applying this evolution."
-    )
+    payload.remediation = "Review the original content before re-applying this evolution."
     await persist_approval_payload(
         evolution_id,
         approval_status="APPROVED",

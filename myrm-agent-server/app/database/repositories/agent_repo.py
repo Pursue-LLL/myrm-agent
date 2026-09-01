@@ -122,8 +122,12 @@ class AgentRepository:
                 "dialog_policy": agent.dialog_policy,
                 "session_recording": agent.session_recording,
                 "cron_post_run_verify": bool(getattr(agent, "cron_post_run_verify", False)),
-                "is_pareto_preset": bool((agent.engine_params or {}).get("is_pareto_preset", False)) if isinstance(agent.engine_params, dict) else False,
-                "cost_reduction_ratio": (agent.engine_params or {}).get("cost_reduction_ratio") if isinstance(agent.engine_params, dict) else None,
+                "is_pareto_preset": bool((agent.engine_params or {}).get("is_pareto_preset", False))
+                if isinstance(agent.engine_params, dict)
+                else False,
+                "cost_reduction_ratio": (agent.engine_params or {}).get("cost_reduction_ratio")
+                if isinstance(agent.engine_params, dict)
+                else None,
             },
             built_in=agent.is_built_in or agent.is_public,
             created_at=agent.created_at,

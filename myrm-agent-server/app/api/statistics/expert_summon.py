@@ -66,12 +66,17 @@ ExpertSummonFailureReason = Literal[
 ExpertSummonSurface = Literal[
     "template_market", "flow_pad_inline", "empty_chat_featured", "message_input_plus", "mobile_hub_chip"
 ]
-ExpertSummonTrigger = Literal[
-    "template_card", "use_case_chip", "route_menu", "featured_chip", "plus_popover_card", "mobile_chip"
-]
+ExpertSummonTrigger = Literal["template_card", "use_case_chip", "route_menu", "featured_chip", "plus_popover_card", "mobile_chip"]
 ExpertSummonEventType = Literal[
-    "surface_viewed", "search_used", "summon_attempted", "summon_succeeded", "summon_failed",
-    "route_applied", "route_apply_failed", "first_message_sent", "dropped_report"
+    "surface_viewed",
+    "search_used",
+    "summon_attempted",
+    "summon_succeeded",
+    "summon_failed",
+    "route_applied",
+    "route_apply_failed",
+    "first_message_sent",
+    "dropped_report",
 ]
 
 
@@ -206,9 +211,7 @@ async def _sum_event_count(
     return int((await db.execute(stmt)).scalar() or 0)
 
 
-async def _surface_breakdown(
-    db: AsyncSession, start_dt: datetime, event_type: str
-) -> dict[str, int]:
+async def _surface_breakdown(db: AsyncSession, start_dt: datetime, event_type: str) -> dict[str, int]:
     stmt = (
         select(ExpertSummonMetricEvent.surface, func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0))
         .where(and_(ExpertSummonMetricEvent.created_at >= start_dt, ExpertSummonMetricEvent.event_type == event_type))
@@ -222,9 +225,7 @@ async def _surface_breakdown(
     return result
 
 
-async def _trigger_breakdown(
-    db: AsyncSession, start_dt: datetime, event_type: str
-) -> dict[str, int]:
+async def _trigger_breakdown(db: AsyncSession, start_dt: datetime, event_type: str) -> dict[str, int]:
     stmt = (
         select(ExpertSummonMetricEvent.trigger, func.coalesce(func.sum(ExpertSummonMetricEvent.count), 0))
         .where(

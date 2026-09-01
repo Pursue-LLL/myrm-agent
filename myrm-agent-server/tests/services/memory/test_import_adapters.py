@@ -89,10 +89,7 @@ class TestNativeJsonDryRun:
         assert len(result.normalized_data["semantic"]) == 2
 
     def test_all_supported_buckets(self) -> None:
-        payload = {
-            bucket: [{"content": f"{bucket} item"}]
-            for bucket in SUPPORTED_NATIVE_BUCKETS
-        }
+        payload = {bucket: [{"content": f"{bucket} item"}] for bucket in SUPPORTED_NATIVE_BUCKETS}
         result = build_memory_import_dry_run(payload, source="native_json")
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == len(SUPPORTED_NATIVE_BUCKETS)
@@ -346,9 +343,7 @@ class TestAdapterRegistryConsistency:
         statuses = memory_import_adapter_status()
         ready = [s for s, st in statuses.items() if st == "ready"]
         for adapter in ready:
-            assert (
-                adapter in sources
-            ), f"Ready adapter '{adapter}' missing from supported sources"
+            assert adapter in sources, f"Ready adapter '{adapter}' missing from supported sources"
 
     def test_ready_registry_matches_expected_sources(self) -> None:
         """Registry 'ready' set must exactly match the adapters implemented today.
@@ -626,3 +621,32 @@ class TestWindsurfDryRun:
         payload = {"windsurf_memories": [{"content": "c"}]}
         result = build_memory_import_dry_run(payload, source="windsurf")
         assert result.summary.source == "windsurf"
+
+    def test_trae_rules_with_body_key_parsed(self) -> None:
+        payload = {
+            "_source": "trae",
+            "trae_rules": [{"title": "API Rule", "body": "Use standard HTTP errors", "source": "project_rules"}],
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "trae"
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 1
+        procedural = result.normalized_data.get("procedural")
+        assert isinstance(procedural, list) and len(procedural) == 1
+        assert "Use standard HTTP errors" in procedural[0]["content"]
+        assert "project" in procedural[0]["trigger_keywords"]
+
+    def test_windsurf_memories_with_memory_key_and_confidence(self) -> None:
+        payload = {
+            "_source": "windsurf",
+            "windsurf_memories": [{"memory": "Always write docstrings", "confidence": -2.0, "timestamp": "2026-08-01T12:00:00Z"}],
+        }
+        result = build_memory_import_dry_run(payload)
+        assert result.summary.source == "windsurf"
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 1
+        semantic = result.normalized_data.get("semantic")
+        assert isinstance(semantic, list) and len(semantic) == 1
+        assert semantic[0]["content"] == "Always write docstrings"
+        assert semantic[0]["confidence"] == pytest.approx(0.0, abs=0.01)
+        assert semantic[0]["created_at"] == "2026-08-01T12:00:00Z"

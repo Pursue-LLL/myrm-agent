@@ -29,7 +29,11 @@ from app.database.models.artifact_publication import ArtifactPublication
 from app.database.models.assessment_import import AssessmentImportLedger
 from app.database.models.chat import Chat
 from app.platform_utils.workspace_root import get_workspace_root
-from app.services.hosting.publication_store import list_publications, list_publications_for_artifacts, publication_to_dict
+from app.services.hosting.publication_store import (
+    list_publications,
+    list_publications_for_artifacts,
+    publication_to_dict,
+)
 from app.services.hosting.targets import list_hosting_targets
 from app.services.project.assessment_import_service import (
     ERROR_NO_ACTIONABLE_TASKS,
@@ -390,6 +394,7 @@ async def verify_artifact_hash(
 class BundleDownloadRequest(BaseModel):
     artifact_ids: list[str]
     chat_id: str
+    manifest: dict | None = None
 
 
 @router.post("/download-bundle")
@@ -397,14 +402,13 @@ async def download_artifact_bundle(
     request: BundleDownloadRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Download multiple artifacts as a ZIP archive."""
-    import io
-    import zipfile
-
+    """Download multiple artifacts as an organized, multi-directory ZIP archive."""
     from fastapi.responses import StreamingResponse
+    from myrm_agent_harness.agent.artifacts.bundle_manifest import DeliverableManifest
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
     from app.api.dependencies import get_workspace_root
+    from app.services.artifacts.bundle_builder import build_zip_deliverable_bundle
 
     if not request.artifact_ids:
         raise HTTPException(status_code=400, detail="No artifact IDs provided")
@@ -424,29 +428,10 @@ async def download_artifact_bundle(
         raise HTTPException(status_code=404, detail="No artifacts found")
 
     vault = ArtifactVault(str(get_workspace_root()))
-    buf = io.BytesIO()
+    manifest = DeliverableManifest.from_dict(request.manifest) if request.manifest else None
 
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        used_names: set[str] = set()
-        for artifact in artifacts:
-            versions = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)
-            if not versions:
-                continue
-            latest = versions[0]
-            try:
-                obj_id = latest.vault_uri.removeprefix("vault://")
-                obj_path = vault.get_object_path(obj_id)
-                if obj_path.exists():
-                    name = artifact.name
-                    if name in used_names:
-                        stem, _, ext = name.rpartition(".")
-                        name = f"{stem}_{artifact.id[:6]}.{ext}" if ext else f"{name}_{artifact.id[:6]}"
-                    used_names.add(name)
-                    zf.write(obj_path, name)
-            except Exception as exc:
-                logger.warning("Failed to add artifact %s to bundle: %s", artifact.id, exc)
+    buf = build_zip_deliverable_bundle(artifacts, vault, manifest=manifest)
 
-    buf.seek(0)
     return StreamingResponse(
         buf,
         media_type="application/zip",

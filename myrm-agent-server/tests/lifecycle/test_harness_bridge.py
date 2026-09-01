@@ -93,9 +93,7 @@ async def test_subagent_spawn_publishes_subagent_spawned_event():
         await _handle_subagent_event(event)
 
         spawn_publish = [
-            call
-            for call in mock_bus.publish.call_args_list
-            if call.args[0].event_type == AppEventType.SUBAGENT_SPAWNED
+            call for call in mock_bus.publish.call_args_list if call.args[0].event_type == AppEventType.SUBAGENT_SPAWNED
         ]
         assert len(spawn_publish) == 1
         payload = spawn_publish[0].args[0].data
@@ -135,9 +133,7 @@ async def test_subagent_complete_publishes_subagent_merged_event():
         await _handle_subagent_event(event)
 
         merged_publish = [
-            call
-            for call in mock_bus.publish.call_args_list
-            if call.args[0].event_type == AppEventType.SUBAGENT_MERGED
+            call for call in mock_bus.publish.call_args_list if call.args[0].event_type == AppEventType.SUBAGENT_MERGED
         ]
         assert len(merged_publish) == 1
         payload = merged_publish[0].args[0].data

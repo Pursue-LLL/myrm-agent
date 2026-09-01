@@ -102,11 +102,7 @@ def _parse_memories(entries: list[object]) -> list[dict[str, object]]:
         if not isinstance(raw_entry, dict):
             continue
         entry = object_dict(raw_entry)
-        content = (
-            text(entry.get("content"))
-            or text(entry.get("text"))
-            or text(entry.get("memory"))
-        )
+        content = text(entry.get("content")) or text(entry.get("text")) or text(entry.get("memory"))
         if not content:
             continue
         items.append(
@@ -115,9 +111,7 @@ def _parse_memories(entries: list[object]) -> list[dict[str, object]]:
                 "importance": float_between(entry.get("importance"), 0.7),
                 "confidence": float_between(entry.get("confidence"), 0.75),
                 "tags": ["windsurf_memory"],
-                "created_at": iso_or_now(
-                    entry.get("created_at") or entry.get("timestamp")
-                ),
+                "created_at": iso_or_now(entry.get("created_at") or entry.get("timestamp")),
                 "metadata": build_metadata("windsurf", entry, ("id", "type")),
             }
         )

@@ -28,66 +28,6 @@ from myrm_agent_harness.eval.manifest_prediction import (
     PredictionDirection,
     evaluate_manifest_attribution,
 )
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
-from myrm_agent_harness.eval.manifest_prediction import (
-    MetricPrediction,
-    PredictionDirection,
-    evaluate_manifest_attribution,
-)
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.models import ApprovalRecord
@@ -172,9 +112,7 @@ async def apply_description_update(
 ) -> None:
     existing = store.get_skill(payload.skill_id)
     if existing is None:
-        raise EvolutionApplyError(
-            f"Cannot apply description update: skill '{payload.skill_id}' not found in store."
-        )
+        raise EvolutionApplyError(f"Cannot apply description update: skill '{payload.skill_id}' not found in store.")
 
     existing.description = payload.evolved_content
     existing.lineage = SkillLineage(
@@ -211,9 +149,7 @@ async def mark_apply_failure(
         record.id,
         approval_status=approval_status,
         payload=payload,
-        resolved_at=(
-            datetime.now(timezone.utc) if approval_status == "APPROVED" else None
-        ),
+        resolved_at=(datetime.now(timezone.utc) if approval_status == "APPROVED" else None),
     )
     await record_experience_event(
         ExperienceLedgerWrite(
@@ -303,20 +239,14 @@ def _attribute_manifest_after_apply(
             manifest.predictions.append(
                 MetricPrediction(
                     metric_name=str(pred.get("metric_name", "")),
-                    direction=PredictionDirection(
-                        str(pred.get("direction", "neutral"))
-                    ),
+                    direction=PredictionDirection(str(pred.get("direction", "neutral"))),
                     baseline_value=float(pred.get("baseline_value", 0.0)),
                     target_value=float(pred.get("target_value", 0.0)),
                     tolerance=float(pred.get("tolerance", 0.02)),
                 )
             )
 
-        actual_metrics = {
-            "pass_rate": evaluate_content_assertions(
-                payload.eval_cases, payload.evolved_content
-            )
-        }
+        actual_metrics = {"pass_rate": evaluate_content_assertions(payload.eval_cases, payload.evolved_content)}
         result = evaluate_manifest_attribution(manifest, actual_metrics)
         return result.to_dict()
     except (ValueError, TypeError, KeyError) as exc:
@@ -341,9 +271,7 @@ async def apply_approval_record(
     before_quality_score = await _fetch_before_quality_score(payload.skill_id)
 
     try:
-        await apply_to_disk_and_store(
-            payload, agent_id=record.agent_id, apply_mode=apply_mode
-        )
+        await apply_to_disk_and_store(payload, agent_id=record.agent_id, apply_mode=apply_mode)
     except Exception as exc:
         await mark_apply_failure(record, payload, str(exc), auto_approved=auto_approved)
         raise EvolutionApplyError(str(exc)) from exc
@@ -351,11 +279,7 @@ async def apply_approval_record(
     payload.apply_status = EvolutionApplyStatus.APPLIED
     payload.apply_error = None
     payload.remediation = None
-    payload.reason_code = (
-        None
-        if payload.growth_status == EvolutionGrowthStatus.APPROVED
-        else payload.reason_code
-    )
+    payload.reason_code = None if payload.growth_status == EvolutionGrowthStatus.APPROVED else payload.reason_code
     payload.growth_status = EvolutionGrowthStatus.APPROVED
 
     attribution = _attribute_manifest_after_apply(payload)
@@ -403,20 +327,14 @@ async def apply_approval_record(
     )
     review_record = approval_to_evolution_review_record(updated)
     if review_record is None:
-        raise EvolutionApplyError(
-            f"Failed to normalize approved evolution record: {updated.id}"
-        )
+        raise EvolutionApplyError(f"Failed to normalize approved evolution record: {updated.id}")
     return review_record
 
 
-async def rollback_description_update(
-    payload: EvolutionApprovalPayload, store: SkillStore
-) -> None:
+async def rollback_description_update(payload: EvolutionApprovalPayload, store: SkillStore) -> None:
     existing = store.get_skill(payload.skill_id)
     if existing is None:
-        raise EvolutionApplyError(
-            f"Cannot rollback description update: skill '{payload.skill_id}' not found."
-        )
+        raise EvolutionApplyError(f"Cannot rollback description update: skill '{payload.skill_id}' not found.")
     existing.description = payload.original_content
     existing.lineage = SkillLineage(
         evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION,

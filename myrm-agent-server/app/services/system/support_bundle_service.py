@@ -87,14 +87,8 @@ class SupportBundleService:
         try:
             async with asyncio.timeout(_COLLECTION_TIMEOUT_SECONDS):
                 snapshot = await collect_health_snapshot()
-                harness_reports = [
-                    redact_health_report(present_health_report(r)).model_dump()
-                    for r in snapshot.harness_reports
-                ]
-                server_reports = [
-                    redact_health_report(present_health_report(r)).model_dump()
-                    for r in snapshot.server_reports
-                ]
+                harness_reports = [redact_health_report(present_health_report(r)).model_dump() for r in snapshot.harness_reports]
+                server_reports = [redact_health_report(present_health_report(r)).model_dump() for r in snapshot.server_reports]
                 return {
                     "is_healthy": snapshot.is_healthy,
                     "harness": harness_reports,
@@ -111,18 +105,20 @@ class SupportBundleService:
             profiles = await AgentService.list_profiles(limit=50)
             results: list[dict[str, object]] = []
             for p in profiles:
-                results.append({
-                    "id": p.id,
-                    "name": p.name,
-                    "model": p.model,
-                    "is_active": p.is_active,
-                    "max_iterations": p.max_iterations,
-                    "prompt_mode": getattr(p, "prompt_mode", "general"),
-                    "created_at": p.created_at.isoformat() if p.created_at else None,
-                    "enabled_builtin_tools": list(p.enabled_builtin_tools) if p.enabled_builtin_tools else [],
-                    "skills_count": len(p.skills) if hasattr(p, "skills") and p.skills else 0,
-                    "mcp_servers_count": len(p.mcp_servers) if hasattr(p, "mcp_servers") and p.mcp_servers else 0,
-                })
+                results.append(
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "model": p.model,
+                        "is_active": p.is_active,
+                        "max_iterations": p.max_iterations,
+                        "prompt_mode": getattr(p, "prompt_mode", "general"),
+                        "created_at": p.created_at.isoformat() if p.created_at else None,
+                        "enabled_builtin_tools": list(p.enabled_builtin_tools) if p.enabled_builtin_tools else [],
+                        "skills_count": len(p.skills) if hasattr(p, "skills") and p.skills else 0,
+                        "mcp_servers_count": len(p.mcp_servers) if hasattr(p, "mcp_servers") and p.mcp_servers else 0,
+                    }
+                )
             return results
         except Exception as exc:
             logger.warning("Failed to collect agent profiles: %s", exc)

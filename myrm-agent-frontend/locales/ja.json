@@ -1469,7 +1469,11 @@
       "desktop": "デスクトップ",
       "artifacts": "成果物",
       "advisorAsk": "アドバイザーに質問",
-      "advisorOpen": "サイドQ&A"
+      "advisorOpen": "サイドQ&A",
+      "pushEnableBanner": "プッシュ通知を有効にして、タスク結果と承認の最新情報を取得します",
+      "pushEnableButton": "有効にする",
+      "pushDismiss": "閉じる",
+      "pushEnabled": "通知は有効です"
     },
     "readiness": {
       "warning": "警告",
@@ -15000,6 +15004,26 @@
           "count": "失敗回数：{value}",
           "confidence": "帰属信頼度 {value}%",
           "loopKind": "ループタイプ：{value}"
+        },
+        "manifestPrediction": {
+          "title": "反証可能な変更予測と帰属",
+          "baseline": "ベースライン",
+          "target": "目標",
+          "predictedDirection": {
+            "INCREASE": "向上予測",
+            "DECREASE": "低下予測",
+            "NEUTRAL": "維持予測"
+          },
+          "falsificationConditions": "反証条件",
+          "attributionVerdict": "帰属結論",
+          "verdictBadge": {
+            "CONFIRMED": "達成確認",
+            "REFUTED": "未達",
+            "REGRESSION": "劣化発生",
+            "INCONCLUSIVE": "証拠不十分"
+          },
+          "metricDeltas": "実測メトリクス変化",
+          "unpredictedRegressions": "未予測の劣化警告"
         },
         "empty": {
           "title": "このビューにはケースがありません",

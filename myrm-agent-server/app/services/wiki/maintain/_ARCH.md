@@ -15,6 +15,7 @@ Wiki maintain 域子包 — 编排、schemas 与状态持久化。
 | `__init__.py` | 门面 | 聚合导出 runner/schemas/state_store 公开符号 | ✅ |
 | `runner.py` | SSOT | `run_wiki_maintain_job` — POST /maintain?mode= 与 Cron `__wiki_maintain__` 共用；compile 进行中 skip；返回 lint issues + vault `reports/last-health.json` 快照 | ✅ |
 | `schemas.py` | 类型 | `WikiMaintainState` / `WikiMaintainRunResult` / `WikiMaintainModeLiteral` | ✅ |
+| `stale_archiver.py` | 核心 | `StaleFileArchiver` — 探测与归档过期草稿与失效 deprecated 文档 | ✅ |
 | `state_store.py` | 持久化 | UserConfig `wikiMaintainState` 上次维护 observability（按 agent） | ✅ |
 
 ## 依赖

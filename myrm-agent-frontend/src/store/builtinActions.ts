@@ -32,6 +32,55 @@ function parseYoloArgs(inputValue: string): { action: 'toggle' | 'on' | 'off'; t
   return { action: 'toggle' };
 }
 
+export function parseLoopCommandClient(inputValue: string): { intervalMs: number; intervalDesc: string; prompt: string } {
+  const DEFAULT_MS = 600_000;
+  const MIN_MS = 60_000;
+  const rawArgs = inputValue.replace(/^\/loop\s*/i, '').trim();
+  if (!rawArgs) {
+    return { intervalMs: DEFAULT_MS, intervalDesc: '10m', prompt: '' };
+  }
+
+  const parseUnit = (numStr: string, unitStr?: string): { ms: number; desc: string } => {
+    const val = parseInt(numStr, 10);
+    const unit = (unitStr || 'm').toLowerCase();
+    let ms = val * 60_000;
+    let desc = `${val}m`;
+    if (unit.startsWith('s')) {
+      ms = Math.max(val * 1000, MIN_MS);
+      desc = `${Math.ceil(ms / 60000)}m`;
+    } else if (unit.startsWith('m')) {
+      ms = Math.max(val * 60000, MIN_MS);
+      desc = `${val}m`;
+    } else if (unit.startsWith('h')) {
+      ms = val * 3600000;
+      desc = `${val}h`;
+    } else if (unit.startsWith('d')) {
+      ms = val * 86400000;
+      desc = `${val}d`;
+    }
+    return { ms, desc };
+  };
+
+  const prefixMatch = rawArgs.match(
+    /^(?:every\s+)?(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)?\s+(.+)$/i,
+  );
+  if (prefixMatch) {
+    const { ms, desc } = parseUnit(prefixMatch[1], prefixMatch[2]);
+    return { intervalMs: ms, intervalDesc: desc, prompt: prefixMatch[3].trim() };
+  }
+
+  const suffixMatch = rawArgs.match(
+    /\s+every\s+(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)?\s*$/i,
+  );
+  if (suffixMatch) {
+    const { ms, desc } = parseUnit(suffixMatch[1], suffixMatch[2]);
+    const prompt = rawArgs.slice(0, suffixMatch.index).trim();
+    return { intervalMs: ms, intervalDesc: desc, prompt };
+  }
+
+  return { intervalMs: DEFAULT_MS, intervalDesc: '10m', prompt: rawArgs };
+}
+
 export function buildBuiltinActions(): SlashAction[] {
   return [
     {

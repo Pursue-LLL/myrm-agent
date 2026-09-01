@@ -24,16 +24,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
-async def _handle_outbound_draft_resolution(
-    record: ApprovalRecord, decision: str
-) -> None:
+async def _handle_outbound_draft_resolution(record: ApprovalRecord, decision: str) -> None:
     """Send or discard a held outbound draft message based on the approval decision."""
     if decision == "approve":
         from app.services.approvals.registry import send_outbound_draft_payload
 
-        await send_outbound_draft_payload(
-            record.payload or {}, record.agent_id, record.id
-        )
+        await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
     else:
         logger.info("Outbound draft %s rejected, message discarded", record.id)
 
@@ -93,9 +89,7 @@ async def list_pending_approvals(
     offset: int = Query(0, ge=0),
 ) -> ApprovalListResponse:
     records = await ApprovalRegistry.list_pending(limit=limit, offset=offset)
-    return ApprovalListResponse(
-        approvals=[ApprovalRecordResponse.from_orm(r) for r in records]
-    )
+    return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in records])
 
 
 @router.post("/{approval_id}/resolve")
@@ -114,9 +108,7 @@ async def resolve_approval(
     )
 
     if not record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
 
     if record.action_type == "outbound_draft":
         await _handle_outbound_draft_resolution(record, normalized_decision)
@@ -212,8 +204,7 @@ async def batch_resolve_approvals(
             action_type=r.action_type,
             tool_name=(
                 r.payload.get("tool_calls", [{}])[0].get("name", r.action_type)
-                if isinstance(r.payload.get("tool_calls"), list)
-                and r.payload.get("tool_calls")
+                if isinstance(r.payload.get("tool_calls"), list) and r.payload.get("tool_calls")
                 else r.action_type
             ),
             severity=r.severity,
@@ -323,15 +314,11 @@ async def batch_resolve_approvals(
                     WorkspaceMultiplexer,
                 )
 
-                WorkspaceMultiplexer.get().publish_session_status(
-                    record.chat_id, "idle", ""
-                )
+                WorkspaceMultiplexer.get().publish_session_status(record.chat_id, "idle", "")
         except Exception as e:
             logger.error("Failed to batch resolve approval %s: %s", approval_id, e)
 
-    return ApprovalListResponse(
-        approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records]
-    )
+    return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records])
 
 
 @router.post("/test/seed-mock", include_in_schema=False)

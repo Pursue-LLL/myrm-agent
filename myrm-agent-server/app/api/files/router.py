@@ -12,6 +12,7 @@ from app.api.files import (
     artifact_share_api,
     browse,
     browse_watch,
+    bundle_api,
     document_extract,
     evicted,
     hosting_api,
@@ -33,6 +34,7 @@ router = APIRouter()
 router.include_router(upload.router, tags=["files-upload"])
 router.include_router(vault_api.router, prefix="/vault", tags=["files-vault"])
 router.include_router(artifact_api.router, prefix="/artifacts", tags=["files-artifacts"])
+router.include_router(bundle_api.router, prefix="/artifacts", tags=["files-deliverable-bundles"])
 router.include_router(hosting_api.router, prefix="/artifacts", tags=["files-hosting"])
 router.include_router(artifact_share_api.router, prefix="/artifacts", tags=["files-artifact-share"])
 router.include_router(storage.router, prefix="/storage", tags=["files-storage"])

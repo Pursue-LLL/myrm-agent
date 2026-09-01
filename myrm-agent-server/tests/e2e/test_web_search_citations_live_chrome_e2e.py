@@ -36,14 +36,10 @@ from tests.support.test_secrets import resolve_test_env
 _TURN_WAIT_SEC = 360.0
 
 _PROMPT = (
-    "请必须使用 web_search 工具搜索「OpenCode AI」，用一句话总结搜索结果，"
-    "正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。"
+    "请必须使用 web_search 工具搜索「OpenCode AI」，用一句话总结搜索结果，正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。"
 )
 
-_FAST_PROMPT = (
-    "请搜索「Python 3.14 新特性」，用一句话总结，正文中必须用【1】标注引用，"
-    "末尾单独一行写 CITE_OK。"
-)
+_FAST_PROMPT = "请搜索「Python 3.14 新特性」，用一句话总结，正文中必须用【1】标注引用，末尾单独一行写 CITE_OK。"
 
 _PREP_GENERAL_AGENT_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;

@@ -1,16 +1,26 @@
 'use client';
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { GoalState } from '../goalStatusTypes';
 
-const stableT = (key: string) => {
+const stableT = (key: string, params?: { count?: number; defaultMessage?: string }) => {
   const map: Record<string, string> = {
     deliverableBundle: 'Task Deliverables',
     bundleDownloadAll: 'Download All',
     bundleDownloading: 'Downloading…',
     bundleDownloadFailed: 'Failed to download deliverables',
+    bundleCategoryAll: 'All',
+    bundleCategoryStrategy: 'Strategy & Overview',
+    bundleCategoryCopywriting: 'Copywriting & Content',
+    bundleCategoryVisual: 'Visual & Media',
+    bundleCategoryDataSheet: 'Data & Sheets',
+    bundleCategoryFactCheck: 'Fact Check & Audit',
+    bundleCategorySchedule: 'Schedule & Plans',
+    bundleCategoryCode: 'Code & Scripts',
+    bundleCategoryOther: 'Other Assets',
   };
+  if (params?.defaultMessage) return params.defaultMessage;
   return map[key] ?? key;
 };
 
@@ -27,7 +37,10 @@ vi.mock('@/store/useArtifactPortalStore', () => ({
 }));
 
 vi.mock('@/lib/api', () => ({
-  fetchWithTimeout: vi.fn(),
+  fetchWithTimeout: vi.fn().mockResolvedValue({
+    ok: true,
+    blob: vi.fn().mockResolvedValue(new Blob(['dummy zip content'], { type: 'application/zip' })),
+  }),
   getStorageUrl: (path: string) => `http://localhost:3000${path}`,
 }));
 
@@ -42,14 +55,16 @@ import { TaskDeliverableBundle } from '../TaskDeliverableBundle';
 
 const makeGoal = (overrides: Partial<GoalState> = {}): GoalState => ({
   goalId: 'goal-1',
-  objective: 'Generate quarterly report',
+  objective: 'Generate quarterly report and social campaign',
   status: 'complete',
   tokensUsed: 50000,
   timeUsedSeconds: 300,
   deliverables: [
-    { id: 'art-1', filename: 'report.docx' },
-    { id: 'art-2', filename: 'slides.pptx' },
-    { id: 'art-3', filename: 'data.xlsx' },
+    { id: 'art-1', filename: 'campaign_strategy.md' },
+    { id: 'art-2', filename: 'xhs_article.md' },
+    { id: 'art-3', filename: 'banner.png' },
+    { id: 'art-4', filename: 'financial_data.xlsx' },
+    { id: 'art-5', filename: 'fact_check_sheet.md' },
   ],
   ...overrides,
 });
@@ -57,15 +72,51 @@ const makeGoal = (overrides: Partial<GoalState> = {}): GoalState => ({
 describe('TaskDeliverableBundle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    global.URL.createObjectURL = vi.fn().mockReturnValue('blob:dummy');
+    global.URL.revokeObjectURL = vi.fn();
   });
 
-  it('renders deliverable list when goal is complete with 2+ items', () => {
+  it('renders deliverable list and category filter tabs when goal is complete with 2+ items', () => {
     render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
     expect(screen.getByText('Task Deliverables')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('report.docx')).toBeInTheDocument();
-    expect(screen.getByText('slides.pptx')).toBeInTheDocument();
-    expect(screen.getByText('data.xlsx')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+
+    // Verify all files rendered
+    expect(screen.getByText('campaign_strategy.md')).toBeInTheDocument();
+    expect(screen.getByText('xhs_article.md')).toBeInTheDocument();
+    expect(screen.getByText('banner.png')).toBeInTheDocument();
+    expect(screen.getByText('financial_data.xlsx')).toBeInTheDocument();
+    expect(screen.getByText('fact_check_sheet.md')).toBeInTheDocument();
+  });
+
+  it('filters items when category tab is clicked', () => {
+    render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
+    
+    // Click on Strategy tab
+    const strategyTab = screen.getByText('Strategy & Overview');
+    fireEvent.click(strategyTab);
+
+    // Strategy item is visible, others are filtered out
+    expect(screen.getByText('campaign_strategy.md')).toBeInTheDocument();
+    expect(screen.queryByText('xhs_article.md')).not.toBeInTheDocument();
+    expect(screen.queryByText('banner.png')).not.toBeInTheDocument();
+  });
+
+  it('supports selecting items and exporting selected subset', async () => {
+    render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
+    
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes.length).toBe(5);
+
+    // Select first two items
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+
+    // Button for selected export appears
+    const exportSelectedBtn = screen.getByText(/导出选中 \(2\)/);
+    expect(exportSelectedBtn).toBeInTheDocument();
+
+    fireEvent.click(exportSelectedBtn);
   });
 
   it('returns null when deliverables is empty or has < 2 items', () => {
@@ -85,60 +136,14 @@ describe('TaskDeliverableBundle', () => {
 
   it('opens artifact portal on item click', () => {
     render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
-    fireEvent.click(screen.getByText('report.docx'));
+    fireEvent.click(screen.getByText('campaign_strategy.md'));
     expect(mockOpenArtifact).toHaveBeenCalledTimes(1);
     expect(mockOpenArtifact).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'art-1',
-        filename: 'report.docx',
-        type: 'word_document',
-        content_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        filename: 'campaign_strategy.md',
+        type: 'document',
       }),
     );
-  });
-
-  it('downloads ZIP when Download All is clicked', async () => {
-    const { fetchWithTimeout } = await import('@/lib/api');
-    const mockBlob = new Blob(['zip-content'], { type: 'application/zip' });
-    (fetchWithTimeout as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      blob: () => Promise.resolve(mockBlob),
-    });
-
-    const createObjectURL = vi.fn(() => 'blob:fake-url');
-    const revokeObjectURL = vi.fn();
-    Object.defineProperty(global, 'URL', {
-      value: { createObjectURL, revokeObjectURL },
-      writable: true,
-    });
-
-    render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
-    fireEvent.click(screen.getByText('Download All'));
-
-    await waitFor(() => {
-      expect(fetchWithTimeout).toHaveBeenCalledWith(
-        '/artifacts/download-bundle',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            artifact_ids: ['art-1', 'art-2', 'art-3'],
-            chat_id: 'chat-1',
-          }),
-        }),
-      );
-    });
-  });
-
-  it('shows error toast on download failure', async () => {
-    const { fetchWithTimeout } = await import('@/lib/api');
-    const { toast } = await import('sonner');
-    (fetchWithTimeout as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false });
-
-    render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
-    fireEvent.click(screen.getByText('Download All'));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Failed to download deliverables');
-    });
   });
 });

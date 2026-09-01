@@ -22,7 +22,6 @@ from pathlib import Path
 
 from myrm_agent_harness.toolkits.wiki.core.fact_trust_contract import (
     FactStatus,
-    infer_fact_status_from_path,
     resolve_fact_status,
 )
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
@@ -113,7 +112,8 @@ class StaleFileArchiver:
         errors: list[str] = []
 
         for rel in relative_paths:
-            src = self._structure.base_dir / rel
+            candidate_path = Path(rel)
+            src = candidate_path if candidate_path.is_absolute() else (self._structure.base_dir / rel)
             if not src.exists():
                 errors.append(f"Source file not found: {rel}")
                 continue

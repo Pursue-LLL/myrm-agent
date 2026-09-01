@@ -189,6 +189,23 @@ def build_preview_result(
             }
             for idx, server in enumerate(result.servers)
         ],
+        "agents": [
+            {
+                "name": agent.name,
+                "description": agent.description,
+                "system_prompt": agent.system_prompt,
+                "max_iterations": agent.max_iterations,
+                "skill_names": list(agent.skill_names),
+                "tool_names": list(agent.tool_names),
+                "mcp_names": list(agent.mcp_names),
+                "subagent_names": list(agent.subagent_names),
+                "is_subagent": agent.is_subagent,
+                "is_entry_agent": agent.is_entry_agent,
+                "virtual_id": f"agent:{idx}",
+            }
+            for idx, agent in enumerate(result.agents)
+        ],
+        "workspace_file_count": len(result.workspace_files),
         "diagnostics": [
             {
                 "component": d.component,
@@ -276,21 +293,10 @@ async def confirm_plugin_import(
     *,
     skill_decisions: list[PluginConfirmItem],
     server_decisions: list[PluginConfirmItem],
-    bind_agent_id: str | None,
+    agent_decisions: list[PluginConfirmItem] | None = None,
+    bind_agent_id: str | None = None,
 ) -> dict[str, object]:
-    """Persist selected skills + MCP servers and optionally bind them to an agent.
-
-    Skills are installed with ``EvolutionType.FIX`` lineage when new, or upgraded
-    in place with ``EvolutionType.DERIVED`` lineage when a same-name skill already
-    exists. MCP servers are appended to the global ``mcpServers`` UserConfig
-    disabled. When ``bind_agent_id`` is set, imported skill ids and server names
-    are appended to the agent's ``skill_ids`` / ``mcp_ids``.
-
-    Bundled MCP servers (``./`` commands or PLUGIN_ROOT/PLUGIN_DATA placeholders)
-    have their plugin files persisted to ``{data_dir}/plugins/{plugin_name}/`` so
-    the server can actually launch; the resulting ``plugin_root`` / ``data_root``
-    are embedded into each entry's ``extra_params``.
-    """
+    """Persist selected skills, MCP servers, agents, and template workspace files."""
     skill_records, skill_ids, skipped_skills = _collect_skill_records(session, skill_decisions, _load_existing_skill_ids())
     plugin_name = _plugin_name_of(session)
     plugin_root, data_root = _persist_plugin_files_if_needed(session, server_decisions, plugin_name)
@@ -309,11 +315,18 @@ async def confirm_plugin_import(
     if server_configs:
         imported_server_names = await _write_mcp_servers(server_configs)
         persisted_names = set(imported_server_names)
-        # Only entries actually persisted (dedup skips existing names) drive the
-        # secret guidance; a name-collision skip must not ask for new secrets.
         required_secret_keys = _collect_required_secret_keys(
             [cfg for cfg in server_configs if str(cfg.get("name", "")) in persisted_names]
         )
+
+    # Persist imported Agents if provided in session/decisions
+    imported_agent_ids, skipped_agents = await _persist_agents(
+        session,
+        agent_decisions or [],
+        skill_ids=skill_ids,
+        mcp_names=imported_server_names,
+    )
+
     if bind_agent_id and (skill_ids or imported_server_names):
         await _bind_agent(
             skill_ids=skill_ids,
@@ -326,8 +339,102 @@ async def confirm_plugin_import(
         "skipped_skills": skipped_skills,
         "imported_servers": len(imported_server_names),
         "skipped_servers": skipped_servers,
+        "imported_agents": len(imported_agent_ids),
+        "skipped_agents": skipped_agents,
         "required_secret_keys": required_secret_keys,
+        "created_agent_ids": imported_agent_ids,
     }
+
+
+async def _persist_agents(
+    session: PluginImportSession,
+    agent_decisions: list[PluginConfirmItem],
+    *,
+    skill_ids: list[str],
+    mcp_names: list[str],
+) -> tuple[list[str], int]:
+    """Persist imported PluginAgent records into AgentService as Agent profiles with subagent linking."""
+    from myrm_agent_harness.agent.plugins.parser import PluginAgent
+
+    from app.database.dto import AgentCreate
+    from app.services.agent.agent_service import AgentService
+
+    decisions_by_virtual_id = {d.virtual_id: d for d in agent_decisions}
+    accepted_agents: list[tuple[str, PluginAgent]] = []
+    skipped = 0
+
+    for virtual_id, agent in session.agents_by_key.items():
+        decision = decisions_by_virtual_id.get(virtual_id)
+        if decision and decision.resolution == "skip":
+            skipped += 1
+            continue
+        accepted_agents.append((virtual_id, agent))
+
+    if not accepted_agents:
+        return [], skipped
+
+    # Pre-encode workspace files to text dict for metadata storage
+    workspace_templates: dict[str, str] = {}
+    for rel_path, content in session.plugin_result.workspace_files.items():
+        try:
+            workspace_templates[rel_path] = content.decode("utf-8")
+        except Exception:
+            import base64
+
+            workspace_templates[rel_path] = f"base64:{base64.b64encode(content).decode('ascii')}"
+
+    # First pass: create subagents
+    created_agent_ids: list[str] = []
+    name_to_id: dict[str, str] = {}
+
+    subagent_list = [item for item in accepted_agents if item[1].is_subagent or not item[1].is_entry_agent]
+    entry_list = [item for item in accepted_agents if item[1].is_entry_agent or (item not in subagent_list)]
+
+    # If all were categorized as subagents but there's at least one, elevate the first to entry
+    if not entry_list and subagent_list:
+        entry_list = [subagent_list.pop(0)]
+
+    for _, agent in subagent_list:
+        payload = {
+            "name": agent.name,
+            "description": agent.description,
+            "system_prompt": agent.system_prompt,
+            "skill_ids": list(skill_ids),
+            "mcp_ids": list(mcp_names),
+            "max_iterations": agent.max_iterations,
+            "agent_type": "individual",
+            "is_built_in": False,
+        }
+        agent_data = AgentCreate.model_validate(payload)
+        new_sub = await AgentService.create_agent(agent_data)
+        name_to_id[agent.name] = new_sub.id
+        created_agent_ids.append(new_sub.id)
+
+    # Second pass: create entry agents with linked subagent_ids
+    for _, agent in entry_list:
+        linked_sub_ids: list[str] = [name_to_id[sa_name] for sa_name in agent.subagent_names if sa_name in name_to_id]
+        if not linked_sub_ids:
+            linked_sub_ids = [sub_id for sub_id in name_to_id.values()]
+
+        payload = {
+            "name": agent.name,
+            "description": agent.description,
+            "system_prompt": agent.system_prompt,
+            "skill_ids": list(skill_ids),
+            "mcp_ids": list(mcp_names),
+            "subagent_ids": linked_sub_ids,
+            "max_iterations": agent.max_iterations,
+            "is_built_in": False,
+        }
+        if workspace_templates:
+            payload["engine_params"] = {"template_workspace_files": workspace_templates}
+
+        agent_data = AgentCreate.model_validate(payload)
+        new_main = await AgentService.create_agent(agent_data)
+        name_to_id[agent.name] = new_main.id
+        created_agent_ids.append(new_main.id)
+
+    return created_agent_ids, skipped
 
 
 def _collect_skill_records(

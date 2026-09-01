@@ -94,14 +94,8 @@ def _summary_from_record(
         chat_id=record.chat_id,
         created_at=record.created_at.isoformat(),
         impacted_dependents=impacted_dependents or [],
-        prediction_manifest=(
-            record.change_manifest if isinstance(record.change_manifest, dict) else None
-        ),
-        attribution_result=(
-            record.attribution_result
-            if isinstance(record.attribution_result, dict)
-            else None
-        ),
+        prediction_manifest=(record.change_manifest if isinstance(record.change_manifest, dict) else None),
+        attribution_result=(record.attribution_result if isinstance(record.attribution_result, dict) else None),
     )
 
 
@@ -122,9 +116,7 @@ def _response_from_record(
     record: EvolutionReviewRecord,
     impacted_dependents: list[str] | None = None,
 ) -> PendingEvolutionResponse:
-    return PendingEvolutionResponse(
-        **_detail_from_record(record, impacted_dependents).model_dump()
-    )
+    return PendingEvolutionResponse(**_detail_from_record(record, impacted_dependents).model_dump())
 
 
 class RejectEvolutionRequest(BaseModel):
@@ -153,16 +145,11 @@ async def approve_pending_evolution_record(
     apply_mode: str = "immediate",
 ) -> EvolutionReviewRecord:
     try:
-        return await approve_evolution_review_record(
-            evolution_id, apply_mode=apply_mode
-        )
+        return await approve_evolution_review_record(evolution_id, apply_mode=apply_mode)
     except EvolutionApplyError as exc:
         if "not found" not in str(exc).lower():
             latest_record = await get_evolution_review_record(evolution_id)
-            if (
-                latest_record is not None
-                and latest_record.apply_status.value == "FAILED"
-            ):
+            if latest_record is not None and latest_record.apply_status.value == "FAILED":
                 return latest_record
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -190,24 +177,15 @@ async def get_pending_evolutions(
     limit: int = Query(50, ge=1, le=100),
 ) -> dict[str, list[PendingEvolutionSummaryResponse]]:
     records = await list_pending_evolution_records(limit=limit)
-    dependents_map = await _load_impacted_dependents(
-        [record.skill_id for record in records]
-    )
-    return {
-        "items": [
-            _summary_from_record(record, dependents_map.get(record.skill_id))
-            for record in records
-        ]
-    }
+    dependents_map = await _load_impacted_dependents([record.skill_id for record in records])
+    return {"items": [_summary_from_record(record, dependents_map.get(record.skill_id)) for record in records]}
 
 
 @router.get("/pending/{evolution_id}")
 async def get_pending_evolution(evolution_id: str) -> PendingEvolutionDetailResponse:
     record = await get_evolution_review_record(evolution_id)
     if record is None:
-        raise HTTPException(
-            status_code=404, detail=f"Pending evolution not found: {evolution_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Pending evolution not found: {evolution_id}")
     dependents = await _load_impacted_dependents([record.skill_id])
     return _detail_from_record(record, dependents.get(record.skill_id))
 
@@ -219,12 +197,8 @@ async def approve_pending_evolution(
 ) -> dict[str, str | None]:
     apply_mode = request.apply_mode if request is not None else "immediate"
     if apply_mode not in {"immediate", "shadow"}:
-        raise HTTPException(
-            status_code=400, detail="apply_mode must be 'immediate' or 'shadow'"
-        )
-    record = await approve_pending_evolution_record(
-        evolution_id=evolution_id, apply_mode=apply_mode
-    )
+        raise HTTPException(status_code=400, detail="apply_mode must be 'immediate' or 'shadow'")
+    record = await approve_pending_evolution_record(evolution_id=evolution_id, apply_mode=apply_mode)
     await record_experience_event(
         ExperienceLedgerWrite(
             event_type=ExperienceEventType.REVIEW_APPROVED,
@@ -245,9 +219,7 @@ async def approve_pending_evolution(
         )
     )
     return {
-        "status": (
-            "apply_failed" if record.apply_status.value == "FAILED" else "approved"
-        ),
+        "status": ("apply_failed" if record.apply_status.value == "FAILED" else "approved"),
         "skill_id": record.skill_id,
         "apply_status": record.apply_status.value,
         "apply_error": record.apply_error,
@@ -302,9 +274,7 @@ async def revise_pending_evolution(
     to FAILED_SCAN if the revised content fails scanning).
     """
     try:
-        record = await revise_evolution_review_record(
-            evolution_id, evolved_content=request.evolved_content
-        )
+        record = await revise_evolution_review_record(evolution_id, evolved_content=request.evolved_content)
     except EvolutionApplyError as exc:
         if "not found" in str(exc).lower():
             raise HTTPException(status_code=404, detail=str(exc)) from exc

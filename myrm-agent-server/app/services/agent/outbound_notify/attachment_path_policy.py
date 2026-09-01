@@ -65,4 +65,3 @@ def resolve_allowed_local_attachment_path(
             continue
 
     return None
-

@@ -19,7 +19,10 @@ from app.config.settings import get_settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.ingress_requirement import resolve_ingress_requirement
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
-from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_public_ingress_entitlement
+from app.platform_utils.sandbox.entitlements.entitlement_guard import (
+    EntitlementGuardError,
+    require_public_ingress_entitlement,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -253,3 +256,201 @@ async def export_support_debug_bundle(
         logger.error("Failed to generate support debug bundle: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to generate support debug bundle") from exc
 
+
+# ---------------------------------------------------------------------------
+# Storage Governance & Compaction Suite
+# ---------------------------------------------------------------------------
+
+
+class StorageCategoryItem(BaseModel):
+    category: str
+    display_name: str
+    bytes: int
+    item_count: int
+    percentage: float
+    details: dict[str, int] = {}
+
+
+class StateSnapshotItem(BaseModel):
+    snapshot_id: str
+    label: str
+    size_bytes: int
+    created_at: str
+    checksum: str
+    file_count: int
+
+
+class StorageGovernanceReportResponse(BaseModel):
+    total_storage_bytes: int
+    disk_total_bytes: int
+    disk_free_bytes: int
+    disk_used_percentage: float
+    categories: list[StorageCategoryItem]
+    snapshots: list[StateSnapshotItem]
+    recommended_actions: list[str]
+    is_growth_healthy: bool
+    generated_at: str
+
+
+class StorageCompactionRequest(BaseModel):
+    purge_orphan_checkpoints: bool = True
+    incremental_pages: int = 500
+
+
+class StorageCompactionResponse(BaseModel):
+    success: bool
+    initial_bytes: int
+    final_bytes: int
+    freed_bytes: int
+    purged_checkpoints: int
+    wal_truncated: bool
+    duration_ms: float
+    message: str
+
+
+class CreateSnapshotRequest(BaseModel):
+    label: str
+
+
+class SnapshotActionResponse(BaseModel):
+    success: bool
+    message: str
+    snapshot: StateSnapshotItem | None = None
+
+
+@router.get("/storage/governance", response_model=StorageGovernanceReportResponse)
+def get_storage_governance_report() -> StorageGovernanceReportResponse:
+    """Return detailed multi-dimensional storage breakdown and governance insights."""
+    from myrm_agent_harness.observability.storage_governance import (
+        StateSnapshotManager,
+        StorageGovernanceInspector,
+    )
+
+    settings = get_settings()
+    data_dir = Path(settings.database.state_dir)
+    snapshot_mgr = StateSnapshotManager(data_dir)
+    snapshots = snapshot_mgr.list_snapshots()
+    inspector = StorageGovernanceInspector(data_dir)
+    report = inspector.inspect(snapshots=snapshots)
+
+    return StorageGovernanceReportResponse(
+        total_storage_bytes=report.total_storage_bytes,
+        disk_total_bytes=report.disk_total_bytes,
+        disk_free_bytes=report.disk_free_bytes,
+        disk_used_percentage=report.disk_used_percentage,
+        categories=[
+            StorageCategoryItem(
+                category=c.category.value,
+                display_name=c.display_name,
+                bytes=c.bytes,
+                item_count=c.item_count,
+                percentage=c.percentage,
+                details=c.details,
+            )
+            for c in report.categories
+        ],
+        snapshots=[
+            StateSnapshotItem(
+                snapshot_id=s.snapshot_id,
+                label=s.label,
+                size_bytes=s.size_bytes,
+                created_at=s.created_at,
+                checksum=s.checksum,
+                file_count=s.file_count,
+            )
+            for s in report.snapshots
+        ],
+        recommended_actions=report.recommended_actions,
+        is_growth_healthy=report.is_growth_healthy,
+        generated_at=report.generated_at,
+    )
+
+
+@router.post("/storage/compaction", response_model=StorageCompactionResponse)
+def execute_storage_compaction(
+    req: StorageCompactionRequest,
+) -> StorageCompactionResponse:
+    """Execute safe non-blocking storage compaction, incremental vacuum, and checkpoint pruning."""
+    from myrm_agent_harness.observability.storage_governance import (
+        StateStorageCompactor,
+    )
+
+    settings = get_settings()
+    data_dir = Path(settings.database.state_dir)
+    compactor = StateStorageCompactor(data_dir)
+    result = compactor.compact(
+        purge_orphan_checkpoints=req.purge_orphan_checkpoints,
+        incremental_pages=req.incremental_pages,
+    )
+
+    return StorageCompactionResponse(
+        success=result.success,
+        initial_bytes=result.initial_bytes,
+        final_bytes=result.final_bytes,
+        freed_bytes=result.freed_bytes,
+        purged_checkpoints=result.purged_checkpoints,
+        wal_truncated=result.wal_truncated,
+        duration_ms=result.duration_ms,
+        message=result.message,
+    )
+
+
+@router.post("/storage/snapshots", response_model=SnapshotActionResponse)
+def create_state_snapshot(req: CreateSnapshotRequest) -> SnapshotActionResponse:
+    """Create an immutable point-in-time state snapshot."""
+    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
+
+    settings = get_settings()
+    data_dir = Path(settings.database.state_dir)
+    snapshot_mgr = StateSnapshotManager(data_dir)
+    try:
+        meta = snapshot_mgr.create_snapshot(label=req.label)
+        return SnapshotActionResponse(
+            success=True,
+            message=f"Snapshot '{meta.snapshot_id}' created successfully.",
+            snapshot=StateSnapshotItem(
+                snapshot_id=meta.snapshot_id,
+                label=meta.label,
+                size_bytes=meta.size_bytes,
+                created_at=meta.created_at,
+                checksum=meta.checksum,
+                file_count=meta.file_count,
+            ),
+        )
+    except Exception as exc:
+        logger.error("Failed to create snapshot: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to create snapshot: {exc}") from exc
+
+
+@router.post("/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse)
+def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
+    """Restore database state to a specific historical snapshot."""
+    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
+
+    settings = get_settings()
+    data_dir = Path(settings.database.state_dir)
+    snapshot_mgr = StateSnapshotManager(data_dir)
+    success = snapshot_mgr.restore_snapshot(snapshot_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'.")
+    return SnapshotActionResponse(
+        success=True,
+        message=f"State successfully restored from snapshot '{snapshot_id}'.",
+    )
+
+
+@router.delete("/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse)
+def delete_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
+    """Permanently delete a state snapshot."""
+    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
+
+    settings = get_settings()
+    data_dir = Path(settings.database.state_dir)
+    snapshot_mgr = StateSnapshotManager(data_dir)
+    success = snapshot_mgr.delete_snapshot(snapshot_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Snapshot '{snapshot_id}' not found.")
+    return SnapshotActionResponse(
+        success=True,
+        message=f"Snapshot '{snapshot_id}' deleted successfully.",
+    )

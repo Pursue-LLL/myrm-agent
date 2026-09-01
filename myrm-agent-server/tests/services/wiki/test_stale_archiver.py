@@ -1,11 +1,11 @@
 """Unit tests for StaleFileArchiver service."""
 
 from pathlib import Path
-import pytest
 
-from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-from app.services.wiki.maintain.stale_archiver import StaleFileArchiver
 from myrm_agent_harness.toolkits.wiki.core.fact_trust_contract import FactStatus
+from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+from app.services.wiki.maintain.stale_archiver import StaleFileArchiver
 
 
 def test_stale_file_archiver_scan_and_archive(tmp_path: Path) -> None:

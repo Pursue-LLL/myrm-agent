@@ -74,11 +74,7 @@ async def agent_liveness() -> dict[str, object]:
         state = "draining"
     elif active_count > 0:
         state = "busy"
-    elif (
-        has_degraded_channel
-        or memory.get("level") in ("WARNING", "CRITICAL", "EMERGENCY")
-        or gateway_runtime_unhealthy
-    ):
+    elif has_degraded_channel or memory.get("level") in ("WARNING", "CRITICAL", "EMERGENCY") or gateway_runtime_unhealthy:
         state = "degraded"
     else:
         state = "idle"

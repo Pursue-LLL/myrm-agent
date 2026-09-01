@@ -137,7 +137,14 @@ async def convert_to_general_agent_params(
     request: AgentRequest,
     chat_history: list[list[str | dict[str, object]]],
     http_request: Request | None = None,
-) -> tuple[GeneralAgentParams, str | None, str | None, list[str], list[dict[str, object]]]:
+) -> tuple[
+    GeneralAgentParams,
+    str | None,
+    str | None,
+    str | None,
+    list[str],
+    list[dict[str, object]],
+]:
     """将 Agent API 请求转换为 General Agent 参数。
 
     从 DB 读取用户配置（已解密），解析 API Key 和检索模型配置。
@@ -145,7 +152,7 @@ async def convert_to_general_agent_params(
 
     Returns:
         Tuple of (GeneralAgentParams, routing_tier or None, routing_specialty or None,
-        context_reference_warnings, archive_restore_results)
+        routing_reason or None, context_reference_warnings, archive_restore_results)
     """
 
     from app.core.channel_bridge.config_loader import load_user_configs
@@ -225,6 +232,7 @@ async def convert_to_general_agent_params(
 
     routing_tier: str | None = None
     routing_specialty: str | None = None
+    routing_reason: str | None = None
     if bool(request.code_model_selection or request.long_doc_model_selection):
         try:
             from myrm_agent_harness.api import (
@@ -286,6 +294,7 @@ async def convert_to_general_agent_params(
                     fallback_model_cfg = specialty_result.fallback_model_cfg
                 routing_tier = specialty_result.specialty.value
                 routing_specialty = specialty_result.specialty.value
+                routing_reason = specialty_result.reason
                 logger.info(
                     "Specialty routing activated: specialty=%s model=%s reason=%s",
                     routing_specialty,
@@ -388,6 +397,7 @@ async def convert_to_general_agent_params(
             if routing_result.fallback_model_cfg is not None:
                 fallback_model_cfg = routing_result.fallback_model_cfg
             routing_tier = routing_result.tier.value
+            routing_reason = routing_result.reason
 
             # 最高档 REASONING 无更高档可升：complaint-up 只是重新生成，并非
             # 档位选择错误。记录惩罚会削弱未来同类任务的档位选择（越用越笨），故跳过。
@@ -708,16 +718,8 @@ async def convert_to_general_agent_params(
     )
 
     default_model_cfg_raw = providers_dict.get("defaultModelConfig") if providers_dict else None
-    base_slot = (
-        default_model_cfg_raw.get("baseModel")
-        if isinstance(default_model_cfg_raw, dict)
-        else None
-    )
-    lite_slot = (
-        default_model_cfg_raw.get("liteModel")
-        if isinstance(default_model_cfg_raw, dict)
-        else None
-    )
+    base_slot = default_model_cfg_raw.get("baseModel") if isinstance(default_model_cfg_raw, dict) else None
+    lite_slot = default_model_cfg_raw.get("liteModel") if isinstance(default_model_cfg_raw, dict) else None
 
     _, base_fallback_cfgs_from_settings = resolve_slot_fallback_chain_for_agent(
         base_slot,
@@ -1212,6 +1214,7 @@ async def convert_to_general_agent_params(
         params,
         routing_tier,
         routing_specialty,
+        routing_reason,
         mention_warnings,
         archive_restore_results,
     )

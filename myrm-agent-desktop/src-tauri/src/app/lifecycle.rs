@@ -88,10 +88,10 @@ pub async fn graceful_shutdown(app: AppHandle) {
         println!("Backend exited gracefully.");
     }
 
-    let _ = stop_backend(backend_state);
+    let _ = stop_backend(app.clone(), backend_state);
 
     let frontend_state = app.state::<NextJSFrontend>();
-    let _ = stop_frontend(frontend_state);
+    let _ = stop_frontend(app.clone(), frontend_state);
 
     println!("Graceful shutdown complete.");
 }

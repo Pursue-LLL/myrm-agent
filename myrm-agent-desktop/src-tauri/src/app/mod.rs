@@ -10,7 +10,7 @@
 //! [POS]
 //! Tauri Builder 组装层唯一入口；main.rs 仅委托本模块。
 
-mod lifecycle;
+pub(crate) mod lifecycle;
 mod linux_gpu;
 mod menu;
 mod setup;

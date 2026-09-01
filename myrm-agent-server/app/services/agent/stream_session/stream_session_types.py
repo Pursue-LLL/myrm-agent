@@ -38,6 +38,7 @@ class AgentStreamSession:
     goal_provider: object | None
     extra_context: dict[str, object]
     routing_specialty: str | None = field(default=None)
+    routing_reason: str | None = field(default=None)
     context_warnings: list[str] = field(default_factory=list)
     stream_started_at_monotonic: float = field(default=0.0)
     stream_ttft_ms: int | None = field(default=None)

@@ -301,6 +301,7 @@ async def execute_agent_turn_after_reserve(
                 params,
                 routing_tier,
                 routing_specialty,
+                routing_reason,
                 context_warnings,
                 archive_restore_results,
             ) = await convert_to_general_agent_params(
@@ -317,6 +318,7 @@ async def execute_agent_turn_after_reserve(
                 params,
                 routing_tier,
                 routing_specialty,
+                routing_reason,
                 context_warnings,
                 archive_restore_results,
             ) = await convert_to_general_agent_params(
@@ -496,6 +498,7 @@ async def execute_agent_turn_after_reserve(
         goal_provider=goal_provider,
         extra_context=extra_context or {},
         routing_specialty=routing_specialty,
+        routing_reason=routing_reason,
         context_warnings=context_warnings,
         stream_started_at_monotonic=stream_started_at_monotonic,
         entitlement_preflight_text=(text_content if request.resume_value is None else None),

@@ -133,7 +133,7 @@ class ServerWakeupHandler:
                         row.append(item)
                 normalized_history.append(row)
 
-            params, _routing_tier, _, _, _archive_restore_results = await convert_to_general_agent_params(
+            params, _routing_tier, _, _, _, _archive_restore_results = await convert_to_general_agent_params(
                 request, normalized_history
             )
 
@@ -142,7 +142,10 @@ class ServerWakeupHandler:
                 wakeup_payload["memory_channel_id"] = "web_chat"
             params = params.model_copy(update=wakeup_payload)
 
-            from app.services.agent.execution_cache import ExecutionMode, finalize_agent_session
+            from app.services.agent.execution_cache import (
+                ExecutionMode,
+                finalize_agent_session,
+            )
             from app.services.agent.runtime_context import build_agent_runtime_context
 
             runtime_context = await build_agent_runtime_context(
@@ -155,7 +158,9 @@ class ServerWakeupHandler:
                 import json
 
                 from app.services.agent.gateway import get_agent_gateway
-                from app.services.agent.streaming_support.stream_collector import StreamContentCollector
+                from app.services.agent.streaming_support.stream_collector import (
+                    StreamContentCollector,
+                )
                 from app.services.chat.chat_service import ChatService
                 from app.services.event.app_event_bus import (
                     AppEvent,
@@ -166,11 +171,13 @@ class ServerWakeupHandler:
                 bus = get_event_bus()
                 gateway = get_agent_gateway()
                 from app.core.channel_bridge.config_loader import load_user_configs
-                from app.services.agent.session_credential_assembler import session_credentials_scope
+                from app.services.agent.session_credential_assembler import (
+                    session_credentials_scope,
+                )
 
                 user_cfgs = await load_user_configs()
                 async with session_credentials_scope(
-                    oauth_credentials_dict=user_cfgs.oauth_credentials_dict if user_cfgs else None,
+                    oauth_credentials_dict=(user_cfgs.oauth_credentials_dict if user_cfgs else None),
                     providers_dict=user_cfgs.providers_dict if user_cfgs else None,
                 ):
                     try:
@@ -229,7 +236,10 @@ class ServerWakeupHandler:
                                             },
                                         )
                                     )
-                                logger.info("Headless wakeup agent run completed for session %s", session_id)
+                                logger.info(
+                                    "Headless wakeup agent run completed for session %s",
+                                    session_id,
+                                )
                                 break
                             except Exception as e:
                                 logger.error(

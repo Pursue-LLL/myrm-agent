@@ -275,4 +275,3 @@ def test_manifest_attribution_endpoint(client: TestClient) -> None:
     assert data["recommended_action"] == "keep"
     assert len(data["metric_attributions"]) == 2
     assert data["metric_attributions"][0]["verdict"] == "confirmed"
-

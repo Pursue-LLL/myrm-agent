@@ -1,5 +1,6 @@
 myrm_agent_harness
 myrm_agent_harness.agent.artifacts
+myrm_agent_harness.agent.artifacts.bundle_manifest
 myrm_agent_harness.agent.artifacts.constants
 myrm_agent_harness.agent.artifacts.filters
 myrm_agent_harness.agent.artifacts.registry
@@ -120,6 +121,7 @@ myrm_agent_harness.agent.skills.curator
 myrm_agent_harness.agent.skills.curator.consolidation
 myrm_agent_harness.agent.skills.evolution
 myrm_agent_harness.agent.skills.evolution.core.engine
+myrm_agent_harness.agent.skills.evolution.core.eval_regression
 myrm_agent_harness.agent.skills.evolution.core.types
 myrm_agent_harness.agent.skills.evolution.db.store
 myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator
@@ -159,6 +161,7 @@ myrm_agent_harness.agent.skills.sync.idle_integration
 myrm_agent_harness.agent.streaming.broadcast.catchup
 myrm_agent_harness.agent.streaming.broadcast.event_bus
 myrm_agent_harness.agent.streaming.broadcast.types
+myrm_agent_harness.agent.streaming.citation_audit
 myrm_agent_harness.agent.streaming.run_digest
 myrm_agent_harness.agent.streaming.stream_buffer
 myrm_agent_harness.agent.streaming.types
@@ -209,6 +212,7 @@ myrm_agent_harness.backends.skills.usage_recorder
 myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.backends.skills.watcher
 myrm_agent_harness.core.artifacts.constants
+myrm_agent_harness.core.artifacts.manifest
 myrm_agent_harness.core.artifacts.paths
 myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
@@ -226,6 +230,7 @@ myrm_agent_harness.core.security.path_security
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
+myrm_agent_harness.eval.manifest_prediction
 myrm_agent_harness.eval.protocols
 myrm_agent_harness.infra.delivery.dead_letter
 myrm_agent_harness.infra.delivery.notification_ledger
@@ -245,6 +250,7 @@ myrm_agent_harness.observability.diagnostics.performance
 myrm_agent_harness.observability.diagnostics.protocols
 myrm_agent_harness.observability.metrics
 myrm_agent_harness.observability.metrics.db_pool_collector
+myrm_agent_harness.observability.storage_governance
 myrm_agent_harness.observability.tracing
 myrm_agent_harness.runtime.checkpointing.factory
 myrm_agent_harness.runtime.context.archive_restore_action
@@ -453,6 +459,7 @@ myrm_agent_harness.toolkits.wiki
 myrm_agent_harness.toolkits.wiki.core.canonical_registry
 myrm_agent_harness.toolkits.wiki.core.claims_contract
 myrm_agent_harness.toolkits.wiki.core.config
+myrm_agent_harness.toolkits.wiki.core.fact_trust_contract
 myrm_agent_harness.toolkits.wiki.core.frontmatter_contract
 myrm_agent_harness.toolkits.wiki.core.refactor
 myrm_agent_harness.toolkits.wiki.core.section_contract

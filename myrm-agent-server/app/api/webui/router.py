@@ -23,18 +23,12 @@ router.include_router(vnc_router)
 
 
 @router.get("/og-metadata")
-async def get_og_metadata(
-    url: str = Query(..., description="URL to fetch OG metadata for")
-) -> JSONResponse:
+async def get_og_metadata(url: str = Query(..., description="URL to fetch OG metadata for")) -> JSONResponse:
     """Proxy-fetch Open Graph metadata for a URL (solves CORS for WebUI embeds)."""
     if not url.startswith(("http://", "https://")):
-        raise HTTPException(
-            status_code=400, detail="URL must start with http:// or https://"
-        )
+        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
     metadata = await fetch_og_metadata(url)
-    return JSONResponse(
-        content=metadata, headers={"Cache-Control": "public, max-age=3600"}
-    )
+    return JSONResponse(content=metadata, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @router.get("/qrcode.png")

@@ -403,9 +403,7 @@ class TestCronApiAgentIdBinding:
 class TestCronApiSessionTargetChatId:
     """Tests for session_target and chat_id API fields."""
 
-    def test_create_with_session_target_main_and_chat_id(
-        self, client: TestClient
-    ) -> None:
+    def test_create_with_session_target_main_and_chat_id(self, client: TestClient) -> None:
         resp = client.post(
             "/cron",
             json={
@@ -568,9 +566,7 @@ class TestCronApiAcceptanceCriteria:
         job_id = resp.json()["id"]
 
         new_criteria = [{"type": "shell", "command": "test -f /tmp/done"}]
-        resp = client.patch(
-            f"/cron/{job_id}", json={"acceptance_criteria": new_criteria}
-        )
+        resp = client.patch(f"/cron/{job_id}", json={"acceptance_criteria": new_criteria})
         assert resp.status_code == 200
         assert resp.json()["acceptance_criteria"] == new_criteria
 
@@ -613,9 +609,7 @@ class TestCronApiAcceptanceCriteria:
         assert resp.status_code == 200
         assert resp.json()["acceptance_criteria"] == criteria
 
-    def test_pause_resume_preserves_acceptance_criteria(
-        self, client: TestClient
-    ) -> None:
+    def test_pause_resume_preserves_acceptance_criteria(self, client: TestClient) -> None:
         criteria = [{"type": "shell", "command": "curl -s http://example.com"}]
         resp = client.post(
             "/cron",
@@ -670,9 +664,7 @@ class TestCronPrerequisiteGateApi:
             "agent_id": "research-agent",
             "threshold": 2,
         }
-        with patch(
-            "app.services.cron.prerequisite_service.CronPrerequisiteService.get_prerequisite_stats"
-        ) as mock_stats:
+        with patch("app.services.cron.prerequisite_service.CronPrerequisiteService.get_prerequisite_stats") as mock_stats:
             from app.services.cron.prerequisite_service import CronPrerequisiteStats
 
             async def _fake_stats(*args, **kwargs):
@@ -719,9 +711,7 @@ class TestCronConnectorHealthApi:
             bound_job_ids=["job-1"],
         )
 
-        with patch(
-            "app.services.cron.connector_health_service.ConnectorHealthService.get_all_connectors_health"
-        ) as mock_health:
+        with patch("app.services.cron.connector_health_service.ConnectorHealthService.get_all_connectors_health") as mock_health:
 
             async def _fake_health(*args, **kwargs):
                 return [mock_item]
@@ -777,9 +767,7 @@ class TestCronConnectorHealthApi:
             delivery_error="Webhook returned 502: Bad Gateway",
         )
 
-        with patch(
-            "app.services.cron.connector_health_service.UnitOfWork"
-        ) as mock_uow_cls:
+        with patch("app.services.cron.connector_health_service.UnitOfWork") as mock_uow_cls:
             sync_job_res = MagicMock()
             sync_job_res.scalars.return_value.all.return_value = [job]
 
@@ -795,9 +783,7 @@ class TestCronConnectorHealthApi:
             mock_uow.__aexit__ = AsyncMock(return_value=None)
             mock_uow_cls.return_value = mock_uow
 
-            summaries = asyncio.run(
-                ConnectorHealthService.get_all_connectors_health(window_hours=24)
-            )
+            summaries = asyncio.run(ConnectorHealthService.get_all_connectors_health(window_hours=24))
 
             assert len(summaries) == 1
             s = summaries[0]
