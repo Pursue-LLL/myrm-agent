@@ -185,6 +185,9 @@ def execute_search(
     }
 
     url = f"{resolved_base}/responses"
+    if not (url.startswith("https://") or url.startswith("http://")):
+        raise ValueError(f"Invalid API base URL scheme: {url}")
+
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -200,7 +203,7 @@ def execute_search(
     last_error: str | None = None
     for attempt in range(_MAX_RETRIES + 1):
         try:
-            with urllib.request.urlopen(req, timeout=60) as response:
+            with urllib.request.urlopen(req, timeout=60) as response:  # noqa: S310 - validated request URL
                 body = response.read().decode("utf-8")
                 res_data = json.loads(body)
                 answer = _extract_response_text(res_data)

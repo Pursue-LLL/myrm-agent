@@ -10,6 +10,7 @@
 生产环境统一使用 LocalArtifactProcessor（见 platform_utils.get_artifact_processor）。
 """
 
+from . import listener
 from .processor import LocalArtifactProcessor
 
-__all__ = ["LocalArtifactProcessor"]
+__all__ = ["LocalArtifactProcessor", "listener"]
