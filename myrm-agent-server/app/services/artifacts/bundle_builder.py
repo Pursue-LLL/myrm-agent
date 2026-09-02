@@ -4,7 +4,7 @@ Builds structured, multi-directory ZIP deliverables from Artifacts and Deliverab
 Generates manifest.json and a professional README.md delivery index in the bundle root.
 
 [INPUT]
-- myrm_agent_harness.agent.artifacts.bundle_manifest (POS: DeliverableManifest, Category mapping)
+- myrm_agent_harness.core.artifacts.manifest (POS: DeliverableManifest, Category mapping)
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Vault object reader)
 - app.database.models.artifact::Artifact (POS: DB artifact models)
 
@@ -26,14 +26,14 @@ import re
 import zipfile
 from typing import Sequence
 
-from myrm_agent_harness.agent.artifacts.bundle_manifest import (
+from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+from myrm_agent_harness.core.artifacts.manifest import (
     CATEGORY_DIRECTORY_MAPPING,
     DeliverableCategory,
     DeliverableItem,
     DeliverableManifest,
     infer_item_category,
 )
-from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
 from app.database.models.artifact import Artifact
 

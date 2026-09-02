@@ -256,7 +256,15 @@
       "loopMissingPrompt": "/loop 작업 프롬프트를 입력하세요",
       "loopCreated": "예약된 루프 작업 생성됨 (간격: {interval}), 첫 실행 시작됨",
       "loopCreateFailed": "루프 작업 생성 실패",
-      "pet": "펫 갤러리를 열거나 스프라이트 오버레이를 관리합니다"
+      "pet": "펫 갤러리를 열거나 스프라이트 오버레이를 관리합니다",
+      "petDisabled": "컴패니언 모드가 비활성화되어 있습니다 — 설정에서 활성화하세요",
+      "petOverlayEnabled": "펫 스프라이트 오버레이 활성화됨",
+      "petOverlayDisabled": "펫 스프라이트 오버레이 숨김",
+      "petInstalled": "설치된 펫: {name}",
+      "petInstallFailed": "펫 설치 실패",
+      "petNoActive": "설치된 펫이 없습니다 — 펫 팔레트를 여는 중",
+      "ask": "읽기 전용 사이드 Q&A를 위한 세션 어드바이저 열기 (/side)",
+      "btwDisambiguation": "Myrm에서 /btw는 백그라운드 작업을 시작합니다. 실행 중 사이드 Q&A는 /ask 또는 /side를 사용하세요."
     }
   },
   "copilot": {

@@ -256,7 +256,15 @@
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
       "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden",
-      "pet": "Haustier-Galerie öffnen oder Sprite-Overlay verwalten"
+      "pet": "Haustier-Galerie öffnen oder Sprite-Overlay verwalten",
+      "petDisabled": "Begleitmodus ist deaktiviert — in den Einstellungen aktivieren",
+      "petOverlayEnabled": "Pet-Sprite-Overlay aktiviert",
+      "petOverlayDisabled": "Pet-Sprite-Overlay ausgeblendet",
+      "petInstalled": "Pet installiert: {name}",
+      "petInstallFailed": "Pet-Installation fehlgeschlagen",
+      "petNoActive": "Kein Pet installiert — Pet-Palette wird geöffnet",
+      "ask": "Session-Berater für schreibgeschützte Nebenfragen öffnen (/side)",
+      "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen während eines Laufs verwenden Sie /ask oder /side."
     }
   },
   "copilot": {

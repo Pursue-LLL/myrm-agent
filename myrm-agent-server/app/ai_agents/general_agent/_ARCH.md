@@ -54,7 +54,6 @@ Server memory adapter 会将其追加为 `shared:<context_id>` recall namespace�
 | `agent_middlewares/citation_rules_middleware.py` | ✅ 辅助 | 引用规则中间件；naked/search 模式跳过注入；lean/full 在有 UNTRUSTED 来源时注入 |
 | `agent_middlewares/tool_selection_middleware.py` | ✅ 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 |
 | `tools/_tool_layer_bootstrap.py` | ✅ 核心 | Server 专属工具向 harness `_TOOL_LAYERS` 注册（x_search、channel_notify、image/video/tts media 工具） |
-| `tools/x_search_provider.py` | ✅ 辅助 | xAI Live Search API 客户端；skill 绑定后 eager tool 工厂在 `services/integrations/tools/x_live_search.py` |
 
 ---
 

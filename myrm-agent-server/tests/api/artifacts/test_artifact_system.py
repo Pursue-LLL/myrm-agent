@@ -448,7 +448,7 @@ class TestArtifactBundleIntegration:
         import io
         import json
         import zipfile
-        from myrm_agent_harness.agent.artifacts.bundle_manifest import (
+        from myrm_agent_harness.core.artifacts.manifest import (
             DeliverableCategory,
             DeliverableItem,
             DeliverableManifest,

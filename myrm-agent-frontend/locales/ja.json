@@ -256,7 +256,15 @@
       "loopMissingPrompt": "/loop のタスクプロンプトを入力してください",
       "loopCreated": "定期ループタスクを作成しました (間隔: {interval})。初回実行を開始しました",
       "loopCreateFailed": "ループタスクの作成に失敗しました",
-      "pet": "ペットギャラリーを開くか、スプライトオーバーレイを管理する"
+      "pet": "ペットギャラリーを開くか、スプライトオーバーレイを管理する",
+      "petDisabled": "コンパニオンモードは無効です — 設定で有効にしてください",
+      "petOverlayEnabled": "ペットスプライトオーバーレイを表示しました",
+      "petOverlayDisabled": "ペットスプライトオーバーレイを非表示にしました",
+      "petInstalled": "ペットをインストールしました: {name}",
+      "petInstallFailed": "ペットのインストールに失敗しました",
+      "petNoActive": "ペットがインストールされていません — ペットパレットを開いています",
+      "ask": "セッションアドバイザーを開いて読み取り専用のサイドQ&Aを行います (/side)",
+      "btwDisambiguation": "Myrmでは /btw はバックグラウンドタスクを開始します。実行中のサイドQ&Aには /ask または /side を使用してください。"
     }
   },
   "copilot": {
@@ -17886,7 +17894,7 @@
       "createSnapshot": "スナップショットを作成",
       "snapshotSuccessTitle": "スナップショット作成成功",
       "snapshotSuccessDesc": "現在の永続化状態と主要データが読み取り専用スナップショットとしてパッケージ化されました。",
-      "snapshotFailedTitle": "スナップショット作成失敗",
+      "snapshotFailedTitle": "スナップショット作成に失敗しました",
       "restore": "ロールバック",
       "restoreSuccessTitle": "ロールバック成功",
       "restoreSuccessDesc": "状態データベースが指定のスナップショット時点に安全にロールバックされました。",

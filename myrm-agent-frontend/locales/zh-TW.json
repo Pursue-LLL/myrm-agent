@@ -256,7 +256,15 @@
       "loopMissingPrompt": "請輸入 /loop 循環任務的具體內容",
       "loopCreated": "已建立循環任務（週期：{interval}），已立即觸發首輪執行",
       "loopCreateFailed": "建立循環任務失敗",
-      "pet": "打開寵物圖鑑或管理精靈覆蓋層"
+      "pet": "打開寵物圖鑑或管理精靈覆蓋層",
+      "petDisabled": "伴侶模式未啟用 — 請在設定中開啟",
+      "petOverlayEnabled": "寵物精靈覆蓋層已顯示",
+      "petOverlayDisabled": "寵物精靈覆蓋層已隱藏",
+      "petInstalled": "已安裝寵物：{name}",
+      "petInstallFailed": "安裝寵物失敗",
+      "petNoActive": "尚未安裝寵物 — 正在打開寵物面板",
+      "ask": "打開會話顧問進行唯讀旁路問答（/side）",
+      "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後台任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。"
     }
   },
   "copilot": {
