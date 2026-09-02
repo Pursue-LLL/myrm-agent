@@ -16,6 +16,12 @@ const sources: Source[] = [
     title: 'Report B',
     url: 'https://news.example.org/report',
   },
+  {
+    index: 3,
+    type: 'web_search',
+    title: 'Doc C',
+    url: 'https://example.org/doc-c',
+  },
 ];
 
 describe('preprocessCitationMarkers', () => {
@@ -30,6 +36,44 @@ describe('preprocessCitationMarkers', () => {
     expect(result).toContain('<citation data-num="1"');
   });
 
+  it('converts composite citations with commas 【1, 2】 and [1, 2]', () => {
+    const resultZh = preprocessCitationMarkers('两者均采用新架构【1, 2】。', sources);
+    expect(resultZh).toContain('<citation data-num="1"');
+    expect(resultZh).toContain('<citation data-num="2"');
+    expect(resultZh).not.toContain('【1, 2】');
+
+    const resultEn = preprocessCitationMarkers('Both use new architecture [1, 2].', sources);
+    expect(resultEn).toContain('<citation data-num="1"');
+    expect(resultEn).toContain('<citation data-num="2"');
+    expect(resultEn).not.toContain('[1, 2]');
+  });
+
+  it('converts full-width comma and enumeration comma 【1，2】 and 【1、2】', () => {
+    const resultChineseComma = preprocessCitationMarkers('数据支持【1，2】。', sources);
+    expect(resultChineseComma).toContain('<citation data-num="1"');
+    expect(resultChineseComma).toContain('<citation data-num="2"');
+
+    const resultDunHao = preprocessCitationMarkers('数据支持【1、2】。', sources);
+    expect(resultDunHao).toContain('<citation data-num="1"');
+    expect(resultDunHao).toContain('<citation data-num="2"');
+  });
+
+  it('expands range citations [1-3] and 【1-3】', () => {
+    const result = preprocessCitationMarkers('多篇论文支持该结论 [1-3]。', sources);
+    expect(result).toContain('<citation data-num="1"');
+    expect(result).toContain('<citation data-num="2"');
+    expect(result).toContain('<citation data-num="3"');
+    expect(result).not.toContain('[1-3]');
+  });
+
+  it('converts variant brackets ［1］ and 〔1〕', () => {
+    const resultSquare = preprocessCitationMarkers('全角方括号［1］。', sources);
+    expect(resultSquare).toContain('<citation data-num="1"');
+
+    const resultHex = preprocessCitationMarkers('六角括号〔1〕。', sources);
+    expect(resultHex).toContain('<citation data-num="1"');
+  });
+
   it('converts citation markdown links', () => {
     const result = preprocessCitationMarkers(
       'Claim [citation:Paper A](https://example.com/a).',
@@ -42,28 +86,25 @@ describe('preprocessCitationMarkers', () => {
   it('leaves unknown indices as plain text', () => {
     const result = preprocessCitationMarkers('Unknown [9].', sources);
     expect(result).toBe('Unknown [9].');
+
+    const resultComposite = preprocessCitationMarkers('Unknown [9, 10].', sources);
+    expect(resultComposite).toBe('Unknown [9, 10].');
   });
 
-  it('does not convert full-width markers inside fenced code blocks', () => {
-    const input = 'Prose cites 【1】。\n\n```python\n# example marker 【1】\n```';
+  it('does not convert markers inside fenced code blocks', () => {
+    const input = 'Prose cites 【1, 2】。\n\n```python\n# example marker 【1, 2】\narr = [1, 2]\n```';
     const result = preprocessCitationMarkers(input, sources);
     expect(result).toContain('<citation data-num="1"');
-    expect(result).toContain('# example marker 【1】');
-    expect(result).not.toMatch(/example marker <citation/);
-  });
-
-  it('does not convert half-width markers inside fenced code blocks', () => {
-    const input = 'Prose cites [1].\n\n```python\nvalue = arr[1]\n```';
-    const result = preprocessCitationMarkers(input, sources);
-    expect(result).toContain('<citation data-num="1"');
-    expect(result).toContain('value = arr[1]');
-    expect(result).not.toMatch(/arr< citation/);
+    expect(result).toContain('<citation data-num="2"');
+    expect(result).toContain('# example marker 【1, 2】');
+    expect(result).toContain('arr = [1, 2]');
+    expect(result).not.toMatch(/arr = <citation/);
   });
 
   it('does not convert half-width markers inside inline code', () => {
-    const input = 'Use `arr[1]` for indexing and cite [1] in prose.';
+    const input = 'Use `arr[1, 2]` for indexing and cite [1] in prose.';
     const result = preprocessCitationMarkers(input, sources);
-    expect(result).toContain('`arr[1]`');
+    expect(result).toContain('`arr[1, 2]`');
     expect(result).toContain('<citation data-num="1"');
   });
 
@@ -82,18 +123,22 @@ describe('preprocessCitationMarkers', () => {
     expect(result).toContain('<citation data-num="1"');
   });
 
-  it('converts full-width digit markers 【１】', () => {
+  it('converts full-width digit markers 【１】 and 【１，２】', () => {
     const result = preprocessCitationMarkers('Python 3.14 新特性【１】。', sources);
     expect(result).toContain('<citation data-num="1"');
     expect(result).not.toContain('【１】');
+
+    const resultFwComposite = preprocessCitationMarkers('Python 3.14 新特性【１，２】。', sources);
+    expect(resultFwComposite).toContain('<citation data-num="1"');
+    expect(resultFwComposite).toContain('<citation data-num="2"');
   });
 });
 
 describe('maskCodeRegions', () => {
   it('round-trips fenced and inline code slots', () => {
-    const original = 'Text\n```js\nconst x = arr[1];\n``` and `arr[2]` end';
+    const original = 'Text\n```js\nconst x = arr[1, 2];\n``` and `arr[2]` end';
     const { text, slots } = maskCodeRegions(original);
-    expect(text).not.toContain('arr[1]');
+    expect(text).not.toContain('arr[1, 2]');
     expect(unmaskCodeRegions(text, slots)).toBe(original);
   });
 });

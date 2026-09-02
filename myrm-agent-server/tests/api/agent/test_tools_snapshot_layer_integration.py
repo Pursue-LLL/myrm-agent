@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import get_lite_model_selection
 
-_VALID_LAYER_SLUGS = frozenset({"core", "common", "extended", "external"})
+_VALID_LAYER_SLUGS = frozenset({"core", "high_priority", "extended", "external"})
 
 
 def _collect_until(
@@ -83,7 +83,7 @@ def test_agent_stream_tools_snapshot_semantic_layer_slugs(
 
     by_name = {row["name"]: row for row in snapshot_rows if isinstance(row, dict) and isinstance(row.get("name"), str)}
     assert "web_search_tool" in by_name, "web_search_tool must be Turn1 bound"
-    assert by_name["web_search_tool"].get("layer") == "common"
+    assert by_name["web_search_tool"].get("layer") == "high_priority"
     assert "bash_code_execute_tool" in by_name
     assert by_name["bash_code_execute_tool"].get("layer") == "core"
 

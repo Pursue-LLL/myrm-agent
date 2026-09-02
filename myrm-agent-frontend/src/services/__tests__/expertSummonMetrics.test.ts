@@ -5,16 +5,19 @@ import {
   __flushExpertSummonMetricsForTest,
   __resetExpertSummonMetricsForTest,
   getExpertSummonSummary,
+  recordExpertCouncilConsensusReached,
+  recordExpertCouncilPhaseCompleted,
+  recordExpertRebuttalEffective,
   recordExpertSummonAttempted,
   recordExpertSummonSearchUsed,
   recordExpertSummonSucceeded,
 } from '@/services/expertSummonMetrics';
 
-vi.mock('@/lib/api', () => ({
-  apiRequest: vi.fn(),
-}));
+const apiRequestMock = vi.fn();
 
-const apiRequestMock = vi.mocked(apiRequest);
+vi.mock('@/lib/api', () => ({
+  apiRequest: (...args: unknown[]) => apiRequestMock(...args),
+}));
 
 describe('expertSummonMetrics', () => {
   beforeEach(() => {
@@ -126,5 +129,32 @@ describe('expertSummonMetrics', () => {
 
     expect(apiRequestMock).toHaveBeenCalledWith('/statistics/expert-summon/summary?days=30');
     expect(summary.summon_success_rate).toBe(0.75);
+  });
+
+  it('posts council phase, consensus, and rebuttal events', async () => {
+    recordExpertCouncilPhaseCompleted('flow_pad_inline', 'plus_popover_card', {
+      contextKey: 'council:session:1',
+      templateKind: 'team',
+    });
+    recordExpertCouncilConsensusReached('flow_pad_inline', 'plus_popover_card', {
+      contextKey: 'council:session:1',
+      templateKind: 'team',
+    });
+    recordExpertRebuttalEffective('flow_pad_inline', 'plus_popover_card', {
+      contextKey: 'council:session:1',
+      templateKind: 'team',
+    });
+
+    await __flushExpertSummonMetricsForTest();
+
+    expect(apiRequestMock).toHaveBeenCalledTimes(3);
+    const p1 = JSON.parse(String(apiRequestMock.mock.calls[0]?.[1]?.body));
+    const p2 = JSON.parse(String(apiRequestMock.mock.calls[1]?.[1]?.body));
+    const p3 = JSON.parse(String(apiRequestMock.mock.calls[2]?.[1]?.body));
+
+    expect(p1.event_type).toBe('council_phase_completed');
+    expect(p2.event_type).toBe('council_consensus_reached');
+    expect(p3.event_type).toBe('expert_rebuttal_effective');
+    expect(p1.trigger).toBe('plus_popover_card');
   });
 });

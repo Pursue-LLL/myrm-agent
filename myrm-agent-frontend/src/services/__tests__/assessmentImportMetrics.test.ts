@@ -11,11 +11,11 @@ import {
   recordAssessmentImportSucceeded,
 } from '@/services/assessmentImportMetrics';
 
-vi.mock('@/lib/api', () => ({
-  apiRequest: vi.fn(),
-}));
+const apiRequestMock = vi.fn();
 
-const apiRequestMock = vi.mocked(apiRequest);
+vi.mock('@/lib/api', () => ({
+  apiRequest: (...args: unknown[]) => apiRequestMock(...args),
+}));
 
 describe('assessmentImportMetrics', () => {
   beforeEach(() => {

@@ -69,6 +69,7 @@ import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
 import ToolImageGallery from './ToolImageGallery';
 import SessionRecordingCard from './SessionRecordingCard';
 import VisualApprovalInlineSection from '@/components/features/chat-window/approval/VisualApprovalInlineSection';
+import { CouncilResultCard } from '@/components/features/chat-window/CouncilResultCard';
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
@@ -589,6 +590,11 @@ const MessageBox = ({
 
         {/* 可视化审批 Artifact（BBox 高亮截图卡片） */}
         <VisualApprovalInlineSection messageId={message.messageId} chatId={chatId ?? null} />
+
+        {/* 多专家 Council 编排会商与仲裁结果卡片 */}
+        {message.councilResult && (
+          <CouncilResultCard councilResult={message.councilResult} />
+        )}
 
         {/* 工件 */}
         {message.artifacts && message.artifacts.length > 0 && (
