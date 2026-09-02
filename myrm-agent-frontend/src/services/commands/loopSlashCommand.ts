@@ -101,7 +101,7 @@ export function parseLoopCommandInput(rawInput: string): {
 
   // 1. 特殊前缀短语: e.g. "半小时 检查构建" 或 "每隔半小时 检查构建"
   const specialPrefixMatch = args.match(
-    /^(?:every\s+|each\s+|每隔?\s*)?(半小时|半个小时|半个钟头|1个半小时|一个半小时|每天|每日)\s+(.+)$/i,
+    /^(?:every\s+|each\s+|每隔?\s*)?(半小时|半个小时|半个钟头|1个半小时|一个半小时|每天|每日)\s+([\s\S]+)$/i,
   );
   if (specialPrefixMatch) {
     const intervalStr = specialPrefixMatch[1];
@@ -113,7 +113,7 @@ export function parseLoopCommandInput(rawInput: string): {
   const unitRegex =
     '(?:s|sec|secs|second|seconds|秒|秒钟|m|min|mins|minute|minutes|分|分钟|h|hr|hrs|hour|hours|个?小时|个?钟头|d|day|days|天)';
   const prefixMatch = args.match(
-    new RegExp(`^(?:every\\s+|each\\s+|每隔?\\s*)?(\\d+\\s*${unitRegex})\\s+(.+)$`, 'i'),
+    new RegExp(`^(?:every\\s+|each\\s+|每隔?\\s*)?(\\d+\\s*${unitRegex})\\s+([\\s\\S]+)$`, 'i'),
   );
   if (prefixMatch) {
     const intervalStr = prefixMatch[1];
@@ -122,7 +122,7 @@ export function parseLoopCommandInput(rawInput: string): {
   }
 
   // 3. 纯数字前缀 (默认按分钟处理): e.g. "10 检查构建"
-  const prefixDigitMatch = args.match(/^(\d+)\s+(.+)$/);
+  const prefixDigitMatch = args.match(/^(\d+)\s+([\s\S]+)$/);
   if (prefixDigitMatch) {
     const val = parseInt(prefixDigitMatch[1], 10);
     if (val >= 1 && val <= 1440) {

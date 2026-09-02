@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from cryptography.exceptions import InvalidTag
 
 from app.services.hosting.crypto_packager import (
     _decrypt_payload,
