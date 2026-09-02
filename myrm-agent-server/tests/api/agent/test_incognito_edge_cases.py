@@ -4,7 +4,7 @@ Tests the complete behavior matrix without external LLM dependencies:
 - enable_memory=True + incognito=True → no memory tools / no auto extraction
 - enable_memory=False + incognito=True → no memory at all
 - session_cleanup_callback disabled in incognito
-- system prompt excludes MEMORY_RULES in incognito
+- system prompt stays decoupled and cache-stable in all modes
 """
 
 from unittest.mock import AsyncMock, MagicMock

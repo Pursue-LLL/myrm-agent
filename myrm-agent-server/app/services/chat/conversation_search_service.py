@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.memory.conversation_search.types import (
+    ConversationIndexCoverage,
     ConversationSearchHit,
     ConversationSearchRequest,
     ConversationSearchResponse,
@@ -110,6 +111,27 @@ class ConversationSearchService:
         return dict(result) if isinstance(result, dict) else {}
 
     @staticmethod
+    async def _compute_coverage() -> ConversationIndexCoverage | None:
+        try:
+            health_data = await ConversationRecallIndexService.health()
+            if not isinstance(health_data, dict):
+                return None
+            indexed = int(health_data.get("indexed_conversations") or 0)
+            missing = int(health_data.get("missing_conversations") or 0)
+            fts_ready = bool(health_data.get("fts_ready", True))
+            total = indexed + missing
+            ratio = (indexed / total) if total > 0 else 1.0
+            return ConversationIndexCoverage(
+                total_conversations=total,
+                indexed_conversations=indexed,
+                coverage_ratio=max(0.0, min(1.0, ratio)),
+                unindexed_recent_count=missing,
+                indexing_degraded=not fts_ready,
+            )
+        except Exception:
+            return None
+
+    @staticmethod
     async def search(
         request: ConversationSearchRequest,
         *,
@@ -140,7 +162,14 @@ class ConversationSearchService:
         )
         hits = [hit for hit in _merge_hits(fts_hits, semantic_hits, request.limit) if hit.score >= request.min_score]
         rejected_reason = None if hits else "No sufficiently relevant previous conversations found."
-        return ConversationSearchResponse(mode="search", hits=hits, query=query, rejected_reason=rejected_reason)
+        coverage = await ConversationSearchService._compute_coverage()
+        return ConversationSearchResponse(
+            mode="search",
+            hits=hits,
+            query=query,
+            rejected_reason=rejected_reason,
+            coverage=coverage,
+        )
 
     @staticmethod
     async def _recent(
@@ -148,14 +177,15 @@ class ConversationSearchService:
         *,
         agent_id: str | None,
     ) -> ConversationSearchResponse:
+        coverage = await ConversationSearchService._compute_coverage()
         async with UnitOfWork() as uow:
             session = uow.session
             if session is None:
-                return ConversationSearchResponse(mode="recent", hits=[], query="")
+                return ConversationSearchResponse(mode="recent", hits=[], query="", coverage=coverage)
             context = await _conversation_context(session, request, agent_id)
             lineage_chat_ids = await _lineage_chat_ids(session, request)
             if request.lineage != "all" and not lineage_chat_ids:
-                return ConversationSearchResponse(mode="recent", hits=[], query="")
+                return ConversationSearchResponse(mode="recent", hits=[], query="", coverage=coverage)
             rows = await ConversationRecallRepository.recent(
                 session,
                 limit=request.limit,
@@ -168,7 +198,7 @@ class ConversationSearchService:
                 until=request.until,
             )
         hits = [_recent_hit(row, index, agent_id) for index, row in enumerate(rows)]
-        return ConversationSearchResponse(mode="recent", hits=hits, query="")
+        return ConversationSearchResponse(mode="recent", hits=hits, query="", coverage=coverage)
 
     @staticmethod
     async def _expand_message_window(

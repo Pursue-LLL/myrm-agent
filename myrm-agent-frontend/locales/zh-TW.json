@@ -1,24 +1,4 @@
 {
-  "expertSummon": {
-    "summonSuccess": "已切換至專家 {name}",
-    "summonFailed": "召喚專家範本失敗",
-    "featuredTitle": "精選專家與專家團",
-    "teamBadge": "專家團",
-    "expertBadge": "專家",
-    "searchPlaceholder": "搜尋專家或團隊...",
-    "loading": "載入中...",
-    "empty": "未找到相符的專家或團隊範本",
-    "summonButton": "召喚",
-    "councilResultTitle": "專家團會商決議",
-    "chairSynthesisTitle": "首席仲裁決議",
-    "consensusPoints": "共識結論",
-    "divergences": "分歧與辯論點",
-    "actionItems": "執行路線",
-    "expertOpinions": "各專家獨立分析與反駁",
-    "expandOpinions": "展開各專家詳盡觀點 ({count})",
-    "collapseOpinions": "收合專家觀點",
-    "roundLabel": "第 {round} 輪"
-  },
   "recovery": {
     "title": "Agent 啟動與配置自愈中心",
     "description": "檢測到當前 Agent 綁定的組件或配置在啟動期存在異常。您可以一鍵恢復至最後已知良好配置，或匯出診斷包進行排查。",
@@ -56,6 +36,26 @@
     "refresh": "重新整理",
     "loadFailed": "載入資料失敗",
     "loadFailedDesc": "請檢查網路連線或稍後重試"
+  },
+  "expertSummon": {
+    "summonSuccess": "已切換至專家 {name}",
+    "summonFailed": "召喚專家範本失敗",
+    "featuredTitle": "精選專家與團隊",
+    "teamBadge": "團隊",
+    "expertBadge": "專家",
+    "searchPlaceholder": "搜尋專家或團隊...",
+    "loading": "載入中...",
+    "empty": "未找到匹配的專家或團隊範本",
+    "summonButton": "召喚",
+    "councilResultTitle": "評議會審議結果",
+    "chairSynthesisTitle": "主席綜合總結與決策",
+    "consensusPoints": "共識要點",
+    "divergences": "分歧與爭鳴",
+    "actionItems": "行動項",
+    "expertOpinions": "專家獨立意見與反駁",
+    "expandOpinions": "展開專家意見 ({count})",
+    "collapseOpinions": "收起專家意見",
+    "roundLabel": "第 {round} 輪"
   },
   "Goal": {
     "branchSwitchedStashed": "已切換至 {branch} 分支。自動掛起原目標。",
@@ -178,14 +178,26 @@
     "cancel": "取消",
     "save": "儲存",
     "deliverableBundle": "任務交付物",
-    "bundleDownloadAll": "全部下載",
-    "bundleDownloading": "下載中…",
+    "bundleDownloadAll": "全部打包",
+    "bundleDownloading": "打包下載中…",
     "bundleDownloadFailed": "下載交付物失敗",
     "checkpointModeLabel": "每步完成後暫停確認",
     "reasonDriftDetected": "檢測到偏離目標 — 已暫停等待審查",
     "reasonSandboxBoundary": "觸達沙箱邊界 — 已暫停等待審查",
     "statusDriftPaused": "偏離目標",
-    "statusSandboxPaused": "沙箱邊界"
+    "statusSandboxPaused": "沙箱邊界",
+    "bundleCategoryAll": "全部",
+    "bundleCategoryStrategy": "策略與方案",
+    "bundleCategoryCopywriting": "文案與內容",
+    "bundleCategoryVisual": "視覺與多媒體",
+    "bundleCategoryDataSheet": "數據與表格",
+    "bundleCategoryFactCheck": "事實核查",
+    "bundleCategorySchedule": "排程與規劃",
+    "bundleCategoryCode": "代碼與腳本",
+    "bundleCategoryOther": "其他資產",
+    "bundleExportSelected": "導出選中 ({count})",
+    "bundleSelectAll": "全選",
+    "bundleClearSelection": "清空選擇"
   },
   "commands": {
     "palette": {
@@ -247,7 +259,12 @@
       "petInstallFailed": "安裝寵物失敗",
       "petNoActive": "尚未安裝寵物 — 正在打開寵物面板",
       "ask": "打開會話顧問進行只讀旁路問答（/side）",
-      "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後臺任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。"
+      "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後臺任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。",
+      "loop": "為當前對話建立或管理週期性循環任務",
+      "loopUsage": "用法：/loop [間隔] <任務描述>（例如：/loop 10m 檢查建置狀態，/loop 1h 監控競品）",
+      "loopMissingPrompt": "請輸入 /loop 循環任務的具體內容",
+      "loopCreated": "已建立循環任務（週期：{interval}），已立即觸發首輪執行",
+      "loopCreateFailed": "建立循環任務失敗"
     }
   },
   "copilot": {
@@ -1506,7 +1523,11 @@
       "desktop": "桌面",
       "artifacts": "交付物",
       "advisorAsk": "問顧問",
-      "advisorOpen": "旁路問答"
+      "advisorOpen": "旁路問答",
+      "pushEnableBanner": "開啟推播，離線時及時獲取任務完成與審批提醒",
+      "pushEnableButton": "開啟通知",
+      "pushDismiss": "忽略",
+      "pushEnabled": "推播已開啟"
     }
   },
   "common": {
@@ -15021,26 +15042,6 @@
           "confidence": "歸因置信度 {value}%",
           "loopKind": "迴圈型別：{value}"
         },
-        "manifestPrediction": {
-          "title": "可證偽變更預測與歸因",
-          "baseline": "基準線",
-          "target": "目標",
-          "predictedDirection": {
-            "INCREASE": "預期提升",
-            "DECREASE": "預期降低",
-            "NEUTRAL": "預期保持"
-          },
-          "falsificationConditions": "證偽條件",
-          "attributionVerdict": "歸因結論",
-          "verdictBadge": {
-            "CONFIRMED": "預期達成",
-            "REFUTED": "未達預期",
-            "REGRESSION": "發生退化",
-            "INCONCLUSIVE": "證據不足"
-          },
-          "metricDeltas": "實測指標變化",
-          "unpredictedRegressions": "未預期退化警告"
-        },
         "empty": {
           "title": "當前檢視暫無案例",
           "description": "當 Agent 捕獲到新經驗、自動落地能力，或需要你稽核時，相關記錄會出現在這裡。"
@@ -15053,7 +15054,27 @@
         "targetPathology": "病理特徵：{pathology}",
         "verificationProofTitle": "沙箱膠囊驗證憑證 (Verified Capsule Proof)",
         "blastRadius": "影響範圍: {files} 檔案, {lines} 行",
-        "noVerificationProof": "暫無沙箱實測驗證憑證"
+        "noVerificationProof": "暫無沙箱實測驗證憑證",
+        "manifestPrediction": {
+          "title": "可證偽變更預測與歸因",
+          "baseline": "基準線",
+          "target": "目標",
+          "predictedDirection": {
+            "INCREASE": "預期提升",
+            "DECREASE": "預期降低",
+            "NEUTRAL": "預期保持"
+          },
+          "falsificationConditions": "證偽條件",
+          "attributionVerdict": "歸因結論",
+          "verdictBadge": {
+            "CONFIRMED": "CONFIRMED",
+            "REFUTED": "REFUTED",
+            "REGRESSION": "REGRESSION",
+            "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "metricDeltas": "實測指標變化",
+          "unpredictedRegressions": "未預期退化警告"
+        }
       },
       "upload": {
         "title": "上傳自定義技能",

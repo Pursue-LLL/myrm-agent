@@ -13,7 +13,9 @@ for agentic code security scans in the server layer.
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 
 from app.schemas.security.scan_comparison import (
     FindingItem,
@@ -27,20 +29,59 @@ logger = logging.getLogger(__name__)
 class ScanRunComparisonService:
     """Service tracking security scan runs and computing deterministic finding diffs."""
 
-    def __init__(self) -> None:
+    def __init__(self, persistence_path: str | Path | None = None) -> None:
         self._runs: dict[str, ScanRunSummary] = {}
         self._resolved_history: set[str] = set()
+        self._persistence_path: Path | None = (
+            Path(persistence_path) if persistence_path else None
+        )
+        if self._persistence_path:
+            self._load_persisted_runs()
+
+    def _load_persisted_runs(self) -> None:
+        """Load historical runs from JSONL persistence file if exists."""
+        if not self._persistence_path or not self._persistence_path.exists():
+            return
+        try:
+            with open(self._persistence_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line_str = line.strip()
+                    if not line_str:
+                        continue
+                    data = json.loads(line_str)
+                    run = ScanRunSummary.model_validate(data)
+                    self._runs[run.run_id] = run
+        except Exception as exc:
+            logger.warning(
+                "Failed to load persisted scan runs from %s: %s",
+                self._persistence_path,
+                exc,
+            )
 
     def record_run(self, run: ScanRunSummary) -> ScanRunSummary:
-        """Store a scan run snapshot in memory/store."""
+        """Store a scan run snapshot in memory/store and append to persistence."""
         self._runs[run.run_id] = run
+        if self._persistence_path:
+            try:
+                self._persistence_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._persistence_path, "a", encoding="utf-8") as f:
+                    f.write(run.model_dump_json() + "\n")
+            except Exception as exc:
+                logger.warning(
+                    "Failed to persist scan run %s to %s: %s",
+                    run.run_id,
+                    self._persistence_path,
+                    exc,
+                )
         return run
 
     def get_run(self, run_id: str) -> ScanRunSummary | None:
         """Retrieve a scan run by run_id."""
         return self._runs.get(run_id)
 
-    def list_runs(self, session_id: str | None = None, limit: int = 20) -> list[ScanRunSummary]:
+    def list_runs(
+        self, session_id: str | None = None, limit: int = 20
+    ) -> list[ScanRunSummary]:
         """List scan runs sorted by created_at descending."""
         runs = list(self._runs.values())
         if session_id:
@@ -82,7 +123,9 @@ class ScanRunComparisonService:
             raise ValueError(f"Base run {base_run_id} not found.")
 
         base_map: dict[str, FindingItem] = {f.fingerprint: f for f in base_run.findings}
-        target_map: dict[str, FindingItem] = {f.fingerprint: f for f in target_run.findings}
+        target_map: dict[str, FindingItem] = {
+            f.fingerprint: f for f in target_run.findings
+        }
 
         new_findings: list[FindingItem] = []
         persisting_findings: list[FindingItem] = []
@@ -112,7 +155,9 @@ class ScanRunComparisonService:
                 resolved_findings.append(item)
                 self._resolved_history.add(fp)
 
-        total_delta = (len(new_findings) + len(regressed_findings)) - len(resolved_findings)
+        total_delta = (len(new_findings) + len(regressed_findings)) - len(
+            resolved_findings
+        )
         summary = (
             f"Comparison with {base_run_id}: "
             f"+{len(new_findings)} new, +{len(regressed_findings)} regressed, "
@@ -170,16 +215,26 @@ class ScanRunComparisonService:
         )
 
         if not run.findings:
-            report_lines.append("✅ No security vulnerabilities detected in the target scope.\n")
+            report_lines.append(
+                "✅ No security vulnerabilities detected in the target scope.\n"
+            )
         else:
             for idx, finding in enumerate(run.findings, 1):
-                poc_badge = "🛡️ **[PoC VERIFIED]**" if finding.poc_verified else "⚠️ [STATIC INFERENCE]"
+                poc_badge = (
+                    "🛡️ **[PoC VERIFIED]**"
+                    if finding.poc_verified
+                    else "⚠️ [STATIC INFERENCE]"
+                )
                 report_lines.extend(
                     [
                         f"### {idx}. [{finding.severity.upper()}] {finding.title} ({finding.cwe})",
                         f"- **Status**: `{finding.status.upper()}` · **Fingerprint**: `{finding.fingerprint}`",
                         f"- **Location**: `{finding.file_path}`"
-                        + (f" (Lines: `{finding.line_range}`)" if finding.line_range else ""),
+                        + (
+                            f" (Lines: `{finding.line_range}`)"
+                            if finding.line_range
+                            else ""
+                        ),
                         f"- **Verification**: {poc_badge}",
                     ]
                 )

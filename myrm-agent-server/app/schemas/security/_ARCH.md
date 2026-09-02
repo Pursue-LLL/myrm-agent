@@ -7,6 +7,7 @@
 | 文件 | 职责 |
 |------|------|
 | `dashboard.py` | SecurityDashboard、PlatformAudit*、RateLimit* 等 API/services 共用模型 |
+| `scan_comparison.py` | FindingItem、ScanRunSummary、ScanComparisonResult 等安全漏洞与跨版本差量比对模型 |
 
 ## 依赖
 

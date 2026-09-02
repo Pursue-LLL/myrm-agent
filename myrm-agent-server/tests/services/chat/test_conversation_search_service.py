@@ -505,3 +505,29 @@ class TestConversationSearchService:
             passed_req = mock_search.call_args[0][0]
             assert passed_req.scope == "same_source"
             assert passed_req.current_conversation_id == "chat-feishu-1"
+
+    @pytest.mark.asyncio
+    async def test_search_and_recent_include_coverage_metadata(self, fts_db: AsyncSession) -> None:
+        chat_id = await seed_chat_and_messages(fts_db)
+        await ConversationRecallRepository.rebuild_chat(fts_db, chat_id)
+        await fts_db.commit()
+
+        response = await ConversationSearchService.search(
+            ConversationSearchRequest(query="Kubernetes", limit=3),
+            agent_id=None,
+            memory_manager=None,
+        )
+
+        assert response.coverage is not None
+        assert response.coverage.total_conversations >= 1
+        assert response.coverage.indexed_conversations >= 1
+        assert response.coverage.coverage_ratio >= 0.0
+        assert response.coverage.indexing_degraded is False
+
+        recent_response = await ConversationSearchService.search(
+            ConversationSearchRequest(query="", limit=3),
+            agent_id=None,
+            memory_manager=None,
+        )
+        assert recent_response.coverage is not None
+        assert recent_response.coverage.total_conversations >= 1

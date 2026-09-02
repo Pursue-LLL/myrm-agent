@@ -66,7 +66,7 @@ class TestTaskSpecialtyRoutingIntegration:
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
+            params, routing_tier, specialty, routing_reason, warnings, _ = await convert_to_general_agent_params(request, [])
 
         assert params.model_cfg.model == "claude-3-7-sonnet-20250219"
         assert params.fallback_model_cfg.model == "deepseek-coder"
@@ -93,7 +93,7 @@ class TestTaskSpecialtyRoutingIntegration:
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
+            params, routing_tier, specialty, routing_reason, warnings, _ = await convert_to_general_agent_params(request, [])
 
         assert params.model_cfg.model == "gemini-1.5-pro"
         assert routing_tier == "long_doc"
@@ -126,7 +126,7 @@ class TestTaskSpecialtyRoutingIntegration:
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
+            params, routing_tier, specialty, routing_reason, warnings, _ = await convert_to_general_agent_params(request, [])
 
         # Should fall open to complexity router
         assert routing_tier in ("standard", "reasoning", "simple")
@@ -262,7 +262,7 @@ class TestAutoMoAOverlayGateConverter:
                 convert_to_general_agent_params,
             )
 
-            params, routing_tier, specialty, warnings, _ = await convert_to_general_agent_params(request, [])
+            params, routing_tier, specialty, routing_reason, warnings, _ = await convert_to_general_agent_params(request, [])
 
         assert routing_tier == "reasoning"
         assert params.engine_params is not None

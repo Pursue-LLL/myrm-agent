@@ -31,21 +31,43 @@ class _CamelModel(BaseModel):
 class FindingItem(_CamelModel):
     """Represents an agentic security finding with optional PoC verification."""
 
-    fingerprint: str = Field(description="Deterministic hash identifying the vulnerability signature across runs.")
-    rule_id: str = Field(description="Internal rule identifier (e.g., sql-injection-concat).")
-    cwe: str = Field(default="CWE-Other", description="Standard Common Weakness Enumeration ID.")
-    title: str = Field(description="Short human-readable title of the security finding.")
+    fingerprint: str = Field(
+        description="Deterministic hash identifying the vulnerability signature across runs."
+    )
+    rule_id: str = Field(
+        description="Internal rule identifier (e.g., sql-injection-concat)."
+    )
+    cwe: str = Field(
+        default="CWE-Other", description="Standard Common Weakness Enumeration ID."
+    )
+    title: str = Field(
+        description="Short human-readable title of the security finding."
+    )
     severity: FindingSeverity = Field(default="high", description="Severity tier.")
     file_path: str = Field(description="Target file path containing the finding.")
-    line_range: str | None = Field(default=None, description="Affected line numbers or span.")
-    poc_command: str | None = Field(default=None, description="Executable PoC validation command.")
-    poc_output: str | None = Field(default=None, description="Evidence output from PoC execution.")
-    poc_verified: bool = Field(default=False, description="Whether the exploit was verified in sandbox.")
-    fix_suggestion: str | None = Field(default=None, description="Actionable remediation code/guidance.")
-    status: FindingStatus = Field(default="new", description="Lifecycle delta status relative to baseline run.")
+    line_range: str | None = Field(
+        default=None, description="Affected line numbers or span."
+    )
+    poc_command: str | None = Field(
+        default=None, description="Executable PoC validation command."
+    )
+    poc_output: str | None = Field(
+        default=None, description="Evidence output from PoC execution."
+    )
+    poc_verified: bool = Field(
+        default=False, description="Whether the exploit was verified in sandbox."
+    )
+    fix_suggestion: str | None = Field(
+        default=None, description="Actionable remediation code/guidance."
+    )
+    status: FindingStatus = Field(
+        default="new", description="Lifecycle delta status relative to baseline run."
+    )
 
     @classmethod
-    def compute_fingerprint(cls, cwe: str, file_path: str, rule_id: str, signature: str = "") -> str:
+    def compute_fingerprint(
+        cls, cwe: str, file_path: str, rule_id: str, signature: str = ""
+    ) -> str:
         """Compute deterministic finding fingerprint to track lifecycle across code modifications."""
         norm_path = file_path.strip().replace("\\", "/").lower()
         raw_key = f"{cwe.upper()}:{rule_id.lower()}:{norm_path}:{signature.strip()}"
@@ -56,16 +78,28 @@ class ScanRunSummary(_CamelModel):
     """Snapshot metadata and findings for a single security scan execution."""
 
     run_id: str = Field(description="Unique scan run identifier.")
-    session_id: str = Field(default="", description="Associated chat session ID if applicable.")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Run timestamp.")
-    scan_mode: ScanMode = Field(default="diff", description="Execution mode: diff, full, or deep.")
-    total_findings: int = Field(default=0, description="Total count of active findings.")
+    session_id: str = Field(
+        default="", description="Associated chat session ID if applicable."
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), description="Run timestamp."
+    )
+    scan_mode: ScanMode = Field(
+        default="diff", description="Execution mode: diff, full, or deep."
+    )
+    total_findings: int = Field(
+        default=0, description="Total count of active findings."
+    )
     critical_count: int = Field(default=0, description="Count of critical findings.")
     high_count: int = Field(default=0, description="Count of high findings.")
     medium_count: int = Field(default=0, description="Count of medium findings.")
     low_count: int = Field(default=0, description="Count of low findings.")
-    poc_verified_count: int = Field(default=0, description="Count of verified PoC exploits.")
-    findings: list[FindingItem] = Field(default_factory=list, description="List of findings in this run.")
+    poc_verified_count: int = Field(
+        default=0, description="Count of verified PoC exploits."
+    )
+    findings: list[FindingItem] = Field(
+        default_factory=list, description="List of findings in this run."
+    )
 
     @classmethod
     def from_findings(
@@ -98,15 +132,25 @@ class ScanRunSummary(_CamelModel):
 class ScanComparisonResult(_CamelModel):
     """Diff analysis between two scan runs tracking new, persisting, resolved, and regressed findings."""
 
-    base_run_id: str | None = Field(default=None, description="Previous baseline run ID.")
+    base_run_id: str | None = Field(
+        default=None, description="Previous baseline run ID."
+    )
     target_run_id: str = Field(description="Current target run ID.")
-    new_findings: list[FindingItem] = Field(default_factory=list, description="Findings introduced in target run.")
-    persisting_findings: list[FindingItem] = Field(default_factory=list, description="Findings present in both runs.")
+    new_findings: list[FindingItem] = Field(
+        default_factory=list, description="Findings introduced in target run."
+    )
+    persisting_findings: list[FindingItem] = Field(
+        default_factory=list, description="Findings present in both runs."
+    )
     resolved_findings: list[FindingItem] = Field(
-        default_factory=list, description="Findings present in base but fixed in target."
+        default_factory=list,
+        description="Findings present in base but fixed in target.",
     )
     regressed_findings: list[FindingItem] = Field(
-        default_factory=list, description="Previously resolved findings that reappeared."
+        default_factory=list,
+        description="Previously resolved findings that reappeared.",
     )
-    total_delta: int = Field(default=0, description="Net difference in active findings.")
+    total_delta: int = Field(
+        default=0, description="Net difference in active findings."
+    )
     summary_text: str = Field(default="", description="Human-readable delta summary.")

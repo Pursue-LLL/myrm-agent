@@ -89,7 +89,10 @@ class TestNativeJsonDryRun:
         assert len(result.normalized_data["semantic"]) == 2
 
     def test_all_supported_buckets(self) -> None:
-        payload = {bucket: [{"content": f"{bucket} item"}] for bucket in SUPPORTED_NATIVE_BUCKETS}
+        payload = {
+            bucket: [{"content": f"{bucket} item"}]
+            for bucket in SUPPORTED_NATIVE_BUCKETS
+        }
         result = build_memory_import_dry_run(payload, source="native_json")
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == len(SUPPORTED_NATIVE_BUCKETS)
@@ -343,7 +346,9 @@ class TestAdapterRegistryConsistency:
         statuses = memory_import_adapter_status()
         ready = [s for s, st in statuses.items() if st == "ready"]
         for adapter in ready:
-            assert adapter in sources, f"Ready adapter '{adapter}' missing from supported sources"
+            assert (
+                adapter in sources
+            ), f"Ready adapter '{adapter}' missing from supported sources"
 
     def test_ready_registry_matches_expected_sources(self) -> None:
         """Registry 'ready' set must exactly match the adapters implemented today.
@@ -625,7 +630,13 @@ class TestWindsurfDryRun:
     def test_trae_rules_with_body_key_parsed(self) -> None:
         payload = {
             "_source": "trae",
-            "trae_rules": [{"title": "API Rule", "body": "Use standard HTTP errors", "source": "project_rules"}],
+            "trae_rules": [
+                {
+                    "title": "API Rule",
+                    "body": "Use standard HTTP errors",
+                    "source": "project_rules",
+                }
+            ],
         }
         result = build_memory_import_dry_run(payload)
         assert result.summary.source == "trae"
@@ -639,7 +650,13 @@ class TestWindsurfDryRun:
     def test_windsurf_memories_with_memory_key_and_confidence(self) -> None:
         payload = {
             "_source": "windsurf",
-            "windsurf_memories": [{"memory": "Always write docstrings", "confidence": -2.0, "timestamp": "2026-08-01T12:00:00Z"}],
+            "windsurf_memories": [
+                {
+                    "memory": "Always write docstrings",
+                    "confidence": -2.0,
+                    "timestamp": "2026-08-01T12:00:00Z",
+                }
+            ],
         }
         result = build_memory_import_dry_run(payload)
         assert result.summary.source == "windsurf"

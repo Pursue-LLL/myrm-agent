@@ -10,6 +10,9 @@ ensuring table structures remain valid across sliced card boundaries.
 [OUTPUT]
 - sanitize_lark_markdown: Clean unescaped pipes and repair unclosed inline formatting.
 - slice_card_markdown: Split long Markdown text into chunks <= max_bytes with table header preservation.
+
+[POS]
+Feishu Markdown payload boundary slicer with table header replication.
 """
 
 from __future__ import annotations
@@ -156,7 +159,11 @@ def slice_card_markdown(
             if in_table and table_header_row and table_sep_row:
                 current_lines.append(table_header_row)
                 current_lines.append(table_sep_row)
-                current_bytes += _get_utf8_byte_length(table_header_row) + _get_utf8_byte_length(table_sep_row) + 2
+                current_bytes += (
+                    _get_utf8_byte_length(table_header_row)
+                    + _get_utf8_byte_length(table_sep_row)
+                    + 2
+                )
 
         current_lines.append(line)
         current_bytes += line_bytes

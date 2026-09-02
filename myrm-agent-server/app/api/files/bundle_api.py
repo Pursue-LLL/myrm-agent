@@ -20,7 +20,10 @@ import urllib.parse
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-from myrm_agent_harness.core.artifacts.manifest import DeliverableItem, DeliverableManifest
+from myrm_agent_harness.core.artifacts.manifest import (
+    DeliverableItem,
+    DeliverableManifest,
+)
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
@@ -55,13 +58,19 @@ async def get_deliverable_bundle_manifest(
     """获取指定交付包的结构化清单 (Manifest)"""
     data = vault.get_manifest(bundle_id)
     if not data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Deliverable bundle not found: {bundle_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deliverable bundle not found: {bundle_id}",
+        )
 
     try:
         return DeliverableManifest.model_validate(data)
     except Exception as e:
         logger.error("Failed to parse manifest %s: %s", bundle_id, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Corrupted manifest data") from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Corrupted manifest data",
+        ) from e
 
 
 @router.post("/bundles", response_model=DeliverableManifest)
@@ -92,17 +101,26 @@ async def download_bundle_zip(
     """流式下载成套交付物 ZIP 压缩包 (恒定 <1MB 内存占用)"""
     data = vault.get_manifest(bundle_id)
     if not data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Deliverable bundle not found: {bundle_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deliverable bundle not found: {bundle_id}",
+        )
 
     try:
         manifest = DeliverableManifest.model_validate(data)
     except Exception as e:
         logger.error("Failed to parse manifest %s: %s", bundle_id, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Corrupted manifest data") from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Corrupted manifest data",
+        ) from e
 
     # 空包安全判定
     if not manifest.items:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot export empty deliverable bundle")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot export empty deliverable bundle",
+        )
 
     exporter = BundleExporter(vault)
     filename = f"{manifest.title or 'deliverables'}_{manifest.bundle_id[:8]}.zip"

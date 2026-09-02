@@ -43,6 +43,7 @@ def _make_marker(
     attempt_count: int = 0,
     created_at: datetime | None = None,
     serialized_params: dict | None = None,
+    pending_steering_messages: list[str] | None = None,
 ) -> MagicMock:
     m = MagicMock()
     m.id = marker_id
@@ -51,6 +52,7 @@ def _make_marker(
     m.action_mode = "fast"
     m.agent_id = "default"
     m.attempt_count = attempt_count
+    m.pending_steering_messages = pending_steering_messages
     m.created_at = created_at or datetime.now(UTC)
     m.serialized_params = serialized_params or {
         "chat_id": chat_id,
@@ -94,12 +96,25 @@ async def test_auto_continue_success_persists_message():
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
-            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": True})),
+            AsyncMock(
+                return_value=MagicMock(
+                    personal_settings_dict={"autoContinueInterruptedTurns": True}
+                )
+            ),
         ),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", mock_chat_history),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            mock_chat_history,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            mock_persist,
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             mock_notif,
@@ -124,8 +139,64 @@ async def test_auto_continue_success_persists_message():
     assert persist_args[0][0] == "chat-auto-001"
     assert persist_args[0][1] == "Hello world"
 
-    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
+    success_calls = [
+        c for c in mock_notif.call_args_list if c[1].get("type") == "success"
+    ]
     assert len(success_calls) >= 1
+
+
+@pytest.mark.asyncio
+async def test_auto_continue_replays_pending_steering_messages():
+    """Pending steering messages in marker are restored to steering token upon recovery."""
+    marker = _make_marker(pending_steering_messages=["redirect to topic b"])
+    factory, db = _mock_session_factory()
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "Steered ok"}
+        yield {"type": "message_end", "usage": {}}
+
+    mock_notif = AsyncMock()
+    mock_persist = AsyncMock()
+    mock_chat_history = AsyncMock(return_value=[])
+
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = [marker]
+    db.execute = AsyncMock(return_value=result_mock)
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": True})),
+        ),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", mock_chat_history),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            mock_notif,
+        ),
+        patch("myrm_agent_harness.utils.runtime.steering.set_steering_token") as mock_set_token,
+    ):
+        mock_params = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            query="hello",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+        mock_params_cls.model_validate.return_value = mock_params
+
+        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
+
+        await auto_continue_interrupted_turns()
+        await asyncio.sleep(0.15)
+
+        assert mock_set_token.called
+        token_arg = mock_set_token.call_args[0][0]
+        assert token_arg.has_pending is True
+        assert token_arg.collect_all_steering_messages() == ["redirect to topic b"]
 
 
 @pytest.mark.asyncio
@@ -156,9 +227,18 @@ async def test_auto_continue_forwards_token_economics_to_persist():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            mock_persist,
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             mock_notif,
@@ -197,9 +277,18 @@ async def test_auto_continue_without_token_economics_persists_without_extra_data
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            mock_persist,
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             AsyncMock(),
@@ -230,7 +319,11 @@ async def test_auto_continue_disabled_by_preference():
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
-            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": False})),
+            AsyncMock(
+                return_value=MagicMock(
+                    personal_settings_dict={"autoContinueInterruptedTurns": False}
+                )
+            ),
         ),
     ):
         from app.lifecycle.auto_continue import auto_continue_interrupted_turns
@@ -289,7 +382,9 @@ async def test_dispatch_skips_missing_params():
 
         await _dispatch_auto_continue(marker, factory)
 
-    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
+    success_calls = [
+        c for c in mock_notif.call_args_list if c[1].get("type") == "success"
+    ]
     assert len(success_calls) == 0
 
 
@@ -302,7 +397,10 @@ async def test_dispatch_skips_missing_model_cfg():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
     ):
         mock_params_cls.model_validate.return_value = MagicMock(
             model_cfg=None,
@@ -328,8 +426,14 @@ async def test_dispatch_failure_creates_error_notification():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=RuntimeError("LLM died")),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=RuntimeError("LLM died"),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             mock_notif,
@@ -360,8 +464,14 @@ async def test_notification_failure_does_not_crash():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=RuntimeError("fail")),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=RuntimeError("fail"),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             AsyncMock(side_effect=Exception("DB down")),
@@ -401,9 +511,18 @@ async def test_config_loader_failure_defaults_to_enabled():
             AsyncMock(side_effect=RuntimeError("config DB corrupted")),
         ),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            AsyncMock(),
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             mock_notif,
@@ -421,7 +540,9 @@ async def test_config_loader_failure_defaults_to_enabled():
         await auto_continue_interrupted_turns()
         await asyncio.sleep(0.15)
 
-    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
+    success_calls = [
+        c for c in mock_notif.call_args_list if c[1].get("type") == "success"
+    ]
     assert len(success_calls) >= 1, "Should proceed despite config failure"
 
 
@@ -440,9 +561,18 @@ async def test_empty_stream_does_not_persist():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_empty_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_empty_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            mock_persist,
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             AsyncMock(),
@@ -468,7 +598,9 @@ async def test_dispatch_loads_chat_history():
     marker = _make_marker()
     factory, db = _mock_session_factory()
 
-    mock_load_history = AsyncMock(return_value=[["user", "previous msg"], ["assistant", "prev reply"]])
+    mock_load_history = AsyncMock(
+        return_value=[["user", "previous msg"], ["assistant", "prev reply"]]
+    )
 
     async def _fake_stream(*_a, **_kw):
         yield {"type": "message", "data": "ok"}
@@ -476,9 +608,18 @@ async def test_dispatch_loads_chat_history():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", mock_load_history),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            mock_load_history,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            AsyncMock(),
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             AsyncMock(),
@@ -515,9 +656,18 @@ async def test_dispatch_injects_runtime_context():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_capturing_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_capturing_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            AsyncMock(),
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             AsyncMock(),
@@ -583,9 +733,18 @@ async def test_dispatch_ignores_non_dict_chunks():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_stream_with_non_dict),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_stream_with_non_dict,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            mock_persist,
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             AsyncMock(),
@@ -619,9 +778,18 @@ async def test_dispatch_cleanup_failure_is_swallowed():
     with (
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
-        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
-        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
-        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", AsyncMock()),
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            AsyncMock(),
+        ),
         patch(
             "app.services.infra.system_notification.SystemNotificationService.create_notification",
             AsyncMock(),

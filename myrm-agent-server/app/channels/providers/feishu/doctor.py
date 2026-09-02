@@ -78,7 +78,11 @@ async def diagnose_feishu_channel(
             DiagnosticCheckItem(
                 name="tenant_access_token",
                 passed=token_ok,
-                message="Tenant Access Token acquired successfully." if token_ok else "Failed to acquire token.",
+                message=(
+                    "Tenant Access Token acquired successfully."
+                    if token_ok
+                    else "Failed to acquire token."
+                ),
             )
         )
     except Exception as e:
@@ -104,12 +108,18 @@ async def diagnose_feishu_channel(
         DiagnosticCheckItem(
             name="bot_identity",
             passed=bot_ok,
-            message=f"Bot Open ID resolved: {bot_id}" if bot_ok else "Bot Open ID not resolved.",
+            message=(
+                f"Bot Open ID resolved: {bot_id}"
+                if bot_ok
+                else "Bot Open ID not resolved."
+            ),
             details={"bot_open_id": bot_id},
         )
     )
     if not bot_ok:
-        recommendations.append("Ensure Bot capability is enabled in Feishu App Developer Console.")
+        recommendations.append(
+            "Ensure Bot capability is enabled in Feishu App Developer Console."
+        )
 
     # Check 3: CardKit Streaming API Probe
     import uuid
@@ -123,9 +133,11 @@ async def diagnose_feishu_channel(
             DiagnosticCheckItem(
                 name="cardkit_streaming",
                 passed=cardkit_ok,
-                message="CardKit streaming API verified."
-                if cardkit_ok
-                else "CardKit streaming API unavailable (will fallback to edit_message).",
+                message=(
+                    "CardKit streaming API verified."
+                    if cardkit_ok
+                    else "CardKit streaming API unavailable (will fallback to edit_message)."
+                ),
             )
         )
     except Exception as e:
@@ -149,11 +161,17 @@ async def diagnose_feishu_channel(
             DiagnosticCheckItem(
                 name="webhook_reachability",
                 passed=has_url,
-                message=f"Webhook URL configured: {webhook_url}" if has_url else "Webhook mode enabled but URL missing.",
+                message=(
+                    f"Webhook URL configured: {webhook_url}"
+                    if has_url
+                    else "Webhook mode enabled but URL missing."
+                ),
             )
         )
         if not has_url:
-            recommendations.append("Configure a valid public Webhook URL or switch to WebSocket transport mode.")
+            recommendations.append(
+                "Configure a valid public Webhook URL or switch to WebSocket transport mode."
+            )
     else:
         checks.append(
             DiagnosticCheckItem(
@@ -163,7 +181,9 @@ async def diagnose_feishu_channel(
             )
         )
 
-    is_healthy = all(c.passed for c in checks if c.name in ("tenant_access_token", "bot_identity"))
+    is_healthy = all(
+        c.passed for c in checks if c.name in ("tenant_access_token", "bot_identity")
+    )
 
     return FeishuDiagnosticReport(
         app_id=app_id,

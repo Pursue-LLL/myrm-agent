@@ -82,9 +82,14 @@ def test_build_dynamic_dashboard_card() -> None:
     # Check tool history element
     assert any("web_search" in str(el) for el in elements)
     # Check streaming content element
-    assert any(el.get("tag") == "streaming_content" for el in elements if isinstance(el, dict))
+    assert any(
+        el.get("tag") == "streaming_content" for el in elements if isinstance(el, dict)
+    )
     # Check footer note with cost and task id
-    note_el = next((el for el in elements if isinstance(el, dict) and el.get("tag") == "note"), None)
+    note_el = next(
+        (el for el in elements if isinstance(el, dict) and el.get("tag") == "note"),
+        None,
+    )
     assert note_el is not None
     assert "gpt-4o" in str(note_el)
     assert "task-abc" in str(note_el)
@@ -99,7 +104,10 @@ def test_dashboard_stream_throttler() -> None:
     assert throttler.should_emit("chunk 1 + 2", DashboardState.STREAMING) is False
 
     # Force emit or final chunk is always True
-    assert throttler.should_emit("chunk 1 + 2", DashboardState.STREAMING, is_final=True) is True
+    assert (
+        throttler.should_emit("chunk 1 + 2", DashboardState.STREAMING, is_final=True)
+        is True
+    )
 
 
 # ── Table Slicer Tests ───────────────────────────────────────────

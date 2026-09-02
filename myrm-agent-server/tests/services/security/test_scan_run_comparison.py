@@ -135,3 +135,37 @@ def test_generate_executive_report() -> None:
     assert "Hardcoded AWS Secret Key" in report
     assert "[PoC VERIFIED]" in report
     assert "os.environ.get" in report
+
+
+def test_scan_run_comparison_persistence(tmp_path: object) -> None:
+    from pathlib import Path
+
+    p_file = Path(str(tmp_path)) / "scan_runs.jsonl"
+    service1 = ScanRunComparisonService(persistence_path=p_file)
+
+    f1 = FindingItem(
+        fingerprint="fp-persist-1",
+        rule_id="sqli",
+        cwe="CWE-89",
+        title="SQL Injection",
+        severity="critical",
+        file_path="app/auth.py",
+        poc_verified=True,
+    )
+    run1 = ScanRunSummary.from_findings(
+        run_id="run-persist-001",
+        findings=[f1],
+        session_id="session-p1",
+        scan_mode="full",
+    )
+    service1.record_run(run1)
+
+    assert p_file.exists()
+
+    # Create new instance pointing to same file -> should reload run1
+    service2 = ScanRunComparisonService(persistence_path=p_file)
+    loaded_run = service2.get_run("run-persist-001")
+    assert loaded_run is not None
+    assert loaded_run.run_id == "run-persist-001"
+    assert loaded_run.total_findings == 1
+    assert loaded_run.findings[0].fingerprint == "fp-persist-1"

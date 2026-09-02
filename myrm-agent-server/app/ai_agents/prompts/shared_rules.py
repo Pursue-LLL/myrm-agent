@@ -8,7 +8,6 @@
 - SECURITY_RULES: 安全与保密规则（Master Guardrails）（_EN / _ZH）
 - TASK_INTEGRITY_RULES: 任务完整性护栏（_EN / _ZH）
 - DESKTOP_CONTROL_RULES: 桌面控制规则（_EN / _ZH）
-- MEMORY_RULES: 显式记忆管理规则（_EN / _ZH）
 - RESPONSE_RULES: 回复规则（含 quality_and_tone、formatting）（_EN / _ZH）
 - EXTERNAL_SOURCES_CITATION_RULES: 外部来源引用规则（_EN / _ZH）
 
@@ -240,7 +239,7 @@ EXTERNAL_SOURCES_CITATION_RULES_ZH = """
 """  # noqa: E501
 
 # =============================================================================
-# 默认别名（默认英文 EN，保持向下兼容与无缝导入）
+# 默认别名（默认英文 EN）
 # =============================================================================
 
 ABSOLUTE_OBEDIENCE_RULES = ABSOLUTE_OBEDIENCE_RULES_EN

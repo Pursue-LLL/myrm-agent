@@ -1,24 +1,4 @@
 {
-  "expertSummon": {
-    "summonSuccess": "Zu Experte {name} gewechselt",
-    "summonFailed": "Beschwörung der Expertenvorlage fehlgeschlagen",
-    "featuredTitle": "Ausgewählte Experten & Squads",
-    "teamBadge": "Expertenteam",
-    "expertBadge": "Experte",
-    "searchPlaceholder": "Experten oder Teams suchen...",
-    "loading": "Wird geladen...",
-    "empty": "Keine passenden Experten- oder Team-Vorlagen gefunden",
-    "summonButton": "Beschwören",
-    "councilResultTitle": "Expertenrat-Beschluss",
-    "chairSynthesisTitle": "Vorsitz-Synthese",
-    "consensusPoints": "Konsenspunkte",
-    "divergences": "Abweichungen und Debattenpunkte",
-    "actionItems": "Maßnahmen",
-    "expertOpinions": "Unabhängige Analysen und Einwände der Experten",
-    "expandOpinions": "Detaillierte Expertenmeinungen ausklappen ({count})",
-    "collapseOpinions": "Expertenmeinungen einklappen",
-    "roundLabel": "Runde {round}"
-  },
   "recovery": {
     "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
     "description": "Beim Start wurden Anomalien in Komponenten oder Konfigurationen festgestellt. Sie können zur letzten funktionierenden Konfiguration zurückkehren oder ein Diagnosepaket exportieren.",
@@ -56,6 +36,26 @@
     "refresh": "Aktualisieren",
     "loadFailed": "Laden fehlgeschlagen",
     "loadFailedDesc": "Bitte überprüfen Sie Ihre Netzwerkverbindung oder versuchen Sie es später erneut"
+  },
+  "expertSummon": {
+    "summonSuccess": "Zu Experte {name} gewechselt",
+    "summonFailed": "Experten-Vorlage konnte nicht aufgerufen werden",
+    "featuredTitle": "Empfohlene Experten & Teams",
+    "teamBadge": "Gruppe",
+    "expertBadge": "Experte",
+    "searchPlaceholder": "Experten oder Teams suchen...",
+    "loading": "Wird geladen...",
+    "empty": "Keine passenden Experten- oder Team-Vorlagen gefunden",
+    "summonButton": "Beschwören",
+    "councilResultTitle": "Ergebnis der Ratsberatung",
+    "chairSynthesisTitle": "Synthese & Urteil des Vorsitzenden",
+    "consensusPoints": "Konsenspunkte",
+    "divergences": "Divergenzen & Debatten",
+    "actionItems": "Aktionselemente",
+    "expertOpinions": "Unabhängige Gutachten & Gegenargumente",
+    "expandOpinions": "Expertenmeinungen anzeigen ({count})",
+    "collapseOpinions": "Expertenmeinungen einklappen",
+    "roundLabel": "Runde {round}"
   },
   "Goal": {
     "branchSwitchedStashed": "Zum Zweig {branch} gewechselt. Aktives Ziel verstaut.",
@@ -146,9 +146,9 @@
     "loopOnPauseLabel": "Bei Kontextüberlauf automatisch neu starten",
     "convergenceWindowLabel": "Konvergenzfenster (Schritte)",
     "convergenceWindowPlaceholder": "z. B. 3",
-    "deliverableBundle": "Aufgaben-Ergebnisse",
-    "bundleDownloadAll": "Alle herunterladen",
-    "bundleDownloading": "Downloading…",
+    "deliverableBundle": "Aufgabenergebnisse",
+    "bundleDownloadAll": "Alles herunterladen",
+    "bundleDownloading": "Paket wird erstellt…",
     "bundleDownloadFailed": "Herunterladen der Ergebnisse fehlgeschlagen",
     "statusWait": "Wartend",
     "reasonJudgeComplete": "Durch Qualitätsprüfung abgeschlossen",
@@ -185,7 +185,19 @@
     "goalActionSuccess_unwait": "Ziel fortgesetzt",
     "stepProgress": "Schrittfortschritt",
     "cancel": "Abbrechen",
-    "save": "Speichern"
+    "save": "Speichern",
+    "bundleCategoryAll": "Alle",
+    "bundleCategoryStrategy": "Strategie & Übersicht",
+    "bundleCategoryCopywriting": "Texte & Inhalte",
+    "bundleCategoryVisual": "Visuelles & Medien",
+    "bundleCategoryDataSheet": "Daten & Tabellen",
+    "bundleCategoryFactCheck": "Faktencheck & Prüfung",
+    "bundleCategorySchedule": "Zeitplan & Pläne",
+    "bundleCategoryCode": "Code & Skripte",
+    "bundleCategoryOther": "Sonstige Assets",
+    "bundleExportSelected": "Auswahl exportieren ({count})",
+    "bundleSelectAll": "Alles auswählen",
+    "bundleClearSelection": "Auswahl aufheben"
   },
   "commands": {
     "palette": {
@@ -247,7 +259,12 @@
       "petInstallFailed": "Installation des Haustiers fehlgeschlagen",
       "petNoActive": "No pet installed — opening pet palette",
       "ask": "Offener Sitzungsberater für schreibgeschützte Fragen und Antworten auf der Seite (/side)",
-      "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen und Antworten während ein Lauf aktiv ist, verwenden Sie stattdessen /ask oder /side."
+      "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen und Antworten während ein Lauf aktiv ist, verwenden Sie stattdessen /ask oder /side.",
+      "loop": "Wiederkehrende geplante Aufgabe für diese Konversation erstellen oder verwalten",
+      "loopUsage": "Verwendung: /loop [Intervall] <Prompt> (z.B. /loop 10m Deploy prüfen, /loop 1h Überwachung)",
+      "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
+      "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
+      "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden"
     }
   },
   "copilot": {
@@ -1475,7 +1492,11 @@
       "desktop": "Desktop-App",
       "artifacts": "Liefergegenstände",
       "advisorAsk": "Advisor fragen",
-      "advisorOpen": "Seiten-Q&A"
+      "advisorOpen": "Seiten-Q&A",
+      "pushEnableBanner": "Push-Benachrichtigungen aktivieren, um über Aufgabenergebnisse & Genehmigungen informiert zu bleiben",
+      "pushEnableButton": "Aktivieren",
+      "pushDismiss": "Schließen",
+      "pushEnabled": "Benachrichtigungen aktiv"
     },
     "formalKoreanReplies": {
       "title": "Formelle koreanische Antworten",
@@ -15188,26 +15209,6 @@
           "confidence": "Zuschreibung {value}%",
           "loopKind": "Schleife: {value}"
         },
-        "manifestPrediction": {
-          "title": "Falsifizierbare Änderungsprognose und Attribution",
-          "baseline": "Basislinie",
-          "target": "Ziel",
-          "predictedDirection": {
-            "INCREASE": "Prognostizierte Steigerung",
-            "DECREASE": "Prognostizierte Senkung",
-            "NEUTRAL": "Prognostizierte Beibehaltung"
-          },
-          "falsificationConditions": "Falsifikationsbedingungen",
-          "attributionVerdict": "Attributionsurteil",
-          "verdictBadge": {
-            "CONFIRMED": "Bestätigt",
-            "REFUTED": "Nicht erreicht",
-            "REGRESSION": "Regression aufgetreten",
-            "INCONCLUSIVE": "Unzureichende Beweise"
-          },
-          "metricDeltas": "Gemessene Metrikänderungen",
-          "unpredictedRegressions": "Unerwartete Regressionswarnungen"
-        },
         "empty": {
           "title": "Keine Fälle in dieser Ansicht",
           "description": "Aktuelle Fähigkeitswachstumsaktivitäten erscheinen hier, nachdem der Agent Verbesserungen erfasst oder geprüft hat."
@@ -15227,7 +15228,27 @@
         "blastRadius": "Auswirkungsbereich: {files} Datei(en), {lines} Zeile(n)",
         "noVerificationProof": "Kein Sandbox-Verifizierungsnachweis verfügbar",
         "targetLayer": "Schicht: {layer}",
-        "targetPathology": "Pathologie: {pathology}"
+        "targetPathology": "Pathologie: {pathology}",
+        "manifestPrediction": {
+          "title": "Falsifizierbare Änderungsprognosen & Attribution",
+          "baseline": "Basiswert",
+          "target": "Zielwert",
+          "predictedDirection": {
+            "INCREASE": "Erwarteter Anstieg",
+            "DECREASE": "Erwarteter Rückgang",
+            "NEUTRAL": "Erwartete Neutralität"
+          },
+          "falsificationConditions": "Falsifizierungsbedingungen",
+          "attributionVerdict": "Attributionsurteil",
+          "verdictBadge": {
+            "CONFIRMED": "CONFIRMED",
+            "REFUTED": "REFUTED",
+            "REGRESSION": "REGRESSION",
+            "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "metricDeltas": "Beobachtete Metrikänderungen",
+          "unpredictedRegressions": "Unerwartete Regressionen"
+        }
       },
       "draft": {
         "reviewPanelTitle": "Ausstehende Entwürfe",

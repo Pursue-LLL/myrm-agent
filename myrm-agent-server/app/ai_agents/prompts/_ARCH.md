@@ -39,7 +39,7 @@ search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（de
 身份定义和 `request_answer_user_tool` 自审规则。
 
 工具规则解耦（Self-contained Tooling）：
-- 记忆工具（`memory_save_tool` 等）的使用规则已完全内聚于工具自身的 Description 中，System Prompt 保持纯净，不再耦合记忆规则，杜绝状态组合膨胀与幽灵工具调用。
+- 记忆工具（`memory_save_tool` 等）的使用规则内聚于工具自身的 Description 中，System Prompt 保持纯净，不耦合记忆规则，杜绝状态组合膨胀与幽灵工具调用。
 - `enable_answer_tool`：控制 identity 和 ruleset 中 answer_tool 引导的注入（4 组静态单例 Map：is_zh × enable_answer_tool）。
 
 中间件条件逻辑：

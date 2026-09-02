@@ -12,6 +12,10 @@ Markdown content, indicator headers, and interactive ActionButtons/QuickReplies.
 - FormattedNotification: dataclass with content, components, quick_replies, metadata
 - format_notification(event: AppEvent) -> FormattedNotification | None
 - format_legacy_text(event: AppEvent) -> str | None
+
+[POS]
+Event-to-card transformation layer. Converts backend AppEvents into structured
+interactive notification cards with buttons and deep links for IM and push channels.
 """
 
 from __future__ import annotations

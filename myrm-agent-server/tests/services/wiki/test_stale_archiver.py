@@ -33,4 +33,4 @@ def test_stale_file_archiver_scan_and_archive(tmp_path: Path) -> None:
     archive_result = archiver.archive_candidates([scan_result.stale_candidates[0].file_path])
     assert archive_result.archived_count == 1
     assert not deprecated_file.exists()
-    assert (vault / "wiki" / "archive" / "deprecated_doc.md").exists()
+    assert (vault / "wiki" / "archive" / deprecated_file.name).exists()

@@ -1,12 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { shouldRedirectToLoginOnAuthFailure } from '../deploy-mode';
 
 describe('shouldRedirectToLoginOnAuthFailure', () => {
   const originalWindow = globalThis.window;
+  const originalEnvMode = process.env.NEXT_PUBLIC_DEPLOY_MODE;
 
   afterEach(() => {
-    vi.unstubAllEnvs();
+    if (originalEnvMode === undefined) {
+      delete process.env.NEXT_PUBLIC_DEPLOY_MODE;
+    } else {
+      process.env.NEXT_PUBLIC_DEPLOY_MODE = originalEnvMode;
+    }
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       value: originalWindow,
@@ -14,12 +19,12 @@ describe('shouldRedirectToLoginOnAuthFailure', () => {
   });
 
   it('returns true for sandbox build', () => {
-    vi.stubEnv('NEXT_PUBLIC_DEPLOY_MODE', 'sandbox');
+    process.env.NEXT_PUBLIC_DEPLOY_MODE = 'sandbox';
     expect(shouldRedirectToLoginOnAuthFailure()).toBe(true);
   });
 
   it('returns false for local build', () => {
-    vi.stubEnv('NEXT_PUBLIC_DEPLOY_MODE', 'local');
+    process.env.NEXT_PUBLIC_DEPLOY_MODE = 'local';
     expect(shouldRedirectToLoginOnAuthFailure()).toBe(false);
   });
 

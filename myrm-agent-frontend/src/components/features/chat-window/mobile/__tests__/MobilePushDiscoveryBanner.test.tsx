@@ -8,15 +8,15 @@ const mockSubscribe = vi.fn();
 let mockState: string = 'prompt';
 let mockLoading = false;
 
+const translationMap: Record<string, string> = {
+  pushEnableBanner: 'Enable push notifications to stay updated on task outcomes & approvals',
+  pushEnableButton: 'Enable',
+  pushDismiss: 'Dismiss',
+};
+const stableT = (key: string) => translationMap[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      pushEnableBanner: 'Enable push notifications to stay updated on task outcomes & approvals',
-      pushEnableButton: 'Enable',
-      pushDismiss: 'Dismiss',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/hooks/pwa/usePushSubscription', () => ({

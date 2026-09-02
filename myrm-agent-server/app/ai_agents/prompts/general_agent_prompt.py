@@ -14,8 +14,8 @@ GeneralAgent 核心系统提示词。支持四档 Prompt Mode（full/lean/naked/
 同一 mode + locale 的 prompt 字符串跨用户稳定以最大化 KV Cache 命中率。
 通用防御规则（XML 防御、上下文优先、工具使用纪律等）由框架层
 model_discipline.py 的 AGENT_CORE_RULES 提供，此处仅包含业务层特有的
-身份定义和 answer_tool 自审规则。工具感知规则（如 MEMORY_RULES）仅在
-对应工具可用时注入，避免提示词引用不存在的工具。
+身份定义和 answer_tool 自审规则。工具规则由各工具自身 Schema 自包含承载，
+核心系统提示词保持纯净解耦。
 """
 
 from __future__ import annotations
@@ -194,8 +194,6 @@ def _build_prompt_map(
 
 # 预构建 4 个静态 Map（is_zh × enable_answer_tool），
 # 每个组合跨用户始终返回同一字符串对象以保证 KV Cache 稳定。
-# 记忆工具的使用规则已完全下沉收敛至 memory 工具自身（Self-contained），
-# 系统提示词保持纯净，不再耦合具体工具规则，杜绝状态组合膨胀。
 _PROMPT_MAPS: dict[tuple[bool, bool], dict[PromptMode, str]] = {
     (False, True): _build_prompt_map(_build_identity_and_rules(True, False), is_zh=False),
     (False, False): _build_prompt_map(_build_identity_and_rules(False, False), is_zh=False),

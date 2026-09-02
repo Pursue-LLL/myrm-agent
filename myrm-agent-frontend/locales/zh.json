@@ -37,6 +37,26 @@
     "loadFailed": "加载数据失败",
     "loadFailedDesc": "请检查网络连接或稍后重试"
   },
+  "expertSummon": {
+    "summonSuccess": "已切换至专家 {name}",
+    "summonFailed": "召唤专家模板失败",
+    "featuredTitle": "精选专家与专家团",
+    "teamBadge": "专家团",
+    "expertBadge": "专家",
+    "searchPlaceholder": "搜索专家或团队...",
+    "loading": "加载中...",
+    "empty": "未找到匹配的专家或团队模板",
+    "summonButton": "召唤",
+    "councilResultTitle": "专家团会商决议",
+    "chairSynthesisTitle": "首席仲裁决议",
+    "consensusPoints": "共识结论",
+    "divergences": "分歧与辩论点",
+    "actionItems": "执行路线",
+    "expertOpinions": "各专家独立分析与反驳",
+    "expandOpinions": "展开各专家详尽观点 ({count})",
+    "collapseOpinions": "收起专家观点",
+    "roundLabel": "第 {round} 轮"
+  },
   "Goal": {
     "branchSwitchedStashed": "已切换至 {branch} 分支。自动挂起原目标。",
     "branchSwitchedRestored": "已切换至 {branch} 分支。自动恢复目标记忆。",
@@ -17831,25 +17851,5 @@
       "exportSuccessDesc": "系统诊断归档包已生成并已触发浏览器下载。",
       "exportFailedTitle": "诊断包导出失败"
     }
-  },
-  "expertSummon": {
-    "summonSuccess": "已切换至专家 {name}",
-    "summonFailed": "召唤专家模板失败",
-    "featuredTitle": "精选专家与专家团",
-    "teamBadge": "专家团",
-    "expertBadge": "专家",
-    "searchPlaceholder": "搜索专家或团队...",
-    "loading": "加载中...",
-    "empty": "未找到匹配的专家或团队模板",
-    "summonButton": "召唤",
-    "councilResultTitle": "专家团会商决议",
-    "chairSynthesisTitle": "首席仲裁决议",
-    "consensusPoints": "共识结论",
-    "divergences": "分歧与辩论点",
-    "actionItems": "执行路线",
-    "expertOpinions": "各专家独立分析与反驳",
-    "expandOpinions": "展开各专家详尽观点 ({count})",
-    "collapseOpinions": "收起专家观点",
-    "roundLabel": "第 {round} 轮"
   }
 }

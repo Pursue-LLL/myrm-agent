@@ -3,8 +3,16 @@
 /**
  * Mobile Push Discovery Banner
  *
- * Prompts mobile users to enable Web Push notifications so they receive
- * real-time alerts when long tasks finish or require manual approval.
+ * [INPUT]
+ * - hooks/pwa/usePushSubscription::usePushSubscription
+ * - next-intl::useTranslations
+ *
+ * [OUTPUT]
+ * - MobilePushDiscoveryBanner component
+ *
+ * [POS]
+ * Mobile discoverability banner for Web Push notifications. Prompts mobile users to
+ * enable Web Push notifications for offline task completion and approval alerts.
  */
 
 import { useCallback, useState } from 'react';

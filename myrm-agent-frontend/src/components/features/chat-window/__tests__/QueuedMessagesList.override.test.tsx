@@ -28,7 +28,7 @@ const stableT = (key: string, params?: Record<string, number | string>) => {
 };
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, number | string>) => stableT(key, params),
+  useTranslations: () => stableT,
 }));
 
 describe('QueuedMessagesList override badge', () => {

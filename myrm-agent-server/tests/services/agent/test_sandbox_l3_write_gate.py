@@ -86,7 +86,7 @@ class TestConverterSandboxWriteGate:
             patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
             patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(req, chat_history=[])
+            params, *rest = await convert_to_general_agent_params(req, chat_history=[])
 
         assert params.enable_memory_auto_extraction is False
         assert params.memory_require_confirmation is True
@@ -118,7 +118,7 @@ class TestConverterSandboxWriteGate:
             patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
             patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(req, chat_history=[])
+            params, *rest = await convert_to_general_agent_params(req, chat_history=[])
 
         assert params.enable_memory_auto_extraction is True
         assert params.memory_require_confirmation is False
@@ -150,6 +150,6 @@ class TestConverterSandboxWriteGate:
             patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
             patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(req, chat_history=[])
+            params, *rest = await convert_to_general_agent_params(req, chat_history=[])
 
         assert params.enable_memory_auto_extraction is False

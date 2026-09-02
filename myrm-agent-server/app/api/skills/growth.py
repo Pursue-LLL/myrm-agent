@@ -277,7 +277,7 @@ async def evaluate_manifest_attribution_endpoint(
     body: EvaluatePredictionManifestBody,
 ) -> JSONResponse:
     """Evaluate and attribute actual test/eval metrics back to a change prediction manifest."""
-    from myrm_agent_harness.api import (
+    from myrm_agent_harness.eval import (
         ChangePredictionManifest,
         MetricPrediction,
         PredictionDirection,

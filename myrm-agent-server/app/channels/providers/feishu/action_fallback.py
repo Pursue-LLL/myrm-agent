@@ -72,7 +72,11 @@ class FallbackActionSessionRegistry:
     def _cleanup_expired(self) -> None:
         """Remove expired action sessions."""
         now = time.time()
-        expired_keys = [k for k, sess in self._sessions.items() if (now - sess.created_at) > sess.ttl_seconds]
+        expired_keys = [
+            k
+            for k, sess in self._sessions.items()
+            if (now - sess.created_at) > sess.ttl_seconds
+        ]
         for k in expired_keys:
             self._sessions.pop(k, None)
 
@@ -142,7 +146,9 @@ class FallbackActionSessionRegistry:
             return None
 
         # Check direct user session first, then wildcard user session
-        session = self._sessions.get((chat_id, user_id)) or self._sessions.get((chat_id, ""))
+        session = self._sessions.get((chat_id, user_id)) or self._sessions.get(
+            (chat_id, "")
+        )
         if not session or session.is_expired:
             return None
 

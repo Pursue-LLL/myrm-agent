@@ -37,6 +37,26 @@
     "loadFailed": "データの読み込みに失敗しました",
     "loadFailedDesc": "ネットワーク接続を確認するか、しばらくしてから再試行してください"
   },
+  "expertSummon": {
+    "summonSuccess": "専門家 {name} に切り替えました",
+    "summonFailed": "専門家テンプレートの呼び出しに失敗しました",
+    "featuredTitle": "おすすめの専門家とチーム",
+    "teamBadge": "チーム",
+    "expertBadge": "専門家",
+    "searchPlaceholder": "専門家やチームを検索...",
+    "loading": "読み込み中...",
+    "empty": "一致する専門家またはチームテンプレートが見つかりません",
+    "summonButton": "召喚",
+    "councilResultTitle": "審議会の審議結果",
+    "chairSynthesisTitle": "議長の統合と結論",
+    "consensusPoints": "合意事項",
+    "divergences": "相違点と議論",
+    "actionItems": "アクションアイテム",
+    "expertOpinions": "専門家の個別意見と反論",
+    "expandOpinions": "専門家の意見を展開 ({count})",
+    "collapseOpinions": "専門家の意見を折りたたむ",
+    "roundLabel": "ラウンド {round}"
+  },
   "Goal": {
     "branchSwitchedStashed": "{branch} ブランチに切り替えました。実行中のゴールをスタッシュしました。",
     "branchSwitchedRestored": "{branch} ブランチに切り替えました。ゴールを復元しました。",
@@ -163,9 +183,21 @@
     "cancel": "キャンセル",
     "save": "保存",
     "deliverableBundle": "タスク成果物",
-    "bundleDownloadAll": "一括ダウンロード",
-    "bundleDownloading": "ダウンロード中…",
-    "bundleDownloadFailed": "成果物のダウンロードに失敗しました"
+    "bundleDownloadAll": "すべてダウンロード",
+    "bundleDownloading": "パッケージ作成中…",
+    "bundleDownloadFailed": "成果物のダウンロードに失敗しました",
+    "bundleCategoryAll": "すべて",
+    "bundleCategoryStrategy": "戦略と概要",
+    "bundleCategoryCopywriting": "コピーとコンテンツ",
+    "bundleCategoryVisual": "ビジュアルとメディア",
+    "bundleCategoryDataSheet": "データとシート",
+    "bundleCategoryFactCheck": "ファクトチェックと監査",
+    "bundleCategorySchedule": "スケジュールと計画",
+    "bundleCategoryCode": "コードとスクリプト",
+    "bundleCategoryOther": "その他のアセット",
+    "bundleExportSelected": "選択した項目をエクスポート ({count})",
+    "bundleSelectAll": "すべて選択",
+    "bundleClearSelection": "選択を解除"
   },
   "commands": {
     "palette": {
@@ -227,7 +259,12 @@
       "petInstallFailed": "ペットのインストールに失敗しました",
       "petNoActive": "インストール済みのペットがありません — ペットパレットを開きます",
       "ask": "セッションアドバイザーを開いて読み取り専用のサイドQ&Aを行う（/side）",
-      "btwDisambiguation": "Myrmでは /btw はバックグラウンドタスクを開始します。実行中にサイドQ&Aを行うには /ask または /side を使用してください。"
+      "btwDisambiguation": "Myrmでは /btw はバックグラウンドタスクを開始します。実行中にサイドQ&Aを行うには /ask または /side を使用してください。",
+      "loop": "この会話の定期スケジュールタスクを作成または管理する",
+      "loopUsage": "使用法: /loop [間隔] <プロンプト> (例: /loop 10m デプロイ確認, /loop 1h 競合監視)",
+      "loopMissingPrompt": "/loop のタスクプロンプトを入力してください",
+      "loopCreated": "定期ループタスクを作成しました (間隔: {interval})。初回実行を開始しました",
+      "loopCreateFailed": "ループタスクの作成に失敗しました"
     }
   },
   "copilot": {
@@ -1473,7 +1510,7 @@
       "pushEnableBanner": "プッシュ通知を有効にして、タスク結果と承認の最新情報を取得します",
       "pushEnableButton": "有効にする",
       "pushDismiss": "閉じる",
-      "pushEnabled": "通知は有効です"
+      "pushEnabled": "通知が有効です"
     },
     "readiness": {
       "warning": "警告",
@@ -15005,26 +15042,6 @@
           "confidence": "帰属信頼度 {value}%",
           "loopKind": "ループタイプ：{value}"
         },
-        "manifestPrediction": {
-          "title": "反証可能な変更予測と帰属",
-          "baseline": "ベースライン",
-          "target": "目標",
-          "predictedDirection": {
-            "INCREASE": "向上予測",
-            "DECREASE": "低下予測",
-            "NEUTRAL": "維持予測"
-          },
-          "falsificationConditions": "反証条件",
-          "attributionVerdict": "帰属結論",
-          "verdictBadge": {
-            "CONFIRMED": "達成確認",
-            "REFUTED": "未達",
-            "REGRESSION": "劣化発生",
-            "INCONCLUSIVE": "証拠不十分"
-          },
-          "metricDeltas": "実測メトリクス変化",
-          "unpredictedRegressions": "未予測の劣化警告"
-        },
         "empty": {
           "title": "このビューにはケースがありません",
           "description": "Agent が新しい経験を捕捉するか、改善をレビューした後、関連する記録がここに表示されます。"
@@ -15037,7 +15054,27 @@
         "targetPathology": "病理特性: {pathology}",
         "verificationProofTitle": "サンドボックスカプセル検証証明",
         "blastRadius": "影響範囲: {files} ファイル, {lines} 行",
-        "noVerificationProof": "サンドボックス検証証明はありません"
+        "noVerificationProof": "サンドボックス検証証明はありません",
+        "manifestPrediction": {
+          "title": "反証可能な変更の予測と帰属",
+          "baseline": "ベースライン",
+          "target": "目標値",
+          "predictedDirection": {
+            "INCREASE": "上昇予測",
+            "DECREASE": "低下予測",
+            "NEUTRAL": "変化なし予測"
+          },
+          "falsificationConditions": "反証条件",
+          "attributionVerdict": "帰属判定",
+          "verdictBadge": {
+            "CONFIRMED": "CONFIRMED",
+            "REFUTED": "REFUTED",
+            "REGRESSION": "REGRESSION",
+            "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "metricDeltas": "観測された指標の変化",
+          "unpredictedRegressions": "予期しないリグレッション警告"
+        }
       },
       "upload": {
         "title": "カスタムスキルをアップロード",
@@ -17814,25 +17851,5 @@
       "exportSuccessDesc": "診断バンドルアーカイブが生成され、正常にダウンロードされました。",
       "exportFailedTitle": "エクスポートに失敗しました"
     }
-  },
-  "expertSummon": {
-    "summonSuccess": "エキスパート {name} に切り替えました",
-    "summonFailed": "エキスパートテンプレートの呼び出しに失敗しました",
-    "featuredTitle": "注目エキスパート＆チーム",
-    "teamBadge": "チーム",
-    "expertBadge": "専門家",
-    "searchPlaceholder": "専門家またはチームを検索...",
-    "loading": "読み込み中...",
-    "empty": "一致する専門家またはチームのテンプレートが見つかりません",
-    "summonButton": "召喚",
-    "councilResultTitle": "専門家チーム会議の決議",
-    "chairSynthesisTitle": "議長裁定の決議",
-    "consensusPoints": "合意事項",
-    "divergences": "相違点と論点",
-    "actionItems": "実行計画",
-    "expertOpinions": "各専門家の個別分析と反論",
-    "expandOpinions": "各専門家の詳細な見解を展開 ({count})",
-    "collapseOpinions": "専門家の見解を折りたたむ",
-    "roundLabel": "第 {round} ラウンド"
   }
 }

@@ -37,6 +37,26 @@
     "loadFailed": "Failed to Load",
     "loadFailedDesc": "Please check your network connection or try again later"
   },
+  "expertSummon": {
+    "summonSuccess": "Switched to expert {name}",
+    "summonFailed": "Failed to summon expert template",
+    "featuredTitle": "Featured Experts & Squads",
+    "teamBadge": "Team",
+    "expertBadge": "Expert",
+    "searchPlaceholder": "Search experts or squads...",
+    "loading": "Loading...",
+    "empty": "No matching expert or team templates found",
+    "summonButton": "Summon",
+    "councilResultTitle": "Council Deliberation Outcome",
+    "chairSynthesisTitle": "Chair Synthesis & Verdict",
+    "consensusPoints": "Consensus Points",
+    "divergences": "Divergences & Debates",
+    "actionItems": "Action Items",
+    "expertOpinions": "Expert Independent Analyses & Rebuttals",
+    "expandOpinions": "Expand Expert Opinions ({count})",
+    "collapseOpinions": "Collapse Expert Opinions",
+    "roundLabel": "Round {round}"
+  },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",
     "branchSwitchedRestored": "Switched to branch {branch}. Goal restored.",
@@ -17831,25 +17851,5 @@
       "exportSuccessDesc": "Diagnostic bundle archive generated and downloaded successfully.",
       "exportFailedTitle": "Export Failed"
     }
-  },
-  "expertSummon": {
-    "summonSuccess": "Switched to expert {name}",
-    "summonFailed": "Failed to summon expert template",
-    "featuredTitle": "Featured Experts & Squads",
-    "teamBadge": "Team",
-    "expertBadge": "Expert",
-    "searchPlaceholder": "Search experts or squads...",
-    "loading": "Loading...",
-    "empty": "No matching expert or team templates found",
-    "summonButton": "Summon",
-    "councilResultTitle": "Council Deliberation Outcome",
-    "chairSynthesisTitle": "Chair Synthesis & Verdict",
-    "consensusPoints": "Consensus Points",
-    "divergences": "Divergences & Debates",
-    "actionItems": "Action Items",
-    "expertOpinions": "Expert Independent Analyses & Rebuttals",
-    "expandOpinions": "Expand Expert Opinions ({count})",
-    "collapseOpinions": "Collapse Expert Opinions",
-    "roundLabel": "Round {round}"
   }
 }

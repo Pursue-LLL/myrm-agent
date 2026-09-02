@@ -57,4 +57,7 @@ def test_bundle_exporter_stream_zip(tmp_path):
     assert "articles/wechat.md" in namelist
     assert "sheets/schedule.csv" in namelist
 
-    assert zip_file.read("articles/wechat.md").decode("utf-8") == "文章内容：新品发布核心亮点"
+    assert (
+        zip_file.read("articles/wechat.md").decode("utf-8")
+        == "文章内容：新品发布核心亮点"
+    )

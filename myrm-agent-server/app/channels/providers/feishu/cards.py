@@ -163,14 +163,19 @@ def build_result_card(
 
     if sources:
         elements.append({"tag": "hr"})
-        source_lines = [f"[{s.get('title', s.get('url', 'source'))}]({s['url']})" for s in sources if s.get("url")]
+        source_lines = [
+            f"[{s.get('title', s.get('url', 'source'))}]({s['url']})"
+            for s in sources
+            if s.get("url")
+        ]
         if source_lines:
             elements.append(
                 {
                     "tag": "div",
                     "text": {
                         "tag": "lark_md",
-                        "content": "**refusesource: **\n" + "\n".join(source_lines[:10]),
+                        "content": "**refusesource: **\n"
+                        + "\n".join(source_lines[:10]),
                     },
                 }
             )
@@ -241,14 +246,21 @@ def build_card_actions(
         for comp in row:
             if isinstance(comp, ActionButton):
                 btn_type = _FEISHU_BUTTON_TYPE.get(
-                    comp.style.value if isinstance(comp.style, ButtonStyle) else str(comp.style),
+                    (
+                        comp.style.value
+                        if isinstance(comp.style, ButtonStyle)
+                        else str(comp.style)
+                    ),
                     "default",
                 )
                 btn: dict[str, object] = {
                     "tag": "button",
                     "text": {"tag": "plain_text", "content": comp.label},
                     "type": btn_type,
-                    "value": {"type": "act", "action_id": comp.action_id[:_ACTION_VALUE_MAX]},
+                    "value": {
+                        "type": "act",
+                        "action_id": comp.action_id[:_ACTION_VALUE_MAX],
+                    },
                 }
                 if comp.url:
                     btn["url"] = comp.url
@@ -264,7 +276,10 @@ def build_card_actions(
                 actions.append(
                     {
                         "tag": "select_static",
-                        "placeholder": {"tag": "plain_text", "content": comp.placeholder},
+                        "placeholder": {
+                            "tag": "plain_text",
+                            "content": comp.placeholder,
+                        },
                         "options": options,
                         "value": {
                             "type": "sel",
@@ -387,18 +402,11 @@ def resolve_send_mode(
 # ── Post (rich text) format builders ─────────────────────────────
 
 _RICH_TEXT_RE = re.compile(
-    r"\*\*.+?\*\*"
-    r"|(?<!\w)_.+?_(?!\w)"
-    r"|\[.+?\]\(.+?\)"
-    r"|~~.+?~~"
-    r"|`[^`]+`",
+    r"\*\*.+?\*\*" r"|(?<!\w)_.+?_(?!\w)" r"|\[.+?\]\(.+?\)" r"|~~.+?~~" r"|`[^`]+`",
 )
 _HEADING_RE = re.compile(r"^#{1,6}\s+", re.MULTILINE)
 _POST_INLINE_RE = re.compile(
-    r"(\*\*(.+?)\*\*)"
-    r"|(~~(.+?)~~)"
-    r"|(`([^`]+)`)"
-    r"|(\[(.+?)\]\((.+?)\))",
+    r"(\*\*(.+?)\*\*)" r"|(~~(.+?)~~)" r"|(`([^`]+)`)" r"|(\[(.+?)\]\((.+?)\))",
 )
 
 
@@ -417,7 +425,9 @@ def _parse_post_line(line: str) -> list[dict[str, object]]:
         if m.group(2) is not None:
             elements.append({"tag": "text", "text": m.group(2), "style": ["bold"]})
         elif m.group(4) is not None:
-            elements.append({"tag": "text", "text": m.group(4), "style": ["lineThrough"]})
+            elements.append(
+                {"tag": "text", "text": m.group(4), "style": ["lineThrough"]}
+            )
         elif m.group(6) is not None:
             elements.append({"tag": "text", "text": m.group(6), "style": ["code"]})
         elif m.group(8) is not None:

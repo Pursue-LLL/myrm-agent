@@ -1375,3 +1375,83 @@ class TestListAndUninstallPlugins:
         assert res["removed_files"] is True
         # Tool metadata is now completely gone from memory
         assert get_ptc_safety_metadata(plugin_name, tool_name) is None
+
+
+class TestAgentPluginImportWithAgents:
+    """Tests importing plugins that declare agents/*.md and workspace/ assets."""
+
+    @pytest.mark.asyncio
+    async def test_confirm_import_agents_and_subagents(self, tmp_path: Path) -> None:
+        zip_bytes = _plugin_zip_with_agents_bytes()
+        result = parse_plugin_zip(zip_bytes)
+        skills_by_key = {f"skill:{idx}": skill for idx, skill in enumerate(result.skills)}
+        servers_by_key = {f"mcp:{idx}": server for idx, server in enumerate(result.servers)}
+        agents_by_key = {f"agent:{idx}": agent for idx, agent in enumerate(result.agents)}
+
+        session = PluginImportSession(
+            plugin_result=result,
+            skills_by_key=skills_by_key,
+            servers_by_key=servers_by_key,
+            agents_by_key=agents_by_key,
+        )
+
+        agent_decisions = [
+            PluginConfirmItem(
+                component="agent",
+                virtual_id=f"agent:{idx}",
+                resolution="install",
+                name=agent.name,
+            )
+            for idx, agent in enumerate(result.agents)
+        ]
+
+        mock_created_agents = [
+            SimpleNamespace(id="agent-sub-1", name="Data Extractor"),
+            SimpleNamespace(id="agent-lead-1", name="Lead Analyst"),
+        ]
+
+        with (
+            patch("app.services.agent.agent_service.AgentService.create_agent", side_effect=mock_created_agents) as mock_create,
+            patch("app.services.plugins.import_service._write_skills", AsyncMock()),
+            patch("app.services.plugins.import_service._load_existing_skill_ids", return_value={}),
+        ):
+            res = await confirm_plugin_import(
+                session,
+                skill_decisions=[],
+                server_decisions=[],
+                agent_decisions=agent_decisions,
+            )
+
+        assert res["imported_agents"] == 2
+        assert res["skipped_agents"] == 0
+        assert res["created_agent_ids"] == ["agent-sub-1", "agent-lead-1"]
+        assert mock_create.call_count == 2
+
+
+def _plugin_zip_with_agents_bytes() -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "agent-squad/plugin.json",
+            json.dumps(
+                {
+                    "$schema": PLUGIN_SCHEMA,
+                    "name": "agent-squad",
+                    "version": "1.0.0",
+                    "entry_agent": "lead-analyst",
+                }
+            ),
+        )
+        zf.writestr(
+            "agent-squad/agents/lead-analyst.md",
+            "---\nname: Lead Analyst\ndescription: Lead coordinator\nsubagents:\n  - Data Extractor\n---\nPrompt lead.",
+        )
+        zf.writestr(
+            "agent-squad/agents/data-extractor.md",
+            "---\nname: Data Extractor\ndescription: Extractor\nis_subagent: true\n---\nPrompt sub.",
+        )
+        zf.writestr(
+            "agent-squad/workspace/template.xlsx",
+            "dummy_xlsx",
+        )
+    return buf.getvalue()
