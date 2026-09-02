@@ -6,13 +6,13 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from app.channels.core.cancellation import CancellationToken
+from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.routing.router_models import _ActiveTask
 from app.channels.types import InboundMessage
-from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 
 def _make_bus() -> MagicMock:

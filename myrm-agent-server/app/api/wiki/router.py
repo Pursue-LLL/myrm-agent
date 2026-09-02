@@ -2859,7 +2859,6 @@ async def import_urls(
     if len(cleaned_urls) > 50:
         cleaned_urls = cleaned_urls[:50]
 
-    import httpx
     from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
     from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (

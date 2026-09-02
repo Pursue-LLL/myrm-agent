@@ -1,8 +1,9 @@
 import json
+
 import pytest
+
 from app.services.hosting.crypto_packager import (
     _decrypt_payload,
-    _encrypt_payload,
     package_encrypted_publish_files,
 )
 from app.services.hosting.packager import PublishFile

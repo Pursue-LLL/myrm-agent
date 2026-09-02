@@ -108,6 +108,20 @@ describe('parseLoopCommandInput', () => {
     expect(res.intervalMs).toBe(DEFAULT_LOOP_INTERVAL_MS);
     expect(res.prompt).toBe('');
   });
+
+  it('handles multiline prompt with special characters', () => {
+    const multiline = `/loop 15m 检查流水线状态:\n1. build-linux\n2. test-darwin\n3. deploy-prod`;
+    const res = parseLoopCommandInput(multiline);
+    expect(res.intervalMs).toBe(900_000);
+    expect(res.prompt).toContain('1. build-linux');
+    expect(res.prompt).toContain('3. deploy-prod');
+  });
+
+  it('handles upper/mixed case command and units', () => {
+    const res = parseLoopCommandInput('/LOOP 2H Check Metrics');
+    expect(res.intervalMs).toBe(7_200_000);
+    expect(res.prompt).toBe('Check Metrics');
+  });
 });
 
 describe('formatIntervalReadable', () => {
@@ -160,5 +174,24 @@ describe('executeLoopSlashCommand', () => {
       }),
     );
     expect(mockTriggerCronJob).toHaveBeenCalledWith('cron_job_999');
+  });
+
+  it('handles long prompt truncation for job name', async () => {
+    const longPrompt = '这是一段非常非常非常非常长长长长长长长长长长长长长长的循环巡检任务描述';
+    const res = await executeLoopSlashCommand(`/loop 1h ${longPrompt}`);
+    expect(res.success).toBe(true);
+    expect(mockCreateCronJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.stringMatching(/^Loop: .*?\.\.\.$/),
+        prompt: longPrompt,
+      }),
+    );
+  });
+
+  it('handles API failure gracefully', async () => {
+    mockCreateCronJob.mockRejectedValue(new Error('Network error'));
+    const res = await executeLoopSlashCommand('/loop 10m 检查网络');
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('Loop command exception');
   });
 });

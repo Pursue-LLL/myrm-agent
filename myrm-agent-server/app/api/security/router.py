@@ -27,13 +27,13 @@ from app.schemas.security.dashboard import (
 )
 from app.services.security.cp_rate_limit import fetch_cp_rate_limits
 from app.services.security.dashboard_settings import load_monitored_github_repos
-from app.services.security.github_supplement import fetch_dependabot_prs_for_repo
-from app.services.security.merged_dashboard import build_security_dashboard, build_setup_hints
 from app.services.security.dual_track_audit import (
     export_dual_track_compliance_dossier,
     fetch_dual_track_audit_entries,
     fetch_dual_track_audit_stats,
 )
+from app.services.security.github_supplement import fetch_dependabot_prs_for_repo
+from app.services.security.merged_dashboard import build_security_dashboard, build_setup_hints
 from app.services.security.platform_audit import (
     export_platform_audit_logs,
     fetch_platform_audit_logs,

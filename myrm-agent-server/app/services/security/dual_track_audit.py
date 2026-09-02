@@ -19,16 +19,16 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi.responses import Response
+from myrm_agent_harness.observability.audit_trail import (
+    ComplianceOutcome,
+    ComplianceTrailExporter,
+    DualTrackAuditCollector,
+)
 
 from app.schemas.security.dashboard import (
     DualTrackAuditEntryItem,
     DualTrackAuditStatsResponse,
     RuleTriggerHitItem,
-)
-from myrm_agent_harness.observability.audit_trail import (
-    ComplianceOutcome,
-    ComplianceTrailExporter,
-    DualTrackAuditCollector,
 )
 
 _DEFAULT_COLLECTOR = DualTrackAuditCollector(max_entries=5000)

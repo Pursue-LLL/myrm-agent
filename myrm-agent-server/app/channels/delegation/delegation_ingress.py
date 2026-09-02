@@ -20,14 +20,13 @@ Channel ingress gateway for asynchronous cross-platform task delegation.
 
 from __future__ import annotations
 
-import re
 import uuid
 from typing import TYPE_CHECKING
 
 from .delegation_models import DelegationReceipt, DelegationStatus, DelegationTask
 
 if TYPE_CHECKING:
-    from app.channels.types import InboundMessage
+    pass
 
 _EXPLICIT_DELEGATION_PREFIXES: tuple[str, ...] = (
     "/delegate",

@@ -151,10 +151,14 @@ class TestDownloadBundle:
 
             zf = zipfile.ZipFile(io.BytesIO(response.content))
             names = zf.namelist()
-            assert "report.docx" in names
-            assert "slides.pptx" in names
-            assert zf.read("report.docx") == content1
-            assert zf.read("slides.pptx") == content2
+            assert "manifest.json" in names
+            assert "README.md" in names
+            assert any(n.endswith("report.docx") for n in names)
+            assert any(n.endswith("slides.pptx") for n in names)
+            report_entry = next(n for n in names if n.endswith("report.docx"))
+            slides_entry = next(n for n in names if n.endswith("slides.pptx"))
+            assert zf.read(report_entry) == content1
+            assert zf.read(slides_entry) == content2
 
     @pytest.mark.asyncio
     async def test_deduplicates_filenames(self, client: TestClient, db_session: AsyncSession, tmp_path) -> None:
@@ -203,13 +207,13 @@ class TestDownloadBundle:
             )
             assert response.status_code == 200
             zf = zipfile.ZipFile(io.BytesIO(response.content))
-            names = zf.namelist()
+            names = [n for n in zf.namelist() if not n.endswith(".json") and not n.endswith(".md")]
             assert len(names) == 2
-            assert "report.docx" in names
-            deduped = [n for n in names if n != "report.docx"]
+            assert any(n.endswith("/report.docx") or n == "report.docx" for n in names)
+            deduped = [n for n in names if not n.endswith("/report.docx") and n != "report.docx"]
             assert len(deduped) == 1
             # Deduplication appends _{id[:6]} to stem: report_dup-a1.docx or report_dup-a2.docx
-            assert deduped[0].startswith("report_") and deduped[0].endswith(".docx")
+            assert "report_" in deduped[0] and deduped[0].endswith(".docx")
 
     @pytest.mark.asyncio
     async def test_empty_ids_returns_400(self, client: TestClient) -> None:

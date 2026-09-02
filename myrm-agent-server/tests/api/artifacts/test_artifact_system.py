@@ -448,12 +448,14 @@ class TestArtifactBundleIntegration:
         import io
         import json
         import zipfile
+
+        from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
         from myrm_agent_harness.core.artifacts.manifest import (
             DeliverableCategory,
             DeliverableItem,
             DeliverableManifest,
         )
-        from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+
         from app.database.models.artifact import Artifact, ArtifactVersion
         from app.services.artifacts.bundle_builder import build_zip_deliverable_bundle
 

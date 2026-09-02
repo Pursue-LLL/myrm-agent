@@ -181,11 +181,11 @@ from app.channels.routing.router_constants import (
     _MAX_CONCURRENT_AGENTS,
     _STUCK_TASK_TIMEOUT,
 )
-from app.channels.routing.router_keys import (
-    routing_session_key,
-)
 from app.channels.routing.router_execution import (
     RouterExecutionMixin,
+)
+from app.channels.routing.router_keys import (
+    routing_session_key,
 )
 from app.channels.routing.router_models import (
     ReactionPolicy,
