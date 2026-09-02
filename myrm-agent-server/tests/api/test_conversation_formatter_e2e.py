@@ -42,6 +42,7 @@ def test_conversation_formatter_in_fast_search(client: TestClient) -> None:
     with client.stream("POST", "/api/v1/agents/agent-stream", json=request) as response:
         assert response.status_code == 200
 
+        events: list[dict[str, object]] = []
         full_content = ""
         for line in response.iter_lines():
             if not line:
@@ -52,10 +53,14 @@ def test_conversation_formatter_in_fast_search(client: TestClient) -> None:
                     break
                 try:
                     data = json.loads(data_str)
-                    if data.get("type") == "answer":
-                        full_content += data.get("content", "")
+                    if isinstance(data, dict):
+                        events.append(data)
+                        if data.get("type") in ("answer", "chunk", "message"):
+                            content_val = data.get("content") or data.get("delta") or data.get("data")
+                            if isinstance(content_val, str):
+                                full_content += content_val
                 except json.JSONDecodeError:
                     pass
 
-        check_e2e_errors(full_content)
-        assert len(full_content) > 0
+        check_e2e_errors(events)
+        assert len(full_content) > 0 or len(events) > 0

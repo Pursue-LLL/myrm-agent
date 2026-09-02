@@ -2001,6 +2001,7 @@
     "previewLinks": "Link preview",
     "regenerate": "Regenerate",
     "regenerate_try_again": "Try Again",
+    "regenerate_frontier": "✨ Retry with Frontier Model",
     "regenerate_concise": "More Concise",
     "regenerate_detailed": "More Detailed",
     "regenerate_creative": "More Creative",
@@ -9427,6 +9428,47 @@
       "cache": "Cache Savings",
       "routing": "Routing Savings",
       "totalCost": "Actual Cost"
+    },
+    "manifestPredictions": {
+      "title": "Change Manifest & Prediction Attribution",
+      "description": "Records falsifiable metric hypotheses before evolution, comparing actual eval benchmarks against predictions for causal attribution and automated rollback guidance.",
+      "manifestId": "Manifest ID",
+      "targetComponent": "Target Component",
+      "rationale": "Rationale & Hypotheses",
+      "verdict": "Attribution Verdict",
+      "recommendedAction": "Recommended Action",
+      "confidence": "Confidence",
+      "metricsTitle": "Falsifiable Metric Predictions vs Reality",
+      "metricName": "Metric",
+      "baseline": "Baseline",
+      "predictedTarget": "Predicted Target",
+      "actualValue": "Actual Value",
+      "delta": "Actual Delta",
+      "explanation": "Explanation",
+      "rollbackPatch": "Rollback Patch",
+      "viewRollbackPatch": "View Rollback Patch",
+      "hideRollbackPatch": "Hide Rollback Patch",
+      "evaluateNow": "Verify Attribution Now",
+      "evaluating": "Verifying...",
+      "emptyTitle": "No Change Manifests",
+      "emptyDescription": "When framework or skills trigger self-evolution proposals, a Change Manifest with falsifiable predictions is created and attributed after evaluation.",
+      "actions": {
+        "keep": "Keep Changes",
+        "rollback": "Rollback Suggested",
+        "re_evaluate": "Re-evaluate"
+      },
+      "verdicts": {
+        "confirmed": "Confirmed",
+        "refuted": "Refuted",
+        "regression": "Regression",
+        "inconclusive": "Inconclusive"
+      },
+      "directions": {
+        "increase": "Increase",
+        "decrease": "Decrease",
+        "neutral": "Neutral",
+        "preserve_min": "Preserve Min"
+      }
     }
   },
   "subagentDashboard": {

@@ -67,11 +67,9 @@ import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { QuoteCard } from './QuoteCard';
 import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
-import { SkillActivationChips } from '../message-box/SkillActivationChips';
 import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
 import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
-import TurnCapabilityOverrideBar from './TurnCapabilityOverrideBar';
-import { WorkflowTemplateArmedBar } from './WorkflowTemplateArmedBar';
+import { ComposerContextChipStrip } from './context-strip/ComposerContextChipStrip';
 import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 import { ChatInlineTeamRunVisibilityStrip } from './subagent/ChatInlineTeamRunVisibilityStrip';
@@ -514,26 +512,11 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
             ) : (
               <>
                 <FeaturedExpertChips />
-                <TurnCapabilityOverrideBar
-                  selection={turnCapabilitySelection}
-                  onSelectionChange={setTurnCapabilitySelection}
+                <ComposerContextChipStrip
+                  turnCapabilitySelection={turnCapabilitySelection}
+                  onTurnCapabilityChange={setTurnCapabilitySelection}
                   disabled={loading}
                 />
-                {pendingWorkflowTemplateId ? (
-                  <WorkflowTemplateArmedBar
-                    templateId={pendingWorkflowTemplateId}
-                    displayName={pendingWorkflowTemplateDisplayName}
-                    className="mb-2"
-                  />
-                ) : null}
-                {pendingExplicitSkillActivation ? (
-                  <SkillActivationChips
-                    skillNames={pendingExplicitSkillActivation.skillNames}
-                    instruction={pendingExplicitSkillActivation.instruction}
-                    className="mb-2"
-                    onRemove={() => setPendingExplicitSkillActivation(null)}
-                  />
-                ) : null}
                 <WechatArticleComposerHint inputMessage={inputMessage} />
                 {showBtwDisambiguation ? (
                   <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">

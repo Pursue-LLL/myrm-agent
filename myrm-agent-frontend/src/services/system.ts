@@ -44,4 +44,93 @@ export const systemService = {
     const qs = params.toString();
     return `/api/v1/system/debug-bundle${qs ? `?${qs}` : ''}`;
   },
+
+  /**
+   * Storage Governance APIs
+   */
+  async getStorageGovernanceReport(): Promise<{
+    total_storage_bytes: number;
+    disk_total_bytes: number;
+    disk_free_bytes: number;
+    disk_used_percentage: number;
+    categories: Array<{
+      category: string;
+      display_name: string;
+      bytes: number;
+      item_count: number;
+      percentage: number;
+      details: Record<string, number>;
+    }>;
+    snapshots: Array<{
+      snapshot_id: string;
+      label: string;
+      size_bytes: number;
+      created_at: string;
+      checksum: string;
+      file_count: number;
+    }>;
+    recommended_actions: string[];
+    is_growth_healthy: boolean;
+    generated_at: string;
+  }> {
+    return apiRequest(`/system/storage/governance?t=${Date.now()}`);
+  },
+
+  async executeStorageCompaction(options?: {
+    purge_orphan_checkpoints?: boolean;
+    incremental_pages?: number;
+  }): Promise<{
+    success: boolean;
+    initial_bytes: number;
+    final_bytes: number;
+    freed_bytes: number;
+    purged_checkpoints: number;
+    wal_truncated: boolean;
+    duration_ms: number;
+    message: string;
+  }> {
+    return apiRequest('/system/storage/compaction', {
+      method: 'POST',
+      body: JSON.stringify({
+        purge_orphan_checkpoints: options?.purge_orphan_checkpoints ?? true,
+        incremental_pages: options?.incremental_pages ?? 500,
+      }),
+    });
+  },
+
+  async createStateSnapshot(label: string): Promise<{
+    success: boolean;
+    message: string;
+    snapshot?: {
+      snapshot_id: string;
+      label: string;
+      size_bytes: number;
+      created_at: string;
+      checksum: string;
+      file_count: number;
+    };
+  }> {
+    return apiRequest('/system/storage/snapshots', {
+      method: 'POST',
+      body: JSON.stringify({ label }),
+    });
+  },
+
+  async restoreStateSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return apiRequest(`/system/storage/snapshots/${snapshotId}/restore`, {
+      method: 'POST',
+    });
+  },
+
+  async deleteStateSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return apiRequest(`/system/storage/snapshots/${snapshotId}`, {
+      method: 'DELETE',
+    });
+  },
 };

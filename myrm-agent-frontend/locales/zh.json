@@ -2000,6 +2000,7 @@
     "previewLinks": "链接预览",
     "regenerate": "重新生成",
     "regenerate_try_again": "重试",
+    "regenerate_frontier": "✨ 用更强模型深度重试",
     "regenerate_concise": "更简洁",
     "regenerate_detailed": "更详细",
     "regenerate_creative": "更有创意",
@@ -9427,6 +9428,47 @@
       "cache": "缓存节省",
       "routing": "路由节省",
       "totalCost": "实际花费"
+    },
+    "manifestPredictions": {
+      "title": "变更清单与可证伪预测归因",
+      "description": "记录技能与 Harness 变更前的可证伪量化假设，评测后自动比对实测指标，进行因果归因判定与回滚决策。",
+      "manifestId": "清单 ID",
+      "targetComponent": "目标组件",
+      "rationale": "变更动因与假设",
+      "verdict": "归因判定",
+      "recommendedAction": "建议动作",
+      "confidence": "置信度",
+      "metricsTitle": "可证伪指标预测与实测对比",
+      "metricName": "指标名称",
+      "baseline": "基线",
+      "predictedTarget": "预期目标",
+      "actualValue": "实测值",
+      "delta": "实际偏差",
+      "explanation": "归因解释",
+      "rollbackPatch": "回滚补丁",
+      "viewRollbackPatch": "查看回滚补丁",
+      "hideRollbackPatch": "收起回滚补丁",
+      "evaluateNow": "立即归因核验",
+      "evaluating": "正在核验...",
+      "emptyTitle": "暂无变更预测清单",
+      "emptyDescription": "当框架或技能触发自演进提案时，系统会自动生成带有可证伪预测的 Change Manifest，并在评测后自动归因呈现。",
+      "actions": {
+        "keep": "保留变更",
+        "rollback": "建议回滚",
+        "re_evaluate": "补充评测"
+      },
+      "verdicts": {
+        "confirmed": "假设证实",
+        "refuted": "目标未达",
+        "regression": "指标退化",
+        "inconclusive": "难以定论"
+      },
+      "directions": {
+        "increase": "提升",
+        "decrease": "降低",
+        "neutral": "保持平稳",
+        "preserve_min": "不低于基线"
+      }
     }
   },
   "subagentDashboard": {

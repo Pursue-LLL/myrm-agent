@@ -1835,6 +1835,7 @@
     "previewLinks": "링크 미리보기",
     "regenerate": "재생성",
     "regenerate_try_again": "다시 시도",
+    "regenerate_frontier": "✨ 더 강력한 모델로 재시도",
     "regenerate_concise": "더 간결하게",
     "regenerate_detailed": "더 상세하게",
     "regenerate_creative": "더 창의적으로",
@@ -9426,6 +9427,47 @@
         "HEALTHY": "건강",
         "AT_RISK": "위험",
         "STALE": "미사용"
+      }
+    },
+    "manifestPredictions": {
+      "title": "변경 매니페스트 및 반증 가능 예측 귀속",
+      "description": "스킬 및 프레임워크 변경 전의 가설(기준선, 목표치, 허용 오차)을 기록하고 평가 후 실제 지표와 인과 관계를 귀속하여 롤백을 제안합니다.",
+      "manifestId": "매니페스트 ID",
+      "targetComponent": "대상 컴포넌트",
+      "rationale": "변경 동기 및 가설",
+      "verdict": "귀속 판정",
+      "recommendedAction": "권장 조치",
+      "confidence": "신뢰도",
+      "metricsTitle": "예측 지표 및 실제 측정값 비교",
+      "metricName": "지표명",
+      "baseline": "기준선",
+      "predictedTarget": "예측 목표",
+      "actualValue": "실측값",
+      "delta": "실제 편차",
+      "explanation": "귀속 설명",
+      "rollbackPatch": "롤백 패치",
+      "viewRollbackPatch": "롤백 패치 보기",
+      "hideRollbackPatch": "롤백 패치 닫기",
+      "evaluateNow": "지금 귀속 검증",
+      "evaluating": "검증 중...",
+      "emptyTitle": "변경 예측 매니페스트 없음",
+      "emptyDescription": "스킬 또는 프레임워크의 자가 진화 제안 시 생성된 매니페스트가 평가 후 여기에 표시됩니다.",
+      "actions": {
+        "keep": "변경 유지",
+        "rollback": "롤백 권장",
+        "re_evaluate": "추가 평가"
+      },
+      "verdicts": {
+        "confirmed": "가설 확인됨",
+        "refuted": "목표 미달",
+        "regression": "지표 퇴보",
+        "inconclusive": "결론 미정"
+      },
+      "directions": {
+        "increase": "상승",
+        "decrease": "하락",
+        "neutral": "안정 유지",
+        "preserve_min": "기준선 이상 유지"
       }
     }
   },

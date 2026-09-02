@@ -32,6 +32,7 @@ import DailyJournal from './DailyJournal';
 import HealthRadar from './HealthRadar';
 import LearningLoopFiveRingHub from './LearningLoopFiveRingHub';
 import LearningTimeline from './LearningTimeline';
+import ManifestPredictionsPanel from './ManifestPredictionsPanel';
 import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
 import SkillTrendChart from './SkillTrendChart';
@@ -275,7 +276,8 @@ export default function GrowthDashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="evolution" className="mt-4">
+        <TabsContent value="evolution" className="mt-4 space-y-6">
+          <ManifestPredictionsPanel />
           <PatternDigestPanel />
         </TabsContent>
 

@@ -1934,6 +1934,7 @@
     "previewLinks": "連結預覽",
     "regenerate": "重新生成",
     "regenerate_try_again": "重試",
+    "regenerate_frontier": "✨ 用更強模型深度重試",
     "regenerate_concise": "更簡潔",
     "regenerate_detailed": "更詳細",
     "regenerate_creative": "更有創意",

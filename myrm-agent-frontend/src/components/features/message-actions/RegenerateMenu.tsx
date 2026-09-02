@@ -12,7 +12,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { RefreshCw, ChevronDown, AlignLeft, AlignJustify, MessageSquarePlus } from 'lucide-react';
+import { RefreshCw, ChevronDown, AlignLeft, AlignJustify, MessageSquarePlus, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface RegenerateMenuProps {
@@ -70,6 +70,12 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
 
   const presets = [
     { icon: RefreshCw, labelKey: 'regenerate_try_again' as const, instruction: undefined },
+    {
+      icon: Sparkles,
+      labelKey: 'regenerate_frontier' as const,
+      instruction: 'Retry with frontier model reasoning and comprehensive deep analysis',
+      highlight: true,
+    },
     { icon: AlignLeft, labelKey: 'regenerate_concise' as const, instruction: 'Be more concise and to the point' },
     {
       icon: AlignJustify,
@@ -103,13 +109,15 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
         <div className="absolute bottom-full left-0 mb-1 w-56 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden">
           {!customMode ? (
             <>
-              {presets.map(({ icon: Icon, labelKey, instruction }) => (
+              {presets.map(({ icon: Icon, labelKey, instruction, highlight }) => (
                 <button
                   key={labelKey}
                   onClick={() => handleClick(instruction)}
-                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
+                  className={`flex items-center gap-2.5 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors ${
+                    highlight ? 'text-primary font-medium bg-primary/5 hover:bg-primary/10' : ''
+                  }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0 text-muted-foreground" />
+                  <Icon className={`w-4 h-4 shrink-0 ${highlight ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span>{t(labelKey)}</span>
                 </button>
               ))}

@@ -23,7 +23,11 @@ if _HARNESS_SRC.exists() and str(_HARNESS_SRC) not in sys.path:
 # pytest_plugins at the top-level conftest only; the referenced modules define
 # explicit-request fixtures (db_session/fts_db) and an artifact-upsert autouse
 # mock that is inert for tests that never touch the artifact pipeline.
-pytest_plugins = ("tests.services.chat.conftest", "tests.core.artifacts.conftest")
+pytest_plugins = (
+    "tests.services.chat.conftest",
+    "tests.core.artifacts.conftest",
+    "tests.api.agent.conftest",
+)
 
 # coverage/pytest-cov patches imports before mcp.types builds RootModel generics.
 import pydantic.root_model  # noqa: F401
