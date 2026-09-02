@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 from app.services.hosting.credentials import resolve_target_credentials
+from app.services.hosting.crypto_packager import package_encrypted_publish_files
 from app.services.hosting.preflight import evaluate_deploy_preflight
 from app.services.hosting.publication_store import get_publication, upsert_publication
 from app.services.hosting.registry import get_hosting_provider
@@ -33,6 +34,7 @@ async def publish_artifact_to_target(
     *,
     hosting_target_id: str,
     request_token: str = "",
+    password: str = "",
 ) -> PublicationResult:
     target = await get_hosting_target(db, hosting_target_id)
     if target is None:
@@ -95,6 +97,9 @@ async def publish_artifact_to_target(
             status="ERROR",
             error="Credential resolution failed",
         )
+
+    if password.strip():
+        files = package_encrypted_publish_files(files, password.strip(), title=artifact.name or "Protected Artifact")
 
     provider = get_hosting_provider(target.provider_type)
     result = await provider.publish(

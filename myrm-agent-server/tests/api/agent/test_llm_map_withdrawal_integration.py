@@ -91,7 +91,7 @@ class TestLlmMapWithdrawalConverterIntegration:
             "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
 
         assert params.enable_wiki is True
         assert params.enable_browser is False
@@ -119,7 +119,7 @@ class TestLlmMapWithdrawalConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
 
         assert params.file_access_mode.value == "full"
         assert params.enable_browser is False

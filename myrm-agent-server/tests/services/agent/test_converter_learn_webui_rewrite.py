@@ -55,7 +55,7 @@ class TestLearnWebuiConverterIntegration:
             "app.core.channel_bridge.config_loader.load_user_configs",
             AsyncMock(return_value=mock_configs),
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
 
         assert params.force_skill_manage is True
         assert isinstance(params.query, str)

@@ -87,11 +87,10 @@ app.include_router(openai_compat_router)
 app.include_router(mem0_compat_router)
 app.include_router(webui_router)
 
+register_database_operational_handlers(app)
+register_exception_handlers(app)
 app.add_exception_handler(404, not_found_handler)
 app.add_exception_handler(Exception, general_exception_handler)
-
-register_exception_handlers(app)
-register_database_operational_handlers(app)
 
 
 @app.get("/health")

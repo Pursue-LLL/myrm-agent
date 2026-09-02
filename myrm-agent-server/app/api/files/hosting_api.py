@@ -64,6 +64,7 @@ class SaveTargetCredentialsRequest(BaseModel):
 class PublishRequest(BaseModel):
     target_id: str = Field(..., min_length=1)
     token: str = Field(default="", description="Optional override token for this publish")
+    password: str = Field(default="", description="Optional password for client-side encrypted hosting")
 
 
 class PublishPreflightResponse(BaseModel):

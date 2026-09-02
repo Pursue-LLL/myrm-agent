@@ -56,7 +56,7 @@ class TestNotifyTargetsConverterIntegration:
             "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
             mock_resolver.resolve.assert_awaited_once_with("notify-agent-1")
 
         assert params.notify_targets == ({"channel": "telegram", "recipient_id": "chat_1", "label": "Alerts"},)
@@ -76,7 +76,7 @@ class TestNotifyTargetsConverterIntegration:
             "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
             mock_resolver.resolve.assert_awaited_once_with("notify-agent-1")
 
         assert params.notify_targets == ()

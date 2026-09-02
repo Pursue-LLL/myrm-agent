@@ -408,6 +408,9 @@ class TestConfirmPluginImport:
             "skipped_skills": 0,
             "imported_servers": 1,
             "skipped_servers": 1,
+            "imported_agents": 0,
+            "skipped_agents": 0,
+            "created_agent_ids": [],
             "required_secret_keys": [],
         }
 
@@ -493,6 +496,9 @@ class TestConfirmPluginImport:
             "skipped_skills": 0,
             "imported_servers": 0,
             "skipped_servers": 0,
+            "imported_agents": 0,
+            "skipped_agents": 0,
+            "created_agent_ids": [],
             "required_secret_keys": [],
         }
         config_service.set.assert_not_awaited()

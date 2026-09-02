@@ -4,8 +4,8 @@ import { buildBuiltinActions } from '@/store/builtinActions';
 describe('buildBuiltinActions', () => {
   const actions = buildBuiltinActions();
 
-  it('returns 12 builtin actions', () => {
-    expect(actions).toHaveLength(12);
+  it('returns 13 builtin actions', () => {
+    expect(actions).toHaveLength(13);
   });
 
   it('all actions have required fields', () => {
@@ -47,6 +47,10 @@ describe('buildBuiltinActions', () => {
 
     const fork = actions.find((a) => a.name === 'fork')!;
     expect(fork.aliases).toEqual(['branch']);
+
+    const loop = actions.find((a) => a.name === 'loop')!;
+    expect(loop.argsHint).toBe('[interval] <prompt>');
+    expect(loop.aliases).toEqual(['repeat', 'cron']);
 
     const pet = actions.find((a) => a.name === 'pet')!;
     expect(pet.argsHint).toBe('[toggle | list | <slug>]');

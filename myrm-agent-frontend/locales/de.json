@@ -264,8 +264,7 @@
       "loopUsage": "Verwendung: /loop [Intervall] <Prompt> (z.B. /loop 10m Deploy prüfen, /loop 1h Überwachung)",
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
-      "loopFailed": "Loop-Aufgabe konnte nicht erstellt werden",
-      "loopBlockedWhileStreaming": "Kann keine Loop-Aufgabe erstellen, während der Agent antwortet"
+      "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden"
     }
   },
   "copilot": {
