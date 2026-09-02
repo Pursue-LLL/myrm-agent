@@ -20,8 +20,9 @@ const stableT = (key: string, params?: { count?: number; defaultMessage?: string
     bundleCategoryCode: 'Code & Scripts',
     bundleCategoryOther: 'Other Assets',
   };
+  if (map[key]) return map[key];
   if (params?.defaultMessage) return params.defaultMessage;
-  return map[key] ?? key;
+  return key;
 };
 
 vi.mock('next-intl', () => ({

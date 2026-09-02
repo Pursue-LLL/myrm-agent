@@ -1,22 +1,14 @@
 """End-to-end test for Conversation Formatter in real agent scenario."""
 
+from __future__ import annotations
+
 import json
 
 import pytest
 from fastapi.testclient import TestClient
-
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.platform_utils import get_checkpointer, set_checkpointer
-from tests.api.agent.conftest import (
-    _build_mock_user_configs,
-    app,
-    client,
-    disable_commitment_extraction,
-    disable_memory_auto_extraction,
-    mock_load_user_configs,
-    setup_test_database,
-)
 from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
@@ -48,23 +40,22 @@ def test_conversation_formatter_in_fast_search(client: TestClient) -> None:
     }
 
     with client.stream("POST", "/api/v1/agents/agent-stream", json=request) as response:
-        assert response.status_code == 200, f"HTTP {response.status_code}: {response.text}"
+        assert response.status_code == 200
 
-        events: list[dict[str, object]] = []
-        full_response = ""
+        full_content = ""
         for line in response.iter_lines():
-            if not line or not line.startswith("data: "):
+            if not line:
                 continue
+            if line.startswith("data: "):
+                data_str = line[6:]
+                if data_str == "[DONE]":
+                    break
+                try:
+                    data = json.loads(data_str)
+                    if data.get("type") == "answer":
+                        full_content += data.get("content", "")
+                except json.JSONDecodeError:
+                    pass
 
-            try:
-                data = json.loads(line[6:])
-                if isinstance(data, dict):
-                    events.append(data)
-                    if data.get("type") == "message":
-                        full_response += str(data.get("data", ""))
-            except json.JSONDecodeError:
-                continue
-
-        check_e2e_errors(events)
-        assert len(events) > 0, "Should produce SSE events"
-        assert len(full_response) > 0 or any(e.get("type") in {"progress", "message", "finish"} for e in events)
+        check_e2e_errors(full_content)
+        assert len(full_content) > 0

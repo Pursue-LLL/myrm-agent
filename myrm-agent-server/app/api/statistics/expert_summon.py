@@ -76,6 +76,9 @@ ExpertSummonEventType = Literal[
     "route_applied",
     "route_apply_failed",
     "first_message_sent",
+    "council_phase_completed",
+    "council_consensus_reached",
+    "expert_rebuttal_effective",
     "dropped_report",
 ]
 
@@ -157,6 +160,9 @@ def _validate_metric_fields(payload: ExpertSummonEventRequest) -> None:
         "route_applied",
         "route_apply_failed",
         "first_message_sent",
+        "council_phase_completed",
+        "council_consensus_reached",
+        "expert_rebuttal_effective",
     }
     trigger_forbidden_events = {"surface_viewed", "search_used", "dropped_report"}
 
