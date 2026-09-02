@@ -14,4 +14,4 @@
 | `diagnostic.py` | 模块 | Returns the current hardened diagnostic state of the agent engine. | ✅ |
 | `memory.py` | 模块 | Memory diagnostics API. | ✅ |
 | `liveness.py` | 模块 | Agent 全局存活状态 SSOT 端点（`GET /api/v1/health/liveness`），聚合 Agent 活跃会话、渠道健康、内存压力、`pendingOutboundCount`、`gatewayRuntime` 零载荷 vitals；gateway 异常时 `state=degraded`；`metrics_enabled` 时刷新 Prometheus `myrm_gateway_*` gauges | ✅ |
-| `router.py` | 路由 | HTTP 路由处理器（含 health/readiness；doctor 经 `health_snapshot` 采集、`health_alert_policy` fail-only SSE；挂载 browser 等子路由） | ✅ |
+| `router.py` | 路由 | HTTP 路由处理器（含 health/readiness、`/health/info` 双层版本与能力元数据；doctor 经 `health_snapshot` 采集、`health_alert_policy` fail-only SSE；挂载 browser 等子路由） | ✅ |

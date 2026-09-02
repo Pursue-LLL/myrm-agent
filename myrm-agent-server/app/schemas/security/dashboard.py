@@ -140,3 +140,43 @@ class PlatformAuditStatsResponse(_CamelModel):
     total_events: int
     time_range_hours: int
     is_live: bool = False
+
+
+class DualTrackAuditEntryItem(_CamelModel):
+    entry_id: str
+    session_id: str
+    agent_id: str
+    tool_name: str
+    intent_summary: str
+    raw_intent_args: dict[str, object]
+    rule_name: str
+    state: str
+    outcome: str
+    is_human_take_the_wheel: bool
+    created_at: str
+    completed_at: str | None = None
+    latency_ms: float
+    output_length: int
+    error_message: str | None = None
+
+
+class RuleTriggerHitItem(_CamelModel):
+    rule_name: str
+    trigger_count: int
+    refused_count: int
+    permitted_count: int
+    failed_count: int
+    refusal_rate: float
+    sample_targets: list[str]
+
+
+class DualTrackAuditStatsResponse(_CamelModel):
+    total_entries: int
+    permitted_count: int
+    refused_count: int
+    failed_count: int
+    human_take_the_wheel_count: int
+    compliance_rate: float
+    avg_latency_ms: float
+    top_rules_triggered: list[RuleTriggerHitItem]
+

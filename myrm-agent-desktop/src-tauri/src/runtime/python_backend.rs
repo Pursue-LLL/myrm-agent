@@ -1,0 +1,379 @@
+//! Python 后端 Sidecar 进程管理（开发态解释器 / 生产态 PyInstaller 二进制）
+//!
+//! [INPUT]
+//! - config::BackendConfig, ConfigManager (POS: 桌面端系统配置与后端绑定端口)
+//! - runtime::port::is_port_in_use (POS: 启动前端口冲突检测)
+//!
+//! [OUTPUT]
+//! - start_backend / stop_backend / check_backend_health IPC
+//! - PythonBackend: Sidecar 子进程句柄
+//!
+//! [POS]
+//! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 二进制，
+//! 启动后最多 30s 轮询 `/health`；超时则终止子进程并返回 `Err`。
+
+use std::process::{Child, Command};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use tauri::{AppHandle, Manager, State};
+
+use crate::config::{BackendConfig, ConfigManager};
+use uuid::Uuid;
+
+use crate::runtime::port::is_port_in_use;
+use crate::runtime::setup_token::SetupTokenState;
+use crate::runtime::sidecar_version_manager::SidecarVersionManager;
+use crate::runtime::survivor_diag::{diagnose_and_reclaim_port, SurvivorDiagResult};
+use crate::runtime::TOXIC_ENV_VARS;
+use crate::utils::process_tree::kill_process_tree;
+
+const BACKEND_HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
+const BACKEND_HEALTH_MAX_ATTEMPTS: u32 = 60;
+
+pub struct PythonBackend {
+    pub process: Arc<Mutex<Option<Child>>>,
+}
+
+impl PythonBackend {
+    pub fn new() -> Self {
+        Self {
+            process: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+/// 启动 Python 后端 Sidecar（使用默认配置）
+#[tauri::command]
+pub async fn start_backend(
+    app: AppHandle,
+    backend: State<'_, PythonBackend>,
+) -> Result<String, String> {
+    let config_manager = ConfigManager::new(&app)?;
+    let system_config = config_manager.load();
+    let backend_config = BackendConfig::from_system_config(&system_config);
+
+    start_backend_with_config(app, backend, backend_config).await
+}
+
+/// 启动 Python 后端 Sidecar（使用指定配置）
+pub async fn start_backend_with_config(
+    app: AppHandle,
+    backend: State<'_, PythonBackend>,
+    config: BackendConfig,
+) -> Result<String, String> {
+    println!("🚀 Starting Python backend with config: {:?}", config);
+
+    {
+        let process_guard = backend.process.lock().unwrap();
+        if process_guard.is_some() {
+            return Ok("Backend is already running".to_string());
+        }
+    }
+
+    if is_port_in_use(&config.host, config.port) {
+        println!("⚠️  Port {}:{} in use, diagnosing potential survivor processes...", config.host, config.port);
+        match diagnose_and_reclaim_port(&config.host, config.port).await {
+            SurvivorDiagResult::SelfSurvivorReclaimed { pid, process_name } => {
+                println!("✅ Self survivor {} (PID: {}) reclaimed, proceeding with startup", process_name, pid);
+            }
+            SurvivorDiagResult::ForeignConflict { pid, process_name } => {
+                return Err(format!(
+                    "Port {}:{} is in use by foreign process {} (PID: {}). Please close it or change port in settings.",
+                    config.host, config.port, process_name, pid
+                ));
+            }
+            SurvivorDiagResult::UnknownConflict | SurvivorDiagResult::Clean => {
+                if is_port_in_use(&config.host, config.port) {
+                    return Err(format!(
+                        "Port {}:{} is already in use. Please close the conflicting process or change the port in settings.",
+                        config.host, config.port
+                    ));
+                }
+            }
+        }
+    }
+
+    let is_dev = cfg!(debug_assertions);
+
+    let (mut cmd, target_version) = if is_dev {
+        println!("🔧 Development mode: Using Python interpreter");
+
+        let tauri_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+        let project_root = std::path::Path::new(&tauri_dir)
+            .parent()
+            .and_then(|p| p.parent())
+            .ok_or("Failed to get project root")?;
+        let server_root = project_root.join("myrm-agent-server");
+        let run_script = server_root.join("run.py");
+
+        if !run_script.exists() {
+            return Err(format!(
+                "run.py not found at: {:?}\nProject root: {:?}\nTauri dir: {}",
+                run_script, project_root, tauri_dir
+            ));
+        }
+
+        println!("📜 Python script: {:?}", run_script);
+        println!("📂 Server root: {:?}", server_root);
+
+        let venv_python = if cfg!(target_os = "windows") {
+            server_root.join(".venv").join("Scripts").join("python.exe")
+        } else {
+            server_root.join(".venv").join("bin").join("python")
+        };
+
+        let python_exe = if venv_python.exists() {
+            println!("✅ Using virtual environment Python: {:?}", venv_python);
+            venv_python
+        } else {
+            println!("⚠️  Virtual environment not found, using system Python");
+            std::path::PathBuf::from(if cfg!(target_os = "windows") {
+                "python.exe"
+            } else {
+                "python3"
+            })
+        };
+
+        let mut cmd = Command::new(python_exe);
+        cmd.arg(run_script).current_dir(&server_root);
+        (cmd, None)
+    } else {
+        println!("📦 Production mode: Resolving Sidecar via SidecarVersionManager");
+
+        let binary_name = if cfg!(target_os = "windows") {
+            "binaries/myrmagent-backend.exe"
+        } else {
+            "binaries/myrmagent-backend"
+        };
+        let factory_bundle_path = app
+            .path()
+            .resolve(binary_name, tauri::path::BaseDirectory::Resource)
+            .map_err(|e| format!("Failed to resolve sidecar path: {}", e))?;
+
+        let app_data_dir = app
+            .path()
+            .app_data_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+        let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
+        let (launch_binary, active_version) = version_manager.resolve_launch_binary();
+
+        println!("📦 Resolved launch Sidecar binary: {:?} (Version: {:?})", launch_binary, active_version);
+
+        let sidecar_len = std::fs::metadata(&launch_binary)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
+        if sidecar_len == 0 {
+            return Err(format!(
+                "Backend sidecar binary is missing or empty at {:?}. \
+                 Build it with: python myrm-agent-desktop/sidecar/build.py",
+                launch_binary
+            ));
+        }
+
+        (Command::new(launch_binary), active_version)
+    };
+
+    for var in TOXIC_ENV_VARS {
+        cmd.env_remove(var);
+    }
+
+    cmd.env("DEPLOY_MODE", "local")
+        .env("PORT", config.port.to_string())
+        .env("HOST", &config.host);
+
+    if let Some(ref data_dir) = config.custom_data_dir {
+        cmd.env("MYRM_DATA_DIR", data_dir);
+        println!("📂 Custom data dir: {}", data_dir);
+    }
+
+    if config.webui_mode {
+        cmd.env("WEBUI_MODE", "true");
+        if config.remote_mode {
+            cmd.env("WEBUI_REMOTE_MODE", "true");
+
+            let setup_token = Uuid::new_v4().to_string();
+            cmd.env("WEBUI_SETUP_TOKEN", &setup_token);
+
+            if let Some(state) = app.try_state::<SetupTokenState>() {
+                if let Ok(mut guard) = state.token.lock() {
+                    *guard = Some(setup_token.clone());
+                }
+            }
+
+            println!("🌐 WebUI Remote mode: {}:{}", config.host, config.port);
+            println!("🔑 Setup token generated for first-time admin setup");
+        } else {
+            cmd.env("WEBUI_REMOTE_MODE", "false");
+            println!("🔒 WebUI Local mode: {}:{}", config.host, config.port);
+        }
+    } else {
+        println!("🖥️  Desktop mode: {}:{}", config.host, config.port);
+    }
+
+    super::suppress_console_window(&mut cmd);
+    let child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to start backend: {}", e))?;
+
+    let child_pid = child.id();
+    if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+        registry
+            .register_spawn(
+                "sidecar:backend",
+                crate::runtime::ProcessRole::Backend,
+                Some(child_pid),
+            )
+            .await;
+    }
+
+    {
+        let mut process_guard = backend.process.lock().unwrap();
+        *process_guard = Some(child);
+    }
+
+    println!("✅ Backend process started (PID: {})", child_pid);
+
+    for i in 0..BACKEND_HEALTH_MAX_ATTEMPTS {
+        tokio::time::sleep(BACKEND_HEALTH_POLL_INTERVAL).await;
+
+        match check_health_with_port(config.port).await {
+            Ok(true) => {
+                println!("✅ Backend is healthy after {} attempts", i + 1);
+
+                // 在发布模式下，标记该版本健康并晋升为 last_known_good
+                if !is_dev {
+                    let app_data_dir = app
+                        .path()
+                        .app_data_dir()
+                        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                    let binary_name = if cfg!(target_os = "windows") {
+                        "binaries/myrmagent-backend.exe"
+                    } else {
+                        "binaries/myrmagent-backend"
+                    };
+                    let factory_bundle_path = app
+                        .path()
+                        .resolve(binary_name, tauri::path::BaseDirectory::Resource)
+                        .unwrap_or_default();
+                    let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
+                    let _ = version_manager.mark_version_healthy(target_version.as_deref());
+                }
+
+                return Ok("Backend started and healthy".to_string());
+            }
+            _ => continue,
+        }
+    }
+
+    {
+        let mut process_guard = backend.process.lock().unwrap();
+        if let Some(mut child) = process_guard.take() {
+            let pid = child.id();
+            kill_process_tree(pid);
+            let _ = child.kill();
+        }
+    }
+
+    // 启动超时失败：如果是发布模式且指定了 target_version，自动触发坏版本拉黑与故障回滚
+    if !is_dev {
+        let app_data_dir = app
+            .path()
+            .app_data_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let binary_name = if cfg!(target_os = "windows") {
+            "binaries/myrmagent-backend.exe"
+        } else {
+            "binaries/myrmagent-backend"
+        };
+        let factory_bundle_path = app
+            .path()
+            .resolve(binary_name, tauri::path::BaseDirectory::Resource)
+            .unwrap_or_default();
+        let version_manager = SidecarVersionManager::new(&app_data_dir, &factory_bundle_path);
+        let (fallback_path, fallback_ver) = version_manager.mark_version_broken_and_rollback(target_version.as_deref());
+        println!(
+            "⚠️ Sidecar launch probe failed for version {:?}. Auto-rolled back to: {:?} (Target: {:?})",
+            target_version, fallback_ver, fallback_path
+        );
+    }
+
+    Err(format!(
+        "Backend health check timed out after {}s. Restart MyrmAgent or check whether port {} is available.",
+        BACKEND_HEALTH_MAX_ATTEMPTS as u64 * BACKEND_HEALTH_POLL_INTERVAL.as_millis() as u64 / 1000,
+        config.port
+    ))
+}
+
+async fn check_health_with_port(port: u16) -> Result<bool, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let url = format!("http://127.0.0.1:{}/health", port);
+    match client.get(&url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                Ok(true)
+            } else {
+                Err(format!(
+                    "Health check failed with status: {}",
+                    response.status()
+                ))
+            }
+        }
+        Err(e) => Err(format!("Health check request failed: {}", e)),
+    }
+}
+
+#[tauri::command]
+pub fn stop_backend(
+    app: AppHandle,
+    backend: State<'_, PythonBackend>,
+) -> Result<String, String> {
+    println!("Stopping Python backend...");
+
+    if let Some(registry) = app.try_state::<crate::runtime::ProcessRegistry>() {
+        let reg = registry.inner().clone();
+        tauri::async_runtime::spawn(async move {
+            reg.mark_stopped("sidecar:backend", Some(0)).await;
+        });
+    }
+
+    let mut process_guard = backend.process.lock().unwrap();
+
+    if let Some(mut child) = process_guard.take() {
+        let pid = child.id();
+        kill_process_tree(pid);
+        match child.kill() {
+            Ok(_) => {
+                println!("Backend process tree killed (root PID: {})", pid);
+                Ok("Backend stopped successfully".to_string())
+            }
+            Err(e) => Err(format!("Failed to stop backend: {}", e)),
+        }
+    } else {
+        Ok("Backend is not running".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn check_backend_health(app: AppHandle) -> Result<bool, String> {
+    let config_manager = ConfigManager::new(&app)?;
+    let system_config = config_manager.load();
+    let port = BackendConfig::from_system_config(&system_config).port;
+    check_health_with_port(port).await
+}
+
+#[tauri::command]
+pub fn get_backend_status(backend: State<'_, PythonBackend>) -> Result<String, String> {
+    let process_guard = backend.process.lock().unwrap();
+
+    if process_guard.is_some() {
+        Ok("running".to_string())
+    } else {
+        Ok("stopped".to_string())
+    }
+}

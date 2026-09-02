@@ -35,13 +35,15 @@ export function useGoalPlanSync(chatId: string | null | undefined): void {
       const stepKey = detail.step_key;
       if (stepKey?.startsWith('todo_step_')) {
         const stepId = stepKey.replace('todo_step_', '');
-        let status: 'pending' | 'in_progress' | 'completed' | 'skipped' = 'pending';
+        let status: 'pending' | 'in_progress' | 'completed' | 'skipped' | 'blocked' = 'pending';
         if (detail.status === 'success') {
           status = 'completed';
         } else if (detail.status === 'running') {
           status = 'in_progress';
         } else if (detail.status === 'skipped') {
           status = 'skipped';
+        } else if (detail.status === 'blocked') {
+          status = 'blocked';
         }
         updateStepStatus(stepId, status);
         return;

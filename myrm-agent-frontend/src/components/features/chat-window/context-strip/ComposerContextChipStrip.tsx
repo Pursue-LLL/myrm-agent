@@ -161,7 +161,7 @@ export function ComposerContextChipStrip({
     if (turnCapabilitySelection.mcpNames !== null) {
       parts.push(turnT('overrideMcpShort', { mcps: turnCapabilitySelection.mcpNames.length }));
     }
-    const summary = parts.join(' · ') || turnT('triggerAria');
+    const summary = parts.join(' · ') || turnT('tooltip');
 
     chips.push(
       <ContextChipItem
@@ -172,7 +172,7 @@ export function ComposerContextChipStrip({
         label={summary}
         disabled={disabled}
         onClick={() => setIsCapabilityPopoverOpen(true)}
-        removeAriaLabel={turnT('resetAria')}
+        removeAriaLabel={turnT('overrideRemove')}
         onRemove={() => onTurnCapabilityChange(null)}
       />,
     );

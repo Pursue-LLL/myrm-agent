@@ -5,7 +5,7 @@ export type PlanStep = {
   step_id: string;
   description: string;
   expected_output: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+  status: 'pending' | 'in_progress' | 'completed' | 'skipped' | 'blocked';
   dependencies: string[];
 };
 

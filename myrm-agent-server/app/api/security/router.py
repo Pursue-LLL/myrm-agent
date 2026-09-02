@@ -16,6 +16,8 @@ from fastapi.responses import Response
 from app.config.settings import settings as _settings
 from app.schemas.security.dashboard import (
     DependabotPR,
+    DualTrackAuditEntryItem,
+    DualTrackAuditStatsResponse,
     PlatformAuditLogsResponse,
     PlatformAuditStatsResponse,
     SecurityAlert,
@@ -28,7 +30,10 @@ from app.services.security.dashboard_settings import load_monitored_github_repos
 from app.services.security.github_supplement import fetch_dependabot_prs_for_repo
 from app.services.security.merged_dashboard import build_security_dashboard, build_setup_hints
 from app.services.security.platform_audit import (
+    export_dual_track_compliance_dossier,
     export_platform_audit_logs,
+    fetch_dual_track_audit_entries,
+    fetch_dual_track_audit_stats,
     fetch_platform_audit_logs,
     fetch_platform_audit_stats,
 )
@@ -95,6 +100,45 @@ async def export_platform_audit(
 ) -> Response:
     """Export platform audit logs as CSV or JSON."""
     return await export_platform_audit_logs(export_format=format)
+
+
+@router.get("/audit/dual-track/entries", response_model=list[DualTrackAuditEntryItem])
+async def get_dual_track_audit_entries(
+    session_id: str | None = None,
+    agent_id: str | None = None,
+    outcome: str | None = None,
+    limit: int = Query(100, ge=1, le=1000),
+) -> list[DualTrackAuditEntryItem]:
+    """Dual-track prior audit entries with fail-closed pre-act and paired post-act status."""
+    return fetch_dual_track_audit_entries(
+        session_id=session_id,
+        agent_id=agent_id,
+        outcome=outcome,
+        limit=limit,
+    )
+
+
+@router.get("/audit/dual-track/stats", response_model=DualTrackAuditStatsResponse)
+async def get_dual_track_audit_stats(
+    session_id: str | None = None,
+    agent_id: str | None = None,
+) -> DualTrackAuditStatsResponse:
+    """Aggregated compliance metrics, pass rate, and rule trigger rankings."""
+    return fetch_dual_track_audit_stats(session_id=session_id, agent_id=agent_id)
+
+
+@router.get("/audit/dual-track/export")
+async def export_dual_track_audit(
+    format: Literal["json", "csv", "markdown"] = Query("json"),
+    session_id: str | None = None,
+    agent_id: str | None = None,
+) -> Response:
+    """Export sealed zero-leakage compliance audit dossier as JSON, CSV, or Markdown."""
+    return export_dual_track_compliance_dossier(
+        export_format=format,
+        session_id=session_id,
+        agent_id=agent_id,
+    )
 
 
 @router.get("/dependabot-prs", response_model=list[DependabotPR])

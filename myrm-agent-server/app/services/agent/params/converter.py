@@ -1,0 +1,1227 @@
+"""[INPUT]
+- app.ai_agents::GeneralAgentParams (POS: General Agent runtime parameter DTO)
+- app.core.channel_bridge.config_loader::load_user_configs (POS: decrypted user config loader)
+- app.core.channel_bridge.model_resolver::_fallback_model_from_providers / resolve_model_config (POS: default model resolution)
+
+[OUTPUT]
+- convert_to_general_agent_params(): build runtime params and routing metadata for GeneralAgent
+- prevalidate_archive_restore_actions(): validate explicit archive restore actions before request persistence
+
+[POS]
+Agent request parameter conversion layer. Resolves user configuration, normalizes
+model choices, and assembles `GeneralAgentParams` for execution. Fast mode
+(`action_mode='fast'`) overrides builtin tools to answer_tool-only plus forced
+web search; deep search uses web_fetch + sufficiency, not browser eager bind.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import cast
+
+from fastapi import Request
+
+from app.ai_agents import GeneralAgentParams
+from app.core.channel_bridge.config_parsers import verify_search_service_available
+from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
+from app.services.agent.moa_preset_resolver import (
+    apply_moa_preset_activation,
+    resolve_effective_moa_preset_id,
+)
+from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+
+from .archive_restore import (
+    ArchiveRestoreRequestError,
+    build_archive_restore_action_context_with_results,
+    inject_archive_restore_actions_into_query,
+    prevalidate_archive_restore_actions,
+)
+from .helpers import _extract_code_execution_network
+from .media import _extract_media_generation_params
+from .mention import (
+    _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
+    _build_mention_reference_context,
+    _inject_mentioned_files_into_query,
+)
+from .models import AgentRequest
+from .resolvers import _resolve_model_config
+from .upload_sync import (
+    inject_uploaded_files_into_query,
+    sync_uploaded_files_to_workspace,
+)
+from .workspace_resolve import resolve_default_chat_workspace_dir
+
+logger = logging.getLogger(__name__)
+
+
+__all__ = [
+    "ArchiveRestoreRequestError",
+    "convert_to_general_agent_params",
+    "prevalidate_archive_restore_actions",
+]
+
+
+_PRESET_OVERLAYS: dict[str, dict[str, object]] = {
+    "accept_edits": {
+        "permissions": {
+            "*": "allow",
+            "shell_exec": "ask",
+            "code_interpreter": "ask",
+            "browser_evaluate": "deny",
+            "browser_upload": "ask",
+            "browser_download": "ask",
+            "browser_fill": "ask",
+            "skill_manage": "ask",
+            "cron_manage": "ask",
+            "mcp_invoke": "ask",
+            "spawn_subagent": "allow",
+            "invoke_external_agent": "ask",
+        },
+        "autoModeEnabled": True,
+    },
+    "explore": {
+        "permissions": {
+            "*": "allow",
+            "file_write": "deny",
+            "file_edit": "deny",
+            "file_delete": "deny",
+            "shell_exec": "deny",
+            "code_interpreter": "deny",
+            "browser_evaluate": "deny",
+            "browser_fill": "deny",
+            "browser_upload": "deny",
+            "browser_download": "deny",
+            "skill_manage": "deny",
+            "cron_manage": "deny",
+            "mcp_invoke": "ask",
+            "spawn_subagent": "allow",
+            "invoke_external_agent": "deny",
+        },
+    },
+}
+
+
+def _apply_session_preset(
+    base: dict[str, object] | None,
+    preset: str | None,
+) -> dict[str, object] | None:
+    """Merge a chat-session security preset overlay onto the base config dict.
+
+    When *preset* is ``None`` or ``"hitl"``, the base config is returned
+    unchanged (HITL is the default — every tool call requires approval).
+
+    The ``permissions`` key is merged at the individual permission level
+    (not replaced wholesale) so that base deny rules are preserved unless
+    the preset explicitly overrides them.
+    """
+    if not preset or preset == "hitl":
+        return base
+    overlay = _PRESET_OVERLAYS.get(preset)
+    if overlay is None:
+        return base
+    if base is None:
+        return dict(overlay)
+    merged = dict(base)
+    for key, value in overlay.items():
+        if key == "permissions" and isinstance(value, dict):
+            base_perms = merged.get("permissions")
+            merged_perms = dict(base_perms) if isinstance(base_perms, dict) else {}
+            merged_perms.update(value)
+            merged["permissions"] = merged_perms
+        else:
+            merged[key] = value
+    return merged
+
+
+async def convert_to_general_agent_params(
+    request: AgentRequest,
+    chat_history: list[list[str | dict[str, object]]],
+    http_request: Request | None = None,
+) -> tuple[
+    GeneralAgentParams,
+    str | None,
+    str | None,
+    str | None,
+    list[str],
+    list[dict[str, object]],
+]:
+    """将 Agent API 请求转换为 General Agent 参数。
+
+    从 DB 读取用户配置（已解密），解析 API Key 和检索模型配置。
+    chat_history 由调用方从 DB 加载后传入。
+
+    Returns:
+        Tuple of (GeneralAgentParams, routing_tier or None, routing_specialty or None,
+        routing_reason or None, context_reference_warnings, archive_restore_results)
+    """
+
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.config_parsers import (
+        extract_mcp_configs,
+        extract_retrieval_models,
+        merge_org_mcp_configs,
+    )
+
+    configs = await load_user_configs()
+
+    providers_dict = configs.providers_dict if configs else None
+
+    if request.model_selection:
+        model_cfg = await _resolve_model_config(request.model_selection, providers_dict)
+    else:
+        from app.core.channel_bridge.model_resolver import resolve_model_config
+
+        model_cfg = resolve_model_config(providers_dict)
+
+    if configs and hasattr(configs, "model_cfg") and configs.model_cfg and configs.model_cfg.max_context_tokens is not None:
+        model_cfg = model_cfg.model_copy(update={"max_context_tokens": configs.model_cfg.max_context_tokens})
+
+    fallback_model_cfg = None
+    if request.fallback_model_selection:
+        try:
+            fallback_model_cfg = await _resolve_model_config(request.fallback_model_selection, providers_dict)
+        except ValueError:
+            logger.warning("Failed to resolve fallback model, proceeding without it")
+
+    safety_fallback_model_cfg = None
+    if request.safety_fallback_model_selection:
+        try:
+            safety_fallback_model_cfg = await _resolve_model_config(request.safety_fallback_model_selection, providers_dict)
+        except ValueError:
+            logger.warning("Failed to resolve safety fallback model, proceeding without it")
+
+    lite_model_cfg = None
+    if request.lite_model_selection:
+        try:
+            lite_model_cfg = await _resolve_model_config(request.lite_model_selection, providers_dict)
+        except ValueError:
+            logger.warning("Failed to resolve filter model, proceeding without it")
+
+    fallback_lite_model_cfg = None
+    if request.fallback_lite_model_selection:
+        try:
+            fallback_lite_model_cfg = await _resolve_model_config(request.fallback_lite_model_selection, providers_dict)
+        except ValueError:
+            pass
+
+    if fallback_model_cfg is None or fallback_lite_model_cfg is None:
+        from app.core.channel_bridge.config_parsers import (
+            extract_fallback_model_configs,
+        )
+
+        config_base_fallback, config_lite_fallback = extract_fallback_model_configs(providers_dict)
+        if fallback_model_cfg is None:
+            fallback_model_cfg = config_base_fallback
+        if fallback_lite_model_cfg is None:
+            fallback_lite_model_cfg = config_lite_fallback
+
+    vision_fallback_model_cfg = None
+    if request.vision_fallback_model_selection:
+        try:
+            vision_fallback_model_cfg = await _resolve_model_config(request.vision_fallback_model_selection, providers_dict)
+        except ValueError:
+            logger.warning("Failed to resolve vision fallback model, proceeding without it")
+    if vision_fallback_model_cfg is None:
+        from app.core.channel_bridge.config_parsers import (
+            extract_vision_fallback_model_config,
+        )
+
+        vision_fallback_model_cfg = extract_vision_fallback_model_config(providers_dict)
+
+    vision_fallback_model_cfgs: list[ModelConfig] | None = None
+
+    routing_tier: str | None = None
+    routing_specialty: str | None = None
+    routing_reason: str | None = None
+    if bool(request.code_model_selection or request.long_doc_model_selection):
+        try:
+            from myrm_agent_harness.api import (
+                TaskSpecialty,
+                route_task_specialty,
+            )
+
+            specialty_slots: dict[TaskSpecialty, ModelConfig] = {}
+            specialty_fallback_slots: dict[TaskSpecialty, ModelConfig] = {}
+
+            if request.code_model_selection:
+                try:
+                    specialty_slots[TaskSpecialty.CODE] = await _resolve_model_config(
+                        request.code_model_selection, providers_dict
+                    )
+                except ValueError:
+                    logger.warning("Failed to resolve code specialty model")
+            if request.fallback_code_model_selection:
+                try:
+                    specialty_fallback_slots[TaskSpecialty.CODE] = await _resolve_model_config(
+                        request.fallback_code_model_selection, providers_dict
+                    )
+                except ValueError:
+                    pass
+
+            if request.long_doc_model_selection:
+                try:
+                    specialty_slots[TaskSpecialty.LONG_DOC] = await _resolve_model_config(
+                        request.long_doc_model_selection, providers_dict
+                    )
+                except ValueError:
+                    logger.warning("Failed to resolve long_doc specialty model")
+            if request.fallback_long_doc_model_selection:
+                try:
+                    specialty_fallback_slots[TaskSpecialty.LONG_DOC] = await _resolve_model_config(
+                        request.fallback_long_doc_model_selection, providers_dict
+                    )
+                except ValueError:
+                    pass
+
+            if request.reasoning_model_selection and (request.code_model_selection or request.long_doc_model_selection):
+                try:
+                    reasoning_cfg_slot = await _resolve_model_config(request.reasoning_model_selection, providers_dict)
+                    specialty_slots[TaskSpecialty.REASONING] = reasoning_cfg_slot
+                except ValueError:
+                    pass
+
+            specialty_result = await route_task_specialty(
+                query=request.query,
+                default_model_cfg=model_cfg,
+                specialty_model_slots=specialty_slots if specialty_slots else None,
+                specialty_fallback_slots=(specialty_fallback_slots if specialty_fallback_slots else None),
+                default_fallback_cfg=fallback_model_cfg,
+            )
+
+            if "specialty_slot_hit" in specialty_result.reason:
+                model_cfg = specialty_result.model_cfg
+                if specialty_result.fallback_model_cfg is not None:
+                    fallback_model_cfg = specialty_result.fallback_model_cfg
+                routing_tier = specialty_result.specialty.value
+                routing_specialty = specialty_result.specialty.value
+                routing_reason = specialty_result.reason
+                logger.info(
+                    "Specialty routing activated: specialty=%s model=%s reason=%s",
+                    routing_specialty,
+                    model_cfg.model,
+                    specialty_result.reason,
+                )
+        except Exception:
+            logger.warning("Specialty routing failed, using default model", exc_info=True)
+
+    if routing_tier is None and (request.light_model_selection or request.reasoning_model_selection):
+        try:
+            from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+                route_task,
+            )
+
+            light_model_cfg = None
+            if request.light_model_selection:
+                try:
+                    light_model_cfg = await _resolve_model_config(request.light_model_selection, providers_dict)
+                except ValueError:
+                    logger.warning("Failed to resolve light model")
+
+            light_fallback_cfg = None
+            if request.fallback_light_model_selection:
+                try:
+                    light_fallback_cfg = await _resolve_model_config(request.fallback_light_model_selection, providers_dict)
+                except ValueError:
+                    pass
+
+            reasoning_model_cfg = None
+            if request.reasoning_model_selection:
+                try:
+                    reasoning_model_cfg = await _resolve_model_config(request.reasoning_model_selection, providers_dict)
+                except ValueError:
+                    logger.warning("Failed to resolve reasoning model")
+
+            reasoning_fallback_cfg = None
+            if request.fallback_reasoning_model_selection:
+                try:
+                    reasoning_fallback_cfg = await _resolve_model_config(
+                        request.fallback_reasoning_model_selection, providers_dict
+                    )
+                except ValueError:
+                    pass
+
+            judge_llm = None
+            if lite_model_cfg:
+                from myrm_agent_harness.toolkits.llms import llm_manager
+
+                try:
+                    # judge 是确定性判定角色：低温保证分类稳定，与 harness 评估器
+                    # （sufficiency/evaluator 默认 0.0）保持一致的「评审低温」语义。
+                    # model_copy 不改动原 lite_model_cfg（frozen 实例），
+                    # 该配置仅供 judge 使用，不影响 SIMPLE tier 的 light_model_cfg。
+                    judge_llm = await llm_manager.get_llm_from_config(lite_model_cfg.model_copy(update={"temperature": 0.0}))
+                except Exception as exc:
+                    logger.warning("Failed to create judge LLM for smart routing: %s", exc)
+
+            from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+                RoutingTier,
+            )
+
+            recent_routing_tiers = None
+            if request.chat_id:
+                try:
+                    from app.database.connection import get_session
+                    from app.database.repositories.chat_repo import ChatRepository
+
+                    async with get_session() as db:
+                        tier_strings = await ChatRepository.get_recent_routing_tiers(db, request.chat_id)
+                    if tier_strings:
+                        recent_routing_tiers = [RoutingTier(t) for t in tier_strings]
+                except Exception as exc:
+                    logger.debug("Failed to fetch recent routing tiers: %s", exc)
+
+            complaint_min_tier: RoutingTier | None = None
+            is_complaint_up = request.sibling_group_id and not request.regenerate_instruction
+            if is_complaint_up and recent_routing_tiers:
+                _tier_next = {
+                    RoutingTier.SIMPLE: RoutingTier.STANDARD,
+                    RoutingTier.STANDARD: RoutingTier.REASONING,
+                }
+                complaint_min_tier = _tier_next.get(recent_routing_tiers[-1], RoutingTier.REASONING)
+            elif is_complaint_up:
+                complaint_min_tier = RoutingTier.STANDARD
+
+            routing_result = await route_task(
+                query=request.query,
+                standard_model_cfg=model_cfg,
+                light_model_cfg=light_model_cfg,
+                reasoning_model_cfg=reasoning_model_cfg,
+                standard_fallback_cfg=fallback_model_cfg,
+                light_fallback_cfg=light_fallback_cfg,
+                reasoning_fallback_cfg=reasoning_fallback_cfg,
+                judge_llm=judge_llm,
+                recent_tiers=recent_routing_tiers,
+                min_tier=complaint_min_tier,
+            )
+            model_cfg = routing_result.model_cfg
+            if routing_result.fallback_model_cfg is not None:
+                fallback_model_cfg = routing_result.fallback_model_cfg
+            routing_tier = routing_result.tier.value
+            routing_reason = routing_result.reason
+
+            # 最高档 REASONING 无更高档可升：complaint-up 只是重新生成，并非
+            # 档位选择错误。记录惩罚会削弱未来同类任务的档位选择（越用越笨），故跳过。
+            if is_complaint_up and recent_routing_tiers and recent_routing_tiers[-1] is not RoutingTier.REASONING:
+                from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+                    record_misroute,
+                )
+
+                record_misroute(recent_routing_tiers[-1])
+
+            logger.warning(
+                "Smart routing: tier=%s model=%s reason=%s",
+                routing_result.tier.value,
+                model_cfg.model,
+                routing_result.reason,
+            )
+        except Exception:
+            logger.warning("Smart routing failed, using default model", exc_info=True)
+
+    search_cfg = configs.search_cfg if configs else None
+    search_available = False
+    if search_cfg is None and configs is not None:
+        # SHPOIB E2E seeds searchServices on the private API immediately before kickoff;
+        # bypass stale config-cache reads so web_search_tool mounts on the same agent turn.
+        from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+        from app.core.channel_bridge.config_loader import (
+            load_user_configs as reload_user_configs,
+        )
+
+        invalidate_user_configs_cache()
+        refreshed_configs = await reload_user_configs()
+        if refreshed_configs is not None and refreshed_configs.search_cfg is not None:
+            configs = refreshed_configs
+            search_cfg = refreshed_configs.search_cfg
+    if configs and configs.search_is_user_configured and search_cfg is not None:
+        search_available = await verify_search_service_available(search_cfg)
+
+    if request.retrieval_dict:
+        embedding_cfg, reranker_cfg = extract_retrieval_models(request.retrieval_dict)
+    else:
+        embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict) if configs else (None, None)
+
+    if embedding_cfg is None and reranker_cfg is None:
+        logger.debug("No embedding/reranker config in request or user retrieval settings")
+
+    mcp_configs: list[MCPServerConfig] | None = None
+    if request.mcp_cfg:
+        mcp_configs = [MCPServerConfig.model_validate(d) for d in request.mcp_cfg]
+    elif configs and configs.mcp_dict:
+        mcp_configs = extract_mcp_configs(configs.mcp_dict) or None
+
+    # Append org-level MCP servers (read-only, pushed by Control Plane)
+    if configs:
+        mcp_configs = merge_org_mcp_configs(mcp_configs, configs.org_mcp_dict) or None
+
+    user_instructions = request.user_instructions
+    agent_skill_ids: list[str] = []
+    agent_skill_configs: dict[str, dict] | None = None
+    agent_subagent_ids: list[str] | None = None
+    agent_security_raw: dict[str, object] | None = None
+    agent_max_iterations: int | None = None
+    agent_memory_policy = None
+    agent_memory_decay_profile: str | None = None
+    agent_memory_extraction_preset: str | None = None
+    engine_params: dict[str, object] | None = None
+    openapi_services: list[dict[str, object]] | None = None
+
+    from app.services.agent.profile.profile_resolver import (
+        DEFAULT_ENABLED_BUILTIN_TOOLS,
+        is_sandbox_capable_tools,
+        resolve_builtin_tool_flags,
+    )
+    from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
+
+    enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+    auto_restore_domains: list[str] = []
+    browser_source: str | None = None
+    dialog_policy: str | None = None
+    session_recording: str | None = None
+    kanban_default_board_id: str | None = None
+    resolved = None
+
+    if request.agent_id:
+        from app.services.agent.profile.profile_resolver import (
+            get_agent_profile_resolver,
+        )
+
+        resolved = await get_agent_profile_resolver().resolve(request.agent_id)
+        if resolved:
+            if not request.agent_config and resolved.system_prompt:
+                user_instructions = (
+                    f"{user_instructions}\n\n{resolved.system_prompt}" if user_instructions else resolved.system_prompt
+                )
+            # Inject Hybrid Routing Rules when browser + desktop control are both runtime-ready
+            if (
+                resolved.enabled_builtin_tools
+                and "browser" in resolved.enabled_builtin_tools
+                and "computer_use" in resolved.enabled_builtin_tools
+            ):
+                from app.config.computer_use_deploy import (
+                    is_computer_use_deploy_supported,
+                )
+
+                hybrid_ready = is_computer_use_deploy_supported()
+            else:
+                hybrid_ready = False
+
+            if hybrid_ready:
+                hybrid_routing_rule = (
+                    "\n\n[HYBRID EXECUTION ROUTING RULES]\n"
+                    "You have both 'browser' and 'computer_use' (desktop) tools available. You MUST follow these strict routing rules:\n"
+                    "1. For ANY web page interaction (clicking links, filling forms, reading web content), you MUST use 'browser_snapshot' and 'browser_interact_tool'. It is 10x faster and more reliable.\n"
+                    "2. DO NOT use 'desktop_snapshot' or 'desktop_interact_tool' to interact with web pages.\n"
+                    "3. ONLY use 'desktop_snapshot' and 'desktop_interact_tool' when dealing with native OS dialogs (e.g., File Upload/Save dialogs, OS permission prompts) or browser extensions that 'browser_interact_tool' cannot see.\n"
+                    "4. If 'browser_snapshot' or 'browser_interact_tool' warns you that an OS dialog is blocking the page, immediately switch to 'desktop_snapshot' and 'desktop_interact_tool'."
+                )
+                user_instructions = (
+                    f"{user_instructions}{hybrid_routing_rule}" if user_instructions else hybrid_routing_rule.strip()
+                )
+
+            agent_skill_ids = list(resolved.skill_ids)
+            agent_skill_configs = resolved.skill_configs
+            agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+            agent_security_raw = resolved.security_overrides
+            enabled_builtin_tools = list(resolved.enabled_builtin_tools)
+            agent_max_iterations = resolved.max_iterations
+            agent_memory_policy = resolved.memory_policy
+            agent_memory_decay_profile = resolved.memory_decay_profile
+            agent_memory_extraction_preset = resolved.memory_extraction_preset
+            engine_params = resolved.engine_params
+            auto_restore_domains = list(resolved.auto_restore_domains)
+            browser_source = resolved.browser_source
+            dialog_policy = resolved.dialog_policy
+            session_recording = resolved.session_recording
+            openapi_services = resolved.openapi_services or None
+
+            # Safety net: use agent's model when frontend didn't pass model_selection
+            if not request.model_selection and resolved.model:
+                if resolved.model_kwargs:
+                    from app.services.agent.params.models import ModelSelection
+
+                    agent_model_selection = ModelSelection(
+                        provider_id="auto",
+                        model=resolved.model,
+                        model_kwargs=resolved.model_kwargs,
+                    )
+                    try:
+                        model_cfg = await _resolve_model_config(agent_model_selection, providers_dict)
+                    except Exception:
+                        logger.warning(
+                            "Failed to resolve agent model '%s' with kwargs, keeping default",
+                            resolved.model,
+                        )
+                else:
+                    from app.core.channel_bridge.model_resolver import (
+                        resolve_model_config as _resolve_override_model,
+                    )
+
+                    try:
+                        model_cfg = _resolve_override_model(providers_dict, model_override=resolved.model)
+                    except Exception:
+                        logger.warning(
+                            "Failed to resolve agent model '%s', keeping default",
+                            resolved.model,
+                        )
+
+            if resolved.agent_type == "team":
+                from app.ai_agents.team_protocol import build_leader_protocol_prompt
+
+                leader_protocol = await build_leader_protocol_prompt(
+                    agent_subagent_ids or [],
+                    leader_id=request.agent_id,
+                    dynamic_discovery=True,
+                )
+                user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
+
+            from app.services.agent.params.profile_output_suffixes import (
+                apply_profile_output_suffixes,
+            )
+
+            suffix_engine_params: dict[str, object] | None = dict(resolved.engine_params) if resolved.engine_params else None
+            if request.engine_params:
+                if suffix_engine_params:
+                    suffix_engine_params = {
+                        **suffix_engine_params,
+                        **request.engine_params,
+                    }
+                else:
+                    suffix_engine_params = dict(request.engine_params)
+
+            user_instructions = apply_profile_output_suffixes(
+                user_instructions,
+                personality_style=resolved.personality_style,
+                engine_params=suffix_engine_params,
+                agent_id=request.agent_id,
+            )
+
+    if mcp_configs and resolved:
+        from app.services.agent.params.mcp_selection import apply_agent_mcp_selection
+
+        mcp_configs = (
+            apply_agent_mcp_selection(
+                mcp_configs,
+                mcp_ids=resolved.mcp_ids or None,
+                mcp_tool_selections=resolved.mcp_tool_selections or None,
+            )
+            or None
+        )
+
+    if request.engine_params:
+        if engine_params:
+            engine_params = {**engine_params, **request.engine_params}
+        else:
+            engine_params = dict(request.engine_params)
+
+    if request.agent_config:
+        cfg = request.agent_config
+        agent_skill_ids = cfg.skill_ids
+        if getattr(cfg, "skill_configs", None) is not None:
+            agent_skill_configs = cfg.skill_configs
+        enabled_builtin_tools = cfg.enabled_builtin_tools
+        auto_restore_domains = list(cfg.auto_restore_domains)
+        browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
+        dialog_policy = cfg.dialog_policy if hasattr(cfg, "dialog_policy") else (resolved.dialog_policy if resolved else None)
+        session_recording = (
+            cfg.session_recording if hasattr(cfg, "session_recording") else (resolved.session_recording if resolved else None)
+        )
+        kanban_default_board_id = cfg.kanban_default_board_id if hasattr(cfg, "kanban_default_board_id") else None
+        if getattr(cfg, "tool_gateway_config", None) is not None:
+            tool_gateway_config = cfg.tool_gateway_config.model_dump(mode="json")
+        else:
+            tool_gateway_config = resolved.tool_gateway_config if resolved else None
+    else:
+        dialog_policy = resolved.dialog_policy if resolved else None
+        session_recording = resolved.session_recording if resolved else None
+        tool_gateway_config = resolved.tool_gateway_config if resolved else None
+
+    if tool_gateway_config and isinstance(tool_gateway_config, dict):
+        if tool_gateway_config.get("use_gateway") and not tool_gateway_config.get("auth_token"):
+            logger.warning("tool_gateway_config.use_gateway is true but auth_token is missing; disabling gateway routing")
+            tool_gateway_config["use_gateway"] = False
+
+    from app.platform_utils.sandbox.tool_gateway import merge_tool_gateway_config
+
+    tool_gateway_config = merge_tool_gateway_config(tool_gateway_config if isinstance(tool_gateway_config, dict) else None)
+
+    if request.regenerate_instruction:
+        regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
+        user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
+
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+
+    GeneralAgentParams.model_rebuild(
+        _types_namespace={
+            "EmbeddingConfig": EmbeddingConfig,
+            "RerankerConfig": RerankerConfig,
+        }
+    )
+
+    security_config_dict = configs.security_config_dict if configs else None
+
+    security_config_dict = _apply_session_preset(security_config_dict, request.security_preset)
+
+    if http_request is not None:
+        from app.remote_access.tool_policy import merge_remote_security_overlay
+
+        security_config_dict = merge_remote_security_overlay(
+            security_config_dict,
+            trust_zone=getattr(http_request.state, "trust_zone", None),
+            admission_path=getattr(http_request.state, "admission_path", None),
+        )
+
+    external_agents_config = None
+    if configs and configs.external_agents_dict:
+        agents_list = configs.external_agents_dict.get("agents")
+        if isinstance(agents_list, list):
+            external_agents_config = agents_list
+
+    ps_dict = configs.personal_settings_dict if configs else None
+    voice_dict = configs.voice_dict if configs else None
+    image_gen_params, video_gen_params, tts_params = _extract_media_generation_params(
+        ps_dict, providers_dict, enabled_builtin_tools, voice_dict
+    )
+
+    code_exec_allow_network = _extract_code_execution_network(ps_dict)
+
+    from app.core.agent.tool_description_locale import resolve_agent_params_locale
+
+    locale = resolve_agent_params_locale(
+        explicit=request.locale,
+        personal_settings=ps_dict if isinstance(ps_dict, dict) else None,
+        channel="web_chat",
+    )
+
+    reasoning_display_mode = request.reasoning_display_mode
+    if reasoning_display_mode is None and isinstance(ps_dict, dict):
+        raw_mode = ps_dict.get("reasoningDisplayMode")
+        if isinstance(raw_mode, str):
+            normalized_mode = raw_mode.strip().lower()
+            if normalized_mode in {"off", "collapsed", "inline"}:
+                reasoning_display_mode = normalized_mode
+    if reasoning_display_mode not in {"off", "collapsed", "inline"}:
+        reasoning_display_mode = "collapsed"
+
+    from app.core.channel_bridge.model_resolver import (
+        enrich_model_capabilities,
+        enrich_model_context_window,
+    )
+
+    selection_vision = request.model_selection.supports_vision if request.model_selection else None
+    model_cfg = enrich_model_capabilities(model_cfg, providers_dict, selection_supports_vision=selection_vision)
+    model_cfg = enrich_model_context_window(model_cfg, providers_dict)
+
+    from app.core.channel_bridge.config_parsers import (
+        resolve_slot_fallback_chain_for_agent,
+        resolve_vision_fallback_chain_for_agent,
+    )
+
+    default_model_cfg_raw = providers_dict.get("defaultModelConfig") if providers_dict else None
+    base_slot = default_model_cfg_raw.get("baseModel") if isinstance(default_model_cfg_raw, dict) else None
+    lite_slot = default_model_cfg_raw.get("liteModel") if isinstance(default_model_cfg_raw, dict) else None
+
+    _, base_fallback_cfgs_from_settings = resolve_slot_fallback_chain_for_agent(
+        base_slot,
+        providers_dict,
+        require_tool_calling=True,
+    )
+    _, lite_fallback_cfgs_from_settings = resolve_slot_fallback_chain_for_agent(
+        lite_slot,
+        providers_dict,
+        require_tool_calling=False,
+    )
+
+    fallback_model_cfgs: list[ModelConfig] | None = None
+    if base_fallback_cfgs_from_settings:
+        fallback_model_cfgs = list(base_fallback_cfgs_from_settings)
+    if fallback_model_cfg is not None:
+        if fallback_model_cfgs:
+            fallback_model_cfgs = [
+                fallback_model_cfg,
+                *[c for c in fallback_model_cfgs if c.model != fallback_model_cfg.model],
+            ]
+        else:
+            fallback_model_cfgs = [fallback_model_cfg]
+    elif fallback_model_cfgs:
+        fallback_model_cfg = fallback_model_cfgs[0]
+
+    fallback_lite_model_cfgs: list[ModelConfig] | None = None
+    if lite_fallback_cfgs_from_settings:
+        fallback_lite_model_cfgs = list(lite_fallback_cfgs_from_settings)
+    if fallback_lite_model_cfg is not None:
+        if fallback_lite_model_cfgs:
+            fallback_lite_model_cfgs = [
+                fallback_lite_model_cfg,
+                *[c for c in fallback_lite_model_cfgs if c.model != fallback_lite_model_cfg.model],
+            ]
+        else:
+            fallback_lite_model_cfgs = [fallback_lite_model_cfg]
+    elif fallback_lite_model_cfgs:
+        fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
+
+    if fallback_model_cfg:
+        fb_vision = request.fallback_model_selection.supports_vision if request.fallback_model_selection else None
+        fallback_model_cfg = enrich_model_capabilities(fallback_model_cfg, providers_dict, selection_supports_vision=fb_vision)
+        fallback_model_cfg = enrich_model_context_window(fallback_model_cfg, providers_dict)
+    if fallback_lite_model_cfgs:
+        enriched_fl_cfgs: list[ModelConfig] = []
+        for fl_cfg in fallback_lite_model_cfgs:
+            fl_vision = request.fallback_lite_model_selection.supports_vision if request.fallback_lite_model_selection else None
+            enriched = enrich_model_capabilities(fl_cfg, providers_dict, selection_supports_vision=fl_vision)
+            enriched_fl_cfgs.append(enrich_model_context_window(enriched, providers_dict))
+        fallback_lite_model_cfgs = enriched_fl_cfgs
+        if fallback_lite_model_cfg is None and enriched_fl_cfgs:
+            fallback_lite_model_cfg = enriched_fl_cfgs[0]
+    if fallback_model_cfgs:
+        enriched_fb_cfgs: list[ModelConfig] = []
+        for fb_cfg in fallback_model_cfgs:
+            fb_vision = request.fallback_model_selection.supports_vision if request.fallback_model_selection else None
+            enriched = enrich_model_capabilities(fb_cfg, providers_dict, selection_supports_vision=fb_vision)
+            enriched_fb_cfgs.append(enrich_model_context_window(enriched, providers_dict))
+        fallback_model_cfgs = enriched_fb_cfgs
+        if fallback_model_cfg is None and enriched_fb_cfgs:
+            fallback_model_cfg = enriched_fb_cfgs[0]
+    if safety_fallback_model_cfg:
+        sf_vision = request.safety_fallback_model_selection.supports_vision if request.safety_fallback_model_selection else None
+        safety_fallback_model_cfg = enrich_model_capabilities(
+            safety_fallback_model_cfg,
+            providers_dict,
+            selection_supports_vision=sf_vision,
+        )
+        safety_fallback_model_cfg = enrich_model_context_window(safety_fallback_model_cfg, providers_dict)
+    if lite_model_cfg:
+        lite_vision = request.lite_model_selection.supports_vision if request.lite_model_selection else None
+        lite_model_cfg = enrich_model_capabilities(lite_model_cfg, providers_dict, selection_supports_vision=lite_vision)
+        lite_model_cfg = enrich_model_context_window(lite_model_cfg, providers_dict)
+    if fallback_lite_model_cfg:
+        fl_vision = request.fallback_lite_model_selection.supports_vision if request.fallback_lite_model_selection else None
+        fallback_lite_model_cfg = enrich_model_capabilities(
+            fallback_lite_model_cfg,
+            providers_dict,
+            selection_supports_vision=fl_vision,
+        )
+        fallback_lite_model_cfg = enrich_model_context_window(fallback_lite_model_cfg, providers_dict)
+    if vision_fallback_model_cfg:
+        vf_vision = request.vision_fallback_model_selection.supports_vision if request.vision_fallback_model_selection else None
+        vision_fallback_model_cfg = enrich_model_capabilities(
+            vision_fallback_model_cfg,
+            providers_dict,
+            selection_supports_vision=vf_vision,
+        )
+        vision_fallback_model_cfg = enrich_model_context_window(vision_fallback_model_cfg, providers_dict)
+
+    vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+        providers_dict,
+        primary_override=vision_fallback_model_cfg,
+        main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+    )
+
+    from app.core.channel_bridge.config_parsers import (
+        extract_video_fallback_model_configs,
+    )
+
+    video_fallback_cfgs = extract_video_fallback_model_configs(providers_dict)
+    video_fallback_model_cfgs = video_fallback_cfgs if video_fallback_cfgs else None
+
+    jit_subagents = request.ephemeral_subagents
+    session_access_roots_raw: list[dict[str, object]] | None = None
+    sandbox_base_dir: str | None = None
+    session_loaded_skill_names: list[str] | None = None
+    chat_workspace_dir: str | None = None
+    chat_loaded = False
+    db_had_workspace = False
+    if request.chat_id:
+        try:
+            from app.services.chat.chat_service import ChatService
+
+            chat = await ChatService.get_chat_metadata(request.chat_id)
+            if chat:
+                chat_loaded = True
+                if jit_subagents is None and chat.ephemeral_subagents:
+                    jit_subagents = chat.ephemeral_subagents
+                if chat.session_loaded_skill_names:
+                    session_loaded_skill_names = [str(name) for name in chat.session_loaded_skill_names if name]
+                if chat.session_access_roots:
+                    session_access_roots_raw = [dict(item) for item in chat.session_access_roots if isinstance(item, dict)]
+                if chat.sandbox_base_dir:
+                    sandbox_base_dir = chat.sandbox_base_dir
+
+                from app.services.chat.effective_workspace import (
+                    resolve_effective_chat_workspace,
+                )
+
+                resolved_workspace = await resolve_effective_chat_workspace(
+                    chat,
+                    jit_fallback=False,
+                )
+                if resolved_workspace:
+                    chat_workspace_dir = resolved_workspace
+                    db_had_workspace = True
+        except Exception as e:
+            logger.warning(f"Failed to load chat metadata for {request.chat_id}: {e}")
+
+    if not chat_workspace_dir and request.chat_id:
+        chat_workspace_dir = await resolve_default_chat_workspace_dir(
+            request.chat_id,
+            persist_workspace=chat_loaded and not db_had_workspace,
+        )
+
+    if request.chat_id:
+        from app.services.agent.session_access_service import (
+            bootstrap_session_access_roots,
+        )
+
+        bootstrap_session_access_roots(
+            session_access_roots_raw,
+            workspace_dir=chat_workspace_dir,
+            sandbox_active=bool(sandbox_base_dir),
+        )
+
+    sandbox_worktree_dir: str | None = None
+    if request.sandbox_mode and chat_workspace_dir and request.chat_id:
+        from app.services.chat.sandbox_worktree import create_sandbox_worktree
+
+        original_workspace = chat_workspace_dir
+        result = await create_sandbox_worktree(chat_workspace_dir, request.chat_id)
+        if isinstance(result, str):
+            sandbox_worktree_dir = result
+            chat_workspace_dir = sandbox_worktree_dir
+            await ChatService.update_chat_fields(
+                request.chat_id,
+                {
+                    "workspace_dir": sandbox_worktree_dir,
+                    "sandbox_base_dir": original_workspace,
+                },
+            )
+
+    memory_shared_context_ids: list[str] = []
+    try:
+        from app.services.memory.shared_context.shared_context import (
+            resolve_shared_context_ids,
+        )
+
+        memory_shared_context_ids = await resolve_shared_context_ids(
+            agent_id=request.agent_id,
+            channel_id="web_chat",
+            conversation_id=request.chat_id,
+            task_id=None,
+            project_id=chat.project_id if chat_loaded and chat else None,
+        )
+    except Exception as e:
+        logger.warning("Failed to resolve shared memory contexts for agent request: %s", e)
+
+    from app.config.settings import get_settings
+
+    privacy_routing_obj: dict[str, object] | None = None
+    if request.privacy_routing is not None:
+        privacy_routing_obj = {str(k): v for k, v in request.privacy_routing.items()}
+
+    privacy_deep_scan = request.privacy_deep_scan
+    if privacy_deep_scan is None and isinstance(ps_dict, dict):
+        raw = ps_dict.get("privacyDeepScan")
+        if isinstance(raw, bool):
+            privacy_deep_scan = raw
+    if privacy_deep_scan is None:
+        privacy_deep_scan = False
+
+    final_query = request.query
+    mention_warnings: list[str] = []
+    archive_restore_results: list[dict[str, object]] = []
+    restore_materialization = await build_archive_restore_action_context_with_results(
+        request,
+        chat_workspace_dir,
+    )
+    restore_ctx = restore_materialization.prompt_context
+    if restore_ctx:
+        final_query = cast(
+            object,
+            inject_archive_restore_actions_into_query(final_query, restore_ctx),
+        )
+    mention_warnings.extend(restore_materialization.warnings)
+    archive_restore_results.extend(restore_materialization.results)
+
+    if request.mention_references:
+        max_ctx_tokens = model_cfg.max_context_tokens if model_cfg else None
+        prior_chat_refs = [ref for ref in request.mention_references if ref.type == "prior_chat"]
+        workspace_refs = [ref for ref in request.mention_references if ref.type != "prior_chat"]
+        if workspace_refs and not chat_workspace_dir:
+            mention_warnings.append("Workspace unavailable; file and workspace references were skipped")
+        refs_to_inject = [
+            *prior_chat_refs,
+            *(workspace_refs if chat_workspace_dir else []),
+        ]
+        if refs_to_inject:
+            mention_workspace_dir = chat_workspace_dir or _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE
+            mention_ctx, mention_context_warnings, mention_tokens = await _build_mention_reference_context(
+                refs_to_inject,
+                mention_workspace_dir,
+                max_ctx_tokens,
+                request.agent_id,
+            )
+            mention_warnings.extend(mention_context_warnings)
+            if mention_ctx:
+                final_query = _inject_mentioned_files_into_query(final_query, mention_ctx)
+                logger.info(
+                    "Injected %d context references (%d tokens, %d warnings)",
+                    len(refs_to_inject),
+                    mention_tokens,
+                    len(mention_warnings),
+                )
+
+    if request.uploaded_file_ids and chat_workspace_dir:
+        try:
+            synced = await sync_uploaded_files_to_workspace(request.uploaded_file_ids, chat_workspace_dir)
+            if synced:
+                final_query = inject_uploaded_files_into_query(final_query, synced, workspace_dir=chat_workspace_dir)
+                logger.info("Synced %d uploaded files to workspace", len(synced))
+        except Exception:
+            logger.warning("Failed to sync uploaded files to workspace", exc_info=True)
+
+    if request.mentioned_agent_ids:
+        try:
+            from app.services.agent.agent_service import AgentService
+
+            mentioned_names = []
+            if jit_subagents is None:
+                jit_subagents = {}
+
+            for aid in request.mentioned_agent_ids:
+                agent = await AgentService.get_agent_by_id(aid)
+                if agent and agent.display_name:
+                    mentioned_names.append(agent.display_name)
+                    # Add to jit_subagents so the main agent gets the delegate_task tool
+                    jit_subagents[aid] = {
+                        "name": agent.display_name,
+                        "description": agent.description or "Mentioned agent",
+                        "agent_id": aid,
+                    }
+
+            if mentioned_names:
+                names_str = ", ".join(mentioned_names)
+                directive = (
+                    f"\n\n[System Directive: 用户显式要求了以下专家参与本次任务：{names_str}。"
+                    "你必须使用 delegate_task 工具将相关工作委派给他们，严禁你自己直接执行他们的专业工作！"
+                    "请根据用户的自然语言逻辑安排他们的执行顺序。]"
+                )
+                if isinstance(final_query, str):
+                    final_query = f"{final_query}{directive}"
+                elif isinstance(final_query, list):
+                    next_query = list(final_query)
+                    next_query.append({"type": "text", "text": directive})
+                    final_query = next_query
+        except Exception as e:
+            logger.warning("Failed to inject mentioned agents directive: %s", e)
+
+    from app.core.channel_bridge.learn_handler import (
+        apply_learn_skill_manage_permission_overlay,
+        rewrite_learn_query_if_needed,
+    )
+
+    final_query = rewrite_learn_query_if_needed(final_query)
+
+    security_config_dict = apply_learn_skill_manage_permission_overlay(
+        security_config_dict,
+        query=final_query,
+    )
+
+    declared_caps = set()
+    if security_config_dict and isinstance(security_config_dict.get("capabilities"), list):
+        for c in security_config_dict["capabilities"]:
+            if isinstance(c, str):
+                declared_caps.add(c)
+    if agent_security_raw and isinstance(agent_security_raw.get("capabilities"), list):
+        for c in agent_security_raw["capabilities"]:
+            if isinstance(c, str):
+                declared_caps.add(c)
+
+    is_fast_search = request.action_mode == "fast"
+    search_depth: str = "normal"
+    if is_fast_search:
+        search_depth = request.search_depth if request.search_depth in ("normal", "deep") else "normal"
+        # SHPOIB E2E seeds searchServices on the private API immediately before kickoff;
+        # bypass stale config-cache reads so web_search_tool mounts on the same turn.
+        if search_cfg is None:
+            from app.core.channel_bridge.config_cache import (
+                invalidate_user_configs_cache,
+            )
+            from app.core.channel_bridge.config_loader import (
+                load_user_configs as reload_user_configs,
+            )
+
+            invalidate_user_configs_cache()
+            refreshed_configs = await reload_user_configs()
+            if refreshed_configs is not None and refreshed_configs.search_cfg is not None:
+                search_cfg = refreshed_configs.search_cfg
+        # Deep vs normal differs by search_depth (sufficiency, prompt suffix, limits),
+        # not browser — deep workflow is web_search → web_fetch → answer self-review.
+        fast_builtin: list[str] = ["answer_tool"]
+        tool_flags = resolve_agent_mount(
+            ExecutionSurface.WEB_FAST,
+            resolve_builtin_tool_flags(fast_builtin, allow_answer_tool=True),
+        )
+        prompt_mode = "search"
+        search_available = search_cfg is not None
+        if not search_available:
+            logger.warning(
+                "Fast search requested without resolved search_service_cfg; chat_id=%s",
+                request.chat_id,
+            )
+        user_instructions = request.user_instructions
+        agent_skill_ids = []
+        agent_skill_configs = None
+        mcp_configs = None
+        agent_subagent_ids = None
+        openapi_services = None
+        agent_max_iterations = 50 if search_depth == "deep" else 30
+        engine_params = {"max_tool_calls": 20 if search_depth == "deep" else 8}
+        agent_memory_policy = {"write_policy": "conversation"}
+    else:
+        tool_flags = resolve_agent_mount(
+            ExecutionSurface.WEB_CHAT,
+            resolve_builtin_tool_flags(enabled_builtin_tools),
+        )
+        prompt_mode = resolved.prompt_mode if resolved else "full"
+
+    params = GeneralAgentParams(
+        message_id=request.message_id,
+        chat_id=request.chat_id,
+        agent_id=request.agent_id,
+        project_id=chat.project_id if chat_loaded and chat else None,
+        query=final_query,
+        chat_history=cast(ChatHistoryReq, chat_history),
+        model_cfg=model_cfg,
+        fallback_model_cfg=fallback_model_cfg,
+        fallback_model_cfgs=fallback_model_cfgs,
+        safety_fallback_model_cfg=safety_fallback_model_cfg,
+        lite_model_cfg=lite_model_cfg,
+        fallback_lite_model_cfg=fallback_lite_model_cfg,
+        fallback_lite_model_cfgs=fallback_lite_model_cfgs,
+        vision_fallback_model_cfg=vision_fallback_model_cfg,
+        vision_fallback_model_cfgs=vision_fallback_model_cfgs,
+        video_fallback_model_cfgs=video_fallback_model_cfgs,
+        search_service_cfg=search_cfg,
+        mcp_cfg=mcp_configs,
+        user_instructions=user_instructions,
+        fetch_raw_webpage=request.fetch_raw_webpage,
+        enable_web_search=search_available,
+        web_search_profile_enabled="web_search" in enabled_builtin_tools,
+        search_is_user_configured=bool(configs and configs.search_is_user_configured),
+        enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
+        **tool_flags,
+        browser_source=browser_source,
+        dialog_policy=dialog_policy,
+        session_recording=session_recording,
+        kanban_default_board_id=kanban_default_board_id,
+        enable_memory=request.enable_memory,
+        memory_require_confirmation=(
+            True
+            if (
+                request.enable_memory
+                and is_sandbox_capable_tools(
+                    enabled_builtin_tools,
+                    has_sandbox_dir=bool(sandbox_base_dir),
+                    declared_capabilities=declared_caps,
+                )
+            )
+            else request.memory_require_confirmation
+        ),
+        enable_memory_auto_extraction=(
+            False
+            if request.incognito_mode
+            else (
+                False
+                if (
+                    is_sandbox_capable_tools(
+                        enabled_builtin_tools,
+                        has_sandbox_dir=bool(sandbox_base_dir),
+                        declared_capabilities=declared_caps,
+                    )
+                    and (
+                        resolved is None
+                        or resolved.memory_policy is None
+                        or not getattr(resolved.memory_policy, "enable_auto_extraction", False)
+                    )
+                )
+                else (request.enable_memory and request.enable_memory_auto_extraction)
+            )
+        ),
+        enable_conversation_search=request.enable_conversation_search and not request.incognito_mode,
+        incognito_mode=request.incognito_mode,
+        enable_advanced_retrieval=(request.enable_advanced_retrieval if not is_fast_search else False),
+        embedding_config=embedding_cfg if not is_fast_search else None,
+        reranker_config=reranker_cfg if not is_fast_search else None,
+        auto_restore_domains=auto_restore_domains if not is_fast_search else [],
+        agent_skill_ids=agent_skill_ids,
+        agent_skill_configs=agent_skill_configs,
+        subagent_ids=agent_subagent_ids,
+        security_config_raw=security_config_dict,
+        agent_security_raw=agent_security_raw,
+        timezone=request.timezone,
+        reasoning_display_mode=reasoning_display_mode,
+        external_agents_config=external_agents_config if not is_fast_search else None,
+        force_external_agent=request.force_external_agent,
+        image_generation=image_gen_params if not is_fast_search else None,
+        video_generation=video_gen_params if not is_fast_search else None,
+        tts=tts_params if not is_fast_search else None,
+        privacy_enabled=request.privacy_enabled,
+        privacy_s2_action=request.privacy_s2_action,
+        privacy_s3_action=request.privacy_s3_action,
+        privacy_routing_raw=privacy_routing_obj,
+        privacy_custom_keywords_s2=request.privacy_custom_keywords_s2 or [],
+        privacy_custom_keywords_s3=request.privacy_custom_keywords_s3 or [],
+        privacy_custom_patterns_s2=request.privacy_custom_patterns_s2 or [],
+        privacy_custom_patterns_s3=request.privacy_custom_patterns_s3 or [],
+        privacy_sensitive_tools_s2=request.privacy_sensitive_tools_s2 or [],
+        privacy_sensitive_tools_s3=request.privacy_sensitive_tools_s3 or [],
+        privacy_deep_scan=privacy_deep_scan,
+        code_execution_allow_network=code_exec_allow_network,
+        event_log_dir=get_settings().database.event_log_dir,
+        event_log_max_jsonl_line_bytes=get_settings().event_log_max_jsonl_line_bytes,
+        locale=locale,
+        max_iterations=agent_max_iterations,
+        memory_policy=agent_memory_policy,
+        memory_decay_profile=agent_memory_decay_profile,
+        memory_extraction_preset=agent_memory_extraction_preset,
+        engine_params=apply_moa_preset_activation(
+            engine_params,
+            resolve_effective_moa_preset_id(
+                engine_params=engine_params,
+                requested_preset_id=request.active_moa_preset_id,
+                routing_tier=routing_tier,
+                auto_moa_reasoning=request.auto_moa_reasoning,
+                auto_moa_preset_id=request.auto_moa_preset_id,
+            ),
+        ),
+        memory_shared_context_ids=memory_shared_context_ids,
+        quote=request.quote,
+        jit_subagents=jit_subagents if not is_fast_search else None,
+        session_loaded_skill_names=(session_loaded_skill_names if not is_fast_search and not request.incognito_mode else None),
+        session_access_roots=session_access_roots_raw,
+        sandbox_base_dir=sandbox_base_dir,
+        declared_capabilities=tuple(declared_caps),
+        declared_allowed_roots=(chat_workspace_dir,) if chat_workspace_dir else (),
+        goal=request.goal.model_dump(exclude_none=True) if request.goal else None,
+        openapi_services=openapi_services,
+        prompt_mode=prompt_mode,
+        search_depth=search_depth,
+        notify_targets=(resolved.notify_targets if resolved and not is_fast_search else ()),
+        tool_gateway_config=tool_gateway_config,
+        client_surface=request.client_surface,
+        force_skill_manage=_is_learn_skill_authoring_query(final_query),
+    )
+    return (
+        params,
+        routing_tier,
+        routing_specialty,
+        routing_reason,
+        mention_warnings,
+        archive_restore_results,
+    )
+
+
+def _is_learn_skill_authoring_query(query: object) -> bool:
+    """Detect /learn channel rewrites that require skill_manage_tool."""
+    from app.core.channel_bridge.learn_handler import learn_authoring_prompt_text
+
+    return learn_authoring_prompt_text(query) is not None

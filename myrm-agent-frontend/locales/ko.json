@@ -264,7 +264,8 @@
       "loopUsage": "사용법: /loop [간격] <프롬프트> (예: /loop 10m 배포 확인, /loop 1h 모니터링)",
       "loopMissingPrompt": "/loop 작업 프롬프트를 입력하세요",
       "loopCreated": "예약된 루프 작업 생성됨 (간격: {interval}), 첫 실행 시작됨",
-      "loopCreateFailed": "루프 작업 생성 실패"
+      "loopFailed": "루프 작업 생성 실패",
+      "loopBlockedWhileStreaming": "에이전트가 응답 중일 때는 루프 작업을 생성할 수 없습니다"
     }
   },
   "copilot": {
@@ -17868,3 +17869,36 @@
       "exportSuccessTitle": "번들 내보내기 완료",
       "exportSuccessDesc": "진단 번들 아카이브가 생성되어 성공적으로 다운로드되었습니다.",
       "exportFailedTitle": "내보내기 실패"
+    },
+    "storageGovernance": {
+      "title": "Agent 스토리지 및 상태 거버넌스",
+      "description": "SQLite/Qdrant 볼륨 세부 정보를 확인하고 락 없는 압축을 수행하며 시간 여행 상태 스냅샷 및 원클릭 복원을 관리합니다.",
+      "totalAgentStateSize": "Agent 상태 스토리지 총 사용량",
+      "healthyGrowth": "스토리지 증가량이 정상 범위 내에 있습니다",
+      "growthWarning": "스토리지 용량이 경고 수준에 도달했습니다. 압축을 권장합니다",
+      "diskSpaceOverview": "호스트 디스크 개요",
+      "freeDisk": "사용 가능: {free}",
+      "totalDisk": "총 용량: {total}",
+      "categoriesBreakdown": "서브시스템별 사용량",
+      "compactAndPurge": "DB 압축 및 분리된 스냅샷 정리",
+      "itemsCount": "{count}개 항목",
+      "compactionSuccessTitle": "스토리지 압축 완료",
+      "compactionSuccessDesc": "{freed} 디스크 공간을 확보하고 WAL 로그를 플러시했습니다.",
+      "compactionFailedTitle": "스토리지 압축 실패",
+      "snapshotsAndRollback": "상태 스냅샷 및 롤백",
+      "snapshotsDesc": "업그레이드 또는 스킬 동작 변경 전에 불변 상태 스냅샷을 생성하여 언제든지 복원할 수 있습니다.",
+      "snapshotLabelPlaceholder": "스냅샷 설명 (예: 업그레이드 전 백업)",
+      "createSnapshot": "스냅샷 생성",
+      "snapshotSuccessTitle": "스냅샷 생성 완료",
+      "snapshotSuccessDesc": "현재 영구 상태가 읽기 전용 스냅샷으로 생성되었습니다.",
+      "snapshotFailedTitle": "스냅샷 생성 실패",
+      "restore": "롤백",
+      "restoreSuccessTitle": "롤백 완료",
+      "restoreSuccessDesc": "지정된 스냅샷으로 안전하게 복원되었습니다.",
+      "restoreFailedTitle": "롤백 실패",
+      "deleteSuccessTitle": "스냅샷 삭제 완료",
+      "deleteSuccessDesc": "선택한 과거 스냅샷이 삭제되었습니다.",
+      "deleteFailedTitle": "스냅샷 삭제 실패"
+    }
+  }
+}

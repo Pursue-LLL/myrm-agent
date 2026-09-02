@@ -19,6 +19,7 @@ import {
   buildWikiAssetUrl,
   type CompileRunStatus,
   type ImportResultResponse,
+  type ImportUrlsResultResponse,
   type ObsidianImportResultResponse,
   type WikiImportConflictOptions,
   type WikiRetrievalTrace,
@@ -40,6 +41,7 @@ import SourceChunkDrawer from '@/components/features/message-box/SourceChunkDraw
 import { WikiConceptsList } from './WikiConceptsList';
 import { WikiImportConflictDialog } from './wiki/WikiImportConflictDialog';
 import { WikiImportSecurityDialog } from './wiki/WikiImportSecurityDialog';
+import { WikiUrlImportDialog } from './wiki/WikiUrlImportDialog';
 import { WikiRawSourceTree } from './wiki/WikiRawSourceTree';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiDuplicateReviewPanel } from './WikiDuplicateReviewPanel';
@@ -203,6 +205,7 @@ export function WikiSection() {
   const [isSavingPurpose, setIsSavingPurpose] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isImportingObsidian, setIsImportingObsidian] = useState(false);
+  const [urlImportDialogOpen, setUrlImportDialogOpen] = useState(false);
   const [scopeRevision, setScopeRevision] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
   const [pendingEditsInitialFilter, setPendingEditsInitialFilter] = useState<'all' | 'concepts' | 'synthesis'>('all');
@@ -1808,6 +1811,15 @@ export function WikiSection() {
                 >
                   <IconBook className="w-4 h-4 mr-2" />
                   {isImporting ? t('import.importing') : t('import.zip')}
+                </Button>
+                <Button
+                  onClick={() => setUrlImportDialogOpen(true)}
+                  disabled={isImporting}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <IconGlow className="w-4 h-4 mr-2" />
+                  {t('import.urls')}
                 </Button>
                 <input ref={zipInputRef} type="file" accept=".zip" onChange={handleImportZip} className="hidden" />
                 {!isTauriEnv && (

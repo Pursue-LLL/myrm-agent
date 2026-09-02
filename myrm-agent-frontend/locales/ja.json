@@ -264,7 +264,8 @@
       "loopUsage": "使用法: /loop [間隔] <プロンプト> (例: /loop 10m デプロイ確認, /loop 1h 競合監視)",
       "loopMissingPrompt": "/loop のタスクプロンプトを入力してください",
       "loopCreated": "定期ループタスクを作成しました (間隔: {interval})。初回実行を開始しました",
-      "loopCreateFailed": "ループタスクの作成に失敗しました"
+      "loopFailed": "ループタスクの作成に失敗しました",
+      "loopBlockedWhileStreaming": "エージェントが応答中のため、ループタスクを作成できません"
     }
   },
   "copilot": {
@@ -17868,3 +17869,36 @@
       "exportSuccessTitle": "エクスポート完了",
       "exportSuccessDesc": "診断バンドルアーカイブが生成され、正常にダウンロードされました。",
       "exportFailedTitle": "エクスポートに失敗しました"
+    },
+    "storageGovernance": {
+      "title": "Agentストレージと状態ガバナンス",
+      "description": "SQLite/Qdrant の容量内訳を確認し、ロックフリーコンパクションを実行し、タイムトラベルスナップショットとワンクリック復元を管理します。",
+      "totalAgentStateSize": "Agent 状態ストレージ総使用量",
+      "healthyGrowth": "ストレージの増加は健全な範囲内です",
+      "growthWarning": "ストレージ容量が警告閾値に近づいています。圧縮を推奨します",
+      "diskSpaceOverview": "ホストディスクの概要",
+      "freeDisk": "空き容量: {free}",
+      "totalDisk": "合計容量: {total}",
+      "categoriesBreakdown": "サブシステム別使用量",
+      "compactAndPurge": "DB圧縮と孤立スナップショットの消去",
+      "itemsCount": "{count} 個のアイテム",
+      "compactionSuccessTitle": "ストレージの圧縮が完了しました",
+      "compactionSuccessDesc": "{freed} のディスク容量を解放し、WALログをフラッシュしました。",
+      "compactionFailedTitle": "ストレージの圧縮に失敗しました",
+      "snapshotsAndRollback": "状態スナップショットとワンクリック復元",
+      "snapshotsDesc": "アップグレードやスキルの動作変更前に不変スナップショットを作成し、いつでも復元できます。",
+      "snapshotLabelPlaceholder": "スナップショットの説明 (例: アップグレード前バックアップ)",
+      "createSnapshot": "スナップショット作成",
+      "snapshotSuccessTitle": "スナップショットを作成しました",
+      "snapshotSuccessDesc": "現在の永続化状態を不変スナップショットとして保存しました。",
+      "snapshotFailedTitle": "スナップショットの作成に失敗しました",
+      "restore": "復元",
+      "restoreSuccessTitle": "復元が完了しました",
+      "restoreSuccessDesc": "指定されたスナップショットに安全に復元されました。",
+      "restoreFailedTitle": "復元に失敗しました",
+      "deleteSuccessTitle": "スナップショットを削除しました",
+      "deleteSuccessDesc": "選択したスナップショットを削除しました。",
+      "deleteFailedTitle": "スナップショットの削除に失敗しました"
+    }
+  }
+}

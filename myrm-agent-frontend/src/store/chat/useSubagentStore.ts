@@ -24,6 +24,24 @@ export interface VerificationFinding {
   description: string;
 }
 
+export interface HandoffFindingDTO {
+  finding: string;
+  evidence?: string;
+  confidence?: 'high' | 'medium' | 'low' | string;
+}
+
+export interface AgentHandoverStateDTO {
+  summary?: string;
+  findings?: HandoffFindingDTO[];
+  citations?: string[];
+  artifact_refs?: string[];
+  context_artifacts?: string[];
+  task_completed?: string[];
+  pending_todos?: string[];
+  risks_or_notes?: string[];
+  relevant_files?: string[];
+}
+
 export interface SubagentVerification {
   passed: boolean;
   rounds: number;
@@ -92,6 +110,7 @@ export interface SubagentNode {
   wastedTokens?: number;
   staleDismissed?: boolean;
   verification?: SubagentVerification;
+  handover_state?: AgentHandoverStateDTO;
   /** Framework-internal subagent (verification worker/verifier) — hidden from user-facing trees. */
   internal?: boolean;
 }

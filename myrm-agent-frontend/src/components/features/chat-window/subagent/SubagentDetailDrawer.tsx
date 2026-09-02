@@ -10,15 +10,20 @@ import {
   Code2,
   Coins,
   Copy,
+  ExternalLink,
+  FileCheck,
   FileText,
   HelpCircle,
   History,
   Layers,
+  Link as LinkIcon,
   ListOrdered,
+  Package,
   Play,
   RotateCcw,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Terminal,
   X,
   XCircle,
@@ -176,6 +181,144 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
         <ScrollArea className="flex-1 p-6">
           {activeTab === 'overview' && (
             <div className="space-y-4">
+              {node.handover_state && (
+                <div className="p-3.5 rounded-lg border bg-blue-50/20 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-900/40 text-xs space-y-3">
+                  <div className="flex items-center justify-between font-bold text-blue-950 dark:text-blue-200">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span>Structured Handover & Evidence</span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-mono border-blue-300 dark:border-blue-800">
+                      SSOT Handover
+                    </Badge>
+                  </div>
+
+                  {node.handover_state.summary && (
+                    <div className="bg-background/80 dark:bg-background/40 p-2.5 rounded-md border border-border/50">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                        Executive Summary
+                      </span>
+                      <p className="text-[12px] leading-relaxed text-foreground whitespace-pre-wrap">
+                        {node.handover_state.summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {node.handover_state.findings && node.handover_state.findings.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                        Key Findings & Evidence ({node.handover_state.findings.length})
+                      </span>
+                      <div className="space-y-1.5">
+                        {node.handover_state.findings.map((f, i) => {
+                          const conf = (f.confidence || 'high').toLowerCase();
+                          const confColor =
+                            conf === 'high'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                              : conf === 'medium'
+                                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
+                                : 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20';
+
+                          return (
+                            <div
+                              key={i}
+                              className="p-2 rounded-md border bg-background/60 dark:bg-background/30 text-[11px] flex flex-col gap-1"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-medium text-foreground">{f.finding}</span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-mono font-bold border shrink-0 ${confColor}`}
+                                >
+                                  {f.confidence || 'HIGH'}
+                                </span>
+                              </div>
+                              {f.evidence && (
+                                <div className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
+                                  <FileCheck className="w-3 h-3 text-muted-foreground shrink-0" />
+                                  <span className="truncate">{f.evidence}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {((node.handover_state.artifact_refs && node.handover_state.artifact_refs.length > 0) ||
+                    (node.handover_state.citations && node.handover_state.citations.length > 0)) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {node.handover_state.artifact_refs && node.handover_state.artifact_refs.length > 0 && (
+                        <div className="p-2 rounded-md border bg-background/50 dark:bg-background/20">
+                          <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1 mb-1">
+                            <Package className="w-3 h-3 text-primary" /> Artifacts
+                          </span>
+                          <div className="space-y-1">
+                            {node.handover_state.artifact_refs.map((ref, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between gap-1 font-mono text-[10px] text-foreground bg-muted/30 px-1.5 py-0.5 rounded group"
+                              >
+                                <span className="truncate">{ref}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleCopy(ref, 'Artifact path')}
+                                  className="h-5 px-1 opacity-60 group-hover:opacity-100"
+                                >
+                                  <Copy className="w-2.5 h-2.5" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {node.handover_state.citations && node.handover_state.citations.length > 0 && (
+                        <div className="p-2 rounded-md border bg-background/50 dark:bg-background/20">
+                          <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1 mb-1">
+                            <LinkIcon className="w-3 h-3 text-primary" /> Citations & Docs
+                          </span>
+                          <div className="space-y-1">
+                            {node.handover_state.citations.map((cite, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between gap-1 font-mono text-[10px] text-foreground bg-muted/30 px-1.5 py-0.5 rounded group"
+                              >
+                                <span className="truncate">{cite}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleCopy(cite, 'Citation URL')}
+                                  className="h-5 px-1 opacity-60 group-hover:opacity-100"
+                                >
+                                  <Copy className="w-2.5 h-2.5" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {node.handover_state.task_completed && node.handover_state.task_completed.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                        Completed Checklist
+                      </span>
+                      <ul className="space-y-0.5 list-disc list-inside text-[11px] text-muted-foreground">
+                        {node.handover_state.task_completed.map((task, i) => (
+                          <li key={i} className="text-foreground">
+                            {task}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {node.error && (
                 <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs">
                   <div className="flex items-center gap-1.5 font-bold mb-1">

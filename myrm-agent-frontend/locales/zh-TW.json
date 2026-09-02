@@ -264,7 +264,8 @@
       "loopUsage": "用法：/loop [間隔] <任務描述>（例如：/loop 10m 檢查建置狀態，/loop 1h 監控競品）",
       "loopMissingPrompt": "請輸入 /loop 循環任務的具體內容",
       "loopCreated": "已建立循環任務（週期：{interval}），已立即觸發首輪執行",
-      "loopCreateFailed": "建立循環任務失敗"
+      "loopFailed": "建立循環任務失敗",
+      "loopBlockedWhileStreaming": "Agent 正在生成回覆中，請稍後再建立循環任務"
     }
   },
   "copilot": {
@@ -17868,7 +17869,36 @@
       "exportSuccessTitle": "診斷包匯出成功",
       "exportSuccessDesc": "系統診斷歸檔包已產生並已觸發瀏覽器下載。",
       "exportFailedTitle": "診斷包匯出失敗"
+    },
+    "storageGovernance": {
+      "title": "Agent 持久化儲存與狀態治理",
+      "description": "查看 SQLite/Qdrant 資料庫體積分解，執行無鎖 Compaction 壓縮碎片，管理時間旅行狀態快照與一鍵復原。",
+      "totalAgentStateSize": "Agent 狀態庫總佔用",
+      "healthyGrowth": "儲存增長處於健康區間",
+      "growthWarning": "儲存體積接近預警水位，建議執行壓縮",
+      "diskSpaceOverview": "宿主磁碟空間概覽",
+      "freeDisk": "剩餘可用：{free}",
+      "totalDisk": "總容量：{total}",
+      "categoriesBreakdown": "儲存子系統佔用分解",
+      "compactAndPurge": "壓縮資料庫並清理孤兒快照",
+      "itemsCount": "{count} 個實體/項目",
+      "compactionSuccessTitle": "儲存壓縮完成",
+      "compactionSuccessDesc": "已成功釋放 {freed} 磁碟空間，WAL 日誌已清空排空。",
+      "compactionFailedTitle": "儲存壓縮失敗",
+      "snapshotsAndRollback": "狀態快照與一鍵復原",
+      "snapshotsDesc": "在重大升級或 Skill 行為變更前建立不可變狀態快照，故障時可秒級復原至上一檢查點。",
+      "snapshotLabelPlaceholder": "快照說明 (如：升級前備份)",
+      "createSnapshot": "建立快照",
+      "snapshotSuccessTitle": "快照建立成功",
+      "snapshotSuccessDesc": "目前持久化狀態與核心資料已打包為唯讀快照。",
+      "snapshotFailedTitle": "快照建立失敗",
+      "restore": "復原",
+      "restoreSuccessTitle": "復原成功",
+      "restoreSuccessDesc": "狀態資料庫已安全復原至指定快照點。",
+      "restoreFailedTitle": "復原失敗",
+      "deleteSuccessTitle": "快照已刪除",
+      "deleteSuccessDesc": "已移除選定的歷史快照。",
+      "deleteFailedTitle": "刪除快照失敗"
     }
   }
 }
-

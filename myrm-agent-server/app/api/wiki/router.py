@@ -2859,13 +2859,13 @@ async def import_urls(
     if len(cleaned_urls) > 50:
         cleaned_urls = cleaned_urls[:50]
 
-    from myrm_agent_harness.core.security.network import validate_url_for_ssrf
+    import httpx
+    from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
         UrlMarkdownIngressRequest,
         publish_url_markdown_ingress,
     )
     from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawConflictPolicy
-    from myrm_agent_harness.toolkits.wiki.wiki_agent_tools import _fetch_url_as_markdown
 
     conflict_policy = (
         RawConflictPolicy.SUPERSEDE

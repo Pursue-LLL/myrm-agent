@@ -264,7 +264,8 @@
       "loopUsage": "Verwendung: /loop [Intervall] <Prompt> (z.B. /loop 10m Deploy prüfen, /loop 1h Überwachung)",
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
-      "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden"
+      "loopFailed": "Loop-Aufgabe konnte nicht erstellt werden",
+      "loopBlockedWhileStreaming": "Kann keine Loop-Aufgabe erstellen, während der Agent antwortet"
     }
   },
   "copilot": {
@@ -17868,7 +17869,36 @@
       "exportSuccessTitle": "Paket exportiert",
       "exportSuccessDesc": "Diagnosearchiv wurde erfolgreich erstellt und heruntergeladen.",
       "exportFailedTitle": "Export fehlgeschlagen"
+    },
+    "storageGovernance": {
+      "title": "Agent-Speicher- und Zustandsverwaltung",
+      "description": "Prüfen Sie die SQLite/Qdrant-Speicheraufteilung, führen Sie sperrfreie Komprimierungen durch und verwalten Sie Zeitreise-Snapshots mit 1-Klick-Wiederherstellung.",
+      "totalAgentStateSize": "Agent-Zustandsspeicher gesamt",
+      "healthyGrowth": "Speicherwachstum im gesunden Bereich",
+      "growthWarning": "Speichervolumen nähert sich der Warnschwelle, Komprimierung empfohlen",
+      "diskSpaceOverview": "Host-Festplattenübersicht",
+      "freeDisk": "Verfügbar: {free}",
+      "totalDisk": "Gesamt: {total}",
+      "categoriesBreakdown": "Aufschlüsselung nach Subsystemen",
+      "compactAndPurge": "DB komprimieren & verwaiste Snapshots bereinigen",
+      "itemsCount": "{count} Elemente",
+      "compactionSuccessTitle": "Komprimierung abgeschlossen",
+      "compactionSuccessDesc": "Erfolgreich {freed} Speicherplatz freigegeben, WAL-Protokolle geleert.",
+      "compactionFailedTitle": "Komprimierung fehlgeschlagen",
+      "snapshotsAndRollback": "Zustands-Snapshots & Wiederherstellung",
+      "snapshotsDesc": "Erstellen Sie vor Upgrades oder Skill-Änderungen unveränderliche Snapshots zur sofortigen Wiederherstellung.",
+      "snapshotLabelPlaceholder": "Snapshot-Bezeichnung (z. B. Backup vor Upgrade)",
+      "createSnapshot": "Snapshot erstellen",
+      "snapshotSuccessTitle": "Snapshot erstellt",
+      "snapshotSuccessDesc": "Aktueller Zustand wurde als unveränderlicher Snapshot archiviert.",
+      "snapshotFailedTitle": "Snapshot-Erstellung fehlgeschlagen",
+      "restore": "Wiederherstellen",
+      "restoreSuccessTitle": "Wiederherstellung abgeschlossen",
+      "restoreSuccessDesc": "Zustand sicher auf ausgewählten Snapshot zurückgesetzt.",
+      "restoreFailedTitle": "Wiederherstellung fehlgeschlagen",
+      "deleteSuccessTitle": "Snapshot gelöscht",
+      "deleteSuccessDesc": "Ausgewählter historischer Snapshot wurde entfernt.",
+      "deleteFailedTitle": "Löschen fehlgeschlagen"
     }
   }
 }
-
