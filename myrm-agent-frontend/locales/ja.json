@@ -9449,6 +9449,40 @@
       "cache": "キャッシュ節約",
       "routing": "ルーティング節約",
       "totalCost": "実際コスト"
+    },
+    "manifestPredictions": {
+      "title": "マニフェスト予測と帰属",
+      "description": "予測されたパフォーマンス差分と実際の実行メトリクスを比較するベンチマーク評価",
+      "evaluating": "評価中...",
+      "evaluateNow": "今すぐベンチマークを評価",
+      "manifestId": "マニフェスト ID",
+      "targetComponent": "対象コンポーネント",
+      "recommendedAction": "推奨アクション",
+      "rationale": "根拠",
+      "metricsTitle": "予測と実際のメトリクス",
+      "confidence": "信頼度",
+      "metricName": "メトリクス名",
+      "baseline": "ベースライン",
+      "predictedTarget": "予測値",
+      "actualValue": "実測値",
+      "delta": "差分",
+      "verdict": "判定",
+      "explanation": "説明",
+      "hideRollbackPatch": "ロールバックパッチを非表示",
+      "viewRollbackPatch": "ロールバックパッチを表示",
+      "rollbackSuccess": "ロールバックパッチが正常に適用されました。",
+      "rollbackFailed": "スキルのロールバックに失敗しました。",
+      "verdicts": {
+        "confirmed": "確認済み",
+        "regression": "リグレッション",
+        "refuted": "未達成",
+        "inconclusive": "判定不能"
+      },
+      "actions": {
+        "keep": "維持",
+        "rollback": "ロールバック",
+        "re_evaluate": "再評価"
+      }
     }
   },
   "subagentDashboard": {
@@ -13998,7 +14032,20 @@
         "securityBlockedDescription": "{count} 件のファイルは資格情報などの機密コンテンツを含むためブロックされました。",
         "securityRedactedDescription": "{count} 件のファイルは機密フラグメントを編集したうえでインポートされました。",
         "securityMore": "…他 {count} 件",
-        "securityAcknowledge": "了解"
+        "securityAcknowledge": "了解",
+        "urls": "URL をインポート",
+        "urlImportTitle": "ウェブ URL から知識をインポート",
+        "urlImportDescription": "URL を通じて記事やドキュメントをナレッジベースに一括登録します",
+        "urlImportEmptyError": "インポートする URL を少なくとも 1 つ入力してください",
+        "urlImportTooManyError": "1 回のバッチインポートで最大 50 件の URL が許可されます",
+        "urlImportResult": "インポート完了: 合計 {total} 件、キュー登録 {enqueued} 件、エラー {errors} 件",
+        "importFailed": "URL の一括インポート開始に失敗しました",
+        "urlImportCount": "{count} 件の URL を検出",
+        "urlImportPlaceholder": "URL をここに貼り付け（1 行に 1 件、最大 50 件）",
+        "urlImportFolderLabel": "保存先フォルダ（任意）",
+        "urlImportFolderPlaceholder": "例: web/docs（未指定の場合はルート）",
+        "urlImporting": "インポート中...",
+        "urlImportStart": "取り込みを開始"
       },
       "tabs": {
         "overview": "概要",
@@ -17538,7 +17585,11 @@
         "type": "MIT ライセンス（コア製品）",
         "description": "このリポジトリの Server、Frontend、Desktop コンポーネントは MIT ライセンスで公開されています。",
         "copyright": "© {year} MyrmAgent. 無断複写・転載を禁じます。"
-      }
+      },
+      "shellVersion": "シェルバージョン",
+      "engineVersion": "エンジンバージョン",
+      "copiedDiagnostics": "診断情報をコピーしました",
+      "copyDiagnostics": "診断情報をコピー"
     },
     "dlq": {
       "title": "死信キュー (DLQ)",

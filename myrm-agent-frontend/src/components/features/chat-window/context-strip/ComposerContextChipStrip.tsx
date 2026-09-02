@@ -2,249 +2,188 @@
 
 /**
  * [INPUT]
- * - ContextChipItem: 原子上下文胶囊
- * - ActiveCapabilityBadge: 负载与 Amber Nudge 指示器
- * - TurnCapabilityToggle: 单轮能力范围调整 popover
- * - useChatStore, useSkillStore, useConfigStore: 响应式状态源
+ * - @/hooks/message-input/useComposerContextChips::ContextChipItem (POS: 上下文胶囊项数据契约)
+ * - @/hooks/message-input/useComposerContextChips::ComposerContextSummary (POS: 上下文负载汇总)
+ * - @/hooks/ui/useMediaQuery::useIsMobile (POS: 移动端视口检测)
  *
  * [OUTPUT]
- * - ComposerContextChipStrip: 聊天输入区上方统一内联上下文胶囊条。
- *   优雅聚合技能激活、工作流模板、单轮能力范围、附件与负载预警，提供单行自适应流与折叠支持。
+ * - ComposerContextChipStrip: 聊天输入区统一内联上下文胶囊流与溢出抽屉/浮层
  *
  * [POS]
- * 输入区上方唯一上下文挂载指示中枢。
+ * 输入区上下文可视化组件。在发送前向用户透明呈现所有激活的能力、模板与附加资产。
  */
 
-import * as React from 'react';
-import { Sparkles, Workflow, SlidersHorizontal, MoreHorizontal } from 'lucide-react';
+import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useShallow } from 'zustand/react/shallow';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import {
+  Sparkles,
+  GitBranch,
+  SlidersHorizontal,
+  AtSign,
+  FileText,
+  Image as ImageIcon,
+  X,
+  AlertTriangle,
+  ChevronDown,
+} from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { formatSkillChipLabel } from '@/lib/utils/messageUtils';
-import { normalizeMCPServiceConfigs } from '@/lib/utils/mcpConfigNormalizer';
-import type { TurnCapabilitySelection } from '@/hooks/message-input/turnCapabilityOverrideCore';
-import useChatStore from '@/store/useChatStore';
-import useSkillStore from '@/store/skill/useSkillStore';
-import useConfigStore from '@/store/useConfigStore';
-import { ContextChipItem } from './ContextChipItem';
-import { ActiveCapabilityBadge } from './ActiveCapabilityBadge';
-import TurnCapabilityToggle from '@/components/features/message-input-actions/TurnCapabilityToggle';
+import { useIsMobile } from '@/hooks/ui/useMediaQuery';
+import type { ContextChipItem, ComposerContextSummary } from '@/hooks/message-input/useComposerContextChips';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 
 export interface ComposerContextChipStripProps {
-  turnCapabilitySelection: TurnCapabilitySelection | null;
-  onTurnCapabilityChange: (selection: TurnCapabilitySelection | null) => void;
-  disabled?: boolean;
+  chips: ContextChipItem[];
+  summary: ComposerContextSummary;
   className?: string;
-  maxVisibleChips?: number;
+  disabled?: boolean;
 }
 
-const OVERLOAD_TOOL_COUNT_THRESHOLD = 15;
+const renderChipIcon = (iconType: ContextChipItem['iconType']) => {
+  switch (iconType) {
+    case 'skill':
+      return <Sparkles className="size-3 shrink-0 text-primary" />;
+    case 'workflow':
+      return <GitBranch className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />;
+    case 'capability':
+      return <SlidersHorizontal className="size-3 shrink-0 text-indigo-500 dark:text-indigo-400" />;
+    case 'mention':
+      return <AtSign className="size-3 shrink-0 text-cyan-500 dark:text-cyan-400" />;
+    case 'image':
+      return <ImageIcon className="size-3 shrink-0 text-emerald-500 dark:text-emerald-400" />;
+    case 'file':
+    default:
+      return <FileText className="size-3 shrink-0 text-muted-foreground" />;
+  }
+};
 
-export function ComposerContextChipStrip({
-  turnCapabilitySelection,
-  onTurnCapabilityChange,
-  disabled = false,
+interface SingleChipProps {
+  chip: ContextChipItem;
+  disabled?: boolean;
+  onRemoveLabel: string;
+}
+
+const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
+  return (
+    <div
+      data-testid={`context-chip-${chip.id}`}
+      className={cn(
+        'group inline-flex h-6 max-w-[220px] items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-xs font-medium text-foreground shadow-xs transition-colors hover:border-primary/40 dark:bg-card/90',
+        chip.category === 'workflow' && 'border-amber-500/30 bg-amber-500/[0.06] text-amber-900 dark:text-amber-200',
+        chip.category === 'capability' && 'border-indigo-500/30 bg-indigo-500/[0.06] text-indigo-900 dark:text-indigo-200',
+      )}
+      title={chip.tooltip || chip.label}
+    >
+      {renderChipIcon(chip.iconType)}
+      <span className="truncate">{chip.label}</span>
+      {chip.detail ? (
+        <span className="shrink-0 text-[10px] text-muted-foreground/80">({chip.detail})</span>
+      ) : null}
+      {chip.isRemovable && chip.onRemove && !disabled ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            chip.onRemove?.();
+          }}
+          className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-xs text-muted-foreground/70 transition-colors hover:bg-destructive/15 hover:text-destructive focus:outline-hidden"
+          aria-label={`${onRemoveLabel}: ${chip.label}`}
+        >
+          <X size={10} />
+        </button>
+      ) : null}
+    </div>
+  );
+};
+
+export default function ComposerContextChipStrip({
+  chips,
+  summary,
   className,
-  maxVisibleChips = 4,
+  disabled = false,
 }: ComposerContextChipStripProps) {
   const t = useTranslations('chat.contextStrip');
-  const turnT = useTranslations('chat.turnCapabilities');
-  const workflowT = useTranslations('chat.workflowTemplateArmed');
+  const isMobile = useIsMobile();
+  const [isOverflowOpen, setIsOverflowOpen] = useState(false);
 
-  const [isCapabilityPopoverOpen, setIsCapabilityPopoverOpen] = React.useState(false);
-
-  // 订阅 ChatStore 中的技能与模板状态
-  const {
-    pendingExplicitSkillActivation,
-    setPendingExplicitSkillActivation,
-    pendingWorkflowTemplateId,
-    pendingWorkflowTemplateDisplayName,
-    clearPendingWorkflowTemplate,
-    setIsWorkflowMode,
-  } = useChatStore(
-    useShallow((s) => ({
-      pendingExplicitSkillActivation: s.pendingExplicitSkillActivation,
-      setPendingExplicitSkillActivation: s.setPendingExplicitSkillActivation,
-      pendingWorkflowTemplateId: s.pendingWorkflowTemplateId,
-      pendingWorkflowTemplateDisplayName: s.pendingWorkflowTemplateDisplayName,
-      clearPendingWorkflowTemplate: s.clearPendingWorkflowTemplate,
-      setIsWorkflowMode: s.setIsWorkflowMode,
-    })),
-  );
-
-  // 订阅活跃技能与 MCP 列表用于计算负载
-  const { availableSkills } = useSkillStore(useShallow((s) => ({ availableSkills: s.skills })));
-  const { mcpConfigs } = useConfigStore(useShallow((s) => ({ mcpConfigs: s.mcpConfigs })));
-
-  const normalizedMcp = React.useMemo(() => normalizeMCPServiceConfigs(mcpConfigs), [mcpConfigs]);
-  const totalSkillsCount = availableSkills?.length ?? 0;
-  const totalMcpCount = normalizedMcp?.length ?? 0;
-
-  // 计算本轮实际生效的技能与 MCP 数量
-  const effectiveSkillCount = React.useMemo(() => {
-    if (turnCapabilitySelection?.skillIds !== null && turnCapabilitySelection?.skillIds !== undefined) {
-      return turnCapabilitySelection.skillIds.length;
-    }
-    return totalSkillsCount;
-  }, [turnCapabilitySelection, totalSkillsCount]);
-
-  const effectiveMcpCount = React.useMemo(() => {
-    if (turnCapabilitySelection?.mcpNames !== null && turnCapabilitySelection?.mcpNames !== undefined) {
-      return turnCapabilitySelection.mcpNames.length;
-    }
-    return totalMcpCount;
-  }, [turnCapabilitySelection, totalMcpCount]);
-
-  const isOverloaded = effectiveSkillCount + effectiveMcpCount >= OVERLOAD_TOOL_COUNT_THRESHOLD;
-
-  // 收集所有要呈现的胶囊项
-  const chips: React.ReactNode[] = [];
-
-  // 1. 工作流模板胶囊
-  if (pendingWorkflowTemplateId) {
-    const templateLabel = pendingWorkflowTemplateDisplayName?.trim() || pendingWorkflowTemplateId;
-    chips.push(
-      <ContextChipItem
-        key="workflow-template"
-        id="workflow-template"
-        variant="template"
-        icon={<Workflow className="h-3.5 w-3.5" />}
-        label={templateLabel}
-        subtitle={workflowT('label')}
-        disabled={disabled}
-        removeAriaLabel={workflowT('disarm')}
-        onRemove={() => {
-          clearPendingWorkflowTemplate();
-          setIsWorkflowMode(false);
-        }}
-      />,
-    );
+  if (chips.length === 0) {
+    return null;
   }
 
-  // 2. 单轮显式技能激活胶囊 (支持多技能逐项渲染与单项解绑)
-  if (pendingExplicitSkillActivation && pendingExplicitSkillActivation.skillNames.length > 0) {
-    const { skillNames, instruction } = pendingExplicitSkillActivation;
-    skillNames.forEach((name) => {
-      chips.push(
-        <ContextChipItem
-          key={`skill-${name}`}
-          id={`skill-${name}`}
-          variant="skill"
-          icon={<Sparkles className="h-3.5 w-3.5" />}
-          label={formatSkillChipLabel(name)}
-          subtitle={instruction ?? undefined}
-          disabled={disabled}
-          removeAriaLabel={t('removeSkill')}
-          onRemove={() => {
-            const remaining = skillNames.filter((n) => n !== name);
-            if (remaining.length === 0) {
-              setPendingExplicitSkillActivation(null);
-            } else {
-              setPendingExplicitSkillActivation({
-                ...pendingExplicitSkillActivation,
-                skillNames: remaining,
-              });
-            }
-          }}
-        />,
-      );
-    });
-  }
-
-  // 3. 单轮能力范围覆写胶囊
-  if (turnCapabilitySelection !== null) {
-    const parts: string[] = [];
-    if (turnCapabilitySelection.skillIds !== null) {
-      parts.push(turnT('overrideSkillsShort', { skills: turnCapabilitySelection.skillIds.length }));
-    }
-    if (turnCapabilitySelection.mcpNames !== null) {
-      parts.push(turnT('overrideMcpShort', { mcps: turnCapabilitySelection.mcpNames.length }));
-    }
-    const summary = parts.join(' · ') || turnT('tooltip');
-
-    chips.push(
-      <ContextChipItem
-        key="turn-capability"
-        id="turn-capability"
-        variant="capability"
-        icon={<SlidersHorizontal className="h-3.5 w-3.5" />}
-        label={summary}
-        disabled={disabled}
-        onClick={() => setIsCapabilityPopoverOpen(true)}
-        removeAriaLabel={turnT('overrideRemove')}
-        onRemove={() => onTurnCapabilityChange(null)}
-      />,
-    );
-  }
-
-  // 无任何活跃胶囊且未超载时，不占用纵向空间
-  if (chips.length === 0 && !isOverloaded) {
-    return (
-      <TurnCapabilityToggle
-        selection={turnCapabilitySelection}
-        onSelectionChange={onTurnCapabilityChange}
-        disabled={disabled}
-        open={isCapabilityPopoverOpen}
-        onOpenChange={setIsCapabilityPopoverOpen}
-        hideTrigger
-      />
-    );
-  }
-
-  const visibleChips = chips.slice(0, maxVisibleChips);
-  const overflowChips = chips.slice(maxVisibleChips);
+  const maxVisible = isMobile ? 2 : 4;
+  const visibleChips = chips.slice(0, maxVisible);
+  const overflowChips = chips.slice(maxVisible);
+  const hasOverflow = overflowChips.length > 0;
 
   return (
     <div
       data-testid="composer-context-chip-strip"
       className={cn(
-        'mb-2 flex flex-wrap items-center justify-between gap-1.5 rounded-lg border border-border/40 bg-muted/20 px-2.5 py-1.5 transition-all text-xs',
+        'mb-2 flex flex-wrap items-center justify-between gap-1.5 rounded-lg border border-border/50 bg-secondary/50 p-1.5 text-xs backdrop-blur-xs',
+        summary.isOverloaded && 'border-amber-500/30 bg-amber-500/[0.04]',
         className,
       )}
     >
-      <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
-        {visibleChips}
+      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+        {visibleChips.map((chip) => (
+          <SingleChip key={chip.id} chip={chip} disabled={disabled} onRemoveLabel={t('remove')} />
+        ))}
 
-        {overflowChips.length > 0 ? (
-          <Popover>
+        {hasOverflow ? (
+          <Popover open={isOverflowOpen} onOpenChange={setIsOverflowOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                data-testid="context-chip-overflow"
-                className="inline-flex h-6.5 items-center gap-1 rounded-md border border-border/60 bg-muted/60 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                aria-label={t('moreChipsAria', { count: overflowChips.length })}
+                className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 bg-muted/60 px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={t('moreItems', { count: overflowChips.length })}
               >
-                <MoreHorizontal className="h-3 w-3" />
                 <span>+{overflowChips.length}</span>
+                <ChevronDown size={10} className="opacity-70" />
               </button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="flex flex-col gap-1.5 p-2 w-auto max-w-sm">
-              <span className="text-[11px] font-medium text-muted-foreground px-1">{t('moreContextTitle')}</span>
-              <div className="flex flex-wrap gap-1.5">{overflowChips}</div>
+            <PopoverContent align="start" className="w-72 p-2 shadow-md">
+              <div className="mb-1.5 px-1 text-xs font-semibold text-muted-foreground">
+                {t('attachedContextTitle')} ({chips.length})
+              </div>
+              <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-1">
+                {overflowChips.map((chip) => (
+                  <div key={chip.id} className="flex items-center justify-between gap-1 rounded-md p-1 hover:bg-muted/50">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {renderChipIcon(chip.iconType)}
+                      <span className="truncate text-xs font-medium text-foreground">{chip.label}</span>
+                    </div>
+                    {chip.isRemovable && chip.onRemove && !disabled ? (
+                      <button
+                        type="button"
+                        onClick={() => chip.onRemove?.()}
+                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-xs text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                        aria-label={`${t('remove')}: ${chip.label}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </PopoverContent>
           </Popover>
         ) : null}
       </div>
 
-      <div className="shrink-0 ml-auto pl-1">
-        <ActiveCapabilityBadge
-          skillCount={effectiveSkillCount}
-          mcpCount={effectiveMcpCount}
-          isOverloaded={isOverloaded}
-          onClick={() => setIsCapabilityPopoverOpen(true)}
-        />
+      {/* 负载提示与微徽章 */}
+      <div className="ml-auto flex items-center gap-1.5 shrink-0">
+        {summary.isOverloaded ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-xs bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+            title={t('overloadWarning')}
+          >
+            <AlertTriangle size={10} />
+            <span>{t('heavyPayload')}</span>
+          </span>
+        ) : null}
+        <span className="text-[10px] font-medium text-muted-foreground/70">
+          {t('activeSummary', { count: summary.totalItems })}
+        </span>
       </div>
-
-      {/* 隐藏式触发的单轮能力范围 Popover 控制器 */}
-      <TurnCapabilityToggle
-        selection={turnCapabilitySelection}
-        onSelectionChange={onTurnCapabilityChange}
-        disabled={disabled}
-        open={isCapabilityPopoverOpen}
-        onOpenChange={setIsCapabilityPopoverOpen}
-        hideTrigger
-      />
     </div>
   );
 }

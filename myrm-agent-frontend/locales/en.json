@@ -9449,6 +9449,40 @@
       "cache": "Cache Savings",
       "routing": "Routing Savings",
       "totalCost": "Actual Cost"
+    },
+    "manifestPredictions": {
+      "title": "Manifest Predictions & Attribution",
+      "description": "Benchmark evaluation of predicted performance deltas against actual execution metrics",
+      "evaluating": "Evaluating...",
+      "evaluateNow": "Evaluate Benchmark Now",
+      "manifestId": "Manifest ID",
+      "targetComponent": "Target Component",
+      "recommendedAction": "Recommended Action",
+      "rationale": "Rationale",
+      "metricsTitle": "Predicted vs Actual Metrics",
+      "confidence": "Confidence",
+      "metricName": "Metric",
+      "baseline": "Baseline",
+      "predictedTarget": "Predicted",
+      "actualValue": "Actual",
+      "delta": "Delta",
+      "verdict": "Verdict",
+      "explanation": "Explanation",
+      "hideRollbackPatch": "Hide Rollback Patch",
+      "viewRollbackPatch": "View Rollback Patch",
+      "rollbackSuccess": "Rollback patch applied successfully.",
+      "rollbackFailed": "Failed to rollback skill evolution.",
+      "verdicts": {
+        "confirmed": "Confirmed",
+        "regression": "Regression",
+        "refuted": "Refuted",
+        "inconclusive": "Inconclusive"
+      },
+      "actions": {
+        "keep": "Keep",
+        "rollback": "Rollback",
+        "re_evaluate": "Re-evaluate"
+      }
     }
   },
   "subagentDashboard": {
@@ -14189,7 +14223,20 @@
         "securityBlockedDescription": "{count} file(s) were blocked because they contain credentials or other sensitive content.",
         "securityRedactedDescription": "{count} file(s) were imported after redacting sensitive fragments.",
         "securityMore": "...and {count} more",
-        "securityAcknowledge": "Got it"
+        "securityAcknowledge": "Got it",
+        "urls": "Import URLs",
+        "urlImportTitle": "Import Knowledge from Web URLs",
+        "urlImportDescription": "Batch ingest articles, documentation or blog posts into knowledge vault by URL",
+        "urlImportEmptyError": "Please enter at least one URL to import",
+        "urlImportTooManyError": "Maximum 50 URLs allowed per batch import",
+        "urlImportResult": "Import complete: {total} total, {enqueued} enqueued, {errors} errors",
+        "importFailed": "Failed to start URL batch import",
+        "urlImportCount": "{count} URLs detected",
+        "urlImportPlaceholder": "Paste URLs here (one per line, up to 50)",
+        "urlImportFolderLabel": "Target Vault Folder (optional)",
+        "urlImportFolderPlaceholder": "e.g. web/docs (leave empty for root)",
+        "urlImporting": "Importing...",
+        "urlImportStart": "Start Ingestion"
       },
       "tabs": {
         "overview": "Overview",
@@ -17538,7 +17585,11 @@
         "type": "MIT License (Core Product)",
         "description": "Server, Frontend, and Desktop in this repository are released under the MIT License.",
         "copyright": "© {year} MyrmAgent. All rights reserved."
-      }
+      },
+      "shellVersion": "Shell Version",
+      "engineVersion": "Engine Version",
+      "copiedDiagnostics": "Copied Diagnostics",
+      "copyDiagnostics": "Copy Diagnostics"
     },
     "dlq": {
       "title": "Dead Letter Queue",

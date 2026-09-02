@@ -9449,6 +9449,40 @@
       "cache": "缓存节省",
       "routing": "路由节省",
       "totalCost": "实际花费"
+    },
+    "manifestPredictions": {
+      "title": "清单预测与归因",
+      "description": "基准测试评估预测性能变化与实际执行指标对比",
+      "evaluating": "正在评估...",
+      "evaluateNow": "立即评估基准",
+      "manifestId": "清单 ID",
+      "targetComponent": "目标组件",
+      "recommendedAction": "建议操作",
+      "rationale": "依据理由",
+      "metricsTitle": "预测与实际指标对比",
+      "confidence": "置信度",
+      "metricName": "指标名称",
+      "baseline": "基线",
+      "predictedTarget": "预测目标",
+      "actualValue": "实际值",
+      "delta": "变化量",
+      "verdict": "判定结果",
+      "explanation": "说明",
+      "hideRollbackPatch": "隐藏回滚补丁",
+      "viewRollbackPatch": "查看回滚补丁",
+      "rollbackSuccess": "回滚补丁已成功应用。",
+      "rollbackFailed": "回滚技能演进失败。",
+      "verdicts": {
+        "confirmed": "已确认",
+        "regression": "退化",
+        "refuted": "未达预期",
+        "inconclusive": "待确定"
+      },
+      "actions": {
+        "keep": "保留",
+        "rollback": "回滚",
+        "re_evaluate": "重新评估"
+      }
     }
   },
   "subagentDashboard": {
@@ -14189,7 +14223,20 @@
         "securityBlockedDescription": "有 {count} 个文件因含凭证或其他敏感内容被拒绝导入。",
         "securityRedactedDescription": "有 {count} 个文件在脱敏敏感片段后已导入。",
         "securityMore": "…另有 {count} 个",
-        "securityAcknowledge": "知道了"
+        "securityAcknowledge": "知道了",
+        "urls": "导入网页链接",
+        "urlImportTitle": "从网页链接导入知识",
+        "urlImportDescription": "批量将文章、技术文档或博客链接摄入到知识库中",
+        "urlImportEmptyError": "请输入至少一个待导入的网页链接",
+        "urlImportTooManyError": "单次批量导入最多支持 50 个链接",
+        "urlImportResult": "导入完成：共 {total} 个，已入队 {enqueued} 个，失败 {errors} 个",
+        "importFailed": "启动链接批量导入失败",
+        "urlImportCount": "已识别 {count} 个链接",
+        "urlImportPlaceholder": "在此粘贴链接（每行一个，最多 50 个）",
+        "urlImportFolderLabel": "目标知识库目录（可选）",
+        "urlImportFolderPlaceholder": "例如 web/docs（留空保存在根目录）",
+        "urlImporting": "正在导入...",
+        "urlImportStart": "开始摄入"
       },
       "tabs": {
         "overview": "总览",
@@ -17538,7 +17585,11 @@
         "type": "MIT 许可证（核心产品）",
         "description": "本仓库中的 Server、Frontend、Desktop 组件采用 MIT 许可证发布。",
         "copyright": "© {year} MyrmAgent. 保留所有权利。"
-      }
+      },
+      "shellVersion": "外壳版本",
+      "engineVersion": "引擎版本",
+      "copiedDiagnostics": "已复制诊断信息",
+      "copyDiagnostics": "复制诊断信息"
     },
     "dlq": {
       "title": "死信队列 (DLQ)",

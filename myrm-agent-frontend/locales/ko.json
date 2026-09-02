@@ -9449,6 +9449,40 @@
         "AT_RISK": "위험",
         "STALE": "미사용"
       }
+    },
+    "manifestPredictions": {
+      "title": "매니페스트 예측 및 귀속",
+      "description": "실제 실행 지표와 예측된 성능 델타를 비교하는 벤치마크 평가",
+      "evaluating": "평가 중...",
+      "evaluateNow": "지금 벤치마크 평가",
+      "manifestId": "매니페스트 ID",
+      "targetComponent": "대상 컴포넌트",
+      "recommendedAction": "권장 조치",
+      "rationale": "근거",
+      "metricsTitle": "예측 지표와 실제 지표 비교",
+      "confidence": "신뢰도",
+      "metricName": "지표명",
+      "baseline": "기준선",
+      "predictedTarget": "예측치",
+      "actualValue": "실제치",
+      "delta": "변화량",
+      "verdict": "판정",
+      "explanation": "설명",
+      "hideRollbackPatch": "롤백 패치 숨기기",
+      "viewRollbackPatch": "롤백 패치 보기",
+      "rollbackSuccess": "롤백 패치가 성공적으로 적용되었습니다.",
+      "rollbackFailed": "스킬 롤백에 실패했습니다.",
+      "verdicts": {
+        "confirmed": "확인됨",
+        "regression": "성능 저하",
+        "refuted": "미달성",
+        "inconclusive": "판정 불가"
+      },
+      "actions": {
+        "keep": "유지",
+        "rollback": "롤백",
+        "re_evaluate": "재평가"
+      }
     }
   },
   "subagentDashboard": {
@@ -13984,7 +14018,20 @@
         "securityBlockedDescription": "{count}개 파일이 자격 증명 또는 기타 민감 콘텐츠를 포함하여 차단되었습니다.",
         "securityRedactedDescription": "{count}개 파일이 민감 부분 편집 후 가져와졌습니다.",
         "securityMore": "...외 {count}개",
-        "securityAcknowledge": "확인"
+        "securityAcknowledge": "확인",
+        "urls": "웹 URL 가져오기",
+        "urlImportTitle": "웹 URL에서 지식 가져오기",
+        "urlImportDescription": "URL을 통해 문서나 블로그 글을 지식 보관소로 일괄 수집합니다",
+        "urlImportEmptyError": "가져올 URL을 하나 이상 입력하세요",
+        "urlImportTooManyError": "한 번에 최대 50개의 URL까지 가져올 수 있습니다",
+        "urlImportResult": "가져오기 완료: 총 {total}개, 대기열 추가 {enqueued}개, 오류 {errors}개",
+        "importFailed": "URL 일괄 가져오기 시작 실패",
+        "urlImportCount": "{count}개 URL 감지됨",
+        "urlImportPlaceholder": "여기에 URL 붙여넣기 (한 줄에 하나씩, 최대 50개)",
+        "urlImportFolderLabel": "대상 저장소 폴더 (선택 사항)",
+        "urlImportFolderPlaceholder": "예: web/docs (비워두면 루트)",
+        "urlImporting": "가져오는 중...",
+        "urlImportStart": "수집 시작"
       },
       "tabs": {
         "overview": "개요",
@@ -17538,7 +17585,11 @@
         "type": "MIT 라이선스 (핵심 제품)",
         "description": "이 저장소의 서버, 프런트엔드 및 데스크톱은 MIT 라이선스로 배포됩니다.",
         "copyright": "© {year} MyrmAgent. 모든 권리 보유."
-      }
+      },
+      "shellVersion": "셸 버전",
+      "engineVersion": "엔진 버전",
+      "copiedDiagnostics": "진단 정보가 복사되었습니다",
+      "copyDiagnostics": "진단 정보 복사"
     },
     "dlq": {
       "title": "데드 레터 큐",

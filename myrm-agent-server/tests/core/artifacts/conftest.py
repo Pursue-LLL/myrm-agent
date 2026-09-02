@@ -9,7 +9,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _mock_upsert_processor_artifact() -> AsyncMock:
-    import app.core.artifacts.listener  # Ensure submodule is loaded before patch
+    import app.core.artifacts.listener  # noqa: F401 - Ensure submodule is loaded before patch
 
     with patch(
         "app.core.artifacts.listener.upsert_processor_artifact",

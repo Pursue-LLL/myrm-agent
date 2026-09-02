@@ -9449,6 +9449,40 @@
         "AT_RISK": "Gefährdet",
         "STALE": "Inaktiv"
       }
+    },
+    "manifestPredictions": {
+      "title": "Manifest-Vorhersagen & Attribution",
+      "description": "Benchmark-Bewertung prognostizierter Leistungs-Deltas im Vergleich zu tatsächlichen Ausführungsmetriken",
+      "evaluating": "Wird bewertet...",
+      "evaluateNow": "Benchmark jetzt ausführen",
+      "manifestId": "Manifest-ID",
+      "targetComponent": "Zielkomponente",
+      "recommendedAction": "Empfohlene Aktion",
+      "rationale": "Begründung",
+      "metricsTitle": "Vorhergesagte vs. tatsächliche Metriken",
+      "confidence": "Konfidenz",
+      "metricName": "Metrik",
+      "baseline": "Basislinie",
+      "predictedTarget": "Vorhergesagt",
+      "actualValue": "Tatsächlich",
+      "delta": "Differenz",
+      "verdict": "Urteil",
+      "explanation": "Erklärung",
+      "hideRollbackPatch": "Rollback-Patch ausblenden",
+      "viewRollbackPatch": "Rollback-Patch anzeigen",
+      "rollbackSuccess": "Rollback-Patch erfolgreich angewendet.",
+      "rollbackFailed": "Fehler beim Rollback der Skill-Evolution.",
+      "verdicts": {
+        "confirmed": "Bestätigt",
+        "regression": "Rückschritt",
+        "refuted": "Widerlegt",
+        "inconclusive": "Uneindeutig"
+      },
+      "actions": {
+        "keep": "Behalten",
+        "rollback": "Zurücksetzen",
+        "re_evaluate": "Neu bewerten"
+      }
     }
   },
   "subagentDashboard": {
@@ -13984,7 +14018,20 @@
         "securityBlockedDescription": "{count} Datei(en) wurden blockiert, weil sie Anmeldeinformationen oder andere vertrauliche Inhalte enthalten.",
         "securityRedactedDescription": "{count} Datei(en) wurden importiert, nachdem sensible Fragmente geschwärzt wurden.",
         "securityMore": "...und {count} mehr",
-        "securityAcknowledge": "Verstanden"
+        "securityAcknowledge": "Verstanden",
+        "urls": "Web-URLs importieren",
+        "urlImportTitle": "Wissen aus Web-URLs importieren",
+        "urlImportDescription": "Artikel, Dokumentationen oder Blogs per URL stapelweise in den Vault aufnehmen",
+        "urlImportEmptyError": "Bitte mindestens eine URL zum Importieren eingeben",
+        "urlImportTooManyError": "Maximal 50 URLs pro Stapelimport erlaubt",
+        "urlImportResult": "Import abgeschlossen: {total} gesamt, {enqueued} eingereiht, {errors} Fehler",
+        "importFailed": "Starten des URL-Stapelimports fehlgeschlagen",
+        "urlImportCount": "{count} URLs erkannt",
+        "urlImportPlaceholder": "URLs hier einfügen (eine pro Zeile, max. 50)",
+        "urlImportFolderLabel": "Ziel-Vault-Ordner (optional)",
+        "urlImportFolderPlaceholder": "z.B. web/docs (leer lassen für Hauptverzeichnis)",
+        "urlImporting": "Wird importiert...",
+        "urlImportStart": "Aufnahme starten"
       },
       "tabs": {
         "overview": "Übersicht",
@@ -17538,7 +17585,11 @@
         "type": "MIT-Lizenz (Kernprodukt)",
         "description": "Server, Frontend und Desktop in diesem Repository werden unter der MIT-Lizenz veröffentlicht.",
         "copyright": "© {year} MyrmAgent. All rights reserved."
-      }
+      },
+      "shellVersion": "Shell-Version",
+      "engineVersion": "Engine-Version",
+      "copiedDiagnostics": "Diagnosedaten kopiert",
+      "copyDiagnostics": "Diagnosedaten kopieren"
     },
     "dlq": {
       "title": "Warteschlange für unzustellbare Nachrichten",

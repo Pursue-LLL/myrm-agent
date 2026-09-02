@@ -255,8 +255,6 @@
       "loopUsage": "用法：/loop [間隔] <任務描述>（例如：/loop 10m 檢查建置狀態，/loop 1h 監控競品）",
       "loopMissingPrompt": "請輸入 /loop 循環任務的具體內容",
       "loopCreated": "已建立循環任務（週期：{interval}），已立即觸發首輪執行",
-      "loopFailed": "建立循環任務失敗",
-      "loopBlockedWhileStreaming": "Agent 正在生成回覆中，請稍後再建立循環任務",
       "pet": "打開寵物圖鑑或管理精靈覆蓋層",
       "petDisabled": "伴侶模式未啟用 — 請在設定中開啟",
       "petOverlayEnabled": "寵物精靈覆蓋層已顯示",
@@ -265,7 +263,8 @@
       "petInstallFailed": "安裝寵物失敗",
       "petNoActive": "尚未安裝寵物 — 正在打開寵物面板",
       "ask": "打開會話顧問進行唯讀旁路問答（/side）",
-      "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後台任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。"
+      "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後台任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。",
+      "loopCreateFailed": "建立循環任務失敗"
     }
   },
   "copilot": {
@@ -9450,6 +9449,40 @@
       "cache": "快取節省",
       "routing": "路由節省",
       "totalCost": "實際花費"
+    },
+    "manifestPredictions": {
+      "title": "清單預測與歸因",
+      "description": "基準測試評估預測效能變化與實際執行指標對比",
+      "evaluating": "正在評估...",
+      "evaluateNow": "立即評估基準",
+      "manifestId": "清單 ID",
+      "targetComponent": "目標元件",
+      "recommendedAction": "建議操作",
+      "rationale": "依據理由",
+      "metricsTitle": "預測與實際指標對比",
+      "confidence": "信賴度",
+      "metricName": "指標名稱",
+      "baseline": "基準線",
+      "predictedTarget": "預測目標",
+      "actualValue": "實際值",
+      "delta": "變化量",
+      "verdict": "判定結果",
+      "explanation": "說明",
+      "hideRollbackPatch": "隱藏回滾補丁",
+      "viewRollbackPatch": "檢視回滾補丁",
+      "rollbackSuccess": "回滾補丁已成功套用。",
+      "rollbackFailed": "回滾技能演進失敗。",
+      "verdicts": {
+        "confirmed": "已確認",
+        "regression": "退化",
+        "refuted": "未達預期",
+        "inconclusive": "待確定"
+      },
+      "actions": {
+        "keep": "保留",
+        "rollback": "回滾",
+        "re_evaluate": "重新評估"
+      }
     }
   },
   "subagentDashboard": {
@@ -13999,7 +14032,20 @@
         "securityBlockedDescription": "有 {count} 個檔案因含憑證或其他敏感內容被拒絕導入。",
         "securityRedactedDescription": "有 {count} 個檔案在脫敏敏感片段後已導入。",
         "securityMore": "…另有 {count} 個",
-        "securityAcknowledge": "知道了"
+        "securityAcknowledge": "知道了",
+        "urls": "匯入網頁連結",
+        "urlImportTitle": "從網頁連結匯入知識",
+        "urlImportDescription": "批次將文章、技術文件或部落格連結擷取到知識庫中",
+        "urlImportEmptyError": "請輸入至少一個待匯入的網頁連結",
+        "urlImportTooManyError": "單次批次匯入最多支援 50 個連結",
+        "urlImportResult": "匯入完成：共 {total} 個，已排隊 {enqueued} 個，失敗 {errors} 個",
+        "importFailed": "啟動連結批次匯入失敗",
+        "urlImportCount": "已辨識 {count} 個連結",
+        "urlImportPlaceholder": "在此貼上連結（每行一個，最多 50 個）",
+        "urlImportFolderLabel": "目標知識庫目錄（選填）",
+        "urlImportFolderPlaceholder": "例如 web/docs（留空儲存在根目錄）",
+        "urlImporting": "正在匯入...",
+        "urlImportStart": "開始擷取"
       },
       "tabs": {
         "overview": "總覽",
@@ -17539,7 +17585,11 @@
         "type": "MIT 許可證（核心產品）",
         "description": "本倉庫中的 Server、Frontend、Desktop 元件採用 MIT 許可證釋出。",
         "copyright": "© {year} MyrmAgent. 保留所有權利。"
-      }
+      },
+      "shellVersion": "外殼版本",
+      "engineVersion": "引擎版本",
+      "copiedDiagnostics": "已複製診斷資訊",
+      "copyDiagnostics": "複製診斷資訊"
     },
     "dlq": {
       "title": "死信佇列 (DLQ)",

@@ -189,7 +189,7 @@ def execute_search(
         raise ValueError(f"Invalid API base URL scheme: {url}")
 
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 - validated request URL
         url,
         data=data,
         headers={

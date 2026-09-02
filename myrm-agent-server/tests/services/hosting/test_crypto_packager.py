@@ -77,7 +77,7 @@ def test_crypto_packager_wrong_password():
     end_idx = encrypted_files["index.html"].content.index(";\n", start_idx)
     encrypted_dict = json.loads(encrypted_files["index.html"].content[start_idx:end_idx])
 
-    with pytest.raises(Exception):
+    with pytest.raises((InvalidTag, ValueError)):
         _decrypt_payload(encrypted_dict, "WrongPassword")
 
 
