@@ -735,6 +735,25 @@ export const wikiService = {
     );
   },
 
+  importUrls: async (
+    urls: string[],
+    folderPath?: string,
+    autoCompile: boolean = true,
+    agentId?: string | null,
+    conflictOptions?: WikiImportConflictOptions,
+  ): Promise<ImportUrlsResultResponse> => {
+    return apiRequest<ImportUrlsResultResponse>(buildWikiApiPath('/wiki/import/urls', agentId), {
+      method: 'POST',
+      body: JSON.stringify({
+        urls,
+        folder_path: folderPath ?? '',
+        auto_compile: autoCompile,
+        on_conflict: conflictOptions?.onConflict ?? 'skip',
+        supersede_reason: conflictOptions?.supersedeReason ?? '',
+      }),
+    });
+  },
+
   repairPageTypes: async (agentId?: string | null): Promise<RepairTypesResponse> => {
     return apiRequest<RepairTypesResponse>(buildWikiApiPath('/wiki/repair-types', agentId), {
       method: 'POST',

@@ -117,6 +117,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "open_session_window"
             | "close_session_window"
             | "set_tray_status"
+            | "update_tray_info"
     );
 
     if !(read_only || critical || stateful) {

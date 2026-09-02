@@ -191,9 +191,12 @@ class FeishuContactFuzzyMatcher:
 
             base_score = calculate_name_similarity(query_norm, name)
 
-            # Department hint boost (up to +0.10)
-            if dep_hint_norm and dept and dep_hint_norm in dept.lower():
-                base_score = min(1.0, base_score + 0.10)
+            # Department hint boost (+0.20 for matching, penalty for non-matching if hint present)
+            if dep_hint_norm:
+                if dept and dep_hint_norm in dept.lower():
+                    base_score = min(1.0, base_score + 0.15)
+                else:
+                    base_score = max(0.0, base_score - 0.15)
 
             if base_score >= CONFIDENCE_MIN_CANDIDATE:
                 candidate = ContactCandidate(

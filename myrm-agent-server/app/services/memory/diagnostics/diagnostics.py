@@ -98,8 +98,24 @@ class MemoryDiagnosticsService:
             except Exception:
                 pass
 
+        # Check relational store integrity
+        relational_integrity_ok = True
+        relational_integrity_detail = "ok"
+        if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
+            try:
+                rel_store = getattr(self._memory_manager, "_relational")
+                if hasattr(rel_store, "check_integrity"):
+                    relational_integrity_ok, relational_integrity_detail = await rel_store.check_integrity()
+            except Exception as e:
+                relational_integrity_ok = False
+                relational_integrity_detail = str(e)
+
         checks = [
-            probe_relational_store(runtime),
+            probe_relational_store(
+                runtime,
+                integrity_ok=relational_integrity_ok,
+                integrity_detail=relational_integrity_detail,
+            ),
             probe_memory_base_path(runtime),
             probe_vector_index(runtime),
             probe_knowledge_graph(runtime),
@@ -148,7 +164,13 @@ class MemoryDiagnosticsService:
                 pass
 
         probes = [
-            await self._run_probe(lambda: probe_relational_store(runtime)),
+            await self._run_probe(
+                lambda: probe_relational_store(
+                    runtime,
+                    integrity_ok=relational_integrity_ok,
+                    integrity_detail=relational_integrity_detail,
+                )
+            ),
             await self._run_probe(lambda: probe_memory_base_path(runtime)),
             await self._run_probe(lambda: probe_vector_index(runtime)),
             await self._run_probe(lambda: probe_knowledge_graph(runtime)),
