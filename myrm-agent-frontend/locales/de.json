@@ -1673,6 +1673,15 @@
       "generalSpecialtyDesc": "Standardanfrage, wird vom Hauptmodell verarbeitet",
       "actualModelLabel": "Tatsächliches Modell"
     },
+    "contextStrip": {
+      "overloadAria": "Aktive Funktionen überlastet, hoher Token-Verbrauch",
+      "badgeAria": "{count} aktive Funktionen",
+      "capabilities": "aktiv",
+      "activeCapabilitiesTitle": "Aktive Funktionen",
+      "skillCountDesc": "{count, plural, =1 {1 Skill} other {# Skills}} geladen",
+      "mcpCountDesc": "{count, plural, =1 {1 MCP-Tool} other {# MCP-Tools}} verbunden",
+      "overloadWarning": "Zu viele aktive Tools können die Latenz und den Token-Verbrauch erhöhen."
+    },
     "uploadFailed": "Upload fehlgeschlagen",
     "jumpBar": {
       "ariaLabel": "Konversationsnavigation",
@@ -1835,7 +1844,6 @@
     "previewLinks": "Linkvorschau",
     "regenerate": "Neu generieren",
     "regenerate_try_again": "Erneut versuchen",
-    "regenerate_frontier": "✨ Mit stärkerem Modell wiederholen",
     "regenerate_concise": "Kürzer",
     "regenerate_detailed": "Ausführlicher",
     "regenerate_creative": "Kreativer",

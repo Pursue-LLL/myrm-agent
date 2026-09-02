@@ -1673,6 +1673,15 @@
       "generalSpecialtyDesc": "常规对话任务，由主模型提供标准响应",
       "actualModelLabel": "实际调用模型"
     },
+    "contextStrip": {
+      "overloadAria": "当前活跃能力过多，存在较高 Token 开销",
+      "badgeAria": "{count} 项活跃能力",
+      "capabilities": "项活跃",
+      "activeCapabilitiesTitle": "当前活跃能力",
+      "skillCountDesc": "已加载 {count} 项技能",
+      "mcpCountDesc": "已挂载 {count} 项 MCP 工具",
+      "overloadWarning": "活跃工具过多可能导致响应延迟并增加 Token 消耗。"
+    },
     "uploadFailed": "上传失败",
     "skillActivation": {
       "remove": "移除已选技能"
@@ -2000,7 +2009,6 @@
     "previewLinks": "链接预览",
     "regenerate": "重新生成",
     "regenerate_try_again": "重试",
-    "regenerate_frontier": "✨ 用更强模型深度重试",
     "regenerate_concise": "更简洁",
     "regenerate_detailed": "更详细",
     "regenerate_creative": "更有创意",
@@ -9428,47 +9436,6 @@
       "cache": "缓存节省",
       "routing": "路由节省",
       "totalCost": "实际花费"
-    },
-    "manifestPredictions": {
-      "title": "变更清单与可证伪预测归因",
-      "description": "记录技能与 Harness 变更前的可证伪量化假设，评测后自动比对实测指标，进行因果归因判定与回滚决策。",
-      "manifestId": "清单 ID",
-      "targetComponent": "目标组件",
-      "rationale": "变更动因与假设",
-      "verdict": "归因判定",
-      "recommendedAction": "建议动作",
-      "confidence": "置信度",
-      "metricsTitle": "可证伪指标预测与实测对比",
-      "metricName": "指标名称",
-      "baseline": "基线",
-      "predictedTarget": "预期目标",
-      "actualValue": "实测值",
-      "delta": "实际偏差",
-      "explanation": "归因解释",
-      "rollbackPatch": "回滚补丁",
-      "viewRollbackPatch": "查看回滚补丁",
-      "hideRollbackPatch": "收起回滚补丁",
-      "evaluateNow": "立即归因核验",
-      "evaluating": "正在核验...",
-      "emptyTitle": "暂无变更预测清单",
-      "emptyDescription": "当框架或技能触发自演进提案时，系统会自动生成带有可证伪预测的 Change Manifest，并在评测后自动归因呈现。",
-      "actions": {
-        "keep": "保留变更",
-        "rollback": "建议回滚",
-        "re_evaluate": "补充评测"
-      },
-      "verdicts": {
-        "confirmed": "假设证实",
-        "refuted": "目标未达",
-        "regression": "指标退化",
-        "inconclusive": "难以定论"
-      },
-      "directions": {
-        "increase": "提升",
-        "decrease": "降低",
-        "neutral": "保持平稳",
-        "preserve_min": "不低于基线"
-      }
     }
   },
   "subagentDashboard": {
@@ -17892,6 +17859,36 @@
       "exportSuccessTitle": "诊断包导出成功",
       "exportSuccessDesc": "系统诊断归档包已生成并已触发浏览器下载。",
       "exportFailedTitle": "诊断包导出失败"
+    },
+    "storageGovernance": {
+      "title": "Agent 持久化存储与状态治理",
+      "description": "查看 SQLite/Qdrant 数据库体积分解，执行无锁 Compaction 压缩碎片，管理时间旅行状态快照与一键回滚。",
+      "totalAgentStateSize": "Agent 状态库总占用",
+      "healthyGrowth": "存储增长处于健康区间",
+      "growthWarning": "存储体积接近预警水位，建议执行压缩",
+      "diskSpaceOverview": "宿主磁盘空间概览",
+      "freeDisk": "剩余可用：{free}",
+      "totalDisk": "总容量：{total}",
+      "categoriesBreakdown": "存储子系统占用分解",
+      "compactAndPurge": "压缩数据库并清理孤儿快照",
+      "itemsCount": "{count} 个实体/条目",
+      "compactionSuccessTitle": "存储压缩完成",
+      "compactionSuccessDesc": "已成功释放 {freed} 磁盘空间，WAL 日志已清空排空。",
+      "compactionFailedTitle": "存储压缩失败",
+      "snapshotsAndRollback": "状态快照与一键回滚",
+      "snapshotsDesc": "在重大升级或 Skill 行为变更前创建不可变状态快照，故障时可秒级恢复至上一检查点。",
+      "snapshotLabelPlaceholder": "快照说明 (如：升级前备份)",
+      "createSnapshot": "创建快照",
+      "snapshotSuccessTitle": "快照创建成功",
+      "snapshotSuccessDesc": "当前持久化状态与核心数据已打包为只读快照。",
+      "snapshotFailedTitle": "快照创建失败",
+      "restore": "回滚",
+      "restoreSuccessTitle": "回滚成功",
+      "restoreSuccessDesc": "状态数据库已安全回滚至指定快照点。",
+      "restoreFailedTitle": "回滚失败",
+      "deleteSuccessTitle": "快照已删除",
+      "deleteSuccessDesc": "已移除选定的历史快照。",
+      "deleteFailedTitle": "删除快照失败"
     }
   }
 }

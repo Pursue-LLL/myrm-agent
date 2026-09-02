@@ -1673,6 +1673,15 @@
       "generalSpecialtyDesc": "通常の対話タスク。プライマリモデルによって処理されます",
       "actualModelLabel": "実際の呼び出しモデル"
     },
+    "contextStrip": {
+      "overloadAria": "アクティブな機能が多すぎます。トークン消費が高くなります",
+      "badgeAria": "{count} 個のアクティブな機能",
+      "capabilities": "件アクティブ",
+      "activeCapabilitiesTitle": "アクティブな機能",
+      "skillCountDesc": "{count} 個のスキルがロードされました",
+      "mcpCountDesc": "{count} 個の MCP ツールが接続されました",
+      "overloadWarning": "アクティブなツールが多すぎると、遅延が増加しトークン消費が増える可能性があります。"
+    },
     "uploadFailed": "アップロードに失敗しました",
     "skillActivation": {
       "remove": "選択したスキルを削除"
@@ -1951,7 +1960,6 @@
     "previewLinks": "リンクプレビュー",
     "regenerate": "再生成",
     "regenerate_try_again": "再試行",
-    "regenerate_frontier": "✨ より強力なモデルで再試行",
     "regenerate_concise": "より簡潔に",
     "regenerate_detailed": "より詳細に",
     "regenerate_creative": "より創造的に",
@@ -9428,47 +9436,6 @@
       "cache": "キャッシュ節約",
       "routing": "ルーティング節約",
       "totalCost": "実際コスト"
-    },
-    "manifestPredictions": {
-      "title": "変更マニフェストと反証可能な予測帰属",
-      "description": "スキルおよびHarness変更前の仮説（ベースライン、目標値、許容誤差）を記録し、評価後に実測値と比較して因果帰属とロールバック判断を行います。",
-      "manifestId": "マニフェストID",
-      "targetComponent": "対象コンポーネント",
-      "rationale": "変更の動機と仮説",
-      "verdict": "帰属判定",
-      "recommendedAction": "推奨アクション",
-      "confidence": "信頼度",
-      "metricsTitle": "予測指標と実測値の比較",
-      "metricName": "指標名",
-      "baseline": "ベースライン",
-      "predictedTarget": "予測目標",
-      "actualValue": "実測値",
-      "delta": "実際の変化",
-      "explanation": "帰属説明",
-      "rollbackPatch": "ロールバックパッチ",
-      "viewRollbackPatch": "ロールバックパッチを表示",
-      "hideRollbackPatch": "ロールバックパッチを閉じる",
-      "evaluateNow": "今すぐ帰属を検証",
-      "evaluating": "検証中...",
-      "emptyTitle": "変更予測マニフェストなし",
-      "emptyDescription": "スキルまたはフレームワークの自己進化提案時に作成されたマニフェストが評価後にここに表示されます。",
-      "actions": {
-        "keep": "変更を維持",
-        "rollback": "ロールバック推奨",
-        "re_evaluate": "再評価"
-      },
-      "verdicts": {
-        "confirmed": "仮説実証",
-        "refuted": "目標未達",
-        "regression": "指標低下",
-        "inconclusive": "判定不能"
-      },
-      "directions": {
-        "increase": "向上",
-        "decrease": "低下",
-        "neutral": "安定維持",
-        "preserve_min": "基準値以上を維持"
-      }
     }
   },
   "subagentDashboard": {

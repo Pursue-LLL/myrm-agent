@@ -200,6 +200,8 @@ async def system_info() -> dict[str, object]:
             - local_stt_available: 本地语音识别组件是否就绪（local-stt extra）
             - edge_tts_available: Edge TTS 可选组件是否就绪（voice-tts extra）
     """
+    from myrm_agent_harness import __version__ as harness_version
+
     from app.config.deploy_mode import (
         get_database_mode,
         get_deploy_mode,
@@ -209,6 +211,8 @@ async def system_info() -> dict[str, object]:
     )
 
     return {
+        "server_version": "0.1.0",
+        "harness_version": harness_version,
         "deploy_mode": get_deploy_mode().value,
         "database": get_database_mode().value,
         "qdrant": get_qdrant_mode().value,

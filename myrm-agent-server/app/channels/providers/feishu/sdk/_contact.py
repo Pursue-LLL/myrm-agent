@@ -65,3 +65,49 @@ class FeishuContactMixin:
         if not isinstance(user, dict):
             return None
         return user
+
+    async def list_users(
+        self,
+        *,
+        department_id: str = "0",
+        page_size: int = 50,
+        page_token: str = "",
+    ) -> tuple[list[dict[str, object]], str]:
+        """Fetch paginated users in a department (default '0' for root).
+
+        Returns tuple of (user_list, next_page_token).
+        """
+        token = await self.ensure_token()
+        http = self._get_http()
+        params: dict[str, str] = {
+            "user_id_type": "open_id",
+            "department_id_type": "open_department_id",
+            "department_id": department_id,
+            "page_size": str(page_size),
+        }
+        if page_token:
+            params["page_token"] = page_token
+
+        resp = await http.get(
+            f"{self.api_base}/contact/v3/users/find_by_department",
+            params=params,
+            headers=self._auth(token),
+        )
+        body = self._safe_json(resp, "list_users")
+        if body.get("code", -1) != 0:
+            logger.debug("Feishu list_users failed: %s", body.get("msg"))
+            return [], ""
+
+        data = body.get("data", {})
+        if not isinstance(data, dict):
+            return [], ""
+
+        raw_items = data.get("items", [])
+        items: list[dict[str, object]] = []
+        if isinstance(raw_items, list):
+            for item in raw_items:
+                if isinstance(item, dict):
+                    items.append(item)
+
+        next_token = str(data.get("page_token", ""))
+        return items, next_token

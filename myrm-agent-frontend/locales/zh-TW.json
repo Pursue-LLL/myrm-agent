@@ -1673,6 +1673,15 @@
       "generalSpecialtyDesc": "常規對話任務，由主模型提供標準響應",
       "actualModelLabel": "實際調用模型"
     },
+    "contextStrip": {
+      "overloadAria": "目前作用中功能過多，存在較高 Token 開銷",
+      "badgeAria": "{count} 項作用中功能",
+      "capabilities": "項作用中",
+      "activeCapabilitiesTitle": "目前作用中功能",
+      "skillCountDesc": "已載入 {count} 項技能",
+      "mcpCountDesc": "已掛載 {count} 項 MCP 工具",
+      "overloadWarning": "作用中工具過多可能會導致延遲增加並提高 Token 消耗。"
+    },
     "uploadFailed": "上傳失敗",
     "skillActivation": {
       "remove": "移除已選技能"
@@ -1934,7 +1943,6 @@
     "previewLinks": "連結預覽",
     "regenerate": "重新生成",
     "regenerate_try_again": "重試",
-    "regenerate_frontier": "✨ 用更強模型深度重試",
     "regenerate_concise": "更簡潔",
     "regenerate_detailed": "更詳細",
     "regenerate_creative": "更有創意",
