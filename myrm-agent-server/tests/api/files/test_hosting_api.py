@@ -214,6 +214,33 @@ async def test_publish_passes_project_id_on_redeploy(hosting_client, mock_artifa
 
 
 @pytest.mark.asyncio
+async def test_publish_with_password_encryption(hosting_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Secret Content</h1>")}
+    with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
+            mock_vercel_instance = mock_vercel_class.return_value
+            mock_vercel_instance.deploy = AsyncMock(
+                return_value={
+                    "deployment_id": "dep_enc",
+                    "url": "https://enc.vercel.app",
+                    "project_id": "prj_enc",
+                    "status": "READY",
+                }
+            )
+            response = hosting_client.post(
+                f"/{mock_artifact.id}/publish",
+                json={"target_id": LEGACY_VERCEL_TARGET_ID, "token": "test_token", "password": "SecretPass123!"},
+            )
+    assert response.status_code == 200
+    deployed_files = mock_vercel_instance.deploy.call_args.kwargs["files"]
+    assert "index.html" in deployed_files
+    # Verify the deployed index.html is encrypted bootstrap HTML
+    assert "Protected Content" in deployed_files["index.html"].content
+    assert "Secret Content" not in deployed_files["index.html"].content
+
+
+@pytest.mark.asyncio
 async def test_list_hosting_targets(hosting_client, db_session):
     await save_hosting_targets(
         db_session,

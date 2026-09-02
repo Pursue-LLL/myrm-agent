@@ -153,6 +153,7 @@ export default function MessageActionBar({
             cacheSuggestedActions={message.cacheSuggestedActions}
             modelName={message.modelName}
             routingTier={message.routingTier}
+            routingReason={message.routingReason}
             modelTier={message.modelTier}
             privacyLevel={message.privacyLevel}
             privacyAction={message.privacyAction}

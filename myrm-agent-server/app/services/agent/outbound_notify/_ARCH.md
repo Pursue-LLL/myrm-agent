@@ -6,7 +6,7 @@ Agent 主动出站 Channel 通知：类型、白名单 target 解析、会话级
 
 上级文档：[../_ARCH.md](../_ARCH.md)。
 
-Agents 经 `app.ai_agents.general_agent.factory` → `factory_wiring.append_channel_notify_tool`（Turn1，`notify_targets` 配置时）挂载。投递失败经 DLQ + `channel_bridge.handle_dead_letter` 闭环。持久化 dedupe 见 `SqliteDeliveryNotifyLedger`（`state_dir/delivery_notify_ledger.db`）。子 Agent 不可继承 notify 工具（`register_leaf_blocked_tools`）。
+Agents 经 `app.ai_agents.general_agent.factory` → `factory_wiring.append_channel_notify_tool`（Turn1，`notify_targets` 配置且非只读安全模式时）挂载。投递失败经 DLQ + `channel_bridge.handle_dead_letter` 闭环。持久化 dedupe 见 `SqliteDeliveryNotifyLedger`（`state_dir/delivery_notify_ledger.db`）。子 Agent 不可继承 notify 工具（`register_leaf_blocked_tools`）。只读安全预设阻断出站工具挂载以防止数据泄密。
 
 前端 recipient 选择：`GET /channels/manage/status`、`GET /channels/manage/pairings`。
 

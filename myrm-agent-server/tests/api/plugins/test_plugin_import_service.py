@@ -556,6 +556,9 @@ class TestConfirmPluginImport:
             "skipped_skills": 1,
             "imported_servers": 0,
             "skipped_servers": 1,
+            "imported_agents": 0,
+            "skipped_agents": 0,
+            "created_agent_ids": [],
             "required_secret_keys": [],
         }
         fake_store.save_skills_batch.assert_not_awaited()
@@ -723,6 +726,9 @@ class TestConfirmPluginImport:
             "skipped_skills": 1,
             "imported_servers": 0,
             "skipped_servers": 0,
+            "imported_agents": 0,
+            "skipped_agents": 0,
+            "created_agent_ids": [],
             "required_secret_keys": [],
         }
         fake_store.save_skills_batch.assert_not_awaited()
@@ -779,6 +785,9 @@ class TestConfirmPluginImport:
             "skipped_skills": 1,
             "imported_servers": 0,
             "skipped_servers": 0,
+            "imported_agents": 0,
+            "skipped_agents": 0,
+            "created_agent_ids": [],
             "required_secret_keys": [],
         }
         fake_store.save_skills_batch.assert_not_awaited()
@@ -832,6 +841,9 @@ class TestConfirmPluginImport:
             "skipped_skills": 0,
             "imported_servers": 0,
             "skipped_servers": 0,
+            "imported_agents": 0,
+            "skipped_agents": 0,
+            "created_agent_ids": [],
             "required_secret_keys": [],
         }
         fake_store.save_skills_batch.assert_awaited_once()

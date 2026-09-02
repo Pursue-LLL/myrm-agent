@@ -9,9 +9,6 @@ from app.ai_agents.general_agent.tools._tool_layer_bootstrap import (
 
 
 class TestServerToolLayerRegistration:
-    def test_x_search_tool_registered(self) -> None:
-        assert _SERVER_TOOL_LAYERS.get("x_search_tool") == ToolLayer.EXTERNAL
-
     def test_channel_notify_tool_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("channel_notify_tool") == ToolLayer.EXTERNAL
 

@@ -56,7 +56,7 @@ def _stop_on_tools_snapshot(
 def test_agent_stream_tools_snapshot_semantic_layer_slugs(
     client: TestClient,
 ) -> None:
-    """Turn1 tools_snapshot rows use core/common/extended/external slugs (not digits)."""
+    """Turn1 tools_snapshot rows use core/high_priority/extended/external slugs (not digits)."""
     chat_id = f"test_layer_slug_{uuid.uuid4().hex[:8]}"
     payload: dict[str, object] = {
         "query": "Reply OK.",

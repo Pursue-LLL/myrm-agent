@@ -43,7 +43,7 @@ class TestDialogPolicyConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.dialog_policy == "wait_for_agent"
 
     @pytest.mark.asyncio
@@ -53,7 +53,7 @@ class TestDialogPolicyConverterIntegration:
 
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.dialog_policy is None
 
     @pytest.mark.asyncio
@@ -67,7 +67,7 @@ class TestDialogPolicyConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.dialog_policy == "auto_accept"
 
     @pytest.mark.asyncio
@@ -81,7 +81,7 @@ class TestDialogPolicyConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.dialog_policy == "auto_dismiss"
 
     @pytest.mark.asyncio
@@ -95,7 +95,7 @@ class TestDialogPolicyConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.dialog_policy == "smart"
 
     @pytest.mark.asyncio
@@ -125,7 +125,7 @@ class TestDialogPolicyConverterIntegration:
             "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
             assert params.dialog_policy == "wait_for_agent"
 
 
@@ -163,7 +163,7 @@ class TestSessionRecordingConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.session_recording == "always"
 
     @pytest.mark.asyncio
@@ -177,7 +177,7 @@ class TestSessionRecordingConverterIntegration:
         }
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.session_recording == "on_failure"
 
     @pytest.mark.asyncio
@@ -187,7 +187,7 @@ class TestSessionRecordingConverterIntegration:
 
         request = AgentRequest(**base_request)
 
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
         assert params.session_recording is None
 
     @pytest.mark.asyncio
@@ -217,7 +217,7 @@ class TestSessionRecordingConverterIntegration:
             "app.services.agent.profile.profile_resolver.get_agent_profile_resolver",
             return_value=mock_resolver,
         ):
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
             assert params.session_recording == "on_failure"
 
 

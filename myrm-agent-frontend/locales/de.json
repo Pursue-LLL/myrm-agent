@@ -251,20 +251,12 @@
       "goalResumed": "Ziel fortgesetzt",
       "goalCleared": "Ziel gelöscht",
       "goalActionFailed": "Zielbefehl fehlgeschlagen",
-      "pet": "Haustier-Galerie öffnen oder Sprite-Overlay verwalten",
-      "petDisabled": "Companion mode is disabled — enable it in Settings",
-      "petOverlayEnabled": "Haustier-Sprite-Overlay aktiviert",
-      "petOverlayDisabled": "Haustier-Sprite-Overlay ausgeblendet",
-      "petInstalled": "Installiertes Haustier: {name}",
-      "petInstallFailed": "Installation des Haustiers fehlgeschlagen",
-      "petNoActive": "No pet installed — opening pet palette",
-      "ask": "Offener Sitzungsberater für schreibgeschützte Fragen und Antworten auf der Seite (/side)",
-      "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen und Antworten während ein Lauf aktiv ist, verwenden Sie stattdessen /ask oder /side.",
       "loop": "Wiederkehrende geplante Aufgabe für diese Konversation erstellen oder verwalten",
       "loopUsage": "Verwendung: /loop [Intervall] <Prompt> (z.B. /loop 10m Deploy prüfen, /loop 1h Überwachung)",
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
-      "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden"
+      "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden",
+      "pet": "Haustier-Galerie öffnen oder Sprite-Overlay verwalten"
     }
   },
   "copilot": {
@@ -5341,6 +5333,10 @@
       "tokenLabel": "Vercel-Token",
       "tokenPlaceholder": "Override-Token",
       "tokenHint": "Anmeldedaten werden in den Einstellungen gespeichert.",
+      "enablePasswordProtection": "Passwortschutz aktivieren",
+      "passwordLabel": "Zugangspasswort",
+      "passwordPlaceholder": "Zugangspasswort eingeben...",
+      "passwordHint": "Verschlüsselt mit clientseitigem AES-256-GCM. Besucher müssen dieses Passwort eingeben.",
       "publishNow": "Jetzt veröffentlichen",
       "publishing": "Veröffentliche…",
       "successTitle": "Veröffentlicht",

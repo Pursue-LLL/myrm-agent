@@ -77,6 +77,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
             memoryBriefStatus: data.memory_brief_status,
             routingTier: ctx.meta?.routingTier,
             routingSpecialty: ctx.meta?.routingSpecialty,
+            routingReason: ctx.meta?.routingReason,
             modelTier: ctx.meta?.modelTier,
           });
           messageIndex = state.messages.length - 1;

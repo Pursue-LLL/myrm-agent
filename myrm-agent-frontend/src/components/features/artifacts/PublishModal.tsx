@@ -51,6 +51,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const [targets, setTargets] = useState<HostingTarget[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState('');
   const [tokenOverride, setTokenOverride] = useState('');
+  const [enablePassword, setEnablePassword] = useState(false);
+  const [password, setPassword] = useState('');
   const [status, setStatus] = useState<'IDLE' | 'PUBLISHING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [logs, setLogs] = useState<string[]>([]);
   const [publishUrl, setPublishUrl] = useState('');
@@ -67,6 +69,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const canPublish =
     Boolean(selectedTargetId) &&
     (platformAvailable || !showVercelToken || tokenOverride.trim().length > 0) &&
+    (!enablePassword || password.trim().length > 0) &&
     preflight?.deployable !== false;
 
   const notifyPublished = useCallback(
@@ -88,6 +91,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     setCopied(false);
     setPlatformAvailable(false);
     setTokenOverride('');
+    setEnablePassword(false);
+    setPassword('');
     isIntentionalClose.current = false;
 
     let cancelled = false;
@@ -175,7 +180,12 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     isIntentionalClose.current = false;
 
     try {
-      const data = await publishArtifact(artifact.id, selectedTargetId, tokenOverride.trim());
+      const data = await publishArtifact(
+        artifact.id,
+        selectedTargetId,
+        tokenOverride.trim(),
+        enablePassword ? password.trim() : '',
+      );
       const providerRef = data.provider_publication_ref;
       const initialUrl = data.publication_url || data.url;
       const publicationStatus = data.publication_status || data.status || 'PUBLISHING';
@@ -331,6 +341,41 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                     className="w-full font-mono text-sm rounded-xl bg-muted/40 border-border focus-visible:ring-primary/40"
                   />
                   <p className="text-xs text-muted-foreground">{t('tokenHint')}</p>
+                </div>
+              )}
+
+              {targets.length > 0 && (
+                <div className="space-y-3 pt-1 border-t border-border/50">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="enable-password-protection" className="text-sm font-medium cursor-pointer">
+                      {t('enablePasswordProtection')}
+                    </Label>
+                    <input
+                      id="enable-password-protection"
+                      type="checkbox"
+                      checked={enablePassword}
+                      onChange={(e) => setEnablePassword(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary/40 cursor-pointer"
+                    />
+                  </div>
+
+                  {enablePassword && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <Label htmlFor="publish-password" className="text-sm font-medium">
+                        {t('passwordLabel')}
+                      </Label>
+                      <Input
+                        id="publish-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={t('passwordPlaceholder')}
+                        disabled={loading}
+                        className="w-full font-mono text-sm rounded-xl bg-muted/40 border-border focus-visible:ring-primary/40"
+                      />
+                      <p className="text-xs text-muted-foreground">{t('passwordHint')}</p>
+                    </div>
+                  )}
                 </div>
               )}
 

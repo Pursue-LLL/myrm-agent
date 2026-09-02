@@ -24,12 +24,15 @@ def append_channel_notify_tool(
     tools: list[BaseTool],
     *,
     allowed_roots: tuple[str, ...] = (),
+    is_readonly: bool = False,
 ) -> int:
     """Append channel_notify_tool when notify_targets are configured.
 
     Returns the number of allowed targets when the tool was appended, else 0.
+    In read-only mode (is_readonly=True), outbound notifications are blocked
+    to prevent egress data leaks.
     """
-    if not notify_targets:
+    if not notify_targets or is_readonly:
         return 0
 
     from .channel_notify_tool import create_channel_notify_tool

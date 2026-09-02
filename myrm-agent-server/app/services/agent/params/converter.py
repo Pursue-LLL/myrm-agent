@@ -371,7 +371,13 @@ async def convert_to_general_agent_params(
                     logger.debug("Failed to fetch recent routing tiers: %s", exc)
 
             complaint_min_tier: RoutingTier | None = None
-            is_complaint_up = request.sibling_group_id and not request.regenerate_instruction
+            is_complaint_up = bool(
+                request.sibling_group_id
+                and (
+                    not request.regenerate_instruction
+                    or request.regenerate_instruction == "__complaint_up__"
+                )
+            )
             if is_complaint_up and recent_routing_tiers:
                 _tier_next = {
                     RoutingTier.SIMPLE: RoutingTier.STANDARD,
@@ -644,7 +650,7 @@ async def convert_to_general_agent_params(
 
     tool_gateway_config = merge_tool_gateway_config(tool_gateway_config if isinstance(tool_gateway_config, dict) else None)
 
-    if request.regenerate_instruction:
+    if request.regenerate_instruction and request.regenerate_instruction != "__complaint_up__":
         regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
         user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
 

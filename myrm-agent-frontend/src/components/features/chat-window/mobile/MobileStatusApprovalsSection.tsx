@@ -3,6 +3,7 @@
 import { ShieldCheck, ShieldX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
+import { HoldToApproveButton } from './HoldToApproveButton';
 import VisualApprovalRequestRenderer from '@/components/features/chat-window/approval/VisualApprovalRequestRenderer';
 import SingleApprovalCard from '@/components/features/chat-window/SingleApprovalCard';
 import type { ToolApprovalRequest } from '@/store/chat/types';
@@ -72,15 +73,11 @@ export function MobileStatusApprovalsSection({
               <ShieldX className="mr-1 h-3.5 w-3.5" />
               {tToolApproval('rejectAll')}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => void onApproveAll(modalRequests)}
+            <HoldToApproveButton
+              label={t('approveAll')}
+              onTrigger={() => void onApproveAll(modalRequests)}
               disabled={isApprovalLoading}
-            >
-              {t('approveAll')}
-            </Button>
+            />
           </div>
         )}
       </div>

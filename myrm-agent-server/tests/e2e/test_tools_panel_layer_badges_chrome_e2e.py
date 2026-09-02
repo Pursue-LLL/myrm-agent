@@ -297,7 +297,7 @@ _LAYER_BADGES_READY_JS = """(() => {
     .map((el) => (el.textContent || '').trim())
     .filter(Boolean);
   const hasCore = /(?:^|\\s)(核心|Core)(?:\\s|$)/m.test(text);
-  const hasHighPriority = /(?:^|\\s)(高优|High Priority|通用|Common)(?:\\s|$)/m.test(text);
+  const hasHighPriority = /(?:^|\\s)(高优|High Priority)(?:\\s|$)/m.test(text);
   const hasExtended = /(?:^|\\s)(扩展|Extended)(?:\\s|$)/m.test(text);
   const hasDigitLayer = badges.some((label) => /^[1-4]$/.test(label));
   return {

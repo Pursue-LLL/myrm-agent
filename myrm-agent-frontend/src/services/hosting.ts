@@ -136,11 +136,16 @@ export async function fetchPublishPreflight(artifactId: string, targetId?: strin
   return (await response.json()) as PublishPreflight;
 }
 
-export async function publishArtifact(artifactId: string, targetId: string, token = ''): Promise<PublishResult> {
+export async function publishArtifact(
+  artifactId: string,
+  targetId: string,
+  token = '',
+  password = '',
+): Promise<PublishResult> {
   const response = await fetch(getApiUrl(`/files/artifacts/${artifactId}/publish`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target_id: targetId, token }),
+    body: JSON.stringify({ target_id: targetId, token, password }),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { detail?: string };

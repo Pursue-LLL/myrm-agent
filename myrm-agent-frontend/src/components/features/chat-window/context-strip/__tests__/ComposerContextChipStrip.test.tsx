@@ -8,18 +8,20 @@ import { ComposerContextChipStrip } from '../ComposerContextChipStrip';
 import { ContextChipItem } from '../ContextChipItem';
 import { ActiveCapabilityBadge } from '../ActiveCapabilityBadge';
 
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params) {
+    let str = key;
+    for (const [k, v] of Object.entries(params)) {
+      str += `:${k}=${String(v)}`;
+    }
+    return str;
+  }
+  return key;
+};
+
 // Mock translations
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) {
-      let str = key;
-      for (const [k, v] of Object.entries(params)) {
-        str += `:${k}=${String(v)}`;
-      }
-      return str;
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 // Mock store states

@@ -189,7 +189,7 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
   const { chatId, loading, selectedPersona } = useChatStore.getState();
 
   if (loading) {
-    showI18nToast('commands.builtin.loopBlockedWhileStreaming', undefined, { type: 'warning' });
+    showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'warning' });
     return { success: false, error: 'Cannot create loop task while streaming' };
   }
 
@@ -232,11 +232,11 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
       return { success: true, newInputValue: '' };
     }
 
-    showI18nToast('commands.builtin.loopFailed', undefined, { type: 'error' });
+    showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'error' });
     return { success: false, error: 'Failed to create loop job' };
   } catch (error) {
     console.error('[LoopSlashCommand] Creation exception:', error);
-    showI18nToast('commands.builtin.loopFailed', undefined, { type: 'error' });
+    showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'error' });
     return { success: false, error: 'Loop command exception' };
   }
 }

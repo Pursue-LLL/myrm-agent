@@ -251,20 +251,12 @@
       "goalResumed": "目標を再開しました",
       "goalCleared": "目標をクリアしました",
       "goalActionFailed": "目標コマンドが失敗しました",
-      "pet": "ペットギャラリーを開くか、スプライトオーバーレイを管理する",
-      "petDisabled": "コンパニオンモードが無効です — 設定で有効にしてください",
-      "petOverlayEnabled": "ペットスプライトオーバーレイを有効にしました",
-      "petOverlayDisabled": "ペットスプライトオーバーレイを非表示にしました",
-      "petInstalled": "ペットをインストールしました: {name}",
-      "petInstallFailed": "ペットのインストールに失敗しました",
-      "petNoActive": "インストール済みのペットがありません — ペットパレットを開きます",
-      "ask": "セッションアドバイザーを開いて読み取り専用のサイドQ&Aを行う（/side）",
-      "btwDisambiguation": "Myrmでは /btw はバックグラウンドタスクを開始します。実行中にサイドQ&Aを行うには /ask または /side を使用してください。",
       "loop": "この会話の定期スケジュールタスクを作成または管理する",
       "loopUsage": "使用法: /loop [間隔] <プロンプト> (例: /loop 10m デプロイ確認, /loop 1h 競合監視)",
       "loopMissingPrompt": "/loop のタスクプロンプトを入力してください",
       "loopCreated": "定期ループタスクを作成しました (間隔: {interval})。初回実行を開始しました",
-      "loopCreateFailed": "ループタスクの作成に失敗しました"
+      "loopCreateFailed": "ループタスクの作成に失敗しました",
+      "pet": "ペットギャラリーを開くか、スプライトオーバーレイを管理する"
     }
   },
   "copilot": {
@@ -5241,6 +5233,10 @@
       "tokenLabel": "Vercel トークン",
       "tokenPlaceholder": "上書き使用トークン",
       "tokenHint": "認証情報は Settings に保存されます。",
+      "enablePasswordProtection": "パスワード保護を有効にする",
+      "passwordLabel": "アクセスパスワード",
+      "passwordPlaceholder": "アクセスパスワードを入力...",
+      "passwordHint": "クライアント側 AES-256-GCM で暗号化されます。閲覧にはパスワードが必要です。",
       "publishNow": "今すぐ公開",
       "publishing": "リリース中…",
       "successTitle": "公開しました",

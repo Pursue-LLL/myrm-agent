@@ -9,7 +9,7 @@ from app.api.security.router import (
     get_dual_track_audit_entries,
     get_dual_track_audit_stats,
 )
-from app.services.security.platform_audit import get_default_audit_collector
+from app.services.security.dual_track_audit import get_default_audit_collector
 
 
 def test_dual_track_audit_api_handlers():

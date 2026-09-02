@@ -24,7 +24,6 @@ from myrm_agent_harness.agent.tool_management import ToolLayer, register_tool_la
 
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     # EXTERNAL: opt-in business tools that depend on server-specific SDKs/APIs.
-    "x_search_tool": ToolLayer.EXTERNAL,
     "channel_notify_tool": ToolLayer.EXTERNAL,
     "image_tool": ToolLayer.EXTERNAL,
     "video_tool": ToolLayer.EXTERNAL,

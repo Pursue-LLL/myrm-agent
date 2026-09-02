@@ -40,7 +40,11 @@ class ArtifactPublishInput(BaseModel):
     )
     hosting_target_id: str = Field(
         default="",
-        description=("Optional hosting target ID. Leave empty to use the user's default target."),
+        description="Optional hosting target ID. Leave empty to use the user's default target.",
+    )
+    password: str = Field(
+        default="",
+        description="Optional password to encrypt the static artifact with zero-knowledge AES-256-GCM protection.",
     )
 
 
@@ -55,6 +59,7 @@ def create_artifact_publish_tool() -> BaseTool:
     async def artifact_publish_func(
         artifact_id: str,
         hosting_target_id: str = "",
+        password: str = "",
     ) -> dict[str, Any]:
         from app.database.connection import get_session
         from app.services.hosting.orchestrator import publish_artifact_to_target
@@ -79,6 +84,7 @@ def create_artifact_publish_tool() -> BaseTool:
                 artifact_id,
                 workspace_root,
                 hosting_target_id=target_id,
+                password=password.strip(),
             )
 
             if not result.success:

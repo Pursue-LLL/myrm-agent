@@ -15,9 +15,7 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import secrets
-from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
@@ -276,9 +274,13 @@ def _render_decryptor_html(encrypted_data: dict[str, str], title: str = "Protect
 
       let htmlContent = entryFile.encoding === "base64" ? atob(entryFile.content) : entryFile.content;
 
-      // Replace static assets with Blob URLs in HTML
-      for (const [path, file] of Object.entries(vfs)) {{
-        if (path === "index.html" || path.endsWith(".html")) continue;
+      // Replace static assets with Blob URLs in HTML (sorted by descending length to prevent partial prefix replacement)
+      const assetKeys = Object.keys(vfs)
+        .filter(k => k !== "index.html" && !k.endsWith(".html"))
+        .sort((a, b) => b.length - a.length);
+
+      for (const path of assetKeys) {{
+        const file = vfs[path];
         let mime = "application/octet-stream";
         if (path.endsWith(".css")) mime = "text/css";
         else if (path.endsWith(".js") || path.endsWith(".mjs")) mime = "application/javascript";
@@ -295,8 +297,9 @@ def _render_decryptor_html(encrypted_data: dict[str, str], title: str = "Protect
           blob = new Blob([file.content], {{ type: mime }});
         }}
         const blobUrl = URL.createObjectURL(blob);
-        htmlContent = htmlContent.split(path).join(blobUrl);
         htmlContent = htmlContent.split("./" + path).join(blobUrl);
+        htmlContent = htmlContent.split("/" + path).join(blobUrl);
+        htmlContent = htmlContent.split(path).join(blobUrl);
       }}
 
       const finalBlob = new Blob([htmlContent], {{ type: "text/html" }});

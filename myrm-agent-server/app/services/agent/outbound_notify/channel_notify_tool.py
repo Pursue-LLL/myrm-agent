@@ -89,7 +89,7 @@ def _resolve_attachments(
             if resolved_path is None:
                 errors.append(f"Path not allowed (must be under agent workspace): {entry}")
                 continue
-            if not os.path.isfile(resolved_path):
+            if not os.path.exists(resolved_path) or not os.path.isfile(resolved_path):
                 errors.append(f"File not found: {entry}")
                 continue
 

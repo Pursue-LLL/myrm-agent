@@ -317,6 +317,14 @@ describe('builtin action execute functions', () => {
     });
   });
 
+  describe('/loop', () => {
+    it('delegates to executeLoopSlashCommand', async () => {
+      const loopAction = actions.find((a) => a.name === 'loop')!;
+      const result = await loopAction.execute('/loop');
+      expect(result).toHaveProperty('success');
+    });
+  });
+
   describe('all actions return ActionResult shape', () => {
     it('all execute functions return objects with success field', async () => {
       for (const action of actions) {

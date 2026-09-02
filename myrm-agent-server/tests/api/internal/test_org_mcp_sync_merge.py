@@ -129,6 +129,6 @@ async def test_org_mcp_reaches_agent_params(_cleanup: None) -> None:
         action_mode="agent",
         model_selection={"providerId": "test-provider", "model": "agnes-2.5-flash"},
     )
-    params, routing, specialty, warnings, archive = await convert_to_general_agent_params(request, [["user", "hello"]])
+    params, *rest = await convert_to_general_agent_params(request, [["user", "hello"]])
     mcp_names = [(c.name, c.type) for c in (params.mcp_cfg or [])]
     assert ("org-probe", "stdio") in mcp_names

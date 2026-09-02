@@ -17,8 +17,6 @@ from myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec import (
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.agent.tool_management.types import ToolSource
 
-from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
-
 
 def _register_eager_tools(tools: list[object]) -> ToolRegistry:
     registry = ToolRegistry()
@@ -140,35 +138,6 @@ def test_render_ui_skips_seed_without_workspace_roots() -> None:
     mixin._setup_search_and_basic_tools(tools)
 
     assert any(getattr(t, "name", None) == "render_ui_tool" for t in tools)
-
-
-def test_x_search_tool_eager_when_skill_bound() -> None:
-    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
-
-    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
-    mixin.enable_web_search = False
-    mixin.search_service_cfg = None
-    mixin.reranker_config = None
-    mixin.enable_advanced_retrieval = False
-    mixin.embedding_config = None
-    mixin.fetch_raw_webpage = False
-    mixin.enable_render_ui = False
-    mixin.image_generation_params = None
-    mixin.video_generation_params = None
-    mixin.tts_params = None
-    mixin.search_depth = "normal"
-    mixin.model_cfg = MagicMock(model="test-model", api_key="k", base_url="http://localhost")
-    mixin.skill_ids = [X_LIVE_SEARCH_SKILL_ID]
-
-    tools: list[object] = []
-
-    with patch("app.config.deploy_mode.is_local_mode", return_value=True):
-        mixin._setup_search_and_basic_tools(tools)
-
-    assert any(getattr(t, "name", None) == "x_search_tool" for t in tools)
-
-    registry = _register_eager_tools(tools)
-    _assert_turn1_eager(registry, "x_search_tool")
 
 
 @pytest.mark.asyncio

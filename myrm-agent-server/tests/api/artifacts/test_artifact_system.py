@@ -438,3 +438,102 @@ class TestArtifactRegistry:
         files = registry.get_all_files()
         assert len(files) == 1
         assert files[0].path == "/workspace/normal.txt"
+
+
+class TestArtifactBundleIntegration:
+    """测试工件交付物打包全链路集成"""
+
+    def test_bundle_manifest_and_zip_materialization(self, tmp_path) -> None:
+        """测试从工件模型到多目录ZIP打包与Manifest自描述的端到端链路"""
+        import io
+        import json
+        import zipfile
+        from myrm_agent_harness.agent.artifacts.bundle_manifest import (
+            DeliverableCategory,
+            DeliverableItem,
+            DeliverableManifest,
+        )
+        from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+        from app.database.models.artifact import Artifact, ArtifactVersion
+        from app.services.artifacts.bundle_builder import build_zip_deliverable_bundle
+
+        vault = ArtifactVault(str(tmp_path))
+
+        # 写入两个工件到 vault
+        uri1 = vault.put(
+            b"# Marketing Strategy\nTarget audience analysis.",
+            "campaign_strategy.md",
+            content_type="text/markdown",
+        )
+        uri2 = vault.put(
+            b"fake-png-binary-data",
+            "banner.png",
+            content_type="image/png",
+        )
+
+        # 构造工件与版本模型
+        v1 = ArtifactVersion(
+            id="v-1",
+            artifact_id="art-strat",
+            vault_uri=uri1,
+            sha256_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        )
+        a1 = Artifact(
+            id="art-strat",
+            name="campaign_strategy.md",
+            description="Campaign Strategy Document",
+            versions=[v1],
+        )
+
+        v2 = ArtifactVersion(
+            id="v-2",
+            artifact_id="art-visual",
+            vault_uri=uri2,
+            sha256_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        )
+        a2 = Artifact(
+            id="art-visual",
+            name="banner.png",
+            description="Visual Banner",
+            versions=[v2],
+        )
+
+        # 显式构造 manifest
+        manifest = DeliverableManifest(
+            bundle_id="bundle-e2e-001",
+            title="Q3 AI Launch Campaign",
+            description="Full campaign assets",
+            items=[
+                DeliverableItem(
+                    id=a1.id,
+                    filename=a1.name,
+                    relative_path="01_strategy_and_overview/campaign_strategy.md",
+                    category=DeliverableCategory.STRATEGY,
+                ),
+                DeliverableItem(
+                    id=a2.id,
+                    filename=a2.name,
+                    relative_path="03_visual_and_media/banner.png",
+                    category=DeliverableCategory.VISUAL,
+                ),
+            ],
+        )
+
+        zip_buf = build_zip_deliverable_bundle([a1, a2], vault, manifest=manifest)
+        assert isinstance(zip_buf, io.BytesIO)
+
+        with zipfile.ZipFile(zip_buf, "r") as zf:
+            namelist = zf.namelist()
+            assert "manifest.json" in namelist
+            assert "README.md" in namelist
+            assert "01_strategy_and_overview/campaign_strategy.md" in namelist
+            assert "03_visual_and_media/banner.png" in namelist
+
+            manifest_content = json.loads(zf.read("manifest.json").decode("utf-8"))
+            assert manifest_content["bundle_id"] == "bundle-e2e-001"
+            assert len(manifest_content["items"]) == 2
+
+            readme_text = zf.read("README.md").decode("utf-8")
+            assert "Q3 AI Launch Campaign" in readme_text
+            assert "campaign_strategy.md" in readme_text
+

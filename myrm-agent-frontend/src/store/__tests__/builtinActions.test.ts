@@ -86,6 +86,7 @@ describe('buildBuiltinActions', () => {
         'learn',
         'fork',
         'goal',
+        'loop',
         'pet',
       ]),
     );

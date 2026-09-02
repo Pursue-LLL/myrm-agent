@@ -43,7 +43,7 @@ class TestToolGatewayConverterIntegration:
             return_value=platform,
         ):
             request = AgentRequest(**base_request)
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
 
         assert params.tool_gateway_config is not None
         assert params.tool_gateway_config["use_gateway"] is True
@@ -78,7 +78,7 @@ class TestToolGatewayConverterIntegration:
             return_value=platform,
         ):
             request = AgentRequest(**base_request)
-            params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+            params, *rest = await convert_to_general_agent_params(request, [])
 
         assert params.tool_gateway_config is not None
         assert params.tool_gateway_config["gateway_url"] == "https://agent.example/gw"
@@ -95,6 +95,6 @@ class TestToolGatewayConverterIntegration:
         monkeypatch.setattr("app.config.deploy_mode.is_sandbox", lambda: False)
 
         request = AgentRequest(**base_request)
-        params, _, _, _, _ = await convert_to_general_agent_params(request, [])
+        params, *rest = await convert_to_general_agent_params(request, [])
 
         assert params.tool_gateway_config is None

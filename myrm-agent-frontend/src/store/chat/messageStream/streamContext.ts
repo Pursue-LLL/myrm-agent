@@ -16,6 +16,7 @@ import type { StreamHandlerActions, StreamHandlerState } from './types';
 export type TurnMeta = {
   routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
   routingSpecialty?: 'code' | 'long_doc' | 'reasoning' | 'multimodal' | 'casual' | 'general';
+  routingReason?: string;
   modelTier?: 'weak' | 'medium';
 };
 

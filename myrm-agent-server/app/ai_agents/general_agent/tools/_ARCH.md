@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-通用 Agent 业务层 LLM 工具。`x_search_provider.py` 提供 xAI API 客户端；eager 工厂在 `app/services/integrations/tools/x_live_search.py`，由 `tool_setup._setup_x_live_search_tool` 在 skill 绑定后进 Turn1 `tools`（不依赖 `enable_web_search`）。UI 渲染（`render_ui_tool`）在 harness `agent/meta_tools/interaction/`，由 `enabled_builtin_tools` 含 `render_ui` 时 Turn1 eager 加载。
+通用 Agent 业务层 LLM 工具。UI 渲染（`render_ui_tool`）在 harness `agent/meta_tools/interaction/`，由 `enabled_builtin_tools` 含 `render_ui` 时 Turn1 eager 加载。
 
 记忆读平面已迁入 harness `memory_search_tool(corpus=...)`；wiki 与会话 provider 在 `tool_setup._create_memory_tools` 绑定。工具描述 locale 由 `app/core/agent/tool_description_locale.py` 解析后经 `description_locale` 传入 harness。
 
@@ -16,4 +16,3 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `_tool_layer_bootstrap.py` | ✅ 核心 | Server vendor `@tool` → harness `_TOOL_LAYERS` as EXTERNAL；`channel_notify_tool` 同时注册 `register_leaf_blocked_tools`（子 Agent 不可继承） |
-| `x_search_provider.py` | ✅ 核心 | xAI Live Search API 客户端（`XSearchProvider`）；含日期校验、5xx/timeout 异步重试（max 2）、降级检测（filter 无 citation 时警告）、双通道 citation 合并。供 `integrations/tools/x_live_search.py` 调用 |

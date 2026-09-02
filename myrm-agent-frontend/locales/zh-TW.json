@@ -251,20 +251,12 @@
       "goalResumed": "目標已恢復",
       "goalCleared": "目標已清除",
       "goalActionFailed": "目標命令執行失敗",
-      "pet": "打開寵物圖鑑或管理精靈覆蓋層",
-      "petDisabled": "伴侶模式未啟用 — 請在設定中開啟",
-      "petOverlayEnabled": "寵物精靈覆蓋層已顯示",
-      "petOverlayDisabled": "寵物精靈覆蓋層已隱藏",
-      "petInstalled": "已安裝寵物：{name}",
-      "petInstallFailed": "安裝寵物失敗",
-      "petNoActive": "尚未安裝寵物 — 正在打開寵物面板",
-      "ask": "打開會話顧問進行只讀旁路問答（/side）",
-      "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後臺任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。",
       "loop": "為當前對話建立或管理週期性循環任務",
       "loopUsage": "用法：/loop [間隔] <任務描述>（例如：/loop 10m 檢查建置狀態，/loop 1h 監控競品）",
       "loopMissingPrompt": "請輸入 /loop 循環任務的具體內容",
       "loopCreated": "已建立循環任務（週期：{interval}），已立即觸發首輪執行",
-      "loopCreateFailed": "建立循環任務失敗"
+      "loopCreateFailed": "建立循環任務失敗",
+      "pet": "打開寵物圖鑑或管理精靈覆蓋層"
     }
   },
   "copilot": {
@@ -5241,6 +5233,10 @@
       "tokenLabel": "Vercel Token",
       "tokenPlaceholder": "本次釋出使用的覆蓋 Token",
       "tokenHint": "憑證儲存在 Settings 中。僅在使用自己的 Vercel 賬戶時需要覆蓋。",
+      "enablePasswordProtection": "啟用密碼保護",
+      "passwordLabel": "訪問密碼",
+      "passwordPlaceholder": "輸入訪問密碼...",
+      "passwordHint": "使用客戶端 AES-256-GCM 零知識加密。訪客必須輸入此密碼才能解密查看。",
       "publishNow": "立即釋出",
       "publishing": "釋出中…",
       "successTitle": "釋出成功",

@@ -18,6 +18,7 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 | `credentials.py` | ✅ 核心 | 按 target 加密存储凭证 + legacy Vercel 迁移 |
 | `publication_store.py` | ✅ 核心 | `artifact_publications` 表 CRUD |
 | `packager.py` | ✅ 核心 | Vault 收集 + HTML 依赖解析 + 敏感目录排除 |
+| `crypto_packager.py` | ✅ 核心 | 静态产物零知识密码加密封包（VFS + Web Crypto AES-256-GCM 壳注入） |
 | `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用 |
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
 | `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |

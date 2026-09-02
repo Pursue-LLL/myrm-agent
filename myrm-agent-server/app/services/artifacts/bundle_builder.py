@@ -44,7 +44,9 @@ _INVALID_PATH_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 def sanitize_path_segment(segment: str) -> str:
     """Sanitize directory or filename segment against traversal and illegal characters."""
-    cleaned = _INVALID_PATH_CHARS_PATTERN.sub("_", segment).strip(" .")
+    cleaned = re.sub(r"\.\.+", "", segment)
+    cleaned = _INVALID_PATH_CHARS_PATTERN.sub("_", cleaned)
+    cleaned = re.sub(r"_+", "_", cleaned).strip(" ._")
     return cleaned or "unnamed"
 
 

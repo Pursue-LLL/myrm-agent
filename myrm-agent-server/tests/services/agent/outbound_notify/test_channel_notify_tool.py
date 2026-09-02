@@ -376,3 +376,23 @@ async def test_empty_attachment_entry_skipped(single_target_config: NotifyToolCo
     assert len(sender.calls) == 1
     _, _, media = sender.calls[0]
     assert len(media) == 1
+
+
+def test_factory_wiring_respects_readonly_mode() -> None:
+    from app.services.agent.outbound_notify.factory_wiring import (
+        append_channel_notify_tool,
+    )
+
+    tools: list = []
+    targets = ({"channel": "telegram", "recipient_id": "123", "label": "TG"},)
+
+    # When readonly is True, tool should NOT be appended
+    count = append_channel_notify_tool(targets, tools, is_readonly=True)
+    assert count == 0
+    assert len(tools) == 0
+
+    # When readonly is False, tool should be appended
+    count = append_channel_notify_tool(targets, tools, is_readonly=False)
+    assert count == 1
+    assert len(tools) == 1
+

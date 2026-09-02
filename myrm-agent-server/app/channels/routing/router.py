@@ -181,6 +181,9 @@ from app.channels.routing.router_constants import (
     _MAX_CONCURRENT_AGENTS,
     _STUCK_TASK_TIMEOUT,
 )
+from app.channels.routing.router_keys import (
+    routing_session_key,
+)
 from app.channels.routing.router_execution import (
     RouterExecutionMixin,
 )
@@ -601,6 +604,39 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 msg.channel,
                 msg.user_id or "",
             )
+
+            # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
+            chat_id = msg.chat_id or msg.sender_id
+            session_key = routing_session_key(msg.channel, chat_id)
+            active = self._active_tasks.get(session_key)
+            if active and active.steering_token and msg.content and isinstance(msg.content, str):
+                mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
+                if mode == "steer":
+                    active.steering_token.steer(msg.content.strip())
+                    preview = msg.content.strip()[:80] + "..." if len(msg.content.strip()) > 80 else msg.content.strip()
+                    reply = OutboundMessage(
+                        channel=msg.channel,
+                        recipient_id=chat_id,
+                        content=get_text(msg, "steering_applied", preview=preview),
+                        user_id=msg.user_id or "",
+                        thread_id=msg.thread_id,
+                        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                    )
+                    asyncio.create_task(self._bus.publish_outbound(reply))
+                    continue
+                elif mode == "redirect":
+                    active.steering_token.redirect(msg.content.strip())
+                    preview = msg.content.strip()[:80] + "..." if len(msg.content.strip()) > 80 else msg.content.strip()
+                    reply = OutboundMessage(
+                        channel=msg.channel,
+                        recipient_id=chat_id,
+                        content=get_text(msg, "steering_applied", preview=preview),
+                        user_id=msg.user_id or "",
+                        thread_id=msg.thread_id,
+                        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                    )
+                    asyncio.create_task(self._bus.publish_outbound(reply))
+                    continue
 
             self._gate.submit(msg)
 

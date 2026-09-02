@@ -242,6 +242,7 @@ async def publish_artifact(
         workspace_root,
         hosting_target_id=body.target_id,
         request_token=body.token,
+        password=body.password,
     )
     if not result.success:
         if result.status == "PREFLIGHT_FAILED":

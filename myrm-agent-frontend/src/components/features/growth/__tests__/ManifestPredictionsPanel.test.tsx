@@ -4,39 +4,39 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ManifestPredictionsPanel from '../ManifestPredictionsPanel';
 import * as skillService from '@/services/skill';
 
+const translationMap: Record<string, string> = {
+  title: 'Change Manifest & Prediction Attribution',
+  description: 'Records falsifiable metric hypotheses before evolution.',
+  manifestId: 'Manifest ID',
+  targetComponent: 'Target Component',
+  rationale: 'Rationale',
+  verdict: 'Verdict',
+  recommendedAction: 'Recommended Action',
+  confidence: 'Confidence',
+  metricsTitle: 'Falsifiable Metric Predictions vs Reality',
+  metricName: 'Metric',
+  baseline: 'Baseline',
+  predictedTarget: 'Predicted Target',
+  actualValue: 'Actual Value',
+  delta: 'Delta',
+  explanation: 'Explanation',
+  rollbackPatch: 'Rollback Patch',
+  viewRollbackPatch: 'View Rollback Patch',
+  hideRollbackPatch: 'Hide Rollback Patch',
+  evaluateNow: 'Verify Attribution Now',
+  evaluating: 'Verifying...',
+  'actions.keep': 'Keep Changes',
+  'actions.rollback': 'Rollback Suggested',
+  'actions.re_evaluate': 'Re-evaluate',
+  'verdicts.confirmed': 'Confirmed',
+  'verdicts.refuted': 'Refuted',
+  'verdicts.regression': 'Regression',
+  'verdicts.inconclusive': 'Inconclusive',
+};
+const stableT = (key: string) => translationMap[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      title: 'Change Manifest & Prediction Attribution',
-      description: 'Records falsifiable metric hypotheses before evolution.',
-      manifestId: 'Manifest ID',
-      targetComponent: 'Target Component',
-      rationale: 'Rationale',
-      verdict: 'Verdict',
-      recommendedAction: 'Recommended Action',
-      confidence: 'Confidence',
-      metricsTitle: 'Falsifiable Metric Predictions vs Reality',
-      metricName: 'Metric',
-      baseline: 'Baseline',
-      predictedTarget: 'Predicted Target',
-      actualValue: 'Actual Value',
-      delta: 'Delta',
-      explanation: 'Explanation',
-      rollbackPatch: 'Rollback Patch',
-      viewRollbackPatch: 'View Rollback Patch',
-      hideRollbackPatch: 'Hide Rollback Patch',
-      evaluateNow: 'Verify Attribution Now',
-      evaluating: 'Verifying...',
-      'actions.keep': 'Keep Changes',
-      'actions.rollback': 'Rollback Suggested',
-      'actions.re_evaluate': 'Re-evaluate',
-      'verdicts.confirmed': 'Confirmed',
-      'verdicts.refuted': 'Refuted',
-      'verdicts.regression': 'Regression',
-      'verdicts.inconclusive': 'Inconclusive',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('ManifestPredictionsPanel', () => {

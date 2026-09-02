@@ -10,7 +10,6 @@
 - ToolSetupMixin: 提供所有工具初始化方法的 Mixin 基类
 - _should_mount_ask_question_tool: interactive web_chat clarify mount predicate
 - _should_mount_render_ui_tools: inline A2UI mount predicate (WEB_CHAT + web/tauri surface)
-- _setup_x_live_search_tool: skill 绑定后 Turn1 eager x_search_tool（独立于 enable_web_search）
 - _setup_artifact_publish_tool: hosting 已配置时 conditional mount artifact_publish tool
 
 [POS]
@@ -30,8 +29,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
-
-from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
 from .external_agents import ExternalAgentsMixin
 
@@ -173,24 +170,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
         channel_name: str
         prompt_mode: str
 
-    def _setup_x_live_search_tool(self, tools: list[object]) -> None:
-        """Register eager x_search_tool when x-live-search skill is enabled.
-
-        Independent of enable_web_search — xAI Live Search does not require Tavily/Brave.
-        Skill binding is user opt-in; mounted Turn1 like other enabled capabilities.
-        """
-        if X_LIVE_SEARCH_SKILL_ID not in (self.skill_ids or []):
-            return
-        try:
-            from app.services.integrations.tools.x_live_search import (
-                create_x_live_search_tool,
-            )
-
-            tools.append(create_x_live_search_tool())
-            logger.info("Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID)
-        except Exception as e:
-            logger.debug("x_search_tool skipped: %s", e)
-
     def _setup_skill_market_tool(self, tools: list[object], market_backend: object) -> None:
         """Turn1 mount skill_market_tool via server product layer (not get_meta_tools)."""
         from myrm_agent_harness.agent.meta_tools.skills.market import (
@@ -312,8 +291,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             logger.info(f"🔍 已加载 web_search_tool (advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})")
-
-        self._setup_x_live_search_tool(tools)
 
         if _should_mount_render_ui_tools(
             enable_render_ui=self.enable_render_ui,
