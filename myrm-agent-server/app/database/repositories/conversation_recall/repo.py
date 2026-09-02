@@ -18,6 +18,7 @@ Conversation Recall 索引仓储。维护会话摘要文档与消息段 SQLite/F
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from sqlalchemy import text

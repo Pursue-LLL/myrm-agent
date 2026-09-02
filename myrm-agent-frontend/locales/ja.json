@@ -2104,6 +2104,7 @@
       "routingReasoning": "推論",
       "routingCode": "コード",
       "routingLongDoc": "長文ドキュメント",
+      "routingReasonTitle": "スマートルーティングの判定理由",
       "privacyLevel": "プライバシー",
       "privacyPseudonymized": "保護済み",
       "privacyS2": "機密",

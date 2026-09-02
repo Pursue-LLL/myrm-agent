@@ -264,7 +264,8 @@
       "loopUsage": "사용법: /loop [간격] <프롬프트> (예: /loop 10m 배포 확인, /loop 1h 모니터링)",
       "loopMissingPrompt": "/loop 작업 프롬프트를 입력하세요",
       "loopCreated": "예약된 루프 작업 생성됨 (간격: {interval}), 첫 실행 시작됨",
-      "loopCreateFailed": "루프 작업 생성 실패"
+      "loopFailed": "루프 작업 생성 실패",
+      "loopBlockedWhileStreaming": "에이전트가 응답 중일 때는 루프 작업을 생성할 수 없습니다"
     }
   },
   "copilot": {
@@ -1935,6 +1936,7 @@
       "compatMode": "호환성",
       "compatWeak": "라이트 모드",
       "compatMedium": "균형",
+      "routingReasonTitle": "스마트 라우팅 귀인 및 판정 이유",
       "modelBreakdown": "모델별 분석",
       "performance": "성능",
       "toolBreakdown": "도구별 분석",

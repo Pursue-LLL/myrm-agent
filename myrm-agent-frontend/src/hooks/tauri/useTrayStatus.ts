@@ -122,6 +122,26 @@ export function useTrayStatus() {
     void refreshTodayUsage();
   }, [liveness.state, refreshTodayUsage]);
 
+  // Sync dual-layer version info to desktop tray menu on startup
+  useEffect(() => {
+    if (!isTauriRuntime()) {
+      return;
+    }
+    fetch('/api/v1/health/info')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data === 'object') {
+          const harnessVer = (data as Record<string, unknown>).harness_version;
+          if (typeof harnessVer === 'string') {
+            import('@tauri-apps/api/core').then(({ invoke }) => {
+              void invoke('update_tray_info', { engineVersion: harnessVer });
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Budget-alert → native OS notification (Tauri only)
   useEffect(() => {
     if (!isTauriRuntime()) {
