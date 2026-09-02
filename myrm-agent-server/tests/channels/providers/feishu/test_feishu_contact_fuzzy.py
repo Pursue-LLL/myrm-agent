@@ -2,6 +2,7 @@
 
 from app.channels.providers.feishu.cards import (
     build_contact_disambiguation_card,
+    build_deliverable_card,
 )
 from app.channels.providers.feishu.contact_fuzzy import (
     FeishuContactFuzzyMatcher,

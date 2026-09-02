@@ -58,6 +58,8 @@ __all__ = [
     "ConversationRecallRow",
 ]
 
+logger = logging.getLogger(__name__)
+
 
 class ConversationRecallRepository:
     """Read/write repository for the conversation recall index."""

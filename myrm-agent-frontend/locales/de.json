@@ -264,7 +264,8 @@
       "loopUsage": "Verwendung: /loop [Intervall] <Prompt> (z.B. /loop 10m Deploy prüfen, /loop 1h Überwachung)",
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
-      "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden"
+      "loopFailed": "Loop-Aufgabe konnte nicht erstellt werden",
+      "loopBlockedWhileStreaming": "Kann keine Loop-Aufgabe erstellen, während der Agent antwortet"
     }
   },
   "copilot": {
@@ -1935,6 +1936,7 @@
       "compatMode": "Kompatibilität",
       "compatWeak": "Lite-Modus",
       "compatMedium": "Ausgewogen",
+      "routingReasonTitle": "Smart-Routing-Zuordnung und Begründung",
       "modelBreakdown": "Modellaufschlüsselung",
       "performance": "Leistung",
       "toolBreakdown": "Tool-Aufschlüsselung",
