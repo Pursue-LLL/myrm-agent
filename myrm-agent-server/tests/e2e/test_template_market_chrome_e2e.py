@@ -60,7 +60,7 @@ def test_expert_summon_funnel_summary_api():
         "trigger": "plus_popover_card",
         "template_kind": "team",
     }
-    ingested = http_json("POST", f"{api_url}/api/v1/statistics/expert-summon/events", json=event_payload)
+    ingested = http_json("POST", f"{api_url}/api/v1/statistics/expert-summon/events", body=event_payload)
     assert ingested.get("success") is True, ingested
     assert ingested["data"]["accepted"] is True
 

@@ -93,8 +93,8 @@ describe('TaskDeliverableBundle', () => {
   it('filters items when category tab is clicked', () => {
     render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
     
-    // Click on Strategy tab
-    const strategyTab = screen.getByText('Strategy & Overview');
+    // Click on Strategy tab (supports i18n mock and default message)
+    const strategyTab = screen.getByText(/Strategy & Overview|策略与方案/);
     fireEvent.click(strategyTab);
 
     // Strategy item is visible, others are filtered out

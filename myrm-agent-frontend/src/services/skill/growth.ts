@@ -441,3 +441,51 @@ export async function getSkillGrowthAuditStats(timeRangeDays: number): Promise<S
     timeRangeDays: response.time_range_days,
   };
 }
+
+export interface MetricPredictionRequest {
+  metric_name: string;
+  direction: 'increase' | 'decrease' | 'neutral' | 'preserve_min';
+  baseline_value: number;
+  target_value: number;
+  tolerance?: number;
+}
+
+export interface EvaluatePredictionManifestRequest {
+  manifest_id: string;
+  target_component: string;
+  rationale: string;
+  predictions: MetricPredictionRequest[];
+  actual_metrics: Record<string, number>;
+  rollback_patch?: string | null;
+}
+
+export interface MetricAttributionDetailResponse {
+  metric_name: string;
+  predicted_target: number;
+  actual_value: number;
+  delta: number;
+  verdict: 'confirmed' | 'refuted' | 'regression' | 'inconclusive';
+  explanation: string;
+}
+
+export interface ManifestAttributionResultResponse {
+  manifest_id: string;
+  overall_verdict: 'confirmed' | 'refuted' | 'regression' | 'inconclusive';
+  metric_attributions: MetricAttributionDetailResponse[];
+  confidence_score: number;
+  recommended_action: 'keep' | 'rollback' | 're_evaluate';
+}
+
+export async function evaluateManifestAttribution(
+  payload: EvaluatePredictionManifestRequest,
+): Promise<ManifestAttributionResultResponse> {
+  const response = await apiRequest<{ data: ManifestAttributionResultResponse } | ManifestAttributionResultResponse>(
+    '/skill-growth/manifest-attribution',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  );
+  return 'data' in response ? (response as { data: ManifestAttributionResultResponse }).data : response;
+}
+
