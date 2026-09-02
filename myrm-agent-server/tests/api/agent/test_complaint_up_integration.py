@@ -83,7 +83,7 @@ class TestComplaintUpEscalation:
                 convert_to_general_agent_params,
             )
 
-            _, routing_tier, _, _, _ = await convert_to_general_agent_params(request, [])
+            _, routing_tier, *rest = await convert_to_general_agent_params(request, [])
 
         assert mock_route.call_count == 1
         call_kwargs = mock_route.call_args

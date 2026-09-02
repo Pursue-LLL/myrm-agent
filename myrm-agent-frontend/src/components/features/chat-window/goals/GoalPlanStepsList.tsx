@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { ListTodo, Loader2, CheckCircle2, Circle, XCircle } from 'lucide-react';
+import { ListTodo, Loader2, CheckCircle2, Circle, XCircle, AlertCircle } from 'lucide-react';
 import type { PlanStep } from '@/store/chat/goals/usePlanStore';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -19,6 +19,8 @@ function StepStatusIcon({ status }: { status: PlanStep['status'] }) {
       return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
     case 'skipped':
       return <XCircle className="h-4 w-4 text-muted-foreground" />;
+    case 'blocked':
+      return <AlertCircle className="h-4 w-4 text-amber-500 dark:text-amber-400" />;
     default:
       return <Circle className="h-4 w-4 text-muted-foreground/50" />;
   }
@@ -44,7 +46,8 @@ export function GoalPlanStepsList({ goal, steps, compact = false }: GoalPlanStep
               'flex gap-3 rounded-2xl border p-3 transition-colors',
               step.status === 'in_progress' && 'border-primary/30 bg-primary/5',
               step.status === 'completed' && 'border-border/60 bg-muted/20',
-              step.status !== 'in_progress' && step.status !== 'completed' && 'border-border bg-card',
+              step.status === 'blocked' && 'border-amber-500/30 bg-amber-500/5',
+              step.status !== 'in_progress' && step.status !== 'completed' && step.status !== 'blocked' && 'border-border bg-card',
             )}
           >
             <StepStatusIcon status={step.status} />
