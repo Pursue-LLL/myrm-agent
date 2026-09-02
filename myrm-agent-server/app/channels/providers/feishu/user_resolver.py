@@ -22,7 +22,6 @@ from myrm_agent_harness.infra.tracing import get_meter
 
 from app.channels.core.user_resolver import UserResolverCache
 from app.channels.providers.feishu.contact_fuzzy import (
-    ContactCandidate,
     ContactMatchResult,
     FeishuContactFuzzyMatcher,
 )

@@ -264,7 +264,8 @@
       "loopUsage": "用法：/loop [間隔] <任務描述>（例如：/loop 10m 檢查建置狀態，/loop 1h 監控競品）",
       "loopMissingPrompt": "請輸入 /loop 循環任務的具體內容",
       "loopCreated": "已建立循環任務（週期：{interval}），已立即觸發首輪執行",
-      "loopCreateFailed": "建立循環任務失敗"
+      "loopFailed": "建立循環任務失敗",
+      "loopBlockedWhileStreaming": "Agent 正在生成回覆中，請稍後再建立循環任務"
     }
   },
   "copilot": {
@@ -2086,11 +2087,12 @@
       "routingReasoning": "推理",
       "routingCode": "程式碼",
       "routingLongDoc": "長文件",
-      "routingSimpleTooltip": "路由分級：適用於簡單查詢的快速響應模型",
-      "routingStandardTooltip": "路由分級：適用於日常任務的標準推理模型",
-      "routingReasoningTooltip": "路由分級：適用於複雜思考的高深度推理模型",
-      "routingCodeTooltip": "路由分級：適用於編程任務的專用代碼模型",
-      "routingLongDocTooltip": "路由分級：適用於大型文檔分析的超長上下文模型",
+      "routingReasonTitle": "智能調度歸因與分流判定",
+      "routingSimpleTooltip": "任務屬於日常問答/簡易對話，已自動分派至高吞吐輕量模型以大幅節省算力與回應耗時。",
+      "routingStandardTooltip": "任務屬於標準開發/文字處理，已自動分派至通用標準模型以兼顧品質與效能。",
+      "routingReasoningTooltip": "任務屬於深度邏輯推理/複雜架構設計，已自動分派至頂級推理大模型以保證嚴謹性。",
+      "routingCodeTooltip": "任務屬於長程程式碼重構與專精開發，已自動分派至程式碼專精模型。",
+      "routingLongDocTooltip": "任務包含超長文本或多檔案分析，已自動分派至長上下文模型。",
       "privacyLevel": "隱私",
       "privacyPseudonymized": "已保護",
       "privacyS2": "敏感",

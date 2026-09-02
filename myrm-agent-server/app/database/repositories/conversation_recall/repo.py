@@ -255,71 +255,90 @@ class ConversationRecallRepository:
             until=until,
         )
         params.update({"query": safe_query, "limit": limit})
-        segment_rows = (
-            (
-                await db.execute(
-                    text(f"""
-                    SELECT
-                        d.chat_id AS chat_id,
-                        d.title AS title,
-                        d.agent_id AS agent_id,
-                        d.source AS source,
-                        s.message_id AS message_id,
-                        snippet(conversation_recall_segments_fts, 0, '<mark>', '</mark>', '...', 56) AS snippet,
-                        d.summary AS summary,
-                        s.sent_at AS last_message_at,
-                        d.created_at AS created_at,
-                        d.updated_at AS updated_at,
-                        conversation_recall_segments_fts.rank AS rank,
-                        f.parent_chat_id AS fork_parent_id
-                    FROM conversation_recall_segments_fts
-                    JOIN conversation_recall_segments s ON s.id = conversation_recall_segments_fts.rowid
-                    JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
-                    LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
-                    WHERE conversation_recall_segments_fts MATCH :query
-                      AND d.is_excluded = 0
-                      {filters}
-                    ORDER BY conversation_recall_segments_fts.rank ASC, s.sent_at DESC, d.last_message_at DESC
-                    LIMIT :limit
-                """),
-                    params,
+        segment_rows = []
+        try:
+            segment_rows = (
+                (
+                    await db.execute(
+                        text(f"""
+                        SELECT
+                            d.chat_id AS chat_id,
+                            d.title AS title,
+                            d.agent_id AS agent_id,
+                            d.source AS source,
+                            s.message_id AS message_id,
+                            snippet(conversation_recall_segments_fts, 0, '<mark>', '</mark>', '...', 56) AS snippet,
+                            d.summary AS summary,
+                            s.sent_at AS last_message_at,
+                            d.created_at AS created_at,
+                            d.updated_at AS updated_at,
+                            conversation_recall_segments_fts.rank AS rank,
+                            f.parent_chat_id AS fork_parent_id
+                        FROM conversation_recall_segments_fts
+                        JOIN conversation_recall_segments s ON s.id = conversation_recall_segments_fts.rowid
+                        JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
+                        LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
+                        WHERE conversation_recall_segments_fts MATCH :query
+                          AND d.is_excluded = 0
+                          {filters}
+                        ORDER BY conversation_recall_segments_fts.rank ASC, s.sent_at DESC, d.last_message_at DESC
+                        LIMIT :limit
+                    """),
+                        params,
+                    )
                 )
+                .mappings()
+                .all()
             )
-            .mappings()
-            .all()
-        )
-        document_rows = (
-            (
-                await db.execute(
-                    text(f"""
-                    SELECT
-                        d.chat_id AS chat_id,
-                        d.title AS title,
-                        d.agent_id AS agent_id,
-                        d.source AS source,
-                        d.last_message_id AS message_id,
-                        snippet(conversation_recall_fts, -1, '<mark>', '</mark>', '...', 56) AS snippet,
-                        d.summary AS summary,
-                        d.last_message_at AS last_message_at,
-                        d.created_at AS created_at,
-                        d.updated_at AS updated_at,
-                        conversation_recall_fts.rank AS rank,
-                        f.parent_chat_id AS fork_parent_id
-                    FROM conversation_recall_fts
-                    JOIN conversation_recall_documents d ON d.id = conversation_recall_fts.rowid
-                    LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
-                    WHERE conversation_recall_fts MATCH :query
-                      AND d.is_excluded = 0
-                      {filters}
-                    ORDER BY conversation_recall_fts.rank ASC, d.last_message_at DESC, d.updated_at DESC
-                    LIMIT :limit
-                """),
-                    params,
+        except Exception as exc:
+            logger.warning("conversation_recall_segments_fts MATCH failed (degraded/rebuilding): %s", exc)
+            try:
+                await db.execute(text("INSERT INTO conversation_recall_segments_fts(conversation_recall_segments_fts) VALUES('rebuild')"))
+                logger.info("Auto-rebuilt conversation_recall_segments_fts successfully")
+            except Exception:
+                pass
+
+        document_rows = []
+        try:
+            document_rows = (
+                (
+                    await db.execute(
+                        text(f"""
+                        SELECT
+                            d.chat_id AS chat_id,
+                            d.title AS title,
+                            d.agent_id AS agent_id,
+                            d.source AS source,
+                            d.last_message_id AS message_id,
+                            snippet(conversation_recall_fts, -1, '<mark>', '</mark>', '...', 56) AS snippet,
+                            d.summary AS summary,
+                            d.last_message_at AS last_message_at,
+                            d.created_at AS created_at,
+                            d.updated_at AS updated_at,
+                            conversation_recall_fts.rank AS rank,
+                            f.parent_chat_id AS fork_parent_id
+                        FROM conversation_recall_fts
+                        JOIN conversation_recall_documents d ON d.id = conversation_recall_fts.rowid
+                        LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
+                        WHERE conversation_recall_fts MATCH :query
+                          AND d.is_excluded = 0
+                          {filters}
+                        ORDER BY conversation_recall_fts.rank ASC, d.last_message_at DESC, d.updated_at DESC
+                        LIMIT :limit
+                    """),
+                        params,
+                    )
                 )
+                .mappings()
+                .all()
             )
-            .mappings()
-            .all()
-        )
+        except Exception as exc:
+            logger.warning("conversation_recall_fts MATCH failed (degraded/rebuilding): %s", exc)
+            try:
+                await db.execute(text("INSERT INTO conversation_recall_fts(conversation_recall_fts) VALUES('rebuild')"))
+                logger.info("Auto-rebuilt conversation_recall_fts successfully")
+            except Exception:
+                pass
         return _dedupe_recall_rows(
             [recall_row(row) for row in [*segment_rows, *document_rows]],
             limit=limit,
@@ -492,14 +511,28 @@ class ConversationRecallRepository:
                 """)
             )
         ).scalar_one()
+
+        fts_intact = bool(fts_ready)
+        segments_fts_intact = bool(segments_fts_ready)
+        if fts_intact:
+            try:
+                await db.execute(text("INSERT INTO conversation_recall_fts(conversation_recall_fts) VALUES('integrity-check')"))
+            except Exception:
+                fts_intact = False
+        if segments_fts_intact:
+            try:
+                await db.execute(text("INSERT INTO conversation_recall_segments_fts(conversation_recall_segments_fts) VALUES('integrity-check')"))
+            except Exception:
+                segments_fts_intact = False
+
         return ConversationRecallHealth(
             indexed_conversations=int_value(row, "indexed_conversations"),
             indexed_segments=int(segment_count or 0),
             excluded_conversations=int_value(row, "excluded_conversations"),
             missing_conversations=int(missing or 0),
             missing_segments=int(missing_segments or 0),
-            fts_ready=bool(fts_ready),
-            segments_fts_ready=bool(segments_fts_ready),
+            fts_ready=fts_intact,
+            segments_fts_ready=segments_fts_intact,
             last_indexed_at=optional_datetime(row, "last_indexed_at"),
         )
 

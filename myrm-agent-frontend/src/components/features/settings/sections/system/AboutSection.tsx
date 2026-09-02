@@ -117,20 +117,50 @@ type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' 
 const AboutSection = memo(() => {
   const t = useTranslations('settings.about');
   const [version, setVersion] = useState(FALLBACK_VERSION);
+  const [engineVersion, setEngineVersion] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
   const [updateBody, setUpdateBody] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isTauriRuntime()) {
-      return;
+    if (isTauriRuntime()) {
+      import('@tauri-apps/api/app')
+        .then((mod) => mod.getVersion())
+        .then((v) => setVersion(v))
+        .catch(() => {});
     }
-    import('@tauri-apps/api/app')
-      .then((mod) => mod.getVersion())
-      .then((v) => setVersion(v))
+
+    // Fetch engine & server version info from backend
+    fetch('/api/v1/health/info')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data === 'object') {
+          const harnessVer = (data as Record<string, unknown>).harness_version;
+          if (typeof harnessVer === 'string') {
+            setEngineVersion(harnessVer);
+          }
+        }
+      })
       .catch(() => {});
   }, []);
+
+  const handleCopyDiagnostics = useCallback(() => {
+    const diagnosticReport = [
+      '### MyrmAgent Diagnostic Info',
+      `- Desktop Shell: v${version}`,
+      `- Engine Sidecar: v${engineVersion ?? 'unknown'}`,
+      `- Runtime Environment: ${isTauriRuntime() ? 'Tauri Desktop Native' : 'Browser WebUI'}`,
+      `- User Agent: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'}`,
+      `- Timestamp: ${new Date().toISOString()}`,
+    ].join('\n');
+
+    navigator.clipboard.writeText(diagnosticReport).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [version, engineVersion]);
 
   const handleCheckUpdate = useCallback(async () => {
     if (!isTauriRuntime()) {
@@ -184,11 +214,40 @@ const AboutSection = memo(() => {
           <div className="space-y-2">
             <h1 className="text-3xl font-bold brand-gradient-text">MyrmAgent</h1>
             <p className="text-sm text-muted-foreground">{t('slogan')}</p>
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <IconBriefcase className="w-3.5 h-3.5" />
-              <span>
-                {t('version')} <span className="text-accent-warm font-medium">{version}</span>
-              </span>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground pt-1">
+              <div className="flex items-center gap-1.5 bg-background/60 px-2.5 py-1 rounded-md border border-border/40">
+                <IconBriefcase className="w-3.5 h-3.5 text-primary" />
+                <span>
+                  {t('shellVersion')}: <span className="text-foreground font-medium">v{version}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-background/60 px-2.5 py-1 rounded-md border border-border/40">
+                <IconCode className="w-3.5 h-3.5 text-emerald-500" />
+                <span>
+                  {t('engineVersion')}: <span className="text-foreground font-medium">v{engineVersion ?? '...'}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopyDiagnostics}
+                className="text-xs h-7 gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="text-emerald-500">{t('copiedDiagnostics')}</span>
+                  </>
+                ) : (
+                  <>
+                    <IconBook className="w-3.5 h-3.5" />
+                    <span>{t('copyDiagnostics')}</span>
+                  </>
+                )}
+              </Button>
             </div>
 
             {isTauriRuntime() && (

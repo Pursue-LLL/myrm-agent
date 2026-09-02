@@ -103,7 +103,7 @@ class MemoryDiagnosticsService:
         relational_integrity_detail = "ok"
         if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
             try:
-                rel_store = getattr(self._memory_manager, "_relational")
+                rel_store = self._memory_manager._relational
                 if hasattr(rel_store, "check_integrity"):
                     relational_integrity_ok, relational_integrity_detail = await rel_store.check_integrity()
             except Exception as e:
@@ -162,6 +162,18 @@ class MemoryDiagnosticsService:
                             unpinned_count += 1
             except Exception:
                 pass
+
+        # Check relational store integrity
+        relational_integrity_ok = True
+        relational_integrity_detail = "ok"
+        if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
+            try:
+                rel_store = self._memory_manager._relational
+                if hasattr(rel_store, "check_integrity"):
+                    relational_integrity_ok, relational_integrity_detail = await rel_store.check_integrity()
+            except Exception as e:
+                relational_integrity_ok = False
+                relational_integrity_detail = str(e)
 
         probes = [
             await self._run_probe(

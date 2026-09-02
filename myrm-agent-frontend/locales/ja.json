@@ -264,7 +264,8 @@
       "loopUsage": "使用法: /loop [間隔] <プロンプト> (例: /loop 10m デプロイ確認, /loop 1h 競合監視)",
       "loopMissingPrompt": "/loop のタスクプロンプトを入力してください",
       "loopCreated": "定期ループタスクを作成しました (間隔: {interval})。初回実行を開始しました",
-      "loopCreateFailed": "ループタスクの作成に失敗しました"
+      "loopFailed": "ループタスクの作成に失敗しました",
+      "loopBlockedWhileStreaming": "エージェントが応答中のため、ループタスクを作成できません"
     }
   },
   "copilot": {

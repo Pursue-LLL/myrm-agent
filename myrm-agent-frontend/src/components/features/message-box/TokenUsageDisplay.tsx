@@ -512,6 +512,29 @@ export default function TokenUsageDisplay({
               {/* 分隔线 */}
               <div className="h-px bg-border my-1" />
 
+              {/* 路由理由/透明度说明 (Smart Routing Transparency Reason) */}
+              {routingTier && (
+                <div className="rounded-md bg-muted/60 p-2 text-[11px] text-muted-foreground border border-border/40">
+                  <div className="flex items-center gap-1.5 font-medium text-foreground mb-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    <span>{t('routingReasonTitle')}</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    {t(
+                      routingTier === 'simple'
+                        ? 'routingSimpleTooltip'
+                        : routingTier === 'reasoning'
+                          ? 'routingReasoningTooltip'
+                          : routingTier === 'code'
+                            ? 'routingCodeTooltip'
+                            : routingTier === 'long_doc'
+                              ? 'routingLongDocTooltip'
+                              : 'routingStandardTooltip',
+                    )}
+                  </p>
+                </div>
+              )}
+
               {/* 总计 Token */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

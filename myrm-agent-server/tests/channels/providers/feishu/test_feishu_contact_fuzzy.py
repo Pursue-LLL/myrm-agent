@@ -1,15 +1,9 @@
 """Unit tests for Feishu contact fuzzy matcher and disambiguation engine."""
 
-import pytest
-
 from app.channels.providers.feishu.cards import (
     build_contact_disambiguation_card,
-    build_deliverable_card,
 )
 from app.channels.providers.feishu.contact_fuzzy import (
-    CONFIDENCE_AUTO_ACCEPT,
-    ContactCandidate,
-    ContactMatchResult,
     FeishuContactFuzzyMatcher,
     calculate_name_similarity,
 )
