@@ -86,6 +86,27 @@ def test_expert_summon_summary_accumulates_metrics(client: TestClient) -> None:
             "used_use_case": True,
         },
         {
+            "event_type": "council_phase_completed",
+            "surface": "flow_pad_inline",
+            "context_key": "flowpad:inline",
+            "trigger": "plus_popover_card",
+            "template_kind": "team",
+        },
+        {
+            "event_type": "council_consensus_reached",
+            "surface": "flow_pad_inline",
+            "context_key": "flowpad:inline",
+            "trigger": "plus_popover_card",
+            "template_kind": "team",
+        },
+        {
+            "event_type": "expert_rebuttal_effective",
+            "surface": "flow_pad_inline",
+            "context_key": "flowpad:inline",
+            "trigger": "plus_popover_card",
+            "template_kind": "team",
+        },
+        {
             "event_type": "dropped_report",
             "surface": "template_market",
             "context_key": "template-market",

@@ -51,7 +51,7 @@ describe('deploy-mode base url resolution', () => {
     expect(getApiBaseUrl()).toBe('/api/v1');
     expect(getBackendBaseUrl()).toBe('');
     expect(getAgentApiBaseUrl()).toBe('http://127.0.0.1:8080/v1');
-    expect(getNotificationStreamUrl()).toBe('/api/v1/notifications/stream');
+    expect(getNotificationStreamUrl()).toBe('http://127.0.0.1:8080/api/v1/notifications/stream');
   });
 
   it('rejects invalid configured base urls in sandbox mode', () => {

@@ -47,3 +47,27 @@ def test_template_market_i18n_negotiation():
     tpl = next(t for t in templates_default if t["id"] == "official_document_assistant")
     assert tpl["name"]
     assert tpl["description"]
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+def test_expert_summon_funnel_summary_api():
+    """Statistics API serves expert summon funnel events and aggregated summary."""
+    api_url = get_e2e_api_url()
+    event_payload = {
+        "event_type": "council_phase_completed",
+        "surface": "flow_pad_inline",
+        "context_key": "flowpad:e2e",
+        "trigger": "plus_popover_card",
+        "template_kind": "team",
+    }
+    ingested = http_json("POST", f"{api_url}/api/v1/statistics/expert-summon/events", json=event_payload)
+    assert ingested.get("success") is True, ingested
+    assert ingested["data"]["accepted"] is True
+
+    summary_res = http_json("GET", f"{api_url}/api/v1/statistics/expert-summon/summary?days=30")
+    assert summary_res.get("success") is True, summary_res
+    summary = summary_res["data"]
+    assert summary["days"] == 30
+    assert "viewed_by_surface" in summary
+    assert "attempted_by_trigger" in summary
+
