@@ -173,7 +173,7 @@ def build_zip_deliverable_bundle(
                 logger.warning("Failed to write artifact %s to bundle: %s", item.id, exc)
 
         # 2. Write root manifest.json
-        manifest_json_bytes = json.dumps(manifest.to_dict(), indent=2, ensure_ascii=False).encode("utf-8")
+        manifest_json_bytes = json.dumps(manifest.model_dump(), indent=2, ensure_ascii=False).encode("utf-8")
         zf.writestr("manifest.json", manifest_json_bytes)
 
         # 3. Write root README.md delivery index

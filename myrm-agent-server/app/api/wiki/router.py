@@ -2861,6 +2861,7 @@ async def import_urls(
 
     import httpx
     from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
+    from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
         UrlMarkdownIngressRequest,
         publish_url_markdown_ingress,
@@ -2882,18 +2883,27 @@ async def import_urls(
     security_redacted_count = 0
     error_count = 0
 
+    async def _fetch_url_markdown(url: str) -> str:
+        try:
+            doc = await web_fetch_tools.crawl(url)
+            if doc and doc.page_content:
+                return doc.page_content
+        except Exception as e:
+            logger.warning("web_fetch_tools crawl failed for %s: %s", url, e)
+        return ""
+
     async def _process_single_url(target_url: str) -> UrlImportItemResult:
         async with semaphore:
             try:
-                ssrf_valid, ssrf_err = validate_url_for_ssrf(target_url)
-                if not ssrf_valid:
+                ssrf_res = await async_validate_url_for_ssrf(target_url)
+                if not ssrf_res.is_safe:
                     return UrlImportItemResult(
                         url=target_url,
                         status="error",
-                        error=f"SSRF blocked or invalid URL: {ssrf_err}",
+                        error=f"SSRF blocked or invalid URL: {ssrf_res.error_message}",
                     )
 
-                markdown = await _fetch_url_as_markdown(target_url)
+                markdown = await _fetch_url_markdown(target_url)
                 ingress_res = await publish_url_markdown_ingress(
                     archiver._structure,
                     UrlMarkdownIngressRequest(

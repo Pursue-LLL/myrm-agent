@@ -7,12 +7,28 @@ Verifies:
 
 from __future__ import annotations
 
+import importlib.util
 import io
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
-from assets.prebuilt_skills.x_live_search.scripts import search as x_search_script  # type: ignore[import-not-found]
+
+SCRIPT_PATH = (
+    Path(__file__).resolve().parents[2] / "assets" / "prebuilt_skills" / "x-live-search" / "scripts" / "search.py"
+)
+
+
+def _load_search_script():
+    spec = importlib.util.spec_from_file_location("x_search_script", SCRIPT_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+x_search_script = _load_search_script()
 
 
 def _make_search_mixin(*, skill_ids: list[str] | None) -> object:
