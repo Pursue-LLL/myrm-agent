@@ -1674,13 +1674,16 @@
       "actualModelLabel": "实际调用模型"
     },
     "contextStrip": {
-      "overloadAria": "当前活跃能力过多，存在较高 Token 开销",
-      "badgeAria": "{count} 项活跃能力",
-      "capabilities": "项活跃",
-      "activeCapabilitiesTitle": "当前活跃能力",
-      "skillCountDesc": "已加载 {count} 项技能",
-      "mcpCountDesc": "已挂载 {count} 项 MCP 工具",
-      "overloadWarning": "活跃工具过多可能导致响应延迟并增加 Token 消耗。"
+      "removeSkill": "移除技能",
+      "overloadAria": "高工具负载预警：点击收窄本轮生效能力",
+      "badgeAria": "{count} 项生效能力",
+      "capabilities": "项能力",
+      "activeCapabilitiesTitle": "本轮生效能力范围",
+      "skillCountDesc": "{count} 个已激活技能",
+      "mcpCountDesc": "{count} 个已挂载 MCP 服务",
+      "overloadWarning": "已挂载较多外部工具。点击打开能力管理器进行收窄，可大幅节省 Token 并提升响应速度。",
+      "moreChipsAria": "查看其余 {count} 项上下文",
+      "moreContextTitle": "已挂载上下文与能力"
     },
     "uploadFailed": "上传失败",
     "skillActivation": {
@@ -2142,6 +2145,11 @@
       "routingReasoning": "推理",
       "routingCode": "代码",
       "routingLongDoc": "长文档",
+      "routingSimpleTooltip": "任务属于日常问答/简单对话，已自动分派至高吞吐轻量模型以大幅节省算力与响应耗时。",
+      "routingStandardTooltip": "任务属于标准编程/文本处理，已自动分派至通用标准模型以兼顾质量与性能。",
+      "routingReasoningTooltip": "任务属于深度逻辑推理/复杂架构设计，已自动分派至顶级推理大模型以保证严谨性。",
+      "routingCodeTooltip": "任务属于长程代码重构与专精开发，已自动分派至代码专精模型。",
+      "routingLongDocTooltip": "任务包含超长文本或多文件分析，已自动分派至长上下文模型。",
       "privacyLevel": "隐私",
       "privacyPseudonymized": "已保护",
       "privacyS2": "敏感",

@@ -456,6 +456,35 @@ export interface ObsidianImportResultResponse {
   message: string;
 }
 
+export interface UrlImportItemResult {
+  url: string;
+  relative_path: string;
+  status: 'success' | 'skipped_conflict' | 'superseded' | 'security_blocked' | 'security_redacted' | 'error';
+  error: string;
+}
+
+export interface ImportUrlsResultResponse {
+  success: boolean;
+  total_urls: number;
+  processed_count: number;
+  enqueued_count: number;
+  skipped_conflict_count: number;
+  superseded_count: number;
+  security_blocked_count: number;
+  security_redacted_count: number;
+  error_count: number;
+  results: UrlImportItemResult[];
+  message: string;
+}
+
+export interface ImportUrlsRequestBody {
+  urls: string[];
+  folder_path?: string;
+  auto_compile?: boolean;
+  on_conflict?: WikiImportConflictPolicy;
+  supersede_reason?: string;
+}
+
 export type WikiImportConflictPolicy = 'skip' | 'supersede';
 
 export interface WikiImportConflictOptions {

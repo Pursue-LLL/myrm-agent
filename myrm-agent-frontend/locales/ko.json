@@ -1674,13 +1674,16 @@
       "actualModelLabel": "실제 호출 모델"
     },
     "contextStrip": {
-      "overloadAria": "활성 기능이 너무 많아 토큰 소비가 증가할 수 있습니다",
+      "removeSkill": "스킬 제거",
+      "overloadAria": "도구 과부하 경고: 클릭하여 활성 기능 범위 좁히기",
       "badgeAria": "{count}개 활성 기능",
-      "capabilities": "개 활성",
-      "activeCapabilitiesTitle": "활성 기능",
-      "skillCountDesc": "{count}개 스킬 로드됨",
-      "mcpCountDesc": "{count}개 MCP 도구 연결됨",
-      "overloadWarning": "활성 도구가 너무 많으면 지연 시간이 늘어나고 토큰 소비가 증가할 수 있습니다."
+      "capabilities": "개 기능",
+      "activeCapabilitiesTitle": "이번 턴 활성 기능 범위",
+      "skillCountDesc": "{count}개 활성 스킬",
+      "mcpCountDesc": "{count}개 마운트된 MCP 서비스",
+      "overloadWarning": "많은 외부 도구가 마운트되었습니다. 기능 관리자를 열어 범위를 좁히면 토큰을 절약할 수 있습니다.",
+      "moreChipsAria": "기타 {count}개 컨텍스트 보기",
+      "moreContextTitle": "마운트된 컨텍스트 및 기능"
     },
     "uploadFailed": "업로드에 실패했습니다",
     "jumpBar": {
@@ -1934,7 +1937,12 @@
       "compatMedium": "균형",
       "modelBreakdown": "모델별 분석",
       "performance": "성능",
-      "toolBreakdown": "도구별 분석"
+      "toolBreakdown": "도구별 분석",
+      "routingSimpleTooltip": "라우팅 계층: 단순 쿼리용 고속 모델",
+      "routingStandardTooltip": "라우팅 계층: 일상 작업용 표준 추론 모델",
+      "routingReasoningTooltip": "라우팅 계층: 복잡한 사고용 심층 추론 모델",
+      "routingCodeTooltip": "라우팅 계층: 프로그래밍 작업용 코드 특화 모델",
+      "routingLongDocTooltip": "라우팅 계층: 대형 문서 분석용 초장문 모델"
     },
     "contextUsage": {
       "title": "컨텍스트 사용량",
@@ -17859,6 +17867,45 @@
       "exportSuccessTitle": "번들 내보내기 완료",
       "exportSuccessDesc": "진단 번들 아카이브가 생성되어 성공적으로 다운로드되었습니다.",
       "exportFailedTitle": "내보내기 실패"
+    },
+    "storageGovernance": {
+      "title": "스토리지 거버넌스",
+      "description": "SQLite/Qdrant 볼륨을 검사하고 잠금 없는 압축 및 관리를 수행합니다",
+      "totalAgentStateSize": "Total Agent State Volume",
+      "healthyGrowth": "스토리지 증가 상태가 양호합니다",
+      "growthWarning": "스토리지 크기가 경고 임계값에 도달했습니다. 압축을 권장합니다",
+      "diskSpaceOverview": "호스트 디스크 공간 개요",
+      "freeDisk": "여유 공간: {free}",
+      "totalDisk": "Total: {total}",
+      "categoriesBreakdown": "서브시스템 볼륨 세부 분석",
+      "compactAndPurge": "DB 압축 및 고립된 체크포인트 정리",
+      "itemsCount": "{count}개 항목/레코드",
+      "compactionSuccessTitle": "압축 완료",
+      "compactionSuccessDesc": "{freed} 디스크 공간을 확보했습니다. WAL이 안전하게 정리되었습니다.",
+      "compactionFailedTitle": "압축 실패",
+      "snapshotsAndRollback": "State Snapshots & Rollback",
+      "snapshotsDesc": "Create immutable state snapshots prior to major upgrades or skill behavioral changes for instant recovery.",
+      "snapshotLabelPlaceholder": "Snapshot description (e.g. Pre-upgrade backup)",
+      "createSnapshot": "스냅샷 생성",
+      "snapshotSuccessTitle": "Snapshot Created",
+      "snapshotSuccessDesc": "Current database state has been frozen into an immutable point-in-time snapshot.",
+      "snapshotFailedTitle": "Snapshot Creation Failed",
+      "restore": "Rollback",
+      "restoreSuccessTitle": "복원 완료",
+      "restoreSuccessDesc": "스냅샷에서 성공적으로 복원되었습니다.",
+      "restoreFailedTitle": "복원 실패",
+      "deleteSuccessTitle": "스냅샷 삭제됨",
+      "deleteSuccessDesc": "선택한 스냅샷 아카이브가 삭제되었습니다.",
+      "deleteFailedTitle": "삭제 실패",
+      "lastCompacted": "최근 압축: {time}",
+      "neverCompacted": "압축 기록 없음",
+      "qdrantVectors": "Qdrant 벡터",
+      "sizeSummary": "총 크기: {size}",
+      "snapshotCreatedTitle": "스냅샷 생성 완료",
+      "snapshotCreatedDesc": "스냅샷 아카이브가 생성되었습니다.",
+      "snapshotListTitle": "스토리지 스냅샷 목록",
+      "sqliteDb": "SQLite 데이터베이스",
+      "vacuumProgress": "압축 실행 중..."
     }
   }
 }

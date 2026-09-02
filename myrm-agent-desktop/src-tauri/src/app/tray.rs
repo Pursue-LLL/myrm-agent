@@ -67,6 +67,14 @@ pub fn load_tray_icon_for_status(
 }
 
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let version = app.package_info().version.to_string();
+    let shell_ver_text = format!("Myrm Desktop: v{version}");
+    let engine_ver_text = "Engine Sidecar: v0.1.0".to_string();
+
+    let shell_ver_i = MenuItem::with_id(app, "version_shell", shell_ver_text, false, None::<&str>)?;
+    let engine_ver_i = MenuItem::with_id(app, "version_engine", engine_ver_text, false, None::<&str>)?;
+    let sep0 = PredefinedMenuItem::separator(app)?;
+
     let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let new_chat_i = MenuItem::with_id(app, "new_chat", "New Chat", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
@@ -78,6 +86,9 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let menu = Menu::with_items(
         app,
         &[
+            &shell_ver_i,
+            &engine_ver_i,
+            &sep0,
             &show_i,
             &new_chat_i,
             &sep1,
@@ -125,6 +136,34 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         })
         .build(app)?;
 
+    Ok(())
+}
+
+/// 更新托盘菜单项与版本/升级状态信息
+#[tauri::command]
+pub fn update_tray_info(
+    app: AppHandle,
+    engine_version: Option<String>,
+    upgrade_progress: Option<String>,
+) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id("main") {
+        if let Some(menu) = tray.menu() {
+            if let Some(engine_ver) = engine_version {
+                if let Some(item) = menu.get("version_engine") {
+                    if let Some(menu_item) = item.as_menuitem() {
+                        let _ = menu_item.set_text(format!("Engine Sidecar: v{engine_ver}"));
+                    }
+                }
+            }
+            if let Some(progress) = upgrade_progress {
+                if let Some(item) = menu.get("version_engine") {
+                    if let Some(menu_item) = item.as_menuitem() {
+                        let _ = menu_item.set_text(format!("🔄 {progress}"));
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 

@@ -1674,13 +1674,16 @@
       "actualModelLabel": "Tatsächliches Modell"
     },
     "contextStrip": {
-      "overloadAria": "Aktive Funktionen überlastet, hoher Token-Verbrauch",
+      "removeSkill": "Skill entfernen",
+      "overloadAria": "Warnung vor hoher Tool-Last: Klicken, um aktive Funktionen einzuschränken",
       "badgeAria": "{count} aktive Funktionen",
-      "capabilities": "aktiv",
-      "activeCapabilitiesTitle": "Aktive Funktionen",
-      "skillCountDesc": "{count, plural, =1 {1 Skill} other {# Skills}} geladen",
-      "mcpCountDesc": "{count, plural, =1 {1 MCP-Tool} other {# MCP-Tools}} verbunden",
-      "overloadWarning": "Zu viele aktive Tools können die Latenz und den Token-Verbrauch erhöhen."
+      "capabilities": "Funktionen",
+      "activeCapabilitiesTitle": "Aktiver Funktionsbereich",
+      "skillCountDesc": "{count} aktive Skills",
+      "mcpCountDesc": "{count} eingebundene MCP-Dienste",
+      "overloadWarning": "Viele externe Tools geladen. Klicken, um Funktionen einzuschränken und Tokens zu sparen.",
+      "moreChipsAria": "Weitere {count} Kontextelemente anzeigen",
+      "moreContextTitle": "Eingebundene Kontextelemente"
     },
     "uploadFailed": "Upload fehlgeschlagen",
     "jumpBar": {
@@ -1934,7 +1937,12 @@
       "compatMedium": "Ausgewogen",
       "modelBreakdown": "Modellaufschlüsselung",
       "performance": "Leistung",
-      "toolBreakdown": "Tool-Aufschlüsselung"
+      "toolBreakdown": "Tool-Aufschlüsselung",
+      "routingSimpleTooltip": "Routing-Stufe: Schnelles Modell für einfache Abfragen",
+      "routingStandardTooltip": "Routing-Stufe: Standard-Modell für alltägliche Aufgaben",
+      "routingReasoningTooltip": "Routing-Stufe: Tiefgründiges Denkmodell für komplexe Aufgaben",
+      "routingCodeTooltip": "Routing-Stufe: Spezialisiertes Modell für Programmieraufgaben",
+      "routingLongDocTooltip": "Routing-Stufe: Ultra-langes Kontextmodell für Dokumentenanalysen"
     },
     "contextUsage": {
       "title": "Kontextnutzung",
@@ -17859,6 +17867,45 @@
       "exportSuccessTitle": "Paket exportiert",
       "exportSuccessDesc": "Diagnosearchiv wurde erfolgreich erstellt und heruntergeladen.",
       "exportFailedTitle": "Export fehlgeschlagen"
+    },
+    "storageGovernance": {
+      "title": "Speicherverwaltung",
+      "description": "SQLite/Qdrant-Volumen analysieren, sperrenfreie Komprimierung durchführen",
+      "totalAgentStateSize": "Total Agent State Volume",
+      "healthyGrowth": "Speicherwachstum ist normal",
+      "growthWarning": "Speichergröße nähert sich der Warnschwelle, Komprimierung empfohlen",
+      "diskSpaceOverview": "Host-Festplattenspeicher-Übersicht",
+      "freeDisk": "Frei: {free}",
+      "totalDisk": "Total: {total}",
+      "categoriesBreakdown": "Aufschlüsselung nach Subsystemen",
+      "compactAndPurge": "DB komprimieren & verwaiste Checkpoints bereinigen",
+      "itemsCount": "{count} Elemente/Datensätze",
+      "compactionSuccessTitle": "Komprimierung abgeschlossen",
+      "compactionSuccessDesc": "{freed} Speicherplatz freigegeben; WAL wurde sicher bereinigt.",
+      "compactionFailedTitle": "Komprimierung fehlgeschlagen",
+      "snapshotsAndRollback": "State Snapshots & Rollback",
+      "snapshotsDesc": "Create immutable state snapshots prior to major upgrades or skill behavioral changes for instant recovery.",
+      "snapshotLabelPlaceholder": "Snapshot description (e.g. Pre-upgrade backup)",
+      "createSnapshot": "Snapshot erstellen",
+      "snapshotSuccessTitle": "Snapshot Created",
+      "snapshotSuccessDesc": "Current database state has been frozen into an immutable point-in-time snapshot.",
+      "snapshotFailedTitle": "Snapshot Creation Failed",
+      "restore": "Rollback",
+      "restoreSuccessTitle": "Wiederherstellung abgeschlossen",
+      "restoreSuccessDesc": "Erfolgreich aus Snapshot wiederhergestellt.",
+      "restoreFailedTitle": "Wiederherstellung fehlgeschlagen",
+      "deleteSuccessTitle": "Snapshot gelöscht",
+      "deleteSuccessDesc": "Ausgewähltes Snapshot-Archiv entfernt.",
+      "deleteFailedTitle": "Löschen fehlgeschlagen",
+      "lastCompacted": "Zuletzt komprimiert: {time}",
+      "neverCompacted": "Noch nie komprimiert",
+      "qdrantVectors": "Qdrant-Vektoren",
+      "sizeSummary": "Gesamtgröße: {size}",
+      "snapshotCreatedTitle": "Snapshot erstellt",
+      "snapshotCreatedDesc": "Snapshot-Archiv erfolgreich erstellt.",
+      "snapshotListTitle": "Speicher-Snapshots",
+      "sqliteDb": "SQLite-Datenbank",
+      "vacuumProgress": "Komprimierung läuft..."
     }
   }
 }

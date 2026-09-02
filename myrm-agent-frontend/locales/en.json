@@ -1674,13 +1674,16 @@
       "actualModelLabel": "Resolved Model"
     },
     "contextStrip": {
-      "overloadAria": "Active capabilities overloaded, high token overhead",
+      "removeSkill": "Remove skill",
+      "overloadAria": "High tool load warning: Click to narrow active capabilities",
       "badgeAria": "{count} active capabilities",
       "capabilities": "Active",
-      "activeCapabilitiesTitle": "Active Capabilities",
-      "skillCountDesc": "{count, plural, =1 {1 Skill} other {# Skills}} loaded",
-      "mcpCountDesc": "{count, plural, =1 {1 MCP Tool} other {# MCP Tools}} connected",
-      "overloadWarning": "Too many active tools may increase latency and token consumption."
+      "activeCapabilitiesTitle": "Turn Capability Scope",
+      "skillCountDesc": "{count} active skills",
+      "mcpCountDesc": "{count} active MCP services",
+      "overloadWarning": "High tool count loaded. Click to open capability manager and narrow scope to save tokens.",
+      "moreChipsAria": "{count} more context items",
+      "moreContextTitle": "Mounted Context Items"
     },
     "uploadFailed": "Upload failed",
     "skillActivation": {
@@ -2143,6 +2146,11 @@
       "routingReasoning": "Reasoning",
       "routingCode": "Code",
       "routingLongDoc": "Long Doc",
+      "routingSimpleTooltip": "Routing tier: Fast response model for simple queries",
+      "routingStandardTooltip": "Routing tier: Standard reasoning model for everyday tasks",
+      "routingReasoningTooltip": "Routing tier: High-depth reasoning model for complex thinking",
+      "routingCodeTooltip": "Routing tier: Specialized coding model for programming tasks",
+      "routingLongDocTooltip": "Routing tier: Ultra-long context model for large document analysis",
       "privacyLevel": "Privacy",
       "privacyPseudonymized": "Protected",
       "privacyS2": "Sensitive",
@@ -13593,7 +13601,6 @@
       "googleOauthWriteTierOn": "Read & write",
       "googleOauthEnableWrite": "Enable write access",
       "googleOauthWriteConnected": "Google Workspace write access enabled.",
-      "googleOauthWriteConnectedSkillEnabled": "Write access enabled. The google-workspace skill remains active."gle Workspace write access enabled.",
       "googleOauthWriteConnectedSkillEnabled": "Write access enabled. The google-workspace skill remains active.",
       "vaultTitle": "Form Credentials Vault",
       "vaultDescription": "Securely store passwords and TOTP seeds for browser/desktop automation. Secrets are encrypted and never exposed to the LLM context.",

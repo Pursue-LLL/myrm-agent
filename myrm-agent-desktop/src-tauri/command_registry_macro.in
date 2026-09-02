@@ -90,6 +90,7 @@ macro_rules! tauri_command_registry {
                 crate::commands::process_registry::kill_desktop_process
             ),
             ("set_tray_status", tray::set_tray_status),
+            ("update_tray_info", tray::update_tray_info),
         }
     };
 }

@@ -21,6 +21,11 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.infra.tracing import get_meter
 
 from app.channels.core.user_resolver import UserResolverCache
+from app.channels.providers.feishu.contact_fuzzy import (
+    ContactCandidate,
+    ContactMatchResult,
+    FeishuContactFuzzyMatcher,
+)
 
 if TYPE_CHECKING:
     from app.channels.providers.feishu.sdk import FeishuClient
@@ -191,3 +196,27 @@ class FeishuUserResolver:
                 logger.debug("Batch resolve exception: %s", res)
 
         return result_dict
+
+    async def search_contact_fuzzy(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        department_hint: str = "",
+    ) -> ContactMatchResult:
+        """Search contacts by name or pinyin with phonetic tolerance and disambiguation.
+
+        Fetches department users (cached) and executes fuzzy scoring.
+        """
+        if not query.strip():
+            return ContactMatchResult(query=query)
+
+        # Fetch department users from Feishu API
+        try:
+            users, _ = await self._api.list_users(department_id="0", page_size=50)
+        except Exception as exc:
+            logger.debug("Failed to list Feishu users for fuzzy matching: %s", exc)
+            users = []
+
+        matcher = FeishuContactFuzzyMatcher(users)
+        return matcher.match(query, limit=limit, department_hint=department_hint)

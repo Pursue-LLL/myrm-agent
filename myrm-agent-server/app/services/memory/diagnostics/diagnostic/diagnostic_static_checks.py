@@ -20,18 +20,37 @@ from app.schemas.memory.command_center import MemoryCommandDoctorCheck, MemoryCo
 DiagnosticStatus = str
 
 
-def probe_relational_store(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoctorCheck:
+def probe_relational_store(
+    runtime: MemoryCommandRuntimeStatus,
+    *,
+    integrity_ok: bool = True,
+    integrity_detail: str = "ok",
+) -> MemoryCommandDoctorCheck:
+    if not integrity_ok:
+        status: DiagnosticStatus = "critical"
+        evidence = f"Relational memory store failed integrity verification: {integrity_detail}."
+        next_action = "Database is corrupted. Restore from backup or reset memory store."
+        repair_actions = ["restore_from_backup", "review_storage_config"]
+    elif runtime.relational_status != "available":
+        status = "critical"
+        evidence = f"Relational memory store is {runtime.relational_status}."
+        next_action = "Review the SQLite database path and permissions."
+        repair_actions = ["review_storage_config"]
+    else:
+        status = "ready"
+        evidence = "Relational memory store is available and passed integrity verification."
+        next_action = "No action required."
+        repair_actions = []
+
     return MemoryCommandDoctorCheck(
         id="relational_store",
         category="storage",
         label="Relational store",
-        status="ready" if runtime.relational_status == "available" else "critical",
-        evidence=f"Relational memory store is {runtime.relational_status}.",
+        status=status,
+        evidence=evidence,
         impact="Profile, procedural, governance, and audit data depend on the relational store.",
-        next_action="No action required."
-        if runtime.relational_status == "available"
-        else "Review the SQLite database path and permissions.",
-        repair_actions=[] if runtime.relational_status == "available" else ["review_storage_config"],
+        next_action=next_action,
+        repair_actions=repair_actions,
     )
 
 

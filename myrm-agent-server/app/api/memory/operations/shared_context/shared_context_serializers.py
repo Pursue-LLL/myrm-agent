@@ -35,6 +35,17 @@ def context_to_item(
     *,
     assigned_agent_ids: list[str] | None = None,
 ) -> SharedContextItem:
+    resolved_agent_ids = assigned_agent_ids
+    if resolved_agent_ids is None:
+        try:
+            resolved_agent_ids = [
+                b.target_id
+                for b in (context.bindings or [])
+                if getattr(b, "target_type", None) == "agent"
+            ]
+        except Exception:
+            resolved_agent_ids = []
+
     return SharedContextItem(
         id=context.id,
         namespace=context.namespace,
@@ -44,8 +55,7 @@ def context_to_item(
         visibility=cast(SharedContextVisibility, getattr(context, "visibility", "team")),
         access_count=getattr(context, "access_count", 0),
         last_accessed_at=getattr(context, "last_accessed_at", None),
-        assigned_agent_ids=assigned_agent_ids
-        or [b.target_id for b in (context.bindings or []) if getattr(b, "target_type", None) == "agent"],
+        assigned_agent_ids=resolved_agent_ids,
         policy=context.policy,
         created_at=context.created_at,
         updated_at=context.updated_at,

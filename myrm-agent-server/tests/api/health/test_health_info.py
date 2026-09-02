@@ -25,6 +25,10 @@ def test_system_info_returns_capabilities_booleans(client: TestClient) -> None:
     assert "qdrant" in body
     assert "embedding" in body
     assert "reranker" in body
+    assert "server_version" in body
+    assert isinstance(body["server_version"], str)
+    assert "harness_version" in body
+    assert isinstance(body["harness_version"], str)
 
     # Assert newly added capability check indicators are returned and typed correctly
     assert "local_stt_available" in body
