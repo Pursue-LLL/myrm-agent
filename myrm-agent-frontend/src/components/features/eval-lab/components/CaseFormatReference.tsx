@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
 
 const ASSERTION_KEYS = [
   'expected_tools',
+  'split',
   'contains',
   'not_contains',
   'regex',
@@ -18,6 +19,7 @@ const ASSERTION_KEYS = [
 
 const ASSERTION_EXAMPLES: Record<string, string> = {
   expected_tools: '"expected_tools": ["web_search"]',
+  split: '"split": "search" | "test"',
   contains: '"state_assertions": [{"type": "contains", "expected": "hello"}]',
   not_contains: '"state_assertions": [{"type": "not_contains", "expected": "error"}]',
   regex: '"state_assertions": [{"type": "regex", "expected": "\\\\d{4}-\\\\d{2}-\\\\d{2}"}]',

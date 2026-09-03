@@ -9693,6 +9693,10 @@
       "badgeDesc": "符合 SWE-bench / BIG-bench / WBBench 防污染规范，防止评测集渗入模型预训练语料库",
       "injectCanaryBtn": "注入 Canary 防污染声明"
     },
+    "leakageGuard": {
+      "autoSplitBtn": "7:3 自动切分",
+      "autoSplitTooltip": "按 70% Search (探索子集) 与 30% Test (留出验证集) 智能分层打标"
+    },
     "clustering": {
       "panelTitle": "失败签名聚类与治理提案",
       "panelSubtitle": "基于 Sentry 级指纹脱敏与 (ci, qi, mi) 双轴判定，提炼共性病灶并生成 RFC-6902 配置补丁",

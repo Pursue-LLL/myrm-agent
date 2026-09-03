@@ -9693,6 +9693,10 @@
       "badgeDesc": "Compliant with SWE-bench / BIG-bench / WBBench standards to prevent pretraining data contamination",
       "injectCanaryBtn": "Inject Canary Header"
     },
+    "leakageGuard": {
+      "autoSplitBtn": "7:3 Auto Split",
+      "autoSplitTooltip": "Stratified auto-partition into 70% Search (exploration) and 30% Test (held-out validation)"
+    },
     "clustering": {
       "panelTitle": "Failure Signature Clustering & Governance Proposals",
       "panelSubtitle": "Sentry-grade fingerprint normalization & (ci, qi, mi) dual-axis addressability evaluation with RFC-6902 patch synthesis",
@@ -9751,6 +9755,7 @@
     "assertionExample": "Example",
     "assertions": {
       "expected_tools": "Verify agent called specified tools",
+      "split": "Dataset partition split: 'search' for training exploration, 'test' for held-out evaluation",
       "contains": "Output contains specified text",
       "not_contains": "Output does not contain specified text",
       "regex": "Output matches regex pattern",
@@ -15293,6 +15298,14 @@
             "REFUTED": "REFUTED",
             "REGRESSION": "REGRESSION",
             "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "paretoVerdict": {
+            "pareto_optimal": "Generalization Optimal",
+            "overfitting": "Overfitting Alert",
+            "generalization_collapse": "Generalization Collapse",
+            "stable_parity": "Stable Parity",
+            "regression": "Regression Detected",
+            "insufficient_holdout": "Insufficient Holdout"
           },
           "metricDeltas": "Observed Metric Deltas",
           "unpredictedRegressions": "Unpredicted Regressions"

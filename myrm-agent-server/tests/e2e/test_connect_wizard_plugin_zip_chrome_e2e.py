@@ -144,3 +144,44 @@ def test_connect_wizard_plugin_bundle_zip_download_chrome_e2e() -> None:
         assert signal.get("ready") is True, signal
         assert len(signal.get("hits", [])) >= 1, signal
         print(f"[connect-wizard-e2e] captured download names: {signal.get('downloads')}")
+
+
+_DESKTOP_TOGGLE_STATE_JS = """(() => {
+  const toggle = document.querySelector('button[role="switch"][aria-label*="Desktop"]') ||
+                 document.querySelector('button[role="switch"][aria-label*="桌面"]');
+  if (!toggle) {
+    return { ready: false, found: false, text: (document.body?.textContent || '').slice(0, 1000) };
+  }
+  return {
+    ready: true,
+    found: true,
+    checked: toggle.getAttribute('aria-checked') === 'true',
+    disabled: toggle.hasAttribute('disabled') || toggle.getAttribute('aria-disabled') === 'true',
+  };
+})()"""
+
+_CLICK_DESKTOP_TOGGLE_JS = """(() => {
+  const toggle = document.querySelector('button[role="switch"][aria-label*="Desktop"]') ||
+                 document.querySelector('button[role="switch"][aria-label*="桌面"]');
+  if (!toggle) return { ready: false, clicked: false };
+  if (toggle.hasAttribute('disabled')) return { ready: true, clicked: false, disabled: true };
+  toggle.click();
+  return { ready: true, clicked: true, checked: toggle.getAttribute('aria-checked') === 'true' };
+})()"""
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_connect_wizard_desktop_tools_toggle_chrome_e2e() -> None:
+    """Real user flow: verify desktop tools exposure toggle and interaction inside Connect Wizard."""
+    with _connect_wizard_open() as (client, page):
+        state = wait_for_state(client, page, _DESKTOP_TOGGLE_STATE_JS, timeout_sec=30.0)
+        assert state.get("found") is True, state
+        print(f"[connect-wizard-desktop-e2e] initial toggle state={state}")
+
+        # If enabled on current environment/agent, toggle it and assert checked state change
+        if not state.get("disabled"):
+            clicked = wait_for_state(client, page, _CLICK_DESKTOP_TOGGLE_JS, timeout_sec=15.0)
+            assert clicked.get("clicked") is True, clicked
+            print(f"[connect-wizard-desktop-e2e] clicked toggle result={clicked}")

@@ -8,11 +8,12 @@
 - is_canonical_local_skill_id: Check whether a skill ID uses the path-hash local format
 - normalize_local_skill_id: Map legacy local::{name} IDs to canonical IDs
 - migrate_legacy_local_skill_ids: Persist migrated enabled local skill IDs
-- resolve_runtime_skill_ids: Agent explicit allowlist or fallback to all user-enabled skills
+- resolve_runtime_skill_ids: Agent explicit allowlist (WYSIWYG: empty list = 0 skills)
 
 [POS]
-Runtime skill ID resolver. Closes the gap between user-enabled catalog and Agent
-SkillAgent preload when the Agent profile has an empty skill allowlist.
+Runtime skill ID resolver. Strictly respects explicit Agent profile allowlist:
+WYSIWYG standard — if profile_skill_ids is empty or None, returns empty list [].
+No silent/implicit fallback to all user-enabled skills.
 """
 
 from __future__ import annotations
@@ -98,23 +99,10 @@ async def migrate_legacy_local_skill_ids() -> list[str]:
 
 
 async def resolve_runtime_skill_ids(profile_skill_ids: list[str] | None) -> list[str]:
-    """Return explicit Agent allowlist, or all user-enabled skills when empty."""
+    """Return explicit Agent allowlist (WYSIWYG: empty = 0 skills)."""
+    if not profile_skill_ids:
+        return []
+
     config = await skills_service.user_config.get_config()
     install_roots = _legacy_install_roots(config.local_skill_paths)
-    explicit = [normalize_local_skill_id(sid.strip(), install_roots) for sid in (profile_skill_ids or []) if sid.strip()]
-    if explicit:
-        return explicit
-
-    local_ids = (
-        await migrate_legacy_local_skill_ids()
-        if _has_legacy_local_ids(config.enabled_local_skill_ids)
-        else list(config.enabled_local_skill_ids)
-    )
-    seen: set[str] = set()
-    resolved: list[str] = []
-    for skill_id in [*config.enabled_prebuilt_ids, *local_ids]:
-        if skill_id in seen:
-            continue
-        seen.add(skill_id)
-        resolved.append(skill_id)
-    return resolved
+    return [normalize_local_skill_id(sid.strip(), install_roots) for sid in profile_skill_ids if sid.strip()]
