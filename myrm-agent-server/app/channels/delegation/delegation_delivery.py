@@ -155,6 +155,7 @@ def build_delivery_card_content(
     artifacts: list[DeliveryArtifact] | None = None,
     *,
     tracking_deep_link: str = "",
+    server_base_url: str = "",
 ) -> str:
     """Render structured completion report and artifact delivery card for mobile IM.
 
@@ -162,6 +163,7 @@ def build_delivery_card_content(
         task: Completed DelegationTask instance.
         artifacts: List of discovered DeliveryArtifact objects.
         tracking_deep_link: Optional deep-link URL to WebUI/Tauri workspace.
+        server_base_url: Optional base URL for direct download URLs.
 
     Returns:
         Structured Markdown text formatted for mobile display.
@@ -174,10 +176,11 @@ def build_delivery_card_content(
 
     status_symbol = "✅" if task.status.value == "completed" else "❌"
     lines = [
-        f"{status_symbol} **后台委派任务执行完成**",
+        f"{status_symbol} **任务交付通知 (后台委派任务执行完成)**",
         f"• **任务编号**：`{task.task_id}`",
         f"• **任务内容**：{task.raw_prompt[:60]}{'...' if len(task.raw_prompt) > 60 else ''}",
     ]
+
     if duration_str:
         lines.append(f"• **总共耗时**：{duration_str}")
 

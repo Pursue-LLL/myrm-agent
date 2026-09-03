@@ -117,7 +117,8 @@ class DelegationCoordinator:
 
         steering_token = self._steering_tokens.get(task_id)
         if steering_token:
-            steering_token.request_steering(content)
+            steering_token.steer(content)
+
 
         msg = SteeringMessage(
             task_id=task_id,
