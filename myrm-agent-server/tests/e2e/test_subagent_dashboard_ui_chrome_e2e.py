@@ -1137,6 +1137,104 @@ def test_subagent_dashboard_completed_failed_states_and_header_summary(
     private_reason="live_shpoib",
 )
 @pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_subagent_dashboard_handover_state_drawer_render(
+    light_chat: dict[str, object],
+) -> None:
+    """Structured handover state (findings, evidence, citations, artifacts) renders in detail drawer."""
+    chat_id = str(light_chat.get("chatId") or "")
+    assert chat_id
+    ui_url = str(light_chat.get("uiUrl") or f"{get_e2e_ui_url()}/{chat_id}")
+    now = int(time.time() * 1000)
+    rows: list[dict[str, object]] = [
+        {
+            "task_id": "handover-task-1",
+            "parent_task_id": "",
+            "status": "completed",
+            "agent_type": "research",
+            "description": "Handover Analysis Task",
+            "startedAt": now - 15_000,
+            "handover_state": {
+                "summary": "Full analysis completed with evidence and citations.",
+                "findings": [
+                    {
+                        "finding": "E2E Structured Finding Alpha",
+                        "evidence": "src/core/test_proof.py:42",
+                        "confidence": "high",
+                    },
+                    {
+                        "finding": "E2E Structured Finding Beta",
+                        "evidence": "docs/architecture.md:10",
+                        "confidence": "medium",
+                    },
+                ],
+                "citations": ["https://myrm.example.com/docs/handover-e2e"],
+                "artifact_refs": ["artifacts/e2e_benchmark_report.json"],
+                "task_completed": ["Step 1 verification", "Step 2 data collection"],
+                "pending_todos": ["Follow-up review"],
+                "risks_or_notes": ["Memory usage within expected bounds"],
+                "relevant_files": ["src/core/test_proof.py"],
+            },
+        },
+    ]
+    with open_mcp_page(ui_url, timeout_ms=MAX_PAGE_TIMEOUT_MS) as (client, page):
+        _open_dashboard_seeded(client, page, chat_id, rows)
+        tree_rendered = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const panel = document.querySelector('[data-testid="subagent-dashboard-panel"]');
+              const text = panel?.textContent || '';
+              return {
+                ready: /Handover Analysis Task/.test(text) && !!document.querySelector('[data-testid="subagent-view-detail-btn"]'),
+                text: text.slice(0, 400),
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert tree_rendered.get("ready") is True, f"Handover task row not rendered: {tree_rendered}"
+
+        opened_detail = client.evaluate(
+            page,
+            """(() => {
+              const btn = document.querySelector('[data-testid="subagent-view-detail-btn"]');
+              if (!btn) return false;
+              btn.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert opened_detail is True, "Detail button click failed"
+
+        drawer_rendered = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const drawer = document.querySelector('[role="dialog"]');
+              const text = drawer?.textContent || '';
+              return {
+                ready: /Full analysis completed with evidence and citations/.test(text)
+                  && /E2E Structured Finding Alpha/.test(text)
+                  && /src\\/core\\/test_proof\\.py:42/.test(text)
+                  && /https:\\/\\/myrm\\.example\\.com\\/docs\\/handover-e2e/.test(text)
+                  && /artifacts\\/e2e_benchmark_report\\.json/.test(text)
+                  && /Step 1 verification/.test(text),
+                text: text.slice(0, 800),
+                hasDrawer: !!drawer,
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert drawer_rendered.get("ready") is True, f"Handover drawer elements missing: {drawer_rendered}"
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
 @pytest.mark.timeout(540)
 def test_subagent_dashboard_frontend_full_flow_delegation_and_cancel(
     light_chat: dict[str, object],
