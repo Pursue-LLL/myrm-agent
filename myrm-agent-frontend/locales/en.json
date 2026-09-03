@@ -17987,6 +17987,27 @@
       "deleteSuccessTitle": "Snapshot Deleted",
       "deleteSuccessDesc": "Selected historical snapshot removed.",
       "deleteFailedTitle": "Delete Failed"
+    },
+    "dualTrackAudit": {
+      "title": "Dual-Track Prior Audit & Compliance Trail",
+      "description": "Fail-closed pre-act intent logging, post-act result alignment, policy denial telemetry, and zero-leakage compliance exports.",
+      "exportTriggeredTitle": "Exporting Compliance Dossier",
+      "exportTriggeredDesc": "Triggered {format} format audit report generation and download",
+      "totalIntents": "Total Logged Intents",
+      "failClosedLogged": "100% pre-act persisted before execution",
+      "compliancePassRate": "Compliance Pass Rate",
+      "permittedVsTotal": "Permitted actions: {count}",
+      "policyRefusals": "Policy Refusals",
+      "failedExecution": "Execution failures: {count}",
+      "takeTheWheelCount": "Take-The-Wheel Interventions",
+      "humanInterceptionTagged": "Actions during human takeover tagged",
+      "topRulesTitle": "Top Triggered & Refused Rules",
+      "refusalRate": "{rate}% Refused",
+      "hitsSummary": "Triggered {total} times · Refused {refused} times",
+      "permittedSummary": "Permitted {permitted} times",
+      "recentAuditTrail": "Real-Time Audit Trail",
+      "loadingEntries": "Loading audit entries...",
+      "noEntriesYet": "No audit trail records yet"
     }
   }
 }

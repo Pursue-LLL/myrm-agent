@@ -305,6 +305,23 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
         )
 
         mcp_server = MemoryMCPServer(memory_manager)
+
+        from myrm_agent_harness.toolkits.computer_use.mcp_server import (
+            get_request_desktop_session,
+            register_desktop_mcp_tools,
+        )
+
+        register_desktop_mcp_tools(mcp_server.mcp, get_request_desktop_session)
+
+        orig_list_tools = mcp_server.mcp.list_tools
+
+        async def _filtered_list_tools() -> list[object]:
+            tools = await orig_list_tools()
+            if not get_request_desktop_enabled():
+                return [t for t in tools if not getattr(t, "name", "").startswith("desktop_")]
+            return tools
+
+        mcp_server.mcp.list_tools = _filtered_list_tools  # type: ignore[method-assign]
         mcp_asgi_app = mcp_server.get_streamable_http_app(stateless=True)
 
         # FastAPI mount() does not propagate lifespan to sub-apps, so the

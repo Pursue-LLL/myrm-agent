@@ -18,7 +18,7 @@
 | `browse_watch.py` | 模块 | POST/DELETE `/browse/watch` — refcounted vault watch → `WORKSPACE_FILE_CHANGED` SSE. | ✅ |
 | `hosting_api.py` | 模块 | Multi-target artifact publish, hosting targets CRUD, publications | ✅ |
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
-| `local_actions.py` | 模块 | Local-only file reveal/open endpoints（依赖 `reveal_utils`） | ✅ |
+| `local_actions.py` | 模块 | Local-only file reveal/open endpoints（单文件 `POST /files/{id}/reveal`、会话产物目录 `POST /files/chats/{chat_id}/reveal`，依赖 `reveal_utils`） | ✅ |
 | `pdf_extract.py` | 模块 | PDF content extraction API endpoint | ✅ |
 | `revert.py` | 模块 | File revert & review API — exposes `revertible`/`skip_reason` on changes; hydrate/cleanup via `revert_hydrate`; Agent notify via `revert_agent_notify`. | ✅ |
 | `router.py` | 路由 | Files API router | ✅ |
