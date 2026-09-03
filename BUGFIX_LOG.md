@@ -402,3 +402,51 @@ Multiplex 分支：若 POST `content-type` 含 `text/event-stream` → **直接 
 2. **渐进披露与快捷操作缺一不可** — 在提供精准控制能力的同时，必须提供「一键全选」和「清空」等低成本批量操作，配合清晰文案告知用户系统当前的运行模式。
 
 ---
+
+## BUG-AGENT-2026-09-03-002: 多模态媒体工具输入大图导致 413、EXIF 角度颠倒与 RGBA 保存 JPEG 崩溃隐患
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-09-03 |
+| 修复日期 | 2026-09-03 |
+| 严重程度 | **P1（多模态工具链路可用性致命隐患）** |
+| 影响范围 | `app/ai_agents/media_tools/`, `app/tasks/executors/video_executor.py`, `app/ai_agents/general_agent/tool_setup.py` |
+| 出现次数 | 1（架构复盘与边界审查发现） |
+| 关联 | 多模态媒体工具输入防护与图像消毒 |
+
+### 现象
+
+用户上传真实手机摄影大图（如 iPhone 拍的 15MB~25MB 照片，分辨率 4032x3024 带有 EXIF 旋转标签，或带透明通道 RGBA 的设计素材）调用 `image_tool` 或 `video_tool`（如图生视频 I2V）时：
+1. 超大图直接 Base64 编码后膨胀超出下游模型网关限制，下游返回 `413 Payload Too Large` 导致 Agent 任务报错中断；
+2. EXIF 朝向标签在传递给部分仅接收裸图像帧的视频生成 API 时丢失，导致生成视频人脸和物体横躺或倒置 90 度；
+3. 带透明底板的 RGBA/P 图在转换为标准 JPEG 保存或传输时，Pillow 会直接抛出 `OSError: cannot write mode RGBA as JPEG` 导致未捕获 500 异常。
+
+### 根因
+
+1. **媒体工具层缺失自适应消毒纯函数**：`image_agent_tool.py` 与 `video_agent_tool.py` 裸传或裸下载字节，未进行统一的物理像素转置、通道融合与尺寸体积门禁；
+2. **模块依赖存在深层穿透**：外部业务（如 `tool_setup.py`）跳过 `media_tools/__init__.py` 门面直接深层导入各个内部子模块，导致包边界模糊；
+3. **测试夹具单例污染**：`test_media_filter_e2e.py` 中 `ModelCapabilityLearner` 单例污染导致跨测试状态泄露。
+
+### 修复
+
+1. **落地 `image_clamp.py` 纯函数**：实现 `clamp_image_payload` 图像消毒管线：
+   - 自动检测并物理烘焙 EXIF Orientation（`ImageOps.exif_transpose`）；
+   - 对 RGBA/LA/P 模式与纯白底板进行 Alpha 混合，平滑合成纯净 RGB；
+   - 限制长边最大 2048px 并按 LANCZOS 等比缩放，压缩体积 90% 以上；
+   - 小图与合规图无损直通（Lossless Bypass），坏图受控降级容错，显式关闭 Pillow 图像对象防止内存泄漏；
+2. **包级出口门面统一收敛**：重构 `app/ai_agents/media_tools/__init__.py` 为标准 Facade，通过 `__all__` 统一暴露核心工厂与门面函数，消除深层引用；
+3. **多模态全链路挂载**：在 `image_agent_tool.py`（下载输入）、`video_agent_tool.py`（本地输入）与 `video_executor.py`（执行器解析后）完成端到端防御闭环；
+4. **单测夹具与数据库隔离**：修复 `tests/api/agent/conftest.py` 中 `Base.metadata.create_all` 显式预加载模型，并在 `test_media_filter_e2e.py` 中引入 `_clean_capability_learner` autouse fixture 自动清空污染。
+
+### 验证
+
+- `scripts/dev/tests/test_*_static.py` 249/249 全部通过；
+- `tests/unit/ai_agents/media_tools/test_image_clamp.py` 与相关任务单测 58/58 全部通过；
+- `tests/unit/ai_agents/` 全模块单元测试 66/66 全部通过（通过率 100%）。
+
+### 踩坑经验
+
+1. **多模态工具输入必须在服务层设防** — 模型与下游服务网关对多媒体格式极其敏感，千万不要假设用户传入的图片一定格式纯正、体积小巧；必须在数据进入引擎前进行物理朝向烘焙、透明度混合与自适应降采样；
+2. **保持 Harness 纯粹性** — 图像 C 扩展库（如 Pillow）应留在 Server 业务层，Harness 引擎维持纯粹和轻量，防止重型依赖反向污染执行框架。
+
+---
