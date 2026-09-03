@@ -223,7 +223,12 @@ def test_memory_settings_conversation_search_toggle() -> None:
         assert toggled.get("ok") is True, json.dumps(toggled, ensure_ascii=False)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="live_shpoib",
+)
 @pytest.mark.timeout(240)
 def test_memory_citations_evidence_button_opens_unified_sheet() -> None:
     api_url = get_e2e_api_url()

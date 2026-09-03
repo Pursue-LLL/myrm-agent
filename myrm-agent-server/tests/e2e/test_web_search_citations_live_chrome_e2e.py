@@ -309,6 +309,7 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
         assert int(ui_state.get("citationBadgeCount") or 0) >= 1, ui_state
         assert ui_state.get("hasInlineBadge") is True, ui_state
         assert ui_state.get("hasCitationMarker") is True, ui_state
+        assert ui_state.get("triggerTag") in ("A", "SPAN"), ui_state
     finally:
         await session.aclose()
 
@@ -367,5 +368,6 @@ async def test_fast_search_web_search_citations_live_chrome_e2e(
         assert int(ui_state.get("citationBadgeCount") or 0) >= 1, ui_state
         assert ui_state.get("hasInlineBadge") is True, ui_state
         assert ui_state.get("hasCitationMarker") is True, ui_state
+        assert ui_state.get("triggerTag") in ("A", "SPAN"), ui_state
     finally:
         await session.aclose()
