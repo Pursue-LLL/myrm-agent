@@ -410,7 +410,11 @@ function MemoryCitationItem({
       {reference.sourceChatId && (
         <div className="mt-3 pt-3 border-t border-border/50">
           <button
-            onClick={() => onNavigate(reference.sourceChatId!, reference.sourceMessageId)}
+            onClick={() => {
+              if (reference.sourceChatId) {
+                onNavigate(reference.sourceChatId, reference.sourceMessageId);
+              }
+            }}
             className="flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors"
           >
             <MessageSquare size={12} />

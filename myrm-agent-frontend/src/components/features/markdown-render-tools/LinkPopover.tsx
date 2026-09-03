@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/components/primitives/hover-card::HoverCard (POS: Primitives for hover card interactions)
+ * @/store/useChatStore (POS: Global chat state store)
+ * @/store/useBrowserInspectorStore (POS: Browser inspector panel store)
+ *
+ * [OUTPUT]
+ * LinkPopover: Interactive hover preview card for external and citation URLs
+ * formatRelativeDate: Relative date formatter utility for citation timestamps
+ *
+ * [POS]
+ * Citation and link preview popup component. Provides favicon, clean domain, authority badges, and deep browse actions.
+ */
+
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useCallback, useEffect } from 'react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';

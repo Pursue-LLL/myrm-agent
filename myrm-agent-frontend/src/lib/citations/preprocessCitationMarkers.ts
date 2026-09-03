@@ -1,3 +1,18 @@
+/**
+ * [INPUT]
+ * @/store/chat/types::Source (POS: Chat state and SSE event type definitions)
+ * @/store/chat/types/sources::resolveSourceClickUrl (POS: Source navigation URL resolver)
+ * ./maskCodeRegions (POS: Fenced and inline code region masking utility)
+ *
+ * [OUTPUT]
+ * preprocessCitationMarkers: Transforms raw citation markers into <citation> tags
+ * normalizeCitationTitle: Normalizes citation titles with clean domain fallback
+ * stripUnsupportedCitationControlMarkers: Strips unsupported private Unicode tokens
+ *
+ * [POS]
+ * Citation marker preprocessing engine. SSOT for parsing bracketed citations, markdown citation links, and generic title cleanups.
+ */
+
 import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { maskCodeRegions, unmaskCodeRegions } from './maskCodeRegions';
