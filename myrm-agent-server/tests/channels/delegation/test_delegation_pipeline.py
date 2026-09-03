@@ -239,3 +239,107 @@ async def test_router_delegation_inbound_integration(tmp_path: Path) -> None:
     delivery_call = bus.publish_outbound.call_args_list[1]
     delivery_outbound = delivery_call[0][0]
     assert "任务交付通知" in delivery_outbound.content
+
+
+@pytest.mark.asyncio
+async def test_router_delegation_empty_prompt_rejected() -> None:
+    """Test user sending bare /delegate command without prompt receives immediate guidance."""
+    inbound = InboundMessage(
+        channel="feishu",
+        sender_id="ou_mobile_user_empty",
+        chat_id="oc_group_chat_empty",
+        content="/delegate ",
+        user_id="ou_mobile_user_empty",
+    )
+
+    # In router consume loop, bare /delegate is trapped and guided
+    is_del, conf, clean_prompt = is_delegation_intent(inbound.content)
+    assert is_del is True
+    assert conf >= 0.85
+    assert clean_prompt == ""
+
+
+@pytest.mark.asyncio
+async def test_router_delegation_concurrency_quota_exceeded() -> None:
+    """Test exceeding concurrency quota returns friendly rejection card and protects resources."""
+    bus = MagicMock()
+    bus.consume_inbound = AsyncMock(side_effect=TimeoutError)
+    bus.publish_outbound = AsyncMock()
+
+    pairing = MagicMock()
+    executor = MagicMock()
+
+    router = AgentRouter(
+        bus=bus,
+        pairing_store=pairing,
+        agent_executor=executor,
+    )
+
+    inbound = InboundMessage(
+        channel="wechat",
+        sender_id="wx_user_busy",
+        chat_id="wx_chat_busy",
+        content="/delegate 任务一",
+        user_id="wx_user_busy",
+    )
+
+    # Acquire 2 slots first
+    router._delegation_guard.acquire("wechat", "wx_user_busy", "task_busy_1")
+    router._delegation_guard.acquire("wechat", "wx_user_busy", "task_busy_2")
+
+    # 3rd delegation attempt
+    handled = await router._handle_delegation_inbound(inbound, "任务三")
+    assert handled is True
+
+    # Verify rejection message
+    assert bus.publish_outbound.call_count == 1
+    call_args = bus.publish_outbound.call_args_list[0][0][0]
+    assert "当前已有 2 个后台长任务正在执行中" in call_args.content
+
+
+@pytest.mark.asyncio
+async def test_router_delegation_failure_lifecycle_and_error_notification() -> None:
+    """Test background task exception handling: marks FAILED, notifies user, and releases quota."""
+    bus = MagicMock()
+    bus.consume_inbound = AsyncMock(side_effect=TimeoutError)
+    bus.publish_outbound = AsyncMock()
+
+    pairing = MagicMock()
+
+    # Mock an executor that raises sandbox execution error
+    async def _failing_stream(msg: InboundMessage, user_id: str, **kwargs: object):
+        raise RuntimeError("Sandbox container out of memory")
+        yield  # make it an async generator
+
+    executor = MagicMock()
+    executor.execute_stream = _failing_stream
+
+    router = AgentRouter(
+        bus=bus,
+        pairing_store=pairing,
+        agent_executor=executor,
+    )
+
+    inbound = InboundMessage(
+        channel="telegram",
+        sender_id="tg_user_err",
+        chat_id="tg_chat_err",
+        content="/delegate 执行大内存跑批分析",
+        user_id="tg_user_err",
+    )
+
+    handled = await router._handle_delegation_inbound(inbound, "执行大内存跑批分析")
+    assert handled is True
+
+    # Allow background execution to catch exception and report failure
+    await asyncio.sleep(0.1)
+
+    # Bus should have receipt + error notification
+    assert bus.publish_outbound.call_count >= 2
+    err_outbound = bus.publish_outbound.call_args_list[-1][0][0]
+    assert "执行失败" in err_outbound.content
+    assert "Sandbox container out of memory" in err_outbound.content
+
+    # Quota must be released despite failure
+    assert router._delegation_guard.can_accept("telegram", "tg_user_err") is True
+

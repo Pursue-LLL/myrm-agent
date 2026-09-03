@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
@@ -37,13 +39,15 @@ async def get_usage_by_agent(
         totals_stmt = (
             select(
                 Chat.agent_id,
+                Chat.source,
+                (Chat.ephemeral_subagents.isnot(None)).label("has_subagents"),
                 func.sum(Chat.total_tokens).label("tokens"),
                 func.sum(Chat.total_usd).label("usd"),
                 func.sum(Chat.total_calls).label("calls"),
                 func.count(Chat.id).label("sessions"),
             )
             .where(Chat.agent_id.isnot(None))
-            .group_by(Chat.agent_id)
+            .group_by(Chat.agent_id, Chat.source, Chat.ephemeral_subagents.isnot(None))
         )
         totals_result = await db.execute(totals_stmt)
         totals_rows = totals_result.all()
@@ -51,9 +55,54 @@ async def get_usage_by_agent(
         if not totals_rows:
             return success_response(data={"agents": [], "total_agents": 0})
 
-        agent_ids = [row.agent_id for row in totals_rows]
-        grand_total_tokens = sum(row.tokens or 0 for row in totals_rows)
-        grand_total_usd = sum(row.usd or 0.0 for row in totals_rows)
+        agent_agg: dict[str, dict[str, Any]] = {}
+        for row in totals_rows:
+            aid = row.agent_id
+            tokens = getattr(row, "tokens", 0) or 0
+            usd = getattr(row, "usd", 0.0) or 0.0
+            calls = getattr(row, "calls", 0) or 0
+            sessions = getattr(row, "sessions", 0) or 0
+            source = str(getattr(row, "source", "web") or "web").lower()
+            has_subagents = bool(getattr(row, "has_subagents", False))
+
+            if aid not in agent_agg:
+                agent_agg[aid] = {
+                    "tokens": 0,
+                    "usd": 0.0,
+                    "calls": 0,
+                    "sessions": 0,
+                    "web_usd": 0.0,
+                    "cron_usd": 0.0,
+                    "channel_usd": 0.0,
+                    "subagents_usd": 0.0,
+                    "web_tokens": 0,
+                    "cron_tokens": 0,
+                    "channel_tokens": 0,
+                    "subagents_tokens": 0,
+                }
+
+            item = agent_agg[aid]
+            item["tokens"] += tokens
+            item["usd"] += usd
+            item["calls"] += calls
+            item["sessions"] += sessions
+
+            if has_subagents:
+                item["subagents_usd"] += usd
+                item["subagents_tokens"] += tokens
+            elif source == "cron":
+                item["cron_usd"] += usd
+                item["cron_tokens"] += tokens
+            elif source in ("channel", "discord", "slack", "telegram", "feishu", "dingtalk", "wechat") or source.startswith("channel"):
+                item["channel_usd"] += usd
+                item["channel_tokens"] += tokens
+            else:
+                item["web_usd"] += usd
+                item["web_tokens"] += tokens
+
+        agent_ids = list(agent_agg.keys())
+        grand_total_tokens = sum(item["tokens"] for item in agent_agg.values())
+        grand_total_usd = sum(item["usd"] for item in agent_agg.values())
 
         agents_stmt = select(Agent.id, Agent.name, Agent.avatar).where(Agent.id.in_(agent_ids))
         agents_result = await db.execute(agents_stmt)
@@ -79,33 +128,44 @@ async def get_usage_by_agent(
             }
 
         agents_data = []
-        for row in sorted(totals_rows, key=lambda r: r.usd or 0, reverse=True):
-            agent_id = row.agent_id
-            name, avatar = agent_map.get(agent_id, (agent_id, None))
-            tokens = row.tokens or 0
-            usd = row.usd or 0.0
+        for aid, item in sorted(agent_agg.items(), key=lambda pair: pair[1]["usd"], reverse=True):
+            name, avatar = agent_map.get(aid, (aid, None))
+            tokens = item["tokens"]
+            usd = item["usd"]
             percent_tokens = (tokens / grand_total_tokens * 100) if grand_total_tokens > 0 else 0
             percent_usd = (usd / grand_total_usd * 100) if grand_total_usd > 0 else 0
 
             sparkline = []
-            agent_daily = daily_map.get(agent_id, {})
+            agent_daily = daily_map.get(aid, {})
             for i in range(days):
                 day_str = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
                 day_data = agent_daily.get(day_str, {"tokens": 0, "usd": 0.0})
                 sparkline.append({"date": day_str, **day_data})
 
+            attribution = {
+                "webUsd": round(item["web_usd"], 6),
+                "cronUsd": round(item["cron_usd"], 6),
+                "channelUsd": round(item["channel_usd"], 6),
+                "subagentsUsd": round(item["subagents_usd"], 6),
+                "webTokens": item["web_tokens"],
+                "cronTokens": item["cron_tokens"],
+                "channelTokens": item["channel_tokens"],
+                "subagentsTokens": item["subagents_tokens"],
+            }
+
             agents_data.append(
                 {
-                    "agentId": agent_id,
+                    "agentId": aid,
                     "name": name,
                     "avatar": avatar,
                     "totalTokens": tokens,
                     "totalUsd": round(usd, 6),
-                    "totalCalls": row.calls or 0,
-                    "sessions": row.sessions or 0,
+                    "totalCalls": item["calls"],
+                    "sessions": item["sessions"],
                     "percentTokens": round(percent_tokens, 1),
                     "percentUsd": round(percent_usd, 1),
                     "sparkline": sparkline,
+                    "attribution": attribution,
                 }
             )
 

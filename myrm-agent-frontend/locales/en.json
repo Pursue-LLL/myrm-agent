@@ -10714,7 +10714,12 @@
     "download": "Download",
     "downloadBundle": "Download All (.zip)",
     "downloadingBundle": "Packaging…",
-    "downloadBundleFailed": "Failed to create the bundle archive"
+    "downloadBundleFailed": "Failed to create the bundle archive",
+    "exposeDesktopTools": "Expose Desktop Control Tools",
+    "exposeDesktopToolsDesc": "Expose Semantic Desktop Control tools (desktop_snapshot_tool, desktop_interact_tool, desktop_vision_tool) alongside memory tools to the external agent.",
+    "exposeDesktopDisabledHint": "Current agent profile does not have computer use capability enabled or the deployment environment does not support desktop automation.",
+    "exposeDesktopEnabledBadge": "Desktop Automation Enabled",
+    "desktopToolsIncluded": "Desktop Control tools included: {tools}"
   },
   "securityDashboard": {
     "title": "Security Dashboard",

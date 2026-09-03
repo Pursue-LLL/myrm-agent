@@ -31,6 +31,8 @@ export interface GenerateConfigResponse {
   token: string;
   config_json: Record<string, unknown>;
   instructions: string;
+  expose_desktop?: boolean;
+  desktop_tools?: string[];
 }
 
 export interface DoctorResponse {
@@ -57,6 +59,14 @@ export interface ConnectorStatus {
   last_doctor_detail: string;
   connected_at: string | null;
   last_doctor_at: string | null;
+  expose_desktop?: boolean;
+}
+
+export interface AgentConnectCapabilityResponse {
+  agent_id: string;
+  has_computer_use: boolean;
+  desktop_deploy_supported: boolean;
+  can_expose_desktop: boolean;
 }
 
 export interface AgentPluginBundleResponse {
@@ -75,11 +85,22 @@ export async function listConnectProfiles(): Promise<ConnectProfile[]> {
 export async function generateConnectConfig(
   profileId: string,
   agentId: string = 'default',
+  exposeDesktop: boolean = false,
 ): Promise<GenerateConfigResponse> {
   return apiRequest<GenerateConfigResponse>('/connect/generate', {
     method: 'POST',
-    body: JSON.stringify({ profile_id: profileId, agent_id: agentId }),
+    body: JSON.stringify({
+      profile_id: profileId,
+      agent_id: agentId,
+      expose_desktop: exposeDesktop,
+    }),
   });
+}
+
+export async function getAgentConnectCapabilities(
+  agentId: string,
+): Promise<AgentConnectCapabilityResponse> {
+  return apiRequest<AgentConnectCapabilityResponse>(`/connect/agent-capabilities/${encodeURIComponent(agentId)}`);
 }
 
 export async function runConnectDoctor(profileId: string): Promise<DoctorResponse> {

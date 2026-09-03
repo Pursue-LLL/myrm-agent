@@ -652,7 +652,17 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             # Check for Mobile-to-Desktop Asynchronous Task Delegation
             if msg.content and isinstance(msg.content, str):
                 is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
-                if is_delegated and confidence >= 0.85 and clean_prompt:
+                if is_delegated and confidence >= 0.85:
+                    if not clean_prompt:
+                        reply = OutboundMessage(
+                            channel=msg.channel,
+                            recipient_id=chat_id,
+                            content="⚠️ 请在委派指令后附带具体任务内容，例如：`/delegate 调研行业竞品并生成PPT`",
+                            user_id=msg.user_id or "",
+                            thread_id=msg.thread_id,
+                        )
+                        asyncio.create_task(self._bus.publish_outbound(reply))
+                        continue
                     handled_delegation = await self._handle_delegation_inbound(msg, clean_prompt)
                     if handled_delegation:
                         continue

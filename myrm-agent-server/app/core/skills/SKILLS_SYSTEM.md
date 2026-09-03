@@ -96,7 +96,7 @@ builtin_initializer                  BuiltIn Agent 预绑定 default_skill_ids�
 | 第三方 SaaS（Google/Notion/Linear）怎么用？ | **Skill** 编排 `web_fetch_tool` / `bash_code_execute_tool`；或用户配置 **MCP** |
 | 何时新增 harness `@tool()`？ | 仅当能力是**跨项目通用框架原语**（见 `toolkits/_ARCH.md`） |
 | 预置 skill 上架条件 | `allowed-tools` 工具名正确（CI：`test_prebuilt_allowed_tools_match_tool_registry`）+ 依赖 OAuth/MCP **已在产品中可用** |
-| 正例 | Google Workspace prebuilt skill + Settings OAuth GUI；`x-live-search` prebuilt skill + xAI provider + deferred `x_search_tool`（**不依赖** Agent Web Search/Tavily） |
+| 正例 | Google Workspace prebuilt skill + Settings OAuth GUI；`x-live-search` prebuilt skill + xAI provider + 沙箱标准脚本 PTC（**不依赖** Agent Web Search/Tavily，0 Action Tool 注册） |
 
 Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harness 工具实现单一厂商集成。
 

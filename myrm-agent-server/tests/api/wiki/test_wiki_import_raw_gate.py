@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
 from app.core.security.auth.identity import LOCAL_USER_ID
@@ -343,6 +344,9 @@ def test_import_video_bilibili_success(tmp_path: Path) -> None:
     )
 
     with patch(
+        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+        new=AsyncMock(return_value=SSRFResult(safe=True)),
+    ), patch(
         "myrm_agent_harness.toolkits.wiki.pipeline.ingress.video_ingress.extract_bilibili_subtitle",
         new=AsyncMock(return_value=fake_doc),
     ):

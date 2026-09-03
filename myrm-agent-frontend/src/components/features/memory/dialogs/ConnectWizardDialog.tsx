@@ -18,6 +18,7 @@ import {
   listConnectProfiles,
   generateConnectConfig,
   generateAgentPluginBundle,
+  getAgentConnectCapabilities,
   revokeConnect,
   runConnectDoctor,
 } from '@/services/connect';
@@ -71,6 +72,8 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   const [pluginEmbedToken, setPluginEmbedToken] = useState(false);
   const [doctorResult, setDoctorResult] = useState<DoctorOutcome | null>(null);
   const [doctorRunning, setDoctorRunning] = useState(false);
+  const [exposeDesktop, setExposeDesktop] = useState(false);
+  const [canExposeDesktop, setCanExposeDesktop] = useState(false);
 
   const loadProfiles = useCallback(async () => {
     try {
@@ -100,6 +103,31 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
   }, [agents, selectedAgentId]);
 
   useEffect(() => {
+    let active = true;
+    if (!selectedAgentId) {
+      setCanExposeDesktop(false);
+      setExposeDesktop(false);
+      return;
+    }
+    void getAgentConnectCapabilities(selectedAgentId)
+      .then((res) => {
+        if (!active) return;
+        setCanExposeDesktop(res.can_expose_desktop);
+        if (!res.can_expose_desktop) {
+          setExposeDesktop(false);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setCanExposeDesktop(false);
+        setExposeDesktop(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedAgentId]);
+
+  useEffect(() => {
     if (!open) {
       return;
     }
@@ -117,6 +145,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     setRevokeConfirming(false);
     setClearSyncedMemory(false);
     setDownloadingBundle(false);
+    setExposeDesktop(false);
     void loadAgents();
     loadProfiles();
   }, [open, loadProfiles, loadAgents]);
@@ -134,7 +163,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     }
     setLoading(true);
     try {
-      const result = await generateConnectConfig(selectedProfile, selectedAgentId);
+      const result = await generateConnectConfig(selectedProfile, selectedAgentId, exposeDesktop);
       setConfigResult(result);
       setStep('config');
     } catch {
@@ -142,7 +171,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     } finally {
       setLoading(false);
     }
-  }, [selectedProfile, selectedAgentId]);
+  }, [selectedProfile, selectedAgentId, exposeDesktop]);
 
   const handleCopyConfig = useCallback(async () => {
     if (!configResult) {

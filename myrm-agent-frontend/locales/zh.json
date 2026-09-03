@@ -10714,7 +10714,12 @@
     "download": "下载",
     "downloadBundle": "下载全部 (.zip)",
     "downloadingBundle": "正在打包…",
-    "downloadBundleFailed": "创建插件压缩包失败"
+    "downloadBundleFailed": "创建插件压缩包失败",
+    "exposeDesktopTools": "暴露桌面控制工具",
+    "exposeDesktopToolsDesc": "在提供记忆工具的同时，向外部智能体暴露语义桌面控制工具（desktop_snapshot_tool、desktop_interact_tool、desktop_vision_tool）。",
+    "exposeDesktopDisabledHint": "当前 Agent 配置未启用计算机操作能力，或当前部署环境不支持桌面自动化。",
+    "exposeDesktopEnabledBadge": "已启用桌面控制",
+    "desktopToolsIncluded": "包含桌面控制工具：{tools}"
   },
   "securityDashboard": {
     "title": "安全仪表盘",

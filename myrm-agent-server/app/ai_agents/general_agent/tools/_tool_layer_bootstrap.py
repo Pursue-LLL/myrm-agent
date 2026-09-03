@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.tool_management::register_tool_layer (POS: Tool layer
   priority registry API.)
 - myrm_agent_harness.agent.tool_management::ToolLayer (POS: Tool layer enum
-  CORE=1, COMMON=2, EXTENDED=3, EXTERNAL=4.)
+  CORE=1, HIGH_PRIORITY=2, EXTENDED=3, EXTERNAL=4.)
 
 [OUTPUT]
 - register_server_tools(): Idempotent registration of every server-specific

@@ -319,3 +319,40 @@ Multiplex 分支：若 POST `content-type` 含 `text/event-stream` → **直接 
 - Vitest resumeApprovalStream 1/1 + streamConsumer 14/14
 
 ---
+
+## BUG-AGENT-2026-09-03-001: SharedContext 序列化 bindings 迭代异常导致 API 500
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-09-03 |
+| 修复日期 | 2026-09-03 |
+| 严重程度 | **P2（API 健壮性与测试阻断）** |
+| 影响范围 | `app/api/memory/operations/shared_context/shared_context_serializers.py`, `app/main.py` |
+| 出现次数 | 1（集成测试中暴露） |
+| 关联 | 共享上下文服务 `test_live_shared_context_memory_smoke.py` |
+
+### 现象
+
+在共享上下文接口调用中，创建或读取 SharedContextModel 时偶发 500 Internal Server Error，错误穿透至最外层通用异常捕获。
+
+### 根因
+
+1. `context_to_item` 函数中通过列表推导式提取 `assigned_agent_ids`：`[b.target_id for b in (context.bindings or []) if getattr(b, "target_type", None) == "agent"]`。当 `bindings` 包含非标对象或在边缘情况下访问属性抛出异常时，无局部异常保护，直接导致整次序列化失败崩溃；
+2. `app/main.py` 中数据库与自定义错误处理器的注册顺序排在通用 404/Exception 之后，导致业务自定义异常拦截失效。
+
+### 修复
+
+1. 在 `shared_context_serializers.py` 中增加保护性 `try-except Exception` 兜底，解析失败时优雅降级为返回空列表 `[]`；
+2. 调整 `app/main.py` 异常处理器注册顺序，将 `register_database_operational_handlers` 和 `register_exception_handlers` 提升到全局通用异常处理器之前。
+
+### 验证
+
+- `test_shared_context_service.py` 17 项全通过；
+- `test_live_shared_context_memory_smoke.py` 冒烟测试全通过。
+
+### 踩坑经验
+
+1. **DTO/Model 序列化函数必须具备绝对容错能力** — 数据对象展示层转换绝不能因为关联数据的非核心子字段异常而直接炸掉主流程接口；
+2. **FastAPI 异常处理器注册顺序遵循后注册者优先级规则** — 业务领域异常必须保证优先命中，防止被顶层全局 `Exception` 粗暴拦截掩盖真实根因。
+
+---

@@ -259,3 +259,50 @@ class TestGetUsageByAgent:
 
         assert data["grand_total_tokens"] == 1000
         assert data["grand_total_usd"] == 0.05
+
+    @pytest.mark.asyncio
+    async def test_agent_usage_attribution_sources_and_subagents(self):
+        mock_db = AsyncMock()
+
+        web_row = SimpleNamespace(
+            agent_id="agent-pro", tokens=500, usd=0.02, calls=5, sessions=2, source="web", has_subagents=False
+        )
+        cron_row = SimpleNamespace(
+            agent_id="agent-pro", tokens=300, usd=0.015, calls=3, sessions=1, source="cron", has_subagents=False
+        )
+        subagent_row = SimpleNamespace(
+            agent_id="agent-pro", tokens=200, usd=0.01, calls=2, sessions=1, source="web", has_subagents=True
+        )
+
+        totals_result = MagicMock()
+        totals_result.all.return_value = [web_row, cron_row, subagent_row]
+
+        agents_result = MagicMock()
+        agents_result.all.return_value = [_make_agent_row("agent-pro", "Pro Assistant")]
+
+        daily_result = MagicMock()
+        daily_result.all.return_value = []
+
+        mock_db.execute.side_effect = [totals_result, agents_result, daily_result]
+
+        response = await get_usage_by_agent(days=7, db=mock_db)
+        import json
+
+        parsed = json.loads(response.body)
+        data = parsed["data"]
+        assert data["total_agents"] == 1
+        agent = data["agents"][0]
+        assert agent["agentId"] == "agent-pro"
+        assert agent["totalTokens"] == 1000
+        assert agent["totalUsd"] == 0.045
+        assert agent["totalCalls"] == 10
+        assert agent["sessions"] == 4
+        attribution = agent["attribution"]
+        assert attribution["webUsd"] == 0.02
+        assert attribution["cronUsd"] == 0.015
+        assert attribution["subagentsUsd"] == 0.01
+        assert attribution["channelUsd"] == 0.0
+        assert attribution["webTokens"] == 500
+        assert attribution["cronTokens"] == 300
+        assert attribution["subagentsTokens"] == 200
+
