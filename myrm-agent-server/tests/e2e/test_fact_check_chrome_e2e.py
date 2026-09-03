@@ -192,7 +192,8 @@ def test_fact_check_sheet_viewer_chrome_e2e() -> None:
         }
 
         # 3. Mount & Evaluate FactCheckSheet in real Chrome DOM
-        eval_script = _MOUNT_AND_VERIFY_FACT_CHECK_SHEET_JS % (
+        eval_script = _MOUNT_AND_VERIFY_FACT_CHECK_SHEET_JS.replace(
+            "%s",
             json.dumps(mock_sheet),
         )
         result = client.evaluate(page, eval_script, timeout_sec=15.0)
