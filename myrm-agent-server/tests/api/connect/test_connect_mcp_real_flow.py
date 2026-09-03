@@ -189,5 +189,53 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
             assert len(content) == 1
             assert content[0]["text"] == "Desktop AX Tree Root"
 
+            # 8. Edge Case: Unauthorized desktop call with memory-only token
+            resp_unauth_call = client.post(
+                "/mcp", headers=headers_mem, json=mcp_rpc_call_tool
+            )
+            assert resp_unauth_call.status_code == 200
+            unauth_data = resp_unauth_call.json()
+            # In MCP protocol, requesting a non-existent / masked tool returns an error or empty/unknown tool result
+            assert "error" in unauth_data or "isError" in str(unauth_data) or "not found" in str(unauth_data).lower()
+
+            # 9. Edge Case: Invalid Bearer token (returns 403 Forbidden per endpoint security specification)
+            resp_bad_token = client.post(
+                "/mcp",
+                headers={"Authorization": "Bearer myrm_mcp_invalid_token", "Content-Type": "application/json"},
+                json=mcp_rpc_list_tools,
+            )
+            assert resp_bad_token.status_code == 403
+
+            # 10. Edge Case: Call desktop_interact_tool and desktop_vision_tool
+            mcp_rpc_call_interact = {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "desktop_interact_tool",
+                    "arguments": {"ref": "@dref_1", "action": "click"},
+                },
+            }
+            resp_interact = client.post(
+                "/mcp", headers=headers_desk, json=mcp_rpc_call_interact
+            )
+            assert resp_interact.status_code == 200
+            assert resp_interact.json().get("result", {}).get("content", [])[0]["text"] == "Interacted"
+
+            mcp_rpc_call_vision = {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "desktop_vision_tool",
+                    "arguments": {"action": "capture"},
+                },
+            }
+            resp_vision = client.post(
+                "/mcp", headers=headers_desk, json=mcp_rpc_call_vision
+            )
+            assert resp_vision.status_code == 200
+            assert resp_vision.json().get("result", {}).get("content", [])[0]["text"] == "Vision Captured"
+
         finally:
             await shutdown_mcp_endpoint()

@@ -210,3 +210,61 @@ async def test_sync_file_incremental_append_growth(
     assert cid2 == cid1
     offset_after_second = int(watermarks[str(grow_file.resolve())]["offset"])
     assert offset_after_second > offset_after_first
+
+
+@pytest.mark.asyncio
+async def test_sync_file_truncation_or_rotation_recovery(
+    db_session: AsyncSession, tmp_path: Path
+) -> None:
+    rotate_file = tmp_path / "rotating_session.jsonl"
+    wm_file = tmp_path / "wm_rotate.json"
+    service = ExternalTranscriptSyncService(watermark_path=wm_file)
+    watermarks: dict[str, dict[str, object]] = {}
+
+    initial_content = json.dumps({
+        "type": "user",
+        "message": {"role": "user", "content": "Initial prompt before truncation"},
+    }) + "\n" + json.dumps({
+        "type": "assistant",
+        "message": {"role": "assistant", "content": "Initial long response" * 5},
+    }) + "\n"
+    rotate_file.write_text(initial_content, encoding="utf-8")
+
+    turns1, cid1 = await service.sync_file(
+        db_session, rotate_file, watermarks=watermarks
+    )
+    assert turns1 == 1
+
+    # Truncate and rewrite with smaller content (simulating rotation/rewrite)
+    smaller_content = json.dumps({
+        "type": "user",
+        "message": {"role": "user", "content": "New shorter session"},
+    }) + "\n" + json.dumps({
+        "type": "assistant",
+        "message": {"role": "assistant", "content": "Short reply"},
+    }) + "\n"
+    assert len(smaller_content.encode("utf-8")) < len(initial_content.encode("utf-8"))
+    rotate_file.write_text(smaller_content, encoding="utf-8")
+
+    turns2, cid2 = await service.sync_file(
+        db_session, rotate_file, watermarks=watermarks
+    )
+    assert turns2 == 1
+    assert cid2 == cid1
+    assert watermarks[str(rotate_file.resolve())]["offset"] == len(smaller_content.encode("utf-8"))
+
+
+@pytest.mark.asyncio
+async def test_sync_empty_or_nonexistent_file(
+    db_session: AsyncSession, tmp_path: Path
+) -> None:
+    service = ExternalTranscriptSyncService()
+    turns, cid = await service.sync_file(db_session, tmp_path / "nonexistent.jsonl")
+    assert turns == 0
+    assert cid is None
+
+    empty_file = tmp_path / "empty.jsonl"
+    empty_file.write_text("", encoding="utf-8")
+    turns_empty, cid_empty = await service.sync_file(db_session, empty_file)
+    assert turns_empty == 0
+    assert cid_empty is None

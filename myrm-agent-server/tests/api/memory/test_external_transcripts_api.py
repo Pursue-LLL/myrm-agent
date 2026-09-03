@@ -141,3 +141,17 @@ def test_sync_invalid_directory_returns_error(app_with_db: TestClient) -> None:
     assert data["synced_files"] == 0
     assert len(data["errors"]) > 0
     assert "Directory does not exist" in data["errors"][0]
+
+
+def test_sync_empty_payload_and_fallback(app_with_db: TestClient, tmp_path: Path) -> None:
+    # When neither directory nor uploaded_files provided, and default dir doesn't exist
+    res = app_with_db.post(
+        "/api/v1/memory/external-transcripts/sync",
+        json={"source": "external:claude_code"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data["synced_files"], int)
+    assert isinstance(data["new_turns"], int)
+    assert isinstance(data["affected_chats"], list)
+    assert isinstance(data["errors"], list)

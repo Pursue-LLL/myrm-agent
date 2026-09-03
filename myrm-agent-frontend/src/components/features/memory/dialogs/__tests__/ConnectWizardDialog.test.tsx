@@ -407,4 +407,55 @@ describe('ConnectWizardDialog desktop tools exposure', () => {
     expect(screen.getByText('Desktop Automation Enabled')).toBeInTheDocument();
     expect(screen.getByText(/desktop_snapshot_tool/)).toBeInTheDocument();
   });
+
+  it('resets expose_desktop when switching to an agent that does not support desktop', async () => {
+    render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+    await screen.findByText('Cursor');
+    const toggle = await screen.findByRole('switch', { name: /Expose Desktop Control Tools/i });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+
+    // Switch agent to one without computer_use
+    getAgentConnectCapabilitiesMock.mockResolvedValueOnce({
+      agent_id: 'no-cu-agent',
+      has_computer_use: false,
+      desktop_deploy_supported: false,
+      can_expose_desktop: false,
+    });
+
+    const agentSelect = screen.getByRole('combobox');
+    fireEvent.click(agentSelect);
+    // Trigger agent change
+    const options = await screen.findAllByRole('option');
+    if (options.length > 1) {
+      fireEvent.click(options[1]);
+    }
+
+    await waitFor(() => {
+      expect(toggle).toBeDisabled();
+    });
+  });
+
+  it('generates config with expose_desktop false when toggle is kept off', async () => {
+    generateConnectConfigMock.mockResolvedValueOnce({
+      agent_id: 'default',
+      token: 'mem_tok',
+      instructions: 'Add to cursor',
+      config_json: { mcpServers: { 'myrm-memory': {} } },
+      expose_desktop: false,
+      desktop_tools: [],
+    });
+
+    render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+    await screen.findByText('Cursor');
+    fireEvent.click(screen.getByText('Cursor'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+    await waitFor(() => {
+      expect(generateConnectConfigMock).toHaveBeenCalledWith('cursor', 'default', false);
+    });
+    await screen.findByText('configReady');
+    expect(screen.queryByText('Desktop Automation Enabled')).not.toBeInTheDocument();
+  });
 });

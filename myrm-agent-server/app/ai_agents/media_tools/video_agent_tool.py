@@ -95,6 +95,33 @@ def _serialize_task(task: object) -> dict[str, object]:
     }
 
 
+def _clamp_reference_sources(sources: list[str] | None) -> list[str] | None:
+    """Auto-clamp local reference image paths to prevent oversize / orientation faults."""
+    if not sources:
+        return None
+    from pathlib import Path
+    import tempfile
+    from app.ai_agents.media_tools.image_clamp import clamp_image_payload
+
+    sanitized: list[str] = []
+    for src in sources:
+        try:
+            p = Path(src).expanduser().resolve()
+            if p.is_file():
+                raw = p.read_bytes()
+                clamped, _, _ = clamp_image_payload(raw)
+                if len(clamped) != len(raw) or clamped is not raw:
+                    tf = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                    tf.write(clamped)
+                    tf.close()
+                    sanitized.append(tf.name)
+                    continue
+        except Exception:
+            pass
+        sanitized.append(src)
+    return sanitized
+
+
 def create_video_generation_tool(
     engine: VideoGenerationTools,
     *,
@@ -130,6 +157,8 @@ def create_video_generation_tool(
         if seed is not None:
             extra_params["seed"] = seed
 
+        safe_reference_images = _clamp_reference_sources(reference_images)
+
         if async_config is None:
             kwargs: dict[str, object] = {
                 "prompt": prompt,
@@ -139,7 +168,7 @@ def create_video_generation_tool(
                 "aspect_ratio": aspect_ratio,
                 "resolution": resolution,
                 "enable_audio": enable_audio,
-                "reference_images": reference_images,
+                "reference_images": safe_reference_images,
                 "reference_videos": reference_videos,
                 "force": force,
             }
@@ -163,7 +192,7 @@ def create_video_generation_tool(
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,
                 enable_audio=enable_audio,
-                reference_images=reference_images,
+                reference_images=safe_reference_images,
                 reference_videos=reference_videos,
                 extra_params=extra_params or None,
                 force=force,

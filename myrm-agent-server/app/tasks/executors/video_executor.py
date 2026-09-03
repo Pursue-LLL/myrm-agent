@@ -61,6 +61,10 @@ class VideoTaskExecutor:
         reference_images = _coerce_str_list(payload.get("reference_images"))
         reference_videos = _coerce_str_list(payload.get("reference_videos"))
         resolved_images = await _resolve_image_inputs(reference_images) if reference_images else None
+        if resolved_images:
+            from app.ai_agents.media_tools.image_clamp import clamp_image_payload
+
+            resolved_images = [clamp_image_payload(img)[0] for img in resolved_images]
         resolved_videos = await _resolve_video_inputs(reference_videos) if reference_videos else None
 
         extra_params_raw = payload.get("extra_params")

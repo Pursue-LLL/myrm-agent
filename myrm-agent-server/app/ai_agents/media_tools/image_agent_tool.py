@@ -102,20 +102,21 @@ def _serialize_task(task: object) -> dict[str, object]:
 
 
 async def _fetch_image_bytes(url: str, *, allow_private_networks: bool = False) -> tuple[bytes, str | None, int]:
+    from app.ai_agents.media_tools.image_clamp import clamp_image_payload
+
     if allow_private_networks:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
             response = await client.get(url)
             response.raise_for_status()
             content_type = response.headers.get("content-type")
-            return response.content, content_type, len(response.content)
+            return clamp_image_payload(response.content, content_type=content_type)
 
     from myrm_agent_harness.core.security.http.secure_fetch import secure_get
 
     response = await secure_get(url, timeout=30.0)
     response.raise_for_status()
     content_type = response.headers.get("content-type")
-    body = response.content
-    return body, content_type, len(body)
+    return clamp_image_payload(response.content, content_type=content_type)
 
 
 def create_image_generation_tool(
