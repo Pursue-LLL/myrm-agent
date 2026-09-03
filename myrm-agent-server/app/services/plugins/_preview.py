@@ -2,6 +2,20 @@
 
 Builds preview payloads for uploaded plugin packages and performs fast offline
 pre-validation (content size limits, schema structure, skill AST/regex security).
+
+[INPUT]
+- myrm_agent_harness.agent.plugins.models::PluginParseResult, PluginSkill, PluginMcpServer (POS: parsed plugin models.)
+- myrm_agent_harness.agent.skills.evolution.db.store::SkillStore (POS: storage size limits.)
+- app.core.skills.store.evolution_store::get_evolution_skill_store (POS: active skill name lookup.)
+
+[OUTPUT]
+- build_preview_result: build structured preview dictionary for plugin import wizard.
+- load_existing_skill_ids: load active skills map for collision detection.
+- scan_skill_security: validate skill content security rules.
+- skill_content_too_large: check whether skill content exceeds storage ceiling.
+
+[POS]
+Business-layer preview builder and offline validation logic for uploaded agent plugin archives.
 """
 
 from __future__ import annotations

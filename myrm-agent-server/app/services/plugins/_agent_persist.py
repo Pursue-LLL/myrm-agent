@@ -2,6 +2,19 @@
 
 Persists ``PluginAgent`` records into ``AgentService`` as Agent profiles with
 automatic subagent linking and safe template workspace files embedding.
+
+[INPUT]
+- ._models::PluginImportSession, PluginConfirmItem (POS: plugin import DTOs.)
+- myrm_agent_harness.agent.plugins.models::PluginAgent (POS: parsed plugin agent dataclass.)
+- app.database.dto::AgentCreate (POS: DTO for creating new Agent profiles.)
+- app.services.agent.agent_service::AgentService (POS: business service for managing agent profiles.)
+
+[OUTPUT]
+- persist_imported_agents: persist selected PluginAgent entries into Agent profiles with subagent linking.
+- sanitize_imported_security_overrides: strip dangerous permission overrides from imported profiles.
+
+[POS]
+Business-layer persistence helper for imported plugin agents and subagent team hierarchies.
 """
 
 from __future__ import annotations
