@@ -174,6 +174,24 @@ describe('useGoalPlanSync', () => {
     expect(usePlanStore.getState().plan?.steps[0].status).toBe('skipped');
   });
 
+  it('maps blocked status to blocked', () => {
+    renderHook(() => useGoalPlanSync('chat-1'));
+
+    act(() => {
+      usePlanStore.setState({ plan: makePlan() });
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('tasks_steps', {
+          detail: { chat_id: 'chat-1', type: 'tasks_steps', step_key: 'todo_step_a', status: 'blocked' },
+        }),
+      );
+    });
+
+    expect(usePlanStore.getState().plan?.steps[0].status).toBe('blocked');
+  });
+
   it('maps unknown status to pending', () => {
     renderHook(() => useGoalPlanSync('chat-1'));
 
